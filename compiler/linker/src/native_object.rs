@@ -48,6 +48,7 @@ enum NativeSelectionChecks {
     Darwin {
         common: BTreeSet<String>,
         implicit_inputs: Vec<u32>,
+        cxx: bool,
     },
     Elf {
         rejection: Option<String>,
@@ -83,13 +84,16 @@ impl NativeObjectIndex {
     pub fn read_with_toolchain(
         bytes: &[u8],
         toolchain: &CBridgeToolchainProfileV1,
+        cxx: bool,
     ) -> Result<Self, LinkError> {
         match toolchain.contract().target().id() {
-            TargetProfileId::DarwinAarch64 => {
-                Self::read(bytes, toolchain.contract().deployment().map_err(error)?)
-            }
+            TargetProfileId::DarwinAarch64 => Self::read_with_mode(
+                bytes,
+                toolchain.contract().deployment().map_err(error)?,
+                cxx,
+            ),
             target @ (TargetProfileId::LinuxX86_64Gnu | TargetProfileId::LinuxX86_64Musl) => {
-                elf::index(bytes, target)
+                elf::index(bytes, target, cxx)
             }
         }
     }
@@ -97,6 +101,14 @@ impl NativeObjectIndex {
     pub fn read(
         bytes: &[u8],
         deployment: &DarwinCBridgeDeploymentContractV1,
+    ) -> Result<Self, LinkError> {
+        Self::read_with_mode(bytes, deployment, false)
+    }
+
+    fn read_with_mode(
+        bytes: &[u8],
+        deployment: &DarwinCBridgeDeploymentContractV1,
+        cxx: bool,
     ) -> Result<Self, LinkError> {
         let file: MachOFile64<'_> = MachOFile64::parse(bytes).map_err(error)?;
         if file.architecture() != Architecture::Aarch64
@@ -199,6 +211,7 @@ impl NativeObjectIndex {
             selection: NativeSelectionChecks::Darwin {
                 common,
                 implicit_inputs,
+                cxx,
             },
         })
     }

@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "callback.h"
 #include "scoop_rt.h"
 #include "thread.h"
 
@@ -165,21 +166,28 @@ void scoop_callback_runtime_init(void) {
     unlock_callbacks();
 }
 
-void scoop_callback_prepare_shutdown(void) {
+ScoopCallbackShutdownCounts scoop_callback_prepare_shutdown(void) {
     lock_callbacks();
     if (!callback_initialized || callback_shutting_down) {
         unlock_callbacks();
         callback_fatal("callback shutdown entered from an invalid state");
     }
     callback_shutting_down = true;
-    uint64_t live = callback_live_count;
-    unlock_callbacks();
-    if (live != 0) {
-        fprintf(stderr,
-                "scoop callback: shutdown with %llu live callback token(s)\n",
-                (unsigned long long)live);
-        abort();
+    ScoopCallbackShutdownCounts counts = {0};
+    for (size_t index = 0; index < callback_tokens_len; index++) {
+        const ScoopCallbackToken *token = &callback_tokens[index];
+        if (!token->live) {
+            continue;
+        }
+        if (token->active > UINT64_MAX - counts.active) {
+            unlock_callbacks();
+            callback_fatal("callback active count overflow");
+        }
+        counts.active += token->active;
+        counts.owned_tokens += token->owners != 0;
     }
+    unlock_callbacks();
+    return counts;
 }
 
 void *scoop_runtime_callback_register(const void *closure,
@@ -311,6 +319,10 @@ uint32_t scoop_runtime_callback_invoke(
     uint32_t mode;
 
     lock_callbacks();
+    if (!callback_initialized || callback_shutting_down) {
+        unlock_callbacks();
+        callback_fatal("callback invocation after shutdown began");
+    }
     ScoopCallbackToken *token = require_cookie_locked(context, NULL);
     if (token->signature != signature_descriptor) {
         unlock_callbacks();
@@ -364,9 +376,6 @@ uint32_t scoop_runtime_callback_invoke(
     }
     scoop_rt_pop_native_roots(&roots);
     scoop_thread_leave_callback(&entry);
-    if (attached_here) {
-        scoop_rt_detach_foreign_thread();
-    }
 
     ReleasedHandles released = {0};
     uint64_t discarded_failure = 0;
@@ -402,6 +411,9 @@ uint32_t scoop_runtime_callback_invoke(
         (void)scoop_rt_release_handle(discarded_failure);
     }
     release_handles(released);
+    if (attached_here) {
+        scoop_rt_detach_foreign_thread();
+    }
     return status;
 }
 

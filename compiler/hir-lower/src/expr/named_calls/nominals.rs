@@ -327,7 +327,7 @@ impl Lowerer {
             }
             (NamedFunctionLikeProbe::Callable(probe), NamedFunctionCommit::Member) => {
                 let resolved = self.commit_named_callable(*probe, sink).ok_or(())?;
-                self.finish_resolved_method_call(resolved, call.span)
+                self.finish_resolved_method_call(resolved, call.span, sink)
             }
             (
                 NamedFunctionLikeProbe::ImportedDependency(probe),

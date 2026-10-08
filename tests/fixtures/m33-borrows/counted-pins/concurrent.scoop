@@ -1,0 +1,38 @@
+@Extern(lib = "fixture_native", name = "m13_run_many")
+fun runMany(callback: FunPtr<(Int, Ptr<Unit>) -> Int>, context: Ptr<Unit>, base: Int, count: Int): Int
+
+class Cell(val value: Int)
+fun expect(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+fun main() {
+    val shared = Cell(7331)
+    @Unsafe {
+        val callback = foreignCallback<(Int, Ptr<Unit>) -> Int>(
+            { value: Int ->
+                var round = 0
+                while (round < 16) {
+                    @Unsafe {
+                        val first = pin(shared)
+                        val second = pin(shared)
+                        expect(first.raw == second.raw)
+                        gcCollect()
+                        expect(unpin(first) === shared)
+                        gcCollect()
+                        val third = pin(shared)
+                        expect(third.raw == second.raw)
+                        expect(unpin(third).value == 7331)
+                        expect(unpin(second) === shared)
+                    }
+                    round += 1
+                }
+                value
+            }, 1, ForeignCallbackMode.Reusable
+        )
+        expect(runMany(callback.function, callback.context, 10, 4) == 46)
+        expect(when (foreignCallbackFailure(callback)) { Some(_) -> false; None -> true })
+        releaseForeignCallback(callback)
+    }
+    gcCollect()
+    expect(shared.value == 7331)
+    println("counted-pins-concurrent-ok")
+}

@@ -16,11 +16,19 @@ pub(super) fn candidate(
 ) -> Result<Candidate, LinkError> {
     let explicit = match binding {
         NativeLibraryBinding::DefaultNativeNamespace => None,
-        NativeLibraryBinding::Requirement(id) => Some(inputs.native.libraries[&id].input),
+        NativeLibraryBinding::Requirement(id) => {
+            Some(inputs.native.libraries[&id].inputs.as_slice())
+        }
+    };
+    let system_alias = match binding {
+        NativeLibraryBinding::DefaultNativeNamespace => false,
+        NativeLibraryBinding::Requirement(id) => inputs.native.libraries[&id].system_alias,
     };
     if let Some(owner) = inputs.definitions.get(symbol) {
         return match owner {
-            DefinitionOwner::Native(id) if explicit.is_none_or(|input| input == id.input()) => {
+            DefinitionOwner::Native(id)
+                if explicit.is_none_or(|input| input.contains(&id.input())) =>
+            {
                 Ok(Candidate::Object(*id))
             }
             _ if explicit.is_none() => Ok(Candidate::Definition),
@@ -34,7 +42,7 @@ pub(super) fn candidate(
         .native
         .files
         .values()
-        .filter(|file| explicit.is_none_or(|id| id == file.id))
+        .filter(|file| explicit.is_none_or(|ids| ids.contains(&file.id)))
     {
         if let Some((id, _)) = file.candidate(symbol) {
             candidates.push(Candidate::Object(id));
@@ -43,7 +51,7 @@ pub(super) fn candidate(
     candidates.extend(
         inputs
             .namespace
-            .candidates(&inputs.native, symbol, explicit)?
+            .candidates(&inputs.native, symbol, explicit, system_alias)?
             .into_iter()
             .map(Candidate::Dynamic),
     );
@@ -54,7 +62,7 @@ pub(super) fn candidate(
         )));
     }
     candidates.pop().ok_or_else(|| error(match explicit {
-        Some(id) => format!("native library {id} does not provide {symbol}"),
+        Some(ids) => format!("native library {} does not provide {symbol}", ids.iter().map(ToString::to_string).collect::<Vec<_>>().join(", ")),
         None => format!("unresolved native symbol {symbol} in default namespace (unresolved symbol {symbol})"),
     }))
 }
@@ -77,14 +85,34 @@ pub(super) fn include(
                 "{diagnostic} defines compiler-owned symbol {symbol}"
             )));
         }
-        if let Some(previous) = inputs
-            .definitions
-            .insert(symbol.clone(), DefinitionOwner::Native(id))
-        {
+        if let Some(previous) = inputs.definitions.get(symbol) {
+            if let DefinitionOwner::Native(previous) = previous {
+                let (previous_index, _) = inputs.native.object(*previous)?;
+                let old = previous_index.info.definitions[symbol];
+                let new = index.info.definitions[symbol];
+                if old.weak || new.weak {
+                    if old.weak && !new.weak {
+                        inputs
+                            .definitions
+                            .insert(symbol.clone(), DefinitionOwner::Native(id));
+                    }
+                    continue;
+                }
+            }
+            let previous = match previous {
+                DefinitionOwner::Native(previous) => inputs.native.files[&previous.input()]
+                    .locator
+                    .display()
+                    .to_string(),
+                other => format!("{other:?}"),
+            };
             return Err(error(format!(
-                "{diagnostic} conflicts with {previous:?} at {symbol}"
+                "{diagnostic} conflicts with {previous} at {symbol}"
             )));
         }
+        inputs
+            .definitions
+            .insert(symbol.clone(), DefinitionOwner::Native(id));
     }
     for symbol in &index.info.requirements {
         inputs.requirements.insert(symbol.clone());

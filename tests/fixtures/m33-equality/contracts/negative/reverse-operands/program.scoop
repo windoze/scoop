@@ -1,0 +1,4 @@
+class Choice() {
+    public operator fun equals(other: Int): Boolean = true
+}
+fun main() { println(1 == Choice()) }

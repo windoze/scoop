@@ -1,0 +1,1 @@
+fun main() { val equal = AtomicInt(1) == AtomicInt(1) }

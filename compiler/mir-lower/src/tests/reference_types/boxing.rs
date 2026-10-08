@@ -1,7 +1,7 @@
 use super::*;
 
 #[test]
-fn boxing_only_materializes_the_payload_class() {
+fn boxing_materializes_one_payload_class_with_its_exact_identity() {
     let mut h = Harness::new();
     let int = h.int;
     let s = h.strukt("S", &[("x", int)]);
@@ -36,8 +36,13 @@ fn boxing_only_materializes_the_payload_class() {
     );
     assert!(boxed.vtable.is_empty());
     assert!(boxed.itables.is_empty());
-    assert_eq!(module.meta.boxed_types.len(), 1);
-    let boxed_meta = &module.meta.boxed_types[0];
+    let mut payload_boxes = module
+        .meta
+        .boxed_types
+        .iter()
+        .filter(|metadata| metadata.payload() == &boxed.declared_fields()[0].ty);
+    let boxed_meta = payload_boxes.next().expect("the payload has a box record");
+    assert!(payload_boxes.next().is_none());
     let generated_exact = module
         .meta
         .generated_exact_types

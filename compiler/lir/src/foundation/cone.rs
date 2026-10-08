@@ -14,6 +14,7 @@ use super::{CanonicalLirFoundation, LirFoundationBuildError};
 use crate::ValidatedLirFoundation;
 
 mod codegen;
+mod native;
 
 /// The physical producer and its single canonical LIR identity foundation.
 #[derive(Clone, Debug, Eq, PartialEq)]

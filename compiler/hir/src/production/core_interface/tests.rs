@@ -2,12 +2,12 @@ use la_arena::Arena;
 use scoop_identity::{
     BindingTarget, CanonicalIdentifier, CborIdentityRecord, ConeIdentity, CoreBuiltinNominal,
     DeclarationName, DeclarationScope, DefinitionOwnerChain, EnumVariantFieldKey,
-    EnumVariantFieldSelector, EnumVariantIdentityKey, ExactOrdinaryNoArgUnitSignature,
-    ExactTypeKey, ExecutableSourceEntryIdentity, ExportBindingKey, PackagePath,
-    PendingIdentityValidation, PersistentEnumVariantFieldId, PersistentEnumVariantId,
-    PersistentExactTypeId, PersistentExportBindingId, PersistentFunctionId,
-    PersistentGenericTypeId, PersistentTypeId, SemanticIdentitySession, SemanticOriginFingerprint,
-    SignatureTypeKey, SourceDeclarationKey, SourceDeclarationSite, SourceNominalKind,
+    EnumVariantFieldSelector, EnumVariantIdentityKey, ExactCallableSignature, ExactTypeKey,
+    ExecutableSourceEntryIdentity, ExportBindingKey, PackagePath, PendingIdentityValidation,
+    PersistentEnumVariantFieldId, PersistentEnumVariantId, PersistentExactTypeId,
+    PersistentExportBindingId, PersistentFunctionId, PersistentGenericTypeId, PersistentTypeId,
+    SemanticIdentitySession, SemanticOriginFingerprint, SignatureTypeKey, SourceDeclarationKey,
+    SourceDeclarationSite, SourceNominalKind,
 };
 use scoop_wire::{decode_canonical, encode};
 
@@ -77,7 +77,12 @@ fn protocol_definitions_do_not_replace_the_executable_output_contract() {
     fixture.foundation.set_functions(functions).unwrap();
     let proof = ExecutableSourceEntryIdentity::try_new(
         &entry,
-        ExactOrdinaryNoArgUnitSignature::new(unit_exact_record().id()),
+        ExactCallableSignature::new(
+            scoop_identity::Effect::Ordinary,
+            None,
+            Vec::new(),
+            unit_exact_record().id(),
+        ),
     )
     .unwrap();
     let executable = CoreBootstrapInterfaceSectionV1 {
@@ -126,7 +131,7 @@ fn imported_core_inputs_expose_compiler_protocols() {
     let imported = imported_foundation(&fixture.foundation);
 
     let core = imported.import_core_inputs(&fixture.interface).unwrap();
-    assert_eq!(core.protocols().fixed_subject_count(), 93);
+    assert_eq!(core.protocols().fixed_subject_count(), 94);
     let protocols = core.protocols().clone();
     assert_eq!(
         protocols.fundamental_types().unit().persistent(),

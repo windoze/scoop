@@ -1,14 +1,16 @@
 SourceFile
   RootPackage
   ImportExact Local dependency.api.runtimeValue
-    @Extern(name = "scoop_test_identity")
-  fun nativeIdentity(value: Int): Int
+    @Extern(name = "scoop_test_identity", captureErrno = true)
+  fun nativeIdentity(value: Int): (Int, Int)
   public val localValue: Int = <expr>
   public fun outside(): Int
     =
       Var runtimeValue
   public fun nativeCall(value: Int): Int
     @Unsafe block
-      return
+      val (result, _)
         Call nativeIdentity
           Var value
+      return
+        Var result

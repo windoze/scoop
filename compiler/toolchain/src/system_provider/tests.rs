@@ -1,6 +1,54 @@
 use super::*;
 
 #[test]
+fn previous_sdk_exports_follow_platform_and_half_open_deployment_ranges() {
+    let text = b"--- !tapi-tbd\ntbd-version: 4\ntargets: [arm64-macos]\ninstall-name: /usr/lib/current.dylib\nexports:\n  - targets: [arm64-macos]\n    symbols: [_ordinary, '$ld$previous$/usr/lib/previous.dylib$3.1$1$12.0$14.0$_OBJC_CLASS_$_Moved$', '$ld$previous$/usr/lib/ios.dylib$1$2$1.0$99.0$_ios$']\n";
+    for (major, active) in [(11, false), (12, true), (13, true), (14, false)] {
+        let records = read_text_stubs(
+            text,
+            DarwinPackedVersionV1::from_components(major, 0, 0).unwrap(),
+            true,
+        )
+        .unwrap();
+        let record = &records[0];
+        assert_eq!(record.previous_exports.len(), usize::from(active));
+        if active {
+            let previous = &record.previous_exports["_OBJC_CLASS_$_Moved"];
+            assert_eq!(previous.install_name, "/usr/lib/previous.dylib");
+            assert_eq!(previous.compatibility_version, (3 << 16) | (1 << 8));
+        }
+        assert!(record.exports.contains_key("_ordinary"));
+        assert!(!record.exports.contains_key("_ios"));
+    }
+}
+
+#[test]
+fn previous_sdk_library_name_and_version_apply_without_a_symbol() {
+    let text = b"--- !tapi-tbd\ntbd-version: 4\ntargets: [arm64-macos]\ninstall-name: /usr/lib/current.dylib\nexports:\n  - targets: [arm64-macos]\n    symbols: [_ordinary, '$ld$previous$/usr/lib/previous.dylib$3$1$12.0$14.0$$']\n";
+    let records = read_text_stubs(
+        text,
+        DarwinPackedVersionV1::from_components(13, 0, 0).unwrap(),
+        true,
+    )
+    .unwrap();
+    assert_eq!(records[0].install_name, "/usr/lib/previous.dylib");
+    assert_eq!(records[0].compatibility_version, 3 << 16);
+    assert!(records[0].previous_exports.is_empty());
+    for version in ["", "0", "0.0"] {
+        let text = std::str::from_utf8(text)
+            .unwrap()
+            .replace("$3$1$", &format!("${version}$1$"));
+        let records = read_text_stubs(
+            text.as_bytes(),
+            DarwinPackedVersionV1::from_components(13, 0, 0).unwrap(),
+            true,
+        )
+        .unwrap();
+        assert_eq!(records[0].compatibility_version, 0);
+    }
+}
+
+#[test]
 fn system_exports_follow_reexports_and_target_selection() {
     let sdk = tempfile::tempdir().unwrap();
     let root = sdk.path().join(LIBSYSTEM_STUB);

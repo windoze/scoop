@@ -62,27 +62,29 @@ pub(super) fn validate(
                 )?;
                 continue;
             }
-            let tuple_box = if let scoop_identity::ExactTypeKey::Nominal(nominal) = key.as_ref() {
-                let generated = metadata
-                    .identities
-                    .canonical_key::<_, scoop_identity::GeneratedNominalKey>(*nominal)?;
-                if let scoop_identity::GeneratedNominalKey::BoxedValue { payload } =
-                    generated.as_ref()
-                {
-                    matches!(
-                        metadata
-                            .identities
-                            .canonical_key::<_, scoop_identity::ExactTypeKey>(*payload)?
-                            .as_ref(),
-                        scoop_identity::ExactTypeKey::Tuple(_)
-                    )
+            let structural_box =
+                if let scoop_identity::ExactTypeKey::Nominal(nominal) = key.as_ref() {
+                    let generated = metadata
+                        .identities
+                        .canonical_key::<_, scoop_identity::GeneratedNominalKey>(*nominal)?;
+                    if let scoop_identity::GeneratedNominalKey::BoxedValue { payload } =
+                        generated.as_ref()
+                    {
+                        matches!(
+                            metadata
+                                .identities
+                                .canonical_key::<_, scoop_identity::ExactTypeKey>(*payload)?
+                                .as_ref(),
+                            scoop_identity::ExactTypeKey::Tuple(_)
+                                | scoop_identity::ExactTypeKey::RawPointer(_)
+                        )
+                    } else {
+                        false
+                    }
                 } else {
                     false
-                }
-            } else {
-                false
-            };
-            if !tuple_box
+                };
+            if !structural_box
                 && !matches!(
                     key.as_ref(),
                     scoop_identity::ExactTypeKey::NominalApplication { .. }

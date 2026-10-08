@@ -27,7 +27,7 @@ pub(super) fn classify_binding(
     target_support: &CBridgeTargetSupportRegistryV1,
 ) -> Result<GeneratedBridgeRelocationSemanticV1, GeneratedCBridgeSemanticValidationError> {
     match unit.key {
-        GeneratedBridgeUnitKey::OutboundFunction(contract)
+        GeneratedBridgeUnitKey::OutboundFunction(contract, _)
         | GeneratedBridgeUnitKey::GlobalRead(contract)
         | GeneratedBridgeUnitKey::GlobalWrite(contract)
         | GeneratedBridgeUnitKey::GlobalAddress(contract) => {
@@ -171,7 +171,7 @@ pub(super) fn validate_native_contract_kind(
     let valid = matches!(
         (key, contract),
         (
-            GeneratedBridgeUnitKey::OutboundFunction(_),
+            GeneratedBridgeUnitKey::OutboundFunction(..),
             NativeExternalContract::Function {
                 abi: NativeExternAbi::C(_),
                 ..
@@ -200,7 +200,7 @@ pub(super) fn native_relocation_form_matches(
     form: VerifiedObjectRelocationFormV1,
 ) -> bool {
     match key {
-        GeneratedBridgeUnitKey::OutboundFunction(_) => form.is_direct_call(target),
+        GeneratedBridgeUnitKey::OutboundFunction(..) => form.is_direct_call(target),
         GeneratedBridgeUnitKey::GlobalRead(_)
         | GeneratedBridgeUnitKey::GlobalWrite(_)
         | GeneratedBridgeUnitKey::GlobalAddress(_) => match contract {
@@ -266,7 +266,7 @@ impl ObservedUnitSemantics {
         unit: &ExpectedBridgeUnit,
     ) -> Result<(), GeneratedCBridgeSemanticValidationError> {
         let complete = match unit.key {
-            GeneratedBridgeUnitKey::OutboundFunction(_)
+            GeneratedBridgeUnitKey::OutboundFunction(..)
             | GeneratedBridgeUnitKey::GlobalRead(_)
             | GeneratedBridgeUnitKey::GlobalWrite(_)
             | GeneratedBridgeUnitKey::GlobalAddress(_) => self.native,

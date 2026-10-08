@@ -19,9 +19,9 @@ use scoop_identity::{
     CallableMaterialization, CallableMaterializationContext, CallableTemplateOwner,
     CallbackApplicationKey, CallbackMode, CallbackParameterIndex, CallbackRegistrationKey,
     CanonicalIdentifier, CborIdentityRecord, ConeIdentity, CoreBuiltinNominal, DeclarationScope,
-    DefinitionOwnerChain, Effect, ExactCallableSignature, ExactOrdinaryNoArgUnitSignature,
-    ExactTypeKey, ExecutableSourceEntryIdentity, FieldIdentityKey, GeneratedCallableKey,
-    InitializationUnitKey, LexicalCallableParent, LexicalCallableRole, NonEmptyVec, PackagePath,
+    DefinitionOwnerChain, Effect, ExactCallableSignature, ExactTypeKey,
+    ExecutableSourceEntryIdentity, FieldIdentityKey, GeneratedCallableKey, InitializationUnitKey,
+    LexicalCallableParent, LexicalCallableRole, NonEmptyVec, PackagePath,
     PendingIdentityValidation, PersistentCallbackApplicationId, PersistentExactTypeId,
     PersistentFieldId, PersistentFunctionId, PersistentGenericTypeId, PersistentPropertyId,
     PersistentTypeId, SignatureCallableShape, SignatureTypeKey, SourceCAbiFunctionSignature,
@@ -119,7 +119,7 @@ fn test_source_native_contract(
         Vec::new(),
     );
     let abi = match abi {
-        mir::ExternAbi::C => SourceExternFunctionAbi::C(SourceCAbiFunctionSignature::new(
+        mir::ExternAbi::C(_) => SourceExternFunctionAbi::C(SourceCAbiFunctionSignature::new(
             Vec::new(),
             SourceCAbiReturn::Void,
         )),
@@ -178,7 +178,7 @@ fn test_source_native_data_contract(
 }
 
 fn seal_strong_input(mut module: mir::Module) -> mir::ConeMirInput {
-    if let mir::MirOutput::Executable { entry } = module.output
+    if let mir::MirOutput::Executable { entry, .. } = module.output
         && (!module.functions[entry].params.is_empty()
             || module.functions[entry].return_ty != mir::Type::Unit)
     {
@@ -198,7 +198,7 @@ fn seal_strong_input(mut module: mir::Module) -> mir::ConeMirInput {
     let strong_callable_bridges = mir::StrongCallableBridgeSurfaceV1::from_foundation(foundation);
     let entry_bridge = match module.output {
         mir::MirOutput::Library => mir::EntryMirBridgeBranchV1::Library,
-        mir::MirOutput::Executable { entry } => {
+        mir::MirOutput::Executable { entry, .. } => {
             assert!(module.top_level.contains(&entry), "test entry is emitted");
             let declaration = CborIdentityRecord::from_key(SourceDeclarationKey::function(
                 SourceDeclarationSite::new(
@@ -223,7 +223,12 @@ fn seal_strong_input(mut module: mir::Module) -> mir::ConeMirInput {
                 .id();
             let source = ExecutableSourceEntryIdentity::try_new(
                 &declaration,
-                ExactOrdinaryNoArgUnitSignature::new(unit),
+                ExactCallableSignature::new(
+                    scoop_identity::Effect::Ordinary,
+                    None,
+                    Vec::new(),
+                    unit,
+                ),
             )
             .unwrap();
             let mir::CallableSignatureSubject::Strong(implementation) = module
@@ -1020,15 +1025,21 @@ fn c_abi_preserves_all_eight_exact_integer_kinds() {
         .into_iter()
         .collect::<Vec<_>>();
     let integers = builder.extern_functions.alloc(mir::ExternFunction {
-        source_contract: test_source_native_contract("integers", "integers", mir::ExternAbi::C),
+        source_contract: test_source_native_contract(
+            "integers",
+            "integers",
+            mir::ExternAbi::C(scoop_identity::CAbiCallMode::NativeSafe),
+        ),
         source_name: "integers".to_string(),
         native_symbol: "integers".to_string(),
         library: String::new(),
-        abi: mir::ExternAbi::C,
+        abi: mir::ExternAbi::C(scoop_identity::CAbiCallMode::NativeSafe),
         calling_convention: mir::CallingConvention::Cdecl,
         gc_effect: mir::GcEffect::NoGc,
         params: params.clone(),
-        return_type: mir::Type::Integer(mir::IntegerKind::UNSIGNED_64),
+        result: scoop_identity::ExternResult::Direct(mir::Type::Integer(
+            mir::IntegerKind::UNSIGNED_64,
+        )),
     });
     let same_integers = builder.c_extern(
         "sameIntegers",
@@ -1076,9 +1087,30 @@ fn c_abi_preserves_all_eight_exact_integer_kinds() {
         .iter()
         .next()
         .expect("at least one C extern");
-    let lir::ExternFunctionKind::C { signature, .. } = &function.kind else {
-        panic!("C declaration remains a C bridge")
+    let lir::ExternFunctionKind::C {
+        signature,
+        call_plan: lir::CAbiCallPlan::Direct(plan),
+        ..
+    } = &function.kind
+    else {
+        panic!("C scalar declarations use DirectC")
     };
+    assert_eq!(
+        plan.params
+            .iter()
+            .map(|value| value.extension)
+            .collect::<Vec<_>>(),
+        [
+            lir::CIntegerExtension::Sign,
+            lir::CIntegerExtension::Sign,
+            lir::CIntegerExtension::None,
+            lir::CIntegerExtension::None,
+            lir::CIntegerExtension::Zero,
+            lir::CIntegerExtension::Zero,
+            lir::CIntegerExtension::None,
+            lir::CIntegerExtension::None,
+        ]
+    );
     assert_eq!(
         &signature.params,
         &lir::IntegerKind::ALL
@@ -1168,8 +1200,8 @@ fn c_abi_preserves_all_eight_exact_integer_kinds() {
         .counts();
     assert_eq!(counts.c_abi_signatures, 1);
     assert_eq!(counts.native_contracts, 2);
-    assert_eq!(counts.bridge_units, 2);
-    assert_eq!(counts.bridge_atoms, 2);
+    assert_eq!(counts.bridge_units, 0);
+    assert_eq!(counts.bridge_atoms, 0);
 }
 
 #[test]
@@ -1355,19 +1387,19 @@ fn c_abi_nullable_refs_bind_the_exact_lowered_pointee_and_signature() {
         source_contract: test_source_native_contract(
             "nullablePointers",
             "nullable_pointers",
-            mir::ExternAbi::C,
+            mir::ExternAbi::C(scoop_identity::CAbiCallMode::NativeSafe),
         ),
         source_name: "nullablePointers".to_string(),
         native_symbol: "nullable_pointers".to_string(),
         library: String::new(),
-        abi: mir::ExternAbi::C,
+        abi: mir::ExternAbi::C(scoop_identity::CAbiCallMode::NativeSafe),
         calling_convention: mir::CallingConvention::Cdecl,
         gc_effect: mir::GcEffect::NoGc,
         params: vec![
             mir::Type::Enum(raw_option, vec![raw_payload]),
             mir::Type::Enum(code_option, vec![code_payload]),
         ],
-        return_type: mir::Type::Unit,
+        result: scoop_identity::ExternResult::Direct(mir::Type::Unit),
     });
     let main = builder.main(Arena::new(), Vec::new());
 
@@ -1433,15 +1465,19 @@ fn c_abi_does_not_guess_nullable_pointer_from_a_non_option_enum_shape() {
         ],
     });
     builder.extern_functions.alloc(mir::ExternFunction {
-        source_contract: test_source_native_contract("lookalike", "lookalike", mir::ExternAbi::C),
+        source_contract: test_source_native_contract(
+            "lookalike",
+            "lookalike",
+            mir::ExternAbi::C(scoop_identity::CAbiCallMode::NativeSafe),
+        ),
         source_name: "lookalike".to_string(),
         native_symbol: "lookalike".to_string(),
         library: String::new(),
-        abi: mir::ExternAbi::C,
+        abi: mir::ExternAbi::C(scoop_identity::CAbiCallMode::NativeSafe),
         calling_convention: mir::CallingConvention::Cdecl,
         gc_effect: mir::GcEffect::NoGc,
         params: vec![mir::Type::Enum(lookalike, vec![payload])],
-        return_type: mir::Type::Unit,
+        result: scoop_identity::ExternResult::Direct(mir::Type::Unit),
     });
     let main = builder.main(Arena::new(), Vec::new());
 

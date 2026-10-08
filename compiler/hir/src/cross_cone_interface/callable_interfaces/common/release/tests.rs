@@ -51,7 +51,13 @@ fn release_conditions_have_canonical_wire_and_keep_both_binder_frames() {
 fn release_effect_cannot_upgrade_extern_or_managed_callables() {
     for (implementation, gc) in [
         (CallableImplementationV1::Scoop, GcEffect::Managed),
-        (CallableImplementationV1::SourceExternC, GcEffect::NoGc),
+        (
+            CallableImplementationV1::SourceExternC(
+                scoop_identity::CAbiCallMode::NativeSafe,
+                scoop_identity::CResultAdaptation::Direct,
+            ),
+            GcEffect::NoGc,
+        ),
         (CallableImplementationV1::SourceExternScoop, GcEffect::NoGc),
     ] {
         assert_eq!(

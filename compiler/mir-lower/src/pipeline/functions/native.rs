@@ -38,7 +38,7 @@ impl Lowerer {
             });
             args.push(smir::Expr::new(ty.clone(), smir::ExprKind::Local(local)));
         }
-        let result = signature.return_type.clone();
+        let result = signature.result.scoop_type().clone();
         let call = smir::Expr::new(
             result.clone(),
             smir::ExprKind::Call(smir::Call {

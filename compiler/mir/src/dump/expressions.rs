@@ -11,6 +11,10 @@ pub(super) fn dump_expr(
     let pad = "  ".repeat(indent);
     out.push_str(&format!("{pad}Type {}\n", type_name(module, &expr.ty)));
     match &expr.kind {
+        ExprKind::DataBorrow(operation) => {
+            out.push_str(&format!("{pad}{}\n", operation.kind.name()));
+            dump_expr(module, locals, &operation.operand, indent + 1, out);
+        }
         ExprKind::FloatUnary {
             kind,
             operation,
@@ -360,6 +364,16 @@ pub(super) fn dump_expr(
                 type_name(module, &Type::Class(*target_type))
             ));
             dump_expr(module, locals, operand, indent + 1, out);
+        }
+        ExprKind::AtomicNew(initial) => {
+            out.push_str(&format!("{pad}AtomicNew {}\n", type_name(module, &expr.ty)));
+            dump_expr(module, locals, initial, indent + 1, out);
+        }
+        ExprKind::Atomic(atomic) => {
+            out.push_str(&format!("{pad}{} {:?}\n", atomic.operation, atomic.kind));
+            for operand in atomic.operands() {
+                dump_expr(module, locals, operand, indent + 1, out);
+            }
         }
         ExprKind::Binary { op, lhs, rhs } => {
             out.push_str(&format!("{pad}Binary {op:?}\n"));

@@ -2,13 +2,11 @@ Module
   global @scoop$1$ss$27b5af5e7516ad3e78a09900794aefd1c1a8d84bfbbcf142ee63062339746a36 : i64 scan=none
   global @scoop$1$ss$5ec28b2972cc75445d0cc163febe6c5e952504742e6597080499c53b1b4f7d82 : ptr<managed> scan=refs[0]
   init0 top-level:next storage=@scoop$1$ss$27b5af5e7516ad3e78a09900794aefd1c1a8d84bfbbcf142ee63062339746a36 failure=@scoop$1$ss$5ec28b2972cc75445d0cc163febe6c5e952504742e6597080499c53b1b4f7d82 initializer=@scoop$1$cb$f0f8a364b42bf3cf52c399878934ba9b33c3d086e89e3880558c3d3632b6a341 ensure=@scoop$1$cb$59e1985dce626ce5c1f16a1c590f11672fa17c5684d07b5bca934e35cb958c94 deps=[]
-  extern ef0 trace @m23_trace(i64) -> void <c exact=(Long)->void bridge=@scoop$1$br$95b3b15f1691942ee59daf5e1df8e7304d470a17eeb80c80ee936267d10d6ec4 gc-leaf nounwind lib=m23_runtime_images>
+  extern ef0 trace @m23_trace(i64) -> void <c exact=(Long)->void direct-c=(i64)->void gc-leaf nounwind lib=m23_runtime_images>
   fun @scoop$1$cb$006dd5703a52ad0802a62fb786f6f99a0dee9a257cd70db1b7a502ba1109096e(i64) -> void
-    local %0 $sc.1: i64
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
-    store param0 -> local0
-    call native-safe-void-target0 sp<native-safe:0> roots=[] sig=void0 (ptr<raw>) extern0(c-arg-address(local0))
+    call native-safe-void-target0 sp<native-safe:0> roots=[] sig=void0 (i64) extern0(param0)
     t0 = aggregate () : {}
     ret
   fun @scoop$1$cb$607512eb9f23f7624ab1abae9b78e0c961083f16aaba1f02ec3cacb208f01288() -> i64
@@ -19,13 +17,11 @@ Module
     local %4 $dependency.parameter.other: i32
     local %5 $result.0: i64
     local %6 $call.1: ptr<managed>
-    local %7 $sc.1: i64
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     store integer<Long>(0x0000000000000014) -> local0
     store local0 -> local1
-    store local1 -> local7
-    call native-safe-void-target0 sp<native-safe:0> roots=[] sig=void0 (ptr<raw>) extern0(c-arg-address(local7))
+    call native-safe-void-target0 sp<native-safe:0> roots=[] sig=void0 (i64) extern0(local1)
     t0 = aggregate () : {}
     call managed-direct-target0 sp<managed-call:0> live=[] t1 = sig=direct0 () -> ptr<managed> external-fn0()
     store t1 -> local6

@@ -6,6 +6,12 @@ use crate::tests::platform_support::native_os_source;
 #[path = "runtime_collector_tests/nursery.rs"]
 mod nursery;
 
+#[path = "runtime_collector_tests/pins.rs"]
+mod pins;
+
+#[path = "runtime_collector_tests/thread_handshake.rs"]
+mod thread_handshake;
+
 fn workspace_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
         .parent()
@@ -33,12 +39,23 @@ fn compile_and_run(
     test_source: &str,
     verify_metadata: bool,
 ) -> Output {
+    compile_and_run_with_flags(workspace, test_name, test_source, verify_metadata, &[])
+}
+
+fn compile_and_run_with_flags(
+    workspace: &Path,
+    test_name: &str,
+    test_source: &str,
+    verify_metadata: bool,
+    flags: &[&str],
+) -> Output {
     let binary = std::env::temp_dir().join(format!("scoop_{test_name}_{}", std::process::id()));
     let mut compile = Command::new("cc");
     if verify_metadata {
         compile.arg("-DSCOOP_VERIFY_METADATA=1");
     }
     compile
+        .args(flags)
         .args([
             "-std=c11",
             "-D_POSIX_C_SOURCE=200809L",
@@ -59,6 +76,7 @@ fn compile_and_run(
         "runtime/tests/platform/image_fixture.c",
         "runtime/tests/platform/stackmap_fixture.c",
         "runtime/src/startup/failure.c",
+        "runtime/src/process.c",
         "runtime/src/startup/gateway.c",
         "runtime/src/boxing.c",
         "runtime/src/arrays.c",

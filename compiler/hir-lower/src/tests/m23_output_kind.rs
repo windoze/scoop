@@ -196,7 +196,7 @@ fn unique_valid_main_ignores_every_ineligible_main_shape() {
             "main",
             Vec::new(),
             Vec::new(),
-            Some(ty_named("Int")),
+            Some(ty_named("Long")),
             int_lit(1),
         )]),
         "nonunit",
@@ -305,22 +305,16 @@ fn executable_output_seals_private_current_main_and_exact_signature() {
         .exact()
         .expect("Unit has an exact identity")
         .id();
-    assert_eq!(local_entry.source_signature().unit(), exact_unit);
+    assert_eq!(local_entry.source_signature().result(), exact_unit);
     assert_eq!(
-        local_entry.source_signature().as_exact().effect(),
+        local_entry.source_signature().effect(),
         scoop_identity::Effect::Ordinary
     );
     assert_eq!(
-        local_entry.source_signature().as_exact().receiver(),
+        local_entry.source_signature().receiver(),
         scoop_identity::OptionalExactOwner::Absent
     );
-    assert!(
-        local_entry
-            .source_signature()
-            .as_exact()
-            .parameters()
-            .is_empty()
-    );
+    assert!(local_entry.source_signature().parameters().is_empty());
     assert_eq!(
         local_entry.source_signature_fingerprint(),
         scoop_identity::SourceSignatureFingerprint::from_signature(local_entry.source_signature())
@@ -366,7 +360,7 @@ fn missing_executable_entry_lists_invalid_mains_in_persistent_location_order() {
                 "main",
                 Vec::new(),
                 Vec::new(),
-                Some(ty_named("Int")),
+                Some(ty_named("Long")),
                 int_lit(1),
             ),
             non_unit_span,
@@ -386,7 +380,7 @@ fn missing_executable_entry_lists_invalid_mains_in_persistent_location_order() {
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
-        "missing executable entry: declare exactly one ordinary `fun main(): Unit`"
+        "missing executable entry: declare exactly one ordinary `fun main(): Unit`, `fun main(): Int`, `fun main(args: Array<String>): Unit`, or `fun main(args: Array<String>): Int`"
     );
     assert_eq!(errors[0].file, 2);
     assert_eq!(errors[0].span, Some(Span::new(0, 0)));
@@ -401,17 +395,17 @@ fn missing_executable_entry_lists_invalid_mains_in_persistent_location_order() {
             (
                 2,
                 generic_span,
-                "`main` is not eligible because it is generic"
+                "`fun main(): Unit` is not eligible because it is generic"
             ),
             (
                 3,
                 suspend_span,
-                "`main` is not eligible because it is suspend"
+                "`fun main(): Unit` is not eligible because it is suspend"
             ),
             (
                 1,
                 non_unit_span,
-                "`main` is not eligible because it does not return `Unit`"
+                "`fun main(): Long` is not eligible because it must return `Unit` or `Int`"
             ),
         ]
     );
@@ -486,7 +480,7 @@ fn multiple_entries_are_reported_in_persistent_source_location_order() {
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
-        "multiple executable entries: declare exactly one ordinary `fun main(): Unit`"
+        "multiple executable entries: declare exactly one ordinary `fun main(): Unit`, `fun main(): Int`, `fun main(args: Array<String>): Unit`, or `fun main(args: Array<String>): Int`"
     );
     assert_eq!((errors[0].file, errors[0].span), (2, Some(low_span)));
     assert_eq!(errors[0].notes.len(), 1);
@@ -494,4 +488,45 @@ fn multiple_entries_are_reported_in_persistent_source_location_order() {
         (errors[0].notes[0].file, errors[0].notes[0].span),
         (1, high_span)
     );
+}
+
+#[test]
+fn four_entry_forms_preserve_exact_source_and_concrete_signatures() {
+    for arguments in [false, true] {
+        for int_result in [false, true] {
+            let parameters = if arguments {
+                vec![("arguments", ty_generic("Array", vec![ty_named("String")]))]
+            } else {
+                Vec::new()
+            };
+            let function = fun_expr(
+                "main",
+                Vec::new(),
+                parameters,
+                Some(ty_named(if int_result { "Int" } else { "Unit" })),
+                if int_result { int_lit(37) } else { unit_lit() },
+            );
+            let output = lower_sources(&core_file(), vec![(0, file(vec![function]))]).unwrap();
+            let hir::ConeOutputKind::Executable { local_entry } = output.output_kind() else {
+                panic!("executable entry")
+            };
+            let signature = local_entry.source_signature();
+            assert_eq!(signature.parameters().len(), usize::from(arguments));
+            let source = &output.export.functions[local_entry.local_function().function()];
+            assert_eq!(
+                signature.result(),
+                output.export.type_identities[source.return_ty]
+                    .exact()
+                    .unwrap()
+                    .id()
+            );
+            let hir::LocalConeOutputKind::Executable {
+                local_entry: concrete,
+            } = output.local.output_kind()
+            else {
+                panic!("concrete entry")
+            };
+            assert_eq!(local_entry.identity(), concrete.identity());
+        }
+    }
 }

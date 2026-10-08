@@ -12,6 +12,7 @@ Module
   interface RightReader<Int> : Reader<Int>
   interface ToString
   interface Hash
+  interface Equality<Int>
   closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn2 captures=0
     bridge function_type1 -> @fn13 id=b1917cbe83be8b06a1bf4e9c00898a6e2ef6f7d9a9d715530ad4a21d06756657
   closure cc1 $Closure$lambda1 type=function_type0 invoke=@fn7 captures=1

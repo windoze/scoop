@@ -155,6 +155,11 @@ fn project(
                 ) => Repr::InlineArray {
                     element: representation::fields::exact(module, element)?,
                 },
+                mir::ClassRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::Atomic(
+                    hir::AtomicStorage::Reference(value),
+                )) => Repr::AtomicReference {
+                    value: representation::fields::exact(module, value)?,
+                },
                 _ => return Err(mismatch()),
             }
         }

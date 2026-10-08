@@ -69,6 +69,7 @@ struct DecodedLirFoundationWire {
     bridge_atoms: Vec<DecodedBridgeAtomRecord>,
     callback_bridges: Vec<DecodedCallbackBridgeRecord>,
     native_link_requirements: Vec<DecodedNativeLinkRequirementRecord>,
+    native_cxx: bool,
     definition_plans: Vec<DecodedDefinitionPlanRecord>,
     definition_atoms: Vec<DecodedDefinitionAtomRecord>,
 }
@@ -191,7 +192,7 @@ impl DecodedLirFoundation {
 
 impl WireEncode for DecodedLirFoundationWire {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(22)?;
+        encoder.map(23)?;
         encode_table_field(encoder, 1, &self.materialized_exact_types)?;
         encode_table_field(encoder, 2, &self.layouts)?;
         encode_table_field(encoder, 3, &self.scans)?;
@@ -214,13 +215,15 @@ impl WireEncode for DecodedLirFoundationWire {
         encode_table_field(encoder, 19, &self.callback_bridges)?;
         encode_table_field(encoder, 20, &self.native_link_requirements)?;
         encode_table_field(encoder, 21, &self.definition_plans)?;
-        encode_table_field(encoder, 22, &self.definition_atoms)
+        encode_table_field(encoder, 22, &self.definition_atoms)?;
+        encoder.field(23)?;
+        encoder.unsigned(u64::from(self.native_cxx))
     }
 }
 
 impl WireDecode for DecodedLirFoundationWire {
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
-        decoder.expect_map(22)?;
+        decoder.expect_map(23)?;
         Ok(Self {
             materialized_exact_types: decode_table_field(decoder, 1)?,
             layouts: decode_table_field(decoder, 2)?,
@@ -244,6 +247,15 @@ impl WireDecode for DecodedLirFoundationWire {
             native_link_requirements: decode_table_field(decoder, 20)?,
             definition_plans: decode_table_field(decoder, 21)?,
             definition_atoms: decode_table_field(decoder, 22)?,
+            native_cxx: decoder.field(23, |decoder| match decoder.unsigned()? {
+                0 => Ok(false),
+                1 => Ok(true),
+                tag => Err(WireError::new(
+                    scoop_wire::WireErrorKind::UnknownTag { tag },
+                    decoder.path().clone(),
+                    Some(decoder.position()),
+                )),
+            })?,
         })
     }
 }
@@ -458,6 +470,7 @@ mod tests {
         .unwrap();
         let unit = CborIdentityRecord::from_key(GeneratedBridgeUnitKey::OutboundFunction(
             contract.fingerprint(),
+            scoop_identity::CResultAdaptation::Direct,
         ))
         .unwrap();
         let mut canonical = CanonicalLirFoundation::empty();
@@ -510,15 +523,15 @@ mod tests {
     #[test]
     fn rejects_a_different_closed_product_length() {
         let mut bytes = encode(&CanonicalLirFoundation::empty()).unwrap();
-        assert_eq!(&bytes[..2], &[0xb6, 1]);
-        bytes[0] = 0xb5;
+        assert_eq!(&bytes[..2], &[0xb7, 1]);
+        bytes[0] = 0xb6;
 
         let error = decode_canonical::<DecodedLirFoundation>(&bytes).unwrap_err();
         assert_eq!(
             error.kind(),
             &WireErrorKind::InvalidLength {
-                expected: 22,
-                actual: 21,
+                expected: 23,
+                actual: 22,
             }
         );
     }

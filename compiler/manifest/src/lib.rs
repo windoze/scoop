@@ -5,8 +5,11 @@
 //! coordinates, source identities, source text, and content digests.
 
 mod discovery;
+mod file_snapshot;
 mod input;
+mod native;
 mod root;
+mod selection;
 mod semantic;
 mod single_file;
 mod stable_file;
@@ -19,11 +22,13 @@ pub use input::{
     CurrentConeInput, CurrentConeOperandError, CurrentConeOperandErrorKind,
     classify_current_cone_operand,
 };
+pub use native::{NativeCompileFlag, NativeConfig, NativeIncludeFlag, NativeSourceLanguage};
 pub use root::{
     LoadedConeManifest, ManifestRootError, ManifestRootErrorKind, ManifestRootIoOperation,
     ManifestRootLocator, load_cone_manifest,
 };
 pub use scoop_identity::RequestedConeKind;
+pub use selection::{ConditionalSourcePath, ConeRelativePath, SourceSelection, TargetPredicate};
 pub use semantic::{
     ConeManifestSemantic, ConeManifestSpans, DependencyCoordinateKey, DependencyLocator,
     DependencyLocatorTable, DependencyManifestSpans, HostPathLocator, ManifestDiagnosticSpans,
@@ -34,3 +39,5 @@ pub use single_file::{
     SingleFileInputError, SingleFileInputErrorKind, SingleFileInputIoOperation, SingleFileLocator,
     load_single_file_source,
 };
+
+pub use file_snapshot::{ImmutableInputSnapshot, SnapshotFileError, SnapshotIoOperation};

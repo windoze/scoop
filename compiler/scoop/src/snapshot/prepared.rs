@@ -33,8 +33,7 @@ use model::{
 };
 
 impl ResolvedBuildGraph {
-    /// Atomically snapshots every graph input and validates the paired compiler
-    /// before granting the only state that may launch compiler children.
+    /// Captures graph inputs before cache lookup or compiler child execution.
     pub fn prepare(self) -> Result<PreparedBuildGraph, PrepareBuildGraphError> {
         Preparer::new(self.into_parts())?.run()
     }
@@ -73,9 +72,25 @@ impl Preparer {
         for (identity, node) in self.parts.nodes {
             let prepared = match node {
                 GraphNode::ManifestSource(manifest) => {
-                    let snapshot = capture_manifest_source(*manifest)?;
+                    let snapshot = capture_manifest_source(*manifest, &self.parts.context)?;
                     let input_root =
                         materialize_manifest_snapshot(&self.staging, identity, &snapshot)?;
+                    let native_inputs = snapshot
+                        .native
+                        .units()
+                        .iter()
+                        .enumerate()
+                        .map(|(index, unit)| {
+                            self.staging
+                                .materialize_source(
+                                    &format!("native-{identity}"),
+                                    &format!("{index:08}.i"),
+                                    unit.preprocessed(),
+                                    unit.digest(),
+                                )
+                                .map_err(PrepareBuildGraphError::Staging)
+                        })
+                        .collect::<Result<Vec<_>, _>>()?;
                     let output_path = self
                         .staging
                         .plan_output(topological_indices[&identity], &identity.to_string())
@@ -84,6 +99,7 @@ impl Preparer {
                         snapshot,
                         input_root,
                         output_path,
+                        native_inputs,
                     }))
                 }
                 GraphNode::Prebuilt(prebuilt) => {
@@ -147,6 +163,7 @@ impl Preparer {
 
 fn capture_manifest_source(
     manifest: LoadedConeManifest,
+    context: &BuildContext,
 ) -> Result<ManifestSourceSnapshot, PrepareBuildGraphError> {
     let manifest_input = ImmutableInputSnapshot::capture(manifest.manifest_path())
         .map_err(PrepareBuildGraphError::ManifestSnapshot)?;
@@ -155,19 +172,30 @@ fn capture_manifest_source(
             manifest.manifest_path().to_path_buf(),
         ));
     }
-    let discovered =
-        discover_manifest_sources(&manifest).map_err(PrepareBuildGraphError::SourceDiscovery)?;
+    let discovered = discover_manifest_sources(&manifest, context.target.id())
+        .map_err(PrepareBuildGraphError::SourceDiscovery)?;
+    let source_directories = discovered.selected_directories().to_vec();
     let (first, rest) = discovered.into_parts();
 
     let coordinate = manifest.coordinate().clone();
     let identity = manifest.identity();
     let requested_kind = manifest.parsed().semantic().requested_kind();
     let manifest_semantic = manifest.parsed().semantic().clone();
+    let native = scoop_toolchain::prepare_native_inputs(
+        &manifest,
+        context.target.id(),
+        context.target.c_bridge_toolchain(),
+        context.optimization,
+        &scoop_toolchain::development_runtime_root().join("include"),
+    )
+    .map_err(PrepareBuildGraphError::Native)?;
     Ok(ManifestSourceSnapshot {
         identity,
         coordinate,
         requested_kind,
         manifest_semantic,
+        native,
+        source_directories,
         manifest_locator: manifest.manifest_path().to_path_buf(),
         manifest_bytes: manifest_input.shared_bytes(),
         manifest_digest: manifest_input.digest(),
@@ -194,6 +222,11 @@ fn materialize_manifest_snapshot(
             snapshot.manifest_digest(),
         )
         .map_err(PrepareBuildGraphError::Staging)?;
+    for directory in &snapshot.source_directories {
+        staging
+            .materialize_source_directory(&cone_directory, directory)
+            .map_err(PrepareBuildGraphError::Staging)?;
+    }
     for source in snapshot.sources() {
         staging
             .materialize_source(

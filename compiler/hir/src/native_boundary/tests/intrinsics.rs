@@ -39,6 +39,7 @@ fn all_intrinsic_families_roundtrip_with_their_actual_declaration_owner() {
         let count = match family.parameters() {
             IntrinsicTypeParameters::None => 0,
             IntrinsicTypeParameters::OneInvariantUnconstrained
+            | IntrinsicTypeParameters::OneInvariantRef
             | IntrinsicTypeParameters::OneInvariantValue => 1,
         };
         let source = source(family, count);

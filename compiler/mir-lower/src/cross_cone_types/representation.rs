@@ -65,6 +65,25 @@ pub(super) fn project(
         (mir::Type::String, Source::Intrinsic { .. }) => {
             Repr::Intrinsic(mir::MirParamFreeIntrinsicV1::String)
         }
+        (mir::Type::Class(id), Source::Intrinsic { representation })
+            if matches!(representation.family(), hir::IntrinsicTypeKind::Atomic(_)) =>
+        {
+            let mir::ClassRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::Atomic(
+                storage,
+            )) = &module.classes[*id].representation
+            else {
+                return Err(mismatch());
+            };
+            if representation.family() != hir::IntrinsicTypeKind::Atomic(storage.kind()) {
+                return Err(mismatch());
+            }
+            Repr::Intrinsic(match storage {
+                hir::AtomicStorage::Int => mir::MirParamFreeIntrinsicV1::AtomicInt,
+                hir::AtomicStorage::Long => mir::MirParamFreeIntrinsicV1::AtomicLong,
+                hir::AtomicStorage::Boolean => mir::MirParamFreeIntrinsicV1::AtomicBoolean,
+                hir::AtomicStorage::Reference(_) => return Err(mismatch()),
+            })
+        }
         (
             mir::Type::Struct(id),
             Source::Struct {

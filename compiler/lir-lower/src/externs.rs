@@ -1,5 +1,7 @@
 use super::*;
 
+mod direct_c;
+
 #[derive(Clone, Copy)]
 pub(super) enum LoweredExternFunctionRef {
     C(lir::CExternFunctionRef),
@@ -28,29 +30,50 @@ pub(super) fn lower_extern_functions(
             },
         };
         let reference = match extern_.abi {
-            mir::ExternAbi::C => LoweredExternFunctionRef::C(
-                functions.alloc_c(lir::CExternFunction {
-                    identity: identity(),
-                    bridge: lir::GeneratedBridgeEntryIdentity::new(
-                        module.cone,
-                        scoop_identity::GeneratedBridgeUnitKey::OutboundFunction(
-                            native_externals
-                                .contract(extern_.source_contract.id())
-                                .expect("every C extern has one normalized target contract")
-                                .fingerprint(),
+            mir::ExternAbi::C(call_mode) => {
+                let signature = lir::CFunctionType {
+                    params: extern_
+                        .params
+                        .iter()
+                        .map(|ty| c_ffi_type(module, structs, enums, ty))
+                        .collect(),
+                    return_type: c_return_type(
+                        module,
+                        structs,
+                        enums,
+                        extern_.result.native_type(),
+                    ),
+                };
+                let result = extern_.result.adaptation();
+                let direct = (result == scoop_identity::CResultAdaptation::Direct)
+                    .then(|| direct_c::classify(context.target_profile(), &signature))
+                    .flatten();
+                let call_plan = match direct {
+                    Some(signature) => lir::CAbiCallPlan::Direct(signature),
+                    None => lir::CAbiCallPlan::StorageBridge {
+                        entry: Box::new(
+                            lir::GeneratedBridgeEntryIdentity::new(
+                                module.cone,
+                                scoop_identity::GeneratedBridgeUnitKey::OutboundFunction(
+                                    native_externals
+                                        .contract(extern_.source_contract.id())
+                                        .expect("every C extern has one normalized target contract")
+                                        .fingerprint(),
+                                    result,
+                                ),
+                            )
+                            .expect("validated C extern bridge identities are encodable"),
                         ),
-                    )
-                    .expect("validated C extern bridge identities are encodable"),
-                    signature: lir::CFunctionType {
-                        params: extern_
-                            .params
-                            .iter()
-                            .map(|ty| c_ffi_type(module, structs, enums, ty))
-                            .collect(),
-                        return_type: c_return_type(module, structs, enums, &extern_.return_type),
+                        result,
                     },
-                }),
-            ),
+                };
+                LoweredExternFunctionRef::C(functions.alloc_c(lir::CExternFunction {
+                    call_mode,
+                    identity: identity(),
+                    call_plan,
+                    signature,
+                }))
+            }
             mir::ExternAbi::Scoop => {
                 LoweredExternFunctionRef::Scoop(functions.alloc_scoop(lir::ScoopExternFunction {
                     identity: identity(),
@@ -62,7 +85,7 @@ pub(super) fn lower_extern_functions(
                         context,
                         module,
                         extern_.params.iter(),
-                        &extern_.return_type,
+                        extern_.result.native_type(),
                         structs,
                         enums,
                     )?,

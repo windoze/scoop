@@ -22,7 +22,7 @@ pub enum NominalInterfaceSemanticValidationError<E> {
     ClassDispatchRole(PublicNominalKindV1),
     DispatchReceiver {
         index: usize,
-        error: NominalSignatureSemanticError<E>,
+        error: crate::SignatureTypeSemanticError<E>,
     },
     DispatchApplication {
         index: usize,

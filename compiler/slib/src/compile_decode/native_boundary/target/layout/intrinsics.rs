@@ -69,6 +69,7 @@ pub(super) fn intrinsic_layout(
             true,
         )),
         IntrinsicTypeKind::String
+        | IntrinsicTypeKind::Atomic(_)
         | IntrinsicTypeKind::Array
         | IntrinsicTypeKind::MutableArray
         | IntrinsicTypeKind::Any

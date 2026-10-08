@@ -97,6 +97,8 @@ Module
   interface UnkeyedEncodingContainer
   interface SingleValueEncodingContainer
   interface ToString
+  interface Equality<Float>
+  interface Equality<Double>
   interface Decodable<Hidden>
   interface Decoder
   interface KeyedDecodingContainer
@@ -125,8 +127,10 @@ Module
   interface Iterable<JsonValue>
   interface Iterator<JsonValue>
   interface Hash
+  interface Equality<Char>
   interface Iterator<Char>
   interface Iterable<Char>
+  interface Equality<String>
   interface Continuation<Hidden>
   interface SuspendTask<Hidden>
   interface SuspendRegistration<Hidden>

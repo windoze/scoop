@@ -192,6 +192,15 @@ pub(super) fn validate(
             )?;
             None
         }
+        (Source::Intrinsic(source), Repr::AtomicReference { value }) => {
+            Error::require(
+                exact,
+                Component::Representation,
+                source.family() == hir::IntrinsicTypeKind::Atomic(hir::AtomicValueKind::Reference)
+                    && arguments.as_slice() == [*value],
+            )?;
+            None
+        }
         _ => {
             return Err(Error::Mismatch {
                 exact,

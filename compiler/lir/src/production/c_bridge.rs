@@ -143,7 +143,7 @@ mod tests {
         });
         assert_eq!(
             hex(&encode(&production).unwrap()),
-            "a6000201a30178296f72672e73636f6f702d6c616e672e632d6272696467652d746f6f6c636861696e2d70726f66696c6502781a64617277696e2d616172636836342d6170706c652d636c616e670301025820e8c46ccabd6c275a17c6ed68e26da8ba7bad1d8cbbaf716ba70e8694ef1c6444035820368cd9a023dad9b6f085cb8ebbd5f44d8e20ecbb24c98e45d6244fa63f3512a90458208ac00afbad40f12a1adfb1edcdc945866557bed31662810985927e4cc7df6cdb0581582065a6a97003171db803e4000a76035475b756279dcc38e3ea75a0bff21c2652ac"
+            "a6000201a30178296f72672e73636f6f702d6c616e672e632d6272696467652d746f6f6c636861696e2d70726f66696c6502781a64617277696e2d616172636836342d6170706c652d636c616e67030102582048f52e85164f62e1d19d557c8e97df0579f462c692d998ac097e8e8d1d4c98150358208f314440b379f395521bfef94a78be5baf19a3cc62add05363b83d3ea242b1fd0458208ac00afbad40f12a1adfb1edcdc945866557bed31662810985927e4cc7df6cdb058158202412ff1c2c4c3ceb9f9ce1b87ecb6acbb52463ade43c05f5306e2a202ceb459b"
         );
     }
 
@@ -232,8 +232,11 @@ mod tests {
             &contract,
         )
         .unwrap();
-        GeneratedBridgeUnitId::from_key(&GeneratedBridgeUnitKey::OutboundFunction(fingerprint))
-            .unwrap()
+        GeneratedBridgeUnitId::from_key(&GeneratedBridgeUnitKey::OutboundFunction(
+            fingerprint,
+            scoop_identity::CResultAdaptation::Direct,
+        ))
+        .unwrap()
     }
 
     fn hex(bytes: &[u8]) -> String {

@@ -1,0 +1,12 @@
+[
+  {
+    "code": "SCOOP_LINK_FAILED",
+    "message": "ambiguous native library \"m\": [\"${work}/first/libm.a\", \"${work}/second/libm.a\"]; requirement c43bcf45108ee0bc3d2db81f122f1a82bc1874d86683c8abf2681b81ac36e3ef; origins: dev.m33:library-ambiguity:0.1.0",
+    "notes": [],
+    "origin": {
+      "kind": "none"
+    },
+    "phase": "FinalLink",
+    "severity": "error"
+  }
+]

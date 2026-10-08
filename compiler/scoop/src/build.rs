@@ -8,7 +8,7 @@ use scoop_toolchain::ResolvedTargetProfile;
 use crate::materialize::OutputLocation;
 use crate::{
     BuildFailurePhase, PreparedBuildGraph, RuntimeBuildRequest, SourceSnapshot, build_runtime,
-    link_built_program,
+    read_built_program,
 };
 
 mod error;
@@ -87,13 +87,16 @@ pub fn build(request: BuildRequest) -> BuildResult<BuildOutcome> {
             .prefix(".scoop-build-")
             .tempdir_in(output.parent())
             .map_err(output_error)?;
-        let final_link = target
-            .final_link_with(&request.final_link)
-            .map_err(|error| {
-                BuildFailure::tool("SCOOP_LINK_TOOLCHAIN", BuildFailurePhase::FinalLink, error)
-            })?;
-        let linked = link_built_program(
-            graph.closure(),
+        let closure = read_built_program(graph.closure(), &target).map_err(|error| {
+            BuildFailure::tool("SCOOP_LINK_FAILED", BuildFailurePhase::FinalLink, error)
+        })?;
+        let final_link =
+            scoop_linker::resolve_program_link_profile(&closure, &target, &request.final_link)
+                .map_err(|error| {
+                    BuildFailure::tool("SCOOP_LINK_TOOLCHAIN", BuildFailurePhase::FinalLink, error)
+                })?;
+        let linked = scoop_linker::link_program(
+            &closure,
             &runtime,
             &final_link,
             &request.library_paths,

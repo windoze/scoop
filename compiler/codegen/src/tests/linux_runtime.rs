@@ -129,6 +129,7 @@ fn linux_amd64_anchors_relocate_real_llvm_roots_and_preserve_sret() {
                 "runtime/src/platform/arch/x86_64_strings.c",
                 "runtime/src/platform/os/linux.c",
                 "runtime/src/strings.c",
+                "runtime/src/string_decode.c",
                 "runtime/src/utf8.c",
                 "runtime/src/gc/stackmap.c",
                 "runtime/src/gc/stackmap/parser.c",

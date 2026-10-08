@@ -1,5 +1,5 @@
 private struct Atom() {
-    internal operator fun equals(other: Atom): Boolean = true
+    public operator fun equals(other: Atom): Boolean = true
 }
 private struct Pair(val first: Atom, val second: Atom)
 private enum Choice { Present(val value: Pair), Empty }

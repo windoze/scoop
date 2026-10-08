@@ -1,0 +1,86 @@
+schema = 1
+name = "m33-equality-effect-artifacts"
+inputs = ["provider", "consumer"]
+tools = ["scoop", "scoopc", "scoop-link"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["m33", "equality", "effects", "artifact-only", "generics"]
+variants = [
+  {name = "debug", vars = {profile = "debug"}},
+  {name = "release", vars = {profile = "release"}},
+]
+
+[[steps]]
+name = "prepare"
+files = [
+  {copy = {from = "${fixture}/provider", to = "${work}/sources/provider"}},
+  {copy = {from = "${fixture}/consumer", to = "${work}/sources/consumer"}},
+]
+
+[[steps]]
+name = "provider"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/provider", "--profile", "${profile}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-provider", "--message-format", "json", "-o", "${work}/artifacts/dev.m33/effect-provider/0.1.0/cone.slib", "--emit", "all", "--dump-dir", "${work}/dump"]
+timeout = 300
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {file = "${work}/dump/${provider.result.root.identity}/hir.txt", snapshot = "provider.hir.txt"},
+  {file = "${work}/dump/${provider.result.root.identity}/mir.txt", snapshot = "provider.mir.txt"},
+  {file = "${work}/dump/${provider.result.root.identity}/lir.txt", snapshot = "provider.${profile}.${target}.lir.txt"},
+]
+
+[[steps]]
+name = "remove_provider"
+files = [{remove = {path = "${work}/sources/provider"}}]
+
+[[steps]]
+name = "consumer"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/consumer", "--profile", "${profile}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-consumer", "--cone-path", "${work}/artifacts", "--message-format", "json", "--emit", "all", "--dump-dir", "${work}/dump"]
+timeout = 300
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {file = "${work}/dump/${consumer.result.root.identity}/hir.txt", snapshot = "consumer.hir.txt"},
+  {file = "${work}/dump/${consumer.result.root.identity}/mir.txt", snapshot = "consumer.mir.txt"},
+  {file = "${work}/dump/${consumer.result.root.identity}/lir.txt", snapshot = "consumer.${profile}.${target}.lir.txt"},
+]
+
+[[steps]]
+name = "remove_consumer"
+files = [{remove = {path = "${work}/sources/consumer"}}]
+
+[[steps]]
+name = "link"
+argv = ["${scoop-link}", {each = "${link_args}"}, "--root-slib", "${consumer.result.root.path}", {each = "${consumer.result.dependencies}", field = "path", prefix = "--dep-slib"}, "--runtime-objects", "${consumer.result.runtime_index}", "-o", "${work}/relinked"]
+env = {LLVM_CONFIG_PATH = "/absent/llvm-config", LLVM_SYS_221_PREFIX = "/absent/llvm"}
+exit = 0
+stdout = "link-plan ${consumer.result.link_plan_fingerprint}\n"
+stderr = ""
+
+[[steps]]
+name = "run"
+argv = ["${work}/relinked"]
+exit = 0
+stdout = "artifact effect adapters\n"
+stderr = ""
+
+[[steps]]
+name = "moving"
+argv = ["${work}/relinked"]
+env = {SCOOP_GC_STRESS_MOVE = "1"}
+exit = 0
+stdout = "artifact effect adapters\n"
+stderr = ""
+
+[[steps]]
+name = "minor"
+argv = ["${work}/relinked"]
+env = {SCOOP_GC_STRESS_MINOR = "1"}
+exit = 0
+stdout = "artifact effect adapters\n"
+stderr = ""

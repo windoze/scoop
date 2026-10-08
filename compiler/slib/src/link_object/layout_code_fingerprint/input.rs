@@ -27,7 +27,7 @@ impl<S: WireEncode> LayoutCodeFingerprintInputV1<'_, S> {
 
 impl<S: WireEncode> WireEncode for LayoutCodeFingerprintInputV1<'_, S> {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(9)?;
+        encoder.map(10)?;
         encoder.field(1)?;
         self.objects.projection().encode(encoder)?;
         encoder.field(2)?;
@@ -56,6 +56,8 @@ impl<S: WireEncode> WireEncode for LayoutCodeFingerprintInputV1<'_, S> {
         encoder.field(8)?;
         self.strong.encode(encoder)?;
         encoder.field(9)?;
-        self.production.encode(encoder)
+        self.production.encode(encoder)?;
+        encoder.field(10)?;
+        encoder.unsigned(u64::from(self.native_requirements.cxx()))
     }
 }

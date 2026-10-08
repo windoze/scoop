@@ -1,0 +1,10 @@
+schema = 1
+[cone]
+group = "dev.m33"
+name = "native-negative"
+version = "0.1.0"
+kind = "executable"
+[native]
+c_flags = ["--target=x86_64-linux-gnu"]
+[[native.sources]]
+path = "native.c"

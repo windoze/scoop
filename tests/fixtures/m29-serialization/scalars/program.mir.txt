@@ -88,6 +88,8 @@ Module
   interface UnkeyedDecodingContainer
   interface SingleValueDecodingContainer
   interface ToString
+  interface Equality<Float>
+  interface Equality<Double>
   interface Encodable<Long>
   interface Encoder
   interface KeyedEncodingContainer
@@ -110,12 +112,14 @@ Module
   interface Decodable<ULong>
   interface Encodable<ULong>
   interface Hash
+  interface Equality<Char>
   interface Decodable<Char>
   interface Encodable<Char>
   interface Encodable<String>
   interface Decodable<String>
   interface Encodable<Unit>
   interface Decodable<Unit>
+  interface Equality<Long>
   interface List<Option<JsonMember>> : Iterable<Option<JsonMember>>
   interface Iterable<Option<JsonMember>>
   interface Iterator<Option<JsonMember>>
@@ -132,6 +136,7 @@ Module
   interface Iterator<JsonValue>
   interface Iterator<Char>
   interface Iterable<Char>
+  interface Equality<String>
   closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn29 captures=0
     bridge function_type1 -> @fn116 id=66d035b86e5d3706618fdb7f8021f0b9528d9a7c880dafaad5ca9ef9ca0732c9
   closure cc1 $Closure$lambda1 type=function_type2 invoke=@fn30 captures=0

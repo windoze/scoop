@@ -2,6 +2,7 @@ use std::fmt;
 
 #[derive(Debug)]
 pub enum CurrentConeProductionFailure {
+    Native(scoop_toolchain::ToolchainError),
     Hir(super::CurrentConeHirStageError),
     Mir(super::CurrentConeMirStageError),
     Lir(super::CurrentConeLirStageError),
@@ -15,6 +16,7 @@ pub enum CurrentConeProductionFailure {
 impl fmt::Display for CurrentConeProductionFailure {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::Native(source) => source.fmt(formatter),
             Self::Hir(source) => source.fmt(formatter),
             Self::Mir(source) => source.fmt(formatter),
             Self::Lir(source) => source.fmt(formatter),
@@ -30,6 +32,7 @@ impl fmt::Display for CurrentConeProductionFailure {
 impl std::error::Error for CurrentConeProductionFailure {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         Some(match self {
+            Self::Native(source) => source,
             Self::Hir(source) => source,
             Self::Mir(source) => source,
             Self::Lir(source) => source,

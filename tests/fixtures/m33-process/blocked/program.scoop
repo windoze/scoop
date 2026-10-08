@@ -1,0 +1,28 @@
+@Extern(lib = "fixture_native", name = "blocked_exit")
+fun blockedExit(callback: FunPtr<(Int, Ptr<Unit>) -> Int>, context: Ptr<Unit>)
+
+fun main() {
+    val message = "alive" + " during exit"
+    @Unsafe {
+        val callback = foreignCallback<(Int, Ptr<Unit>) -> Int>(fun(mode: Int): Int {
+            if (mode == 0) {
+                gcCollect()
+                if (message != "alive during exit") { throw IllegalStateException() }
+                return 37
+            }
+            @Unsafe {
+                message.withCString<Unit>(fun(pointer: Ptr<Int8>) {
+                    write("pending")
+                    if (mode == 2) {
+                        val impossible = MutableArray<Int>(9223372036854775807L) { 0 }
+                        println(impossible.size)
+                    }
+                    exit(37)
+                })
+            }
+            return 99
+        }, 1, ForeignCallbackMode.Reusable)
+        blockedExit(callback.function, callback.context)
+        throw IllegalStateException()
+    }
+}

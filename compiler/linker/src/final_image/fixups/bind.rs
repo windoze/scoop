@@ -5,13 +5,11 @@ pub(crate) struct Binding {
     pub symbol: String,
     pub ordinal: i32,
     pub addend: i64,
-    pub weak: bool,
 }
 
 pub(in crate::final_image) fn bindings(
     bytes: &[u8],
     segments: &[Segment],
-    weak: bool,
 ) -> Result<BTreeMap<u64, Binding>, LinkError> {
     let mut cursor = Cursor::new(bytes);
     let mut position = Position::default();
@@ -19,7 +17,6 @@ pub(in crate::final_image) fn bindings(
         symbol: String::new(),
         ordinal: 0,
         addend: 0,
-        weak,
     };
     let mut result = BTreeMap::new();
     while !cursor.done() {

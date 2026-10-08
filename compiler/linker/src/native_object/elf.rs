@@ -4,12 +4,16 @@ use object::read::elf::SectionHeader;
 use scoop_slib::ValidatedElfObject;
 
 pub(super) fn read(bytes: &[u8], target: TargetProfileId) -> Result<NativeObjectInfo, LinkError> {
-    let index = index(bytes, target)?;
+    let index = index(bytes, target, false)?;
     index.check_selected(bytes)?;
     Ok(index.info)
 }
 
-pub(super) fn index(bytes: &[u8], target: TargetProfileId) -> Result<NativeObjectIndex, LinkError> {
+pub(super) fn index(
+    bytes: &[u8],
+    target: TargetProfileId,
+    cxx: bool,
+) -> Result<NativeObjectIndex, LinkError> {
     let object = ValidatedElfObject::read(bytes, target).map_err(error)?;
     let file = object.file();
     let mut definitions = BTreeMap::new();
@@ -18,10 +22,12 @@ pub(super) fn index(bytes: &[u8], target: TargetProfileId) -> Result<NativeObjec
     for section in file.sections() {
         let name = section.name().map_err(error)?;
         let kind = section.elf_section_header().sh_type(file.endian());
-        if matches!(
-            kind,
-            elf::SHT_INIT_ARRAY | elf::SHT_FINI_ARRAY | elf::SHT_PREINIT_ARRAY
-        ) || matches!(name, ".init" | ".fini" | ".ctors" | ".dtors" | ".llvm.lto")
+        if (!cxx
+            && (matches!(
+                kind,
+                elf::SHT_INIT_ARRAY | elf::SHT_FINI_ARRAY | elf::SHT_PREINIT_ARRAY
+            ) || matches!(name, ".init" | ".fini" | ".ctors" | ".dtors")))
+            || name == ".llvm.lto"
             || name.starts_with(".gnu.lto_")
             || (name == ".note.GNU-stack"
                 && section.elf_section_header().sh_flags(file.endian())
@@ -35,11 +41,12 @@ pub(super) fn index(bytes: &[u8], target: TargetProfileId) -> Result<NativeObjec
     }
     for symbol in file.symbols().filter(|symbol| symbol.is_global()) {
         let name = symbol.name().map_err(error)?.to_owned();
-        if (name.starts_with("__cxa_")
-            && !matches!(name.as_ref(), "__cxa_finalize" | "__cxa_atexit"))
-            || name.starts_with("__gxx_personality")
-            || name.starts_with("__gcc_personality")
-            || name.starts_with("_ZSt9terminate")
+        if !cxx
+            && ((name.starts_with("__cxa_")
+                && !matches!(name.as_ref(), "__cxa_finalize" | "__cxa_atexit"))
+                || name.starts_with("__gxx_personality")
+                || name.starts_with("__gcc_personality")
+                || name.starts_with("_ZSt9terminate"))
         {
             rejection.get_or_insert_with(|| {
                 format!("native object has forbidden C++ EH dependency {name}")
@@ -54,7 +61,7 @@ pub(super) fn index(bytes: &[u8], target: TargetProfileId) -> Result<NativeObjec
                 NativeSymbolDefinition {
                     kind: NativeSymbolKind::Data,
                     read_only: false,
-                    weak: symbol.is_weak(),
+                    weak: symbol.is_weak() || symbol.elf_symbol().st_bind() == elf::STB_GNU_UNIQUE,
                 },
             );
             continue;
@@ -94,7 +101,7 @@ pub(super) fn index(bytes: &[u8], target: TargetProfileId) -> Result<NativeObjec
                 NativeSymbolDefinition {
                     kind,
                     read_only,
-                    weak: symbol.is_weak(),
+                    weak: symbol.is_weak() || symbol.elf_symbol().st_bind() == elf::STB_GNU_UNIQUE,
                 },
             )
             .is_some()

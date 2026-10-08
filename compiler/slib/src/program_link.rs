@@ -5,6 +5,7 @@ use scoop_lir as lir;
 
 mod error;
 mod graph;
+mod native;
 mod read;
 pub use error::ProgramLinkReadError;
 use error::error;
@@ -17,11 +18,15 @@ pub struct ProgramLinkArtifact {
     pub(crate) production: lir::ConeProductionSectionV2,
     pub(crate) ordinary: lir::CrossConeLirBridgeSectionV1,
     pub(crate) layout: lir::PhysicalImportsReplayedLayoutAbiSectionV1,
+    pub(crate) native_objects: Vec<crate::NativeLinkObject>,
 }
 
 impl ProgramLinkArtifact {
     pub fn identity(&self) -> ConeIdentity {
         self.manifest.cone().identity()
+    }
+    pub fn native_objects(&self) -> &[crate::NativeLinkObject] {
+        &self.native_objects
     }
     pub fn manifest(&self) -> &BootstrapManifest {
         &self.manifest

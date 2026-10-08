@@ -32,6 +32,9 @@ pub enum MirTypeCLayoutPolicyV1 {
 /// separately supported exact-application path and cannot masquerade as one.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum MirParamFreeIntrinsicV1 {
+    AtomicInt,
+    AtomicLong,
+    AtomicBoolean,
     Any,
     Nothing,
     Unit,
@@ -70,6 +73,9 @@ pub enum MirTypeRepresentationV1 {
     InlineArray {
         element: PersistentExactTypeId,
     },
+    AtomicReference {
+        value: PersistentExactTypeId,
+    },
     Object {
         backing: PersistentExactTypeId,
     },
@@ -103,6 +109,7 @@ impl MirTypeRepresentationV1 {
             Self::BoxedValue { payload } => std::slice::from_ref(payload),
             Self::Intrinsic(_)
             | Self::InlineArray { .. }
+            | Self::AtomicReference { .. }
             | Self::Enum { .. }
             | Self::Interface
             | Self::Object { .. }

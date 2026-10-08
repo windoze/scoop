@@ -1,7 +1,7 @@
 use scoop_identity::{
     CallableBodyKey, CanonicalIdentifier, CborIdentityRecord, ConeIdentity, DeclarationScope,
     DefinitionAtomRole, DefinitionAtomSubkey, DefinitionOwnerChain, DigestNodeId, DigestNodeKey,
-    DigestPatchIntentKey, DigestSemanticFieldRole, ExactOrdinaryNoArgUnitSignature, ExactTypeKey,
+    DigestPatchIntentKey, DigestSemanticFieldRole, ExactCallableSignature, ExactTypeKey,
     ExecutableSourceEntryIdentity, LinkageClass, MainCallableBodyId, ObjectDefinitionAtomKey,
     ObjectDefinitionPlanKey, PackagePath, PersistentCallableBodyId, PersistentExactTypeId,
     PersistentFunctionId, PersistentStaticStorageId, PersistentSymbolKey, PersistentSymbolRequest,
@@ -375,7 +375,12 @@ fn executable_source_entry() -> ExecutableSourceEntryIdentity {
     .unwrap();
     ExecutableSourceEntryIdentity::try_new(
         &declaration,
-        ExactOrdinaryNoArgUnitSignature::new(unit_exact_type()),
+        ExactCallableSignature::new(
+            scoop_identity::Effect::Ordinary,
+            None,
+            Vec::new(),
+            unit_exact_type(),
+        ),
     )
     .unwrap()
 }

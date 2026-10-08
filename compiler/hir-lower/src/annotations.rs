@@ -9,6 +9,7 @@ use crate::{Lowerer, Owner};
 
 mod arguments;
 mod constructors;
+mod externs;
 mod functions;
 
 pub(crate) use arguments::is_core_annotation;
@@ -87,7 +88,7 @@ impl Lowerer {
         }
 
         if let Some(extern_annotation) = &extern_ {
-            if extern_annotation.abi != hir::ExternAbi::C {
+            if !extern_annotation.abi.is_c() {
                 self.error(
                     decl.span,
                     "an extern global supports only the C data ABI".to_string(),

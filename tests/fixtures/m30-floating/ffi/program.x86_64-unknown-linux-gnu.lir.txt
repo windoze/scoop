@@ -11,21 +11,21 @@ Module
   enum ForeignCallbackMode tagged size=8 align=8 variants=()@8+0 ()@8+0
   enum ForeignCallbackState tagged size=8 align=8 variants=()@8+0 ()@8+0 ()@8+0 ()@8+0
   enum Option niche(kind=managed,payload_variant=0)
-  extern ef0 fromFloatBits @float_from_bits(i32) -> f32 <c exact=(UInt)->Float bridge=@scoop$1$br$6ade150b97262be44c4c1f07aebc8b084cbe6c3019e6a7c65c6c42ed33d703f0 gc-leaf nounwind lib=fixture_native>
-  extern ef1 fromDoubleBits @double_from_bits(i64) -> f64 <c exact=(ULong)->Double bridge=@scoop$1$br$11caafa8ce7152fb0a81466dbe9b069ec06358daea8d5b95b603021e8c7584d2 gc-leaf nounwind lib=fixture_native>
-  extern ef2 floatBits @float_bits(f32) -> i32 <c exact=(Float)->UInt bridge=@scoop$1$br$4dd6f3aa074105662c0182f7cee63d99bd7e786d1bfdc040a905d06b3d82474c gc-leaf nounwind lib=fixture_native>
-  extern ef3 doubleBits @double_bits(f64) -> i64 <c exact=(Double)->ULong bridge=@scoop$1$br$e06112c9d3258e542ba12d893757998a618b8af76b231b8a7003c1046140fe51 gc-leaf nounwind lib=fixture_native>
+  extern ef0 fromFloatBits @float_from_bits(i32) -> f32 <c exact=(UInt)->Float direct-c=(i32)->f32 gc-leaf nounwind lib=fixture_native>
+  extern ef1 fromDoubleBits @double_from_bits(i64) -> f64 <c exact=(ULong)->Double direct-c=(i64)->f64 gc-leaf nounwind lib=fixture_native>
+  extern ef2 floatBits @float_bits(f32) -> i32 <c exact=(Float)->UInt direct-c=(f32)->i32 gc-leaf nounwind lib=fixture_native>
+  extern ef3 doubleBits @double_bits(f64) -> i64 <c exact=(Double)->ULong direct-c=(f64)->i64 gc-leaf nounwind lib=fixture_native>
   extern ef4 roundSingles @round_singles(struct2) -> struct2 <c exact=(c-struct2)->c-struct2 bridge=@scoop$1$br$9830913905fdd1bc038265de247376af29ed91498d245e474e2de87bcbc8282a gc-leaf nounwind lib=fixture_native>
   extern ef5 roundDoubles @round_doubles(struct3) -> struct3 <c exact=(c-struct3)->c-struct3 bridge=@scoop$1$br$d89905e202df7872bb41311ab5f045fbfe6c7adb9b09eea178165dbfa9a81f72 gc-leaf nounwind lib=fixture_native>
   extern ef6 roundMixed @round_mixed(struct4) -> struct4 <c exact=(c-struct4)->c-struct4 bridge=@scoop$1$br$d716a7fe0ac8594ec7b13f02bdd004864bc6988d1c323be30adcb60e85f4d5f5 gc-leaf nounwind lib=fixture_native>
-  extern ef7 pointerSingle @pointer_single(ptr<raw>) -> f32 <c exact=(data-ptr<Float,direct>)->Float bridge=@scoop$1$br$d0846d67f94408f4ca6724a9bba22b22a52eb37cb20b9418aa1f2a4dce1725ed gc-leaf nounwind lib=fixture_native>
-  extern ef8 pointerWide @pointer_wide(ptr<raw>) -> f64 <c exact=(data-ptr<Double,direct>)->Double bridge=@scoop$1$br$9bb3dd5359a3db0364c28e4d678ab78b4101e62fd4823672638c0f9ad2a2f0dc gc-leaf nounwind lib=fixture_native>
-  extern ef9 tlsMatches @tls_matches(i32, i64) -> i32 <c exact=(UInt,ULong)->Int bridge=@scoop$1$br$d0421b1da3f1cc44305339b07930a8e1a35afcb15d31261228d45c656fce61b5 gc-leaf nounwind lib=fixture_native>
-  extern ef10 nativeSingle @native_single() -> ptr<code> <c exact=()->code-ptr<(Float)->Float,direct> bridge=@scoop$1$br$ef7c80c0faffe6dcc87bdc2529caf492e02dd8d26f29e334fefb6631e835eaa9 gc-leaf nounwind lib=fixture_native>
-  extern ef11 nativeWide @native_wide() -> ptr<code> <c exact=()->code-ptr<(Double)->Double,direct> bridge=@scoop$1$br$2e2a51e7a75f691a0363b931d79c7cd83320753e75b0fb3fc968c285236d60c1 gc-leaf nounwind lib=fixture_native>
-  extern ef12 invokeSingle @invoke_single(ptr<code>, f32) -> f32 <c exact=(code-ptr<(Float)->Float,direct>,Float)->Float bridge=@scoop$1$br$03f61acc012783d04220183f87d3c89f50a90e8dfea7bffc8a191506a0fe149b gc-leaf nounwind lib=fixture_native>
-  extern ef13 invokeWide @invoke_wide(ptr<code>, f64) -> f64 <c exact=(code-ptr<(Double)->Double,direct>,Double)->Double bridge=@scoop$1$br$a4634b8d57e997bab215cb1d1c9a02dbbfd45d75a60ba3d6ec49c75561534981 gc-leaf nounwind lib=fixture_native>
-  extern ef14 invokeManaged @invoke_managed(ptr<code>, ptr<raw>, f32) -> f32 <c exact=(code-ptr<(Float,data-ptr<opaque-void,direct>)->Float,direct>,data-ptr<opaque-void,direct>,Float)->Float bridge=@scoop$1$br$3bac1ac6d891200a78ee470a22df3e14fb645caf6604d685e8a0540fe9488b39 gc-leaf nounwind lib=fixture_native>
+  extern ef7 pointerSingle @pointer_single(ptr<raw>) -> f32 <c exact=(data-ptr<Float,direct>)->Float direct-c=(ptr<raw>)->f32 gc-leaf nounwind lib=fixture_native>
+  extern ef8 pointerWide @pointer_wide(ptr<raw>) -> f64 <c exact=(data-ptr<Double,direct>)->Double direct-c=(ptr<raw>)->f64 gc-leaf nounwind lib=fixture_native>
+  extern ef9 tlsMatches @tls_matches(i32, i64) -> i32 <c exact=(UInt,ULong)->Int direct-c=(i32,i64)->i32 gc-leaf nounwind lib=fixture_native>
+  extern ef10 nativeSingle @native_single() -> ptr<code> <c exact=()->code-ptr<(Float)->Float,direct> direct-c=()->ptr<code> gc-leaf nounwind lib=fixture_native>
+  extern ef11 nativeWide @native_wide() -> ptr<code> <c exact=()->code-ptr<(Double)->Double,direct> direct-c=()->ptr<code> gc-leaf nounwind lib=fixture_native>
+  extern ef12 invokeSingle @invoke_single(ptr<code>, f32) -> f32 <c exact=(code-ptr<(Float)->Float,direct>,Float)->Float direct-c=(ptr<code>,f32)->f32 gc-leaf nounwind lib=fixture_native>
+  extern ef13 invokeWide @invoke_wide(ptr<code>, f64) -> f64 <c exact=(code-ptr<(Double)->Double,direct>,Double)->Double direct-c=(ptr<code>,f64)->f64 gc-leaf nounwind lib=fixture_native>
+  extern ef14 invokeManaged @invoke_managed(ptr<code>, ptr<raw>, f32) -> f32 <c exact=(code-ptr<(Float,data-ptr<opaque-void,direct>)->Float,direct>,data-ptr<opaque-void,direct>,Float)->Float direct-c=(ptr<code>,ptr<raw>,f32)->f32 gc-leaf nounwind lib=fixture_native>
   extern ef15 scoopSingle @scalar_single(f32) -> f32 <scoop gc-leaf nounwind lib=fixture_native>
   extern ef16 scoopWide @scalar_wide(f64) -> f64 <scoop gc-leaf nounwind lib=fixture_native>
   extern ef17 scoopPair @scoop_pair(indirect<struct5 size=16 align=8 scan=none>) -> sret<struct5 size=16 align=8 scan=none> <scoop gc-leaf nounwind lib=fixture_native>
@@ -35,43 +35,31 @@ Module
   foreign_callback_bridge fcb0 family=fcf0 @scoop$1$cb$eb176abee6a930e820462249f164361c9ba5461c02ac5d9b05d9715555d4b3b1 -> @scoop$1$br$dcf547d5e7f63081878c019f4295c75f9f92cab37c42927d210c1830f2a5218e signature=@scoop$1$br$213ab956ad2749a55920eca91bb06541fbc9b363df0af36d018b28128b03ef83 context=1 mode=ForeignCallbackMode.Reusable c=(Float,data-ptr<opaque-void,direct>)->Float
   fun @scoop$1$cb$827fbdf8d4c9f0d3071e4ea1a4e09dd5eeca53952b8df3d4644d14923ad8c571(i32) -> f32
     local %0 $call.1: f32
-    local %1 $sc.1: i32
-    local %2 $sc.2: f32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
-    store param0 -> local1
-    call native-safe-indirect-target0 sp<native-safe:0> roots=[] local2 = sig=indirect0 (c-storage-pointer f32 size=4 align=4 scan=none, ptr<raw>) extern0(c-arg-address(local1))
-    store local2 -> local0
+    call native-safe-direct-target0 sp<native-safe:0> roots=[] t0 = sig=direct0 (i32) -> f32 extern0(param0)
+    store t0 -> local0
     ret local0
   fun @scoop$1$cb$710778807ba69a7294a911a41416f8b785fdfbb626ce7921aded08dc5c60b344(i64) -> f64
     local %0 $call.1: f64
-    local %1 $sc.1: i64
-    local %2 $sc.2: f64
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
-    store param0 -> local1
-    call native-safe-indirect-target0 sp<native-safe:0> roots=[] local2 = sig=indirect0 (c-storage-pointer f64 size=8 align=8 scan=none, ptr<raw>) extern1(c-arg-address(local1))
-    store local2 -> local0
+    call native-safe-direct-target0 sp<native-safe:0> roots=[] t0 = sig=direct0 (i64) -> f64 extern1(param0)
+    store t0 -> local0
     ret local0
   fun @scoop$1$cb$99ad933d78e8c2218dc637b48a9086f1365228482b65f4dbc519d0225f634990(f32) -> i32
     local %0 $call.1: i32
-    local %1 $sc.1: f32
-    local %2 $sc.2: i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
-    store param0 -> local1
-    call native-safe-indirect-target0 sp<native-safe:0> roots=[] local2 = sig=indirect0 (c-storage-pointer i32 size=4 align=4 scan=none, ptr<raw>) extern2(c-arg-address(local1))
-    store local2 -> local0
+    call native-safe-direct-target0 sp<native-safe:0> roots=[] t0 = sig=direct0 (f32) -> i32 extern2(param0)
+    store t0 -> local0
     ret local0
   fun @scoop$1$cb$3ac736c8461259a2ccac730df56641548c4af16f099ad2eaf98436bac1e9bb86(f64) -> i64
     local %0 $call.1: i64
-    local %1 $sc.1: f64
-    local %2 $sc.2: i64
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
-    store param0 -> local1
-    call native-safe-indirect-target0 sp<native-safe:0> roots=[] local2 = sig=indirect0 (c-storage-pointer i64 size=8 align=8 scan=none, ptr<raw>) extern3(c-arg-address(local1))
-    store local2 -> local0
+    call native-safe-direct-target0 sp<native-safe:0> roots=[] t0 = sig=direct0 (f64) -> i64 extern3(param0)
+    store t0 -> local0
     ret local0
   fun @scoop$1$cb$228108ba6fd228548dfa44df1a0bc35dbf098dda0580794985f5f9cead0d2ead(indirect<struct2 size=8 align=4 scan=none>) -> sret<struct2 size=8 align=4 scan=none>
     local %0 $call.1: struct2
@@ -105,89 +93,59 @@ Module
     ret local0
   fun @scoop$1$cb$0900e24b537e5fcdc9c56af57429255cc9dd4fa48bde1cb8230ba08130b6a9ef(ptr<raw>) -> f32
     local %0 $call.1: f32
-    local %1 $sc.1: ptr<raw>
-    local %2 $sc.2: f32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
-    store param0 -> local1
-    call native-safe-indirect-target0 sp<native-safe:0> roots=[] local2 = sig=indirect0 (c-storage-pointer f32 size=4 align=4 scan=none, ptr<raw>) extern7(c-arg-address(local1))
-    store local2 -> local0
+    call native-safe-direct-target0 sp<native-safe:0> roots=[] t0 = sig=direct0 (ptr<raw>) -> f32 extern7(param0)
+    store t0 -> local0
     ret local0
   fun @scoop$1$cb$f43cf8b727bcbb107bfb6b5d655ad6945781a9d34a3994a8918f6bda92007804(ptr<raw>) -> f64
     local %0 $call.1: f64
-    local %1 $sc.1: ptr<raw>
-    local %2 $sc.2: f64
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
-    store param0 -> local1
-    call native-safe-indirect-target0 sp<native-safe:0> roots=[] local2 = sig=indirect0 (c-storage-pointer f64 size=8 align=8 scan=none, ptr<raw>) extern8(c-arg-address(local1))
-    store local2 -> local0
+    call native-safe-direct-target0 sp<native-safe:0> roots=[] t0 = sig=direct0 (ptr<raw>) -> f64 extern8(param0)
+    store t0 -> local0
     ret local0
   fun @scoop$1$cb$4bb0f6ddf0b958fc27ca08e2625b6e56a6af5714962d8f0deee265281ea27c46(i32, i64) -> i32
     local %0 $call.1: i32
-    local %1 $sc.1: i32
-    local %2 $sc.2: i64
-    local %3 $sc.3: i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
-    store param0 -> local1
-    store param1 -> local2
-    call native-safe-indirect-target0 sp<native-safe:0> roots=[] local3 = sig=indirect0 (c-storage-pointer i32 size=4 align=4 scan=none, ptr<raw>, ptr<raw>) extern9(c-arg-address(local1), c-arg-address(local2))
-    store local3 -> local0
+    call native-safe-direct-target0 sp<native-safe:0> roots=[] t0 = sig=direct0 (i32, i64) -> i32 extern9(param0, param1)
+    store t0 -> local0
     ret local0
   fun @scoop$1$cb$f2ef3ebd6757479dd9a674fbcde6138e3d5a629edf43a621cea225785e08c4c7() -> ptr<code>
     local %0 $call.1: ptr<code>
-    local %1 $sc.1: ptr<code>
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
-    call native-safe-indirect-target0 sp<native-safe:0> roots=[] local1 = sig=indirect0 (c-storage-pointer ptr<code> size=8 align=8 scan=none) extern10()
-    store local1 -> local0
+    call native-safe-direct-target0 sp<native-safe:0> roots=[] t0 = sig=direct0 () -> ptr<code> extern10()
+    store t0 -> local0
     ret local0
   fun @scoop$1$cb$8f79234efdc03b2ee6785c85d0b2af1028abc2a367efa53e0ada8305df383168() -> ptr<code>
     local %0 $call.1: ptr<code>
-    local %1 $sc.1: ptr<code>
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
-    call native-safe-indirect-target0 sp<native-safe:0> roots=[] local1 = sig=indirect0 (c-storage-pointer ptr<code> size=8 align=8 scan=none) extern11()
-    store local1 -> local0
+    call native-safe-direct-target0 sp<native-safe:0> roots=[] t0 = sig=direct0 () -> ptr<code> extern11()
+    store t0 -> local0
     ret local0
   fun @scoop$1$cb$6631ed9f407f23cd330d9eca2d16741f4e1303446bb652c69c46e2efc8d5322d(ptr<code>, f32) -> f32
     local %0 $call.1: f32
-    local %1 $sc.1: ptr<code>
-    local %2 $sc.2: f32
-    local %3 $sc.3: f32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
-    store param0 -> local1
-    store param1 -> local2
-    call native-safe-indirect-target0 sp<native-safe:0> roots=[] local3 = sig=indirect0 (c-storage-pointer f32 size=4 align=4 scan=none, ptr<raw>, ptr<raw>) extern12(c-arg-address(local1), c-arg-address(local2))
-    store local3 -> local0
+    call native-safe-direct-target0 sp<native-safe:0> roots=[] t0 = sig=direct0 (ptr<code>, f32) -> f32 extern12(param0, param1)
+    store t0 -> local0
     ret local0
   fun @scoop$1$cb$5b72358fc89ef7bc786e1180bb213fdb56d2a399cad4069cb4e02237482632d1(ptr<code>, f64) -> f64
     local %0 $call.1: f64
-    local %1 $sc.1: ptr<code>
-    local %2 $sc.2: f64
-    local %3 $sc.3: f64
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
-    store param0 -> local1
-    store param1 -> local2
-    call native-safe-indirect-target0 sp<native-safe:0> roots=[] local3 = sig=indirect0 (c-storage-pointer f64 size=8 align=8 scan=none, ptr<raw>, ptr<raw>) extern13(c-arg-address(local1), c-arg-address(local2))
-    store local3 -> local0
+    call native-safe-direct-target0 sp<native-safe:0> roots=[] t0 = sig=direct0 (ptr<code>, f64) -> f64 extern13(param0, param1)
+    store t0 -> local0
     ret local0
   fun @scoop$1$cb$665d53837d130e0cd86773ee84be9b33509195b175a9f022b76ea42e61bde244(ptr<code>, ptr<raw>, f32) -> f32
     local %0 $call.1: f32
-    local %1 $sc.1: ptr<code>
-    local %2 $sc.2: ptr<raw>
-    local %3 $sc.3: f32
-    local %4 $sc.4: f32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
-    store param0 -> local1
-    store param1 -> local2
-    store param2 -> local3
-    call native-safe-indirect-target0 sp<native-safe:0> roots=[] local4 = sig=indirect0 (c-storage-pointer f32 size=4 align=4 scan=none, ptr<raw>, ptr<raw>, ptr<raw>) extern14(c-arg-address(local1), c-arg-address(local2), c-arg-address(local3))
-    store local4 -> local0
+    call native-safe-direct-target0 sp<native-safe:0> roots=[] t0 = sig=direct0 (ptr<code>, ptr<raw>, f32) -> f32 extern14(param0, param1, param2)
+    store t0 -> local0
     ret local0
   fun @scoop$1$cb$1cbd68e548daf15f0b95822c04bafe392b24136d556c95a219320c9f464efc52(f32) -> f32
     local %0 $call.1: f32
@@ -453,123 +411,48 @@ Module
     local %230 $dependency.parameter.value: i1
     local %231 $dependency.argument.0: struct6
     local %232 $dependency.parameter.callback: struct6
-    local %233 $sc.1: i32
-    local %234 $sc.2: f32
-    local %235 $sc.3: i64
-    local %236 $sc.4: f64
-    local %237 $sc.5: f32
-    local %238 $sc.6: i32
-    local %239 $sc.7: f64
-    local %240 $sc.8: i64
-    local %241 $sc.9: ptr<raw>
-    local %242 $sc.10: f32
-    local %243 $sc.11: f32
-    local %244 $sc.12: i32
-    local %245 $sc.13: ptr<raw>
-    local %246 $sc.14: f64
-    local %247 $sc.15: f64
-    local %248 $sc.16: i64
-    local %249 $sc.17: struct2
-    local %250 $sc.18: struct2
-    local %251 $sc.19: struct2
-    local %252 $sc.20: struct3
-    local %253 $sc.21: struct3
-    local %254 $sc.22: struct3
-    local %255 $sc.23: struct4
-    local %256 $sc.24: struct4
-    local %257 $sc.25: struct4
-    local %258 $sc.26: f32
-    local %259 $sc.27: i32
-    local %260 $sc.28: f32
-    local %261 $sc.29: i32
-    local %262 $sc.30: f64
-    local %263 $sc.31: i64
-    local %264 $sc.32: f64
-    local %265 $sc.33: i64
-    local %266 $sc.34: f32
-    local %267 $sc.35: i32
-    local %268 $sc.36: f64
-    local %269 $sc.37: i64
-    local %270 $sc.38: struct5
-    local %271 $sc.39: struct5
-    local %272 $sc.40: struct5
-    local %273 $sc.41: f32
-    local %274 $sc.42: i32
-    local %275 $sc.43: f64
-    local %276 $sc.44: i64
-    local %277 $sc.45: f32
-    local %278 $sc.46: i32
-    local %279 $sc.47: f64
-    local %280 $sc.48: i64
-    local %281 $sc.49: i32
-    local %282 $sc.50: i64
-    local %283 $sc.51: i32
-    local %284 $sc.52: f32
-    local %285 $sc.53: i32
-    local %286 $sc.54: f64
-    local %287 $sc.55: i64
-    local %288 $sc.56: ptr<code>
-    local %289 $sc.57: f32
-    local %290 $sc.58: f32
-    local %291 $sc.59: f32
-    local %292 $sc.60: i32
-    local %293 $sc.61: ptr<code>
-    local %294 $sc.62: f64
-    local %295 $sc.63: f64
-    local %296 $sc.64: f64
-    local %297 $sc.65: i64
-    local %298 $sc.66: ptr<code>
-    local %299 $sc.67: ptr<code>
-    local %300 $sc.68: f32
-    local %301 $sc.69: f32
-    local %302 $sc.70: f32
-    local %303 $sc.71: i32
-    local %304 $sc.72: ptr<code>
-    local %305 $sc.73: ptr<code>
-    local %306 $sc.74: f64
-    local %307 $sc.75: f64
-    local %308 $sc.76: f64
-    local %309 $sc.77: i64
-    local %310 $sc.78: ptr<code>
-    local %311 $sc.79: ptr<raw>
-    local %312 $sc.80: f32
-    local %313 $sc.81: f32
-    local %314 $sc.82: f32
-    local %315 $sc.83: i32
+    local %233 $sc.1: struct2
+    local %234 $sc.2: struct2
+    local %235 $sc.3: struct2
+    local %236 $sc.4: struct3
+    local %237 $sc.5: struct3
+    local %238 $sc.6: struct3
+    local %239 $sc.7: struct4
+    local %240 $sc.8: struct4
+    local %241 $sc.9: struct4
+    local %242 $sc.10: struct5
+    local %243 $sc.11: struct5
+    local %244 $sc.12: struct5
   block entry
     poll managed-void-target7 sp<managed-poll:0> live=[]
     store integer<UInt>(0xff800123) -> local0
     store local0 -> local1
-    store local1 -> local233
-    call native-safe-indirect-target0 sp<native-safe:0> roots=[] local234 = sig=indirect0 (c-storage-pointer f32 size=4 align=4 scan=none, ptr<raw>) extern0(c-arg-address(local233))
-    store local234 -> local2
+    call native-safe-direct-target0 sp<native-safe:0> roots=[] t0 = sig=direct0 (i32) -> f32 extern0(local1)
+    store t0 -> local2
     store integer<ULong>(0x7ff0000000000123) -> local3
     store local3 -> local4
-    store local4 -> local235
-    call native-safe-indirect-target1 sp<native-safe:1> roots=[] local236 = sig=indirect1 (c-storage-pointer f64 size=8 align=8 scan=none, ptr<raw>) extern1(c-arg-address(local235))
-    store local236 -> local5
+    call native-safe-direct-target1 sp<native-safe:1> roots=[] t1 = sig=direct1 (i64) -> f64 extern1(local4)
+    store t1 -> local5
     native_global_store ng0, local2 sp<native-safe:2> roots=[]
-    t0 = native_global_load ng0 sp<native-safe:3> roots=[] : f32
-    store t0 -> local6
+    t2 = native_global_load ng0 sp<native-safe:3> roots=[] : f32
+    store t2 -> local6
     store local6 -> local7
-    store local7 -> local237
-    call native-safe-indirect-target2 sp<native-safe:4> roots=[] local238 = sig=indirect2 (c-storage-pointer i32 size=4 align=4 scan=none, ptr<raw>) extern2(c-arg-address(local237))
-    store local238 -> local8
+    call native-safe-direct-target2 sp<native-safe:4> roots=[] t3 = sig=direct2 (f32) -> i32 extern2(local7)
+    store t3 -> local8
     store integer<UInt>(0xff800123) -> local9
     store local9 -> local10
-    t1 = integer_compare_Equal<UInt> local8, local10 : i1
-    cbr t1 then @if.then.1 else @if.else.2
+    t4 = integer_compare_Equal<UInt> local8, local10 : i1
+    cbr t4 then @if.then.1 else @if.else.2
   block if.then.1
-    t2 = native_global_load ng1 sp<native-safe:5> roots=[] : f64
-    store t2 -> local11
+    t5 = native_global_load ng1 sp<native-safe:5> roots=[] : f64
+    store t5 -> local11
     store local11 -> local12
-    store local12 -> local239
-    call native-safe-indirect-target3 sp<native-safe:6> roots=[] local240 = sig=indirect3 (c-storage-pointer i64 size=8 align=8 scan=none, ptr<raw>) extern3(c-arg-address(local239))
-    store local240 -> local13
+    call native-safe-direct-target3 sp<native-safe:6> roots=[] t6 = sig=direct3 (f64) -> i64 extern3(local12)
+    store t6 -> local13
     store integer<ULong>(0x8000000000000000) -> local14
     store local14 -> local15
-    t3 = integer_compare_Equal<ULong> local13, local15 : i1
-    store t3 -> local16
+    t7 = integer_compare_Equal<ULong> local13, local15 : i1
+    store t7 -> local16
     br @if.merge.3
   block if.else.2
     store false -> local16
@@ -578,50 +461,46 @@ Module
     store local16 -> local17
     store local17 -> local18
     call managed-void-target0 sp<managed-call:0> live=[] sig=void0 (i1) local-fn21(local18)
-    t4 = aggregate () : {}
+    t8 = aggregate () : {}
     store local2 -> local19
     store local5 -> local20
-    t5 = local_address local19 : ptr
-    store t5 -> local21
+    t9 = local_address local19 : ptr
+    store t9 -> local21
     store local2 -> local22
     store local22 -> local23
     raw_store local21 local23 align 4
-    t6 = aggregate () : {}
-    t7 = local_address local20 : ptr
-    store t7 -> local24
+    t10 = aggregate () : {}
+    t11 = local_address local20 : ptr
+    store t11 -> local24
     store local5 -> local25
     store local25 -> local26
     raw_store local24 local26 align 8
-    t8 = aggregate () : {}
-    t9 = local_address local19 : ptr
-    store t9 -> local27
+    t12 = aggregate () : {}
+    t13 = local_address local19 : ptr
+    store t13 -> local27
     store local27 -> local28
-    store local28 -> local241
-    call native-safe-indirect-target4 sp<native-safe:7> roots=[] local242 = sig=indirect4 (c-storage-pointer f32 size=4 align=4 scan=none, ptr<raw>) extern7(c-arg-address(local241))
-    store local242 -> local29
+    call native-safe-direct-target4 sp<native-safe:7> roots=[] t14 = sig=direct4 (ptr<raw>) -> f32 extern7(local28)
+    store t14 -> local29
     store local29 -> local30
-    store local30 -> local243
-    call native-safe-indirect-target5 sp<native-safe:8> roots=[] local244 = sig=indirect5 (c-storage-pointer i32 size=4 align=4 scan=none, ptr<raw>) extern2(c-arg-address(local243))
-    store local244 -> local31
+    call native-safe-direct-target5 sp<native-safe:8> roots=[] t15 = sig=direct5 (f32) -> i32 extern2(local30)
+    store t15 -> local31
     store integer<UInt>(0xff800123) -> local32
     store local32 -> local33
-    t10 = integer_compare_Equal<UInt> local31, local33 : i1
-    cbr t10 then @if.then.4 else @if.else.5
+    t16 = integer_compare_Equal<UInt> local31, local33 : i1
+    cbr t16 then @if.then.4 else @if.else.5
   block if.then.4
-    t11 = local_address local20 : ptr
-    store t11 -> local34
+    t17 = local_address local20 : ptr
+    store t17 -> local34
     store local34 -> local35
-    store local35 -> local245
-    call native-safe-indirect-target6 sp<native-safe:9> roots=[] local246 = sig=indirect6 (c-storage-pointer f64 size=8 align=8 scan=none, ptr<raw>) extern8(c-arg-address(local245))
-    store local246 -> local36
+    call native-safe-direct-target6 sp<native-safe:9> roots=[] t18 = sig=direct6 (ptr<raw>) -> f64 extern8(local35)
+    store t18 -> local36
     store local36 -> local37
-    store local37 -> local247
-    call native-safe-indirect-target7 sp<native-safe:10> roots=[] local248 = sig=indirect7 (c-storage-pointer i64 size=8 align=8 scan=none, ptr<raw>) extern3(c-arg-address(local247))
-    store local248 -> local38
+    call native-safe-direct-target7 sp<native-safe:10> roots=[] t19 = sig=direct7 (f64) -> i64 extern3(local37)
+    store t19 -> local38
     store integer<ULong>(0x7ff0000000000123) -> local39
     store local39 -> local40
-    t12 = integer_compare_Equal<ULong> local38, local40 : i1
-    store t12 -> local41
+    t20 = integer_compare_Equal<ULong> local38, local40 : i1
+    store t20 -> local41
     br @if.merge.6
   block if.else.5
     store false -> local41
@@ -630,60 +509,58 @@ Module
     store local41 -> local42
     store local42 -> local43
     call managed-void-target1 sp<managed-call:1> live=[] sig=void1 (i1) local-fn21(local43)
-    t13 = aggregate () : {}
+    t21 = aggregate () : {}
     store local2 -> local44
     store f32(0x80000000) -> local45
     store local44 -> local46
     store local45 -> local47
-    call no-gc-indirect-target0 local249 = sig=indirect8 (sret struct2 size=8 align=4 scan=none, f32, f32) local-fn23(local46, local47)
-    store local249 -> local48
+    call no-gc-indirect-target0 local233 = sig=indirect0 (sret struct2 size=8 align=4 scan=none, f32, f32) local-fn23(local46, local47)
+    store local233 -> local48
     store local48 -> local49
-    store local49 -> local250
-    call native-safe-indirect-target8 sp<native-safe:11> roots=[] local251 = sig=indirect9 (c-storage-pointer struct2 size=8 align=4 scan=none, ptr<raw>) extern4(c-arg-address(local250))
-    store local251 -> local50
+    store local49 -> local234
+    call native-safe-indirect-target0 sp<native-safe:11> roots=[] local235 = sig=indirect1 (c-storage-pointer struct2 size=8 align=4 scan=none, ptr<raw>) extern4(c-arg-address(local234))
+    store local235 -> local50
     store local5 -> local51
     store f64(0x8000000000000000) -> local52
     store local51 -> local53
     store local52 -> local54
-    call no-gc-indirect-target1 local252 = sig=indirect10 (sret struct3 size=16 align=8 scan=none, f64, f64) local-fn24(local53, local54)
-    store local252 -> local55
+    call no-gc-indirect-target1 local236 = sig=indirect2 (sret struct3 size=16 align=8 scan=none, f64, f64) local-fn24(local53, local54)
+    store local236 -> local55
     store local55 -> local56
-    store local56 -> local253
-    call native-safe-indirect-target9 sp<native-safe:12> roots=[] local254 = sig=indirect11 (c-storage-pointer struct3 size=16 align=8 scan=none, ptr<raw>) extern5(c-arg-address(local253))
-    store local254 -> local57
+    store local56 -> local237
+    call native-safe-indirect-target1 sp<native-safe:12> roots=[] local238 = sig=indirect3 (c-storage-pointer struct3 size=16 align=8 scan=none, ptr<raw>) extern5(c-arg-address(local237))
+    store local238 -> local57
     store local2 -> local58
     store integer<Int>(0x0000002a) -> local59
     store local5 -> local60
     store local58 -> local61
     store local59 -> local62
     store local60 -> local63
-    call no-gc-indirect-target2 local255 = sig=indirect12 (sret struct4 size=16 align=8 scan=none, f32, i32, f64) local-fn25(local61, local62, local63)
-    store local255 -> local64
+    call no-gc-indirect-target2 local239 = sig=indirect4 (sret struct4 size=16 align=8 scan=none, f32, i32, f64) local-fn25(local61, local62, local63)
+    store local239 -> local64
     store local64 -> local65
-    store local65 -> local256
-    call native-safe-indirect-target10 sp<native-safe:13> roots=[] local257 = sig=indirect13 (c-storage-pointer struct4 size=16 align=8 scan=none, ptr<raw>) extern6(c-arg-address(local256))
-    store local257 -> local66
-    t14 = extract local50, 0 : f32
-    store t14 -> local67
+    store local65 -> local240
+    call native-safe-indirect-target2 sp<native-safe:13> roots=[] local241 = sig=indirect5 (c-storage-pointer struct4 size=16 align=8 scan=none, ptr<raw>) extern6(c-arg-address(local240))
+    store local241 -> local66
+    t22 = extract local50, 0 : f32
+    store t22 -> local67
     store local67 -> local68
-    store local68 -> local258
-    call native-safe-indirect-target11 sp<native-safe:14> roots=[] local259 = sig=indirect14 (c-storage-pointer i32 size=4 align=4 scan=none, ptr<raw>) extern2(c-arg-address(local258))
-    store local259 -> local69
+    call native-safe-direct-target8 sp<native-safe:14> roots=[] t23 = sig=direct8 (f32) -> i32 extern2(local68)
+    store t23 -> local69
     store integer<UInt>(0xff800123) -> local70
     store local70 -> local71
-    t15 = integer_compare_Equal<UInt> local69, local71 : i1
-    cbr t15 then @if.then.7 else @if.else.8
+    t24 = integer_compare_Equal<UInt> local69, local71 : i1
+    cbr t24 then @if.then.7 else @if.else.8
   block if.then.7
-    t16 = extract local50, 1 : f32
-    store t16 -> local72
+    t25 = extract local50, 1 : f32
+    store t25 -> local72
     store local72 -> local73
-    store local73 -> local260
-    call native-safe-indirect-target12 sp<native-safe:15> roots=[] local261 = sig=indirect15 (c-storage-pointer i32 size=4 align=4 scan=none, ptr<raw>) extern2(c-arg-address(local260))
-    store local261 -> local74
+    call native-safe-direct-target9 sp<native-safe:15> roots=[] t26 = sig=direct9 (f32) -> i32 extern2(local73)
+    store t26 -> local74
     store integer<UInt>(0x80000000) -> local75
     store local75 -> local76
-    t17 = integer_compare_Equal<UInt> local74, local76 : i1
-    store t17 -> local77
+    t27 = integer_compare_Equal<UInt> local74, local76 : i1
+    store t27 -> local77
     br @if.merge.9
   block if.else.8
     store false -> local77
@@ -691,16 +568,15 @@ Module
   block if.merge.9
     cbr local77 then @if.then.10 else @if.else.11
   block if.then.10
-    t18 = extract local57, 0 : f64
-    store t18 -> local78
+    t28 = extract local57, 0 : f64
+    store t28 -> local78
     store local78 -> local79
-    store local79 -> local262
-    call native-safe-indirect-target13 sp<native-safe:16> roots=[] local263 = sig=indirect16 (c-storage-pointer i64 size=8 align=8 scan=none, ptr<raw>) extern3(c-arg-address(local262))
-    store local263 -> local80
+    call native-safe-direct-target10 sp<native-safe:16> roots=[] t29 = sig=direct10 (f64) -> i64 extern3(local79)
+    store t29 -> local80
     store integer<ULong>(0x7ff0000000000123) -> local81
     store local81 -> local82
-    t19 = integer_compare_Equal<ULong> local80, local82 : i1
-    store t19 -> local83
+    t30 = integer_compare_Equal<ULong> local80, local82 : i1
+    store t30 -> local83
     br @if.merge.12
   block if.else.11
     store false -> local83
@@ -708,16 +584,15 @@ Module
   block if.merge.12
     cbr local83 then @if.then.13 else @if.else.14
   block if.then.13
-    t20 = extract local57, 1 : f64
-    store t20 -> local84
+    t31 = extract local57, 1 : f64
+    store t31 -> local84
     store local84 -> local85
-    store local85 -> local264
-    call native-safe-indirect-target14 sp<native-safe:17> roots=[] local265 = sig=indirect17 (c-storage-pointer i64 size=8 align=8 scan=none, ptr<raw>) extern3(c-arg-address(local264))
-    store local265 -> local86
+    call native-safe-direct-target11 sp<native-safe:17> roots=[] t32 = sig=direct11 (f64) -> i64 extern3(local85)
+    store t32 -> local86
     store integer<ULong>(0x8000000000000000) -> local87
     store local87 -> local88
-    t21 = integer_compare_Equal<ULong> local86, local88 : i1
-    store t21 -> local89
+    t33 = integer_compare_Equal<ULong> local86, local88 : i1
+    store t33 -> local89
     br @if.merge.15
   block if.else.14
     store false -> local89
@@ -725,12 +600,12 @@ Module
   block if.merge.15
     cbr local89 then @if.then.16 else @if.else.17
   block if.then.16
-    t22 = extract local66, 1 : i32
-    store t22 -> local90
+    t34 = extract local66, 1 : i32
+    store t34 -> local90
     store integer<Int>(0x0000002a) -> local91
     store local91 -> local92
-    t23 = integer_compare_Equal<Int> local90, local92 : i1
-    store t23 -> local93
+    t35 = integer_compare_Equal<Int> local90, local92 : i1
+    store t35 -> local93
     br @if.merge.18
   block if.else.17
     store false -> local93
@@ -738,16 +613,15 @@ Module
   block if.merge.18
     cbr local93 then @if.then.19 else @if.else.20
   block if.then.19
-    t24 = extract local66, 0 : f32
-    store t24 -> local94
+    t36 = extract local66, 0 : f32
+    store t36 -> local94
     store local94 -> local95
-    store local95 -> local266
-    call native-safe-indirect-target15 sp<native-safe:18> roots=[] local267 = sig=indirect18 (c-storage-pointer i32 size=4 align=4 scan=none, ptr<raw>) extern2(c-arg-address(local266))
-    store local267 -> local96
+    call native-safe-direct-target12 sp<native-safe:18> roots=[] t37 = sig=direct12 (f32) -> i32 extern2(local95)
+    store t37 -> local96
     store integer<UInt>(0xff800123) -> local97
     store local97 -> local98
-    t25 = integer_compare_Equal<UInt> local96, local98 : i1
-    store t25 -> local99
+    t38 = integer_compare_Equal<UInt> local96, local98 : i1
+    store t38 -> local99
     br @if.merge.21
   block if.else.20
     store false -> local99
@@ -755,16 +629,15 @@ Module
   block if.merge.21
     cbr local99 then @if.then.22 else @if.else.23
   block if.then.22
-    t26 = extract local66, 2 : f64
-    store t26 -> local100
+    t39 = extract local66, 2 : f64
+    store t39 -> local100
     store local100 -> local101
-    store local101 -> local268
-    call native-safe-indirect-target16 sp<native-safe:19> roots=[] local269 = sig=indirect19 (c-storage-pointer i64 size=8 align=8 scan=none, ptr<raw>) extern3(c-arg-address(local268))
-    store local269 -> local102
+    call native-safe-direct-target13 sp<native-safe:19> roots=[] t40 = sig=direct13 (f64) -> i64 extern3(local101)
+    store t40 -> local102
     store integer<ULong>(0x7ff0000000000123) -> local103
     store local103 -> local104
-    t27 = integer_compare_Equal<ULong> local102, local104 : i1
-    store t27 -> local105
+    t41 = integer_compare_Equal<ULong> local102, local104 : i1
+    store t41 -> local105
     br @if.merge.24
   block if.else.23
     store false -> local105
@@ -773,42 +646,40 @@ Module
     store local105 -> local106
     store local106 -> local107
     call managed-void-target2 sp<managed-call:2> live=[] sig=void2 (i1) local-fn21(local107)
-    t28 = aggregate () : {}
+    t42 = aggregate () : {}
     store local2 -> local108
     store local5 -> local109
     store local108 -> local110
     store local109 -> local111
-    call no-gc-indirect-target3 local270 = sig=indirect20 (sret struct5 size=16 align=8 scan=none, f32, f64) local-fn26(local110, local111)
-    store local270 -> local112
+    call no-gc-indirect-target3 local242 = sig=indirect6 (sret struct5 size=16 align=8 scan=none, f32, f64) local-fn26(local110, local111)
+    store local242 -> local112
     store local112 -> local113
-    store local113 -> local271
-    call native-borrowed-indirect-target0 sp<native-borrowed:0> roots=[] local272 = sig=indirect21 (sret struct5 size=16 align=8 scan=none, indirect<struct5 size=16 align=8 scan=none>) extern17(indirect local271)
-    store local272 -> local114
+    store local113 -> local243
+    call native-borrowed-indirect-target0 sp<native-borrowed:0> roots=[] local244 = sig=indirect7 (sret struct5 size=16 align=8 scan=none, indirect<struct5 size=16 align=8 scan=none>) extern17(indirect local243)
+    store local244 -> local114
     store local2 -> local115
     store local115 -> local116
-    call native-borrowed-direct-target0 sp<native-borrowed:1> roots=[] t29 = sig=direct0 (f32) -> f32 extern15(local116)
-    store t29 -> local117
+    call native-borrowed-direct-target0 sp<native-borrowed:1> roots=[] t43 = sig=direct14 (f32) -> f32 extern15(local116)
+    store t43 -> local117
     store local117 -> local118
-    store local118 -> local273
-    call native-safe-indirect-target17 sp<native-safe:20> roots=[] local274 = sig=indirect22 (c-storage-pointer i32 size=4 align=4 scan=none, ptr<raw>) extern2(c-arg-address(local273))
-    store local274 -> local119
+    call native-safe-direct-target14 sp<native-safe:20> roots=[] t44 = sig=direct15 (f32) -> i32 extern2(local118)
+    store t44 -> local119
     store integer<UInt>(0xff800123) -> local120
     store local120 -> local121
-    t30 = integer_compare_Equal<UInt> local119, local121 : i1
-    cbr t30 then @if.then.25 else @if.else.26
+    t45 = integer_compare_Equal<UInt> local119, local121 : i1
+    cbr t45 then @if.then.25 else @if.else.26
   block if.then.25
     store local5 -> local122
     store local122 -> local123
-    call native-borrowed-direct-target1 sp<native-borrowed:2> roots=[] t31 = sig=direct1 (f64) -> f64 extern16(local123)
-    store t31 -> local124
+    call native-borrowed-direct-target1 sp<native-borrowed:2> roots=[] t46 = sig=direct16 (f64) -> f64 extern16(local123)
+    store t46 -> local124
     store local124 -> local125
-    store local125 -> local275
-    call native-safe-indirect-target18 sp<native-safe:21> roots=[] local276 = sig=indirect23 (c-storage-pointer i64 size=8 align=8 scan=none, ptr<raw>) extern3(c-arg-address(local275))
-    store local276 -> local126
+    call native-safe-direct-target15 sp<native-safe:21> roots=[] t47 = sig=direct17 (f64) -> i64 extern3(local125)
+    store t47 -> local126
     store integer<ULong>(0x7ff0000000000123) -> local127
     store local127 -> local128
-    t32 = integer_compare_Equal<ULong> local126, local128 : i1
-    store t32 -> local129
+    t48 = integer_compare_Equal<ULong> local126, local128 : i1
+    store t48 -> local129
     br @if.merge.27
   block if.else.26
     store false -> local129
@@ -816,16 +687,15 @@ Module
   block if.merge.27
     cbr local129 then @if.then.28 else @if.else.29
   block if.then.28
-    t33 = extract local114, 0 : f32
-    store t33 -> local130
+    t49 = extract local114, 0 : f32
+    store t49 -> local130
     store local130 -> local131
-    store local131 -> local277
-    call native-safe-indirect-target19 sp<native-safe:22> roots=[] local278 = sig=indirect24 (c-storage-pointer i32 size=4 align=4 scan=none, ptr<raw>) extern2(c-arg-address(local277))
-    store local278 -> local132
+    call native-safe-direct-target16 sp<native-safe:22> roots=[] t50 = sig=direct18 (f32) -> i32 extern2(local131)
+    store t50 -> local132
     store integer<UInt>(0xff800123) -> local133
     store local133 -> local134
-    t34 = integer_compare_Equal<UInt> local132, local134 : i1
-    store t34 -> local135
+    t51 = integer_compare_Equal<UInt> local132, local134 : i1
+    store t51 -> local135
     br @if.merge.30
   block if.else.29
     store false -> local135
@@ -833,16 +703,15 @@ Module
   block if.merge.30
     cbr local135 then @if.then.31 else @if.else.32
   block if.then.31
-    t35 = extract local114, 1 : f64
-    store t35 -> local136
+    t52 = extract local114, 1 : f64
+    store t52 -> local136
     store local136 -> local137
-    store local137 -> local279
-    call native-safe-indirect-target20 sp<native-safe:23> roots=[] local280 = sig=indirect25 (c-storage-pointer i64 size=8 align=8 scan=none, ptr<raw>) extern3(c-arg-address(local279))
-    store local280 -> local138
+    call native-safe-direct-target17 sp<native-safe:23> roots=[] t53 = sig=direct19 (f64) -> i64 extern3(local137)
+    store t53 -> local138
     store integer<ULong>(0x7ff0000000000123) -> local139
     store local139 -> local140
-    t36 = integer_compare_Equal<ULong> local138, local140 : i1
-    store t36 -> local141
+    t54 = integer_compare_Equal<ULong> local138, local140 : i1
+    store t54 -> local141
     br @if.merge.33
   block if.else.32
     store false -> local141
@@ -851,37 +720,34 @@ Module
     store local141 -> local142
     store local142 -> local143
     call managed-void-target3 sp<managed-call:3> live=[] sig=void3 (i1) local-fn21(local143)
-    t37 = aggregate () : {}
+    t55 = aggregate () : {}
     native_global_store ng2, local2 sp<native-safe:24> roots=[]
-    t38 = native_global_address ng3 sp<native-safe:25> roots=[]
-    store t38 -> local144
+    t56 = native_global_address ng3 sp<native-safe:25> roots=[]
+    store t56 -> local144
     store local5 -> local145
     store local145 -> local146
     raw_store local144 local146 align 8
-    t39 = aggregate () : {}
+    t57 = aggregate () : {}
     store integer<UInt>(0xff800123) -> local147
     store integer<ULong>(0x7ff0000000000123) -> local148
     store local147 -> local149
     store local148 -> local150
-    store local149 -> local281
-    store local150 -> local282
-    call native-safe-indirect-target21 sp<native-safe:26> roots=[] local283 = sig=indirect26 (c-storage-pointer i32 size=4 align=4 scan=none, ptr<raw>, ptr<raw>) extern9(c-arg-address(local281), c-arg-address(local282))
-    store local283 -> local151
+    call native-safe-direct-target18 sp<native-safe:26> roots=[] t58 = sig=direct20 (i32, i64) -> i32 extern9(local149, local150)
+    store t58 -> local151
     store integer<Int>(0x00000001) -> local152
     store local152 -> local153
-    t40 = integer_compare_Equal<Int> local151, local153 : i1
-    cbr t40 then @if.then.34 else @if.else.35
+    t59 = integer_compare_Equal<Int> local151, local153 : i1
+    cbr t59 then @if.then.34 else @if.else.35
   block if.then.34
-    t41 = native_global_load ng2 sp<native-safe:27> roots=[] : f32
-    store t41 -> local154
+    t60 = native_global_load ng2 sp<native-safe:27> roots=[] : f32
+    store t60 -> local154
     store local154 -> local155
-    store local155 -> local284
-    call native-safe-indirect-target22 sp<native-safe:28> roots=[] local285 = sig=indirect27 (c-storage-pointer i32 size=4 align=4 scan=none, ptr<raw>) extern2(c-arg-address(local284))
-    store local285 -> local156
+    call native-safe-direct-target19 sp<native-safe:28> roots=[] t61 = sig=direct21 (f32) -> i32 extern2(local155)
+    store t61 -> local156
     store integer<UInt>(0xff800123) -> local157
     store local157 -> local158
-    t42 = integer_compare_Equal<UInt> local156, local158 : i1
-    store t42 -> local159
+    t62 = integer_compare_Equal<UInt> local156, local158 : i1
+    store t62 -> local159
     br @if.merge.36
   block if.else.35
     store false -> local159
@@ -889,16 +755,15 @@ Module
   block if.merge.36
     cbr local159 then @if.then.37 else @if.else.38
   block if.then.37
-    t43 = native_global_load ng3 sp<native-safe:29> roots=[] : f64
-    store t43 -> local160
+    t63 = native_global_load ng3 sp<native-safe:29> roots=[] : f64
+    store t63 -> local160
     store local160 -> local161
-    store local161 -> local286
-    call native-safe-indirect-target23 sp<native-safe:30> roots=[] local287 = sig=indirect28 (c-storage-pointer i64 size=8 align=8 scan=none, ptr<raw>) extern3(c-arg-address(local286))
-    store local287 -> local162
+    call native-safe-direct-target20 sp<native-safe:30> roots=[] t64 = sig=direct22 (f64) -> i64 extern3(local161)
+    store t64 -> local162
     store integer<ULong>(0x7ff0000000000123) -> local163
     store local163 -> local164
-    t44 = integer_compare_Equal<ULong> local162, local164 : i1
-    store t44 -> local165
+    t65 = integer_compare_Equal<ULong> local162, local164 : i1
+    store t65 -> local165
     br @if.merge.39
   block if.else.38
     store false -> local165
@@ -907,44 +772,38 @@ Module
     store local165 -> local166
     store local166 -> local167
     call managed-void-target4 sp<managed-call:4> live=[] sig=void4 (i1) local-fn21(local167)
-    t45 = aggregate () : {}
-    t46 = function_address @scoop$1$br$a7292cc4725294a6d28fe6a96af35c95b7951adf3e1dac6085f92aae32d10e68 : ptr
-    store t46 -> local168
-    t47 = function_address @scoop$1$br$1bbab224c91213ac76cea8336f012b7eb624fdf49ac13f0dda51f66de656920c : ptr
-    store t47 -> local169
+    t66 = aggregate () : {}
+    t67 = function_address @scoop$1$br$a7292cc4725294a6d28fe6a96af35c95b7951adf3e1dac6085f92aae32d10e68 : ptr
+    store t67 -> local168
+    t68 = function_address @scoop$1$br$1bbab224c91213ac76cea8336f012b7eb624fdf49ac13f0dda51f66de656920c : ptr
+    store t68 -> local169
     store local168 -> local170
     store local2 -> local171
     store local170 -> local172
     store local171 -> local173
-    store local172 -> local288
-    store local173 -> local289
-    call native-safe-indirect-target24 sp<native-safe:31> roots=[] local290 = sig=indirect29 (c-storage-pointer f32 size=4 align=4 scan=none, ptr<raw>, ptr<raw>) extern12(c-arg-address(local288), c-arg-address(local289))
-    store local290 -> local174
+    call native-safe-direct-target21 sp<native-safe:31> roots=[] t69 = sig=direct23 (ptr<code>, f32) -> f32 extern12(local172, local173)
+    store t69 -> local174
     store local174 -> local175
-    store local175 -> local291
-    call native-safe-indirect-target25 sp<native-safe:32> roots=[] local292 = sig=indirect30 (c-storage-pointer i32 size=4 align=4 scan=none, ptr<raw>) extern2(c-arg-address(local291))
-    store local292 -> local176
+    call native-safe-direct-target22 sp<native-safe:32> roots=[] t70 = sig=direct24 (f32) -> i32 extern2(local175)
+    store t70 -> local176
     store integer<UInt>(0xff800123) -> local177
     store local177 -> local178
-    t48 = integer_compare_Equal<UInt> local176, local178 : i1
-    cbr t48 then @if.then.40 else @if.else.41
+    t71 = integer_compare_Equal<UInt> local176, local178 : i1
+    cbr t71 then @if.then.40 else @if.else.41
   block if.then.40
     store local169 -> local179
     store local5 -> local180
     store local179 -> local181
     store local180 -> local182
-    store local181 -> local293
-    store local182 -> local294
-    call native-safe-indirect-target26 sp<native-safe:33> roots=[] local295 = sig=indirect31 (c-storage-pointer f64 size=8 align=8 scan=none, ptr<raw>, ptr<raw>) extern13(c-arg-address(local293), c-arg-address(local294))
-    store local295 -> local183
+    call native-safe-direct-target23 sp<native-safe:33> roots=[] t72 = sig=direct25 (ptr<code>, f64) -> f64 extern13(local181, local182)
+    store t72 -> local183
     store local183 -> local184
-    store local184 -> local296
-    call native-safe-indirect-target27 sp<native-safe:34> roots=[] local297 = sig=indirect32 (c-storage-pointer i64 size=8 align=8 scan=none, ptr<raw>) extern3(c-arg-address(local296))
-    store local297 -> local185
+    call native-safe-direct-target24 sp<native-safe:34> roots=[] t73 = sig=direct26 (f64) -> i64 extern3(local184)
+    store t73 -> local185
     store integer<ULong>(0x7ff0000000000123) -> local186
     store local186 -> local187
-    t49 = integer_compare_Equal<ULong> local185, local187 : i1
-    store t49 -> local188
+    t74 = integer_compare_Equal<ULong> local185, local187 : i1
+    store t74 -> local188
     br @if.merge.42
   block if.else.41
     store false -> local188
@@ -952,23 +811,20 @@ Module
   block if.merge.42
     cbr local188 then @if.then.43 else @if.else.44
   block if.then.43
-    call native-safe-indirect-target28 sp<native-safe:35> roots=[] local298 = sig=indirect33 (c-storage-pointer ptr<code> size=8 align=8 scan=none) extern10()
-    store local298 -> local189
+    call native-safe-direct-target25 sp<native-safe:35> roots=[] t75 = sig=direct27 () -> ptr<code> extern10()
+    store t75 -> local189
     store local2 -> local190
     store local189 -> local191
     store local190 -> local192
-    store local191 -> local299
-    store local192 -> local300
-    call native-safe-indirect-target29 sp<native-safe:36> roots=[] local301 = sig=indirect34 (c-storage-pointer f32 size=4 align=4 scan=none, ptr<raw>, ptr<raw>) extern12(c-arg-address(local299), c-arg-address(local300))
-    store local301 -> local193
+    call native-safe-direct-target26 sp<native-safe:36> roots=[] t76 = sig=direct28 (ptr<code>, f32) -> f32 extern12(local191, local192)
+    store t76 -> local193
     store local193 -> local194
-    store local194 -> local302
-    call native-safe-indirect-target30 sp<native-safe:37> roots=[] local303 = sig=indirect35 (c-storage-pointer i32 size=4 align=4 scan=none, ptr<raw>) extern2(c-arg-address(local302))
-    store local303 -> local195
+    call native-safe-direct-target27 sp<native-safe:37> roots=[] t77 = sig=direct29 (f32) -> i32 extern2(local194)
+    store t77 -> local195
     store integer<UInt>(0xff800123) -> local196
     store local196 -> local197
-    t50 = integer_compare_Equal<UInt> local195, local197 : i1
-    store t50 -> local198
+    t78 = integer_compare_Equal<UInt> local195, local197 : i1
+    store t78 -> local198
     br @if.merge.45
   block if.else.44
     store false -> local198
@@ -976,23 +832,20 @@ Module
   block if.merge.45
     cbr local198 then @if.then.46 else @if.else.47
   block if.then.46
-    call native-safe-indirect-target31 sp<native-safe:38> roots=[] local304 = sig=indirect36 (c-storage-pointer ptr<code> size=8 align=8 scan=none) extern11()
-    store local304 -> local199
+    call native-safe-direct-target28 sp<native-safe:38> roots=[] t79 = sig=direct30 () -> ptr<code> extern11()
+    store t79 -> local199
     store local5 -> local200
     store local199 -> local201
     store local200 -> local202
-    store local201 -> local305
-    store local202 -> local306
-    call native-safe-indirect-target32 sp<native-safe:39> roots=[] local307 = sig=indirect37 (c-storage-pointer f64 size=8 align=8 scan=none, ptr<raw>, ptr<raw>) extern13(c-arg-address(local305), c-arg-address(local306))
-    store local307 -> local203
+    call native-safe-direct-target29 sp<native-safe:39> roots=[] t80 = sig=direct31 (ptr<code>, f64) -> f64 extern13(local201, local202)
+    store t80 -> local203
     store local203 -> local204
-    store local204 -> local308
-    call native-safe-indirect-target33 sp<native-safe:40> roots=[] local309 = sig=indirect38 (c-storage-pointer i64 size=8 align=8 scan=none, ptr<raw>) extern3(c-arg-address(local308))
-    store local309 -> local205
+    call native-safe-direct-target30 sp<native-safe:40> roots=[] t81 = sig=direct32 (f64) -> i64 extern3(local204)
+    store t81 -> local205
     store integer<ULong>(0x7ff0000000000123) -> local206
     store local206 -> local207
-    t51 = integer_compare_Equal<ULong> local205, local207 : i1
-    store t51 -> local208
+    t82 = integer_compare_Equal<ULong> local205, local207 : i1
+    store t82 -> local208
     br @if.merge.48
   block if.else.47
     store false -> local208
@@ -1001,47 +854,43 @@ Module
     store local208 -> local209
     store local209 -> local210
     call managed-void-target5 sp<managed-call:5> live=[] sig=void5 (i1) local-fn21(local210)
-    t52 = aggregate () : {}
-    call managed-direct-target0 sp<managed-call:6> live=[] t53 = sig=direct2 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td1, machine<byte-size>(ByteSize(24)))
-    t54 = function_address @scoop$1$cb$560cf20c391e219da11e3e20a79dfb20bcad6179f7ae8ce768d43c0b333a140c : ptr
-    heap_store t53 +16 t54
-    store t53 -> local211
+    t83 = aggregate () : {}
+    call managed-direct-target0 sp<managed-call:6> live=[] t84 = sig=direct33 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td1, machine<byte-size>(ByteSize(24)))
+    t85 = function_address @scoop$1$cb$560cf20c391e219da11e3e20a79dfb20bcad6179f7ae8ce768d43c0b333a140c : ptr
+    heap_store t84 +16 t85
+    store t84 -> local211
     store integer<Long>(0x0000000000000001) -> local212
-    t55 = enum_wrap e0 v0 () : enum0
-    store t55 -> local213
+    t86 = enum_wrap e0 v0 () : enum0
+    store t86 -> local213
     store local211 -> local214
     store local212 -> local215
     store local213 -> local216
-    t56 = foreign_callback_register fcb0 local214 : struct6
-    store t56 -> local217
-    t57 = extract local217, 0 : ptr<code>
-    store t57 -> local218
-    t58 = extract local217, 1 : ptr<raw>
-    store t58 -> local219
+    t87 = foreign_callback_register fcb0 local214 : struct6
+    store t87 -> local217
+    t88 = extract local217, 0 : ptr<code>
+    store t88 -> local218
+    t89 = extract local217, 1 : ptr<raw>
+    store t89 -> local219
     store local2 -> local220
     store local218 -> local221
     store local219 -> local222
     store local220 -> local223
-    store local221 -> local310
-    store local222 -> local311
-    store local223 -> local312
-    call native-safe-indirect-target34 sp<native-safe:41> roots=[] local313 = sig=indirect39 (c-storage-pointer f32 size=4 align=4 scan=none, ptr<raw>, ptr<raw>, ptr<raw>) extern14(c-arg-address(local310), c-arg-address(local311), c-arg-address(local312))
-    store local313 -> local224
+    call native-safe-direct-target31 sp<native-safe:41> roots=[] t90 = sig=direct34 (ptr<code>, ptr<raw>, f32) -> f32 extern14(local221, local222, local223)
+    store t90 -> local224
     store local224 -> local225
-    store local225 -> local314
-    call native-safe-indirect-target35 sp<native-safe:42> roots=[] local315 = sig=indirect40 (c-storage-pointer i32 size=4 align=4 scan=none, ptr<raw>) extern2(c-arg-address(local314))
-    store local315 -> local226
+    call native-safe-direct-target32 sp<native-safe:42> roots=[] t91 = sig=direct35 (f32) -> i32 extern2(local225)
+    store t91 -> local226
     store integer<UInt>(0xff800123) -> local227
     store local227 -> local228
-    t59 = integer_compare_Equal<UInt> local226, local228 : i1
-    store t59 -> local229
+    t92 = integer_compare_Equal<UInt> local226, local228 : i1
+    store t92 -> local229
     store local229 -> local230
     call managed-void-target6 sp<managed-call:7> live=[] sig=void6 (i1) local-fn21(local230)
-    t60 = aggregate () : {}
+    t93 = aggregate () : {}
     store local217 -> local231
     store local231 -> local232
     foreign_callback_Release family0 local232
-    t61 = aggregate () : {}
+    t94 = aggregate () : {}
     ret
   fun @scoop$1$cb$b0c2bbaec5d3e971bdbf6b7be42ee32b5cd27aa28cd91cd80288f41a25f3b6cf(i1) -> void
     local %0 $dependency.local.1: i1

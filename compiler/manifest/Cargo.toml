@@ -4,8 +4,12 @@ edition.workspace = true
 rust-version.workspace = true
 
 [dependencies]
+rustix.workspace = true
 serde.workspace = true
 scoop-identity.workspace = true
 scoop-wire.workspace = true
 toml.workspace = true
 toml_edit.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true

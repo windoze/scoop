@@ -1,5 +1,5 @@
 @Extern(lib = "m23_struct_abi", name = "m23_struct_abi_check")
-@NoGC fun verifyAbi(): Int
+fun verifyAbi(): Int
 
 fun main() {
     @Unsafe {

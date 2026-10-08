@@ -21,6 +21,14 @@ pub fn type_name(module: &Module, ty: &Type) -> String {
             ClassRepresentation::Intrinsic(IntrinsicTypeRepresentation::MutableArray {
                 element,
             }) => format!("MutableArray<{}>", type_name(module, element)),
+            ClassRepresentation::Intrinsic(IntrinsicTypeRepresentation::Atomic(storage)) => {
+                match storage {
+                    scoop_identity::AtomicStorage::Reference(value) => {
+                        format!("AtomicRef<{}>", type_name(module, value))
+                    }
+                    _ => storage.kind().source_name().to_owned(),
+                }
+            }
             ClassRepresentation::Declared { .. }
             | ClassRepresentation::Intrinsic(
                 IntrinsicTypeRepresentation::String

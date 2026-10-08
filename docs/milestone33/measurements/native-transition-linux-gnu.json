@@ -1,0 +1,756 @@
+{
+  "date": "2026-10-08",
+  "cpu": "Intel Core i7-12700H",
+  "baseline_commit": "670a45477",
+  "change": "M33-1a NativeSafe transitions",
+  "compiler": "Clang 22.1",
+  "runtime_flags": [
+    "-O2",
+    "-DNDEBUG",
+    "-fno-omit-frame-pointer",
+    "-fno-optimize-sibling-calls"
+  ],
+  "collector_wait_ns": 50000,
+  "gc_request_interval_ns": 100000,
+  "maximum_recorded_gc_samples": 100000,
+  "baseline": {
+    "plain": [
+      {
+        "mode": "direct",
+        "threads": 1,
+        "iterations": 2000000,
+        "gc": false,
+        "elapsed_ns": 2630648,
+        "ns_per_call": 1.315
+      },
+      {
+        "mode": "direct",
+        "threads": 1,
+        "iterations": 2000000,
+        "gc": false,
+        "elapsed_ns": 2716150,
+        "ns_per_call": 1.358
+      },
+      {
+        "mode": "direct",
+        "threads": 1,
+        "iterations": 2000000,
+        "gc": false,
+        "elapsed_ns": 3434676,
+        "ns_per_call": 1.717
+      },
+      {
+        "mode": "direct",
+        "threads": 2,
+        "iterations": 2000000,
+        "gc": false,
+        "elapsed_ns": 4847482,
+        "ns_per_call": 1.212
+      },
+      {
+        "mode": "direct",
+        "threads": 2,
+        "iterations": 2000000,
+        "gc": false,
+        "elapsed_ns": 5851951,
+        "ns_per_call": 1.463
+      },
+      {
+        "mode": "direct",
+        "threads": 2,
+        "iterations": 2000000,
+        "gc": false,
+        "elapsed_ns": 4908999,
+        "ns_per_call": 1.227
+      },
+      {
+        "mode": "direct",
+        "threads": 4,
+        "iterations": 2000000,
+        "gc": false,
+        "elapsed_ns": 3253620,
+        "ns_per_call": 0.407
+      },
+      {
+        "mode": "direct",
+        "threads": 4,
+        "iterations": 2000000,
+        "gc": false,
+        "elapsed_ns": 2969841,
+        "ns_per_call": 0.371
+      },
+      {
+        "mode": "direct",
+        "threads": 4,
+        "iterations": 2000000,
+        "gc": false,
+        "elapsed_ns": 2993318,
+        "ns_per_call": 0.374
+      },
+      {
+        "mode": "direct",
+        "threads": 8,
+        "iterations": 2000000,
+        "gc": false,
+        "elapsed_ns": 4792140,
+        "ns_per_call": 0.3
+      },
+      {
+        "mode": "direct",
+        "threads": 8,
+        "iterations": 2000000,
+        "gc": false,
+        "elapsed_ns": 4780572,
+        "ns_per_call": 0.299
+      },
+      {
+        "mode": "direct",
+        "threads": 8,
+        "iterations": 2000000,
+        "gc": false,
+        "elapsed_ns": 5098011,
+        "ns_per_call": 0.319
+      },
+      {
+        "mode": "safe",
+        "threads": 1,
+        "iterations": 200000,
+        "gc": false,
+        "elapsed_ns": 8635339,
+        "ns_per_call": 43.177
+      },
+      {
+        "mode": "safe",
+        "threads": 1,
+        "iterations": 200000,
+        "gc": false,
+        "elapsed_ns": 9689410,
+        "ns_per_call": 48.447
+      },
+      {
+        "mode": "safe",
+        "threads": 1,
+        "iterations": 200000,
+        "gc": false,
+        "elapsed_ns": 7744418,
+        "ns_per_call": 38.722
+      },
+      {
+        "mode": "safe",
+        "threads": 2,
+        "iterations": 200000,
+        "gc": false,
+        "elapsed_ns": 56851049,
+        "ns_per_call": 142.128
+      },
+      {
+        "mode": "safe",
+        "threads": 2,
+        "iterations": 200000,
+        "gc": false,
+        "elapsed_ns": 52857609,
+        "ns_per_call": 132.144
+      },
+      {
+        "mode": "safe",
+        "threads": 2,
+        "iterations": 200000,
+        "gc": false,
+        "elapsed_ns": 47205081,
+        "ns_per_call": 118.013
+      },
+      {
+        "mode": "safe",
+        "threads": 4,
+        "iterations": 200000,
+        "gc": false,
+        "elapsed_ns": 128697562,
+        "ns_per_call": 160.872
+      },
+      {
+        "mode": "safe",
+        "threads": 4,
+        "iterations": 200000,
+        "gc": false,
+        "elapsed_ns": 130988612,
+        "ns_per_call": 163.736
+      },
+      {
+        "mode": "safe",
+        "threads": 4,
+        "iterations": 200000,
+        "gc": false,
+        "elapsed_ns": 122774156,
+        "ns_per_call": 153.468
+      },
+      {
+        "mode": "safe",
+        "threads": 8,
+        "iterations": 200000,
+        "gc": false,
+        "elapsed_ns": 305422775,
+        "ns_per_call": 190.889
+      },
+      {
+        "mode": "safe",
+        "threads": 8,
+        "iterations": 200000,
+        "gc": false,
+        "elapsed_ns": 286724712,
+        "ns_per_call": 179.203
+      },
+      {
+        "mode": "safe",
+        "threads": 8,
+        "iterations": 200000,
+        "gc": false,
+        "elapsed_ns": 297732029,
+        "ns_per_call": 186.083
+      },
+      {
+        "mode": "borrowed",
+        "threads": 1,
+        "iterations": 200000,
+        "gc": false,
+        "elapsed_ns": 10542288,
+        "ns_per_call": 52.711
+      },
+      {
+        "mode": "borrowed",
+        "threads": 1,
+        "iterations": 200000,
+        "gc": false,
+        "elapsed_ns": 8783710,
+        "ns_per_call": 43.919
+      },
+      {
+        "mode": "borrowed",
+        "threads": 1,
+        "iterations": 200000,
+        "gc": false,
+        "elapsed_ns": 10568652,
+        "ns_per_call": 52.843
+      },
+      {
+        "mode": "borrowed",
+        "threads": 2,
+        "iterations": 200000,
+        "gc": false,
+        "elapsed_ns": 47641613,
+        "ns_per_call": 119.104
+      },
+      {
+        "mode": "borrowed",
+        "threads": 2,
+        "iterations": 200000,
+        "gc": false,
+        "elapsed_ns": 53010761,
+        "ns_per_call": 132.527
+      },
+      {
+        "mode": "borrowed",
+        "threads": 2,
+        "iterations": 200000,
+        "gc": false,
+        "elapsed_ns": 39222828,
+        "ns_per_call": 98.057
+      },
+      {
+        "mode": "borrowed",
+        "threads": 4,
+        "iterations": 200000,
+        "gc": false,
+        "elapsed_ns": 123300992,
+        "ns_per_call": 154.126
+      },
+      {
+        "mode": "borrowed",
+        "threads": 4,
+        "iterations": 200000,
+        "gc": false,
+        "elapsed_ns": 121793138,
+        "ns_per_call": 152.241
+      },
+      {
+        "mode": "borrowed",
+        "threads": 4,
+        "iterations": 200000,
+        "gc": false,
+        "elapsed_ns": 126493165,
+        "ns_per_call": 158.116
+      },
+      {
+        "mode": "borrowed",
+        "threads": 8,
+        "iterations": 200000,
+        "gc": false,
+        "elapsed_ns": 298916846,
+        "ns_per_call": 186.823
+      },
+      {
+        "mode": "borrowed",
+        "threads": 8,
+        "iterations": 200000,
+        "gc": false,
+        "elapsed_ns": 289795039,
+        "ns_per_call": 181.122
+      },
+      {
+        "mode": "borrowed",
+        "threads": 8,
+        "iterations": 200000,
+        "gc": false,
+        "elapsed_ns": 293334249,
+        "ns_per_call": 183.334
+      }
+    ],
+    "gc": [
+      {
+        "mode": "safe",
+        "threads": 1,
+        "iterations": 10000000,
+        "gc": true,
+        "elapsed_ns": 813423894,
+        "ns_per_call": 81.342,
+        "collections": 3332,
+        "stop_wait": {
+          "p50_ns": 657,
+          "p99_ns": 4355,
+          "max_ns": 72748
+        },
+        "pause": {
+          "p50_ns": 89737,
+          "p99_ns": 114743,
+          "max_ns": 1628281
+        }
+      },
+      {
+        "mode": "safe",
+        "threads": 2,
+        "iterations": 10000000,
+        "gc": true,
+        "elapsed_ns": 4699132234,
+        "ns_per_call": 234.957,
+        "collections": 18997,
+        "stop_wait": {
+          "p50_ns": 1419,
+          "p99_ns": 7264,
+          "max_ns": 152976
+        },
+        "pause": {
+          "p50_ns": 94299,
+          "p99_ns": 104215,
+          "max_ns": 1525575
+        }
+      },
+      {
+        "mode": "safe",
+        "threads": 4,
+        "iterations": 10000000,
+        "gc": true,
+        "elapsed_ns": 12660216125,
+        "ns_per_call": 316.505,
+        "collections": 49216,
+        "stop_wait": {
+          "p50_ns": 4618,
+          "p99_ns": 12806,
+          "max_ns": 179560
+        },
+        "pause": {
+          "p50_ns": 106920,
+          "p99_ns": 170237,
+          "max_ns": 1523251
+        }
+      },
+      {
+        "mode": "safe",
+        "threads": 8,
+        "iterations": 10000000,
+        "gc": true,
+        "elapsed_ns": 32421008237,
+        "ns_per_call": 405.263,
+        "collections": 100000,
+        "stop_wait": {
+          "p50_ns": 10938,
+          "p99_ns": 32954,
+          "max_ns": 548491
+        },
+        "pause": {
+          "p50_ns": 123048,
+          "p99_ns": 205511,
+          "max_ns": 1456213
+        }
+      }
+    ]
+  },
+  "current": {
+    "plain": [
+      {
+        "mode": "direct",
+        "threads": 1,
+        "iterations": 2000000,
+        "gc": false,
+        "elapsed_ns": 2502889,
+        "ns_per_call": 1.251
+      },
+      {
+        "mode": "direct",
+        "threads": 1,
+        "iterations": 2000000,
+        "gc": false,
+        "elapsed_ns": 2077479,
+        "ns_per_call": 1.039
+      },
+      {
+        "mode": "direct",
+        "threads": 1,
+        "iterations": 2000000,
+        "gc": false,
+        "elapsed_ns": 2346815,
+        "ns_per_call": 1.173
+      },
+      {
+        "mode": "direct",
+        "threads": 2,
+        "iterations": 2000000,
+        "gc": false,
+        "elapsed_ns": 2352824,
+        "ns_per_call": 0.588
+      },
+      {
+        "mode": "direct",
+        "threads": 2,
+        "iterations": 2000000,
+        "gc": false,
+        "elapsed_ns": 2887689,
+        "ns_per_call": 0.722
+      },
+      {
+        "mode": "direct",
+        "threads": 2,
+        "iterations": 2000000,
+        "gc": false,
+        "elapsed_ns": 2390842,
+        "ns_per_call": 0.598
+      },
+      {
+        "mode": "direct",
+        "threads": 4,
+        "iterations": 2000000,
+        "gc": false,
+        "elapsed_ns": 2525589,
+        "ns_per_call": 0.316
+      },
+      {
+        "mode": "direct",
+        "threads": 4,
+        "iterations": 2000000,
+        "gc": false,
+        "elapsed_ns": 2406884,
+        "ns_per_call": 0.301
+      },
+      {
+        "mode": "direct",
+        "threads": 4,
+        "iterations": 2000000,
+        "gc": false,
+        "elapsed_ns": 2461031,
+        "ns_per_call": 0.308
+      },
+      {
+        "mode": "direct",
+        "threads": 8,
+        "iterations": 2000000,
+        "gc": false,
+        "elapsed_ns": 3742205,
+        "ns_per_call": 0.234
+      },
+      {
+        "mode": "direct",
+        "threads": 8,
+        "iterations": 2000000,
+        "gc": false,
+        "elapsed_ns": 4393836,
+        "ns_per_call": 0.275
+      },
+      {
+        "mode": "direct",
+        "threads": 8,
+        "iterations": 2000000,
+        "gc": false,
+        "elapsed_ns": 4032256,
+        "ns_per_call": 0.252
+      },
+      {
+        "mode": "safe",
+        "threads": 1,
+        "iterations": 200000,
+        "gc": false,
+        "elapsed_ns": 5415959,
+        "ns_per_call": 27.08
+      },
+      {
+        "mode": "safe",
+        "threads": 1,
+        "iterations": 200000,
+        "gc": false,
+        "elapsed_ns": 4433541,
+        "ns_per_call": 22.168
+      },
+      {
+        "mode": "safe",
+        "threads": 1,
+        "iterations": 200000,
+        "gc": false,
+        "elapsed_ns": 5164620,
+        "ns_per_call": 25.823
+      },
+      {
+        "mode": "safe",
+        "threads": 2,
+        "iterations": 200000,
+        "gc": false,
+        "elapsed_ns": 5303900,
+        "ns_per_call": 13.26
+      },
+      {
+        "mode": "safe",
+        "threads": 2,
+        "iterations": 200000,
+        "gc": false,
+        "elapsed_ns": 5278915,
+        "ns_per_call": 13.197
+      },
+      {
+        "mode": "safe",
+        "threads": 2,
+        "iterations": 200000,
+        "gc": false,
+        "elapsed_ns": 5242146,
+        "ns_per_call": 13.105
+      },
+      {
+        "mode": "safe",
+        "threads": 4,
+        "iterations": 200000,
+        "gc": false,
+        "elapsed_ns": 5318339,
+        "ns_per_call": 6.648
+      },
+      {
+        "mode": "safe",
+        "threads": 4,
+        "iterations": 200000,
+        "gc": false,
+        "elapsed_ns": 5434752,
+        "ns_per_call": 6.793
+      },
+      {
+        "mode": "safe",
+        "threads": 4,
+        "iterations": 200000,
+        "gc": false,
+        "elapsed_ns": 5296817,
+        "ns_per_call": 6.621
+      },
+      {
+        "mode": "safe",
+        "threads": 8,
+        "iterations": 200000,
+        "gc": false,
+        "elapsed_ns": 8508456,
+        "ns_per_call": 5.318
+      },
+      {
+        "mode": "safe",
+        "threads": 8,
+        "iterations": 200000,
+        "gc": false,
+        "elapsed_ns": 7942246,
+        "ns_per_call": 4.964
+      },
+      {
+        "mode": "safe",
+        "threads": 8,
+        "iterations": 200000,
+        "gc": false,
+        "elapsed_ns": 7829048,
+        "ns_per_call": 4.893
+      },
+      {
+        "mode": "borrowed",
+        "threads": 1,
+        "iterations": 200000,
+        "gc": false,
+        "elapsed_ns": 4754999,
+        "ns_per_call": 23.775
+      },
+      {
+        "mode": "borrowed",
+        "threads": 1,
+        "iterations": 200000,
+        "gc": false,
+        "elapsed_ns": 4571506,
+        "ns_per_call": 22.858
+      },
+      {
+        "mode": "borrowed",
+        "threads": 1,
+        "iterations": 200000,
+        "gc": false,
+        "elapsed_ns": 4824628,
+        "ns_per_call": 24.123
+      },
+      {
+        "mode": "borrowed",
+        "threads": 2,
+        "iterations": 200000,
+        "gc": false,
+        "elapsed_ns": 4212024,
+        "ns_per_call": 10.53
+      },
+      {
+        "mode": "borrowed",
+        "threads": 2,
+        "iterations": 200000,
+        "gc": false,
+        "elapsed_ns": 4738562,
+        "ns_per_call": 11.846
+      },
+      {
+        "mode": "borrowed",
+        "threads": 2,
+        "iterations": 200000,
+        "gc": false,
+        "elapsed_ns": 4706663,
+        "ns_per_call": 11.767
+      },
+      {
+        "mode": "borrowed",
+        "threads": 4,
+        "iterations": 200000,
+        "gc": false,
+        "elapsed_ns": 5009944,
+        "ns_per_call": 6.262
+      },
+      {
+        "mode": "borrowed",
+        "threads": 4,
+        "iterations": 200000,
+        "gc": false,
+        "elapsed_ns": 4734618,
+        "ns_per_call": 5.918
+      },
+      {
+        "mode": "borrowed",
+        "threads": 4,
+        "iterations": 200000,
+        "gc": false,
+        "elapsed_ns": 4811895,
+        "ns_per_call": 6.015
+      },
+      {
+        "mode": "borrowed",
+        "threads": 8,
+        "iterations": 200000,
+        "gc": false,
+        "elapsed_ns": 6633884,
+        "ns_per_call": 4.146
+      },
+      {
+        "mode": "borrowed",
+        "threads": 8,
+        "iterations": 200000,
+        "gc": false,
+        "elapsed_ns": 5824843,
+        "ns_per_call": 3.641
+      },
+      {
+        "mode": "borrowed",
+        "threads": 8,
+        "iterations": 200000,
+        "gc": false,
+        "elapsed_ns": 6696226,
+        "ns_per_call": 4.185
+      }
+    ],
+    "gc": [
+      {
+        "mode": "safe",
+        "threads": 1,
+        "iterations": 10000000,
+        "gc": true,
+        "elapsed_ns": 551759831,
+        "ns_per_call": 55.176,
+        "collections": 2213,
+        "stop_wait": {
+          "p50_ns": 677,
+          "p99_ns": 101599,
+          "max_ns": 110395
+        },
+        "pause": {
+          "p50_ns": 89926,
+          "p99_ns": 195507,
+          "max_ns": 1498492
+        }
+      },
+      {
+        "mode": "safe",
+        "threads": 2,
+        "iterations": 10000000,
+        "gc": true,
+        "elapsed_ns": 606541968,
+        "ns_per_call": 30.327,
+        "collections": 2305,
+        "stop_wait": {
+          "p50_ns": 4089,
+          "p99_ns": 101801,
+          "max_ns": 103722
+        },
+        "pause": {
+          "p50_ns": 99363,
+          "p99_ns": 197928,
+          "max_ns": 1150563
+        }
+      },
+      {
+        "mode": "safe",
+        "threads": 4,
+        "iterations": 10000000,
+        "gc": true,
+        "elapsed_ns": 667265546,
+        "ns_per_call": 16.682,
+        "collections": 2501,
+        "stop_wait": {
+          "p50_ns": 6797,
+          "p99_ns": 101928,
+          "max_ns": 102429
+        },
+        "pause": {
+          "p50_ns": 110974,
+          "p99_ns": 204698,
+          "max_ns": 1605792
+        }
+      },
+      {
+        "mode": "safe",
+        "threads": 8,
+        "iterations": 10000000,
+        "gc": true,
+        "elapsed_ns": 887277451,
+        "ns_per_call": 11.091,
+        "collections": 2935,
+        "stop_wait": {
+          "p50_ns": 12795,
+          "p99_ns": 80480,
+          "max_ns": 132221
+        },
+        "pause": {
+          "p50_ns": 131204,
+          "p99_ns": 213772,
+          "max_ns": 1584805
+        }
+      }
+    ]
+  }
+}

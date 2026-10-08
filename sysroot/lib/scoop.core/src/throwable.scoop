@@ -20,6 +20,8 @@ public class IllegalArgumentException public constructor(message: String? = Some
 
 public class IllegalStateException public constructor(message: String? = Some("illegal state")) : Exception(message)
 
+public class CharacterCodingException public constructor(public val byteOffset: Long) : Exception(Some("invalid UTF-8"))
+
 internal fun __scoopThrowInitializationCycle(message: String) {
     throw IllegalStateException(Some(message))
 }

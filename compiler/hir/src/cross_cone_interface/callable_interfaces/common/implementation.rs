@@ -1,32 +1,45 @@
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind};
 
-use crate::IntrinsicFunctionKind;
+use crate::{CAbiCallMode, IntrinsicFunctionKind};
+use scoop_identity::CResultAdaptation;
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum CallableImplementationV1 {
     Scoop,
     Intrinsic(IntrinsicFunctionKind),
     SourceExternScoop,
-    SourceExternC,
+    SourceExternC(CAbiCallMode, CResultAdaptation),
+}
+
+impl CallableImplementationV1 {
+    pub const fn is_c_extern(self) -> bool {
+        matches!(self, Self::SourceExternC(..))
+    }
 }
 
 impl WireEncode for CallableImplementationV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(if matches!(self, Self::Intrinsic(_)) {
-            2
-        } else {
-            1
+        encoder.map(match self {
+            Self::Intrinsic(_) => 2,
+            Self::SourceExternC(..) => 3,
+            _ => 1,
         })?;
         encoder.field(0)?;
         encoder.unsigned(match self {
             Self::Scoop => 1,
             Self::Intrinsic(_) => 2,
             Self::SourceExternScoop => 3,
-            Self::SourceExternC => 4,
+            Self::SourceExternC(..) => 4,
         })?;
         if let Self::Intrinsic(kind) = self {
             encoder.field(1)?;
             kind.encode(encoder)?;
+        }
+        if let Self::SourceExternC(mode, result) = self {
+            encoder.field(1)?;
+            mode.encode(encoder)?;
+            encoder.field(2)?;
+            result.encode(encoder)?;
         }
         Ok(())
     }
@@ -40,8 +53,9 @@ impl WireDecode for CallableImplementationV1 {
         }
         let tag = decoder.field(0, Decoder::unsigned)?;
         let expected = match tag {
-            1 | 3 | 4 => 1,
+            1 | 3 => 1,
             2 => 2,
+            4 => 3,
             tag => return Err(error(decoder, WireErrorKind::UnknownTag { tag })),
         };
         if fields != expected {
@@ -59,7 +73,10 @@ impl WireDecode for CallableImplementationV1 {
                 .field(1, IntrinsicFunctionKind::decode)
                 .map(Self::Intrinsic),
             3 => Ok(Self::SourceExternScoop),
-            4 => Ok(Self::SourceExternC),
+            4 => Ok(Self::SourceExternC(
+                decoder.field(1, CAbiCallMode::decode)?,
+                decoder.field(2, CResultAdaptation::decode)?,
+            )),
             _ => unreachable!("the implementation tag was validated above"),
         }
     }

@@ -2,12 +2,13 @@ Module
   struct Number (value: Int)
   class Later vtable=0 itables=0
   class box<Number> vtable=0 itables=0
-  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn3 captures=2
-    bridge function_type1 -> @fn11 id=4bb63dbfe8865c264ac918dd79b89a88cc9842c8368b3c8e27fc2a9ad925013a
-  closure cc1 $Closure$lambda1 type=function_type0 invoke=@fn6 captures=2
-    bridge function_type1 -> @fn12 id=db55e25198a559adf5b87034cc0f91aa14912355f9ac96e4bbe1f979d7d84f63
-  closure cc2 $Closure$lambda2 type=function_type0 invoke=@fn9 captures=2
-    bridge function_type1 -> @fn13 id=1f53fc30c05b81253f5d4fdfc2d747efb0ee06e375ac289902e7aade7c1a6272
+  interface Equality<Ptr<Number>>
+  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn4 captures=2
+    bridge function_type1 -> @fn13 id=4bb63dbfe8865c264ac918dd79b89a88cc9842c8368b3c8e27fc2a9ad925013a
+  closure cc1 $Closure$lambda1 type=function_type0 invoke=@fn7 captures=2
+    bridge function_type1 -> @fn14 id=db55e25198a559adf5b87034cc0f91aa14912355f9ac96e4bbe1f979d7d84f63
+  closure cc2 $Closure$lambda2 type=function_type0 invoke=@fn11 captures=2
+    bridge function_type1 -> @fn15 id=1f53fc30c05b81253f5d4fdfc2d747efb0ee06e375ac289902e7aade7c1a6272
   generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
   generated_exact_type get1 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
   generated_exact_type get2 location=closure1 nominal_id=0727ea57833a60c8e85a1e462dca6ef0c6062322d97bafbac9454feac447ef1f exact_id=3f9150cdb7cd5d659e69b4669f388facd44c438dcac1f0702c8ade0cf0386ac2
@@ -17,9 +18,9 @@ Module
   generated_exact_type get6 location=class1 nominal_id=7e1dea6262c147a81964fbbd0557697f61786d87080117fbd29b01aa2cad9ea0 exact_id=cf0c97e2c1639bda7a3dfbce9c88116358ea468018d4df1f6e88f0289b3138bc
   generated_exact_type get7 location=closure0 nominal_id=3da045cb37e395eafae683bc12222670ad69ccfd2ce893428e22a9de98cdf2a6 exact_id=ed12bba0d25e2edc42c0e439e25349b4ff7ef48882713f191804afcd491f2894
   generated_exact_type get8 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
-  generated_callable gc0 function=@fn13 id=1f53fc30c05b81253f5d4fdfc2d747efb0ee06e375ac289902e7aade7c1a6272
-  generated_callable gc1 function=@fn11 id=4bb63dbfe8865c264ac918dd79b89a88cc9842c8368b3c8e27fc2a9ad925013a
-  generated_callable gc2 function=@fn12 id=db55e25198a559adf5b87034cc0f91aa14912355f9ac96e4bbe1f979d7d84f63
+  generated_callable gc0 function=@fn15 id=1f53fc30c05b81253f5d4fdfc2d747efb0ee06e375ac289902e7aade7c1a6272
+  generated_callable gc1 function=@fn13 id=4bb63dbfe8865c264ac918dd79b89a88cc9842c8368b3c8e27fc2a9ad925013a
+  generated_callable gc2 function=@fn14 id=db55e25198a559adf5b87034cc0f91aa14912355f9ac96e4bbe1f979d7d84f63
   fun check @fn0() -> Int
     bb0 entry
       call $argument.0: Int = external0 direct
@@ -29,7 +30,7 @@ Module
       assign $new.1
         Type Later
         ClassAlloc Later
-      call @fn10 direct
+      call @fn12 direct
         Type Later
         Local $new.1
         Type Int
@@ -139,7 +140,7 @@ Module
           CaptureInit field=0
             Type ULong
             Local $dependency.local.2
-      call $call.1: Number = @fn4 direct
+      call $call.1: Number = @fn5 direct
         Type ULong
         Local $dependency.local.2
       val $dependency.local.7: Int
@@ -207,7 +208,7 @@ Module
       val $dependency.local.15: Number
         Type Number
         Local $dependency.local.14
-      call $call.3: Number = @fn5 direct
+      call $call.3: Number = @fn6 direct
         Type Number
         Local $dependency.local.15
       return
@@ -243,7 +244,7 @@ Module
           CaptureInit field=0
             Type ULong
             Local $dependency.local.2
-      call $call.1: Number = @fn7 direct
+      call $call.1: Number = @fn8 direct
         Type ULong
         Local $dependency.local.2
       val $dependency.local.7: Int
@@ -311,7 +312,7 @@ Module
       val $dependency.local.15: Number
         Type Number
         Local $dependency.local.14
-      call $call.3: Number = @fn5 direct
+      call $call.3: Number = @fn6 direct
         Type Number
         Local $dependency.local.15
       return
@@ -319,7 +320,26 @@ Module
         FieldAccess 0
           Type Number
           Local $call.3
-  fun $lambda @fn3($argument.0: () -> Number) -> Number
+  fun equalTo @fn3(this: Ptr<Number>, other: Ptr<Number>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<Number>
+        Type Ptr<Number>
+        Local this
+      val $dependency.local.3: Ptr<Number>
+        Type Ptr<Number>
+        Local other
+      val $dependency.local.4: Ptr<Number>
+        Type Ptr<Number>
+        Local $dependency.local.3
+      call $call.1: Boolean = @fn9 direct
+        Type Ptr<Number>
+        Local $dependency.local.2
+        Type Ptr<Number>
+        Local $dependency.local.4
+      return
+        Type Boolean
+        Local $call.1
+  fun $lambda @fn4($argument.0: () -> Number) -> Number
     bb0 entry
       var $dependency.local.0: Number
         Type Number
@@ -341,7 +361,7 @@ Module
       return
         Type Number
         Local $dependency.local.0
-  fun read @fn4($capture.0: ULong) -> Number
+  fun read @fn5($capture.0: ULong) -> Number
     bb0 entry
       val $dependency.local.0: Ptr<Number>
         Type Ptr<Number>
@@ -353,7 +373,7 @@ Module
         PtrLoad Number
           Type Ptr<Number>
           Local $dependency.local.0
-  fun lexicalCopy @fn5(value: Number) -> Number
+  fun lexicalCopy @fn6(value: Number) -> Number
     bb0 entry
       val $dependency.local.5: Ptr<Number>
         Type Ptr<Number>
@@ -363,7 +383,7 @@ Module
         PtrToULong
           Type Ptr<Number>
           Local $dependency.local.5
-      call $dependency.local.2: Number = @fn8 direct
+      call $dependency.local.2: Number = @fn10 direct
         Type ULong
         Local $dependency.local.1
       val $dependency.local.6: Ptr<Number>
@@ -389,7 +409,7 @@ Module
       return
         Type Number
         Local $call.1
-  fun $lambda @fn6($argument.0: () -> Number) -> Number
+  fun $lambda @fn7($argument.0: () -> Number) -> Number
     bb0 entry
       var $dependency.local.0: Number
         Type Number
@@ -411,18 +431,6 @@ Module
       return
         Type Number
         Local $dependency.local.0
-  fun read @fn7($capture.0: ULong) -> Number
-    bb0 entry
-      val $dependency.local.0: Ptr<Number>
-        Type Ptr<Number>
-        PtrFromNonZeroULong Number
-          Type ULong
-          Local $capture.0
-      return
-        Type Number
-        PtrLoad Number
-          Type Ptr<Number>
-          Local $dependency.local.0
   fun read @fn8($capture.0: ULong) -> Number
     bb0 entry
       val $dependency.local.0: Ptr<Number>
@@ -435,7 +443,41 @@ Module
         PtrLoad Number
           Type Ptr<Number>
           Local $dependency.local.0
-  fun $lambda @fn9($argument.0: () -> Number) -> Number
+  fun equals @fn9(this: Ptr<Number>, other: Ptr<Number>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<Number>
+        Type Ptr<Number>
+        Local this
+      val $dependency.local.4: ULong
+        Type ULong
+        PtrToULong
+          Type Ptr<Number>
+          Local $dependency.local.2
+      val $dependency.local.3: Ptr<Number>
+        Type Ptr<Number>
+        Local other
+      return
+        Type Boolean
+        IntegerCompare equal operands=ULong result=Boolean
+          Type ULong
+          Local $dependency.local.4
+          Type ULong
+          PtrToULong
+            Type Ptr<Number>
+            Local $dependency.local.3
+  fun read @fn10($capture.0: ULong) -> Number
+    bb0 entry
+      val $dependency.local.0: Ptr<Number>
+        Type Ptr<Number>
+        PtrFromNonZeroULong Number
+          Type ULong
+          Local $capture.0
+      return
+        Type Number
+        PtrLoad Number
+          Type Ptr<Number>
+          Local $dependency.local.0
+  fun $lambda @fn11($argument.0: () -> Number) -> Number
     bb0 entry
       var $dependency.local.0: Number
         Type Number
@@ -457,7 +499,7 @@ Module
       return
         Type Number
         Local $dependency.local.0
-  fun init.Later.$c0 @fn10(this: Later, number: Int) -> Unit
+  fun init.Later.$c0 @fn12(this: Later, number: Int) -> Unit
     bb0 entry
       field_set 0
         Type Later
@@ -465,7 +507,7 @@ Module
         Type Int
         Local number
       return
-  fun function_bridge.$Closure$lambda0.() -> Any @fn11($source: () -> Number) -> Any
+  fun function_bridge.$Closure$lambda0.() -> Any @fn13($source: () -> Number) -> Any
     bb0 entry
       call $call.1: Number = <closure:function_type0> closure[function_type0]
         Type () -> Number
@@ -475,7 +517,7 @@ Module
         Box
           Type Number
           Local $call.1
-  fun function_bridge.$Closure$lambda1.() -> Any @fn12($source: () -> Number) -> Any
+  fun function_bridge.$Closure$lambda1.() -> Any @fn14($source: () -> Number) -> Any
     bb0 entry
       call $call.1: Number = <closure:function_type0> closure[function_type0]
         Type () -> Number
@@ -485,7 +527,7 @@ Module
         Box
           Type Number
           Local $call.1
-  fun function_bridge.$Closure$lambda2.() -> Any @fn13($source: () -> Number) -> Any
+  fun function_bridge.$Closure$lambda2.() -> Any @fn15($source: () -> Number) -> Any
     bb0 entry
       call $call.1: Number = <closure:function_type0> closure[function_type0]
         Type () -> Number
@@ -497,11 +539,13 @@ Module
           Local $call.1
   instance mi0 function=@fn1 <- exercise
   instance mi1 function=@fn2 <- exercise
-  instance mi2 function=@fn3 <- $lambda
-  instance mi3 function=@fn4 <- read
-  instance mi4 function=@fn5 <- lexicalCopy
-  instance mi5 function=@fn6 <- $lambda
-  instance mi6 function=@fn7 <- read
+  instance mi2 function=@fn3 <- equalTo
+  instance mi3 function=@fn4 <- $lambda
+  instance mi4 function=@fn5 <- read
+  instance mi5 function=@fn6 <- lexicalCopy
+  instance mi6 function=@fn7 <- $lambda
   instance mi7 function=@fn8 <- read
-  instance mi8 function=@fn9 <- $lambda
+  instance mi8 function=@fn9 <- equals
+  instance mi9 function=@fn10 <- read
+  instance mi10 function=@fn11 <- $lambda
   output library

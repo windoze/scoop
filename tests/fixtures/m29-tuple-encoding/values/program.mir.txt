@@ -239,6 +239,8 @@ Module
   interface UnkeyedEncodingContainer
   interface SingleValueEncodingContainer
   interface ToString
+  interface Equality<Float>
+  interface Equality<Double>
   interface Encodable<(Element, Element, Element)>
   interface List<(Int, Node)> : Iterable<(Int, Node)>
   interface Iterable<(Int, Node)>
@@ -293,12 +295,14 @@ Module
   interface Decodable<Boolean>
   interface Encodable<(Label, Int)>
   interface Hash
+  interface Equality<Int>
   interface Encodable<(Any, Int)>
   interface Encodable<(Opaque, Int)>
   interface Encodable<(() -> Unit, Int)>
   interface Encodable<((Opaque, Int), Unit)>
   interface Encodable<Array<(Int, Opaque)>>
   interface Encodable<(Unit, Unit)>
+  interface Equality<Char>
   interface Encodable<Char>
   interface Encodable<(Boolean, Char)>
   interface Encodable<((Int, String), (Boolean, Char))>
@@ -321,6 +325,7 @@ Module
   interface Iterator<JsonValue>
   interface Iterator<Char>
   interface Iterable<Char>
+  interface Equality<String>
   interface Continuation<Element>
   interface SuspendTask<Element>
   interface SuspendRegistration<Element>

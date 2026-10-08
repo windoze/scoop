@@ -1,11 +1,34 @@
 Module
   struct LaterValue (number: Int)
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<LaterValue>
+    Completed(value: LaterValue)
+    Suspended()
+  enum CoroutineSlot<LaterValue>
+    Empty()
+    Value(value: LaterValue)
   class Later vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class box<LaterValue> vtable=0 itables=0
+  interface Equality<Ptr<Int>>
+  interface Equality<Ptr<Unit>>
+  interface Equality<Ptr<LaterValue>>
+  interface Continuation<LaterValue>
+  interface SuspendTask<LaterValue>
+  interface SuspendRegistration<LaterValue>
   generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
   generated_exact_type get1 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
-  generated_exact_type get2 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
-  generated_exact_type get3 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
-  generated_exact_type get4 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
+  generated_exact_type get2 location=enum2 nominal_id=cd3f4a1ff80b579331e8b8422897a306ca29b802a4f03e102781804d6160a70e exact_id=425a060fe289d429f01e9dff195c3db8c4718da4454e73c7115aa2e376d2dc5b
+  generated_exact_type get3 location=class4 nominal_id=1571f13bd6c878950bebdc19b90134db19ccef87f81214d4072cdcd7d1f9969d exact_id=4b519b91e3250504c05d490c936825004432bb5b52bad2d4b14cbe326c3e985d
+  generated_exact_type get4 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
+  generated_exact_type get5 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
+  generated_exact_type get6 location=enum1 nominal_id=c75af552c559232c1f56be83b92ac6a680b33eca2afa56450f1e10784a41dba4 exact_id=cff51091f1e701e6e1ca0b55815f6099367ab9bb897f6170b64390bdbfc8e5b3
+  generated_exact_type get7 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
+  generated_callable gc0 function=@fn25 id=7f3234873b3f5ebf6f297f5f30555c3e9d571973eb6941b23d385252c5804041
   fun check @fn0() -> Int
     bb0 entry
       call $argument.0: Int = external0 direct
@@ -15,7 +38,7 @@ Module
       assign $new.1
         Type Later
         ClassAlloc Later
-      call @fn13 direct
+      call @fn23 direct
         Type Later
         Local $new.1
         Type Int
@@ -50,7 +73,7 @@ Module
       val $parameter.number: Int
         Type Int
         Local $argument.0
-      call $dependency.argument.0: LaterValue = @fn14 direct
+      call $dependency.argument.0: LaterValue = @fn24 direct
         Type Int
         Local $parameter.number
       val $dependency.parameter.value: LaterValue
@@ -566,7 +589,142 @@ Module
         PtrLoad LaterValue
           Type Ptr<LaterValue>
           Local $dependency.local.2
-  fun init.Later.$c0 @fn13(this: Later, number: Int) -> Unit
+  fun equalTo @fn13(this: Ptr<Int>, other: Ptr<Int>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<Int>
+        Type Ptr<Int>
+        Local this
+      val $dependency.local.3: Ptr<Int>
+        Type Ptr<Int>
+        Local other
+      val $dependency.local.4: Ptr<Int>
+        Type Ptr<Int>
+        Local $dependency.local.3
+      call $call.1: Boolean = @fn16 direct
+        Type Ptr<Int>
+        Local $dependency.local.2
+        Type Ptr<Int>
+        Local $dependency.local.4
+      return
+        Type Boolean
+        Local $call.1
+  fun equalTo @fn14(this: Ptr<Unit>, other: Ptr<Unit>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<Unit>
+        Type Ptr<Unit>
+        Local this
+      val $dependency.local.3: Ptr<Unit>
+        Type Ptr<Unit>
+        Local other
+      val $dependency.local.4: Ptr<Unit>
+        Type Ptr<Unit>
+        Local $dependency.local.3
+      call $call.1: Boolean = @fn17 direct
+        Type Ptr<Unit>
+        Local $dependency.local.2
+        Type Ptr<Unit>
+        Local $dependency.local.4
+      return
+        Type Boolean
+        Local $call.1
+  fun equalTo @fn15(this: Ptr<LaterValue>, other: Ptr<LaterValue>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<LaterValue>
+        Type Ptr<LaterValue>
+        Local this
+      val $dependency.local.3: Ptr<LaterValue>
+        Type Ptr<LaterValue>
+        Local other
+      val $dependency.local.4: Ptr<LaterValue>
+        Type Ptr<LaterValue>
+        Local $dependency.local.3
+      call $call.1: Boolean = @fn18 direct
+        Type Ptr<LaterValue>
+        Local $dependency.local.2
+        Type Ptr<LaterValue>
+        Local $dependency.local.4
+      return
+        Type Boolean
+        Local $call.1
+  fun equals @fn16(this: Ptr<Int>, other: Ptr<Int>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<Int>
+        Type Ptr<Int>
+        Local this
+      val $dependency.local.4: ULong
+        Type ULong
+        PtrToULong
+          Type Ptr<Int>
+          Local $dependency.local.2
+      val $dependency.local.3: Ptr<Int>
+        Type Ptr<Int>
+        Local other
+      return
+        Type Boolean
+        IntegerCompare equal operands=ULong result=Boolean
+          Type ULong
+          Local $dependency.local.4
+          Type ULong
+          PtrToULong
+            Type Ptr<Int>
+            Local $dependency.local.3
+  fun equals @fn17(this: Ptr<Unit>, other: Ptr<Unit>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<Unit>
+        Type Ptr<Unit>
+        Local this
+      val $dependency.local.4: ULong
+        Type ULong
+        PtrToULong
+          Type Ptr<Unit>
+          Local $dependency.local.2
+      val $dependency.local.3: Ptr<Unit>
+        Type Ptr<Unit>
+        Local other
+      return
+        Type Boolean
+        IntegerCompare equal operands=ULong result=Boolean
+          Type ULong
+          Local $dependency.local.4
+          Type ULong
+          PtrToULong
+            Type Ptr<Unit>
+            Local $dependency.local.3
+  fun equals @fn18(this: Ptr<LaterValue>, other: Ptr<LaterValue>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<LaterValue>
+        Type Ptr<LaterValue>
+        Local this
+      val $dependency.local.4: ULong
+        Type ULong
+        PtrToULong
+          Type Ptr<LaterValue>
+          Local $dependency.local.2
+      val $dependency.local.3: Ptr<LaterValue>
+        Type Ptr<LaterValue>
+        Local other
+      return
+        Type Boolean
+        IntegerCompare equal operands=ULong result=Boolean
+          Type ULong
+          Local $dependency.local.4
+          Type ULong
+          PtrToULong
+            Type Ptr<LaterValue>
+            Local $dependency.local.3
+  fun Continuation.resume @fn19(this: Continuation<LaterValue>, value: LaterValue) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn20(this: Continuation<LaterValue>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn21(this: SuspendTask<LaterValue>, $completion: Continuation<LaterValue>) -> CoroutineStep<LaterValue>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn22(this: SuspendRegistration<LaterValue>, continuation: Continuation<LaterValue>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.Later.$c0 @fn23(this: Later, number: Int) -> Unit
     bb0 entry
       field_set 0
         Type Later
@@ -574,13 +732,98 @@ Module
         Type Int
         Local number
       return
-  fun ctor.LaterValue.$c0 @fn14(number: Int) -> LaterValue <no-gc>
+  fun ctor.LaterValue.$c0 @fn24(number: Int) -> LaterValue <no-gc>
     bb0 entry
       return
         Type LaterValue
         StructInit LaterValue
           Type Int
           Local number
+  fun startCoroutine<LaterValue> @fn25(task: SuspendTask<LaterValue>, completion: Continuation<LaterValue>) -> Unit
+    bb0 context.unwind
+      landing_pad cleanup=true
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb1 context.catch_unwind
+      landing_pad cleanup=true
+      end_catch
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb2 suspended
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb3 completed unwind bb0
+      call @fn19 interface Continuation<LaterValue>[0]
+        Type Continuation<LaterValue>
+        Local completion
+        Type LaterValue
+        EnumField v0 f0
+          Type CoroutineStep<LaterValue>
+          Local $step
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb4 failed unwind bb0
+      call @fn20 interface Continuation<LaterValue>[1]
+        Type Continuation<LaterValue>
+        Local completion
+        Type Throwable
+        Local $exception
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb5 body_failure unwind bb1
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb4
+    bb6 run unwind bb5
+      call $step: CoroutineStep<LaterValue> = @fn21 interface SuspendTask<LaterValue>[0]
+        Type SuspendTask<LaterValue>
+        Local task
+        Type Continuation<LaterValue>
+        Local completion
+      branch bb3 bb2
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<LaterValue>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+    bb7 entry
+      val $child_context: internal<task-context>
+        Type internal<task-context>
+        ContextFork
+          Type internal<context-node>
+          ContextSnapshot
+      val $context_guard: internal<context-switch-guard>
+        Type internal<context-switch-guard>
+        ContextEnter
+          Type internal<task-context>
+          Local $child_context
+      goto bb6
+  coroutine_step cs0 CoroutineStep<LaterValue> result=LaterValue
+  coroutine_slot cl0 CoroutineSlot<LaterValue> value=LaterValue
+  coroutine_start ct0 result=LaterValue function=fn25
+  coroutine_fn cf0 @fn21 source_return=LaterValue step=cs0 immediate
   instance mi0 function=@fn1 <- exercise
   instance mi1 function=@fn2 <- roundTrip
   instance mi2 function=@fn3 <- roundTrip
@@ -593,4 +836,14 @@ Module
   instance mi9 function=@fn10 <- replace
   instance mi10 function=@fn11 <- copy
   instance mi11 function=@fn12 <- copy
+  instance mi12 function=@fn13 <- equalTo
+  instance mi13 function=@fn14 <- equalTo
+  instance mi14 function=@fn15 <- equalTo
+  instance mi15 function=@fn16 <- equals
+  instance mi16 function=@fn17 <- equals
+  instance mi17 function=@fn18 <- equals
+  instance mi18 function=@fn19 <- Continuation.resume
+  instance mi19 function=@fn20 <- Continuation.resumeWithException
+  instance mi20 function=@fn21 <- SuspendTask.run
+  instance mi21 function=@fn22 <- SuspendRegistration.register
   output library

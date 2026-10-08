@@ -30,7 +30,7 @@ pub(super) fn project(
             let [payload] = fields else {
                 unreachable!("validated boxes have exactly one payload field")
             };
-            if matches!(payload.ty, Type::Tuple(_)) {
+            if matches!(payload.ty, Type::Tuple(_) | Type::Ptr(_)) {
                 bases.interfaces = module.classes[class]
                     .interfaces
                     .iter()

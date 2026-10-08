@@ -17,9 +17,9 @@ Module
     call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 () -> i64 external-fn0()
     store t0 -> local0
     store local0 -> local1
-    call managed-direct-target1 sp<managed-call:1> live=[] t1 = sig=direct1 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td0, machine<byte-size>(ByteSize(24)))
+    call managed-direct-target1 sp<managed-call:1> live=[] t1 = sig=direct1 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td1, machine<byte-size>(ByteSize(24)))
     store t1 -> local9
-    call managed-void-target0 sp<managed-call:2> live=[local9:ptr<managed>@0] sig=void0 (ptr<managed>, i64) local-fn2(local9, local1)
+    call managed-void-target0 sp<managed-call:2> live=[local9:ptr<managed>@0] sig=void0 (ptr<managed>, i64) local-fn4(local9, local1)
     t2 = aggregate () : {}
     store local9 -> local2
     t3 = heap_load local2 +16 : i64
@@ -54,12 +54,40 @@ Module
     call managed-direct-target0 sp<managed-call:0> live=[] t1 = sig=direct0 (ptr<code>) -> i64 external-fn2(local2)
     store t1 -> local3
     ret local3
+  fun @scoop$1$cb$0dd4f8dd521f8c061b8e701fc49b51e0ae14a3acc27b4c21f48d79888cbf2bf6(ptr<raw>, ptr<raw>) -> i1
+    local %0 $dependency.local.2: ptr<raw>
+    local %1 $dependency.local.3: ptr<raw>
+    local %2 $dependency.local.4: ptr<raw>
+    local %3 $call.1: i1
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store param0 -> local0
+    store param1 -> local1
+    store local1 -> local2
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (ptr<raw>, ptr<raw>) -> i1 local-fn3(local0, local2)
+    store t0 -> local3
+    ret local3
+  fun @scoop$1$cb$ce5e3cf3f872bfb9223a72169bbf76bbd0974ad2cc30b57900fa73ca3e0e91af(ptr<raw>, ptr<raw>) -> i1
+    local %0 $dependency.local.2: ptr<raw>
+    local %1 $dependency.local.3: ptr<raw>
+    local %2 $dependency.local.4: i64
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store param0 -> local0
+    t0 = ptr_to_ulong local0 : i64
+    store t0 -> local2
+    store param1 -> local1
+    t1 = ptr_to_ulong local1 : i64
+    t2 = integer_compare_Equal<ULong> local2, t1 : i1
+    ret t2
   fun @scoop$1$cb$dc652bbfb2254d55e8674b14da7009d49aadfae8b7f5d47b9c14333e1261f6bf(ptr<managed>, i64) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
     heap_store param0 +16 param1
     ret
-  td td0 n(c=dev.example%3Ageneric-member-downstream-sink%3A0.1.0;p=;o=-;k=C;x=Later) @scoop$1$td$74aee255fed1b437f4daba1f92549aa93e8bad4f257c605a30b492d231133005 type-id=9685511443951093537 shape=FixedObject minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td0 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Equality);[r(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Long))]) @scoop$1$td$6786b084643aa78b4ed8e6f33f8b81b10b7df0435640e0d599b950491bf615bb type-id=9657049773529793327 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
+  td td1 n(c=dev.example%3Ageneric-member-downstream-sink%3A0.1.0;p=;o=-;k=C;x=Later) @scoop$1$td$74aee255fed1b437f4daba1f92549aa93e8bad4f257c605a30b492d231133005 type-id=9685511443951093537 shape=FixedObject minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  layout Equality value size=8 align=8 refs=[0]
   layout Later value size=8 align=8 refs=[0]
   layout Later size=24 align=8 refs=[]
   output library

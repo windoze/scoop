@@ -2,6 +2,7 @@ use super::*;
 
 #[derive(Debug)]
 pub(super) enum RawInstance {
+    Atomic(crate::AtomicValueKind),
     Class {
         base: RawBase,
         declared: Vec<RawNominalField>,
@@ -34,6 +35,12 @@ impl WireDecode for RawInstance {
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let fields = decoder.map()?;
         match decoder.field(0, Decoder::unsigned)? {
+            6 => {
+                length(decoder, fields, 2)?;
+                decoder
+                    .field(1, crate::AtomicValueKind::decode)
+                    .map(Self::Atomic)
+            }
             1 => {
                 length(decoder, fields, 4)?;
                 Ok(Self::Class {
@@ -94,6 +101,10 @@ impl WireDecode for RawBase {
 impl WireEncode for RawInstance {
     fn encode(&self, encoder: &mut Encoder) -> EncodeResult {
         match self {
+            Self::Atomic(kind) => {
+                sum(encoder, 6, 1)?;
+                field(encoder, 1, kind)
+            }
             Self::Class {
                 base,
                 declared,

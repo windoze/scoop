@@ -1,7 +1,7 @@
 use scoop_identity::{
     DecodedExactCallableSignature, DecodedPersistentId, DecodedPersistentSymbolRequest,
-    DigestPatchIntentId, ExactOrdinaryNoArgUnitSignature, ExecutableSourceEntryIdentity,
-    MainCallableBodyId, ObjectDefinitionPlanId, PersistentCallableBodyId, PersistentFunctionId,
+    DigestPatchIntentId, ExactCallableSignature, ExecutableSourceEntryIdentity, MainCallableBodyId,
+    ObjectDefinitionPlanId, PersistentCallableBodyId, PersistentFunctionId,
     PersistentStaticStorageId, PersistentSymbolError, PersistentSymbolKey, PersistentSymbolRequest,
     SourceSignatureFingerprint,
 };
@@ -30,7 +30,7 @@ impl EntryProductionSourceV1 {
 pub struct ExecutableEntryPlanV1 {
     root_cone: scoop_identity::ConeIdentity,
     declaration: PersistentFunctionId,
-    source_signature: ExactOrdinaryNoArgUnitSignature,
+    source_signature: ExactCallableSignature,
     source_signature_fingerprint: SourceSignatureFingerprint,
     main: MainCallableBodyId,
     failure_root: PersistentStaticStorageId,
@@ -50,7 +50,7 @@ impl ExecutableEntryPlanV1 {
         self.declaration
     }
 
-    pub const fn source_signature(&self) -> &ExactOrdinaryNoArgUnitSignature {
+    pub const fn source_signature(&self) -> &ExactCallableSignature {
         &self.source_signature
     }
 

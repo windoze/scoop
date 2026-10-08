@@ -15,13 +15,13 @@ class Registration<T>(val gate: Gate<T>): SuspendRegistration<T> {
 suspend fun awaitSingle(gate: Gate<Float>): Float = suspendCoroutine(Registration(gate))
 suspend fun awaitWide(gate: Gate<Double>): Double = suspendCoroutine(Registration(gate))
 
-@NoGC @Extern(lib = "fixture_native", name = "float_from_bits")
+@Extern(lib = "fixture_native", name = "float_from_bits")
 fun fromFloatBits(value: UInt): Float
-@NoGC @Extern(lib = "fixture_native", name = "double_from_bits")
+@Extern(lib = "fixture_native", name = "double_from_bits")
 fun fromDoubleBits(value: ULong): Double
-@NoGC @Extern(lib = "fixture_native", name = "float_bits")
+@Extern(lib = "fixture_native", name = "float_bits")
 fun floatBits(value: Float): UInt
-@NoGC @Extern(lib = "fixture_native", name = "double_bits")
+@Extern(lib = "fixture_native", name = "double_bits")
 fun doubleBits(value: Double): ULong
 
 class Task(val first: Gate<Float>, val second: Gate<Double>, val seed: Packet): SuspendTask<Packet> {

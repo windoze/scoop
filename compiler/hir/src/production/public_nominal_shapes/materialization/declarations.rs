@@ -23,7 +23,7 @@ impl Graph {
                     || matches!(
                         callable.effects().implementation(),
                         CallableImplementationV1::SourceExternScoop
-                            | CallableImplementationV1::SourceExternC
+                            | CallableImplementationV1::SourceExternC(..)
                     )
                 {
                     self.block(owner)?;

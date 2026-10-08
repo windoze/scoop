@@ -1,12 +1,36 @@
 Module
   struct LaterValue (number: Int)
   struct Pair (first: Int, second: Int)
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<LaterValue>
+    Completed(value: LaterValue)
+    Suspended()
+  enum CoroutineSlot<LaterValue>
+    Empty()
+    Value(value: LaterValue)
   class Later vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class box<LaterValue> vtable=0 itables=0
+  interface Equality<Ptr<Unit>>
+  interface Equality<Ptr<LaterValue>>
+  interface Equality<Ptr<Int>>
+  interface Equality<Ptr<Pair>>
+  interface Continuation<LaterValue>
+  interface SuspendTask<LaterValue>
+  interface SuspendRegistration<LaterValue>
   generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
   generated_exact_type get1 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
   generated_exact_type get2 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
-  generated_exact_type get3 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
-  generated_exact_type get4 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
+  generated_exact_type get3 location=enum1 nominal_id=d8f3e3753e3c101089a2fbb604f1756114fd6c2446df481d430812f69b9b8762 exact_id=55ac58c3dc60af228908782ea9c6185f1afe60a852fa341eee15aa5407f04063
+  generated_exact_type get4 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
+  generated_exact_type get5 location=class4 nominal_id=aa95947bd516b4f766e241dbeb45f76d4d854afebacedd6b9b2b23a9a6554a43 exact_id=b2142539f0951f36f130387d645c526ff4dd35d2a1ce1f973b89bda6529e2a5b
+  generated_exact_type get6 location=enum2 nominal_id=459ba70c456eb04ce59d693d9ca24f6e8542270c7875f8316b0f44df5ea075a7 exact_id=b78cacdea98ca811415042c587618bd117d9ef24bc9174b1e2449679851a49ff
+  generated_exact_type get7 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
+  generated_callable gc0 function=@fn30 id=4ac5572dc99451ef83ed66659c6eb0aabc62c6eeacde5ed9c51d7bc69ae7083e
   fun check @fn0() -> Int
     bb0 entry
       call $argument.0: Int = external0 direct
@@ -16,7 +40,7 @@ Module
       assign $new.1
         Type Later
         ClassAlloc Later
-      call @fn16 direct
+      call @fn28 direct
         Type Later
         Local $new.1
         Type Int
@@ -51,7 +75,7 @@ Module
       val $parameter.number: Int
         Type Int
         Local $argument.0
-      call $dependency.argument.0: LaterValue = @fn17 direct
+      call $dependency.argument.0: LaterValue = @fn29 direct
         Type Int
         Local $parameter.number
       val $dependency.parameter.value: LaterValue
@@ -246,7 +270,7 @@ Module
       val $dependency.local.4: ULong
         Type ULong
         Local $dependency.local.3
-      call $dependency.local.1: ULong = @fn8 direct
+      call $dependency.local.1: ULong = @fn9 direct
         Type ULong
         Local $dependency.local.4
       val $dependency.local.5: ULong
@@ -255,7 +279,7 @@ Module
       val $dependency.local.6: ULong
         Type ULong
         Local $dependency.local.5
-      call $dependency.local.7: Ptr<Unit> = @fn9 direct
+      call $dependency.local.7: Ptr<Unit> = @fn10 direct
         Type ULong
         Local $dependency.local.6
       Type Unit
@@ -276,7 +300,7 @@ Module
       val $dependency.local.4: ULong
         Type ULong
         Local $dependency.local.3
-      call $dependency.local.1: ULong = @fn10 direct
+      call $dependency.local.1: ULong = @fn12 direct
         Type ULong
         Local $dependency.local.4
       val $dependency.local.5: ULong
@@ -285,7 +309,7 @@ Module
       val $dependency.local.6: ULong
         Type ULong
         Local $dependency.local.5
-      call $dependency.local.7: Ptr<LaterValue> = @fn11 direct
+      call $dependency.local.7: Ptr<LaterValue> = @fn13 direct
         Type ULong
         Local $dependency.local.6
       return
@@ -306,7 +330,7 @@ Module
       val $dependency.local.4: ULong
         Type ULong
         Local $dependency.local.3
-      call $dependency.local.1: ULong = @fn12 direct
+      call $dependency.local.1: ULong = @fn15 direct
         Type ULong
         Local $dependency.local.4
       val $dependency.local.5: ULong
@@ -315,7 +339,7 @@ Module
       val $dependency.local.6: ULong
         Type ULong
         Local $dependency.local.5
-      call $dependency.local.7: Ptr<Int> = @fn13 direct
+      call $dependency.local.7: Ptr<Int> = @fn16 direct
         Type ULong
         Local $dependency.local.6
       return
@@ -390,7 +414,7 @@ Module
       val $dependency.local.4: ULong
         Type ULong
         Local $dependency.local.3
-      call $dependency.local.1: ULong = @fn14 direct
+      call $dependency.local.1: ULong = @fn18 direct
         Type ULong
         Local $dependency.local.4
       val $dependency.local.5: ULong
@@ -399,7 +423,7 @@ Module
       val $dependency.local.6: ULong
         Type ULong
         Local $dependency.local.5
-      call $dependency.local.7: Ptr<Pair> = @fn15 direct
+      call $dependency.local.7: Ptr<Pair> = @fn19 direct
         Type ULong
         Local $dependency.local.6
       return
@@ -423,7 +447,7 @@ Module
       val $dependency.local.4: ULong
         Type ULong
         Local $dependency.local.3
-      call $dependency.local.5: Ptr<Int> = @fn13 direct
+      call $dependency.local.5: Ptr<Int> = @fn16 direct
         Type ULong
         Local $dependency.local.4
       return
@@ -431,7 +455,26 @@ Module
         PtrLoad Int
           Type Ptr<Int>
           Local $dependency.local.5
-  fun reencode @fn8(raw: ULong) -> ULong
+  fun equalTo @fn8(this: Ptr<Unit>, other: Ptr<Unit>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<Unit>
+        Type Ptr<Unit>
+        Local this
+      val $dependency.local.3: Ptr<Unit>
+        Type Ptr<Unit>
+        Local other
+      val $dependency.local.4: Ptr<Unit>
+        Type Ptr<Unit>
+        Local $dependency.local.3
+      call $call.1: Boolean = @fn20 direct
+        Type Ptr<Unit>
+        Local $dependency.local.2
+        Type Ptr<Unit>
+        Local $dependency.local.4
+      return
+        Type Boolean
+        Local $call.1
+  fun reencode @fn9(raw: ULong) -> ULong
     bb0 entry
       val $dependency.local.1: Ptr<Unit>
         Type Ptr<Unit>
@@ -443,14 +486,33 @@ Module
         PtrToULong
           Type Ptr<Unit>
           Local $dependency.local.1
-  fun reconstruct @fn9(raw: ULong) -> Ptr<Unit>
+  fun reconstruct @fn10(raw: ULong) -> Ptr<Unit>
     bb0 entry
       return
         Type Ptr<Unit>
         PtrFromNonZeroULong Unit
           Type ULong
           Local raw
-  fun reencode @fn10(raw: ULong) -> ULong
+  fun equalTo @fn11(this: Ptr<LaterValue>, other: Ptr<LaterValue>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<LaterValue>
+        Type Ptr<LaterValue>
+        Local this
+      val $dependency.local.3: Ptr<LaterValue>
+        Type Ptr<LaterValue>
+        Local other
+      val $dependency.local.4: Ptr<LaterValue>
+        Type Ptr<LaterValue>
+        Local $dependency.local.3
+      call $call.1: Boolean = @fn21 direct
+        Type Ptr<LaterValue>
+        Local $dependency.local.2
+        Type Ptr<LaterValue>
+        Local $dependency.local.4
+      return
+        Type Boolean
+        Local $call.1
+  fun reencode @fn12(raw: ULong) -> ULong
     bb0 entry
       val $dependency.local.1: Ptr<LaterValue>
         Type Ptr<LaterValue>
@@ -462,14 +524,33 @@ Module
         PtrToULong
           Type Ptr<LaterValue>
           Local $dependency.local.1
-  fun reconstruct @fn11(raw: ULong) -> Ptr<LaterValue>
+  fun reconstruct @fn13(raw: ULong) -> Ptr<LaterValue>
     bb0 entry
       return
         Type Ptr<LaterValue>
         PtrFromNonZeroULong LaterValue
           Type ULong
           Local raw
-  fun reencode @fn12(raw: ULong) -> ULong
+  fun equalTo @fn14(this: Ptr<Int>, other: Ptr<Int>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<Int>
+        Type Ptr<Int>
+        Local this
+      val $dependency.local.3: Ptr<Int>
+        Type Ptr<Int>
+        Local other
+      val $dependency.local.4: Ptr<Int>
+        Type Ptr<Int>
+        Local $dependency.local.3
+      call $call.1: Boolean = @fn22 direct
+        Type Ptr<Int>
+        Local $dependency.local.2
+        Type Ptr<Int>
+        Local $dependency.local.4
+      return
+        Type Boolean
+        Local $call.1
+  fun reencode @fn15(raw: ULong) -> ULong
     bb0 entry
       val $dependency.local.1: Ptr<Int>
         Type Ptr<Int>
@@ -481,14 +562,33 @@ Module
         PtrToULong
           Type Ptr<Int>
           Local $dependency.local.1
-  fun reconstruct @fn13(raw: ULong) -> Ptr<Int>
+  fun reconstruct @fn16(raw: ULong) -> Ptr<Int>
     bb0 entry
       return
         Type Ptr<Int>
         PtrFromNonZeroULong Int
           Type ULong
           Local raw
-  fun reencode @fn14(raw: ULong) -> ULong
+  fun equalTo @fn17(this: Ptr<Pair>, other: Ptr<Pair>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<Pair>
+        Type Ptr<Pair>
+        Local this
+      val $dependency.local.3: Ptr<Pair>
+        Type Ptr<Pair>
+        Local other
+      val $dependency.local.4: Ptr<Pair>
+        Type Ptr<Pair>
+        Local $dependency.local.3
+      call $call.1: Boolean = @fn23 direct
+        Type Ptr<Pair>
+        Local $dependency.local.2
+        Type Ptr<Pair>
+        Local $dependency.local.4
+      return
+        Type Boolean
+        Local $call.1
+  fun reencode @fn18(raw: ULong) -> ULong
     bb0 entry
       val $dependency.local.1: Ptr<Pair>
         Type Ptr<Pair>
@@ -500,14 +600,114 @@ Module
         PtrToULong
           Type Ptr<Pair>
           Local $dependency.local.1
-  fun reconstruct @fn15(raw: ULong) -> Ptr<Pair>
+  fun reconstruct @fn19(raw: ULong) -> Ptr<Pair>
     bb0 entry
       return
         Type Ptr<Pair>
         PtrFromNonZeroULong Pair
           Type ULong
           Local raw
-  fun init.Later.$c0 @fn16(this: Later, number: Int) -> Unit
+  fun equals @fn20(this: Ptr<Unit>, other: Ptr<Unit>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<Unit>
+        Type Ptr<Unit>
+        Local this
+      val $dependency.local.4: ULong
+        Type ULong
+        PtrToULong
+          Type Ptr<Unit>
+          Local $dependency.local.2
+      val $dependency.local.3: Ptr<Unit>
+        Type Ptr<Unit>
+        Local other
+      return
+        Type Boolean
+        IntegerCompare equal operands=ULong result=Boolean
+          Type ULong
+          Local $dependency.local.4
+          Type ULong
+          PtrToULong
+            Type Ptr<Unit>
+            Local $dependency.local.3
+  fun equals @fn21(this: Ptr<LaterValue>, other: Ptr<LaterValue>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<LaterValue>
+        Type Ptr<LaterValue>
+        Local this
+      val $dependency.local.4: ULong
+        Type ULong
+        PtrToULong
+          Type Ptr<LaterValue>
+          Local $dependency.local.2
+      val $dependency.local.3: Ptr<LaterValue>
+        Type Ptr<LaterValue>
+        Local other
+      return
+        Type Boolean
+        IntegerCompare equal operands=ULong result=Boolean
+          Type ULong
+          Local $dependency.local.4
+          Type ULong
+          PtrToULong
+            Type Ptr<LaterValue>
+            Local $dependency.local.3
+  fun equals @fn22(this: Ptr<Int>, other: Ptr<Int>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<Int>
+        Type Ptr<Int>
+        Local this
+      val $dependency.local.4: ULong
+        Type ULong
+        PtrToULong
+          Type Ptr<Int>
+          Local $dependency.local.2
+      val $dependency.local.3: Ptr<Int>
+        Type Ptr<Int>
+        Local other
+      return
+        Type Boolean
+        IntegerCompare equal operands=ULong result=Boolean
+          Type ULong
+          Local $dependency.local.4
+          Type ULong
+          PtrToULong
+            Type Ptr<Int>
+            Local $dependency.local.3
+  fun equals @fn23(this: Ptr<Pair>, other: Ptr<Pair>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<Pair>
+        Type Ptr<Pair>
+        Local this
+      val $dependency.local.4: ULong
+        Type ULong
+        PtrToULong
+          Type Ptr<Pair>
+          Local $dependency.local.2
+      val $dependency.local.3: Ptr<Pair>
+        Type Ptr<Pair>
+        Local other
+      return
+        Type Boolean
+        IntegerCompare equal operands=ULong result=Boolean
+          Type ULong
+          Local $dependency.local.4
+          Type ULong
+          PtrToULong
+            Type Ptr<Pair>
+            Local $dependency.local.3
+  fun Continuation.resume @fn24(this: Continuation<LaterValue>, value: LaterValue) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn25(this: Continuation<LaterValue>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn26(this: SuspendTask<LaterValue>, $completion: Continuation<LaterValue>) -> CoroutineStep<LaterValue>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn27(this: SuspendRegistration<LaterValue>, continuation: Continuation<LaterValue>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.Later.$c0 @fn28(this: Later, number: Int) -> Unit
     bb0 entry
       field_set 0
         Type Later
@@ -515,13 +715,98 @@ Module
         Type Int
         Local number
       return
-  fun ctor.LaterValue.$c0 @fn17(number: Int) -> LaterValue <no-gc>
+  fun ctor.LaterValue.$c0 @fn29(number: Int) -> LaterValue <no-gc>
     bb0 entry
       return
         Type LaterValue
         StructInit LaterValue
           Type Int
           Local number
+  fun startCoroutine<LaterValue> @fn30(task: SuspendTask<LaterValue>, completion: Continuation<LaterValue>) -> Unit
+    bb0 context.unwind
+      landing_pad cleanup=true
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb1 context.catch_unwind
+      landing_pad cleanup=true
+      end_catch
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb2 suspended
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb3 completed unwind bb0
+      call @fn24 interface Continuation<LaterValue>[0]
+        Type Continuation<LaterValue>
+        Local completion
+        Type LaterValue
+        EnumField v0 f0
+          Type CoroutineStep<LaterValue>
+          Local $step
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb4 failed unwind bb0
+      call @fn25 interface Continuation<LaterValue>[1]
+        Type Continuation<LaterValue>
+        Local completion
+        Type Throwable
+        Local $exception
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb5 body_failure unwind bb1
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb4
+    bb6 run unwind bb5
+      call $step: CoroutineStep<LaterValue> = @fn26 interface SuspendTask<LaterValue>[0]
+        Type SuspendTask<LaterValue>
+        Local task
+        Type Continuation<LaterValue>
+        Local completion
+      branch bb3 bb2
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<LaterValue>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+    bb7 entry
+      val $child_context: internal<task-context>
+        Type internal<task-context>
+        ContextFork
+          Type internal<context-node>
+          ContextSnapshot
+      val $context_guard: internal<context-switch-guard>
+        Type internal<context-switch-guard>
+        ContextEnter
+          Type internal<task-context>
+          Local $child_context
+      goto bb6
+  coroutine_step cs0 CoroutineStep<LaterValue> result=LaterValue
+  coroutine_slot cl0 CoroutineSlot<LaterValue> value=LaterValue
+  coroutine_start ct0 result=LaterValue function=fn30
+  coroutine_fn cf0 @fn26 source_return=LaterValue step=cs0 immediate
   instance mi0 function=@fn1 <- exercise
   instance mi1 function=@fn2 <- roundTrip
   instance mi2 function=@fn3 <- roundTrip
@@ -529,12 +814,24 @@ Module
   instance mi4 function=@fn5 <- exercise
   instance mi5 function=@fn6 <- roundTrip
   instance mi6 function=@fn7 <- copy
-  instance mi7 function=@fn8 <- reencode
-  instance mi8 function=@fn9 <- reconstruct
-  instance mi9 function=@fn10 <- reencode
-  instance mi10 function=@fn11 <- reconstruct
+  instance mi7 function=@fn8 <- equalTo
+  instance mi8 function=@fn9 <- reencode
+  instance mi9 function=@fn10 <- reconstruct
+  instance mi10 function=@fn11 <- equalTo
   instance mi11 function=@fn12 <- reencode
   instance mi12 function=@fn13 <- reconstruct
-  instance mi13 function=@fn14 <- reencode
-  instance mi14 function=@fn15 <- reconstruct
+  instance mi13 function=@fn14 <- equalTo
+  instance mi14 function=@fn15 <- reencode
+  instance mi15 function=@fn16 <- reconstruct
+  instance mi16 function=@fn17 <- equalTo
+  instance mi17 function=@fn18 <- reencode
+  instance mi18 function=@fn19 <- reconstruct
+  instance mi19 function=@fn20 <- equals
+  instance mi20 function=@fn21 <- equals
+  instance mi21 function=@fn22 <- equals
+  instance mi22 function=@fn23 <- equals
+  instance mi23 function=@fn24 <- Continuation.resume
+  instance mi24 function=@fn25 <- Continuation.resumeWithException
+  instance mi25 function=@fn26 <- SuspendTask.run
+  instance mi26 function=@fn27 <- SuspendRegistration.register
   output library

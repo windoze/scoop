@@ -106,4 +106,6 @@ Module
     store local13 -> local14
     end_catch
     br @scope.14
+  td td0 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Equality);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int8)]) @scoop$1$td$d20330fb413a7f2da2900530b87676432020c24b4e54ab42d33d6e26fe76a2d3 type-id=17883745204103813061 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
+  layout Equality value size=8 align=8 refs=[0]
   output library

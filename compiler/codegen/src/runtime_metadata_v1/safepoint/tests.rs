@@ -56,7 +56,7 @@ fn emits_closed_strong_record_and_both_zero_patch_sites() {
         constant_u64(prefix, 0),
         SAFEPOINT_REGISTRATION_DESCRIPTOR_MAGIC
     );
-    assert_eq!(constant_u64(prefix, 1), 6);
+    assert_eq!(constant_u64(prefix, 1), 7);
     assert_eq!(
         constant_u64(prefix, 2),
         SAFEPOINT_REGISTRATION_DESCRIPTOR_SIZE

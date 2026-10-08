@@ -454,7 +454,10 @@ fn extern_functions_have_typed_identity_and_abi_specific_effects() {
         .iter()
         .find(|(_, function)| function.source_name == "nativeAdd")
         .expect("the user C extern has a typed entity");
-    assert_eq!(c.abi, hir::ExternAbi::C);
+    assert_eq!(
+        c.abi,
+        hir::ExternAbi::C(scoop_identity::CAbiCallMode::NativeSafe)
+    );
     assert_eq!(c.safety, hir::Safety::Unsafe);
     assert_eq!(c.gc_effect, hir::GcEffect::NoGc);
     let (_, scoop) = module

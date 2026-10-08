@@ -16,7 +16,7 @@
 #include "../src/thread.h"
 #include "platform/image_fixture.h"
 
-#define OTHER_HEADER_BIT UINT64_C(8)
+#define OTHER_HEADER_BIT UINT64_C(1)
 #define PAYLOAD_MARKER UINT64_C(0x1255aabbfedc9876)
 
 typedef struct Resource {
@@ -69,13 +69,11 @@ static const ScoopTypeDescriptor large_td = {
 };
 static ScoopTypeDescriptor no_hook_td;
 
-static Resource *allocate(const ScoopTypeDescriptor *td, uint64_t handle,
-                          bool ready) {
+static Resource *allocate(const ScoopTypeDescriptor *td, uint64_t handle, bool ready) {
     _Alignas(16) uintptr_t frame[4] = {0};
     frame[2] = (uintptr_t)scoop_thread_current_required()->managed_stack_boundary;
     ScoopManagedAnchor anchor;
-    scoop_thread_push_managed_anchor(&anchor, 0x1010, (uintptr_t)frame,
-                                     (uintptr_t)&frame[2]);
+    scoop_thread_push_managed_anchor(&anchor, 0x1010, (uintptr_t)frame, (uintptr_t)&frame[2]);
     Resource *resource = scoop_gc_alloc_internal(td, td->instance_shape.minimum_size);
     scoop_thread_pop_managed_anchor(&anchor);
     assert(resource->header.gc_word == 0);
@@ -88,8 +86,7 @@ static Resource *allocate(const ScoopTypeDescriptor *td, uint64_t handle,
         large->bytes[sizeof large->bytes - 1] = 0x34;
     }
     if (ready) {
-        (void)__atomic_fetch_or(&resource->header.gc_word, GC_RELEASE_READY_BIT,
-                                __ATOMIC_RELEASE);
+        (void)__atomic_fetch_or(&resource->header.gc_word, GC_RELEASE_READY_BIT, __ATOMIC_RELEASE);
     }
     return resource;
 }
@@ -158,7 +155,7 @@ static void roots_and_cycles(const ScoopTypeDescriptor *td, bool stress) {
     (void)collect(NULL);
     assert(attempts[5] == 0 && attempts[6] == 0 && attempts[7] == 1);
     assert((uintptr_t)live != old_live);
-    assert(pinned->header.gc_word ==
+    assert((pinned->header.gc_word & UINT64_C(7)) ==
            (OTHER_HEADER_BIT | GC_PIN_BIT | GC_RELEASE_READY_BIT));
     assert(scoop_rt_unpin(pinned) == pinned);
     assert(pinned->header.gc_word == (OTHER_HEADER_BIT | GC_RELEASE_READY_BIT));
@@ -237,8 +234,7 @@ static void child_case(bool large, bool stress, bool bad_header) {
         assert(WIFSIGNALED(status) && WTERMSIG(status) == SIGABRT);
         assert(strstr(message, "release-ready object has no release hook") != NULL);
     } else if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
-        fprintf(stderr, "large=%d stress=%d status=%d: %s", large, stress, status,
-                message);
+        fprintf(stderr, "large=%d stress=%d status=%d: %s", large, stress, status, message);
         abort();
     }
 }

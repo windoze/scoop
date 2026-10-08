@@ -115,24 +115,28 @@ pub(super) fn generated(
                 .canonical_key::<_, ExactTypeKey>(*payload)
                 .map_err(hir::SharedTypeMetadataError::from)?;
             let interfaces = match key.as_ref() {
-                ExactTypeKey::Nominal(_) | ExactTypeKey::NominalApplication { .. } => {
+                ExactTypeKey::Nominal(_) | ExactTypeKey::NominalApplication { .. } => Some(
                     &comparison
                         .types
                         .get(*payload)
                         .ok_or(Error::MissingType(*payload))?
                         .base_and_interfaces()
-                        .interfaces[..]
+                        .interfaces[..],
+                ),
+                // Structural boxes retain their actual typed dispatch tables.
+                // They have no separate nominal payload export to replay.
+                ExactTypeKey::Tuple(_) | ExactTypeKey::RawPointer(_) => None,
+                ExactTypeKey::Function { .. } | ExactTypeKey::NativeFunctionPointer { .. } => {
+                    Some(&[][..])
                 }
-                ExactTypeKey::Tuple(_)
-                | ExactTypeKey::Function { .. }
-                | ExactTypeKey::RawPointer(_)
-                | ExactTypeKey::NativeFunctionPointer { .. } => &[],
             };
-            Error::require(
-                record.exact(),
-                Component::Interfaces,
-                record.base_and_interfaces().interfaces == interfaces,
-            )?;
+            if let Some(interfaces) = interfaces {
+                Error::require(
+                    record.exact(),
+                    Component::Interfaces,
+                    record.base_and_interfaces().interfaces == interfaces,
+                )?;
+            }
         }
         GeneratedNominalKey::CoroutineStep { result: payload }
         | GeneratedNominalKey::CoroutineSlot { value: payload } => {

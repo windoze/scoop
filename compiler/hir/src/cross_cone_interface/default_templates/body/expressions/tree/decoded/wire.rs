@@ -214,6 +214,8 @@ impl WireEncode for DecodedDefaultExpressionKindV1 {
             ),
             Self::ArrayLen(operand) => encode_one(encoder, 42, operand.as_ref()),
             Self::ArrayClone(operand) => encode_one(encoder, 43, operand.as_ref()),
+            Self::AtomicNew(operand) => encode_one(encoder, 71, operand.as_ref()),
+            Self::Atomic(atomic) => encode_one(encoder, 72, atomic.as_ref()),
             Self::Call {
                 callee,
                 arguments,
@@ -511,6 +513,13 @@ impl WireDecode for DecodedDefaultExpressionKindV1 {
             }
             42 => decode_boxed_expression(decoder, fields).map(Self::ArrayLen),
             43 => decode_boxed_expression(decoder, fields).map(Self::ArrayClone),
+            71 => decode_boxed_expression(decoder, fields).map(Self::AtomicNew),
+            72 => {
+                expect_sum_length(decoder, fields, 2)?;
+                decoder
+                    .field(1, crate::AtomicExpression::decode)
+                    .map(|atomic| Self::Atomic(Box::new(atomic)))
+            }
             57 => {
                 expect_sum_length(decoder, fields, 4)?;
                 Ok(Self::Call {

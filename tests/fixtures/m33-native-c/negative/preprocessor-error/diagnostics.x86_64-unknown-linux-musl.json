@@ -1,0 +1,12 @@
+[
+  {
+    "code": "SCOOP_BUILD_FAILED",
+    "message": "native compilation: native.c: ${work}/cone/native.c:1:2: error: #error native fixture diagnostic\n    1 | #error native fixture diagnostic\n      |  ^~~~~",
+    "notes": [],
+    "origin": {
+      "kind": "none"
+    },
+    "phase": "SourceSnapshot",
+    "severity": "error"
+  }
+]

@@ -1,0 +1,12 @@
+class ProcessFailure : Exception(Some("hidden message")), ToString {
+    public override fun toString(): String {
+        writeError("toString-bad")
+        return "unused"
+    }
+}
+
+fun main() {
+    write("stdout-buffer")
+    writeError("stderr-buffer\n")
+    throw ProcessFailure()
+}

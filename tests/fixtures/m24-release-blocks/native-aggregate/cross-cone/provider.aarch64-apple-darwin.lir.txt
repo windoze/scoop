@@ -7,8 +7,8 @@ Module
   enum Option niche(kind=managed,payload_variant=0)
   enum CoroutineStep<Wide> tagged size=32 align=8 variants=(struct0)@8+24 ()@8+0
   enum CoroutineSlot<Wide> tagged size=32 align=8 variants=()@8+0 (struct0)@8+24
-  extern ef0 rotate @m24_release_rotate(struct0) -> struct0 <c exact=(c-struct0)->c-struct0 bridge=@scoop$1$br$e85db377ce572e369c14822bc07ae3afd8c60b6e58b271bbf62fa4ff646978bf gc-leaf nounwind lib=m24_release>
-  extern ef1 record @m24_release_wide(struct0) -> void <c exact=(c-struct0)->void bridge=@scoop$1$br$6fd801988f66ed77e9e9f827449890454733bb93cd037140b4a89121a7780b84 gc-leaf nounwind lib=m24_release>
+  extern ef0 rotate @m24_release_rotate(struct0) -> struct0 <c exact=(c-struct0)->c-struct0 bridge=@scoop$1$br$03671db520a4b7afddf49692946a882c1235beca829d4d4bba45a347846eb479 gc-leaf nounwind lib=m24_release>
+  extern ef1 record @m24_release_wide(struct0) -> void <c exact=(c-struct0)->void bridge=@scoop$1$br$b803f38932fafd57cc868492ad4959b8cd431a2627b9e82417c2061b146a7859 gc-leaf nounwind lib=m24_release>
   fun @scoop$1$cb$f1a8bd1324ccbb12a6ae1d5a418c5a817d29ac8e0ef8cba38822dcc573a7d091(indirect<struct0 size=24 align=8 scan=none>) -> i64 <no-gc>
     local %0 $dependency.receiver: i64
     local %1 $dependency.argument.0: i64

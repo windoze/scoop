@@ -1,5 +1,6 @@
 use super::*;
 
+mod atomics;
 mod boxing;
 mod initialization;
 mod instruction;
@@ -167,7 +168,11 @@ pub fn dump(module: &Module) -> String {
     }
     for (id, extern_) in module.extern_functions.iter() {
         let (params, return_type, kind) = match &extern_.kind {
-            ExternFunctionKind::C { bridge, signature } => (
+            ExternFunctionKind::C {
+                call_plan,
+                signature,
+                call_mode,
+            } => (
                 signature
                     .storage_params()
                     .iter()
@@ -176,9 +181,28 @@ pub fn dump(module: &Module) -> String {
                     .join(", "),
                 signature.storage_return_type().dump(),
                 format!(
-                    "c exact={} bridge=@{} gc-leaf nounwind",
+                    "c exact={} {} gc-leaf nounwind{}",
                     signature.dump(),
-                    bridge.symbol()
+                    match call_plan {
+                        CAbiCallPlan::Direct(signature) => format!("direct-c={}", signature.dump()),
+                        CAbiCallPlan::StorageBridge {
+                            entry: bridge,
+                            result,
+                        } => format!(
+                            "bridge=@{}{}",
+                            bridge.symbol(),
+                            if *result == CResultAdaptation::CaptureErrno {
+                                " capture-errno"
+                            } else {
+                                ""
+                            }
+                        ),
+                    },
+                    if *call_mode == CAbiCallMode::GcLeaf {
+                        " mode=gc-leaf"
+                    } else {
+                        ""
+                    },
                 ),
             ),
             ExternFunctionKind::Scoop {

@@ -1,0 +1,28 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "an `@Extern` function must not be generic",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 75,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 0
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "`@Extern` cannot be used on a suspend function",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 150,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 77
+    },
+    "severity": "error"
+  }
+]

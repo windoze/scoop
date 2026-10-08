@@ -44,8 +44,12 @@ Module
   interface Outer.Marker
   interface ToString
   interface Hash
+  interface Equality<Int>
+  interface Equality<Char>
   interface Iterable<Char>
   interface Iterator<Char>
+  interface Equality<String>
+  interface Equality<Boolean>
   interface Continuation<Outer.Flag>
   interface SuspendTask<Outer.Flag>
   interface SuspendRegistration<Outer.Flag>

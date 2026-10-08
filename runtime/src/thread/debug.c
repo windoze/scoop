@@ -1,11 +1,17 @@
 #include "internal.h"
 
-bool scoop_rt_thread_debug_is_attached(void) {
-    return scoop_thread_tls != NULL;
-}
+bool scoop_rt_thread_debug_is_attached(void) { return scoop_thread_tls != NULL; }
 uint32_t scoop_rt_thread_debug_mode(void) {
     ScoopThreadState *state = scoop_thread_current_required();
-    return (uint32_t)atomic_load_explicit(&state->mode, memory_order_acquire);
+    ScoopThreadMode mode = atomic_load_explicit(&state->mode, memory_order_acquire);
+    switch (mode) {
+    case SCOOP_THREAD_MANAGED_PENDING:
+        return SCOOP_THREAD_DEBUG_MANAGED;
+    case SCOOP_THREAD_NATIVE_SAFE_RETURNING:
+        return SCOOP_THREAD_DEBUG_NATIVE_SAFE;
+    default:
+        return (uint32_t)mode;
+    }
 }
 
 uint64_t scoop_rt_thread_debug_count(void) {
@@ -29,9 +35,7 @@ void scoop_rt_thread_debug_enter_managed(uintptr_t managed_stack_boundary) {
     scoop_thread_enter_managed((const void *)managed_stack_boundary);
 }
 
-void scoop_rt_thread_debug_leave_managed(void) {
-    scoop_thread_leave_managed();
-}
+void scoop_rt_thread_debug_leave_managed(void) { scoop_thread_leave_managed(); }
 
 uint64_t scoop_rt_thread_debug_gc_epoch(void) {
     return atomic_load_explicit(&scoop_thread_gc_epoch, memory_order_acquire);
@@ -68,8 +72,8 @@ uint64_t scoop_rt_thread_debug_compiler_root_count(void) {
 uint64_t scoop_rt_thread_debug_transition_depth(void) {
     ScoopThreadState *state = scoop_thread_current_required();
     uint64_t depth = 0;
-    for (ScoopThreadTransition *transition = state->current_transition;
-         transition != NULL; transition = transition->previous) {
+    for (ScoopThreadTransition *transition = state->current_transition; transition != NULL;
+         transition = transition->previous) {
         depth++;
     }
     return depth;

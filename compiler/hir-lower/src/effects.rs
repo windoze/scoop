@@ -45,7 +45,7 @@ impl Lowerer {
             let mut requirements = HashSet::new();
             if let hir::FunctionKind::Extern(extern_id) = function.kind {
                 let extern_ = self.extern_functions[extern_id].clone();
-                if extern_.abi == hir::ExternAbi::C {
+                if extern_.abi.is_c() {
                     // The C-FFI-safe classifier is the stronger signature
                     // check and already proves every boundary value GC-free.
                     continue;
@@ -63,13 +63,13 @@ impl Lowerer {
                         );
                     }
                 }
-                if !self.is_gc_free(extern_.return_type) {
+                if !self.is_gc_free(*extern_.result.scoop_type()) {
                     self.error(
                         function.span,
                         format!(
                             "`@NoGC` extern function `{}` has non-GC-free return type {}",
                             function.name,
-                            self.type_name(extern_.return_type)
+                            self.type_name(*extern_.result.scoop_type())
                         ),
                     );
                 }
@@ -173,7 +173,7 @@ impl Lowerer {
                         );
                     }
                 }
-                if self.requires_unsafe_use(extern_.return_type) {
+                if self.requires_unsafe_use(*extern_.result.scoop_type()) {
                     self.error(
                         function.span,
                         format!(

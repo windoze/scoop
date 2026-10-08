@@ -4,7 +4,7 @@ use scoop_wire::{decode_canonical, encode};
 #[test]
 fn intrinsic_function_roles_have_a_closed_canonical_wire_identity() {
     let kinds = intrinsic_function_kinds();
-    assert_eq!(kinds.len(), INTRINSIC_REGISTRY.len() + 268);
+    assert_eq!(kinds.len(), INTRINSIC_REGISTRY.len() + 301);
     assert!(kinds.windows(2).all(|pair| pair[0] < pair[1]));
 
     for kind in kinds {
@@ -43,11 +43,29 @@ fn intrinsic_function_role_reader_rejects_open_or_invalid_values() {
         vec![0xa1, 0x00, 0x15],
         vec![0xa2, 0x00, 0x10, 0x01, 0x02],
         vec![0xa2, 0x00, 0x14, 0x01, 0x0c],
+        vec![0xa1, 0x00, 0x17],
+        vec![0xa2, 0x00, 0x17, 0x01, 0x04],
+        vec![0xa2, 0x00, 0x18, 0x18, 0x01, 0xa2, 0x00, 0x02, 0x01, 0x05],
+        vec![0xa2, 0x00, 0x18, 0x18, 0x01, 0xa2, 0x00, 0x03, 0x01, 0x07],
         vec![
             0xa2, 0x00, 0x0f, 0x01, 0xa3, 0x00, 0x01, 0x01, 0x05, 0x02, 0x10,
         ],
     ] {
         assert!(decode_canonical::<IntrinsicFunctionKind>(&bytes).is_err());
+    }
+}
+
+#[test]
+fn atomic_intrinsic_registry_preserves_the_owner_and_no_gc_effect() {
+    let kinds = AtomicIntrinsic::all().collect::<Vec<_>>();
+    assert_eq!(kinds.len(), 33);
+    for kind in kinds {
+        let spec = intrinsic_spec(&kind.name()).unwrap();
+        assert_eq!(spec.kind(), IntrinsicFunctionKind::Atomic(kind));
+        assert!(spec.effects().no_gc);
+    }
+    for name in ["atomic_boolean_fetch_add", "atomic_ref_fetch_and"] {
+        assert!(intrinsic_spec(name).is_none());
     }
 }
 

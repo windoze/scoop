@@ -130,6 +130,19 @@ impl PreparedStaging {
         Ok(root)
     }
 
+    pub(super) fn materialize_source_directory(
+        &self,
+        cone_directory: &str,
+        logical_path: &scoop_manifest::ConeRelativePath,
+    ) -> Result<(), StagingError> {
+        let path = self
+            .snapshot_root
+            .join(cone_directory)
+            .join(logical_path.as_path());
+        create_directory(&path)?;
+        set_private_directory_permissions(&path)
+    }
+
     pub(super) fn materialize_source(
         &self,
         cone_directory: &str,

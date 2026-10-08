@@ -25,6 +25,9 @@ pub enum DecodedMirTypeRepresentationV1 {
     InlineArray {
         element: DecodedPersistentId<PersistentExactTypeId>,
     },
+    AtomicReference {
+        value: DecodedPersistentId<PersistentExactTypeId>,
+    },
     ObjectBacking {
         declared_fields: Vec<DecodedMirRepresentationFieldV1>,
     },
@@ -79,6 +82,9 @@ impl DecodedMirTypeRepresentationV1 {
             Self::Interface => MirTypeRepresentationV1::Interface,
             Self::InlineArray { element } => MirTypeRepresentationV1::InlineArray {
                 element: graph.resolve(element)?,
+            },
+            Self::AtomicReference { value } => MirTypeRepresentationV1::AtomicReference {
+                value: graph.resolve(value)?,
             },
             Self::ObjectBacking { declared_fields } => MirTypeRepresentationV1::ObjectBacking {
                 declared_fields: resolve_fields(declared_fields, graph)?,
@@ -159,6 +165,11 @@ macro_rules! encode_representation {
                         tag(encoder, 2, 11)?;
                         encoder.field(1)?;
                         element.encode(encoder)
+                    }
+                    Self::AtomicReference { value } => {
+                        tag(encoder, 2, 12)?;
+                        encoder.field(1)?;
+                        value.encode(encoder)
                     }
                     Self::ObjectBacking { declared_fields } => {
                         tag(encoder, 2, 6)?;
@@ -241,6 +252,9 @@ impl WireDecode for DecodedMirTypeRepresentationV1 {
             }),
             11 => Ok(Self::InlineArray {
                 element: decoder.field(1, DecodedPersistentId::decode)?,
+            }),
+            12 => Ok(Self::AtomicReference {
+                value: decoder.field(1, DecodedPersistentId::decode)?,
             }),
             tag => Err(error(decoder, WireErrorKind::UnknownTag { tag })),
         }

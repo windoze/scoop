@@ -147,7 +147,7 @@ impl Harness {
             gc_effect: hir::GcEffect::Managed,
             safety: hir::Safety::Safe,
             params: vec![self.string],
-            return_type: self.unit,
+            result: scoop_identity::ExternResult::Direct(self.unit),
         });
         let id = self.functions.alloc(hir::Function {
             signature: hir::CallableSignature {
@@ -187,7 +187,7 @@ impl Harness {
             gc_effect: hir::GcEffect::Managed,
             safety: hir::Safety::Safe,
             params: vec![self.long],
-            return_type: self.string,
+            result: scoop_identity::ExternResult::Direct(self.string),
         });
         let id = self.functions.alloc(hir::Function {
             signature: hir::CallableSignature {
@@ -226,7 +226,7 @@ impl Harness {
             gc_effect: hir::GcEffect::Managed,
             safety: hir::Safety::Safe,
             params: vec![self.boolean],
-            return_type: self.string,
+            result: scoop_identity::ExternResult::Direct(self.string),
         });
         let id = self.functions.alloc(hir::Function {
             signature: hir::CallableSignature {

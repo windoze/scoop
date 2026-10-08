@@ -143,6 +143,7 @@ fn validate_shape(
             let expected = match representation.family().parameters() {
                 IntrinsicTypeParameters::None => 0,
                 IntrinsicTypeParameters::OneInvariantUnconstrained
+                | IntrinsicTypeParameters::OneInvariantRef
                 | IntrinsicTypeParameters::OneInvariantValue => 1,
             };
             let actual = declaration.duplicate_signature().type_parameter_count();

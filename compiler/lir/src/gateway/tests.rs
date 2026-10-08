@@ -69,11 +69,11 @@ fn rejects_entry_poll_and_cfg_bypasses() {
 fn rejects_wrong_signature_and_unclosed_statuses() {
     let mut module = root(true);
     gateway(&mut module).gc_effect = GcEffect::NoGc;
-    rejects(&module, "C uint32_t(void)");
+    rejects(&module, "C startup ABI");
     let mut module = eager();
     gateway(&mut module).signature =
         ScoopAbiSignature::new(vec![], AbiReturn::UnitVoid, CallingConvention::Cdecl);
-    rejects(&module, "C uint32_t(void)");
+    rejects(&module, "C startup ABI");
     for status in [
         None,
         Some(Value::IntegerConst(LirIntegerConstant::Unsigned32(2))),

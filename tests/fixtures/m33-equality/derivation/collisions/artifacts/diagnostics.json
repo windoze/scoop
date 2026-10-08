@@ -1,0 +1,54 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "type `Plain` has no applicable member operator `equals` for `==`",
+    "notes": [],
+    "origin": {
+      "cone": "c41cc8acb667a0c8cd09be0be728defd03e90ba76a7124632d5ed4b3cacf33c8",
+      "end": 63,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 43
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "type `Generic<Int>` has no applicable member operator `equals` for `==`",
+    "notes": [],
+    "origin": {
+      "cone": "c41cc8acb667a0c8cd09be0be728defd03e90ba76a7124632d5ed4b3cacf33c8",
+      "end": 123,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 89
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "type `Hidden<Int>` has no applicable member operator `equals` for `==`",
+    "notes": [],
+    "origin": {
+      "cone": "c41cc8acb667a0c8cd09be0be728defd03e90ba76a7124632d5ed4b3cacf33c8",
+      "end": 180,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 148
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "type `Choice` has no applicable member operator `equals` for `==`",
+    "notes": [],
+    "origin": {
+      "cone": "c41cc8acb667a0c8cd09be0be728defd03e90ba76a7124632d5ed4b3cacf33c8",
+      "end": 239,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 205
+    },
+    "severity": "error"
+  }
+]

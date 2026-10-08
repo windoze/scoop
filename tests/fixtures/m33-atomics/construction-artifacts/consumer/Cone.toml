@@ -1,0 +1,9 @@
+schema = 1
+[cone]
+group = "dev.m33"
+name = "atomic-construction-consumer"
+version = "0.1.0"
+kind = "executable"
+
+[dependencies]
+"dev.m33:atomic-construction" = "0.1.0"

@@ -1,0 +1,29 @@
+Module
+  extern ef0 sum @m33_provider_sum(i32) -> i32 <c exact=(Int)->Int bridge=@scoop$1$br$2c324b097ae6f201df10b9052ab68e5bd0fb7037eefb551f874ac7a5f2964e78 capture-errno gc-leaf nounwind>
+  fun @scoop$1$cb$480fcd06487a6a4a74b4cb89302c84e9ba3d06c1dc67c5ceaf34c4d2d8209e15(i32) -> sret<{i32, i32} size=8 align=4 scan=none>
+    local %0 $call.1: {i32, i32}
+    local %1 $sc.1: i32
+    local %2 $sc.2: i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store param0 -> local1
+    call native-safe-direct-target0 sp<native-safe:0> roots=[] t0 = sig=direct0 (ptr<raw>, ptr<raw>) -> i32 extern0(c-arg-address(local2), c-arg-address(local1))
+    t1 = aggregate (local2, t0) : {i32, i32}
+    store t1 -> local0
+    ret local0
+  fun @scoop$1$cb$a7bf665850d0522d6e1a8f134981dacfac088c4d9577583c68b97799b348a3dd(i32) -> sret<{i32, i32} size=8 align=4 scan=none>
+    local %0 $argument.0: i32
+    local %1 $parameter.value: i32
+    local %2 $call.1: {i32, i32}
+    local %3 $sc.1: i32
+    local %4 $sc.2: i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store param0 -> local0
+    store local0 -> local1
+    store local1 -> local3
+    call native-safe-direct-target0 sp<native-safe:0> roots=[] t0 = sig=direct0 (ptr<raw>, ptr<raw>) -> i32 extern0(c-arg-address(local4), c-arg-address(local3))
+    t1 = aggregate (local4, t0) : {i32, i32}
+    store t1 -> local2
+    ret local2
+  output library

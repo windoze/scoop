@@ -299,6 +299,7 @@ pub struct InstanceRepresentationV1(pub(super) InstanceRepresentation);
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(super) enum InstanceRepresentation {
+    Atomic(crate::AtomicValueKind),
     ClassObject(Box<ClassStorageLayoutV1>),
     BoxedPayload(ValueLayoutConstituentV1),
     InlineBytes,
@@ -311,6 +312,7 @@ pub(super) enum InstanceRepresentation {
 
 #[derive(Clone, Copy, Debug)]
 pub enum InstanceRepresentationKindV1<'a> {
+    Atomic(crate::AtomicValueKind),
     ClassObject(&'a ClassStorageLayoutV1),
     BoxedPayload(&'a ValueLayoutConstituentV1),
     InlineBytes,
@@ -323,6 +325,7 @@ pub enum InstanceRepresentationKindV1<'a> {
 impl InstanceRepresentationV1 {
     pub fn kind(&self) -> InstanceRepresentationKindV1<'_> {
         match &self.0 {
+            InstanceRepresentation::Atomic(kind) => InstanceRepresentationKindV1::Atomic(*kind),
             InstanceRepresentation::ClassObject(value) => {
                 InstanceRepresentationKindV1::ClassObject(value)
             }

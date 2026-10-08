@@ -122,15 +122,7 @@ impl ConcreteExecutableEntry {
         if source.identity().root_cone() != module.cone {
             return Err(ConcreteExecutableEntryError::NotCurrentCone);
         }
-        let unit = module
-            .exact_type_identities
-            .get(module.unit)
-            .ok_or(ConcreteExecutableEntryError::UnitHasNoExactIdentity)?
-            .id();
-        if source.source_signature().unit() != unit {
-            return Err(ConcreteExecutableEntryError::UnitIdentityMismatch);
-        }
-        validate_concrete_entry(module, source.declaration(), function_id)?;
+        validate_concrete_entry(module, source.identity(), function_id)?;
         Ok(Self {
             identity: source.identity().clone(),
             local_function: CurrentConcreteFunctionId(function_id),
@@ -141,19 +133,7 @@ impl ConcreteExecutableEntry {
         if self.identity.root_cone() != module.cone {
             return Err(ConcreteExecutableEntryError::NotCurrentCone);
         }
-        let unit = module
-            .exact_type_identities
-            .get(module.unit)
-            .ok_or(ConcreteExecutableEntryError::UnitHasNoExactIdentity)?
-            .id();
-        if self.identity.source_signature().unit() != unit {
-            return Err(ConcreteExecutableEntryError::UnitIdentityMismatch);
-        }
-        validate_concrete_entry(
-            module,
-            self.identity.declaration(),
-            self.local_function.function(),
-        )
+        validate_concrete_entry(module, &self.identity, self.local_function.function())
     }
 
     pub const fn identity(&self) -> &ExecutableSourceEntryIdentity {
@@ -287,7 +267,7 @@ impl crate::Output {
 
 fn validate_concrete_entry(
     module: &LocalConcreteHir,
-    declaration: PersistentFunctionId,
+    source: &ExecutableSourceEntryIdentity,
     function_id: concrete::FunctionId,
 ) -> Result<(), ConcreteExecutableEntryError> {
     let function = module
@@ -304,7 +284,8 @@ fn validate_concrete_entry(
     if function.receiver.value_type().is_some() {
         return Err(ConcreteExecutableEntryError::HasReceiver);
     }
-    if function.materialization.template() != CallableTemplateOwner::Function(declaration) {
+    if function.materialization.template() != CallableTemplateOwner::Function(source.declaration())
+    {
         return Err(ConcreteExecutableEntryError::DeclarationMismatch);
     }
     if function.materialization.context() != CallableMaterializationContext::NoSubstitution {
@@ -313,11 +294,25 @@ fn validate_concrete_entry(
     if function.is_suspend {
         return Err(ConcreteExecutableEntryError::Suspend);
     }
-    if !function.params.is_empty() {
-        return Err(ConcreteExecutableEntryError::HasParameters);
-    }
-    if function.return_ty != module.unit {
-        return Err(ConcreteExecutableEntryError::NotUnitResult);
+    let exact_type = |ty| {
+        module
+            .exact_type_identities
+            .get(ty)
+            .map(|identity| identity.id())
+            .ok_or(ConcreteExecutableEntryError::MissingExactType)
+    };
+    let signature = scoop_identity::ExactCallableSignature::new(
+        scoop_identity::Effect::Ordinary,
+        None,
+        function
+            .params
+            .iter()
+            .map(|parameter| exact_type(parameter.ty))
+            .collect::<Result<_, _>>()?,
+        exact_type(function.return_ty)?,
+    );
+    if &signature != source.source_signature() {
+        return Err(ConcreteExecutableEntryError::SignatureMismatch);
     }
     if !matches!(function.kind, concrete::FunctionKind::User(_)) {
         return Err(ConcreteExecutableEntryError::NotScoopDefined);
@@ -357,11 +352,9 @@ pub enum ConcreteExecutableEntryError {
     DeclarationMismatch,
     Generic,
     Suspend,
-    HasParameters,
-    NotUnitResult,
     NotScoopDefined,
-    UnitHasNoExactIdentity,
-    UnitIdentityMismatch,
+    MissingExactType,
+    SignatureMismatch,
 }
 
 impl fmt::Display for ConcreteExecutableEntryError {
@@ -377,12 +370,10 @@ impl fmt::Display for ConcreteExecutableEntryError {
             }
             Self::Generic => "the concrete entry has a substitution context",
             Self::Suspend => "the concrete entry is suspend",
-            Self::HasParameters => "the concrete entry has parameters",
-            Self::NotUnitResult => "the concrete entry does not return `Unit`",
             Self::NotScoopDefined => "the concrete entry has no ordinary Scoop body",
-            Self::UnitHasNoExactIdentity => "the concrete HIR `Unit` type has no exact identity",
-            Self::UnitIdentityMismatch => {
-                "the concrete HIR `Unit` identity differs from the executable source signature"
+            Self::MissingExactType => "a concrete entry signature type has no exact identity",
+            Self::SignatureMismatch => {
+                "the concrete entry signature differs from the executable source signature"
             }
         })
     }

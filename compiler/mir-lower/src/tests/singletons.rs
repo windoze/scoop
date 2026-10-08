@@ -4,6 +4,7 @@ use super::*;
 fn singleton_identity_chain_survives_concretization_and_mir_lowering() {
     let mut harness = Harness::new();
     let backing = harness.class("Registry", hir::ClassModifier::Final, &[], None, &[]);
+    harness.classes[backing].access.declared = hir::DeclaredVisibility::Private;
     let backing_ty = harness.class_ty(backing);
     let main = empty_main(&mut harness);
     let ensure = harness.user_fn(
@@ -14,6 +15,13 @@ fn singleton_identity_chain_survives_concretization_and_mir_lowering() {
         },
     );
     harness.functions[ensure].kind = hir::FunctionKind::InitializationEnsure;
+    let initializer = harness.user_fn(
+        "initializeRegistry",
+        hir::Body {
+            locals: Arena::new(),
+            statements: Vec::new(),
+        },
+    );
     let executable = harness.finish_with_initialization_core(main);
     let entry = executable.entry();
     let mut source = executable.into_module();
@@ -75,7 +83,7 @@ fn singleton_identity_chain_survives_concretization_and_mir_lowering() {
                 value,
                 published_root,
             },
-            initializer: main,
+            initializer,
             ensure,
             failure_root,
             dependencies: Vec::new(),
@@ -101,6 +109,13 @@ fn singleton_identity_chain_survives_concretization_and_mir_lowering() {
     )
     .unwrap();
     let expected_value = source.object_value_identities[value].id();
+    let hir::FunctionKind::User(body) = &mut source.functions[main].kind else {
+        panic!("the fixture entry has a user body");
+    };
+    body.statements.push(expr_stmt(expr(
+        hir::ExprKind::SingletonValue(hir::SingletonValueTarget::Local(value)),
+        backing_ty,
+    )));
 
     let source = executable_output(source, entry);
     let expected_identity = source.initialization_unit_identities[initialization].clone();

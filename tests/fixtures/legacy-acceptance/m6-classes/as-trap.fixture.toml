@@ -19,6 +19,6 @@ checks = [{"file" = "${work}/dump/${build.result.root.identity}/ast.txt", "snaps
 [[steps]]
 name = "run"
 argv = ["${build.result.output}"]
-signal = "SIGABRT"
+exit = 1
 stdout = ""
 stderr = "scoop: uncaught exception: n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=ClassCastException)\n"

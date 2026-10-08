@@ -20,7 +20,7 @@ Module
   enum CoroutineSlot<Box> niche(kind=managed,payload_variant=1)
   enum CoroutineStep<Fault> niche(kind=managed,payload_variant=0)
   enum CoroutineSlot<Fault> niche(kind=managed,payload_variant=1)
-  extern ef0 trace @m23_trace(i64) -> void <c exact=(Long)->void bridge=@scoop$1$br$9f3c746678863d9010991a21bcc48203c44b60aac6b0f60cff7603149a16a031 gc-leaf nounwind lib=m23_runtime_images>
+  extern ef0 trace @m23_trace(i64) -> void <c exact=(Long)->void direct-c=(i64)->void gc-leaf nounwind lib=m23_runtime_images>
   fun @scoop$1$cb$b8d736176df1e45c4c8c0cd9d5693d9f644a56bd7011583cad7e86cd7175a9d3(ptr<managed>) -> i64
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
@@ -32,11 +32,9 @@ Module
     t0 = heap_load param0 +16 : ptr<managed>
     ret t0
   fun @scoop$1$cb$0ff707ca279fb46da2729850de4613a1ec03b0b195dd19245387aca5fe35345f(i64) -> void
-    local %0 $sc.1: i64
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
-    store param0 -> local0
-    call native-safe-void-target0 sp<native-safe:0> roots=[] sig=void0 (ptr<raw>) extern0(c-arg-address(local0))
+    call native-safe-void-target0 sp<native-safe:0> roots=[] sig=void0 (i64) extern0(param0)
     t0 = aggregate () : {}
     ret
   fun @scoop$1$cb$1126d51cffc6bb6ceb154fbc7708c5381abee673fbf5ed40e6879ddd57ef3f24() -> i64
@@ -52,7 +50,6 @@ Module
     local %9 $parameter.payload: ptr<managed>
     local %10 $new.1: ptr<managed>
     local %11 $new.2: ptr<managed>
-    local %12 $sc.1: i64
   block entry
     poll managed-void-target2 sp<managed-poll:0> live=[]
     call no-gc-direct-target0 t0 = sig=direct0 () -> i32 local-fn11()
@@ -65,8 +62,7 @@ Module
     t2 = aggregate () : {}
     store integer<Long>(0x0000000000000001) -> local4
     store local4 -> local5
-    store local5 -> local12
-    call native-safe-void-target0 sp<native-safe:0> roots=[] sig=void1 (ptr<raw>) extern0(c-arg-address(local12))
+    call native-safe-void-target0 sp<native-safe:0> roots=[] sig=void1 (i64) extern0(local5)
     t3 = aggregate () : {}
     store integer<Long>(0x000000000000002a) -> local6
     store local6 -> local7
@@ -375,15 +371,13 @@ Module
     local %4 $dependency.parameter.message: enum0
     local %5 $result.0: i64
     local %6 $new.1: ptr<managed>
-    local %7 $sc.1: i64
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
     br @if.then.1
   block if.then.1
     store integer<Long>(0x0000000000000063) -> local0
     store local0 -> local1
-    store local1 -> local7
-    call native-safe-void-target0 sp<native-safe:0> roots=[] sig=void0 (ptr<raw>) extern0(c-arg-address(local7))
+    call native-safe-void-target0 sp<native-safe:0> roots=[] sig=void0 (i64) extern0(local1)
     t0 = aggregate () : {}
     store global0 -> local2
     store local2 -> local3

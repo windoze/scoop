@@ -1,0 +1,45 @@
+class Link(val value: Int, val next: Option<Link>)
+
+fun stack() {
+    val sentinel = Link(-1, None)
+    val head = AtomicRef(sentinel)
+    val sum = AtomicInt(0)
+    gcCollect()
+    check(together({ worker ->
+        @Unsafe { barrier() }
+        var index = 0
+        while (index < 32) {
+            var done = false
+            while (!done) {
+                val previous = head.load(MemoryOrder.Acquire)
+                val next = Link(worker * 32 + index, Some(previous))
+                done = head.compareAndSet(previous, next, MemoryOrder.AcqRel, MemoryOrder.Acquire)
+            }
+            if (index % 8 == 0) { gcCollect() }
+            index = index + 1
+        }
+        index
+    }) == 128)
+    check(!head.compareAndSet(sentinel, sentinel))
+    gcCollect()
+    check(together({ worker ->
+        @Unsafe { barrier() }
+        var count = 0
+        var empty = false
+        while (!empty) {
+            val first = head.load(MemoryOrder.Acquire)
+            when (first.next) {
+                None -> { empty = true }
+                Some(next) -> {
+                    if (head.compareAndSet(first, next, MemoryOrder.AcqRel, MemoryOrder.Acquire)) {
+                        sum.fetchAdd(first.value, MemoryOrder.Relaxed)
+                        count = count + 1
+                        if (count % 8 == 0) { gcCollect() }
+                    }
+                }
+            }
+        }
+        count
+    }) == 128)
+    check(sum.load() == 8128 && head.load() === sentinel)
+}

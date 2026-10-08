@@ -14,13 +14,16 @@ impl PreparedLayoutObjects {
         cone: &ConeRecord,
         dependencies: &[DependencyRecord],
         source_count: usize,
+        native_objects: Vec<SlibMember>,
     ) -> Result<FinalizedLayoutObjects, BuiltinObjectProductionError> {
         let objects = self.finalize_metadata(undefined)?;
-        let members = final_members(
+        let mut members = final_members(
             &self.bindings.member_plan,
             &self.bindings.generated_c_bridge_members,
             objects.objects(),
         )?;
+        members.extend(native_objects);
+        members.sort_unstable_by_key(|member| member.record().id());
         let directory = members
             .iter()
             .map(|member| member.record().clone())

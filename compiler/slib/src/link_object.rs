@@ -18,6 +18,9 @@ pub(crate) use wire::DecodedFixedBytesV1;
 mod registration_identity;
 
 const SCOOP_LIR_UNIT_SET_DOMAIN: &str = "scoop-lir-object-unit-set-v1";
+
+mod native;
+pub use native::*;
 const GENERATED_BRIDGE_UNIT_SET_DOMAIN: &str = "scoop-generated-bridge-object-unit-set-v1";
 
 mod planning;

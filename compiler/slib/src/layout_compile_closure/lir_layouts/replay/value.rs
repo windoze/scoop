@@ -34,9 +34,17 @@ impl Replay<'_> {
                 lir::ScalarRepresentationKindV1::Boolean,
                 foundation,
             )?,
-            Kind::Intrinsic(Intrinsic::String | Intrinsic::Any | Intrinsic::Nothing)
+            Kind::Intrinsic(
+                Intrinsic::String
+                | Intrinsic::Any
+                | Intrinsic::Nothing
+                | Intrinsic::AtomicInt
+                | Intrinsic::AtomicLong
+                | Intrinsic::AtomicBoolean,
+            )
             | Kind::Class { .. }
             | Kind::InlineArray { .. }
+            | Kind::AtomicReference { .. }
             | Kind::Interface
             | Kind::Object { .. }
             | Kind::ObjectBacking { .. }

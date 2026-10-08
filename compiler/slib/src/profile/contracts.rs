@@ -136,39 +136,39 @@ impl CapabilityContractRegistry {
                 MemberPurposeSet::COMPILE_AND_LINK,
                 FingerprintSinkSet::MIR,
             ),
-            ("org.scoop-lang.lir", "identity-foundation", 6) => (
+            ("org.scoop-lang.lir", "identity-foundation", 8) => (
                 SectionLocation::Lir,
                 MemberPurposeSet::COMPILE_AND_LINK,
                 FingerprintSinkSet::CODE.union(FingerprintSinkSet::LINK_VALIDATION_ONLY),
             ),
-            ("org.scoop-lang.manifest", "single-cone-production", 5) => (
+            ("org.scoop-lang.manifest", "single-cone-production", 6) => (
                 SectionLocation::Manifest,
                 MemberPurposeSet::LINK,
                 FingerprintSinkSet::CODE
                     .union(FingerprintSinkSet::RUNTIME_IMAGE)
                     .union(FingerprintSinkSet::LINK_VALIDATION_ONLY),
             ),
-            ("org.scoop-lang.hir", "core-bootstrap-interface", 12) => (
+            ("org.scoop-lang.hir", "core-bootstrap-interface", 14) => (
                 SectionLocation::Hir,
                 MemberPurposeSet::COMPILE,
                 FingerprintSinkSet::HIR,
             ),
-            ("org.scoop-lang.hir", "cross-cone-interface", 61) => (
+            ("org.scoop-lang.hir", "cross-cone-interface", 68) => (
                 SectionLocation::Hir,
                 MemberPurposeSet::COMPILE,
                 FingerprintSinkSet::HIR,
             ),
-            ("org.scoop-lang.hir", "cross-cone-type-semantics", 23) => (
+            ("org.scoop-lang.hir", "cross-cone-type-semantics", 26) => (
                 SectionLocation::Hir,
                 MemberPurposeSet::COMPILE,
                 FingerprintSinkSet::HIR,
             ),
-            ("org.scoop-lang.mir", "cross-cone-type-bridge", 16) => (
+            ("org.scoop-lang.mir", "cross-cone-type-bridge", 17) => (
                 SectionLocation::Mir,
                 MemberPurposeSet::COMPILE,
                 FingerprintSinkSet::MIR,
             ),
-            ("org.scoop-lang.lir", "cross-cone-layout-abi", 11) => (
+            ("org.scoop-lang.lir", "cross-cone-layout-abi", 12) => (
                 SectionLocation::Lir,
                 MemberPurposeSet::COMPILE_AND_LINK,
                 FingerprintSinkSet::LIR,

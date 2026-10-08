@@ -109,6 +109,11 @@ impl ReferenceCollector<'_> {
         let origin = expression.origin.definition();
         self.type_reference(expression.ty, origin);
         match &expression.kind {
+            hir::ExprKind::Atomic(atomic) => {
+                for operand in atomic.operands() {
+                    self.expression(operand);
+                }
+            }
             hir::ExprKind::ContextLookup(_)
             | hir::ExprKind::StringLiteral { .. }
             | hir::ExprKind::IntegerLiteral(_)
@@ -203,6 +208,7 @@ impl ReferenceCollector<'_> {
             | hir::ExprKind::ReferenceUpcast(source)
             | hir::ExprKind::ArrayLen(source)
             | hir::ExprKind::ArrayClone(source)
+            | hir::ExprKind::AtomicNew(source)
             | hir::ExprKind::SomeWrap(source)
             | hir::ExprKind::IsSome(source) => self.expression(source),
             hir::ExprKind::PtrLoad { pointer, offset } => {

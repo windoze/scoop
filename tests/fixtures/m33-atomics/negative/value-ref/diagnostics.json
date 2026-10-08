@@ -1,0 +1,28 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "type argument `Payload` for `T` of type `Atomic` must satisfy `value`",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 53,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 46
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "dependency function `Atomic`: type argument `Payload` for `T` must satisfy `value`",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 79,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 57
+    },
+    "severity": "error"
+  }
+]

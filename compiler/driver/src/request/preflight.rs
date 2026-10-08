@@ -3,7 +3,7 @@ use std::path::Path;
 use std::rc::Rc;
 
 use scoop_ast::{CurrentConeParsedSources, NonEmptyVec};
-use scoop_identity::{ConeCoordinate, ConeIdentity, SemanticIdentitySession};
+use scoop_identity::{ConeCoordinate, ConeIdentity, SemanticIdentitySession, TargetProfileId};
 use scoop_manifest::{
     DiscoveredManifestSources, DiscoveredSource, LoadedConeManifest, ManifestRootError,
     SingleFileInputError, SingleFileLocator, SourceDiscoveryError, discover_manifest_sources,
@@ -86,6 +86,7 @@ pub struct LoadedSingleConeBuildRequest {
     diagnostics: DiagnosticOutputPolicy,
     emit: StageDumpPolicy,
     optimization: scoop_lir::OptimizationMode,
+    native_inputs: super::NativeInputOrigin,
 }
 
 impl SingleConeBuildRequest {
@@ -218,8 +219,9 @@ impl SingleConeProductionError {
 
 fn parse_manifest_current(
     manifest: &LoadedConeManifest,
+    target: TargetProfileId,
 ) -> Result<CurrentConeParsedSources, CurrentConeSourceStageError> {
-    let sources = discover_manifest_sources(manifest)
+    let sources = discover_manifest_sources(manifest, target)
         .map_err(|source| CurrentConeSourceStageError::Discovery(Box::new(source)))?;
     parse_discovered_sources(&sources)
 }

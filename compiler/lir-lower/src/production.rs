@@ -5,6 +5,7 @@ mod root;
 pub(super) use context::initialize_task;
 
 use root::root_gateway;
+pub(super) use root::{RootArguments, RootMain};
 
 use super::{function::LoweredFunction, safepoints::PendingSafepointSites};
 
@@ -24,7 +25,7 @@ pub fn lower_entry_production_source(
 pub(super) fn lower_root_artifacts(
     producer: scoop_identity::ConeIdentity,
     source: &scoop_identity::ExecutableSourceEntryIdentity,
-    main: scoop_lir::LocalFunctionRef,
+    main: RootMain<'_>,
     layout: scoop_lir::StaticStorageLayout,
     globals: &mut Arena<scoop_lir::Global>,
 ) -> LoweredFunction {
@@ -160,7 +161,7 @@ pub(super) fn lower_initialization_startup_gateway(
 mod tests {
     use scoop_identity::{
         CallableOwner, CanonicalIdentifier, CborIdentityRecord, ConeIdentity, CoreBuiltinNominal,
-        DeclarationScope, DefinitionOwnerChain, ExactOrdinaryNoArgUnitSignature, ExactTypeKey,
+        DeclarationScope, DefinitionOwnerChain, ExactCallableSignature, ExactTypeKey,
         ExecutableSourceEntryIdentity, PackagePath, PersistentExactTypeId, SourceDeclarationKey,
         SourceDeclarationSite,
     };
@@ -206,7 +207,7 @@ mod tests {
         .unwrap();
         ExecutableSourceEntryIdentity::try_new(
             &declaration,
-            ExactOrdinaryNoArgUnitSignature::new(unit),
+            ExactCallableSignature::new(scoop_identity::Effect::Ordinary, None, Vec::new(), unit),
         )
         .unwrap()
     }

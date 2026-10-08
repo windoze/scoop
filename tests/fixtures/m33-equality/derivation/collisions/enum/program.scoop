@@ -1,0 +1,5 @@
+enum Plain {
+    Entry(Int)
+    fun equals(other: Plain): Boolean = true
+}
+fun main() { println(Plain.Entry(1) == Plain.Entry(1)) }

@@ -24,5 +24,18 @@
       "start": 0
     },
     "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "unknown type `Nothing`",
+    "notes": [],
+    "origin": {
+      "cone": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+      "end": 82,
+      "kind": "source",
+      "path": "src/process.scoop",
+      "start": 75
+    },
+    "severity": "error"
   }
 ]

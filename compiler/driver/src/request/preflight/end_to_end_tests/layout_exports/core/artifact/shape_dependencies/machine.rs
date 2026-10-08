@@ -3,6 +3,7 @@
 use super::super::machine_selection::Source;
 use super::*;
 use scoop_identity::{ExactTypeDiagnosticCatalog, PersistentExactTypeId, PersistentTypeId};
+use std::collections::BTreeSet;
 
 mod artifact;
 mod publication;
@@ -33,7 +34,31 @@ pub(super) fn check(
     publication_input: PublicationInput<'_, '_>,
 ) {
     let plan = input.mir.materialization();
-    assert!(plan.source_nominal_shapes().is_empty());
+    let applications = plan
+        .source_nominal_shapes()
+        .iter()
+        .map(|root| {
+            assert!(matches!(
+                root,
+                mir::SourceNominalShapeRoot::Application { .. }
+            ));
+            mir::type_name(input.mir.module(), root.ty())
+        })
+        .collect::<BTreeSet<_>>();
+    let expected: &[&str] = if name == "standalone" {
+        &["Equality<Int>"]
+    } else {
+        &["Equality<Int>", "Equality<Unit>"]
+    };
+    assert_eq!(
+        applications,
+        expected.iter().map(|name| (*name).to_owned()).collect()
+    );
+    let exact = plan
+        .source_nominal_shapes()
+        .iter()
+        .map(mir::SourceNominalShapeRoot::exact)
+        .collect::<BTreeSet<_>>();
     assert!(plan.generated_nominal_shapes().is_empty());
     assert!(!plan.dependency_generated_nominal_shapes().is_empty());
     assert!(input.mir.module().meta.boxing_adjusts.is_empty());
@@ -102,8 +127,29 @@ pub(super) fn check(
         &diagnostics,
     )
     .unwrap_or_else(|error| panic!("{name} dependency machine lowering: {error}"));
-    assert!(output.module().meta.type_descriptors.is_empty());
-    assert!(output.module().meta.layouts.is_empty());
+    assert_eq!(
+        output
+            .module()
+            .meta
+            .type_descriptors
+            .values()
+            .map(|descriptor| {
+                assert!(descriptor.identity.odr_member_record().is_some());
+                descriptor.identity.exact_type()
+            })
+            .collect::<BTreeSet<_>>(),
+        exact
+    );
+    assert_eq!(
+        output
+            .module()
+            .meta
+            .layouts
+            .values()
+            .map(|layout| { layout.identity.layout_record().key().exact_type() })
+            .collect::<BTreeSet<_>>(),
+        exact
+    );
     assert_eq!(
         output.module().meta.external_type_descriptors.len(),
         source

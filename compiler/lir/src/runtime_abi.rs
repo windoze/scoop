@@ -1,6 +1,9 @@
 //! Closed runtime and target-EH symbol contracts shared by LIR, codegen and
 //! link-object verification.
 
+/// Version shared by emitted runtime records and artifact readers.
+pub const RUNTIME_METADATA_ABI_VERSION_V1: u32 = 7;
+
 use std::collections::BTreeMap;
 use std::fmt;
 
@@ -63,7 +66,7 @@ impl WireEncode for RuntimeAbiContract {
         for field in 1..=3 {
             encoder.field(field)?;
             encoder.unsigned(match field {
-                1 => 10,
+                1 => 11,
                 3 => 2,
                 _ => INITIAL_SCHEMA,
             })?;
@@ -104,10 +107,14 @@ pub enum RuntimeAbiSymbolV1 {
     CallbackFailure,
     CallbackState,
     CallbackInvoke,
+    PushPinFrame,
+    PopPinFrame,
 }
 
 impl RuntimeAbiSymbolV1 {
-    pub const ALL: [Self; 60] = [
+    pub const ALL: [Self; 62] = [
+        Self::PushPinFrame,
+        Self::PopPinFrame,
         Self::LirCall(RuntimeFunction::Managed(
             ManagedRuntimeFunction::ContextPush,
         )),
@@ -306,6 +313,8 @@ impl RuntimeAbiSymbolV1 {
             Self::BeginCatch => "scoop_rt_begin_catch",
             Self::EndCatch => "scoop_rt_end_catch",
             Self::PushCallerRoots => "scoop_rt_push_caller_roots",
+            Self::PushPinFrame => "scoop_rt_push_pin_frame",
+            Self::PopPinFrame => "scoop_rt_pop_pin_frame",
             Self::PopCallerRoots => "scoop_rt_pop_caller_roots",
             Self::PushCompilerRoots => "scoop_rt_push_compiler_roots",
             Self::PopCompilerRoots => "scoop_rt_pop_compiler_roots",
@@ -351,6 +360,8 @@ impl RuntimeAbiSymbolV1 {
             Self::CallbackState => 24,
             Self::CallbackInvoke => 25,
             Self::WriteBarrier => 26,
+            Self::PushPinFrame => 27,
+            Self::PopPinFrame => 28,
         }
     }
 }
@@ -755,10 +766,10 @@ mod tests {
 
     #[test]
     fn runtime_abi_contract_versions_regular_allocation_and_barriers() {
-        assert_eq!(hex(&encode(&RuntimeAbiContract).unwrap()), "a3010a02010302");
+        assert_eq!(hex(&encode(&RuntimeAbiContract).unwrap()), "a3010b02010302");
         assert_eq!(
             RuntimeAbiContract.fingerprint().unwrap().to_string(),
-            "6c09728dbccb1cb654bed42e07d93f0d9fd0c0476ea79ccb8a8751a49d235cff"
+            "8d0878fbaa8a430839c184f53feba9db6305368881034179e1bb13e5e0b8d583"
         );
     }
 
@@ -832,7 +843,7 @@ mod tests {
         assert_eq!(allocation.symbol(), RuntimeAbiSymbolV1::AllocationContext);
         assert_eq!(
             allocation.id().to_string(),
-            "b603caa83ec6016338360cfb2d59461aaa4d66681f59908ca053288514782b19"
+            "6ca04e73635c291e2dd1c31e8684f7c24008f83be12460f1ac2fb5e5b9738ce2"
         );
         assert!(
             registry
@@ -888,7 +899,7 @@ mod tests {
                 .unwrap()
                 .id()
                 .to_string(),
-            "5755914a91d1106a86a1ce568ce8f66f4d7b9c792f86fb438a74cc547a1fb16a"
+            "dba99561f14b1e29b1182e43ab531fa9bef5f851f99771082ccc0af090e78dc7"
         );
     }
 

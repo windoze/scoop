@@ -28,6 +28,16 @@ fn alignment(source: hir::HirCLayoutValue) -> mir::MirCLayoutValue {
 
 pub(super) fn intrinsic(source: hir::IntrinsicTypeKind) -> Option<mir::MirParamFreeIntrinsicV1> {
     Some(match source {
+        hir::IntrinsicTypeKind::Atomic(scoop_identity::AtomicValueKind::Int) => {
+            mir::MirParamFreeIntrinsicV1::AtomicInt
+        }
+        hir::IntrinsicTypeKind::Atomic(scoop_identity::AtomicValueKind::Long) => {
+            mir::MirParamFreeIntrinsicV1::AtomicLong
+        }
+        hir::IntrinsicTypeKind::Atomic(scoop_identity::AtomicValueKind::Boolean) => {
+            mir::MirParamFreeIntrinsicV1::AtomicBoolean
+        }
+        hir::IntrinsicTypeKind::Atomic(scoop_identity::AtomicValueKind::Reference) => return None,
         hir::IntrinsicTypeKind::Unit => mir::MirParamFreeIntrinsicV1::Unit,
         hir::IntrinsicTypeKind::Integer(kind) => {
             mir::MirParamFreeIntrinsicV1::Integer(mir::IntegerKind::new(

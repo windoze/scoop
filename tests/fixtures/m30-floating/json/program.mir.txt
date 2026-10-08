@@ -156,6 +156,8 @@ Module
   class box<Option<JsonValue>> vtable=0 itables=0
   class box<Option<JsonMember>> vtable=0 itables=0
   interface ToString
+  interface Equality<Float>
+  interface Equality<Double>
   interface Encodable<Measurement>
   interface Encoder
   interface KeyedEncodingContainer
@@ -218,8 +220,10 @@ Module
   interface Iterable<JsonValue>
   interface Iterator<JsonValue>
   interface Hash
+  interface Equality<Char>
   interface Iterator<Char>
   interface Iterable<Char>
+  interface Equality<String>
   interface List<Option<Option<Float>>> : Iterable<Option<Option<Float>>>
   interface Iterable<Option<Option<Float>>>
   interface Iterator<Option<Option<Float>>>

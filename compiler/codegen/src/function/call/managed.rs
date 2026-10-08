@@ -101,6 +101,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             }
             CallProtocol::ManagedInvoke { .. }
             | CallProtocol::NoGc
+            | CallProtocol::NativeGcLeaf
             | CallProtocol::ReleaseNativeLeaf
             | CallProtocol::NativeSafe { .. }
             | CallProtocol::NativeBorrowed { .. } => None,
@@ -207,7 +208,9 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 let _ = roots;
                 None
             }
-            CallProtocol::NoGc | CallProtocol::ReleaseNativeLeaf => None,
+            CallProtocol::NoGc | CallProtocol::NativeGcLeaf | CallProtocol::ReleaseNativeLeaf => {
+                None
+            }
         };
         let native_result_storage = native.and_then(|(_, _, result)| result);
         let transition = if let Some((kind, roots, _)) = native {
@@ -298,6 +301,9 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 )?;
             }
             self.apply_nounwind(call);
+            self.apply_c_abi_attributes(destination, |location, attribute| {
+                call.add_attribute(location, attribute)
+            });
             call.add_attribute(
                 AttributeLoc::Function,
                 self.context.create_string_attribute("gc-leaf-function", ""),
@@ -355,6 +361,9 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 )?;
             }
             self.apply_call_protocol(call, destination, &protocol);
+            self.apply_c_abi_attributes(destination, |location, attribute| {
+                call.add_attribute(location, attribute)
+            });
             match &result {
                 TypedCallResult::Direct { .. } => match call.try_as_basic_value() {
                     ValueKind::Basic(value) => Some(value),

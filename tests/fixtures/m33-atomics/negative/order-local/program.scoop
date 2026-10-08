@@ -1,0 +1,5 @@
+fun bad(cell: AtomicInt): Int {
+    val order = MemoryOrder.Acquire
+    return cell.load(order)
+}
+fun main() {}

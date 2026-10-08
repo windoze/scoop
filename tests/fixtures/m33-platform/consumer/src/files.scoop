@@ -1,0 +1,36 @@
+import fixture.platform.*
+
+fun verifyFile(path: String, expected: Array<UInt8>) {
+    val length = expected.size * 8L
+    check(fileSize(path) == (length, 0))
+    val (fd, error) = openInput(path)
+    check(fd >= 0 && error == 0)
+    val bytes = MutableArray<UInt8>(length) { _ -> 0u }
+    @Unsafe {
+        try {
+            bytes.withDataPointer() { pointer: Ptr<UInt8>, count: Long ->
+                @Unsafe {
+                    var offset = 0L
+                    while (offset < count) {
+                        val (read, error) = readBytes(fd, pointer + offset, (count - offset).toUInt64())
+                        if (read < 0L && error == 4) { continue }
+                        check(read > 0L)
+                        offset += read
+                    }
+                    check(readBytes(fd, pointer, 1uL) == (0L, 0))
+                    gcCollect()
+                }
+            }
+        } finally {
+            check(closeFile(fd) == (0, 0))
+        }
+    }
+    var index = 0L
+    while (index < length) {
+        check(bytes[index] == expected[index % expected.size])
+        index += 1L
+    }
+    val text = String.fromUtf8(bytes.toArray())
+    check(text.byteLength == length && text.length == 40L)
+    check(text.slice(0L, 5L).equalTo("A\u0000λ🙂\n"))
+}

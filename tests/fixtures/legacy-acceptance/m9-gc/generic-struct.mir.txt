@@ -22,8 +22,11 @@ Module
   interface Readable
   interface ToString
   interface Hash
+  interface Equality<Int>
+  interface Equality<Char>
   interface Iterable<Char>
   interface Iterator<Char>
+  interface Equality<String>
   interface Continuation<Readable>
   interface SuspendTask<Readable>
   interface SuspendRegistration<Readable>

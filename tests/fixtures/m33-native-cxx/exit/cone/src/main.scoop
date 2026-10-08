@@ -1,0 +1,8 @@
+@Extern(name = "m33_cxx_initialized")
+fun initialized(): Int
+fun main() {
+    @Unsafe { if (initialized() != 6) { throw IllegalStateException() } }
+    write("cxx-exit")
+    writeError("flushed")
+    exit(37)
+}

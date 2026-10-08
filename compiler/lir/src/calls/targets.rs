@@ -14,7 +14,7 @@ pub struct CallTargets {
     pub indirect_result_signatures: Arena<IndirectResultCallSignature>,
     pub managed_targets: ProtocolCallTargets<ManagedCallDestination>,
     pub no_gc_targets: ProtocolCallTargets<NoGcCallDestination>,
-    pub native_safe_targets: ProtocolCallTargets<NativeSafeCallDestination>,
+    pub c_targets: ProtocolCallTargets<CCallDestination>,
     pub native_borrowed_targets: ProtocolCallTargets<NativeBorrowedCallDestination>,
     pub dispatch_slots: DispatchSlots,
     /// Function-local recursive scan programs passed to runtime entries that
@@ -201,10 +201,10 @@ pub type NoGcVoidTargetId = VoidCallTargetId<NoGcCallDestination>;
 pub type NoGcElidedZstTargetId = ElidedZstCallTargetId<NoGcCallDestination>;
 pub type NoGcDirectTargetId = DirectCallTargetId<NoGcCallDestination>;
 pub type NoGcIndirectResultTargetId = IndirectResultCallTargetId<NoGcCallDestination>;
-pub type NativeSafeVoidTargetId = VoidCallTargetId<NativeSafeCallDestination>;
-pub type NativeSafeElidedZstTargetId = ElidedZstCallTargetId<NativeSafeCallDestination>;
-pub type NativeSafeDirectTargetId = DirectCallTargetId<NativeSafeCallDestination>;
-pub type NativeSafeIndirectResultTargetId = IndirectResultCallTargetId<NativeSafeCallDestination>;
+pub type CVoidTargetId = VoidCallTargetId<CCallDestination>;
+pub type CElidedZstTargetId = ElidedZstCallTargetId<CCallDestination>;
+pub type CDirectTargetId = DirectCallTargetId<CCallDestination>;
+pub type CIndirectResultTargetId = IndirectResultCallTargetId<CCallDestination>;
 pub type NativeBorrowedVoidTargetId = VoidCallTargetId<NativeBorrowedCallDestination>;
 pub type NativeBorrowedElidedZstTargetId = ElidedZstCallTargetId<NativeBorrowedCallDestination>;
 pub type NativeBorrowedDirectTargetId = DirectCallTargetId<NativeBorrowedCallDestination>;
@@ -388,11 +388,11 @@ impl NoGcCallDestination {
     }
 }
 
-/// C-ABI outbound calls are the only native-safe destinations in LIR.
+/// Complete C-ABI destinations shared by NativeSafe, GCLeaf and release calls.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct NativeSafeCallDestination(CExternFunctionRef);
+pub struct CCallDestination(CExternFunctionRef);
 
-impl NativeSafeCallDestination {
+impl CCallDestination {
     pub fn extern_function(function: CExternFunctionRef) -> Self {
         Self(function)
     }

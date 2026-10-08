@@ -1,0 +1,21 @@
+// Temporary NUL-terminated copies use the ordinary scoped array borrow.
+@Unsafe
+public fun <R> String.withCString(block: (Ptr<Int8>) -> R): R {
+    val source = this
+    val length = byteLength
+    var index = 0L
+    while (index < length) {
+        if (coreStringByteAt(source, index) == 0) { throw IllegalArgumentException() }
+        index = index + 1L
+    }
+    val bytes = MutableArray<UInt8>(length + 1L) { index ->
+        if (index == length) { 0u } else { coreStringByteAt(source, index).toUInt8() }
+    }
+    return bytes.withDataPointer<UInt8, R>(fun(pointer: Ptr<UInt8>, count: Long): R {
+        @Unsafe { return block(pointer.cast<Int8>()) }
+    })
+}
+
+@GCLeaf
+@Extern(name = "strlen")
+internal fun coreCStringLength(pointer: Ptr<Int8>): ULong

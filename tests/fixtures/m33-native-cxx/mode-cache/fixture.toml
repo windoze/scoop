@@ -1,0 +1,74 @@
+schema = 1
+name = "m33-native-cxx-mode-cache"
+inputs = ["cone"]
+tools = ["scoop"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu"]
+tags = ["m33", "native", "cxx", "cache"]
+[vars]
+options = ["--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+
+[[steps]]
+name = "prepare"
+files = [{copy = {from = "${fixture}/cone", to = "${work}/cone"}}]
+
+[[steps]]
+name = "baseline"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/cone", {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "run_baseline"
+argv = ["${baseline.result.output}"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "enable_cxx"
+files = [{replace = {path = "${work}/cone/Cone.toml", old = "cxx = false", new = "cxx = true"}}]
+
+[[steps]]
+name = "enabled"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/cone", {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+ {actual = "${enabled.result.observations.nodes.1.cache_key}", not_equals = "${baseline.result.observations.nodes.1.cache_key}"},
+ {actual = "${enabled.result.root.artifact_fingerprint}", not_equals = "${baseline.result.root.artifact_fingerprint}"},
+ {actual = "${enabled.result.link_plan_fingerprint}", not_equals = "${baseline.result.link_plan_fingerprint}"},
+]
+
+[[steps]]
+name = "run_enabled"
+argv = ["${enabled.result.output}"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "unchanged"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/cone", {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+ {actual = "${unchanged.result.observations.child_invocations}", equals = []},
+ {actual = "${unchanged.result.root.artifact_fingerprint}", equals = "${enabled.result.root.artifact_fingerprint}"},
+ {actual = "${unchanged.result.link_plan_fingerprint}", equals = "${enabled.result.link_plan_fingerprint}"},
+]
+
+[[steps]]
+name = "run_unchanged"
+argv = ["${unchanged.result.output}"]
+exit = 0
+stdout = ""
+stderr = ""

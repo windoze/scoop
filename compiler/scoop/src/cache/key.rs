@@ -5,6 +5,7 @@ use scoop_identity::{
     SourceIdentity,
 };
 use scoop_lir::{BackendProfileFingerprint, CBridgeToolchainFingerprint, TargetProfileFingerprint};
+use scoop_manifest::SourceSelection;
 use scoop_protocol::ScoopcProtocolCapabilityV1;
 use scoop_slib::{
     ArtifactCapabilityProfile, CodeFingerprint, ConeRecord, HirFingerprint, IdentityAbiDescriptor,
@@ -168,6 +169,8 @@ pub enum CurrentConeSemanticProjectionV1 {
         coordinate: ConeCoordinate,
         requested_kind: RequestedConeKind,
         dependencies: Vec<ConeCoordinate>,
+        sources: SourceSelection,
+        native: Box<scoop_toolchain::PreparedNativeInputs>,
     },
     SingleFile,
 }
@@ -179,8 +182,10 @@ impl WireEncode for CurrentConeSemanticProjectionV1 {
                 coordinate,
                 requested_kind,
                 dependencies,
+                sources,
+                native,
             } => {
-                encoder.map(4)?;
+                encoder.map(6)?;
                 encoder.field(0)?;
                 encoder.unsigned(1)?;
                 encoder.field(1)?;
@@ -188,7 +193,11 @@ impl WireEncode for CurrentConeSemanticProjectionV1 {
                 encoder.field(2)?;
                 encode_requested_kind(*requested_kind, encoder)?;
                 encoder.field(3)?;
-                encode_array(dependencies, encoder)
+                encode_array(dependencies, encoder)?;
+                encoder.field(4)?;
+                sources.encode(encoder)?;
+                encoder.field(5)?;
+                native.encode(encoder)
             }
             Self::SingleFile => {
                 encoder.map(3)?;

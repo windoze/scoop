@@ -9,6 +9,7 @@ use scoop_lir::{EnumDefId, StructDefId};
 use std::collections::HashSet;
 
 mod boxing;
+mod c_calls;
 mod enums;
 mod pointer_storage;
 mod structures;
@@ -446,6 +447,7 @@ enum CallProtocol {
     Managed,
     NoGc,
     NativeSafe,
+    NativeGcLeaf,
     ReleaseNativeLeaf,
     NativeBorrowed,
 }
@@ -456,6 +458,7 @@ impl CallProtocol {
             Self::Managed => "managed",
             Self::NoGc => "no-gc",
             Self::NativeSafe => "native-safe",
+            Self::NativeGcLeaf => "native-gc-leaf",
             Self::ReleaseNativeLeaf => "release-native-leaf",
             Self::NativeBorrowed => "native-borrowed",
         }
@@ -534,7 +537,7 @@ fn validate_target_signature_references(function: &Function) -> Result<(), Codeg
     let targets = &function.call_targets;
     validate_protocol_target_signature_references(function, &targets.managed_targets)?;
     validate_protocol_target_signature_references(function, &targets.no_gc_targets)?;
-    validate_protocol_target_signature_references(function, &targets.native_safe_targets)?;
+    validate_protocol_target_signature_references(function, &targets.c_targets)?;
     validate_protocol_target_signature_references(function, &targets.native_borrowed_targets)
 }
 
@@ -626,8 +629,8 @@ fn validate_call_site(
             let call = checked_call_view(
                 function,
                 &site.call,
-                &targets.native_safe_targets,
-                scoop_lir::NativeSafeCallDestination::view,
+                &targets.c_targets,
+                scoop_lir::CCallDestination::view,
             )?;
             validate_call(module, function, call, CallProtocol::NativeSafe)
         }
@@ -641,10 +644,19 @@ fn validate_call_site(
             let call = checked_call_view(
                 function,
                 &site.call,
-                &targets.native_safe_targets,
-                scoop_lir::NativeSafeCallDestination::view,
+                &targets.c_targets,
+                scoop_lir::CCallDestination::view,
             )?;
             validate_call(module, function, call, CallProtocol::ReleaseNativeLeaf)
+        }
+        scoop_lir::CallSite::NativeGcLeaf(site) => {
+            let call = checked_call_view(
+                function,
+                &site.call,
+                &targets.c_targets,
+                scoop_lir::CCallDestination::view,
+            )?;
+            validate_call(module, function, call, CallProtocol::NativeGcLeaf)
         }
         scoop_lir::CallSite::NativeBorrowed(site) => {
             // Native-borrowed calls are sealed by `CallTargets`: construction
@@ -955,7 +967,7 @@ fn validate_destination(
     if convention == Some(scoop_lir::IndirectResultConvention::CStoragePointer)
         && !matches!(
             protocol,
-            CallProtocol::NativeSafe | CallProtocol::ReleaseNativeLeaf
+            CallProtocol::NativeSafe | CallProtocol::NativeGcLeaf | CallProtocol::ReleaseNativeLeaf
         )
     {
         return Err(call_error(
@@ -1031,9 +1043,19 @@ fn validate_destination(
         scoop_lir::CallDestination::Extern(id) => {
             let declaration = extern_declaration(module, function, id)?;
             match &declaration.kind {
-                ExternFunctionKind::C { signature, .. } => {
-                    validate_c_extern_call(function, call, protocol, declaration, signature)
-                }
+                ExternFunctionKind::C {
+                    signature,
+                    call_mode,
+                    call_plan,
+                } => c_calls::validate(
+                    function,
+                    call,
+                    protocol,
+                    declaration,
+                    signature,
+                    *call_mode,
+                    call_plan,
+                ),
                 ExternFunctionKind::Scoop { signature, .. } => {
                     if protocol != CallProtocol::NativeBorrowed {
                         return Err(call_error(
@@ -1061,6 +1083,7 @@ fn validate_destination(
                 protocol,
                 CallProtocol::NativeSafe
                     | CallProtocol::NativeBorrowed
+                    | CallProtocol::NativeGcLeaf
                     | CallProtocol::ReleaseNativeLeaf
             ) {
                 return Err(call_error(
@@ -1131,95 +1154,6 @@ fn require_scoop_signature(
             function,
             format!(
                 "{callee} signature or physical convention does not match its authoritative Scoop declaration returning {result}"
-            ),
-        ));
-    }
-    Ok(())
-}
-
-fn validate_c_extern_call(
-    function: &Function,
-    call: &scoop_lir::TypedCallView<'_>,
-    protocol: CallProtocol,
-    declaration: &scoop_lir::ExternFunction,
-    c_signature: &scoop_lir::CFunctionType,
-) -> Result<(), CodegenError> {
-    if !matches!(
-        protocol,
-        CallProtocol::NativeSafe | CallProtocol::ReleaseNativeLeaf
-    ) {
-        return Err(call_error(
-            function,
-            format!(
-                "C extern `{}` requires the native-safe protocol",
-                declaration.source_name
-            ),
-        ));
-    }
-    if call_calling_convention(call) != declaration.calling_convention {
-        return Err(call_error(
-            function,
-            format!(
-                "C extern `{}` calling convention disagrees with its declaration",
-                declaration.source_name
-            ),
-        ));
-    }
-    if call.arguments().len() != c_signature.params.len()
-        || call.arguments().iter().any(|argument| {
-            !matches!(argument, scoop_lir::AbiArgument::Direct(value)
-                if value.storage_type() == &scoop_lir::RAW_PTR
-                    && value.scan() == &RefScan::None)
-        })
-    {
-        return Err(call_error(
-            function,
-            format!(
-                "C extern `{}` bridge parameters must be direct raw storage pointers",
-                declaration.source_name
-            ),
-        ));
-    }
-
-    for (index, (argument, parameter)) in call.args().iter().zip(&c_signature.params).enumerate() {
-        let scoop_lir::AbiCallArgument::Direct(Value::CArgumentStorage(storage)) = argument else {
-            return Err(call_error(
-                function,
-                format!(
-                    "C extern `{}` argument {index} is not an exact C argument-storage address",
-                    declaration.source_name
-                ),
-            ));
-        };
-        require_local_type(
-            function,
-            storage.local(),
-            &parameter.storage_type(),
-            &format!(
-                "C extern `{}` argument {index} storage",
-                declaration.source_name
-            ),
-        )?;
-    }
-
-    let result_matches = match (&c_signature.return_type, call) {
-        (scoop_lir::CReturnType::Void, scoop_lir::TypedCallView::Void { .. }) => true,
-        (
-            scoop_lir::CReturnType::Value(_),
-            scoop_lir::TypedCallView::IndirectResult { signature, .. },
-        ) => {
-            signature.convention() == scoop_lir::IndirectResultConvention::CStoragePointer
-                && signature.result().storage_type() == &c_signature.storage_return_type()
-                && signature.result().scan() == &RefScan::None
-        }
-        _ => false,
-    };
-    if !result_matches {
-        return Err(call_error(
-            function,
-            format!(
-                "C extern `{}` result does not use its exact void/storage-pointer bridge convention",
-                declaration.source_name
             ),
         ));
     }

@@ -57,6 +57,7 @@ use crate::{
     PendingCapture, ReturnInference, SuspensionContext, VariantStyle,
 };
 
+mod atomics;
 mod callable_literals;
 mod callable_references;
 mod callables;
@@ -75,6 +76,7 @@ pub(crate) use imported_properties::{
     ImportedDependencyExtensionPropertyProbe, ImportedExtensionPropertyTarget,
     ResolvedImportedMemberProperty,
 };
+pub(crate) use members::ImportedDerivedEqualityProbe;
 pub(crate) use named_calls::imported_dependency::ImportedDependencyCallProbe;
 
 mod aggregates;

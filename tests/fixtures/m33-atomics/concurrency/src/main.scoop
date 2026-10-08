@@ -1,0 +1,27 @@
+@Extern(lib = "m33_atomic_threads", name = "m13_run_many")
+fun workers(function: FunPtr<(Int, Ptr<Unit>) -> Int>, context: Ptr<Unit>, base: Int, count: Int): Int
+@Extern(lib = "m33_atomic_threads", name = "m13_callback_barrier")
+fun barrier()
+
+fun check(value: Boolean) { if (!value) { throw IllegalStateException() } }
+fun together(action: (Int) -> Int): Int {
+    @Unsafe {
+        val callback = foreignCallback<(Int, Ptr<Unit>) -> Int>(action, 1, ForeignCallbackMode.Reusable)
+        try {
+            val result = workers(callback.function, callback.context, 0, 4)
+            when (foreignCallbackFailure(callback)) {
+                None -> {}
+                Some(_) -> { throw IllegalStateException() }
+            }
+            return result
+        } finally {
+            releaseForeignCallback(callback)
+        }
+    }
+}
+
+fun main() {
+    sharedValues()
+    stack()
+    println("atomic concurrency")
+}

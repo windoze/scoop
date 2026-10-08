@@ -14,6 +14,7 @@ impl NominalInterfaceRecordV1 {
         let scope = self.type_parameters.signature_scope(None);
         let mut previous = None;
         let mut types = std::collections::BTreeMap::new();
+        let mut receivers = std::collections::BTreeSet::new();
         for (index, selection) in self
             .details
             .dispatch_selections()
@@ -21,16 +22,15 @@ impl NominalInterfaceRecordV1 {
             .iter()
             .enumerate()
         {
-            if !types.contains_key(selection.receiver()) {
-                let shape = scope
-                    .validate_nominal_signature_semantics(selection.receiver(), authority)
+            if receivers.insert(selection.receiver()) {
+                scope
+                    .validate_signature_semantics(selection.receiver(), authority)
                     .map_err(
                         |error| NominalInterfaceSemanticValidationError::DispatchReceiver {
                             index,
                             error,
                         },
                     )?;
-                types.insert(selection.receiver(), shape.kind());
             }
             if previous == Some(selection.role()) {
                 continue;

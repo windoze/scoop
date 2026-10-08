@@ -1,0 +1,5 @@
+@Extern(name = "same", captureErrno = true)
+fun first(): (Int, Int)
+@Extern(name = "same")
+fun second(): Long
+fun main() {}

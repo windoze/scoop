@@ -313,11 +313,8 @@ pub(super) fn call_site_name(function: &Function, site: &CallSite) -> String {
             )
         }
         CallSite::NativeSafe(site) => {
-            let call = targets.typed_call_view(
-                &site.call,
-                &targets.native_safe_targets,
-                NativeSafeCallDestination::view,
-            );
+            let call =
+                targets.typed_call_view(&site.call, &targets.c_targets, CCallDestination::view);
             format!(
                 "{} sp{} roots=[{}] {}",
                 typed_target_name("native-safe", &call),
@@ -339,14 +336,20 @@ pub(super) fn call_site_name(function: &Function, site: &CallSite) -> String {
             )
         }
         CallSite::ReleaseNativeLeaf(site) => {
-            let call = targets.typed_call_view(
-                &site.call,
-                &targets.native_safe_targets,
-                NativeSafeCallDestination::view,
-            );
+            let call =
+                targets.typed_call_view(&site.call, &targets.c_targets, CCallDestination::view);
             format!(
                 "{} {}",
                 typed_target_name("release-native-leaf", &call),
+                typed_call_name(function, &call)
+            )
+        }
+        CallSite::NativeGcLeaf(site) => {
+            let call =
+                targets.typed_call_view(&site.call, &targets.c_targets, CCallDestination::view);
+            format!(
+                "{} {}",
+                typed_target_name("native-gc-leaf", &call),
                 typed_call_name(function, &call)
             )
         }

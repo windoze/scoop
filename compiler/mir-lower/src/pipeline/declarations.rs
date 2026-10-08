@@ -143,21 +143,23 @@ impl Lowerer {
                     )
                 })
                 .collect();
-            let return_type = types.lower(
-                extern_.return_type,
-                &mut self.source_exact_types,
-                &mut self.enums,
-                &mut self.structs,
-                &mut self.interfaces,
-                &mut self.shell,
-            );
+            let result = extern_.result.map(|ty| {
+                types.lower(
+                    ty,
+                    &mut self.source_exact_types,
+                    &mut self.enums,
+                    &mut self.structs,
+                    &mut self.interfaces,
+                    &mut self.shell,
+                )
+            });
             let id = self.extern_functions.alloc(mir::ExternFunction {
                 source_contract: extern_.source_contract.clone(),
                 source_name: extern_.source_name.clone(),
                 native_symbol: extern_.native_symbol.clone(),
                 library: extern_.library.clone(),
                 abi: match extern_.abi {
-                    hir::ExternAbi::C => mir::ExternAbi::C,
+                    hir::ExternAbi::C(mode) => mir::ExternAbi::C(mode),
                     hir::ExternAbi::Scoop => mir::ExternAbi::Scoop,
                 },
                 calling_convention: match extern_.calling_convention {
@@ -168,7 +170,7 @@ impl Lowerer {
                     hir::GcEffect::NoGc => mir::GcEffect::NoGc,
                 },
                 params,
-                return_type,
+                result,
             });
             self.extern_map.insert(hir_id, id);
         }
@@ -305,6 +307,46 @@ impl Lowerer {
                 storage,
             });
             self.global_map.insert(hir_id, id);
+        }
+    }
+}
+
+impl Lowerer {
+    pub(super) fn program_arguments(
+        &self,
+        module: &hir::Module,
+        entry: hir::FunctionId,
+    ) -> mir::ProgramArguments {
+        if module.functions[entry].params.is_empty() {
+            return mir::ProgramArguments::Unused;
+        }
+        match &module.core_protocols {
+            hir::ConcreteCoreProtocols::Defined(protocols) => {
+                mir::ProgramArguments::Local(self.function_map[&protocols.program_arguments])
+            }
+            hir::ConcreteCoreProtocols::Imported(protocols) => {
+                let protocol = protocols.program_arguments();
+                let scoop_hir::ImportedCoreProtocolCallableDefinition::Function(definition) =
+                    protocol.definition()
+                else {
+                    unreachable!("the core argument builder is a source function")
+                };
+                let target = scoop_identity::StrongCallableDefinitionOwner::Function(
+                    definition.persistent(),
+                );
+                let callable = self
+                    .external_callables
+                    .iter()
+                    .find_map(|(id, callable)| {
+                        (callable.reference().provider() == protocol.provider()
+                            && callable.reference().implementation() == target)
+                            .then_some(id)
+                    })
+                    .expect(
+                        "the root entry's core argument builder is selected before MIR lowering",
+                    );
+                mir::ProgramArguments::External(callable)
+            }
         }
     }
 }

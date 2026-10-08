@@ -160,7 +160,12 @@ impl ValidatedCBridgeToolchainInvocation {
 
     /// Start another native-driver action with the same resolved environment.
     pub fn driver_command(&self) -> Command {
-        let mut command = Command::new(&self.compiler_driver);
+        self.driver_command_with(&self.compiler_driver)
+    }
+
+    /// Use a paired native driver with the same target and environment.
+    pub fn driver_command_with(&self, driver: &Path) -> Command {
+        let mut command = Command::new(driver);
         command
             .env_clear()
             .env("LC_ALL", "C")

@@ -13,6 +13,9 @@ pub struct CrossConeLayoutArtifactMetadataInputV1<'ir> {
     hir_types: &'ir scoop_hir::CrossConeTypeSemanticsSectionV1,
     mir_types: &'ir scoop_mir::CrossConeMirTypeBridgeSectionV1<'ir>,
     lir_layout: &'ir scoop_lir::CrossConeLayoutAbiSectionV1<'ir>,
+    native_objects: Vec<slib::SlibMember>,
+    native_libraries: Vec<scoop_lir::CanonicalNativeLibraryRequirementV1>,
+    native_cxx: bool,
 }
 
 impl<'ir> CrossConeLayoutArtifactMetadataInputV1<'ir> {
@@ -27,7 +30,28 @@ impl<'ir> CrossConeLayoutArtifactMetadataInputV1<'ir> {
             hir_types,
             mir_types,
             lir_layout,
+            native_objects: Vec::new(),
+            native_libraries: Vec::new(),
+            native_cxx: false,
         }
+    }
+
+    pub fn with_native_objects(mut self, objects: Vec<slib::SlibMember>) -> Self {
+        self.native_objects = objects;
+        self
+    }
+
+    pub fn with_native_libraries(
+        mut self,
+        libraries: Vec<scoop_lir::CanonicalNativeLibraryRequirementV1>,
+    ) -> Self {
+        self.native_libraries = libraries;
+        self
+    }
+
+    pub fn with_native_cxx(mut self, cxx: bool) -> Self {
+        self.native_cxx = cxx;
+        self
     }
 
     pub fn assemble(
@@ -37,7 +61,11 @@ impl<'ir> CrossConeLayoutArtifactMetadataInputV1<'ir> {
         dependency_owners: &[slib::CanonicalDefinedLinkSymbolOwnerSetV1],
     ) -> Result<slib::AssembledCrossConeLayoutArtifactV1, Error> {
         let optimization = emitted.optimization();
-        let prepared = objects::prepare(emitted, generated)?;
+        let mut prepared = objects::prepare(emitted, generated)?;
+        prepared.foundation = prepared
+            .foundation
+            .with_native_library_requirements(self.native_libraries)
+            .with_native_cxx(self.native_cxx);
         let strong = prepared.patch_sites.builtins().strong_relocations().clone();
         let defined =
             slib::CanonicalDefinedLinkSymbolOwnerSetV1::from_verified_strong_closure(&strong)
@@ -67,6 +95,7 @@ impl<'ir> CrossConeLayoutArtifactMetadataInputV1<'ir> {
             &self.ordinary.cone,
             &self.ordinary.direct_dependencies,
             self.ordinary.hir_foundation.source_count_for_cone(current),
+            self.native_objects,
         )?;
         let descriptor = self
             .ordinary

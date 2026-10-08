@@ -12,7 +12,10 @@ impl ElfNamespace {
         self.roots = native
             .ordered_files()
             .iter()
-            .filter(|file| matches!(file.content, NativeContent::ElfDynamic(_)))
+            .filter(|file| {
+                matches!(file.content, NativeContent::ElfDynamic(_))
+                    && !self.system_inputs.contains_key(&file.id)
+            })
             .map(|file| file.id)
             .collect();
         let mut names = BTreeMap::new();

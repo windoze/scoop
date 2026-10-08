@@ -11,6 +11,10 @@ use super::{
 };
 use crate::{CodegenError, ValidatedBackendProfile};
 
+#[path = "statepoint_tests/atomic_refs.rs"]
+mod atomic_refs;
+#[path = "statepoint_tests/call_frame.rs"]
+mod call_frame;
 #[path = "statepoint_tests/no_gc.rs"]
 mod no_gc;
 #[path = "statepoint_tests/optimized.rs"]
@@ -339,3 +343,5 @@ attributes #0 = {{ "disable-tail-calls"="true" "frame-pointer"="all" }}
     verify_rewritten(&module, &manifest(None))
         .expect("a compiler-emitted typed boundary witness is accepted");
 }
+#[path = "statepoint_tests/data_borrow.rs"]
+mod data_borrow;

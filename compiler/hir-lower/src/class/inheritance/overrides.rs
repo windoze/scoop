@@ -28,14 +28,7 @@ impl Lowerer {
                     .into_iter()
                     .filter(|candidate| self.function_is_accessible(candidate.function, None))
                     .map(|candidate| {
-                        let arguments = match candidate.owner {
-                            crate::CallableCandidateOwner::Method(owner) => {
-                                self.method_owner_arguments(owner).to_vec()
-                            }
-                            crate::CallableCandidateOwner::Function { owner_arguments } => {
-                                owner_arguments
-                            }
-                        };
+                        let arguments = self.callable_candidate_owner_arguments(&candidate);
                         (candidate.function, arguments)
                     })
                     .collect();
@@ -50,14 +43,7 @@ impl Lowerer {
                     .into_iter()
                     .filter(|candidate| self.function_is_accessible(candidate.function, None))
                     .map(|candidate| {
-                        let arguments = match candidate.owner {
-                            crate::CallableCandidateOwner::Method(owner) => {
-                                self.method_owner_arguments(owner).to_vec()
-                            }
-                            crate::CallableCandidateOwner::Function { owner_arguments } => {
-                                owner_arguments
-                            }
-                        };
+                        let arguments = self.callable_candidate_owner_arguments(&candidate);
                         (candidate.function, arguments)
                     })
                     .collect();
@@ -81,7 +67,7 @@ impl Lowerer {
         let matching_overrides = candidates
             .iter()
             .filter(|(candidate, args)| {
-                self.same_instantiated_signature(*candidate, &short, &sig, args)
+                self.same_instantiated_signature(owner, *candidate, &short, &sig, args)
             })
             .cloned()
             .collect::<Vec<_>>();
@@ -127,7 +113,11 @@ impl Lowerer {
             .iter()
             .filter(|member| {
                 sig.type_params.len() == sig.owner_type_param_count
-                    && self.same_interface_signature(&signature, &member.signature)
+                    && self.implementation_satisfies_interface_signature(
+                        owner,
+                        &signature,
+                        &member.signature,
+                    )
             })
             .cloned()
             .collect::<Vec<_>>();

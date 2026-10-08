@@ -1,6 +1,6 @@
 //! Canonical target-specific source extern and native-library requirements.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 use std::fmt;
 
 use scoop_identity::{
@@ -79,6 +79,7 @@ pub struct CanonicalNativeExternalRequirementSurfaceV1 {
     target: LirTargetProfile,
     contracts: Vec<CanonicalNativeExternalRequirementV1>,
     library_requirements: Vec<CanonicalNativeLibraryRequirementV1>,
+    cxx: bool,
 }
 
 impl CanonicalNativeExternalRequirementSurfaceV1 {
@@ -102,7 +103,6 @@ impl CanonicalNativeExternalRequirementSurfaceV1 {
         }
 
         let mut grouped = BTreeMap::<Vec<u8>, CanonicalNativeExternalRequirementV1>::new();
-        let mut used_requirements = BTreeSet::new();
         for record in foundation.native_contracts() {
             if record.symbol_key().target_profile() != &target_wire_id {
                 return Err(
@@ -124,7 +124,6 @@ impl CanonicalNativeExternalRequirementSurfaceV1 {
                             requirement: id,
                         },
                     )?;
-                    used_requirements.insert(id);
                     CanonicalNativeLibraryBindingV1::Requirement(requirement.clone())
                 }
             };
@@ -163,22 +162,12 @@ impl CanonicalNativeExternalRequirementSurfaceV1 {
             }
         }
 
-        if let Some(requirement) = requirements
-            .keys()
-            .find(|requirement| !used_requirements.contains(*requirement))
-        {
-            return Err(
-                CanonicalNativeExternalRequirementBuildError::UnusedLibraryRequirement(
-                    *requirement,
-                ),
-            );
-        }
-
         Ok(Self {
             producer: foundation.producer(),
             target,
             contracts: grouped.into_values().collect(),
             library_requirements: requirements.into_values().collect(),
+            cxx: foundation.native_cxx(),
         })
     }
 
@@ -192,6 +181,10 @@ impl CanonicalNativeExternalRequirementSurfaceV1 {
 
     pub fn contracts(&self) -> &[CanonicalNativeExternalRequirementV1] {
         &self.contracts
+    }
+
+    pub fn cxx(&self) -> bool {
+        self.cxx
     }
 
     pub fn library_requirements(&self) -> &[CanonicalNativeLibraryRequirementV1] {
@@ -216,7 +209,6 @@ pub enum CanonicalNativeExternalRequirementBuildError {
         source: PersistentSourceNativeExternalContractId,
         requirement: NativeLinkRequirementId,
     },
-    UnusedLibraryRequirement(NativeLinkRequirementId),
     ConflictingContract {
         symbol: Vec<u8>,
         first_source: PersistentSourceNativeExternalContractId,

@@ -193,6 +193,7 @@ fn read_artifact(
         reachable,
     )
     .map_err(super::error::symbols)?;
+    let native_objects = super::native::read(&mut graph, selection.target())?;
     Ok((
         ProgramLinkArtifact {
             manifest: graph.envelope.into_manifest(),
@@ -201,6 +202,7 @@ fn read_artifact(
             production,
             ordinary,
             layout,
+            native_objects,
         },
         symbols,
     ))

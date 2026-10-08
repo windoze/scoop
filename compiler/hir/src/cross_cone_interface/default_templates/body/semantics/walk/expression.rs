@@ -40,6 +40,12 @@ where
         pending: &mut Vec<WorkItem<'body>>,
     ) -> Result<(), M::Error> {
         match kind {
+            DefaultExpressionKindV1::Atomic(atomic) => {
+                for operand in atomic.operands().rev() {
+                    self.push_child(pending, BodyNode::Expression(operand))?;
+                }
+                Ok(())
+            }
             DefaultExpressionKindV1::GenericDelegateStorageRead(reference) => {
                 self.push_generic_delegate(pending, reference, definition_origin)
             }
@@ -167,6 +173,7 @@ where
             | DefaultExpressionKindV1::ReferenceUpcast(operand)
             | DefaultExpressionKindV1::ArrayLen(operand)
             | DefaultExpressionKindV1::ArrayClone(operand)
+            | DefaultExpressionKindV1::AtomicNew(operand)
             | DefaultExpressionKindV1::PrimitiveUnary { operand, .. }
             | DefaultExpressionKindV1::Unary { operand, .. }
             | DefaultExpressionKindV1::SomeWrap(operand)

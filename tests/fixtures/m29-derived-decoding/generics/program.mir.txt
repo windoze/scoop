@@ -145,6 +145,8 @@ Module
   interface UnkeyedDecodingContainer
   interface SingleValueDecodingContainer
   interface ToString
+  interface Equality<Float>
+  interface Equality<Double>
   interface Encodable<Int>
   interface Encoder
   interface KeyedEncodingContainer
@@ -173,8 +175,11 @@ Module
   interface Decodable<Envelope<Any>>
   interface Decodable<Phantom<() -> Int>>
   interface Hash
+  interface Equality<Int>
+  interface Equality<Char>
   interface Iterable<Char>
   interface Iterator<Char>
+  interface Equality<String>
   interface Decodable<(Int, Option<Array<Int>>)>
   interface Decodable<Unit>
   interface Decodable<MutableArray<Unit>>

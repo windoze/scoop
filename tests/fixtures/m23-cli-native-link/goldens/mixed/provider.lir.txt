@@ -6,27 +6,21 @@ Module
   global @scoop$1$ss$145eabfddd6c4ad111f50d5533833d6d1aea11f8db8f273fad1b9d224566cfb4 : ptr<managed> scan=refs[0]
   init0 top-level:eager storage=@scoop$1$ss$2f353438dafd288f1dd9eabb5ea8de0939c7dd5e56c18a34ef56f8655e49f0b5 failure=@scoop$1$ss$ed047c8be1972313e6e0afa6a9e4866f8c3c507053276604e9952b1a88afd7ae initializer=@scoop$1$cb$7f97c702b273f0db6770c7a45c5478ee36faeae1bc2d602ebb09beac1ffc1eb3 ensure=@scoop$1$cb$a9db1c2707a47e447dd7c0c579934bb0a068e5b820d48e684e64a9b6c0b0d8e8 deps=[]
   init1 object-private:dev.programlink:mixed-provider:0.1.0/src/main.scoop:Delayed lazy storage=@scoop$1$ss$59e43d7fc03f16b437f8c1edd315ae5107061e2a47dfd7a6c3883d0ff7185a43 failure=@scoop$1$ss$145eabfddd6c4ad111f50d5533833d6d1aea11f8db8f273fad1b9d224566cfb4 initializer=@scoop$1$cb$b701971410311c0fa1bc2c6f3aa588e37231a1916146064f28083fe2dd156ac7 ensure=@scoop$1$cb$8c30433804854d6b75093f8c417e9179cbbc07c4f9b7533e77bfe65c8544de43 deps=[]
-  extern ef0 archived @m23_archived(i32) -> i32 <c exact=(Int)->Int bridge=@scoop$1$br$35e4f1abfac025510d152b23b517efc2a694b7692a6c26f28b6a4b3a82c91eb1 gc-leaf nounwind lib=m23_mix_archive>
-  extern ef1 dynamic @m23_dynamic(i32) -> i32 <c exact=(Int)->Int bridge=@scoop$1$br$0255d94079bebcddaf2227e9ae3fbb738f1d26be987acd4987a0aa77b3798587 gc-leaf nounwind lib=m23_mix_dynamic>
+  extern ef0 archived @m23_archived(i32) -> i32 <c exact=(Int)->Int direct-c=(i32)->i32 gc-leaf nounwind lib=m23_mix_archive>
+  extern ef1 dynamic @m23_dynamic(i32) -> i32 <c exact=(Int)->Int direct-c=(i32)->i32 gc-leaf nounwind lib=m23_mix_dynamic>
   fun @scoop$1$cb$8f8974ad884e32708d1f846eb84b4796cd3c65d8f21f7c8bc3855c5795c724eb(i32) -> i32
     local %0 $call.1: i32
-    local %1 $sc.1: i32
-    local %2 $sc.2: i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
-    store param0 -> local1
-    call native-safe-indirect-target0 sp<native-safe:0> roots=[] local2 = sig=indirect0 (c-storage-pointer i32 size=4 align=4 scan=none, ptr<raw>) extern0(c-arg-address(local1))
-    store local2 -> local0
+    call native-safe-direct-target0 sp<native-safe:0> roots=[] t0 = sig=direct0 (i32) -> i32 extern0(param0)
+    store t0 -> local0
     ret local0
   fun @scoop$1$cb$fac9b6c04c0e5b06f924ac7cf893ed31bb75a877f876abc8cb5c3f5e0bc07d03(i32) -> i32
     local %0 $call.1: i32
-    local %1 $sc.1: i32
-    local %2 $sc.2: i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
-    store param0 -> local1
-    call native-safe-indirect-target0 sp<native-safe:0> roots=[] local2 = sig=indirect0 (c-storage-pointer i32 size=4 align=4 scan=none, ptr<raw>) extern1(c-arg-address(local1))
-    store local2 -> local0
+    call native-safe-direct-target0 sp<native-safe:0> roots=[] t0 = sig=direct0 (i32) -> i32 extern1(param0)
+    store t0 -> local0
     ret local0
   fun @scoop$1$cb$b8c32a5194130dca1838ba7be357b29e7463a1aca609a309ba0a09d272b7d380() -> i32
     local %0 $dependency.argument.0: i32
@@ -34,8 +28,6 @@ Module
     local %2 $argument.0: i32
     local %3 $parameter.value: i32
     local %4 $call.1: i32
-    local %5 $sc.1: i32
-    local %6 $sc.2: i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
     store integer<Int>(0x00000064) -> local0
@@ -44,9 +36,8 @@ Module
     t0 = aggregate () : {}
     store integer<Int>(0x00000003) -> local2
     store local2 -> local3
-    store local3 -> local5
-    call native-safe-indirect-target0 sp<native-safe:0> roots=[] local6 = sig=indirect0 (c-storage-pointer i32 size=4 align=4 scan=none, ptr<raw>) extern0(c-arg-address(local5))
-    store local6 -> local4
+    call native-safe-direct-target0 sp<native-safe:0> roots=[] t1 = sig=direct0 (i32) -> i32 extern0(local3)
+    store t1 -> local4
     ret local4
   fun @scoop$1$cb$8725d005cdcd842da2163c037296faa03fa41388b504cc7136dd60622152564c() -> i32
     local %0 $dependency.argument.0: i32
@@ -54,8 +45,6 @@ Module
     local %2 $argument.0: i32
     local %3 $parameter.value: i32
     local %4 $call.1: i32
-    local %5 $sc.1: i32
-    local %6 $sc.2: i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
     store integer<Int>(0x000000c8) -> local0
@@ -64,15 +53,14 @@ Module
     t0 = aggregate () : {}
     store integer<Int>(0x00000004) -> local2
     store local2 -> local3
-    store local3 -> local5
-    call native-safe-indirect-target0 sp<native-safe:0> roots=[] local6 = sig=indirect0 (c-storage-pointer i32 size=4 align=4 scan=none, ptr<raw>) extern1(c-arg-address(local5))
-    store local6 -> local4
+    call native-safe-direct-target0 sp<native-safe:0> roots=[] t1 = sig=direct0 (i32) -> i32 extern1(local3)
+    store t1 -> local4
     ret local4
   fun @scoop$1$cb$b701971410311c0fa1bc2c6f3aa588e37231a1916146064f28083fe2dd156ac7() -> void
     local %0 $new.1: ptr<managed>
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
-    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td0, machine<byte-size>(ByteSize(24)))
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td1, machine<byte-size>(ByteSize(24)))
     store t0 -> local0
     call managed-void-target0 sp<managed-call:1> live=[local0:ptr<managed>@0] sig=void0 (ptr<managed>) local-fn11(local0)
     t1 = aggregate () : {}
@@ -299,7 +287,9 @@ Module
     t2 = begin_catch t1 : ptr<managed>
     end_catch
     ret integer<UInt>(0x00000001)
-  td td0 n(c=dev.programlink%3Amixed-provider%3A0.1.0;p=nativelink.mixed;o=-;k=O;x=Delayed) @scoop$1$td$ce99d7dab3245d8058c7758c0ae8ee43807b72e91f984eac8109cf6de7fc3b12 type-id=7780430540238904511 shape=FixedObject minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td0 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Equality);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$6fb0bdfcaef72d458561b350a56fb80e86e68f4c020173148c7fe1ec239ea687 type-id=940003777485400453 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
+  td td1 n(c=dev.programlink%3Amixed-provider%3A0.1.0;p=nativelink.mixed;o=-;k=O;x=Delayed) @scoop$1$td$ce99d7dab3245d8058c7758c0ae8ee43807b72e91f984eac8109cf6de7fc3b12 type-id=7780430540238904511 shape=FixedObject minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  layout Equality value size=8 align=8 refs=[0]
   layout Delayed value size=8 align=8 refs=[0]
   layout Delayed size=24 align=8 refs=[]
   output library

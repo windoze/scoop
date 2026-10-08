@@ -37,18 +37,26 @@ pub struct DarwinFinalLinkProfile {
     linker_digest: Digest256,
     compiler_digest: Digest256,
     system: SystemProvider,
+    cxx: Option<crate::ValidatedCxxToolchain>,
 }
 
 impl DarwinFinalLinkProfile {
     pub(crate) fn from_startup(
         startup: ValidatedCBridgeToolchainInvocation,
+        cxx: Option<crate::ValidatedCxxToolchain>,
     ) -> Result<Self, ToolchainError> {
         let path =
             c_bridge::command_text_from_path(Path::new("/usr/bin/xcrun"), &["--find", "ld"])?;
         let linker = std::fs::canonicalize(path.trim()).map_err(error)?;
         let linker_version = linker_version(&linker)?;
         let linker_digest = sha256(&std::fs::read(&linker).map_err(error)?);
-        let compiler_digest = sha256(&std::fs::read(startup.compiler_driver()).map_err(error)?);
+        let compiler_digest = sha256(
+            &std::fs::read(
+                cxx.as_ref()
+                    .map_or(startup.compiler_driver(), |cxx| cxx.driver()),
+            )
+            .map_err(error)?,
+        );
         let system = SystemProvider::read(
             startup.sdk_root().map_err(error)?,
             startup
@@ -65,6 +73,7 @@ impl DarwinFinalLinkProfile {
             linker_digest,
             compiler_digest,
             system,
+            cxx,
         };
         probe::check(&profile)?;
         Ok(profile)
@@ -95,6 +104,17 @@ impl DarwinFinalLinkProfile {
         &self.system
     }
 
+    pub fn cxx(&self) -> bool {
+        self.cxx.is_some()
+    }
+
+    pub fn linker_argument(&self, command: &mut Command, argument: impl AsRef<std::ffi::OsStr>) {
+        if self.cxx() {
+            command.arg("-Xlinker");
+        }
+        command.arg(argument);
+    }
+
     pub fn linker_system_requirements(&self) -> &'static [&'static str] {
         &["dyld_stub_binder"]
     }
@@ -116,31 +136,48 @@ impl DarwinFinalLinkProfile {
             .contract()
             .deployment()
             .map_err(error)?;
-        let mut command = Command::new(&self.linker);
-        command
-            .env_clear()
-            .env("LC_ALL", "C")
-            .env("LANG", "C")
-            .env("TZ", "UTC")
-            .args(OPTIONS)
-            .arg("-platform_version")
-            .arg("macos")
-            .arg(deployment.minimum_os().to_string())
-            .arg(deployment.sdk().to_string())
-            .arg("-syslibroot")
-            .arg(sdk_snapshot)
-            .arg("-o")
-            .arg(output)
-            .arg("-map")
-            .arg(map)
-            .arg("-t");
+        let mut command = match &self.cxx {
+            Some(cxx) => {
+                let mut command = cxx.command(&self.startup);
+                // The link plan supplies the selected SDK and C++ stubs explicitly.
+                command.arg("-nostdlib");
+                command
+            }
+            None => {
+                let mut command = Command::new(&self.linker);
+                command
+                    .env_clear()
+                    .env("LC_ALL", "C")
+                    .env("LANG", "C")
+                    .env("TZ", "UTC");
+                command
+            }
+        };
+        for argument in OPTIONS {
+            self.linker_argument(&mut command, argument);
+        }
+        for argument in [
+            "-platform_version".into(),
+            "macos".into(),
+            deployment.minimum_os().to_string().into(),
+            deployment.sdk().to_string().into(),
+            "-syslibroot".into(),
+            sdk_snapshot.as_os_str().to_owned(),
+            "-o".into(),
+            output.as_os_str().to_owned(),
+            "-map".into(),
+            map.as_os_str().to_owned(),
+            "-t".into(),
+        ] {
+            self.linker_argument(&mut command, argument);
+        }
         Ok(command)
     }
 }
 
 impl WireEncode for DarwinFinalLinkProfile {
     fn encode(&self, e: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        e.map(9)?;
+        e.map(10)?;
         e.field(1)?;
         self.target().wire_id().encode(e)?;
         e.field(2)?;
@@ -171,7 +208,13 @@ impl WireEncode for DarwinFinalLinkProfile {
             e.text(symbol)?;
         }
         e.field(9)?;
-        e.unsigned(1)
+        e.unsigned(1)?;
+        e.field(10)?;
+        e.array(u64::from(self.cxx.is_some()))?;
+        if let Some(cxx) = &self.cxx {
+            cxx.fingerprint().encode(e)?;
+        }
+        Ok(())
     }
 }
 

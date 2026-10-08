@@ -3,7 +3,7 @@ Module
   global @scoop$1$ss$b6241d15621f0f049a55298b103f43f817dfc17c5c305bf117aab3ef0b269db4 : ptr<managed> scan=refs[0]
   global @scoop$1$ss$afd1e99c35a2e0aa7186a3619b59058b0f323a4c47fce412bfecef688e7ddc22 : ptr<managed> scan=refs[0]
   init0 top-level:initialized storage=@scoop$1$ss$bbe05b994e5cd78cbd541aa187c2bc9718b7aceecefc6c14f2f99c53068a6a81 failure=@scoop$1$ss$b6241d15621f0f049a55298b103f43f817dfc17c5c305bf117aab3ef0b269db4 initializer=@scoop$1$cb$e5eee545d92d246ad4d4b2086c15d8a5c38c9b54c086ed00c4b8dc4acc079329 ensure=@scoop$1$cb$a5607219fa4eb837c844ca1ca7ec67ce06fe8aff7cc8bff5674560186ae213ae deps=[]
-  extern ef0 reenter @m23_reenter() -> void <c exact=()->void bridge=@scoop$1$br$1a33717fd6c51ee0bda05e32bbb98eeb43b2b840669040f4b7fb33d0dbdc0f22 gc-leaf nounwind lib=m23_lifecycle>
+  extern ef0 reenter @m23_reenter() -> void <c exact=()->void direct-c=()->void gc-leaf nounwind lib=m23_lifecycle>
   fun @scoop$1$cb$b4f5a3dc9195929e713a6fef5adde124b349f34e9468f3c882c7b5dee18e4b22() -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
@@ -114,13 +114,14 @@ Module
     t0 = aggregate () : {}
     t1 = global_load global0 : i64
     ret t1
-  fun @scoop$1$cb$f1cb7a7c5426b8e12781f559c939d8fc8d7d7a37dae39fe52c4a1e25f6ed00b2() -> i32
+  fun @scoop$1$cb$f1cb7a7c5426b8e12781f559c939d8fc8d7d7a37dae39fe52c4a1e25f6ed00b2(i32, ptr<raw>, ptr<raw>) -> i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
     call managed-direct-target1 sp<managed-call:0> live=[] t4 = sig=direct1 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_context_ensure_root(external-td3)
     invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn2() normal @success unwind @failure
     br @success
   block success
+    raw_store param2 integer<Int>(0x00000000) align 4
     ret integer<UInt>(0x00000000)
   block failure
     (t0, t1) = landingpad : (exception_record, ptr<raw>)

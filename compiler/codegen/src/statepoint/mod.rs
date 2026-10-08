@@ -41,6 +41,7 @@ pub(crate) const STATEPOINT_ROOT_IDENTITY_METADATA: &str = "scoop.statepoint-roo
 pub(crate) enum TypedManagedPointerBoundary {
     AllocationResult,
     CardAddress,
+    ScopedDataBorrow,
 }
 
 impl TypedManagedPointerBoundary {
@@ -48,6 +49,7 @@ impl TypedManagedPointerBoundary {
         match self {
             Self::AllocationResult => "allocation-result",
             Self::CardAddress => "card-address",
+            Self::ScopedDataBorrow => "scoped-data-borrow",
         }
     }
 }

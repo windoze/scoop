@@ -1,0 +1,132 @@
+schema = 1
+name = "m33-sysroot-combination"
+inputs = ["cone", "platform", "helper"]
+tools = ["scoop", "scoopc", "scoop-link"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["m33", "sysroot", "resolver"]
+variants = [{name = "debug", vars = {profile = "debug"}}, {name = "release", vars = {profile = "release"}}]
+[vars]
+options = ["--sysroot", "${work}/sysroot", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+
+[[steps]]
+name = "prepare"
+files = [
+ {mkdir = {path = "${work}/sysroot/lib"}},
+ {symlink = {from = "${sysroot}/lib/scoop.core", to = "${work}/sysroot/lib/scoop.core"}},
+ {copy = {from = "${fixture}/cone", to = "${work}/cone"}},
+ {copy = {from = "${fixture}/platform", to = "${work}/sysroot/lib/scoop.platform"}},
+ {copy = {from = "${fixture}/helper", to = "${work}/sysroot/lib/scoop.helper"}},
+]
+
+[[steps]]
+name = "platform"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sysroot/lib/scoop.platform", {each = "${options}"}, "--profile", "${profile}", "--emit", "all", "--dump-dir", "${work}/dump"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+ {file = "${work}/dump/${platform.result.root.identity}/hir.txt", snapshot = "platform.hir.txt"},
+ {file = "${work}/dump/${platform.result.root.identity}/mir.txt", snapshot = "platform.mir.txt"},
+ {file = "${work}/dump/${platform.result.root.identity}/lir.txt", snapshot = "platform.${profile}.${target}.lir.txt"}
+]
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/cone", {each = "${options}"}, "--profile", "${profile}", "--emit", "all", "--dump-dir", "${work}/dump"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+ {file = "${work}/dump/${build.result.root.identity}/hir.txt", snapshot = "consumer.hir.txt"},
+ {file = "${work}/dump/${build.result.root.identity}/mir.txt", snapshot = "consumer.mir.txt"},
+ {file = "${work}/dump/${build.result.root.identity}/lir.txt", snapshot = "consumer.${profile}.${target}.lir.txt"}
+]
+
+[[steps]]
+name = "run"
+argv = ["${build.result.output}"]
+
+exit = 0
+stdout = "sysroot library 42\n"
+stderr = ""
+
+[[steps]]
+name = "moving"
+argv = ["${build.result.output}"]
+env = {SCOOP_GC_STRESS_MOVE = "1"}
+exit = 0
+stdout = "sysroot library 42\n"
+stderr = ""
+
+[[steps]]
+name = "minor"
+argv = ["${build.result.output}"]
+env = {SCOOP_GC_STRESS_MINOR = "1"}
+exit = 0
+stdout = "sysroot library 42\n"
+stderr = ""
+
+[[steps]]
+name = "cached"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/cone", {each = "${options}"}, "--profile", "${profile}"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${cached.result.observations.child_invocations}", equals = []}, {actual = "${cached.result.root.artifact_fingerprint}", equals = "${build.result.root.artifact_fingerprint}"}]
+
+[[steps]]
+name = "edit_library"
+files = [{replace = {path = "${work}/sysroot/lib/scoop.platform/native/value.h", old = "M33_DELTA 2", new = "M33_DELTA 3"}}]
+
+[[steps]]
+name = "changed"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/cone", {each = "${options}"}, "--profile", "${profile}"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+
+[[steps]]
+name = "run_changed"
+argv = ["${changed.result.output}"]
+
+exit = 0
+stdout = "sysroot library 43\n"
+stderr = ""
+
+[[steps]]
+name = "missing_artifact"
+argv = ["${scoop}", "link", {each = "${link_args}"}, "--sysroot", "${work}/sysroot", "--root-slib", "${changed.result.root.path}", {each = "${platform.result.dependencies}", field = "path", prefix = "--dependency-slib"}, "--runtime-objects", "${changed.result.runtime_index}", "-o", "${work}/missing", "--message-format", "json"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {file = "missing-link.diagnostics.json"}
+
+[[steps]]
+name = "remove_sources"
+files = [{remove = {path = "${work}/cone"}}, {remove = {path = "${work}/sysroot/lib/scoop.platform"}}, {remove = {path = "${work}/sysroot/lib/scoop.helper"}}]
+
+[[steps]]
+name = "link"
+argv = ["${scoop-link}", {each = "${link_args}"}, "--root-slib", "${changed.result.root.path}", {each = "${changed.result.dependencies}", field = "path", prefix = "--dep-slib"}, "--runtime-objects", "${changed.result.runtime_index}", "-o", "${work}/relinked"]
+env = {LLVM_CONFIG_PATH = "/absent/llvm-config", LLVM_SYS_221_PREFIX = "/absent/llvm"}
+exit = 0
+stdout = "link-plan ${changed.result.link_plan_fingerprint}\n"
+stderr = ""
+
+[[steps]]
+name = "relinked"
+argv = ["${work}/relinked"]
+
+exit = 0
+stdout = "sysroot library 43\n"
+stderr = ""

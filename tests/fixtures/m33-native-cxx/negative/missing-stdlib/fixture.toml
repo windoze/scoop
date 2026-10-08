@@ -1,0 +1,29 @@
+schema = 1
+name = "m33-native-cxx-reject-missing-stdlib"
+inputs = ["cone"]
+tools = ["scoop", "scoopc", "cc"]
+targets = ["x86_64-unknown-linux-gnu"]
+tags = ["m33", "native", "negative"]
+
+[[steps]]
+name = "prepare"
+files = [{copy = {from = "${fixture}/cone", to = "${work}/cone"}}]
+
+[[steps]]
+name = "toolchain"
+files = [
+{mkdir = {path = "${work}/toolchain"}},
+{write = {path = "${work}/toolchain/gcc", data = "#!/bin/sh\nexec \"${cc}\" \"$@\"\n"}},
+{chmod = {path = "${work}/toolchain/gcc", mode = "755"}},
+{write = {path = "${work}/toolchain/g++", data = "#!/bin/sh\nif [ \"$1\" = \"-print-file-name=libstdc++.so\" ]; then echo libstdc++.so; exit 0; fi\nexec g++ \"$@\"\n"}},
+{chmod = {path = "${work}/toolchain/g++", mode = "755"}}
+]
+
+[[steps]]
+name = "reject"
+argv = ["${scoop}", "build", "--cc", "${work}/toolchain/gcc", {each = "${link_args}"}, "${work}/cone", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {file = "diagnostics.json"}

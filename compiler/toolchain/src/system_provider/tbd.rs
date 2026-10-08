@@ -1,6 +1,9 @@
 use super::*;
 use serde::Deserialize;
+mod directives;
 mod interface;
+pub use directives::PreviousExport;
+pub(super) use directives::StubDirectives;
 pub use interface::{TextStubInterface, read_text_stubs, write_link_stub};
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
@@ -95,7 +98,7 @@ impl Record {
         allow_arm64e: bool,
         exports: &mut BTreeMap<String, NativeExport>,
         pending: &mut Vec<String>,
-    ) -> Result<(), ToolchainError> {
+    ) -> Result<StubDirectives, ToolchainError> {
         let target = ["arm64-macos", "arm64e-macos"]
             .into_iter()
             .find(|target| {
@@ -168,14 +171,15 @@ impl Record {
                 }
             }
         }
+        let mut result = StubDirectives::default();
         for directive in directives {
-            apply_directive(exports, directive, deployment)?;
+            result.apply(exports, directive, deployment)?;
         }
-        Ok(())
+        Ok(result)
     }
 }
 
-fn insert(
+pub(super) fn insert(
     exports: &mut BTreeMap<String, NativeExport>,
     symbol: String,
     kind: NativeExport,
@@ -186,45 +190,6 @@ fn insert(
         return Err(ToolchainError(format!(
             "SDK export {symbol} has conflicting TLS storage"
         )));
-    }
-    Ok(())
-}
-
-fn apply_directive(
-    exports: &mut BTreeMap<String, NativeExport>,
-    directive: &str,
-    deployment: DarwinPackedVersionV1,
-) -> Result<(), ToolchainError> {
-    let mut parts = directive.trim_start_matches("$ld$").splitn(3, '$');
-    let operation = parts.next().unwrap_or_default();
-    let condition = parts.next().unwrap_or_default();
-    let symbol = parts.next().unwrap_or_default();
-    let version = condition
-        .strip_prefix("os")
-        .ok_or_else(|| ToolchainError(format!("invalid SDK linker directive {directive}")))?;
-    let version = crate::c_bridge::parse_darwin_version(version, "SDK linker directive")?;
-    if version.packed() & !0xff != deployment.packed() & !0xff {
-        return Ok(());
-    }
-    match operation {
-        "hide" => {
-            exports.remove(symbol);
-        }
-        "add" | "weak" => {
-            insert(
-                exports,
-                symbol.to_owned(),
-                NativeExport {
-                    kind: SystemExportKind::Symbol,
-                    weak: operation == "weak",
-                },
-            )?;
-        }
-        _ => {
-            return Err(ToolchainError(format!(
-                "SDK requires unhandled linker directive {directive}"
-            )));
-        }
     }
     Ok(())
 }

@@ -1,4 +1,5 @@
 mod safety;
+mod source_calls;
 
 use scoop_ast as ast;
 use scoop_hir as hir;
@@ -21,6 +22,10 @@ fn object(name: &str) -> ast::Decl {
 }
 
 fn lower_fixture(extra_type: bool) -> hir::Output {
+    lower_fixture_with_core(extra_type, core_file())
+}
+
+fn lower_fixture_with_core(extra_type: bool, core: ast::SourceFile) -> hir::Output {
     let mut declarations = vec![
         generic_struct_decl("Box", vec!["T"], vec![("value", ty_named("T"))]),
         class_decl(
@@ -55,7 +60,6 @@ fn lower_fixture(extra_type: bool) -> hir::Output {
         Vec::new(),
     ))
     .unwrap();
-    let core = core_file();
     let input = crate::DefinedTestSources::try_new(
         vec![crate::ProviderSource {
             source: &core,

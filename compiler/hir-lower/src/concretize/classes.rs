@@ -86,6 +86,7 @@ impl Concretizer<'_> {
             | concrete::ClassRepresentation::Intrinsic {
                 application:
                     concrete::IntrinsicTypeRepresentation::Array { .. }
+                    | concrete::IntrinsicTypeRepresentation::Atomic(_)
                     | concrete::IntrinsicTypeRepresentation::MutableArray { .. }
                     | concrete::IntrinsicTypeRepresentation::Nothing,
                 ..

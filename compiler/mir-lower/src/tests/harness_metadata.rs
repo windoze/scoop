@@ -1,6 +1,7 @@
 //! Complete declaration metadata for directly assembled MIR test inputs.
 
 mod finish;
+mod surface;
 
 use super::*;
 use scoop_identity::{

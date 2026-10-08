@@ -9,10 +9,17 @@
 #ifndef SCOOP_RT_H
 #define SCOOP_RT_H
 
+#include "scoop_runtime_metadata_v1.h"
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
-#include "scoop_runtime_metadata_v1.h"
+
+#ifdef __cplusplus
+#define SCOOP_RT_NORETURN [[noreturn]]
+extern "C" {
+#else
+#define SCOOP_RT_NORETURN _Noreturn
+#endif
 
 /* GC scan-program contract (runtime spec 2.2).
  *
@@ -44,22 +51,22 @@
 #define SCOOP_REFS_SEQUENCE (UINT64_MAX - 1)
 
 /* Runtime spec 2.1: 16 bytes. `gc_word` belongs to the GC and currently
- * carries the pin and release-ready bits; mark, exact size and forwarding
- * state live in the arena-external side table. The remaining bits are reserved (hash cache
- * etc.). Only compiler-generated constructor publication may set release-ready.
+ * carries the pin and release-ready flags plus the explicit pin registry index.
+ * Mark, exact size and forwarding state live in the arena-external side table.
+ * Only compiler-generated constructor publication may set release-ready.
  * Source code must not touch it. TypeDescriptor shape determines each
  * aligned payload offset. */
 typedef struct ScoopObjectHeader {
-    const ScoopTypeDescriptor *td;
-    uint64_t gc_word;
+  const ScoopTypeDescriptor *td;
+  uint64_t gc_word;
 } ScoopObjectHeader;
 
 /* Runtime spec 2.4. Codegen emits string literals as global constants in
  * exactly this layout. */
 typedef struct ScoopString {
-    ScoopObjectHeader header;
-    uint64_t len;
-    char data[];
+  ScoopObjectHeader header;
+  uint64_t len;
+  char data[];
 } ScoopString;
 
 /* Runtime spec 2.5 / spec 10.1. Array objects are variable-length:
@@ -68,9 +75,9 @@ typedef struct ScoopString {
  * of value types are unboxed). `elements` names the minimum-alignment
  * offset; codegen computes the actual aligned data offset. */
 typedef struct ScoopArray {
-    ScoopObjectHeader header;
-    uint64_t size;
-    char elements[];
+  ScoopObjectHeader header;
+  uint64_t size;
+  char elements[];
 } ScoopArray;
 
 /* NativeBorrowedEntry for Scoop-ABI C implementations. Generated code uses
@@ -85,7 +92,9 @@ void scoop_rt_gc_write_barrier(const void *destination, size_t bytes);
 
 void scoop_rt_write(const ScoopString *s);
 void scoop_rt_println(const ScoopString *s);
-
+void scoop_rt_stdout_write(const uint8_t *bytes, int64_t length);
+void scoop_rt_stderr_write(const uint8_t *bytes, int64_t length);
+void scoop_rt_flush_stdout(void);
 
 /* Fixed-width primitive conversions used by ordinary core methods. */
 const ScoopString *scoop_rt_long_to_string(int64_t v);
@@ -96,13 +105,15 @@ const ScoopString *scoop_rt_float_to_string(float value);
 const ScoopString *scoop_rt_double_to_string(double value);
 int64_t scoop_rt_string_byte_length(const ScoopString *value);
 int64_t scoop_rt_string_length(const ScoopString *value);
-uint32_t scoop_rt_string_character_at_byte(const ScoopString *value, int64_t index);
+uint32_t scoop_rt_string_character_at_byte(const ScoopString *value,
+                                           int64_t index);
 int8_t scoop_rt_string_byte_at(const ScoopString *value, int64_t index);
 const ScoopString *scoop_rt_string_slice_bytes(const ScoopString *value,
                                                int64_t start, int64_t end);
 const ScoopString *scoop_rt_string_from_chars(const ScoopArray *value);
 const ScoopString *scoop_rt_string_from_bytes(const ScoopArray *value);
-const ScoopString *scoop_rt_string_join_parts(const ScoopArray *storage, int64_t part_count);
+const ScoopString *scoop_rt_string_join_parts(const ScoopArray *storage,
+                                              int64_t part_count);
 bool scoop_rt_bool_equals(bool left, bool right);
 int64_t scoop_rt_long_hash(int64_t v);
 int64_t scoop_rt_ulong_hash(uint64_t v);
@@ -117,13 +128,13 @@ void scoop_rt_println_long(int64_t value);
 void scoop_rt_print_boolean(bool value);
 void scoop_rt_println_boolean(bool value);
 
-/* M3 addition (DESIGN section 3.1): fatal trap for `!!` on `None`.
- * Writes the message to stderr and aborts; replaced by a real
- * UnwrapException throw in M8. */
-_Noreturn void scoop_rt_trap(const char *message);
+/* Language termination flushes stdio in NativeSafe before ending the process.
+ * Nothing retains its reference carrier; this function never returns it. */
+SCOOP_RT_NORETURN void *scoop_rt_exit(int32_t code);
+SCOOP_RT_NORETURN void scoop_rt_trap(const char *message);
 
 /* Checked core collection growth cannot represent another Long element. */
-_Noreturn void scoop_rt_allocation_overflow(void);
+SCOOP_RT_NORETURN void scoop_rt_allocation_overflow(void);
 
 /* M6 additions (milestone6 DESIGN section 3): dispatch support. */
 
@@ -156,9 +167,9 @@ void scoop_rt_detach_foreign_thread(void);
  * every such runtime entry. Frames are thread-local and strictly LIFO;
  * push/pop themselves never allocate or trigger GC. */
 typedef struct ScoopNativeRootFrame {
-    struct ScoopNativeRootFrame *previous;
-    void ***slots; /* array of addresses of managed-reference slots */
-    uint64_t count;
+  struct ScoopNativeRootFrame *previous;
+  void ***slots; /* array of addresses of managed-reference slots */
+  uint64_t count;
 } ScoopNativeRootFrame;
 
 /* Addressable inline values held by managed runtime or Scoop-ABI native C
@@ -166,14 +177,14 @@ typedef struct ScoopNativeRootFrame {
  * `base`; unlike object TypeDescriptor scans, it contains no implicit object
  * header offset. */
 typedef struct ScoopNativeRegionRootEntry {
-    void *base;
-    const uint64_t *scan;
+  void *base;
+  const uint64_t *scan;
 } ScoopNativeRegionRootEntry;
 
 typedef struct ScoopNativeRegionRootFrame {
-    struct ScoopNativeRegionRootFrame *previous;
-    ScoopNativeRegionRootEntry *entries;
-    uint64_t count;
+  struct ScoopNativeRegionRootFrame *previous;
+  ScoopNativeRegionRootEntry *entries;
+  uint64_t count;
 } ScoopNativeRegionRootFrame;
 
 void scoop_rt_push_native_roots(ScoopNativeRootFrame *frame, void ***slots,
@@ -184,9 +195,9 @@ void scoop_rt_push_native_region_roots(ScoopNativeRegionRootFrame *frame,
                                        uint64_t count);
 void scoop_rt_pop_native_region_roots(ScoopNativeRegionRootFrame *frame);
 
-/* pin / unpin (runtime spec 3.4): O(1) object-header flag mirrored in side
- * metadata, with no handle-table indirection. Returns the stable object
- * address. Pinning is not ref-counted: one unpin clears any number of pins. */
+/* pin / unpin (runtime spec 3.4): amortized O(1) pin and O(1) unpin, with
+ * one counted registration per object. Each pin needs a matching unpin.
+ * Both return the object address; copying a pointer adds no ownership. */
 const void *scoop_rt_pin(const void *obj);
 const void *scoop_rt_unpin(const void *obj);
 
@@ -207,24 +218,23 @@ typedef uint64_t (*ScoopForeignCallbackAdapter)(
     const void *const *argument_storage, void **exception_out);
 
 enum {
-    SCOOP_FOREIGN_CALLBACK_REUSABLE = 0,
-    SCOOP_FOREIGN_CALLBACK_ONE_SHOT = 1,
+  SCOOP_FOREIGN_CALLBACK_REUSABLE = 0,
+  SCOOP_FOREIGN_CALLBACK_ONE_SHOT = 1,
 };
 
 enum {
-    SCOOP_FOREIGN_CALLBACK_REGISTERED = 0,
-    SCOOP_FOREIGN_CALLBACK_ACTIVE = 1,
-    SCOOP_FOREIGN_CALLBACK_COMPLETED = 2,
-    SCOOP_FOREIGN_CALLBACK_FAILED = 3,
+  SCOOP_FOREIGN_CALLBACK_REGISTERED = 0,
+  SCOOP_FOREIGN_CALLBACK_ACTIVE = 1,
+  SCOOP_FOREIGN_CALLBACK_COMPLETED = 2,
+  SCOOP_FOREIGN_CALLBACK_FAILED = 3,
 };
 
 enum {
-    SCOOP_FOREIGN_CALLBACK_RETURNED = 0,
-    SCOOP_FOREIGN_CALLBACK_THREW = 1,
+  SCOOP_FOREIGN_CALLBACK_RETURNED = 0,
+  SCOOP_FOREIGN_CALLBACK_THREW = 1,
 };
 
 void scoop_callback_runtime_init(void);
-void scoop_callback_prepare_shutdown(void);
 void *scoop_runtime_callback_register(const void *closure,
                                       ScoopForeignCallbackAdapter adapter,
                                       const void *signature_descriptor,
@@ -233,9 +243,10 @@ void *scoop_runtime_callback_retain(void *context);
 void scoop_runtime_callback_release(void *context);
 uint32_t scoop_runtime_callback_state(void *context);
 const void *scoop_runtime_callback_failure(void *context);
-uint32_t scoop_runtime_callback_invoke(
-    void *context, const void *signature_descriptor, void *result_storage,
-    const void *const *argument_storage);
+uint32_t scoop_runtime_callback_invoke(void *context,
+                                       const void *signature_descriptor,
+                                       void *result_storage,
+                                       const void *const *argument_storage);
 uint64_t scoop_runtime_callback_debug_live_count(void);
 uint64_t scoop_runtime_callback_debug_owner_count(void *context);
 uint64_t scoop_runtime_callback_debug_active_count(void *context);
@@ -252,19 +263,19 @@ void scoop_runtime_gc_collect(void);
 uint64_t scoop_rt_gc_stats(void);
 
 typedef struct ScoopGcMetrics {
-    uint64_t minor_collections;
-    uint64_t full_collections;
-    uint64_t promotion_fallbacks;
-    uint64_t allocated_bytes;
-    uint64_t nursery_allocated_bytes;
-    uint64_t promoted_bytes;
-    uint64_t dirty_cards;
-    uint64_t old_reference_slots;
-    uint64_t root_slots;
-    uint64_t traced_objects;
-    uint64_t pause_ns;
-    uint64_t maximum_pause_ns;
-    uint64_t heap_committed_bytes;
+  uint64_t minor_collections;
+  uint64_t full_collections;
+  uint64_t promotion_fallbacks;
+  uint64_t allocated_bytes;
+  uint64_t nursery_allocated_bytes;
+  uint64_t promoted_bytes;
+  uint64_t dirty_cards;
+  uint64_t old_reference_slots;
+  uint64_t root_slots;
+  uint64_t traced_objects;
+  uint64_t pause_ns;
+  uint64_t maximum_pause_ns;
+  uint64_t heap_committed_bytes;
 } ScoopGcMetrics;
 
 /* Diagnostic snapshot; counters never control program validity. */
@@ -291,12 +302,12 @@ uint64_t scoop_rt_gc_debug_native_root_count(void);
 /* M13 thread-registry test hooks. Stack bounds are the current attached
  * pthread's inclusive-low/exclusive-high reserved stack range. */
 enum {
-    SCOOP_THREAD_DEBUG_NATIVE_SAFE = 0,
-    SCOOP_THREAD_DEBUG_MANAGED = 1,
-    SCOOP_THREAD_DEBUG_NATIVE_BORROWED = 2,
-    SCOOP_THREAD_DEBUG_PARKED = 3,
-    SCOOP_THREAD_DEBUG_COLLECTOR = 4,
-    SCOOP_THREAD_DEBUG_DETACHING = 5,
+  SCOOP_THREAD_DEBUG_NATIVE_SAFE = 0,
+  SCOOP_THREAD_DEBUG_MANAGED = 1,
+  SCOOP_THREAD_DEBUG_NATIVE_BORROWED = 2,
+  SCOOP_THREAD_DEBUG_PARKED = 3,
+  SCOOP_THREAD_DEBUG_COLLECTOR = 4,
+  SCOOP_THREAD_DEBUG_DETACHING = 5,
 };
 
 bool scoop_rt_thread_debug_is_attached(void);
@@ -312,5 +323,15 @@ uint64_t scoop_rt_thread_debug_last_gc_native_safe_count(void);
 uint64_t scoop_rt_thread_debug_caller_root_count(void);
 uint64_t scoop_rt_thread_debug_compiler_root_count(void);
 uint64_t scoop_rt_thread_debug_transition_depth(void);
+
+/* Read-only raw process arguments, available during eager initialization. */
+int32_t scoop_rt_program_argc(void);
+const char *scoop_rt_program_argv(int32_t index);
+
+#undef SCOOP_RT_NORETURN
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* SCOOP_RT_H */

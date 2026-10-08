@@ -2,7 +2,7 @@
 
 use super::*;
 use crate::{CanonicalNativeExternalContractCodeSetV1, SingleConeProductionCodeProjectionV1};
-use scoop_lir::CanonicalNativeLibraryRequirementV1;
+use scoop_lir::CanonicalNativeExternalRequirementSurfaceV1;
 
 impl DecodedSingleConeProductionManifestV1 {
     pub(crate) fn replay_code_projection(
@@ -10,7 +10,7 @@ impl DecodedSingleConeProductionManifestV1 {
         production: &SingleConeProductionCodeProjectionV1,
         code: CodeFingerprint,
         contracts: &CanonicalNativeExternalContractCodeSetV1,
-        libraries: &[CanonicalNativeLibraryRequirementV1],
+        native: &CanonicalNativeExternalRequirementSurfaceV1,
     ) -> Result<(), CodeProductionProjectionError> {
         same(&self.distribution, &production.distribution(), 1)?;
         same(&self.output, production.output(), 2)?;
@@ -18,10 +18,13 @@ impl DecodedSingleConeProductionManifestV1 {
         same(&self.native_contracts, contracts, 8)?;
         same(
             &Array(&self.native_library_requirements),
-            &Array(libraries),
+            &Array(native.library_requirements()),
             9,
         )?;
         same(&self.optimization, &production.optimization(), 12)?;
+        if self.native_cxx != native.cxx() {
+            return Err(CodeProductionProjectionError::FieldMismatch { field: 13 });
+        }
         self.odr_members
             .validate_against(production.odr_members())
             .map_err(CodeProductionProjectionError::OdrMembers)

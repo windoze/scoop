@@ -73,8 +73,11 @@ Module
   interface Maker<String>
   interface ToString
   interface Hash
+  interface Equality<Int>
+  interface Equality<Char>
   interface Iterable<Char>
   interface Iterator<Char>
+  interface Equality<String>
   interface Continuation<Box.Nested>
   interface SuspendTask<Box.Nested>
   interface SuspendRegistration<Box.Nested>

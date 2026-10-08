@@ -1,0 +1,7 @@
+schema = 1
+
+[cone]
+group = "dev.m33"
+name = "atomic-concurrency"
+version = "0.1.0"
+kind = "executable"

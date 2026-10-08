@@ -57,12 +57,15 @@ impl ValidatedRuntimeBuildProfile {
 
 const COMMON: &[&str] = &[
     "runtime/src/rt.c",
+    "runtime/src/io.c",
+    "runtime/src/process.c",
     "runtime/src/characters.c",
     "runtime/src/floating.c",
     "runtime/src/floating_parse.c",
     "runtime/third_party/ryu/ryu/f2s.c",
     "runtime/third_party/ryu/ryu/d2s.c",
     "runtime/src/strings.c",
+    "runtime/src/string_decode.c",
     "runtime/src/string_parts.c",
     "runtime/src/utf8.c",
     "runtime/src/startup.c",

@@ -200,6 +200,8 @@ fn manifest_cache_inputs(
             coordinate: snapshot.coordinate.clone(),
             requested_kind,
             dependencies,
+            sources: snapshot.manifest_semantic.sources().clone(),
+            native: Box::new(snapshot.native.clone()),
         },
         source_inputs(snapshot.sources()),
     ))

@@ -112,37 +112,8 @@ impl WireEncode for ExactCallableSignature {
     }
 }
 
-/// Closed ordinary `() -> Unit` source signature used by an executable root.
-#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct ExactOrdinaryNoArgUnitSignature(ExactCallableSignature);
-
-impl ExactOrdinaryNoArgUnitSignature {
-    pub fn new(unit: PersistentExactTypeId) -> Self {
-        Self(ExactCallableSignature::new(
-            Effect::Ordinary,
-            None,
-            Vec::new(),
-            unit,
-        ))
-    }
-
-    pub const fn unit(&self) -> PersistentExactTypeId {
-        self.0.result()
-    }
-
-    pub const fn as_exact(&self) -> &ExactCallableSignature {
-        &self.0
-    }
-}
-
-impl WireEncode for ExactOrdinaryNoArgUnitSignature {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        self.0.encode(encoder)
-    }
-}
-
 impl SourceSignatureFingerprint {
-    pub fn from_signature(signature: &ExactOrdinaryNoArgUnitSignature) -> Result<Self, HashError> {
+    pub fn from_signature(signature: &ExactCallableSignature) -> Result<Self, HashError> {
         derive_persistent_id("scoop-source-signature-v1", signature)
     }
 }
@@ -151,7 +122,7 @@ impl SourceSignatureFingerprint {
 mod tests {
     use scoop_wire::encode;
 
-    use super::{ExactCallableSignature, ExactOrdinaryNoArgUnitSignature};
+    use super::ExactCallableSignature;
     use crate::{ConeIdentity, Effect, PersistentExactTypeId, SourceSignatureFingerprint};
 
     #[test]
@@ -167,7 +138,8 @@ mod tests {
     #[test]
     fn executable_source_signature_has_fixed_wire_and_fingerprint() {
         let unit = PersistentExactTypeId(ConeIdentity::CORE.0);
-        let signature = ExactOrdinaryNoArgUnitSignature::new(unit);
+        let signature =
+            ExactCallableSignature::new(crate::Effect::Ordinary, None, Vec::new(), unit);
         assert_eq!(
             hex(&encode(&signature).unwrap()),
             format!("a4010102a100010380045820{unit}")

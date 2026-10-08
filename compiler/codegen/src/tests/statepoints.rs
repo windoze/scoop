@@ -138,13 +138,17 @@ fn typed_no_gc_effect_keeps_the_call_outside_statepoints() {
 fn native_calls_publish_roots_transition_and_reload() {
     let mut extern_functions = scoop_lir::ExternFunctions::default();
     let c_call = extern_functions.alloc_c(scoop_lir::CExternFunction {
+        call_mode: scoop_identity::CAbiCallMode::NativeSafe,
         identity: scoop_lir::ExternFunctionIdentity {
             source_name: "wait".to_string(),
             native_symbol: "native_wait".to_string(),
             library: "fixture".to_string(),
             calling_convention: scoop_lir::CallingConvention::Cdecl,
         },
-        bridge: outbound_bridge(1),
+        call_plan: scoop_lir::CAbiCallPlan::StorageBridge {
+            entry: Box::new(outbound_bridge(1)),
+            result: scoop_identity::CResultAdaptation::Direct,
+        },
         signature: scoop_lir::CFunctionType {
             params: Vec::new(),
             return_type: scoop_lir::CReturnType::Void,
@@ -166,7 +170,7 @@ fn native_calls_publish_roots_transition_and_reload() {
         &mut safe_targets,
         TestCallProtocol::NativeSafe {
             safepoint: 1,
-            destination: scoop_lir::NativeSafeCallDestination::extern_function(c_call),
+            destination: scoop_lir::CCallDestination::extern_function(c_call),
         },
         Vec::new(),
         Vec::new(),
@@ -313,13 +317,13 @@ fn continuation_state_atomics_keep_their_llvm_orderings() {
     let entry = blocks.alloc(BasicBlock {
         name: "entry".to_string(),
         instructions: vec![
-            Instruction::AtomicLoad {
+            Instruction::MachineAtomicLoad {
                 out: loaded,
                 kind: MachineScalarKind::CoroutineAdapterState,
                 object: Value::Param(0),
                 offset: 16,
             },
-            Instruction::AtomicStore {
+            Instruction::MachineAtomicStore {
                 kind: MachineScalarKind::CoroutineAdapterState,
                 object: Value::Param(0),
                 offset: 16,
@@ -327,7 +331,7 @@ fn continuation_state_atomics_keep_their_llvm_orderings() {
                     CoroutineAdapterState::CompletingSuccess,
                 )),
             },
-            Instruction::AtomicCompareExchange {
+            Instruction::MachineAtomicCompareExchange {
                 out: observed,
                 kind: MachineScalarKind::CoroutineAdapterState,
                 object: Value::Param(0),
@@ -388,7 +392,7 @@ fn continuation_state_atomics_keep_their_llvm_orderings() {
     );
 
     {
-        let Instruction::AtomicLoad { offset, .. } =
+        let Instruction::MachineAtomicLoad { offset, .. } =
             &mut module.functions[0].blocks[entry].instructions[0]
         else {
             unreachable!("test fixture starts with an atomic load")
@@ -402,7 +406,7 @@ fn continuation_state_atomics_keep_their_llvm_orderings() {
     assert!(error.0.contains("not an aligned object field"), "{error}");
 
     {
-        let Instruction::AtomicLoad { offset, kind, .. } =
+        let Instruction::MachineAtomicLoad { offset, kind, .. } =
             &mut module.functions[0].blocks[entry].instructions[0]
         else {
             unreachable!("test fixture starts with an atomic load")

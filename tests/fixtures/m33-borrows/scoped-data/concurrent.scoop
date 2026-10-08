@@ -1,0 +1,48 @@
+@Extern(lib = "fixture_native", name = "m13_run_many")
+fun runMany(callback: FunPtr<(Int, Ptr<Unit>) -> Int>, context: Ptr<Unit>, base: Int, count: Int): Int
+
+fun expect(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+fun main() {
+    val shared = MutableArray<Int>(33L) { index -> index.toInt32() + 91 }
+    @Unsafe {
+        shared.withDataPointer() { outer: Ptr<Int>, length: Long ->
+            @Unsafe {
+                val address = outer.toULong()
+                val callback = foreignCallback<(Int, Ptr<Unit>) -> Int>(
+                    { value: Int ->
+                        var round = 0
+                        while (round < 16) {
+                            @Unsafe {
+                                shared.withDataPointer() { pointer: Ptr<Int>, count: Long ->
+                                    @Unsafe {
+                                        expect(count == length && pointer.toULong() == address)
+                                        gcCollect()
+                                        shared.withDataPointer() { nested: Ptr<Int>, _: Long ->
+                                            @Unsafe {
+                                                gcCollect()
+                                                expect(nested.load(32L) == 123)
+                                            }
+                                        }
+                                        gcCollect()
+                                        expect(pointer.load() == 91)
+                                    }
+                                }
+                            }
+                            round += 1
+                        }
+                        value
+                    }, 1, ForeignCallbackMode.Reusable
+                )
+                expect(runMany(callback.function, callback.context, 10, 4) == 46)
+                expect(when (foreignCallbackFailure(callback)) { Some(_) -> false; None -> true })
+                releaseForeignCallback(callback)
+                gcCollect()
+                expect(outer.toULong() == address && outer.load() == 91)
+            }
+        }
+    }
+    gcCollect()
+    expect(shared[32L] == 123)
+    println("scoped-data-concurrent-ok")
+}

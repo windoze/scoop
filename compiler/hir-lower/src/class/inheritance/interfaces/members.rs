@@ -274,10 +274,32 @@ impl Lowerer {
         a: &InterfaceSignature,
         b: &InterfaceSignature,
     ) -> bool {
+        self.interface_signature_matches(a, b, a.gc_effect == b.gc_effect)
+    }
+
+    pub(in crate::class) fn implementation_satisfies_interface_signature(
+        &self,
+        owner: Owner,
+        implementation: &InterfaceSignature,
+        slot: &InterfaceSignature,
+    ) -> bool {
+        let gc_compatible = implementation.gc_effect == slot.gc_effect
+            || (matches!(owner, Owner::Struct(_) | Owner::Enum(_))
+                && implementation.gc_effect == scoop_identity::GcEffect::NoGc
+                && slot.gc_effect == scoop_identity::GcEffect::Managed);
+        self.interface_signature_matches(implementation, slot, gc_compatible)
+    }
+
+    fn interface_signature_matches(
+        &self,
+        a: &InterfaceSignature,
+        b: &InterfaceSignature,
+        gc_compatible: bool,
+    ) -> bool {
         self.same_interface_signature_shape(a, b)
             && a.is_suspend == b.is_suspend
             && a.safety == b.safety
-            && a.gc_effect == b.gc_effect
+            && gc_compatible
             && a.operator == b.operator
             && a.infix == b.infix
     }

@@ -69,4 +69,6 @@ Module
     call managed-void-target0 sp<managed-call:6> live=[local16:ptr<managed>@0] sig=void0 (ptr<managed>, i64) external-fn2(local16, local13)
     t13 = aggregate () : {}
     ret local16
+  td td0 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Equality);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$6fb0bdfcaef72d458561b350a56fb80e86e68f4c020173148c7fe1ec239ea687 type-id=940003777485400453 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
+  layout Equality value size=8 align=8 refs=[0]
   output library

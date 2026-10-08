@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOP_BUILD_FAILED",
+    "message": "invalid build root: invalid Cone manifest root ${work}/cone/Cone.toml: invalid source path \"../escape\": path must not escape the Cone root",
+    "notes": [],
+    "origin": {
+      "end": 41,
+      "kind": "host",
+      "path": "${work}/cone/Cone.toml",
+      "start": 30
+    },
+    "phase": "Root",
+    "severity": "error"
+  }
+]

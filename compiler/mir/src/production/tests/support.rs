@@ -32,7 +32,12 @@ pub(super) fn entry_source(
 ) -> ExecutableSourceEntryIdentity {
     ExecutableSourceEntryIdentity::try_new(
         declaration,
-        ExactOrdinaryNoArgUnitSignature::new(exact_unit),
+        ExactCallableSignature::new(
+            scoop_identity::Effect::Ordinary,
+            None,
+            Vec::new(),
+            exact_unit,
+        ),
     )
     .unwrap()
 }

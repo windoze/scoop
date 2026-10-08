@@ -1,0 +1,4 @@
+package fixture.platform
+
+private fun part(): Int = 21
+fun platformValue(): Int = part()

@@ -304,18 +304,8 @@ impl Lowerer {
         {
             return false;
         }
-        let left_arguments = match &left.owner {
-            crate::CallableCandidateOwner::Method(owner) => {
-                self.method_owner_arguments(*owner).to_vec()
-            }
-            crate::CallableCandidateOwner::Function { owner_arguments } => owner_arguments.clone(),
-        };
-        let right_arguments = match &right.owner {
-            crate::CallableCandidateOwner::Method(owner) => {
-                self.method_owner_arguments(*owner).to_vec()
-            }
-            crate::CallableCandidateOwner::Function { owner_arguments } => owner_arguments.clone(),
-        };
+        let left_arguments = self.callable_candidate_owner_arguments(left);
+        let right_arguments = self.callable_candidate_owner_arguments(right);
         let canonical_method_parameters = match &self.functions[left.function].genericity {
             hir::FunctionGenericity::GenericMethod {
                 method_parameters, ..

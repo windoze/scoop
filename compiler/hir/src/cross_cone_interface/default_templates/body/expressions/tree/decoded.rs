@@ -185,6 +185,8 @@ enum DecodedDefaultExpressionKindV1 {
     },
     ArrayLen(Box<DecodedDefaultExpressionV1>),
     ArrayClone(Box<DecodedDefaultExpressionV1>),
+    AtomicNew(Box<DecodedDefaultExpressionV1>),
+    Atomic(Box<crate::AtomicExpression<DecodedDefaultExpressionV1>>),
     Call {
         callee: DecodedDefaultCallableRefV1,
         arguments: Vec<DecodedDefaultExpressionV1>,

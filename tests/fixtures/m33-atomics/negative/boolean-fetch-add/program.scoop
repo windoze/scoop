@@ -1,0 +1,2 @@
+fun bad(cell: AtomicBoolean): Boolean = cell.fetchAdd(true)
+fun main() {}

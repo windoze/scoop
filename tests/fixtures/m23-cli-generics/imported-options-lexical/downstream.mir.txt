@@ -28,6 +28,7 @@ Module
   class box<Option<Later>> vtable=0 itables=0
   interface ToString
   interface Hash
+  interface Equality<Int>
   interface Continuation<Later>
   interface SuspendTask<Later>
   interface SuspendRegistration<Later>

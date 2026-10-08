@@ -348,6 +348,12 @@ fn call_uses(call: &mir::Call, uses: &mut HashSet<mir::LocalId>) {
 
 fn expr_uses(expr: &mir::Expr, uses: &mut HashSet<mir::LocalId>) {
     match &expr.kind {
+        mir::ExprKind::Atomic(atomic) => {
+            for operand in atomic.operands() {
+                expr_uses(operand, uses);
+            }
+        }
+        mir::ExprKind::DataBorrow(operation) => expr_uses(&operation.operand, uses),
         mir::ExprKind::Context(operation) => {
             if let Some(operand) = operation.operand() {
                 expr_uses(operand, uses);
@@ -408,6 +414,7 @@ fn expr_uses(expr: &mir::Expr, uses: &mut HashSet<mir::LocalId>) {
         | mir::ExprKind::ArrayAllocate { count: operand, .. }
         | mir::ExprKind::ArrayLen { operand, .. }
         | mir::ExprKind::ArrayClone { operand, .. }
+        | mir::ExprKind::AtomicNew(operand)
         | mir::ExprKind::PtrFromNonZeroULong { operand, .. }
         | mir::ExprKind::CharCode(operand)
         | mir::ExprKind::CharFromCodeUnchecked(operand)

@@ -10,7 +10,10 @@ use support::{Fixture, binders, replace_signature};
 fn every_shared_intrinsic_uses_typed_roles_for_core_and_ordinary_providers() {
     for origin in [ConeIdentity::CORE, test_support::ordinary_origin()] {
         let fixture = Fixture::new(origin);
-        for kind in intrinsic_function_kinds() {
+        for kind in intrinsic_function_kinds()
+            .into_iter()
+            .filter(|kind| !matches!(kind, crate::IntrinsicFunctionKind::Atomic(_)))
+        {
             let (source, record) = fixture.callable(kind);
             assert_eq!(
                 fixture

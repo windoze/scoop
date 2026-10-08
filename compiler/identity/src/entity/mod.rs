@@ -1,6 +1,7 @@
 mod binding;
 mod bridge;
 mod c_abi;
+mod c_call;
 mod callable;
 mod callable_body;
 mod callable_definition;
@@ -32,6 +33,8 @@ mod source_abi;
 mod source_declaration;
 mod source_origin;
 mod structural;
+
+pub use c_call::{CAbiCallMode, CResultAdaptation, ExternResult};
 
 pub use binding::{
     BindableEntity, BindingIdentityResolutionError, BindingNamespace, BindingResolver, BindingRole,
@@ -98,7 +101,7 @@ pub use enum_variant::{
 };
 pub use exact_signature::{
     DecodedExactCallableSignature, DecodedOptionalExactOwner, ExactCallableSignature,
-    ExactCallableSignatureResolutionError, ExactOrdinaryNoArgUnitSignature, OptionalExactOwner,
+    ExactCallableSignatureResolutionError, OptionalExactOwner,
 };
 pub use field::{
     DecodedFieldIdentityKey, DecodedGeneratedFieldKey, DecodedSourceFieldKey, FieldIdentityError,

@@ -99,6 +99,8 @@ Module
   interface UnkeyedDecodingContainer
   interface SingleValueDecodingContainer
   interface ToString
+  interface Equality<Float>
+  interface Equality<Double>
   interface List<Option<String>> : Iterable<Option<String>>
   interface Iterable<Option<String>>
   interface Iterator<Option<String>>
@@ -113,6 +115,7 @@ Module
   interface Iterator<Int>
   interface Decodable<Item<Int>>
   interface Hash
+  interface Equality<Int>
   interface Decodable<(Int, Array<Int>)>
   interface List<Option<JsonMember>> : Iterable<Option<JsonMember>>
   interface Iterable<Option<JsonMember>>
@@ -128,8 +131,10 @@ Module
   interface List<JsonValue> : Iterable<JsonValue>
   interface Iterable<JsonValue>
   interface Iterator<JsonValue>
+  interface Equality<Char>
   interface Iterator<Char>
   interface Iterable<Char>
+  interface Equality<String>
   interface Decodable<Array<Int>>
   interface List<Option<Int>> : Iterable<Option<Int>>
   interface Iterable<Option<Int>>

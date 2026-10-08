@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "function `value` is already declared with the same signature",
+    "notes": [],
+    "origin": {
+      "cone": "c832a174ae4f2753bf8d566a7b7339a6c7d33a1a750cabb3db52ca878b5a5002",
+      "end": 9,
+      "kind": "source",
+      "path": "src/nested/a.scoop",
+      "start": 4
+    },
+    "severity": "error"
+  }
+]

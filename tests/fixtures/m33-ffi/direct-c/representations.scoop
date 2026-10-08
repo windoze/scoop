@@ -1,0 +1,60 @@
+class Cell(val value: Int)
+
+@CLayout struct Item(val value: Int, val extra: Double)
+@GCLeaf @Extern(lib = "fixture_native", name = "m33_word") fun pinWord(value: PinnedPtr<Cell>): PinnedPtr<Cell>
+@Extern(lib = "fixture_native", name = "m33_handle_word") fun handleWord(value: GcHandle<Cell>): GcHandle<Cell>
+@GCLeaf @Extern(lib = "fixture_native", name = "m33_char") fun character(value: Char): Char
+@GCLeaf @Extern(lib = "fixture_native", name = "m33_pointer") fun pointer(value: Ptr<Int>?): Ptr<Int>?
+@Extern(lib = "fixture_native", name = "m33_safe_pointer") fun safePointer(value: Ptr<Int>): Ptr<Int>
+@GCLeaf @Extern(lib = "fixture_native", name = "m33_item_pointer") fun itemPointer(value: Ptr<Item>): Ptr<Item>
+@GCLeaf @Extern(lib = "fixture_native", name = "m33_function") fun function(): FunPtr<(Int) -> Int>
+@GCLeaf @Extern(lib = "fixture_native", name = "m33_optional_function")
+fun optionalFunction(value: FunPtr<(Int) -> Int>?): FunPtr<(Int) -> Int>?
+@GCLeaf @Extern(lib = "fixture_native", name = "m33_invoke")
+fun invoke(value: FunPtr<(Int) -> Int>, argument: Int): Int
+@GCLeaf @Extern(lib = "fixture_native", name = "m33_record") fun leafRecord(value: Int)
+@Extern(lib = "fixture_native", name = "m33_record") fun safeRecord(value: Int)
+@GCLeaf @Extern(lib = "fixture_native", name = "m33_recorded") fun recorded(): Int
+
+class Owner(private val value: Int) {
+    release { @Unsafe { leafRecord(value); safeRecord(value) } }
+}
+
+fun releaseValues() { val owner = Owner(3) }
+fun expect(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+fun main() {
+    @Unsafe {
+        val cell = Cell(91)
+        val pinned = pin(cell)
+        val samePin = pinWord(pinned)
+        expect(samePin.raw == pinned.raw)
+        gcCollect()
+        expect(unpin(samePin) === cell)
+        val handle = getGcHandle(cell)
+        val sameHandle = handleWord(handle)
+        expect(sameHandle.raw == handle.raw)
+        gcCollect()
+        expect(releaseGcHandle(sameHandle) === cell)
+        expect(character('界') == '界')
+        expect(when (pointer(None)) { Some(value) -> false; None -> true })
+        var number = 7
+        val raw = addressOf(number)
+        expect(pointer(Some(raw))!!.load() == 7)
+        safePointer(raw).store(19)
+        expect(number == 19)
+        var item = Item(5, 1.25)
+        val returned = itemPointer(addressOf(item)).load()
+        expect(returned.value == 5 && returned.extra == 1.25)
+        expect(when (optionalFunction(None)) { Some(value) -> false; None -> true })
+        val callback = function()
+        expect(invoke(optionalFunction(Some(callback))!!, 7) == 22)
+        leafRecord(1)
+        safeRecord(2)
+        releaseValues()
+        gcCollect()
+        gcCollect()
+        expect(recorded() == 9)
+    }
+    println("direct-c-representations-ok")
+}

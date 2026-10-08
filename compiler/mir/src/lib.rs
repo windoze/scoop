@@ -11,7 +11,8 @@
 //! cannot contain a call.
 
 pub use scoop_identity::{
-    FloatBinaryOperator, FloatConstant as MirFloatConstant, FloatKind, FloatUnaryOperator,
+    AtomicExpression, AtomicOperation, CAbiCallMode, FloatBinaryOperator,
+    FloatConstant as MirFloatConstant, FloatKind, FloatUnaryOperator,
 };
 
 use la_arena::{Arena, Idx};
@@ -28,6 +29,9 @@ pub use ids::*;
 
 mod integer;
 pub use integer::*;
+
+mod data_borrow;
+pub use data_borrow::*;
 
 mod types;
 pub use types::*;

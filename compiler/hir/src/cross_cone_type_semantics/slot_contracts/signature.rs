@@ -33,7 +33,8 @@ impl InheritanceCallableSignatureV1 {
         }
         if matches!(
             effects.implementation(),
-            CallableImplementationV1::SourceExternScoop | CallableImplementationV1::SourceExternC
+            CallableImplementationV1::SourceExternScoop
+                | CallableImplementationV1::SourceExternC(..)
         ) {
             return Err(InheritanceCallableSignatureBuildError::SourceExtern);
         }
@@ -61,12 +62,15 @@ impl InheritanceCallableSignatureV1 {
             .expect("inheritance signatures are constructed with a receiver")
     }
 
-    pub fn matches_slot(&self, slot: &Self) -> bool {
+    pub fn matches_slot(&self, slot: &Self, role: crate::InheritanceSlotSchemaRoleV1) -> bool {
         self.exact_signature.parameters() == slot.exact_signature.parameters()
             && self.exact_signature.result() == slot.exact_signature.result()
             && self.effects.execution() == slot.effects.execution()
             && self.effects.safety() == slot.effects.safety()
-            && self.effects.gc_effect() == slot.effects.gc_effect()
+            && (self.effects.gc_effect() == slot.effects.gc_effect()
+                || (matches!(role, crate::InheritanceSlotSchemaRoleV1::Interface { .. })
+                    && self.effects.gc_effect() == scoop_identity::GcEffect::NoGc
+                    && slot.effects.gc_effect() == scoop_identity::GcEffect::Managed))
             && self.effects.operator_role() == slot.effects.operator_role()
             && self.effects.infix() == slot.effects.infix()
             && self.context_keys == slot.context_keys

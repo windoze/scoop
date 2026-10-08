@@ -346,6 +346,7 @@ impl Expr {
 #[derive(Debug, Clone)]
 pub(crate) enum ExprKind {
     Context(mir::ContextOperation<Expr>),
+    DataBorrow(mir::DataBorrowOperation<Expr>),
     StringConst(mir::StringConstId),
     IntegerLiteral(mir::MirIntegerConstant),
     MachineScalarLiteral(mir::MachineScalarValue),
@@ -491,6 +492,8 @@ pub(crate) enum ExprKind {
         target_type: mir::ClassId,
         operand: Box<Expr>,
     },
+    AtomicNew(Box<Expr>),
+    Atomic(Box<mir::AtomicExpression<Expr>>),
     Binary {
         op: mir::BinOp,
         lhs: Box<Expr>,

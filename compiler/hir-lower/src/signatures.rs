@@ -465,7 +465,8 @@ impl Lowerer {
             let signature = &self.signatures[&id];
             self.extern_functions[extern_id].params =
                 signature.params.iter().map(|param| param.ty).collect();
-            self.extern_functions[extern_id].return_type = return_ty;
+            self.extern_functions[extern_id].result =
+                scoop_identity::ExternResult::Direct(return_ty);
         }
     }
 }

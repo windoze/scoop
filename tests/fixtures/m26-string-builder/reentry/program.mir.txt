@@ -49,8 +49,11 @@ Module
   interface Iterable<Long>
   interface Iterator<Long>
   interface Hash
+  interface Equality<Char>
   interface Iterable<Char>
   interface Iterator<Char>
+  interface Equality<String>
+  interface Equality<Int>
   interface Continuation<Reentrant>
   interface SuspendTask<Reentrant>
   interface SuspendRegistration<Reentrant>

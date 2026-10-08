@@ -28,8 +28,11 @@ Module
   class box<Choice<Int>> vtable=0 itables=0
   interface ToString
   interface Hash
+  interface Equality<Int>
+  interface Equality<Char>
   interface Iterable<Char>
   interface Iterator<Char>
+  interface Equality<String>
   interface Continuation<Container.Tag>
   interface SuspendTask<Container.Tag>
   interface SuspendRegistration<Container.Tag>

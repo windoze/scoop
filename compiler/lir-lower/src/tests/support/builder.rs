@@ -127,7 +127,7 @@ impl Builder {
             calling_convention: mir::CallingConvention::Cdecl,
             gc_effect: mir::GcEffect::Managed,
             params,
-            return_type,
+            result: scoop_identity::ExternResult::Direct(return_type),
         })
     }
 
@@ -142,16 +142,16 @@ impl Builder {
             source_contract: test_source_native_contract(
                 source_name,
                 native_symbol,
-                mir::ExternAbi::C,
+                mir::ExternAbi::C(scoop_identity::CAbiCallMode::NativeSafe),
             ),
             source_name: source_name.to_string(),
             native_symbol: native_symbol.to_string(),
             library: String::new(),
-            abi: mir::ExternAbi::C,
+            abi: mir::ExternAbi::C(scoop_identity::CAbiCallMode::NativeSafe),
             calling_convention: mir::CallingConvention::Cdecl,
             gc_effect: mir::GcEffect::Managed,
             params,
-            return_type,
+            result: scoop_identity::ExternResult::Direct(return_type),
         })
     }
 

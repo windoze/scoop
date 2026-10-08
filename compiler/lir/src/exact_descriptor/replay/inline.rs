@@ -40,6 +40,7 @@ pub(crate) fn expected_inline_scan(
             }
         }
         InstanceRepresentationKindV1::ClassObject(_)
+        | InstanceRepresentationKindV1::Atomic(_)
         | InstanceRepresentationKindV1::InlineBytes
         | InstanceRepresentationKindV1::AbstractReference => None,
     })

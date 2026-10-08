@@ -31,7 +31,7 @@ impl Concretizer<'_> {
                 .iter()
                 .map(|ty| self.lower_type(*ty, &[]))
                 .collect();
-            let return_type = self.lower_type(source.return_type, &[]);
+            let result = source.result.map(|ty| self.lower_type(ty, &[]));
             let id = self.extern_functions.alloc(concrete::ExternFunction {
                 source_contract,
                 source_name: source.source_name.clone(),
@@ -42,7 +42,7 @@ impl Concretizer<'_> {
                 gc_effect: source.gc_effect,
                 safety: source.safety,
                 params,
-                return_type,
+                result,
             });
             self.extern_map.insert(source_id, id);
             self.type_use_site = previous_site;

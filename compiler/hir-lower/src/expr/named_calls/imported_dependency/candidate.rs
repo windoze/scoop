@@ -90,6 +90,15 @@ impl ImportedCallableCandidate {
         }
     }
 
+    pub(super) fn atomic_intrinsic(&self) -> Option<hir::AtomicIntrinsic> {
+        match self.interface().effects().implementation() {
+            hir::CallableImplementationV1::Intrinsic(hir::IntrinsicFunctionKind::Atomic(kind)) => {
+                Some(kind)
+            }
+            _ => None,
+        }
+    }
+
     pub(super) fn array_intrinsic(&self) -> Option<super::ImportedIntrinsicCall> {
         match self.interface().effects().implementation() {
             hir::CallableImplementationV1::Intrinsic(hir::IntrinsicFunctionKind::Array(kind)) => {
@@ -116,6 +125,7 @@ impl ImportedCallableCandidate {
             || self.normalized_intrinsic().is_some()
             || self.pointer_intrinsic().is_some()
             || self.array_intrinsic().is_some()
+            || self.atomic_intrinsic().is_some()
             || matches!(
                 self.interface().declaration(),
                 scoop_identity::CallableTemplateOrigin::VariantConstructor(_)

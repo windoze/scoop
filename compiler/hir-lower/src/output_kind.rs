@@ -4,6 +4,8 @@ use scoop_ast::{Diagnostic, DiagnosticNote, DiagnosticSeverity, Span};
 use scoop_hir as hir;
 use scoop_identity::{DefinitionOriginSubject, RequestedConeKind, SourceIdentity, SourceSpan};
 
+const ENTRY_FORMS: &str = "`fun main(): Unit`, `fun main(): Int`, `fun main(args: Array<String>): Unit`, or `fun main(args: Array<String>): Int`";
+
 /// Turn an unvalidated requested kind into the closed HIR output contract.
 ///
 /// The library branch intentionally returns before inspecting declarations.
@@ -40,7 +42,7 @@ pub fn select_cone_output_kind(
             let diagnostic = Diagnostic::at_file(
                 first.file,
                 first.span,
-                "multiple executable entries: declare exactly one ordinary `fun main(): Unit`",
+                format!("multiple executable entries: declare exactly one ordinary {ENTRY_FORMS}"),
             );
             let diagnostic = rest.iter().fold(diagnostic, |diagnostic, declaration| {
                 diagnostic.with_note(DiagnosticNote::at(
@@ -131,11 +133,40 @@ fn current_main_declarations(module: &hir::ExportHir) -> Result<Vec<MainDeclarat
         if function.is_suspend {
             rejections.push("it is suspend");
         }
-        if !function.params.is_empty() {
-            rejections.push("it has parameters");
+        let valid_parameters = match function.params.as_slice() {
+            [] => true,
+            [parameter] => match module.types[parameter.ty] {
+                hir::Type::Class(application) => matches!(
+                    module.class_applications[application].representation,
+                    hir::ClassApplicationRepresentation::Intrinsic(
+                        hir::IntrinsicTypeRepresentation::Array { element }
+                    ) if element == module.string
+                ),
+                _ => false,
+            },
+            _ => false,
+        };
+        if !valid_parameters {
+            rejections.push("its parameters must be empty or one `Array<String>`");
         }
-        if function.return_ty != module.unit {
-            rejections.push("it does not return `Unit`");
+        if module.source_parameter_interfaces.iter().any(|interface| {
+            interface.owner == hir::ExportParameterOwner::Function(function_id)
+                && interface.parameters.iter().any(|parameter| {
+                    matches!(
+                        parameter.calling,
+                        hir::ExportParameterCalling::Vararg { .. }
+                    )
+                })
+        }) {
+            rejections.push("it has a vararg parameter");
+        }
+        if function.return_ty != module.unit
+            && !matches!(
+                module.types[function.return_ty],
+                hir::Type::Integer(hir::IntegerKind::SIGNED_32)
+            )
+        {
+            rejections.push("it must return `Unit` or `Int`");
         }
         if !matches!(function.kind, hir::FunctionKind::User(_)) {
             rejections.push("it has no ordinary Scoop body");
@@ -170,7 +201,7 @@ fn missing_entry_diagnostic(
         Some((file, _)) => Diagnostic::at_file(
             file,
             Span::new(0, 0),
-            "missing executable entry: declare exactly one ordinary `fun main(): Unit`",
+            format!("missing executable entry: declare exactly one ordinary {ENTRY_FORMS}"),
         ),
         None => Diagnostic::without_span(
             DiagnosticSeverity::Error,
@@ -186,7 +217,18 @@ fn missing_entry_diagnostic(
                 declaration.file,
                 declaration.span,
                 format!(
-                    "`main` is not eligible because {}",
+                    "`fun main({}): {}` is not eligible because {}",
+                    module.functions[declaration.function]
+                        .params
+                        .iter()
+                        .map(|parameter| format!(
+                            "{}: {}",
+                            parameter.name,
+                            hir::type_name(module, parameter.ty)
+                        ))
+                        .collect::<Vec<_>>()
+                        .join(", "),
+                    hir::type_name(module, module.functions[declaration.function].return_ty),
                     declaration.rejections.join(", ")
                 ),
             ))

@@ -1,0 +1,11 @@
+schema = 1
+[cone]
+group = "dev.m33"
+name = "native-cxx-exit"
+version = "0.1.0"
+kind = "executable"
+[native]
+cxx = true
+cxx_flags = ["-Wall", "-Wextra", "-Werror"]
+[[native.sources]]
+path = "native/exit.cpp"

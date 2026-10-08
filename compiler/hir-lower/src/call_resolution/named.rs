@@ -7,6 +7,7 @@ use scoop_hir as hir;
 pub(crate) enum NamedFunctionLikeProbe {
     Callable(Box<NamedCallableProbe>),
     ImportedDependency(Box<crate::expr::ImportedDependencyCallProbe>),
+    ImportedDerivedEquality(Box<crate::expr::ImportedDerivedEqualityProbe>),
     ImportedDependencyProperty(Box<crate::expr::ImportedDependencyExtensionPropertyProbe>),
     Nominal(Box<NamedNominalProbe>),
     IntrinsicStruct(NamedIntrinsicStructProbe),
@@ -63,6 +64,7 @@ impl NamedIntrinsicStructOrigin {
 pub(crate) enum DeclarationDiagnosticOrder {
     Source(usize, u32, u32),
     ImportedIntrinsic(hir::SourceNominalId),
+    Generated(scoop_identity::PersistentGeneratedCallableId),
 }
 
 impl NamedFunctionLikeProbe {
@@ -70,6 +72,14 @@ impl NamedFunctionLikeProbe {
         match self {
             Self::Callable(probe) => probe.forwarding().to_owned(),
             Self::ImportedDependency(probe) => probe.forwarding(state),
+            Self::ImportedDerivedEquality(probe) => {
+                super::specificity::DeclarationForwardingView::parameter_groups(
+                    &[],
+                    &[],
+                    &[probe.owner],
+                )
+                .to_owned()
+            }
             Self::ImportedDependencyProperty(probe) => probe.forwarding(state),
             Self::Nominal(probe) => probe.forwarding().to_owned(),
             Self::IntrinsicStruct(probe) => {
@@ -91,6 +101,7 @@ impl NamedFunctionLikeProbe {
         match self {
             Self::Callable(probe) => probe.parameterized(),
             Self::ImportedDependency(probe) => probe.parameterized(),
+            Self::ImportedDerivedEquality(_) => false,
             Self::ImportedDependencyProperty(probe) => probe.parameterized(),
             Self::Nominal(probe) => probe.parameterized(),
             Self::IntrinsicStruct(probe) => !probe.fixed_alias,
@@ -100,6 +111,7 @@ impl NamedFunctionLikeProbe {
         match self {
             Self::Callable(probe) => probe.defaults(),
             Self::ImportedDependency(probe) => probe.defaults(),
+            Self::ImportedDerivedEquality(_) => 0,
             Self::ImportedDependencyProperty(_) => 0,
             Self::Nominal(probe) => probe.defaults(),
             Self::IntrinsicStruct(_) => 0,
@@ -109,6 +121,7 @@ impl NamedFunctionLikeProbe {
         match self {
             Self::Callable(probe) => probe.vararg(),
             Self::ImportedDependency(probe) => probe.vararg(),
+            Self::ImportedDerivedEquality(_) => false,
             Self::ImportedDependencyProperty(_) => false,
             Self::Nominal(probe) => probe.vararg(),
             Self::IntrinsicStruct(_) => false,
@@ -121,6 +134,7 @@ impl NamedFunctionLikeProbe {
         match self {
             Self::Callable(probe) => probe.source_argument_numeric(index),
             Self::ImportedDependency(probe) => probe.source_argument_numeric(index),
+            Self::ImportedDerivedEquality(_) => None,
             Self::ImportedDependencyProperty(_) => None,
             Self::Nominal(probe) => probe.source_argument_numeric(index),
             Self::IntrinsicStruct(_) => Some(super::specificity::NumericLiteralKind::Integer(
@@ -132,6 +146,10 @@ impl NamedFunctionLikeProbe {
         match self {
             Self::Callable(probe) => probe.signature(state, name),
             Self::ImportedDependency(probe) => probe.signature(name),
+            Self::ImportedDerivedEquality(probe) => {
+                let owner = state.type_name(probe.owner);
+                format!("derived fun {owner}.{name}(other: {owner}): Boolean")
+            }
             Self::ImportedDependencyProperty(probe) => probe.signature(name),
             Self::Nominal(probe) => probe.signature(state),
             Self::IntrinsicStruct(probe) => {
@@ -145,6 +163,9 @@ impl NamedFunctionLikeProbe {
         let (file, span) = match self {
             Self::Callable(probe) => probe.declaration_location(state),
             Self::ImportedDependency(probe) => probe.declaration_location(),
+            Self::ImportedDerivedEquality(probe) => {
+                return DeclarationDiagnosticOrder::Generated(probe.target.callable());
+            }
             Self::ImportedDependencyProperty(probe) => probe.declaration_location(),
             Self::Nominal(probe) => return probe.diagnostic_order(state),
             Self::IntrinsicStruct(probe) => match probe.origin {

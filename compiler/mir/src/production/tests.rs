@@ -1,12 +1,11 @@
 use scoop_hir::CanonicalHirFoundation;
 use scoop_identity::{
     BindingTarget, CanonicalIdentifier, CborIdentityRecord, ConeIdentity, CoreBuiltinNominal,
-    DeclarationScope, DefinitionOwnerChain, Effect, ExactCallableSignature,
-    ExactOrdinaryNoArgUnitSignature, ExactTypeKey, ExecutableSourceEntryIdentity, ExportBindingKey,
-    GeneratedCallableKey, LexicalCallableParent, LexicalCallableRole, PackagePath,
-    PendingIdentityValidation, PersistentExactTypeId, PersistentFunctionId, SourceDeclarationKey,
-    SourceDeclarationSite, StructuralDefinitionPath, StructuralDefinitionSiteRole,
-    StructuralPathSegment, ValidatedIdentityGraph,
+    DeclarationScope, DefinitionOwnerChain, Effect, ExactCallableSignature, ExactTypeKey,
+    ExecutableSourceEntryIdentity, ExportBindingKey, GeneratedCallableKey, LexicalCallableParent,
+    LexicalCallableRole, PackagePath, PendingIdentityValidation, PersistentExactTypeId,
+    PersistentFunctionId, SourceDeclarationKey, SourceDeclarationSite, StructuralDefinitionPath,
+    StructuralDefinitionSiteRole, StructuralPathSegment, ValidatedIdentityGraph,
 };
 use scoop_wire::{decode_canonical, encode};
 

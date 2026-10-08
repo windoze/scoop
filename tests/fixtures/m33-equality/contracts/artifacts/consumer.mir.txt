@@ -1,0 +1,1475 @@
+Module
+  struct Local (value: Int)
+  struct Key<String> (payload: String, number: Int)
+  struct Key<Int> (payload: Int, number: Int)
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum Option<Char>
+    Some(_0: Char)
+    None()
+  enum CoroutineStep<Local>
+    Completed(value: Local)
+    Suspended()
+  enum CoroutineSlot<Local>
+    Empty()
+    Value(value: Local)
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class Number vtable=0 itables=0
+  class Split vtable=0 itables=2
+  class ClassCastException vtable=0 itables=0
+  class box<Int> vtable=0 itables=0
+  class box<Key<Int>> vtable=0 itables=3
+  class box<Local> vtable=0 itables=2
+  class box<Key<String>> vtable=0 itables=3
+  interface Match<Local> : Equality<Local>
+  interface Equality<Local>
+  interface ToString
+  interface Equality<Float>
+  interface Hash
+  interface Match<Key<String>> : Equality<Key<String>>
+  interface Equality<Key<String>>
+  interface Match<Key<Int>> : Equality<Key<Int>>
+  interface Equality<Key<Int>>
+  interface Equality<Int>
+  interface Operator<Split>
+  interface Equality<Split>
+  interface Equality<String>
+  interface Equality<Char>
+  interface Iterable<Char>
+  interface Iterator<Char>
+  interface Continuation<Local>
+  interface SuspendTask<Local>
+  interface SuspendRegistration<Local>
+  generated_exact_type get0 location=enum3 nominal_id=dbef49705f24f12c4cebf347c22f5ae53e97e1d49d8a870bf08e0d22df690596 exact_id=0dee87aeb8057f923a87ae00e1789638e625a71afc6f725b7b8afdf693e3cf82
+  generated_exact_type get1 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
+  generated_exact_type get2 location=class8 nominal_id=f980ba19640cc5691f8f266192518c4508d797c8450068cb0e1cb950afece4dd exact_id=223a67a98d40c0e4df7590c7b9c8566c84c63694e65f0832b78702a0ab723537
+  generated_exact_type get3 location=enum2 nominal_id=4e22ed86099bcb40b8365f230be5a167696fc4c0d14a6080224503c2e18fc137 exact_id=29a4714955a057da90ba9d2476d43fb6f80c1718a4f0b52629d5c944cf5b23e5
+  generated_exact_type get4 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
+  generated_exact_type get5 location=class9 nominal_id=ffdf82e34be4c9c63dcc83cfb1c826672c22914478a25dc17586a288bb87fcd0 exact_id=4887f89460a195e69e2cc61de5a74767f6a63911a272be034b9365b3bdbf6d79
+  generated_exact_type get6 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
+  generated_exact_type get7 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
+  generated_exact_type get8 location=class7 nominal_id=3a6ba25c167fb4c01a418346b9c815e8d2db0bf0e04c05c627a05c7f52d5c5ff exact_id=9ca6b948496f4201c226fb0e1c493193253d85dfa31e0786d609f603720391ef
+  generated_exact_type get9 location=class6 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_exact_type get10 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
+  generated_callable gc0 function=@fn42 id=3afb89d70df049fa5223514a2b0318f15eac1646cd2e0f4623214cf7b9003b31
+  generated_callable gc1 function=@fn37 id=4302b6f97ed4f5bbcdf6be085312b4400a82d1b96ca7d05e79db2505c9552b1b
+  generated_callable gc2 function=@fn41 id=46f8a7b102415670129a348b02e65a46effe9c9de74d27a8194fa72a14ac4e90
+  generated_callable gc3 function=@fn39 id=5df8b5903b5b75a2ce21e26c33c5383ad46f92712d282ea2d5669c31aabd7dd5
+  generated_callable gc4 function=@fn35 id=6123b0d3abc865937d071eaf437d3b2f8f31f2a0742021e5d1d631e730ea8278
+  generated_callable gc5 function=@fn36 id=9310ad3fd2c57eb95d9b4ada7493e4fcae68be5cba2c65742e609c451d41f56a
+  generated_callable gc6 function=@fn34 id=9c0d21034bce7202ba00bea0f708c52609a51cbc052c4e288755bef1a3dee66d
+  generated_callable gc7 function=@fn38 id=b9195814b7aa23e0d2f0fc1d4508288bf665ab6e5843e683691ab0ddf5849499
+  generated_callable gc8 function=@fn40 id=eead3aaf0da857aa27793601e61b7b10eb952ef7cb4618fe2422d2312f48b29a
+  fun Local.equals @fn0(this: Local, other: Local) -> Boolean <no-gc>
+    bb0 entry
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Local
+          Local this
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type Local
+          Local other
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun Local.equalTo @fn1(this: Local, other: Local) -> Boolean <no-gc>
+    bb0 entry
+      val $receiver: Local
+        Type Local
+        Local this
+      val $argument.0: Local
+        Type Local
+        Local other
+      val $parameter.other: Local
+        Type Local
+        Local $argument.0
+      call $call.1: Boolean = @fn0 direct
+        Type Local
+        Local $receiver
+        Type Local
+        Local $parameter.other
+      return
+        Type Boolean
+        Local $call.1
+  fun check @fn2(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.receiver: Boolean
+        Type Boolean
+        Local value
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+    bb1 if.then.1
+      val $default.local.0: String
+        Type String
+        StringConst @str0
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.1
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $new.1
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.1
+    bb2 if.merge.2
+      return
+  fun main @fn3() -> Unit
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.argument.1: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.left: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.parameter.right: Int
+        Type Int
+        Local $dependency.argument.1
+      call $argument.0: Boolean = @fn8 direct
+        Type Int
+        Local $dependency.parameter.left
+        Type Int
+        Local $dependency.parameter.right
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn2 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.argument.1: Int
+        Type Int
+        IntegerLiteral Int value=43 bits=0x0000002b
+      val $dependency.parameter.left: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.parameter.right: Int
+        Type Int
+        Local $dependency.argument.1
+      call $dependency.receiver: Boolean = @fn8 direct
+        Type Int
+        Local $dependency.parameter.left
+        Type Int
+        Local $dependency.parameter.right
+      val $argument.0: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn2 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str1
+      val $dependency.argument.1: String
+        Type String
+        StringConst @str2
+      val $dependency.parameter.left: String
+        Type String
+        Local $dependency.argument.0
+      val $dependency.parameter.right: String
+        Type String
+        Local $dependency.argument.1
+      call $argument.0: Boolean = @fn9 direct
+        Type String
+        Local $dependency.parameter.left
+        Type String
+        Local $dependency.parameter.right
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn2 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: Float
+        Type Float
+        FloatLiteral f32(0x00000000)
+      val $dependency.argument.1: Float
+        Type Float
+        FloatLiteral f32(0x80000000)
+      val $dependency.parameter.left: Float
+        Type Float
+        Local $dependency.argument.0
+      val $dependency.parameter.right: Float
+        Type Float
+        Local $dependency.argument.1
+      call $argument.0: Boolean = @fn10 direct
+        Type Float
+        Local $dependency.parameter.left
+        Type Float
+        Local $dependency.parameter.right
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn2 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: Float
+        Type Float
+        FloatLiteral f32(0x7fc00000)
+      val $dependency.argument.1: Float
+        Type Float
+        FloatLiteral f32(0x7fc00000)
+      val $dependency.parameter.left: Float
+        Type Float
+        Local $dependency.argument.0
+      val $dependency.parameter.right: Float
+        Type Float
+        Local $dependency.argument.1
+      call $dependency.receiver: Boolean = @fn10 direct
+        Type Float
+        Local $dependency.parameter.left
+        Type Float
+        Local $dependency.parameter.right
+      val $argument.0: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn2 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str3
+      val $dependency.argument.1: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $dependency.parameter.payload: String
+        Type String
+        Local $dependency.argument.0
+      val $dependency.parameter.number: Int
+        Type Int
+        Local $dependency.argument.1
+      call $dependency.argument.0: Key<String> = @fn32 direct
+        Type String
+        Local $dependency.parameter.payload
+        Type Int
+        Local $dependency.parameter.number
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str4
+      val $dependency.argument.1: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $dependency.parameter.payload: String
+        Type String
+        Local $dependency.argument.0
+      val $dependency.parameter.number: Int
+        Type Int
+        Local $dependency.argument.1
+      call $dependency.argument.1: Key<String> = @fn32 direct
+        Type String
+        Local $dependency.parameter.payload
+        Type Int
+        Local $dependency.parameter.number
+      val $dependency.parameter.left: Key<String>
+        Type Key<String>
+        Local $dependency.argument.0
+      val $dependency.parameter.right: Key<String>
+        Type Key<String>
+        Local $dependency.argument.1
+      call $argument.0: Boolean = @fn11 direct
+        Type Key<String>
+        Local $dependency.parameter.left
+        Type Key<String>
+        Local $dependency.parameter.right
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn2 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.argument.1: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $dependency.parameter.payload: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.parameter.number: Int
+        Type Int
+        Local $dependency.argument.1
+      call $dependency.argument.0: Key<Int> = @fn33 direct
+        Type Int
+        Local $dependency.parameter.payload
+        Type Int
+        Local $dependency.parameter.number
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.argument.1: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $dependency.parameter.payload: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.parameter.number: Int
+        Type Int
+        Local $dependency.argument.1
+      call $dependency.argument.1: Key<Int> = @fn33 direct
+        Type Int
+        Local $dependency.parameter.payload
+        Type Int
+        Local $dependency.parameter.number
+      val $dependency.parameter.left: Key<Int>
+        Type Key<Int>
+        Local $dependency.argument.0
+      val $dependency.parameter.right: Key<Int>
+        Type Key<Int>
+        Local $dependency.argument.1
+      call $argument.0: Boolean = @fn12 direct
+        Type Key<Int>
+        Local $dependency.parameter.left
+        Type Key<Int>
+        Local $dependency.parameter.right
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn2 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: Equality<Int>
+        Type Equality<Int>
+        Box
+          Type Int
+          IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.argument.1: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.view: Equality<Int>
+        Type Equality<Int>
+        Local $dependency.argument.0
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.1
+      call $argument.0: Boolean = @fn13 direct
+        Type Equality<Int>
+        Local $dependency.parameter.view
+        Type Int
+        Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn2 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.argument.1: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $dependency.parameter.payload: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.parameter.number: Int
+        Type Int
+        Local $dependency.argument.1
+      call $call.1: Key<Int> = @fn33 direct
+        Type Int
+        Local $dependency.parameter.payload
+        Type Int
+        Local $dependency.parameter.number
+      val $dependency.argument.0: Equality<Key<Int>>
+        Type Equality<Key<Int>>
+        Box
+          Type Key<Int>
+          Local $call.1
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.argument.1: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $dependency.parameter.payload: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.parameter.number: Int
+        Type Int
+        Local $dependency.argument.1
+      call $dependency.argument.1: Key<Int> = @fn33 direct
+        Type Int
+        Local $dependency.parameter.payload
+        Type Int
+        Local $dependency.parameter.number
+      val $dependency.parameter.view: Equality<Key<Int>>
+        Type Equality<Key<Int>>
+        Local $dependency.argument.0
+      val $dependency.parameter.other: Key<Int>
+        Type Key<Int>
+        Local $dependency.argument.1
+      call $argument.0: Boolean = @fn14 direct
+        Type Equality<Key<Int>>
+        Local $dependency.parameter.view
+        Type Key<Int>
+        Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn2 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      assign $new.2
+        Type Number
+        ClassAlloc Number
+      call external2 direct
+        Type Number
+        Local $new.2
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.receiver: Number
+        Type Number
+        Local $new.2
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      call $argument.0: Boolean = external3 direct
+        Type Number
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn2 direct
+        Type Boolean
+        Local $parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $dependency.argument.0: Local = @fn31 direct
+        Type Int
+        Local $parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $dependency.argument.1: Local = @fn31 direct
+        Type Int
+        Local $parameter.value
+      val $dependency.parameter.left: Local
+        Type Local
+        Local $dependency.argument.0
+      val $dependency.parameter.right: Local
+        Type Local
+        Local $dependency.argument.1
+      call $argument.0: Boolean = @fn15 direct
+        Type Local
+        Local $dependency.parameter.left
+        Type Local
+        Local $dependency.parameter.right
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn2 direct
+        Type Boolean
+        Local $parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.3: Local = @fn31 direct
+        Type Int
+        Local $parameter.value
+      val view: Match<Local>
+        Type Match<Local>
+        Box
+          Type Local
+          Local $call.3
+      val $dependency.receiver: Equality<Local>
+        Type Equality<Local>
+        Retype Equality<Local>
+          Type Match<Local>
+          Local view
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $dependency.argument.0: Local = @fn31 direct
+        Type Int
+        Local $parameter.value
+      val $dependency.parameter.other: Local
+        Type Local
+        Local $dependency.argument.0
+      call $argument.0: Boolean = @fn16 interface Equality<Local>[0]
+        Type Equality<Local>
+        Local $dependency.receiver
+        Type Local
+        Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn2 direct
+        Type Boolean
+        Local $parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.4: Local = @fn31 direct
+        Type Int
+        Local $parameter.value
+      val boxed: Any
+        Type Any
+        Box
+          Type Local
+          Local $call.4
+      val $argument.0: Boolean
+        Type Boolean
+        IsInstance Equality<Local>
+          Type Any
+          Local boxed
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn2 direct
+        Type Boolean
+        Local $parameter.value
+      val $cast.1: Any
+        Type Any
+        Local boxed
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IsInstance Equality<Local>
+            Type Any
+            Local $cast.1
+    bb1 if.then.1
+      assign $new.5
+        Type ClassCastException
+        ClassAlloc ClassCastException
+      call external11 direct
+        Type ClassCastException
+        Local $new.5
+      throw
+        Type ClassCastException
+        Local $new.5
+    bb2 if.merge.2
+      val $dependency.receiver: Equality<Local>
+        Type Equality<Local>
+        Retype Equality<Local>
+          Type Any
+          Local $cast.1
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $dependency.argument.0: Local = @fn31 direct
+        Type Int
+        Local $parameter.value
+      val $dependency.parameter.other: Local
+        Type Local
+        Local $dependency.argument.0
+      call $argument.0: Boolean = @fn16 interface Equality<Local>[0]
+        Type Equality<Local>
+        Local $dependency.receiver
+        Type Local
+        Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn2 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str5
+      val $dependency.argument.1: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $dependency.parameter.payload: String
+        Type String
+        Local $dependency.argument.0
+      val $dependency.parameter.number: Int
+        Type Int
+        Local $dependency.argument.1
+      call $call.6: Key<String> = @fn32 direct
+        Type String
+        Local $dependency.parameter.payload
+        Type Int
+        Local $dependency.parameter.number
+      val key: Any
+        Type Any
+        Box
+          Type Key<String>
+          Local $call.6
+      val $argument.0: Boolean
+        Type Boolean
+        IsInstance Equality<Key<String>>
+          Type Any
+          Local key
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn2 direct
+        Type Boolean
+        Local $parameter.value
+      val $cast.2: Any
+        Type Any
+        Local key
+      branch bb3 bb4
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IsInstance Equality<Key<String>>
+            Type Any
+            Local $cast.2
+    bb3 if.then.3
+      assign $new.7
+        Type ClassCastException
+        ClassAlloc ClassCastException
+      call external11 direct
+        Type ClassCastException
+        Local $new.7
+      throw
+        Type ClassCastException
+        Local $new.7
+    bb4 if.merge.4
+      val $dependency.receiver: Equality<Key<String>>
+        Type Equality<Key<String>>
+        Retype Equality<Key<String>>
+          Type Any
+          Local $cast.2
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str6
+      val $dependency.argument.1: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $dependency.parameter.payload: String
+        Type String
+        Local $dependency.argument.0
+      val $dependency.parameter.number: Int
+        Type Int
+        Local $dependency.argument.1
+      call $dependency.argument.0: Key<String> = @fn32 direct
+        Type String
+        Local $dependency.parameter.payload
+        Type Int
+        Local $dependency.parameter.number
+      val $dependency.parameter.other: Key<String>
+        Type Key<String>
+        Local $dependency.argument.0
+      call $argument.0: Boolean = @fn17 interface Equality<Key<String>>[0]
+        Type Equality<Key<String>>
+        Local $dependency.receiver
+        Type Key<String>
+        Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn2 direct
+        Type Boolean
+        Local $parameter.value
+      assign $new.8
+        Type Split
+        ClassAlloc Split
+      call external6 direct
+        Type Split
+        Local $new.8
+      val split: Split
+        Type Split
+        Local $new.8
+      val $dependency.argument.0: Split
+        Type Split
+        Local split
+      val $dependency.argument.1: Split
+        Type Split
+        Local split
+      val $dependency.parameter.left: Split
+        Type Split
+        Local $dependency.argument.0
+      val $dependency.parameter.right: Split
+        Type Split
+        Local $dependency.argument.1
+      call $dependency.receiver: Boolean = @fn18 direct
+        Type Split
+        Local $dependency.parameter.left
+        Type Split
+        Local $dependency.parameter.right
+      val $argument.0: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn2 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.receiver: Split
+        Type Split
+        Local split
+      val $dependency.argument.0: Split
+        Type Split
+        Local split
+      val $dependency.parameter.other: Split
+        Type Split
+        Local $dependency.argument.0
+      call $call.9: Boolean = external4 direct
+        Type Split
+        Local $dependency.receiver
+        Type Split
+        Local $dependency.parameter.other
+      val $argument.0: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $call.9
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn2 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: Split
+        Type Split
+        Local split
+      val $dependency.argument.1: Split
+        Type Split
+        Local split
+      val $dependency.parameter.left: Split
+        Type Split
+        Local $dependency.argument.0
+      val $dependency.parameter.right: Split
+        Type Split
+        Local $dependency.argument.1
+      call $argument.0: Boolean = @fn19 direct
+        Type Split
+        Local $dependency.parameter.left
+        Type Split
+        Local $dependency.parameter.right
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn2 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: Equality<Split>
+        Type Equality<Split>
+        Retype Equality<Split>
+          Type Split
+          Local split
+      val $dependency.argument.1: Split
+        Type Split
+        Local split
+      val $dependency.parameter.view: Equality<Split>
+        Type Equality<Split>
+        Local $dependency.argument.0
+      val $dependency.parameter.other: Split
+        Type Split
+        Local $dependency.argument.1
+      call $argument.0: Boolean = @fn20 direct
+        Type Equality<Split>
+        Local $dependency.parameter.view
+        Type Split
+        Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn2 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str7
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn21 direct
+        Type String
+        Local $dependency.parameter.value
+      return
+  fun hash @fn4(this: Key<String>) -> Long
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        FieldAccess 1
+          Type Key<String>
+          Local this
+      return
+        Type Long
+        IntegerConversion Int -> Long
+          Type Int
+          Local $dependency.local.1
+  fun equalTo @fn5(this: Key<String>, other: Key<String>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Key<String>
+        Type Key<String>
+        Local this
+      val $dependency.local.3: Key<String>
+        Type Key<String>
+        Local other
+      val $dependency.local.4: Key<String>
+        Type Key<String>
+        Local $dependency.local.3
+      call $call.1: Boolean = @fn22 direct
+        Type Key<String>
+        Local $dependency.local.2
+        Type Key<String>
+        Local $dependency.local.4
+      return
+        Type Boolean
+        Local $call.1
+  fun hash @fn6(this: Key<Int>) -> Long
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        FieldAccess 1
+          Type Key<Int>
+          Local this
+      return
+        Type Long
+        IntegerConversion Int -> Long
+          Type Int
+          Local $dependency.local.1
+  fun equalTo @fn7(this: Key<Int>, other: Key<Int>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Key<Int>
+        Type Key<Int>
+        Local this
+      val $dependency.local.3: Key<Int>
+        Type Key<Int>
+        Local other
+      val $dependency.local.4: Key<Int>
+        Type Key<Int>
+        Local $dependency.local.3
+      call $call.1: Boolean = @fn23 direct
+        Type Key<Int>
+        Local $dependency.local.2
+        Type Key<Int>
+        Local $dependency.local.4
+      return
+        Type Boolean
+        Local $call.1
+  fun same @fn8(left: Int, right: Int) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Int
+        Type Int
+        Local left
+      val $dependency.local.3: Int
+        Type Int
+        Local right
+      val $dependency.local.4: Int
+        Type Int
+        Local $dependency.local.3
+      call $call.1: Boolean = external7 direct
+        Type Int
+        Local $dependency.local.2
+        Type Int
+        Local $dependency.local.4
+      return
+        Type Boolean
+        Local $call.1
+  fun same @fn9(left: String, right: String) -> Boolean
+    bb0 entry
+      val $dependency.local.2: String
+        Type String
+        Local left
+      val $dependency.local.3: String
+        Type String
+        Local right
+      val $dependency.local.4: String
+        Type String
+        Local $dependency.local.3
+      call $call.1: Boolean = external9 direct
+        Type String
+        Local $dependency.local.2
+        Type String
+        Local $dependency.local.4
+      return
+        Type Boolean
+        Local $call.1
+  fun same @fn10(left: Float, right: Float) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Float
+        Type Float
+        Local left
+      val $dependency.local.3: Float
+        Type Float
+        Local right
+      val $dependency.local.4: Float
+        Type Float
+        Local $dependency.local.3
+      call $call.1: Boolean = external1 direct
+        Type Float
+        Local $dependency.local.2
+        Type Float
+        Local $dependency.local.4
+      return
+        Type Boolean
+        Local $call.1
+  fun same @fn11(left: Key<String>, right: Key<String>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Key<String>
+        Type Key<String>
+        Local left
+      val $dependency.local.3: Key<String>
+        Type Key<String>
+        Local right
+      val $dependency.local.4: Key<String>
+        Type Key<String>
+        Local $dependency.local.3
+      call $call.1: Boolean = @fn5 direct
+        Type Key<String>
+        Local $dependency.local.2
+        Type Key<String>
+        Local $dependency.local.4
+      return
+        Type Boolean
+        Local $call.1
+  fun sameKey @fn12(left: Key<Int>, right: Key<Int>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Key<Int>
+        Type Key<Int>
+        Local left
+      call $dependency.local.4: Long = @fn6 direct
+        Type Key<Int>
+        Local $dependency.local.2
+      val $dependency.local.3: Key<Int>
+        Type Key<Int>
+        Local right
+      val $dependency.local.5: Long
+        Type Long
+        Local $dependency.local.4
+      call $dependency.local.6: Long = @fn6 direct
+        Type Key<Int>
+        Local $dependency.local.3
+      val $dependency.local.7: Long
+        Type Long
+        Local $dependency.local.6
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          Local $dependency.local.5
+          Type Long
+          Local $dependency.local.7
+    bb1 if.then.1
+      val $dependency.local.8: Key<Int>
+        Type Key<Int>
+        Local left
+      val $dependency.local.9: Key<Int>
+        Type Key<Int>
+        Local right
+      val $dependency.local.10: Key<Int>
+        Type Key<Int>
+        Local $dependency.local.9
+      call $dependency.local.11: Boolean = @fn7 direct
+        Type Key<Int>
+        Local $dependency.local.8
+        Type Key<Int>
+        Local $dependency.local.10
+      goto bb3
+    bb2 if.else.2
+      val $dependency.local.11: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 if.merge.3
+      return
+        Type Boolean
+        Local $dependency.local.11
+  fun through @fn13(view: Equality<Int>, other: Int) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Equality<Int>
+        Type Equality<Int>
+        Local view
+      val $dependency.local.3: Int
+        Type Int
+        Local other
+      val $dependency.local.4: Int
+        Type Int
+        Local $dependency.local.3
+      call $call.1: Boolean = @fn24 interface Equality<Int>[0]
+        Type Equality<Int>
+        Local $dependency.local.2
+        Type Int
+        Local $dependency.local.4
+      return
+        Type Boolean
+        Local $call.1
+  fun through @fn14(view: Equality<Key<Int>>, other: Key<Int>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Equality<Key<Int>>
+        Type Equality<Key<Int>>
+        Local view
+      val $dependency.local.3: Key<Int>
+        Type Key<Int>
+        Local other
+      val $dependency.local.4: Key<Int>
+        Type Key<Int>
+        Local $dependency.local.3
+      call $call.1: Boolean = @fn25 interface Equality<Key<Int>>[0]
+        Type Equality<Key<Int>>
+        Local $dependency.local.2
+        Type Key<Int>
+        Local $dependency.local.4
+      return
+        Type Boolean
+        Local $call.1
+  fun same @fn15(left: Local, right: Local) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Local
+        Type Local
+        Local left
+      val $dependency.local.3: Local
+        Type Local
+        Local right
+      val $dependency.local.4: Local
+        Type Local
+        Local $dependency.local.3
+      call $call.1: Boolean = @fn1 direct
+        Type Local
+        Local $dependency.local.2
+        Type Local
+        Local $dependency.local.4
+      return
+        Type Boolean
+        Local $call.1
+  fun Equality.equalTo @fn16(this: Equality<Local>, other: Local) -> Boolean
+    bb0 entry
+      trap "call to abstract method `Equality.equalTo`"
+  fun Equality.equalTo @fn17(this: Equality<Key<String>>, other: Key<String>) -> Boolean
+    bb0 entry
+      trap "call to abstract method `Equality.equalTo`"
+  fun operatorSame @fn18(left: Split, right: Split) -> Boolean
+    bb0 entry
+      call $call.1: Boolean = external4 direct
+        Type Split
+        Local left
+        Type Split
+        Local right
+      return
+        Type Boolean
+        Local $call.1
+  fun same @fn19(left: Split, right: Split) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Split
+        Type Split
+        Local left
+      val $dependency.local.3: Split
+        Type Split
+        Local right
+      val $dependency.local.4: Split
+        Type Split
+        Local $dependency.local.3
+      call $call.1: Boolean = external5 direct
+        Type Split
+        Local $dependency.local.2
+        Type Split
+        Local $dependency.local.4
+      return
+        Type Boolean
+        Local $call.1
+  fun through @fn20(view: Equality<Split>, other: Split) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Equality<Split>
+        Type Equality<Split>
+        Local view
+      val $dependency.local.3: Split
+        Type Split
+        Local other
+      val $dependency.local.4: Split
+        Type Split
+        Local $dependency.local.3
+      call $call.1: Boolean = @fn26 interface Equality<Split>[0]
+        Type Equality<Split>
+        Local $dependency.local.2
+        Type Split
+        Local $dependency.local.4
+      return
+        Type Boolean
+        Local $call.1
+  fun println @fn21(value: String) -> Unit
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local value
+      call $dependency.local.2: String = external8 direct
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external10 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str8
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external10 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun equals @fn22(this: Key<String>, other: Key<String>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Int
+        Type Int
+        FieldAccess 1
+          Type Key<String>
+          Local this
+      val $dependency.local.3: Int
+        Type Int
+        FieldAccess 1
+          Type Key<String>
+          Local other
+      val $dependency.local.4: Int
+        Type Int
+        Local $dependency.local.3
+      return
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.local.2
+          Type Int
+          Local $dependency.local.4
+  fun equals @fn23(this: Key<Int>, other: Key<Int>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Int
+        Type Int
+        FieldAccess 1
+          Type Key<Int>
+          Local this
+      val $dependency.local.3: Int
+        Type Int
+        FieldAccess 1
+          Type Key<Int>
+          Local other
+      val $dependency.local.4: Int
+        Type Int
+        Local $dependency.local.3
+      return
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.local.2
+          Type Int
+          Local $dependency.local.4
+  fun Equality.equalTo @fn24(this: Equality<Int>, other: Int) -> Boolean
+    bb0 entry
+      trap "call to abstract method `Equality.equalTo`"
+  fun Equality.equalTo @fn25(this: Equality<Key<Int>>, other: Key<Int>) -> Boolean
+    bb0 entry
+      trap "call to abstract method `Equality.equalTo`"
+  fun Equality.equalTo @fn26(this: Equality<Split>, other: Split) -> Boolean
+    bb0 entry
+      trap "call to abstract method `Equality.equalTo`"
+  fun Continuation.resume @fn27(this: Continuation<Local>, value: Local) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn28(this: Continuation<Local>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn29(this: SuspendTask<Local>, $completion: Continuation<Local>) -> CoroutineStep<Local>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn30(this: SuspendRegistration<Local>, continuation: Continuation<Local>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun ctor.Local.$c0 @fn31(value: Int) -> Local <no-gc>
+    bb0 entry
+      return
+        Type Local
+        StructInit Local
+          Type Int
+          Local value
+  fun ctor.Key.$c0 @fn32(payload: String, number: Int) -> Key<String> <no-gc>
+    bb0 entry
+      return
+        Type Key<String>
+        StructInit Key<String>
+          Type String
+          Local payload
+          Type Int
+          Local number
+  fun ctor.Key.$c0 @fn33(payload: Int, number: Int) -> Key<Int> <no-gc>
+    bb0 entry
+      return
+        Type Key<Int>
+        StructInit Key<Int>
+          Type Int
+          Local payload
+          Type Int
+          Local number
+  fun startCoroutine<Local> @fn34(task: SuspendTask<Local>, completion: Continuation<Local>) -> Unit
+    bb0 context.unwind
+      landing_pad cleanup=true
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb1 context.catch_unwind
+      landing_pad cleanup=true
+      end_catch
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb2 suspended
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb3 completed unwind bb0
+      call @fn27 interface Continuation<Local>[0]
+        Type Continuation<Local>
+        Local completion
+        Type Local
+        EnumField v0 f0
+          Type CoroutineStep<Local>
+          Local $step
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb4 failed unwind bb0
+      call @fn28 interface Continuation<Local>[1]
+        Type Continuation<Local>
+        Local completion
+        Type Throwable
+        Local $exception
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb5 body_failure unwind bb1
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb4
+    bb6 run unwind bb5
+      call $step: CoroutineStep<Local> = @fn29 interface SuspendTask<Local>[0]
+        Type SuspendTask<Local>
+        Local task
+        Type Continuation<Local>
+        Local completion
+      branch bb3 bb2
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Local>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+    bb7 entry
+      val $child_context: internal<task-context>
+        Type internal<task-context>
+        ContextFork
+          Type internal<context-node>
+          ContextSnapshot
+      val $context_guard: internal<context-switch-guard>
+        Type internal<context-switch-guard>
+        ContextEnter
+          Type internal<task-context>
+          Local $child_context
+      goto bb6
+  fun thunk<Key<Int>> Hash.hash() @fn35(this: Hash) -> Long
+    bb0 entry
+      call $call.1: Long = @fn6 direct
+        Type Key<Int>
+        Unbox
+          Type Hash
+          Local this
+      return
+        Type Long
+        Local $call.1
+  fun thunk<Key<Int>> Match.equalTo(Key<Int>) @fn36(this: Match<Key<Int>>, other: Key<Int>) -> Boolean
+    bb0 entry
+      call $call.1: Boolean = @fn7 direct
+        Type Key<Int>
+        Unbox
+          Type Match<Key<Int>>
+          Local this
+        Type Key<Int>
+        Local other
+      return
+        Type Boolean
+        Local $call.1
+  fun thunk<Key<Int>> Equality.equalTo(Key<Int>) @fn37(this: Equality<Key<Int>>, other: Key<Int>) -> Boolean
+    bb0 entry
+      call $call.1: Boolean = @fn7 direct
+        Type Key<Int>
+        Unbox
+          Type Equality<Key<Int>>
+          Local this
+        Type Key<Int>
+        Local other
+      return
+        Type Boolean
+        Local $call.1
+  fun thunk<Local> Match.equalTo(Local) @fn38(this: Match<Local>, other: Local) -> Boolean
+    bb0 entry
+      call $call.1: Boolean = @fn1 direct
+        Type Local
+        Unbox
+          Type Match<Local>
+          Local this
+        Type Local
+        Local other
+      return
+        Type Boolean
+        Local $call.1
+  fun thunk<Local> Equality.equalTo(Local) @fn39(this: Equality<Local>, other: Local) -> Boolean
+    bb0 entry
+      call $call.1: Boolean = @fn1 direct
+        Type Local
+        Unbox
+          Type Equality<Local>
+          Local this
+        Type Local
+        Local other
+      return
+        Type Boolean
+        Local $call.1
+  fun thunk<Key<String>> Hash.hash() @fn40(this: Hash) -> Long
+    bb0 entry
+      call $call.1: Long = @fn4 direct
+        Type Key<String>
+        Unbox
+          Type Hash
+          Local this
+      return
+        Type Long
+        Local $call.1
+  fun thunk<Key<String>> Match.equalTo(Key<String>) @fn41(this: Match<Key<String>>, other: Key<String>) -> Boolean
+    bb0 entry
+      call $call.1: Boolean = @fn5 direct
+        Type Key<String>
+        Unbox
+          Type Match<Key<String>>
+          Local this
+        Type Key<String>
+        Local other
+      return
+        Type Boolean
+        Local $call.1
+  fun thunk<Key<String>> Equality.equalTo(Key<String>) @fn42(this: Equality<Key<String>>, other: Key<String>) -> Boolean
+    bb0 entry
+      call $call.1: Boolean = @fn5 direct
+        Type Key<String>
+        Unbox
+          Type Equality<Key<String>>
+          Local this
+        Type Key<String>
+        Local other
+      return
+        Type Boolean
+        Local $call.1
+  coroutine_step cs0 CoroutineStep<Local> result=Local
+  coroutine_slot cl0 CoroutineSlot<Local> value=Local
+  coroutine_start ct0 result=Local function=fn34
+  coroutine_fn cf0 @fn29 source_return=Local step=cs0 immediate
+  instance mi0 function=@fn4 <- hash
+  instance mi1 function=@fn5 <- equalTo
+  instance mi2 function=@fn6 <- hash
+  instance mi3 function=@fn7 <- equalTo
+  instance mi4 function=@fn8 <- same
+  instance mi5 function=@fn9 <- same
+  instance mi6 function=@fn10 <- same
+  instance mi7 function=@fn11 <- same
+  instance mi8 function=@fn12 <- sameKey
+  instance mi9 function=@fn13 <- through
+  instance mi10 function=@fn14 <- through
+  instance mi11 function=@fn15 <- same
+  instance mi12 function=@fn16 <- Equality.equalTo
+  instance mi13 function=@fn17 <- Equality.equalTo
+  instance mi14 function=@fn18 <- operatorSame
+  instance mi15 function=@fn19 <- same
+  instance mi16 function=@fn20 <- through
+  instance mi17 function=@fn21 <- println
+  instance mi18 function=@fn22 <- equals
+  instance mi19 function=@fn23 <- equals
+  instance mi20 function=@fn24 <- Equality.equalTo
+  instance mi21 function=@fn25 <- Equality.equalTo
+  instance mi22 function=@fn26 <- Equality.equalTo
+  instance mi23 function=@fn27 <- Continuation.resume
+  instance mi24 function=@fn28 <- Continuation.resumeWithException
+  instance mi25 function=@fn29 <- SuspendTask.run
+  instance mi26 function=@fn30 <- SuspendRegistration.register
+  str @str0 "illegal state"
+  str @str1 "跨库"
+  str @str2 "跨库"
+  str @str3 "left"
+  str @str4 "right"
+  str @str5 "payload"
+  str @str6 "other"
+  str @str7 "artifact equality contracts"
+  str @str8 "\n"
+  output executable @fn3

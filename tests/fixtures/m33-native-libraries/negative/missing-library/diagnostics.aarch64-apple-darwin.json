@@ -1,0 +1,12 @@
+[
+  {
+    "code": "SCOOP_LINK_FAILED",
+    "message": "missing native library \"m33_missing_native_library\" for aarch64-apple-darwin; no candidate in explicit roots or the selected target's system libraries; requirement f9add0dabdcbc1f372cb671e71a1cf02c3273a0c05501fbc238798a5278ecf81; origins: dev.m33:library-negative:0.1.0",
+    "notes": [],
+    "origin": {
+      "kind": "none"
+    },
+    "phase": "FinalLink",
+    "severity": "error"
+  }
+]

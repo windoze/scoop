@@ -21,6 +21,7 @@ impl Lowerer {
         let mut saw_safe = false;
         let mut saw_unsafe = false;
         let mut saw_no_gc = false;
+        let mut gc_leaf = None;
         let mut saw_calling_convention = false;
         let mut seen = HashSet::new();
 
@@ -69,6 +70,11 @@ impl Lowerer {
                     if self.annotation_marker(annotation) {
                         saw_no_gc = true;
                         attributes.gc_effect = hir::GcEffect::NoGc;
+                    }
+                }
+                "GCLeaf" => {
+                    if self.annotation_marker(annotation) {
+                        gc_leaf = Some(annotation.span);
                     }
                 }
                 "Unsafe" => {
@@ -123,6 +129,17 @@ impl Lowerer {
                 "`@NoGC` cannot be used on a suspend function".to_string(),
             );
         }
+        if let Some(span) = gc_leaf {
+            match &mut extern_ {
+                Some(annotation) if annotation.abi.is_c() => {
+                    annotation.abi = hir::ExternAbi::C(hir::CAbiCallMode::GcLeaf);
+                }
+                _ => self.error(
+                    span,
+                    "`@GCLeaf` requires a C ABI `@Extern` function".to_string(),
+                ),
+            }
+        }
         if let Some(extern_annotation) = &extern_ {
             if !matches!(target, FunctionTarget::TopLevel) {
                 self.error(
@@ -155,7 +172,13 @@ impl Lowerer {
                 );
             }
             match extern_annotation.abi {
-                hir::ExternAbi::C => {
+                hir::ExternAbi::C(_) => {
+                    if saw_no_gc {
+                        self.error(
+                            decl.span,
+                            "a C ABI `@Extern` function cannot be marked `@NoGC`; use `@GCLeaf` for a no-transition call".to_string(),
+                        );
+                    }
                     if saw_safe {
                         self.error(
                             decl.span,

@@ -46,7 +46,8 @@ fn with_dispatch<R>(
         )
         .unwrap();
         let unit = dependencies::unit(input, graph);
-        let index = MirTypeBridgeTypeIndexV1::try_new(&[&actual, &unit]).unwrap();
+        let boolean = dependencies::boolean(input, graph);
+        let index = MirTypeBridgeTypeIndexV1::try_new(&[&actual, &unit, &boolean]).unwrap();
         let callables = scoop_mir_lower::lower_source_callable_bindings(
             output,
             &public_interface(output),
@@ -55,6 +56,18 @@ fn with_dispatch<R>(
             graph,
             &index,
             &[],
+        )
+        .unwrap();
+        let equality =
+            scoop_mir_lower::lower_derived_equality_bindings(output, input, &types, graph, &index)
+                .unwrap();
+        let callables = CanonicalMirCallableBindingsV1::try_new(
+            callables
+                .entries()
+                .iter()
+                .chain(equality.entries())
+                .cloned()
+                .collect(),
         )
         .unwrap();
         let restored: scoop_mir::DecodedCanonicalMirCallableBindingsV1 = decoded(&callables);

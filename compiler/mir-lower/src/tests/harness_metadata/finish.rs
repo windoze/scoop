@@ -27,12 +27,33 @@ impl Harness {
         entry: hir::FunctionId,
         include_exceptions: bool,
     ) -> hir::ExportHirOutput {
+        let public_surface = hir::PublicSemanticSurface {
+            structs: self.structs.iter().map(|(id, _)| id).collect(),
+            enums: self.enums.iter().map(|(id, _)| id).collect(),
+            classes: self
+                .classes
+                .iter()
+                .filter_map(|(id, declaration)| {
+                    (declaration.access.declared == hir::DeclaredVisibility::Public).then_some(id)
+                })
+                .collect(),
+            interfaces: self.interfaces.iter().map(|(id, _)| id).collect(),
+            ..Default::default()
+        };
         let exception_core = self.test_exception_core(include_exceptions);
         let coroutine_core = self.test_coroutine_core(exception_core.throwable.class());
         let t = self
             .types
             .alloc(hir::Type::Param(hir::TypeParamId::from_raw(0)));
         let ptr = self.declare_struct("Ptr", vec![type_param("T")], vec![t], &[], &[]);
+        self.structs[ptr].type_params[0].bounds = hir::TypeParamBounds::Value { span: SPAN };
+        self.structs[ptr].representation =
+            hir::StructRepresentation::Intrinsic(hir::IntrinsicTypeKind::Ptr);
+        let ptr_application = self.structs[ptr].self_application;
+        self.struct_applications[ptr_application].representation =
+            hir::StructApplicationRepresentation::Intrinsic(
+                hir::IntrinsicTypeRepresentation::Ptr { pointee: t },
+            );
         let fun_ptr = self.declare_struct("FunPtr", vec![type_param("F")], vec![t], &[], &[]);
         let (pinned_ptr, gc_handle) = if let Some(core) = self.gc_core {
             (core.pinned_ptr, core.gc_handle)
@@ -506,31 +527,19 @@ impl Harness {
             interface_slots,
         )
         .expect("the MIR test fixture dispatch slots have persistent identities");
-        let public_surface = hir::PublicSemanticSurface::default();
-        let export_binding_identities = hir::HirExportBindingIdentities::from_public_surface(
-            hir::HirExportBindingIdentityInputs {
-                surface: &public_surface,
-                annotations: &hir::SourceAnnotations::default(),
-                structs: &self.structs,
-                enums: &self.enums,
-                classes: &self.classes,
-                interfaces: &self.interfaces,
-                objects: &Arena::new(),
-                singleton_values: &Arena::new(),
-                functions: &self.functions,
-                properties: &self.properties,
-                type_aliases: &Arena::new(),
-                nominal_identities: &nominal_identities,
-                enum_member_identities: &enum_member_identities,
-                object_value_identities: &object_value_identities,
-                function_identities: &function_identities,
-                property_identities: &property_identities,
-                type_alias_identities: &type_alias_identities,
-            },
-        )
-        .expect("the empty MIR test public surface has no export bindings");
-        let public_export_bindings =
-            hir::CanonicalPublicExportBindingsV1::try_new(Vec::new()).unwrap();
+        let super::surface::PublicFixtureSurface {
+            surface: public_surface,
+            identities: export_binding_identities,
+            bindings: public_export_bindings,
+        } = self.test_public_surface(
+            public_surface,
+            &nominal_identities,
+            &enum_member_identities,
+            &object_value_identities,
+            &function_identities,
+            &property_identities,
+            &type_alias_identities,
+        );
         let source_files = vec![hir::SourceFileMetadata {
             identity: scoop_identity::SourceIdentity::single_file(),
             provider: hir::IntrinsicProviderId::from_raw(0),
@@ -696,6 +705,7 @@ impl Harness {
             boolean: self.boolean,
             string: self.string,
             core_protocols: hir::CoreProtocols::Defined(Box::new(hir::DefinedCoreProtocols {
+                program_arguments: entry,
                 option: option_core,
                 iteration: iteration_core,
                 exceptions: exception_core,

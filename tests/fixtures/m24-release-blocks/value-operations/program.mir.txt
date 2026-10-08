@@ -1,8 +1,8 @@
 Module
   extern ef0 record @m24_release_add(Int) -> Unit <abi=c no-gc lib=m24_release>
   extern ef1 count @m24_release_count() -> Int <abi=c no-gc lib=m24_release>
-  callback cb0 @fn3 -> @fn22 function_type0 id=755f8f7d0f95010781b2e9ee0229f9668720f72cdaa87885d534162f00fc6583
-  callback cb1 @fn6 -> @fn23 function_type0 id=cab16a421424784bd53fadc060d0cbadb2ce629bffddc4a5f629e8371a45c9b8
+  callback cb0 @fn5 -> @fn26 function_type0 id=755f8f7d0f95010781b2e9ee0229f9668720f72cdaa87885d534162f00fc6583
+  callback cb1 @fn8 -> @fn27 function_type0 id=cab16a421424784bd53fadc060d0cbadb2ce629bffddc4a5f629e8371a45c9b8
   struct Parts (first: Int, second: Int)
   struct Node (next: Option<Ptr<Node>>, value: Int)
   enum Option<Ptr<Node>>
@@ -30,8 +30,11 @@ Module
   class Throwable vtable=0 itables=0
   class box<Parts> vtable=0 itables=0
   class box<Node> vtable=0 itables=0
+  interface Equality<Ptr<Node>>
+  interface Equality<Ptr<Int>>
   interface ToString
   interface Hash
+  interface Equality<Int>
   interface Continuation<Parts>
   interface SuspendTask<Parts>
   interface SuspendRegistration<Parts>
@@ -49,10 +52,10 @@ Module
   generated_exact_type get8 location=enum3 nominal_id=28388b6c5980fffcff0a09671f6fffaf0ac9180bcdfcddc8e6ffe18021f41f5e exact_id=989f05f93c02977ae2f8d1500e0ccb8d578ec934211085fa6e9e5d207790cfc6
   generated_exact_type get9 location=enum2 nominal_id=75ef9ffc935de4d3f9d43170dcdf703f008dd678dfb801bbc2253af5ff17f343 exact_id=de2cd024786fa57a951e60a4b4cd073bdab4de5523f7bd87c22346ade9ddf510
   generated_exact_type get10 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
-  generated_callable gc0 function=@fn25 id=3254788d88a50cb2191c8092df38ecef7abeb7a5e4ea7c03682de9e720e4a67a
-  generated_callable gc1 function=@fn22 id=755f8f7d0f95010781b2e9ee0229f9668720f72cdaa87885d534162f00fc6583
-  generated_callable gc2 function=@fn24 id=84c76de2538ecc19e476073d4297681b4474662bfc6c3067ad085875324de451
-  generated_callable gc3 function=@fn23 id=cab16a421424784bd53fadc060d0cbadb2ce629bffddc4a5f629e8371a45c9b8
+  generated_callable gc0 function=@fn29 id=3254788d88a50cb2191c8092df38ecef7abeb7a5e4ea7c03682de9e720e4a67a
+  generated_callable gc1 function=@fn26 id=755f8f7d0f95010781b2e9ee0229f9668720f72cdaa87885d534162f00fc6583
+  generated_callable gc2 function=@fn28 id=84c76de2538ecc19e476073d4297681b4474662bfc6c3067ad085875324de451
+  generated_callable gc3 function=@fn27 id=cab16a421424784bd53fadc060d0cbadb2ce629bffddc4a5f629e8371a45c9b8
   fun Parts.plus @fn0(this: Parts, other: Parts) -> Parts <no-gc>
     bb0 entry
       val $dependency.receiver: Int
@@ -101,7 +104,7 @@ Module
       val $parameter.second: Int
         Type Int
         Local $argument.1
-      call $call.1: Parts = @fn20 direct
+      call $call.1: Parts = @fn24 direct
         Type Int
         Local $parameter.first
         Type Int
@@ -127,7 +130,45 @@ Module
           Local $dependency.receiver
           Type Int
           Local $dependency.parameter.other
-  fun $extension.extra @fn2(this: Parts) -> Int <no-gc>
+  fun equalTo @fn2(this: Ptr<Node>, other: Ptr<Node>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<Node>
+        Type Ptr<Node>
+        Local this
+      val $dependency.local.3: Ptr<Node>
+        Type Ptr<Node>
+        Local other
+      val $dependency.local.4: Ptr<Node>
+        Type Ptr<Node>
+        Local $dependency.local.3
+      call $call.1: Boolean = @fn11 direct
+        Type Ptr<Node>
+        Local $dependency.local.2
+        Type Ptr<Node>
+        Local $dependency.local.4
+      return
+        Type Boolean
+        Local $call.1
+  fun equalTo @fn3(this: Ptr<Int>, other: Ptr<Int>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<Int>
+        Type Ptr<Int>
+        Local this
+      val $dependency.local.3: Ptr<Int>
+        Type Ptr<Int>
+        Local other
+      val $dependency.local.4: Ptr<Int>
+        Type Ptr<Int>
+        Local $dependency.local.3
+      call $call.1: Boolean = @fn12 direct
+        Type Ptr<Int>
+        Local $dependency.local.2
+        Type Ptr<Int>
+        Local $dependency.local.4
+      return
+        Type Boolean
+        Local $call.1
+  fun $extension.extra @fn4(this: Parts) -> Int <no-gc>
     bb0 entry
       val $receiver: Parts
         Type Parts
@@ -151,7 +192,7 @@ Module
       return
         Type Int
         Local $call.1
-  fun even @fn3(value: Int) -> Int <no-gc>
+  fun even @fn5(value: Int) -> Int <no-gc>
     bb0 entry
       val $dependency.receiver: Int
         Type Int
@@ -193,25 +234,25 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call $call.1: Int = @fn6 direct
+      call $call.1: Int = @fn8 direct
         Type Int
         Local $parameter.value
       return
         Type Int
         Local $call.1
-  fun record @fn4(arg0: Int) -> Unit
+  fun record @fn6(arg0: Int) -> Unit
     bb0 entry
       call extern0 @m24_release_add direct
         Type Int
         Local arg0
       return
-  fun count @fn5() -> Int
+  fun count @fn7() -> Int
     bb0 entry
       call $call.1: Int = extern1 @m24_release_count direct
       return
         Type Int
         Local $call.1
-  fun odd @fn6(value: Int) -> Int <no-gc>
+  fun odd @fn8(value: Int) -> Int <no-gc>
     bb0 entry
       val $argument.0: Int
         Type Int
@@ -219,13 +260,13 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call $call.1: Int = @fn3 direct
+      call $call.1: Int = @fn5 direct
         Type Int
         Local $parameter.value
       return
         Type Int
         Local $call.1
-  fun allocate @fn7() -> Unit
+  fun allocate @fn9() -> Unit
     bb0 entry
       val $argument.0: Int
         Type Int
@@ -239,7 +280,7 @@ Module
       val $parameter.second: Int
         Type Int
         Local $argument.1
-      call $argument.0: Parts = @fn20 direct
+      call $argument.0: Parts = @fn24 direct
         Type Int
         Local $parameter.first
         Type Int
@@ -250,7 +291,7 @@ Module
       assign $new.1
         Type Owner
         ClassAlloc Owner
-      call @fn19 direct
+      call @fn23 direct
         Type Owner
         Local $new.1
         Type Parts
@@ -273,7 +314,7 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.1
-      call $argument.0: Node = @fn21 direct
+      call $argument.0: Node = @fn25 direct
         Type Option<Ptr<Node>>
         Local $parameter.next
         Type Int
@@ -284,7 +325,7 @@ Module
       assign $new.2
         Type RecursiveOwner
         ClassAlloc RecursiveOwner
-      call @fn18 direct
+      call @fn22 direct
         Type RecursiveOwner
         Local $new.2
         Type Node
@@ -296,20 +337,64 @@ Module
         Type RecursiveOwner
         Local $new.2
       return
-  fun main @fn8() -> Unit
+  fun main @fn10() -> Unit
     bb0 entry
-      call @fn7 direct
+      call @fn9 direct
       call @scoop_rt_gc_collect direct
       call @scoop_rt_gc_collect direct
       call $dependency.argument.0: Int = extern1 @m24_release_count direct
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn9 direct
+      call @fn13 direct
         Type Int
         Local $dependency.parameter.value
       return
-  fun println @fn9(value: Int) -> Unit
+  fun equals @fn11(this: Ptr<Node>, other: Ptr<Node>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<Node>
+        Type Ptr<Node>
+        Local this
+      val $dependency.local.4: ULong
+        Type ULong
+        PtrToULong
+          Type Ptr<Node>
+          Local $dependency.local.2
+      val $dependency.local.3: Ptr<Node>
+        Type Ptr<Node>
+        Local other
+      return
+        Type Boolean
+        IntegerCompare equal operands=ULong result=Boolean
+          Type ULong
+          Local $dependency.local.4
+          Type ULong
+          PtrToULong
+            Type Ptr<Node>
+            Local $dependency.local.3
+  fun equals @fn12(this: Ptr<Int>, other: Ptr<Int>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<Int>
+        Type Ptr<Int>
+        Local this
+      val $dependency.local.4: ULong
+        Type ULong
+        PtrToULong
+          Type Ptr<Int>
+          Local $dependency.local.2
+      val $dependency.local.3: Ptr<Int>
+        Type Ptr<Int>
+        Local other
+      return
+        Type Boolean
+        IntegerCompare equal operands=ULong result=Boolean
+          Type ULong
+          Local $dependency.local.4
+          Type ULong
+          PtrToULong
+            Type Ptr<Int>
+            Local $dependency.local.3
+  fun println @fn13(value: Int) -> Unit
     bb0 entry
       val $dependency.local.1: Int
         Type Int
@@ -333,31 +418,31 @@ Module
         Type String
         Local $dependency.local.5
       return
-  fun Continuation.resume @fn10(this: Continuation<Parts>, value: Parts) -> Unit
+  fun Continuation.resume @fn14(this: Continuation<Parts>, value: Parts) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
-  fun Continuation.resumeWithException @fn11(this: Continuation<Parts>, exception: Throwable) -> Unit
+  fun Continuation.resumeWithException @fn15(this: Continuation<Parts>, exception: Throwable) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resumeWithException`"
-  fun SuspendTask.run @fn12(this: SuspendTask<Parts>, $completion: Continuation<Parts>) -> CoroutineStep<Parts>
+  fun SuspendTask.run @fn16(this: SuspendTask<Parts>, $completion: Continuation<Parts>) -> CoroutineStep<Parts>
     bb0 entry
       trap "call to abstract method `SuspendTask.run`"
-  fun SuspendRegistration.register @fn13(this: SuspendRegistration<Parts>, continuation: Continuation<Parts>) -> Unit
+  fun SuspendRegistration.register @fn17(this: SuspendRegistration<Parts>, continuation: Continuation<Parts>) -> Unit
     bb0 entry
       trap "call to abstract method `SuspendRegistration.register`"
-  fun Continuation.resume @fn14(this: Continuation<Node>, value: Node) -> Unit
+  fun Continuation.resume @fn18(this: Continuation<Node>, value: Node) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
-  fun Continuation.resumeWithException @fn15(this: Continuation<Node>, exception: Throwable) -> Unit
+  fun Continuation.resumeWithException @fn19(this: Continuation<Node>, exception: Throwable) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resumeWithException`"
-  fun SuspendTask.run @fn16(this: SuspendTask<Node>, $completion: Continuation<Node>) -> CoroutineStep<Node>
+  fun SuspendTask.run @fn20(this: SuspendTask<Node>, $completion: Continuation<Node>) -> CoroutineStep<Node>
     bb0 entry
       trap "call to abstract method `SuspendTask.run`"
-  fun SuspendRegistration.register @fn17(this: SuspendRegistration<Node>, continuation: Continuation<Node>) -> Unit
+  fun SuspendRegistration.register @fn21(this: SuspendRegistration<Node>, continuation: Continuation<Node>) -> Unit
     bb0 entry
       trap "call to abstract method `SuspendRegistration.register`"
-  fun init.RecursiveOwner.$c0 @fn18(this: RecursiveOwner, node: Node) -> Unit
+  fun init.RecursiveOwner.$c0 @fn22(this: RecursiveOwner, node: Node) -> Unit
     bb0 entry
       field_set 0
         Type RecursiveOwner
@@ -365,7 +450,7 @@ Module
         Type Node
         Local node
       return
-  fun init.Owner.$c1 @fn19(this: Owner, parts: Parts) -> Unit
+  fun init.Owner.$c1 @fn23(this: Owner, parts: Parts) -> Unit
     bb0 entry
       field_set 0
         Type Owner
@@ -373,7 +458,7 @@ Module
         Type Parts
         Local parts
       return
-  fun ctor.Parts.$c0 @fn20(first: Int, second: Int) -> Parts <no-gc>
+  fun ctor.Parts.$c0 @fn24(first: Int, second: Int) -> Parts <no-gc>
     bb0 entry
       return
         Type Parts
@@ -382,7 +467,7 @@ Module
           Local first
           Type Int
           Local second
-  fun ctor.Node.$c1 @fn21(next: Option<Ptr<Node>>, value: Int) -> Node <no-gc>
+  fun ctor.Node.$c1 @fn25(next: Option<Ptr<Node>>, value: Int) -> Node <no-gc>
     bb0 entry
       return
         Type Node
@@ -391,9 +476,9 @@ Module
           Local next
           Type Int
           Local value
-  fun callback bridge for even @fn22($result: Ptr<Int>, $arg0: Ptr<Int>) -> Unit <no-gc>
+  fun callback bridge for even @fn26($result: Ptr<Int>, $arg0: Ptr<Int>) -> Unit <no-gc>
     bb0 entry
-      call $value: Int = @fn3 direct
+      call $value: Int = @fn5 direct
         Type Int
         PtrLoad Int
           Type Ptr<Int>
@@ -405,9 +490,9 @@ Module
         Type Int
         Local $value
       return
-  fun callback bridge for odd @fn23($result: Ptr<Int>, $arg0: Ptr<Int>) -> Unit <no-gc>
+  fun callback bridge for odd @fn27($result: Ptr<Int>, $arg0: Ptr<Int>) -> Unit <no-gc>
     bb0 entry
-      call $value: Int = @fn6 direct
+      call $value: Int = @fn8 direct
         Type Int
         PtrLoad Int
           Type Ptr<Int>
@@ -419,7 +504,7 @@ Module
         Type Int
         Local $value
       return
-  fun startCoroutine<Parts> @fn24(task: SuspendTask<Parts>, completion: Continuation<Parts>) -> Unit
+  fun startCoroutine<Parts> @fn28(task: SuspendTask<Parts>, completion: Continuation<Parts>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -442,7 +527,7 @@ Module
         Local $context_guard
       return
     bb3 completed unwind bb0
-      call @fn10 interface Continuation<Parts>[0]
+      call @fn14 interface Continuation<Parts>[0]
         Type Continuation<Parts>
         Local completion
         Type Parts
@@ -455,7 +540,7 @@ Module
         Local $context_guard
       return
     bb4 failed unwind bb0
-      call @fn11 interface Continuation<Parts>[1]
+      call @fn15 interface Continuation<Parts>[1]
         Type Continuation<Parts>
         Local completion
         Type Throwable
@@ -474,7 +559,7 @@ Module
       end_catch
       goto bb4
     bb6 run unwind bb5
-      call $step: CoroutineStep<Parts> = @fn12 interface SuspendTask<Parts>[0]
+      call $step: CoroutineStep<Parts> = @fn16 interface SuspendTask<Parts>[0]
         Type SuspendTask<Parts>
         Local task
         Type Continuation<Parts>
@@ -500,7 +585,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Node> @fn25(task: SuspendTask<Node>, completion: Continuation<Node>) -> Unit
+  fun startCoroutine<Node> @fn29(task: SuspendTask<Node>, completion: Continuation<Node>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -523,7 +608,7 @@ Module
         Local $context_guard
       return
     bb3 completed unwind bb0
-      call @fn14 interface Continuation<Node>[0]
+      call @fn18 interface Continuation<Node>[0]
         Type Continuation<Node>
         Local completion
         Type Node
@@ -536,7 +621,7 @@ Module
         Local $context_guard
       return
     bb4 failed unwind bb0
-      call @fn15 interface Continuation<Node>[1]
+      call @fn19 interface Continuation<Node>[1]
         Type Continuation<Node>
         Local completion
         Type Throwable
@@ -555,7 +640,7 @@ Module
       end_catch
       goto bb4
     bb6 run unwind bb5
-      call $step: CoroutineStep<Node> = @fn16 interface SuspendTask<Node>[0]
+      call $step: CoroutineStep<Node> = @fn20 interface SuspendTask<Node>[0]
         Type SuspendTask<Node>
         Local task
         Type Continuation<Node>
@@ -604,7 +689,7 @@ Module
       val $parameter.second: Int
         Type Int
         Local $argument.1
-      call $argument.0: Parts = @fn20 direct
+      call $argument.0: Parts = @fn24 direct
         Type Int
         Local $parameter.first
         Type Int
@@ -655,7 +740,7 @@ Module
       val $receiver: Parts
         Type Parts
         Local combined
-      call $dependency.argument.0: Int = @fn2 direct
+      call $dependency.argument.0: Int = @fn4 direct
         Type Parts
         Local $receiver
       val $dependency.parameter.other: Int
@@ -674,7 +759,7 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call $dependency.argument.0: Int = @fn3 direct
+      call $dependency.argument.0: Int = @fn5 direct
         Type Int
         Local $parameter.value
       val $dependency.parameter.other: Int
@@ -794,18 +879,22 @@ Module
   coroutine_step cs1 CoroutineStep<Node> result=Node
   coroutine_slot cl0 CoroutineSlot<Parts> value=Parts
   coroutine_slot cl1 CoroutineSlot<Node> value=Node
-  coroutine_start ct0 result=Parts function=fn24
-  coroutine_start ct1 result=Node function=fn25
-  coroutine_fn cf0 @fn12 source_return=Parts step=cs0 immediate
-  coroutine_fn cf1 @fn16 source_return=Node step=cs1 immediate
-  instance mi0 function=@fn9 <- println
-  instance mi1 function=@fn10 <- Continuation.resume
-  instance mi2 function=@fn11 <- Continuation.resumeWithException
-  instance mi3 function=@fn12 <- SuspendTask.run
-  instance mi4 function=@fn13 <- SuspendRegistration.register
+  coroutine_start ct0 result=Parts function=fn28
+  coroutine_start ct1 result=Node function=fn29
+  coroutine_fn cf0 @fn16 source_return=Parts step=cs0 immediate
+  coroutine_fn cf1 @fn20 source_return=Node step=cs1 immediate
+  instance mi0 function=@fn2 <- equalTo
+  instance mi1 function=@fn3 <- equalTo
+  instance mi2 function=@fn11 <- equals
+  instance mi3 function=@fn12 <- equals
+  instance mi4 function=@fn13 <- println
   instance mi5 function=@fn14 <- Continuation.resume
   instance mi6 function=@fn15 <- Continuation.resumeWithException
   instance mi7 function=@fn16 <- SuspendTask.run
   instance mi8 function=@fn17 <- SuspendRegistration.register
+  instance mi9 function=@fn18 <- Continuation.resume
+  instance mi10 function=@fn19 <- Continuation.resumeWithException
+  instance mi11 function=@fn20 <- SuspendTask.run
+  instance mi12 function=@fn21 <- SuspendRegistration.register
   str @str0 "\n"
-  output executable @fn8
+  output executable @fn10

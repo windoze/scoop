@@ -68,6 +68,7 @@ impl<'a> SourceCollection<'a> {
             sources.function(export, *function, &mut nominals)?;
         }
         if let crate::CoreProtocols::Defined(protocols) = &export.core_protocols {
+            sources.function(export, protocols.program_arguments, &mut nominals)?;
             sources.function(
                 export,
                 protocols.exceptions.initialization_cycle_thrower,

@@ -6,6 +6,7 @@ impl<'a> FunctionLowerer<'a> {
     pub(super) fn lower_expr(&mut self, expr: &mir::Expr) -> StorageResult<lir::Value> {
         let ty = &expr.ty;
         Ok(match &expr.kind {
+            mir::ExprKind::DataBorrow(operation) => self.lower_data_borrow_operation(operation)?,
             mir::ExprKind::Context(operation) => self.lower_context_operation(operation, ty)?,
             mir::ExprKind::ReleaseFieldLoad { class, index } => {
                 self.lower_release_field(*class, *index, ty)?
@@ -117,6 +118,8 @@ impl<'a> FunctionLowerer<'a> {
                 target_type,
                 operand,
             } => self.lower_array_clone(ty, source_type, target_type, operand)?,
+            mir::ExprKind::AtomicNew(initial) => self.lower_atomic_new(ty, initial)?,
+            mir::ExprKind::Atomic(atomic) => self.lower_atomic_operation(atomic)?,
             mir::ExprKind::Local(local) => self.local_value(*local),
             mir::ExprKind::GlobalRead(global) => self.lower_global_read(ty, *global),
             mir::ExprKind::InitializationUnitAddress(unit) => {

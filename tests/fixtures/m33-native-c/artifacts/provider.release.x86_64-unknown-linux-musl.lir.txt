@@ -1,0 +1,28 @@
+Module
+  extern ef0 sum @m33_provider_sum(i32) -> i32 <c exact=(Int)->Int bridge=@scoop$1$br$08213365b70ffe9e4524df8d04653bbfb97b18e71ad3375da007e998e7441712 capture-errno gc-leaf nounwind mode=gc-leaf>
+  fun @scoop$1$cb$b097f1e058b86053559194a2216fe28edcbb78cf6e6e91098164c1933560463e(i32) -> sret<{i32, i32} size=8 align=4 scan=none> <no-gc>
+    local %0 $call.1: {i32, i32}
+    local %1 $sc.1: i32
+    local %2 $sc.2: i32
+  block entry
+    store param0 -> local1
+    call native-gc-leaf-direct-target0 t0 = sig=direct0 (ptr<raw>, ptr<raw>) -> i32 extern0(c-arg-address(local2), c-arg-address(local1))
+    t1 = aggregate (local2, t0) : {i32, i32}
+    store t1 -> local0
+    ret local0
+  fun @scoop$1$cb$cbd260c806fd35fd4dbbd9e194ee36b8c751c60890f88ed1ec63812baece4105(i32) -> sret<{i32, i32} size=8 align=4 scan=none>
+    local %0 $argument.0: i32
+    local %1 $parameter.value: i32
+    local %2 $call.1: {i32, i32}
+    local %3 $sc.1: i32
+    local %4 $sc.2: i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store param0 -> local0
+    store local0 -> local1
+    store local1 -> local3
+    call native-gc-leaf-direct-target0 t0 = sig=direct0 (ptr<raw>, ptr<raw>) -> i32 extern0(c-arg-address(local4), c-arg-address(local3))
+    t1 = aggregate (local4, t0) : {i32, i32}
+    store t1 -> local2
+    ret local2
+  output library

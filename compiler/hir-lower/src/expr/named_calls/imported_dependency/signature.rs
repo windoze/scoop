@@ -44,6 +44,7 @@ impl Lowerer {
         let generic = generic_constructor
             || candidate.pointer_intrinsic().is_some()
             || candidate.array_intrinsic().is_some()
+            || candidate.atomic_intrinsic().is_some()
             || candidate.callback_intrinsic().is_some()
             || matches!(
                 interface.effects().implementation(),
@@ -53,7 +54,7 @@ impl Lowerer {
                         | hir::IntrinsicFunctionKind::CurrentSourceLocation
                 )
             )
-            || matches!(interface.effects().implementation(), hir::CallableImplementationV1::Intrinsic(kind) if kind.is_runtime_gc_call())
+            || matches!(interface.effects().implementation(), hir::CallableImplementationV1::Intrinsic(kind) if kind.is_runtime_gc_call() || matches!(kind, hir::IntrinsicFunctionKind::DataBorrow(_)))
             || (interface.modality() == hir::CallableModalityV1::Abstract
                 && matches!(
                     interface.owner(),

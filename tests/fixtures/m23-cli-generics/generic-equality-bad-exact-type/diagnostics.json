@@ -1,7 +1,7 @@
 [
   {
     "code": "SCOOPC_HIR_ERROR",
-    "message": "type `Counter<Int>` has no member operator `equals` for `==`",
+    "message": "type `Counter<Int>` has no applicable member operator `equals` for `==`",
     "notes": [],
     "origin": {
       "cone": "6fc4a222b18ea523266d1ffa25bfbb698c9689201af06c30c4ea8bdf219707bb",

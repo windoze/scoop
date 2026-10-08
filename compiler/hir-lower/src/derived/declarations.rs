@@ -40,7 +40,7 @@ impl Lowerer {
         };
         methods.iter().copied().any(|function| {
             let signature = &self.signatures[&function];
-            signature.modifiers.operator == Some(hir::OperatorKind::Equals)
+            self.functions[function].name.rsplit('.').next() == Some("equals")
                 && matches!(signature.params.as_slice(), [parameter] if self.types_equal(parameter.ty, owner_ty))
         })
     }
@@ -140,7 +140,7 @@ impl Lowerer {
         function
     }
 
-    pub(super) fn declare_structural_derived_equality_method(
+    pub(crate) fn declare_structural_derived_equality_method(
         &mut self,
         owner_ty: hir::TypeId,
         span: ast::Span,

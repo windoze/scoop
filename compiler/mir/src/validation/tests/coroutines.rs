@@ -4,6 +4,7 @@ mod signatures;
 
 struct CoroutineFixture {
     module: Module,
+    wrapper: FunctionId,
     driver: FunctionId,
     success_entry: BlockId,
     failure_entry: BlockId,
@@ -91,7 +92,7 @@ fn coroutine_fixture(continue_parent: bool) -> CoroutineFixture {
         return_ty: Type::Enum(step_enum, Vec::new()),
         body: Body::unreachable(wrapper_locals),
     });
-    module.output = MirOutput::Executable { entry: wrapper };
+    module.output = MirOutput::Library;
     let source = test_source_materialization();
     let source_signature = scoop_identity::ExactCallableSignature::new(
         scoop_identity::Effect::Suspend,
@@ -434,6 +435,7 @@ fn coroutine_fixture(continue_parent: bool) -> CoroutineFixture {
     install_generated_callables(&mut module);
     CoroutineFixture {
         module,
+        wrapper,
         driver,
         success_entry,
         failure_entry,
@@ -663,11 +665,7 @@ fn continuation_adapter_identity_must_retain_its_protocol_signatures() {
 #[test]
 fn final_validation_rejects_a_transient_pending_call_context() {
     let mut fixture = coroutine_fixture(false);
-    let function = fixture
-        .module
-        .output
-        .executable_entry()
-        .expect("test module is executable");
+    let function = fixture.wrapper;
     let block = fixture.module.functions[function].body.entry;
     fixture.module.functions[function].body.blocks[block]
         .statements

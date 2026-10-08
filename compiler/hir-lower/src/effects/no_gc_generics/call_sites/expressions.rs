@@ -53,6 +53,11 @@ impl Lowerer {
             }
         };
         match &expr.kind {
+            ExprKind::Atomic(atomic) => {
+                for operand in atomic.operands() {
+                    self.collect_generic_calls_in_expr(operand, out);
+                }
+            }
             ExprKind::ContextLookup(_)
             | ExprKind::StringLiteral { .. }
             | ExprKind::IntegerLiteral(_)
@@ -189,6 +194,7 @@ impl Lowerer {
             }
             | ExprKind::ArrayLen(source)
             | ExprKind::ArrayClone(source)
+            | ExprKind::AtomicNew(source)
             | ExprKind::Unary {
                 operand: source, ..
             }

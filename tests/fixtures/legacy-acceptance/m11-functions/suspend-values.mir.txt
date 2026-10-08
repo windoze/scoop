@@ -205,10 +205,14 @@ Module
   interface Continuation<Unit>
   interface ToString
   interface Hash
+  interface Equality<Int>
+  interface Equality<Char>
   interface Iterable<Char>
   interface Iterator<Char>
+  interface Equality<String>
   interface SuspendRegistration<Int>
   interface SuspendTask<Int>
+  interface Equality<Boolean>
   interface SuspendTask<Unit>
   interface SuspendRegistration<Unit>
   interface Continuation<Any>

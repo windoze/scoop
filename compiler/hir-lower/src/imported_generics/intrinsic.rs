@@ -5,6 +5,8 @@ use crate::call_resolution::candidates::DeclarationSignature;
 use crate::imported_core::ImportedTypeBindings;
 use scoop_identity::SignatureTypeKey;
 
+mod atomics;
+
 #[derive(Clone)]
 pub(crate) struct LoadedCallableSignature {
     pub(crate) signature: DeclarationSignature<hir::ExportDefaultTemplateKeyV1>,
@@ -92,7 +94,7 @@ impl ImportedIntrinsicSignature {
         let return_type = state.imported_generic_type(interface.result(), &bindings)?;
         let value_parameters = state
             .imported_parameter_views(&declaration, value_parameters.iter().map(|(_, ty)| *ty));
-        Ok(Self {
+        let prepared = Self {
             declaration,
             signature: LoadedCallableSignature {
                 signature: crate::call_resolution::candidates::DeclarationSignature {
@@ -106,7 +108,9 @@ impl ImportedIntrinsicSignature {
                 span: origin.span,
             },
             bindings,
-        })
+        };
+        prepared.validate_atomic(state)?;
+        Ok(prepared)
     }
 }
 

@@ -1,0 +1,162 @@
+Module
+  typealias Float32 = Float
+  typealias Float64 = Double
+  struct Point
+    field0 x: Int
+    field1 y: Int
+    property9 val x: Int getter9=storage <stored struct19-field0>
+    property10 val y: Int getter10=storage <stored struct19-field1>
+  enum Option<T>
+    Some(_1: T0)
+    None()
+  open class Throwable()
+  open class Exception(message: Option<String>)
+    field0 property13: Option<String>
+    property13 val message: Option<String> getter13=storage-body(Exception.$get$message) <stored field0 init=parameter11>
+  class UnwrapException()
+  class ClassCastException()
+  class ArithmeticException()
+  class MissingContextException(message: Option<String>)
+  class IndexOutOfBoundsException()
+  class IllegalArgumentException(message: Option<String>)
+  class IllegalStateException(message: Option<String>)
+  interface ToString
+    fun toString(): String
+  interface Hash
+    fun hash(): Long
+  interface Iterator<T>
+    fun next(): Option<T0>
+  interface Iterable<T>
+    operator fun iterator(): Iterator<T0>
+  interface Equality<T>
+    fun equalTo(other: T0): Boolean
+  interface Continuation<T>
+    fun resume(value: T0): Unit
+    fun resumeWithException(exception: Throwable): Unit
+  interface SuspendTask<T>
+    suspend fun run(): T0
+  interface SuspendRegistration<T>
+    fun register(continuation: Continuation<T0>): Unit
+  fun coreBooleanEquals(arg1: Boolean, arg2: Boolean): Boolean <extern0 abi=scoop symbol=scoop_rt_bool_equals>
+  fun coreStringEquals(arg1: String, arg2: String): Boolean <extern1 abi=scoop symbol=scoop_rt_string_eq>
+  fun coreLongToString(arg1: Long): String <extern2 abi=scoop symbol=scoop_rt_long_to_string>
+  fun coreULongToString(arg1: ULong): String <extern3 abi=scoop symbol=scoop_rt_ulong_to_string>
+  fun coreBooleanToString(arg1: Boolean): String <extern4 abi=scoop symbol=scoop_rt_bool_to_string>
+  fun coreLongHash(arg1: Long): Long <extern5 abi=scoop symbol=scoop_rt_long_hash>
+  fun coreULongHash(arg1: ULong): Long <extern6 abi=scoop symbol=scoop_rt_ulong_hash>
+  fun coreBooleanHash(arg1: Boolean): Long <extern7 abi=scoop symbol=scoop_rt_bool_hash>
+  fun coreStringHash(arg1: String): Long <extern8 abi=scoop symbol=scoop_rt_string_hash>
+  fun coreFloatToString(arg1: Float): String <extern9 abi=scoop symbol=scoop_rt_float_to_string>
+  fun coreDoubleToString(arg1: Double): String <extern10 abi=scoop symbol=scoop_rt_double_to_string>
+  fun __scoopProgramArguments(): Array<String>
+    val local0
+      StringLiteral "illegal state" : String
+    val local1
+      Local $argument.0 : String
+    val local2
+      VariantConstruct Option.Some<String> : Option<String>
+        Local $parameter._1 : String
+    throw
+      ClassInit IllegalStateException : IllegalStateException
+        Local $parameter.message : Option<String>
+  fun __scoopThrowInitializationCycle(message: String): Unit
+    val local1
+      Local message : String
+    val local2
+      Local $argument.0 : String
+    val local3
+      VariantConstruct Option.Some<String> : Option<String>
+        Local $parameter._1 : String
+    val local4
+      Local $argument.0 : Option<String>
+    throw
+      ClassInit IllegalStateException : IllegalStateException
+        Local $parameter.message : Option<String>
+  fun startCoroutine<T>(): Unit <intrinsic coroutine_start>
+  suspend fun suspendCoroutine<T>(): T0 <intrinsic coroutine_suspend>
+  fun write(arg1: String): Unit <extern11 abi=scoop symbol=scoop_rt_write>
+  fun print<T : ToString>(value: T0): Unit
+    val local1
+      Local value : T0
+    val local2
+      MethodCall bound T0 via ToString -> ToString.toString : String
+        Local $receiver : T0
+    val local3
+      Local $argument.0 : String
+    Call write : Unit
+      Local $parameter.message : String
+    return
+  fun println<T : ToString>(value: T0): Unit
+    val local1
+      Local value : T0
+    val local2
+      MethodCall bound T0 via ToString -> ToString.toString : String
+        Local $receiver : T0
+    val local3
+      Local $argument.0 : String
+    Call write : Unit
+      Local $parameter.message : String
+    val local4
+      StringLiteral "\n" : String
+    val local5
+      Local $argument.0 : String
+    Call write : Unit
+      Local $parameter.message : String
+  fun main(): Unit
+    val local0
+      TupleLiteral : (Int, String)
+        IntegerLiteral 1 : Int
+        StringLiteral "a" : String
+    when
+      Local t : (Int, String)
+      arm (<lit IntegerLiteral(Signed32(0))>, _)
+        val local1
+          StringLiteral "zero" : String
+        val local2
+          Local $argument.0 : String
+        Call println<String> : Unit
+          Local $parameter.value : String
+      arm (local3, _)
+        val local4
+          Local n : Int
+        val local5
+          Local $argument.0 : Int
+        Call println<Int> : Unit
+          Local $parameter.value : Int
+      impossible <irrefutable (Int, String)>
+    val local6
+      IntegerLiteral 1 : Int
+    val local7
+      IntegerLiteral 2 : Int
+    val local8
+      Local $argument.0 : Int
+    val local9
+      Local $argument.1 : Int
+    val local10
+      StructInit Point : Point
+        Local $parameter.x : Int
+        Local $parameter.y : Int
+    when
+      Local p : Point
+      arm struct(0: local11, 1: local12) if <guard>
+        guard condition
+          IntegerOperation int.equals <no-gc> : Boolean
+            Local x : Int
+            Local yy : Int
+        val local13
+          StringLiteral "eq" : String
+        val local14
+          Local $argument.0 : String
+        Call println<String> : Unit
+          Local $parameter.value : String
+      arm struct(0: local15, 1: local16)
+        val local17
+          Local a : Int
+        val local18
+          Local $argument.0 : Int
+        Call println<Int> : Unit
+          Local $parameter.value : Int
+      impossible <irrefutable Point>
+  output executable main
+  instance println<String>
+  instance println<Int>

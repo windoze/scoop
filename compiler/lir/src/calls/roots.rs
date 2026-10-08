@@ -138,12 +138,17 @@ pub struct NoGcCallSite {
 
 #[derive(Debug)]
 pub struct ReleaseNativeLeafCallSite {
-    pub call: NativeSafeTypedCall,
+    pub call: CTypedCall,
+}
+
+#[derive(Debug)]
+pub struct NativeGcLeafCallSite {
+    pub call: CTypedCall,
 }
 
 #[derive(Debug)]
 pub struct NativeSafeCallSite {
-    pub call: NativeSafeTypedCall,
+    pub call: CTypedCall,
     pub safepoint: SafepointSiteRef,
     pub roots: NativeSafeRootSet,
 }
@@ -161,6 +166,7 @@ pub enum CallSite {
     NoGc(NoGcCallSite),
     ReleaseScoop(NoGcCallSite),
     ReleaseNativeLeaf(ReleaseNativeLeafCallSite),
+    NativeGcLeaf(NativeGcLeafCallSite),
     NativeSafe(NativeSafeCallSite),
     NativeBorrowed(NativeBorrowedCallSite),
 }
@@ -172,6 +178,7 @@ impl CallSite {
             Self::NoGc(site) | Self::ReleaseScoop(site) => site.call.args(),
             Self::NativeSafe(site) => site.call.args(),
             Self::ReleaseNativeLeaf(site) => site.call.args(),
+            Self::NativeGcLeaf(site) => site.call.args(),
             Self::NativeBorrowed(site) => site.call.args(),
         }
     }
@@ -182,6 +189,7 @@ impl CallSite {
             Self::NoGc(site) | Self::ReleaseScoop(site) => site.call.direct_out(),
             Self::NativeSafe(site) => site.call.direct_out(),
             Self::ReleaseNativeLeaf(site) => site.call.direct_out(),
+            Self::NativeGcLeaf(site) => site.call.direct_out(),
             Self::NativeBorrowed(site) => site.call.direct_out(),
         }
     }
@@ -192,6 +200,7 @@ impl CallSite {
             Self::NoGc(site) | Self::ReleaseScoop(site) => site.call.result_temp(),
             Self::NativeSafe(site) => site.call.result_temp(),
             Self::ReleaseNativeLeaf(site) => site.call.result_temp(),
+            Self::NativeGcLeaf(site) => site.call.result_temp(),
             Self::NativeBorrowed(site) => site.call.result_temp(),
         }
     }
@@ -202,6 +211,7 @@ impl CallSite {
             Self::NoGc(site) | Self::ReleaseScoop(site) => site.call.result(),
             Self::NativeSafe(site) => site.call.result(),
             Self::ReleaseNativeLeaf(site) => site.call.result(),
+            Self::NativeGcLeaf(site) => site.call.result(),
             Self::NativeBorrowed(site) => site.call.result(),
         }
     }
@@ -223,18 +233,13 @@ impl CallSite {
                 )
                 .destination(),
             Self::NativeSafe(site) => targets
-                .typed_call_view(
-                    &site.call,
-                    &targets.native_safe_targets,
-                    NativeSafeCallDestination::view,
-                )
+                .typed_call_view(&site.call, &targets.c_targets, CCallDestination::view)
                 .destination(),
             Self::ReleaseNativeLeaf(site) => targets
-                .typed_call_view(
-                    &site.call,
-                    &targets.native_safe_targets,
-                    NativeSafeCallDestination::view,
-                )
+                .typed_call_view(&site.call, &targets.c_targets, CCallDestination::view)
+                .destination(),
+            Self::NativeGcLeaf(site) => targets
+                .typed_call_view(&site.call, &targets.c_targets, CCallDestination::view)
                 .destination(),
             Self::NativeBorrowed(site) => site.call.view(targets).call.destination(),
         }

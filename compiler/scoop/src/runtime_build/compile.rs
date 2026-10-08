@@ -20,10 +20,7 @@ pub(super) fn compile(
             .object_compilation_command(&root.join(source), &object);
         command
             .args(request.target.runtime_build().runtime_c_flags())
-            .arg(match request.optimization {
-                RuntimeOptimization::None => "-O0",
-                RuntimeOptimization::Optimized => "-O2",
-            })
+            .args(request.optimization.c_flags())
             .args([
                 "-funwind-tables",
                 "-fasynchronous-unwind-tables",

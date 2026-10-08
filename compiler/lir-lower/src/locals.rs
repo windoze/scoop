@@ -10,6 +10,12 @@ use scoop_mir as mir;
 pub(super) fn address_taken(function: &mir::Function) -> HashSet<mir::LocalId> {
     fn collect_expr(value: &mir::Expr, out: &mut HashSet<mir::LocalId>) {
         match &value.kind {
+            mir::ExprKind::Atomic(atomic) => {
+                for operand in atomic.operands() {
+                    collect_expr(operand, out);
+                }
+            }
+            mir::ExprKind::DataBorrow(operation) => collect_expr(&operation.operand, out),
             mir::ExprKind::Context(operation) => {
                 if let Some(operand) = operation.operand() {
                     collect_expr(operand, out);
@@ -65,6 +71,7 @@ pub(super) fn address_taken(function: &mir::Function) -> HashSet<mir::LocalId> {
             | mir::ExprKind::ArrayAllocate { count: operand, .. }
             | mir::ExprKind::ArrayLen { operand, .. }
             | mir::ExprKind::ArrayClone { operand, .. }
+            | mir::ExprKind::AtomicNew(operand)
             | mir::ExprKind::Unary { operand, .. }
             | mir::ExprKind::IntegerUnary { operand, .. }
             | mir::ExprKind::IntegerConversion { operand, .. }

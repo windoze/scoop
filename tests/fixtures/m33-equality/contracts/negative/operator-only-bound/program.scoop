@@ -1,0 +1,5 @@
+class Counter(val value: Int) {
+    public operator fun equals(other: Counter): Boolean = value == other.value
+}
+fun <T : Equality<T>> same(left: T, right: T): Boolean = left.equalTo(right)
+fun main() { println(same(Counter(1), Counter(1))) }

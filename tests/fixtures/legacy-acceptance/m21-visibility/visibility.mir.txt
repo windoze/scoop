@@ -23,6 +23,7 @@ Module
   interface VisibleValue
   interface ToString
   interface Hash
+  interface Equality<Int>
   interface Continuation<VisibleValue>
   interface SuspendTask<VisibleValue>
   interface SuspendRegistration<VisibleValue>

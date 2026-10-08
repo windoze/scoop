@@ -4,6 +4,7 @@
 #include <string.h>
 
 #include "../thread.h"
+#include "../thread/testing.h"
 #include "../value_shape.h"
 #include "gc_internal.h"
 #include "heap_internal.h"
@@ -47,10 +48,10 @@ typedef enum RefillResult {
     REFILL_FULL,
 } RefillResult;
 
-static RefillResult refill_nursery(ScoopThreadState *thread) {
+static RefillResult refill_nursery(ScoopThreadState *thread, bool after_full) {
     lock_heap();
     size_t capacity = scoop_gc_heap_state.stress_minor ? GC_BLOCK_SIZE : GC_NURSERY_CAPACITY;
-    if (committed_bytes + GC_BLOCK_SIZE > collection_threshold) {
+    if (!after_full && committed_bytes + GC_BLOCK_SIZE > collection_threshold) {
         unlock_heap();
         return REFILL_FULL;
     }
@@ -72,7 +73,6 @@ static RefillResult refill_nursery(ScoopThreadState *thread) {
 }
 
 static void *allocate_small(ScoopThreadState *thread, size_t size, size_t alignment) {
-    bool minor_attempted = false;
     bool full_attempted = false;
     for (;;) {
         void *object =
@@ -82,19 +82,21 @@ static void *allocate_small(ScoopThreadState *thread, size_t size, size_t alignm
         }
         thread->allocation.cursor = NULL;
         thread->allocation.limit = NULL;
-        RefillResult refill = refill_nursery(thread);
+        RefillResult refill = refill_nursery(thread, full_attempted);
         if (refill == REFILL_READY) {
             continue;
         }
-        if (refill == REFILL_MINOR && !minor_attempted) {
+        if (refill == REFILL_MINOR) {
+            /* Another mutator can claim the newly emptied nursery before
+             * this thread resumes. Capacity contention is not arena OOM. */
             scoop_gc_collect_minor_internal();
-            minor_attempted = true;
+            full_attempted = false;
         } else if (!full_attempted) {
-            scoop_gc_collect_internal();
-            full_attempted = true;
+            full_attempted = scoop_gc_collect_internal();
         } else {
             heap_fatal("GC arena exhausted allocating a regular object");
         }
+        SCOOP_THREAD_TEST_POINT(SCOOP_TEST_NURSERY_RETRY);
     }
 }
 
@@ -124,8 +126,7 @@ static void *allocate_old(size_t size, size_t alignment) {
         if (collected) {
             heap_fatal("GC arena exhausted allocating a pretenured object");
         }
-        scoop_gc_collect_internal();
-        collected = true;
+        collected = scoop_gc_collect_internal();
     }
 }
 
@@ -166,8 +167,7 @@ static void *allocate_large(size_t size, uint32_t *block_index) {
         if (collected) {
             heap_fatal("GC arena exhausted allocating a large object");
         }
-        scoop_gc_collect_internal();
-        collected = true;
+        collected = scoop_gc_collect_internal();
     }
 }
 

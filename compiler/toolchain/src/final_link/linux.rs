@@ -4,11 +4,12 @@ use scoop_wire::sha256;
 
 mod image;
 mod probe;
+mod runtime;
+use runtime::RuntimeLibraries;
 mod wire;
 
 const OPTIONS: &[&str] = &[
     "-pthread",
-    "-nodefaultlibs",
     "-Wl,--eh-frame-hdr",
     "-Wl,--enable-new-dtags",
     "-Wl,--build-id=none",
@@ -29,7 +30,7 @@ pub struct LinuxFinalLinkProfile {
     linker: PathBuf,
     linker_version: String,
     compiler_digest: Digest256,
-    unwind_prefix: PathBuf,
+    runtime: RuntimeLibraries,
     inputs: Vec<SystemInput>,
 }
 
@@ -37,6 +38,7 @@ impl LinuxFinalLinkProfile {
     pub(super) fn resolve(
         startup: ValidatedCBridgeToolchainInvocation,
         options: &FinalLinkOptions,
+        cxx: Option<crate::ValidatedCxxToolchain>,
     ) -> Result<Self, ToolchainError> {
         let target = startup.profile().contract().target().id();
         let mode = options.mode.unwrap_or(match target {
@@ -51,35 +53,21 @@ impl LinuxFinalLinkProfile {
                 "M28 supports glibc dynamic PIE; glibc static linking is outside its target matrix",
             ));
         }
-        let unwind_prefix = crate::selected_unwind_prefix(
-            target,
-            options.sysroot.as_deref(),
-            options.unwind_prefix.as_deref(),
-        );
-        crate::runtime_unwind_include(target, Some(&unwind_prefix))?;
-        let unwind_prefix = std::path::absolute(unwind_prefix).map_err(error)?;
-        let archive = unwind_prefix.join("lib/libunwind.a");
-        if !archive.is_file() {
-            return Err(error(format!(
-                "missing LLVM unwind archive {}; run scripts/build_llvm_unwind.py for {}",
-                archive.display(),
-                target.canonical_triple()
-            )));
-        }
+        let runtime = RuntimeLibraries::resolve(target, options, cxx)?;
         let linker = probe::driver_program(&startup, "ld")?;
         let version = probe::run(Command::new(&linker).arg("--version"))?;
         let linker_version = String::from_utf8(version.stdout).map_err(error)?;
         if !linker_version.starts_with("GNU ld ") {
             return Err(error("this Linux driver profile requires GNU ld"));
         }
-        let compiler_digest = sha256(&std::fs::read(startup.compiler_driver()).map_err(error)?);
+        let compiler_digest = sha256(&std::fs::read(runtime.driver(&startup)).map_err(error)?);
         let mut profile = Self {
             startup,
             mode,
             linker,
             linker_version,
             compiler_digest,
-            unwind_prefix,
+            runtime,
             inputs: Vec::new(),
         };
         profile.inputs = probe::check(&profile)?;
@@ -101,8 +89,11 @@ impl LinuxFinalLinkProfile {
     pub fn linker_args(&self) -> &'static [&'static str] {
         OPTIONS
     }
-    pub fn unwind_prefix(&self) -> &Path {
-        &self.unwind_prefix
+    pub fn unwind_prefix(&self) -> Option<&Path> {
+        self.runtime.unwind_prefix()
+    }
+    pub fn cxx(&self) -> bool {
+        self.runtime.cxx()
     }
     pub fn input_paths(&self) -> impl Iterator<Item = &Path> {
         self.inputs.iter().map(|input| input.path.as_path())
@@ -117,7 +108,10 @@ impl LinuxFinalLinkProfile {
         std::fs::create_dir_all(scratch).map_err(error)?;
         let script = scratch.join("scoop-metadata.ld");
         std::fs::write(&script, self.metadata_script()).map_err(error)?;
-        let mut command = self.startup.driver_command();
+        let mut command = self.runtime.command(&self.startup);
+        if !self.cxx() {
+            command.arg("-nodefaultlibs");
+        }
         command
             .env("TMPDIR", scratch)
             .args(OPTIONS)
@@ -134,10 +128,12 @@ impl LinuxFinalLinkProfile {
 
     /// Append after the ordinary objects, so archive extraction sees their uses.
     pub fn append_system_libraries(&self, command: &mut Command) {
-        command
-            .arg("-Wl,--start-group")
-            .arg(self.unwind_prefix.join("lib/libunwind.a"))
-            .args(["-lc", "-lm", "-lpthread", "-lgcc", "-Wl,--end-group"]);
+        if let Some(prefix) = self.unwind_prefix() {
+            command
+                .arg("-Wl,--start-group")
+                .arg(prefix.join("lib/libunwind.a"))
+                .args(["-lc", "-lm", "-lpthread", "-lgcc", "-Wl,--end-group"]);
+        }
     }
 
     pub fn check_image(&self, bytes: &[u8]) -> Result<(), ToolchainError> {

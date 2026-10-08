@@ -8,6 +8,7 @@ pub struct TextStubInterface {
     pub compatibility_version: u32,
     pub exports: BTreeMap<String, NativeExport>,
     pub reexports: Vec<String>,
+    pub previous_exports: BTreeMap<String, PreviousExport>,
 }
 
 pub fn read_text_stubs(
@@ -15,30 +16,34 @@ pub fn read_text_stubs(
     deployment: DarwinPackedVersionV1,
     system: bool,
 ) -> Result<Vec<TextStubInterface>, ToolchainError> {
-    let records: Vec<_> =
-        parse(bytes)?
-            .into_iter()
-            .map(|record| {
-                if record.flags.iter().any(|flag| {
-                    flag != "not_app_extension_safe" && flag != "not_for_dyld_shared_cache"
-                }) {
-                    return Err(ToolchainError(format!(
-                        "text stub {} has unsupported load flags {:?}",
-                        record.install_name, record.flags
-                    )));
-                }
-                let mut exports = BTreeMap::new();
-                let mut reexports = Vec::new();
-                record.collect(deployment, system, &mut exports, &mut reexports)?;
-                Ok(TextStubInterface {
-                    install_name: record.install_name,
-                    current_version: record.current_version,
-                    compatibility_version: record.compatibility_version,
-                    exports,
-                    reexports,
-                })
+    let records: Vec<_> = parse(bytes)?
+        .into_iter()
+        .map(|record| {
+            if record
+                .flags
+                .iter()
+                .any(|flag| flag != "not_app_extension_safe" && flag != "not_for_dyld_shared_cache")
+            {
+                return Err(ToolchainError(format!(
+                    "text stub {} has unsupported load flags {:?}",
+                    record.install_name, record.flags
+                )));
+            }
+            let mut exports = BTreeMap::new();
+            let mut reexports = Vec::new();
+            let directives = record.collect(deployment, system, &mut exports, &mut reexports)?;
+            Ok(TextStubInterface {
+                install_name: directives.install_name.unwrap_or(record.install_name),
+                current_version: record.current_version,
+                compatibility_version: directives
+                    .compatibility_version
+                    .unwrap_or(record.compatibility_version),
+                exports,
+                reexports,
+                previous_exports: directives.previous,
             })
-            .collect::<Result<_, _>>()?;
+        })
+        .collect::<Result<_, _>>()?;
     let mut unique = Vec::new();
     let mut names = BTreeMap::new();
     for record in records {

@@ -1,25 +1,69 @@
 Module
   extern ef0 malloc @malloc(ULong) -> Ptr<Unit> <abi=c no-gc>
   extern ef1 free @free(Ptr<Unit>) -> Unit <abi=c no-gc>
-  callback cb0 @fn1 -> @fn8 function_type0 id=375a865eccdac40aeecb274331c61448c4a6edb14382b76de23af0f981c8cb12
-  callback cb1 @fn4 -> @fn9 function_type0 id=995febd01803029359dcf9f69dcf82a473df85cdbfd6313c4c217b2b0bbec76e
+  callback cb0 @fn2 -> @fn20 function_type0 id=375a865eccdac40aeecb274331c61448c4a6edb14382b76de23af0f981c8cb12
+  callback cb1 @fn5 -> @fn21 function_type0 id=995febd01803029359dcf9f69dcf82a473df85cdbfd6313c4c217b2b0bbec76e
   struct Slot (value: Int)
+  enum Option<String>
+    Some(_0: String)
+    None()
   enum Option<FunPtr<(Int) -> Int>>
     Some(_0: FunPtr<(Int) -> Int>)
     None()
   enum Option<Ptr<Int>>
     Some(_0: Ptr<Int>)
     None()
+  enum CoroutineStep<Slot>
+    Completed(value: Slot)
+    Suspended()
+  enum CoroutineSlot<Slot>
+    Empty()
+    Value(value: Slot)
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class box<Slot> vtable=0 itables=0
+  interface Equality<Ptr<Unit>>
+  interface Equality<Ptr<Slot>>
+  interface Equality<Ptr<Int>>
+  interface Equality<Ptr<Boolean>>
   interface ToString
   interface Hash
-  generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
-  generated_exact_type get1 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
-  generated_exact_type get2 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
-  generated_exact_type get3 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
-  generated_exact_type get4 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
-  generated_callable gc0 function=@fn8 id=375a865eccdac40aeecb274331c61448c4a6edb14382b76de23af0f981c8cb12
-  generated_callable gc1 function=@fn9 id=995febd01803029359dcf9f69dcf82a473df85cdbfd6313c4c217b2b0bbec76e
-  fun Slot.rewriteThis @fn0(this: Slot) -> Int <no-gc>
+  interface Equality<Int>
+  interface Continuation<Slot>
+  interface SuspendTask<Slot>
+  interface SuspendRegistration<Slot>
+  generated_exact_type get0 location=enum3 nominal_id=c2c6ec81568337ea4eff099eea4319ec59c6f5ae7c72e0282d2cf2ee426c2e38 exact_id=0d061f47bf99f096030ffe9bb82f3ba630bd1ed38f4c8e62546b095d5aa0fb0c
+  generated_exact_type get1 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
+  generated_exact_type get2 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
+  generated_exact_type get3 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
+  generated_exact_type get4 location=class3 nominal_id=06907c3d2c7d6d2bf6602c740fd8f00d36eb80fad5129f9541f0bc344ce808cb exact_id=6de7fa8eb68112e736bba16aad54ee582fe878723183ee3a710479c70a15303e
+  generated_exact_type get5 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
+  generated_exact_type get6 location=enum4 nominal_id=0b9dbd25dc379f8f916318a0170ce6650548474f2e4ff2fe9d23429724fa1127 exact_id=b7c0dffcd3fce69a56cc79d148607ee3167dbdc1e9ce814ac3f67ca5a7798b59
+  generated_exact_type get7 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
+  generated_callable gc0 function=@fn22 id=35b75189dbd9c93f68ad25dd1352d213aca050d2bbcf939dfa548c465c2cccbb
+  generated_callable gc1 function=@fn20 id=375a865eccdac40aeecb274331c61448c4a6edb14382b76de23af0f981c8cb12
+  generated_callable gc2 function=@fn21 id=995febd01803029359dcf9f69dcf82a473df85cdbfd6313c4c217b2b0bbec76e
+  fun equalTo @fn0(this: Ptr<Unit>, other: Ptr<Unit>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<Unit>
+        Type Ptr<Unit>
+        Local this
+      val $dependency.local.3: Ptr<Unit>
+        Type Ptr<Unit>
+        Local other
+      val $dependency.local.4: Ptr<Unit>
+        Type Ptr<Unit>
+        Local $dependency.local.3
+      call $call.1: Boolean = @fn7 direct
+        Type Ptr<Unit>
+        Local $dependency.local.2
+        Type Ptr<Unit>
+        Local $dependency.local.4
+      return
+        Type Boolean
+        Local $call.1
+  fun Slot.rewriteThis @fn1(this: Slot) -> Int <no-gc>
     bb0 entry
       val pointer: Ptr<Slot>
         Type Ptr<Slot>
@@ -33,7 +77,7 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call $dependency.argument.0: Slot = @fn7 direct
+      call $dependency.argument.0: Slot = @fn19 direct
         Type Int
         Local $parameter.value
       val $dependency.parameter.value: Slot
@@ -50,7 +94,7 @@ Module
         FieldAccess 0
           Type Slot
           Local this
-  fun increment @fn1(value: Int) -> Int <no-gc>
+  fun increment @fn2(value: Int) -> Int <no-gc>
     bb0 entry
       val $dependency.receiver: Int
         Type Int
@@ -68,7 +112,7 @@ Module
           Local $dependency.receiver
           Type Int
           Local $dependency.parameter.other
-  fun malloc @fn2(arg0: ULong) -> Ptr<Unit>
+  fun malloc @fn3(arg0: ULong) -> Ptr<Unit>
     bb0 entry
       call $call.1: Ptr<Unit> = extern0 @malloc direct
         Type ULong
@@ -76,13 +120,13 @@ Module
       return
         Type Ptr<Unit>
         Local $call.1
-  fun free @fn3(arg0: Ptr<Unit>) -> Unit
+  fun free @fn4(arg0: Ptr<Unit>) -> Unit
     bb0 entry
       call extern1 @free direct
         Type Ptr<Unit>
         Local arg0
       return
-  fun rewriteParameter @fn4(value: Int) -> Int <no-gc>
+  fun rewriteParameter @fn5(value: Int) -> Int <no-gc>
     bb0 entry
       val pointer: Ptr<Int>
         Type Ptr<Int>
@@ -105,7 +149,7 @@ Module
       return
         Type Int
         Local value
-  fun main @fn5() -> Unit
+  fun main @fn6() -> Unit
     bb0 entry
       val intSize: ULong
         Type ULong
@@ -154,7 +198,7 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn6 direct
+      call @fn11 direct
         Type Int
         Local $dependency.parameter.value
       val $dependency.receiver: Ptr<Int>
@@ -205,7 +249,7 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn6 direct
+      call @fn11 direct
         Type Int
         Local $dependency.parameter.value
       val $dependency.receiver: Ptr<Int>
@@ -242,7 +286,7 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn6 direct
+      call @fn11 direct
         Type Int
         Local $dependency.parameter.value
       val $dependency.receiver: Ptr<Int>
@@ -295,7 +339,7 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn6 direct
+      call @fn11 direct
         Type Int
         Local $dependency.parameter.value
       val $dependency.argument.0: Int
@@ -304,7 +348,7 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn6 direct
+      call @fn11 direct
         Type Int
         Local $dependency.parameter.value
       val $argument.0: Int
@@ -313,13 +357,13 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call $dependency.argument.0: Int = @fn4 direct
+      call $dependency.argument.0: Int = @fn5 direct
         Type Int
         Local $parameter.value
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn6 direct
+      call @fn11 direct
         Type Int
         Local $dependency.parameter.value
       val $argument.0: Int
@@ -328,16 +372,16 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call $receiver: Slot = @fn7 direct
+      call $receiver: Slot = @fn19 direct
         Type Int
         Local $parameter.value
-      call $dependency.argument.0: Int = @fn0 direct
+      call $dependency.argument.0: Int = @fn1 direct
         Type Slot
         Local $receiver
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn6 direct
+      call @fn11 direct
         Type Int
         Local $dependency.parameter.value
       val $argument.0: ULong
@@ -380,7 +424,7 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn6 direct
+      call @fn11 direct
         Type Int
         Local $dependency.parameter.value
       val $dependency.receiver: Ptr<Int>
@@ -436,7 +480,7 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn6 direct
+      call @fn11 direct
         Type Int
         Local $dependency.parameter.value
       goto bb3
@@ -458,7 +502,7 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn6 direct
+      call @fn11 direct
         Type Int
         Local $dependency.parameter.value
       goto bb6
@@ -466,7 +510,86 @@ Module
       unreachable
     bb6 pattern.merge.6
       goto bb3
-  fun println @fn6(value: Int) -> Unit
+  fun equals @fn7(this: Ptr<Unit>, other: Ptr<Unit>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<Unit>
+        Type Ptr<Unit>
+        Local this
+      val $dependency.local.4: ULong
+        Type ULong
+        PtrToULong
+          Type Ptr<Unit>
+          Local $dependency.local.2
+      val $dependency.local.3: Ptr<Unit>
+        Type Ptr<Unit>
+        Local other
+      return
+        Type Boolean
+        IntegerCompare equal operands=ULong result=Boolean
+          Type ULong
+          Local $dependency.local.4
+          Type ULong
+          PtrToULong
+            Type Ptr<Unit>
+            Local $dependency.local.3
+  fun equalTo @fn8(this: Ptr<Slot>, other: Ptr<Slot>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<Slot>
+        Type Ptr<Slot>
+        Local this
+      val $dependency.local.3: Ptr<Slot>
+        Type Ptr<Slot>
+        Local other
+      val $dependency.local.4: Ptr<Slot>
+        Type Ptr<Slot>
+        Local $dependency.local.3
+      call $call.1: Boolean = @fn12 direct
+        Type Ptr<Slot>
+        Local $dependency.local.2
+        Type Ptr<Slot>
+        Local $dependency.local.4
+      return
+        Type Boolean
+        Local $call.1
+  fun equalTo @fn9(this: Ptr<Int>, other: Ptr<Int>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<Int>
+        Type Ptr<Int>
+        Local this
+      val $dependency.local.3: Ptr<Int>
+        Type Ptr<Int>
+        Local other
+      val $dependency.local.4: Ptr<Int>
+        Type Ptr<Int>
+        Local $dependency.local.3
+      call $call.1: Boolean = @fn13 direct
+        Type Ptr<Int>
+        Local $dependency.local.2
+        Type Ptr<Int>
+        Local $dependency.local.4
+      return
+        Type Boolean
+        Local $call.1
+  fun equalTo @fn10(this: Ptr<Boolean>, other: Ptr<Boolean>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<Boolean>
+        Type Ptr<Boolean>
+        Local this
+      val $dependency.local.3: Ptr<Boolean>
+        Type Ptr<Boolean>
+        Local other
+      val $dependency.local.4: Ptr<Boolean>
+        Type Ptr<Boolean>
+        Local $dependency.local.3
+      call $call.1: Boolean = @fn14 direct
+        Type Ptr<Boolean>
+        Local $dependency.local.2
+        Type Ptr<Boolean>
+        Local $dependency.local.4
+      return
+        Type Boolean
+        Local $call.1
+  fun println @fn11(value: Int) -> Unit
     bb0 entry
       val $dependency.local.1: Int
         Type Int
@@ -490,16 +613,94 @@ Module
         Type String
         Local $dependency.local.5
       return
-  fun ctor.Slot.$c0 @fn7(value: Int) -> Slot <no-gc>
+  fun equals @fn12(this: Ptr<Slot>, other: Ptr<Slot>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<Slot>
+        Type Ptr<Slot>
+        Local this
+      val $dependency.local.4: ULong
+        Type ULong
+        PtrToULong
+          Type Ptr<Slot>
+          Local $dependency.local.2
+      val $dependency.local.3: Ptr<Slot>
+        Type Ptr<Slot>
+        Local other
+      return
+        Type Boolean
+        IntegerCompare equal operands=ULong result=Boolean
+          Type ULong
+          Local $dependency.local.4
+          Type ULong
+          PtrToULong
+            Type Ptr<Slot>
+            Local $dependency.local.3
+  fun equals @fn13(this: Ptr<Int>, other: Ptr<Int>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<Int>
+        Type Ptr<Int>
+        Local this
+      val $dependency.local.4: ULong
+        Type ULong
+        PtrToULong
+          Type Ptr<Int>
+          Local $dependency.local.2
+      val $dependency.local.3: Ptr<Int>
+        Type Ptr<Int>
+        Local other
+      return
+        Type Boolean
+        IntegerCompare equal operands=ULong result=Boolean
+          Type ULong
+          Local $dependency.local.4
+          Type ULong
+          PtrToULong
+            Type Ptr<Int>
+            Local $dependency.local.3
+  fun equals @fn14(this: Ptr<Boolean>, other: Ptr<Boolean>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<Boolean>
+        Type Ptr<Boolean>
+        Local this
+      val $dependency.local.4: ULong
+        Type ULong
+        PtrToULong
+          Type Ptr<Boolean>
+          Local $dependency.local.2
+      val $dependency.local.3: Ptr<Boolean>
+        Type Ptr<Boolean>
+        Local other
+      return
+        Type Boolean
+        IntegerCompare equal operands=ULong result=Boolean
+          Type ULong
+          Local $dependency.local.4
+          Type ULong
+          PtrToULong
+            Type Ptr<Boolean>
+            Local $dependency.local.3
+  fun Continuation.resume @fn15(this: Continuation<Slot>, value: Slot) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn16(this: Continuation<Slot>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn17(this: SuspendTask<Slot>, $completion: Continuation<Slot>) -> CoroutineStep<Slot>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn18(this: SuspendRegistration<Slot>, continuation: Continuation<Slot>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun ctor.Slot.$c0 @fn19(value: Int) -> Slot <no-gc>
     bb0 entry
       return
         Type Slot
         StructInit Slot
           Type Int
           Local value
-  fun callback bridge for increment @fn8($result: Ptr<Int>, $arg0: Ptr<Int>) -> Unit <no-gc>
+  fun callback bridge for increment @fn20($result: Ptr<Int>, $arg0: Ptr<Int>) -> Unit <no-gc>
     bb0 entry
-      call $value: Int = @fn1 direct
+      call $value: Int = @fn2 direct
         Type Int
         PtrLoad Int
           Type Ptr<Int>
@@ -511,9 +712,9 @@ Module
         Type Int
         Local $value
       return
-  fun callback bridge for rewriteParameter @fn9($result: Ptr<Int>, $arg0: Ptr<Int>) -> Unit <no-gc>
+  fun callback bridge for rewriteParameter @fn21($result: Ptr<Int>, $arg0: Ptr<Int>) -> Unit <no-gc>
     bb0 entry
-      call $value: Int = @fn4 direct
+      call $value: Int = @fn5 direct
         Type Int
         PtrLoad Int
           Type Ptr<Int>
@@ -525,6 +726,103 @@ Module
         Type Int
         Local $value
       return
-  instance mi0 function=@fn6 <- println
+  fun startCoroutine<Slot> @fn22(task: SuspendTask<Slot>, completion: Continuation<Slot>) -> Unit
+    bb0 context.unwind
+      landing_pad cleanup=true
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb1 context.catch_unwind
+      landing_pad cleanup=true
+      end_catch
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb2 suspended
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb3 completed unwind bb0
+      call @fn15 interface Continuation<Slot>[0]
+        Type Continuation<Slot>
+        Local completion
+        Type Slot
+        EnumField v0 f0
+          Type CoroutineStep<Slot>
+          Local $step
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb4 failed unwind bb0
+      call @fn16 interface Continuation<Slot>[1]
+        Type Continuation<Slot>
+        Local completion
+        Type Throwable
+        Local $exception
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb5 body_failure unwind bb1
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb4
+    bb6 run unwind bb5
+      call $step: CoroutineStep<Slot> = @fn17 interface SuspendTask<Slot>[0]
+        Type SuspendTask<Slot>
+        Local task
+        Type Continuation<Slot>
+        Local completion
+      branch bb3 bb2
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Slot>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+    bb7 entry
+      val $child_context: internal<task-context>
+        Type internal<task-context>
+        ContextFork
+          Type internal<context-node>
+          ContextSnapshot
+      val $context_guard: internal<context-switch-guard>
+        Type internal<context-switch-guard>
+        ContextEnter
+          Type internal<task-context>
+          Local $child_context
+      goto bb6
+  coroutine_step cs0 CoroutineStep<Slot> result=Slot
+  coroutine_slot cl0 CoroutineSlot<Slot> value=Slot
+  coroutine_start ct0 result=Slot function=fn22
+  coroutine_fn cf0 @fn17 source_return=Slot step=cs0 immediate
+  instance mi0 function=@fn0 <- equalTo
+  instance mi1 function=@fn7 <- equals
+  instance mi2 function=@fn8 <- equalTo
+  instance mi3 function=@fn9 <- equalTo
+  instance mi4 function=@fn10 <- equalTo
+  instance mi5 function=@fn11 <- println
+  instance mi6 function=@fn12 <- equals
+  instance mi7 function=@fn13 <- equals
+  instance mi8 function=@fn14 <- equals
+  instance mi9 function=@fn15 <- Continuation.resume
+  instance mi10 function=@fn16 <- Continuation.resumeWithException
+  instance mi11 function=@fn17 <- SuspendTask.run
+  instance mi12 function=@fn18 <- SuspendRegistration.register
   str @str0 "\n"
-  output executable @fn5
+  output executable @fn6

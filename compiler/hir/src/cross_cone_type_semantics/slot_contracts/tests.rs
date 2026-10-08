@@ -88,3 +88,42 @@ fn override_preserves_effect_contract_but_can_change_body_implementation_categor
         Err(InheritanceSlotContractBuildError::SignatureMismatch)
     ));
 }
+
+#[test]
+fn interface_slot_preserves_a_no_gc_implementation_effect() {
+    let mut fixture = Fixture::default();
+    let interface = fixture.add("Measure", SourceNominalKind::Interface);
+    let value = fixture.add("Reading", SourceNominalKind::Struct);
+    let slot = fixture.function(interface, "measure");
+    let implementation = InheritanceCallableSignatureV1::try_new(
+        fixture.signature(value, vec![]).exact_signature().clone(),
+        effects(GcEffect::NoGc, CallableImplementationV1::Scoop),
+        Vec::new(),
+    )
+    .unwrap();
+    let mut target = fixture.concrete(value, slot);
+    target.signature = implementation.clone();
+    let contract = fixture.contract(
+        interface,
+        slot,
+        InheritanceSlotImplementationV1::Concrete(target),
+    );
+    assert_eq!(
+        contract.signature().effects().gc_effect(),
+        GcEffect::Managed
+    );
+    assert_eq!(
+        contract
+            .implementation()
+            .target()
+            .signature()
+            .effects()
+            .gc_effect(),
+        GcEffect::NoGc
+    );
+    assert!(
+        !contract
+            .signature()
+            .matches_slot(&implementation, contract.role())
+    );
+}

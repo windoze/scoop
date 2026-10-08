@@ -6,7 +6,7 @@ Module
   enum Option niche(kind=managed,payload_variant=0)
   enum CoroutineStep<Owner> niche(kind=managed,payload_variant=0)
   enum CoroutineSlot<Owner> niche(kind=managed,payload_variant=1)
-  extern ef0 dropNative @m24_release_add(i32) -> void <c exact=(Int)->void bridge=@scoop$1$br$d7e3398a258af4760b0aaa7e4a29673593544979a478d785fe4b084ee3f165a8 gc-leaf nounwind lib=m24_release>
+  extern ef0 dropNative @m24_release_add(i32) -> void <c exact=(Int)->void direct-c=(i32)->void gc-leaf nounwind lib=m24_release>
   fun @scoop$1$cb$f48565c4029d888bb7cfe8298f592bf26ca3fce389299a34693d1b3dcc8a5ade(i32) -> i32 <no-gc>
     local %0 $dependency.receiver: i32
     local %1 $dependency.argument.0: i32
@@ -18,11 +18,9 @@ Module
     t0 = integer_Add<Int> local0, local2 : i32
     ret t0
   fun @scoop$1$cb$41ff3e0268f800e4a53d9dc54abfd0c1e8591689645b3dbdea257641b59b032d(i32) -> void
-    local %0 $sc.1: i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
-    store param0 -> local0
-    call native-safe-void-target0 sp<native-safe:0> roots=[] sig=void0 (ptr<raw>) extern0(c-arg-address(local0))
+    call native-safe-void-target0 sp<native-safe:0> roots=[] sig=void0 (i32) extern0(param0)
     t0 = aggregate () : {}
     ret
   fun @scoop$1$cb$4160baf7719c25f47ace1f2f36f142c7f1b3576a156f15d2e5878dcd14dcb632(ptr<managed>, ptr<managed>) -> void
@@ -145,7 +143,6 @@ Module
     local %1 $parameter.value: i32
     local %2 $argument.0: i32
     local %3 $parameter.value: i32
-    local %4 $sc.1: i32
   block entry
     t0 = release_field_load +16 : i32
     store t0 -> local0
@@ -153,8 +150,7 @@ Module
     call release-scoop-direct-target0 t1 = sig=direct0 (i32) -> i32 local-fn0(local1)
     store t1 -> local2
     store local2 -> local3
-    store local3 -> local4
-    call release-native-leaf-void-target0 sig=void0 (ptr<raw>) extern0(c-arg-address(local4))
+    call release-native-leaf-void-target0 sig=void0 (i32) extern0(local3)
     t2 = aggregate () : {}
     ret
   td td0 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=test%3Arelease-blocks-provider%3A0.1.0;p=releaseblocks;o=-;k=C;x=Owner)]) @scoop$1$td$3547647407eb833068dc9525531ee3e12b4da74e29e9089b9a7bcd34bc321ca6 type-id=10428679759602365828 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]

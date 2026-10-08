@@ -1,106 +1,28 @@
 use super::*;
 use scoop_identity::NativeLibraryKind;
 
+mod explicit;
+mod system;
+
+pub(super) struct LibraryResolution {
+    pub files: Vec<NativeFile>,
+    pub scripts: Vec<(PathBuf, Digest256)>,
+    pub system_alias: bool,
+}
+
 pub(super) fn library(
     key: &NativeLinkRequirementKey,
     roots: &[PathBuf],
     profile: &ValidatedFinalLinkProfile,
-) -> Result<NativeFile, LinkError> {
-    let name = key.library().as_str();
-    let linux = matches!(profile, ValidatedFinalLinkProfile::Linux(_));
-    let dynamic = matches!(profile, ValidatedFinalLinkProfile::Linux(p) if p.mode() == scoop_toolchain::LinkMode::Dynamic);
-    let suffixes = if linux {
-        match key.kind() {
-            NativeLibraryKind::TargetDefault => {
-                let mut files = vec![
-                    (format!("{name}.o"), NativeFileKind::Object),
-                    (format!("lib{name}.a"), NativeFileKind::Archive),
-                ];
-                if dynamic {
-                    files.push((format!("lib{name}.so"), NativeFileKind::SharedObject));
-                }
-                files
-            }
-            NativeLibraryKind::StaticArchive => {
-                vec![(format!("lib{name}.a"), NativeFileKind::Archive)]
-            }
-            NativeLibraryKind::Dynamic if dynamic => {
-                vec![(format!("lib{name}.so"), NativeFileKind::SharedObject)]
-            }
-            NativeLibraryKind::Dynamic => {
-                return Err(error("ELF shared library requires --link-mode dynamic"));
-            }
-            NativeLibraryKind::Framework => {
-                return Err(error(
-                    "framework libraries are not supported by the Linux target",
-                ));
-            }
-        }
-    } else {
-        match key.kind() {
-            NativeLibraryKind::TargetDefault => vec![
-                (format!("{name}.o"), NativeFileKind::Object),
-                (format!("lib{name}.a"), NativeFileKind::Archive),
-                (format!("lib{name}.dylib"), NativeFileKind::Dylib),
-                (format!("lib{name}.tbd"), NativeFileKind::TextStub),
-                (
-                    format!("{name}.framework/{name}"),
-                    NativeFileKind::Framework,
-                ),
-            ],
-            NativeLibraryKind::StaticArchive => {
-                vec![(format!("lib{name}.a"), NativeFileKind::Archive)]
-            }
-            NativeLibraryKind::Dynamic => vec![
-                (format!("lib{name}.dylib"), NativeFileKind::Dylib),
-                (format!("lib{name}.tbd"), NativeFileKind::TextStub),
-            ],
-            NativeLibraryKind::Framework => vec![(
-                format!("{name}.framework/{name}"),
-                NativeFileKind::Framework,
-            )],
-        }
-    };
-    let paths: BTreeMap<_, _> = roots
-        .iter()
-        .flat_map(|root| {
-            suffixes
-                .iter()
-                .map(move |(suffix, kind)| (root.join(suffix), *kind))
-        })
-        .collect();
-    let mut candidates = BTreeMap::new();
-    let mut locators = Vec::new();
-    for (path, kind) in paths {
-        match std::fs::symlink_metadata(&path) {
-            Err(err) if err.kind() == std::io::ErrorKind::NotFound => continue,
-            Err(err) => return Err(error(format!("native candidate {}: {err}", path.display()))),
-            Ok(_) => {}
-        }
-        let file = read(&path, kind, profile, false)
-            .map_err(|err| error(format!("native candidate {}: {err}", path.display())))?;
-        locators.push(path);
-        if candidates
-            .get(&file.id)
-            .is_none_or(|previous: &NativeFile| file.locator < previous.locator)
-        {
-            candidates.insert(file.id, file);
-        }
+) -> Result<LibraryResolution, LinkError> {
+    match explicit::find(key, roots, profile)? {
+        Some(file) => Ok(LibraryResolution {
+            files: vec![file],
+            scripts: Vec::new(),
+            system_alias: false,
+        }),
+        None => system::find(key, profile),
     }
-    if candidates.is_empty() {
-        return Err(error(format!(
-            "missing native library {name:?}; searched explicit roots {roots:?}"
-        )));
-    }
-    if candidates.len() != 1 {
-        return Err(error(format!(
-            "ambiguous native library {name:?}: {locators:?}"
-        )));
-    }
-    candidates
-        .into_values()
-        .next()
-        .ok_or_else(|| error("native candidate disappeared"))
 }
 
 pub(crate) fn read(
@@ -110,14 +32,36 @@ pub(crate) fn read(
     system: bool,
 ) -> Result<NativeFile, LinkError> {
     let bytes = std::fs::read(path).map_err(error)?;
-    let slice = if kind == NativeFileKind::TextStub {
+    read_bytes(
+        std::fs::canonicalize(path).map_err(error)?,
+        bytes,
+        kind,
+        profile,
+        system,
+    )
+}
+
+fn read_bytes(
+    locator: PathBuf,
+    bytes: Vec<u8>,
+    kind: NativeFileKind,
+    profile: &ValidatedFinalLinkProfile,
+    system: bool,
+) -> Result<NativeFile, LinkError> {
+    let slice = if kind == NativeFileKind::TextStub
+        || (kind == NativeFileKind::Archive && bytes.starts_with(b"!<arch>\n"))
+    {
         0..bytes.len()
     } else {
         slice::select(&bytes)?
     };
     let id = NativeInputId::from_bytes(&bytes, kind, profile)?;
-    let locator = std::fs::canonicalize(path).map_err(error)?;
+    let fixed_system = matches!(kind, NativeFileKind::Archive | NativeFileKind::SharedObject)
+        && matches!(profile, ValidatedFinalLinkProfile::Linux(linux) if linux
+            .input_paths()
+            .any(|path| path.canonicalize().ok().as_ref() == Some(&locator)));
     let content = match kind {
+        _ if fixed_system => NativeContent::System,
         NativeFileKind::Archive => {
             NativeContent::Archive(archive::read(&bytes, id, &slice, profile)?)
         }
@@ -125,6 +69,7 @@ pub(crate) fn read(
             let index = NativeObjectIndex::read_with_toolchain(
                 &bytes[slice.clone()],
                 profile.startup_toolchain().profile(),
+                profile.cxx(),
             )?;
             NativeContent::Object(index)
         }

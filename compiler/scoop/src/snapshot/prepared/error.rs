@@ -15,6 +15,7 @@ pub enum PrepareBuildGraphError {
     ManifestSnapshot(SnapshotFileError),
     ManifestChanged(PathBuf),
     SourceDiscovery(SourceDiscoveryError),
+    Native(scoop_toolchain::ToolchainError),
     SingleFile(SingleFileInputError),
 
     ArtifactSnapshot {
@@ -33,6 +34,7 @@ pub enum PrepareBuildGraphError {
 impl fmt::Display for PrepareBuildGraphError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::Native(error) => error.fmt(formatter),
             Self::PairedCompiler(error) => error.fmt(formatter),
             Self::Staging(error) => error.fmt(formatter),
             Self::ManifestSnapshot(error) => {
@@ -77,6 +79,7 @@ impl fmt::Display for PrepareBuildGraphError {
 impl std::error::Error for PrepareBuildGraphError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
+            Self::Native(error) => Some(error),
             Self::PairedCompiler(error) => Some(error),
             Self::Staging(error) => Some(error),
             Self::ManifestSnapshot(error) => Some(error),

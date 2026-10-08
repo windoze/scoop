@@ -4,6 +4,7 @@ pub(super) fn check(
     input: &ConeMirInput,
     graph: &scoop_identity::ValidatedIdentityGraph,
     types: &CanonicalParamFreeMirTypeExportsV1,
+    lookup: &dyn scoop_mir::MirTypeBridgeTypeLookupV1,
     source: &CanonicalMirCallableBindingsV1,
 ) {
     let changed = CanonicalMirCallableBindingsV1::try_new(
@@ -28,7 +29,7 @@ pub(super) fn check(
                     scoop_mir::MirCallableBridgeAuthority {
                         identities: graph,
                         foundation: input.foundation(),
-                        types,
+                        types: lookup,
                     },
                     binding.origin().clone(),
                     binding.implementation(),
@@ -48,7 +49,7 @@ pub(super) fn check(
     )
     .unwrap();
     assert!(matches!(
-        CanonicalMirCallableBindingsV1::from_boxing_adjusts(input, types, graph, types, &changed),
+        CanonicalMirCallableBindingsV1::from_boxing_adjusts(input, types, graph, lookup, &changed),
         Err(Error::TargetMismatch(_))
     ));
     let empty = CanonicalMirCallableBindingsV1::try_new(Vec::new()).unwrap();
@@ -69,6 +70,6 @@ pub(super) fn check(
         ))
     ));
 
-    CanonicalMirCallableBindingsV1::from_boxing_adjusts(input, types, graph, types, source)
+    CanonicalMirCallableBindingsV1::from_boxing_adjusts(input, types, graph, lookup, source)
         .unwrap();
 }

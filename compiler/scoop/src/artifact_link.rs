@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use scoop_linker::{ResolvedLinkPlanFingerprint, RuntimeObjectSet, link_program};
 use scoop_slib::{ArtifactManifestSummaryV1, ArtifactSnapshot};
-use scoop_toolchain::ValidatedFinalLinkProfile;
+use scoop_toolchain::ResolvedTargetProfile;
 
 use crate::materialize::OutputLocation;
 use crate::{BuildFailure, BuildFailurePhase, BuildResult};
@@ -42,13 +42,9 @@ pub struct LinkOutcome {
 }
 
 pub fn link_artifacts(request: LinkRequest) -> BuildResult<LinkOutcome> {
-    let profile = ValidatedFinalLinkProfile::resolve_with(
-        &request.target,
-        &request.c_toolchain,
-        &request.final_link,
-    )
-    .map_err(failure)?;
-    let selection = scoop_lir::ValidatedLirTargetSelection::from_id(profile.id());
+    let target = ResolvedTargetProfile::resolve_with(&request.target, &request.c_toolchain)
+        .map_err(failure)?;
+    let selection = target.lir_target_selection();
     let (root, dependencies) = resolve::artifacts(&request, selection)?;
     let bytes = dependencies
         .iter()
@@ -58,9 +54,12 @@ pub fn link_artifacts(request: LinkRequest) -> BuildResult<LinkOutcome> {
         root.snapshot.as_bytes(),
         &bytes,
         selection,
-        profile.startup_toolchain().profile(),
+        target.c_bridge_toolchain().profile(),
     )
     .map_err(|error| read_failure(error, &root, &dependencies))?;
+    let profile =
+        scoop_linker::resolve_program_link_profile(&closure, &target, &request.final_link)
+            .map_err(failure)?;
     let runtime = RuntimeObjectSet::read_index(
         &request.runtime_index,
         profile.target(),

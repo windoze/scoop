@@ -373,7 +373,7 @@ struct CodeFingerprintInputV1<'proof> {
 
 impl WireEncode for CodeFingerprintInputV1<'_> {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(9)?;
+        encoder.map(10)?;
         encoder.field(1)?;
         self.production
             .link_objects()
@@ -397,7 +397,9 @@ impl WireEncode for CodeFingerprintInputV1<'_> {
         encoder.field(8)?;
         self.strong_production().encode(encoder)?;
         encoder.field(9)?;
-        self.manifest_projection().encode(encoder)
+        self.manifest_projection().encode(encoder)?;
+        encoder.field(10)?;
+        encoder.unsigned(u64::from(self.native_requirements.cxx()))
     }
 }
 

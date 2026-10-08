@@ -1,0 +1,16 @@
+@GCLeaf
+fun ordinary() {}
+
+@GCLeaf @Extern(abi = "scoop", name = "scoop_native")
+fun scoopNative()
+
+@GCLeaf @Global
+var count: Int = 0
+
+@GCLeaf
+struct Value(val number: Int)
+
+@GCLeaf
+class Reference(val number: Int)
+
+fun main() {}

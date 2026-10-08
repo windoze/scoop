@@ -142,6 +142,7 @@ impl Replay<'_, '_> {
                 | IntrinsicTypeKind::Char
                 | IntrinsicTypeKind::Boolean => Ok(Shape::Scalar),
                 IntrinsicTypeKind::String
+                | IntrinsicTypeKind::Atomic(_)
                 | IntrinsicTypeKind::Any
                 | IntrinsicTypeKind::Nothing
                 | IntrinsicTypeKind::Array

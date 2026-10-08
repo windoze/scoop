@@ -1,11 +1,9 @@
 Module
-  extern ef0 record @m24_release_add(i32) -> void <c exact=(Int)->void bridge=@scoop$1$br$38f4e0b611ec6c5475477ef9b2632e9fc7699d85c4f88eae7d1e492d081caba3 gc-leaf nounwind lib=m24_release>
+  extern ef0 record @m24_release_add(i32) -> void <c exact=(Int)->void direct-c=(i32)->void gc-leaf nounwind lib=m24_release>
   fun @scoop$1$cb$33d491e600c9a8615e8347d3392878cc2655916c1309a5788fae0ed62a9c746c(i32) -> void
-    local %0 $sc.1: i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
-    store param0 -> local0
-    call native-safe-void-target0 sp<native-safe:0> roots=[] sig=void0 (ptr<raw>) extern0(c-arg-address(local0))
+    call native-safe-void-target0 sp<native-safe:0> roots=[] sig=void0 (i32) extern0(param0)
     t0 = aggregate () : {}
     ret
   fun @scoop$1$cb$6f814284431bac1d84c0a99a72bbe5dc0f5b19ab24b137639c45edc91e7a5460(i32) -> i32 <no-gc>

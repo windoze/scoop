@@ -27,6 +27,7 @@ Module
   class box<Option<String>> vtable=0 itables=0
   interface ToString
   interface Hash
+  interface Equality<Char>
   interface List<Option<String>> : Iterable<Option<String>>
   interface Iterable<Option<String>>
   interface Iterator<Option<String>>
@@ -34,6 +35,7 @@ Module
   interface List<String> : Iterable<String>
   interface Iterable<String>
   interface Iterator<String>
+  interface Equality<Int>
   interface Continuation<Label>
   interface SuspendTask<Label>
   interface SuspendRegistration<Label>

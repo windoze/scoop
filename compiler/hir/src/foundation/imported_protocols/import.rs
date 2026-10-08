@@ -55,7 +55,7 @@ fn import_entry(
     }
 }
 
-fn import_callable(
+pub(super) fn import_callable(
     foundation: &ImportedHirFoundation,
     callable: &CoreProtocolCallableV1,
 ) -> Result<ImportedCoreProtocolCallable, CoreProtocolImportError> {

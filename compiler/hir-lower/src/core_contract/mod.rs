@@ -7,11 +7,13 @@
 use super::*;
 
 mod arrays;
+mod atomics;
 mod callbacks;
 mod characters;
 mod common;
 mod context;
 mod coroutines;
+mod data_borrow;
 mod exceptions;
 mod ffi;
 mod floating;
@@ -21,4 +23,5 @@ mod iteration;
 mod operators;
 mod option;
 mod pointers;
+mod program_arguments;
 mod source_location;

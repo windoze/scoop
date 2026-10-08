@@ -1,0 +1,7 @@
+@GCLeaf
+typealias Number = Int
+
+fun main() {
+    @GCLeaf fun local() {}
+    local()
+}

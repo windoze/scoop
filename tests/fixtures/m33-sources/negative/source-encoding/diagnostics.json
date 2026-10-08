@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOP_BUILD_FAILED",
+    "message": "cannot snapshot manifest sources: source discovery failed at ${work}/cone/bad.scoop: source file is not valid UTF-8",
+    "notes": [],
+    "origin": {
+      "end": null,
+      "kind": "host",
+      "path": "${work}/cone/bad.scoop",
+      "start": null
+    },
+    "phase": "SourceSnapshot",
+    "severity": "error"
+  }
+]

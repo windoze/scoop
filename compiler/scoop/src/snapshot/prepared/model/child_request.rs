@@ -97,6 +97,14 @@ impl PreparedBuildGraph {
             }
             None => return Err(ChildRequestPlanError::UnknownNode(identity)),
         };
+        let native_inputs = match self.nodes.get(&identity) {
+            Some(PreparedGraphNode::ManifestSource(node)) => node
+                .native_inputs
+                .iter()
+                .map(|path| path_carrier(path))
+                .collect::<Result<Vec<_>, _>>()?,
+            _ => Vec::new(),
+        };
         let build = ScoopcBuildRequestV1::new(
             current,
             direct,
@@ -114,7 +122,8 @@ impl PreparedBuildGraph {
             },
         )
         .map_err(ChildRequestPlanError::Protocol)?
-        .with_optimization(self.context.optimization);
+        .with_optimization(self.context.optimization)
+        .with_native_inputs(native_inputs);
         Ok(ChildInvocationPlanV1 {
             #[cfg(test)]
             identity,

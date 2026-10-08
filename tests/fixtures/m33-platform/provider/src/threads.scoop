@@ -1,0 +1,44 @@
+package fixture.platform
+
+@Extern(name = "m33_platform_spawn", captureErrno = true)
+private fun spawnNative(function: FunPtr<(Ptr<Unit>) -> Int>, context: Ptr<Unit>): (Ptr<Unit>?, Int)
+@Extern(name = "m33_platform_join", captureErrno = true)
+private fun joinNative(thread: Ptr<Unit>): (Int, Int)
+
+// The fixture consumes each thread exactly once through join.
+public struct Thread(val native: Ptr<Unit>, val observer: ForeignCallback<(Ptr<Unit>) -> Int>)
+
+public fun spawn(action: () -> Int): Thread {
+    @Unsafe {
+        val callback = foreignCallback<(Ptr<Unit>) -> Int>(action, 0, ForeignCallbackMode.OneShot)
+        val observer = retainForeignCallback(callback)
+        val (thread, error) = spawnNative(callback.function, callback.context)
+        when (thread) {
+            None -> {
+                releaseForeignCallback(callback)
+                releaseForeignCallback(observer)
+                throw IllegalStateException()
+            }
+            Some(handle) -> { return Thread(handle, observer) }
+        }
+    }
+}
+
+public fun join(thread: Thread): Int {
+    @Unsafe {
+        val (result, error) = joinNative(thread.native)
+        if (error != 0) { throw IllegalStateException() }
+        try {
+            when (foreignCallbackFailure(thread.observer)) {
+                None -> {}
+                Some(failure) -> { throw failure }
+            }
+            if (foreignCallbackState(thread.observer) != ForeignCallbackState.Completed) {
+                throw IllegalStateException()
+            }
+            return result
+        } finally {
+            releaseForeignCallback(thread.observer)
+        }
+    }
+}

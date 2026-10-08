@@ -20,6 +20,11 @@ impl CoreCompilerProtocolSurfaceV1 {
         {
             return Err(IntrinsicCallableContractError::CallableKind(kind));
         }
+        if matches!(kind, IntrinsicFunctionKind::Atomic(_)) {
+            // Atomic owners and MemoryOrder are ordinary nominal declarations,
+            // not members of the fixed bootstrap protocol surface.
+            return Ok(());
+        }
         if let Some((_, role)) = self
             .fixed_intrinsic_callables()
             .into_iter()

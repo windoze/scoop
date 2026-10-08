@@ -1,0 +1,67 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "`@GCLeaf` requires a C ABI `@Extern` function",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 7,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 0
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "`@GCLeaf` requires a C ABI `@Extern` function",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 34,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 27
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "unsupported annotation `@GCLeaf` in milestone M12",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 143,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 136
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "`@GCLeaf` is not allowed on a class",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 182,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 175
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "`@GCLeaf` is not allowed on a top-level storage declaration",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 107,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 100
+    },
+    "severity": "error"
+  }
+]
