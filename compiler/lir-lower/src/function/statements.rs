@@ -134,7 +134,7 @@ impl<'a> FunctionLowerer<'a> {
                 let object = self.lower_expr(object)?;
                 let value = self.lower_expr(value)?;
                 let kind = machine_scalar_kind(*kind);
-                self.push(lir::Instruction::AtomicStore {
+                self.push(lir::Instruction::MachineAtomicStore {
                     kind,
                     object,
                     offset: offsets[*index as usize],

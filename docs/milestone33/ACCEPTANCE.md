@@ -13,7 +13,7 @@
 | M33-5 | errno 捕获 | 完成并通过三平台验收 |
 | M33-6 | native C/C++、系统库与源码选择 | 完成；Darwin/GNU C++、musl 拒绝与纯 C 回归通过 |
 | M33-7 | sysroot 默认定位、Equality | 默认定位、NoGc 接口适配、显式及非泛型派生 Equality 完成；泛型与 tuple 派生实施中 |
-| M33-8 | 原子类型、内存序与 GC | LLVM AS1 原子操作技术验证完成；语言与 runtime 实现待继续 |
+| M33-8 | 原子类型、内存序与 GC | LLVM 技术验证及 typed LIR／codegen 完成；core、HIR／MIR 与实际 GC 验收待继续 |
 | M33-9 | 线程退出规则与组合验收 | 遗留资源诊断与退出规则完成；里程碑组合总验收待继续 |
 
 开发验证先格式化、lint，再执行受影响测试。运行真实 CLI fixture，覆盖源码、产物消费、链接与运行；新增行为保留独立／组合／negative／golden。全量测试集中在必要的回归节点，已有通过结果在输入不变时复用。
@@ -326,6 +326,16 @@ GCLeaf 并发 fixture 在 release + minor 压力模式下暴露了既有分配�
 - 四种原子指令覆盖全部合法序：3 种 load、3 种 store、5 种 exchange、9 种 strong CAS，共 20 种操作／顺序组合。每组执行 debug／release × Darwin arm64／GNU amd64／musl amd64，共 120 个组合。
 - 每个组合均通过 Scoop 实际优化与 RewriteStatepointsForGC、严格根计划检查、LLVM `verify<safepoint-ir>`／IR verifier 及目标 object 生成；原子指令仍存在，managed reference 不转成整数，CAS 未变为 weak。
 - Darwin 的 LLVM 22.1.8 与 nuc12 的 LLVM 22.1.2 分别通过全部 120 个组合；fmt 与 codegen all-targets clippy 通过。日志为 `tmp/m33/atomic-ir-tests.log` 和 `tmp/m33/atomic-ir-linux-tests.log`。本批只完成后端可行性验证，尚不代表 Atomic 类型、内存序源码诊断、写屏障或实际 moving GC fixture 已实现；没有重跑无关 CLI 测试。
+
+## M33-8b：typed LIR 原子操作与代码生成
+
+- 增加源码原子的 AtomicLoad／AtomicStore／AtomicRmw／AtomicCmpXchg 指令，携带 managed object、真实字段偏移和 Int／Long／Boolean／reference 种类。load、store 与 CAS 使用各自完整的合法内存序表示；CAS 的成功／失败序不会在后端重新推导。共享的封闭原子数据及 wire tags 位于 identity crate，IR 不引用上游 stage。
+- 原有协程内部状态字改名为 MachineAtomicLoad／MachineAtomicStore／MachineAtomicCompareExchange，保留 machine scalar 类型、固定同步序和既有 dump。没有把内部状态重新解释为源码整数。
+- codegen 产生对应 LLVM 原子访问；Boolean 从 i1 值转换为 i8 存储，加减使用原生 wrapping RMW，CAS 为 strong。Inkwell 的 RMW wrapper 只接受整数，因此 reference exchange 直接调用 LLVM C API 的 pointer xchg，保持 managed pointer 表示。
+- 引用 store／exchange 后沿用现有卡表屏障，CAS 的屏障仅位于成功分支；从字段地址计算到原子访问及屏障完成没有 safepoint。use／def 和临时值登记包含新指令，后续根分析可以消费对象、expected／new 和观察到的旧值。
+- 新增后端回归一次构建四类操作函数，共 181 组合法操作，分别通过三目标 × debug／release 的实际 LIR emission、LLVM verifier、Scoop 优化／rewrite／严格检查及机器码生成。测试逐项核对三种 load／store 序、九组 CAS 序、strong CAS、Boolean 宽度与 pointer xchg；另拒绝对象头内偏移、未对齐字段和错误结果类型。
+- Darwin LLVM 22.1.8 与 nuc12 LLVM 22.1.2 均通过新增两项测试和原有协程状态字回归；workspace fmt／clippy 及 Linux 受影响 crate 的 lint 通过。没有重跑无关 fixture 或重复 M33-8a 的最小 IR 矩阵。日志为 `tmp/m33/atomics-backend-tests.log`、`tmp/m33/atomics-machine-state-tests.log` 及 `tmp/m33/atomics-linux-backend/`。
+- 本批清理 184 项 target 中间对象／incremental 内容，释放 3,579,033,419 bytes，保留库、CLI 和热缓存。新生产模块为 21～200 行，原子 dump 独立为 69 行。本批尚未接入 core 声明、HIR／MIR lowering、源码内存序诊断或真实并发／moving GC fixture，不能计为原子语言 API 已交付。
 
 ## M33-9a：正常 shutdown 的资源诊断
 

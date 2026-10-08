@@ -3,6 +3,7 @@ use super::*;
 mod addresses;
 mod aggregates;
 mod arrays;
+mod atomics;
 mod boxing;
 mod callbacks;
 mod data_borrow;
@@ -17,6 +18,10 @@ mod values;
 impl<'ctx> FnEmitter<'_, 'ctx> {
     pub(super) fn instruction(&mut self, instruction: &Instruction) -> Result<(), CodegenError> {
         match instruction {
+            Instruction::AtomicLoad { .. }
+            | Instruction::AtomicStore { .. }
+            | Instruction::AtomicRmw { .. }
+            | Instruction::AtomicCmpXchg { .. } => self.emit_atomic_instruction(instruction),
             Instruction::PushPinFrame { .. }
             | Instruction::PopPinFrame { .. }
             | Instruction::ArrayDataPointer { .. }
@@ -44,11 +49,13 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             | Instruction::ReleaseFieldLoad { .. }
             | Instruction::PublishReleaseReady { .. }
             | Instruction::MachineHeapLoad { .. }
-            | Instruction::AtomicLoad { .. }
+            | Instruction::MachineAtomicLoad { .. }
             | Instruction::HeapStore { .. }
             | Instruction::MachineHeapStore { .. }
-            | Instruction::AtomicStore { .. }
-            | Instruction::AtomicCompareExchange { .. } => self.emit_heap_instruction(instruction),
+            | Instruction::MachineAtomicStore { .. }
+            | Instruction::MachineAtomicCompareExchange { .. } => {
+                self.emit_heap_instruction(instruction)
+            }
             Instruction::FunctionAddress { .. }
             | Instruction::ForeignCallbackRegister { .. }
             | Instruction::ForeignCallbackOperation(_) => {

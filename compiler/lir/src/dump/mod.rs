@@ -1,5 +1,6 @@
 use super::*;
 
+mod atomics;
 mod boxing;
 mod initialization;
 mod instruction;

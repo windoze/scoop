@@ -117,7 +117,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     })?;
                 self.temps.insert(*out, element);
             }
-            Instruction::AtomicLoad {
+            Instruction::MachineAtomicLoad {
                 out,
                 kind,
                 object,
@@ -237,7 +237,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                         ))
                     })?;
             }
-            Instruction::AtomicStore {
+            Instruction::MachineAtomicStore {
                 kind,
                 object,
                 offset,
@@ -280,7 +280,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                         ))
                     })?;
             }
-            Instruction::AtomicCompareExchange {
+            Instruction::MachineAtomicCompareExchange {
                 out,
                 kind,
                 object,

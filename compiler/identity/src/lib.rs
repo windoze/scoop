@@ -12,6 +12,11 @@
 //! let _: PersistentTypeId = cone;
 //! ```
 
+mod atomic;
+pub use atomic::{
+    AtomicCompareExchangeOrder, AtomicCompareExchangeResult, AtomicLoadOrder, AtomicMemoryOrder,
+    AtomicRmwOperation, AtomicStoreOrder, AtomicValueKind,
+};
 mod capability;
 mod cone;
 mod context;

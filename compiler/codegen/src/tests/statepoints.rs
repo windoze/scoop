@@ -317,13 +317,13 @@ fn continuation_state_atomics_keep_their_llvm_orderings() {
     let entry = blocks.alloc(BasicBlock {
         name: "entry".to_string(),
         instructions: vec![
-            Instruction::AtomicLoad {
+            Instruction::MachineAtomicLoad {
                 out: loaded,
                 kind: MachineScalarKind::CoroutineAdapterState,
                 object: Value::Param(0),
                 offset: 16,
             },
-            Instruction::AtomicStore {
+            Instruction::MachineAtomicStore {
                 kind: MachineScalarKind::CoroutineAdapterState,
                 object: Value::Param(0),
                 offset: 16,
@@ -331,7 +331,7 @@ fn continuation_state_atomics_keep_their_llvm_orderings() {
                     CoroutineAdapterState::CompletingSuccess,
                 )),
             },
-            Instruction::AtomicCompareExchange {
+            Instruction::MachineAtomicCompareExchange {
                 out: observed,
                 kind: MachineScalarKind::CoroutineAdapterState,
                 object: Value::Param(0),
@@ -392,7 +392,7 @@ fn continuation_state_atomics_keep_their_llvm_orderings() {
     );
 
     {
-        let Instruction::AtomicLoad { offset, .. } =
+        let Instruction::MachineAtomicLoad { offset, .. } =
             &mut module.functions[0].blocks[entry].instructions[0]
         else {
             unreachable!("test fixture starts with an atomic load")
@@ -406,7 +406,7 @@ fn continuation_state_atomics_keep_their_llvm_orderings() {
     assert!(error.0.contains("not an aligned object field"), "{error}");
 
     {
-        let Instruction::AtomicLoad { offset, kind, .. } =
+        let Instruction::MachineAtomicLoad { offset, kind, .. } =
             &mut module.functions[0].blocks[entry].instructions[0]
         else {
             unreachable!("test fixture starts with an atomic load")

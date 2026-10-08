@@ -56,6 +56,31 @@ pub enum Value {
 
 #[derive(Debug)]
 pub enum Instruction {
+    AtomicLoad {
+        out: TempId,
+        location: AtomicLocation,
+        order: AtomicLoadOrder,
+    },
+    AtomicStore {
+        location: AtomicLocation,
+        value: Value,
+        order: AtomicStoreOrder,
+    },
+    AtomicRmw {
+        out: TempId,
+        location: AtomicLocation,
+        value: Value,
+        operation: AtomicRmwOperation,
+        order: AtomicMemoryOrder,
+    },
+    AtomicCmpXchg {
+        out: TempId,
+        location: AtomicLocation,
+        expected: Value,
+        replacement: Value,
+        result: AtomicCompareExchangeResult,
+        order: AtomicCompareExchangeOrder,
+    },
     /// Caller-stack pin frames for synchronous scoped borrows.
     PushPinFrame {
         out: TempId,
@@ -219,7 +244,7 @@ pub enum Instruction {
         offset: u64,
     },
     /// Acquire-load a 64-bit synthetic state word from managed storage.
-    AtomicLoad {
+    MachineAtomicLoad {
         out: TempId,
         kind: MachineScalarKind,
         object: Value,
@@ -275,7 +300,7 @@ pub enum Instruction {
         value: Value,
     },
     /// Release-store a 64-bit synthetic state word in managed storage.
-    AtomicStore {
+    MachineAtomicStore {
         kind: MachineScalarKind,
         object: Value,
         offset: u64,
@@ -283,7 +308,7 @@ pub enum Instruction {
     },
     /// Acq_rel/acquire compare-exchange of a 64-bit synthetic state word.
     /// `out` receives the observed old word.
-    AtomicCompareExchange {
+    MachineAtomicCompareExchange {
         out: TempId,
         kind: MachineScalarKind,
         object: Value,

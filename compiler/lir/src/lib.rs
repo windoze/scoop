@@ -5,8 +5,9 @@
 //! metadata, functions, instructions and calls in separate source modules.
 
 pub use scoop_identity::{
-    CAbiCallMode, CResultAdaptation, FloatBinaryOperator, FloatConstant as LirFloatConstant,
-    FloatKind, FloatUnaryOperator,
+    AtomicCompareExchangeOrder, AtomicCompareExchangeResult, AtomicLoadOrder, AtomicMemoryOrder,
+    AtomicRmwOperation, AtomicStoreOrder, AtomicValueKind, CAbiCallMode, CResultAdaptation,
+    FloatBinaryOperator, FloatConstant as LirFloatConstant, FloatKind, FloatUnaryOperator,
 };
 
 use std::num::NonZeroU32;
@@ -15,6 +16,9 @@ use la_arena::{Arena, Idx};
 
 mod types;
 pub use types::*;
+
+mod atomic;
+pub use atomic::*;
 
 mod target;
 pub use target::*;

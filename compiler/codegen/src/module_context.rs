@@ -109,8 +109,11 @@ pub(crate) fn instruction_temp_defs(instruction: &Instruction) -> [Option<TempId
         | Instruction::ReleaseFieldLoad { out, .. }
         | Instruction::HeapLoad { out, .. }
         | Instruction::MachineHeapLoad { out, .. }
+        | Instruction::MachineAtomicLoad { out, .. }
         | Instruction::AtomicLoad { out, .. }
-        | Instruction::AtomicCompareExchange { out, .. }
+        | Instruction::AtomicRmw { out, .. }
+        | Instruction::AtomicCmpXchg { out, .. }
+        | Instruction::MachineAtomicCompareExchange { out, .. }
         | Instruction::GlobalLoad { out, .. }
         | Instruction::GlobalAddress { out, .. }
         | Instruction::NativeGlobalLoad { out, .. }
@@ -150,6 +153,7 @@ pub(crate) fn instruction_temp_defs(instruction: &Instruction) -> [Option<TempId
         | Instruction::NativeGlobalStore { .. }
         | Instruction::HeapStore { .. }
         | Instruction::MachineHeapStore { .. }
+        | Instruction::MachineAtomicStore { .. }
         | Instruction::AtomicStore { .. }
         | Instruction::RawStore { .. }
         | Instruction::ManagedPoll { .. }

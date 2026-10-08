@@ -7,6 +7,10 @@ pub(super) fn dump_instruction(
     buf: &mut String,
 ) {
     match instruction {
+        Instruction::AtomicLoad { .. }
+        | Instruction::AtomicStore { .. }
+        | Instruction::AtomicRmw { .. }
+        | Instruction::AtomicCmpXchg { .. } => super::atomics::dump_atomic(instruction, buf),
         Instruction::PushPinFrame { out, object } => buf.push_str(&format!(
             "    t{} = push_pin_frame {}\n",
             out.into_raw(),
@@ -256,7 +260,7 @@ pub(super) fn dump_instruction(
             offset,
             function.temps[*out].ty.dump()
         )),
-        Instruction::AtomicLoad {
+        Instruction::MachineAtomicLoad {
             out,
             kind,
             object,
@@ -338,7 +342,7 @@ pub(super) fn dump_instruction(
             offset,
             value_name(*value)
         )),
-        Instruction::AtomicStore {
+        Instruction::MachineAtomicStore {
             kind,
             object,
             offset,
@@ -350,7 +354,7 @@ pub(super) fn dump_instruction(
             offset,
             value_name(*value)
         )),
-        Instruction::AtomicCompareExchange {
+        Instruction::MachineAtomicCompareExchange {
             out,
             kind,
             object,

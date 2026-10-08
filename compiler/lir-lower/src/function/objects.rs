@@ -177,7 +177,7 @@ impl FunctionLowerer<'_> {
         let object = self.lower_expr(object)?;
         let kind = machine_scalar_kind(*kind);
         let out = self.new_temp(lir::LirType::MachineScalar(kind));
-        self.push(lir::Instruction::AtomicLoad {
+        self.push(lir::Instruction::MachineAtomicLoad {
             out,
             kind,
             object,
@@ -225,7 +225,7 @@ impl FunctionLowerer<'_> {
         let replacement = self.lower_expr(replacement)?;
         let kind = machine_scalar_kind(*kind);
         let out = self.new_temp(lir::LirType::MachineScalar(kind));
-        self.push(lir::Instruction::AtomicCompareExchange {
+        self.push(lir::Instruction::MachineAtomicCompareExchange {
             out,
             kind,
             object,

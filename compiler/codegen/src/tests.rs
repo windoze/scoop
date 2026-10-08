@@ -42,6 +42,7 @@ mod runtime_eh_personality_tests;
 
 mod arrays;
 mod arrays_zst;
+mod atomics;
 mod boxing;
 mod c_bridge_objects;
 mod c_layout;

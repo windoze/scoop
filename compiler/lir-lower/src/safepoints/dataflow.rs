@@ -5,6 +5,21 @@ pub(super) fn instruction_uses(
     function: &lir::Function,
 ) -> Vec<lir::Value> {
     match instruction {
+        lir::Instruction::AtomicLoad { location, .. } => vec![location.object],
+        lir::Instruction::AtomicStore {
+            location, value, ..
+        }
+        | lir::Instruction::AtomicRmw {
+            location, value, ..
+        } => vec![location.object, *value],
+        lir::Instruction::AtomicCmpXchg {
+            location,
+            expected,
+            replacement,
+            ..
+        } => {
+            vec![location.object, *expected, *replacement]
+        }
         lir::Instruction::BoxValue { payload, .. } => payload
             .source()
             .map(lir::Value::Local)
@@ -37,7 +52,7 @@ pub(super) fn instruction_uses(
         | lir::Instruction::MachineHeapLoad {
             object: operand, ..
         }
-        | lir::Instruction::AtomicLoad {
+        | lir::Instruction::MachineAtomicLoad {
             object: operand, ..
         }
         | lir::Instruction::ULongToPtr { value: operand, .. }
@@ -91,8 +106,8 @@ pub(super) fn instruction_uses(
         }
         lir::Instruction::HeapStore { object, value, .. }
         | lir::Instruction::MachineHeapStore { object, value, .. }
-        | lir::Instruction::AtomicStore { object, value, .. } => vec![*object, *value],
-        lir::Instruction::AtomicCompareExchange {
+        | lir::Instruction::MachineAtomicStore { object, value, .. } => vec![*object, *value],
+        lir::Instruction::MachineAtomicCompareExchange {
             object,
             expected,
             replacement,
@@ -168,8 +183,11 @@ pub(super) fn instruction_defs(instruction: &lir::Instruction) -> Vec<LiveValue>
         | lir::Instruction::ReleaseFieldLoad { out, .. }
         | lir::Instruction::HeapLoad { out, .. }
         | lir::Instruction::MachineHeapLoad { out, .. }
+        | lir::Instruction::MachineAtomicLoad { out, .. }
         | lir::Instruction::AtomicLoad { out, .. }
-        | lir::Instruction::AtomicCompareExchange { out, .. }
+        | lir::Instruction::AtomicRmw { out, .. }
+        | lir::Instruction::AtomicCmpXchg { out, .. }
+        | lir::Instruction::MachineAtomicCompareExchange { out, .. }
         | lir::Instruction::GlobalLoad { out, .. }
         | lir::Instruction::GlobalAddress { out, .. }
         | lir::Instruction::NativeGlobalLoad { out, .. }
@@ -210,6 +228,7 @@ pub(super) fn instruction_defs(instruction: &lir::Instruction) -> Vec<LiveValue>
         | lir::Instruction::NativeGlobalStore { .. }
         | lir::Instruction::HeapStore { .. }
         | lir::Instruction::MachineHeapStore { .. }
+        | lir::Instruction::MachineAtomicStore { .. }
         | lir::Instruction::AtomicStore { .. }
         | lir::Instruction::RawStore { .. }
         | lir::Instruction::ArraySet { .. }
