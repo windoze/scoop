@@ -296,3 +296,10 @@ GCLeaf 并发 fixture 在 release + minor 压力模式下暴露了既有分配�
 - 13 个 negative fixture 保存实际完整诊断与源码位置，覆盖缺少合同或 override、同形／同名假接口、Any、仅 Hash、Float 的 Hash bound、缺少泛型 bound、invariant、接口视图操作数、歧义、左右操作数顺序及 NoGc generic body 调用 Managed slot。
 - 跨 Cone 用例在移除 provider 源码后消费普通与泛型 Equality，实现导入接口；移除 consumer 源码后独立链接，链接计划保持一致。直接数值比较的 MIR/LIR 仍是 integer/float compare，自定义 NoGc 比较保持直接调用，不引入装箱或 safepoint。
 - 本机清理 94 项已链接中间对象及 incremental 内容，共 3,039,163,000 bytes，保留编译库、CLI 和热缓存。条件派生作为下一项继续实现，不将本节的显式合同验收视为整个 Equality 或 M33 完成。
+
+## M33-7d：手写同签名成员与派生冲突
+
+- 派生声明在本地及导入路径均检查普通 `equals(Self)` 成员，不再仅检查 operator 标记。普通同签名方法保持普通调用语义，不产生 Equality；私有成员同样占用签名。参数类型不同的 equals 和其他名称的方法不阻止结构派生。
+- `tests/fixtures/m33-equality/derivation/collisions` 覆盖 struct、enum、泛型私有成员的精确 negative 诊断，以及移除提供方源码后调用普通／泛型成员、结构派生和再次拒绝相等运算；成功程序在移除消费方源码后独立链接运行。
+- Darwin、GNU、musl 均在非更新模式下通过 4 项、5 个变体、13 个进程、12 次 HIR/MIR/LIR golden 检查。三个正式报告保存在 `tmp/m33/equality-collision-{darwin,gnu,musl}-final-report.json`。本地 fmt 和 HIR-lower 全 target clippy、Linux fmt/clippy 及两地主 CLI release 构建通过；此次没有重跑无关全量测试。
+- 这项修复只完成同签名冲突边界；自动派生的真实 Equality conformance 和泛型条件仍继续实施。

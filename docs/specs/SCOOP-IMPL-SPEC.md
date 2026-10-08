@@ -73,6 +73,8 @@ singleton、runtime property 与 generic delegated application 保存完整初�
 
 相等能力按语言规范 11.11 解析到实际 core `Equality<T>` 及其 equals slot。普通继承与类型信息齐备后，先建立值类型派生 Equality 的签名、字段条件和 conformance 关系，再完成相关 interface obligation、override、bound 与正文检查；不能在接口实现检查已经失败后才追加一个不关联 slot 的 equals 候选。仅有同名方法不能补齐 conformance，intrinsic 类型由实际 core 声明显式实现。
 
+判定派生签名是否被手写成员占用时，检查名为 `equals`、参数为完整宿主类型的原成员签名，不以 `operator` 标记或当前调用处的可见性过滤。普通同签名成员仍可按普通函数调用，但不会获得 Equality；导入的 nominal 使用已保存的成员声明执行相同判断，不因成员正文或源码不可见而重新派生。
+
 Equality 与 Iterator 一样，在 core 声明检查边界解析并记录普通 interface、equals callable 与 dispatch slot 的实际 typed identity，随既有 core protocol 数据导出和导入。它不增加 intrinsic annotation；后续候选查找按这些身份及普通接口继承关系工作，不能按 `Equality` 或 `equals` 的名称补建协议。
 
 generic value 的 Equality 条件只包含实际字段／payload 的比较需求；开放字段保存原类型表达式与实际 Equality 协议身份，已有 bound 足以决议的成员保留其已绑定契约，未存储的形参不产生条件。ExportHir 保存这些条件和成员身份，HIR 具体化时按语言规定完成派生，LocalConcreteHir 对每个需要的 exact application 给出确定的接口闭包、slot implementation 与完整正文，不能把“接口是否存在”留为后续 stage 猜测。该派生不允许用户 generic body 越过已声明的 bound 使用能力。NoGc 实现满足 Managed interface slot 时分别保留实现体 effect 和接口调用 effect，其他签名、访问、ordinary/suspend 与安全性规则照常检查。
