@@ -74,14 +74,15 @@ impl NativeNamespace {
         &self,
         native: &NativeInputs,
         symbol: &str,
-        explicit: Option<NativeInputId>,
+        explicit: Option<&[NativeInputId]>,
+        system_alias: bool,
     ) -> Result<Vec<NativeBinding>, LinkError> {
         match self {
             Self::Darwin(namespace) => namespace
                 .providers
                 .candidates(native, symbol, explicit)
                 .map(|values| values.into_iter().map(NativeBinding::Darwin).collect()),
-            Self::Elf(namespace) => Ok(namespace.candidates(symbol, explicit)),
+            Self::Elf(namespace) => Ok(namespace.candidates(symbol, explicit, system_alias)),
         }
     }
 

@@ -3,9 +3,11 @@
 use crate::{ConditionalSourcePath, ConeRelativePath};
 
 mod flags;
+mod libraries;
 mod parse;
 
 pub use flags::{NativeCompileFlag, NativeIncludeFlag};
+pub use libraries::NativeLibrary;
 pub(crate) use parse::RawNativeConfig;
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
@@ -13,6 +15,7 @@ pub struct NativeConfig {
     sources: Vec<ConditionalSourcePath>,
     include: Vec<ConeRelativePath>,
     c_flags: Vec<NativeCompileFlag>,
+    libraries: Vec<NativeLibrary>,
 }
 
 impl NativeConfig {

@@ -354,6 +354,22 @@ impl ConeLirFoundation {
         Rc::unwrap_or_clone(self.canonical)
     }
 
+    pub fn with_native_library_requirements(
+        mut self,
+        requirements: Vec<crate::CanonicalNativeLibraryRequirementV1>,
+    ) -> Self {
+        if !requirements.is_empty() {
+            let canonical = Rc::make_mut(&mut self.canonical);
+            let mut merged = std::mem::take(&mut canonical.native_link_requirements)
+                .into_iter()
+                .map(|record| (record.id(), record))
+                .collect::<std::collections::BTreeMap<_, _>>();
+            merged.extend(requirements.into_iter().map(|record| (record.id(), record)));
+            canonical.native_link_requirements = merged.into_values().collect();
+        }
+        self
+    }
+
     pub(crate) fn into_shared(self) -> Rc<CanonicalLirFoundation> {
         self.canonical
     }

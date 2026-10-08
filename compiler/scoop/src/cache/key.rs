@@ -170,7 +170,7 @@ pub enum CurrentConeSemanticProjectionV1 {
         requested_kind: RequestedConeKind,
         dependencies: Vec<ConeCoordinate>,
         sources: SourceSelection,
-        native: scoop_toolchain::PreparedNativeInputs,
+        native: Box<scoop_toolchain::PreparedNativeInputs>,
     },
     SingleFile,
 }

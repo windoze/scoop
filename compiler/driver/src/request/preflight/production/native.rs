@@ -95,3 +95,17 @@ pub(super) fn compile(
 fn error(error: impl std::fmt::Display) -> ToolchainError {
     ToolchainError(format!("native compilation: {error}"))
 }
+
+pub(super) fn libraries(
+    request: &ValidatedSingleConeBuildRequest<'_>,
+) -> Result<Vec<scoop_lir::CanonicalNativeLibraryRequirementV1>, ToolchainError> {
+    match request.current() {
+        ValidatedCurrentConeInput::Manifest { manifest } => manifest
+            .parsed()
+            .semantic()
+            .native()
+            .library_requirements(request.target().id())
+            .map_err(error),
+        ValidatedCurrentConeInput::SingleFile { .. } => Ok(Vec::new()),
+    }
+}

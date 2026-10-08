@@ -366,11 +366,17 @@ SourceExtern 按实际 target/native symbol 合并完整 library、kind、TLS、
 
 runtime object index 是普通对象及定义／引用摘要，必须匹配 target、runtime ABI 和实际内容。runtime-build 的源码、头文件、compiler、SDK、flags 与规则变化使其缓存失效；该索引不要求 program-link 读取这些源码。
 
-逻辑 native library requirement 沿完整依赖闭包传递，manifest 的 native.libraries 与非空 SourceExtern lib 使用同一解析流程。先在全部显式 library roots 中按既有规则收集候选；该层无候选时，再交给所选 target 的平台 provider 在其默认系统库目录中解析。显式候选损坏、target/ABI 不匹配或歧义直接报错，不能用系统库掩盖。TargetDefault 与显式 kind/grouping 保持原合同；OrderedGroup 只限制候选顺序，不引入 whole-archive、脚本或任意 linker 参数。
+逻辑 native library requirement 沿完整依赖闭包传递，manifest 的 native.libraries 与非空 SourceExtern lib 使用同一解析流程。driver 将选中 manifest 要求合并到既有 LIR foundation native library 表；相同 key 去重，产物不要求每个库都有 Scoop extern 使用者。Code 与 production manifest 继续覆盖完整逻辑要求，Link reader 复用该表，不从机器符号反推库名。先在全部显式 library roots 中按既有规则收集候选；该层无候选时，再交给所选 target 的平台 provider 在其默认系统库目录中解析。显式候选损坏、target/ABI 不匹配或歧义直接报错，不能用系统库掩盖。TargetDefault 与显式 kind/grouping 保持原合同；OrderedGroup 只限制候选顺序，不引入 whole-archive、用户脚本或任意 linker 参数。
 
 Cone native 源码对象使用 `org.scoop-lang.link-object/native/1` LinkObject 类别，logical key 为归一化 Cone 相对源码路径的 UTF-8 字节，member identity 仍包含所属 Cone。实际 Link fingerprint 按 member ID 排序加入既有 Code 对象投影；这些对象没有 Scoop Strong/ODR 或 generated-C recipe。program-link 从依赖闭包的对应成员读取普通 native 对象，每个成员作为独立输入参与符号解析；不同 Cone 的相同对象内容不能据此合并。对象格式、target、实际定义与引用沿普通 native 对象规则检查。
 
 Linux 默认目录来自已选 native toolchain/sysroot 及其 target/link-mode 配置；Darwin 来自已选 SDK 的系统库与 framework 目录（包括 `.tbd` provider）。系统 provider 按对应平台的库选择规则解析动态/静态格式；静态模式不得以动态库满足需求。交叉编译不补入宿主的 `/usr/lib`、framework 或其他宿主工具链目录。无合法候选时报告所请求的库和 target；选定 provider 的实际内容、加载合同与工具链/SDK 配置进入既有 ResolvedLinkPlan 和链接缓存。只查已声明的逻辑库，不自动发现相邻 native source/object/archive，也不扩大空 lib 的默认 namespace。
+
+Linux 系统库选择由所选 C driver/linker 按目标配置完成。发行版提供的标准 linker script（例如 GNU 的 `libm.so`）可解析为多个实际 archive/ELF 输入；其脚本内容摘要、实际输入及顺序进入同一解析结果和 link plan。最终链接消费已选文件快照，不重新解释系统脚本或按宿主目录重新选库。该规则不开放显式用户脚本输入。
+
+重复声明已经包含在 target 固定系统输入中的同一 provider 时复用既有定义，不产生第二个符号候选；相同加载名但不同内容仍是冲突。Darwin SDK 的 `$ld$previous$` 指令按 platform 和 deployment 的半开版本区间选择符号的实际加载库及 compatibility version，未命中的指令不改变当前接口。此类信息属于目标 SDK 的正常动态库加载合同。
+
+musl 将数学库、pthread 等接口合入 libc；所选工具链为这些固定系统库提供的空兼容 archive 按该平台规则绑定到现有 libc provider。此别名仅适用于实际系统解析选中的固定兼容文件，显式 roots 中的空 archive 不获得额外符号。
 
 普通 archive 保留真实 member index、offset、length 与 digest，允许 BSD/GNU 命名；拒绝 thin、外部或嵌套 archive 和损坏边界。必要格式与定义索引覆盖候选，完整 relocation/EH/TLS/初始化检查只作用于实际选入的 member。实际 undefined references 驱动成员选择，新增引用继续闭合，每个物理 member 最多加入一次。
 

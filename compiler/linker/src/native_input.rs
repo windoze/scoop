@@ -43,6 +43,8 @@ pub(crate) struct NativeFile {
 }
 
 pub(crate) enum NativeContent {
+    /// Supplied by the selected target's fixed system inputs.
+    System,
     Object(NativeObjectIndex),
     Archive(Vec<archive::Member>),
     Dynamic(Vec<Arc<crate::dynamic::DynamicProvider>>),
@@ -82,7 +84,9 @@ impl NativeInputId {
 pub(crate) struct LibraryInput {
     pub key: NativeLinkRequirementKey,
     pub origins: Vec<String>,
-    pub input: NativeInputId,
+    pub inputs: Vec<NativeInputId>,
+    pub scripts: Vec<(PathBuf, Digest256)>,
+    pub system_alias: bool,
 }
 
 #[derive(Default)]
@@ -113,7 +117,7 @@ impl NativeInputs {
                     origins.join(", ")
                 )));
             }
-            let file = locate::library(&key, roots, profile).map_err(|err| {
+            let resolution = locate::library(&key, roots, profile).map_err(|err| {
                 error(format!(
                     "{err}; requirement {id}; origins: {}",
                     origins.join(", ")
@@ -124,10 +128,14 @@ impl NativeInputs {
                 LibraryInput {
                     key,
                     origins,
-                    input: file.id,
+                    inputs: resolution.files.iter().map(|file| file.id).collect(),
+                    scripts: resolution.scripts,
+                    system_alias: resolution.system_alias,
                 },
             );
-            result.files.entry(file.id).or_insert(file);
+            for file in resolution.files {
+                result.files.entry(file.id).or_insert(file);
+            }
         }
         Ok(result)
     }
@@ -147,8 +155,9 @@ impl NativeInputs {
         result.extend(
             libraries
                 .into_iter()
-                .filter(|(_, library)| seen.insert(library.input))
-                .map(|(_, library)| &self.files[&library.input]),
+                .flat_map(|(_, library)| &library.inputs)
+                .filter(|input| seen.insert(**input))
+                .map(|input| &self.files[input]),
         );
         result
     }

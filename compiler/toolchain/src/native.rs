@@ -51,6 +51,7 @@ pub struct PreparedNativeInputs {
     units: Vec<NativeSourceInput>,
     dependencies: BTreeMap<String, Digest256>,
     flags: Vec<String>,
+    libraries: Vec<scoop_lir::CanonicalNativeLibraryRequirementV1>,
 }
 
 impl PreparedNativeInputs {
@@ -61,7 +62,7 @@ impl PreparedNativeInputs {
 
 impl WireEncode for PreparedNativeInputs {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.array(3)?;
+        encoder.array(4)?;
         encoder.array(self.units.len() as u64)?;
         for unit in &self.units {
             encoder.array(2)?;
@@ -77,6 +78,10 @@ impl WireEncode for PreparedNativeInputs {
         encoder.array(self.flags.len() as u64)?;
         for flag in &self.flags {
             encoder.text(flag)?;
+        }
+        encoder.array(self.libraries.len() as u64)?;
+        for library in &self.libraries {
+            library.encode(encoder)?;
         }
         Ok(())
     }

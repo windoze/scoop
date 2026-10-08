@@ -11,7 +11,7 @@
 | M33-3 | 严格／可空／lossy UTF-8、C 字符串 | 完成并通过三平台验收 |
 | M33-4 | main、argv、退出码、输出与 ABI 11/7 | 完成并通过三平台验收 |
 | M33-5 | errno 捕获 | 完成并通过三平台验收 |
-| M33-6 | native C/C++、系统库与源码选择 | 源码选择、native C 完成；C++ 与系统库待实现 |
+| M33-6 | native C/C++、系统库与源码选择 | 源码选择、native C、系统库完成；C++ 待实现 |
 | M33-7 | sysroot 默认定位、Equality | 待实现 |
 | M33-8 | 原子类型、内存序与 GC | 待实现 |
 | M33-9 | 线程退出规则与组合验收 | 待实现 |
@@ -222,3 +222,18 @@ GCLeaf 并发 fixture 在 release + minor 压力模式下暴露了既有分配�
 - 缓存 fixture 分别修改传递头、forced include、C 编译参数和 C 源码，确认缓存失效及运行结果改变；未选源码、无关头和清单重排保持命中。产物 fixture 删除 provider/consumer 源码后完成跨 Cone 消费与独立重链接，link-plan fingerprint 一致。
 - 26 类 negative fixture 使用真实 CLI 采集的完整诊断，包含非法条件/参数/路径、缺失/错误源码、symlink/hardlink、头文件越界、预处理/语法错误、C 初始化段和跨 Cone 强符号冲突；平台相关的编译器诊断分别保存。
 - 清理 428 项已链接中间对象与 incremental 目录，共 2,525,560,831 bytes，保留可复用编译库和配套 CLI。没有运行无关的全量语言测试；C++ 与系统库作为后续功能单独实现和验收。
+
+## M33-6c：manifest native 库与系统库解析
+
+- `native.libraries` 支持必需的逻辑库名、default/dynamic/static/framework kind 和既有 target 条件。筛选结果排序去重并进入外层缓存键，合并到既有 LIR foundation 的 native library 表；native C 可以是唯一使用者。完整要求继续由 Code、production manifest 和依赖产物传递，没有另建平行的库元数据。
+- 显式 library roots 优先；该层没有候选时，Darwin 查询所选 SDK 的库与 framework，Linux 通过所选 C driver 和 linker 解析系统库。一个逻辑库可以映射到多个真实输入；GNU 系统 linker script 的内容与目标文件均进入链接计划。损坏、歧义或不兼容的显式输入直接报错。
+- 已包含在固定系统输入中的 ELF archive/DSO 复用其符号索引，避免重复解析和重复候选。musl 的固定空兼容 archive 只转向实际 libc 的符号；显式 roots 中的空 archive 不得到该别名。Darwin SDK 的 previous 指令按 platform 和 deployment 区间选择实际加载库，并保留 compatibility version。
+- 新代码按清单解析、显式／系统查找、SDK 指令和 ELF 系统符号索引拆为小模块，后者为 98 行。runtime ABI、metadata ABI 和 host protocol 仍为 11/7/5。
+
+已完成的验证：
+
+- Rust fmt、受影响 crate 的 clippy 通过。manifest native 6 项、LIR 库要求 4 项、SDK stub 5 项、缓存键 5 项定向测试通过；GNU/musl 的两个真实工具链测试验证 libc/libm 复用及别名不能提供 unwind 符号。
+- Darwin/GNU/musl 分别通过 20/20/21 项适用正式 CLI fixture、25/24/25 个变体、66/59/60 个进程；保存 36/30/30 份 golden。12 份公共 HIR/MIR 在本机与 Linux 副本一致。覆盖 SDK CoreFoundation、系统 cos、显式库优先、NativeSafe/GCLeaf、errno、泛型及 moving/minor GC，debug/release 均运行。
+- 产物 fixture 删除 provider/consumer 源码后完成跨 Cone 消费和独立链接；缓存 fixture 验证无 C 源码时库重排、重复及未选条目仍命中，新增库要求使缓存和产物改变。16 类 negative fixture 固定完整诊断，覆盖名称、kind、条件、缺失系统库、显式候选损坏／空库／歧义和 target 限制。
+- Darwin previous fixture 的公开 stub 指向实际旧 dylib，公开名称对应的 dylib 不存在，最终程序仍成功加载运行。另有两项既有动态库重导出／符号重命名回归通过，14 个进程、10 份 golden；绑定仍保留 facade 与实际 source symbol，旧 golden 同步已完成的 M33 入口和 DirectC 变化。
+- musl 完整运行暴露 libc archive 被重复按普通 native 对象解析的问题；修复后只复验失败缓存项、GNU 系统绑定及受影响诊断。清理 246 项已链接中间对象和 incremental 目录，共 2,019,638,990 bytes，保留配套 CLI 与热缓存；没有运行无关全量测试。

@@ -16,6 +16,7 @@ pub(super) fn prepare(
     public_include: &Path,
 ) -> Result<PreparedNativeInputs, ToolchainError> {
     let config = manifest.parsed().semantic().native();
+    let libraries = config.library_requirements(target).map_err(error)?;
     let mut sources: Vec<_> = config
         .sources()
         .iter()
@@ -23,7 +24,10 @@ pub(super) fn prepare(
         .collect();
     sources.sort_by_key(|source| source.path());
     if sources.is_empty() {
-        return Ok(PreparedNativeInputs::default());
+        return Ok(PreparedNativeInputs {
+            libraries,
+            ..PreparedNativeInputs::default()
+        });
     }
     let roots = InputRoots {
         cone: manifest.real_root().to_path_buf(),
@@ -66,7 +70,10 @@ pub(super) fn prepare(
         .tempdir()
         .map_err(error)?;
     for _ in 0..3 {
-        let mut result = PreparedNativeInputs::default();
+        let mut result = PreparedNativeInputs {
+            libraries: libraries.clone(),
+            ..PreparedNativeInputs::default()
+        };
         let mut captured = BTreeMap::new();
         for source in &sources {
             let input = roots.cone.join(source.path().as_path());

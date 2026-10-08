@@ -8,7 +8,7 @@ use scoop_wire::{Digest256, sha256};
 use crate::ToolchainError;
 
 mod tbd;
-pub use tbd::{TextStubInterface, read_text_stubs, write_link_stub};
+pub use tbd::{PreviousExport, TextStubInterface, read_text_stubs, write_link_stub};
 #[cfg(test)]
 mod tests;
 
@@ -49,11 +49,13 @@ impl SystemStubFile {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SystemProvider {
+    install_name: String,
     files: Vec<SystemStubFile>,
     exports: BTreeMap<String, NativeExport>,
     reexports: BTreeSet<String>,
     current_version: u32,
     compatibility_version: u32,
+    previous: BTreeMap<String, PreviousExport>,
 }
 
 impl SystemProvider {
@@ -64,6 +66,8 @@ impl SystemProvider {
         let mut pending = vec![LIBSYSTEM_INSTALL_NAME.to_owned()];
         let mut reexports = BTreeSet::new();
         let mut exports = BTreeMap::new();
+        let mut previous = BTreeMap::new();
+        let mut root_directives = tbd::StubDirectives::default();
         while let Some(name) = pending.pop() {
             if !reexports.insert(name.clone()) {
                 continue;
@@ -88,22 +92,53 @@ impl SystemProvider {
             let record = records.get(&name).ok_or_else(|| {
                 ToolchainError(format!("SDK stub does not define re-export {name}"))
             })?;
-            record.collect(deployment, true, &mut exports, &mut pending)?;
+            let mut local = BTreeMap::new();
+            let mut directives = record.collect(deployment, true, &mut local, &mut pending)?;
+            if let Some(install_name) = &directives.install_name {
+                for (symbol, interface) in &local {
+                    directives
+                        .previous
+                        .entry(symbol.clone())
+                        .or_insert(PreviousExport {
+                            install_name: install_name.clone(),
+                            compatibility_version: directives
+                                .compatibility_version
+                                .unwrap_or(record.compatibility_version),
+                            interface: *interface,
+                        });
+                }
+            }
+            for (symbol, export) in local {
+                tbd::insert(&mut exports, symbol, export)?;
+            }
+            previous.append(&mut directives.previous);
+            if name == LIBSYSTEM_INSTALL_NAME {
+                root_directives = directives;
+            }
         }
         let root = records
             .get(LIBSYSTEM_INSTALL_NAME)
             .ok_or_else(|| ToolchainError("SDK stub has no libSystem record".into()))?;
         Ok(Self {
+            install_name: root_directives
+                .install_name
+                .unwrap_or_else(|| LIBSYSTEM_INSTALL_NAME.to_owned()),
             files: files.into_values().collect(),
             exports,
             reexports,
             current_version: root.current_version,
-            compatibility_version: root.compatibility_version,
+            compatibility_version: root_directives
+                .compatibility_version
+                .unwrap_or(root.compatibility_version),
+            previous,
         })
     }
 
-    pub fn install_name(&self) -> &'static str {
-        LIBSYSTEM_INSTALL_NAME
+    pub fn install_name(&self) -> &str {
+        &self.install_name
+    }
+    pub fn previous_exports(&self) -> &BTreeMap<String, PreviousExport> {
+        &self.previous
     }
     pub fn root_stub(&self) -> &'static Path {
         Path::new(LIBSYSTEM_STUB)

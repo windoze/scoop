@@ -2049,7 +2049,7 @@ when = { os = "darwin" }
 
 #### 12.2.3 Native 系统库
 
-`[[native.libraries]]` 以必需的 `name`、可选的 `kind` 和 12.2.2 的 `when` 声明逻辑 native 库；name 不是文件路径或 linker 参数，kind 沿用实现规范 2.8 的库种类。按 target 筛选后的要求写入 `.slib` 并沿依赖闭包传递，与非空 `@Extern(lib = ...)` 使用同一库合并、符号绑定和冲突规则。
+`[[native.libraries]]` 以必需的 `name`、可选的 `kind` 和 12.2.2 的 `when` 声明逻辑 native 库；name 不是文件路径或 linker 参数。kind 可为 `default`（省略时采用）、`dynamic`、`static`、`framework`，分别对应实现规范 2.8 的 TargetDefault、Dynamic、StaticArchive、Framework；本清单不提供 grouping 或任意链接参数。按 target 筛选后的要求写入 `.slib` 并沿依赖闭包传递，与非空 `@Extern(lib = ...)` 使用同一库合并、符号绑定和冲突规则。native 源码可以是库的唯一使用者，不要求另写无用途的 Scoop extern 声明。
 
 库解析先检查全部显式 library roots；没有候选时允许使用所选 target 的平台 provider 默认目录。Linux 使用所选 native toolchain/sysroot 的系统库目录，Darwin 使用所选 SDK 的库和 framework 目录。交叉编译不回退到宿主工具链或宿主系统目录。显式候选损坏、不兼容或歧义仍报错，不能静默改用系统库。
 

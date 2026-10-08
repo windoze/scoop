@@ -56,17 +56,13 @@ pub(in crate::program) fn read(
     }
     let mut libraries = BTreeMap::new();
     for (artifact, symbols) in closure.artifacts() {
-        for requirement in symbols.native_requirements().contracts() {
-            if let Some(record) = requirement.library().requirement() {
-                let entry = libraries
-                    .entry(record.id())
-                    .or_insert_with(|| (record.key().clone(), Vec::new()));
-                entry.1.push(format!(
-                    "{} (native declarations {:?})",
-                    artifact.manifest().cone().coordinate(),
-                    requirement.sources()
-                ));
-            }
+        for record in symbols.native_requirements().library_requirements() {
+            let entry = libraries
+                .entry(record.id())
+                .or_insert_with(|| (record.key().clone(), Vec::new()));
+            entry
+                .1
+                .push(artifact.manifest().cone().coordinate().to_string());
         }
     }
     Ok((declarations, libraries))

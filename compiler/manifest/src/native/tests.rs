@@ -111,3 +111,58 @@ fn malformed_native_paths_and_tables_fail_before_source_selection() {
         );
     }
 }
+
+#[test]
+fn library_requirements_select_the_target_and_deduplicate_complete_keys() {
+    use scoop_identity::{NativeLibraryKind, TargetProfileId};
+    let source = format!(
+        "{CONE}
+[[native.libraries]]
+name = 'm'
+when = {{os = 'linux'}}
+[[native.libraries]]
+name = 'CoreFoundation'
+kind = 'framework'
+when = {{os = 'darwin'}}
+[[native.libraries]]
+name = 'm'
+kind = 'default'
+when = {{env = ['gnu', 'musl']}}
+"
+    );
+    let manifest = parse_cone_manifest(&source).unwrap();
+    for target in TargetProfileId::ALL {
+        let libraries = manifest
+            .semantic()
+            .native()
+            .library_requirements(target)
+            .unwrap();
+        assert_eq!(libraries.len(), 1);
+        assert_eq!(libraries[0].key().target_profile().id(), target);
+        let (name, kind) = if target == TargetProfileId::DarwinAarch64 {
+            ("CoreFoundation", NativeLibraryKind::Framework)
+        } else {
+            ("m", NativeLibraryKind::TargetDefault)
+        };
+        assert_eq!(libraries[0].key().library().as_str(), name);
+        assert_eq!(libraries[0].key().kind(), kind);
+    }
+}
+
+#[test]
+fn library_syntax_is_checked_before_target_selection() {
+    for declaration in [
+        "name = '../m'",
+        "name = ''",
+        "name = 'm'\nkind = 'archive'",
+        "name = 'm'\nkind = 2",
+        "name = 'm'\ngroup = 'unused'",
+        "kind = 'static'",
+        "name = 'm'\nwhen = {os = 'unknown'}",
+    ] {
+        assert!(
+            parse_cone_manifest(&format!("{CONE}\n[[native.libraries]]\n{declaration}")).is_err(),
+            "{declaration}"
+        );
+    }
+}

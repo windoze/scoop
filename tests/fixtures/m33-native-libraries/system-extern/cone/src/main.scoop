@@ -1,0 +1,9 @@
+@Extern(name = "cos", lib = "m")
+fun cosine(value: Double): Double
+@GCLeaf @Extern(name = "cos", lib = "m")
+fun leafCosine(value: Double): Double
+fun main() {
+    @Unsafe {
+        if (cosine(0.0) != 1.0 || leafCosine(0.0) != 1.0) { throw IllegalStateException() }
+    }
+}

@@ -1,0 +1,47 @@
+schema = 1
+name = "m33-native-libraries-sdk-previous"
+inputs = ["cone", "previous.c", "public.tbd"]
+tools = ["scoop", "cc"]
+targets = ["aarch64-apple-darwin"]
+tags = ["m33", "native", "libraries"]
+variants = [{name = "debug", vars = {profile = "debug"}}, {name = "release", vars = {profile = "release"}}]
+
+[[steps]]
+name = "native"
+argv = ["${cc}", {each = "${cc_args}"}, "-std=c11", "-O2", "-Wall", "-Wextra", "-Werror", "-dynamiclib", "-install_name", "@rpath/libprevious.dylib", "-current_version", "3.0", "-compatibility_version", "1.0", "${fixture}/previous.c", "-o", "${work}/libprevious.dylib"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "stub"
+files = [{copy = {from = "${fixture}/public.tbd", to = "${work}/libpublic.tbd"}}]
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${fixture}/cone", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--library-path", "${work}", "--emit", "all", "--dump-dir", "${work}/dump", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {file = "${work}/dump/${build.result.root.identity}/hir.txt", snapshot = "program.hir.txt"},
+  {file = "${work}/dump/${build.result.root.identity}/mir.txt", snapshot = "program.mir.txt"},
+  {file = "${work}/dump/${build.result.root.identity}/lir.txt", snapshot = "program.${profile}.${target}.lir.txt"},
+]
+
+[[steps]]
+name = "run"
+argv = ["${build.result.output}"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "moving"
+argv = ["${build.result.output}"]
+env = {SCOOP_GC_STRESS_MOVE = "1"}
+exit = 0
+stdout = ""
+stderr = ""

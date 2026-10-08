@@ -31,8 +31,8 @@ pub use registry::host_target_triple;
 pub use registry::{CToolchainOptions, ResolvedTargetProfile};
 pub use runtime::ValidatedRuntimeBuildProfile;
 pub use system_provider::{
-    LIBSYSTEM_INSTALL_NAME, NativeExport, SystemExportKind, SystemProvider, SystemStubFile,
-    TextStubInterface, read_text_stubs, write_link_stub,
+    LIBSYSTEM_INSTALL_NAME, NativeExport, PreviousExport, SystemExportKind, SystemProvider,
+    SystemStubFile, TextStubInterface, read_text_stubs, write_link_stub,
 };
 pub use trusted_core::TrustedCoreSlotLayoutV1;
 pub use unwind::{runtime_unwind_include, selected_unwind_prefix};

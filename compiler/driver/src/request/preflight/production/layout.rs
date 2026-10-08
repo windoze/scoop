@@ -261,6 +261,9 @@ pub(super) fn assemble(
         .collect::<Vec<_>>();
     crate::CrossConeLayoutArtifactMetadataInputV1::new(metadata, &source, &mir_section, &section)
         .with_native_objects(native_objects)
+        .with_native_libraries(
+            super::native::libraries(request).map_err(CurrentConeProductionFailure::Native)?,
+        )
         .assemble(objects, &generated, &owners)
         .map_err(Error::Artifact)
         .map_err(Into::into)

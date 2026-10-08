@@ -38,8 +38,17 @@ pub(crate) fn parse_path(
             Some(raw.path.span()),
         )
     })?;
+    Ok(ConditionalSourcePath {
+        path,
+        predicate: parse_predicate(raw.when)?,
+    })
+}
+
+pub(crate) fn parse_predicate(
+    when: Option<BTreeMap<String, Spanned<toml::Value>>>,
+) -> Result<TargetPredicate, ManifestParseError> {
     let mut targets = TargetProfileId::ALL.to_vec();
-    for (key, value) in raw.when.into_iter().flatten() {
+    for (key, value) in when.into_iter().flatten() {
         let error = |reason: String| {
             ManifestParseError::new(
                 ManifestParseErrorKind::InvalidSelection(reason),
@@ -77,8 +86,5 @@ pub(crate) fn parse_path(
         }
         targets.retain(|target| values.contains(&field(*target)));
     }
-    Ok(ConditionalSourcePath {
-        path,
-        predicate: TargetPredicate { targets },
-    })
+    Ok(TargetPredicate { targets })
 }

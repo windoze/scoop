@@ -5,10 +5,20 @@ impl WireEncode for NativeInputs {
         e.array(4)?;
         e.array(self.libraries.len() as u64)?;
         for (id, library) in &self.libraries {
-            e.array(3)?;
+            e.array(5)?;
             id.encode(e)?;
             library.key.encode(e)?;
-            library.input.encode(e)?;
+            e.array(library.inputs.len() as u64)?;
+            for input in &library.inputs {
+                input.encode(e)?;
+            }
+            e.array(library.scripts.len() as u64)?;
+            for (path, digest) in &library.scripts {
+                e.array(2)?;
+                e.bytes(path.as_os_str().as_encoded_bytes())?;
+                digest.encode(e)?;
+            }
+            e.unsigned(u64::from(library.system_alias))?;
         }
         e.array(self.files.len() as u64)?;
         for file in self.files.values() {
@@ -23,7 +33,9 @@ impl WireEncode for NativeInputs {
                         record.id.encode(e)?;
                     }
                 }
-                NativeContent::Object(_) | NativeContent::ElfDynamic(_) => e.array(0)?,
+                NativeContent::System | NativeContent::Object(_) | NativeContent::ElfDynamic(_) => {
+                    e.array(0)?
+                }
                 NativeContent::Archive(members) => {
                     e.array(members.len() as u64)?;
                     for member in members {
@@ -52,16 +64,21 @@ impl NativeInputs {
     pub fn dump(&self) -> String {
         let mut text = String::new();
         for (id, library) in &self.libraries {
-            text.push_str(&format!(
-                "native library {} requirement={id} input={} origins={}\n",
-                library.key.library().as_str(),
-                library.input,
-                library.origins.join(", ")
-            ));
+            for input in &library.inputs {
+                text.push_str(&format!(
+                    "native library {} requirement={id} input={input} origins={}\n",
+                    library.key.library().as_str(),
+                    library.origins.join(", ")
+                ));
+            }
         }
         for file in self.ordered_files() {
             match &file.content {
-                NativeContent::Dynamic(_) | NativeContent::ElfDynamic(_) => continue,
+                NativeContent::System
+                | NativeContent::Dynamic(_)
+                | NativeContent::ElfDynamic(_) => {
+                    continue;
+                }
                 NativeContent::Object(_) => text.push_str(&format!(
                     "native object {} slice={}..{}\n",
                     file.id, file.slice.start, file.slice.end

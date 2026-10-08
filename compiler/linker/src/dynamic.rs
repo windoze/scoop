@@ -14,6 +14,7 @@ mod graph;
 mod locate;
 mod plan;
 mod read;
+mod stub;
 
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub(crate) struct NativeDynamicProviderId(Digest256);
@@ -43,6 +44,10 @@ pub(crate) enum DynamicExport {
     Reexport {
         dependency: usize,
         imported: String,
+    },
+    Previous {
+        dependency: usize,
+        interface: NativeExport,
     },
 }
 

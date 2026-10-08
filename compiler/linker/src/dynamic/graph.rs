@@ -15,26 +15,19 @@ impl DynamicInputs {
             .ok_or_else(|| error("system provider has no root stub"))?;
         let input = NativeInputId::from_bytes(file.bytes(), NativeFileKind::TextStub, profile)?;
         let id = DynamicProvider::id(input, system.install_name(), profile)?;
+        let (exports, dependencies) = super::stub::entries(
+            system.exports().clone(),
+            system.previous_exports(),
+            Vec::new(),
+        );
         let provider = Arc::new(DynamicProvider {
             id,
             input,
             install_name: system.install_name().into(),
             current_version: system.current_version(),
             compatibility_version: system.compatibility_version(),
-            exports: system
-                .exports()
-                .iter()
-                .map(|(name, interface)| {
-                    (
-                        name.clone(),
-                        DynamicExport::Symbol {
-                            interface: *interface,
-                            storage: ExportStorage::InterfaceOnly,
-                        },
-                    )
-                })
-                .collect(),
-            dependencies: Vec::new(),
+            exports,
+            dependencies,
             rpaths: Vec::new(),
             locator: profile
                 .startup_toolchain()

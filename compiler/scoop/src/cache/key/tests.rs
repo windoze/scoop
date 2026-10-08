@@ -53,7 +53,7 @@ fn input(source_text: &str, compiler_executable: &str) -> ConeCompileCacheInputV
             requested_kind: RequestedConeKind::Library,
             dependencies: Vec::new(),
             sources: SourceSelection::Default,
-            native: scoop_toolchain::PreparedNativeInputs::default(),
+            native: Box::default(),
         },
         vec![SourceCacheInputV1::new(
             source,
@@ -151,7 +151,7 @@ fn rich_input() -> ConeCompileCacheInputV1 {
             requested_kind: RequestedConeKind::Library,
             dependencies: vec![dependency.cone().coordinate().clone()],
             sources: SourceSelection::Default,
-            native: scoop_toolchain::PreparedNativeInputs::default(),
+            native: Box::default(),
         },
         vec![SourceCacheInputV1::new(
             source,
@@ -194,7 +194,7 @@ fn compile_cache_key_has_a_fixed_canonical_vector() {
 
     assert_eq!(
         input.key().unwrap().to_string(),
-        "598fbf31f60a3a407f17e5276a463dcc07cec032bd97aedc7eca4f69a518a0f2"
+        "9cb02fe9030d69e9a39d8d5dd2c9c4cc5a783adae9863229e0b9acb036a5c6e1"
     );
     assert_eq!(encode(&input).unwrap().first(), Some(&0xad));
 }

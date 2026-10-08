@@ -13,6 +13,8 @@ pub(crate) struct RawNativeConfig {
     include: Vec<Spanned<String>>,
     #[serde(default)]
     c_flags: Vec<Spanned<String>>,
+    #[serde(default)]
+    libraries: Vec<super::libraries::RawNativeLibrary>,
 }
 
 impl RawNativeConfig {
@@ -29,6 +31,11 @@ impl RawNativeConfig {
                 .map(parse_path)
                 .collect::<Result<_, _>>()?,
             c_flags: parse_flags(self.c_flags)?,
+            libraries: self
+                .libraries
+                .into_iter()
+                .map(super::libraries::parse)
+                .collect::<Result<_, _>>()?,
         })
     }
 }

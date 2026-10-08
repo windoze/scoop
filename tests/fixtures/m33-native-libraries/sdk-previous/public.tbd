@@ -1,0 +1,7 @@
+--- !tapi-tbd
+tbd-version: 4
+targets: [arm64-macos]
+install-name: '@rpath/libpublic.dylib'
+exports:
+  - targets: [arm64-macos]
+    symbols: ['$ld$previous$@rpath/libprevious.dylib$1$1$1.0$99.0$_m33_moved$']

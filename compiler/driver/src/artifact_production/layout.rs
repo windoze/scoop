@@ -14,6 +14,7 @@ pub struct CrossConeLayoutArtifactMetadataInputV1<'ir> {
     mir_types: &'ir scoop_mir::CrossConeMirTypeBridgeSectionV1<'ir>,
     lir_layout: &'ir scoop_lir::CrossConeLayoutAbiSectionV1<'ir>,
     native_objects: Vec<slib::SlibMember>,
+    native_libraries: Vec<scoop_lir::CanonicalNativeLibraryRequirementV1>,
 }
 
 impl<'ir> CrossConeLayoutArtifactMetadataInputV1<'ir> {
@@ -29,11 +30,20 @@ impl<'ir> CrossConeLayoutArtifactMetadataInputV1<'ir> {
             mir_types,
             lir_layout,
             native_objects: Vec::new(),
+            native_libraries: Vec::new(),
         }
     }
 
     pub fn with_native_objects(mut self, objects: Vec<slib::SlibMember>) -> Self {
         self.native_objects = objects;
+        self
+    }
+
+    pub fn with_native_libraries(
+        mut self,
+        libraries: Vec<scoop_lir::CanonicalNativeLibraryRequirementV1>,
+    ) -> Self {
+        self.native_libraries = libraries;
         self
     }
 
@@ -44,7 +54,10 @@ impl<'ir> CrossConeLayoutArtifactMetadataInputV1<'ir> {
         dependency_owners: &[slib::CanonicalDefinedLinkSymbolOwnerSetV1],
     ) -> Result<slib::AssembledCrossConeLayoutArtifactV1, Error> {
         let optimization = emitted.optimization();
-        let prepared = objects::prepare(emitted, generated)?;
+        let mut prepared = objects::prepare(emitted, generated)?;
+        prepared.foundation = prepared
+            .foundation
+            .with_native_library_requirements(self.native_libraries);
         let strong = prepared.patch_sites.builtins().strong_relocations().clone();
         let defined =
             slib::CanonicalDefinedLinkSymbolOwnerSetV1::from_verified_strong_closure(&strong)
