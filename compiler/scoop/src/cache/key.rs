@@ -170,6 +170,7 @@ pub enum CurrentConeSemanticProjectionV1 {
         requested_kind: RequestedConeKind,
         dependencies: Vec<ConeCoordinate>,
         sources: SourceSelection,
+        native: scoop_toolchain::PreparedNativeInputs,
     },
     SingleFile,
 }
@@ -182,8 +183,9 @@ impl WireEncode for CurrentConeSemanticProjectionV1 {
                 requested_kind,
                 dependencies,
                 sources,
+                native,
             } => {
-                encoder.map(5)?;
+                encoder.map(6)?;
                 encoder.field(0)?;
                 encoder.unsigned(1)?;
                 encoder.field(1)?;
@@ -193,7 +195,9 @@ impl WireEncode for CurrentConeSemanticProjectionV1 {
                 encoder.field(3)?;
                 encode_array(dependencies, encoder)?;
                 encoder.field(4)?;
-                sources.encode(encoder)
+                sources.encode(encoder)?;
+                encoder.field(5)?;
+                native.encode(encoder)
             }
             Self::SingleFile => {
                 encoder.map(3)?;

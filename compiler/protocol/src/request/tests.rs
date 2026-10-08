@@ -53,9 +53,26 @@ fn core_manifest_request_round_trips_without_a_default_source_slot() {
     assert_eq!(decoded.build().optimization(), OptimizationMode::Release);
     assert_eq!(decoded.build().target(), request.build().target());
     let mut unknown = bytes;
-    assert_eq!(unknown.pop(), Some(2));
-    unknown.push(3);
+    let optimization = unknown.len() - 3;
+    assert_eq!(unknown[optimization], 2);
+    unknown[optimization] = 3;
     assert!(decode_canonical::<DecodedScoopcRequestEnvelopeV1>(&unknown).is_err());
+
+    let native = request
+        .build()
+        .clone()
+        .with_native_inputs(vec![path("unit.i")]);
+    let native = ScoopcRequestEnvelopeV1::new(request.request_id(), native);
+    let decoded = decode_canonical::<DecodedScoopcRequestEnvelopeV1>(&encode(&native).unwrap())
+        .unwrap()
+        .validate()
+        .unwrap();
+    assert_eq!(decoded.build().native_inputs(), &[path("unit.i")]);
+    let mut missing = encode(request.build()).unwrap();
+    assert_eq!(missing.pop(), Some(0x80));
+    assert_eq!(missing.pop(), Some(10));
+    missing[0] = 0xa9;
+    assert!(decode_canonical::<super::decode::DecodedScoopcBuildRequestV1>(&missing).is_err());
 }
 
 #[test]

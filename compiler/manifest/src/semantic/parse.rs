@@ -10,6 +10,8 @@ struct RawManifest {
     #[serde(default)]
     dependencies: BTreeMap<String, Spanned<RawDependency>>,
     sources: Option<Vec<crate::selection::RawConditionalPath>>,
+    #[serde(default)]
+    native: crate::native::RawNativeConfig,
 }
 
 #[derive(Deserialize)]
@@ -212,6 +214,7 @@ pub fn parse_cone_manifest(source: &str) -> Result<ParsedConeManifest, ManifestP
             requested_kind,
             dependencies,
             sources: crate::selection::parse_sources(raw.sources)?,
+            native: raw.native.parse()?,
         },
         locators: DependencyLocatorTable(locators),
         diagnostic_spans: ManifestDiagnosticSpans {

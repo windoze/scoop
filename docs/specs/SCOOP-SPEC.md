@@ -1997,7 +1997,13 @@ kind = "library" # 或 "executable"
 - `scoop:single-file:0.0.0`是另一reserved coordinate，用户manifest不得声明它。`scoop build/run`收到basename扩展名精确为`.scoop`、跟随symlink后目标为已存在regular file的operand时，构造`kind = executable`、source set恰好为该文件、logical source path恒为`main.scoop`、direct Cone dependency恰好为core的typed synthetic projection；symlink cycle、dangling link或最终目标非regular file是输入错误，resolved host path不进入identity。显式文件operand即使位于某Cone目录中也不读取相邻`Cone.toml`、其他`.scoop`、C/C++ source或blob；它不接受其他Cone dependency。该`.slib`可缓存，并可作为产生它的build/run或显式`scoop link --root-slib`的唯一executable root；但不能作为可分发artifact发布、作为dependency或被manifest artifact locator引用；
 - manifest Cone的source identity是`(ConeIdentity, normalized Cone-relative source path)`，保留从Cone根开始的完整路径，不以显式源码根为基准截短；single-file source使用相同pair形态，但第一项固定为由reserved `scoop:single-file:0.0.0`计算的`ConeIdentity`，第二项固定为`main.scoop`。host绝对路径、CLI relative/absolute/symlink spelling、inode、mtime、目录枚举顺序与临时输出路径不进入语义identity；只有语言允许跨文件同名的file-private/hidden实体才把该source identity加入其declaration key。single-file artifact/cache key另外包含source content digest、core semantic/code fingerprints、compiler/schema/target/toolchain，不因共用reserved identity而碰撞；
 
-#### 12.2.1 Native C++ 模式
+#### 12.2.1 Native C/C++ 源码
+
+manifest Cone 可在 `[native]` 中配置 `include`、`c_flags`、`cxx_flags` 与 `cxx`，并以 `[[native.sources]]` 的 `path` 和可选 `when` 列出源码。`native.sources` 只选择单个 regular file；`.c` 按 C 编译，`.cc`、`.cpp`、`.cxx` 和 `.C` 按 C++ 编译，不递归发现其他 native 源码。省略的数组为空；`include` 是 Cone 相对的头文件搜索目录，源码与 include 路径使用 12.2.2 的归一化规则。条件筛选先于选中文件的存在性、后缀与语言开关检查。
+
+native 预处理除编译器的目标宏外，还定义当前 target 对应的 `SCOOP_TARGET_OS_DARWIN`／`SCOOP_TARGET_OS_LINUX`、`SCOOP_TARGET_ARCH_AARCH64`／`SCOOP_TARGET_ARCH_X86_64` 及 `SCOOP_TARGET_ENV_NONE`／`SCOOP_TARGET_ENV_GNU`／`SCOOP_TARGET_ENV_MUSL`；每组只定义匹配项，值为 `1`。
+
+编译选项按 argv 元素传递，不作 shell 展开。`-I`、`-iquote`、`-isystem`、`-idirafter`、`-include` 和 `-imacros` 中的路径也必须是 Cone 相对路径，在准备不可变预处理输入时解析。响应文件、额外 compiler plugin/specs、编译器搜索前缀以及 linker 参数不由 `c_flags`／`cxx_flags` 接收；target、sysroot、输入语言、编译阶段、依赖输出和产物路径由 driver 管理。非系统头文件必须来自当前 Cone 或公开 runtime include 目录；不公开 runtime 内部头文件。driver 自动提供公开 FFI 头 `scoop_rt.h` 及其公开依赖，输入与缓存契约见实现规范 2.7。
 
 manifest Cone 通过 `[native]` 中的 Boolean 字段 `cxx` 显式启用 C++，省略时为 `false`。例如：
 

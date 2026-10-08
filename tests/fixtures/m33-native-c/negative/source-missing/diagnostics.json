@@ -1,0 +1,12 @@
+[
+  {
+    "code": "SCOOP_BUILD_FAILED",
+    "message": "native compilation: ${work}/cone/absent.c: No such file or directory (os error 2)",
+    "notes": [],
+    "origin": {
+      "kind": "none"
+    },
+    "phase": "SourceSnapshot",
+    "severity": "error"
+  }
+]

@@ -2,7 +2,7 @@ use super::*;
 
 impl WireEncode for NativeInputs {
     fn encode(&self, e: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        e.array(3)?;
+        e.array(4)?;
         e.array(self.libraries.len() as u64)?;
         for (id, library) in &self.libraries {
             e.array(3)?;
@@ -38,6 +38,11 @@ impl WireEncode for NativeInputs {
         e.array(self.selected.len() as u64)?;
         for id in self.selected.keys() {
             id.encode(e)?;
+        }
+        let ordered = self.ordered_files();
+        e.array(ordered.len() as u64)?;
+        for file in ordered {
+            file.id.encode(e)?;
         }
         Ok(())
     }

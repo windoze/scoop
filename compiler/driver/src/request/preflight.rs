@@ -86,6 +86,7 @@ pub struct LoadedSingleConeBuildRequest {
     diagnostics: DiagnosticOutputPolicy,
     emit: StageDumpPolicy,
     optimization: scoop_lir::OptimizationMode,
+    native_inputs: super::NativeInputOrigin,
 }
 
 impl SingleConeBuildRequest {

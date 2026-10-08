@@ -341,6 +341,7 @@ impl ClassifyBuildFailure for PrepareBuildGraphError {
             | Self::ManifestSnapshot(_)
             | Self::ManifestChanged(_)
             | Self::SourceDiscovery(_)
+            | Self::Native(_)
             | Self::SingleFile(_) => phase_only(BuildFailurePhase::SourceSnapshot),
         }
     }

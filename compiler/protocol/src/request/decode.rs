@@ -135,6 +135,7 @@ pub(super) struct DecodedScoopcBuildRequestV1 {
     diagnostics: u64,
     emit: DecodedStageDumpPolicyV1,
     optimization: OptimizationMode,
+    native_inputs: Vec<DecodedHostPathCarrier>,
 }
 
 impl DecodedScoopcBuildRequestV1 {
@@ -150,6 +151,7 @@ impl DecodedScoopcBuildRequestV1 {
             .map_err(ProtocolValidationError::HostPath)?;
         let diagnostics = DiagnosticOutputPolicyV1::from_tag(self.diagnostics)?;
         let emit = self.emit.validate()?;
+        let native_inputs = validate_paths(self.native_inputs)?;
         ScoopcBuildRequestV1::new(
             current,
             direct_slibs,
@@ -160,13 +162,17 @@ impl DecodedScoopcBuildRequestV1 {
             diagnostics,
             emit,
         )
-        .map(|request| request.with_optimization(self.optimization))
+        .map(|request| {
+            request
+                .with_optimization(self.optimization)
+                .with_native_inputs(native_inputs)
+        })
     }
 }
 
 impl WireEncode for DecodedScoopcBuildRequestV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(9)?;
+        encoder.map(10)?;
         encoder.field(1)?;
         self.current.encode(encoder)?;
         encoder.field(2)?;
@@ -184,13 +190,15 @@ impl WireEncode for DecodedScoopcBuildRequestV1 {
         encoder.field(8)?;
         self.emit.encode(encoder)?;
         encoder.field(9)?;
-        self.optimization.encode(encoder)
+        self.optimization.encode(encoder)?;
+        encoder.field(10)?;
+        encode_decoded_paths(encoder, &self.native_inputs)
     }
 }
 
 impl WireDecode for DecodedScoopcBuildRequestV1 {
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
-        decoder.expect_map(9)?;
+        decoder.expect_map(10)?;
         let current = decoder.field(1, DecodedCurrentConeRequestV1::decode)?;
         let direct_slibs = decoder.field(2, |decoder| {
             decoder.decode_array(|decoder, _| DecodedHostPathCarrier::decode(decoder))
@@ -204,6 +212,9 @@ impl WireDecode for DecodedScoopcBuildRequestV1 {
         let diagnostics = decoder.field(7, Decoder::unsigned)?;
         let emit = decoder.field(8, DecodedStageDumpPolicyV1::decode)?;
         let optimization = decoder.field(9, OptimizationMode::decode)?;
+        let native_inputs = decoder.field(10, |decoder| {
+            decoder.decode_array(|decoder, _| DecodedHostPathCarrier::decode(decoder))
+        })?;
         Ok(Self {
             current,
             direct_slibs,
@@ -214,6 +225,7 @@ impl WireDecode for DecodedScoopcBuildRequestV1 {
             diagnostics,
             emit,
             optimization,
+            native_inputs,
         })
     }
 }

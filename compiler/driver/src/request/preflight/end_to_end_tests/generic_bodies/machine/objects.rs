@@ -156,6 +156,7 @@ pub(super) fn verify(
             &cone,
             dependencies.direct_dependencies(),
             source_count,
+            Vec::new(),
         )
         .unwrap();
     let objects = finalized.projection.link_objects().final_objects();

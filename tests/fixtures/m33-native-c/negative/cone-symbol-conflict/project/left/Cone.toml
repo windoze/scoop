@@ -1,0 +1,9 @@
+schema = 1
+[cone]
+group = "dev.m33"
+name = "native-left"
+version = "0.1.0"
+kind = "library"
+[native]
+[[native.sources]]
+path = "native.c"

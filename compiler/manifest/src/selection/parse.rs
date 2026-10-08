@@ -26,7 +26,9 @@ pub(crate) fn parse_sources(
     }
 }
 
-fn parse_path(raw: RawConditionalPath) -> Result<ConditionalSourcePath, ManifestParseError> {
+pub(crate) fn parse_path(
+    raw: RawConditionalPath,
+) -> Result<ConditionalSourcePath, ManifestParseError> {
     let path = ConeRelativePath::new(raw.path.get_ref()).map_err(|reason| {
         ManifestParseError::new(
             ManifestParseErrorKind::InvalidSelection(format!(

@@ -201,6 +201,7 @@ fn manifest_cache_inputs(
             requested_kind,
             dependencies,
             sources: snapshot.manifest_semantic.sources().clone(),
+            native: snapshot.native.clone(),
         },
         source_inputs(snapshot.sources()),
     ))

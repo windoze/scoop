@@ -11,7 +11,7 @@
 | M33-3 | 严格／可空／lossy UTF-8、C 字符串 | 完成并通过三平台验收 |
 | M33-4 | main、argv、退出码、输出与 ABI 11/7 | 完成并通过三平台验收 |
 | M33-5 | errno 捕获 | 完成并通过三平台验收 |
-| M33-6 | native C/C++、系统库与源码选择 | 源码选择完成；native C/C++ 与系统库待实现 |
+| M33-6 | native C/C++、系统库与源码选择 | 源码选择、native C 完成；C++ 与系统库待实现 |
 | M33-7 | sysroot 默认定位、Equality | 待实现 |
 | M33-8 | 原子类型、内存序与 GC | 待实现 |
 | M33-9 | 线程退出规则与组合验收 | 待实现 |
@@ -206,3 +206,19 @@ GCLeaf 并发 fixture 在 release + minor 压力模式下暴露了既有分配�
 - Darwin／GNU／musl 各覆盖 34 项新增正式 CLI fixture、35 个变体、45 个进程和 6 次 stage golden 比较。平台选择正例覆盖 debug/release、泛型、file-private 同名函数、Cone 内 source alias、空目录、普通／moving GC，并逐字节比较 `scoop` 与直接 `scoopc` 的产物。HIR/MIR/LIR 按 target 保存，LIR 同时按 profile 保存，均完成非更新复验。
 - 32 个 negative fixture 固定条件与字段错误、路径形态、重复／重叠、空集合、文件类型、缺失、symlink 边界、非法编码以及正常的重名声明诊断。缓存用例证明未选中内容变化和清单重排仍命中，选中内容变化改变 key／产物，且缓存命中前仍检查选中目录存在性。GNU 复验后将缓存变化断言改为 key 和产物变化，允许修改后内容已在热缓存中；只补跑受影响用例与新发现的盘符路径边界，其余已通过结果复用。
 - Darwin 另通过 3 项已有 CLI 输入回归，共 10 个进程。清理 32 个已链接 Rust 中间对象与增量目录，共约 2.30 GiB，保留库、命令与测试缓存。
+
+## M33-6b：Cone 自带 native C
+
+- manifest 支持条件 native 源码、Cone 相对 include 和有序 C 编译参数。选中源码按归一化路径排序，拒绝重复物理文件、越界路径和 driver 管理的参数；未选中源码不读取。注入实际 target 的 OS、arch、env 宏，使用 profile 的 O0/O2 默认值并保留 PIC。
+- 外层缓存查询前，所选 C driver 生成完整预处理输入及 depfile。源码、传递头文件、公开 runtime 头、系统头的内容摘要和生效参数进入缓存键；child 编译同一份不可变预处理内容。源码行号保留，工作区、公开头与系统目录映射为稳定逻辑路径。既有文件快照移至 manifest crate 共享，没有增加平行快照实现。
+- 每个 C 源码生成独立的普通 native LinkObject，实际对象内容进入 Code 指纹；不建立 Scoop Strong/ODR 身份或 bridge recipe。最终链接按 canonical Cone/member 顺序消费，跨 Cone 即使内容相同也保留独立定义并正常报告冲突。直接 scoopc、scoop 构建和 artifact-only 链接共用该产物合同。
+- host protocol 升为 5，field 10 传递排序后的预处理输入 locator，严格拒绝旧请求或数量不符。runtime ABI 与 metadata ABI 保持 11/7。新增实现按 manifest、预处理、路径映射、产物成员、链接输入分成小模块；既有大文件只增加必要接线。
+
+已完成的验证：
+
+- Rust fmt 和受影响 crate 的 clippy 通过；C fixture 经 clang-format 和严格警告编译。manifest 42 项、protocol 24 项、编译缓存键 5 项、Code 指纹 9 项、native 链接器 7 项定向测试通过。
+- Darwin 与 Linux GNU 各 5 项真实 C driver 测试通过，覆盖不可变预处理输入、头文件失效、公开 runtime 头失效、越界、hardlink 重复，以及搬迁目录后的缓存投影和带调试信息对象字节稳定性。
+- Darwin/GNU/musl 各 29 项正式 CLI fixture、31 个变体、57 个进程全部通过；每个 target 保存 18 份 HIR/MIR/LIR golden。正例覆盖 C 标量、aggregate bridge、NativeSafe/GCLeaf、errno、BSS/TLS、C 字符串、泛型与 moving/minor GC，debug/release 均运行。直接 scoopc 与 scoop 构建的产物逐字节一致。
+- 缓存 fixture 分别修改传递头、forced include、C 编译参数和 C 源码，确认缓存失效及运行结果改变；未选源码、无关头和清单重排保持命中。产物 fixture 删除 provider/consumer 源码后完成跨 Cone 消费与独立重链接，link-plan fingerprint 一致。
+- 26 类 negative fixture 使用真实 CLI 采集的完整诊断，包含非法条件/参数/路径、缺失/错误源码、symlink/hardlink、头文件越界、预处理/语法错误、C 初始化段和跨 Cone 强符号冲突；平台相关的编译器诊断分别保存。
+- 清理 428 项已链接中间对象与 incremental 目录，共 2,525,560,831 bytes，保留可复用编译库和配套 CLI。没有运行无关的全量语言测试；C++ 与系统库作为后续功能单独实现和验收。

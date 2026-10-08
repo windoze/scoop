@@ -10,6 +10,7 @@ mod c_bridge;
 mod compiler;
 mod final_link;
 mod linux_c;
+mod native;
 mod paths;
 mod registry;
 mod request;
@@ -22,6 +23,9 @@ pub use final_link::{
     FinalLinkOptions, LinkMode, LinuxFinalLinkProfile, ValidatedFinalLinkProfile,
 };
 pub use linux_c::resolve_linux_c_toolchain;
+pub use native::{
+    NativeSourceInput, PreparedNativeInputs, compile_native_source, prepare_native_inputs,
+};
 pub use paths::{configured_sysroot_root, development_runtime_root, development_workspace_root};
 pub use registry::host_target_triple;
 pub use registry::{CToolchainOptions, ResolvedTargetProfile};

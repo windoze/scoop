@@ -8,6 +8,7 @@ use std::time::SystemTime;
 pub(super) struct StableFileBytes {
     pub(super) resolved_path: PathBuf,
     pub(super) bytes: Vec<u8>,
+    pub(super) observation: FileObservation,
 }
 
 pub(super) fn read_stable_regular_file(
@@ -92,6 +93,7 @@ pub(super) fn read_stable_regular_file(
     Ok(StableFileBytes {
         resolved_path,
         bytes,
+        observation,
     })
 }
 
@@ -177,6 +179,7 @@ pub(super) fn read_stable_regular_file_no_follow(
     Ok(StableFileBytes {
         resolved_path: locator.to_path_buf(),
         bytes,
+        observation,
     })
 }
 
@@ -199,7 +202,7 @@ fn open_no_follow(path: &Path) -> std::io::Result<File> {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-struct FileObservation {
+pub(super) struct FileObservation {
     len: u64,
     modified: Option<SystemTime>,
     #[cfg(unix)]
@@ -217,6 +220,11 @@ struct FileObservation {
 }
 
 impl FileObservation {
+    pub(super) fn is_current(&self, path: &Path) -> bool {
+        std::fs::metadata(path)
+            .is_ok_and(|metadata| metadata.is_file() && Self::new(&metadata) == *self)
+    }
+
     fn new(metadata: &Metadata) -> Self {
         #[cfg(unix)]
         use std::os::unix::fs::MetadataExt;

@@ -578,9 +578,11 @@ dependencies = [
 name = "scoop-manifest"
 version = "0.0.0"
 dependencies = [
+ "rustix",
  "scoop-identity",
  "scoop-wire",
  "serde",
+ "tempfile",
  "toml",
  "toml_edit",
 ]
@@ -655,6 +657,7 @@ version = "0.0.0"
 dependencies = [
  "object",
  "scoop-lir",
+ "scoop-manifest",
  "scoop-process",
  "scoop-protocol",
  "scoop-slib",

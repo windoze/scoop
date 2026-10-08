@@ -332,11 +332,11 @@ run 执行本次成功构建的 bytes，不能执行旧 binary 或被另一构�
 
 `c_flags`／`cxx_flags` 只作用于当前 Cone 的相应 native 源码，按 argv 元素与声明顺序传递。`cxx` 和实际生效的编译参数、C++ 源码及头文件、配套编译器与标准库 ABI 配置进入构建输入和 compile key。library 构建把 C++ 链接及运行库需求写入 `.slib` 的逻辑 native requirements，不执行最终 C++ 链接。
 
-native 头文件依赖必须在外层 Cone 缓存命中判断前按实际 target、宏与 include 配置发现或复核，包含公开 `scoop_rt.h`；仅在子编译器运行后产生 depfile 不足以决定本次命中。C/C++ 源码、所需非系统头、公开 runtime 头与生效配置进入同一份既有构建输入快照，保留相对 include 布局。compile key 根据这份内容计算，子编译器从相同快照读取；不得计算旧内容的 key 后重新打开工作区文件编译新内容。发现输入变化或依赖集合不一致时，丢弃受影响的准备结果并重新准备，不能以旧 key 发布该次产物。系统头由所选工具链/SDK 的内容配置覆盖，实际编译须使用同一配置。未变化且已确认的快照和依赖结果直接复用，不增加跨 stage 的重复校验。
+native 头文件依赖必须在外层 Cone 缓存命中判断前按实际 target、宏与 include 配置发现，包含实际使用的公开 `scoop_rt.h`；仅在子编译器运行后产生 depfile 不足以决定本次命中。driver 使用所选 C/C++ 编译器的预处理输出作为不可变编译输入：在原 Cone 的相对 include 布局中完成预处理，同时取得 depfile，记录源码、实际头文件和生效配置的内容摘要。完整预处理字节与依赖摘要共同进入 compile key；子编译器编译同一份 `.i`／`.ii`，不重新打开工作区头文件。行标记和内建文件名中的 host 路径映射为稳定的 Cone／公开头／系统目录相对名，诊断保留原始行号。发现准备期间的输入变化时丢弃该次结果并重新准备，不能以旧 key 发布新内容。系统头来自所选工具链/SDK，其实际内容由同一预处理输入和依赖摘要覆盖。未变化且已确认的快照和依赖结果直接复用，不增加跨 stage 的重复校验。
 
 全局构建缓存由 scoop 管理。compile key 覆盖 manifest/single-file semantic projection、全部选中源码的规范化路径及内容、compiler/toolchain/protocol、language/schema/runtime ABI、target/backend、实际使用的 C bridge 配置、OptimizationMode 与依赖三层语义指纹。locator、输出路径、dump 请求和程序 argv 不改变语义 identity。源码变化可重建；无源码的 stale prebuilt 必须报错。
 
-machine transport 为一次 request/response 的 length-prefixed canonical CBOR，protocol version 为 4，stdout 只含协议 frame。build request field 9 为 OptimizationMode（Debug=1、Release=2）；target request 保存 canonical triple、可选 C driver 与 native sysroot，host locator 不进入 artifact identity。旧或不匹配协议拒绝。
+machine transport 为一次 request/response 的 length-prefixed canonical CBOR，protocol version 为 5，stdout 只含协议 frame。build request field 9 为 OptimizationMode（Debug=1、Release=2），field 10 为按归一化路径排序的选中 native 源码所对应的预处理输入 locator 数组，数量必须与 manifest 的实际 target 选择一致；没有 native 源码时为空。target request 保存 canonical triple、可选 C driver 与 native sysroot，host locator 不进入 artifact identity。旧或不匹配协议拒绝。
 
 显式观察使用 `--emit ast|hir|mir|lir|all --dump-dir dir [--dump-scope root|sources]`，默认 root；sources 覆盖源码节点，不从 prebuilt 反造 AST 或 LocalConcreteHir。每个被观察节点在同次完整编译中生成 dump；HIR 同时包含 Export、LocalConcrete 与共有跨 Cone 接口。观察不改变 artifact，失败不返回成功产物；命中缓存也须为请求的源码观察产生本次 dump。
 
@@ -367,6 +367,8 @@ SourceExtern 按实际 target/native symbol 合并完整 library、kind、TLS、
 runtime object index 是普通对象及定义／引用摘要，必须匹配 target、runtime ABI 和实际内容。runtime-build 的源码、头文件、compiler、SDK、flags 与规则变化使其缓存失效；该索引不要求 program-link 读取这些源码。
 
 逻辑 native library requirement 沿完整依赖闭包传递，manifest 的 native.libraries 与非空 SourceExtern lib 使用同一解析流程。先在全部显式 library roots 中按既有规则收集候选；该层无候选时，再交给所选 target 的平台 provider 在其默认系统库目录中解析。显式候选损坏、target/ABI 不匹配或歧义直接报错，不能用系统库掩盖。TargetDefault 与显式 kind/grouping 保持原合同；OrderedGroup 只限制候选顺序，不引入 whole-archive、脚本或任意 linker 参数。
+
+Cone native 源码对象使用 `org.scoop-lang.link-object/native/1` LinkObject 类别，logical key 为归一化 Cone 相对源码路径的 UTF-8 字节，member identity 仍包含所属 Cone。实际 Link fingerprint 按 member ID 排序加入既有 Code 对象投影；这些对象没有 Scoop Strong/ODR 或 generated-C recipe。program-link 从依赖闭包的对应成员读取普通 native 对象，每个成员作为独立输入参与符号解析；不同 Cone 的相同对象内容不能据此合并。对象格式、target、实际定义与引用沿普通 native 对象规则检查。
 
 Linux 默认目录来自已选 native toolchain/sysroot 及其 target/link-mode 配置；Darwin 来自已选 SDK 的系统库与 framework 目录（包括 `.tbd` provider）。系统 provider 按对应平台的库选择规则解析动态/静态格式；静态模式不得以动态库满足需求。交叉编译不补入宿主的 `/usr/lib`、framework 或其他宿主工具链目录。无合法候选时报告所请求的库和 target；选定 provider 的实际内容、加载合同与工具链/SDK 配置进入既有 ResolvedLinkPlan 和链接缓存。只查已声明的逻辑库，不自动发现相邻 native source/object/archive，也不扩大空 lib 的默认 namespace。
 

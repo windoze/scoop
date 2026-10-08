@@ -81,8 +81,15 @@ pub(super) fn include(
             .definitions
             .insert(symbol.clone(), DefinitionOwner::Native(id))
         {
+            let previous = match previous {
+                DefinitionOwner::Native(previous) => inputs.native.files[&previous.input()]
+                    .locator
+                    .display()
+                    .to_string(),
+                other => format!("{other:?}"),
+            };
             return Err(error(format!(
-                "{diagnostic} conflicts with {previous:?} at {symbol}"
+                "{diagnostic} conflicts with {previous} at {symbol}"
             )));
         }
     }

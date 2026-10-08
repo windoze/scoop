@@ -6,7 +6,7 @@ use scoop_wire::{Encoder, WireEncode};
 mod parse;
 mod path;
 
-pub(crate) use parse::{RawConditionalPath, parse_sources};
+pub(crate) use parse::{RawConditionalPath, parse_path, parse_sources};
 pub use path::ConeRelativePath;
 
 #[derive(Clone, Debug, Eq, PartialEq)]

@@ -87,6 +87,7 @@ pub struct ManifestSourceSnapshot {
     pub(super) manifest_digest: Digest256,
     pub(super) sources: NonEmptySourceSnapshots,
     pub(super) source_directories: Vec<ConeRelativePath>,
+    pub(super) native: scoop_toolchain::PreparedNativeInputs,
 }
 
 impl ManifestSourceSnapshot {
@@ -191,6 +192,7 @@ pub(super) struct PreparedManifestSourceNode {
     pub(super) snapshot: ManifestSourceSnapshot,
     pub(super) input_root: PathBuf,
     pub(super) output_path: PathBuf,
+    pub(super) native_inputs: Vec<PathBuf>,
 }
 
 #[derive(Debug)]

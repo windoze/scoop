@@ -13,6 +13,7 @@ pub struct CrossConeLayoutArtifactMetadataInputV1<'ir> {
     hir_types: &'ir scoop_hir::CrossConeTypeSemanticsSectionV1,
     mir_types: &'ir scoop_mir::CrossConeMirTypeBridgeSectionV1<'ir>,
     lir_layout: &'ir scoop_lir::CrossConeLayoutAbiSectionV1<'ir>,
+    native_objects: Vec<slib::SlibMember>,
 }
 
 impl<'ir> CrossConeLayoutArtifactMetadataInputV1<'ir> {
@@ -27,7 +28,13 @@ impl<'ir> CrossConeLayoutArtifactMetadataInputV1<'ir> {
             hir_types,
             mir_types,
             lir_layout,
+            native_objects: Vec::new(),
         }
+    }
+
+    pub fn with_native_objects(mut self, objects: Vec<slib::SlibMember>) -> Self {
+        self.native_objects = objects;
+        self
     }
 
     pub fn assemble(
@@ -67,6 +74,7 @@ impl<'ir> CrossConeLayoutArtifactMetadataInputV1<'ir> {
             &self.ordinary.cone,
             &self.ordinary.direct_dependencies,
             self.ordinary.hir_foundation.source_count_for_cone(current),
+            self.native_objects,
         )?;
         let descriptor = self
             .ordinary

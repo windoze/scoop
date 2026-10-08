@@ -12,6 +12,7 @@ use crate::{LinkError, error, native_object::NativeObjectIndex};
 
 mod archive;
 pub(crate) mod elf_dynamic;
+mod embedded;
 mod objects;
 mod plan;
 pub(crate) use objects::{NativeArchiveMemberId, NativeObjectId};
@@ -90,6 +91,7 @@ pub(crate) struct NativeInputs {
     pub libraries: BTreeMap<NativeLinkRequirementId, LibraryInput>,
     pub selected: BTreeMap<NativeObjectId, String>,
     pub references: BTreeMap<NativeObjectId, crate::native_object::NativeReferences>,
+    embedded: BTreeMap<(scoop_identity::ConeIdentity, scoop_slib::SlibMemberId), NativeInputId>,
 }
 
 impl NativeInputs {
@@ -134,11 +136,21 @@ impl NativeInputs {
         let mut libraries: Vec<_> = self.libraries.iter().collect();
         libraries.sort_by_key(|(id, value)| (value.key.grouping(), **id));
         let mut seen = std::collections::BTreeSet::new();
-        libraries
-            .into_iter()
-            .filter(|(_, library)| seen.insert(library.input))
-            .map(|(_, library)| &self.files[&library.input])
-            .collect()
+        let mut result: Vec<_> = self
+            .embedded
+            .values()
+            .map(|id| {
+                seen.insert(*id);
+                &self.files[id]
+            })
+            .collect();
+        result.extend(
+            libraries
+                .into_iter()
+                .filter(|(_, library)| seen.insert(library.input))
+                .map(|(_, library)| &self.files[&library.input]),
+        );
+        result
     }
 }
 
