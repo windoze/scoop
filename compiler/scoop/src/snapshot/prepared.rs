@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use scoop_identity::{ConeIdentity, SourceContentDigest};
+use scoop_identity::{ConeIdentity, SourceContentDigest, TargetProfileId};
 use scoop_manifest::{LoadedConeManifest, discover_manifest_sources, load_single_file_source};
 use scoop_slib::ArtifactSnapshot;
 use scoop_wire::Digest256;
@@ -73,7 +73,8 @@ impl Preparer {
         for (identity, node) in self.parts.nodes {
             let prepared = match node {
                 GraphNode::ManifestSource(manifest) => {
-                    let snapshot = capture_manifest_source(*manifest)?;
+                    let snapshot =
+                        capture_manifest_source(*manifest, self.parts.context.target.id())?;
                     let input_root =
                         materialize_manifest_snapshot(&self.staging, identity, &snapshot)?;
                     let output_path = self
@@ -147,6 +148,7 @@ impl Preparer {
 
 fn capture_manifest_source(
     manifest: LoadedConeManifest,
+    target: TargetProfileId,
 ) -> Result<ManifestSourceSnapshot, PrepareBuildGraphError> {
     let manifest_input = ImmutableInputSnapshot::capture(manifest.manifest_path())
         .map_err(PrepareBuildGraphError::ManifestSnapshot)?;
@@ -155,8 +157,9 @@ fn capture_manifest_source(
             manifest.manifest_path().to_path_buf(),
         ));
     }
-    let discovered =
-        discover_manifest_sources(&manifest).map_err(PrepareBuildGraphError::SourceDiscovery)?;
+    let discovered = discover_manifest_sources(&manifest, target)
+        .map_err(PrepareBuildGraphError::SourceDiscovery)?;
+    let source_directories = discovered.selected_directories().to_vec();
     let (first, rest) = discovered.into_parts();
 
     let coordinate = manifest.coordinate().clone();
@@ -168,6 +171,7 @@ fn capture_manifest_source(
         coordinate,
         requested_kind,
         manifest_semantic,
+        source_directories,
         manifest_locator: manifest.manifest_path().to_path_buf(),
         manifest_bytes: manifest_input.shared_bytes(),
         manifest_digest: manifest_input.digest(),
@@ -194,6 +198,11 @@ fn materialize_manifest_snapshot(
             snapshot.manifest_digest(),
         )
         .map_err(PrepareBuildGraphError::Staging)?;
+    for directory in &snapshot.source_directories {
+        staging
+            .materialize_source_directory(&cone_directory, directory)
+            .map_err(PrepareBuildGraphError::Staging)?;
+    }
     for source in snapshot.sources() {
         staging
             .materialize_source(

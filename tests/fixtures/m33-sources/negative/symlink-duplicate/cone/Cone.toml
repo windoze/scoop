@@ -1,0 +1,10 @@
+schema = 1
+[[sources]]
+path = 'src'
+[[sources]]
+path = 'alias.scoop'
+[cone]
+group = "dev.m33"
+name = "invalid-selection"
+version = "0.1.0"
+kind = "library"

@@ -302,7 +302,7 @@ scoopc build <Cone-root-or-Cone.toml-or-file.scoop> [--direct-slib direct.slib].
 
 manifest 字段、路径形式及 `when` 的合法性先于 target 筛选检查；文件系统检查和递归枚举只作用于选中路径。选中目录相同或互相包含、单文件与目录重叠、重复标准化路径或 symlink 重复指向同一源文件时，报告来源条目，不静默去重。选中路径缺失或类型不符、最终空集合、非 UTF-8、symlink 逃逸或循环均在 parse 前失败；显式清单为空或全部被筛掉也不回退到 `src/`。
 
-源码选择和文件枚举在 Cone 编译缓存命中判断前完成。compile key 覆盖 manifest 语义投影、所选 target、选中文件的完整规范化相对路径及内容；未被选中的文件内容不作为源码输入。`scoop` 与直接调用 `scoopc` 使用同一发现规则，向 parser 交付相同的完整集合；后续阶段不能再追加默认源码。`SourceIdentity`、file-private 实体及 SourceLocation 使用从 Cone 根开始的完整路径，选择条目的顺序和分组不进入身份；改变源码集合只通过既有源码内容、依赖和指纹规则影响产物。
+源码选择和文件枚举在 Cone 编译缓存命中判断前完成。compile key 覆盖 manifest 语义投影、所选 target、选中文件的完整规范化相对路径及内容；未被选中的文件内容不作为源码输入。`sources` 的语义投影区分默认与显式模式，规范化路径、条目顺序和条件的等价写法；原始 span 不进入 key。输入快照保留选中的目录，包括没有 `.scoop` 文件的目录，使子编译器使用同一份清单时仍得到同一集合。`scoop` 与直接调用 `scoopc` 使用同一发现规则，向 parser 交付相同的完整集合；后续阶段不能再追加默认源码。`SourceIdentity`、file-private 实体及 SourceLocation 使用从 Cone 根开始的完整路径，选择条目的顺序和分组不进入身份；改变源码集合只通过既有源码内容、依赖和指纹规则影响产物。
 
 SingleFile 的 coordinate 为保留值 `scoop:single-file:0.0.0`，kind 为 Executable，只依赖 core；用户 manifest 不能声明该 coordinate。build/run 此时拒绝 cone-path，scoopc 拒绝 direct/support slib 参数。其 `.slib` 可作为本次构建、缓存或显式 link 的 executable root，不能作为依赖或 manifest locator 指向的可分发 Cone。
 

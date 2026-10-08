@@ -200,6 +200,7 @@ fn manifest_cache_inputs(
             coordinate: snapshot.coordinate.clone(),
             requested_kind,
             dependencies,
+            sources: snapshot.manifest_semantic.sources().clone(),
         },
         source_inputs(snapshot.sources()),
     ))

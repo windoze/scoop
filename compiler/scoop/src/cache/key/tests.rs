@@ -52,6 +52,7 @@ fn input(source_text: &str, compiler_executable: &str) -> ConeCompileCacheInputV
             coordinate: ConeCoordinate::reserved_core(),
             requested_kind: RequestedConeKind::Library,
             dependencies: Vec::new(),
+            sources: SourceSelection::Default,
         },
         vec![SourceCacheInputV1::new(
             source,
@@ -148,6 +149,7 @@ fn rich_input() -> ConeCompileCacheInputV1 {
             coordinate: current_coordinate,
             requested_kind: RequestedConeKind::Library,
             dependencies: vec![dependency.cone().coordinate().clone()],
+            sources: SourceSelection::Default,
         },
         vec![SourceCacheInputV1::new(
             source,
@@ -190,7 +192,7 @@ fn compile_cache_key_has_a_fixed_canonical_vector() {
 
     assert_eq!(
         input.key().unwrap().to_string(),
-        "29618d52823ca1da8b78143457afe7aad2b8ff9b4ebc17394780ea08b8173283"
+        "44b362b86dfba4f8778ae13469dbd326c09a545404bc7c8b1c1e089711dcd9bb"
     );
     assert_eq!(encode(&input).unwrap().first(), Some(&0xad));
 }
@@ -251,6 +253,16 @@ fn every_currently_variable_cache_key_dimension_misses_independently() {
             unreachable!()
         };
         dependencies.clear();
+    });
+    assert_mutation_misses(&baseline, |input| {
+        let CurrentConeSemanticProjectionV1::Manifest { sources, .. } = &mut input.current_semantic
+        else {
+            unreachable!()
+        };
+        let manifest = scoop_manifest::parse_cone_manifest(
+            "schema = 1\n[[sources]]\npath = 'src'\n[cone]\ngroup = 'test'\nname = 'selection'\nversion = '1.0.0'\nkind = 'library'\n",
+        ).unwrap();
+        *sources = manifest.semantic().sources().clone();
     });
     assert_mutation_misses(&baseline, |input| {
         input.current_semantic = CurrentConeSemanticProjectionV1::SingleFile;

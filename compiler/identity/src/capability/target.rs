@@ -35,6 +35,28 @@ impl TargetProfileId {
         }
     }
 
+    pub const fn os(self) -> &'static str {
+        match self {
+            Self::DarwinAarch64 => "darwin",
+            Self::LinuxX86_64Gnu | Self::LinuxX86_64Musl => "linux",
+        }
+    }
+
+    pub const fn arch(self) -> &'static str {
+        match self {
+            Self::DarwinAarch64 => "aarch64",
+            Self::LinuxX86_64Gnu | Self::LinuxX86_64Musl => "x86_64",
+        }
+    }
+
+    pub const fn env(self) -> &'static str {
+        match self {
+            Self::DarwinAarch64 => "none",
+            Self::LinuxX86_64Gnu => "gnu",
+            Self::LinuxX86_64Musl => "musl",
+        }
+    }
+
     pub fn object_format(self) -> ObjectFormatId {
         match self {
             Self::DarwinAarch64 => ObjectFormatId::macho_relocatable(),

@@ -14,7 +14,9 @@ fn real_trusted_core_sources_form_the_bootstrap_hir_interface() {
         slot.source_root(),
     ))
     .unwrap();
-    let sources = discover_manifest_sources(&manifest).unwrap();
+    let sources =
+        discover_manifest_sources(&manifest, scoop_identity::TargetProfileId::DarwinAarch64)
+            .unwrap();
     let parsed = parse_discovered_sources(&sources).unwrap();
     let world =
         scoop_hir::ImportedSemanticWorld::from_dependencies(parsed.cone(), Vec::new(), Vec::new())

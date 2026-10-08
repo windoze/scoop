@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOP_BUILD_FAILED",
+    "message": "invalid build root: invalid Cone manifest root ${work}/cone/Cone.toml: unknown target predicate key \"cpu\"",
+    "notes": [],
+    "origin": {
+      "end": 71,
+      "kind": "host",
+      "path": "${work}/cone/Cone.toml",
+      "start": 63
+    },
+    "phase": "Root",
+    "severity": "error"
+  }
+]

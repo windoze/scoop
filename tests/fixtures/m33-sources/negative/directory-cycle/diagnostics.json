@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOP_BUILD_FAILED",
+    "message": "cannot snapshot manifest sources: source discovery failed at ${work}/cone/src: symlink traversal creates a directory cycle",
+    "notes": [],
+    "origin": {
+      "end": null,
+      "kind": "host",
+      "path": "${work}/cone/src",
+      "start": null
+    },
+    "phase": "SourceSnapshot",
+    "severity": "error"
+  }
+]

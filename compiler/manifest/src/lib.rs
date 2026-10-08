@@ -7,6 +7,7 @@
 mod discovery;
 mod input;
 mod root;
+mod selection;
 mod semantic;
 mod single_file;
 mod stable_file;
@@ -24,6 +25,7 @@ pub use root::{
     ManifestRootLocator, load_cone_manifest,
 };
 pub use scoop_identity::RequestedConeKind;
+pub use selection::{ConditionalSourcePath, ConeRelativePath, SourceSelection, TargetPredicate};
 pub use semantic::{
     ConeManifestSemantic, ConeManifestSpans, DependencyCoordinateKey, DependencyLocator,
     DependencyLocatorTable, DependencyManifestSpans, HostPathLocator, ManifestDiagnosticSpans,

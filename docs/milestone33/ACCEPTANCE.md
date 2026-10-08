@@ -11,7 +11,7 @@
 | M33-3 | 严格／可空／lossy UTF-8、C 字符串 | 完成并通过三平台验收 |
 | M33-4 | main、argv、退出码、输出与 ABI 11/7 | 完成并通过三平台验收 |
 | M33-5 | errno 捕获 | 完成并通过三平台验收 |
-| M33-6 | native C/C++、系统库与源码选择 | 待实现 |
+| M33-6 | native C/C++、系统库与源码选择 | 源码选择完成；native C/C++ 与系统库待实现 |
 | M33-7 | sysroot 默认定位、Equality | 待实现 |
 | M33-8 | 原子类型、内存序与 GC | 待实现 |
 | M33-9 | 线程退出规则与组合验收 | 待实现 |
@@ -191,3 +191,18 @@ GCLeaf 并发 fixture 在 release + minor 压力模式下暴露了既有分配�
 - 8 份公共 HIR/MIR 在三平台一致，GNU debug/release 的实际 dump 另逐字节核对，16 份 Linux LIR 独立保存。三平台均在非更新模式下完成最终复验。
 - Darwin 另通过 10 项旧 GCLeaf／FFI 回归，13 个变体、51 个进程、24 次 golden 比较。旧 HIR 同步完整 main 签名与 Direct 结果表示；旧 LIR 同步既有 root gateway 参数和本批 bridge identity，原 MIR 未改变。
 - 清理 369 个已链接的 Rust 中间对象约 2.58 GiB、增量目录约 2.38 GiB，保留库、CLI、测试二进制与热缓存。未执行无关全量测试。
+
+
+## M33-6a：按 target 选择 Scoop 源码
+
+- manifest 以显式数据区分默认 `src/` 扫描与完整 `sources` 清单。`os`／`arch`／`env` 从现有 target 定义取得合法值，支持字符串、数组的“或”和键之间的“与”；全部条目的 schema、相对路径和条件先验证，再检查当前 target 选中的文件系统路径。
+- 支持 Cone 内目录与单个 `.scoop` 文件，保留完整的规范化 Cone-relative identity 和确定性顺序。重复／互含目录、文件与目录重叠、symlink 重复源、逃出 Cone 根、循环、缺失路径、类型错误、非 UTF-8 与最终空集合在 parser 前失败；未选中源码或不存在路径不参与编译。路径归一化后继续检查盘符前缀，未选中条目也不能藏入非法路径。
+- `scoop` 与直接 `scoopc` 通过共享 manifest discovery 接收实际 target。外层缓存命中前完成选择与枚举；key 纳入规范化选择语义和实际源码，未选中文件的内容不进入 key。输入快照保留选中的空目录，子编译器读取同一清单和文件内容；清单重排或等价路径写法保持缓存命中。没有修改 runtime 或产物 ABI。
+- 原 766 行的 discovery 拆为 198 行的数据／入口模块与独立的选择、遍历、读取和诊断模块；manifest semantic 为 343 行，声明解析为 237 行。target 谓词解析和路径处理各自独立，没有新增资源计费或通用插件框架。
+
+已完成的验证：
+
+- Rust fmt、受影响 crate 的 clippy 通过；35 项 manifest、5 项 cache key、7 项直接编译器输入及 13 项构建快照测试通过。
+- Darwin／GNU／musl 各覆盖 34 项新增正式 CLI fixture、35 个变体、45 个进程和 6 次 stage golden 比较。平台选择正例覆盖 debug/release、泛型、file-private 同名函数、Cone 内 source alias、空目录、普通／moving GC，并逐字节比较 `scoop` 与直接 `scoopc` 的产物。HIR/MIR/LIR 按 target 保存，LIR 同时按 profile 保存，均完成非更新复验。
+- 32 个 negative fixture 固定条件与字段错误、路径形态、重复／重叠、空集合、文件类型、缺失、symlink 边界、非法编码以及正常的重名声明诊断。缓存用例证明未选中内容变化和清单重排仍命中，选中内容变化改变 key／产物，且缓存命中前仍检查选中目录存在性。GNU 复验后将缓存变化断言改为 key 和产物变化，允许修改后内容已在热缓存中；只补跑受影响用例与新发现的盘符路径边界，其余已通过结果复用。
+- Darwin 另通过 3 项已有 CLI 输入回归，共 10 个进程。清理 32 个已链接 Rust 中间对象与增量目录，共约 2.30 GiB，保留库、命令与测试缓存。

@@ -1,0 +1,59 @@
+schema = 1
+name = "m33-sources-targets"
+inputs = ["cone"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["m33", "sources", "manifest"]
+variants = [
+  {name = "debug", vars = {profile = "debug"}},
+  {name = "release", vars = {profile = "release"}},
+]
+
+[[steps]]
+name = "prepare"
+files = [
+  {copy = {from = "${fixture}/cone", to = "${work}/cone"}},
+  {mkdir = {path = "${work}/cone/aliases"}},
+  {symlink = {from = "${work}/cone/storage/extra.scoop", to = "${work}/cone/aliases/extra.scoop"}},
+]
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/cone", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--emit", "all", "--dump-dir", "${work}/dump", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {file = "${work}/dump/${build.result.root.identity}/hir.txt", snapshot = "program.${target}.hir.txt"},
+  {file = "${work}/dump/${build.result.root.identity}/mir.txt", snapshot = "program.${target}.mir.txt"},
+  {file = "${work}/dump/${build.result.root.identity}/lir.txt", snapshot = "program.${profile}.${target}.lir.txt"},
+]
+
+[[steps]]
+name = "manual_core"
+files = [{copy = {from = "${build.result.dependencies.0.path}", to = "${work}/manual-sysroot/artifacts/${target_profile}/scoop.core.slib"}}]
+
+[[steps]]
+name = "manual"
+argv = ["${scoopc}", "build", {each = "${compile_args}"}, "${work}/cone", "--profile", "${profile}", "--sysroot", "${work}/manual-sysroot", "--out-slib", "${work}/manual.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+checks = [{file = "${work}/manual.slib", same_as = "${build.result.root.path}"}]
+
+[[steps]]
+name = "run"
+argv = ["${build.result.output}"]
+exit = 0
+stdout = "sources-ok\n"
+stderr = ""
+
+[[steps]]
+name = "moving"
+argv = ["${build.result.output}"]
+env = {SCOOP_GC_STRESS_MOVE = "1"}
+exit = 0
+stdout = "sources-ok\n"
+stderr = ""
