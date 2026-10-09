@@ -1,10 +1,10 @@
 use super::*;
 
 #[test]
-fn source_interface_v68_retires_derived_interface_targets() {
+fn source_interface_v69_preserves_maybe_uninit_intrinsics() {
     assert_retired_version(
         hir_cross_cone_interface_capability(),
-        68,
+        69,
         MemberPurposeSet::COMPILE,
         &[
             ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG,
@@ -14,20 +14,20 @@ fn source_interface_v68_retires_derived_interface_targets() {
 }
 
 #[test]
-fn type_semantics_v26_retires_derived_interface_targets() {
+fn type_semantics_v27_preserves_maybe_uninit_operations() {
     assert_retired_version(
         hir_cross_cone_type_semantics_capability(),
-        26,
+        27,
         MemberPurposeSet::COMPILE,
         &[ArtifactCapabilityProfile::CROSS_CONE_GENERIC],
     );
 }
 
 #[test]
-fn mir_type_bridge_v18_retains_concrete_interface_receivers() {
+fn mir_type_bridge_v19_preserves_maybe_uninit_representation() {
     assert_retired_version(
         mir_cross_cone_type_bridge_capability(),
-        18,
+        19,
         MemberPurposeSet::COMPILE,
         &[ArtifactCapabilityProfile::CROSS_CONE_GENERIC],
     );
@@ -48,10 +48,10 @@ fn mir_foundation_v6_keeps_implementation_identities_out_of_semantic_fingerprint
 }
 
 #[test]
-fn lir_layout_abi_v14_retains_target_coercions() {
+fn lir_layout_abi_v15_preserves_maybe_uninit_values() {
     assert_retired_version(
         lir_cross_cone_layout_abi_capability(),
-        14,
+        15,
         MemberPurposeSet::COMPILE_AND_LINK,
         &[ArtifactCapabilityProfile::CROSS_CONE_GENERIC],
     );
@@ -68,10 +68,10 @@ fn lir_param_free_v3_retains_target_coercions() {
 }
 
 #[test]
-fn lir_layout_link_v7_retains_target_coercions() {
+fn lir_layout_link_v8_preserves_maybe_uninit_values() {
     assert_retired_version(
         lir_cross_cone_layout_link_closure_capability(),
-        7,
+        8,
         MemberPurposeSet::LINK,
         &[ArtifactCapabilityProfile::CROSS_CONE_GENERIC],
     );

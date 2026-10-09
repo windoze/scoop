@@ -90,16 +90,43 @@ fn formal_callable_exports_resolve_local_and_dependency_nominals_in_one_scope() 
                         for storage in [*first, *second] {
                             check_storage(storage, 8, 8, ScoopAbiValueShape::Scalar);
                         }
-                        let Return::Indirect(storage) = abi.result() else {
-                            panic!("Choice uses an indirect result")
+                        let Return::DirectParts(storage, coercion) = abi.result() else {
+                            panic!("Payload uses a one-byte direct result")
                         };
                         check_storage(storage, 1, 1, ScoopAbiValueShape::Aggregate);
+                        assert_eq!(storage.exact_type(), signature.signature().result());
+                        assert_eq!(
+                            coercion,
+                            scoop_identity::AbiCoercion::One(
+                                scoop_identity::AbiPart::new(
+                                    scoop_identity::AbiCarrier::Integer(8),
+                                    0,
+                                    1,
+                                    1,
+                                )
+                                .unwrap()
+                            )
+                        );
                         kinds.insert(0);
                     }
-                    [Argument::Indirect(payload), Argument::ElidedZst(marker)] => {
+                    [
+                        Argument::DirectParts(payload, coercion),
+                        Argument::ElidedZst(marker),
+                    ] => {
                         check_storage(*payload, 16, 8, ScoopAbiValueShape::Aggregate);
                         check_storage(*marker, 0, 1, ScoopAbiValueShape::Aggregate);
-                        assert_eq!(abi.result(), Return::Indirect(*payload));
+                        assert_eq!(payload.exact_type(), parameters[0]);
+                        assert_eq!(marker.exact_type(), parameters[1]);
+                        assert!(!coercion.has_managed_pointer());
+                        assert_eq!(
+                            coercion
+                                .parts()
+                                .iter()
+                                .map(|part| part.extent())
+                                .sum::<u64>(),
+                            16
+                        );
+                        assert_eq!(abi.result(), Return::DirectParts(*payload, *coercion));
                         kinds.insert(1);
                     }
                     other => panic!("unexpected source signature: {other:?}"),

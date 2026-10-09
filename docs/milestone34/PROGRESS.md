@@ -243,3 +243,9 @@ Darwin 的一次完整 Rust 工作区运行完成 5,404 项测试，初跑 5,343
 Linux 的跨 Cone nominal 签名和完整 core 产物测试暴露了小值 coercion 清零产生的 `memset` relocation 未登记。实现规范先补充其既有 target-support tag 8、C 机器签名与 NoGC／不抛异常合同，再由普通 target-support registry 保存真实 libc 引用；没有增加新的链接机制。对象读取共用 66 行 memory-call 模块识别 `memcpy`／`memset` 的真实直接调用，普通外部调用与 Managed invoke 仍按各自合同处理。
 
 新增 57 行对象测试在三个 target 的 debug／release 下分别生成真实机器对象，验证两种内存 helper 与普通外部调用的区别。两机 workspace/all-targets clippy 通过；Darwin 的 13 项 helper／runtime ABI／产物检查通过，Linux 的 18 项定向检查通过，包含原来失败的 nominal 签名、完整 core 导出、初始化单元、dispatch 表和精确根计数。Linux 三个配套 CLI 已重新构建。
+
+## M34-10c：既有 Rust 回归迁移
+
+按真实新 ABI 和 core 定义更新旧测试：小值检查完整 DirectParts storage／coercion，原 sret 用例改用 24-byte 值以继续覆盖间接返回；接口 default 表项检查必需的 receiver adapter；容器检查 MaybeUninit 实例化和新增 companion 初始化单元。原子指令测试将用户操作与 page-map 的原子 metadata load 分开计数，条件 poll 的精确根测试继续同时核对实际 stackmap 与注册记录。
+
+更新 target／C bridge、产物 capability、语义与缓存的完整固定向量，保持字节和摘要断言。Darwin 初跑的 61 个失败项已经逐项通过定向补跑闭合；Linux 对同一清单及新增 helper 回归完成复验，其中两项真实产物错误由上一批修复。没有再次运行完整 Rust 工作区，也没有降低格式、ABI、引用或 GC 检查要求。

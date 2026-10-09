@@ -26,7 +26,12 @@ fn source_atomic_instructions_preserve_orders_widths_and_pointer_values() {
             let llvm = emit_llvm_module(&context, &module, &machine, profile).unwrap();
             llvm.verify().unwrap();
             let original = llvm.print_to_string().to_string();
-            assert_eq!(original.matches("load atomic").count(), 12);
+            // Reference writes also load the page-map metadata atomically.
+            let source_loads = original
+                .lines()
+                .filter(|line| line.contains("%atomic_load") && line.contains("load atomic"))
+                .collect::<Vec<_>>();
+            assert_eq!(source_loads.len(), 12);
             assert_eq!(original.matches("store atomic").count(), 12);
             assert_eq!(original.matches("cmpxchg ").count(), 72);
             for (opcode, orders) in [
@@ -38,7 +43,9 @@ fn source_atomic_instructions_preserve_orders_widths_and_pointer_values() {
                         original
                             .lines()
                             .filter(|line| {
-                                line.contains(opcode) && line.contains(&format!(" {order}, align"))
+                                line.contains(opcode)
+                                    && (opcode != "load atomic" || source_loads.contains(line))
+                                    && line.contains(&format!(" {order}, align"))
                             })
                             .count(),
                         4

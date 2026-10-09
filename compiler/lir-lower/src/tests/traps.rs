@@ -161,7 +161,7 @@ fn trap_terminators_branch_to_a_shared_trap_block() {
       global @scoop$1$ss$9b273ab0bbc562dd7f8e8b0487c0e98f4a7d0781b1cb5aa5b6d69c2d8a7f66b1 : ptr<managed> scan=refs[0]
       global @scoop$1$bs$b54a0dcf6d91ece3c9898fcc78188a75248ed7d3e7ac01efb13467263bda8d52 = c"invalid variant in function f"
       enum Option<Int> tagged size=16 align=8 variants=(i32)@8+4 ()@8+0
-      fun @scoop$1$cb$6cb4a66fa9aacac49c232a58b41d5c6876ef37a3aeb59531418a4b8f28cce6e2(indirect<enum0 size=16 align=8 scan=none>) -> i32
+      fun @scoop$1$cb$6cb4a66fa9aacac49c232a58b41d5c6876ef37a3aeb59531418a4b8f28cce6e2(parts<enum0 [[2xi64]@0+16/8]>) -> i32
         local %0 $uw.1: i32
         local %1 $uw.2: i32
       block entry

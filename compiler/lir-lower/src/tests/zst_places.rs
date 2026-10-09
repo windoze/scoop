@@ -111,12 +111,15 @@ fn zst_local_parameter_and_value_this_have_explicit_independent_place_plans() {
 fn mixed_zst_signature_preserves_logical_indexes_around_sret() {
     let mut builder = Builder::new();
     let empty = builder.strukt("Empty", &[]);
-    let pair = builder.strukt("Pair", &[("first", INT), ("second", INT)]);
+    let triple = builder.strukt(
+        "Triple",
+        &[("first", LONG), ("second", LONG), ("third", LONG)],
+    );
     let types = [
         mir::Type::Struct(empty),
         INT,
         mir::Type::Struct(empty),
-        mir::Type::Struct(pair),
+        mir::Type::Struct(triple),
     ];
     let mut locals = Arena::new();
     let params = types
@@ -132,8 +135,13 @@ fn mixed_zst_signature_preserves_logical_indexes_around_sret() {
             }
         })
         .collect();
-    let function =
-        builder.user_fn_full("mixed", params, mir::Type::Struct(pair), locals, Vec::new());
+    let function = builder.user_fn_full(
+        "mixed",
+        params,
+        mir::Type::Struct(triple),
+        locals,
+        Vec::new(),
+    );
     let main = builder.main(Arena::new(), Vec::new());
     let lowered = lower(builder.finish(main));
     let signature = &lowered.functions[function.into_raw().into_u32() as usize].signature;

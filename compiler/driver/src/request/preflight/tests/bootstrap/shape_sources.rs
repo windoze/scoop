@@ -96,7 +96,7 @@ fn shape_demands_are_validated_against_real_mir_without_a_production_root_copy()
         scoop_mir::MirValidationError {
             location: scoop_mir::MirValidationLocation::BoxingAdjust { adjust: 0 },
             kind: scoop_mir::MirValidationErrorKind::InvalidBoxingAdjust {
-                reason: "the adjust class is not a materialized value box",
+                reason: "the boxing adjust class is not a materialized value box",
             },
         }
     );
