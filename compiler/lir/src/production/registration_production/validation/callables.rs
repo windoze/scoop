@@ -7,6 +7,7 @@ pub(super) fn validate_callable_runtime_scans(
     foundation: &ConeLirFoundation,
 ) -> Result<StrongCallableRuntimeScanPlanSetV1, StrongRegistrationProductionValidationError> {
     let mut callables = Vec::with_capacity(decoded.len());
+    let definitions = foundation.definition_atoms();
     for (index, decoded) in decoded.into_iter().enumerate() {
         let body = resolve_known(
             decoded.body,
@@ -20,17 +21,19 @@ pub(super) fn validate_callable_runtime_scans(
         )?;
         let mut atoms = Vec::with_capacity(decoded.atoms.len());
         for decoded_atom in decoded.atoms {
-            let atom = resolve_known(
-                decoded_atom.atom,
-                foundation
-                    .definition_atoms()
-                    .iter()
-                    .filter(|record| record.key().role() == DefinitionAtomRole::RuntimeRecord)
-                    .map(|record| record.id()),
-                RegistrationProductionTableV1::Callable,
-                index,
-                "runtime_scan_atom",
-            )?;
+            let atom = definitions
+                .binary_search_by(|record| record.id().as_array().cmp(decoded_atom.atom.as_array()))
+                .ok()
+                .map(|position| &definitions[position])
+                .filter(|record| record.key().role() == DefinitionAtomRole::RuntimeRecord)
+                .map(|record| record.id())
+                .ok_or_else(|| {
+                    semantic_error(
+                        RegistrationProductionTableV1::Callable,
+                        index,
+                        "runtime_scan_atom",
+                    )
+                })?;
             let scan = validate_callable_ref_scan(decoded_atom.scan, index)?;
             atoms.push(StrongCallableRuntimeScanAtomV1::from_artifact(atom, scan));
         }
@@ -51,17 +54,18 @@ pub(super) fn validate_callable_runtime_scans(
         for decoded_key in decoded.context_keys {
             let exact = resolve_known(
                 decoded_key,
-                foundation.definition_atoms().iter().filter_map(|atom| {
-                    if atom.key().plan() == plan
-                        && atom.key().role() == DefinitionAtomRole::ContextKeyCell
-                        && let scoop_identity::DefinitionAtomSubkey::ExactType(exact) =
-                            atom.key().subkey()
-                    {
-                        Some(*exact)
-                    } else {
-                        None
-                    }
-                }),
+                foundation
+                    .definition_atoms_for_plan(plan)
+                    .filter_map(|atom| {
+                        if atom.key().role() == DefinitionAtomRole::ContextKeyCell
+                            && let scoop_identity::DefinitionAtomSubkey::ExactType(exact) =
+                                atom.key().subkey()
+                        {
+                            Some(*exact)
+                        } else {
+                            None
+                        }
+                    }),
                 RegistrationProductionTableV1::Callable,
                 index,
                 "context_key",

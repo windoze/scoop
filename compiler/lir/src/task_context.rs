@@ -81,14 +81,12 @@ pub(crate) fn validate_context_plan(
         );
     }
     let actual = foundation
-        .definition_atoms()
-        .iter()
+        .definition_atoms_for_plan(plan)
         .filter(|atom| {
-            atom.key().plan() == plan
-                && matches!(
-                    atom.key().role(),
-                    DefinitionAtomRole::ContextKeyCell | DefinitionAtomRole::ContextKeyTable
-                )
+            matches!(
+                atom.key().role(),
+                DefinitionAtomRole::ContextKeyCell | DefinitionAtomRole::ContextKeyTable
+            )
         })
         .map(|atom| atom.id())
         .collect();

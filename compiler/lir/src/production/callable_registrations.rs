@@ -134,12 +134,8 @@ impl StrongCallableRegistrationPlanSetV1 {
                 StrongDefinitionRole::CallableBody,
             )?;
             let actual = foundation
-                .definition_atoms()
-                .iter()
-                .filter(|atom| {
-                    atom.key().plan() == definition.id()
-                        && atom.key().role() == DefinitionAtomRole::RuntimeRecord
-                })
+                .definition_atoms_for_plan(definition.id())
+                .filter(|atom| atom.key().role() == DefinitionAtomRole::RuntimeRecord)
                 .map(|atom| atom.id())
                 .collect::<Vec<_>>();
             let mut expected_atoms = callable
@@ -283,11 +279,8 @@ fn require_primary_atom(
     plan: ObjectDefinitionPlanId,
 ) -> Result<ObjectDefinitionAtomId, StrongCallableRegistrationPlanBuildError> {
     let actual = foundation
-        .definition_atoms()
-        .iter()
-        .filter(|atom| {
-            atom.key().plan() == plan && atom.key().role() == DefinitionAtomRole::Primary
-        })
+        .definition_atoms_for_plan(plan)
+        .filter(|atom| atom.key().role() == DefinitionAtomRole::Primary)
         .map(|atom| atom.id())
         .collect::<Vec<_>>();
     match actual.as_slice() {

@@ -38,10 +38,9 @@ impl StrongShapeDefinitionRefV1 {
             return Err(StrongShapeDefinitionError::MissingSymbol(symbol));
         }
 
-        let mut primary = foundation.definition_atoms().iter().filter(|record| {
-            record.key().plan() == definition.id()
-                && record.key().role() == DefinitionAtomRole::Primary
-        });
+        let mut primary = foundation
+            .definition_atoms_for_plan(definition.id())
+            .filter(|record| record.key().role() == DefinitionAtomRole::Primary);
         let primary = match (primary.next(), primary.next()) {
             (Some(record), None) => record.id(),
             _ => return Err(StrongShapeDefinitionError::PrimaryAtomSet(definition.id())),

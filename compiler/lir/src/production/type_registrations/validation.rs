@@ -20,11 +20,8 @@ pub(super) fn require_descriptor_associated_atoms(
         DefinitionAtomSubkey::ExactType(exact_type),
     );
     let associated = foundation
-        .definition_atoms()
-        .iter()
-        .filter(|atom| {
-            atom.key().plan() == plan && atom.key().role() != DefinitionAtomRole::Primary
-        })
+        .definition_atoms_for_plan(plan)
+        .filter(|atom| atom.key().role() != DefinitionAtomRole::Primary)
         .collect::<Vec<_>>();
     let expected = if has_itable_directory {
         vec![diagnostic.clone(), directory.clone()]
@@ -82,11 +79,8 @@ pub(super) fn require_primary_atom(
     plan: ObjectDefinitionPlanId,
 ) -> Result<ObjectDefinitionAtomId, StrongTypeRegistrationPlanBuildError> {
     let actual = foundation
-        .definition_atoms()
-        .iter()
-        .filter(|atom| {
-            atom.key().plan() == plan && atom.key().role() == DefinitionAtomRole::Primary
-        })
+        .definition_atoms_for_plan(plan)
+        .filter(|atom| atom.key().role() == DefinitionAtomRole::Primary)
         .map(|atom| atom.id())
         .collect::<Vec<_>>();
     match actual.as_slice() {

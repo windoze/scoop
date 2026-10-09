@@ -52,8 +52,7 @@ pub(crate) fn validate_registration_plan(
     );
 
     let diagnostic = foundation
-        .definition_atoms()
-        .iter()
+        .definition_atoms_for_plan(descriptor.definition())
         .find(|record| record.key() == &diagnostic)
         .map(|record| record.id());
     if diagnostic != Some(registration.diagnostic_atom()) {
@@ -69,8 +68,7 @@ pub(crate) fn validate_registration_plan(
         );
 
         let atom = foundation
-            .definition_atoms()
-            .iter()
+            .definition_atoms_for_plan(descriptor.definition())
             .find(|record| record.key() == &key)
             .map(|record| record.id());
         match atom {
