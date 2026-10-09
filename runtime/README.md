@@ -1,6 +1,6 @@
 # runtime
 
-The C runtime implements M31's generational moving Immix collector and M25's
+The C runtime implements a generational moving Immix collector and the
 runtime-owned exception ABI:
 
 - `src/boxing.c` and `src/arrays.c` execute descriptor-checked boxing,
@@ -8,12 +8,15 @@ runtime-owned exception ABI:
 - `src/value_shape.c` and `src/value_scan.c` check managed shape arithmetic,
   scan translation and storage bounds, with an iterative traversal that reuses
   shared subgraphs and detects cycles without expansion or byte quotas;
-- `src/gc/heap.c` owns arena-external block/object metadata;
+- `src/gc/heap.c` owns region-external block/object metadata;
+- `src/gc/regions.c` owns 16 MiB ordinary regions and independently sized large
+  mappings; `page_map.c` publishes their sparse address index, and `cards.c`
+  implements the native range barrier;
 - `src/gc/allocation.c` owns nursery TLABs and pretenured allocation;
 - `src/gc/evacuation_plan.c` reserves to-space before copying or publishing
   forwarding; `evacuation.c` owns forwarding and current-object traversal;
-- `src/gc/reclamation.c` owns source retirement, ordinary free-space reuse and
-  stress-mode poisoning/quarantine;
+- `src/gc/reclamation.c` owns source retirement and ordinary free-space reuse;
+  `block_release.c` retires block metadata and protects stress quarantine;
 - `src/gc/collector.c` coordinates minor/full tracing and relocation;
   `collector_roots.c` visits their shared root sources, `scan.c` restricts exact
   descriptor scans to full objects or card ranges, and `remembered.c` finds
@@ -64,6 +67,17 @@ space before changing the graph; failure falls back to full collection in the
 same STW interval. `SCOOP_GC_STRESS_MINOR=1` reduces nursery capacity to one block
 while retaining the ordinary allocation and remembered-set paths. Full moving
 stress takes precedence if both switches are set.
+
+Ordinary regions grow on demand and contain 32 KiB blocks with 128-byte lines.
+Large objects use independent mappings rounded to 64 KiB, including objects
+larger than the former 1 GiB arena. Alignment padding is unmapped immediately;
+dead large mappings are removed after reference updates. Block and TLAB
+metadata identify their owning region. Generated single-slot barriers perform
+four acquire radix loads and mark the region's 512-byte card; range barriers
+cover the complete destination range without allocation or a heap lock.
+Diagnostic metrics distinguish active block bytes, current region/large mapping
+counts, and mapped virtual bytes. M34 implementation and measurement status is
+tracked in `docs/milestone34/PROGRESS.md`.
 
 `SCOOP_GC_STATS=1` writes one JSON metrics record to stderr on normal program
 exit. Pause times measure the collector phase inside STW, after threads have

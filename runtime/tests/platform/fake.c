@@ -1,4 +1,5 @@
 #include <stdbool.h>
+#include <pthread.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -122,13 +123,35 @@ static const ScoopMetadataImageOps fake_metadata_ops = {
     .dispose_images = fake_dispose_images,
 };
 
+bool scoop_test_vm_fail_mappings;
+static ScoopThreadVmOps fake_vm_ops;
+static pthread_once_t fake_vm_once = PTHREAD_ONCE_INIT;
+
+static bool fake_reserve(uintptr_t address, size_t size, void **mapping, ScoopPlatformError *error) {
+    if (scoop_test_vm_fail_mappings) {
+        error->code = SCOOP_PLATFORM_VM_OPERATION_FAILED;
+        return false;
+    }
+    return TEST_THREAD_VM_OPS.reserve_read_write(address, size, mapping, error);
+}
+
+static void initialize_fake_vm(void) {
+    fake_vm_ops = TEST_THREAD_VM_OPS;
+    fake_vm_ops.reserve_read_write = fake_reserve;
+}
+
 static const ScoopPlatformBundle fake_bundle = {
     .metadata_images = &fake_metadata_ops,
-    .thread_vm = &TEST_THREAD_VM_OPS,
+    .thread_vm = &fake_vm_ops,
     .managed_frames = &scoop_darwin_aarch64_managed_frame_ops,
 };
 
-const ScoopPlatformBundle *scoop_platform_bundle(void) { return &fake_bundle; }
+const ScoopPlatformBundle *scoop_platform_bundle(void) {
+    if (pthread_once(&fake_vm_once, initialize_fake_vm) != 0) {
+        abort();
+    }
+    return &fake_bundle;
+}
 
 const char *scoop_platform_error_message(ScoopPlatformErrorCode code) {
     switch (code) {
@@ -155,7 +178,7 @@ const char *scoop_platform_error_message(ScoopPlatformErrorCode code) {
 ScoopPlatformStackBounds scoop_platform_stack_bounds(void) {
     ScoopPlatformStackBounds bounds;
     ScoopPlatformError error = {0};
-    if (!fake_bundle.thread_vm->stack_bounds(&bounds, &error)) {
+    if (!scoop_platform_bundle()->thread_vm->stack_bounds(&bounds, &error)) {
         fprintf(stderr, "fake platform: %s\n",
                 scoop_platform_error_message(error.code));
         abort();

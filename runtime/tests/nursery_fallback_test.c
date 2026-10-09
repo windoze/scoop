@@ -1,5 +1,7 @@
 #include "nursery_fixture.h"
 
+extern bool scoop_test_vm_fail_mappings;
+
 static const ScoopTypeDescriptor wide_td = {
     .type_id = 804,
     .instance_shape = {.instance_kind = SCOOP_TYPE_INSTANCE_FIXED_OBJECT_V1,
@@ -25,12 +27,13 @@ int main(void) {
     ((unsigned char *)roots[2])[29999] = 82;
     ScoopGcMetrics before = nursery_metrics();
 
-    // Leave exactly one real target block: planning must fail after reserving it.
+    // Fill the current region with real old blocks, leave one target block,
+    // then fail the next OS mapping. No production allocation budget is used.
     scoop_gc_heap_lock();
-    uint32_t unused_start = arena_next_block;
-    ScoopGcFreeSpan *saved = free_spans;
-    free_spans = NULL;
-    arena_next_block = GC_BLOCK_COUNT - 1;
+    while (scoop_gc_heap_state.allocation_region->next_block < GC_REGION_BLOCKS - 1) {
+        assert(scoop_heap_activate_small_block(SCOOP_BLOCK_MUTATOR) != NULL);
+    }
+    scoop_test_vm_fail_mappings = true;
     scoop_gc_heap_unlock();
     nursery_collect(true);
     ScoopGcMetrics after = nursery_metrics();
@@ -44,15 +47,7 @@ int main(void) {
         assert(!scoop_gc_is_young_object_locked(roots[index]));
     }
 
-    scoop_gc_heap_lock();
-    scoop_heap_free_span_insert(unused_start, GC_BLOCK_COUNT - 1 - unused_start);
-    while (saved != NULL) {
-        ScoopGcFreeSpan *next = saved->next;
-        scoop_heap_free_span_insert(saved->first_block, saved->block_count);
-        free(saved);
-        saved = next;
-    }
-    scoop_gc_heap_unlock();
+    scoop_test_vm_fail_mappings = false;
     roots[0] = nursery_node(71);
     nursery_collect(true);
     assert(((NurseryNode *)roots[0])->value == 71);

@@ -74,9 +74,21 @@ static bool linux_protect_none(void *base, size_t size,
     return true;
 }
 
+static bool linux_release_mapping(void *base, size_t size, ScoopPlatformError *error) {
+    if (error == NULL) {
+        return false;
+    }
+    if (base == NULL || size == 0 || munmap(base, size) != 0) {
+        error->code = SCOOP_PLATFORM_VM_OPERATION_FAILED;
+        return false;
+    }
+    return true;
+}
+
 const ScoopThreadVmOps scoop_linux_thread_vm_ops = {
     .stack_bounds = linux_stack_bounds,
     .reserve_read_write = linux_reserve_read_write,
     .page_size = linux_page_size,
     .protect_none = linux_protect_none,
+    .release_mapping = linux_release_mapping,
 };

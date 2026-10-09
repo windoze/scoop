@@ -29,8 +29,6 @@ uint64_t scoop_rt_gc_debug_block_count(void) {
     return count;
 }
 
-uintptr_t scoop_rt_gc_debug_arena_base(void) { return arena_base; }
-
 bool scoop_rt_gc_debug_is_allocated(const void *object) {
     lock_heap();
     bool allocated = scoop_gc_is_object_start_locked(object);
@@ -51,6 +49,12 @@ static void metrics_locked(ScoopGcMetrics *result) {
     result->allocated_bytes = allocations.bytes;
     result->nursery_allocated_bytes = allocations.nursery_bytes;
     result->heap_committed_bytes = committed_bytes;
+    for (ScoopGcRegion *region = scoop_gc_heap_state.regions; region != NULL;
+         region = region->next) {
+        result->region_count += !region->large;
+        result->large_mapping_count += region->large;
+        result->mapped_bytes += region->size;
+    }
 }
 
 void scoop_rt_gc_debug_metrics(ScoopGcMetrics *result) {
@@ -84,7 +88,8 @@ void scoop_gc_report_metrics(void) {
             ",\"old_reference_slots\":%" PRIu64 ",\"root_slots\":%" PRIu64
             ",\"traced_objects\":%" PRIu64 ",\"pause_ns\":%" PRIu64 ",\"maximum_pause_ns\":%" PRIu64
             ",\"committed_bytes\":%" PRIu64 ",\"minor_pause_ns\":%" PRIu64
-            ",\"full_pause_ns\":%" PRIu64
+            ",\"full_pause_ns\":%" PRIu64 ",\"region_count\":%" PRIu64
+            ",\"large_mapping_count\":%" PRIu64 ",\"mapped_bytes\":%" PRIu64
             ",\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null]"
             ",\"pause_buckets\":[%" PRIu64 ",%" PRIu64 ",%" PRIu64 ",%" PRIu64 ",%" PRIu64
             ",%" PRIu64 ",%" PRIu64 ",%" PRIu64 "]}\n",
@@ -92,6 +97,7 @@ void scoop_gc_report_metrics(void) {
             result.allocated_bytes, result.nursery_allocated_bytes, result.promoted_bytes, copied,
             result.dirty_cards, result.old_reference_slots, result.root_slots,
             result.traced_objects, result.pause_ns, result.maximum_pause_ns,
-            result.heap_committed_bytes, minor_pause, full_pause, buckets[0], buckets[1],
-            buckets[2], buckets[3], buckets[4], buckets[5], buckets[6], buckets[7]);
+            result.heap_committed_bytes, minor_pause, full_pause, result.region_count,
+            result.large_mapping_count, result.mapped_bytes, buckets[0], buckets[1], buckets[2],
+            buckets[3], buckets[4], buckets[5], buckets[6], buckets[7]);
 }

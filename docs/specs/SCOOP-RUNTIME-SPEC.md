@@ -399,6 +399,8 @@ void scoop_rt_gc_write_barrier(const void *destination, size_t bytes);
 
 每个 region／large mapping 有自己的 card storage。按地址 chunk 索引的稀疏 radix page map 覆盖目标 uintptr_t 范围，把地址映射到所属 metadata；不得在 mark／store 热路径线性遍历 region，也不保留单 arena 的预偏置 card-table 合同。新映射先完成 metadata／cards，再 release 发布索引；generated code 用 acquire 读取，内联完成普通单槽寻址和原子置脏，范围屏障逐段覆盖相交索引单元。不得跨 safepoint 缓存可回收 metadata 地址。
 
+当前 64-bit targets 以 64 KiB 为索引 chunk，使用四级、每级 12-bit 的 radix（地址位移依次为 52／40／28／16）。根 `scoop_gc_page_map` 为 4096 个原子指针，其余节点按实际地址分配；末级指向所属 region／large mapping。metadata 的 generated-code prefix 为 `{ uintptr_t base; size_t size; unsigned char *cards; }`，偏移分别为 0／8／16。索引 load 为 acquire，metadata prefix 发布后不变，card index 为 `(address - base) >> 9`，置脏为 relaxed atomic OR。映射起点及长度按 chunk 对齐，额外映射的首尾页立即解除映射；large mapping 只向 chunk 大小取整，不向普通 region 大小取整。撤销后的空 radix 节点在同一 STW 阶段回收。
+
 该要求适用于字段、数组、含引用 aggregate copy、构造、clone、Context 和 Scoop ABI native 写入。发生过可能 GC 的操作后，不能仅凭“刚分配”省略屏障；native root 或 pin 不替代 old→young 引用记录。
 
 `AtomicRef` 的初始化、store、exchange 及成功 CAS 同样写入 managed reference，必须覆盖相应引用槽的卡表；失败 CAS 没有写入，不需要写屏障。计算对象字段地址到原子访问完成，以及引用写入到写屏障完成之间不能插入 safepoint。AtomicRef 对象、expected/new 引用和读取结果跨 safepoint 时遵守普通 root/relocation 契约；collector 在 mutator 停稳后按普通引用槽扫描和回写，移动不改变 CAS 所比较的对象身份。语言内存序由原子指令实现，GC 屏障不能代替 Acquire/Release。

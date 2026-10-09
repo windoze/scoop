@@ -192,6 +192,7 @@ static bool collect(bool minor) {
          thread = thread->registry_next) {
         thread->allocation.cursor = NULL;
         thread->allocation.limit = NULL;
+        thread->allocation_block = NULL;
     }
     if (work_len != 0) {
         collector_fatal("trace worklist was not drained by the prior collection");

@@ -129,8 +129,9 @@ void scoop_rt_leave_native_safe(ScoopThreadTransition *transition);
 void scoop_rt_enter_native_borrowed(ScoopThreadTransition *transition, uintptr_t managed_stack_low);
 void scoop_rt_leave_native_borrowed(ScoopThreadTransition *transition);
 
-/* Generated write barriers mark this pre-biased card table after heap stores. */
-extern unsigned char *scoop_gc_card_table;
+/* Four radix levels of 4096 atomic pointers; see runtime spec section 3.6. */
+typedef _Atomic(void *) ScoopGcPageMapEntry;
+extern ScoopGcPageMapEntry scoop_gc_page_map[4096];
 
 /* Other compiler/runtime ABI declarations that are not part of the native
  * FFI-author surface. */

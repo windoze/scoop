@@ -70,9 +70,21 @@ static bool darwin_protect_none(void *base, size_t size,
     return true;
 }
 
+static bool darwin_release_mapping(void *base, size_t size, ScoopPlatformError *error) {
+    if (error == NULL) {
+        return false;
+    }
+    if (base == NULL || size == 0 || munmap(base, size) != 0) {
+        error->code = SCOOP_PLATFORM_VM_OPERATION_FAILED;
+        return false;
+    }
+    return true;
+}
+
 const ScoopThreadVmOps scoop_darwin_thread_vm_ops = {
     .stack_bounds = darwin_stack_bounds,
     .reserve_read_write = darwin_reserve_read_write,
     .page_size = darwin_page_size,
     .protect_none = darwin_protect_none,
+    .release_mapping = darwin_release_mapping,
 };

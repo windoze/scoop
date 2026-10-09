@@ -144,3 +144,28 @@ native 组合保留现有 NativeBorrowed 的 roots 发布、进入／退出协�
 全部样本、C／LLVM 版本、完整构建 argv 与记录保存在 [Darwin 旧](measurements/m34-direct-c-off-darwin.json)／[新](measurements/m34-direct-c-on-darwin.json)、[GNU 旧](measurements/m34-direct-c-off-linux-gnu.json)／[新](measurements/m34-direct-c-on-linux-gnu.json)，同名 `.asm` 保存 caller、原 bridge 和独立 C callee。native compiler 为 Apple clang 21.0.0／GCC 15.2.0；Scoop LLVM 为 22.1.8／22.1.2。
 
 构建复用现有 core cache，首次／重复构建分别为 Darwin 旧 8.441／5.238 s、新 4.960／5.313 s，GNU 旧 6.203／6.192 s、新 6.134／6.173 s，均非冷构建。每项只有一次构建观测，不据此推断编译速度。可执行文件为 Darwin 6,153,256 → 6,152,760 bytes、GNU 4,613,280 → 4,612,888 bytes；根 slib 为 934,722 → 931,180、1,017,674 → 1,012,704 bytes。
+
+## M34-6：多 region 与稀疏地址查询
+
+对照为 `6f6950575`（M34-5b），两版使用相同源码、release 优化与 GC 配置。复用 `allocation`、`old-graph-large` 和 `survivors`，新增 [region-stores](../../tests/benchmarks/region-stores.scoop) 在两个保活对象之间执行八百万次单槽写入；它保留条件 poll，循环中不分配。每轮交替旧／新版本，共七轮，计时期间同宿主没有编译、其他测试或 target 清理。表中为整次程序的墙钟中位数，单位 ms。
+
+| 主机 | 工作负载 | 单 arena | 多 region | 中位数比值（旧／新） |
+| --- | --- | ---: | ---: | ---: |
+| Darwin | allocation | 11.098 | 10.527 | 1.054 |
+| Darwin | old-graph-large | 38.019 | 38.425 | 0.989 |
+| Darwin | survivors | 56.653 | 59.038 | 0.960 |
+| Darwin | region-stores | 24.533 | 35.463 | 0.692 |
+| GNU | allocation | 9.644 | 10.515 | 0.917 |
+| GNU | old-graph-large | 39.650 | 44.386 | 0.893 |
+| GNU | survivors | 61.976 | 79.411 | 0.780 |
+| GNU | region-stores | 52.707 | 48.947 | 1.077 |
+
+Darwin 单槽写入观测到明确成本：除首轮外旧组为 24.125～24.857 ms，新组为 34.724～35.524 ms。机器码显示四级 acquire 查询及 region 内 card offset 已内联，之后仍是原来的 byte atomic OR；条件 poll 和慢路 roots 未改变。GNU 单槽组的总体区间重叠，7.7% 的中位数差异不作为稳定加速结论。GNU 的旧图和高存活图分别从 38.311～40.749、61.435～64.466 ms 变为 43.171～49.819、76.122～89.842 ms，记录实际回退，不将本批描述为普遍的吞吐优化。完整对象查询也改走同一稀疏索引；后续存活集合复用和并行 mark 继续使用这些 workload 进行独立对照。
+
+四个 workload 的全部旧／新样本具有相同的分配字节、minor/full 次数、复制字节、脏卡数和 trace 对象数。allocation／旧图／高存活图／单槽循环分别分配 4,160,112／9,021,592／6,947,000／200 bytes；对应 minor/full 次数为 3/0、8/2、6/1、0/1。因此性能表没有通过减少真实 GC 工作或改变输入规模取得结果。Darwin 两版每个可执行文件的首轮启动均有高值，最高 652.881 ms，七次样本全部保留；其余小幅变化和 GNU 分配样本的重叠不另作稳定收益声明。
+
+全部构建 argv、记录、每轮 stdout/stderr、GC 指标与产物大小保存在 [Darwin 旧](measurements/m34-regions-off-darwin.json)／[新](measurements/m34-regions-on-darwin.json)、[GNU 旧](measurements/m34-regions-off-linux-gnu.json)／[新](measurements/m34-regions-on-linux-gnu.json)。同名 `.asm` 保存单槽循环、TLAB 完成入口、范围屏障，以及新版本的 runtime 地址查询。环境沿用本节之前的两台主机与 LLVM 22；runtime C compiler 为 Apple clang 21.0.0／GCC 15.2.0。
+
+所有构建复用 core cache，JSON 明确记为 first_build_seconds 和 warm_build_seconds，不能当作冷构建。Darwin 首次为 5.026～6.402 s、重复为 4.920～5.274 s，GNU 分别为 5.970～6.236 s、5.963～6.357 s；每项只观测一次，不推断编译速度变化。可执行文件增量为 Darwin 304～16,800 bytes、GNU 4,880～8,984 bytes，具体值与根 slib 大小保留在 JSON。
+
+新统计的 mapped_bytes 是当前 managed 映射的虚拟字节数，区别于活跃 block 字节和 RSS。Darwin 的 allocation／单槽程序保留一个 16 MiB region，旧图与高存活图还保留其独立数组 mapping；本批未声称 ordinary region 已向 OS 归还。超过 1 GiB 的真实大对象、三 region 存活图及大对象死亡后的 unmap 由功能测试验证，不以性能数字替代容量与回收正确性。

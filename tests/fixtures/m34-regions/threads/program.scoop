@@ -1,0 +1,40 @@
+@Extern(lib = "m34_regions", name = "m34_region_stress") fun stressMode(): Boolean
+@Extern(lib = "m34_regions", name = "m13_run_many")
+fun workers(function: FunPtr<(Int, Ptr<Unit>) -> Int>, context: Ptr<Unit>, base: Int, count: Int): Int
+
+class Node(val value: Long, var next: Node?)
+fun check(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+fun worker(seed: Int, count: Long): Int {
+    val roots = MutableArray<Node?>(count) { index -> None }
+    var index = 0L
+    while (index < count) {
+        roots[index] = Some(Node(index + seed.toInt64(), None))
+        if (index > 0L) { roots[index - 1L]!!.next = roots[index] }
+        index += 1L
+    }
+    gcCollect()
+    index = 0L
+    while (index < count) {
+        check(roots[index]!!.value == index + seed.toInt64())
+        if (index + 1L < count) { check(roots[index]!!.next!! === roots[index + 1L]!!) }
+        index += 1L
+    }
+    return count.toInt32() + seed
+}
+
+@Unsafe fun main() {
+    val count = if (stressMode()) { 40L } else { 180000L }
+    val action: (Int) -> Int = { seed -> worker(seed, count) }
+    val callback = foreignCallback<(Int, Ptr<Unit>) -> Int>(action, 1, ForeignCallbackMode.Reusable)
+    try {
+        var round = 0
+        while (round < 2) {
+            check(workers(callback.function, callback.context, 1, 4) == count.toInt32() * 4 + 10)
+            check(when (foreignCallbackFailure(callback)) { None -> true; Some(_) -> false })
+            gcCollect()
+            round += 1
+        }
+    } finally { releaseForeignCallback(callback) }
+    println("region threads")
+}

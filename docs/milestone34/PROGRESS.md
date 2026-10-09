@@ -11,7 +11,7 @@
 | M34-3 MIR 优化 | 已完成 | 实际类型传播、去虚拟化、三档调用点内联、常量化简及累计增长控制；三 target 的 13 组 CLI、两机开关性能对照完成。 |
 | M34-4 poll 与分配 | 已完成 | 条件 poll／pending 激活、线程累计计数／detach 归并、三 target 验收与两机性能对照完成。 |
 | M34-5 小值与 DirectC | 已完成 | 小值 DirectParts、正向 C aggregate DirectC、三 target ABI／GC／artifact-only 验收与两机性能对照。 |
-| M34-6 多 region | 待实施 | 稀疏地址索引、扩容、large mapping、cards。 |
+| M34-6 多 region | 已完成 | 16 MiB region、独立 large mapping、稀疏地址索引、内联 cards、三 target 验收与两机性能对照。 |
 | M34-7 搬迁与归还 | 待实施 | source／target 规划、完整回写、discard／unmap。 |
 | M34-8 并行 mark | 待实施 | 首次标记、分块任务、全局终止、存活集合复用。 |
 | M34-9 容器 | 待实施 | MaybeUninit 与 ArrayList／StringBuilder。 |
@@ -139,3 +139,21 @@ FFI 回归发现并修复 M34-3b 的构造发布问题：保留 release-ready �
 Darwin、GNU、musl 均在关闭 snapshot 更新后通过九组正式 CLI 验收，各为 18 variants、108 processes、68 goldens。43 份共用 AST／HIR／MIR 跨主机逐字一致；实际不同的 debug/release HIR／MIR 分别保存。两机 workspace／all-targets clippy 通过，相关 Rust ABI 99 项及 MIR 内联 3 项测试通过。前后性能以 `dfc609f83` 为对照，复用既有 FFI workload 的 C／NativeSafe／GCLeaf aggregate 路径，详见性能记录。
 
 本机回收 target 324 项、1,812,724,794 bytes；Linux 回收 147 项、767,645,502 bytes，保留有效库、CLI 和测试程序。记录为两地 `batch5b-target-cleanup.json`；配套工具与 runtime／sysroot 保存为 `tmp/m34/direct-c-tools`／`direct-c-source`，供后续 runtime 批次对照。
+
+## M34-6：多 region 与地址索引
+
+普通堆按需映射 16 MiB region，保留 32 KiB block／128-byte line；block metadata、free run、TLAB owner 与搬迁计划使用稳定的 block 指针及所属 region，移除全局裸 block index、固定 arena 边界和 large tail 表。先复用已释放 block，large object 独立按 64 KiB 取整映射。OS 边界新增 release_mapping，对齐预留的首尾页立即解除映射；死亡的大对象在完整引用更新后撤销索引并 unmap，不再受 1 GiB 上限限制。
+
+地址目录覆盖完整 uintptr_t：64 KiB chunk、四级各 12-bit 的稀疏 radix，metadata/cards 初始化后 release 发布，reader acquire 读取。单槽写屏障内联完成四级查找、region 内相对 card 寻址和原子 OR；native／aggregate 范围屏障按映射边界覆盖完整范围。remembered set 遍历各 region 的脏旧区，large object 跨 chunk 的卡片仍归属同一对象。STW 撤销后回收空 radix 路径；普通 region 的选择性搬迁及整区归还仍属于下一批。
+
+runtime registry 使用 PageMap tag 32，退役 CardTable tag 6；根数据为 32768-byte／8-byte 对齐，generated-code prefix 的偏移由静态断言锁定。保留 runtime contract 12／metadata ABI 8，删除无调用者的单 arena 调试地址入口，统计补充普通 region 数、large mapping 数与实际映射字节。TLS cursor 的既有两字 ABI 不变，所属 block 保存在 runtime 私有线程字段，收集时与 cursor 一起失效。
+
+新增 runtime 测试实际分配超过 1 GiB 的对象，验证清零、精确大小、pin、跨 chunk 范围标卡及死亡后撤销映射；1200 个 30000-byte 对象跨三个普通 region 保活。稀疏索引测试覆盖全部 64 个地址位、部分删除、空路径回收与重新发布。晋升失败用真实 block 填充及 fake OS 的映射失败复现，确认预留回滚后从完整原图执行 full。两机收集器原有 22 项及新增两项通过；Linux GCC 15 的原子数组声明／typedef 组合问题由统一 typedef 解决，未放松原子或警告合同。
+
+新增 values／threads 两组正式 CLI fixture，正常规模保留 600000 个普通对象并创建超过一个 region 的接口数组，四线程各保留 180000 个对象，组合链式写入、nullable interface、数组复制、AtomicRef、tuple、closure、callback、minor 与 full。stress 使用较小图，minor 模式仍实际触发 minor collection。回归包含原有 nursery/native/Context/范围复制、AtomicRef 和 artifact-only 入口；原 M33 atomic GC 的 HIR/MIR 按实际 debug/release 输出分别保存。
+
+Darwin、GNU、musl 均在关闭 snapshot 更新后通过八组验收，各为 19 variants、73 processes、36 goldens；24 份共用 HIR/MIR 跨主机逐字一致。五项写屏障结构测试和四项 runtime ABI 目录测试通过，保留完整 pointer publication、slot 原子性和原有 poll/roots 合同。两机 workspace/all-targets clippy 通过；新增 region、page map、range barrier、block retirement 和 codegen card 模块分别为 114／83／27／49／94 行，相关最长 C 文件为 allocation.c 的 264 行。
+
+四个 workload 各七次、每轮交替旧／新版本的性能对照已经归档。可扩容堆的地址查询存在实际成本：Darwin 单槽循环与 GNU 旧图／高存活图变慢，完整样本和机器码均保留，未以 GC 工作量变化掩盖结果；详见性能记录。两机保存 `tmp/m34/region-tools`／`region-source` 供后续搬迁与回收对照。
+
+本批清理 target：Darwin 删除 320 项、1,512,187,367 bytes，Linux 删除 117 项、616,166,385 bytes，保留有效库、CLI、测试程序和缓存。记录为两机 `tmp/m34/batch6-target-cleanup.json`。

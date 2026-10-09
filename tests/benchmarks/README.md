@@ -29,3 +29,5 @@ Linux 例如追加 `--build-arg=--target --build-arg=x86_64-unknown-linux-gnu`�
 当前 Linux 复现使用 `ssh nuc12`，仓库为 `~/repos/scoop`；工作目录和 `TMPDIR` 都放在该仓库的 `tmp/` 下。先完成工具构建与功能验证，再串行计时，避免并行编译或清理目录干扰测量。
 
 M34 的 `mir-inlining.scoop` 用两千万次 xorshift 组合比较同一 release 配置下的 MIR 内联开关。kernel 与 helper 为 NoGC，使现有完整 poll 不掩盖调用和常量分支的差异；最终 checksum 为 `4062365736`。用 `--case mir-inlining --runs 7 --gc-stats` 单独运行，关闭内联的工具保存自 M34-3a。两套工具分别使用独立 cache，结果及热点机器码见 [M34 性能记录](../../docs/milestone34/PERFORMANCE.md)。
+
+M34 的 `region-stores.scoop` 在保活对象之间执行八百万次单槽写入，单独记录四级 page map 内联屏障的成本；输出为 `9`。配合 `allocation`、`old-graph-large` 与 `survivors` 测量分配、稀疏旧区写入和存活图的组合影响。对照使用相同 release 编译优化与源码，每组七次、逐轮交替旧／新 heap，保留 GC 计数与机器码；不把引入可扩展堆所需的屏障成本隐藏在整体平均值中。

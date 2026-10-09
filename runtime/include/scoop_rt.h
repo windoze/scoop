@@ -276,19 +276,18 @@ typedef struct ScoopGcMetrics {
   uint64_t pause_ns;
   uint64_t maximum_pause_ns;
   uint64_t heap_committed_bytes;
+  uint64_t region_count;
+  uint64_t large_mapping_count;
+  uint64_t mapped_bytes;
 } ScoopGcMetrics;
 
 /* Diagnostic snapshot; counters never control program validity. */
 void scoop_rt_gc_debug_metrics(ScoopGcMetrics *result);
 
-/* Test hook: number of heap blocks currently live in the arena. */
+/* Test hook: number of active ordinary blocks and large mappings. */
 uint64_t scoop_rt_gc_debug_block_count(void);
 uint64_t scoop_rt_gc_debug_last_moved_count(void);
 uint64_t scoop_rt_gc_debug_allocation_size(const void *obj);
-
-/* Test hook: base address of the heap arena the blocks are carved
- * from (0 before the first allocation / gc init). */
-uintptr_t scoop_rt_gc_debug_arena_base(void);
 
 /* Test hook: number of registered global/external roots. */
 uint64_t scoop_rt_gc_debug_root_count(void);

@@ -88,6 +88,7 @@ typedef struct ScoopThreadState {
      * every pair before sweep; re-entry refills instead of reusing stale
      * ranges. */
     ScoopAllocationContext allocation;
+    struct ScoopGcBlockMeta *allocation_block;
     struct ScoopThreadState *registry_prev;
     struct ScoopThreadState *registry_next;
     /* Isolated from other fields and allocations on all current targets. */

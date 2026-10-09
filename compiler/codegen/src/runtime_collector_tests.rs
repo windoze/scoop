@@ -6,6 +6,9 @@ use crate::tests::platform_support::native_os_source;
 #[path = "runtime_collector_tests/nursery.rs"]
 mod nursery;
 
+#[path = "runtime_collector_tests/regions.rs"]
+mod regions;
+
 #[path = "runtime_collector_tests/pins.rs"]
 mod pins;
 
@@ -92,7 +95,11 @@ fn compile_and_run_with_flags(
         "runtime/src/gc/statistics.c",
         "runtime/src/gc/evacuation.c",
         "runtime/src/gc/reclamation.c",
+        "runtime/src/gc/block_release.c",
         "runtime/src/gc/heap.c",
+        "runtime/src/gc/regions.c",
+        "runtime/src/gc/page_map.c",
+        "runtime/src/gc/cards.c",
         "runtime/src/gc/heap_objects.c",
         "runtime/src/gc/handles.c",
         "runtime/src/gc/root_frames.c",
@@ -338,7 +345,11 @@ fn generic_runtime_has_no_target_specific_vm_dependency() {
         "runtime/src/gc/statistics.c",
         "runtime/src/gc/evacuation.c",
         "runtime/src/gc/reclamation.c",
+        "runtime/src/gc/block_release.c",
         "runtime/src/gc/heap.c",
+        "runtime/src/gc/regions.c",
+        "runtime/src/gc/page_map.c",
+        "runtime/src/gc/cards.c",
         "runtime/src/gc/heap_objects.c",
         "runtime/src/gc/handles.c",
         "runtime/src/gc/root_frames.c",

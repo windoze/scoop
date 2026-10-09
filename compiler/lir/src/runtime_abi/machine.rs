@@ -87,8 +87,14 @@ impl RuntimeAbiSymbolV1 {
                 thread_local: true,
                 mutable: true,
             },
-            Self::CardTable | Self::GcEpoch => CompilerNativeContractV1::Data {
+            Self::GcEpoch => CompilerNativeContractV1::Data {
                 byte_size: 8,
+                alignment: 8,
+                thread_local: false,
+                mutable: true,
+            },
+            Self::PageMap => CompilerNativeContractV1::Data {
+                byte_size: 32768,
                 alignment: 8,
                 thread_local: false,
                 mutable: true,

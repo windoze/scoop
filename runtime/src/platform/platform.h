@@ -81,6 +81,7 @@ typedef struct ScoopThreadVmOps {
                                ScoopPlatformError *error);
     size_t (*page_size)(void);
     bool (*protect_none)(void *base, size_t size, ScoopPlatformError *error);
+    bool (*release_mapping)(void *base, size_t size, ScoopPlatformError *error);
 } ScoopThreadVmOps;
 
 typedef struct ScoopManagedFrameOps {
