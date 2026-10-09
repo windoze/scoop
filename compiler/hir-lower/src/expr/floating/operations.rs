@@ -11,7 +11,7 @@ impl Lowerer {
         sink: &mut Vec<hir::Statement>,
     ) -> Option<hir::Expr> {
         let ty = lhs.ty;
-        let (lhs, rhs) = self.lower_equality_rhs(lhs, rhs, sink, Some(ty))?;
+        let (lhs, rhs) = self.lower_ordered_rhs(lhs, rhs, sink, Some(ty), "$equality.lhs")?;
         if !self.types_equal(lhs.ty, rhs.ty) {
             self.error(
                 span,

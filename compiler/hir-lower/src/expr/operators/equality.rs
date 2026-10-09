@@ -5,26 +5,6 @@ use crate::expr::named_calls::imported_dependency::{ImportedMemberReceiver, Impo
 mod fields;
 
 impl Lowerer {
-    /// Finish the left evaluation before any statements produced by the right.
-    pub(in crate::expr) fn lower_equality_rhs(
-        &mut self,
-        lhs: hir::Expr,
-        rhs: &ast::Expr,
-        sink: &mut Vec<hir::Statement>,
-        expected: Option<TypeId>,
-    ) -> Option<(hir::Expr, hir::Expr)> {
-        let mut rhs_sink = Vec::new();
-        let rhs = self.lower_expr(rhs, &mut rhs_sink, expected)?;
-        let lhs = if rhs_sink.is_empty() {
-            lhs
-        } else {
-            let span = lhs.span;
-            self.materialize_temporary("$equality.lhs".into(), lhs, span, sink)
-        };
-        sink.extend(rhs_sink);
-        Some((lhs, rhs))
-    }
-
     /// Resolve `==` / `!=` through the lhs static type's actual
     /// member operators. The operands arrive already lowered,
     /// preserving the language's left-to-right, exactly-once evaluation rule;

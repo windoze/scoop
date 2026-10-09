@@ -73,6 +73,7 @@ mod imported_singletons;
 mod iteration;
 mod maybe_uninit;
 mod named_calls;
+mod ordering;
 pub(crate) use imported_properties::{
     ImportedDependencyExtensionPropertyProbe, ImportedExtensionPropertyTarget,
     ResolvedImportedMemberProperty,

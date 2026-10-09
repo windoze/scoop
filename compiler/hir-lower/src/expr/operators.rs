@@ -298,7 +298,7 @@ impl Lowerer {
             } else {
                 None
             };
-            self.lower_equality_rhs(lhs, rhs, sink, rhs_hint)?
+            self.lower_ordered_rhs(lhs, rhs, sink, rhs_hint, "$equality.lhs")?
         };
         self.lower_equality_operator(negate, lhs, rhs, symbol, span, sink)
     }
