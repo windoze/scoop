@@ -273,3 +273,9 @@ Linux 的 release 接口协程用例在 unbox 后复制含引用 struct，再以
 ## M34-10g：core 非法声明的诊断位置
 
 完整 CLI 的预期迁移中，六组缺失或非法 Any／Nothing 声明用例保留了旧 ArrayList 文件范围。错误文本、所属 Cone、文件和起点都未改变；终点按真实源码大小从 3036 更新为 3336 bytes，继续比较完整诊断 JSON。Darwin 对六组关闭快照更新复验通过，未扩大测试时限或删除位置断言；相同预期已同步到正在执行的 GNU 选择中。
+
+## M34-10h：既有 native 与产物损坏用例
+
+四组 Scoop ABI native 用例在普通 GC 后强制要求对象地址变化，与 M34 的选择性搬迁不符。101 行 C companion 现在在普通模式检查内容和根回写，在明确开启 moving-stress 时继续要求每次实际搬迁；24-byte 含引用值的 Scoop byval／sret shim 保持原约定。两机 C 格式／严格 warning 检查通过；Darwin 的四组普通／moving、源码构建／删除源码后重链接均通过，随后关闭快照更新复验通过。
+
+Darwin 专用产物损坏用例按真实新 `.slib` 的 158558 bytes，将截断长度更新为 158557，继续只删除最后一个字节。完整错误文本、损坏 member／magic、缺失和错误文件种类、依赖错误，以及所有失败后保留既有 executable 字节的断言均通过严格复验，没有用宽泛诊断匹配替代原检查。
