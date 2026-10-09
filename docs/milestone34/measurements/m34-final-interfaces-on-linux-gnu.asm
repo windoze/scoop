@@ -1,557 +1,557 @@
 ; Cell.next, MIR fn0, LIR scoop$1$cb$d6d44c12518bb1e3171fe4235a04708304936c6d7b2f9b60aec3050058d674b0
 
-/home/chenxu/repos/scoop/tmp/m34/verified-interfaces-on-linux-gnu/interfaces:	file format elf64-x86-64
+/home/chenxu/repos/scoop/tmp/m34/final-interfaces-on-linux-gnu/interfaces:	file format elf64-x86-64
 
 Disassembly of section .text:
 
-000000000005c9d0 <scoop$1$cb$d6d44c12518bb1e3171fe4235a04708304936c6d7b2f9b60aec3050058d674b0>:
-   5c9d0: 55                           	pushq	%rbp
-   5c9d1: 48 89 e5                     	movq	%rsp, %rbp
-   5c9d4: 41 56                        	pushq	%r14
-   5c9d6: 53                           	pushq	%rbx
-   5c9d7: 48 83 ec 10                  	subq	$0x10, %rsp
-   5c9db: 89 f3                        	movl	%esi, %ebx
-   5c9dd: 49 89 fe                     	movq	%rdi, %r14
-   5c9e0: 64 48 8b 04 25 00 00 00 00   	movq	%fs:0x0, %rax
-   5c9e9: 48 8d 80 f0 ff ff ff         	leaq	-0x10(%rax), %rax
-   5c9f0: 48 8b 08                     	movq	(%rax), %rcx
-   5c9f3: 4c 89 75 e8                  	movq	%r14, -0x18(%rbp)
-   5c9f7: 48 8d 05 f2 8b 13 00         	leaq	0x138bf2(%rip), %rax    # 0x1955f0 <scoop_thread_gc_epoch>
-   5c9fe: 48 8b 00                     	movq	(%rax), %rax
-   5ca01: 48 8d 15 f0 8b 13 00         	leaq	0x138bf0(%rip), %rdx    # 0x1955f8 <scoop_thread_world_phase>
-   5ca08: 8b 32                        	movl	(%rdx), %esi
-   5ca0a: 8b 11                        	movl	(%rcx), %edx
-   5ca0c: 48 8b 49 08                  	movq	0x8(%rcx), %rcx
-   5ca10: 85 f6                        	testl	%esi, %esi
-   5ca12: 75 0a                        	jne	0x5ca1e <scoop$1$cb$d6d44c12518bb1e3171fe4235a04708304936c6d7b2f9b60aec3050058d674b0+0x4e>
-   5ca14: 83 fa 01                     	cmpl	$0x1, %edx
-   5ca17: 75 05                        	jne	0x5ca1e <scoop$1$cb$d6d44c12518bb1e3171fe4235a04708304936c6d7b2f9b60aec3050058d674b0+0x4e>
-   5ca19: 48 39 c1                     	cmpq	%rax, %rcx
-   5ca1c: 74 15                        	je	0x5ca33 <scoop$1$cb$d6d44c12518bb1e3171fe4235a04708304936c6d7b2f9b60aec3050058d674b0+0x63>
-   5ca1e: 48 8b 45 e8                  	movq	-0x18(%rbp), %rax
-   5ca22: 48 89 45 e0                  	movq	%rax, -0x20(%rbp)
-   5ca26: e8 55 30 00 00               	callq	0x5fa80 <scoop_rt_safepoint>
-   5ca2b: 48 8b 45 e0                  	movq	-0x20(%rbp), %rax
-   5ca2f: 48 89 45 e8                  	movq	%rax, -0x18(%rbp)
-   5ca33: 48 8b 45 e8                  	movq	-0x18(%rbp), %rax
-   5ca37: 89 d9                        	movl	%ebx, %ecx
-   5ca39: c1 e1 0d                     	shll	$0xd, %ecx
-   5ca3c: 33 48 10                     	xorl	0x10(%rax), %ecx
-   5ca3f: 31 d9                        	xorl	%ebx, %ecx
-   5ca41: 89 ca                        	movl	%ecx, %edx
-   5ca43: c1 ea 11                     	shrl	$0x11, %edx
-   5ca46: 31 ca                        	xorl	%ecx, %edx
-   5ca48: 89 d0                        	movl	%edx, %eax
-   5ca4a: c1 e0 05                     	shll	$0x5, %eax
-   5ca4d: 31 d0                        	xorl	%edx, %eax
-   5ca4f: 48 83 c4 10                  	addq	$0x10, %rsp
-   5ca53: 5b                           	popq	%rbx
-   5ca54: 41 5e                        	popq	%r14
-   5ca56: 5d                           	popq	%rbp
-   5ca57: c3                           	retq
+000000000005b5a0 <scoop$1$cb$d6d44c12518bb1e3171fe4235a04708304936c6d7b2f9b60aec3050058d674b0>:
+   5b5a0: 55                           	pushq	%rbp
+   5b5a1: 48 89 e5                     	movq	%rsp, %rbp
+   5b5a4: 41 56                        	pushq	%r14
+   5b5a6: 53                           	pushq	%rbx
+   5b5a7: 48 83 ec 10                  	subq	$0x10, %rsp
+   5b5ab: 89 f3                        	movl	%esi, %ebx
+   5b5ad: 49 89 fe                     	movq	%rdi, %r14
+   5b5b0: 64 48 8b 04 25 00 00 00 00   	movq	%fs:0x0, %rax
+   5b5b9: 48 8d 80 f0 ff ff ff         	leaq	-0x10(%rax), %rax
+   5b5c0: 48 8b 08                     	movq	(%rax), %rcx
+   5b5c3: 4c 89 75 e8                  	movq	%r14, -0x18(%rbp)
+   5b5c7: 48 8d 05 22 90 13 00         	leaq	0x139022(%rip), %rax    # 0x1945f0 <scoop_thread_gc_epoch>
+   5b5ce: 48 8b 00                     	movq	(%rax), %rax
+   5b5d1: 48 8d 15 20 90 13 00         	leaq	0x139020(%rip), %rdx    # 0x1945f8 <scoop_thread_world_phase>
+   5b5d8: 8b 32                        	movl	(%rdx), %esi
+   5b5da: 8b 11                        	movl	(%rcx), %edx
+   5b5dc: 48 8b 49 08                  	movq	0x8(%rcx), %rcx
+   5b5e0: 85 f6                        	testl	%esi, %esi
+   5b5e2: 75 0a                        	jne	0x5b5ee <scoop$1$cb$d6d44c12518bb1e3171fe4235a04708304936c6d7b2f9b60aec3050058d674b0+0x4e>
+   5b5e4: 83 fa 01                     	cmpl	$0x1, %edx
+   5b5e7: 75 05                        	jne	0x5b5ee <scoop$1$cb$d6d44c12518bb1e3171fe4235a04708304936c6d7b2f9b60aec3050058d674b0+0x4e>
+   5b5e9: 48 39 c1                     	cmpq	%rax, %rcx
+   5b5ec: 74 15                        	je	0x5b603 <scoop$1$cb$d6d44c12518bb1e3171fe4235a04708304936c6d7b2f9b60aec3050058d674b0+0x63>
+   5b5ee: 48 8b 45 e8                  	movq	-0x18(%rbp), %rax
+   5b5f2: 48 89 45 e0                  	movq	%rax, -0x20(%rbp)
+   5b5f6: e8 45 30 00 00               	callq	0x5e640 <scoop_rt_safepoint>
+   5b5fb: 48 8b 45 e0                  	movq	-0x20(%rbp), %rax
+   5b5ff: 48 89 45 e8                  	movq	%rax, -0x18(%rbp)
+   5b603: 48 8b 45 e8                  	movq	-0x18(%rbp), %rax
+   5b607: 89 d9                        	movl	%ebx, %ecx
+   5b609: c1 e1 0d                     	shll	$0xd, %ecx
+   5b60c: 33 48 10                     	xorl	0x10(%rax), %ecx
+   5b60f: 31 d9                        	xorl	%ebx, %ecx
+   5b611: 89 ca                        	movl	%ecx, %edx
+   5b613: c1 ea 11                     	shrl	$0x11, %edx
+   5b616: 31 ca                        	xorl	%ecx, %edx
+   5b618: 89 d0                        	movl	%edx, %eax
+   5b61a: c1 e0 05                     	shll	$0x5, %eax
+   5b61d: 31 d0                        	xorl	%edx, %eax
+   5b61f: 48 83 c4 10                  	addq	$0x10, %rsp
+   5b623: 5b                           	popq	%rbx
+   5b624: 41 5e                        	popq	%r14
+   5b626: 5d                           	popq	%rbp
+   5b627: c3                           	retq
 
 ; Cell.$get$salt, MIR fn1, LIR scoop$1$cb$073cd401d310770fd6c547809a2719a257086eb47c666e34c45a2ae41a89e0be
 
-/home/chenxu/repos/scoop/tmp/m34/verified-interfaces-on-linux-gnu/interfaces:	file format elf64-x86-64
+/home/chenxu/repos/scoop/tmp/m34/final-interfaces-on-linux-gnu/interfaces:	file format elf64-x86-64
 
 Disassembly of section .text:
 
-000000000005cac0 <scoop$1$cb$073cd401d310770fd6c547809a2719a257086eb47c666e34c45a2ae41a89e0be>:
-   5cac0: 55                           	pushq	%rbp
-   5cac1: 48 89 e5                     	movq	%rsp, %rbp
-   5cac4: 53                           	pushq	%rbx
-   5cac5: 48 83 ec 18                  	subq	$0x18, %rsp
-   5cac9: 48 89 fb                     	movq	%rdi, %rbx
-   5cacc: 64 48 8b 04 25 00 00 00 00   	movq	%fs:0x0, %rax
-   5cad5: 48 8d 80 f0 ff ff ff         	leaq	-0x10(%rax), %rax
-   5cadc: 48 8b 08                     	movq	(%rax), %rcx
-   5cadf: 48 89 5d f0                  	movq	%rbx, -0x10(%rbp)
-   5cae3: 48 8d 05 06 8b 13 00         	leaq	0x138b06(%rip), %rax    # 0x1955f0 <scoop_thread_gc_epoch>
-   5caea: 48 8b 00                     	movq	(%rax), %rax
-   5caed: 48 8d 15 04 8b 13 00         	leaq	0x138b04(%rip), %rdx    # 0x1955f8 <scoop_thread_world_phase>
-   5caf4: 8b 32                        	movl	(%rdx), %esi
-   5caf6: 8b 11                        	movl	(%rcx), %edx
-   5caf8: 48 8b 49 08                  	movq	0x8(%rcx), %rcx
-   5cafc: 85 f6                        	testl	%esi, %esi
-   5cafe: 75 0a                        	jne	0x5cb0a <scoop$1$cb$073cd401d310770fd6c547809a2719a257086eb47c666e34c45a2ae41a89e0be+0x4a>
-   5cb00: 83 fa 01                     	cmpl	$0x1, %edx
-   5cb03: 75 05                        	jne	0x5cb0a <scoop$1$cb$073cd401d310770fd6c547809a2719a257086eb47c666e34c45a2ae41a89e0be+0x4a>
-   5cb05: 48 39 c1                     	cmpq	%rax, %rcx
-   5cb08: 74 15                        	je	0x5cb1f <scoop$1$cb$073cd401d310770fd6c547809a2719a257086eb47c666e34c45a2ae41a89e0be+0x5f>
-   5cb0a: 48 8b 45 f0                  	movq	-0x10(%rbp), %rax
-   5cb0e: 48 89 45 e8                  	movq	%rax, -0x18(%rbp)
-   5cb12: e8 69 2f 00 00               	callq	0x5fa80 <scoop_rt_safepoint>
-   5cb17: 48 8b 45 e8                  	movq	-0x18(%rbp), %rax
-   5cb1b: 48 89 45 f0                  	movq	%rax, -0x10(%rbp)
-   5cb1f: 48 8b 45 f0                  	movq	-0x10(%rbp), %rax
-   5cb23: 8b 40 10                     	movl	0x10(%rax), %eax
-   5cb26: 48 83 c4 18                  	addq	$0x18, %rsp
-   5cb2a: 5b                           	popq	%rbx
-   5cb2b: 5d                           	popq	%rbp
-   5cb2c: c3                           	retq
+000000000005b680 <scoop$1$cb$073cd401d310770fd6c547809a2719a257086eb47c666e34c45a2ae41a89e0be>:
+   5b680: 55                           	pushq	%rbp
+   5b681: 48 89 e5                     	movq	%rsp, %rbp
+   5b684: 53                           	pushq	%rbx
+   5b685: 48 83 ec 18                  	subq	$0x18, %rsp
+   5b689: 48 89 fb                     	movq	%rdi, %rbx
+   5b68c: 64 48 8b 04 25 00 00 00 00   	movq	%fs:0x0, %rax
+   5b695: 48 8d 80 f0 ff ff ff         	leaq	-0x10(%rax), %rax
+   5b69c: 48 8b 08                     	movq	(%rax), %rcx
+   5b69f: 48 89 5d f0                  	movq	%rbx, -0x10(%rbp)
+   5b6a3: 48 8d 05 46 8f 13 00         	leaq	0x138f46(%rip), %rax    # 0x1945f0 <scoop_thread_gc_epoch>
+   5b6aa: 48 8b 00                     	movq	(%rax), %rax
+   5b6ad: 48 8d 15 44 8f 13 00         	leaq	0x138f44(%rip), %rdx    # 0x1945f8 <scoop_thread_world_phase>
+   5b6b4: 8b 32                        	movl	(%rdx), %esi
+   5b6b6: 8b 11                        	movl	(%rcx), %edx
+   5b6b8: 48 8b 49 08                  	movq	0x8(%rcx), %rcx
+   5b6bc: 85 f6                        	testl	%esi, %esi
+   5b6be: 75 0a                        	jne	0x5b6ca <scoop$1$cb$073cd401d310770fd6c547809a2719a257086eb47c666e34c45a2ae41a89e0be+0x4a>
+   5b6c0: 83 fa 01                     	cmpl	$0x1, %edx
+   5b6c3: 75 05                        	jne	0x5b6ca <scoop$1$cb$073cd401d310770fd6c547809a2719a257086eb47c666e34c45a2ae41a89e0be+0x4a>
+   5b6c5: 48 39 c1                     	cmpq	%rax, %rcx
+   5b6c8: 74 15                        	je	0x5b6df <scoop$1$cb$073cd401d310770fd6c547809a2719a257086eb47c666e34c45a2ae41a89e0be+0x5f>
+   5b6ca: 48 8b 45 f0                  	movq	-0x10(%rbp), %rax
+   5b6ce: 48 89 45 e8                  	movq	%rax, -0x18(%rbp)
+   5b6d2: e8 69 2f 00 00               	callq	0x5e640 <scoop_rt_safepoint>
+   5b6d7: 48 8b 45 e8                  	movq	-0x18(%rbp), %rax
+   5b6db: 48 89 45 f0                  	movq	%rax, -0x10(%rbp)
+   5b6df: 48 8b 45 f0                  	movq	-0x10(%rbp), %rax
+   5b6e3: 8b 40 10                     	movl	0x10(%rax), %eax
+   5b6e6: 48 83 c4 18                  	addq	$0x18, %rsp
+   5b6ea: 5b                           	popq	%rbx
+   5b6eb: 5d                           	popq	%rbp
+   5b6ec: c3                           	retq
 
 ; known, MIR fn2, LIR scoop$1$cb$89d463c70b3b9092140dcfc3a35d7372a7af6539922bbbaaa5b3ecc51369ffeb
 
-/home/chenxu/repos/scoop/tmp/m34/verified-interfaces-on-linux-gnu/interfaces:	file format elf64-x86-64
+/home/chenxu/repos/scoop/tmp/m34/final-interfaces-on-linux-gnu/interfaces:	file format elf64-x86-64
 
 Disassembly of section .text:
 
-000000000005c8b0 <scoop$1$cb$89d463c70b3b9092140dcfc3a35d7372a7af6539922bbbaaa5b3ecc51369ffeb>:
-   5c8b0: 55                           	pushq	%rbp
-   5c8b1: 48 89 e5                     	movq	%rsp, %rbp
-   5c8b4: 41 57                        	pushq	%r15
-   5c8b6: 41 56                        	pushq	%r14
-   5c8b8: 41 55                        	pushq	%r13
-   5c8ba: 41 54                        	pushq	%r12
-   5c8bc: 53                           	pushq	%rbx
-   5c8bd: 48 83 ec 38                  	subq	$0x38, %rsp
-   5c8c1: 89 f3                        	movl	%esi, %ebx
-   5c8c3: 49 89 fe                     	movq	%rdi, %r14
-   5c8c6: 64 48 8b 04 25 00 00 00 00   	movq	%fs:0x0, %rax
-   5c8cf: 48 8d 80 f0 ff ff ff         	leaq	-0x10(%rax), %rax
-   5c8d6: 4c 8b 38                     	movq	(%rax), %r15
-   5c8d9: 4c 89 75 c0                  	movq	%r14, -0x40(%rbp)
-   5c8dd: 48 c7 45 b0 00 00 00 00      	movq	$0x0, -0x50(%rbp)
-   5c8e5: 48 8d 05 04 8d 13 00         	leaq	0x138d04(%rip), %rax    # 0x1955f0 <scoop_thread_gc_epoch>
-   5c8ec: 48 8b 00                     	movq	(%rax), %rax
-   5c8ef: 4c 8d 2d 02 8d 13 00         	leaq	0x138d02(%rip), %r13    # 0x1955f8 <scoop_thread_world_phase>
-   5c8f6: 41 8b 75 00                  	movl	(%r13), %esi
-   5c8fa: 41 8b 17                     	movl	(%r15), %edx
-   5c8fd: 49 8b 4f 08                  	movq	0x8(%r15), %rcx
-   5c901: 85 f6                        	testl	%esi, %esi
-   5c903: 75 0a                        	jne	0x5c90f <scoop$1$cb$89d463c70b3b9092140dcfc3a35d7372a7af6539922bbbaaa5b3ecc51369ffeb+0x5f>
-   5c905: 83 fa 01                     	cmpl	$0x1, %edx
-   5c908: 75 05                        	jne	0x5c90f <scoop$1$cb$89d463c70b3b9092140dcfc3a35d7372a7af6539922bbbaaa5b3ecc51369ffeb+0x5f>
-   5c90a: 48 39 c1                     	cmpq	%rax, %rcx
-   5c90d: 74 15                        	je	0x5c924 <scoop$1$cb$89d463c70b3b9092140dcfc3a35d7372a7af6539922bbbaaa5b3ecc51369ffeb+0x74>
-   5c90f: 48 8b 45 c0                  	movq	-0x40(%rbp), %rax
-   5c913: 48 89 45 d0                  	movq	%rax, -0x30(%rbp)
-   5c917: e8 64 31 00 00               	callq	0x5fa80 <scoop_rt_safepoint>
-   5c91c: 48 8b 45 d0                  	movq	-0x30(%rbp), %rax
-   5c920: 48 89 45 c0                  	movq	%rax, -0x40(%rbp)
-   5c924: 48 8b 45 c0                  	movq	-0x40(%rbp), %rax
-   5c928: 48 89 45 c8                  	movq	%rax, -0x38(%rbp)
-   5c92c: 41 be 78 56 34 12            	movl	$0x12345678, %r14d      # imm = 0x12345678
-   5c932: 45 31 e4                     	xorl	%r12d, %r12d
-   5c935: 66 66 2e 0f 1f 84 00 00 00 00 00     	nopw	%cs:(%rax,%rax)
-   5c940: 48 8d 05 a9 8c 13 00         	leaq	0x138ca9(%rip), %rax    # 0x1955f0 <scoop_thread_gc_epoch>
-   5c947: 48 8b 00                     	movq	(%rax), %rax
-   5c94a: 41 8b 75 00                  	movl	(%r13), %esi
-   5c94e: 41 8b 17                     	movl	(%r15), %edx
-   5c951: 49 8b 4f 08                  	movq	0x8(%r15), %rcx
-   5c955: 85 f6                        	testl	%esi, %esi
-   5c957: 75 0a                        	jne	0x5c963 <scoop$1$cb$89d463c70b3b9092140dcfc3a35d7372a7af6539922bbbaaa5b3ecc51369ffeb+0xb3>
-   5c959: 83 fa 01                     	cmpl	$0x1, %edx
-   5c95c: 75 05                        	jne	0x5c963 <scoop$1$cb$89d463c70b3b9092140dcfc3a35d7372a7af6539922bbbaaa5b3ecc51369ffeb+0xb3>
-   5c95e: 48 39 c1                     	cmpq	%rax, %rcx
-   5c961: 74 15                        	je	0x5c978 <scoop$1$cb$89d463c70b3b9092140dcfc3a35d7372a7af6539922bbbaaa5b3ecc51369ffeb+0xc8>
-   5c963: 48 8b 45 c8                  	movq	-0x38(%rbp), %rax
-   5c967: 48 89 45 d0                  	movq	%rax, -0x30(%rbp)
-   5c96b: e8 10 31 00 00               	callq	0x5fa80 <scoop_rt_safepoint>
-   5c970: 48 8b 45 d0                  	movq	-0x30(%rbp), %rax
-   5c974: 48 89 45 c8                  	movq	%rax, -0x38(%rbp)
-   5c978: 41 39 dc                     	cmpl	%ebx, %r12d
-   5c97b: 7d 38                        	jge	0x5c9b5 <scoop$1$cb$89d463c70b3b9092140dcfc3a35d7372a7af6539922bbbaaa5b3ecc51369ffeb+0x105>
-   5c97d: 48 8b 45 c8                  	movq	-0x38(%rbp), %rax
-   5c981: 48 89 45 a8                  	movq	%rax, -0x58(%rbp)
-   5c985: 48 8b 7d a8                  	movq	-0x58(%rbp), %rdi
-   5c989: 48 89 7d b0                  	movq	%rdi, -0x50(%rbp)
-   5c98d: 48 89 45 d0                  	movq	%rax, -0x30(%rbp)
-   5c991: 48 89 7d b8                  	movq	%rdi, -0x48(%rbp)
-   5c995: 44 89 f6                     	movl	%r14d, %esi
-   5c998: e8 33 00 00 00               	callq	0x5c9d0 <scoop$1$cb$d6d44c12518bb1e3171fe4235a04708304936c6d7b2f9b60aec3050058d674b0>
-   5c99d: 41 89 c6                     	movl	%eax, %r14d
-   5c9a0: 48 8b 45 b8                  	movq	-0x48(%rbp), %rax
-   5c9a4: 48 8b 4d d0                  	movq	-0x30(%rbp), %rcx
-   5c9a8: 48 89 4d c8                  	movq	%rcx, -0x38(%rbp)
-   5c9ac: 48 89 45 b0                  	movq	%rax, -0x50(%rbp)
-   5c9b0: 41 ff c4                     	incl	%r12d
-   5c9b3: eb 8b                        	jmp	0x5c940 <scoop$1$cb$89d463c70b3b9092140dcfc3a35d7372a7af6539922bbbaaa5b3ecc51369ffeb+0x90>
-   5c9b5: 44 89 f0                     	movl	%r14d, %eax
-   5c9b8: 48 83 c4 38                  	addq	$0x38, %rsp
-   5c9bc: 5b                           	popq	%rbx
-   5c9bd: 41 5c                        	popq	%r12
-   5c9bf: 41 5d                        	popq	%r13
-   5c9c1: 41 5e                        	popq	%r14
-   5c9c3: 41 5f                        	popq	%r15
-   5c9c5: 5d                           	popq	%rbp
-   5c9c6: c3                           	retq
+000000000005b480 <scoop$1$cb$89d463c70b3b9092140dcfc3a35d7372a7af6539922bbbaaa5b3ecc51369ffeb>:
+   5b480: 55                           	pushq	%rbp
+   5b481: 48 89 e5                     	movq	%rsp, %rbp
+   5b484: 41 57                        	pushq	%r15
+   5b486: 41 56                        	pushq	%r14
+   5b488: 41 55                        	pushq	%r13
+   5b48a: 41 54                        	pushq	%r12
+   5b48c: 53                           	pushq	%rbx
+   5b48d: 48 83 ec 38                  	subq	$0x38, %rsp
+   5b491: 89 f3                        	movl	%esi, %ebx
+   5b493: 49 89 fe                     	movq	%rdi, %r14
+   5b496: 64 48 8b 04 25 00 00 00 00   	movq	%fs:0x0, %rax
+   5b49f: 48 8d 80 f0 ff ff ff         	leaq	-0x10(%rax), %rax
+   5b4a6: 4c 8b 38                     	movq	(%rax), %r15
+   5b4a9: 4c 89 75 c0                  	movq	%r14, -0x40(%rbp)
+   5b4ad: 48 c7 45 b0 00 00 00 00      	movq	$0x0, -0x50(%rbp)
+   5b4b5: 48 8d 05 34 91 13 00         	leaq	0x139134(%rip), %rax    # 0x1945f0 <scoop_thread_gc_epoch>
+   5b4bc: 48 8b 00                     	movq	(%rax), %rax
+   5b4bf: 4c 8d 2d 32 91 13 00         	leaq	0x139132(%rip), %r13    # 0x1945f8 <scoop_thread_world_phase>
+   5b4c6: 41 8b 75 00                  	movl	(%r13), %esi
+   5b4ca: 41 8b 17                     	movl	(%r15), %edx
+   5b4cd: 49 8b 4f 08                  	movq	0x8(%r15), %rcx
+   5b4d1: 85 f6                        	testl	%esi, %esi
+   5b4d3: 75 0a                        	jne	0x5b4df <scoop$1$cb$89d463c70b3b9092140dcfc3a35d7372a7af6539922bbbaaa5b3ecc51369ffeb+0x5f>
+   5b4d5: 83 fa 01                     	cmpl	$0x1, %edx
+   5b4d8: 75 05                        	jne	0x5b4df <scoop$1$cb$89d463c70b3b9092140dcfc3a35d7372a7af6539922bbbaaa5b3ecc51369ffeb+0x5f>
+   5b4da: 48 39 c1                     	cmpq	%rax, %rcx
+   5b4dd: 74 15                        	je	0x5b4f4 <scoop$1$cb$89d463c70b3b9092140dcfc3a35d7372a7af6539922bbbaaa5b3ecc51369ffeb+0x74>
+   5b4df: 48 8b 45 c0                  	movq	-0x40(%rbp), %rax
+   5b4e3: 48 89 45 d0                  	movq	%rax, -0x30(%rbp)
+   5b4e7: e8 54 31 00 00               	callq	0x5e640 <scoop_rt_safepoint>
+   5b4ec: 48 8b 45 d0                  	movq	-0x30(%rbp), %rax
+   5b4f0: 48 89 45 c0                  	movq	%rax, -0x40(%rbp)
+   5b4f4: 48 8b 45 c0                  	movq	-0x40(%rbp), %rax
+   5b4f8: 48 89 45 c8                  	movq	%rax, -0x38(%rbp)
+   5b4fc: 41 be 78 56 34 12            	movl	$0x12345678, %r14d      # imm = 0x12345678
+   5b502: 45 31 e4                     	xorl	%r12d, %r12d
+   5b505: 66 66 2e 0f 1f 84 00 00 00 00 00     	nopw	%cs:(%rax,%rax)
+   5b510: 48 8d 05 d9 90 13 00         	leaq	0x1390d9(%rip), %rax    # 0x1945f0 <scoop_thread_gc_epoch>
+   5b517: 48 8b 00                     	movq	(%rax), %rax
+   5b51a: 41 8b 75 00                  	movl	(%r13), %esi
+   5b51e: 41 8b 17                     	movl	(%r15), %edx
+   5b521: 49 8b 4f 08                  	movq	0x8(%r15), %rcx
+   5b525: 85 f6                        	testl	%esi, %esi
+   5b527: 75 0a                        	jne	0x5b533 <scoop$1$cb$89d463c70b3b9092140dcfc3a35d7372a7af6539922bbbaaa5b3ecc51369ffeb+0xb3>
+   5b529: 83 fa 01                     	cmpl	$0x1, %edx
+   5b52c: 75 05                        	jne	0x5b533 <scoop$1$cb$89d463c70b3b9092140dcfc3a35d7372a7af6539922bbbaaa5b3ecc51369ffeb+0xb3>
+   5b52e: 48 39 c1                     	cmpq	%rax, %rcx
+   5b531: 74 15                        	je	0x5b548 <scoop$1$cb$89d463c70b3b9092140dcfc3a35d7372a7af6539922bbbaaa5b3ecc51369ffeb+0xc8>
+   5b533: 48 8b 45 c8                  	movq	-0x38(%rbp), %rax
+   5b537: 48 89 45 d0                  	movq	%rax, -0x30(%rbp)
+   5b53b: e8 00 31 00 00               	callq	0x5e640 <scoop_rt_safepoint>
+   5b540: 48 8b 45 d0                  	movq	-0x30(%rbp), %rax
+   5b544: 48 89 45 c8                  	movq	%rax, -0x38(%rbp)
+   5b548: 41 39 dc                     	cmpl	%ebx, %r12d
+   5b54b: 7d 38                        	jge	0x5b585 <scoop$1$cb$89d463c70b3b9092140dcfc3a35d7372a7af6539922bbbaaa5b3ecc51369ffeb+0x105>
+   5b54d: 48 8b 45 c8                  	movq	-0x38(%rbp), %rax
+   5b551: 48 89 45 a8                  	movq	%rax, -0x58(%rbp)
+   5b555: 48 8b 7d a8                  	movq	-0x58(%rbp), %rdi
+   5b559: 48 89 7d b0                  	movq	%rdi, -0x50(%rbp)
+   5b55d: 48 89 45 d0                  	movq	%rax, -0x30(%rbp)
+   5b561: 48 89 7d b8                  	movq	%rdi, -0x48(%rbp)
+   5b565: 44 89 f6                     	movl	%r14d, %esi
+   5b568: e8 33 00 00 00               	callq	0x5b5a0 <scoop$1$cb$d6d44c12518bb1e3171fe4235a04708304936c6d7b2f9b60aec3050058d674b0>
+   5b56d: 41 89 c6                     	movl	%eax, %r14d
+   5b570: 48 8b 45 b8                  	movq	-0x48(%rbp), %rax
+   5b574: 48 8b 4d d0                  	movq	-0x30(%rbp), %rcx
+   5b578: 48 89 4d c8                  	movq	%rcx, -0x38(%rbp)
+   5b57c: 48 89 45 b0                  	movq	%rax, -0x50(%rbp)
+   5b580: 41 ff c4                     	incl	%r12d
+   5b583: eb 8b                        	jmp	0x5b510 <scoop$1$cb$89d463c70b3b9092140dcfc3a35d7372a7af6539922bbbaaa5b3ecc51369ffeb+0x90>
+   5b585: 44 89 f0                     	movl	%r14d, %eax
+   5b588: 48 83 c4 38                  	addq	$0x38, %rsp
+   5b58c: 5b                           	popq	%rbx
+   5b58d: 41 5c                        	popq	%r12
+   5b58f: 41 5d                        	popq	%r13
+   5b591: 41 5e                        	popq	%r14
+   5b593: 41 5f                        	popq	%r15
+   5b595: 5d                           	popq	%rbp
+   5b596: c3                           	retq
 
 ; unknown, MIR fn3, LIR scoop$1$cb$803f972bd8a37e762b321c8df27119f059d46b85f2f6aefcb5acb6f300a859c0
 
-/home/chenxu/repos/scoop/tmp/m34/verified-interfaces-on-linux-gnu/interfaces:	file format elf64-x86-64
+/home/chenxu/repos/scoop/tmp/m34/final-interfaces-on-linux-gnu/interfaces:	file format elf64-x86-64
 
 Disassembly of section .text:
 
-000000000005c790 <scoop$1$cb$803f972bd8a37e762b321c8df27119f059d46b85f2f6aefcb5acb6f300a859c0>:
-   5c790: 55                           	pushq	%rbp
-   5c791: 48 89 e5                     	movq	%rsp, %rbp
-   5c794: 41 57                        	pushq	%r15
-   5c796: 41 56                        	pushq	%r14
-   5c798: 41 55                        	pushq	%r13
-   5c79a: 41 54                        	pushq	%r12
-   5c79c: 53                           	pushq	%rbx
-   5c79d: 48 83 ec 28                  	subq	$0x28, %rsp
-   5c7a1: 89 d3                        	movl	%edx, %ebx
-   5c7a3: 49 89 f6                     	movq	%rsi, %r14
-   5c7a6: 49 89 ff                     	movq	%rdi, %r15
-   5c7a9: 64 48 8b 04 25 00 00 00 00   	movq	%fs:0x0, %rax
-   5c7b2: 48 8d 80 f0 ff ff ff         	leaq	-0x10(%rax), %rax
-   5c7b9: 4c 8b 20                     	movq	(%rax), %r12
-   5c7bc: 4c 89 7d c8                  	movq	%r15, -0x38(%rbp)
-   5c7c0: 48 c7 45 b0 00 00 00 00      	movq	$0x0, -0x50(%rbp)
-   5c7c8: 48 8d 05 21 8e 13 00         	leaq	0x138e21(%rip), %rax    # 0x1955f0 <scoop_thread_gc_epoch>
-   5c7cf: 48 8b 00                     	movq	(%rax), %rax
-   5c7d2: 48 8d 0d 1f 8e 13 00         	leaq	0x138e1f(%rip), %rcx    # 0x1955f8 <scoop_thread_world_phase>
-   5c7d9: 8b 31                        	movl	(%rcx), %esi
-   5c7db: 41 8b 14 24                  	movl	(%r12), %edx
-   5c7df: 49 8b 4c 24 08               	movq	0x8(%r12), %rcx
-   5c7e4: 85 f6                        	testl	%esi, %esi
-   5c7e6: 75 0a                        	jne	0x5c7f2 <scoop$1$cb$803f972bd8a37e762b321c8df27119f059d46b85f2f6aefcb5acb6f300a859c0+0x62>
-   5c7e8: 83 fa 01                     	cmpl	$0x1, %edx
-   5c7eb: 75 05                        	jne	0x5c7f2 <scoop$1$cb$803f972bd8a37e762b321c8df27119f059d46b85f2f6aefcb5acb6f300a859c0+0x62>
-   5c7ed: 48 39 c1                     	cmpq	%rax, %rcx
-   5c7f0: 74 15                        	je	0x5c807 <scoop$1$cb$803f972bd8a37e762b321c8df27119f059d46b85f2f6aefcb5acb6f300a859c0+0x77>
-   5c7f2: 48 8b 45 c8                  	movq	-0x38(%rbp), %rax
-   5c7f6: 48 89 45 d0                  	movq	%rax, -0x30(%rbp)
-   5c7fa: e8 81 32 00 00               	callq	0x5fa80 <scoop_rt_safepoint>
-   5c7ff: 48 8b 45 d0                  	movq	-0x30(%rbp), %rax
-   5c803: 48 89 45 c8                  	movq	%rax, -0x38(%rbp)
-   5c807: 41 bf 78 56 34 12            	movl	$0x12345678, %r15d      # imm = 0x12345678
-   5c80d: 45 31 ed                     	xorl	%r13d, %r13d
-   5c810: 48 8d 05 d9 8d 13 00         	leaq	0x138dd9(%rip), %rax    # 0x1955f0 <scoop_thread_gc_epoch>
-   5c817: 48 8b 00                     	movq	(%rax), %rax
-   5c81a: 48 8d 0d d7 8d 13 00         	leaq	0x138dd7(%rip), %rcx    # 0x1955f8 <scoop_thread_world_phase>
-   5c821: 8b 31                        	movl	(%rcx), %esi
-   5c823: 41 8b 14 24                  	movl	(%r12), %edx
-   5c827: 49 8b 4c 24 08               	movq	0x8(%r12), %rcx
-   5c82c: 85 f6                        	testl	%esi, %esi
-   5c82e: 75 0a                        	jne	0x5c83a <scoop$1$cb$803f972bd8a37e762b321c8df27119f059d46b85f2f6aefcb5acb6f300a859c0+0xaa>
-   5c830: 83 fa 01                     	cmpl	$0x1, %edx
-   5c833: 75 05                        	jne	0x5c83a <scoop$1$cb$803f972bd8a37e762b321c8df27119f059d46b85f2f6aefcb5acb6f300a859c0+0xaa>
-   5c835: 48 39 c1                     	cmpq	%rax, %rcx
-   5c838: 74 15                        	je	0x5c84f <scoop$1$cb$803f972bd8a37e762b321c8df27119f059d46b85f2f6aefcb5acb6f300a859c0+0xbf>
-   5c83a: 48 8b 45 c8                  	movq	-0x38(%rbp), %rax
-   5c83e: 48 89 45 d0                  	movq	%rax, -0x30(%rbp)
-   5c842: e8 39 32 00 00               	callq	0x5fa80 <scoop_rt_safepoint>
-   5c847: 48 8b 45 d0                  	movq	-0x30(%rbp), %rax
-   5c84b: 48 89 45 c8                  	movq	%rax, -0x38(%rbp)
-   5c84f: 41 39 dd                     	cmpl	%ebx, %r13d
-   5c852: 7d 3c                        	jge	0x5c890 <scoop$1$cb$803f972bd8a37e762b321c8df27119f059d46b85f2f6aefcb5acb6f300a859c0+0x100>
-   5c854: 48 8b 45 c8                  	movq	-0x38(%rbp), %rax
-   5c858: 48 89 45 b8                  	movq	%rax, -0x48(%rbp)
-   5c85c: 48 8b 4d b8                  	movq	-0x48(%rbp), %rcx
-   5c860: 48 8b 7d b8                  	movq	-0x48(%rbp), %rdi
-   5c864: 48 89 7d b0                  	movq	%rdi, -0x50(%rbp)
-   5c868: 49 8b 0e                     	movq	(%r14), %rcx
-   5c86b: 48 89 7d c0                  	movq	%rdi, -0x40(%rbp)
-   5c86f: 48 89 45 d0                  	movq	%rax, -0x30(%rbp)
-   5c873: 44 89 fe                     	movl	%r15d, %esi
-   5c876: ff d1                        	callq	*%rcx
-   5c878: 41 89 c7                     	movl	%eax, %r15d
-   5c87b: 48 8b 45 c0                  	movq	-0x40(%rbp), %rax
-   5c87f: 48 8b 4d d0                  	movq	-0x30(%rbp), %rcx
-   5c883: 48 89 4d c8                  	movq	%rcx, -0x38(%rbp)
-   5c887: 48 89 45 b0                  	movq	%rax, -0x50(%rbp)
-   5c88b: 41 ff c5                     	incl	%r13d
-   5c88e: eb 80                        	jmp	0x5c810 <scoop$1$cb$803f972bd8a37e762b321c8df27119f059d46b85f2f6aefcb5acb6f300a859c0+0x80>
-   5c890: 44 89 f8                     	movl	%r15d, %eax
-   5c893: 48 83 c4 28                  	addq	$0x28, %rsp
-   5c897: 5b                           	popq	%rbx
-   5c898: 41 5c                        	popq	%r12
-   5c89a: 41 5d                        	popq	%r13
-   5c89c: 41 5e                        	popq	%r14
-   5c89e: 41 5f                        	popq	%r15
-   5c8a0: 5d                           	popq	%rbp
-   5c8a1: c3                           	retq
+000000000005b360 <scoop$1$cb$803f972bd8a37e762b321c8df27119f059d46b85f2f6aefcb5acb6f300a859c0>:
+   5b360: 55                           	pushq	%rbp
+   5b361: 48 89 e5                     	movq	%rsp, %rbp
+   5b364: 41 57                        	pushq	%r15
+   5b366: 41 56                        	pushq	%r14
+   5b368: 41 55                        	pushq	%r13
+   5b36a: 41 54                        	pushq	%r12
+   5b36c: 53                           	pushq	%rbx
+   5b36d: 48 83 ec 28                  	subq	$0x28, %rsp
+   5b371: 89 d3                        	movl	%edx, %ebx
+   5b373: 49 89 f6                     	movq	%rsi, %r14
+   5b376: 49 89 ff                     	movq	%rdi, %r15
+   5b379: 64 48 8b 04 25 00 00 00 00   	movq	%fs:0x0, %rax
+   5b382: 48 8d 80 f0 ff ff ff         	leaq	-0x10(%rax), %rax
+   5b389: 4c 8b 20                     	movq	(%rax), %r12
+   5b38c: 4c 89 7d c8                  	movq	%r15, -0x38(%rbp)
+   5b390: 48 c7 45 b0 00 00 00 00      	movq	$0x0, -0x50(%rbp)
+   5b398: 48 8d 05 51 92 13 00         	leaq	0x139251(%rip), %rax    # 0x1945f0 <scoop_thread_gc_epoch>
+   5b39f: 48 8b 00                     	movq	(%rax), %rax
+   5b3a2: 48 8d 0d 4f 92 13 00         	leaq	0x13924f(%rip), %rcx    # 0x1945f8 <scoop_thread_world_phase>
+   5b3a9: 8b 31                        	movl	(%rcx), %esi
+   5b3ab: 41 8b 14 24                  	movl	(%r12), %edx
+   5b3af: 49 8b 4c 24 08               	movq	0x8(%r12), %rcx
+   5b3b4: 85 f6                        	testl	%esi, %esi
+   5b3b6: 75 0a                        	jne	0x5b3c2 <scoop$1$cb$803f972bd8a37e762b321c8df27119f059d46b85f2f6aefcb5acb6f300a859c0+0x62>
+   5b3b8: 83 fa 01                     	cmpl	$0x1, %edx
+   5b3bb: 75 05                        	jne	0x5b3c2 <scoop$1$cb$803f972bd8a37e762b321c8df27119f059d46b85f2f6aefcb5acb6f300a859c0+0x62>
+   5b3bd: 48 39 c1                     	cmpq	%rax, %rcx
+   5b3c0: 74 15                        	je	0x5b3d7 <scoop$1$cb$803f972bd8a37e762b321c8df27119f059d46b85f2f6aefcb5acb6f300a859c0+0x77>
+   5b3c2: 48 8b 45 c8                  	movq	-0x38(%rbp), %rax
+   5b3c6: 48 89 45 d0                  	movq	%rax, -0x30(%rbp)
+   5b3ca: e8 71 32 00 00               	callq	0x5e640 <scoop_rt_safepoint>
+   5b3cf: 48 8b 45 d0                  	movq	-0x30(%rbp), %rax
+   5b3d3: 48 89 45 c8                  	movq	%rax, -0x38(%rbp)
+   5b3d7: 41 bf 78 56 34 12            	movl	$0x12345678, %r15d      # imm = 0x12345678
+   5b3dd: 45 31 ed                     	xorl	%r13d, %r13d
+   5b3e0: 48 8d 05 09 92 13 00         	leaq	0x139209(%rip), %rax    # 0x1945f0 <scoop_thread_gc_epoch>
+   5b3e7: 48 8b 00                     	movq	(%rax), %rax
+   5b3ea: 48 8d 0d 07 92 13 00         	leaq	0x139207(%rip), %rcx    # 0x1945f8 <scoop_thread_world_phase>
+   5b3f1: 8b 31                        	movl	(%rcx), %esi
+   5b3f3: 41 8b 14 24                  	movl	(%r12), %edx
+   5b3f7: 49 8b 4c 24 08               	movq	0x8(%r12), %rcx
+   5b3fc: 85 f6                        	testl	%esi, %esi
+   5b3fe: 75 0a                        	jne	0x5b40a <scoop$1$cb$803f972bd8a37e762b321c8df27119f059d46b85f2f6aefcb5acb6f300a859c0+0xaa>
+   5b400: 83 fa 01                     	cmpl	$0x1, %edx
+   5b403: 75 05                        	jne	0x5b40a <scoop$1$cb$803f972bd8a37e762b321c8df27119f059d46b85f2f6aefcb5acb6f300a859c0+0xaa>
+   5b405: 48 39 c1                     	cmpq	%rax, %rcx
+   5b408: 74 15                        	je	0x5b41f <scoop$1$cb$803f972bd8a37e762b321c8df27119f059d46b85f2f6aefcb5acb6f300a859c0+0xbf>
+   5b40a: 48 8b 45 c8                  	movq	-0x38(%rbp), %rax
+   5b40e: 48 89 45 d0                  	movq	%rax, -0x30(%rbp)
+   5b412: e8 29 32 00 00               	callq	0x5e640 <scoop_rt_safepoint>
+   5b417: 48 8b 45 d0                  	movq	-0x30(%rbp), %rax
+   5b41b: 48 89 45 c8                  	movq	%rax, -0x38(%rbp)
+   5b41f: 41 39 dd                     	cmpl	%ebx, %r13d
+   5b422: 7d 3c                        	jge	0x5b460 <scoop$1$cb$803f972bd8a37e762b321c8df27119f059d46b85f2f6aefcb5acb6f300a859c0+0x100>
+   5b424: 48 8b 45 c8                  	movq	-0x38(%rbp), %rax
+   5b428: 48 89 45 b8                  	movq	%rax, -0x48(%rbp)
+   5b42c: 48 8b 4d b8                  	movq	-0x48(%rbp), %rcx
+   5b430: 48 8b 7d b8                  	movq	-0x48(%rbp), %rdi
+   5b434: 48 89 7d b0                  	movq	%rdi, -0x50(%rbp)
+   5b438: 49 8b 0e                     	movq	(%r14), %rcx
+   5b43b: 48 89 7d c0                  	movq	%rdi, -0x40(%rbp)
+   5b43f: 48 89 45 d0                  	movq	%rax, -0x30(%rbp)
+   5b443: 44 89 fe                     	movl	%r15d, %esi
+   5b446: ff d1                        	callq	*%rcx
+   5b448: 41 89 c7                     	movl	%eax, %r15d
+   5b44b: 48 8b 45 c0                  	movq	-0x40(%rbp), %rax
+   5b44f: 48 8b 4d d0                  	movq	-0x30(%rbp), %rcx
+   5b453: 48 89 4d c8                  	movq	%rcx, -0x38(%rbp)
+   5b457: 48 89 45 b0                  	movq	%rax, -0x50(%rbp)
+   5b45b: 41 ff c5                     	incl	%r13d
+   5b45e: eb 80                        	jmp	0x5b3e0 <scoop$1$cb$803f972bd8a37e762b321c8df27119f059d46b85f2f6aefcb5acb6f300a859c0+0x80>
+   5b460: 44 89 f8                     	movl	%r15d, %eax
+   5b463: 48 83 c4 28                  	addq	$0x28, %rsp
+   5b467: 5b                           	popq	%rbx
+   5b468: 41 5c                        	popq	%r12
+   5b46a: 41 5d                        	popq	%r13
+   5b46c: 41 5e                        	popq	%r14
+   5b46e: 41 5f                        	popq	%r15
+   5b470: 5d                           	popq	%rbp
+   5b471: c3                           	retq
 
 ; convertedOnce, MIR fn4, LIR scoop$1$cb$d96b4b18d972ec178c732a7b98ed8faf23417a50a315c26392b65225672007cd
 
-/home/chenxu/repos/scoop/tmp/m34/verified-interfaces-on-linux-gnu/interfaces:	file format elf64-x86-64
+/home/chenxu/repos/scoop/tmp/m34/final-interfaces-on-linux-gnu/interfaces:	file format elf64-x86-64
 
 Disassembly of section .text:
 
-000000000005b8e0 <scoop$1$cb$d96b4b18d972ec178c732a7b98ed8faf23417a50a315c26392b65225672007cd>:
-   5b8e0: 55                           	pushq	%rbp
-   5b8e1: 48 89 e5                     	movq	%rsp, %rbp
-   5b8e4: 41 57                        	pushq	%r15
-   5b8e6: 41 56                        	pushq	%r14
-   5b8e8: 41 55                        	pushq	%r13
-   5b8ea: 41 54                        	pushq	%r12
-   5b8ec: 53                           	pushq	%rbx
-   5b8ed: 48 83 ec 38                  	subq	$0x38, %rsp
-   5b8f1: 89 f3                        	movl	%esi, %ebx
-   5b8f3: 49 89 fe                     	movq	%rdi, %r14
-   5b8f6: 64 48 8b 04 25 00 00 00 00   	movq	%fs:0x0, %rax
-   5b8ff: 48 8d 80 f0 ff ff ff         	leaq	-0x10(%rax), %rax
-   5b906: 4c 8b 20                     	movq	(%rax), %r12
-   5b909: 4c 89 75 c0                  	movq	%r14, -0x40(%rbp)
-   5b90d: 48 c7 45 a8 00 00 00 00      	movq	$0x0, -0x58(%rbp)
-   5b915: 48 8d 05 d4 9c 13 00         	leaq	0x139cd4(%rip), %rax    # 0x1955f0 <scoop_thread_gc_epoch>
-   5b91c: 48 8b 00                     	movq	(%rax), %rax
-   5b91f: 48 8d 0d d2 9c 13 00         	leaq	0x139cd2(%rip), %rcx    # 0x1955f8 <scoop_thread_world_phase>
-   5b926: 8b 31                        	movl	(%rcx), %esi
-   5b928: 41 8b 14 24                  	movl	(%r12), %edx
-   5b92c: 49 8b 4c 24 08               	movq	0x8(%r12), %rcx
-   5b931: 85 f6                        	testl	%esi, %esi
-   5b933: 75 0a                        	jne	0x5b93f <scoop$1$cb$d96b4b18d972ec178c732a7b98ed8faf23417a50a315c26392b65225672007cd+0x5f>
-   5b935: 83 fa 01                     	cmpl	$0x1, %edx
-   5b938: 75 05                        	jne	0x5b93f <scoop$1$cb$d96b4b18d972ec178c732a7b98ed8faf23417a50a315c26392b65225672007cd+0x5f>
-   5b93a: 48 39 c1                     	cmpq	%rax, %rcx
-   5b93d: 74 15                        	je	0x5b954 <scoop$1$cb$d96b4b18d972ec178c732a7b98ed8faf23417a50a315c26392b65225672007cd+0x74>
-   5b93f: 48 8b 45 c0                  	movq	-0x40(%rbp), %rax
-   5b943: 48 89 45 d0                  	movq	%rax, -0x30(%rbp)
-   5b947: e8 34 41 00 00               	callq	0x5fa80 <scoop_rt_safepoint>
-   5b94c: 48 8b 45 d0                  	movq	-0x30(%rbp), %rax
-   5b950: 48 89 45 c0                  	movq	%rax, -0x40(%rbp)
-   5b954: 4c 8b 7d c0                  	movq	-0x40(%rbp), %r15
-   5b958: 48 8d 35 d1 dd 10 00         	leaq	0x10ddd1(%rip), %rsi    # 0x169730 <scoop$1$td$48835de14069ed024217487d0dad48c60d171573b56cb2aa3b46a21999386bb3>
-   5b95f: 4c 89 ff                     	movq	%r15, %rdi
-   5b962: e8 f9 3a 01 00               	callq	0x6f460 <scoop_rt_is_instance>
-   5b967: a8 01                        	testb	$0x1, %al
-   5b969: 0f 84 b3 00 00 00            	je	0x5ba22 <scoop$1$cb$d96b4b18d972ec178c732a7b98ed8faf23417a50a315c26392b65225672007cd+0x142>
-   5b96f: 49 8b 3f                     	movq	(%r15), %rdi
-   5b972: 48 8d 35 b7 dd 10 00         	leaq	0x10ddb7(%rip), %rsi    # 0x169730 <scoop$1$td$48835de14069ed024217487d0dad48c60d171573b56cb2aa3b46a21999386bb3>
-   5b979: e8 22 3b 01 00               	callq	0x6f4a0 <scoop_rt_itable_lookup>
-   5b97e: 49 89 c6                     	movq	%rax, %r14
-   5b981: 4c 89 7d c8                  	movq	%r15, -0x38(%rbp)
-   5b985: 41 bf 78 56 34 12            	movl	$0x12345678, %r15d      # imm = 0x12345678
-   5b98b: 45 31 ed                     	xorl	%r13d, %r13d
-   5b98e: 66 90                        	nop
-   5b990: 48 8d 05 59 9c 13 00         	leaq	0x139c59(%rip), %rax    # 0x1955f0 <scoop_thread_gc_epoch>
-   5b997: 48 8b 00                     	movq	(%rax), %rax
-   5b99a: 48 8d 0d 57 9c 13 00         	leaq	0x139c57(%rip), %rcx    # 0x1955f8 <scoop_thread_world_phase>
-   5b9a1: 8b 31                        	movl	(%rcx), %esi
-   5b9a3: 41 8b 14 24                  	movl	(%r12), %edx
-   5b9a7: 49 8b 4c 24 08               	movq	0x8(%r12), %rcx
-   5b9ac: 85 f6                        	testl	%esi, %esi
-   5b9ae: 75 0a                        	jne	0x5b9ba <scoop$1$cb$d96b4b18d972ec178c732a7b98ed8faf23417a50a315c26392b65225672007cd+0xda>
-   5b9b0: 83 fa 01                     	cmpl	$0x1, %edx
-   5b9b3: 75 05                        	jne	0x5b9ba <scoop$1$cb$d96b4b18d972ec178c732a7b98ed8faf23417a50a315c26392b65225672007cd+0xda>
-   5b9b5: 48 39 c1                     	cmpq	%rax, %rcx
-   5b9b8: 74 15                        	je	0x5b9cf <scoop$1$cb$d96b4b18d972ec178c732a7b98ed8faf23417a50a315c26392b65225672007cd+0xef>
-   5b9ba: 48 8b 45 c8                  	movq	-0x38(%rbp), %rax
-   5b9be: 48 89 45 d0                  	movq	%rax, -0x30(%rbp)
-   5b9c2: e8 b9 40 00 00               	callq	0x5fa80 <scoop_rt_safepoint>
-   5b9c7: 48 8b 45 d0                  	movq	-0x30(%rbp), %rax
-   5b9cb: 48 89 45 c8                  	movq	%rax, -0x38(%rbp)
-   5b9cf: 41 39 dd                     	cmpl	%ebx, %r13d
-   5b9d2: 7d 3c                        	jge	0x5ba10 <scoop$1$cb$d96b4b18d972ec178c732a7b98ed8faf23417a50a315c26392b65225672007cd+0x130>
-   5b9d4: 48 8b 45 c8                  	movq	-0x38(%rbp), %rax
-   5b9d8: 48 89 45 b0                  	movq	%rax, -0x50(%rbp)
-   5b9dc: 48 8b 4d b0                  	movq	-0x50(%rbp), %rcx
-   5b9e0: 48 8b 7d b0                  	movq	-0x50(%rbp), %rdi
-   5b9e4: 48 89 7d a8                  	movq	%rdi, -0x58(%rbp)
-   5b9e8: 49 8b 0e                     	movq	(%r14), %rcx
-   5b9eb: 48 89 7d b8                  	movq	%rdi, -0x48(%rbp)
-   5b9ef: 48 89 45 d0                  	movq	%rax, -0x30(%rbp)
-   5b9f3: 44 89 fe                     	movl	%r15d, %esi
-   5b9f6: ff d1                        	callq	*%rcx
-   5b9f8: 41 89 c7                     	movl	%eax, %r15d
-   5b9fb: 48 8b 45 b8                  	movq	-0x48(%rbp), %rax
-   5b9ff: 48 8b 4d d0                  	movq	-0x30(%rbp), %rcx
-   5ba03: 48 89 4d c8                  	movq	%rcx, -0x38(%rbp)
-   5ba07: 48 89 45 a8                  	movq	%rax, -0x58(%rbp)
-   5ba0b: 41 ff c5                     	incl	%r13d
-   5ba0e: eb 80                        	jmp	0x5b990 <scoop$1$cb$d96b4b18d972ec178c732a7b98ed8faf23417a50a315c26392b65225672007cd+0xb0>
-   5ba10: 44 89 f8                     	movl	%r15d, %eax
-   5ba13: 48 83 c4 38                  	addq	$0x38, %rsp
-   5ba17: 5b                           	popq	%rbx
-   5ba18: 41 5c                        	popq	%r12
-   5ba1a: 41 5d                        	popq	%r13
-   5ba1c: 41 5e                        	popq	%r14
-   5ba1e: 41 5f                        	popq	%r15
-   5ba20: 5d                           	popq	%rbp
-   5ba21: c3                           	retq
-   5ba22: 48 8b 1d 3f b4 09 00         	movq	0x9b43f(%rip), %rbx     # 0xf6e68 <scoop$1$td$f247e0162cdacf44b62850481f79fa6702d74919636bd6e6963c4aa99f2a463b+0x18>
-   5ba29: 49 89 df                     	movq	%rbx, %r15
-   5ba2c: 49 f7 df                     	negq	%r15
-   5ba2f: 48 b8 ff ff ff ff ff ff ff 7f	movabsq	$0x7fffffffffffffff, %rax # imm = 0x7FFFFFFFFFFFFFFF
-   5ba39: 48 01 d8                     	addq	%rbx, %rax
-   5ba3c: 48 83 f8 e8                  	cmpq	$-0x18, %rax
-   5ba40: 41 0f 92 c4                  	setb	%r12b
-   5ba44: 4c 8d 73 17                  	leaq	0x17(%rbx), %r14
-   5ba48: 4d 21 fe                     	andq	%r15, %r14
-   5ba4b: 64 48 8b 04 25 00 00 00 00   	movq	%fs:0x0, %rax
-   5ba54: 48 8d 80 f8 ff ff ff         	leaq	-0x8(%rax), %rax
-   5ba5b: 48 8b 00                     	movq	(%rax), %rax
-   5ba5e: 48 8b 08                     	movq	(%rax), %rcx
-   5ba61: 48 01 cb                     	addq	%rcx, %rbx
-   5ba64: 48 ff cb                     	decq	%rbx
-   5ba67: 4c 21 fb                     	andq	%r15, %rbx
-   5ba6a: 4a 8d 0c 33                  	leaq	(%rbx,%r14), %rcx
-   5ba6e: 48 85 db                     	testq	%rbx, %rbx
-   5ba71: 0f 95 c2                     	setne	%dl
-   5ba74: 49 81 fe 81 7f 00 00         	cmpq	$0x7f81, %r14           # imm = 0x7F81
-   5ba7b: 40 0f 92 c6                  	setb	%sil
-   5ba7f: 48 3b 48 08                  	cmpq	0x8(%rax), %rcx
-   5ba83: 40 0f 96 c7                  	setbe	%dil
-   5ba87: 48 83 3d 51 b4 09 00 00      	cmpq	$0x0, 0x9b451(%rip)     # 0xf6ee0 <scoop$1$td$f247e0162cdacf44b62850481f79fa6702d74919636bd6e6963c4aa99f2a463b+0x90>
-   5ba8f: 41 0f 94 c0                  	sete	%r8b
-   5ba93: 41 20 f0                     	andb	%sil, %r8b
-   5ba96: 41 20 d0                     	andb	%dl, %r8b
-   5ba99: 41 20 f8                     	andb	%dil, %r8b
-   5ba9c: 45 84 e0                     	testb	%r12b, %r8b
-   5ba9f: 74 17                        	je	0x5bab8 <scoop$1$cb$d96b4b18d972ec178c732a7b98ed8faf23417a50a315c26392b65225672007cd+0x1d8>
-   5baa1: 48 89 08                     	movq	%rcx, (%rax)
-   5baa4: 48 8d 35 a5 b3 09 00         	leaq	0x9b3a5(%rip), %rsi     # 0xf6e50 <scoop$1$td$f247e0162cdacf44b62850481f79fa6702d74919636bd6e6963c4aa99f2a463b>
-   5baab: 48 89 df                     	movq	%rbx, %rdi
-   5baae: 4c 89 f2                     	movq	%r14, %rdx
-   5bab1: e8 ea 8e 00 00               	callq	0x649a0 <scoop_runtime_finish_tlab_alloc>
-   5bab6: eb 14                        	jmp	0x5bacc <scoop$1$cb$d96b4b18d972ec178c732a7b98ed8faf23417a50a315c26392b65225672007cd+0x1ec>
-   5bab8: 48 8d 3d 91 b3 09 00         	leaq	0x9b391(%rip), %rdi     # 0xf6e50 <scoop$1$td$f247e0162cdacf44b62850481f79fa6702d74919636bd6e6963c4aa99f2a463b>
-   5babf: be 18 00 00 00               	movl	$0x18, %esi
-   5bac4: e8 f7 3f 00 00               	callq	0x5fac0 <scoop_runtime_alloc_slow>
-   5bac9: 48 89 c3                     	movq	%rax, %rbx
-   5bacc: 48 89 5d d0                  	movq	%rbx, -0x30(%rbp)
-   5bad0: 48 89 df                     	movq	%rbx, %rdi
-   5bad3: e8 88 dd fd ff               	callq	0x39860 <scoop$1$cb$a3b0b3b444da4d318c9f0b55ebec41b6158ef922455d3603034f013debec7aa8>
-   5bad8: 48 8b 7d d0                  	movq	-0x30(%rbp), %rdi
-   5badc: 48 89 7d a0                  	movq	%rdi, -0x60(%rbp)
-   5bae0: e8 ab ed 00 00               	callq	0x6a890 <scoop_rt_throw>
+000000000005a510 <scoop$1$cb$d96b4b18d972ec178c732a7b98ed8faf23417a50a315c26392b65225672007cd>:
+   5a510: 55                           	pushq	%rbp
+   5a511: 48 89 e5                     	movq	%rsp, %rbp
+   5a514: 41 57                        	pushq	%r15
+   5a516: 41 56                        	pushq	%r14
+   5a518: 41 55                        	pushq	%r13
+   5a51a: 41 54                        	pushq	%r12
+   5a51c: 53                           	pushq	%rbx
+   5a51d: 48 83 ec 38                  	subq	$0x38, %rsp
+   5a521: 89 f3                        	movl	%esi, %ebx
+   5a523: 49 89 fe                     	movq	%rdi, %r14
+   5a526: 64 48 8b 04 25 00 00 00 00   	movq	%fs:0x0, %rax
+   5a52f: 48 8d 80 f0 ff ff ff         	leaq	-0x10(%rax), %rax
+   5a536: 4c 8b 20                     	movq	(%rax), %r12
+   5a539: 4c 89 75 c0                  	movq	%r14, -0x40(%rbp)
+   5a53d: 48 c7 45 a8 00 00 00 00      	movq	$0x0, -0x58(%rbp)
+   5a545: 48 8d 05 a4 a0 13 00         	leaq	0x13a0a4(%rip), %rax    # 0x1945f0 <scoop_thread_gc_epoch>
+   5a54c: 48 8b 00                     	movq	(%rax), %rax
+   5a54f: 48 8d 0d a2 a0 13 00         	leaq	0x13a0a2(%rip), %rcx    # 0x1945f8 <scoop_thread_world_phase>
+   5a556: 8b 31                        	movl	(%rcx), %esi
+   5a558: 41 8b 14 24                  	movl	(%r12), %edx
+   5a55c: 49 8b 4c 24 08               	movq	0x8(%r12), %rcx
+   5a561: 85 f6                        	testl	%esi, %esi
+   5a563: 75 0a                        	jne	0x5a56f <scoop$1$cb$d96b4b18d972ec178c732a7b98ed8faf23417a50a315c26392b65225672007cd+0x5f>
+   5a565: 83 fa 01                     	cmpl	$0x1, %edx
+   5a568: 75 05                        	jne	0x5a56f <scoop$1$cb$d96b4b18d972ec178c732a7b98ed8faf23417a50a315c26392b65225672007cd+0x5f>
+   5a56a: 48 39 c1                     	cmpq	%rax, %rcx
+   5a56d: 74 15                        	je	0x5a584 <scoop$1$cb$d96b4b18d972ec178c732a7b98ed8faf23417a50a315c26392b65225672007cd+0x74>
+   5a56f: 48 8b 45 c0                  	movq	-0x40(%rbp), %rax
+   5a573: 48 89 45 d0                  	movq	%rax, -0x30(%rbp)
+   5a577: e8 c4 40 00 00               	callq	0x5e640 <scoop_rt_safepoint>
+   5a57c: 48 8b 45 d0                  	movq	-0x30(%rbp), %rax
+   5a580: 48 89 45 c0                  	movq	%rax, -0x40(%rbp)
+   5a584: 4c 8b 7d c0                  	movq	-0x40(%rbp), %r15
+   5a588: 48 8d 35 a1 e1 10 00         	leaq	0x10e1a1(%rip), %rsi    # 0x168730 <scoop$1$td$48835de14069ed024217487d0dad48c60d171573b56cb2aa3b46a21999386bb3>
+   5a58f: 4c 89 ff                     	movq	%r15, %rdi
+   5a592: e8 89 3a 01 00               	callq	0x6e020 <scoop_rt_is_instance>
+   5a597: a8 01                        	testb	$0x1, %al
+   5a599: 0f 84 b3 00 00 00            	je	0x5a652 <scoop$1$cb$d96b4b18d972ec178c732a7b98ed8faf23417a50a315c26392b65225672007cd+0x142>
+   5a59f: 49 8b 3f                     	movq	(%r15), %rdi
+   5a5a2: 48 8d 35 87 e1 10 00         	leaq	0x10e187(%rip), %rsi    # 0x168730 <scoop$1$td$48835de14069ed024217487d0dad48c60d171573b56cb2aa3b46a21999386bb3>
+   5a5a9: e8 b2 3a 01 00               	callq	0x6e060 <scoop_rt_itable_lookup>
+   5a5ae: 49 89 c6                     	movq	%rax, %r14
+   5a5b1: 4c 89 7d c8                  	movq	%r15, -0x38(%rbp)
+   5a5b5: 41 bf 78 56 34 12            	movl	$0x12345678, %r15d      # imm = 0x12345678
+   5a5bb: 45 31 ed                     	xorl	%r13d, %r13d
+   5a5be: 66 90                        	nop
+   5a5c0: 48 8d 05 29 a0 13 00         	leaq	0x13a029(%rip), %rax    # 0x1945f0 <scoop_thread_gc_epoch>
+   5a5c7: 48 8b 00                     	movq	(%rax), %rax
+   5a5ca: 48 8d 0d 27 a0 13 00         	leaq	0x13a027(%rip), %rcx    # 0x1945f8 <scoop_thread_world_phase>
+   5a5d1: 8b 31                        	movl	(%rcx), %esi
+   5a5d3: 41 8b 14 24                  	movl	(%r12), %edx
+   5a5d7: 49 8b 4c 24 08               	movq	0x8(%r12), %rcx
+   5a5dc: 85 f6                        	testl	%esi, %esi
+   5a5de: 75 0a                        	jne	0x5a5ea <scoop$1$cb$d96b4b18d972ec178c732a7b98ed8faf23417a50a315c26392b65225672007cd+0xda>
+   5a5e0: 83 fa 01                     	cmpl	$0x1, %edx
+   5a5e3: 75 05                        	jne	0x5a5ea <scoop$1$cb$d96b4b18d972ec178c732a7b98ed8faf23417a50a315c26392b65225672007cd+0xda>
+   5a5e5: 48 39 c1                     	cmpq	%rax, %rcx
+   5a5e8: 74 15                        	je	0x5a5ff <scoop$1$cb$d96b4b18d972ec178c732a7b98ed8faf23417a50a315c26392b65225672007cd+0xef>
+   5a5ea: 48 8b 45 c8                  	movq	-0x38(%rbp), %rax
+   5a5ee: 48 89 45 d0                  	movq	%rax, -0x30(%rbp)
+   5a5f2: e8 49 40 00 00               	callq	0x5e640 <scoop_rt_safepoint>
+   5a5f7: 48 8b 45 d0                  	movq	-0x30(%rbp), %rax
+   5a5fb: 48 89 45 c8                  	movq	%rax, -0x38(%rbp)
+   5a5ff: 41 39 dd                     	cmpl	%ebx, %r13d
+   5a602: 7d 3c                        	jge	0x5a640 <scoop$1$cb$d96b4b18d972ec178c732a7b98ed8faf23417a50a315c26392b65225672007cd+0x130>
+   5a604: 48 8b 45 c8                  	movq	-0x38(%rbp), %rax
+   5a608: 48 89 45 b0                  	movq	%rax, -0x50(%rbp)
+   5a60c: 48 8b 4d b0                  	movq	-0x50(%rbp), %rcx
+   5a610: 48 8b 7d b0                  	movq	-0x50(%rbp), %rdi
+   5a614: 48 89 7d a8                  	movq	%rdi, -0x58(%rbp)
+   5a618: 49 8b 0e                     	movq	(%r14), %rcx
+   5a61b: 48 89 7d b8                  	movq	%rdi, -0x48(%rbp)
+   5a61f: 48 89 45 d0                  	movq	%rax, -0x30(%rbp)
+   5a623: 44 89 fe                     	movl	%r15d, %esi
+   5a626: ff d1                        	callq	*%rcx
+   5a628: 41 89 c7                     	movl	%eax, %r15d
+   5a62b: 48 8b 45 b8                  	movq	-0x48(%rbp), %rax
+   5a62f: 48 8b 4d d0                  	movq	-0x30(%rbp), %rcx
+   5a633: 48 89 4d c8                  	movq	%rcx, -0x38(%rbp)
+   5a637: 48 89 45 a8                  	movq	%rax, -0x58(%rbp)
+   5a63b: 41 ff c5                     	incl	%r13d
+   5a63e: eb 80                        	jmp	0x5a5c0 <scoop$1$cb$d96b4b18d972ec178c732a7b98ed8faf23417a50a315c26392b65225672007cd+0xb0>
+   5a640: 44 89 f8                     	movl	%r15d, %eax
+   5a643: 48 83 c4 38                  	addq	$0x38, %rsp
+   5a647: 5b                           	popq	%rbx
+   5a648: 41 5c                        	popq	%r12
+   5a64a: 41 5d                        	popq	%r13
+   5a64c: 41 5e                        	popq	%r14
+   5a64e: 41 5f                        	popq	%r15
+   5a650: 5d                           	popq	%rbp
+   5a651: c3                           	retq
+   5a652: 48 8b 1d 0f b8 09 00         	movq	0x9b80f(%rip), %rbx     # 0xf5e68 <scoop$1$td$f247e0162cdacf44b62850481f79fa6702d74919636bd6e6963c4aa99f2a463b+0x18>
+   5a659: 49 89 df                     	movq	%rbx, %r15
+   5a65c: 49 f7 df                     	negq	%r15
+   5a65f: 48 b8 ff ff ff ff ff ff ff 7f	movabsq	$0x7fffffffffffffff, %rax # imm = 0x7FFFFFFFFFFFFFFF
+   5a669: 48 01 d8                     	addq	%rbx, %rax
+   5a66c: 48 83 f8 e8                  	cmpq	$-0x18, %rax
+   5a670: 41 0f 92 c4                  	setb	%r12b
+   5a674: 4c 8d 73 17                  	leaq	0x17(%rbx), %r14
+   5a678: 4d 21 fe                     	andq	%r15, %r14
+   5a67b: 64 48 8b 04 25 00 00 00 00   	movq	%fs:0x0, %rax
+   5a684: 48 8d 80 f8 ff ff ff         	leaq	-0x8(%rax), %rax
+   5a68b: 48 8b 00                     	movq	(%rax), %rax
+   5a68e: 48 8b 08                     	movq	(%rax), %rcx
+   5a691: 48 01 cb                     	addq	%rcx, %rbx
+   5a694: 48 ff cb                     	decq	%rbx
+   5a697: 4c 21 fb                     	andq	%r15, %rbx
+   5a69a: 4a 8d 0c 33                  	leaq	(%rbx,%r14), %rcx
+   5a69e: 48 85 db                     	testq	%rbx, %rbx
+   5a6a1: 0f 95 c2                     	setne	%dl
+   5a6a4: 49 81 fe 81 7f 00 00         	cmpq	$0x7f81, %r14           # imm = 0x7F81
+   5a6ab: 40 0f 92 c6                  	setb	%sil
+   5a6af: 48 3b 48 08                  	cmpq	0x8(%rax), %rcx
+   5a6b3: 40 0f 96 c7                  	setbe	%dil
+   5a6b7: 48 83 3d 21 b8 09 00 00      	cmpq	$0x0, 0x9b821(%rip)     # 0xf5ee0 <scoop$1$td$f247e0162cdacf44b62850481f79fa6702d74919636bd6e6963c4aa99f2a463b+0x90>
+   5a6bf: 41 0f 94 c0                  	sete	%r8b
+   5a6c3: 41 20 f0                     	andb	%sil, %r8b
+   5a6c6: 41 20 d0                     	andb	%dl, %r8b
+   5a6c9: 41 20 f8                     	andb	%dil, %r8b
+   5a6cc: 45 84 e0                     	testb	%r12b, %r8b
+   5a6cf: 74 17                        	je	0x5a6e8 <scoop$1$cb$d96b4b18d972ec178c732a7b98ed8faf23417a50a315c26392b65225672007cd+0x1d8>
+   5a6d1: 48 89 08                     	movq	%rcx, (%rax)
+   5a6d4: 48 8d 35 75 b7 09 00         	leaq	0x9b775(%rip), %rsi     # 0xf5e50 <scoop$1$td$f247e0162cdacf44b62850481f79fa6702d74919636bd6e6963c4aa99f2a463b>
+   5a6db: 48 89 df                     	movq	%rbx, %rdi
+   5a6de: 4c 89 f2                     	movq	%r14, %rdx
+   5a6e1: e8 7a 8e 00 00               	callq	0x63560 <scoop_runtime_finish_tlab_alloc>
+   5a6e6: eb 14                        	jmp	0x5a6fc <scoop$1$cb$d96b4b18d972ec178c732a7b98ed8faf23417a50a315c26392b65225672007cd+0x1ec>
+   5a6e8: 48 8d 3d 61 b7 09 00         	leaq	0x9b761(%rip), %rdi     # 0xf5e50 <scoop$1$td$f247e0162cdacf44b62850481f79fa6702d74919636bd6e6963c4aa99f2a463b>
+   5a6ef: be 18 00 00 00               	movl	$0x18, %esi
+   5a6f4: e8 87 3f 00 00               	callq	0x5e680 <scoop_runtime_alloc_slow>
+   5a6f9: 48 89 c3                     	movq	%rax, %rbx
+   5a6fc: 48 89 5d d0                  	movq	%rbx, -0x30(%rbp)
+   5a700: 48 89 df                     	movq	%rbx, %rdi
+   5a703: e8 28 eb fd ff               	callq	0x39230 <scoop$1$cb$a3b0b3b444da4d318c9f0b55ebec41b6158ef922455d3603034f013debec7aa8>
+   5a708: 48 8b 7d d0                  	movq	-0x30(%rbp), %rdi
+   5a70c: 48 89 7d a0                  	movq	%rdi, -0x60(%rbp)
+   5a710: e8 3b ed 00 00               	callq	0x69450 <scoop_rt_throw>
 
 ; convertedEach, MIR fn5, LIR scoop$1$cb$4012dab5872149ded60b8a912e8966def1aeeee9dd24a0444293c16878ed786b
 
-/home/chenxu/repos/scoop/tmp/m34/verified-interfaces-on-linux-gnu/interfaces:	file format elf64-x86-64
+/home/chenxu/repos/scoop/tmp/m34/final-interfaces-on-linux-gnu/interfaces:	file format elf64-x86-64
 
 Disassembly of section .text:
 
-000000000005c580 <scoop$1$cb$4012dab5872149ded60b8a912e8966def1aeeee9dd24a0444293c16878ed786b>:
-   5c580: 55                           	pushq	%rbp
-   5c581: 48 89 e5                     	movq	%rsp, %rbp
-   5c584: 41 57                        	pushq	%r15
-   5c586: 41 56                        	pushq	%r14
-   5c588: 41 55                        	pushq	%r13
-   5c58a: 41 54                        	pushq	%r12
-   5c58c: 53                           	pushq	%rbx
-   5c58d: 48 83 ec 48                  	subq	$0x48, %rsp
-   5c591: 89 75 c4                     	movl	%esi, -0x3c(%rbp)
-   5c594: 49 89 fe                     	movq	%rdi, %r14
-   5c597: 64 48 8b 04 25 00 00 00 00   	movq	%fs:0x0, %rax
-   5c5a0: 48 8d 80 f0 ff ff ff         	leaq	-0x10(%rax), %rax
-   5c5a7: 4c 8b 28                     	movq	(%rax), %r13
-   5c5aa: 4c 89 75 c8                  	movq	%r14, -0x38(%rbp)
-   5c5ae: 48 c7 45 a8 00 00 00 00      	movq	$0x0, -0x58(%rbp)
-   5c5b6: 48 8d 05 33 90 13 00         	leaq	0x139033(%rip), %rax    # 0x1955f0 <scoop_thread_gc_epoch>
-   5c5bd: 48 8b 00                     	movq	(%rax), %rax
-   5c5c0: 48 8d 0d 31 90 13 00         	leaq	0x139031(%rip), %rcx    # 0x1955f8 <scoop_thread_world_phase>
-   5c5c7: 8b 31                        	movl	(%rcx), %esi
-   5c5c9: 41 8b 55 00                  	movl	(%r13), %edx
-   5c5cd: 49 8b 4d 08                  	movq	0x8(%r13), %rcx
-   5c5d1: 85 f6                        	testl	%esi, %esi
-   5c5d3: 75 0a                        	jne	0x5c5df <scoop$1$cb$4012dab5872149ded60b8a912e8966def1aeeee9dd24a0444293c16878ed786b+0x5f>
-   5c5d5: 83 fa 01                     	cmpl	$0x1, %edx
-   5c5d8: 75 05                        	jne	0x5c5df <scoop$1$cb$4012dab5872149ded60b8a912e8966def1aeeee9dd24a0444293c16878ed786b+0x5f>
-   5c5da: 48 39 c1                     	cmpq	%rax, %rcx
-   5c5dd: 74 15                        	je	0x5c5f4 <scoop$1$cb$4012dab5872149ded60b8a912e8966def1aeeee9dd24a0444293c16878ed786b+0x74>
-   5c5df: 48 8b 45 c8                  	movq	-0x38(%rbp), %rax
-   5c5e3: 48 89 45 d0                  	movq	%rax, -0x30(%rbp)
-   5c5e7: e8 94 34 00 00               	callq	0x5fa80 <scoop_rt_safepoint>
-   5c5ec: 48 8b 45 d0                  	movq	-0x30(%rbp), %rax
-   5c5f0: 48 89 45 c8                  	movq	%rax, -0x38(%rbp)
-   5c5f4: 41 be 78 56 34 12            	movl	$0x12345678, %r14d      # imm = 0x12345678
-   5c5fa: 31 db                        	xorl	%ebx, %ebx
-   5c5fc: 4c 8d 3d 2d d1 10 00         	leaq	0x10d12d(%rip), %r15    # 0x169730 <scoop$1$td$48835de14069ed024217487d0dad48c60d171573b56cb2aa3b46a21999386bb3>
-   5c603: 66 66 66 66 2e 0f 1f 84 00 00 00 00 00       	nopw	%cs:(%rax,%rax)
-   5c610: 48 8d 05 d9 8f 13 00         	leaq	0x138fd9(%rip), %rax    # 0x1955f0 <scoop_thread_gc_epoch>
-   5c617: 48 8b 00                     	movq	(%rax), %rax
-   5c61a: 48 8d 0d d7 8f 13 00         	leaq	0x138fd7(%rip), %rcx    # 0x1955f8 <scoop_thread_world_phase>
-   5c621: 8b 31                        	movl	(%rcx), %esi
-   5c623: 41 8b 55 00                  	movl	(%r13), %edx
-   5c627: 49 8b 4d 08                  	movq	0x8(%r13), %rcx
-   5c62b: 85 f6                        	testl	%esi, %esi
-   5c62d: 75 0a                        	jne	0x5c639 <scoop$1$cb$4012dab5872149ded60b8a912e8966def1aeeee9dd24a0444293c16878ed786b+0xb9>
-   5c62f: 83 fa 01                     	cmpl	$0x1, %edx
-   5c632: 75 05                        	jne	0x5c639 <scoop$1$cb$4012dab5872149ded60b8a912e8966def1aeeee9dd24a0444293c16878ed786b+0xb9>
-   5c634: 48 39 c1                     	cmpq	%rax, %rcx
-   5c637: 74 15                        	je	0x5c64e <scoop$1$cb$4012dab5872149ded60b8a912e8966def1aeeee9dd24a0444293c16878ed786b+0xce>
-   5c639: 48 8b 45 c8                  	movq	-0x38(%rbp), %rax
-   5c63d: 48 89 45 d0                  	movq	%rax, -0x30(%rbp)
-   5c641: e8 3a 34 00 00               	callq	0x5fa80 <scoop_rt_safepoint>
-   5c646: 48 8b 45 d0                  	movq	-0x30(%rbp), %rax
-   5c64a: 48 89 45 c8                  	movq	%rax, -0x38(%rbp)
-   5c64e: 3b 5d c4                     	cmpl	-0x3c(%rbp), %ebx
-   5c651: 7d 65                        	jge	0x5c6b8 <scoop$1$cb$4012dab5872149ded60b8a912e8966def1aeeee9dd24a0444293c16878ed786b+0x138>
-   5c653: 4c 8b 65 c8                  	movq	-0x38(%rbp), %r12
-   5c657: 4c 89 e7                     	movq	%r12, %rdi
-   5c65a: 4c 89 fe                     	movq	%r15, %rsi
-   5c65d: e8 fe 2d 01 00               	callq	0x6f460 <scoop_rt_is_instance>
-   5c662: a8 01                        	testb	$0x1, %al
-   5c664: 74 64                        	je	0x5c6ca <scoop$1$cb$4012dab5872149ded60b8a912e8966def1aeeee9dd24a0444293c16878ed786b+0x14a>
-   5c666: 49 8b 3c 24                  	movq	(%r12), %rdi
-   5c66a: 4c 89 fe                     	movq	%r15, %rsi
-   5c66d: e8 2e 2e 01 00               	callq	0x6f4a0 <scoop_rt_itable_lookup>
-   5c672: 4c 89 65 a0                  	movq	%r12, -0x60(%rbp)
-   5c676: 48 8b 4d a0                  	movq	-0x60(%rbp), %rcx
-   5c67a: 48 89 4d b0                  	movq	%rcx, -0x50(%rbp)
-   5c67e: 48 8b 4d b0                  	movq	-0x50(%rbp), %rcx
-   5c682: 48 8b 7d b0                  	movq	-0x50(%rbp), %rdi
-   5c686: 48 89 7d a8                  	movq	%rdi, -0x58(%rbp)
-   5c68a: 48 8b 4d c8                  	movq	-0x38(%rbp), %rcx
-   5c68e: 48 8b 00                     	movq	(%rax), %rax
-   5c691: 48 89 7d b8                  	movq	%rdi, -0x48(%rbp)
-   5c695: 48 89 4d d0                  	movq	%rcx, -0x30(%rbp)
-   5c699: 44 89 f6                     	movl	%r14d, %esi
-   5c69c: ff d0                        	callq	*%rax
-   5c69e: 41 89 c6                     	movl	%eax, %r14d
-   5c6a1: 48 8b 45 b8                  	movq	-0x48(%rbp), %rax
-   5c6a5: 48 8b 4d d0                  	movq	-0x30(%rbp), %rcx
-   5c6a9: 48 89 4d c8                  	movq	%rcx, -0x38(%rbp)
-   5c6ad: 48 89 45 a8                  	movq	%rax, -0x58(%rbp)
-   5c6b1: ff c3                        	incl	%ebx
-   5c6b3: e9 58 ff ff ff               	jmp	0x5c610 <scoop$1$cb$4012dab5872149ded60b8a912e8966def1aeeee9dd24a0444293c16878ed786b+0x90>
-   5c6b8: 44 89 f0                     	movl	%r14d, %eax
-   5c6bb: 48 83 c4 48                  	addq	$0x48, %rsp
-   5c6bf: 5b                           	popq	%rbx
-   5c6c0: 41 5c                        	popq	%r12
-   5c6c2: 41 5d                        	popq	%r13
-   5c6c4: 41 5e                        	popq	%r14
-   5c6c6: 41 5f                        	popq	%r15
-   5c6c8: 5d                           	popq	%rbp
-   5c6c9: c3                           	retq
-   5c6ca: 48 8b 1d 97 a7 09 00         	movq	0x9a797(%rip), %rbx     # 0xf6e68 <scoop$1$td$f247e0162cdacf44b62850481f79fa6702d74919636bd6e6963c4aa99f2a463b+0x18>
-   5c6d1: 49 89 df                     	movq	%rbx, %r15
-   5c6d4: 49 f7 df                     	negq	%r15
-   5c6d7: 48 b8 ff ff ff ff ff ff ff 7f	movabsq	$0x7fffffffffffffff, %rax # imm = 0x7FFFFFFFFFFFFFFF
-   5c6e1: 48 01 d8                     	addq	%rbx, %rax
-   5c6e4: 48 83 f8 e8                  	cmpq	$-0x18, %rax
-   5c6e8: 41 0f 92 c4                  	setb	%r12b
-   5c6ec: 4c 8d 73 17                  	leaq	0x17(%rbx), %r14
-   5c6f0: 4d 21 fe                     	andq	%r15, %r14
-   5c6f3: 64 48 8b 04 25 00 00 00 00   	movq	%fs:0x0, %rax
-   5c6fc: 48 8d 80 f8 ff ff ff         	leaq	-0x8(%rax), %rax
-   5c703: 48 8b 00                     	movq	(%rax), %rax
-   5c706: 48 8b 08                     	movq	(%rax), %rcx
-   5c709: 48 01 cb                     	addq	%rcx, %rbx
-   5c70c: 48 ff cb                     	decq	%rbx
-   5c70f: 4c 21 fb                     	andq	%r15, %rbx
-   5c712: 4a 8d 0c 33                  	leaq	(%rbx,%r14), %rcx
-   5c716: 48 85 db                     	testq	%rbx, %rbx
-   5c719: 0f 95 c2                     	setne	%dl
-   5c71c: 49 81 fe 81 7f 00 00         	cmpq	$0x7f81, %r14           # imm = 0x7F81
-   5c723: 40 0f 92 c6                  	setb	%sil
-   5c727: 48 3b 48 08                  	cmpq	0x8(%rax), %rcx
-   5c72b: 40 0f 96 c7                  	setbe	%dil
-   5c72f: 48 83 3d a9 a7 09 00 00      	cmpq	$0x0, 0x9a7a9(%rip)     # 0xf6ee0 <scoop$1$td$f247e0162cdacf44b62850481f79fa6702d74919636bd6e6963c4aa99f2a463b+0x90>
-   5c737: 41 0f 94 c0                  	sete	%r8b
-   5c73b: 41 20 f0                     	andb	%sil, %r8b
-   5c73e: 41 20 d0                     	andb	%dl, %r8b
-   5c741: 41 20 f8                     	andb	%dil, %r8b
-   5c744: 45 84 e0                     	testb	%r12b, %r8b
-   5c747: 74 17                        	je	0x5c760 <scoop$1$cb$4012dab5872149ded60b8a912e8966def1aeeee9dd24a0444293c16878ed786b+0x1e0>
-   5c749: 48 89 08                     	movq	%rcx, (%rax)
-   5c74c: 48 8d 35 fd a6 09 00         	leaq	0x9a6fd(%rip), %rsi     # 0xf6e50 <scoop$1$td$f247e0162cdacf44b62850481f79fa6702d74919636bd6e6963c4aa99f2a463b>
-   5c753: 48 89 df                     	movq	%rbx, %rdi
-   5c756: 4c 89 f2                     	movq	%r14, %rdx
-   5c759: e8 42 82 00 00               	callq	0x649a0 <scoop_runtime_finish_tlab_alloc>
-   5c75e: eb 14                        	jmp	0x5c774 <scoop$1$cb$4012dab5872149ded60b8a912e8966def1aeeee9dd24a0444293c16878ed786b+0x1f4>
-   5c760: 48 8d 3d e9 a6 09 00         	leaq	0x9a6e9(%rip), %rdi     # 0xf6e50 <scoop$1$td$f247e0162cdacf44b62850481f79fa6702d74919636bd6e6963c4aa99f2a463b>
-   5c767: be 18 00 00 00               	movl	$0x18, %esi
-   5c76c: e8 4f 33 00 00               	callq	0x5fac0 <scoop_runtime_alloc_slow>
-   5c771: 48 89 c3                     	movq	%rax, %rbx
-   5c774: 48 89 5d d0                  	movq	%rbx, -0x30(%rbp)
-   5c778: 48 89 df                     	movq	%rbx, %rdi
-   5c77b: e8 e0 d0 fd ff               	callq	0x39860 <scoop$1$cb$a3b0b3b444da4d318c9f0b55ebec41b6158ef922455d3603034f013debec7aa8>
-   5c780: 48 8b 7d d0                  	movq	-0x30(%rbp), %rdi
-   5c784: 48 89 7d 98                  	movq	%rdi, -0x68(%rbp)
-   5c788: e8 03 e1 00 00               	callq	0x6a890 <scoop_rt_throw>
+000000000005b150 <scoop$1$cb$4012dab5872149ded60b8a912e8966def1aeeee9dd24a0444293c16878ed786b>:
+   5b150: 55                           	pushq	%rbp
+   5b151: 48 89 e5                     	movq	%rsp, %rbp
+   5b154: 41 57                        	pushq	%r15
+   5b156: 41 56                        	pushq	%r14
+   5b158: 41 55                        	pushq	%r13
+   5b15a: 41 54                        	pushq	%r12
+   5b15c: 53                           	pushq	%rbx
+   5b15d: 48 83 ec 48                  	subq	$0x48, %rsp
+   5b161: 89 75 c4                     	movl	%esi, -0x3c(%rbp)
+   5b164: 49 89 fe                     	movq	%rdi, %r14
+   5b167: 64 48 8b 04 25 00 00 00 00   	movq	%fs:0x0, %rax
+   5b170: 48 8d 80 f0 ff ff ff         	leaq	-0x10(%rax), %rax
+   5b177: 4c 8b 28                     	movq	(%rax), %r13
+   5b17a: 4c 89 75 c8                  	movq	%r14, -0x38(%rbp)
+   5b17e: 48 c7 45 a8 00 00 00 00      	movq	$0x0, -0x58(%rbp)
+   5b186: 48 8d 05 63 94 13 00         	leaq	0x139463(%rip), %rax    # 0x1945f0 <scoop_thread_gc_epoch>
+   5b18d: 48 8b 00                     	movq	(%rax), %rax
+   5b190: 48 8d 0d 61 94 13 00         	leaq	0x139461(%rip), %rcx    # 0x1945f8 <scoop_thread_world_phase>
+   5b197: 8b 31                        	movl	(%rcx), %esi
+   5b199: 41 8b 55 00                  	movl	(%r13), %edx
+   5b19d: 49 8b 4d 08                  	movq	0x8(%r13), %rcx
+   5b1a1: 85 f6                        	testl	%esi, %esi
+   5b1a3: 75 0a                        	jne	0x5b1af <scoop$1$cb$4012dab5872149ded60b8a912e8966def1aeeee9dd24a0444293c16878ed786b+0x5f>
+   5b1a5: 83 fa 01                     	cmpl	$0x1, %edx
+   5b1a8: 75 05                        	jne	0x5b1af <scoop$1$cb$4012dab5872149ded60b8a912e8966def1aeeee9dd24a0444293c16878ed786b+0x5f>
+   5b1aa: 48 39 c1                     	cmpq	%rax, %rcx
+   5b1ad: 74 15                        	je	0x5b1c4 <scoop$1$cb$4012dab5872149ded60b8a912e8966def1aeeee9dd24a0444293c16878ed786b+0x74>
+   5b1af: 48 8b 45 c8                  	movq	-0x38(%rbp), %rax
+   5b1b3: 48 89 45 d0                  	movq	%rax, -0x30(%rbp)
+   5b1b7: e8 84 34 00 00               	callq	0x5e640 <scoop_rt_safepoint>
+   5b1bc: 48 8b 45 d0                  	movq	-0x30(%rbp), %rax
+   5b1c0: 48 89 45 c8                  	movq	%rax, -0x38(%rbp)
+   5b1c4: 41 be 78 56 34 12            	movl	$0x12345678, %r14d      # imm = 0x12345678
+   5b1ca: 31 db                        	xorl	%ebx, %ebx
+   5b1cc: 4c 8d 3d 5d d5 10 00         	leaq	0x10d55d(%rip), %r15    # 0x168730 <scoop$1$td$48835de14069ed024217487d0dad48c60d171573b56cb2aa3b46a21999386bb3>
+   5b1d3: 66 66 66 66 2e 0f 1f 84 00 00 00 00 00       	nopw	%cs:(%rax,%rax)
+   5b1e0: 48 8d 05 09 94 13 00         	leaq	0x139409(%rip), %rax    # 0x1945f0 <scoop_thread_gc_epoch>
+   5b1e7: 48 8b 00                     	movq	(%rax), %rax
+   5b1ea: 48 8d 0d 07 94 13 00         	leaq	0x139407(%rip), %rcx    # 0x1945f8 <scoop_thread_world_phase>
+   5b1f1: 8b 31                        	movl	(%rcx), %esi
+   5b1f3: 41 8b 55 00                  	movl	(%r13), %edx
+   5b1f7: 49 8b 4d 08                  	movq	0x8(%r13), %rcx
+   5b1fb: 85 f6                        	testl	%esi, %esi
+   5b1fd: 75 0a                        	jne	0x5b209 <scoop$1$cb$4012dab5872149ded60b8a912e8966def1aeeee9dd24a0444293c16878ed786b+0xb9>
+   5b1ff: 83 fa 01                     	cmpl	$0x1, %edx
+   5b202: 75 05                        	jne	0x5b209 <scoop$1$cb$4012dab5872149ded60b8a912e8966def1aeeee9dd24a0444293c16878ed786b+0xb9>
+   5b204: 48 39 c1                     	cmpq	%rax, %rcx
+   5b207: 74 15                        	je	0x5b21e <scoop$1$cb$4012dab5872149ded60b8a912e8966def1aeeee9dd24a0444293c16878ed786b+0xce>
+   5b209: 48 8b 45 c8                  	movq	-0x38(%rbp), %rax
+   5b20d: 48 89 45 d0                  	movq	%rax, -0x30(%rbp)
+   5b211: e8 2a 34 00 00               	callq	0x5e640 <scoop_rt_safepoint>
+   5b216: 48 8b 45 d0                  	movq	-0x30(%rbp), %rax
+   5b21a: 48 89 45 c8                  	movq	%rax, -0x38(%rbp)
+   5b21e: 3b 5d c4                     	cmpl	-0x3c(%rbp), %ebx
+   5b221: 7d 65                        	jge	0x5b288 <scoop$1$cb$4012dab5872149ded60b8a912e8966def1aeeee9dd24a0444293c16878ed786b+0x138>
+   5b223: 4c 8b 65 c8                  	movq	-0x38(%rbp), %r12
+   5b227: 4c 89 e7                     	movq	%r12, %rdi
+   5b22a: 4c 89 fe                     	movq	%r15, %rsi
+   5b22d: e8 ee 2d 01 00               	callq	0x6e020 <scoop_rt_is_instance>
+   5b232: a8 01                        	testb	$0x1, %al
+   5b234: 74 64                        	je	0x5b29a <scoop$1$cb$4012dab5872149ded60b8a912e8966def1aeeee9dd24a0444293c16878ed786b+0x14a>
+   5b236: 49 8b 3c 24                  	movq	(%r12), %rdi
+   5b23a: 4c 89 fe                     	movq	%r15, %rsi
+   5b23d: e8 1e 2e 01 00               	callq	0x6e060 <scoop_rt_itable_lookup>
+   5b242: 4c 89 65 a0                  	movq	%r12, -0x60(%rbp)
+   5b246: 48 8b 4d a0                  	movq	-0x60(%rbp), %rcx
+   5b24a: 48 89 4d b0                  	movq	%rcx, -0x50(%rbp)
+   5b24e: 48 8b 4d b0                  	movq	-0x50(%rbp), %rcx
+   5b252: 48 8b 7d b0                  	movq	-0x50(%rbp), %rdi
+   5b256: 48 89 7d a8                  	movq	%rdi, -0x58(%rbp)
+   5b25a: 48 8b 4d c8                  	movq	-0x38(%rbp), %rcx
+   5b25e: 48 8b 00                     	movq	(%rax), %rax
+   5b261: 48 89 7d b8                  	movq	%rdi, -0x48(%rbp)
+   5b265: 48 89 4d d0                  	movq	%rcx, -0x30(%rbp)
+   5b269: 44 89 f6                     	movl	%r14d, %esi
+   5b26c: ff d0                        	callq	*%rax
+   5b26e: 41 89 c6                     	movl	%eax, %r14d
+   5b271: 48 8b 45 b8                  	movq	-0x48(%rbp), %rax
+   5b275: 48 8b 4d d0                  	movq	-0x30(%rbp), %rcx
+   5b279: 48 89 4d c8                  	movq	%rcx, -0x38(%rbp)
+   5b27d: 48 89 45 a8                  	movq	%rax, -0x58(%rbp)
+   5b281: ff c3                        	incl	%ebx
+   5b283: e9 58 ff ff ff               	jmp	0x5b1e0 <scoop$1$cb$4012dab5872149ded60b8a912e8966def1aeeee9dd24a0444293c16878ed786b+0x90>
+   5b288: 44 89 f0                     	movl	%r14d, %eax
+   5b28b: 48 83 c4 48                  	addq	$0x48, %rsp
+   5b28f: 5b                           	popq	%rbx
+   5b290: 41 5c                        	popq	%r12
+   5b292: 41 5d                        	popq	%r13
+   5b294: 41 5e                        	popq	%r14
+   5b296: 41 5f                        	popq	%r15
+   5b298: 5d                           	popq	%rbp
+   5b299: c3                           	retq
+   5b29a: 48 8b 1d c7 ab 09 00         	movq	0x9abc7(%rip), %rbx     # 0xf5e68 <scoop$1$td$f247e0162cdacf44b62850481f79fa6702d74919636bd6e6963c4aa99f2a463b+0x18>
+   5b2a1: 49 89 df                     	movq	%rbx, %r15
+   5b2a4: 49 f7 df                     	negq	%r15
+   5b2a7: 48 b8 ff ff ff ff ff ff ff 7f	movabsq	$0x7fffffffffffffff, %rax # imm = 0x7FFFFFFFFFFFFFFF
+   5b2b1: 48 01 d8                     	addq	%rbx, %rax
+   5b2b4: 48 83 f8 e8                  	cmpq	$-0x18, %rax
+   5b2b8: 41 0f 92 c4                  	setb	%r12b
+   5b2bc: 4c 8d 73 17                  	leaq	0x17(%rbx), %r14
+   5b2c0: 4d 21 fe                     	andq	%r15, %r14
+   5b2c3: 64 48 8b 04 25 00 00 00 00   	movq	%fs:0x0, %rax
+   5b2cc: 48 8d 80 f8 ff ff ff         	leaq	-0x8(%rax), %rax
+   5b2d3: 48 8b 00                     	movq	(%rax), %rax
+   5b2d6: 48 8b 08                     	movq	(%rax), %rcx
+   5b2d9: 48 01 cb                     	addq	%rcx, %rbx
+   5b2dc: 48 ff cb                     	decq	%rbx
+   5b2df: 4c 21 fb                     	andq	%r15, %rbx
+   5b2e2: 4a 8d 0c 33                  	leaq	(%rbx,%r14), %rcx
+   5b2e6: 48 85 db                     	testq	%rbx, %rbx
+   5b2e9: 0f 95 c2                     	setne	%dl
+   5b2ec: 49 81 fe 81 7f 00 00         	cmpq	$0x7f81, %r14           # imm = 0x7F81
+   5b2f3: 40 0f 92 c6                  	setb	%sil
+   5b2f7: 48 3b 48 08                  	cmpq	0x8(%rax), %rcx
+   5b2fb: 40 0f 96 c7                  	setbe	%dil
+   5b2ff: 48 83 3d d9 ab 09 00 00      	cmpq	$0x0, 0x9abd9(%rip)     # 0xf5ee0 <scoop$1$td$f247e0162cdacf44b62850481f79fa6702d74919636bd6e6963c4aa99f2a463b+0x90>
+   5b307: 41 0f 94 c0                  	sete	%r8b
+   5b30b: 41 20 f0                     	andb	%sil, %r8b
+   5b30e: 41 20 d0                     	andb	%dl, %r8b
+   5b311: 41 20 f8                     	andb	%dil, %r8b
+   5b314: 45 84 e0                     	testb	%r12b, %r8b
+   5b317: 74 17                        	je	0x5b330 <scoop$1$cb$4012dab5872149ded60b8a912e8966def1aeeee9dd24a0444293c16878ed786b+0x1e0>
+   5b319: 48 89 08                     	movq	%rcx, (%rax)
+   5b31c: 48 8d 35 2d ab 09 00         	leaq	0x9ab2d(%rip), %rsi     # 0xf5e50 <scoop$1$td$f247e0162cdacf44b62850481f79fa6702d74919636bd6e6963c4aa99f2a463b>
+   5b323: 48 89 df                     	movq	%rbx, %rdi
+   5b326: 4c 89 f2                     	movq	%r14, %rdx
+   5b329: e8 32 82 00 00               	callq	0x63560 <scoop_runtime_finish_tlab_alloc>
+   5b32e: eb 14                        	jmp	0x5b344 <scoop$1$cb$4012dab5872149ded60b8a912e8966def1aeeee9dd24a0444293c16878ed786b+0x1f4>
+   5b330: 48 8d 3d 19 ab 09 00         	leaq	0x9ab19(%rip), %rdi     # 0xf5e50 <scoop$1$td$f247e0162cdacf44b62850481f79fa6702d74919636bd6e6963c4aa99f2a463b>
+   5b337: be 18 00 00 00               	movl	$0x18, %esi
+   5b33c: e8 3f 33 00 00               	callq	0x5e680 <scoop_runtime_alloc_slow>
+   5b341: 48 89 c3                     	movq	%rax, %rbx
+   5b344: 48 89 5d d0                  	movq	%rbx, -0x30(%rbp)
+   5b348: 48 89 df                     	movq	%rbx, %rdi
+   5b34b: e8 e0 de fd ff               	callq	0x39230 <scoop$1$cb$a3b0b3b444da4d318c9f0b55ebec41b6158ef922455d3603034f013debec7aa8>
+   5b350: 48 8b 7d d0                  	movq	-0x30(%rbp), %rdi
+   5b354: 48 89 7d 98                  	movq	%rdi, -0x68(%rbp)
+   5b358: e8 f3 e0 00 00               	callq	0x69450 <scoop_rt_throw>

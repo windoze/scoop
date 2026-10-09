@@ -282,11 +282,11 @@ Darwin 专用产物损坏用例按真实新 `.slib` 的 158558 bytes，将截断
 
 ## M34-10i：最终性能对照
 
-两机完成完整 M33／M34 的 28 组比较：八个原有工作负载、四种跨 Cone 接口模式和 1／4 线程纯计算 GC 响应，各 warmup 一次、七轮交替运行。计时与同机编译、CLI 验收及 target 清理分开。修复后十个 executable 与先前候选逐字节相同，Linux 复用原七轮；Darwin 在正式 CLI 迁移及 M34 严格复验完成后首次计时。实际样本、构建、机器码及统计见[最终性能记录](PERFORMANCE.md#m34-10完整变更的同机对照)。
+最终对照包含 M34-10j 的机器布局修复，生产 revision 为 `db40db07a35896c040166fe454ff5d32c9ba3555`。两机各自重新构建十个程序，完成完整 M33／M34 的 28 组比较：八个原有工作负载、四种跨 Cone 接口模式和 1／4 线程纯计算 GC 响应，各 warmup 一次、七轮交替运行。计时与同机编译、CLI 验收及 target 清理分开；两机文件字节均已变化，因此最终报告全部使用重新计时的样本。实际样本、构建、机器码及统计见[最终性能记录](PERFORMANCE.md#m34-10完整变更的同机对照)。
 
-Darwin 的 primitive 墙钟中位数为 139.522 → 17.802 ms，GNU 为 131.647 → 13.491 ms；未知接口模式分别为 185.849 → 15.583 ms、101.299 → 9.397 ms。known 已成为直接调用，getter 内联；未知接口循环没有 itable 查询，每轮转换仍保留查询成本。机器码局部增长、混合核波动、GC 请求数量差异和 GNU 停稳等待 p99 回退同时保留，不把组合收益归给单项优化。
+Darwin 的 primitive 墙钟中位数为 146.502 → 17.891 ms，GNU 为 132.787 → 13.162 ms；未知接口模式分别为 186.262 → 15.649 ms、101.777 → 9.714 ms。known 已成为直接调用，getter 内联；未知接口循环没有 itable 查询，每轮转换仍保留查询成本。机器码局部增长、混合核波动、GC 请求数量差异和 GNU 停稳等待 p99 回退同时保留，不把组合收益归给单项优化。
 
-Darwin 在最终计时前清理 25,118 个中间对象／incremental 文件，逻辑大小 20,470,244,147 bytes；保留有效库、测试程序与配套工具。Linux 回归仍使用已冻结的工具和独立 cache，旧用例仅按实际受影响范围迁移，不再重复 Rust 全工作区测试。
+最终重测前，Darwin 最后一次清理 215 个中间文件、逻辑大小 1,509,504,489 bytes；GNU 为 203 个、1,412,833,095 bytes。两机保留有效库、测试程序与配套工具。旧用例仅按实际受影响范围迁移，不再重复 Rust 全工作区测试。
 
 ## M34-10j：机器布局保留唯一 safepoint
 
@@ -294,4 +294,4 @@ GNU 旧回归的 release 退出用例发现，LLVM 22.1 会在机器基本块布
 
 34 行 LLVM／63 行 Rust 回归先复现 `LLVM stackmap repeats SafepointId 8`，修复后在三个 target 的 debug／release 下完成普通优化、RS4GC、typed roots 检查与真实对象验证。两机格式化和 workspace/all-targets clippy 通过；Darwin 的 363 项、GNU 的 378 项 codegen 测试通过。Darwin 的 40 个 M34 运行 fixture 随后通过严格复验。
 
-退出用例同时拆开 debug／release 的 HIR、MIR 预期：前者的导入 arena 索引、后者的内联结果本来就不同，不能由最后运行的 profile 覆盖公共快照。三个 target 的对应 HIR／MIR 实际字节相同；各自两种 profile、28 个进程、六次快照检查均关闭更新通过，覆盖源码删除后链接、普通／moving／minor GC、缓冲输出、退出码及禁止执行 finally／release／atexit 的原断言。原始记录见[机器布局回归](validation/terminal-poll-machine.json)。机器码和最终性能会在总验收中重新核对。
+退出用例同时拆开 debug／release 的 HIR、MIR 预期：前者的导入 arena 索引、后者的内联结果本来就不同，不能由最后运行的 profile 覆盖公共快照。三个 target 的对应 HIR／MIR 实际字节相同；各自两种 profile、28 个进程、六次快照检查均关闭更新通过，覆盖源码删除后链接、普通／moving／minor GC、缓冲输出、退出码及禁止执行 finally／release／atexit 的原断言。原始记录见[机器布局回归](validation/terminal-poll-machine.json)。机器码与最终性能已重新核对，最新同机样本见 M34-10i。

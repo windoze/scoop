@@ -1,95 +1,116 @@
 {
-  "revision": "fbd98ad0d",
-  "binaries": [
+  "revision": "db40db07a35896c040166fe454ff5d32c9ba3555",
+  "target": "x86_64-unknown-linux-gnu",
+  "results": [
     {
       "kind": "standard",
       "name": "aggregate",
-      "measured_binary": "/home/chenxu/repos/scoop/tmp/m34/final-standard-on-linux-gnu/aggregate",
-      "rebuilt_binary": "/home/chenxu/repos/scoop/tmp/m34/verified-standard-on-linux-gnu/aggregate",
-      "identical_bytes": true,
-      "bytes": 4536744,
-      "sha256": "cba247dc838f0d535cf5da135d18418ea3a9fefffaac1d2fdcd61e01f6e435ea"
+      "before": "/home/chenxu/repos/scoop/tmp/m34/final-standard-on-linux-gnu-before-terminal/aggregate",
+      "after": "/home/chenxu/repos/scoop/tmp/m34/final-standard-on-linux-gnu/aggregate",
+      "before_sha256": "cba247dc838f0d535cf5da135d18418ea3a9fefffaac1d2fdcd61e01f6e435ea",
+      "after_sha256": "8aa4b04862db5dd60856fdb4ec7ab96b35b3f538ba55e44433bbcce0e6c39afd",
+      "before_bytes": 4536744,
+      "after_bytes": 4532648,
+      "identical": false
     },
     {
       "kind": "standard",
       "name": "allocation",
-      "measured_binary": "/home/chenxu/repos/scoop/tmp/m34/final-standard-on-linux-gnu/allocation",
-      "rebuilt_binary": "/home/chenxu/repos/scoop/tmp/m34/verified-standard-on-linux-gnu/allocation",
-      "identical_bytes": true,
-      "bytes": 4543312,
-      "sha256": "09303201f2be6f600bd8585f9282b5849d690e4bf48f6740ca8932437af34750"
+      "before": "/home/chenxu/repos/scoop/tmp/m34/final-standard-on-linux-gnu-before-terminal/allocation",
+      "after": "/home/chenxu/repos/scoop/tmp/m34/final-standard-on-linux-gnu/allocation",
+      "before_sha256": "09303201f2be6f600bd8585f9282b5849d690e4bf48f6740ca8932437af34750",
+      "after_sha256": "00222af215576bf3fd982f4ade2fcee902f55f6bf9cff69e0c3175daa8309f12",
+      "before_bytes": 4543312,
+      "after_bytes": 4535120,
+      "identical": false
     },
     {
       "kind": "standard",
       "name": "arrays",
-      "measured_binary": "/home/chenxu/repos/scoop/tmp/m34/final-standard-on-linux-gnu/arrays",
-      "rebuilt_binary": "/home/chenxu/repos/scoop/tmp/m34/verified-standard-on-linux-gnu/arrays",
-      "identical_bytes": true,
-      "bytes": 4675496,
-      "sha256": "ada311bc8b12fa374efaaf0f850b77ee3dc576a202187f8a692603e47618c0d3"
+      "before": "/home/chenxu/repos/scoop/tmp/m34/final-standard-on-linux-gnu-before-terminal/arrays",
+      "after": "/home/chenxu/repos/scoop/tmp/m34/final-standard-on-linux-gnu/arrays",
+      "before_sha256": "ada311bc8b12fa374efaaf0f850b77ee3dc576a202187f8a692603e47618c0d3",
+      "after_sha256": "c4b219b2a0ddc25576777c77bf821df62602258ada9eb5922ab46aed6967e987",
+      "before_bytes": 4675496,
+      "after_bytes": 4671400,
+      "identical": false
     },
     {
       "kind": "standard",
       "name": "collections",
-      "measured_binary": "/home/chenxu/repos/scoop/tmp/m34/final-standard-on-linux-gnu/collections",
-      "rebuilt_binary": "/home/chenxu/repos/scoop/tmp/m34/verified-standard-on-linux-gnu/collections",
-      "identical_bytes": true,
-      "bytes": 4542712,
-      "sha256": "461f5e4a4f6a89888bb3303c054419e2925f646821bb7b0c58c6fc043d9b8fa2"
+      "before": "/home/chenxu/repos/scoop/tmp/m34/final-standard-on-linux-gnu-before-terminal/collections",
+      "after": "/home/chenxu/repos/scoop/tmp/m34/final-standard-on-linux-gnu/collections",
+      "before_sha256": "461f5e4a4f6a89888bb3303c054419e2925f646821bb7b0c58c6fc043d9b8fa2",
+      "after_sha256": "9d737609680a4e0ebd7a32262e14a4936265b743a241bf5c7bad27a1bd9852bb",
+      "before_bytes": 4542712,
+      "after_bytes": 4538616,
+      "identical": false
     },
     {
       "kind": "standard",
       "name": "old-graph-large",
-      "measured_binary": "/home/chenxu/repos/scoop/tmp/m34/final-standard-on-linux-gnu/old-graph-large",
-      "rebuilt_binary": "/home/chenxu/repos/scoop/tmp/m34/verified-standard-on-linux-gnu/old-graph-large",
-      "identical_bytes": true,
-      "bytes": 4630056,
-      "sha256": "5463c14141d10f360a0aeda76d4a820463a303f5983f1eecd38f7c464b6703a8"
+      "before": "/home/chenxu/repos/scoop/tmp/m34/final-standard-on-linux-gnu-before-terminal/old-graph-large",
+      "after": "/home/chenxu/repos/scoop/tmp/m34/final-standard-on-linux-gnu/old-graph-large",
+      "before_sha256": "5463c14141d10f360a0aeda76d4a820463a303f5983f1eecd38f7c464b6703a8",
+      "after_sha256": "44beaf1b6ba23a023ac5041e1afaed49409998235f96ff54e93cd2cbcd38b055",
+      "before_bytes": 4630056,
+      "after_bytes": 4625960,
+      "identical": false
     },
     {
       "kind": "standard",
       "name": "old-graph",
-      "measured_binary": "/home/chenxu/repos/scoop/tmp/m34/final-standard-on-linux-gnu/old-graph",
-      "rebuilt_binary": "/home/chenxu/repos/scoop/tmp/m34/verified-standard-on-linux-gnu/old-graph",
-      "identical_bytes": true,
-      "bytes": 4630056,
-      "sha256": "4fa51db7fff71dc4ebf2a04fb97ba3f2e9d55ac4cde98beb09c42588d9e564c5"
+      "before": "/home/chenxu/repos/scoop/tmp/m34/final-standard-on-linux-gnu-before-terminal/old-graph",
+      "after": "/home/chenxu/repos/scoop/tmp/m34/final-standard-on-linux-gnu/old-graph",
+      "before_sha256": "4fa51db7fff71dc4ebf2a04fb97ba3f2e9d55ac4cde98beb09c42588d9e564c5",
+      "after_sha256": "3a54e205c7066888c1cc0f0f9b4e3aab54302462f1ba18f7d23a7f48a8479e84",
+      "before_bytes": 4630056,
+      "after_bytes": 4625960,
+      "identical": false
     },
     {
       "kind": "standard",
       "name": "primitive",
-      "measured_binary": "/home/chenxu/repos/scoop/tmp/m34/final-standard-on-linux-gnu/primitive",
-      "rebuilt_binary": "/home/chenxu/repos/scoop/tmp/m34/verified-standard-on-linux-gnu/primitive",
-      "identical_bytes": true,
-      "bytes": 4531320,
-      "sha256": "da3b94dddb9a70c8507c5d10a609c8aa9c69e9cffab607c83330a996ff53c1b3"
+      "before": "/home/chenxu/repos/scoop/tmp/m34/final-standard-on-linux-gnu-before-terminal/primitive",
+      "after": "/home/chenxu/repos/scoop/tmp/m34/final-standard-on-linux-gnu/primitive",
+      "before_sha256": "da3b94dddb9a70c8507c5d10a609c8aa9c69e9cffab607c83330a996ff53c1b3",
+      "after_sha256": "9e6b6402f2b610ede7d782220d7e6b06d3417dfe6aa03a001a43aef2ed43cd24",
+      "before_bytes": 4531320,
+      "after_bytes": 4527224,
+      "identical": false
     },
     {
       "kind": "standard",
       "name": "survivors",
-      "measured_binary": "/home/chenxu/repos/scoop/tmp/m34/final-standard-on-linux-gnu/survivors",
-      "rebuilt_binary": "/home/chenxu/repos/scoop/tmp/m34/verified-standard-on-linux-gnu/survivors",
-      "identical_bytes": true,
-      "bytes": 4636048,
-      "sha256": "b9964e922e5034f8e5739d0db92ff994ccfba5821c7f73387ffbf4a1e197888c"
+      "before": "/home/chenxu/repos/scoop/tmp/m34/final-standard-on-linux-gnu-before-terminal/survivors",
+      "after": "/home/chenxu/repos/scoop/tmp/m34/final-standard-on-linux-gnu/survivors",
+      "before_sha256": "b9964e922e5034f8e5739d0db92ff994ccfba5821c7f73387ffbf4a1e197888c",
+      "after_sha256": "41b3940f6dfea3a09e2eea3439f15dcc004657b6c4812968eb2d93527821f2e8",
+      "before_bytes": 4636048,
+      "after_bytes": 4631952,
+      "identical": false
     },
     {
       "kind": "interfaces",
       "name": "interfaces",
-      "measured_binary": "/home/chenxu/repos/scoop/tmp/m34/final-interfaces-on-linux-gnu/interfaces",
-      "rebuilt_binary": "/home/chenxu/repos/scoop/tmp/m34/verified-interfaces-on-linux-gnu/interfaces",
-      "identical_bytes": true,
-      "bytes": 4640304,
-      "sha256": "b344fabdb0294ed328468687d2fed61b222455ca4956777dfc0583a4be0f8db4"
+      "before": "/home/chenxu/repos/scoop/tmp/m34/final-interfaces-on-linux-gnu-before-terminal/interfaces",
+      "after": "/home/chenxu/repos/scoop/tmp/m34/final-interfaces-on-linux-gnu/interfaces",
+      "before_sha256": "b344fabdb0294ed328468687d2fed61b222455ca4956777dfc0583a4be0f8db4",
+      "after_sha256": "092c5e2d7a285ebc26cfe3e63b02ce524fddb0a401a194ad232e5b00a70d9a2a",
+      "before_bytes": 4640304,
+      "after_bytes": 4636208,
+      "identical": false
     },
     {
       "kind": "poll",
       "name": "poll",
-      "measured_binary": "/home/chenxu/repos/scoop/tmp/m34/final-poll-on-linux-gnu/poll",
-      "rebuilt_binary": "/home/chenxu/repos/scoop/tmp/m34/verified-poll-on-linux-gnu/poll",
-      "identical_bytes": true,
-      "bytes": 4595040,
-      "sha256": "14db8f7ead6bdc72038b0cc93f75aa7d489082b7c9029be19839bcb586aa8d16"
+      "before": "/home/chenxu/repos/scoop/tmp/m34/final-poll-on-linux-gnu-before-terminal/poll",
+      "after": "/home/chenxu/repos/scoop/tmp/m34/final-poll-on-linux-gnu/poll",
+      "before_sha256": "14db8f7ead6bdc72038b0cc93f75aa7d489082b7c9029be19839bcb586aa8d16",
+      "after_sha256": "ec945907edeb386b6b40da0101ca3659d0220e4b2824b964c3c2cf73113a66cc",
+      "before_bytes": 4595040,
+      "after_bytes": 4590944,
+      "identical": false
     }
   ]
 }

@@ -5,14 +5,14 @@
       "modes": {
         "off": {
           "wall_ms": {
-            "median": 36.092375055886805,
-            "minimum": 35.404000082053244,
-            "maximum": 37.74479194544256
+            "median": 36.54962498694658,
+            "minimum": 35.341333015821874,
+            "maximum": 41.186457965523005
           },
           "cpu_ms": {
-            "median": 34.00299999999999,
-            "minimum": 33.33899999999998,
-            "maximum": 35.71000000000001
+            "median": 34.258,
+            "minimum": 33.29599999999998,
+            "maximum": 38.579
           },
           "executable_bytes": 6043512,
           "gc": {
@@ -105,14 +105,14 @@
         },
         "on": {
           "wall_ms": {
-            "median": 10.510374908335507,
-            "minimum": 10.196791030466557,
-            "maximum": 10.84029208868742
+            "median": 10.507832979783416,
+            "minimum": 10.066124959848821,
+            "maximum": 10.864165960811079
           },
           "cpu_ms": {
-            "median": 8.529000000000016,
-            "minimum": 8.07800000000004,
-            "maximum": 9.018
+            "median": 8.590999999999998,
+            "minimum": 8.084000000000021,
+            "maximum": 8.709999999999981
           },
           "executable_bytes": 6057224,
           "gc": {
@@ -237,14 +237,14 @@
               "maximum": 0
             },
             "current_rss_bytes": {
-              "median": 6029312,
+              "median": 6045696,
               "minimum": 6012928,
-              "maximum": 6062080
+              "maximum": 6193152
             },
             "peak_rss_bytes": {
-              "median": 6029312,
+              "median": 6045696,
               "minimum": 6012928,
-              "maximum": 6062080
+              "maximum": 6193152
             },
             "stop_wait_ns": {
               "median": 0,
@@ -360,14 +360,14 @@
       "modes": {
         "off": {
           "wall_ms": {
-            "median": 14.238375006243587,
-            "minimum": 13.89616692904383,
-            "maximum": 14.627625001594424
+            "median": 14.472082955762744,
+            "minimum": 14.266374986618757,
+            "maximum": 15.216832980513573
           },
           "cpu_ms": {
-            "median": 12.25099999999995,
-            "minimum": 11.853000000000037,
-            "maximum": 12.44700000000002
+            "median": 12.407999999999982,
+            "minimum": 11.823000000000008,
+            "maximum": 12.875999999999957
           },
           "executable_bytes": 6048360,
           "gc": {
@@ -432,14 +432,14 @@
               "maximum": 1
             },
             "pause_ns": {
-              "median": 863000,
-              "minimum": 846000,
-              "maximum": 963000
+              "median": 845000,
+              "minimum": 822000,
+              "maximum": 897000
             },
             "maximum_pause_ns": {
-              "median": 406000,
-              "minimum": 401000,
-              "maximum": 488000
+              "median": 401000,
+              "minimum": 383000,
+              "maximum": 430000
             },
             "committed_bytes": {
               "median": 1081344,
@@ -447,9 +447,9 @@
               "maximum": 1081344
             },
             "minor_pause_ns": {
-              "median": 863000,
-              "minimum": 846000,
-              "maximum": 963000
+              "median": 845000,
+              "minimum": 822000,
+              "maximum": 897000
             },
             "full_pause_ns": {
               "median": 0,
@@ -460,14 +460,14 @@
         },
         "on": {
           "wall_ms": {
-            "median": 11.852834024466574,
-            "minimum": 11.475875042378902,
-            "maximum": 12.918208027258515
+            "median": 12.375458958558738,
+            "minimum": 12.14395894203335,
+            "maximum": 14.295666012912989
           },
           "cpu_ms": {
-            "median": 9.770000000000016,
-            "minimum": 9.533000000000028,
-            "maximum": 10.865999999999994
+            "median": 10.204000000000061,
+            "minimum": 10.007999999999981,
+            "maximum": 10.77600000000005
           },
           "executable_bytes": 6061016,
           "gc": {
@@ -532,14 +532,14 @@
               "maximum": 1
             },
             "pause_ns": {
-              "median": 627000,
-              "minimum": 601000,
-              "maximum": 871000
+              "median": 640000,
+              "minimum": 598000,
+              "maximum": 662000
             },
             "maximum_pause_ns": {
-              "median": 223000,
-              "minimum": 212000,
-              "maximum": 315000
+              "median": 226000,
+              "minimum": 202000,
+              "maximum": 232000
             },
             "committed_bytes": {
               "median": 1081344,
@@ -547,9 +547,9 @@
               "maximum": 1081344
             },
             "minor_pause_ns": {
-              "median": 627000,
-              "minimum": 601000,
-              "maximum": 871000
+              "median": 640000,
+              "minimum": 598000,
+              "maximum": 662000
             },
             "full_pause_ns": {
               "median": 0,
@@ -592,24 +592,24 @@
               "maximum": 0
             },
             "current_rss_bytes": {
-              "median": 7503872,
-              "minimum": 7471104,
-              "maximum": 7520256
+              "median": 7569408,
+              "minimum": 7503872,
+              "maximum": 7634944
             },
             "peak_rss_bytes": {
-              "median": 7503872,
-              "minimum": 7471104,
-              "maximum": 7520256
+              "median": 7569408,
+              "minimum": 7503872,
+              "maximum": 7634944
             },
             "stop_wait_ns": {
-              "median": 1000,
+              "median": 0,
               "minimum": 0,
               "maximum": 1000
             },
             "root_scan_ns": {
-              "median": 4000,
+              "median": 3000,
               "minimum": 2000,
-              "maximum": 6000
+              "maximum": 5000
             },
             "remembered_scan_ns": {
               "median": 2000,
@@ -617,34 +617,34 @@
               "maximum": 3000
             },
             "mark_ns": {
-              "median": 4000,
-              "minimum": 2000,
-              "maximum": 5000
+              "median": 3000,
+              "minimum": 1000,
+              "maximum": 4000
             },
             "plan_ns": {
-              "median": 3000,
-              "minimum": 3000,
-              "maximum": 8000
+              "median": 4000,
+              "minimum": 1000,
+              "maximum": 6000
             },
             "copy_ns": {
               "median": 1000,
               "minimum": 1000,
-              "maximum": 1000
+              "maximum": 2000
             },
             "update_ns": {
               "median": 3000,
-              "minimum": 1000,
-              "maximum": 5000
+              "minimum": 2000,
+              "maximum": 3000
             },
             "reclaim_ns": {
-              "median": 604000,
-              "minimum": 580000,
-              "maximum": 835000
+              "median": 617000,
+              "minimum": 576000,
+              "maximum": 636000
             },
             "vm_return_ns": {
               "median": 0,
               "minimum": 0,
-              "maximum": 0
+              "maximum": 1000
             },
             "last_mark_workers": {
               "median": 1,
@@ -715,14 +715,14 @@
       "modes": {
         "off": {
           "wall_ms": {
-            "median": 26.581083075143397,
-            "minimum": 25.772291934117675,
-            "maximum": 26.821541949175298
+            "median": 26.62833291105926,
+            "minimum": 26.31816698703915,
+            "maximum": 26.935583096928895
           },
           "cpu_ms": {
-            "median": 24.39700000000003,
-            "minimum": 24.157999999999983,
-            "maximum": 24.73200000000006
+            "median": 24.54300000000001,
+            "minimum": 24.158999999999903,
+            "maximum": 24.60899999999991
           },
           "executable_bytes": 6243416,
           "gc": {
@@ -787,14 +787,14 @@
               "maximum": 24582
             },
             "pause_ns": {
-              "median": 4573000,
-              "minimum": 4492000,
-              "maximum": 4719000
+              "median": 4599000,
+              "minimum": 4525000,
+              "maximum": 4700000
             },
             "maximum_pause_ns": {
-              "median": 853000,
-              "minimum": 818000,
-              "maximum": 915000
+              "median": 863000,
+              "minimum": 817000,
+              "maximum": 890000
             },
             "committed_bytes": {
               "median": 327680,
@@ -802,27 +802,27 @@
               "maximum": 327680
             },
             "minor_pause_ns": {
-              "median": 3326000,
-              "minimum": 3226000,
-              "maximum": 3456000
+              "median": 3314000,
+              "minimum": 3265000,
+              "maximum": 3439000
             },
             "full_pause_ns": {
-              "median": 1265000,
-              "minimum": 1215000,
-              "maximum": 1305000
+              "median": 1261000,
+              "minimum": 1230000,
+              "maximum": 1299000
             }
           }
         },
         "on": {
           "wall_ms": {
-            "median": 19.422332989051938,
-            "minimum": 19.254291895776987,
-            "maximum": 19.625459099188447
+            "median": 19.413209054619074,
+            "minimum": 19.378499942831695,
+            "maximum": 19.715833012014627
           },
           "cpu_ms": {
-            "median": 17.340000000000035,
-            "minimum": 17.14599999999998,
-            "maximum": 17.466000000000065
+            "median": 17.379999999999896,
+            "minimum": 17.252999999999965,
+            "maximum": 17.505000000000063
           },
           "executable_bytes": 6254264,
           "gc": {
@@ -887,14 +887,14 @@
               "maximum": 24582
             },
             "pause_ns": {
-              "median": 3757000,
-              "minimum": 3694000,
-              "maximum": 3880000
+              "median": 3738000,
+              "minimum": 3689000,
+              "maximum": 3840000
             },
             "maximum_pause_ns": {
-              "median": 727000,
-              "minimum": 710000,
-              "maximum": 740000
+              "median": 724000,
+              "minimum": 701000,
+              "maximum": 790000
             },
             "committed_bytes": {
               "median": 327680,
@@ -902,14 +902,14 @@
               "maximum": 327680
             },
             "minor_pause_ns": {
-              "median": 2814000,
-              "minimum": 2782000,
-              "maximum": 2834000
+              "median": 2809000,
+              "minimum": 2772000,
+              "maximum": 2905000
             },
             "full_pause_ns": {
-              "median": 943000,
-              "minimum": 912000,
-              "maximum": 1055000
+              "median": 929000,
+              "minimum": 906000,
+              "maximum": 948000
             },
             "region_count": {
               "median": 1,
@@ -947,19 +947,19 @@
               "maximum": 0
             },
             "current_rss_bytes": {
-              "median": 8650752,
-              "minimum": 8601600,
-              "maximum": 8847360
+              "median": 8732672,
+              "minimum": 8699904,
+              "maximum": 8962048
             },
             "peak_rss_bytes": {
-              "median": 8650752,
-              "minimum": 8601600,
-              "maximum": 8847360
+              "median": 8732672,
+              "minimum": 8699904,
+              "maximum": 8962048
             },
             "stop_wait_ns": {
-              "median": 0,
+              "median": 1000,
               "minimum": 0,
-              "maximum": 1000
+              "maximum": 2000
             },
             "root_scan_ns": {
               "median": 7000,
@@ -967,38 +967,38 @@
               "maximum": 8000
             },
             "remembered_scan_ns": {
-              "median": 527000,
-              "minimum": 510000,
-              "maximum": 537000
+              "median": 516000,
+              "minimum": 505000,
+              "maximum": 550000
             },
             "mark_ns": {
-              "median": 266000,
-              "minimum": 249000,
-              "maximum": 357000
+              "median": 264000,
+              "minimum": 254000,
+              "maximum": 268000
             },
             "plan_ns": {
-              "median": 166000,
-              "minimum": 158000,
-              "maximum": 184000
+              "median": 173000,
+              "minimum": 156000,
+              "maximum": 205000
             },
             "copy_ns": {
-              "median": 164000,
-              "minimum": 160000,
-              "maximum": 176000
+              "median": 168000,
+              "minimum": 162000,
+              "maximum": 171000
             },
             "update_ns": {
-              "median": 912000,
-              "minimum": 880000,
-              "maximum": 942000
+              "median": 888000,
+              "minimum": 874000,
+              "maximum": 919000
             },
             "reclaim_ns": {
-              "median": 1679000,
-              "minimum": 1662000,
-              "maximum": 1724000
+              "median": 1705000,
+              "minimum": 1680000,
+              "maximum": 1722000
             },
             "vm_return_ns": {
-              "median": 21000,
-              "minimum": 16000,
+              "median": 18000,
+              "minimum": 15000,
               "maximum": 26000
             },
             "last_mark_workers": {
@@ -1070,14 +1070,14 @@
       "modes": {
         "off": {
           "wall_ms": {
-            "median": 32.005124958232045,
-            "minimum": 30.84283391945064,
-            "maximum": 34.50233303010464
+            "median": 32.140875002369285,
+            "minimum": 31.63041698280722,
+            "maximum": 35.49004206433892
           },
           "cpu_ms": {
-            "median": 29.81099999999995,
-            "minimum": 29.121000000000105,
-            "maximum": 32.338999999999906
+            "median": 29.74899999999986,
+            "minimum": 29.575000000000074,
+            "maximum": 33.29899999999999
           },
           "executable_bytes": 6046168,
           "gc": {
@@ -1142,14 +1142,14 @@
               "maximum": 391
             },
             "pause_ns": {
-              "median": 1075000,
-              "minimum": 1038000,
-              "maximum": 1176000
+              "median": 1072000,
+              "minimum": 1012000,
+              "maximum": 1219000
             },
             "maximum_pause_ns": {
               "median": 469000,
-              "minimum": 455000,
-              "maximum": 492000
+              "minimum": 433000,
+              "maximum": 502000
             },
             "committed_bytes": {
               "median": 262144,
@@ -1157,9 +1157,9 @@
               "maximum": 262144
             },
             "minor_pause_ns": {
-              "median": 1075000,
-              "minimum": 1038000,
-              "maximum": 1176000
+              "median": 1072000,
+              "minimum": 1012000,
+              "maximum": 1219000
             },
             "full_pause_ns": {
               "median": 0,
@@ -1170,14 +1170,14 @@
         },
         "on": {
           "wall_ms": {
-            "median": 18.926249933429062,
-            "minimum": 18.678916967473924,
-            "maximum": 19.107374944724143
+            "median": 18.945999909192324,
+            "minimum": 18.867957987822592,
+            "maximum": 19.616625038906932
           },
           "cpu_ms": {
-            "median": 16.734999999999957,
-            "minimum": 16.674000000000035,
-            "maximum": 16.871999999999943
+            "median": 16.858000000000096,
+            "minimum": 16.757999999999758,
+            "maximum": 17.22999999999994
           },
           "executable_bytes": 6060632,
           "gc": {
@@ -1242,14 +1242,14 @@
               "maximum": 277
             },
             "pause_ns": {
-              "median": 794000,
-              "minimum": 773000,
-              "maximum": 940000
+              "median": 800000,
+              "minimum": 787000,
+              "maximum": 834000
             },
             "maximum_pause_ns": {
-              "median": 277000,
-              "minimum": 260000,
-              "maximum": 398000
+              "median": 280000,
+              "minimum": 269000,
+              "maximum": 307000
             },
             "committed_bytes": {
               "median": 229376,
@@ -1257,9 +1257,9 @@
               "maximum": 229376
             },
             "minor_pause_ns": {
-              "median": 794000,
-              "minimum": 773000,
-              "maximum": 940000
+              "median": 800000,
+              "minimum": 787000,
+              "maximum": 834000
             },
             "full_pause_ns": {
               "median": 0,
@@ -1303,56 +1303,56 @@
             },
             "current_rss_bytes": {
               "median": 7716864,
-              "minimum": 7667712,
-              "maximum": 7815168
+              "minimum": 7700480,
+              "maximum": 7798784
             },
             "peak_rss_bytes": {
               "median": 7716864,
-              "minimum": 7667712,
-              "maximum": 7815168
+              "minimum": 7700480,
+              "maximum": 7798784
             },
             "stop_wait_ns": {
               "median": 0,
               "minimum": 0,
-              "maximum": 2000
+              "maximum": 1000
             },
             "root_scan_ns": {
-              "median": 9000,
+              "median": 6000,
               "minimum": 4000,
-              "maximum": 14000
+              "maximum": 9000
             },
             "remembered_scan_ns": {
-              "median": 9000,
-              "minimum": 8000,
-              "maximum": 9000
+              "median": 8000,
+              "minimum": 7000,
+              "maximum": 11000
             },
             "mark_ns": {
               "median": 13000,
-              "minimum": 11000,
+              "minimum": 12000,
               "maximum": 14000
             },
             "plan_ns": {
-              "median": 15000,
-              "minimum": 12000,
-              "maximum": 21000
+              "median": 14000,
+              "minimum": 11000,
+              "maximum": 22000
             },
             "copy_ns": {
               "median": 6000,
-              "minimum": 5000,
-              "maximum": 9000
+              "minimum": 6000,
+              "maximum": 7000
             },
             "update_ns": {
-              "median": 21000,
+              "median": 20000,
               "minimum": 19000,
-              "maximum": 35000
+              "maximum": 21000
             },
             "reclaim_ns": {
-              "median": 711000,
-              "minimum": 691000,
-              "maximum": 831000
+              "median": 724000,
+              "minimum": 711000,
+              "maximum": 741000
             },
             "vm_return_ns": {
-              "median": 0,
+              "median": 1000,
               "minimum": 0,
               "maximum": 1000
             },
@@ -1425,14 +1425,14 @@
       "modes": {
         "off": {
           "wall_ms": {
-            "median": 49.19712501578033,
-            "minimum": 48.75166597776115,
-            "maximum": 50.3917500609532
+            "median": 48.988333088345826,
+            "minimum": 48.69441594928503,
+            "maximum": 50.4188749473542
           },
           "cpu_ms": {
-            "median": 46.74399999999984,
-            "minimum": 46.4539999999998,
-            "maximum": 48.0530000000001
+            "median": 46.654999999999916,
+            "minimum": 46.42899999999992,
+            "maximum": 48.22599999999977
           },
           "executable_bytes": 6177496,
           "gc": {
@@ -1497,14 +1497,14 @@
               "maximum": 196363
             },
             "pause_ns": {
-              "median": 22246000,
-              "minimum": 22155000,
-              "maximum": 23059000
+              "median": 22333000,
+              "minimum": 22249000,
+              "maximum": 23288000
             },
             "maximum_pause_ns": {
-              "median": 5845000,
-              "minimum": 5741000,
-              "maximum": 6094000
+              "median": 5847000,
+              "minimum": 5752000,
+              "maximum": 6414000
             },
             "committed_bytes": {
               "median": 2752512,
@@ -1512,27 +1512,27 @@
               "maximum": 2752512
             },
             "minor_pause_ns": {
-              "median": 10684000,
-              "minimum": 10565000,
-              "maximum": 10930000
+              "median": 10852000,
+              "minimum": 10560000,
+              "maximum": 11167000
             },
             "full_pause_ns": {
-              "median": 11583000,
-              "minimum": 11356000,
-              "maximum": 12129000
+              "median": 11624000,
+              "minimum": 11464000,
+              "maximum": 12121000
             }
           }
         },
         "on": {
           "wall_ms": {
-            "median": 36.865249974653125,
-            "minimum": 36.074584000743926,
-            "maximum": 37.71850001066923
+            "median": 36.4330830052495,
+            "minimum": 36.15724993869662,
+            "maximum": 36.8210410233587
           },
           "cpu_ms": {
-            "median": 34.56799999999996,
-            "minimum": 33.8220000000001,
-            "maximum": 35.130999999999744
+            "median": 34.330000000000084,
+            "minimum": 33.979999999999954,
+            "maximum": 34.587000000000145
           },
           "executable_bytes": 6190008,
           "gc": {
@@ -1597,14 +1597,14 @@
               "maximum": 196363
             },
             "pause_ns": {
-              "median": 19099000,
-              "minimum": 18664000,
-              "maximum": 19741000
+              "median": 18947000,
+              "minimum": 18841000,
+              "maximum": 19108000
             },
             "maximum_pause_ns": {
-              "median": 5176000,
-              "minimum": 5024000,
-              "maximum": 5268000
+              "median": 5079000,
+              "minimum": 5050000,
+              "maximum": 5168000
             },
             "committed_bytes": {
               "median": 2785280,
@@ -1612,14 +1612,14 @@
               "maximum": 2785280
             },
             "minor_pause_ns": {
-              "median": 8929000,
-              "minimum": 8789000,
-              "maximum": 9307000
+              "median": 8840000,
+              "minimum": 8716000,
+              "maximum": 9061000
             },
             "full_pause_ns": {
-              "median": 10167000,
-              "minimum": 9875000,
-              "maximum": 10434000
+              "median": 10069000,
+              "minimum": 10041000,
+              "maximum": 10170000
             },
             "region_count": {
               "median": 1,
@@ -1657,14 +1657,14 @@
               "maximum": 0
             },
             "current_rss_bytes": {
-              "median": 16154624,
-              "minimum": 14467072,
-              "maximum": 16220160
+              "median": 14581760,
+              "minimum": 14565376,
+              "maximum": 16203776
             },
             "peak_rss_bytes": {
-              "median": 16154624,
-              "minimum": 14467072,
-              "maximum": 16220160
+              "median": 14581760,
+              "minimum": 14565376,
+              "maximum": 16203776
             },
             "stop_wait_ns": {
               "median": 1000,
@@ -1672,44 +1672,44 @@
               "maximum": 2000
             },
             "root_scan_ns": {
-              "median": 11000,
-              "minimum": 9000,
-              "maximum": 15000
+              "median": 9000,
+              "minimum": 6000,
+              "maximum": 18000
             },
             "remembered_scan_ns": {
-              "median": 2172000,
-              "minimum": 2106000,
-              "maximum": 2393000
+              "median": 2109000,
+              "minimum": 2094000,
+              "maximum": 2185000
             },
             "mark_ns": {
-              "median": 4867000,
-              "minimum": 4693000,
-              "maximum": 5148000
+              "median": 4818000,
+              "minimum": 4721000,
+              "maximum": 4906000
             },
             "plan_ns": {
-              "median": 793000,
-              "minimum": 711000,
-              "maximum": 830000
+              "median": 723000,
+              "minimum": 710000,
+              "maximum": 831000
             },
             "copy_ns": {
-              "median": 640000,
+              "median": 635000,
               "minimum": 618000,
-              "maximum": 659000
+              "maximum": 677000
             },
             "update_ns": {
-              "median": 7175000,
-              "minimum": 7051000,
-              "maximum": 7248000
+              "median": 7113000,
+              "minimum": 7028000,
+              "maximum": 7323000
             },
             "reclaim_ns": {
-              "median": 3432000,
-              "minimum": 3295000,
-              "maximum": 3469000
+              "median": 3428000,
+              "minimum": 3362000,
+              "maximum": 3528000
             },
             "vm_return_ns": {
-              "median": 33000,
-              "minimum": 31000,
-              "maximum": 48000
+              "median": 28000,
+              "minimum": 27000,
+              "maximum": 37000
             },
             "last_mark_workers": {
               "median": 1,
@@ -1780,14 +1780,14 @@
       "modes": {
         "off": {
           "wall_ms": {
-            "median": 25.762583944015205,
-            "minimum": 25.19462490454316,
-            "maximum": 25.970499962568283
+            "median": 25.518416077829897,
+            "minimum": 25.300875073298812,
+            "maximum": 28.587708016857505
           },
           "cpu_ms": {
-            "median": 23.49800000000024,
-            "minimum": 23.22400000000008,
-            "maximum": 24.07600000000018
+            "median": 23.451000000000167,
+            "minimum": 23.155000000000094,
+            "maximum": 26.54699999999982
           },
           "executable_bytes": 6177496,
           "gc": {
@@ -1852,14 +1852,14 @@
               "maximum": 16395
             },
             "pause_ns": {
-              "median": 3481000,
-              "minimum": 3422000,
-              "maximum": 3590000
+              "median": 3557000,
+              "minimum": 3453000,
+              "maximum": 3685000
             },
             "maximum_pause_ns": {
-              "median": 932000,
-              "minimum": 913000,
-              "maximum": 959000
+              "median": 922000,
+              "minimum": 868000,
+              "maximum": 1059000
             },
             "committed_bytes": {
               "median": 458752,
@@ -1867,27 +1867,27 @@
               "maximum": 458752
             },
             "minor_pause_ns": {
-              "median": 1752000,
-              "minimum": 1715000,
-              "maximum": 1799000
+              "median": 1778000,
+              "minimum": 1730000,
+              "maximum": 1881000
             },
             "full_pause_ns": {
-              "median": 1729000,
-              "minimum": 1707000,
-              "maximum": 1805000
+              "median": 1740000,
+              "minimum": 1686000,
+              "maximum": 1866000
             }
           }
         },
         "on": {
           "wall_ms": {
-            "median": 18.595834029838443,
-            "minimum": 18.08524993248284,
-            "maximum": 20.211750059388578
+            "median": 18.74099997803569,
+            "minimum": 18.37800000794232,
+            "maximum": 19.089084002189338
           },
           "cpu_ms": {
-            "median": 16.42100000000024,
-            "minimum": 15.844999999999887,
-            "maximum": 18.123999999999917
+            "median": 16.494000000000035,
+            "minimum": 16.288999999999998,
+            "maximum": 17.01400000000014
           },
           "executable_bytes": 6190008,
           "gc": {
@@ -1952,14 +1952,14 @@
               "maximum": 16395
             },
             "pause_ns": {
-              "median": 2999000,
-              "minimum": 2911000,
-              "maximum": 3253000
+              "median": 2958000,
+              "minimum": 2912000,
+              "maximum": 3175000
             },
             "maximum_pause_ns": {
-              "median": 711000,
+              "median": 688000,
               "minimum": 679000,
-              "maximum": 783000
+              "maximum": 782000
             },
             "committed_bytes": {
               "median": 491520,
@@ -1967,14 +1967,14 @@
               "maximum": 491520
             },
             "minor_pause_ns": {
-              "median": 1631000,
-              "minimum": 1599000,
-              "maximum": 1768000
+              "median": 1595000,
+              "minimum": 1585000,
+              "maximum": 1698000
             },
             "full_pause_ns": {
-              "median": 1336000,
-              "minimum": 1308000,
-              "maximum": 1485000
+              "median": 1357000,
+              "minimum": 1322000,
+              "maximum": 1477000
             },
             "region_count": {
               "median": 1,
@@ -2012,14 +2012,14 @@
               "maximum": 0
             },
             "current_rss_bytes": {
-              "median": 8290304,
-              "minimum": 8257536,
-              "maximum": 8323072
+              "median": 8355840,
+              "minimum": 8323072,
+              "maximum": 8437760
             },
             "peak_rss_bytes": {
-              "median": 8290304,
-              "minimum": 8257536,
-              "maximum": 8323072
+              "median": 8355840,
+              "minimum": 8323072,
+              "maximum": 8437760
             },
             "stop_wait_ns": {
               "median": 0,
@@ -2027,44 +2027,44 @@
               "maximum": 1000
             },
             "root_scan_ns": {
-              "median": 6000,
-              "minimum": 2000,
+              "median": 7000,
+              "minimum": 6000,
               "maximum": 9000
             },
             "remembered_scan_ns": {
               "median": 20000,
-              "minimum": 19000,
-              "maximum": 23000
+              "minimum": 18000,
+              "maximum": 24000
             },
             "mark_ns": {
-              "median": 586000,
-              "minimum": 563000,
-              "maximum": 635000
+              "median": 587000,
+              "minimum": 560000,
+              "maximum": 684000
             },
             "plan_ns": {
               "median": 16000,
-              "minimum": 12000,
-              "maximum": 27000
+              "minimum": 13000,
+              "maximum": 18000
             },
             "copy_ns": {
-              "median": 8000,
-              "minimum": 3000,
+              "median": 6000,
+              "minimum": 2000,
               "maximum": 9000
             },
             "update_ns": {
-              "median": 586000,
-              "minimum": 572000,
-              "maximum": 657000
+              "median": 577000,
+              "minimum": 571000,
+              "maximum": 609000
             },
             "reclaim_ns": {
-              "median": 1750000,
-              "minimum": 1688000,
-              "maximum": 1863000
+              "median": 1696000,
+              "minimum": 1687000,
+              "maximum": 1791000
             },
             "vm_return_ns": {
-              "median": 17000,
-              "minimum": 11000,
-              "maximum": 18000
+              "median": 18000,
+              "minimum": 13000,
+              "maximum": 30000
             },
             "last_mark_workers": {
               "median": 1,
@@ -2135,14 +2135,14 @@
       "modes": {
         "off": {
           "wall_ms": {
-            "median": 139.52212501317263,
-            "minimum": 136.21754199266434,
-            "maximum": 175.71145796682686
+            "median": 146.5017079608515,
+            "minimum": 137.66695791855454,
+            "maximum": 150.36754205357283
           },
           "cpu_ms": {
-            "median": 137.04300000000018,
-            "minimum": 133.98799999999986,
-            "maximum": 173.4459999999998
+            "median": 144.40100000000047,
+            "minimum": 135.6630000000002,
+            "maximum": 148.33199999999968
           },
           "executable_bytes": 6034840,
           "gc": {
@@ -2235,14 +2235,14 @@
         },
         "on": {
           "wall_ms": {
-            "median": 17.802290967665613,
-            "minimum": 17.291333060711622,
-            "maximum": 18.63675005733967
+            "median": 17.890708055347204,
+            "minimum": 17.789500067010522,
+            "maximum": 18.157124985009432
           },
           "cpu_ms": {
-            "median": 15.649999999999913,
-            "minimum": 15.459999999999974,
-            "maximum": 16.428000000000083
+            "median": 15.789999999999582,
+            "minimum": 15.652000000000221,
+            "maximum": 15.97500000000024
           },
           "executable_bytes": 6048536,
           "gc": {
@@ -2367,14 +2367,14 @@
               "maximum": 0
             },
             "current_rss_bytes": {
-              "median": 6029312,
-              "minimum": 5996544,
-              "maximum": 6144000
+              "median": 6078464,
+              "minimum": 6012928,
+              "maximum": 6078464
             },
             "peak_rss_bytes": {
-              "median": 6029312,
-              "minimum": 5996544,
-              "maximum": 6144000
+              "median": 6078464,
+              "minimum": 6012928,
+              "maximum": 6078464
             },
             "stop_wait_ns": {
               "median": 0,
@@ -2490,14 +2490,14 @@
       "modes": {
         "off": {
           "wall_ms": {
-            "median": 68.3893330860883,
-            "minimum": 67.96529202256352,
-            "maximum": 69.67237498611212
+            "median": 69.52545803505927,
+            "minimum": 68.24775005225092,
+            "maximum": 71.10425003338605
           },
           "cpu_ms": {
-            "median": 66.2009999999999,
-            "minimum": 65.59700000000002,
-            "maximum": 67.36299999999993
+            "median": 66.92199999999987,
+            "minimum": 65.84100000000004,
+            "maximum": 68.72299999999942
           },
           "executable_bytes": 6205624,
           "gc": {
@@ -2562,14 +2562,14 @@
               "maximum": 408832
             },
             "pause_ns": {
-              "median": 44258000,
-              "minimum": 43773000,
-              "maximum": 44718000
+              "median": 44495000,
+              "minimum": 43783000,
+              "maximum": 45694000
             },
             "maximum_pause_ns": {
-              "median": 17440000,
-              "minimum": 17084000,
-              "maximum": 17680000
+              "median": 17328000,
+              "minimum": 17288000,
+              "maximum": 18182000
             },
             "committed_bytes": {
               "median": 7045120,
@@ -2577,27 +2577,27 @@
               "maximum": 7045120
             },
             "minor_pause_ns": {
-              "median": 26893000,
-              "minimum": 26578000,
-              "maximum": 27146000
+              "median": 27016000,
+              "minimum": 26455000,
+              "maximum": 27512000
             },
             "full_pause_ns": {
-              "median": 17440000,
-              "minimum": 17084000,
-              "maximum": 17680000
+              "median": 17328000,
+              "minimum": 17288000,
+              "maximum": 18182000
             }
           }
         },
         "on": {
           "wall_ms": {
-            "median": 47.562875086441636,
-            "minimum": 47.39029204938561,
-            "maximum": 47.808750066906214
+            "median": 47.9754579719156,
+            "minimum": 47.568999929353595,
+            "maximum": 49.54274999909103
           },
           "cpu_ms": {
-            "median": 51.00699999999969,
-            "minimum": 50.34099999999958,
-            "maximum": 51.792000000000286
+            "median": 51.126000000000396,
+            "minimum": 50.794000000000175,
+            "maximum": 52.62400000000051
           },
           "executable_bytes": 6199544,
           "gc": {
@@ -2662,14 +2662,14 @@
               "maximum": 408832
             },
             "pause_ns": {
-              "median": 31557000,
-              "minimum": 31305000,
-              "maximum": 31703000
+              "median": 31746000,
+              "minimum": 31517000,
+              "maximum": 32549000
             },
             "maximum_pause_ns": {
-              "median": 10284000,
-              "minimum": 10040000,
-              "maximum": 10425000
+              "median": 10358000,
+              "minimum": 10155000,
+              "maximum": 10550000
             },
             "committed_bytes": {
               "median": 7077888,
@@ -2677,14 +2677,14 @@
               "maximum": 7077888
             },
             "minor_pause_ns": {
-              "median": 21265000,
-              "minimum": 21068000,
-              "maximum": 21431000
+              "median": 21440000,
+              "minimum": 21185000,
+              "maximum": 22067000
             },
             "full_pause_ns": {
-              "median": 10284000,
-              "minimum": 10040000,
-              "maximum": 10425000
+              "median": 10358000,
+              "minimum": 10155000,
+              "maximum": 10550000
             },
             "region_count": {
               "median": 1,
@@ -2722,59 +2722,59 @@
               "maximum": 0
             },
             "current_rss_bytes": {
-              "median": 22577152,
-              "minimum": 21004288,
-              "maximum": 22724608
+              "median": 22593536,
+              "minimum": 21053440,
+              "maximum": 22740992
             },
             "peak_rss_bytes": {
-              "median": 22675456,
-              "minimum": 21102592,
+              "median": 22691840,
+              "minimum": 21151744,
               "maximum": 22822912
             },
             "stop_wait_ns": {
-              "median": 1000,
+              "median": 0,
               "minimum": 0,
-              "maximum": 2000
+              "maximum": 1000
             },
             "root_scan_ns": {
               "median": 13000,
-              "minimum": 8000,
-              "maximum": 16000
+              "minimum": 10000,
+              "maximum": 18000
             },
             "remembered_scan_ns": {
-              "median": 2858000,
-              "minimum": 2794000,
-              "maximum": 2882000
+              "median": 2849000,
+              "minimum": 2771000,
+              "maximum": 2953000
             },
             "mark_ns": {
-              "median": 5448000,
-              "minimum": 5383000,
-              "maximum": 5697000
+              "median": 5600000,
+              "minimum": 5460000,
+              "maximum": 5763000
             },
             "plan_ns": {
-              "median": 1933000,
-              "minimum": 1909000,
-              "maximum": 2153000
+              "median": 2000000,
+              "minimum": 1924000,
+              "maximum": 2060000
             },
             "copy_ns": {
-              "median": 1937000,
-              "minimum": 1900000,
-              "maximum": 2002000
+              "median": 2004000,
+              "minimum": 1886000,
+              "maximum": 2053000
             },
             "update_ns": {
-              "median": 14993000,
-              "minimum": 14933000,
-              "maximum": 15211000
+              "median": 15111000,
+              "minimum": 14919000,
+              "maximum": 15392000
             },
             "reclaim_ns": {
-              "median": 4133000,
-              "minimum": 4099000,
-              "maximum": 4222000
+              "median": 4177000,
+              "minimum": 4114000,
+              "maximum": 4326000
             },
             "vm_return_ns": {
-              "median": 15000,
-              "minimum": 10000,
-              "maximum": 25000
+              "median": 13000,
+              "minimum": 9000,
+              "maximum": 19000
             },
             "last_mark_workers": {
               "median": 4,
@@ -2798,8 +2798,8 @@
             },
             "mark_tasks": {
               "median": 6555,
-              "minimum": 6553,
-              "maximum": 6559
+              "minimum": 6552,
+              "maximum": 6558
             },
             "array_tasks": {
               "median": 16,
@@ -2807,9 +2807,9 @@
               "maximum": 16
             },
             "stolen_tasks": {
-              "median": 62,
+              "median": 79,
               "minimum": 37,
-              "maximum": 100
+              "maximum": 85
             },
             "region_mappings": {
               "median": 2,
@@ -2847,14 +2847,14 @@
       "modes": {
         "off": {
           "wall_ms": {
-            "median": 37.46261200285517,
-            "minimum": 32.160182017832994,
-            "maximum": 40.96147298696451
+            "median": 35.58924200478941,
+            "minimum": 32.37812002771534,
+            "maximum": 46.14492799737491
           },
           "cpu_ms": {
-            "median": 37.247999999999976,
-            "minimum": 31.97000000000004,
-            "maximum": 40.55099999999999
+            "median": 35.457,
+            "minimum": 32.190999999999995,
+            "maximum": 45.97099999999996
           },
           "executable_bytes": 4509192,
           "gc": {
@@ -2947,16 +2947,16 @@
         },
         "on": {
           "wall_ms": {
-            "median": 6.370596005581319,
-            "minimum": 5.197402992052957,
-            "maximum": 8.847429999150336
+            "median": 8.618466992629692,
+            "minimum": 5.140944005688652,
+            "maximum": 8.726808009669185
           },
           "cpu_ms": {
-            "median": 6.240999999999993,
-            "minimum": 5.099999999999986,
-            "maximum": 8.746999999999996
+            "median": 8.473000000000019,
+            "minimum": 5.042999999999992,
+            "maximum": 8.562000000000012
           },
-          "executable_bytes": 4536744,
+          "executable_bytes": 4532648,
           "gc": {
             "scoop_gc": {
               "median": 1,
@@ -3079,14 +3079,14 @@
               "maximum": 0
             },
             "current_rss_bytes": {
-              "median": 4796416,
-              "minimum": 4763648,
-              "maximum": 4849664
+              "median": 4767744,
+              "minimum": 4710400,
+              "maximum": 4792320
             },
             "peak_rss_bytes": {
-              "median": 27746304,
-              "minimum": 27746304,
-              "maximum": 27746304
+              "median": 27955200,
+              "minimum": 27955200,
+              "maximum": 27955200
             },
             "stop_wait_ns": {
               "median": 0,
@@ -3202,14 +3202,14 @@
       "modes": {
         "off": {
           "wall_ms": {
-            "median": 13.786186987999827,
-            "minimum": 12.614023988135159,
-            "maximum": 15.776407002704218
+            "median": 14.996608981164172,
+            "minimum": 11.343685007886961,
+            "maximum": 16.77195299998857
           },
           "cpu_ms": {
-            "median": 13.632999999999944,
-            "minimum": 12.457999999999975,
-            "maximum": 15.600000000000051
+            "median": 14.82499999999999,
+            "minimum": 11.237000000000004,
+            "maximum": 16.653999999999975
           },
           "executable_bytes": 4512264,
           "gc": {
@@ -3274,14 +3274,14 @@
               "maximum": 1
             },
             "pause_ns": {
-              "median": 2292814,
-              "minimum": 2116708,
-              "maximum": 2615863
+              "median": 2318142,
+              "minimum": 2036780,
+              "maximum": 2779846
             },
             "maximum_pause_ns": {
-              "median": 1511129,
-              "minimum": 1318885,
-              "maximum": 1806316
+              "median": 1574635,
+              "minimum": 1271200,
+              "maximum": 1959553
             },
             "committed_bytes": {
               "median": 1081344,
@@ -3289,9 +3289,9 @@
               "maximum": 1081344
             },
             "minor_pause_ns": {
-              "median": 2292814,
-              "minimum": 2116708,
-              "maximum": 2615863
+              "median": 2318142,
+              "minimum": 2036780,
+              "maximum": 2779846
             },
             "full_pause_ns": {
               "median": 0,
@@ -3302,16 +3302,16 @@
         },
         "on": {
           "wall_ms": {
-            "median": 9.681536990683526,
-            "minimum": 8.578174019930884,
-            "maximum": 11.915409006178379
+            "median": 9.178346983389929,
+            "minimum": 7.317684008739889,
+            "maximum": 11.702452000463381
           },
           "cpu_ms": {
-            "median": 9.575000000000006,
-            "minimum": 8.382000000000014,
-            "maximum": 11.747000000000007
+            "median": 9.06999999999996,
+            "minimum": 7.157000000000004,
+            "maximum": 11.430000000000023
           },
-          "executable_bytes": 4543312,
+          "executable_bytes": 4535120,
           "gc": {
             "scoop_gc": {
               "median": 1,
@@ -3374,14 +3374,14 @@
               "maximum": 1
             },
             "pause_ns": {
-              "median": 776465,
-              "minimum": 686827,
-              "maximum": 997607
+              "median": 747993,
+              "minimum": 715202,
+              "maximum": 1110557
             },
             "maximum_pause_ns": {
-              "median": 290213,
-              "minimum": 234211,
-              "maximum": 412260
+              "median": 282395,
+              "minimum": 252655,
+              "maximum": 401151
             },
             "committed_bytes": {
               "median": 1081344,
@@ -3389,9 +3389,9 @@
               "maximum": 1081344
             },
             "minor_pause_ns": {
-              "median": 776465,
-              "minimum": 686827,
-              "maximum": 997607
+              "median": 747993,
+              "minimum": 715202,
+              "maximum": 1110557
             },
             "full_pause_ns": {
               "median": 0,
@@ -3434,59 +3434,59 @@
               "maximum": 0
             },
             "current_rss_bytes": {
-              "median": 6283264,
-              "minimum": 6238208,
-              "maximum": 6287360
+              "median": 6242304,
+              "minimum": 6213632,
+              "maximum": 6344704
             },
             "peak_rss_bytes": {
-              "median": 27824128,
-              "minimum": 27824128,
-              "maximum": 27824128
+              "median": 27955200,
+              "minimum": 27955200,
+              "maximum": 27955200
             },
             "stop_wait_ns": {
-              "median": 414,
-              "minimum": 296,
-              "maximum": 978
+              "median": 383,
+              "minimum": 342,
+              "maximum": 473
             },
             "root_scan_ns": {
-              "median": 3774,
-              "minimum": 3054,
-              "maximum": 5407
+              "median": 3458,
+              "minimum": 3222,
+              "maximum": 4212
             },
             "remembered_scan_ns": {
-              "median": 2118,
-              "minimum": 1924,
-              "maximum": 3401
+              "median": 2101,
+              "minimum": 1831,
+              "maximum": 3844
             },
             "mark_ns": {
-              "median": 3451,
-              "minimum": 3019,
-              "maximum": 7262
+              "median": 3830,
+              "minimum": 3105,
+              "maximum": 4454
             },
             "plan_ns": {
-              "median": 13527,
-              "minimum": 8777,
-              "maximum": 16539
+              "median": 10208,
+              "minimum": 8993,
+              "maximum": 13736
             },
             "copy_ns": {
-              "median": 990,
-              "minimum": 771,
-              "maximum": 1437
+              "median": 1043,
+              "minimum": 709,
+              "maximum": 3122
             },
             "update_ns": {
-              "median": 3077,
-              "minimum": 2760,
-              "maximum": 5359
+              "median": 2975,
+              "minimum": 2786,
+              "maximum": 5566
             },
             "reclaim_ns": {
-              "median": 730079,
-              "minimum": 650798,
-              "maximum": 931360
+              "median": 705269,
+              "minimum": 678312,
+              "maximum": 1055418
             },
             "vm_return_ns": {
-              "median": 143,
+              "median": 181,
               "minimum": 105,
-              "maximum": 360
+              "maximum": 203
             },
             "last_mark_workers": {
               "median": 1,
@@ -3557,14 +3557,14 @@
       "modes": {
         "off": {
           "wall_ms": {
-            "median": 25.222167023457587,
-            "minimum": 24.130506004439667,
-            "maximum": 27.076073019998148
+            "median": 26.909134991001338,
+            "minimum": 23.654338001506403,
+            "maximum": 28.47190198372118
           },
           "cpu_ms": {
-            "median": 25.090000000000014,
-            "minimum": 23.973999999999997,
-            "maximum": 26.842000000000102
+            "median": 26.759999999999966,
+            "minimum": 23.505999999999986,
+            "maximum": 28.328000000000007
           },
           "executable_bytes": 4649440,
           "gc": {
@@ -3629,14 +3629,14 @@
               "maximum": 24582
             },
             "pause_ns": {
-              "median": 6687999,
-              "minimum": 6423601,
-              "maximum": 6831289
+              "median": 6879774,
+              "minimum": 6358351,
+              "maximum": 8086338
             },
             "maximum_pause_ns": {
-              "median": 1377578,
-              "minimum": 1228552,
-              "maximum": 1584853
+              "median": 1674006,
+              "minimum": 1218113,
+              "maximum": 2009661
             },
             "committed_bytes": {
               "median": 327680,
@@ -3644,29 +3644,29 @@
               "maximum": 327680
             },
             "minor_pause_ns": {
-              "median": 4389841,
-              "minimum": 4323701,
-              "maximum": 4496048
+              "median": 4428742,
+              "minimum": 4285326,
+              "maximum": 5324522
             },
             "full_pause_ns": {
-              "median": 2191951,
-              "minimum": 2074310,
-              "maximum": 2410379
+              "median": 2521276,
+              "minimum": 2056949,
+              "maximum": 2797130
             }
           }
         },
         "on": {
           "wall_ms": {
-            "median": 16.067386022768915,
-            "minimum": 15.224403003230691,
-            "maximum": 18.3350789884571
+            "median": 17.677449999609962,
+            "minimum": 15.077435004059225,
+            "maximum": 23.502782016294077
           },
           "cpu_ms": {
-            "median": 15.905999999999947,
-            "minimum": 15.098999999999862,
-            "maximum": 17.673999999999896
+            "median": 17.51500000000007,
+            "minimum": 14.973999999999904,
+            "maximum": 23.34099999999996
           },
-          "executable_bytes": 4675496,
+          "executable_bytes": 4671400,
           "gc": {
             "scoop_gc": {
               "median": 1,
@@ -3729,14 +3729,14 @@
               "maximum": 24582
             },
             "pause_ns": {
-              "median": 4633955,
-              "minimum": 4512945,
-              "maximum": 5421500
+              "median": 4767146,
+              "minimum": 4490300,
+              "maximum": 6206633
             },
             "maximum_pause_ns": {
-              "median": 935297,
-              "minimum": 906583,
-              "maximum": 1626153
+              "median": 938291,
+              "minimum": 910607,
+              "maximum": 1453491
             },
             "committed_bytes": {
               "median": 327680,
@@ -3744,14 +3744,14 @@
               "maximum": 327680
             },
             "minor_pause_ns": {
-              "median": 3560492,
-              "minimum": 3459638,
-              "maximum": 4342330
+              "median": 3562541,
+              "minimum": 3464203,
+              "maximum": 4934111
             },
             "full_pause_ns": {
-              "median": 1053307,
-              "minimum": 1029086,
-              "maximum": 1079170
+              "median": 1080041,
+              "minimum": 1023203,
+              "maximum": 1272522
             },
             "region_count": {
               "median": 1,
@@ -3789,59 +3789,59 @@
               "maximum": 0
             },
             "current_rss_bytes": {
-              "median": 6090752,
-              "minimum": 6029312,
-              "maximum": 6090752
+              "median": 6029312,
+              "minimum": 5988352,
+              "maximum": 6086656
             },
             "peak_rss_bytes": {
-              "median": 32583680,
-              "minimum": 32583680,
-              "maximum": 32583680
+              "median": 32497664,
+              "minimum": 32497664,
+              "maximum": 32497664
             },
             "stop_wait_ns": {
-              "median": 549,
-              "minimum": 535,
-              "maximum": 590
+              "median": 652,
+              "minimum": 466,
+              "maximum": 923
             },
             "root_scan_ns": {
-              "median": 6048,
-              "minimum": 5711,
-              "maximum": 6694
+              "median": 8923,
+              "minimum": 5851,
+              "maximum": 11175
             },
             "remembered_scan_ns": {
-              "median": 442291,
-              "minimum": 436261,
-              "maximum": 454168
+              "median": 440538,
+              "minimum": 431933,
+              "maximum": 693360
             },
             "mark_ns": {
-              "median": 226077,
-              "minimum": 219704,
-              "maximum": 239180
+              "median": 225931,
+              "minimum": 221617,
+              "maximum": 314154
             },
             "plan_ns": {
-              "median": 284038,
-              "minimum": 274449,
-              "maximum": 323610
+              "median": 306774,
+              "minimum": 280346,
+              "maximum": 476969
             },
             "copy_ns": {
-              "median": 335540,
-              "minimum": 319063,
-              "maximum": 351517
+              "median": 325993,
+              "minimum": 314937,
+              "maximum": 413883
             },
             "update_ns": {
-              "median": 1322158,
-              "minimum": 1303836,
-              "maximum": 2031594
+              "median": 1387887,
+              "minimum": 1295169,
+              "maximum": 1657600
             },
             "reclaim_ns": {
-              "median": 1894892,
-              "minimum": 1853384,
-              "maximum": 2011626
+              "median": 1914489,
+              "minimum": 1860023,
+              "maximum": 2541431
             },
             "vm_return_ns": {
-              "median": 35565,
-              "minimum": 34800,
-              "maximum": 80527
+              "median": 37915,
+              "minimum": 35450,
+              "maximum": 80676
             },
             "last_mark_workers": {
               "median": 1,
@@ -3912,14 +3912,14 @@
       "modes": {
         "off": {
           "wall_ms": {
-            "median": 26.22414700454101,
-            "minimum": 24.499938008375466,
-            "maximum": 28.686912992270663
+            "median": 25.743275007698685,
+            "minimum": 24.870774010196328,
+            "maximum": 28.197976003866643
           },
           "cpu_ms": {
-            "median": 26.04200000000005,
-            "minimum": 24.341000000000058,
-            "maximum": 28.475000000000016
+            "median": 25.584999999999955,
+            "minimum": 24.76700000000008,
+            "maximum": 28.051999999999925
           },
           "executable_bytes": 4514656,
           "gc": {
@@ -3984,14 +3984,14 @@
               "maximum": 391
             },
             "pause_ns": {
-              "median": 2207073,
-              "minimum": 2106772,
-              "maximum": 2314501
+              "median": 2230869,
+              "minimum": 2045835,
+              "maximum": 2329980
             },
             "maximum_pause_ns": {
-              "median": 1345846,
-              "minimum": 1242478,
-              "maximum": 1456058
+              "median": 1342687,
+              "minimum": 1224185,
+              "maximum": 1417647
             },
             "committed_bytes": {
               "median": 262144,
@@ -3999,9 +3999,9 @@
               "maximum": 262144
             },
             "minor_pause_ns": {
-              "median": 2207073,
-              "minimum": 2106772,
-              "maximum": 2314501
+              "median": 2230869,
+              "minimum": 2045835,
+              "maximum": 2329980
             },
             "full_pause_ns": {
               "median": 0,
@@ -4012,16 +4012,16 @@
         },
         "on": {
           "wall_ms": {
-            "median": 15.630617999704555,
-            "minimum": 13.022757018916309,
-            "maximum": 18.51474799332209
+            "median": 13.7235940201208,
+            "minimum": 12.719280988676473,
+            "maximum": 17.561315995408222
           },
           "cpu_ms": {
-            "median": 15.529999999999946,
-            "minimum": 12.918999999999972,
-            "maximum": 18.332000000000072
+            "median": 13.618000000000116,
+            "minimum": 12.566999999999883,
+            "maximum": 17.39700000000008
           },
-          "executable_bytes": 4542712,
+          "executable_bytes": 4538616,
           "gc": {
             "scoop_gc": {
               "median": 1,
@@ -4084,14 +4084,14 @@
               "maximum": 277
             },
             "pause_ns": {
-              "median": 963298,
-              "minimum": 919581,
-              "maximum": 1112496
+              "median": 1012288,
+              "minimum": 946962,
+              "maximum": 1127505
             },
             "maximum_pause_ns": {
-              "median": 338598,
-              "minimum": 308294,
-              "maximum": 453917
+              "median": 345815,
+              "minimum": 333037,
+              "maximum": 483061
             },
             "committed_bytes": {
               "median": 229376,
@@ -4099,9 +4099,9 @@
               "maximum": 229376
             },
             "minor_pause_ns": {
-              "median": 963298,
-              "minimum": 919581,
-              "maximum": 1112496
+              "median": 1012288,
+              "minimum": 946962,
+              "maximum": 1127505
             },
             "full_pause_ns": {
               "median": 0,
@@ -4145,58 +4145,58 @@
             },
             "current_rss_bytes": {
               "median": 6369280,
-              "minimum": 6225920,
-              "maximum": 6389760
+              "minimum": 6336512,
+              "maximum": 6385664
             },
             "peak_rss_bytes": {
-              "median": 32583680,
-              "minimum": 32583680,
-              "maximum": 32583680
+              "median": 32497664,
+              "minimum": 32497664,
+              "maximum": 32497664
             },
             "stop_wait_ns": {
-              "median": 385,
-              "minimum": 353,
-              "maximum": 500
+              "median": 417,
+              "minimum": 342,
+              "maximum": 711
             },
             "root_scan_ns": {
-              "median": 5298,
-              "minimum": 4969,
-              "maximum": 6886
+              "median": 5297,
+              "minimum": 5089,
+              "maximum": 9286
             },
             "remembered_scan_ns": {
-              "median": 9740,
-              "minimum": 9545,
-              "maximum": 11144
+              "median": 9911,
+              "minimum": 9439,
+              "maximum": 11965
             },
             "mark_ns": {
-              "median": 11722,
-              "minimum": 11295,
-              "maximum": 12794
+              "median": 11292,
+              "minimum": 11162,
+              "maximum": 13780
             },
             "plan_ns": {
-              "median": 30751,
-              "minimum": 28874,
-              "maximum": 43421
+              "median": 35021,
+              "minimum": 29839,
+              "maximum": 62667
             },
             "copy_ns": {
-              "median": 9629,
-              "minimum": 8328,
-              "maximum": 10213
+              "median": 8904,
+              "minimum": 8634,
+              "maximum": 11620
             },
             "update_ns": {
-              "median": 27550,
-              "minimum": 26625,
-              "maximum": 28373
+              "median": 27665,
+              "minimum": 26438,
+              "maximum": 30660
             },
             "reclaim_ns": {
-              "median": 854950,
-              "minimum": 809152,
-              "maximum": 978901
+              "median": 900379,
+              "minimum": 838718,
+              "maximum": 980578
             },
             "vm_return_ns": {
-              "median": 118,
-              "minimum": 115,
-              "maximum": 147
+              "median": 123,
+              "minimum": 95,
+              "maximum": 399
             },
             "last_mark_workers": {
               "median": 1,
@@ -4267,14 +4267,14 @@
       "modes": {
         "off": {
           "wall_ms": {
-            "median": 49.81502197915688,
-            "minimum": 47.53267197520472,
-            "maximum": 54.614065011264756
+            "median": 50.05075197550468,
+            "minimum": 47.927881008945405,
+            "maximum": 56.150151998735964
           },
           "cpu_ms": {
-            "median": 49.52500000000001,
-            "minimum": 47.35400000000006,
-            "maximum": 54.32799999999974
+            "median": 49.81499999999994,
+            "minimum": 47.73299999999988,
+            "maximum": 55.85699999999974
           },
           "executable_bytes": 4603104,
           "gc": {
@@ -4339,14 +4339,14 @@
               "maximum": 196363
             },
             "pause_ns": {
-              "median": 27012433,
-              "minimum": 25892901,
-              "maximum": 27929020
+              "median": 26840483,
+              "minimum": 25999075,
+              "maximum": 29779638
             },
             "maximum_pause_ns": {
-              "median": 6889247,
-              "minimum": 6142929,
-              "maximum": 7444314
+              "median": 6795271,
+              "minimum": 6184305,
+              "maximum": 9686727
             },
             "committed_bytes": {
               "median": 2752512,
@@ -4354,29 +4354,29 @@
               "maximum": 2752512
             },
             "minor_pause_ns": {
-              "median": 15077291,
-              "minimum": 14157213,
-              "maximum": 15565723
+              "median": 15021923,
+              "minimum": 14206659,
+              "maximum": 17853688
             },
             "full_pause_ns": {
-              "median": 11800174,
-              "minimum": 11735688,
-              "maximum": 12363297
+              "median": 11796165,
+              "minimum": 11370632,
+              "maximum": 11976009
             }
           }
         },
         "on": {
           "wall_ms": {
-            "median": 35.964305978268385,
-            "minimum": 35.33336898544803,
-            "maximum": 38.9876379922498
+            "median": 35.64615800860338,
+            "minimum": 35.55303599569015,
+            "maximum": 36.57257600571029
           },
           "cpu_ms": {
-            "median": 35.78700000000004,
-            "minimum": 35.13399999999986,
-            "maximum": 38.76399999999997
+            "median": 35.48800000000013,
+            "minimum": 35.38199999999991,
+            "maximum": 36.382000000000055
           },
-          "executable_bytes": 4630056,
+          "executable_bytes": 4625960,
           "gc": {
             "scoop_gc": {
               "median": 1,
@@ -4439,14 +4439,14 @@
               "maximum": 196363
             },
             "pause_ns": {
-              "median": 22717545,
-              "minimum": 22425780,
-              "maximum": 23534857
+              "median": 22774944,
+              "minimum": 22464047,
+              "maximum": 23176402
             },
             "maximum_pause_ns": {
-              "median": 5402522,
-              "minimum": 5288830,
-              "maximum": 5621559
+              "median": 5447342,
+              "minimum": 5300989,
+              "maximum": 5592221
             },
             "committed_bytes": {
               "median": 2785280,
@@ -4454,14 +4454,14 @@
               "maximum": 2785280
             },
             "minor_pause_ns": {
-              "median": 12031038,
-              "minimum": 11866621,
-              "maximum": 12574026
+              "median": 11952780,
+              "minimum": 11866122,
+              "maximum": 12346963
             },
             "full_pause_ns": {
-              "median": 10688933,
-              "minimum": 10394742,
-              "maximum": 10960831
+              "median": 10784025,
+              "minimum": 10572271,
+              "maximum": 10908822
             },
             "region_count": {
               "median": 1,
@@ -4499,59 +4499,59 @@
               "maximum": 0
             },
             "current_rss_bytes": {
-              "median": 12075008,
-              "minimum": 11976704,
-              "maximum": 12087296
+              "median": 12034048,
+              "minimum": 12005376,
+              "maximum": 12070912
             },
             "peak_rss_bytes": {
-              "median": 32583680,
-              "minimum": 32583680,
-              "maximum": 32583680
+              "median": 32497664,
+              "minimum": 32497664,
+              "maximum": 32497664
             },
             "stop_wait_ns": {
-              "median": 804,
+              "median": 770,
               "minimum": 702,
-              "maximum": 1039
+              "maximum": 883
             },
             "root_scan_ns": {
-              "median": 10497,
-              "minimum": 10039,
-              "maximum": 11555
+              "median": 10563,
+              "minimum": 10233,
+              "maximum": 11346
             },
             "remembered_scan_ns": {
-              "median": 1878511,
-              "minimum": 1863881,
-              "maximum": 1953196
+              "median": 1867422,
+              "minimum": 1861321,
+              "maximum": 1895590
             },
             "mark_ns": {
-              "median": 4139386,
-              "minimum": 4107634,
-              "maximum": 4250146
+              "median": 4132954,
+              "minimum": 4097564,
+              "maximum": 4150263
             },
             "plan_ns": {
-              "median": 1894422,
-              "minimum": 1752067,
-              "maximum": 2109812
+              "median": 1871195,
+              "minimum": 1752280,
+              "maximum": 1949351
             },
             "copy_ns": {
-              "median": 1506510,
-              "minimum": 1350068,
-              "maximum": 1624734
+              "median": 1398878,
+              "minimum": 1347977,
+              "maximum": 1563457
             },
             "update_ns": {
-              "median": 9577392,
-              "minimum": 9416004,
-              "maximum": 9764092
+              "median": 9787362,
+              "minimum": 9450217,
+              "maximum": 9924600
             },
             "reclaim_ns": {
-              "median": 3680717,
-              "minimum": 3619873,
-              "maximum": 3799777
+              "median": 3632027,
+              "minimum": 3599309,
+              "maximum": 3683988
             },
             "vm_return_ns": {
-              "median": 60630,
-              "minimum": 53561,
-              "maximum": 70744
+              "median": 58221,
+              "minimum": 54470,
+              "maximum": 61509
             },
             "last_mark_workers": {
               "median": 1,
@@ -4622,14 +4622,14 @@
       "modes": {
         "off": {
           "wall_ms": {
-            "median": 23.676840995904058,
-            "minimum": 23.020901018753648,
-            "maximum": 26.485118025448173
+            "median": 24.958518974017352,
+            "minimum": 23.534990003099665,
+            "maximum": 26.964410004438832
           },
           "cpu_ms": {
-            "median": 23.54599999999993,
-            "minimum": 22.86100000000002,
-            "maximum": 26.252999999999943
+            "median": 24.726000000000138,
+            "minimum": 23.424999999999972,
+            "maximum": 26.688999999999965
           },
           "executable_bytes": 4603104,
           "gc": {
@@ -4694,14 +4694,14 @@
               "maximum": 16395
             },
             "pause_ns": {
-              "median": 5317259,
-              "minimum": 5153614,
-              "maximum": 6086022
+              "median": 5641880,
+              "minimum": 5225318,
+              "maximum": 6228922
             },
             "maximum_pause_ns": {
-              "median": 1767739,
-              "minimum": 1625890,
-              "maximum": 2536708
+              "median": 1954188,
+              "minimum": 1619020,
+              "maximum": 2713719
             },
             "committed_bytes": {
               "median": 458752,
@@ -4709,29 +4709,29 @@
               "maximum": 458752
             },
             "minor_pause_ns": {
-              "median": 2684223,
-              "minimum": 2643116,
-              "maximum": 2696695
+              "median": 2695542,
+              "minimum": 2595776,
+              "maximum": 2827348
             },
             "full_pause_ns": {
-              "median": 2674143,
-              "minimum": 2501917,
-              "maximum": 3392838
+              "median": 2823399,
+              "minimum": 2529776,
+              "maximum": 3578147
             }
           }
         },
         "on": {
           "wall_ms": {
-            "median": 16.238345997408032,
-            "minimum": 14.008536993060261,
-            "maximum": 21.848178992513567
+            "median": 16.291320003801957,
+            "minimum": 13.851356983650476,
+            "maximum": 22.277976997429505
           },
           "cpu_ms": {
-            "median": 16.087999999999713,
-            "minimum": 13.898000000000243,
-            "maximum": 21.721000000000156
+            "median": 16.187999999999924,
+            "minimum": 13.74099999999967,
+            "maximum": 22.12600000000009
           },
-          "executable_bytes": 4630056,
+          "executable_bytes": 4625960,
           "gc": {
             "scoop_gc": {
               "median": 1,
@@ -4794,14 +4794,14 @@
               "maximum": 16395
             },
             "pause_ns": {
-              "median": 3410594,
-              "minimum": 3386087,
-              "maximum": 4603828
+              "median": 3600024,
+              "minimum": 3431991,
+              "maximum": 5211408
             },
             "maximum_pause_ns": {
-              "median": 783045,
-              "minimum": 769733,
-              "maximum": 1150171
+              "median": 794163,
+              "minimum": 773988,
+              "maximum": 1294178
             },
             "committed_bytes": {
               "median": 491520,
@@ -4809,14 +4809,14 @@
               "maximum": 491520
             },
             "minor_pause_ns": {
-              "median": 1933415,
-              "minimum": 1905653,
-              "maximum": 2672516
+              "median": 1964574,
+              "minimum": 1890367,
+              "maximum": 2767626
             },
             "full_pause_ns": {
-              "median": 1493659,
-              "minimum": 1465493,
-              "maximum": 1931312
+              "median": 1569749,
+              "minimum": 1468261,
+              "maximum": 2443782
             },
             "region_count": {
               "median": 1,
@@ -4854,59 +4854,59 @@
               "maximum": 0
             },
             "current_rss_bytes": {
-              "median": 5812224,
-              "minimum": 5709824,
-              "maximum": 5820416
+              "median": 5730304,
+              "minimum": 5677056,
+              "maximum": 5795840
             },
             "peak_rss_bytes": {
-              "median": 32583680,
-              "minimum": 32583680,
-              "maximum": 32583680
+              "median": 32497664,
+              "minimum": 32497664,
+              "maximum": 32497664
             },
             "stop_wait_ns": {
-              "median": 639,
-              "minimum": 572,
-              "maximum": 1037
+              "median": 731,
+              "minimum": 651,
+              "maximum": 848
             },
             "root_scan_ns": {
-              "median": 7414,
-              "minimum": 6859,
-              "maximum": 11610
+              "median": 8102,
+              "minimum": 7266,
+              "maximum": 11521
             },
             "remembered_scan_ns": {
-              "median": 22831,
-              "minimum": 22410,
-              "maximum": 37568
+              "median": 22880,
+              "minimum": 22651,
+              "maximum": 39538
             },
             "mark_ns": {
-              "median": 538313,
-              "minimum": 526725,
-              "maximum": 727356
+              "median": 546562,
+              "minimum": 514690,
+              "maximum": 911338
             },
             "plan_ns": {
-              "median": 30236,
-              "minimum": 28861,
-              "maximum": 81495
+              "median": 31170,
+              "minimum": 29034,
+              "maximum": 63306
             },
             "copy_ns": {
-              "median": 4603,
-              "minimum": 4359,
-              "maximum": 7480
+              "median": 4733,
+              "minimum": 4137,
+              "maximum": 9706
             },
             "update_ns": {
-              "median": 763089,
-              "minimum": 734981,
-              "maximum": 971613
+              "median": 835069,
+              "minimum": 758637,
+              "maximum": 1195797
             },
             "reclaim_ns": {
-              "median": 1991163,
-              "minimum": 1979392,
-              "maximum": 2699389
+              "median": 2055030,
+              "minimum": 2008379,
+              "maximum": 2898253
             },
             "vm_return_ns": {
-              "median": 26138,
-              "minimum": 25697,
-              "maximum": 34546
+              "median": 27857,
+              "minimum": 26791,
+              "maximum": 65514
             },
             "last_mark_workers": {
               "median": 1,
@@ -4977,14 +4977,14 @@
       "modes": {
         "off": {
           "wall_ms": {
-            "median": 131.64738498744555,
-            "minimum": 124.12839301396161,
-            "maximum": 135.277910012519
+            "median": 132.78724200790748,
+            "minimum": 124.72902101580985,
+            "maximum": 139.71241598483175
           },
           "cpu_ms": {
-            "median": 131.39599999999996,
-            "minimum": 124.01699999999977,
-            "maximum": 135.0380000000004
+            "median": 132.64799999999994,
+            "minimum": 124.59199999999998,
+            "maximum": 139.5690000000002
           },
           "executable_bytes": 4503768,
           "gc": {
@@ -5077,16 +5077,16 @@
         },
         "on": {
           "wall_ms": {
-            "median": 13.490729994373396,
-            "minimum": 12.686439004028216,
-            "maximum": 15.586569992592558
+            "median": 13.162129005650058,
+            "minimum": 12.831257015932351,
+            "maximum": 15.584406995913014
           },
           "cpu_ms": {
-            "median": 13.387000000000427,
-            "minimum": 12.5320000000001,
-            "maximum": 15.480999999999801
+            "median": 13.021999999999784,
+            "minimum": 12.616999999999878,
+            "maximum": 15.474999999999822
           },
-          "executable_bytes": 4531320,
+          "executable_bytes": 4527224,
           "gc": {
             "scoop_gc": {
               "median": 1,
@@ -5209,14 +5209,14 @@
               "maximum": 0
             },
             "current_rss_bytes": {
-              "median": 4792320,
-              "minimum": 4763648,
+              "median": 4767744,
+              "minimum": 4702208,
               "maximum": 4800512
             },
             "peak_rss_bytes": {
-              "median": 32583680,
-              "minimum": 32583680,
-              "maximum": 32583680
+              "median": 32497664,
+              "minimum": 32497664,
+              "maximum": 32497664
             },
             "stop_wait_ns": {
               "median": 0,
@@ -5332,14 +5332,14 @@
       "modes": {
         "off": {
           "wall_ms": {
-            "median": 75.65613399492577,
-            "minimum": 70.64548702328466,
-            "maximum": 87.77806497528218
+            "median": 72.65052298316732,
+            "minimum": 71.76591898314655,
+            "maximum": 79.31852800538763
           },
           "cpu_ms": {
-            "median": 74.95000000000002,
-            "minimum": 70.48299999999996,
-            "maximum": 87.48500000000008
+            "median": 72.23000000000074,
+            "minimum": 71.50200000000018,
+            "maximum": 79.0510000000002
           },
           "executable_bytes": 4610296,
           "gc": {
@@ -5404,14 +5404,14 @@
               "maximum": 408832
             },
             "pause_ns": {
-              "median": 51657509,
-              "minimum": 49429783,
-              "maximum": 58682407
+              "median": 50829851,
+              "minimum": 50344212,
+              "maximum": 53648468
             },
             "maximum_pause_ns": {
-              "median": 18266169,
-              "minimum": 17727575,
-              "maximum": 19095496
+              "median": 18227280,
+              "minimum": 17523074,
+              "maximum": 18629446
             },
             "committed_bytes": {
               "median": 7045120,
@@ -5419,29 +5419,29 @@
               "maximum": 7045120
             },
             "minor_pause_ns": {
-              "median": 33853112,
-              "minimum": 30785962,
-              "maximum": 39586911
+              "median": 32821138,
+              "minimum": 32391979,
+              "maximum": 35019022
             },
             "full_pause_ns": {
-              "median": 18266169,
-              "minimum": 17727575,
-              "maximum": 19095496
+              "median": 18227280,
+              "minimum": 17523074,
+              "maximum": 18629446
             }
           }
         },
         "on": {
           "wall_ms": {
-            "median": 55.49122599768452,
-            "minimum": 53.41006099479273,
-            "maximum": 62.10937097785063
+            "median": 57.034782017581165,
+            "minimum": 55.07000000216067,
+            "maximum": 60.1323019945994
           },
           "cpu_ms": {
-            "median": 62.24000000000019,
-            "minimum": 60.66099999999941,
-            "maximum": 68.91799999999942
+            "median": 64.08799999999998,
+            "minimum": 62.17999999999996,
+            "maximum": 67.27000000000005
           },
-          "executable_bytes": 4636048,
+          "executable_bytes": 4631952,
           "gc": {
             "scoop_gc": {
               "median": 1,
@@ -5504,14 +5504,14 @@
               "maximum": 408832
             },
             "pause_ns": {
-              "median": 41979997,
-              "minimum": 40612286,
-              "maximum": 45043746
+              "median": 42588712,
+              "minimum": 41894300,
+              "maximum": 43655029
             },
             "maximum_pause_ns": {
-              "median": 12784043,
-              "minimum": 12605159,
-              "maximum": 12872686
+              "median": 12843540,
+              "minimum": 12584341,
+              "maximum": 13266021
             },
             "committed_bytes": {
               "median": 7077888,
@@ -5519,14 +5519,14 @@
               "maximum": 7077888
             },
             "minor_pause_ns": {
-              "median": 29338188,
-              "minimum": 27871222,
-              "maximum": 32438587
+              "median": 29856684,
+              "minimum": 29238941,
+              "maximum": 30877183
             },
             "full_pause_ns": {
-              "median": 12784043,
-              "minimum": 12605159,
-              "maximum": 12872686
+              "median": 12843540,
+              "minimum": 12584341,
+              "maximum": 13266021
             },
             "region_count": {
               "median": 1,
@@ -5564,59 +5564,59 @@
               "maximum": 0
             },
             "current_rss_bytes": {
-              "median": 19292160,
-              "minimum": 19222528,
-              "maximum": 19312640
+              "median": 19222528,
+              "minimum": 19173376,
+              "maximum": 19427328
             },
             "peak_rss_bytes": {
-              "median": 32583680,
-              "minimum": 32583680,
-              "maximum": 32583680
+              "median": 32497664,
+              "minimum": 32497664,
+              "maximum": 32497664
             },
             "stop_wait_ns": {
-              "median": 704,
-              "minimum": 614,
-              "maximum": 1034
+              "median": 790,
+              "minimum": 701,
+              "maximum": 957
             },
             "root_scan_ns": {
-              "median": 9905,
-              "minimum": 9495,
-              "maximum": 12872
+              "median": 9629,
+              "minimum": 9289,
+              "maximum": 15276
             },
             "remembered_scan_ns": {
-              "median": 2619167,
-              "minimum": 2557874,
-              "maximum": 2971133
+              "median": 2629228,
+              "minimum": 2566318,
+              "maximum": 2949403
             },
             "mark_ns": {
-              "median": 6194273,
-              "minimum": 6070085,
-              "maximum": 6529878
+              "median": 6321768,
+              "minimum": 6161165,
+              "maximum": 6710454
             },
             "plan_ns": {
-              "median": 3742619,
-              "minimum": 3441205,
-              "maximum": 4362310
+              "median": 4027846,
+              "minimum": 3641136,
+              "maximum": 4636963
             },
             "copy_ns": {
-              "median": 4419825,
-              "minimum": 3821711,
-              "maximum": 4694226
+              "median": 4486948,
+              "minimum": 4115734,
+              "maximum": 4702414
             },
             "update_ns": {
-              "median": 20747517,
-              "minimum": 20433770,
-              "maximum": 21906255
+              "median": 21044701,
+              "minimum": 20553999,
+              "maximum": 21541174
             },
             "reclaim_ns": {
-              "median": 4087835,
-              "minimum": 4046763,
-              "maximum": 4395279
+              "median": 4081266,
+              "minimum": 4069617,
+              "maximum": 4140503
             },
             "vm_return_ns": {
-              "median": 28570,
-              "minimum": 27245,
-              "maximum": 33859
+              "median": 31491,
+              "minimum": 27857,
+              "maximum": 52182
             },
             "last_mark_workers": {
               "median": 4,
@@ -5640,8 +5640,8 @@
             },
             "mark_tasks": {
               "median": 6620,
-              "minimum": 6611,
-              "maximum": 6664
+              "minimum": 6613,
+              "maximum": 6628
             },
             "array_tasks": {
               "median": 16,
@@ -5649,9 +5649,9 @@
               "maximum": 16
             },
             "stolen_tasks": {
-              "median": 66,
-              "minimum": 47,
-              "maximum": 96
+              "median": 71,
+              "minimum": 54,
+              "maximum": 84
             },
             "region_mappings": {
               "median": 2,
@@ -5689,14 +5689,14 @@
       "modes": {
         "off": {
           "wall_ms": {
-            "median": 180.84124999586493,
-            "minimum": 172.34679101966321,
-            "maximum": 184.47783403098583
+            "median": 175.57808302808553,
+            "minimum": 171.09912494197488,
+            "maximum": 186.25162495300174
           },
           "cpu_ms": {
-            "median": 178.67099999999996,
-            "minimum": 169.67000000000021,
-            "maximum": 182.18400000000005
+            "median": 173.289,
+            "minimum": 169.0999999999999,
+            "maximum": 183.9059999999999
           },
           "executable_bytes": 6181608,
           "gc": {
@@ -5787,26 +5787,26 @@
             }
           },
           "kernel_wall_ms": {
-            "median": 171.85,
-            "minimum": 163.083,
-            "maximum": 175.332
+            "median": 166.511,
+            "minimum": 161.981,
+            "maximum": 177.02599999999998
           },
           "kernel_cpu_ms": {
-            "median": 171.726,
-            "minimum": 162.565,
-            "maximum": 174.927
+            "median": 166.298,
+            "minimum": 161.81,
+            "maximum": 176.819
           }
         },
         "on": {
           "wall_ms": {
-            "median": 16.342208022251725,
-            "minimum": 14.995250036008656,
-            "maximum": 17.839084030129015
+            "median": 15.495707979425788,
+            "minimum": 15.093000023625791,
+            "maximum": 15.866625006310642
           },
           "cpu_ms": {
-            "median": 14.179000000000043,
-            "minimum": 13.075999999999949,
-            "maximum": 15.777000000000035
+            "median": 13.460000000000017,
+            "minimum": 12.907999999999998,
+            "maximum": 13.940000000000005
           },
           "executable_bytes": 6194712,
           "gc": {
@@ -5931,14 +5931,14 @@
               "maximum": 0
             },
             "current_rss_bytes": {
-              "median": 6225920,
-              "minimum": 6176768,
-              "maximum": 6242304
+              "median": 6193152,
+              "minimum": 6193152,
+              "maximum": 6225920
             },
             "peak_rss_bytes": {
-              "median": 6225920,
-              "minimum": 6176768,
-              "maximum": 6242304
+              "median": 6193152,
+              "minimum": 6193152,
+              "maximum": 6225920
             },
             "stop_wait_ns": {
               "median": 0,
@@ -6047,14 +6047,14 @@
             }
           },
           "kernel_wall_ms": {
-            "median": 7.3229999999999995,
-            "minimum": 6.468999999999999,
-            "maximum": 8.788
+            "median": 6.353,
+            "minimum": 6.268,
+            "maximum": 6.5009999999999994
           },
           "kernel_cpu_ms": {
-            "median": 7.279,
-            "minimum": 6.468999999999999,
-            "maximum": 8.786999999999999
+            "median": 6.351999999999999,
+            "minimum": 6.257,
+            "maximum": 6.487
           }
         }
       }
@@ -6064,14 +6064,14 @@
       "modes": {
         "off": {
           "wall_ms": {
-            "median": 185.84924994502217,
-            "minimum": 178.02462505642325,
-            "maximum": 191.17304193787277
+            "median": 186.26208300702274,
+            "minimum": 181.29645904991776,
+            "maximum": 188.93037491943687
           },
           "cpu_ms": {
-            "median": 183.6220000000003,
-            "minimum": 175.84500000000014,
-            "maximum": 188.8770000000003
+            "median": 183.9130000000002,
+            "minimum": 179.00600000000023,
+            "maximum": 186.32599999999977
           },
           "executable_bytes": 6181608,
           "gc": {
@@ -6162,26 +6162,26 @@
             }
           },
           "kernel_wall_ms": {
-            "median": 176.66,
-            "minimum": 168.941,
-            "maximum": 182.095
+            "median": 176.993,
+            "minimum": 172.203,
+            "maximum": 179.384
           },
           "kernel_cpu_ms": {
-            "median": 176.48399999999998,
-            "minimum": 168.81199999999998,
-            "maximum": 181.933
+            "median": 176.837,
+            "minimum": 172.041,
+            "maximum": 179.23
           }
         },
         "on": {
           "wall_ms": {
-            "median": 15.583458007313311,
-            "minimum": 15.11845807544887,
-            "maximum": 15.623040962964296
+            "median": 15.648582950234413,
+            "minimum": 15.160792041569948,
+            "maximum": 16.266999999061227
           },
           "cpu_ms": {
-            "median": 13.483000000000134,
-            "minimum": 13.090000000000304,
-            "maximum": 13.574000000000058
+            "median": 13.542999999999944,
+            "minimum": 13.14699999999991,
+            "maximum": 14.209000000000255
           },
           "executable_bytes": 6194712,
           "gc": {
@@ -6306,14 +6306,14 @@
               "maximum": 0
             },
             "current_rss_bytes": {
-              "median": 6225920,
-              "minimum": 6209536,
-              "maximum": 6242304
+              "median": 6193152,
+              "minimum": 6176768,
+              "maximum": 6209536
             },
             "peak_rss_bytes": {
-              "median": 6225920,
-              "minimum": 6209536,
-              "maximum": 6242304
+              "median": 6193152,
+              "minimum": 6176768,
+              "maximum": 6209536
             },
             "stop_wait_ns": {
               "median": 0,
@@ -6422,14 +6422,14 @@
             }
           },
           "kernel_wall_ms": {
-            "median": 6.4399999999999995,
-            "minimum": 6.321,
-            "maximum": 6.545999999999999
+            "median": 6.468,
+            "minimum": 6.369,
+            "maximum": 7.276999999999999
           },
           "kernel_cpu_ms": {
-            "median": 6.441,
-            "minimum": 6.314,
-            "maximum": 6.529999999999999
+            "median": 6.468,
+            "minimum": 6.327,
+            "maximum": 7.262
           }
         }
       }
@@ -6439,14 +6439,14 @@
       "modes": {
         "off": {
           "wall_ms": {
-            "median": 177.24166705738753,
-            "minimum": 171.6143749654293,
-            "maximum": 179.08749997150153
+            "median": 178.94204100593925,
+            "minimum": 176.50904098991305,
+            "maximum": 185.5106670409441
           },
           "cpu_ms": {
-            "median": 174.8960000000001,
-            "minimum": 169.08099999999988,
-            "maximum": 176.68300000000013
+            "median": 176.44199999999978,
+            "minimum": 174.0020000000001,
+            "maximum": 183.35300000000055
           },
           "executable_bytes": 6181608,
           "gc": {
@@ -6537,26 +6537,26 @@
             }
           },
           "kernel_wall_ms": {
-            "median": 168.58599999999998,
-            "minimum": 162.51399999999998,
-            "maximum": 170.077
+            "median": 169.97299999999998,
+            "minimum": 167.039,
+            "maximum": 176.429
           },
           "kernel_cpu_ms": {
-            "median": 168.319,
-            "minimum": 162.14499999999998,
-            "maximum": 169.837
+            "median": 169.724,
+            "minimum": 166.882,
+            "maximum": 176.256
           }
         },
         "on": {
           "wall_ms": {
-            "median": 15.742624993436038,
-            "minimum": 15.218666987493634,
-            "maximum": 18.18049990106374
+            "median": 15.595042030327022,
+            "minimum": 15.06875001359731,
+            "maximum": 16.361790942028165
           },
           "cpu_ms": {
-            "median": 13.634000000000492,
-            "minimum": 13.013000000000108,
-            "maximum": 16.209000000000348
+            "median": 13.363000000000582,
+            "minimum": 12.980000000000324,
+            "maximum": 14.184000000000307
           },
           "executable_bytes": 6194712,
           "gc": {
@@ -6681,14 +6681,14 @@
               "maximum": 0
             },
             "current_rss_bytes": {
-              "median": 6225920,
-              "minimum": 6193152,
-              "maximum": 6324224
+              "median": 6209536,
+              "minimum": 6176768,
+              "maximum": 6209536
             },
             "peak_rss_bytes": {
-              "median": 6225920,
-              "minimum": 6193152,
-              "maximum": 6324224
+              "median": 6209536,
+              "minimum": 6176768,
+              "maximum": 6209536
             },
             "stop_wait_ns": {
               "median": 0,
@@ -6797,14 +6797,14 @@
             }
           },
           "kernel_wall_ms": {
-            "median": 6.596,
-            "minimum": 6.162999999999999,
-            "maximum": 8.78
+            "median": 6.452999999999999,
+            "minimum": 6.234,
+            "maximum": 7.215
           },
           "kernel_cpu_ms": {
-            "median": 6.569,
-            "minimum": 6.154,
-            "maximum": 8.779
+            "median": 6.435,
+            "minimum": 6.226999999999999,
+            "maximum": 7.210999999999999
           }
         }
       }
@@ -6814,14 +6814,14 @@
       "modes": {
         "off": {
           "wall_ms": {
-            "median": 236.56649992335588,
-            "minimum": 231.2491670018062,
-            "maximum": 239.28933299612254
+            "median": 239.75525004789233,
+            "minimum": 237.45258303824812,
+            "maximum": 250.2472079358995
           },
           "cpu_ms": {
-            "median": 234.10999999999956,
-            "minimum": 228.94599999999969,
-            "maximum": 236.97300000000044
+            "median": 237.28400000000033,
+            "minimum": 235.18100000000052,
+            "maximum": 247.7260000000005
           },
           "executable_bytes": 6181608,
           "gc": {
@@ -6912,26 +6912,26 @@
             }
           },
           "kernel_wall_ms": {
-            "median": 227.309,
-            "minimum": 222.267,
-            "maximum": 229.926
+            "median": 230.648,
+            "minimum": 228.486,
+            "maximum": 240.708
           },
           "kernel_cpu_ms": {
-            "median": 227.101,
-            "minimum": 222.10299999999998,
-            "maximum": 229.759
+            "median": 230.31,
+            "minimum": 228.099,
+            "maximum": 240.39999999999998
           }
         },
         "on": {
           "wall_ms": {
-            "median": 133.8161249877885,
-            "minimum": 132.69545801449567,
-            "maximum": 134.22450004145503
+            "median": 135.89216698892415,
+            "minimum": 133.26470798347145,
+            "maximum": 137.92554195970297
           },
           "cpu_ms": {
-            "median": 131.5990000000001,
-            "minimum": 130.417,
-            "maximum": 131.83800000000025
+            "median": 133.5069999999995,
+            "minimum": 130.82599999999977,
+            "maximum": 135.72299999999998
           },
           "executable_bytes": 6194712,
           "gc": {
@@ -7056,13 +7056,13 @@
               "maximum": 0
             },
             "current_rss_bytes": {
-              "median": 6209536,
-              "minimum": 6176768,
+              "median": 6193152,
+              "minimum": 6160384,
               "maximum": 6209536
             },
             "peak_rss_bytes": {
-              "median": 6209536,
-              "minimum": 6176768,
+              "median": 6193152,
+              "minimum": 6160384,
               "maximum": 6209536
             },
             "stop_wait_ns": {
@@ -7172,14 +7172,14 @@
             }
           },
           "kernel_wall_ms": {
-            "median": 124.755,
-            "minimum": 123.53099999999999,
-            "maximum": 124.954
+            "median": 126.69099999999999,
+            "minimum": 124.06299999999999,
+            "maximum": 128.732
           },
           "kernel_cpu_ms": {
-            "median": 124.62299999999999,
-            "minimum": 123.431,
-            "maximum": 124.89
+            "median": 126.547,
+            "minimum": 123.94699999999999,
+            "maximum": 128.548
           }
         }
       }
@@ -7191,14 +7191,14 @@
       "modes": {
         "off": {
           "wall_ms": {
-            "median": 99.96448099263944,
-            "minimum": 98.87152400915511,
-            "maximum": 107.6971509901341
+            "median": 105.95394700067118,
+            "minimum": 101.2599469977431,
+            "maximum": 107.28692202246748
           },
           "cpu_ms": {
-            "median": 99.81400000000002,
-            "minimum": 98.08100000000006,
-            "maximum": 107.51400000000001
+            "median": 105.78700000000002,
+            "minimum": 101.10700000000001,
+            "maximum": 107.14200000000004
           },
           "executable_bytes": 4608952,
           "gc": {
@@ -7289,28 +7289,28 @@
             }
           },
           "kernel_wall_ms": {
-            "median": 94.478668,
-            "minimum": 93.150819,
-            "maximum": 100.755231
+            "median": 99.22597999999999,
+            "minimum": 96.68917599999999,
+            "maximum": 100.386173
           },
           "kernel_cpu_ms": {
-            "median": 94.452626,
-            "minimum": 93.13758,
-            "maximum": 100.735169
+            "median": 99.217719,
+            "minimum": 96.689669,
+            "maximum": 100.384444
           }
         },
         "on": {
           "wall_ms": {
-            "median": 9.644908976042643,
-            "minimum": 9.000090009067208,
-            "maximum": 13.805916998535395
+            "median": 9.680650982772931,
+            "minimum": 8.871900994563475,
+            "maximum": 13.943445985205472
           },
           "cpu_ms": {
-            "median": 9.540999999999961,
-            "minimum": 8.901000000000057,
-            "maximum": 13.71499999999995
+            "median": 9.573999999999957,
+            "minimum": 8.717999999999996,
+            "maximum": 13.848000000000013
           },
-          "executable_bytes": 4640304,
+          "executable_bytes": 4636208,
           "gc": {
             "scoop_gc": {
               "median": 1,
@@ -7433,14 +7433,14 @@
               "maximum": 0
             },
             "current_rss_bytes": {
-              "median": 4919296,
-              "minimum": 4825088,
-              "maximum": 4943872
+              "median": 4841472,
+              "minimum": 4816896,
+              "maximum": 4898816
             },
             "peak_rss_bytes": {
-              "median": 28033024,
-              "minimum": 28033024,
-              "maximum": 28033024
+              "median": 27820032,
+              "minimum": 27820032,
+              "maximum": 27820032
             },
             "stop_wait_ns": {
               "median": 0,
@@ -7549,14 +7549,14 @@
             }
           },
           "kernel_wall_ms": {
-            "median": 4.842445,
-            "minimum": 4.7156009999999995,
-            "maximum": 7.376468
+            "median": 4.8385489999999995,
+            "minimum": 4.728155999999999,
+            "maximum": 7.434704
           },
           "kernel_cpu_ms": {
-            "median": 4.841413,
-            "minimum": 4.714479,
-            "maximum": 7.368767999999999
+            "median": 4.8381739999999995,
+            "minimum": 4.721995,
+            "maximum": 7.428697
           }
         }
       }
@@ -7566,14 +7566,14 @@
       "modes": {
         "off": {
           "wall_ms": {
-            "median": 101.29908999078907,
-            "minimum": 99.615002021892,
-            "maximum": 107.45512699941173
+            "median": 101.7766080040019,
+            "minimum": 98.94816702581011,
+            "maximum": 136.40477100852877
           },
           "cpu_ms": {
-            "median": 101.13599999999988,
-            "minimum": 99.47999999999976,
-            "maximum": 107.3359999999998
+            "median": 101.67199999999997,
+            "minimum": 98.80899999999995,
+            "maximum": 135.25900000000001
           },
           "executable_bytes": 4608952,
           "gc": {
@@ -7664,28 +7664,28 @@
             }
           },
           "kernel_wall_ms": {
-            "median": 95.69707199999999,
-            "minimum": 94.445737,
-            "maximum": 100.714092
+            "median": 96.756648,
+            "minimum": 92.94686899999999,
+            "maximum": 129.645915
           },
           "kernel_cpu_ms": {
-            "median": 95.66142099999999,
-            "minimum": 94.43813999999999,
-            "maximum": 100.687978
+            "median": 96.75629699999999,
+            "minimum": 92.957146,
+            "maximum": 128.601295
           }
         },
         "on": {
           "wall_ms": {
-            "median": 9.39707100042142,
-            "minimum": 9.121304989093915,
-            "maximum": 13.572866999311373
+            "median": 9.714009996969253,
+            "minimum": 9.036627016030252,
+            "maximum": 15.855423000175506
           },
           "cpu_ms": {
-            "median": 9.161000000000099,
-            "minimum": 9.026000000000083,
-            "maximum": 13.313000000000013
+            "median": 9.574000000000037,
+            "minimum": 8.91000000000004,
+            "maximum": 15.732999999999961
           },
-          "executable_bytes": 4640304,
+          "executable_bytes": 4636208,
           "gc": {
             "scoop_gc": {
               "median": 1,
@@ -7808,14 +7808,14 @@
               "maximum": 0
             },
             "current_rss_bytes": {
-              "median": 4911104,
-              "minimum": 4890624,
-              "maximum": 4935680
+              "median": 4853760,
+              "minimum": 4780032,
+              "maximum": 4898816
             },
             "peak_rss_bytes": {
-              "median": 28033024,
-              "minimum": 28033024,
-              "maximum": 28033024
+              "median": 28073984,
+              "minimum": 28073984,
+              "maximum": 28073984
             },
             "stop_wait_ns": {
               "median": 0,
@@ -7924,14 +7924,14 @@
             }
           },
           "kernel_wall_ms": {
-            "median": 4.871398,
-            "minimum": 4.7087509999999995,
-            "maximum": 7.047675
+            "median": 4.760174,
+            "minimum": 4.719033,
+            "maximum": 9.067561999999999
           },
           "kernel_cpu_ms": {
-            "median": 4.827541,
-            "minimum": 4.707720999999999,
-            "maximum": 7.0417119999999995
+            "median": 4.7598199999999995,
+            "minimum": 4.714983,
+            "maximum": 9.067150999999999
           }
         }
       }
@@ -7941,14 +7941,14 @@
       "modes": {
         "off": {
           "wall_ms": {
-            "median": 107.4188829807099,
-            "minimum": 99.35719199711457,
-            "maximum": 111.85757600469515
+            "median": 106.1443210055586,
+            "minimum": 103.52792099001817,
+            "maximum": 109.66032100259326
           },
           "cpu_ms": {
-            "median": 107.1609999999999,
-            "minimum": 99.16400000000006,
-            "maximum": 111.70300000000006
+            "median": 105.99799999999972,
+            "minimum": 103.33899999999998,
+            "maximum": 109.41500000000002
           },
           "executable_bytes": 4608952,
           "gc": {
@@ -8039,28 +8039,28 @@
             }
           },
           "kernel_wall_ms": {
-            "median": 100.998082,
-            "minimum": 94.12057899999999,
-            "maximum": 104.78741699999999
+            "median": 100.80527,
+            "minimum": 97.315742,
+            "maximum": 102.789423
           },
           "kernel_cpu_ms": {
-            "median": 100.980043,
-            "minimum": 94.118726,
-            "maximum": 104.774419
+            "median": 100.799444,
+            "minimum": 97.278379,
+            "maximum": 102.709842
           }
         },
         "on": {
           "wall_ms": {
-            "median": 13.55499099008739,
-            "minimum": 9.134970983723179,
-            "maximum": 15.39477301412262
+            "median": 9.568637004122138,
+            "minimum": 8.954454999184236,
+            "maximum": 12.964307999936864
           },
           "cpu_ms": {
-            "median": 13.449000000000572,
-            "minimum": 9.019999999999945,
-            "maximum": 15.187000000000221
+            "median": 9.412000000000289,
+            "minimum": 8.847000000000202,
+            "maximum": 12.809000000000042
           },
-          "executable_bytes": 4640304,
+          "executable_bytes": 4636208,
           "gc": {
             "scoop_gc": {
               "median": 1,
@@ -8183,14 +8183,14 @@
               "maximum": 0
             },
             "current_rss_bytes": {
-              "median": 4902912,
-              "minimum": 4820992,
-              "maximum": 4939776
+              "median": 4890624,
+              "minimum": 4804608,
+              "maximum": 4931584
             },
             "peak_rss_bytes": {
-              "median": 28033024,
-              "minimum": 28033024,
-              "maximum": 28033024
+              "median": 28073984,
+              "minimum": 28073984,
+              "maximum": 28073984
             },
             "stop_wait_ns": {
               "median": 0,
@@ -8299,14 +8299,14 @@
             }
           },
           "kernel_wall_ms": {
-            "median": 7.024470999999999,
-            "minimum": 4.7234799999999995,
-            "maximum": 8.626574
+            "median": 4.825279,
+            "minimum": 4.70972,
+            "maximum": 6.425788
           },
           "kernel_cpu_ms": {
-            "median": 7.0170319999999995,
-            "minimum": 4.722633,
-            "maximum": 8.620346999999999
+            "median": 4.824889,
+            "minimum": 4.709366,
+            "maximum": 6.41922
           }
         }
       }
@@ -8316,14 +8316,14 @@
       "modes": {
         "off": {
           "wall_ms": {
-            "median": 130.61099499464035,
-            "minimum": 129.56768099684268,
-            "maximum": 131.83112698607147
+            "median": 131.59093199647032,
+            "minimum": 130.2924269984942,
+            "maximum": 143.28590600052848
           },
           "cpu_ms": {
-            "median": 130.49599999999984,
-            "minimum": 129.41900000000024,
-            "maximum": 131.52900000000034
+            "median": 131.41600000000003,
+            "minimum": 130.1380000000001,
+            "maximum": 143.1360000000001
           },
           "executable_bytes": 4608952,
           "gc": {
@@ -8414,28 +8414,28 @@
             }
           },
           "kernel_wall_ms": {
-            "median": 126.107265,
-            "minimum": 125.084769,
-            "maximum": 127.053838
+            "median": 126.53501999999999,
+            "minimum": 125.498768,
+            "maximum": 136.36412099999998
           },
           "kernel_cpu_ms": {
-            "median": 126.094782,
-            "minimum": 125.047157,
-            "maximum": 126.94319499999999
+            "median": 126.544782,
+            "minimum": 125.493151,
+            "maximum": 136.352382
           }
         },
         "on": {
           "wall_ms": {
-            "median": 74.45672200992703,
-            "minimum": 74.103599996306,
-            "maximum": 77.66724700923078
+            "median": 74.30468898382969,
+            "minimum": 73.93144600791857,
+            "maximum": 74.58667200990021
           },
           "cpu_ms": {
-            "median": 74.3070000000001,
-            "minimum": 73.94899999999971,
-            "maximum": 77.5089999999996
+            "median": 74.14500000000064,
+            "minimum": 73.79200000000002,
+            "maximum": 74.43599999999991
           },
-          "executable_bytes": 4640304,
+          "executable_bytes": 4636208,
           "gc": {
             "scoop_gc": {
               "median": 1,
@@ -8558,14 +8558,14 @@
               "maximum": 0
             },
             "current_rss_bytes": {
-              "median": 4931584,
-              "minimum": 4866048,
-              "maximum": 4943872
+              "median": 4837376,
+              "minimum": 4800512,
+              "maximum": 4894720
             },
             "peak_rss_bytes": {
-              "median": 28160000,
-              "minimum": 28033024,
-              "maximum": 28160000
+              "median": 28073984,
+              "minimum": 28073984,
+              "maximum": 28073984
             },
             "stop_wait_ns": {
               "median": 0,
@@ -8674,14 +8674,14 @@
             }
           },
           "kernel_wall_ms": {
-            "median": 69.885787,
-            "minimum": 69.794585,
-            "maximum": 71.11245699999999
+            "median": 69.721542,
+            "minimum": 69.534268,
+            "maximum": 69.94413399999999
           },
           "kernel_cpu_ms": {
-            "median": 69.875225,
-            "minimum": 69.79245999999999,
-            "maximum": 71.103956
+            "median": 69.728545,
+            "minimum": 69.536939,
+            "maximum": 69.910758
           }
         }
       }
@@ -8693,14 +8693,14 @@
       "modes": {
         "off": {
           "wall_ms": {
-            "median": 1936.3204999826849,
-            "minimum": 1901.1750409845263,
-            "maximum": 1954.3016250245273
+            "median": 1916.0272920271382,
+            "minimum": 1870.1813330408186,
+            "maximum": 1978.5043749725446
           },
           "cpu_ms": {
-            "median": 1991.572000000001,
-            "minimum": 1956.0120000000004,
-            "maximum": 2008.2110000000002
+            "median": 1970.2640000000001,
+            "minimum": 1924.4680000000003,
+            "maximum": 2030.846
           },
           "executable_bytes": 6127640,
           "gc": {
@@ -8715,9 +8715,9 @@
               "maximum": 0
             },
             "full_collections": {
-              "median": 10480,
-              "minimum": 10298,
-              "maximum": 10549
+              "median": 10374,
+              "minimum": 10162,
+              "maximum": 10707
             },
             "promotion_fallbacks": {
               "median": 0,
@@ -8740,9 +8740,9 @@
               "maximum": 120
             },
             "copied_bytes": {
-              "median": 251520,
-              "minimum": 247152,
-              "maximum": 253176
+              "median": 248976,
+              "minimum": 243888,
+              "maximum": 256968
             },
             "dirty_cards": {
               "median": 0,
@@ -8755,28 +8755,28 @@
               "maximum": 0
             },
             "root_slots": {
-              "median": 482080,
-              "minimum": 473708,
-              "maximum": 485254
+              "median": 477204,
+              "minimum": 467446,
+              "maximum": 492516
             },
             "traced_objects": {
-              "median": 52400,
-              "minimum": 51490,
-              "maximum": 52745
+              "median": 51870,
+              "minimum": 50809,
+              "maximum": 53534
             },
             "pause_ns": {
-              "median": 446629000,
-              "minimum": 439153000,
-              "maximum": 450426000
+              "median": 441706000,
+              "minimum": 428299000,
+              "maximum": 462363000
             },
             "maximum_pause_ns": {
-              "median": 218000,
-              "minimum": 209000,
-              "maximum": 772000
+              "median": 225000,
+              "minimum": 212000,
+              "maximum": 234000
             },
             "committed_bytes": {
               "median": 98304,
-              "minimum": 98304,
+              "minimum": 65536,
               "maximum": 98304
             },
             "minor_pause_ns": {
@@ -8785,12 +8785,12 @@
               "maximum": 0
             },
             "full_pause_ns": {
-              "median": 446629000,
-              "minimum": 439153000,
-              "maximum": 450426000
+              "median": 441706000,
+              "minimum": 428299000,
+              "maximum": 462363000
             }
           },
-          "total_collections": 73201,
+          "total_collections": 72815,
           "response": {
             "stop_wait": {
               "p50_ns": {
@@ -8799,45 +8799,45 @@
                 "maximum": 6.0
               },
               "p99_ns": {
-                "median": 19.0,
-                "minimum": 19.0,
-                "maximum": 22.0
+                "median": 18.0,
+                "minimum": 18.0,
+                "maximum": 20.0
               },
               "max_ns": {
-                "median": 75.0,
+                "median": 68.0,
                 "minimum": 54.0,
-                "maximum": 114.0
+                "maximum": 82.0
               }
             },
             "pause": {
               "p50_ns": {
                 "median": 48.0,
                 "minimum": 48.0,
-                "maximum": 48.0
+                "maximum": 49.0
               },
               "p99_ns": {
-                "median": 78.0,
+                "median": 74.0,
                 "minimum": 71.0,
-                "maximum": 80.0
+                "maximum": 79.0
               },
               "max_ns": {
-                "median": 223.0,
-                "minimum": 210.0,
-                "maximum": 799.0
+                "median": 234.0,
+                "minimum": 218.0,
+                "maximum": 244.0
               }
             }
           }
         },
         "on": {
           "wall_ms": {
-            "median": 122.82441696152091,
-            "minimum": 122.25783301983029,
-            "maximum": 125.33895799424499
+            "median": 122.69520899280906,
+            "minimum": 121.97062489576638,
+            "maximum": 123.78370796795934
           },
           "cpu_ms": {
-            "median": 124.7859999999999,
-            "minimum": 124.2309999999997,
-            "maximum": 127.08299999999872
+            "median": 124.75600000000043,
+            "minimum": 123.60599999999965,
+            "maximum": 125.54000000000175
           },
           "executable_bytes": 6140552,
           "gc": {
@@ -8852,9 +8852,9 @@
               "maximum": 0
             },
             "full_collections": {
-              "median": 725,
-              "minimum": 720,
-              "maximum": 730
+              "median": 723,
+              "minimum": 717,
+              "maximum": 727
             },
             "promotion_fallbacks": {
               "median": 0,
@@ -8892,24 +8892,24 @@
               "maximum": 0
             },
             "root_slots": {
-              "median": 33350,
-              "minimum": 33120,
-              "maximum": 33580
+              "median": 33258,
+              "minimum": 32982,
+              "maximum": 33442
             },
             "traced_objects": {
-              "median": 3625,
-              "minimum": 3600,
-              "maximum": 3650
+              "median": 3615,
+              "minimum": 3585,
+              "maximum": 3635
             },
             "pause_ns": {
-              "median": 11558000,
-              "minimum": 11355000,
-              "maximum": 11948000
+              "median": 11392000,
+              "minimum": 11291000,
+              "maximum": 12022000
             },
             "maximum_pause_ns": {
-              "median": 64000,
-              "minimum": 44000,
-              "maximum": 94000
+              "median": 39000,
+              "minimum": 34000,
+              "maximum": 83000
             },
             "committed_bytes": {
               "median": 98304,
@@ -8922,9 +8922,9 @@
               "maximum": 0
             },
             "full_pause_ns": {
-              "median": 11558000,
-              "minimum": 11355000,
-              "maximum": 11948000
+              "median": 11392000,
+              "minimum": 11291000,
+              "maximum": 12022000
             },
             "region_count": {
               "median": 1,
@@ -8963,23 +8963,23 @@
             },
             "current_rss_bytes": {
               "median": 6209536,
-              "minimum": 6176768,
-              "maximum": 6389760
+              "minimum": 6193152,
+              "maximum": 6258688
             },
             "peak_rss_bytes": {
-              "median": 6242304,
-              "minimum": 6225920,
-              "maximum": 6406144
+              "median": 6258688,
+              "minimum": 6242304,
+              "maximum": 6291456
             },
             "stop_wait_ns": {
-              "median": 5691000,
-              "minimum": 5491000,
-              "maximum": 6180000
+              "median": 5547000,
+              "minimum": 5451000,
+              "maximum": 5983000
             },
             "root_scan_ns": {
-              "median": 597000,
-              "minimum": 587000,
-              "maximum": 685000
+              "median": 604000,
+              "minimum": 598000,
+              "maximum": 681000
             },
             "remembered_scan_ns": {
               "median": 0,
@@ -8987,14 +8987,14 @@
               "maximum": 0
             },
             "mark_ns": {
-              "median": 308000,
-              "minimum": 299000,
+              "median": 295000,
+              "minimum": 280000,
               "maximum": 325000
             },
             "plan_ns": {
               "median": 96000,
-              "minimum": 92000,
-              "maximum": 112000
+              "minimum": 84000,
+              "maximum": 119000
             },
             "copy_ns": {
               "median": 0,
@@ -9003,18 +9003,18 @@
             },
             "update_ns": {
               "median": 469000,
-              "minimum": 462000,
-              "maximum": 480000
+              "minimum": 452000,
+              "maximum": 479000
             },
             "reclaim_ns": {
-              "median": 9651000,
-              "minimum": 9481000,
-              "maximum": 9905000
+              "median": 9545000,
+              "minimum": 9456000,
+              "maximum": 10138000
             },
             "vm_return_ns": {
-              "median": 42000,
-              "minimum": 26000,
-              "maximum": 46000
+              "median": 39000,
+              "minimum": 30000,
+              "maximum": 50000
             },
             "last_mark_workers": {
               "median": 1,
@@ -9032,14 +9032,14 @@
               "maximum": 0
             },
             "mark_reference_slots": {
-              "median": 2175,
-              "minimum": 2160,
-              "maximum": 2190
+              "median": 2169,
+              "minimum": 2151,
+              "maximum": 2181
             },
             "mark_tasks": {
-              "median": 725,
-              "minimum": 720,
-              "maximum": 730
+              "median": 723,
+              "minimum": 717,
+              "maximum": 727
             },
             "array_tasks": {
               "median": 0,
@@ -9077,7 +9077,7 @@
               "maximum": 0
             }
           },
-          "total_collections": 5074,
+          "total_collections": 5059,
           "response": {
             "stop_wait": {
               "p50_ns": {
@@ -9086,31 +9086,31 @@
                 "maximum": 6.0
               },
               "p99_ns": {
-                "median": 18.0,
-                "minimum": 16.0,
-                "maximum": 21.0
+                "median": 16.0,
+                "minimum": 14.0,
+                "maximum": 22.0
               },
               "max_ns": {
-                "median": 48.0,
-                "minimum": 30.0,
-                "maximum": 135.0
+                "median": 32.0,
+                "minimum": 23.0,
+                "maximum": 75.0
               }
             },
             "pause": {
               "p50_ns": {
-                "median": 23.0,
+                "median": 22.0,
                 "minimum": 22.0,
-                "maximum": 23.0
+                "maximum": 24.0
               },
               "p99_ns": {
-                "median": 41.0,
-                "minimum": 37.0,
-                "maximum": 50.0
+                "median": 37.0,
+                "minimum": 34.0,
+                "maximum": 54.0
               },
               "max_ns": {
-                "median": 86.0,
-                "minimum": 75.0,
-                "maximum": 156.0
+                "median": 65.0,
+                "minimum": 50.0,
+                "maximum": 98.0
               }
             }
           }
@@ -9122,14 +9122,14 @@
       "modes": {
         "off": {
           "wall_ms": {
-            "median": 2389.4293749472126,
-            "minimum": 2346.569416928105,
-            "maximum": 2507.5239590369165
+            "median": 2388.8656250201166,
+            "minimum": 2351.502542034723,
+            "maximum": 2468.015458085574
           },
           "cpu_ms": {
-            "median": 8647.807,
-            "minimum": 8540.280999999992,
-            "maximum": 9019.803999999996
+            "median": 8672.801000000007,
+            "minimum": 8527.153999999995,
+            "maximum": 8965.289999999999
           },
           "executable_bytes": 6127640,
           "gc": {
@@ -9144,9 +9144,9 @@
               "maximum": 0
             },
             "full_collections": {
-              "median": 10409,
-              "minimum": 10272,
-              "maximum": 10679
+              "median": 10528,
+              "minimum": 10256,
+              "maximum": 10633
             },
             "promotion_fallbacks": {
               "median": 0,
@@ -9169,9 +9169,9 @@
               "maximum": 192
             },
             "copied_bytes": {
-              "median": 249816,
-              "minimum": 246528,
-              "maximum": 256296
+              "median": 252672,
+              "minimum": 246144,
+              "maximum": 255192
             },
             "dirty_cards": {
               "median": 0,
@@ -9184,24 +9184,24 @@
               "maximum": 0
             },
             "root_slots": {
-              "median": 663986,
-              "minimum": 656094,
-              "maximum": 680768
+              "median": 670698,
+              "minimum": 654692,
+              "maximum": 680302
             },
             "traced_objects": {
-              "median": 82907,
-              "minimum": 81957,
-              "maximum": 84984
+              "median": 83695,
+              "minimum": 81766,
+              "maximum": 85029
             },
             "pause_ns": {
-              "median": 576508000,
-              "minimum": 568764000,
-              "maximum": 591742000
+              "median": 582482000,
+              "minimum": 568093000,
+              "maximum": 591919000
             },
             "maximum_pause_ns": {
-              "median": 243000,
-              "minimum": 221000,
-              "maximum": 314000
+              "median": 269000,
+              "minimum": 251000,
+              "maximum": 318000
             },
             "committed_bytes": {
               "median": 98304,
@@ -9214,59 +9214,59 @@
               "maximum": 0
             },
             "full_pause_ns": {
-              "median": 576508000,
-              "minimum": 568764000,
-              "maximum": 591742000
+              "median": 582482000,
+              "minimum": 568093000,
+              "maximum": 591919000
             }
           },
-          "total_collections": 73035,
+          "total_collections": 73171,
           "response": {
             "stop_wait": {
               "p50_ns": {
-                "median": 29.0,
-                "minimum": 28.0,
+                "median": 28.0,
+                "minimum": 27.0,
                 "maximum": 30.0
               },
               "p99_ns": {
-                "median": 98.0,
-                "minimum": 89.0,
-                "maximum": 113.0
+                "median": 93.0,
+                "minimum": 90.0,
+                "maximum": 103.0
               },
               "max_ns": {
-                "median": 192.0,
-                "minimum": 167.0,
-                "maximum": 218.0
+                "median": 201.0,
+                "minimum": 162.0,
+                "maximum": 251.0
               }
             },
             "pause": {
               "p50_ns": {
                 "median": 89.0,
-                "minimum": 89.0,
-                "maximum": 91.0
+                "minimum": 87.0,
+                "maximum": 92.0
               },
               "p99_ns": {
-                "median": 178.0,
-                "minimum": 169.0,
-                "maximum": 195.0
+                "median": 173.0,
+                "minimum": 171.0,
+                "maximum": 185.0
               },
               "max_ns": {
-                "median": 293.0,
-                "minimum": 270.0,
-                "maximum": 392.0
+                "median": 336.0,
+                "minimum": 289.0,
+                "maximum": 424.0
               }
             }
           }
         },
         "on": {
           "wall_ms": {
-            "median": 155.27966700028628,
-            "minimum": 153.33312505390495,
-            "maximum": 156.02008299902081
+            "median": 155.0119579769671,
+            "minimum": 153.91633298713714,
+            "maximum": 158.15591695718467
           },
           "cpu_ms": {
-            "median": 545.6580000000101,
-            "minimum": 540.3030000000015,
-            "maximum": 548.0309999999946
+            "median": 545.1000000000032,
+            "minimum": 541.3769999999971,
+            "maximum": 552.585999999998
           },
           "executable_bytes": 6140552,
           "gc": {
@@ -9281,9 +9281,9 @@
               "maximum": 0
             },
             "full_collections": {
-              "median": 727,
-              "minimum": 725,
-              "maximum": 728
+              "median": 726,
+              "minimum": 724,
+              "maximum": 732
             },
             "promotion_fallbacks": {
               "median": 0,
@@ -9321,27 +9321,27 @@
               "maximum": 0
             },
             "root_slots": {
-              "median": 46492,
-              "minimum": 46358,
-              "maximum": 46574
+              "median": 46452,
+              "minimum": 46318,
+              "maximum": 46842
             },
             "traced_objects": {
-              "median": 5810,
-              "minimum": 5793,
-              "maximum": 5820
+              "median": 5806,
+              "minimum": 5789,
+              "maximum": 5855
             },
             "pause_ns": {
-              "median": 20650000,
-              "minimum": 20473000,
-              "maximum": 20867000
+              "median": 20597000,
+              "minimum": 20445000,
+              "maximum": 20871000
             },
             "maximum_pause_ns": {
-              "median": 59000,
-              "minimum": 41000,
-              "maximum": 70000
+              "median": 61000,
+              "minimum": 51000,
+              "maximum": 77000
             },
             "committed_bytes": {
-              "median": 98304,
+              "median": 131072,
               "minimum": 98304,
               "maximum": 163840
             },
@@ -9351,9 +9351,9 @@
               "maximum": 0
             },
             "full_pause_ns": {
-              "median": 20650000,
-              "minimum": 20473000,
-              "maximum": 20867000
+              "median": 20597000,
+              "minimum": 20445000,
+              "maximum": 20871000
             },
             "region_count": {
               "median": 1,
@@ -9371,9 +9371,9 @@
               "maximum": 16777216
             },
             "discard_calls": {
-              "median": 9,
+              "median": 7,
               "minimum": 7,
-              "maximum": 9
+              "maximum": 8
             },
             "discard_failures": {
               "median": 0,
@@ -9381,7 +9381,7 @@
               "maximum": 0
             },
             "discarded_bytes": {
-              "median": 196608,
+              "median": 163840,
               "minimum": 131072,
               "maximum": 196608
             },
@@ -9392,23 +9392,23 @@
             },
             "current_rss_bytes": {
               "median": 6324224,
-              "minimum": 6291456,
-              "maximum": 6340608
+              "minimum": 6307840,
+              "maximum": 6406144
             },
             "peak_rss_bytes": {
-              "median": 6422528,
-              "minimum": 6373376,
-              "maximum": 6422528
+              "median": 6406144,
+              "minimum": 6389760,
+              "maximum": 6520832
             },
             "stop_wait_ns": {
-              "median": 24841000,
-              "minimum": 23138000,
-              "maximum": 25545000
+              "median": 24896000,
+              "minimum": 23685000,
+              "maximum": 26307000
             },
             "root_scan_ns": {
-              "median": 949000,
-              "minimum": 925000,
-              "maximum": 976000
+              "median": 937000,
+              "minimum": 919000,
+              "maximum": 957000
             },
             "remembered_scan_ns": {
               "median": 0,
@@ -9416,12 +9416,12 @@
               "maximum": 0
             },
             "mark_ns": {
-              "median": 323000,
-              "minimum": 304000,
-              "maximum": 330000
+              "median": 336000,
+              "minimum": 321000,
+              "maximum": 345000
             },
             "plan_ns": {
-              "median": 160000,
+              "median": 157000,
               "minimum": 147000,
               "maximum": 168000
             },
@@ -9431,18 +9431,18 @@
               "maximum": 0
             },
             "update_ns": {
-              "median": 699000,
-              "minimum": 669000,
-              "maximum": 725000
+              "median": 694000,
+              "minimum": 676000,
+              "maximum": 718000
             },
             "reclaim_ns": {
-              "median": 17916000,
-              "minimum": 17817000,
-              "maximum": 18110000
+              "median": 17892000,
+              "minimum": 17774000,
+              "maximum": 18095000
             },
             "vm_return_ns": {
-              "median": 60000,
-              "minimum": 46000,
+              "median": 56000,
+              "minimum": 45000,
               "maximum": 65000
             },
             "last_mark_workers": {
@@ -9461,14 +9461,14 @@
               "maximum": 0
             },
             "mark_reference_slots": {
-              "median": 4356,
-              "minimum": 4343,
-              "maximum": 4364
+              "median": 4354,
+              "minimum": 4341,
+              "maximum": 4391
             },
             "mark_tasks": {
-              "median": 727,
-              "minimum": 725,
-              "maximum": 728
+              "median": 726,
+              "minimum": 724,
+              "maximum": 732
             },
             "array_tasks": {
               "median": 0,
@@ -9506,23 +9506,23 @@
               "maximum": 0
             }
           },
-          "total_collections": 5087,
+          "total_collections": 5089,
           "response": {
             "stop_wait": {
               "p50_ns": {
-                "median": 28.0,
+                "median": 29.0,
                 "minimum": 26.0,
-                "maximum": 29.0
+                "maximum": 30.0
               },
               "p99_ns": {
                 "median": 84.0,
-                "minimum": 77.0,
-                "maximum": 101.0
+                "minimum": 83.0,
+                "maximum": 106.0
               },
               "max_ns": {
-                "median": 127.0,
-                "minimum": 97.0,
-                "maximum": 169.0
+                "median": 138.0,
+                "minimum": 114.0,
+                "maximum": 171.0
               }
             },
             "pause": {
@@ -9532,14 +9532,14 @@
                 "maximum": 63.0
               },
               "p99_ns": {
-                "median": 137.0,
-                "minimum": 121.0,
-                "maximum": 140.0
+                "median": 138.0,
+                "minimum": 129.0,
+                "maximum": 144.0
               },
               "max_ns": {
-                "median": 185.0,
-                "minimum": 165.0,
-                "maximum": 214.0
+                "median": 203.0,
+                "minimum": 171.0,
+                "maximum": 215.0
               }
             }
           }
@@ -9553,14 +9553,14 @@
       "modes": {
         "off": {
           "wall_ms": {
-            "median": 2727.6352010085247,
-            "minimum": 2691.931584995473,
-            "maximum": 2740.280819009058
+            "median": 2743.664021982113,
+            "minimum": 2701.5090140048414,
+            "maximum": 2775.4828090255614
           },
           "cpu_ms": {
-            "median": 2756.073,
-            "minimum": 2721.6589999999987,
-            "maximum": 2768.0329999999994
+            "median": 2770.971,
+            "minimum": 2730.0970000000007,
+            "maximum": 2801.0969999999993
           },
           "executable_bytes": 4567912,
           "gc": {
@@ -9575,9 +9575,9 @@
               "maximum": 0
             },
             "full_collections": {
-              "median": 10390,
-              "minimum": 10246,
-              "maximum": 10408
+              "median": 10441,
+              "minimum": 10235,
+              "maximum": 10525
             },
             "promotion_fallbacks": {
               "median": 0,
@@ -9600,9 +9600,9 @@
               "maximum": 120
             },
             "copied_bytes": {
-              "median": 249360,
-              "minimum": 245904,
-              "maximum": 249792
+              "median": 250584,
+              "minimum": 245640,
+              "maximum": 252600
             },
             "dirty_cards": {
               "median": 0,
@@ -9615,24 +9615,24 @@
               "maximum": 0
             },
             "root_slots": {
-              "median": 477940,
-              "minimum": 471316,
-              "maximum": 478768
+              "median": 480286,
+              "minimum": 470810,
+              "maximum": 484150
             },
             "traced_objects": {
-              "median": 51950,
-              "minimum": 51230,
-              "maximum": 52040
+              "median": 52205,
+              "minimum": 51175,
+              "maximum": 52625
             },
             "pause_ns": {
-              "median": 1131271090,
-              "minimum": 1120645529,
-              "maximum": 1143055278
+              "median": 1141544200,
+              "minimum": 1124110435,
+              "maximum": 1158697819
             },
             "maximum_pause_ns": {
-              "median": 1560712,
-              "minimum": 1269912,
-              "maximum": 1696899
+              "median": 1775477,
+              "minimum": 1386464,
+              "maximum": 1823678
             },
             "committed_bytes": {
               "median": 98304,
@@ -9645,61 +9645,61 @@
               "maximum": 0
             },
             "full_pause_ns": {
-              "median": 1131271090,
-              "minimum": 1120645529,
-              "maximum": 1143055278
+              "median": 1141544200,
+              "minimum": 1124110435,
+              "maximum": 1158697819
             }
           },
-          "total_collections": 72417,
+          "total_collections": 72910,
           "response": {
             "stop_wait": {
               "p50_ns": {
-                "median": 0.727,
-                "minimum": 0.685,
-                "maximum": 0.903
+                "median": 0.778,
+                "minimum": 0.6980000000000001,
+                "maximum": 0.854
               },
               "p99_ns": {
-                "median": 2.346,
-                "minimum": 1.047,
-                "maximum": 2.411
+                "median": 2.4130000000000003,
+                "minimum": 2.271,
+                "maximum": 2.69
               },
               "max_ns": {
-                "median": 105.188,
-                "minimum": 14.609,
-                "maximum": 370.322
+                "median": 81.241,
+                "minimum": 12.188,
+                "maximum": 419.366
               }
             },
             "pause": {
               "p50_ns": {
-                "median": 109.11800000000001,
-                "minimum": 108.989,
-                "maximum": 109.33500000000001
+                "median": 109.202,
+                "minimum": 109.07300000000001,
+                "maximum": 109.73400000000001
               },
               "p99_ns": {
-                "median": 125.045,
-                "minimum": 117.159,
-                "maximum": 152.06300000000002
+                "median": 127.721,
+                "minimum": 117.85600000000001,
+                "maximum": 165.44400000000002
               },
               "max_ns": {
-                "median": 1580.252,
-                "minimum": 1289.948,
-                "maximum": 1711.231
+                "median": 1789.018,
+                "minimum": 1403.681,
+                "maximum": 1839.5330000000001
               }
             }
           }
         },
         "on": {
           "wall_ms": {
-            "median": 73.85804198565893,
-            "minimum": 66.75984201137908,
-            "maximum": 78.58626800589263
+            "median": 70.75262299622409,
+            "minimum": 65.84951499826275,
+            "maximum": 77.42750601028092
           },
           "cpu_ms": {
-            "median": 74.59300000000258,
-            "minimum": 67.37000000000238,
-            "maximum": 79.7529999999973
+            "median": 71.64799999999599,
+            "minimum": 66.42299999999979,
+            "maximum": 78.60099999999991
           },
-          "executable_bytes": 4595040,
+          "executable_bytes": 4590944,
           "gc": {
             "scoop_gc": {
               "median": 1,
@@ -9712,9 +9712,9 @@
               "maximum": 0
             },
             "full_collections": {
-              "median": 391,
-              "minimum": 339,
-              "maximum": 401
+              "median": 369,
+              "minimum": 352,
+              "maximum": 393
             },
             "promotion_fallbacks": {
               "median": 0,
@@ -9752,24 +9752,24 @@
               "maximum": 0
             },
             "root_slots": {
-              "median": 17986,
-              "minimum": 15594,
-              "maximum": 18446
+              "median": 16974,
+              "minimum": 16192,
+              "maximum": 18078
             },
             "traced_objects": {
-              "median": 1955,
-              "minimum": 1695,
-              "maximum": 2005
+              "median": 1845,
+              "minimum": 1760,
+              "maximum": 1965
             },
             "pause_ns": {
-              "median": 7081690,
-              "minimum": 5939057,
-              "maximum": 9407443
+              "median": 6057959,
+              "minimum": 5192473,
+              "maximum": 7219141
             },
             "maximum_pause_ns": {
-              "median": 54373,
-              "minimum": 49343,
-              "maximum": 162783
+              "median": 61442,
+              "minimum": 56263,
+              "maximum": 141474
             },
             "committed_bytes": {
               "median": 98304,
@@ -9782,9 +9782,9 @@
               "maximum": 0
             },
             "full_pause_ns": {
-              "median": 7081690,
-              "minimum": 5939057,
-              "maximum": 9407443
+              "median": 6057959,
+              "minimum": 5192473,
+              "maximum": 7219141
             },
             "region_count": {
               "median": 1,
@@ -9822,24 +9822,24 @@
               "maximum": 0
             },
             "current_rss_bytes": {
-              "median": 5124096,
-              "minimum": 5070848,
-              "maximum": 5148672
+              "median": 5062656,
+              "minimum": 5005312,
+              "maximum": 5152768
             },
             "peak_rss_bytes": {
-              "median": 27983872,
-              "minimum": 27983872,
-              "maximum": 27983872
+              "median": 27762688,
+              "minimum": 27762688,
+              "maximum": 27762688
             },
             "stop_wait_ns": {
-              "median": 1000931,
-              "minimum": 896791,
-              "maximum": 1669543
+              "median": 907398,
+              "minimum": 719571,
+              "maximum": 1037470
             },
             "root_scan_ns": {
-              "median": 353094,
-              "minimum": 297650,
-              "maximum": 450231
+              "median": 307415,
+              "minimum": 262317,
+              "maximum": 364298
             },
             "remembered_scan_ns": {
               "median": 0,
@@ -9847,14 +9847,14 @@
               "maximum": 0
             },
             "mark_ns": {
-              "median": 273107,
-              "minimum": 213299,
-              "maximum": 375962
+              "median": 221424,
+              "minimum": 190861,
+              "maximum": 272880
             },
             "plan_ns": {
-              "median": 46234,
-              "minimum": 38478,
-              "maximum": 56551
+              "median": 45034,
+              "minimum": 39179,
+              "maximum": 55464
             },
             "copy_ns": {
               "median": 0,
@@ -9862,19 +9862,19 @@
               "maximum": 0
             },
             "update_ns": {
-              "median": 323350,
-              "minimum": 288158,
-              "maximum": 398708
+              "median": 290269,
+              "minimum": 256274,
+              "maximum": 357768
             },
             "reclaim_ns": {
-              "median": 5874440,
-              "minimum": 4906379,
-              "maximum": 7849826
+              "median": 4981752,
+              "minimum": 4264361,
+              "maximum": 5907353
             },
             "vm_return_ns": {
-              "median": 49569,
-              "minimum": 39660,
-              "maximum": 65608
+              "median": 42812,
+              "minimum": 36774,
+              "maximum": 52041
             },
             "last_mark_workers": {
               "median": 1,
@@ -9892,14 +9892,14 @@
               "maximum": 0
             },
             "mark_reference_slots": {
-              "median": 1173,
-              "minimum": 1017,
-              "maximum": 1203
+              "median": 1107,
+              "minimum": 1056,
+              "maximum": 1179
             },
             "mark_tasks": {
-              "median": 391,
-              "minimum": 339,
-              "maximum": 401
+              "median": 369,
+              "minimum": 352,
+              "maximum": 393
             },
             "array_tasks": {
               "median": 0,
@@ -9937,40 +9937,40 @@
               "maximum": 0
             }
           },
-          "total_collections": 2691,
+          "total_collections": 2606,
           "response": {
             "stop_wait": {
               "p50_ns": {
-                "median": 0.9,
-                "minimum": 0.806,
-                "maximum": 4.009
+                "median": 0.8220000000000001,
+                "minimum": 0.787,
+                "maximum": 0.849
               },
               "p99_ns": {
-                "median": 6.385,
-                "minimum": 5.782,
-                "maximum": 7.457
+                "median": 6.38,
+                "minimum": 5.264,
+                "maximum": 7.666
               },
               "max_ns": {
-                "median": 17.997,
-                "minimum": 6.738,
-                "maximum": 103.659
+                "median": 28.457,
+                "minimum": 12.116,
+                "maximum": 66.008
               }
             },
             "pause": {
               "p50_ns": {
-                "median": 17.461000000000002,
-                "minimum": 14.342,
-                "maximum": 28.641000000000002
+                "median": 14.474,
+                "minimum": 14.16,
+                "maximum": 15.069
               },
               "p99_ns": {
-                "median": 31.588,
-                "minimum": 31.169,
-                "maximum": 38.311
+                "median": 33.047000000000004,
+                "minimum": 31.231,
+                "maximum": 55.293
               },
               "max_ns": {
-                "median": 128.202,
-                "minimum": 59.075,
-                "maximum": 165.423
+                "median": 83.678,
+                "minimum": 75.401,
+                "maximum": 178.132
               }
             }
           }
@@ -9982,14 +9982,14 @@
       "modes": {
         "off": {
           "wall_ms": {
-            "median": 3526.522568979999,
-            "minimum": 3507.0254580059554,
-            "maximum": 3555.250667996006
+            "median": 3532.6259010180365,
+            "minimum": 3490.8938230073545,
+            "maximum": 3555.099324992625
           },
           "cpu_ms": {
-            "median": 13857.511999999997,
-            "minimum": 13733.43,
-            "maximum": 13930.699999999995
+            "median": 13857.953999999998,
+            "minimum": 13698.344000000008,
+            "maximum": 13947.328000000007
           },
           "executable_bytes": 4567912,
           "gc": {
@@ -10004,9 +10004,9 @@
               "maximum": 0
             },
             "full_collections": {
-              "median": 11618,
-              "minimum": 11514,
-              "maximum": 11658
+              "median": 11592,
+              "minimum": 11542,
+              "maximum": 11680
             },
             "promotion_fallbacks": {
               "median": 0,
@@ -10029,9 +10029,9 @@
               "maximum": 192
             },
             "copied_bytes": {
-              "median": 278832,
-              "minimum": 276336,
-              "maximum": 279792
+              "median": 278208,
+              "minimum": 277008,
+              "maximum": 280320
             },
             "dirty_cards": {
               "median": 0,
@@ -10044,24 +10044,24 @@
               "maximum": 0
             },
             "root_slots": {
-              "median": 743234,
-              "minimum": 736074,
-              "maximum": 744858
+              "median": 741300,
+              "minimum": 738508,
+              "maximum": 746326
             },
             "traced_objects": {
-              "median": 92891,
-              "minimum": 91975,
-              "maximum": 93055
+              "median": 92638,
+              "minimum": 92306,
+              "maximum": 93241
             },
             "pause_ns": {
-              "median": 1616566310,
-              "minimum": 1597612458,
-              "maximum": 1626251752
+              "median": 1614626201,
+              "minimum": 1582253867,
+              "maximum": 1626120805
             },
             "maximum_pause_ns": {
-              "median": 1213956,
-              "minimum": 1135858,
-              "maximum": 1252023
+              "median": 1416853,
+              "minimum": 1225322,
+              "maximum": 1441908
             },
             "committed_bytes": {
               "median": 98304,
@@ -10074,61 +10074,61 @@
               "maximum": 0
             },
             "full_pause_ns": {
-              "median": 1616566310,
-              "minimum": 1597612458,
-              "maximum": 1626251752
+              "median": 1614626201,
+              "minimum": 1582253867,
+              "maximum": 1626120805
             }
           },
           "total_collections": 81194,
           "response": {
             "stop_wait": {
               "p50_ns": {
-                "median": 8.384,
-                "minimum": 8.114,
-                "maximum": 8.492
+                "median": 8.228,
+                "minimum": 8.158,
+                "maximum": 8.38
               },
               "p99_ns": {
-                "median": 22.673000000000002,
-                "minimum": 22.022000000000002,
-                "maximum": 23.483
+                "median": 22.737000000000002,
+                "minimum": 22.331,
+                "maximum": 23.404
               },
               "max_ns": {
-                "median": 226.505,
-                "minimum": 149.782,
-                "maximum": 2732.183
+                "median": 221.473,
+                "minimum": 147.073,
+                "maximum": 439.146
               }
             },
             "pause": {
               "p50_ns": {
-                "median": 148.721,
-                "minimum": 148.498,
-                "maximum": 148.951
+                "median": 148.848,
+                "minimum": 148.189,
+                "maximum": 149.326
               },
               "p99_ns": {
-                "median": 226.11100000000002,
-                "minimum": 180.512,
-                "maximum": 233.88
+                "median": 224.327,
+                "minimum": 174.314,
+                "maximum": 226.673
               },
               "max_ns": {
-                "median": 1229.049,
-                "minimum": 1137.221,
-                "maximum": 2870.3070000000002
+                "median": 1436.4470000000001,
+                "minimum": 1227.126,
+                "maximum": 1461.467
               }
             }
           }
         },
         "on": {
           "wall_ms": {
-            "median": 92.26717799901962,
-            "minimum": 85.57520998874679,
-            "maximum": 96.93497800617479
+            "median": 94.97877999092452,
+            "minimum": 85.35926599870436,
+            "maximum": 97.29381298529916
           },
           "cpu_ms": {
-            "median": 326.6009999999966,
-            "minimum": 311.85699999999895,
-            "maximum": 353.5360000000054
+            "median": 330.73899999999765,
+            "minimum": 308.7460000000064,
+            "maximum": 341.5580000000027
           },
-          "executable_bytes": 4595040,
+          "executable_bytes": 4590944,
           "gc": {
             "scoop_gc": {
               "median": 1,
@@ -10141,9 +10141,9 @@
               "maximum": 0
             },
             "full_collections": {
-              "median": 449,
-              "minimum": 410,
-              "maximum": 473
+              "median": 451,
+              "minimum": 419,
+              "maximum": 467
             },
             "promotion_fallbacks": {
               "median": 0,
@@ -10181,24 +10181,24 @@
               "maximum": 0
             },
             "root_slots": {
-              "median": 28136,
-              "minimum": 25988,
-              "maximum": 29894
+              "median": 28314,
+              "minimum": 26288,
+              "maximum": 28844
             },
             "traced_objects": {
-              "median": 3492,
-              "minimum": 3238,
-              "maximum": 3721
+              "median": 3511,
+              "minimum": 3264,
+              "maximum": 3562
             },
             "pause_ns": {
-              "median": 11886730,
-              "minimum": 11631380,
-              "maximum": 12445602
+              "median": 11944041,
+              "minimum": 11195591,
+              "maximum": 14822827
             },
             "maximum_pause_ns": {
-              "median": 41705,
-              "minimum": 38248,
-              "maximum": 149952
+              "median": 45387,
+              "minimum": 36712,
+              "maximum": 188621
             },
             "committed_bytes": {
               "median": 98304,
@@ -10211,9 +10211,9 @@
               "maximum": 0
             },
             "full_pause_ns": {
-              "median": 11886730,
-              "minimum": 11631380,
-              "maximum": 12445602
+              "median": 11944041,
+              "minimum": 11195591,
+              "maximum": 14822827
             },
             "region_count": {
               "median": 1,
@@ -10251,24 +10251,24 @@
               "maximum": 0
             },
             "current_rss_bytes": {
-              "median": 5189632,
-              "minimum": 5029888,
-              "maximum": 5251072
+              "median": 5160960,
+              "minimum": 5124096,
+              "maximum": 5185536
             },
             "peak_rss_bytes": {
-              "median": 27983872,
-              "minimum": 27983872,
-              "maximum": 27983872
+              "median": 27762688,
+              "minimum": 27762688,
+              "maximum": 27762688
             },
             "stop_wait_ns": {
-              "median": 4559880,
-              "minimum": 3868652,
-              "maximum": 5328721
+              "median": 4675080,
+              "minimum": 4112301,
+              "maximum": 5306209
             },
             "root_scan_ns": {
-              "median": 582078,
-              "minimum": 554596,
-              "maximum": 621812
+              "median": 581732,
+              "minimum": 534353,
+              "maximum": 886359
             },
             "remembered_scan_ns": {
               "median": 0,
@@ -10276,14 +10276,14 @@
               "maximum": 0
             },
             "mark_ns": {
-              "median": 274433,
-              "minimum": 254447,
-              "maximum": 295103
+              "median": 277678,
+              "minimum": 257799,
+              "maximum": 343756
             },
             "plan_ns": {
-              "median": 80825,
-              "minimum": 77845,
-              "maximum": 85943
+              "median": 109142,
+              "minimum": 92082,
+              "maximum": 122491
             },
             "copy_ns": {
               "median": 0,
@@ -10291,19 +10291,19 @@
               "maximum": 0
             },
             "update_ns": {
-              "median": 581222,
-              "minimum": 563653,
-              "maximum": 609352
+              "median": 583309,
+              "minimum": 544439,
+              "maximum": 785215
             },
             "reclaim_ns": {
-              "median": 10045908,
-              "minimum": 9852964,
-              "maximum": 10486387
+              "median": 10089721,
+              "minimum": 9440878,
+              "maximum": 12424719
             },
             "vm_return_ns": {
-              "median": 75836,
-              "minimum": 72233,
-              "maximum": 77936
+              "median": 79206,
+              "minimum": 71215,
+              "maximum": 99681
             },
             "last_mark_workers": {
               "median": 1,
@@ -10321,14 +10321,14 @@
               "maximum": 0
             },
             "mark_reference_slots": {
-              "median": 2594,
-              "minimum": 2418,
-              "maximum": 2775
+              "median": 2592,
+              "minimum": 2426,
+              "maximum": 2628
             },
             "mark_tasks": {
-              "median": 449,
-              "minimum": 410,
-              "maximum": 473
+              "median": 451,
+              "minimum": 419,
+              "maximum": 467
             },
             "array_tasks": {
               "median": 0,
@@ -10366,40 +10366,40 @@
               "maximum": 0
             }
           },
-          "total_collections": 3120,
+          "total_collections": 3115,
           "response": {
             "stop_wait": {
               "p50_ns": {
-                "median": 7.765000000000001,
-                "minimum": 7.495,
-                "maximum": 8.458
+                "median": 7.906000000000001,
+                "minimum": 7.595,
+                "maximum": 8.978
               },
               "p99_ns": {
-                "median": 26.981,
-                "minimum": 21.589000000000002,
-                "maximum": 28.704
+                "median": 24.651,
+                "minimum": 18.764,
+                "maximum": 31.761
               },
               "max_ns": {
-                "median": 85.604,
-                "minimum": 36.27,
-                "maximum": 157.559
+                "median": 86.028,
+                "minimum": 30.64,
+                "maximum": 128.1
               }
             },
             "pause": {
               "p50_ns": {
-                "median": 37.741,
-                "minimum": 37.432,
-                "maximum": 37.986000000000004
+                "median": 38.719,
+                "minimum": 36.867,
+                "maximum": 46.791000000000004
               },
               "p99_ns": {
-                "median": 61.756,
-                "minimum": 55.542,
-                "maximum": 67.745
+                "median": 61.211,
+                "minimum": 53.614000000000004,
+                "maximum": 71.652
               },
               "max_ns": {
-                "median": 144.808,
-                "minimum": 69.764,
-                "maximum": 187.26500000000001
+                "median": 150.728,
+                "minimum": 93.771,
+                "maximum": 201.329
               }
             }
           }

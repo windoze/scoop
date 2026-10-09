@@ -1,14 +1,14 @@
 {
   "host": "Linux-7.0.0-38-generic-x86_64-with-glibc2.43",
   "target": "x86_64-unknown-linux-gnu",
-  "revision": "fbd98ad0d",
+  "revision": "db40db07a35896c040166fe454ff5d32c9ba3555",
   "mode": "on",
   "kind": "interfaces",
   "builds": [
     {
       "name": "provider",
-      "first_build_seconds": 4.684923761989921,
-      "warm_build_seconds": 4.583998900983715,
+      "first_build_seconds": 3.691104881989304,
+      "warm_build_seconds": 3.8009451839898247,
       "command": [
         "/home/chenxu/repos/scoop/target/release/scoop",
         "build",
@@ -19,7 +19,7 @@
         "--runtime-root",
         "/home/chenxu/repos/scoop/runtime",
         "--cache-dir",
-        "/home/chenxu/repos/scoop/tmp/m34/m10-boundary-update-gnu/cache",
+        "/home/chenxu/repos/scoop/tmp/m34/index-gnu/cache",
         "--profile",
         "release",
         "--message-format",
@@ -30,26 +30,26 @@
         "/home/chenxu/repos/scoop/sysroot/native/x86_64-unknown-linux-gnu/unwind",
         "/home/chenxu/repos/scoop/tests/benchmarks/interfaces/provider",
         "--target-dir",
-        "/home/chenxu/repos/scoop/tmp/m34/verified-interfaces-on-linux-gnu/target-provider",
+        "/home/chenxu/repos/scoop/tmp/m34/final-interfaces-on-linux-gnu/target-provider",
         "-o",
-        "/home/chenxu/repos/scoop/tmp/m34/verified-interfaces-on-linux-gnu/artifacts/dev.m34/interface-bench-provider/0.1.0/cone.slib",
+        "/home/chenxu/repos/scoop/tmp/m34/final-interfaces-on-linux-gnu/artifacts/dev.m34/interface-bench-provider/0.1.0/cone.slib",
         "--emit",
         "all",
         "--dump-dir",
-        "/home/chenxu/repos/scoop/tmp/m34/verified-interfaces-on-linux-gnu/provider-dump"
+        "/home/chenxu/repos/scoop/tmp/m34/final-interfaces-on-linux-gnu/provider-dump"
       ],
       "records": [
         {
           "dependencies": [
             {
-              "artifact_fingerprint": "c5f6e5f6d6b52a389b4452ff9b73c5d17d855063a3131fed233149c8da82eae7",
+              "artifact_fingerprint": "e687abb81844f0558921956a43a0eaac4ea4486fecb1b904891a7fe7fe93efec",
               "coordinate": {
                 "group": "scoop",
                 "name": "scoop.core",
                 "version": "0.1.0"
               },
               "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
-              "path": "/home/chenxu/repos/scoop/tmp/m34/m10-boundary-update-gnu/cache/compile-v1/5bddee765db0176f3f345217b72cb2b3f01954009274c9aeebdf10b5f2687afb/artifact.slib"
+              "path": "/home/chenxu/repos/scoop/tmp/m34/index-gnu/cache/compile-v1/6405da7a2d3f239c79c58a4d673bf7ead9cd23b291592d97f8c45fdc1cdbc02c/artifact.slib"
             }
           ],
           "kind": "library",
@@ -59,39 +59,39 @@
             ],
             "nodes": [
               {
-                "cache_key": "5bddee765db0176f3f345217b72cb2b3f01954009274c9aeebdf10b5f2687afb",
+                "cache_key": "6405da7a2d3f239c79c58a4d673bf7ead9cd23b291592d97f8c45fdc1cdbc02c",
                 "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
                 "origin": "cache"
               },
               {
-                "cache_key": "52e45238f30630fa2696591f33489f335b0f5c1545238b677ec651da39f36c99",
+                "cache_key": "fcc85f55d5cd63d4ead563382f0ccfb4aa88ffca5964daba645f741a8cecc646",
                 "identity": "4287d082a0853b58d3bf59369e562dd8e9a7fe6216958c9ad4b4b48d143eac7c",
                 "origin": "compiled"
               }
             ]
           },
-          "output": "/home/chenxu/repos/scoop/tmp/m34/verified-interfaces-on-linux-gnu/artifacts/dev.m34/interface-bench-provider/0.1.0/cone.slib",
+          "output": "/home/chenxu/repos/scoop/tmp/m34/final-interfaces-on-linux-gnu/artifacts/dev.m34/interface-bench-provider/0.1.0/cone.slib",
           "profile": "release",
           "root": {
-            "artifact_fingerprint": "637e51afa9d5183f0ee125598d8e98c36f811b2814c43ebe51223f815ef12017",
+            "artifact_fingerprint": "374df733d669c069d2165622c56dc97f61dcdb85d7d0901e7de014fc891d4a01",
             "coordinate": {
               "group": "dev.m34",
               "name": "interface-bench-provider",
               "version": "0.1.0"
             },
             "identity": "4287d082a0853b58d3bf59369e562dd8e9a7fe6216958c9ad4b4b48d143eac7c",
-            "path": "/home/chenxu/repos/scoop/tmp/m34/m10-boundary-update-gnu/cache/compile-v1/52e45238f30630fa2696591f33489f335b0f5c1545238b677ec651da39f36c99/artifact.slib"
+            "path": "/home/chenxu/repos/scoop/tmp/m34/index-gnu/cache/compile-v1/fcc85f55d5cd63d4ead563382f0ccfb4aa88ffca5964daba645f741a8cecc646/artifact.slib"
           },
           "schema": 1
         }
       ],
-      "output_bytes": 837968,
-      "root_slib_bytes": 837968
+      "output_bytes": 835970,
+      "root_slib_bytes": 835970
     },
     {
       "name": "consumer",
-      "first_build_seconds": 7.457707886991557,
-      "warm_build_seconds": 6.640227827010676,
+      "first_build_seconds": 7.347727998014307,
+      "warm_build_seconds": 7.294340813998133,
       "command": [
         "/home/chenxu/repos/scoop/target/release/scoop",
         "build",
@@ -102,7 +102,7 @@
         "--runtime-root",
         "/home/chenxu/repos/scoop/runtime",
         "--cache-dir",
-        "/home/chenxu/repos/scoop/tmp/m34/m10-boundary-update-gnu/cache",
+        "/home/chenxu/repos/scoop/tmp/m34/index-gnu/cache",
         "--profile",
         "release",
         "--message-format",
@@ -113,51 +113,51 @@
         "/home/chenxu/repos/scoop/sysroot/native/x86_64-unknown-linux-gnu/unwind",
         "/home/chenxu/repos/scoop/tests/benchmarks/interfaces/consumer",
         "--target-dir",
-        "/home/chenxu/repos/scoop/tmp/m34/verified-interfaces-on-linux-gnu/target-consumer",
+        "/home/chenxu/repos/scoop/tmp/m34/final-interfaces-on-linux-gnu/target-consumer",
         "-o",
-        "/home/chenxu/repos/scoop/tmp/m34/verified-interfaces-on-linux-gnu/interfaces",
+        "/home/chenxu/repos/scoop/tmp/m34/final-interfaces-on-linux-gnu/interfaces",
         "--cone-path",
-        "/home/chenxu/repos/scoop/tmp/m34/verified-interfaces-on-linux-gnu/artifacts",
+        "/home/chenxu/repos/scoop/tmp/m34/final-interfaces-on-linux-gnu/artifacts",
         "--library-path",
-        "/home/chenxu/repos/scoop/tmp/m34/verified-interfaces-on-linux-gnu",
+        "/home/chenxu/repos/scoop/tmp/m34/final-interfaces-on-linux-gnu",
         "--emit",
         "all",
         "--dump-dir",
-        "/home/chenxu/repos/scoop/tmp/m34/verified-interfaces-on-linux-gnu/consumer-dump"
+        "/home/chenxu/repos/scoop/tmp/m34/final-interfaces-on-linux-gnu/consumer-dump"
       ],
       "records": [
         {
           "dependencies": [
             {
-              "artifact_fingerprint": "c5f6e5f6d6b52a389b4452ff9b73c5d17d855063a3131fed233149c8da82eae7",
+              "artifact_fingerprint": "e687abb81844f0558921956a43a0eaac4ea4486fecb1b904891a7fe7fe93efec",
               "coordinate": {
                 "group": "scoop",
                 "name": "scoop.core",
                 "version": "0.1.0"
               },
               "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
-              "path": "/home/chenxu/repos/scoop/tmp/m34/m10-boundary-update-gnu/cache/compile-v1/5bddee765db0176f3f345217b72cb2b3f01954009274c9aeebdf10b5f2687afb/artifact.slib"
+              "path": "/home/chenxu/repos/scoop/tmp/m34/index-gnu/cache/compile-v1/6405da7a2d3f239c79c58a4d673bf7ead9cd23b291592d97f8c45fdc1cdbc02c/artifact.slib"
             },
             {
-              "artifact_fingerprint": "637e51afa9d5183f0ee125598d8e98c36f811b2814c43ebe51223f815ef12017",
+              "artifact_fingerprint": "374df733d669c069d2165622c56dc97f61dcdb85d7d0901e7de014fc891d4a01",
               "coordinate": {
                 "group": "dev.m34",
                 "name": "interface-bench-provider",
                 "version": "0.1.0"
               },
               "identity": "4287d082a0853b58d3bf59369e562dd8e9a7fe6216958c9ad4b4b48d143eac7c",
-              "path": "/home/chenxu/repos/scoop/tmp/m34/verified-interfaces-on-linux-gnu/artifacts/dev.m34/interface-bench-provider/0.1.0/cone.slib"
+              "path": "/home/chenxu/repos/scoop/tmp/m34/final-interfaces-on-linux-gnu/artifacts/dev.m34/interface-bench-provider/0.1.0/cone.slib"
             }
           ],
           "kind": "executable",
-          "link_plan_fingerprint": "9372c3b4473d4f296f84690bafcbea41398fd0cf27b934156078d07749ff96ae",
+          "link_plan_fingerprint": "cbf5d5ac57a54536fa2d43a0e7160f35c67dac1d35cf4e4e34bcbc3a8bd3754b",
           "observations": {
             "child_invocations": [
               "3defb077b78153b1a806ad302ab005d7a7715f5f0f1d84764f104656ed3e8090"
             ],
             "nodes": [
               {
-                "cache_key": "5bddee765db0176f3f345217b72cb2b3f01954009274c9aeebdf10b5f2687afb",
+                "cache_key": "6405da7a2d3f239c79c58a4d673bf7ead9cd23b291592d97f8c45fdc1cdbc02c",
                 "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
                 "origin": "cache"
               },
@@ -167,13 +167,13 @@
                 "origin": "prebuilt"
               },
               {
-                "cache_key": "d923bdb4acaf2de736c919232740e7f30d4a98d85efd2455e93b753fa49ad460",
+                "cache_key": "978c97e25d91edaacf250e77c80585c37cfb59802fa428df21ecb4ab7ec30e52",
                 "identity": "3defb077b78153b1a806ad302ab005d7a7715f5f0f1d84764f104656ed3e8090",
                 "origin": "compiled"
               }
             ]
           },
-          "output": "/home/chenxu/repos/scoop/tmp/m34/verified-interfaces-on-linux-gnu/interfaces",
+          "output": "/home/chenxu/repos/scoop/tmp/m34/final-interfaces-on-linux-gnu/interfaces",
           "profile": "release",
           "root": {
             "artifact_fingerprint": "ebb2c73227e3364c6bd1f4af19d249a2ac2a918f26c4d6d367f996fc4fb770eb",
@@ -183,13 +183,13 @@
               "version": "0.1.0"
             },
             "identity": "3defb077b78153b1a806ad302ab005d7a7715f5f0f1d84764f104656ed3e8090",
-            "path": "/home/chenxu/repos/scoop/tmp/m34/m10-boundary-update-gnu/cache/compile-v1/d923bdb4acaf2de736c919232740e7f30d4a98d85efd2455e93b753fa49ad460/artifact.slib"
+            "path": "/home/chenxu/repos/scoop/tmp/m34/index-gnu/cache/compile-v1/978c97e25d91edaacf250e77c80585c37cfb59802fa428df21ecb4ab7ec30e52/artifact.slib"
           },
-          "runtime_index": "/home/chenxu/repos/scoop/tmp/m34/m10-boundary-update-gnu/cache/runtime-v1/ce9b1b299f01c9cd88956b788b880d9576e56e99e378462aafd828f51c1f5cf6/index.cbor",
+          "runtime_index": "/home/chenxu/repos/scoop/tmp/m34/index-gnu/cache/runtime-v1/ce9b1b299f01c9cd88956b788b880d9576e56e99e378462aafd828f51c1f5cf6/index.cbor",
           "schema": 1
         }
       ],
-      "output_bytes": 4640304,
+      "output_bytes": 4636208,
       "root_slib_bytes": 268920
     }
   ],
@@ -204,20 +204,20 @@
       "-c",
       "/home/chenxu/repos/scoop/tests/benchmarks/interfaces/phases.c",
       "-o",
-      "/home/chenxu/repos/scoop/tmp/m34/verified-interfaces-on-linux-gnu/phases.o"
+      "/home/chenxu/repos/scoop/tmp/m34/final-interfaces-on-linux-gnu/phases.o"
     ],
     [
       "ar",
       "rcs",
-      "/home/chenxu/repos/scoop/tmp/m34/verified-interfaces-on-linux-gnu/libm34_interfaces.a",
-      "/home/chenxu/repos/scoop/tmp/m34/verified-interfaces-on-linux-gnu/phases.o"
+      "/home/chenxu/repos/scoop/tmp/m34/final-interfaces-on-linux-gnu/libm34_interfaces.a",
+      "/home/chenxu/repos/scoop/tmp/m34/final-interfaces-on-linux-gnu/phases.o"
     ]
   ],
   "tools": {
     "cc": "cc (Ubuntu 15.2.0-16ubuntu1) 15.2.0\nCopyright (C) 2025 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.",
     "llvm": "22.1.2"
   },
-  "sections": "/home/chenxu/repos/scoop/tmp/m34/verified-interfaces-on-linux-gnu/interfaces  :\nsection                  size      addr\n.interp                    28       848\n.gnu.hash                  40       880\n.dynsym                  1920       920\n.dynstr                  1153      2840\n.gnu.version              160      3994\n.gnu.version_r            272      4160\n.rela.dyn              163776      4432\n.rela.plt                1728    168208\n.init                      27    172032\n.plt                     1168    172064\n.plt.got                    8    173232\n.text                  346065    173248\n.fini                      13    519316\n.rodata                132044    520192\n.eh_frame_hdr           10684    652236\n.eh_frame               56784    662920\n.gcc_except_table        4328    719704\n.note.gnu.property         32    724032\n.note.ABI-tag              32    724064\n.tbss                      24    727792\n.init_array                 8    727792\n.fini_array                 8    727800\n.data.rel.ro.scoop     929448    727808\n.data.rel.ro              400   1657280\n.dynamic                  528   1657680\n.got                      664   1658208\n.data                    1080   1658880\n.bss                    39296   1660032\n.comment                   68         0\n.deplibs                   11         0\nTotal                 1691797\n\n\n",
+  "sections": "/home/chenxu/repos/scoop/tmp/m34/final-interfaces-on-linux-gnu/interfaces  :\nsection                  size      addr\n.interp                    28       848\n.gnu.hash                  40       880\n.dynsym                  1920       920\n.dynstr                  1153      2840\n.gnu.version              160      3994\n.gnu.version_r            272      4160\n.rela.dyn              163776      4432\n.rela.plt                1728    168208\n.init                      27    172032\n.plt                     1168    172064\n.plt.got                    8    173232\n.text                  340881    173248\n.fini                      13    514132\n.rodata                132044    516096\n.eh_frame_hdr           10684    648140\n.eh_frame               56656    658824\n.gcc_except_table        4328    715480\n.note.gnu.property         32    719808\n.note.ABI-tag              32    719840\n.tbss                      24    723696\n.init_array                 8    723696\n.fini_array                 8    723704\n.data.rel.ro.scoop     929448    723712\n.data.rel.ro              400   1653184\n.dynamic                  528   1653584\n.got                      664   1654112\n.data                    1080   1654784\n.bss                    39296   1655936\n.comment                   68         0\n.deplibs                   11         0\nTotal                 1686485\n\n\n",
   "hot_functions": [
     {
       "source": "Cell.next",

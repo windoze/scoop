@@ -1,14 +1,14 @@
 {
   "host": "Linux-7.0.0-38-generic-x86_64-with-glibc2.43",
   "target": "x86_64-unknown-linux-gnu",
-  "revision": "fbd98ad0d",
+  "revision": "db40db07a35896c040166fe454ff5d32c9ba3555",
   "mode": "on",
   "kind": "standard",
   "builds": [
     {
       "name": "aggregate",
-      "first_build_seconds": 8.015311082999688,
-      "warm_build_seconds": 4.412095822015544,
+      "first_build_seconds": 6.865542096988065,
+      "warm_build_seconds": 3.7919740229845047,
       "command": [
         "/home/chenxu/repos/scoop/target/release/scoop",
         "build",
@@ -19,7 +19,7 @@
         "--runtime-root",
         "/home/chenxu/repos/scoop/runtime",
         "--cache-dir",
-        "/home/chenxu/repos/scoop/tmp/m34/m10-boundary-update-gnu/cache",
+        "/home/chenxu/repos/scoop/tmp/m34/index-gnu/cache",
         "--profile",
         "release",
         "--message-format",
@@ -30,44 +30,44 @@
         "/home/chenxu/repos/scoop/sysroot/native/x86_64-unknown-linux-gnu/unwind",
         "/home/chenxu/repos/scoop/tests/benchmarks/aggregate.scoop",
         "--target-dir",
-        "/home/chenxu/repos/scoop/tmp/m34/verified-standard-on-linux-gnu/target-aggregate",
+        "/home/chenxu/repos/scoop/tmp/m34/final-standard-on-linux-gnu/target-aggregate",
         "-o",
-        "/home/chenxu/repos/scoop/tmp/m34/verified-standard-on-linux-gnu/aggregate"
+        "/home/chenxu/repos/scoop/tmp/m34/final-standard-on-linux-gnu/aggregate"
       ],
       "records": [
         {
           "dependencies": [
             {
-              "artifact_fingerprint": "c5f6e5f6d6b52a389b4452ff9b73c5d17d855063a3131fed233149c8da82eae7",
+              "artifact_fingerprint": "e687abb81844f0558921956a43a0eaac4ea4486fecb1b904891a7fe7fe93efec",
               "coordinate": {
                 "group": "scoop",
                 "name": "scoop.core",
                 "version": "0.1.0"
               },
               "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
-              "path": "/home/chenxu/repos/scoop/tmp/m34/m10-boundary-update-gnu/cache/compile-v1/5bddee765db0176f3f345217b72cb2b3f01954009274c9aeebdf10b5f2687afb/artifact.slib"
+              "path": "/home/chenxu/repos/scoop/tmp/m34/index-gnu/cache/compile-v1/6405da7a2d3f239c79c58a4d673bf7ead9cd23b291592d97f8c45fdc1cdbc02c/artifact.slib"
             }
           ],
           "kind": "executable",
-          "link_plan_fingerprint": "2d9f37c232688b37343d04c0d1fc48e11fd4d568273e10235c24943d88c3fc7c",
+          "link_plan_fingerprint": "217d323e2f30d2e39bfaf356cfb90243616b04cf4c55ce06be700396663a45d0",
           "observations": {
             "child_invocations": [
               "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6"
             ],
             "nodes": [
               {
-                "cache_key": "5bddee765db0176f3f345217b72cb2b3f01954009274c9aeebdf10b5f2687afb",
+                "cache_key": "6405da7a2d3f239c79c58a4d673bf7ead9cd23b291592d97f8c45fdc1cdbc02c",
                 "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
                 "origin": "cache"
               },
               {
-                "cache_key": "a6dc8d8bf0ccdbab52fa77a057601aaf9efaab65084524b9efc6bc15eee4ecb0",
+                "cache_key": "22305f712d26128c7b582743cc294b0ae3401d2228ce68d9e53d1a39b35bdede",
                 "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
                 "origin": "compiled"
               }
             ]
           },
-          "output": "/home/chenxu/repos/scoop/tmp/m34/verified-standard-on-linux-gnu/aggregate",
+          "output": "/home/chenxu/repos/scoop/tmp/m34/final-standard-on-linux-gnu/aggregate",
           "profile": "release",
           "root": {
             "artifact_fingerprint": "8292896562fb42131467ac446131f5e8cdd6d361308ad7e2898f7e202dd828a6",
@@ -77,19 +77,19 @@
               "version": "0.0.0"
             },
             "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
-            "path": "/home/chenxu/repos/scoop/tmp/m34/m10-boundary-update-gnu/cache/compile-v1/a6dc8d8bf0ccdbab52fa77a057601aaf9efaab65084524b9efc6bc15eee4ecb0/artifact.slib"
+            "path": "/home/chenxu/repos/scoop/tmp/m34/index-gnu/cache/compile-v1/22305f712d26128c7b582743cc294b0ae3401d2228ce68d9e53d1a39b35bdede/artifact.slib"
           },
-          "runtime_index": "/home/chenxu/repos/scoop/tmp/m34/m10-boundary-update-gnu/cache/runtime-v1/ce9b1b299f01c9cd88956b788b880d9576e56e99e378462aafd828f51c1f5cf6/index.cbor",
+          "runtime_index": "/home/chenxu/repos/scoop/tmp/m34/index-gnu/cache/runtime-v1/ce9b1b299f01c9cd88956b788b880d9576e56e99e378462aafd828f51c1f5cf6/index.cbor",
           "schema": 1
         }
       ],
-      "output_bytes": 4536744,
+      "output_bytes": 4532648,
       "root_slib_bytes": 232344
     },
     {
       "name": "allocation",
-      "first_build_seconds": 8.1387517080002,
-      "warm_build_seconds": 4.655624554987298,
+      "first_build_seconds": 6.907246112998109,
+      "warm_build_seconds": 3.8275594190054107,
       "command": [
         "/home/chenxu/repos/scoop/target/release/scoop",
         "build",
@@ -100,7 +100,7 @@
         "--runtime-root",
         "/home/chenxu/repos/scoop/runtime",
         "--cache-dir",
-        "/home/chenxu/repos/scoop/tmp/m34/m10-boundary-update-gnu/cache",
+        "/home/chenxu/repos/scoop/tmp/m34/index-gnu/cache",
         "--profile",
         "release",
         "--message-format",
@@ -111,44 +111,44 @@
         "/home/chenxu/repos/scoop/sysroot/native/x86_64-unknown-linux-gnu/unwind",
         "/home/chenxu/repos/scoop/tests/benchmarks/allocation.scoop",
         "--target-dir",
-        "/home/chenxu/repos/scoop/tmp/m34/verified-standard-on-linux-gnu/target-allocation",
+        "/home/chenxu/repos/scoop/tmp/m34/final-standard-on-linux-gnu/target-allocation",
         "-o",
-        "/home/chenxu/repos/scoop/tmp/m34/verified-standard-on-linux-gnu/allocation"
+        "/home/chenxu/repos/scoop/tmp/m34/final-standard-on-linux-gnu/allocation"
       ],
       "records": [
         {
           "dependencies": [
             {
-              "artifact_fingerprint": "c5f6e5f6d6b52a389b4452ff9b73c5d17d855063a3131fed233149c8da82eae7",
+              "artifact_fingerprint": "e687abb81844f0558921956a43a0eaac4ea4486fecb1b904891a7fe7fe93efec",
               "coordinate": {
                 "group": "scoop",
                 "name": "scoop.core",
                 "version": "0.1.0"
               },
               "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
-              "path": "/home/chenxu/repos/scoop/tmp/m34/m10-boundary-update-gnu/cache/compile-v1/5bddee765db0176f3f345217b72cb2b3f01954009274c9aeebdf10b5f2687afb/artifact.slib"
+              "path": "/home/chenxu/repos/scoop/tmp/m34/index-gnu/cache/compile-v1/6405da7a2d3f239c79c58a4d673bf7ead9cd23b291592d97f8c45fdc1cdbc02c/artifact.slib"
             }
           ],
           "kind": "executable",
-          "link_plan_fingerprint": "3b7ba0f91fedb3bc2a930e15fa474d6825e2b605124cae49404a9e5256e341a1",
+          "link_plan_fingerprint": "4ef9ae139c7e8d47576e58dcb9d0bb40a126a839c586b08114be58d3bbd3efc6",
           "observations": {
             "child_invocations": [
               "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6"
             ],
             "nodes": [
               {
-                "cache_key": "5bddee765db0176f3f345217b72cb2b3f01954009274c9aeebdf10b5f2687afb",
+                "cache_key": "6405da7a2d3f239c79c58a4d673bf7ead9cd23b291592d97f8c45fdc1cdbc02c",
                 "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
                 "origin": "cache"
               },
               {
-                "cache_key": "195240b44a18ee7d2ab42caf5d5dca2b73112e82becbe8b480b5617609043cff",
+                "cache_key": "f9b0cc66280d0ed5a3e092b61b3d2a92ff319e9d442cc0d12ada66fba1f36d08",
                 "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
                 "origin": "compiled"
               }
             ]
           },
-          "output": "/home/chenxu/repos/scoop/tmp/m34/verified-standard-on-linux-gnu/allocation",
+          "output": "/home/chenxu/repos/scoop/tmp/m34/final-standard-on-linux-gnu/allocation",
           "profile": "release",
           "root": {
             "artifact_fingerprint": "d4232a652c04650d007a6ae5ef192359d99de0406d7de2fe95f03e5dfdcc2ce6",
@@ -158,19 +158,19 @@
               "version": "0.0.0"
             },
             "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
-            "path": "/home/chenxu/repos/scoop/tmp/m34/m10-boundary-update-gnu/cache/compile-v1/195240b44a18ee7d2ab42caf5d5dca2b73112e82becbe8b480b5617609043cff/artifact.slib"
+            "path": "/home/chenxu/repos/scoop/tmp/m34/index-gnu/cache/compile-v1/f9b0cc66280d0ed5a3e092b61b3d2a92ff319e9d442cc0d12ada66fba1f36d08/artifact.slib"
           },
-          "runtime_index": "/home/chenxu/repos/scoop/tmp/m34/m10-boundary-update-gnu/cache/runtime-v1/ce9b1b299f01c9cd88956b788b880d9576e56e99e378462aafd828f51c1f5cf6/index.cbor",
+          "runtime_index": "/home/chenxu/repos/scoop/tmp/m34/index-gnu/cache/runtime-v1/ce9b1b299f01c9cd88956b788b880d9576e56e99e378462aafd828f51c1f5cf6/index.cbor",
           "schema": 1
         }
       ],
-      "output_bytes": 4543312,
+      "output_bytes": 4535120,
       "root_slib_bytes": 281978
     },
     {
       "name": "arrays",
-      "first_build_seconds": 8.841897053003777,
-      "warm_build_seconds": 4.671506669023074,
+      "first_build_seconds": 7.579968581994763,
+      "warm_build_seconds": 3.843977268988965,
       "command": [
         "/home/chenxu/repos/scoop/target/release/scoop",
         "build",
@@ -181,7 +181,7 @@
         "--runtime-root",
         "/home/chenxu/repos/scoop/runtime",
         "--cache-dir",
-        "/home/chenxu/repos/scoop/tmp/m34/m10-boundary-update-gnu/cache",
+        "/home/chenxu/repos/scoop/tmp/m34/index-gnu/cache",
         "--profile",
         "release",
         "--message-format",
@@ -192,66 +192,66 @@
         "/home/chenxu/repos/scoop/sysroot/native/x86_64-unknown-linux-gnu/unwind",
         "/home/chenxu/repos/scoop/tests/benchmarks/arrays.scoop",
         "--target-dir",
-        "/home/chenxu/repos/scoop/tmp/m34/verified-standard-on-linux-gnu/target-arrays",
+        "/home/chenxu/repos/scoop/tmp/m34/final-standard-on-linux-gnu/target-arrays",
         "-o",
-        "/home/chenxu/repos/scoop/tmp/m34/verified-standard-on-linux-gnu/arrays"
+        "/home/chenxu/repos/scoop/tmp/m34/final-standard-on-linux-gnu/arrays"
       ],
       "records": [
         {
           "dependencies": [
             {
-              "artifact_fingerprint": "c5f6e5f6d6b52a389b4452ff9b73c5d17d855063a3131fed233149c8da82eae7",
+              "artifact_fingerprint": "e687abb81844f0558921956a43a0eaac4ea4486fecb1b904891a7fe7fe93efec",
               "coordinate": {
                 "group": "scoop",
                 "name": "scoop.core",
                 "version": "0.1.0"
               },
               "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
-              "path": "/home/chenxu/repos/scoop/tmp/m34/m10-boundary-update-gnu/cache/compile-v1/5bddee765db0176f3f345217b72cb2b3f01954009274c9aeebdf10b5f2687afb/artifact.slib"
+              "path": "/home/chenxu/repos/scoop/tmp/m34/index-gnu/cache/compile-v1/6405da7a2d3f239c79c58a4d673bf7ead9cd23b291592d97f8c45fdc1cdbc02c/artifact.slib"
             }
           ],
           "kind": "executable",
-          "link_plan_fingerprint": "cf9c57428c6ceb58890947a0d528d59139bf70836fed178478794d87b41df0a9",
+          "link_plan_fingerprint": "084832c3c441a5ba336f43ca10c66b3162d7826d30140490826656728439aa00",
           "observations": {
             "child_invocations": [
               "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6"
             ],
             "nodes": [
               {
-                "cache_key": "5bddee765db0176f3f345217b72cb2b3f01954009274c9aeebdf10b5f2687afb",
+                "cache_key": "6405da7a2d3f239c79c58a4d673bf7ead9cd23b291592d97f8c45fdc1cdbc02c",
                 "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
                 "origin": "cache"
               },
               {
-                "cache_key": "30c29b4d8b642b0cebda48ff4ddcc569df3c163dc73ec4c22a38abdc4408fe43",
+                "cache_key": "053b0888dac7da85829af88cd732eb9b54fa6686c0daaf391cbcf4c19379e4de",
                 "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
                 "origin": "compiled"
               }
             ]
           },
-          "output": "/home/chenxu/repos/scoop/tmp/m34/verified-standard-on-linux-gnu/arrays",
+          "output": "/home/chenxu/repos/scoop/tmp/m34/final-standard-on-linux-gnu/arrays",
           "profile": "release",
           "root": {
-            "artifact_fingerprint": "cdc10ec0b63bd773f2eee018007b995c836020bd5c76aaad4cadece4454e3379",
+            "artifact_fingerprint": "ba5e2d7c665ec4753029a6bb10b3f89f89bd706095ba45ceb06027325e9f6166",
             "coordinate": {
               "group": "scoop",
               "name": "single-file",
               "version": "0.0.0"
             },
             "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
-            "path": "/home/chenxu/repos/scoop/tmp/m34/m10-boundary-update-gnu/cache/compile-v1/30c29b4d8b642b0cebda48ff4ddcc569df3c163dc73ec4c22a38abdc4408fe43/artifact.slib"
+            "path": "/home/chenxu/repos/scoop/tmp/m34/index-gnu/cache/compile-v1/053b0888dac7da85829af88cd732eb9b54fa6686c0daaf391cbcf4c19379e4de/artifact.slib"
           },
-          "runtime_index": "/home/chenxu/repos/scoop/tmp/m34/m10-boundary-update-gnu/cache/runtime-v1/ce9b1b299f01c9cd88956b788b880d9576e56e99e378462aafd828f51c1f5cf6/index.cbor",
+          "runtime_index": "/home/chenxu/repos/scoop/tmp/m34/index-gnu/cache/runtime-v1/ce9b1b299f01c9cd88956b788b880d9576e56e99e378462aafd828f51c1f5cf6/index.cbor",
           "schema": 1
         }
       ],
-      "output_bytes": 4675496,
-      "root_slib_bytes": 1482236
+      "output_bytes": 4671400,
+      "root_slib_bytes": 1480460
     },
     {
       "name": "collections",
-      "first_build_seconds": 8.364366986003006,
-      "warm_build_seconds": 4.416228129004594,
+      "first_build_seconds": 7.198311068001203,
+      "warm_build_seconds": 3.7622529119835235,
       "command": [
         "/home/chenxu/repos/scoop/target/release/scoop",
         "build",
@@ -262,7 +262,7 @@
         "--runtime-root",
         "/home/chenxu/repos/scoop/runtime",
         "--cache-dir",
-        "/home/chenxu/repos/scoop/tmp/m34/m10-boundary-update-gnu/cache",
+        "/home/chenxu/repos/scoop/tmp/m34/index-gnu/cache",
         "--profile",
         "release",
         "--message-format",
@@ -273,66 +273,66 @@
         "/home/chenxu/repos/scoop/sysroot/native/x86_64-unknown-linux-gnu/unwind",
         "/home/chenxu/repos/scoop/tests/benchmarks/collections.scoop",
         "--target-dir",
-        "/home/chenxu/repos/scoop/tmp/m34/verified-standard-on-linux-gnu/target-collections",
+        "/home/chenxu/repos/scoop/tmp/m34/final-standard-on-linux-gnu/target-collections",
         "-o",
-        "/home/chenxu/repos/scoop/tmp/m34/verified-standard-on-linux-gnu/collections"
+        "/home/chenxu/repos/scoop/tmp/m34/final-standard-on-linux-gnu/collections"
       ],
       "records": [
         {
           "dependencies": [
             {
-              "artifact_fingerprint": "c5f6e5f6d6b52a389b4452ff9b73c5d17d855063a3131fed233149c8da82eae7",
+              "artifact_fingerprint": "e687abb81844f0558921956a43a0eaac4ea4486fecb1b904891a7fe7fe93efec",
               "coordinate": {
                 "group": "scoop",
                 "name": "scoop.core",
                 "version": "0.1.0"
               },
               "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
-              "path": "/home/chenxu/repos/scoop/tmp/m34/m10-boundary-update-gnu/cache/compile-v1/5bddee765db0176f3f345217b72cb2b3f01954009274c9aeebdf10b5f2687afb/artifact.slib"
+              "path": "/home/chenxu/repos/scoop/tmp/m34/index-gnu/cache/compile-v1/6405da7a2d3f239c79c58a4d673bf7ead9cd23b291592d97f8c45fdc1cdbc02c/artifact.slib"
             }
           ],
           "kind": "executable",
-          "link_plan_fingerprint": "9b3a427b7b6a50a129aa26549296db088fdb5f87ec222bc4424f30781b6ad267",
+          "link_plan_fingerprint": "f804ddfa7b0eba4995b5a2658318a1973be4cf693cb61959f8c35f77187a1220",
           "observations": {
             "child_invocations": [
               "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6"
             ],
             "nodes": [
               {
-                "cache_key": "5bddee765db0176f3f345217b72cb2b3f01954009274c9aeebdf10b5f2687afb",
+                "cache_key": "6405da7a2d3f239c79c58a4d673bf7ead9cd23b291592d97f8c45fdc1cdbc02c",
                 "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
                 "origin": "cache"
               },
               {
-                "cache_key": "35f0e0c8eafa15ce6a2a9c01cc1a10c071adfe5c044599d61cb564112ff72d46",
+                "cache_key": "610576c44890aefc73d8c187cfc78d102eb8d0b2015378b2a79e97377b2928cd",
                 "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
                 "origin": "compiled"
               }
             ]
           },
-          "output": "/home/chenxu/repos/scoop/tmp/m34/verified-standard-on-linux-gnu/collections",
+          "output": "/home/chenxu/repos/scoop/tmp/m34/final-standard-on-linux-gnu/collections",
           "profile": "release",
           "root": {
-            "artifact_fingerprint": "94acf10b6c0334670539a2cd45d195ea85db0da53fda511d9f46f9d33b53b694",
+            "artifact_fingerprint": "ec4c650a78cac131f95ded18606d384b43d4f5fb1881a40b96e1310eee35d414",
             "coordinate": {
               "group": "scoop",
               "name": "single-file",
               "version": "0.0.0"
             },
             "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
-            "path": "/home/chenxu/repos/scoop/tmp/m34/m10-boundary-update-gnu/cache/compile-v1/35f0e0c8eafa15ce6a2a9c01cc1a10c071adfe5c044599d61cb564112ff72d46/artifact.slib"
+            "path": "/home/chenxu/repos/scoop/tmp/m34/index-gnu/cache/compile-v1/610576c44890aefc73d8c187cfc78d102eb8d0b2015378b2a79e97377b2928cd/artifact.slib"
           },
-          "runtime_index": "/home/chenxu/repos/scoop/tmp/m34/m10-boundary-update-gnu/cache/runtime-v1/ce9b1b299f01c9cd88956b788b880d9576e56e99e378462aafd828f51c1f5cf6/index.cbor",
+          "runtime_index": "/home/chenxu/repos/scoop/tmp/m34/index-gnu/cache/runtime-v1/ce9b1b299f01c9cd88956b788b880d9576e56e99e378462aafd828f51c1f5cf6/index.cbor",
           "schema": 1
         }
       ],
-      "output_bytes": 4542712,
-      "root_slib_bytes": 1859168
+      "output_bytes": 4538616,
+      "root_slib_bytes": 1857946
     },
     {
       "name": "old-graph-large",
-      "first_build_seconds": 8.669184878002852,
-      "warm_build_seconds": 4.490101494011469,
+      "first_build_seconds": 6.9507507950183935,
+      "warm_build_seconds": 3.77859131898731,
       "command": [
         "/home/chenxu/repos/scoop/target/release/scoop",
         "build",
@@ -343,7 +343,7 @@
         "--runtime-root",
         "/home/chenxu/repos/scoop/runtime",
         "--cache-dir",
-        "/home/chenxu/repos/scoop/tmp/m34/m10-boundary-update-gnu/cache",
+        "/home/chenxu/repos/scoop/tmp/m34/index-gnu/cache",
         "--profile",
         "release",
         "--message-format",
@@ -354,66 +354,66 @@
         "/home/chenxu/repos/scoop/sysroot/native/x86_64-unknown-linux-gnu/unwind",
         "/home/chenxu/repos/scoop/tests/benchmarks/old-graph-large.scoop",
         "--target-dir",
-        "/home/chenxu/repos/scoop/tmp/m34/verified-standard-on-linux-gnu/target-old-graph-large",
+        "/home/chenxu/repos/scoop/tmp/m34/final-standard-on-linux-gnu/target-old-graph-large",
         "-o",
-        "/home/chenxu/repos/scoop/tmp/m34/verified-standard-on-linux-gnu/old-graph-large"
+        "/home/chenxu/repos/scoop/tmp/m34/final-standard-on-linux-gnu/old-graph-large"
       ],
       "records": [
         {
           "dependencies": [
             {
-              "artifact_fingerprint": "c5f6e5f6d6b52a389b4452ff9b73c5d17d855063a3131fed233149c8da82eae7",
+              "artifact_fingerprint": "e687abb81844f0558921956a43a0eaac4ea4486fecb1b904891a7fe7fe93efec",
               "coordinate": {
                 "group": "scoop",
                 "name": "scoop.core",
                 "version": "0.1.0"
               },
               "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
-              "path": "/home/chenxu/repos/scoop/tmp/m34/m10-boundary-update-gnu/cache/compile-v1/5bddee765db0176f3f345217b72cb2b3f01954009274c9aeebdf10b5f2687afb/artifact.slib"
+              "path": "/home/chenxu/repos/scoop/tmp/m34/index-gnu/cache/compile-v1/6405da7a2d3f239c79c58a4d673bf7ead9cd23b291592d97f8c45fdc1cdbc02c/artifact.slib"
             }
           ],
           "kind": "executable",
-          "link_plan_fingerprint": "1739d19ef8d2bf2e26b4fb6f8912cbec9d739f4bd89f1d744b9c194afc0b0ad0",
+          "link_plan_fingerprint": "defe65d957c55afecd13bc591abc0e4d8c4198ee54dc23e61b476cab43c7ef3b",
           "observations": {
             "child_invocations": [
               "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6"
             ],
             "nodes": [
               {
-                "cache_key": "5bddee765db0176f3f345217b72cb2b3f01954009274c9aeebdf10b5f2687afb",
+                "cache_key": "6405da7a2d3f239c79c58a4d673bf7ead9cd23b291592d97f8c45fdc1cdbc02c",
                 "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
                 "origin": "cache"
               },
               {
-                "cache_key": "5eb640b1ae67fb3d86253c60970ff0ed9cc88d489187e351c5efe7e740471bad",
+                "cache_key": "6dad973a8f008231699de9d46c536119efbdc13b216ebd642feb16d1400c0c82",
                 "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
                 "origin": "compiled"
               }
             ]
           },
-          "output": "/home/chenxu/repos/scoop/tmp/m34/verified-standard-on-linux-gnu/old-graph-large",
+          "output": "/home/chenxu/repos/scoop/tmp/m34/final-standard-on-linux-gnu/old-graph-large",
           "profile": "release",
           "root": {
-            "artifact_fingerprint": "2cc6c2daa148f6f58356ba35712b79551f97f2f76df55661d3191b51545f09cb",
+            "artifact_fingerprint": "5b32e335bf7947bbe3966e70b901233e071712ec24a58b7102751b12c536cb06",
             "coordinate": {
               "group": "scoop",
               "name": "single-file",
               "version": "0.0.0"
             },
             "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
-            "path": "/home/chenxu/repos/scoop/tmp/m34/m10-boundary-update-gnu/cache/compile-v1/5eb640b1ae67fb3d86253c60970ff0ed9cc88d489187e351c5efe7e740471bad/artifact.slib"
+            "path": "/home/chenxu/repos/scoop/tmp/m34/index-gnu/cache/compile-v1/6dad973a8f008231699de9d46c536119efbdc13b216ebd642feb16d1400c0c82/artifact.slib"
           },
-          "runtime_index": "/home/chenxu/repos/scoop/tmp/m34/m10-boundary-update-gnu/cache/runtime-v1/ce9b1b299f01c9cd88956b788b880d9576e56e99e378462aafd828f51c1f5cf6/index.cbor",
+          "runtime_index": "/home/chenxu/repos/scoop/tmp/m34/index-gnu/cache/runtime-v1/ce9b1b299f01c9cd88956b788b880d9576e56e99e378462aafd828f51c1f5cf6/index.cbor",
           "schema": 1
         }
       ],
-      "output_bytes": 4630056,
-      "root_slib_bytes": 1022868
+      "output_bytes": 4625960,
+      "root_slib_bytes": 1021536
     },
     {
       "name": "old-graph",
-      "first_build_seconds": 8.42523530399194,
-      "warm_build_seconds": 4.580949139985023,
+      "first_build_seconds": 6.929801224992843,
+      "warm_build_seconds": 3.8250525209878106,
       "command": [
         "/home/chenxu/repos/scoop/target/release/scoop",
         "build",
@@ -424,7 +424,7 @@
         "--runtime-root",
         "/home/chenxu/repos/scoop/runtime",
         "--cache-dir",
-        "/home/chenxu/repos/scoop/tmp/m34/m10-boundary-update-gnu/cache",
+        "/home/chenxu/repos/scoop/tmp/m34/index-gnu/cache",
         "--profile",
         "release",
         "--message-format",
@@ -435,66 +435,66 @@
         "/home/chenxu/repos/scoop/sysroot/native/x86_64-unknown-linux-gnu/unwind",
         "/home/chenxu/repos/scoop/tests/benchmarks/old-graph.scoop",
         "--target-dir",
-        "/home/chenxu/repos/scoop/tmp/m34/verified-standard-on-linux-gnu/target-old-graph",
+        "/home/chenxu/repos/scoop/tmp/m34/final-standard-on-linux-gnu/target-old-graph",
         "-o",
-        "/home/chenxu/repos/scoop/tmp/m34/verified-standard-on-linux-gnu/old-graph"
+        "/home/chenxu/repos/scoop/tmp/m34/final-standard-on-linux-gnu/old-graph"
       ],
       "records": [
         {
           "dependencies": [
             {
-              "artifact_fingerprint": "c5f6e5f6d6b52a389b4452ff9b73c5d17d855063a3131fed233149c8da82eae7",
+              "artifact_fingerprint": "e687abb81844f0558921956a43a0eaac4ea4486fecb1b904891a7fe7fe93efec",
               "coordinate": {
                 "group": "scoop",
                 "name": "scoop.core",
                 "version": "0.1.0"
               },
               "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
-              "path": "/home/chenxu/repos/scoop/tmp/m34/m10-boundary-update-gnu/cache/compile-v1/5bddee765db0176f3f345217b72cb2b3f01954009274c9aeebdf10b5f2687afb/artifact.slib"
+              "path": "/home/chenxu/repos/scoop/tmp/m34/index-gnu/cache/compile-v1/6405da7a2d3f239c79c58a4d673bf7ead9cd23b291592d97f8c45fdc1cdbc02c/artifact.slib"
             }
           ],
           "kind": "executable",
-          "link_plan_fingerprint": "cda807bee461d03f30fa783997b80cacbe02ea76733f7d8f2c20dea3a683ff28",
+          "link_plan_fingerprint": "4259651932497453f9b6566de9f79322d4a28ddc42d184b2217ed4b1b019dcb3",
           "observations": {
             "child_invocations": [
               "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6"
             ],
             "nodes": [
               {
-                "cache_key": "5bddee765db0176f3f345217b72cb2b3f01954009274c9aeebdf10b5f2687afb",
+                "cache_key": "6405da7a2d3f239c79c58a4d673bf7ead9cd23b291592d97f8c45fdc1cdbc02c",
                 "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
                 "origin": "cache"
               },
               {
-                "cache_key": "b8bce290efae096a81e55b47953fccf5725fea5d95e132247d0ec8da7b5aa8dc",
+                "cache_key": "07d932c972fd002cff40752d8d74eebf6295173fa6f865c72161ff78f3213117",
                 "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
                 "origin": "compiled"
               }
             ]
           },
-          "output": "/home/chenxu/repos/scoop/tmp/m34/verified-standard-on-linux-gnu/old-graph",
+          "output": "/home/chenxu/repos/scoop/tmp/m34/final-standard-on-linux-gnu/old-graph",
           "profile": "release",
           "root": {
-            "artifact_fingerprint": "20b6cd7f1ab56d6a74706309beb9c57369d7aa7a4ec2358a7bbd25434497ebb7",
+            "artifact_fingerprint": "03e4d257dd637fb0cb5a3e17ea57942f49424a550f7682ed0931cb7e1d28010d",
             "coordinate": {
               "group": "scoop",
               "name": "single-file",
               "version": "0.0.0"
             },
             "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
-            "path": "/home/chenxu/repos/scoop/tmp/m34/m10-boundary-update-gnu/cache/compile-v1/b8bce290efae096a81e55b47953fccf5725fea5d95e132247d0ec8da7b5aa8dc/artifact.slib"
+            "path": "/home/chenxu/repos/scoop/tmp/m34/index-gnu/cache/compile-v1/07d932c972fd002cff40752d8d74eebf6295173fa6f865c72161ff78f3213117/artifact.slib"
           },
-          "runtime_index": "/home/chenxu/repos/scoop/tmp/m34/m10-boundary-update-gnu/cache/runtime-v1/ce9b1b299f01c9cd88956b788b880d9576e56e99e378462aafd828f51c1f5cf6/index.cbor",
+          "runtime_index": "/home/chenxu/repos/scoop/tmp/m34/index-gnu/cache/runtime-v1/ce9b1b299f01c9cd88956b788b880d9576e56e99e378462aafd828f51c1f5cf6/index.cbor",
           "schema": 1
         }
       ],
-      "output_bytes": 4630056,
-      "root_slib_bytes": 1022868
+      "output_bytes": 4625960,
+      "root_slib_bytes": 1021536
     },
     {
       "name": "primitive",
-      "first_build_seconds": 8.558970320998924,
-      "warm_build_seconds": 4.729544164001709,
+      "first_build_seconds": 6.905730791011592,
+      "warm_build_seconds": 3.799092447006842,
       "command": [
         "/home/chenxu/repos/scoop/target/release/scoop",
         "build",
@@ -505,7 +505,7 @@
         "--runtime-root",
         "/home/chenxu/repos/scoop/runtime",
         "--cache-dir",
-        "/home/chenxu/repos/scoop/tmp/m34/m10-boundary-update-gnu/cache",
+        "/home/chenxu/repos/scoop/tmp/m34/index-gnu/cache",
         "--profile",
         "release",
         "--message-format",
@@ -516,44 +516,44 @@
         "/home/chenxu/repos/scoop/sysroot/native/x86_64-unknown-linux-gnu/unwind",
         "/home/chenxu/repos/scoop/tests/benchmarks/primitive.scoop",
         "--target-dir",
-        "/home/chenxu/repos/scoop/tmp/m34/verified-standard-on-linux-gnu/target-primitive",
+        "/home/chenxu/repos/scoop/tmp/m34/final-standard-on-linux-gnu/target-primitive",
         "-o",
-        "/home/chenxu/repos/scoop/tmp/m34/verified-standard-on-linux-gnu/primitive"
+        "/home/chenxu/repos/scoop/tmp/m34/final-standard-on-linux-gnu/primitive"
       ],
       "records": [
         {
           "dependencies": [
             {
-              "artifact_fingerprint": "c5f6e5f6d6b52a389b4452ff9b73c5d17d855063a3131fed233149c8da82eae7",
+              "artifact_fingerprint": "e687abb81844f0558921956a43a0eaac4ea4486fecb1b904891a7fe7fe93efec",
               "coordinate": {
                 "group": "scoop",
                 "name": "scoop.core",
                 "version": "0.1.0"
               },
               "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
-              "path": "/home/chenxu/repos/scoop/tmp/m34/m10-boundary-update-gnu/cache/compile-v1/5bddee765db0176f3f345217b72cb2b3f01954009274c9aeebdf10b5f2687afb/artifact.slib"
+              "path": "/home/chenxu/repos/scoop/tmp/m34/index-gnu/cache/compile-v1/6405da7a2d3f239c79c58a4d673bf7ead9cd23b291592d97f8c45fdc1cdbc02c/artifact.slib"
             }
           ],
           "kind": "executable",
-          "link_plan_fingerprint": "9caac4a712c1c828a7c3824f08729e6add55c64793772d546122f7a5a33d72e2",
+          "link_plan_fingerprint": "c6a06aa6bae281f2c3fe229ea689f92056a2a569085f34f03f20bf8052130400",
           "observations": {
             "child_invocations": [
               "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6"
             ],
             "nodes": [
               {
-                "cache_key": "5bddee765db0176f3f345217b72cb2b3f01954009274c9aeebdf10b5f2687afb",
+                "cache_key": "6405da7a2d3f239c79c58a4d673bf7ead9cd23b291592d97f8c45fdc1cdbc02c",
                 "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
                 "origin": "cache"
               },
               {
-                "cache_key": "e30ac963af9f7bc5847ff31f1fa9810a9b5e8e63d3a1f0cb46092f853823c10f",
+                "cache_key": "8bfbd8f07d49c89453ba6bda84e70e5c0ce8cf268df37cfe6958a9d8edcab45d",
                 "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
                 "origin": "compiled"
               }
             ]
           },
-          "output": "/home/chenxu/repos/scoop/tmp/m34/verified-standard-on-linux-gnu/primitive",
+          "output": "/home/chenxu/repos/scoop/tmp/m34/final-standard-on-linux-gnu/primitive",
           "profile": "release",
           "root": {
             "artifact_fingerprint": "43e952978310db2925f74f75bae83b89c4430fca3a15050510b6c048f01dfa56",
@@ -563,19 +563,19 @@
               "version": "0.0.0"
             },
             "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
-            "path": "/home/chenxu/repos/scoop/tmp/m34/m10-boundary-update-gnu/cache/compile-v1/e30ac963af9f7bc5847ff31f1fa9810a9b5e8e63d3a1f0cb46092f853823c10f/artifact.slib"
+            "path": "/home/chenxu/repos/scoop/tmp/m34/index-gnu/cache/compile-v1/8bfbd8f07d49c89453ba6bda84e70e5c0ce8cf268df37cfe6958a9d8edcab45d/artifact.slib"
           },
-          "runtime_index": "/home/chenxu/repos/scoop/tmp/m34/m10-boundary-update-gnu/cache/runtime-v1/ce9b1b299f01c9cd88956b788b880d9576e56e99e378462aafd828f51c1f5cf6/index.cbor",
+          "runtime_index": "/home/chenxu/repos/scoop/tmp/m34/index-gnu/cache/runtime-v1/ce9b1b299f01c9cd88956b788b880d9576e56e99e378462aafd828f51c1f5cf6/index.cbor",
           "schema": 1
         }
       ],
-      "output_bytes": 4531320,
+      "output_bytes": 4527224,
       "root_slib_bytes": 223318
     },
     {
       "name": "survivors",
-      "first_build_seconds": 9.059975528012728,
-      "warm_build_seconds": 4.850877099990612,
+      "first_build_seconds": 7.26785633599502,
+      "warm_build_seconds": 3.7894870129821356,
       "command": [
         "/home/chenxu/repos/scoop/target/release/scoop",
         "build",
@@ -586,7 +586,7 @@
         "--runtime-root",
         "/home/chenxu/repos/scoop/runtime",
         "--cache-dir",
-        "/home/chenxu/repos/scoop/tmp/m34/m10-boundary-update-gnu/cache",
+        "/home/chenxu/repos/scoop/tmp/m34/index-gnu/cache",
         "--profile",
         "release",
         "--message-format",
@@ -597,61 +597,61 @@
         "/home/chenxu/repos/scoop/sysroot/native/x86_64-unknown-linux-gnu/unwind",
         "/home/chenxu/repos/scoop/tests/benchmarks/survivors.scoop",
         "--target-dir",
-        "/home/chenxu/repos/scoop/tmp/m34/verified-standard-on-linux-gnu/target-survivors",
+        "/home/chenxu/repos/scoop/tmp/m34/final-standard-on-linux-gnu/target-survivors",
         "-o",
-        "/home/chenxu/repos/scoop/tmp/m34/verified-standard-on-linux-gnu/survivors"
+        "/home/chenxu/repos/scoop/tmp/m34/final-standard-on-linux-gnu/survivors"
       ],
       "records": [
         {
           "dependencies": [
             {
-              "artifact_fingerprint": "c5f6e5f6d6b52a389b4452ff9b73c5d17d855063a3131fed233149c8da82eae7",
+              "artifact_fingerprint": "e687abb81844f0558921956a43a0eaac4ea4486fecb1b904891a7fe7fe93efec",
               "coordinate": {
                 "group": "scoop",
                 "name": "scoop.core",
                 "version": "0.1.0"
               },
               "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
-              "path": "/home/chenxu/repos/scoop/tmp/m34/m10-boundary-update-gnu/cache/compile-v1/5bddee765db0176f3f345217b72cb2b3f01954009274c9aeebdf10b5f2687afb/artifact.slib"
+              "path": "/home/chenxu/repos/scoop/tmp/m34/index-gnu/cache/compile-v1/6405da7a2d3f239c79c58a4d673bf7ead9cd23b291592d97f8c45fdc1cdbc02c/artifact.slib"
             }
           ],
           "kind": "executable",
-          "link_plan_fingerprint": "97432963a0ba82efd26b31e4a41e375a07c2d44d9ed646a2392281ea6e02ece0",
+          "link_plan_fingerprint": "4f7ea8a6284fd36eee1f20896f33db90a3548137f3aa77c37be9dbf631e672fd",
           "observations": {
             "child_invocations": [
               "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6"
             ],
             "nodes": [
               {
-                "cache_key": "5bddee765db0176f3f345217b72cb2b3f01954009274c9aeebdf10b5f2687afb",
+                "cache_key": "6405da7a2d3f239c79c58a4d673bf7ead9cd23b291592d97f8c45fdc1cdbc02c",
                 "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
                 "origin": "cache"
               },
               {
-                "cache_key": "7af993e11741a7484b030e33f5930b6306d1f39e494d19eb6060ff3615fe130b",
+                "cache_key": "616410eaefd569f52d9cecb70ee5b1013399d40edc015333349ff2ee0ef64d75",
                 "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
                 "origin": "compiled"
               }
             ]
           },
-          "output": "/home/chenxu/repos/scoop/tmp/m34/verified-standard-on-linux-gnu/survivors",
+          "output": "/home/chenxu/repos/scoop/tmp/m34/final-standard-on-linux-gnu/survivors",
           "profile": "release",
           "root": {
-            "artifact_fingerprint": "fca26943020b20c679ed57f533c716548fd2c7dedd96c85b5428f3feed9ee37d",
+            "artifact_fingerprint": "1144193aa2055bc7537724abc0de5e33f2fee822f8f92163c1edf71eae4bc854",
             "coordinate": {
               "group": "scoop",
               "name": "single-file",
               "version": "0.0.0"
             },
             "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
-            "path": "/home/chenxu/repos/scoop/tmp/m34/m10-boundary-update-gnu/cache/compile-v1/7af993e11741a7484b030e33f5930b6306d1f39e494d19eb6060ff3615fe130b/artifact.slib"
+            "path": "/home/chenxu/repos/scoop/tmp/m34/index-gnu/cache/compile-v1/616410eaefd569f52d9cecb70ee5b1013399d40edc015333349ff2ee0ef64d75/artifact.slib"
           },
-          "runtime_index": "/home/chenxu/repos/scoop/tmp/m34/m10-boundary-update-gnu/cache/runtime-v1/ce9b1b299f01c9cd88956b788b880d9576e56e99e378462aafd828f51c1f5cf6/index.cbor",
+          "runtime_index": "/home/chenxu/repos/scoop/tmp/m34/index-gnu/cache/runtime-v1/ce9b1b299f01c9cd88956b788b880d9576e56e99e378462aafd828f51c1f5cf6/index.cbor",
           "schema": 1
         }
       ],
-      "output_bytes": 4636048,
-      "root_slib_bytes": 1112758
+      "output_bytes": 4631952,
+      "root_slib_bytes": 1111426
     }
   ],
   "commands": [],
