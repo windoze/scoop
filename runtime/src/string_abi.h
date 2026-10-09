@@ -4,8 +4,9 @@
 #include "scoop_rt.h"
 #include <stddef.h>
 
-/* Exact core Option<Char> and Option<(Long, Long)> value storage. Platform
- * adapters receive Scoop's indirect result address using the target ABI. */
+/* Exact core Option<Char> and Option<(Long, Long)> value storage. The 16-byte
+ * GC-free Char result uses two integer return registers on both targets;
+ * larger or GC-bearing results retain platform indirect-result adapters. */
 typedef struct ScoopStringCharResult {
     uint64_t tag;
     uint32_t value;
@@ -34,8 +35,7 @@ _Static_assert(sizeof(ScoopStringDecodeResult) == 16 && _Alignof(ScoopStringDeco
                    offsetof(ScoopStringDecodeResult, invalid_offset) == 8,
                "(String?, Long) storage");
 
-void scoop_rt_string_get_storage(ScoopStringCharResult *result, const ScoopString *value,
-                                 int64_t index);
+ScoopStringCharResult scoop_rt_string_get(const ScoopString *value, int64_t index);
 void scoop_rt_string_slice_bounds_storage(ScoopStringBoundsResult *result, const ScoopString *value,
                                           int64_t start, int64_t end);
 

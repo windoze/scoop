@@ -1,0 +1,21 @@
+@Extern(name = "scoop_rt_json_parse_float", abi = "scoop") fun parseFloat(text: String): Float?
+@Extern(name = "scoop_rt_json_parse_double", abi = "scoop") fun parseDouble(text: String): Double?
+fun check(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+@Unsafe fun main() {
+    check(parseFloat("1.5")!! == 1.5f)
+    check(parseDouble("-17.25")!! == -17.25)
+    val negativeFloat = parseFloat("-0.0")!!
+    val negativeDouble = parseDouble("-0.0")!!
+    check(addressOf(negativeFloat).cast<UInt>().load() == 0x80000000U)
+    check(addressOf(negativeDouble).cast<ULong>().load() == 0x8000000000000000UL)
+    val smallFloat = parseFloat("1e-45")!!
+    val smallDouble = parseDouble("5e-324")!!
+    check(addressOf(smallFloat).cast<UInt>().load() == 1U)
+    check(addressOf(smallDouble).cast<ULong>().load() == 1UL)
+    check(parseFloat("bad") == None && parseDouble("") == None)
+    check(parseFloat("1e1000") == None && parseDouble("1e1000") == None)
+    gcCollect()
+    check(parseFloat("-2.5")!! == -2.5f && parseDouble("1.0")!! == 1.0)
+    println("core floating ABI")
+}

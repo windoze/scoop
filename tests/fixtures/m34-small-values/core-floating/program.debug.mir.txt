@@ -1,0 +1,1070 @@
+Module
+  extern ef0 parseFloat @scoop_rt_json_parse_float(String) -> Option<Float> <abi=scoop managed>
+  extern ef1 parseDouble @scoop_rt_json_parse_double(String) -> Option<Double> <abi=scoop managed>
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum Option<Float>
+    Some(_0: Float)
+    None()
+  enum Option<Double>
+    Some(_0: Double)
+    None()
+  enum Option<Char>
+    Some(_0: Char)
+    None()
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class UnwrapException vtable=0 itables=0
+  interface ToString
+  interface Equality<Float>
+  interface Equality<Double>
+  interface Equality<Ptr<Float>>
+  interface Equality<Ptr<UInt>>
+  interface Equality<Ptr<Double>>
+  interface Equality<Ptr<ULong>>
+  interface Hash
+  interface Equality<Char>
+  interface Iterable<Char>
+  interface Iterator<Char>
+  interface Equality<String>
+  generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
+  generated_exact_type get1 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
+  generated_exact_type get2 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
+  generated_exact_type get3 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
+  generated_exact_type get4 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
+  fun parseFloat @fn0(arg0: String) -> Option<Float>
+    bb0 entry
+      call $call.1: Option<Float> = extern0 @scoop_rt_json_parse_float direct
+        Type String
+        Local arg0
+      return
+        Type Option<Float>
+        Local $call.1
+  fun parseDouble @fn1(arg0: String) -> Option<Double>
+    bb0 entry
+      call $call.1: Option<Double> = extern1 @scoop_rt_json_parse_double direct
+        Type String
+        Local arg0
+      return
+        Type Option<Double>
+        Local $call.1
+  fun check @fn2(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.receiver: Boolean
+        Type Boolean
+        Local value
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+    bb1 if.then.1
+      val $default.local.0: String
+        Type String
+        StringConst @str0
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.1
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $new.1
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.1
+    bb2 if.merge.2
+      return
+  fun main @fn3() -> Unit
+    bb0 entry
+      val $argument.0: String
+        Type String
+        StringConst @str1
+      val $parameter.text: String
+        Type String
+        Local $argument.0
+      call $opt.1: Option<Float> = extern0 @scoop_rt_json_parse_float direct
+        Type String
+        Local $parameter.text
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Option<Float> v0
+          Type Option<Float>
+          Local $opt.1
+    bb1 if.then.1
+      val $uw.2: Float
+        Type Float
+        VariantPayloadProject Option<Float> v0 f0
+          Type Option<Float>
+          Local $opt.1
+      goto bb3
+    bb2 if.else.2
+      assign $new.1
+        Type UnwrapException
+        ClassAlloc UnwrapException
+      call external3 direct
+        Type UnwrapException
+        Local $new.1
+      throw
+        Type UnwrapException
+        Local $new.1
+    bb3 if.merge.3
+      val $dependency.receiver: Float
+        Type Float
+        Local $uw.2
+      val $dependency.argument.0: Float
+        Type Float
+        FloatLiteral f32(0x3fc00000)
+      val $dependency.parameter.other: Float
+        Type Float
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        FloatBinary F32 Equal
+          Type Float
+          Local $dependency.receiver
+          Type Float
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn2 direct
+        Type Boolean
+        Local $parameter.value
+      val $argument.0: String
+        Type String
+        StringConst @str2
+      val $parameter.text: String
+        Type String
+        Local $argument.0
+      call $opt.3: Option<Double> = extern1 @scoop_rt_json_parse_double direct
+        Type String
+        Local $parameter.text
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Option<Double> v0
+          Type Option<Double>
+          Local $opt.3
+    bb4 if.then.4
+      val $uw.4: Double
+        Type Double
+        VariantPayloadProject Option<Double> v0 f0
+          Type Option<Double>
+          Local $opt.3
+      goto bb6
+    bb5 if.else.5
+      assign $new.2
+        Type UnwrapException
+        ClassAlloc UnwrapException
+      call external3 direct
+        Type UnwrapException
+        Local $new.2
+      throw
+        Type UnwrapException
+        Local $new.2
+    bb6 if.merge.6
+      val $dependency.receiver: Double
+        Type Double
+        Local $uw.4
+      val $dependency.argument.0: Double
+        Type Double
+        FloatLiteral f64(0xc031400000000000)
+      val $dependency.parameter.other: Double
+        Type Double
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        FloatBinary F64 Equal
+          Type Double
+          Local $dependency.receiver
+          Type Double
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn2 direct
+        Type Boolean
+        Local $parameter.value
+      val $argument.0: String
+        Type String
+        StringConst @str3
+      val $parameter.text: String
+        Type String
+        Local $argument.0
+      call $opt.5: Option<Float> = extern0 @scoop_rt_json_parse_float direct
+        Type String
+        Local $parameter.text
+      branch bb7 bb8
+        Type Boolean
+        VariantTest Option<Float> v0
+          Type Option<Float>
+          Local $opt.5
+    bb7 if.then.7
+      val $uw.6: Float
+        Type Float
+        VariantPayloadProject Option<Float> v0 f0
+          Type Option<Float>
+          Local $opt.5
+      goto bb9
+    bb8 if.else.8
+      assign $new.3
+        Type UnwrapException
+        ClassAlloc UnwrapException
+      call external3 direct
+        Type UnwrapException
+        Local $new.3
+      throw
+        Type UnwrapException
+        Local $new.3
+    bb9 if.merge.9
+      val negativeFloat: Float
+        Type Float
+        Local $uw.6
+      val $argument.0: String
+        Type String
+        StringConst @str4
+      val $parameter.text: String
+        Type String
+        Local $argument.0
+      call $opt.7: Option<Double> = extern1 @scoop_rt_json_parse_double direct
+        Type String
+        Local $parameter.text
+      branch bb10 bb11
+        Type Boolean
+        VariantTest Option<Double> v0
+          Type Option<Double>
+          Local $opt.7
+    bb10 if.then.10
+      val $uw.8: Double
+        Type Double
+        VariantPayloadProject Option<Double> v0 f0
+          Type Option<Double>
+          Local $opt.7
+      goto bb12
+    bb11 if.else.11
+      assign $new.4
+        Type UnwrapException
+        ClassAlloc UnwrapException
+      call external3 direct
+        Type UnwrapException
+        Local $new.4
+      throw
+        Type UnwrapException
+        Local $new.4
+    bb12 if.merge.12
+      val negativeDouble: Double
+        Type Double
+        Local $uw.8
+      val $dependency.receiver: Ptr<Float>
+        Type Ptr<Float>
+        AddressOf negativeFloat : Ptr<Float>
+      val $dependency.receiver: Ptr<UInt>
+        Type Ptr<UInt>
+        PtrCast UInt
+          Type Ptr<Float>
+          Local $dependency.receiver
+      val $dependency.receiver: UInt
+        Type UInt
+        PtrLoad UInt
+          Type Ptr<UInt>
+          Local $dependency.receiver
+      val $dependency.argument.0: UInt
+        Type UInt
+        IntegerLiteral UInt value=2147483648 bits=0x80000000
+      val $dependency.parameter.other: UInt
+        Type UInt
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=UInt result=Boolean
+          Type UInt
+          Local $dependency.receiver
+          Type UInt
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn2 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.receiver: Ptr<Double>
+        Type Ptr<Double>
+        AddressOf negativeDouble : Ptr<Double>
+      val $dependency.receiver: Ptr<ULong>
+        Type Ptr<ULong>
+        PtrCast ULong
+          Type Ptr<Double>
+          Local $dependency.receiver
+      val $dependency.receiver: ULong
+        Type ULong
+        PtrLoad ULong
+          Type Ptr<ULong>
+          Local $dependency.receiver
+      val $dependency.argument.0: ULong
+        Type ULong
+        IntegerLiteral ULong value=9223372036854775808 bits=0x8000000000000000
+      val $dependency.parameter.other: ULong
+        Type ULong
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=ULong result=Boolean
+          Type ULong
+          Local $dependency.receiver
+          Type ULong
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn2 direct
+        Type Boolean
+        Local $parameter.value
+      val $argument.0: String
+        Type String
+        StringConst @str5
+      val $parameter.text: String
+        Type String
+        Local $argument.0
+      call $opt.9: Option<Float> = extern0 @scoop_rt_json_parse_float direct
+        Type String
+        Local $parameter.text
+      branch bb13 bb14
+        Type Boolean
+        VariantTest Option<Float> v0
+          Type Option<Float>
+          Local $opt.9
+    bb13 if.then.13
+      val $uw.10: Float
+        Type Float
+        VariantPayloadProject Option<Float> v0 f0
+          Type Option<Float>
+          Local $opt.9
+      goto bb15
+    bb14 if.else.14
+      assign $new.5
+        Type UnwrapException
+        ClassAlloc UnwrapException
+      call external3 direct
+        Type UnwrapException
+        Local $new.5
+      throw
+        Type UnwrapException
+        Local $new.5
+    bb15 if.merge.15
+      val smallFloat: Float
+        Type Float
+        Local $uw.10
+      val $argument.0: String
+        Type String
+        StringConst @str6
+      val $parameter.text: String
+        Type String
+        Local $argument.0
+      call $opt.11: Option<Double> = extern1 @scoop_rt_json_parse_double direct
+        Type String
+        Local $parameter.text
+      branch bb16 bb17
+        Type Boolean
+        VariantTest Option<Double> v0
+          Type Option<Double>
+          Local $opt.11
+    bb16 if.then.16
+      val $uw.12: Double
+        Type Double
+        VariantPayloadProject Option<Double> v0 f0
+          Type Option<Double>
+          Local $opt.11
+      goto bb18
+    bb17 if.else.17
+      assign $new.6
+        Type UnwrapException
+        ClassAlloc UnwrapException
+      call external3 direct
+        Type UnwrapException
+        Local $new.6
+      throw
+        Type UnwrapException
+        Local $new.6
+    bb18 if.merge.18
+      val smallDouble: Double
+        Type Double
+        Local $uw.12
+      val $dependency.receiver: Ptr<Float>
+        Type Ptr<Float>
+        AddressOf smallFloat : Ptr<Float>
+      val $dependency.receiver: Ptr<UInt>
+        Type Ptr<UInt>
+        PtrCast UInt
+          Type Ptr<Float>
+          Local $dependency.receiver
+      val $dependency.receiver: UInt
+        Type UInt
+        PtrLoad UInt
+          Type Ptr<UInt>
+          Local $dependency.receiver
+      val $dependency.argument.0: UInt
+        Type UInt
+        IntegerLiteral UInt value=1 bits=0x00000001
+      val $dependency.parameter.other: UInt
+        Type UInt
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=UInt result=Boolean
+          Type UInt
+          Local $dependency.receiver
+          Type UInt
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn2 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.receiver: Ptr<Double>
+        Type Ptr<Double>
+        AddressOf smallDouble : Ptr<Double>
+      val $dependency.receiver: Ptr<ULong>
+        Type Ptr<ULong>
+        PtrCast ULong
+          Type Ptr<Double>
+          Local $dependency.receiver
+      val $dependency.receiver: ULong
+        Type ULong
+        PtrLoad ULong
+          Type Ptr<ULong>
+          Local $dependency.receiver
+      val $dependency.argument.0: ULong
+        Type ULong
+        IntegerLiteral ULong value=1 bits=0x0000000000000001
+      val $dependency.parameter.other: ULong
+        Type ULong
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=ULong result=Boolean
+          Type ULong
+          Local $dependency.receiver
+          Type ULong
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn2 direct
+        Type Boolean
+        Local $parameter.value
+      val $argument.0: String
+        Type String
+        StringConst @str7
+      val $parameter.text: String
+        Type String
+        Local $argument.0
+      call $call.7: Option<Float> = extern0 @scoop_rt_json_parse_float direct
+        Type String
+        Local $parameter.text
+      call $call.8: Boolean = @fn8 direct
+        Type Option<Float>
+        Local $call.7
+        Type Option<Float>
+        VariantConstruct Option<Float> v1
+      branch bb19 bb20
+        Type Boolean
+        Local $call.8
+    bb19 if.then.19
+      val $argument.0: String
+        Type String
+        StringConst @str8
+      val $parameter.text: String
+        Type String
+        Local $argument.0
+      call $call.9: Option<Double> = extern1 @scoop_rt_json_parse_double direct
+        Type String
+        Local $parameter.text
+      call $shortCircuit.0: Boolean = @fn9 direct
+        Type Option<Double>
+        Local $call.9
+        Type Option<Double>
+        VariantConstruct Option<Double> v1
+      goto bb21
+    bb20 if.else.20
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb21
+    bb21 if.merge.21
+      val $argument.0: Boolean
+        Type Boolean
+        Local $shortCircuit.0
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn2 direct
+        Type Boolean
+        Local $parameter.value
+      val $argument.0: String
+        Type String
+        StringConst @str9
+      val $parameter.text: String
+        Type String
+        Local $argument.0
+      call $call.10: Option<Float> = extern0 @scoop_rt_json_parse_float direct
+        Type String
+        Local $parameter.text
+      call $call.11: Boolean = @fn8 direct
+        Type Option<Float>
+        Local $call.10
+        Type Option<Float>
+        VariantConstruct Option<Float> v1
+      branch bb22 bb23
+        Type Boolean
+        Local $call.11
+    bb22 if.then.22
+      val $argument.0: String
+        Type String
+        StringConst @str10
+      val $parameter.text: String
+        Type String
+        Local $argument.0
+      call $call.12: Option<Double> = extern1 @scoop_rt_json_parse_double direct
+        Type String
+        Local $parameter.text
+      call $shortCircuit.1: Boolean = @fn9 direct
+        Type Option<Double>
+        Local $call.12
+        Type Option<Double>
+        VariantConstruct Option<Double> v1
+      goto bb24
+    bb23 if.else.23
+      val $shortCircuit.1: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb24
+    bb24 if.merge.24
+      val $argument.0: Boolean
+        Type Boolean
+        Local $shortCircuit.1
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn2 direct
+        Type Boolean
+        Local $parameter.value
+      call @scoop_rt_gc_collect direct
+      val $argument.0: String
+        Type String
+        StringConst @str11
+      val $parameter.text: String
+        Type String
+        Local $argument.0
+      call $opt.13: Option<Float> = extern0 @scoop_rt_json_parse_float direct
+        Type String
+        Local $parameter.text
+      branch bb25 bb26
+        Type Boolean
+        VariantTest Option<Float> v0
+          Type Option<Float>
+          Local $opt.13
+    bb25 if.then.25
+      val $uw.14: Float
+        Type Float
+        VariantPayloadProject Option<Float> v0 f0
+          Type Option<Float>
+          Local $opt.13
+      goto bb27
+    bb26 if.else.26
+      assign $new.13
+        Type UnwrapException
+        ClassAlloc UnwrapException
+      call external3 direct
+        Type UnwrapException
+        Local $new.13
+      throw
+        Type UnwrapException
+        Local $new.13
+    bb27 if.merge.27
+      val $dependency.receiver: Float
+        Type Float
+        Local $uw.14
+      val $dependency.argument.0: Float
+        Type Float
+        FloatLiteral f32(0xc0200000)
+      val $dependency.parameter.other: Float
+        Type Float
+        Local $dependency.argument.0
+      branch bb28 bb29
+        Type Boolean
+        FloatBinary F32 Equal
+          Type Float
+          Local $dependency.receiver
+          Type Float
+          Local $dependency.parameter.other
+    bb28 if.then.28
+      val $argument.0: String
+        Type String
+        StringConst @str12
+      val $parameter.text: String
+        Type String
+        Local $argument.0
+      call $opt.15: Option<Double> = extern1 @scoop_rt_json_parse_double direct
+        Type String
+        Local $parameter.text
+      branch bb31 bb32
+        Type Boolean
+        VariantTest Option<Double> v0
+          Type Option<Double>
+          Local $opt.15
+    bb29 if.else.29
+      val $shortCircuit.2: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb30
+    bb30 if.merge.30
+      val $argument.0: Boolean
+        Type Boolean
+        Local $shortCircuit.2
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn2 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str13
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn10 direct
+        Type String
+        Local $dependency.parameter.value
+      return
+    bb31 if.then.31
+      val $uw.16: Double
+        Type Double
+        VariantPayloadProject Option<Double> v0 f0
+          Type Option<Double>
+          Local $opt.15
+      goto bb33
+    bb32 if.else.32
+      assign $new.14
+        Type UnwrapException
+        ClassAlloc UnwrapException
+      call external3 direct
+        Type UnwrapException
+        Local $new.14
+      throw
+        Type UnwrapException
+        Local $new.14
+    bb33 if.merge.33
+      val $dependency.receiver: Double
+        Type Double
+        Local $uw.16
+      val $dependency.argument.0: Double
+        Type Double
+        FloatLiteral f64(0x3ff0000000000000)
+      val $dependency.parameter.other: Double
+        Type Double
+        Local $dependency.argument.0
+      val $shortCircuit.2: Boolean
+        Type Boolean
+        FloatBinary F64 Equal
+          Type Double
+          Local $dependency.receiver
+          Type Double
+          Local $dependency.parameter.other
+      goto bb30
+  fun equalTo @fn4(this: Ptr<Float>, other: Ptr<Float>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<Float>
+        Type Ptr<Float>
+        Local this
+      val $dependency.local.3: Ptr<Float>
+        Type Ptr<Float>
+        Local other
+      val $dependency.local.4: Ptr<Float>
+        Type Ptr<Float>
+        Local $dependency.local.3
+      call $call.1: Boolean = @fn11 direct
+        Type Ptr<Float>
+        Local $dependency.local.2
+        Type Ptr<Float>
+        Local $dependency.local.4
+      return
+        Type Boolean
+        Local $call.1
+  fun equalTo @fn5(this: Ptr<UInt>, other: Ptr<UInt>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<UInt>
+        Type Ptr<UInt>
+        Local this
+      val $dependency.local.3: Ptr<UInt>
+        Type Ptr<UInt>
+        Local other
+      val $dependency.local.4: Ptr<UInt>
+        Type Ptr<UInt>
+        Local $dependency.local.3
+      call $call.1: Boolean = @fn12 direct
+        Type Ptr<UInt>
+        Local $dependency.local.2
+        Type Ptr<UInt>
+        Local $dependency.local.4
+      return
+        Type Boolean
+        Local $call.1
+  fun equalTo @fn6(this: Ptr<Double>, other: Ptr<Double>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<Double>
+        Type Ptr<Double>
+        Local this
+      val $dependency.local.3: Ptr<Double>
+        Type Ptr<Double>
+        Local other
+      val $dependency.local.4: Ptr<Double>
+        Type Ptr<Double>
+        Local $dependency.local.3
+      call $call.1: Boolean = @fn13 direct
+        Type Ptr<Double>
+        Local $dependency.local.2
+        Type Ptr<Double>
+        Local $dependency.local.4
+      return
+        Type Boolean
+        Local $call.1
+  fun equalTo @fn7(this: Ptr<ULong>, other: Ptr<ULong>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<ULong>
+        Type Ptr<ULong>
+        Local this
+      val $dependency.local.3: Ptr<ULong>
+        Type Ptr<ULong>
+        Local other
+      val $dependency.local.4: Ptr<ULong>
+        Type Ptr<ULong>
+        Local $dependency.local.3
+      call $call.1: Boolean = @fn14 direct
+        Type Ptr<ULong>
+        Local $dependency.local.2
+        Type Ptr<ULong>
+        Local $dependency.local.4
+      return
+        Type Boolean
+        Local $call.1
+  fun $derived.equals.0 @fn8(this: Option<Float>, other: Option<Float>) -> Boolean
+    bb0 entry
+      val $when.1: Option<Float>
+        Type Option<Float>
+        Local this
+      val $pattern.subject.2: Option<Float>
+        Type Option<Float>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Option<Float> v0
+          Type Option<Float>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val $left.0.0: Float
+        Type Float
+        VariantPayloadProject Option<Float> v0 f0
+          Type Option<Float>
+          Local $pattern.subject.2
+      val $when.3: Option<Float>
+        Type Option<Float>
+        Local other
+      val $pattern.subject.4: Option<Float>
+        Type Option<Float>
+        Local $when.3
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Option<Float> v0
+          Type Option<Float>
+          Local $pattern.subject.4
+    bb2 pattern.else.2
+      val $pattern.subject.5: Option<Float>
+        Type Option<Float>
+        Local $when.1
+      branch bb7 bb8
+        Type Boolean
+        VariantTest Option<Float> v1
+          Type Option<Float>
+          Local $pattern.subject.5
+    bb3 pattern.merge.3
+      unreachable
+    bb4 pattern.pass.4
+      val $right.0.0: Float
+        Type Float
+        VariantPayloadProject Option<Float> v0 f0
+          Type Option<Float>
+          Local $pattern.subject.4
+      return
+        Type Boolean
+        FloatBinary F32 Equal
+          Type Float
+          Local $left.0.0
+          Type Float
+          Local $right.0.0
+    bb5 pattern.else.5
+      return
+        Type Boolean
+        BoolLiteral false
+    bb6 pattern.merge.6
+      unreachable
+    bb7 pattern.pass.7
+      val $when.6: Option<Float>
+        Type Option<Float>
+        Local other
+      val $pattern.subject.7: Option<Float>
+        Type Option<Float>
+        Local $when.6
+      branch bb10 bb11
+        Type Boolean
+        VariantTest Option<Float> v1
+          Type Option<Float>
+          Local $pattern.subject.7
+    bb8 pattern.else.8
+      unreachable
+    bb9 pattern.merge.9
+      unreachable
+    bb10 pattern.pass.10
+      return
+        Type Boolean
+        BoolLiteral true
+    bb11 pattern.else.11
+      return
+        Type Boolean
+        BoolLiteral false
+    bb12 pattern.merge.12
+      unreachable
+  fun $derived.equals.1 @fn9(this: Option<Double>, other: Option<Double>) -> Boolean
+    bb0 entry
+      val $when.1: Option<Double>
+        Type Option<Double>
+        Local this
+      val $pattern.subject.2: Option<Double>
+        Type Option<Double>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Option<Double> v0
+          Type Option<Double>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val $left.0.0: Double
+        Type Double
+        VariantPayloadProject Option<Double> v0 f0
+          Type Option<Double>
+          Local $pattern.subject.2
+      val $when.3: Option<Double>
+        Type Option<Double>
+        Local other
+      val $pattern.subject.4: Option<Double>
+        Type Option<Double>
+        Local $when.3
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Option<Double> v0
+          Type Option<Double>
+          Local $pattern.subject.4
+    bb2 pattern.else.2
+      val $pattern.subject.5: Option<Double>
+        Type Option<Double>
+        Local $when.1
+      branch bb7 bb8
+        Type Boolean
+        VariantTest Option<Double> v1
+          Type Option<Double>
+          Local $pattern.subject.5
+    bb3 pattern.merge.3
+      unreachable
+    bb4 pattern.pass.4
+      val $right.0.0: Double
+        Type Double
+        VariantPayloadProject Option<Double> v0 f0
+          Type Option<Double>
+          Local $pattern.subject.4
+      return
+        Type Boolean
+        FloatBinary F64 Equal
+          Type Double
+          Local $left.0.0
+          Type Double
+          Local $right.0.0
+    bb5 pattern.else.5
+      return
+        Type Boolean
+        BoolLiteral false
+    bb6 pattern.merge.6
+      unreachable
+    bb7 pattern.pass.7
+      val $when.6: Option<Double>
+        Type Option<Double>
+        Local other
+      val $pattern.subject.7: Option<Double>
+        Type Option<Double>
+        Local $when.6
+      branch bb10 bb11
+        Type Boolean
+        VariantTest Option<Double> v1
+          Type Option<Double>
+          Local $pattern.subject.7
+    bb8 pattern.else.8
+      unreachable
+    bb9 pattern.merge.9
+      unreachable
+    bb10 pattern.pass.10
+      return
+        Type Boolean
+        BoolLiteral true
+    bb11 pattern.else.11
+      return
+        Type Boolean
+        BoolLiteral false
+    bb12 pattern.merge.12
+      unreachable
+  fun println @fn10(value: String) -> Unit
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local value
+      call $dependency.local.2: String = external1 direct
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external2 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str14
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external2 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun equals @fn11(this: Ptr<Float>, other: Ptr<Float>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<Float>
+        Type Ptr<Float>
+        Local this
+      val $dependency.local.4: ULong
+        Type ULong
+        PtrToULong
+          Type Ptr<Float>
+          Local $dependency.local.2
+      val $dependency.local.3: Ptr<Float>
+        Type Ptr<Float>
+        Local other
+      return
+        Type Boolean
+        IntegerCompare equal operands=ULong result=Boolean
+          Type ULong
+          Local $dependency.local.4
+          Type ULong
+          PtrToULong
+            Type Ptr<Float>
+            Local $dependency.local.3
+  fun equals @fn12(this: Ptr<UInt>, other: Ptr<UInt>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<UInt>
+        Type Ptr<UInt>
+        Local this
+      val $dependency.local.4: ULong
+        Type ULong
+        PtrToULong
+          Type Ptr<UInt>
+          Local $dependency.local.2
+      val $dependency.local.3: Ptr<UInt>
+        Type Ptr<UInt>
+        Local other
+      return
+        Type Boolean
+        IntegerCompare equal operands=ULong result=Boolean
+          Type ULong
+          Local $dependency.local.4
+          Type ULong
+          PtrToULong
+            Type Ptr<UInt>
+            Local $dependency.local.3
+  fun equals @fn13(this: Ptr<Double>, other: Ptr<Double>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<Double>
+        Type Ptr<Double>
+        Local this
+      val $dependency.local.4: ULong
+        Type ULong
+        PtrToULong
+          Type Ptr<Double>
+          Local $dependency.local.2
+      val $dependency.local.3: Ptr<Double>
+        Type Ptr<Double>
+        Local other
+      return
+        Type Boolean
+        IntegerCompare equal operands=ULong result=Boolean
+          Type ULong
+          Local $dependency.local.4
+          Type ULong
+          PtrToULong
+            Type Ptr<Double>
+            Local $dependency.local.3
+  fun equals @fn14(this: Ptr<ULong>, other: Ptr<ULong>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<ULong>
+        Type Ptr<ULong>
+        Local this
+      val $dependency.local.4: ULong
+        Type ULong
+        PtrToULong
+          Type Ptr<ULong>
+          Local $dependency.local.2
+      val $dependency.local.3: Ptr<ULong>
+        Type Ptr<ULong>
+        Local other
+      return
+        Type Boolean
+        IntegerCompare equal operands=ULong result=Boolean
+          Type ULong
+          Local $dependency.local.4
+          Type ULong
+          PtrToULong
+            Type Ptr<ULong>
+            Local $dependency.local.3
+  instance mi0 function=@fn4 <- equalTo
+  instance mi1 function=@fn5 <- equalTo
+  instance mi2 function=@fn6 <- equalTo
+  instance mi3 function=@fn7 <- equalTo
+  instance mi4 function=@fn10 <- println
+  instance mi5 function=@fn11 <- equals
+  instance mi6 function=@fn12 <- equals
+  instance mi7 function=@fn13 <- equals
+  instance mi8 function=@fn14 <- equals
+  str @str0 "illegal state"
+  str @str1 "1.5"
+  str @str2 "-17.25"
+  str @str3 "-0.0"
+  str @str4 "-0.0"
+  str @str5 "1e-45"
+  str @str6 "5e-324"
+  str @str7 "bad"
+  str @str8 ""
+  str @str9 "1e1000"
+  str @str10 "1e1000"
+  str @str11 "-2.5"
+  str @str12 "1.0"
+  str @str13 "core floating ABI"
+  str @str14 "\n"
+  output executable @fn3

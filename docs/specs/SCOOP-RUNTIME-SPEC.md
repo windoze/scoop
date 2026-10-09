@@ -579,6 +579,10 @@ native exception record 不能跨线程共享或跨挂起保存；可以保存�
 
 String 后备提供创建、拼接、内容比较/hash、UTF-8 长度、标量定位与切片等表示操作。定位 leaf 不抛源码异常：get 返回 Option<Char>，slice 定位返回 Option<(Long, Long)>，core 对 None 抛出 IndexOutOfBoundsException。内容与已验证边界未变化时可复用。
 
+`scoop_rt_string_get` 的 `Option<Char>` 为 16-byte GC-free 值，按 M34 Scoop 小值 ABI 直接返回两个整数分量；不能继续使用旧的 sret 入口。slice 定位的 24-byte 结果及 UTF-8 decode 的含引用结果仍使用目标的间接返回适配。
+
+JSON 浮点转换后备返回的 `Option<Float>`／`Option<Double>` 同样为 16-byte tagged 值，固定 tag 与 payload bits 使用两个整数返回分量。平台适配必须按 bits 传递 payload，不能套用 C 的混合整数／浮点 struct 返回分类。
+
 字节解码后备为语言规范 11.4 的 `fromUtf8`、`fromUtf8OrNone` 和 `fromUtf8Lossy` 提供同一套 UTF-8 规则。严格路径的结果明确区分成功 String 与首个非法子序列的零基字节偏移，并通过普通 Scoop ABI 返回；core 分别将失败转换为 CharacterCodingException 或 None，不对相同内容再做一遍独立校验。lossy 路径按 maximal subpart 消费非法输入，每段写入一个 U+FFFD，继续处理失配处的后续字节，不能遗漏合法后缀；空输入、U+0000 与合法 U+FFFD 按原内容保留。两种路径均不依赖 locale。
 
 解码和复制只读取给定长度，输入属于 managed 对象时遵守 root/pin/relocation 契约；原生指针的可读性、稳定性和生命周期由 unsafe 调用者保证。结果复制到 String 自有存储，发布前完成全部初始化。实际输出长度、临时存储与分配的溢出按既有分配失败处理，不伪装为 UTF-8 错误或 None。实现复用现有 UTF-8 后备及已验证的不变内容。

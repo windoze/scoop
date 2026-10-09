@@ -207,3 +207,9 @@ HIR、默认实参模板、MIR、LIR 与产物均保存完整 typed 操作和 pa
 新增 18 组正式 CLI fixture：值布局与复制、GC／native roots、跨 Cone 产物、安全方法引用，以及 14 项语言错误。组合覆盖 Int／Float bits、ZST 求值、padding 跨函数与 GC 保留、引用／双字接口、含引用 struct／enum、tuple、Option 与嵌套 wrapper，旧数组写入年轻引用及清零。Scoop native 入口使用独立 LLVM byval／sret shim，C companion 在收集期间为实际 byval 槽注册 roots。三个 target 的新增用例与四组小值 ABI／poll 回归各通过 22 组、30 variants、98 processes、60 goldens；debug／release 均执行普通、full-moving 和 minor-stress。跨主机共用 HIR／MIR 快照一致。最后补强的 padding 跨调用用例在三个 target 分别重跑通过，不重复无关全量测试。
 
 Darwin 清理中间对象／incremental 4,349 项、5,548,604,841 bytes；Linux 本批无新增可删中间对象，另清理已停用的 debug 与 M33 build 目录 8,654 项、18,326,714,520 bytes，保留源码目录、有效 release 工具和 M33 性能基线。记录为 `tmp/m34/batch9a-target-cleanup-darwin.json`、`batch9a-old-target-cleanup-linux.json`。两机保存 `maybe-tools`／`maybe-source`，使后续容器对照可以固定编译器及 GC，仅改变库的存储实现。
+
+## M34-5c：core 原生结果 ABI 补齐
+
+容器的 JSON 组合验证发现，core 的字符定位与浮点解析入口仍使用旧的 sret 适配。现在 `Option<Char>` 由公共 C 后备按两个整数分量返回；`Option<Float>`／`Option<Double>` 的平台适配直接返回 tag 与 payload bits，避免套用 C 的混合浮点 struct 返回分类。24-byte slice 结果和含引用的 UTF-8 decode 结果继续间接返回。修复对齐既有 runtime contract 12，不增加格式版本或另一套调用协议。
+
+新增 core-string／core-floating 两组 fixture，覆盖 Unicode 索引、负数／越界、slice、UTF-8 成功／失败、正常浮点值、signed zero、最小 subnormal 和解析失败；结合原有 JSON 浮点用例，三个 target 各通过 3 组、5 variants、23 processes、15 goldens。Linux LLVM frame 探针同步采用 DirectParts 字符结果，GNU、musl static／dynamic 的 O0／O2 六种组合通过，保留真实 relocation 与间接 slice 回归。容器前后性能对照的两份 runtime 同步包含这一修复，避免让旧 ABI 故障污染比较。
