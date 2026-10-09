@@ -43,6 +43,7 @@ impl Lowerer {
         file: usize,
         owner: Option<Owner>,
     ) -> Option<ObjectId> {
+        self.current_file = file;
         let (name, name_span) = source.name();
         self.reject_type_annotations(source.article_description(), source.annotations());
         if matches!(source, ObjectSource::Companion(_))

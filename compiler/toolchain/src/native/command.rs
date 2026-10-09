@@ -108,8 +108,10 @@ pub(super) fn compile(
         .prefix("scoop-native-")
         .tempdir()
         .map_err(error)?;
+    // Debug compilation directories use the physical path, including on macOS.
+    let directory_path = directory.path().canonicalize().map_err(error)?;
     let language = input.language();
-    let source = directory.path().join(match language {
+    let source = directory_path.join(match language {
         NativeSourceLanguage::C => "unit.i",
         NativeSourceLanguage::Cxx => "unit.ii",
     });
@@ -124,11 +126,11 @@ pub(super) fn compile(
         }
     }
     command
-        .current_dir(directory.path())
+        .current_dir(&directory_path)
         .arg("-fPIC")
         .arg(format!(
             "-ffile-prefix-map={}=/scoop-native",
-            directory.path().display()
+            directory_path.display()
         ))
         .args(["-x", language.preprocessed_name(), "-c"])
         .arg(&source)

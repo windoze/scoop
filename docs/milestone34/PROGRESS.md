@@ -229,3 +229,11 @@ ArrayList 使用普通 `MutableArray<MaybeUninit<T>>` 保存容量，初始化�
 容器基准暴露一个迁移前已经存在的问题：复合赋值按 `$argument.N` 名字回查索引临时值，依赖调用使用另一命名，getter 缺省表达式中的嵌套调用也会覆盖查找结果。现在在选中 getter 的实参物化完成后保存实际 typed local，写回 set 时复用这些原始显式索引；内层 place 和候选探测沿既有上下文保存／恢复，不改变 HIR 或产物格式。索引 lowering 拆为 60 行模块，原 places 文件减少 56 行。
 
 新增跨 Cone updates fixture 在旧编译器上复现了 Long 索引误取 Int 的错误；修复后检查本地／依赖 getter 默认参数、set 自身默认参数、vararg、多索引、MutableList／ArrayList、嵌套 prefix／postfix、异常与 GC 的单次求值顺序。三个 target 的该用例和五组旧运算符回归均通过，各为 8 variants、21 processes、24 goldens；新用例再关闭更新严格执行，各为 2 variants、12 processes、12 goldens。两机运算符 HIR 单测与 workspace/all-targets clippy 通过。旧两份 LIR 按实际 carrier 差异分 target，公共 HIR／MIR 保持跨主机一致。
+
+## M34-10a：总验收发现的边界修复
+
+Darwin 的一次完整 Rust 工作区运行完成 5,404 项测试，初跑 5,343 项通过、61 项失败；保留初跑结果，按失败项定向补跑，不重复整个工作区。公共 fixture runner 的 44 项测试通过。ABI／core 预期迁移及正式文件 fixture 总验收仍在继续。
+
+多文件 HIR 测试暴露了 companion 延迟登记时沿用上一源文件上下文的问题。`declare_singleton` 现在先恢复其已有 `file` 参数对应的上下文，再登记注解与成员，MaybeUninit 的 core intrinsic 因而取得正确源文件归属。18 项真实 core／用户源码组合回归在 Darwin、Linux 通过，未放宽用户声明 intrinsic 的规则。
+
+原生对象确定性测试的预处理字节完全一致，Mach-O 的调试信息却包含随机 `/private/var/.../scoop-native-*` 目录。编译临时目录现在先取得物理路径，使传给编译器的路径与既有 prefix map 一致；继续保留完整对象字节比较。两机定向测试通过，未对测试输出做摘要或路径归一化。两机工作区 all-targets clippy 通过；本批生产文件分别为 283／141 行。
