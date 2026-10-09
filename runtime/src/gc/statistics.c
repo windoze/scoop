@@ -5,6 +5,7 @@
 
 #include "gc_internal.h"
 #include "heap_internal.h"
+#include "../platform/platform.h"
 #include "../thread/internal.h"
 
 uint64_t scoop_rt_gc_stats(void) {
@@ -55,6 +56,8 @@ static void metrics_locked(ScoopGcMetrics *result) {
         result->large_mapping_count += region->large;
         result->mapped_bytes += region->size;
     }
+    scoop_platform_bundle()->thread_vm->resident_memory(&result->current_rss_bytes,
+                                                        &result->peak_rss_bytes);
 }
 
 void scoop_rt_gc_debug_metrics(ScoopGcMetrics *result) {
@@ -80,24 +83,28 @@ void scoop_gc_report_metrics(void) {
     memcpy(buckets, scoop_gc_heap_state.pause_buckets, sizeof buckets);
     unlock_heap();
     scoop_thread_registry_unlock();
-    fprintf(stderr,
-            "{\"scoop_gc\":1,\"minor_collections\":%" PRIu64 ",\"full_collections\":%" PRIu64
-            ",\"promotion_fallbacks\":%" PRIu64 ",\"allocated_bytes\":%" PRIu64
-            ",\"nursery_allocated_bytes\":%" PRIu64 ",\"promoted_bytes\":%" PRIu64
-            ",\"copied_bytes\":%" PRIu64 ",\"dirty_cards\":%" PRIu64
-            ",\"old_reference_slots\":%" PRIu64 ",\"root_slots\":%" PRIu64
-            ",\"traced_objects\":%" PRIu64 ",\"pause_ns\":%" PRIu64 ",\"maximum_pause_ns\":%" PRIu64
-            ",\"committed_bytes\":%" PRIu64 ",\"minor_pause_ns\":%" PRIu64
-            ",\"full_pause_ns\":%" PRIu64 ",\"region_count\":%" PRIu64
-            ",\"large_mapping_count\":%" PRIu64 ",\"mapped_bytes\":%" PRIu64
-            ",\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null]"
-            ",\"pause_buckets\":[%" PRIu64 ",%" PRIu64 ",%" PRIu64 ",%" PRIu64 ",%" PRIu64
-            ",%" PRIu64 ",%" PRIu64 ",%" PRIu64 "]}\n",
-            result.minor_collections, result.full_collections, result.promotion_fallbacks,
-            result.allocated_bytes, result.nursery_allocated_bytes, result.promoted_bytes, copied,
-            result.dirty_cards, result.old_reference_slots, result.root_slots,
-            result.traced_objects, result.pause_ns, result.maximum_pause_ns,
-            result.heap_committed_bytes, minor_pause, full_pause, result.region_count,
-            result.large_mapping_count, result.mapped_bytes, buckets[0], buckets[1], buckets[2],
-            buckets[3], buckets[4], buckets[5], buckets[6], buckets[7]);
+    fprintf(
+        stderr,
+        "{\"scoop_gc\":1,\"minor_collections\":%" PRIu64 ",\"full_collections\":%" PRIu64
+        ",\"promotion_fallbacks\":%" PRIu64 ",\"allocated_bytes\":%" PRIu64
+        ",\"nursery_allocated_bytes\":%" PRIu64 ",\"promoted_bytes\":%" PRIu64
+        ",\"copied_bytes\":%" PRIu64 ",\"dirty_cards\":%" PRIu64 ",\"old_reference_slots\":%" PRIu64
+        ",\"root_slots\":%" PRIu64 ",\"traced_objects\":%" PRIu64 ",\"pause_ns\":%" PRIu64
+        ",\"maximum_pause_ns\":%" PRIu64 ",\"committed_bytes\":%" PRIu64
+        ",\"minor_pause_ns\":%" PRIu64 ",\"full_pause_ns\":%" PRIu64 ",\"region_count\":%" PRIu64
+        ",\"large_mapping_count\":%" PRIu64 ",\"mapped_bytes\":%" PRIu64
+        ",\"discard_calls\":%" PRIu64 ",\"discard_failures\":%" PRIu64
+        ",\"discarded_bytes\":%" PRIu64 ",\"unmapped_bytes\":%" PRIu64
+        ",\"current_rss_bytes\":%" PRIu64 ",\"peak_rss_bytes\":%" PRIu64
+        ",\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null]"
+        ",\"pause_buckets\":[%" PRIu64 ",%" PRIu64 ",%" PRIu64 ",%" PRIu64 ",%" PRIu64 ",%" PRIu64
+        ",%" PRIu64 ",%" PRIu64 "]}\n",
+        result.minor_collections, result.full_collections, result.promotion_fallbacks,
+        result.allocated_bytes, result.nursery_allocated_bytes, result.promoted_bytes, copied,
+        result.dirty_cards, result.old_reference_slots, result.root_slots, result.traced_objects,
+        result.pause_ns, result.maximum_pause_ns, result.heap_committed_bytes, minor_pause,
+        full_pause, result.region_count, result.large_mapping_count, result.mapped_bytes,
+        result.discard_calls, result.discard_failures, result.discarded_bytes,
+        result.unmapped_bytes, result.current_rss_bytes, result.peak_rss_bytes, buckets[0],
+        buckets[1], buckets[2], buckets[3], buckets[4], buckets[5], buckets[6], buckets[7]);
 }

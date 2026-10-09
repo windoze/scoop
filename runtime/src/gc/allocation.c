@@ -26,20 +26,23 @@ void *scoop_heap_bump(char **cursor, char *limit, size_t size, size_t alignment)
     return object;
 }
 
-bool scoop_heap_take_free_run(size_t size, char **cursor, char **limit) {
+ScoopGcBlockMeta *scoop_heap_take_free_run(size_t size, char **cursor, char **limit) {
     ScoopGcFreeRun **available = &free_runs;
-    while (*available != NULL && (size_t)(*available)->line_count * GC_LINE_SIZE < size) {
+    while (*available != NULL && ((*available)->block->region->evacuation_source ||
+                                  (size_t)(*available)->line_count * GC_LINE_SIZE < size)) {
         available = &(*available)->next;
     }
     ScoopGcFreeRun *run = *available;
     if (run == NULL) {
-        return false;
+        return NULL;
     }
     *available = run->next;
     *cursor = (char *)block_base(run->block) + (size_t)run->first_line * GC_LINE_SIZE;
     *limit = *cursor + (size_t)run->line_count * GC_LINE_SIZE;
+    ScoopGcBlockMeta *block = run->block;
+    block->discard_pending = true;
     free(run);
-    return true;
+    return block;
 }
 
 typedef enum RefillResult {
@@ -59,7 +62,7 @@ static RefillResult refill_nursery(ScoopThreadState *thread, bool after_full) {
         unlock_heap();
         return REFILL_MINOR;
     }
-    ScoopGcBlockMeta *block = activate_small_block(SCOOP_BLOCK_MUTATOR);
+    ScoopGcBlockMeta *block = activate_small_block(SCOOP_BLOCK_MUTATOR, true);
     if (block == NULL) {
         unlock_heap();
         return REFILL_FULL;
@@ -114,7 +117,7 @@ static void *allocate_old(size_t size, size_t alignment) {
         }
         if (object == NULL &&
             (collected || committed_bytes + GC_BLOCK_SIZE <= collection_threshold)) {
-            ScoopGcBlockMeta *block = activate_small_block(SCOOP_BLOCK_MUTATOR);
+            ScoopGcBlockMeta *block = activate_small_block(SCOOP_BLOCK_MUTATOR, true);
             if (block != NULL) {
                 *cursor = (char *)block_base(block) + GC_LINE_SIZE;
                 *limit = (char *)block_base(block) + GC_BLOCK_SIZE;
@@ -134,7 +137,7 @@ static void *allocate_old(size_t size, size_t alignment) {
 
 static void *allocate_small_stress(size_t size, bool pretenured) {
     lock_heap();
-    ScoopGcBlockMeta *block = activate_small_block(SCOOP_BLOCK_MUTATOR);
+    ScoopGcBlockMeta *block = activate_small_block(SCOOP_BLOCK_MUTATOR, true);
     if (block != NULL && !pretenured) {
         block->generation = SCOOP_GC_YOUNG;
         scoop_gc_heap_state.nursery_bytes += GC_BLOCK_SIZE;

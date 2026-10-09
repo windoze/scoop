@@ -169,3 +169,43 @@ Darwin 单槽写入观测到明确成本：除首轮外旧组为 24.125～24.857
 所有构建复用 core cache，JSON 明确记为 first_build_seconds 和 warm_build_seconds，不能当作冷构建。Darwin 首次为 5.026～6.402 s、重复为 4.920～5.274 s，GNU 分别为 5.970～6.236 s、5.963～6.357 s；每项只观测一次，不推断编译速度变化。可执行文件增量为 Darwin 304～16,800 bytes、GNU 4,880～8,984 bytes，具体值与根 slib 大小保留在 JSON。
 
 新统计的 mapped_bytes 是当前 managed 映射的虚拟字节数，区别于活跃 block 字节和 RSS。Darwin 的 allocation／单槽程序保留一个 16 MiB region，旧图与高存活图还保留其独立数组 mapping；本批未声称 ordinary region 已向 OS 归还。超过 1 GiB 的真实大对象、三 region 存活图及大对象死亡后的 unmap 由功能测试验证，不以性能数字替代容量与回收正确性。
+
+## M34-7：region 集中与物理内存归还
+
+对照为 `3cc277490`（M34-6），沿用相同 release 编译和 GC 配置。复用 allocation／old-graph-large／survivors，新增 [region-churn](../../tests/benchmarks/regions/region-churn.scoop)：两轮各建立 180 万个 32-byte Node，再缩为 64 个根，最后退出持有这些根的 scope。相同 binary 的 region-pins 变体在稀疏阶段 pin 首尾两个对象，退出前 unpin；两种变体输出均为 `113400000`。配套 [C 观测入口](../../tests/benchmarks/regions/region-memory.c) 在每轮的完整图、稀疏图和 scope 退出后记录 region／映射和 OS RSS，共六个阶段。
+
+每个工作负载七轮，每轮先旧版再新版；同宿主计时期间没有编译、其他测试或 target 清理。下表为最终实现的墙钟中位数，单位 ms。两版输出、分配字节、minor／full 次数和 trace 对象数均逐样本核对一致。
+
+| 主机 | 工作负载 | M34-6 | M34-7 | 中位数比值（旧／新） |
+| --- | --- | ---: | ---: | ---: |
+| Darwin | allocation | 10.886 | 10.567 | 1.030 |
+| Darwin | old-graph-large | 37.259 | 37.140 | 1.003 |
+| Darwin | survivors | 58.018 | 57.948 | 1.001 |
+| Darwin | region-churn | 1366.253 | 1374.392 | 0.994 |
+| Darwin | region-pins | 1360.579 | 1370.158 | 0.993 |
+| GNU | allocation | 9.035 | 11.848 | 0.763 |
+| GNU | old-graph-large | 47.154 | 44.862 | 1.051 |
+| GNU | survivors | 77.587 | 76.824 | 1.010 |
+| GNU | region-churn | 1750.545 | 1746.406 | 1.002 |
+| GNU | region-pins | 1747.087 | 1749.428 | 0.999 |
+
+本批主要收益是收缩后的映射和驻留量，表中小幅吞吐差异的样本范围均有重叠，不解释为稳定加速。GNU allocation 的墙钟范围为旧 7.846～12.101、新 9.304～12.121 ms，GC 停顿总和中位数为 0.953 → 1.306 ms，保留这一剩余成本。补充的同 CPU 0 七轮诊断为 0.892 → 0.946 ms，仍有约 6% 差异；该诊断不替换未绑核的主测量，也不足以把全部差异归因于调度，原始数据见 [固定 CPU 样本](measurements/m34-reclamation-pinned-linux.json)。
+
+初版分拆清扫后，机器码出现每个死亡小对象一次的 `retire_small_object` 调用，Darwin／GNU 的 allocation GC 停顿中位数分别从 0.566／1.002 增至 0.821／1.525 ms。将热 helper 保持内联后，重新构建并执行整组测量；Darwin 最终为 0.579 → 0.582 ms。修复前全部样本和机器码保留为 `m34-reclamation-pre-inline-{off,on}-{darwin,linux-gnu}.{json,asm}`，不能与最终样本混合取中位数。最终机器码确认额外 helper 调用已消失，source 筛选、旧代空洞、页建议和 region unmap 路径均在同名汇编中可查。
+
+| 主机／变体 | 稀疏阶段 region 数 | 稀疏阶段映射 MiB | 第一轮稀疏阶段当前 RSS MiB | 第二轮 scope 退出后当前 RSS MiB |
+| --- | ---: | ---: | ---: | ---: |
+| Darwin／churn | 4 → 2 | 64 → 32 | 96.188 → 65.391 | 96.188 → 65.484 |
+| Darwin／pins | 4 → 3 | 64 → 48 | 96.188 → 81.391 | 97.641 → 65.453 |
+| GNU／churn | 4 → 2 | 64 → 32 | 95.188 → 40.000 | 95.188 → 39.992 |
+| GNU／pins | 4 → 3 | 64 → 48 | 95.191 → 40.059 | 95.191 → 39.977 |
+
+完整图阶段两版均为 4 个 ordinary region 和 77.75 MiB 总映射。pin 阶段保留额外一个区域，unpin／scope 退出后新版回到 2 个 ordinary region、32 MiB 映射；此时程序仍有其他存活对象，不能称为整个堆为空。无 core 的 C 回归单独确认全空时仅保留一个 region。Darwin churn 峰值 RSS 为 109.922 → 111.219 MiB，GNU 为 108.609 → 108.711 MiB，未降低峰值。GNU current RSS 来自 statm，peak 来自 getrusage，两种 OS 统计口径可能有小幅差异。
+
+churn／pins 的两轮累计 unmap 均为 95,944,704 bytes，含 64 MiB ordinary region 和 27.5 MiB large mapping。成功 discard 建议量分别为 Darwin 50,741,248／84,885,504 bytes、GNU 51,040,256／85,651,456 bytes，建议失败均为零；这些是累计建议字节，不能视为同时新增的物理内存归还量。Darwin 的 `MADV_DONTNEED` 与 GNU 的 RSS 变化不同，表中保留实际观测。旧版缺少这些统计字段，因此标记未知，不能填零；旧版已经能 unmap 死亡 large mapping。
+
+allocation／旧图／高存活图／两种增长图分别分配 4,160,112／9,021,592／6,947,000／144,001,344 bytes，minor/full 为 3/0、8/2、6/1、104/12，trace 对象为 1／196,363／408,832／11,610,207。复制字节则因普通 full 的选择性策略改变：allocation 两版均为 24，旧图 2,097,424 → 2,089,136，高存活图 6,365,264 → 6,234,168，churn 108,747,072 → 108,629,552，pins 108,747,072 → 108,628,232。该变化属于实际搬迁策略，没有缩小源程序或减少收集次数。
+
+最终全部 stdout／stderr、GC／六阶段内存数据、构建 argv 和工具版本保存在 [Darwin 旧](measurements/m34-reclamation-off-darwin.json)／[新](measurements/m34-reclamation-on-darwin.json)、[GNU 旧](measurements/m34-reclamation-off-linux-gnu.json)／[新](measurements/m34-reclamation-on-linux-gnu.json)，同名 `.asm` 保存主入口和收集／归还路径。Darwin 新 binary 首次执行仍有高值，allocation／旧图／高存活图／churn 分别达到 502.256／381.513／404.079／2128.514 ms；全部保留，pins 复用已运行的 churn binary。工具沿用 Apple clang 21.0.0／GCC 15.2.0、LLVM 22.1.8／22.1.2。
+
+所有构建复用 core cache，旧版构建记录来自首次对照，新版记录来自内联修复后的重建；均非冷构建。Darwin 首次范围为 5.045～6.247 s、重复为 4.924～5.468 s，GNU 分别为 5.991～6.395 s、5.964～6.259 s，每项只有一次构建观测，不推断编译速度。最终可执行文件增加 Darwin 544～16,944 bytes、GNU 688～4,784 bytes，根 slib 在同 target 两版间逐项相同。

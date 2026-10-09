@@ -8,6 +8,8 @@
 #include <string.h>
 
 #include "../src/gc/gc_internal.h"
+#include "../src/gc/heap_internal.h"
+#undef stress_move
 #include "../src/managed_entries.h"
 #include "../src/thread.h"
 #include "platform/image_fixture.h"
@@ -33,8 +35,7 @@ static const ScoopTypeDescriptor leaf_td = {
     .vtable = NULL,
     .itables = NULL,
     .itable_count = 0,
-    .diagnostic_name = {(const uint8_t *)"ThreadProtocolLeaf",
-                        sizeof("ThreadProtocolLeaf") - 1},
+    .diagnostic_name = {(const uint8_t *)"ThreadProtocolLeaf", sizeof("ThreadProtocolLeaf") - 1},
 };
 
 static const ScoopTypeDescriptor *const registered_types[] = {&leaf_td};
@@ -62,8 +63,7 @@ static TestLeaf *new_leaf(uint64_t value) {
     return leaf;
 }
 
-static void initialize_fake_frame(uintptr_t frame[4], TestLeaf *root,
-                                  uintptr_t managed_boundary) {
+static void initialize_fake_frame(uintptr_t frame[4], TestLeaf *root, uintptr_t managed_boundary) {
     memset(frame, 0, sizeof(uintptr_t) * 4);
     memcpy(&frame[0], &root, sizeof root);
     frame[2] = managed_boundary;
@@ -80,8 +80,7 @@ static void wait_for_collection_start(const ThreadProbe *probe) {
     }
 }
 
-static bool validate_relocated_root(ThreadProbe *probe, TestLeaf *current,
-                                    uintptr_t frame_root) {
+static bool validate_relocated_root(ThreadProbe *probe, TestLeaf *current, uintptr_t frame_root) {
     probe->current_root = current;
     return current != probe->old_root && current == (TestLeaf *)frame_root &&
            current->value == probe->value && scoop_rt_gc_debug_is_allocated(current) &&
@@ -105,8 +104,7 @@ static void run_callback_managed_probe(ThreadProbe *probe, uintptr_t managed_bou
     scoop_thread_leave_callback(&callback_entry);
 }
 
-static void run_native_transition_probe(ThreadProbe *probe,
-                                        uintptr_t managed_boundary) {
+static void run_native_transition_probe(ThreadProbe *probe, uintptr_t managed_boundary) {
     scoop_thread_enter_managed((const void *)managed_boundary);
     TestLeaf *root = probe->old_root;
 
@@ -132,8 +130,7 @@ static void run_native_transition_probe(ThreadProbe *probe,
 
     wait_for_collection_start(probe);
     if (probe->kind == PROBE_NATIVE_SAFE) {
-        while (
-            !atomic_load_explicit(probe->collection_finished, memory_order_acquire)) {
+        while (!atomic_load_explicit(probe->collection_finished, memory_order_acquire)) {
             sched_yield();
         }
         scoop_rt_leave_native_safe(&transition);
@@ -165,8 +162,7 @@ static void *run_thread_probe(void *raw_probe) {
 
 static TestLeaf *collect_with_stack_root(TestLeaf *root) {
     _Alignas(16) uintptr_t frame[4];
-    uintptr_t managed_boundary =
-        (uintptr_t)scoop_thread_current_required()->managed_stack_boundary;
+    uintptr_t managed_boundary = (uintptr_t)scoop_thread_current_required()->managed_stack_boundary;
     initialize_fake_frame(frame, root, managed_boundary);
 #ifdef TEST_MINOR_GC
     ScoopManagedAnchor anchor;
@@ -218,9 +214,12 @@ int main(void) {
         },
     };
     pthread_t threads[3];
+#ifndef TEST_MINOR_GC
+    // All C roots are constructed before workers start; this probe requires explicit movement.
+    scoop_gc_heap_state.stress_move = true;
+#endif
     for (size_t index = 0; index < 3; index++) {
-        assert(pthread_create(&threads[index], NULL, run_thread_probe,
-                              &probes[index]) == 0);
+        assert(pthread_create(&threads[index], NULL, run_thread_probe, &probes[index]) == 0);
     }
     while (atomic_load_explicit(&ready_count, memory_order_acquire) != 3) {
         sched_yield();
@@ -241,6 +240,9 @@ int main(void) {
         assert(probes[index].passed);
     }
     assert(scoop_rt_thread_debug_count() == 1);
+#ifndef TEST_MINOR_GC
+    scoop_gc_heap_state.stress_move = false;
+#endif
 #ifdef TEST_MINOR_GC
     ScoopGcMetrics metrics;
     scoop_rt_gc_debug_metrics(&metrics);

@@ -1,0 +1,39 @@
+@Extern(lib = "m34_memory", name = "m34_memory_sample") fun sample(phase: Int)
+@Extern(lib = "m34_memory", name = "m34_memory_pins") fun pinMode(): Boolean
+
+class Node(val value: Long, var next: Node?)
+
+@Unsafe fun grow(round: Int): MutableArray<Node> {
+    val all = MutableArray<Node>(1800000L) { index -> Node(index, None) }
+    gcCollect()
+    sample(round * 3)
+    return MutableArray<Node>(64L) { index -> all[index * 1800000L / 64L] }
+}
+
+@Unsafe fun cycle(round: Int, pins: Boolean): Long {
+    val kept = grow(round)
+    val firstPin: PinnedPtr<Node>? = if (pins) { Some(pin(kept[0L])) } else { None }
+    val lastPin: PinnedPtr<Node>? = if (pins) { Some(pin(kept[63L])) } else { None }
+    gcCollect()
+    sample(round * 3 + 1)
+    var index = 0L
+    var result = 0L
+    while (index < kept.size) { result += kept[index].value; index += 1L }
+    val first = when (firstPin) { Some(value) -> unpin(value); None -> kept[0L] }
+    val last = when (lastPin) { Some(value) -> unpin(value); None -> kept[63L] }
+    if (!(first === kept[0L]) || !(last === kept[63L])) { throw IllegalStateException() }
+    return result
+}
+
+@Unsafe fun main() {
+    val pins = pinMode()
+    var result = 0L
+    var round = 0
+    while (round < 2) {
+        result += cycle(round, pins)
+        gcCollect()
+        sample(round * 3 + 2)
+        round += 1
+    }
+    println(result)
+}

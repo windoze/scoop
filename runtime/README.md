@@ -13,10 +13,14 @@ runtime-owned exception ABI:
   mappings; `page_map.c` publishes their sparse address index, and `cards.c`
   implements the native range barrier;
 - `src/gc/allocation.c` owns nursery TLABs and pretenured allocation;
-- `src/gc/evacuation_plan.c` reserves to-space before copying or publishing
-  forwarding; `evacuation.c` owns forwarding and current-object traversal;
-- `src/gc/reclamation.c` owns source retirement and ordinary free-space reuse;
-  `block_release.c` retires block metadata and protects stress quarantine;
+- `src/gc/evacuation_sources.c` selects sparse unpinned regions for ordinary full
+  collection; `evacuation_plan.c` reserves target space and checks concentration
+  benefit before copying or publishing forwarding; `evacuation.c` owns forwarding
+  and current-object traversal;
+- `src/gc/reclamation.c` closes collection accounting; `block_sweep.c` releases
+  dead objects and rebuilds live lines and reusable holes; `block_release.c`
+  retires block metadata and protects stress quarantine; `memory_return.c`
+  discards empty pages and removes empty mappings after reference updates;
 - `src/gc/collector.c` coordinates minor/full tracing and relocation;
   `collector_roots.c` visits their shared root sources, `scan.c` restricts exact
   descriptor scans to full objects or card ranges, and `remembered.c` finds
@@ -75,9 +79,22 @@ dead large mappings are removed after reference updates. Block and TLAB
 metadata identify their owning region. Generated single-slot barriers perform
 four acquire radix loads and mark the region's 512-byte card; range barriers
 cover the complete destination range without allocation or a heap lock.
-Diagnostic metrics distinguish active block bytes, current region/large mapping
-counts, and mapped virtual bytes. M34 implementation and measurement status is
-tracked in `docs/milestone34/PROGRESS.md`.
+Ordinary full collection keeps the densest region and considers other unpinned
+regions with at most one quarter live bytes for evacuation. Targets reuse holes
+in live old blocks before empty blocks; reserved targets must occupy fewer empty
+regions than the sources they evacuate. Reservation failure or a lack of actual
+concentration benefit leaves the live graph in place. Minor and explicit moving
+stress retain their block-level selection policies.
+
+After full collection, complete pages outside live object extents are offered to
+the OS with `MADV_DONTNEED`. One empty ordinary region is retained; other empty
+regions are removed from allocation structures and the page map, then unmapped.
+Discard failures preserve the mapping and are retried by a later full collection.
+Diagnostic metrics distinguish active block bytes, mapped virtual bytes,
+successful/failed discard calls, cumulative advised/unmapped bytes, and sampled
+process current/peak RSS. Advice success is not a promise of immediate RSS change.
+M34 implementation and measurement status is tracked in
+`docs/milestone34/PROGRESS.md`.
 
 `SCOOP_GC_STATS=1` writes one JSON metrics record to stderr on normal program
 exit. Pause times measure the collector phase inside STW, after threads have

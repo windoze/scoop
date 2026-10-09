@@ -25,19 +25,16 @@ typedef struct ManagedAggregate {
     int64_t right;
 } ManagedAggregate;
 
-_Static_assert(sizeof(ManagedAggregate) == 24,
-               "Scoop aggregate fixture size must stay exact");
+_Static_assert(sizeof(ManagedAggregate) == 24, "Scoop aggregate fixture size must stay exact");
 _Static_assert(_Alignof(ManagedAggregate) == 8,
                "Scoop aggregate fixture alignment must stay exact");
-_Static_assert(offsetof(ManagedAggregate, value) == 0 &&
-                   offsetof(ManagedAggregate, left) == 8 &&
+_Static_assert(offsetof(ManagedAggregate, value) == 0 && offsetof(ManagedAggregate, left) == 8 &&
                    offsetof(ManagedAggregate, right) == 16,
                "Scoop aggregate fixture offsets must stay exact");
 
 _Static_assert(sizeof(NativeNode) == 32 && _Alignof(NativeNode) == 8,
                "Scoop node fixture size and alignment must stay exact");
-_Static_assert(offsetof(NativeNode, left) == 16 &&
-                   offsetof(NativeNode, right) == 24,
+_Static_assert(offsetof(NativeNode, left) == 16 && offsetof(NativeNode, right) == 24,
                "Scoop node fixture references must retain their offsets");
 
 static bool stress_move_enabled(void) {
@@ -82,8 +79,7 @@ static bool exact_bytes_are_poisoned(const void *object, size_t size) {
  * stack byval argument onto this ordinary C helper's two pointer parameters.
  * This keeps the fixture independent of the C aggregate classifier.
  */
-void native_aggregate_round_trip_storage(ManagedAggregate *result,
-                                         ManagedAggregate *value) {
+void native_aggregate_round_trip_storage(ManagedAggregate *result, ManagedAggregate *value) {
     bool stress = stress_move_enabled();
     uintptr_t old_value_address = (uintptr_t)value->value;
     int64_t left = value->left;
@@ -98,10 +94,8 @@ void native_aggregate_round_trip_storage(ManagedAggregate *result,
     scoop_rt_push_native_roots(&frame, slots, 1);
     scoop_runtime_gc_collect();
     const ScoopString *reloaded = root;
-    bool valid = reloaded != NULL &&
-                 (!stress || (uintptr_t)reloaded != old_value_address) &&
-                 reloaded->len == 9 &&
-                 memcmp(reloaded->data, "aggregate", 9) == 0;
+    bool valid = reloaded != NULL && (!stress || (uintptr_t)reloaded != old_value_address) &&
+                 reloaded->len == 9 && memcmp(reloaded->data, "aggregate", 9) == 0;
     assert(valid && "native aggregate argument must survive collection");
 
     result->value = reloaded;
@@ -120,42 +114,39 @@ void native_aggregate_round_trip_storage(ManagedAggregate *result,
 }
 
 #if defined(__APPLE__) && defined(__aarch64__)
-__asm__(
-    ".text\n"
-    ".globl _native_aggregate_round_trip\n"
-    ".p2align 2\n"
-    "_native_aggregate_round_trip:\n"
-    "mov x1, sp\n"
-    "mov x0, x8\n"
-    "b _native_aggregate_round_trip_storage\n");
+__asm__(".text\n"
+        ".globl _native_aggregate_round_trip\n"
+        ".p2align 2\n"
+        "_native_aggregate_round_trip:\n"
+        "mov x1, sp\n"
+        "mov x0, x8\n"
+        "b _native_aggregate_round_trip_storage\n");
 #elif defined(__linux__) && defined(__x86_64__)
-__asm__(
-    ".text\n"
-    ".globl native_aggregate_round_trip\n"
-    ".type native_aggregate_round_trip,@function\n"
-    "native_aggregate_round_trip:\n"
-    ".cfi_startproc\n"
-    "push %rbp\n"
-    ".cfi_def_cfa_offset 16\n"
-    ".cfi_offset %rbp,-16\n"
-    "mov %rsp,%rbp\n"
-    ".cfi_def_cfa_register %rbp\n"
-    "push %rdi\n"
-    "sub $8,%rsp\n"
-    "lea 16(%rbp),%rsi\n"
-    "call native_aggregate_round_trip_storage\n"
-    "mov -8(%rbp),%rax\n"
-    "leave\n"
-    ".cfi_def_cfa %rsp,8\n"
-    "ret\n"
-    ".cfi_endproc\n"
-    ".size native_aggregate_round_trip,.-native_aggregate_round_trip\n");
+__asm__(".text\n"
+        ".globl native_aggregate_round_trip\n"
+        ".type native_aggregate_round_trip,@function\n"
+        "native_aggregate_round_trip:\n"
+        ".cfi_startproc\n"
+        "push %rbp\n"
+        ".cfi_def_cfa_offset 16\n"
+        ".cfi_offset %rbp,-16\n"
+        "mov %rsp,%rbp\n"
+        ".cfi_def_cfa_register %rbp\n"
+        "push %rdi\n"
+        "sub $8,%rsp\n"
+        "lea 16(%rbp),%rsi\n"
+        "call native_aggregate_round_trip_storage\n"
+        "mov -8(%rbp),%rax\n"
+        "leave\n"
+        ".cfi_def_cfa %rsp,8\n"
+        "ret\n"
+        ".cfi_endproc\n"
+        ".size native_aggregate_round_trip,.-native_aggregate_round_trip\n");
 #else
 #error "Scoop ABI fixture requires a supported target"
 #endif
 
-const ScoopString *native_root_round_trip(const ScoopString *message,
-                                          const NativeNode *prototype) {
+const ScoopString *native_root_round_trip(const ScoopString *message, const NativeNode *prototype) {
     const ScoopTypeDescriptor *node_td = prototype->header.td;
     bool stress = stress_move_enabled();
     void *root = (void *)message;
@@ -169,11 +160,9 @@ const ScoopString *native_root_round_trip(const ScoopString *message,
 
     const ScoopString *reloaded = root;
     bool valid = scoop_rt_gc_debug_native_root_count() == 3 &&
-                 scoop_rt_gc_debug_last_moved_count() > 0 &&
-                 (!stress || reloaded != message) &&
-                 reloaded != NULL &&
-                 scoop_rt_gc_debug_allocation_size(reloaded) == 32 &&
-                 reloaded->len == 2 &&
+                 (!stress || scoop_rt_gc_debug_last_moved_count() > 0) &&
+                 (!stress || reloaded != message) && reloaded != NULL &&
+                 scoop_rt_gc_debug_allocation_size(reloaded) == 32 && reloaded->len == 2 &&
                  reloaded->data[0] == '4' && reloaded->data[1] == '2';
     if (stress) {
         valid = valid && stale_address_faults(message);
@@ -188,9 +177,8 @@ const ScoopString *native_root_round_trip(const ScoopString *message,
     const void *old_large_address = large_root;
     scoop_runtime_gc_collect();
 
-    valid = valid && root == pinned_address &&
-            (!stress || large_root != old_large_address) &&
-            scoop_rt_gc_debug_last_moved_count() > 0 &&
+    valid = valid && root == pinned_address && (!stress || large_root != old_large_address) &&
+            (!stress || scoop_rt_gc_debug_last_moved_count() > 0) &&
             scoop_rt_gc_debug_allocation_size(large_root) == 224 &&
             ((const ScoopString *)large_root)->len == 200 &&
             ((const ScoopString *)large_root)->data[199] == 'x';
@@ -214,10 +202,8 @@ const ScoopString *native_root_round_trip(const ScoopString *message,
     parent = node_root;
     child = parent->left;
     valid = valid && (!stress || (parent != old_parent && child != old_child)) &&
-            parent->left == parent->right && child->left == child &&
-            child->right == NULL &&
-            scoop_rt_gc_debug_allocation_size(parent) ==
-                sizeof(NativeNode);
+            parent->left == parent->right && child->left == child && child->right == NULL &&
+            scoop_rt_gc_debug_allocation_size(parent) == sizeof(NativeNode);
     assert(valid && "native cycles and shared references must survive collection");
 
     scoop_rt_pin(parent);
@@ -225,12 +211,10 @@ const ScoopString *native_root_round_trip(const ScoopString *message,
     scoop_runtime_gc_collect();
     parent = node_root;
     child = parent->left;
-    valid = valid && (!stress || child != old_child) &&
-            parent->left == parent->right &&
+    valid = valid && (!stress || child != old_child) && parent->left == parent->right &&
             child->left == child;
     if (stress) {
-        valid = valid &&
-                exact_bytes_are_poisoned(old_child, sizeof(NativeNode));
+        valid = valid && exact_bytes_are_poisoned(old_child, sizeof(NativeNode));
     }
     assert(valid && "pinned objects must retain their relocated child references");
     scoop_rt_unpin(parent);

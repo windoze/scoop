@@ -75,6 +75,7 @@ typedef struct ScoopGcBlockMeta {
     bool large_marked;
     bool large_pinned;
     bool large_scanned;
+    bool discard_pending;
 } ScoopGcBlockMeta;
 
 struct ScoopGcRegion {
@@ -86,6 +87,10 @@ struct ScoopGcRegion {
     ScoopGcBlockMeta *blocks;
     uint16_t next_block;
     bool large;
+    /* Ordinary full-collection planning state, outside the generated-code prefix. */
+    bool evacuation_source;
+    bool evacuation_destination;
+    size_t collection_live_bytes;
 };
 
 _Static_assert(sizeof(uintptr_t) == 8 && GC_CHUNK_SHIFT + 4 * GC_RADIX_BITS == 64,
@@ -183,7 +188,7 @@ ScoopGcBlockMeta *scoop_heap_pointer_block(const void *pointer);
 bool scoop_heap_bit_test(const uint64_t *bits, size_t index);
 void scoop_heap_bit_set(uint64_t *bits, size_t index);
 void scoop_heap_bit_clear(uint64_t *bits, size_t index);
-ScoopGcBlockMeta *scoop_heap_activate_small_block(ScoopGcBlockState state);
+ScoopGcBlockMeta *scoop_heap_activate_small_block(ScoopGcBlockState state, bool allow_growth);
 ScoopGcBlockMeta *scoop_heap_activate_large_block(size_t exact_size, ScoopGcBlockState state);
 bool scoop_heap_object_meta(const void *object, ScoopGcBlockMeta **block, size_t *word_index);
 void scoop_heap_record_small_object(ScoopGcBlockMeta *block, void *object, size_t exact_size,
@@ -192,15 +197,19 @@ void scoop_heap_publish_large_object(ScoopGcBlockMeta *block, bool marked);
 void scoop_heap_release_block(ScoopGcBlockMeta *block);
 void scoop_heap_quarantine_block(ScoopGcBlockMeta *block);
 void *scoop_heap_bump(char **cursor, char *limit, size_t size, size_t alignment);
-bool scoop_heap_take_free_run(size_t size, char **cursor, char **limit);
+ScoopGcBlockMeta *scoop_heap_take_free_run(size_t size, char **cursor, char **limit);
 bool scoop_heap_object_pinned(const ScoopGcBlockMeta *block, size_t word);
 bool scoop_heap_object_marked(const ScoopGcBlockMeta *block, size_t word);
+bool scoop_heap_block_has_pins(const ScoopGcBlockMeta *block);
+size_t scoop_heap_select_evacuation_sources(bool minor);
+void scoop_heap_prepare_evacuation_targets(void);
+void scoop_heap_finish_block(ScoopGcBlockMeta *block, bool stress);
 
 /* Mapping mutation requires the heap lock; removal additionally requires STW. */
 size_t scoop_heap_large_mapping_size(size_t exact_size);
 ScoopGcRegion *scoop_heap_region_create(size_t size, bool large);
 void scoop_heap_region_destroy(ScoopGcRegion *region);
-void scoop_heap_release_empty_large_regions(void);
+void scoop_heap_reclaim_regions(bool full);
 ScoopGcRegion *scoop_heap_region_for_address(uintptr_t address);
 void scoop_heap_page_map_publish(ScoopGcRegion *region);
 void scoop_heap_page_map_remove(const ScoopGcRegion *region);

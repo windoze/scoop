@@ -46,8 +46,7 @@ static void write_constant_location(size_t *cursor) {
     write_u32(cursor, 0);
 }
 
-static void write_indirect_location(size_t *cursor, uint16_t dwarf_register,
-                                    int32_t offset) {
+static void write_indirect_location(size_t *cursor, uint16_t dwarf_register, int32_t offset) {
     fake_stackmaps[(*cursor)++] = SCOOP_STACKMAP_INDIRECT;
     fake_stackmaps[(*cursor)++] = 0;
     write_u16(cursor, 8);
@@ -92,8 +91,7 @@ static void initialize_fake_stackmaps(void) {
     fake_stackmaps_initialized = true;
 }
 
-static bool fake_loaded_images(ScoopPlatformMetadataImages *images,
-                               ScoopPlatformError *error) {
+static bool fake_loaded_images(ScoopPlatformMetadataImages *images, ScoopPlatformError *error) {
     static ScoopStackMapImage image;
     if (images == NULL || error == NULL) {
         return false;
@@ -124,10 +122,13 @@ static const ScoopMetadataImageOps fake_metadata_ops = {
 };
 
 bool scoop_test_vm_fail_mappings;
+bool scoop_test_vm_fail_discards;
+void (*scoop_test_vm_discard_observer)(void *base, size_t size);
 static ScoopThreadVmOps fake_vm_ops;
 static pthread_once_t fake_vm_once = PTHREAD_ONCE_INIT;
 
-static bool fake_reserve(uintptr_t address, size_t size, void **mapping, ScoopPlatformError *error) {
+static bool fake_reserve(uintptr_t address, size_t size, void **mapping,
+                         ScoopPlatformError *error) {
     if (scoop_test_vm_fail_mappings) {
         error->code = SCOOP_PLATFORM_VM_OPERATION_FAILED;
         return false;
@@ -135,9 +136,21 @@ static bool fake_reserve(uintptr_t address, size_t size, void **mapping, ScoopPl
     return TEST_THREAD_VM_OPS.reserve_read_write(address, size, mapping, error);
 }
 
+static bool fake_discard(void *base, size_t size, ScoopPlatformError *error) {
+    if (scoop_test_vm_discard_observer != NULL) {
+        scoop_test_vm_discard_observer(base, size);
+    }
+    if (scoop_test_vm_fail_discards) {
+        error->code = SCOOP_PLATFORM_VM_OPERATION_FAILED;
+        return false;
+    }
+    return TEST_THREAD_VM_OPS.discard_pages(base, size, error);
+}
+
 static void initialize_fake_vm(void) {
     fake_vm_ops = TEST_THREAD_VM_OPS;
     fake_vm_ops.reserve_read_write = fake_reserve;
+    fake_vm_ops.discard_pages = fake_discard;
 }
 
 static const ScoopPlatformBundle fake_bundle = {
@@ -179,8 +192,7 @@ ScoopPlatformStackBounds scoop_platform_stack_bounds(void) {
     ScoopPlatformStackBounds bounds;
     ScoopPlatformError error = {0};
     if (!scoop_platform_bundle()->thread_vm->stack_bounds(&bounds, &error)) {
-        fprintf(stderr, "fake platform: %s\n",
-                scoop_platform_error_message(error.code));
+        fprintf(stderr, "fake platform: %s\n", scoop_platform_error_message(error.code));
         abort();
     }
     return bounds;

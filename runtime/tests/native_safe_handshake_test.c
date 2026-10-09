@@ -8,6 +8,8 @@
 #include <unistd.h>
 
 #include "../src/gc/gc_internal.h"
+#include "../src/gc/heap_internal.h"
+#undef stress_move
 #include "../src/managed_entries.h"
 #include "../src/thread/internal.h"
 #include "platform/image_fixture.h"
@@ -156,6 +158,10 @@ static void run_scenario(Scenario scenario) {
     root->value = 7331;
     scoop_thread_leave_managed();
     Probe probe = {.scenario = scenario, .original = root};
+#ifndef TEST_MINOR_GC
+    // Force relocation only after constructing the C root and before starting workers.
+    scoop_gc_heap_state.stress_move = true;
+#endif
     active = &probe;
     pthread_t target, collector;
     assert(pthread_create(&target, NULL, run_target, &probe) == 0);
@@ -193,6 +199,9 @@ static void run_scenario(Scenario scenario) {
     }
     assert(pthread_join(target, NULL) == 0);
     assert(pthread_join(collector, NULL) == 0);
+#ifndef TEST_MINOR_GC
+    scoop_gc_heap_state.stress_move = false;
+#endif
     assert(probe.passed);
     active = NULL;
 }

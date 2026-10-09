@@ -266,6 +266,8 @@ full 标记完成后，优先选择能腾出整个 region 的低存活、无 pin
 
 高存活区、含 pin 的区继续支持原地 Immix line 复用；含 pin 的 region 仍可释放完全空闲的其他页。M34 不采用每轮复制整个 live heap 的固定双半空间，也不强制所有 full 都为证明 moving 而复制对象。普通 full 按收益决定是否 evacuation；显式 moving stress 单独要求发生 eligible movement。
 
+首版保留最密集的普通 region，选择其余存活字节不超过容量四分之一且无 pin 的非空区域；单 source 仅使用已有目标空间，多 source 可增加目标 region。新占用的空区域（包括保留区）总数必须少于 source 数量，保证含存活对象的区域数实际下降；完整预留失败或没有集中收益时回退非移动回收。目标旧代 block 的死亡对象在覆盖前完成 release 并移除起点，存活 mark 留给后续回写；回滚不释放这些既有存活 block。minor／moving stress 保留其 block 级策略。
+
 搬迁前预留本批全部目标空间，包括对齐损耗。预留失败时缩小 source 集合或执行非移动回收；minor 晋升不足仍从尚未破坏的完整原图转 full。不得在部分 root 已改写后当作“没有搬迁”继续运行。
 
 复制与 forwarding 建立后，更新全部精确 roots、存活对象出站引用和 runtime 引用。跨 region 搬迁不会免除引用更新，也不让 minor 的 old→young cards 自动成为 full 的完整入边索引。接口只更新 object 分量。完成更新前不覆盖、discard 或 unmap source。
@@ -280,6 +282,8 @@ full 标记完成后，优先选择能腾出整个 region 的低存活、无 pin
 discard 后的内容不能作为仍有效的对象状态读取；重新使用时按对象初始化合同清零。不同 OS 的建议性 discard 不保证立即减少某一 RSS 采样，报告必须分别记录调用成功、discarded bytes、unmapped bytes 与实际 RSS。瞬时峰值 RSS 不会因之后释放而回落，不能拿峰值计数验证当前占用。
 
 首版保留少量空 region 供 nursery refill 和 evacuation，普通空闲缓存初值为一个 region；其余在 full 后释放。根据增长／收缩循环实测调整保留策略，避免每轮释放后立即重新映射。pin 只限制其对象所在存储，不阻止其他空 region 归还。
+
+Darwin／Linux 使用 `MADV_DONTNEED` 建议回收已使用 block 的空页；失败不改变可达对象，后续 full 可重试。只在 block 激活、空洞复用或对象退休后重新检查，避免每次 full 重复建议未变化的空页。统计保留成功／失败次数、累计建议字节、累计 unmap 字节和独立进程 RSS 采样；操作成功不保证当前 RSS 按相同字节下降。
 
 ## 7. STW 并行 mark 与存活集合复用
 

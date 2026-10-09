@@ -27,6 +27,7 @@ static void retire_metadata(ScoopGcBlockMeta *block, ScoopGcBlockState state) {
 
 void scoop_heap_release_block(ScoopGcBlockMeta *block) {
     retire_metadata(block, SCOOP_BLOCK_FREE);
+    block->discard_pending = true;
     if (!block->region->large) {
         block->next_free = scoop_gc_heap_state.free_blocks;
         scoop_gc_heap_state.free_blocks = block;

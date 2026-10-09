@@ -139,7 +139,7 @@ int main(void) {
     assert((uintptr_t)second - (uintptr_t)first == 80);
     check_metadata(second, 80);
     collect();
-    assert(scoop_rt_gc_debug_last_moved_count() > 0);
+    assert(scoop_rt_gc_debug_last_moved_count() == 0);
     for (size_t index = 0; index < SIZE_COUNT; index++) {
         check_metadata(objects[index], sizes[index]);
         const unsigned char *payload = objects[index];

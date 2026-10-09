@@ -149,26 +149,40 @@ static void reset_small_metadata(ScoopGcBlockMeta *block) {
     block->forwarding = NULL;
 }
 
-static ScoopGcBlockMeta *take_small_block(void) {
-    ScoopGcBlockMeta *block = scoop_gc_heap_state.free_blocks;
+static ScoopGcBlockMeta *take_small_block(bool allow_growth) {
+    ScoopGcBlockMeta **link = &scoop_gc_heap_state.free_blocks;
+    while (*link != NULL && (*link)->region->evacuation_source) {
+        link = &(*link)->next_free;
+    }
+    ScoopGcBlockMeta *block = *link;
     if (block != NULL) {
-        scoop_gc_heap_state.free_blocks = block->next_free;
+        *link = block->next_free;
         block->next_free = NULL;
         return block;
     }
     ScoopGcRegion *region = scoop_gc_heap_state.allocation_region;
-    if (region == NULL || region->next_block == GC_REGION_BLOCKS) {
+    if (region == NULL || region->evacuation_source || region->next_block == GC_REGION_BLOCKS) {
+        region = scoop_gc_heap_state.regions;
+        while (region != NULL && (region->large || region->evacuation_source ||
+                                  region->next_block == GC_REGION_BLOCKS)) {
+            region = region->next;
+        }
+    }
+    if (region == NULL) {
+        if (!allow_growth) {
+            return NULL;
+        }
         region = scoop_heap_region_create(GC_REGION_SIZE, false);
         if (region == NULL) {
             return NULL;
         }
-        scoop_gc_heap_state.allocation_region = region;
     }
+    scoop_gc_heap_state.allocation_region = region;
     return &region->blocks[region->next_block++];
 }
 
-ScoopGcBlockMeta *activate_small_block(ScoopGcBlockState state) {
-    ScoopGcBlockMeta *block = take_small_block();
+ScoopGcBlockMeta *activate_small_block(ScoopGcBlockState state, bool allow_growth) {
+    ScoopGcBlockMeta *block = take_small_block(allow_growth);
     if (block == NULL) {
         return NULL;
     }
@@ -182,6 +196,7 @@ ScoopGcBlockMeta *activate_small_block(ScoopGcBlockState state) {
     block->exact_size = 0;
     block->live_bytes = 0;
     block->movable_live_bytes = 0;
+    block->discard_pending = true;
     committed_bytes += GC_BLOCK_SIZE;
     active_block_heads++;
     return block;

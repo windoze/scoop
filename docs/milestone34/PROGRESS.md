@@ -12,7 +12,7 @@
 | M34-4 poll 与分配 | 已完成 | 条件 poll／pending 激活、线程累计计数／detach 归并、三 target 验收与两机性能对照完成。 |
 | M34-5 小值与 DirectC | 已完成 | 小值 DirectParts、正向 C aggregate DirectC、三 target ABI／GC／artifact-only 验收与两机性能对照。 |
 | M34-6 多 region | 已完成 | 16 MiB region、独立 large mapping、稀疏地址索引、内联 cards、三 target 验收与两机性能对照。 |
-| M34-7 搬迁与归还 | 待实施 | source／target 规划、完整回写、discard／unmap。 |
+| M34-7 搬迁与归还 | 已完成 | region 选择性搬迁、旧代空洞复用、完整预留回滚、discard／unmap；三 target 验收与两机内存／性能对照。 |
 | M34-8 并行 mark | 待实施 | 首次标记、分块任务、全局终止、存活集合复用。 |
 | M34-9 容器 | 待实施 | MaybeUninit 与 ArrayList／StringBuilder。 |
 | M34-10 总验收 | 待实施 | 三 target 的功能、CLI、ABI、GC、性能与实际版本清单。 |
@@ -157,3 +157,21 @@ Darwin、GNU、musl 均在关闭 snapshot 更新后通过八组验收，各为 1
 四个 workload 各七次、每轮交替旧／新版本的性能对照已经归档。可扩容堆的地址查询存在实际成本：Darwin 单槽循环与 GNU 旧图／高存活图变慢，完整样本和机器码均保留，未以 GC 工作量变化掩盖结果；详见性能记录。两机保存 `tmp/m34/region-tools`／`region-source` 供后续搬迁与回收对照。
 
 本批清理 target：Darwin 删除 320 项、1,512,187,367 bytes，Linux 删除 117 项、616,166,385 bytes，保留有效库、CLI、测试程序和缓存。记录为两机 `tmp/m34/batch6-target-cleanup.json`。
+
+## M34-7：选择性搬迁与 OS 归还
+
+普通 full 保留最密集的普通 region，将其他不超过四分之一容量且无 pin 的非空区域作为候选 source。先复用非 source 旧代 block 的空闲 line，再使用空 block／未用 block；单 source 不新增映射。完整预留后，新占用的空 region 数必须小于 source 数，包括已有的空缓存，避免往返搬迁却没有集中收益。minor 和显式 moving stress 继续使用原来的 block 级策略。
+
+目标旧代 block 在复用前完成死亡对象 release 并移除起点，保留原有存活 mark；预留失败只退还新激活的目标 block，不破坏已有活对象，也不重复 release。成功后才复制并发布 forwarding，完成 roots／对象引用回写后才退休 source。映射失败测试先实际占用目标空间，再使下一次 OS 映射失败，验证原对象图、根和 pin 地址均保持有效；恢复映射后可以继续收集。
+
+full 按完整 OS 页检查 live-line 覆盖，Darwin／Linux 使用 `madvise(MADV_DONTNEED)` 建议归还物理页；失败保留映射与待归还状态，下次 full 重试。空 ordinary region 保留一个，其余撤销地址索引后 unmap；large mapping 继续单独回收。free block 链在 region 撤销后重建，TLAB 在收集前失效。统计分别记录建议成功／失败次数、累计建议字节、累计 unmap 字节和当前／峰值 RSS，避免混淆虚拟映射、建议性归还与实际驻留量。
+
+新增三个 C 测试覆盖跨 region 环图、旧代空洞、pin 阻止释放、连续增长收缩、release 恰好一次、跨页存活对象、discard 失败重试、重新分配清零、完整预留失败和空缓存无收益回滚。原有三个移动协议测试显式在精确根已发布的收集阶段启用 stress，普通 full 不再被错误要求搬迁单 region。两机 27 项 collector 测试通过。
+
+新增 growth／pins 两组正式 CLI fixture，普通规模为 160 万／180 万个对象；组合双字接口、数组复制、AtomicRef、closure、tuple、old→young 写入与 scoped pin。debug／release、普通／moving／minor 三种模式均覆盖。Darwin、GNU、musl 的最终 12 组定向验收均在关闭 snapshot 更新后通过，各为 25 variants、106 processes、60 goldens；39 份共用快照跨主机逐字一致。补修清扫函数内联后，5 项 C 回归及三个 target 各 4 组 CLI 再次通过，每 target 为 8 variants、32 processes、16 goldens。
+
+两机 workspace/all-targets clippy 与 C 警告检查通过。清扫、source 选择和 OS 归还拆为独立模块，分别为 183／75／116 行；规划 160 行、收集结束入口 55 行，相关最长 C 文件 allocation.c 为 267 行。没有增加生产测试钩子、资源预算或重复的产物验证层。
+
+五个 workload 各七轮、每轮交替 M34-6／M34-7 的性能结果与机器码已经归档。初版清扫拆分产生每个死亡对象一次的额外函数调用，修复为内联后重新测量，并保留全部修复前样本。无 pin 的稀疏图映射从 64 MiB 降至 32 MiB，GNU 当前 RSS 约从 95 MiB 降至 40 MiB、Darwin 从 96 MiB 降至 65 MiB；吞吐、峰值 RSS 和剩余成本如实记录于性能文档。两机保存 `reclamation-tools`／`reclamation-source`，修复前源码另存为 `reclamation-pre-inline-source`。
+
+本批清理 target：Darwin 删除 72 项、151,091,917 bytes，Linux 删除 144 项、156,877,294 bytes；有效库、CLI、测试程序和缓存保留。记录为两机 `tmp/m34/batch7-target-cleanup.json`。

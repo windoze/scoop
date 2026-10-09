@@ -78,6 +78,7 @@ ScoopGcRegion *scoop_heap_region_create(size_t size, bool large) {
 void scoop_heap_region_destroy(ScoopGcRegion *region) {
     scoop_heap_page_map_remove(region);
     release_mapping((void *)region->base, region->size);
+    scoop_gc_heap_state.metrics.unmapped_bytes += region->size;
     size_t count = region->large ? 1 : GC_REGION_BLOCKS;
     for (size_t index = 0; index < count; index++) {
         ScoopGcBlockMeta *block = &region->blocks[index];
@@ -93,22 +94,4 @@ void scoop_heap_region_destroy(ScoopGcRegion *region) {
     free(region->blocks);
     free(region->cards);
     free(region);
-}
-
-void scoop_heap_release_empty_large_regions(void) {
-    bool removed = false;
-    ScoopGcRegion **link = &scoop_gc_heap_state.regions;
-    while (*link != NULL) {
-        ScoopGcRegion *region = *link;
-        if (region->large && region->blocks[0].state == SCOOP_BLOCK_FREE) {
-            *link = region->next;
-            scoop_heap_region_destroy(region);
-            removed = true;
-        } else {
-            link = &region->next;
-        }
-    }
-    if (removed) {
-        scoop_heap_page_map_prune();
-    }
 }

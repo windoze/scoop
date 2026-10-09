@@ -218,7 +218,7 @@ Module
   td td0 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Equality);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$6fb0bdfcaef72d458561b350a56fb80e86e68f4c020173148c7fe1ec239ea687 type-id=940003777485400453 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
   td td1 a(n(c=test%3Arelease-generic-provider%3A0.1.0;p=releasegeneric;o=-;k=C;x=Owner);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$c09587dbb5fdb44ac6757978683a9ef9dec098a30f027f4bb846ef3800a91eac type-id=15393349309046686018 shape=FixedObject minimum-size=24 align=8 parent=none vtable=[] itables=[]
   td td2 a(n(c=test%3Arelease-generic-provider%3A0.1.0;p=releasegeneric;o=-;k=C;x=Owner);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Long)]) @scoop$1$td$d8254830c4ccedd37250ef5e6f88debf61502f0d78f7ac5bf510b6f9436c0762 type-id=6961297851594739157 shape=FixedObject minimum-size=32 align=8 parent=none vtable=[] itables=[]
-  layout Equality value size=8 align=8 refs=[0]
+  layout Equality value size=16 align=8 refs=[0]
   layout Owner value size=8 align=8 refs=[0]
   layout Owner size=24 align=8 refs=[]
   layout Owner value size=8 align=8 refs=[0]
