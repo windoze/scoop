@@ -237,3 +237,9 @@ Darwin 的一次完整 Rust 工作区运行完成 5,404 项测试，初跑 5,343
 多文件 HIR 测试暴露了 companion 延迟登记时沿用上一源文件上下文的问题。`declare_singleton` 现在先恢复其已有 `file` 参数对应的上下文，再登记注解与成员，MaybeUninit 的 core intrinsic 因而取得正确源文件归属。18 项真实 core／用户源码组合回归在 Darwin、Linux 通过，未放宽用户声明 intrinsic 的规则。
 
 原生对象确定性测试的预处理字节完全一致，Mach-O 的调试信息却包含随机 `/private/var/.../scoop-native-*` 目录。编译临时目录现在先取得物理路径，使传给编译器的路径与既有 prefix map 一致；继续保留完整对象字节比较。两机定向测试通过，未对测试输出做摘要或路径归一化。两机工作区 all-targets clippy 通过；本批生产文件分别为 283／141 行。
+
+## M34-10b：LLVM 内存 helper 的普通链接要求
+
+Linux 的跨 Cone nominal 签名和完整 core 产物测试暴露了小值 coercion 清零产生的 `memset` relocation 未登记。实现规范先补充其既有 target-support tag 8、C 机器签名与 NoGC／不抛异常合同，再由普通 target-support registry 保存真实 libc 引用；没有增加新的链接机制。对象读取共用 66 行 memory-call 模块识别 `memcpy`／`memset` 的真实直接调用，普通外部调用与 Managed invoke 仍按各自合同处理。
+
+新增 57 行对象测试在三个 target 的 debug／release 下分别生成真实机器对象，验证两种内存 helper 与普通外部调用的区别。两机 workspace/all-targets clippy 通过；Darwin 的 13 项 helper／runtime ABI／产物检查通过，Linux 的 18 项定向检查通过，包含原来失败的 nominal 签名、完整 core 导出、初始化单元、dispatch 表和精确根计数。Linux 三个配套 CLI 已重新构建。
