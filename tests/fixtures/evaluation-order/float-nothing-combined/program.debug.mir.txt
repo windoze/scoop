@@ -1,0 +1,612 @@
+Module
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum Option<Char>
+    Some(_0: Char)
+    None()
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class box<Unit> vtable=0 itables=0
+  interface ToString
+  interface Equality<Double>
+  interface Equality<Float>
+  interface Hash
+  interface Equality<Char>
+  interface Iterable<Char>
+  interface Iterator<Char>
+  interface Equality<String>
+  interface Equality<Boolean>
+  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn6 captures=0
+    bridge function_type1 -> @fn15 id=6c2dd5d2bc8de2046549d7586f5bd8a60b4093f956917d15a78fd1dc8ade338b
+  closure cc1 $Closure$lambda1 type=function_type0 invoke=@fn7 captures=0
+    bridge function_type1 -> @fn16 id=d5f76c971302aa1f82ebcd2302429519827c8e82c613d3085d837528f51d2ae7
+  closure cc2 $Closure$lambda2 type=function_type0 invoke=@fn8 captures=0
+    bridge function_type1 -> @fn17 id=148b8eaa34b12926dbcf536ba226b94375730788f81b4484c8126d0488b7ed15
+  closure cc3 $Closure$lambda3 type=function_type0 invoke=@fn9 captures=0
+    bridge function_type1 -> @fn18 id=9dc14c5c2891d725f9327013c0cd350456b1c4e8a17eb20a4ff2f6122fbff56b
+  closure cc4 $Closure$lambda4 type=function_type0 invoke=@fn10 captures=0
+    bridge function_type1 -> @fn19 id=9691922887685cf9a84042b62d08b04ded449a381ed8d7fb8f1a0b15e38ac959
+  closure cc5 $Closure$lambda5 type=function_type0 invoke=@fn11 captures=0
+    bridge function_type1 -> @fn20 id=5beb4d6f5708d5b078449df115debcbb0c6285fe257cbfdc73f72fbea8173b13
+  closure cc6 $Closure$lambda6 type=function_type2 invoke=@fn13 captures=0
+    bridge function_type1 -> @fn21 id=aa758668ed822f17222d3c21e2a2fb7d5ec8c0dd22f4184ef2eead08db73c679
+  generated_exact_type get0 location=closure5 nominal_id=fe93a3dbceedfdd4cb17e7cfa85bf6ce51e468b67d6df4a742f84c9989f8c726 exact_id=0524e3cfbb03cc688fe3f9879e530ca024b7d6ebd5bae59b604f0dbc777b9aae
+  generated_exact_type get1 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
+  generated_exact_type get2 location=closure0 nominal_id=2fcc5dceba1f09c36d231287088079138d2c04817531ae31cc6d2cc1c02b5c0b exact_id=2302a5386d95a61953db931e029826819dc2e78ed627925872f2aaa8f36b4d72
+  generated_exact_type get3 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
+  generated_exact_type get4 location=closure6 nominal_id=86d7a0aa973568da583814bc233b79dd0f04b1d4183949368daf697a58a53852 exact_id=3fd958c4d73214ebb00d22d56017ba095e2f754b6fd25f432ebf5698a57ccb86
+  generated_exact_type get5 location=class4 nominal_id=2d46c9bb220fbefe39c9d1e29a6611ec7bc6e5ae56b1648ee5f0f44bea118eda exact_id=3fffd277817e10802b81aa1eaa231983087c84e2f97f68e50ca3b7bfd6209975
+  generated_exact_type get6 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
+  generated_exact_type get7 location=closure4 nominal_id=8c34f5e5dc0a1a245c98a8256001d2009817dd46b4d93d4f080471fdcd3f08e2 exact_id=5d69e19c915e3b5ed7cbba3e100e1b74feeb7a5da16d3f29d84281458eac95d4
+  generated_exact_type get8 location=closure1 nominal_id=4448086172d49813e9faf5f5f4482caeaf80ecd2eb94fc8b4e14e73f95c92706 exact_id=7f5f6914f0e48750cf712e99871e6a5837c62f0449c43604a094cca816ea92b8
+  generated_exact_type get9 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
+  generated_exact_type get10 location=closure2 nominal_id=9d01c256549e39c8bee1aa8e63315830d35fd0d8bca156722967aa0bc59cd9c3 exact_id=8de0c17c7f336529fe49a7537238c16d8d225f8457e97a5ed0fdd4983469231f
+  generated_exact_type get11 location=closure3 nominal_id=1deda9c5206c86341ad96950b3fded3fffec9512dcd6ac8e399fe82c95a9e3a0 exact_id=eb2d41bca85af9d3d2b2cd551229aaac44e4348e1daa017bf059a115a8bbab71
+  generated_exact_type get12 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
+  generated_callable gc0 function=@fn17 id=148b8eaa34b12926dbcf536ba226b94375730788f81b4484c8126d0488b7ed15
+  generated_callable gc1 function=@fn20 id=5beb4d6f5708d5b078449df115debcbb0c6285fe257cbfdc73f72fbea8173b13
+  generated_callable gc2 function=@fn15 id=6c2dd5d2bc8de2046549d7586f5bd8a60b4093f956917d15a78fd1dc8ade338b
+  generated_callable gc3 function=@fn19 id=9691922887685cf9a84042b62d08b04ded449a381ed8d7fb8f1a0b15e38ac959
+  generated_callable gc4 function=@fn18 id=9dc14c5c2891d725f9327013c0cd350456b1c4e8a17eb20a4ff2f6122fbff56b
+  generated_callable gc5 function=@fn21 id=aa758668ed822f17222d3c21e2a2fb7d5ec8c0dd22f4184ef2eead08db73c679
+  generated_callable gc6 function=@fn16 id=d5f76c971302aa1f82ebcd2302429519827c8e82c613d3085d837528f51d2ae7
+  fun fail @fn0() -> Nothing
+    bb0 entry
+      val $default.local.0: String
+        Type String
+        StringConst @str0
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.1
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $new.1
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.1
+  fun left @fn1() -> Double
+    bb0 entry
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str1
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type String
+        Local $dependency.parameter.value
+      return
+        Type Double
+        FloatLiteral f64(0x3ff0000000000000)
+  fun single @fn2() -> Float
+    bb0 entry
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str2
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type String
+        Local $dependency.parameter.value
+      return
+        Type Float
+        FloatLiteral f32(0x3f800000)
+  fun check @fn3(name: String, action: () -> Unit) -> Unit
+    bb0 entry
+      goto bb8
+    bb1 try.unwind.1
+      landing_pad cleanup=false
+      goto bb2
+    bb2 try.dispatch.2
+      begin_catch
+      branch bb10 bb11
+        Type Boolean
+        IsInstance IllegalStateException
+          Type Any
+          CaughtException
+    bb3 try.handler_pad.3
+      landing_pad cleanup=true
+      goto bb4
+    bb4 try.handler_cleanup.4
+      end_catch
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str4
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type String
+        Local $dependency.parameter.value
+      resume
+    bb5 try.exit_pad.5
+      landing_pad cleanup=true
+      goto bb6
+    bb6 try.exit_cleanup.6
+      end_catch
+      resume
+    bb7 try.end.7
+      return
+    bb8 try.body.8 unwind bb1
+      call <closure:function_type0> closure[function_type0]
+        Type () -> Unit
+        Local action
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str3
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type String
+        Local $dependency.parameter.value
+      goto bb9
+    bb9 scope.9
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str4
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type String
+        Local $dependency.parameter.value
+      goto bb7
+    bb10 try.catch.10
+      call $catch.1: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val error: IllegalStateException
+        Type IllegalStateException
+        Retype IllegalStateException
+          Type Any
+          Local $catch.1
+      goto bb12
+    bb11 try.next.11 unwind bb5
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str4
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type String
+        Local $dependency.parameter.value
+      rethrow unwind bb5
+    bb12 scope.12 unwind bb3
+      val $dependency.argument.0: String
+        Type String
+        Local name
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type String
+        Local $dependency.parameter.value
+      end_catch
+      goto bb13
+    bb13 scope.13
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str4
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type String
+        Local $dependency.parameter.value
+      goto bb7
+  fun main @fn4() -> Unit
+    bb0 entry
+      val $argument.0: String
+        Type String
+        StringConst @str5
+      val $argument.1: () -> Unit
+        Type () -> Unit
+        ClosureAlloc cc0 $Closure$lambda0
+      val $parameter.name: String
+        Type String
+        Local $argument.0
+      val $parameter.action: () -> Unit
+        Type () -> Unit
+        Local $argument.1
+      call @fn3 direct
+        Type String
+        Local $parameter.name
+        Type () -> Unit
+        Local $parameter.action
+      val $argument.0: String
+        Type String
+        StringConst @str6
+      val $argument.1: () -> Unit
+        Type () -> Unit
+        ClosureAlloc cc1 $Closure$lambda1
+      val $parameter.name: String
+        Type String
+        Local $argument.0
+      val $parameter.action: () -> Unit
+        Type () -> Unit
+        Local $argument.1
+      call @fn3 direct
+        Type String
+        Local $parameter.name
+        Type () -> Unit
+        Local $parameter.action
+      val $argument.0: String
+        Type String
+        StringConst @str7
+      val $argument.1: () -> Unit
+        Type () -> Unit
+        ClosureAlloc cc2 $Closure$lambda2
+      val $parameter.name: String
+        Type String
+        Local $argument.0
+      val $parameter.action: () -> Unit
+        Type () -> Unit
+        Local $argument.1
+      call @fn3 direct
+        Type String
+        Local $parameter.name
+        Type () -> Unit
+        Local $parameter.action
+      val $argument.0: String
+        Type String
+        StringConst @str8
+      val $argument.1: () -> Unit
+        Type () -> Unit
+        ClosureAlloc cc3 $Closure$lambda3
+      val $parameter.name: String
+        Type String
+        Local $argument.0
+      val $parameter.action: () -> Unit
+        Type () -> Unit
+        Local $argument.1
+      call @fn3 direct
+        Type String
+        Local $parameter.name
+        Type () -> Unit
+        Local $parameter.action
+      val $argument.0: String
+        Type String
+        StringConst @str9
+      val $argument.1: () -> Unit
+        Type () -> Unit
+        ClosureAlloc cc4 $Closure$lambda4
+      val $parameter.name: String
+        Type String
+        Local $argument.0
+      val $parameter.action: () -> Unit
+        Type () -> Unit
+        Local $argument.1
+      call @fn3 direct
+        Type String
+        Local $parameter.name
+        Type () -> Unit
+        Local $parameter.action
+      val $argument.0: String
+        Type String
+        StringConst @str10
+      val $argument.1: () -> Unit
+        Type () -> Unit
+        ClosureAlloc cc5 $Closure$lambda5
+      val $parameter.name: String
+        Type String
+        Local $argument.0
+      val $parameter.action: () -> Unit
+        Type () -> Unit
+        Local $argument.1
+      call @fn3 direct
+        Type String
+        Local $parameter.name
+        Type () -> Unit
+        Local $parameter.action
+      branch bb1 bb2
+        Type Boolean
+        BoolLiteral false
+    bb1 logic.rhs.1
+      call $call.2: Double = @fn1 direct
+      call $call.3: Nothing = @fn0 direct
+      unreachable
+    bb2 logic.short.2
+      assign $logic.1
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 logic.merge.3
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        Local $logic.1
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn12 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      branch bb5 bb4
+        Type Boolean
+        BoolLiteral true
+    bb4 logic.rhs.4
+      call $call.5: Float = @fn2 direct
+      call $call.6: Nothing = @fn0 direct
+      unreachable
+    bb5 logic.short.5
+      assign $logic.4
+        Type Boolean
+        BoolLiteral true
+      goto bb6
+    bb6 logic.merge.6
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        Local $logic.4
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn12 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        FloatBinary F64 Less
+          Type Double
+          FloatLiteral f64(0x7ff8000000000000)
+          Type Double
+          FloatLiteral f64(0x0000000000000000)
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn12 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        FloatBinary F64 GreaterEqual
+          Type Double
+          FloatLiteral f64(0x7ff8000000000000)
+          Type Double
+          FloatLiteral f64(0x0000000000000000)
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn12 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      return
+  fun println @fn5(value: String) -> Unit
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local value
+      call $dependency.local.2: String = external2 direct
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external3 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str11
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external3 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun $lambda.0 @fn6($closure: () -> Unit) -> Unit
+    bb0 entry
+      call $call.1: Double = @fn1 direct
+      call $call.2: Nothing = @fn0 direct
+      unreachable
+  fun $lambda.1 @fn7($closure: () -> Unit) -> Unit
+    bb0 entry
+      call $call.1: Double = @fn1 direct
+      call $call.2: Nothing = @fn0 direct
+      unreachable
+  fun $lambda.2 @fn8($closure: () -> Unit) -> Unit
+    bb0 entry
+      call $call.1: Float = @fn2 direct
+      call $call.2: Nothing = @fn0 direct
+      unreachable
+  fun $lambda.3 @fn9($closure: () -> Unit) -> Unit
+    bb0 entry
+      call $call.1: Float = @fn2 direct
+      call $call.2: Nothing = @fn0 direct
+      unreachable
+  fun $lambda.4 @fn10($closure: () -> Unit) -> Unit
+    bb0 entry
+      call $argument.0: Double = @fn1 direct
+      val $argument.1: () -> Nothing
+        Type () -> Nothing
+        ClosureAlloc cc6 $Closure$lambda6
+      val $argument.2: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $parameter.value: Double
+        Type Double
+        Local $argument.0
+      val $parameter.rhs: () -> Nothing
+        Type () -> Nothing
+        Local $argument.1
+      val $parameter.tag: Int
+        Type Int
+        Local $argument.2
+      call $dependency.argument.0: Boolean = @fn14 direct
+        Type Double
+        Local $parameter.value
+        Type () -> Nothing
+        Local $parameter.rhs
+        Type Int
+        Local $parameter.tag
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn12 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      return
+  fun $lambda.6 @fn11($closure: () -> Unit) -> Unit
+    bb0 entry
+      call $equality.lhs: Double = @fn1 direct
+      goto bb6
+    bb1 try.unwind.1
+      landing_pad cleanup=false
+      goto bb2
+    bb2 try.dispatch.2
+      begin_catch
+      goto bb7
+    bb3 try.exit_pad.3
+      landing_pad cleanup=true
+      goto bb4
+    bb4 try.exit_cleanup.4
+      end_catch
+      resume
+    bb5 try.end.5
+      unreachable
+    bb6 try.body.6 unwind bb1
+      call $call.1: Nothing = @fn0 direct
+      unreachable
+    bb7 scope.7 unwind bb3
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str12
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type String
+        Local $dependency.parameter.value
+      rethrow unwind bb3
+  fun println @fn12(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.local.1: Boolean
+        Type Boolean
+        Local value
+      call $dependency.local.2: String = external1 direct
+        Type Boolean
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external3 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str13
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external3 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun $lambda.5 @fn13($closure: () -> Nothing) -> Nothing
+    bb0 entry
+      call $call.1: Nothing = @fn0 direct
+      unreachable
+  fun deferred @fn14(value: Double, rhs: () -> Nothing, tag: Int) -> Boolean
+    bb0 entry
+      call $call.1: Nothing = <closure:function_type2> closure[function_type2]
+        Type () -> Nothing
+        Local rhs
+      unreachable
+  fun function_bridge.$Closure$lambda0.() -> Any @fn15($source: () -> Unit) -> Any
+    bb0 entry
+      call <closure:function_type0> closure[function_type0]
+        Type () -> Unit
+        Local $source
+      return
+        Type Any
+        Box
+          Type Unit
+          UnitLiteral
+  fun function_bridge.$Closure$lambda1.() -> Any @fn16($source: () -> Unit) -> Any
+    bb0 entry
+      call <closure:function_type0> closure[function_type0]
+        Type () -> Unit
+        Local $source
+      return
+        Type Any
+        Box
+          Type Unit
+          UnitLiteral
+  fun function_bridge.$Closure$lambda2.() -> Any @fn17($source: () -> Unit) -> Any
+    bb0 entry
+      call <closure:function_type0> closure[function_type0]
+        Type () -> Unit
+        Local $source
+      return
+        Type Any
+        Box
+          Type Unit
+          UnitLiteral
+  fun function_bridge.$Closure$lambda3.() -> Any @fn18($source: () -> Unit) -> Any
+    bb0 entry
+      call <closure:function_type0> closure[function_type0]
+        Type () -> Unit
+        Local $source
+      return
+        Type Any
+        Box
+          Type Unit
+          UnitLiteral
+  fun function_bridge.$Closure$lambda4.() -> Any @fn19($source: () -> Unit) -> Any
+    bb0 entry
+      call <closure:function_type0> closure[function_type0]
+        Type () -> Unit
+        Local $source
+      return
+        Type Any
+        Box
+          Type Unit
+          UnitLiteral
+  fun function_bridge.$Closure$lambda5.() -> Any @fn20($source: () -> Unit) -> Any
+    bb0 entry
+      call <closure:function_type0> closure[function_type0]
+        Type () -> Unit
+        Local $source
+      return
+        Type Any
+        Box
+          Type Unit
+          UnitLiteral
+  fun function_bridge.$Closure$lambda6.() -> Any @fn21($source: () -> Nothing) -> Any
+    bb0 entry
+      call $call.1: Nothing = <closure:function_type2> closure[function_type2]
+        Type () -> Nothing
+        Local $source
+      unreachable
+  instance mi0 function=@fn5 <- println
+  instance mi1 function=@fn12 <- println
+  instance mi2 function=@fn14 <- deferred
+  str @str0 "illegal state"
+  str @str1 "left"
+  str @str2 "single"
+  str @str3 "unexpected return"
+  str @str4 "finally"
+  str @str5 "lt"
+  str @str6 "le"
+  str @str7 "gt"
+  str @str8 "ge"
+  str @str9 "deferred"
+  str @str10 "control"
+  str @str11 "\n"
+  str @str12 "rhs finally"
+  str @str13 "\n"
+  output executable @fn4

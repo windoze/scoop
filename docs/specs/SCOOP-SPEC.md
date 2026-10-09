@@ -1115,6 +1115,8 @@ receiver先于调用实参求值，因此`a in b`与`a !in b`按概念调用先�
 
 core 浮点关系运算的例外由已解析 nominal owner 的 typed representation 决定；透明 alias 相同，用户定义的同名类型不获得该行为。两个 operand 从左到右各求值一次，literal 按 11.2.2 定型；不先默认为 Double，也不通过 `compareTo` 或 total-order 方法间接实现。该例外不增加可由用户重载的 operator 名称。
 
+浮点 receiver 已确定时，右侧 `Nothing` 表达式按 3.1 的底类型规则接受：先求值左侧，再执行右侧的控制转移，不产生浮点比较结果。这不放宽可正常完成的 Float、Double 或整数操作数之间的类型匹配要求。
+
 operator调用只考虑function-like operator目标，不能再通过property-like `invoke`递归寻找某个同名operator。一次`a(args...)`至多应用一次`invoke`约定；若选中的`invoke`返回另一个可调用值，必须再写一组显式括号才能调用。
 
 #### 9.3.3 自增、自减与复合赋值
