@@ -7,6 +7,7 @@ use scoop_hir as hir;
 use crate::{Lowerer, Type};
 
 mod enums;
+mod open_enums;
 
 impl Lowerer {
     pub(super) fn build_derived_equality_body(
@@ -74,6 +75,10 @@ impl Lowerer {
                     span,
                 )]
             }
+            Type::Enum(_) if self.type_contains_param(ty) => vec![return_statement(
+                self.build_open_enum_equality(ty, this_expr, other_expr, span, stack)?,
+                span,
+            )],
             Type::Enum(_) => self.build_derived_enum_equality(
                 ty,
                 this_expr,

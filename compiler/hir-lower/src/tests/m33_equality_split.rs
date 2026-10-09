@@ -1,6 +1,7 @@
 use super::*;
 
 mod derived;
+mod derived_binding;
 
 #[test]
 fn independent_operator_and_library_equality_select_their_own_members() {

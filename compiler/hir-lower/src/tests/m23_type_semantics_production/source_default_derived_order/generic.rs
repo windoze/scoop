@@ -94,6 +94,8 @@ fn open_default_equality_keeps_source_applications_and_exact_executable_bindings
                 ));
             }
         }
-        assert_eq!((open, exact, open_only), (3, 3, 1));
+        // Open defaults carry bound comparisons into their callers; only the
+        // directly compared closed owner needs an exact derived callable.
+        assert_eq!((open, exact, open_only), (3, 1, 2));
     });
 }

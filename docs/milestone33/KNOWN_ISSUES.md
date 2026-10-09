@@ -2,6 +2,8 @@
 
 ## 泛型结构比较的具体化正文选择
 
+已在编译器审查修复中解决：开放宿主的派生比较在定义处展开为普通已绑定 HIR，源码、默认参数和导出的泛型正文均保留原字段调用。封闭宿主的生成身份与产物格式保持原有契约。以下为 M33 时的历史记录。
+
 恢复基线为 `23cbfb7de`，即 `00d4e5858` 开始将 operator 与 core Equality 绑定之前的提交。
 
 基线的 `compiler/hir-lower/src/concretize/equality.rs` 按具体宿主类型缓存结构比较函数；`derived_functions` 的键只有 `concrete::TypeId`。若同一个具体宿主同时来自直接比较和带不同 operator bound 的泛型正文，两处可能复用首先生成的比较正文。例如直接比较 `Box<Key>` 与在 `<T : Wide>` 中比较 `Box<T>`，具体化为相同宿主后，不能保证分别保留窄参数与宽参数的字段重载选择。

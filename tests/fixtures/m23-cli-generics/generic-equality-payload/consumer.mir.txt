@@ -38,7 +38,7 @@ Module
       assign $new.1
         Type Key<Int>
         ClassAlloc Key<Int>
-      call @fn6 direct
+      call @fn5 direct
         Type Key<Int>
         Local $new.1
         Type Int
@@ -63,7 +63,7 @@ Module
       assign $new.2
         Type Key<Int>
         ClassAlloc Key<Int>
-      call @fn6 direct
+      call @fn5 direct
         Type Key<Int>
         Local $new.2
         Type Int
@@ -88,7 +88,7 @@ Module
       assign $new.3
         Type Key<Int>
         ClassAlloc Key<Int>
-      call @fn6 direct
+      call @fn5 direct
         Type Key<Int>
         Local $new.3
         Type Int
@@ -110,7 +110,7 @@ Module
       val $dependency.parameter.last: Int
         Type Int
         Local $dependency.argument.1
-      call left: Payload<Key<Int>> = @fn7 direct
+      call left: Payload<Key<Int>> = @fn6 direct
         Type Key<Int>
         Local $dependency.parameter.data
         Type Int
@@ -127,7 +127,7 @@ Module
       val $dependency.parameter.last: Int
         Type Int
         Local $dependency.argument.1
-      call right: Payload<Key<Int>> = @fn7 direct
+      call right: Payload<Key<Int>> = @fn6 direct
         Type Key<Int>
         Local $dependency.parameter.data
         Type Int
@@ -174,7 +174,7 @@ Module
       val $dependency.parameter.last: Int
         Type Int
         Local $dependency.argument.1
-      call $dependency.argument.1: Payload<Key<Int>> = @fn7 direct
+      call $dependency.argument.1: Payload<Key<Int>> = @fn6 direct
         Type Key<Int>
         Local $dependency.parameter.data
         Type Int
@@ -213,48 +213,109 @@ Module
       val $dependency.parameter.last: Int
         Type Int
         Local $dependency.argument.1
-      call $call.5: Payload<Key<Int>> = @fn7 direct
+      val $equality.this: Payload<Key<Int>>
+        Type Payload<Key<Int>>
+        Local $equality.lhs
+      call $equality.other: Payload<Key<Int>> = @fn6 direct
         Type Key<Int>
         Local $dependency.parameter.data
         Type Int
         Local $dependency.parameter.last
-      call $call.6: Boolean = @fn4 direct
-        Type Payload<Key<Int>>
-        Local $equality.lhs
-        Type Payload<Key<Int>>
-        Local $call.5
+      call $call.5: Boolean = @fn2 direct
+        Type Key<Int>
+        FieldAccess 0
+          Type Payload<Key<Int>>
+          Local $equality.this
+        Type Key<Int>
+        FieldAccess 0
+          Type Payload<Key<Int>>
+          Local $equality.other
       branch bb5 bb6
         Type Boolean
-        Local $call.6
-    bb5 if.then.5
+        Local $call.5
+    bb5 logic.rhs.5
+      assign $logic.6
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          FieldAccess 1
+            Type Payload<Key<Int>>
+            Local $equality.this
+          Type Int
+          FieldAccess 1
+            Type Payload<Key<Int>>
+            Local $equality.other
+      goto bb7
+    bb6 logic.short.6
+      assign $logic.6
+        Type Boolean
+        BoolLiteral false
+      goto bb7
+    bb7 logic.merge.7
+      branch bb8 bb9
+        Type Boolean
+        Local $logic.6
+    bb8 if.then.8
       return
         Type Int
         IntegerLiteral Int value=3 bits=0x00000003
-    bb6 if.merge.6
-      call $call.7: Boolean = @fn4 direct
+    bb9 if.merge.9
+      val $equality.this: Payload<Key<Int>>
         Type Payload<Key<Int>>
         Local left
+      val $equality.other: Payload<Key<Int>>
         Type Payload<Key<Int>>
         Local right
-      branch bb7 bb8
+      call $call.7: Boolean = @fn2 direct
+        Type Key<Int>
+        FieldAccess 0
+          Type Payload<Key<Int>>
+          Local $equality.this
+        Type Key<Int>
+        FieldAccess 0
+          Type Payload<Key<Int>>
+          Local $equality.other
+      branch bb10 bb11
+        Type Boolean
+        Local $call.7
+    bb10 logic.rhs.10
+      assign $logic.8
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          FieldAccess 1
+            Type Payload<Key<Int>>
+            Local $equality.this
+          Type Int
+          FieldAccess 1
+            Type Payload<Key<Int>>
+            Local $equality.other
+      goto bb12
+    bb11 logic.short.11
+      assign $logic.8
+        Type Boolean
+        BoolLiteral false
+      goto bb12
+    bb12 logic.merge.12
+      branch bb13 bb14
         Type Boolean
         Unary BoolNot
           Type Boolean
-          Local $call.7
-    bb7 if.then.7
+          Local $logic.8
+    bb13 if.then.13
       return
         Type Int
         IntegerLiteral Int value=4 bits=0x00000004
-    bb8 if.merge.8
+    bb14 if.merge.14
       return
         Type Int
         IntegerLiteral Int value=42 bits=0x0000002a
   fun equals @fn2(this: Key<Int>, other: Key<Int>) -> Boolean
     bb0 entry
-      call $dependency.local.2: Int = @fn5 direct
+      call $dependency.local.2: Int = @fn4 direct
         Type Key<Int>
         Local this
-      call $dependency.local.3: Int = @fn5 direct
+      call $dependency.local.3: Int = @fn4 direct
         Type Key<Int>
         Local other
       val $dependency.local.4: Int
@@ -269,25 +330,21 @@ Module
           Local $dependency.local.4
   fun comparePayloads @fn3(left: Payload<Key<Int>>, right: Payload<Key<Int>>) -> Boolean
     bb0 entry
-      call $call.1: Boolean = @fn4 direct
+      val $dependency.local.2: Payload<Key<Int>>
         Type Payload<Key<Int>>
         Local left
+      val $dependency.local.3: Payload<Key<Int>>
         Type Payload<Key<Int>>
         Local right
-      return
-        Type Boolean
-        Local $call.1
-  fun $derived.equals.0 @fn4(this: Payload<Key<Int>>, other: Payload<Key<Int>>) -> Boolean
-    bb0 entry
       call $call.1: Boolean = @fn2 direct
         Type Key<Int>
         FieldAccess 0
           Type Payload<Key<Int>>
-          Local this
+          Local $dependency.local.2
         Type Key<Int>
         FieldAccess 0
           Type Payload<Key<Int>>
-          Local other
+          Local $dependency.local.3
       branch bb1 bb2
         Type Boolean
         Local $call.1
@@ -298,11 +355,11 @@ Module
           Type Int
           FieldAccess 1
             Type Payload<Key<Int>>
-            Local this
+            Local $dependency.local.2
           Type Int
           FieldAccess 1
             Type Payload<Key<Int>>
-            Local other
+            Local $dependency.local.3
       goto bb3
     bb2 logic.short.2
       assign $logic.2
@@ -313,14 +370,14 @@ Module
       return
         Type Boolean
         Local $logic.2
-  fun number @fn5(this: Key<Int>) -> Int
+  fun number @fn4(this: Key<Int>) -> Int
     bb0 entry
       return
         Type Int
         FieldAccess 1
           Type Key<Int>
           Local this
-  fun init.Key.$c0 @fn6(this: Key<Int>, payload: Int, number: Int) -> Unit
+  fun init.Key.$c0 @fn5(this: Key<Int>, payload: Int, number: Int) -> Unit
     bb0 entry
       field_set 0
         Type Key<Int>
@@ -333,7 +390,7 @@ Module
         Type Int
         Local number
       return
-  fun ctor.Payload.$c1 @fn7(data: Key<Int>, last: Int) -> Payload<Key<Int>> <no-gc>
+  fun ctor.Payload.$c1 @fn6(data: Key<Int>, last: Int) -> Payload<Key<Int>> <no-gc>
     bb0 entry
       return
         Type Payload<Key<Int>>
@@ -345,5 +402,5 @@ Module
   instance mi0 function=@fn1 <- exercise
   instance mi1 function=@fn2 <- equals
   instance mi2 function=@fn3 <- comparePayloads
-  instance mi3 function=@fn5 <- number
+  instance mi3 function=@fn4 <- number
   output library

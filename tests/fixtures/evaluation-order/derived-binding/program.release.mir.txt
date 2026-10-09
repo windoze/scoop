@@ -1,0 +1,711 @@
+Module
+  struct Key (id: Int)
+  struct Box<Key> (value: Key)
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<Key>
+    Completed(value: Key)
+    Suspended()
+  enum CoroutineSlot<Key>
+    Empty()
+    Value(value: Key)
+  enum CoroutineStep<Wide>
+    Completed(value: Wide)
+    Suspended()
+  enum CoroutineSlot<Wide>
+    Empty()
+    Value(value: Wide)
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class box<Key> vtable=0 itables=1
+  interface Wide
+  interface ToString
+  interface Hash
+  interface Equality<Boolean>
+  interface Continuation<Key>
+  interface SuspendTask<Key>
+  interface SuspendRegistration<Key>
+  interface Continuation<Wide>
+  interface SuspendTask<Wide>
+  interface SuspendRegistration<Wide>
+  generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
+  generated_exact_type get1 location=class3 nominal_id=de722506d7649f986066ffa27fdbb8b5c965c06f7e9e39d57d93661b2014477b exact_id=217d6159db24945fada40724fa374dc708260354cac4d5299433b8217a9eb44a
+  generated_exact_type get2 location=enum4 nominal_id=47a25c6597f06b22919fecb444532e35635a595851914b188918d308e63b9c1e exact_id=2a754dbee3347325baba4c4e1795724d620e34b12c35f9a9604a10260ff855ed
+  generated_exact_type get3 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
+  generated_exact_type get4 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
+  generated_exact_type get5 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
+  generated_exact_type get6 location=enum1 nominal_id=d0f549f1f26f4073ec69780b735734e628b7261657234a20a73c3fd278d9ae35 exact_id=8a441496a5df7b66caab002cc3197c0bacdc51c431031e76b235eb12131d3bce
+  generated_exact_type get7 location=enum2 nominal_id=5fd6b2169419372fa12efbe0df55c89a0890ee103e51e1e170043263a31270a2 exact_id=8b8bdb658c2a60346b145b34a30a1bc4b0e5fc0498b377fb2f9cbeab9a7890df
+  generated_exact_type get8 location=enum3 nominal_id=0c00a1e12a5f7f2a1bd37d0f0ac3bc3b052ab58d65142b69ec4bfe8364c82297 exact_id=c9a54f5e36404413f3a26b817bdf8b2277f7f307751a94cff69d323d41cdfe17
+  generated_exact_type get9 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
+  generated_callable gc0 function=@fn19 id=1389c66e6e679c958f8e62fd01ebc221b455c32e6c2940357f5103533bcc6e20
+  generated_callable gc1 function=@fn21 id=baa24962488b184ea3956b9819947da2d90a18314cdc3694a2fd0805ba991e06
+  generated_callable gc2 function=@fn20 id=c7ab2ea830f6d137fc34ab30a86e6fb6ffb5ed4a6b921d6a20d3a9d9e7442af3
+  fun Key.equals @fn0(this: Key, other: Wide) -> Boolean
+    bb0 entry
+      return
+        Type Boolean
+        BoolLiteral false
+  fun Key.equals @fn1(this: Key, other: Key) -> Boolean
+    bb0 entry
+      return
+        Type Boolean
+        BoolLiteral true
+  fun main @fn2() -> Unit
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.id: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.15.id: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      goto bb16
+    bb1 inline.cont.1
+      val $call.1: Boolean
+        Type Boolean
+        BoolLiteral true
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        BoolLiteral false
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        BoolLiteral false
+      call @fn4 direct
+        Type Boolean
+        BoolLiteral false
+      return
+    bb2 inline.1.entry
+      val $inline.19.this: Key
+        Type Key
+        FieldAccess 0
+          Type Box<Key>
+          Local $inline.1.this
+      val $inline.19.other: Key
+        Type Key
+        FieldAccess 0
+          Type Box<Key>
+          Local $inline.1.other
+      goto bb20
+    bb3 inline.cont.3
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        BoolLiteral false
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        BoolLiteral false
+      call @fn4 direct
+        Type Boolean
+        BoolLiteral false
+      val $inline.1.this: Box<Key>
+        Type Box<Key>
+        Local a
+      val $inline.1.other: Box<Key>
+        Type Box<Key>
+        Local b
+      goto bb2
+    bb4 inline.3.entry
+      assign $inline.3.result
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb5 inline.cont.5
+      val $parameter.same: Boolean
+        Type Boolean
+        BoolLiteral false
+      val $inline.3.a: Box<Key>
+        Type Box<Key>
+        Local $parameter.a
+      val $inline.3.b: Box<Key>
+        Type Box<Key>
+        Local $parameter.b
+      val $inline.3.same: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb4
+    bb6 inline.5.entry
+      assign $inline.5.result
+        Type Boolean
+        BoolLiteral false
+      goto bb5
+    bb7 inline.cont.7
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        BoolLiteral true
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        BoolLiteral true
+      call @fn4 direct
+        Type Boolean
+        BoolLiteral true
+      val $argument.0: Box<Key>
+        Type Box<Key>
+        Local a
+      val $argument.1: Box<Key>
+        Type Box<Key>
+        Local b
+      val $parameter.a: Box<Key>
+        Type Box<Key>
+        Local $argument.0
+      val $parameter.b: Box<Key>
+        Type Box<Key>
+        Local $argument.1
+      call $dependency.argument.0: Boolean = @fn5 direct
+        Type Box<Key>
+        Local $parameter.a
+        Type Box<Key>
+        Local $parameter.b
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn4 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $argument.0: Box<Key>
+        Type Box<Key>
+        Local a
+      val $argument.1: Box<Key>
+        Type Box<Key>
+        Local b
+      val $parameter.a: Box<Key>
+        Type Box<Key>
+        Local $argument.0
+      val $parameter.b: Box<Key>
+        Type Box<Key>
+        Local $argument.1
+      call $dependency.argument.0: Boolean = @fn6 direct
+        Type Box<Key>
+        Local $parameter.a
+        Type Box<Key>
+        Local $parameter.b
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn4 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $argument.0: Box<Key>
+        Type Box<Key>
+        Local a
+      val $argument.1: Box<Key>
+        Type Box<Key>
+        Local b
+      val $parameter.a: Box<Key>
+        Type Box<Key>
+        Local $argument.0
+      val $parameter.b: Box<Key>
+        Type Box<Key>
+        Local $argument.1
+      val $equality.this: Box<Key>
+        Type Box<Key>
+        Local $parameter.a
+      val $equality.other: Box<Key>
+        Type Box<Key>
+        Local $parameter.b
+      val $inline.5.this: Key
+        Type Key
+        FieldAccess 0
+          Type Box<Key>
+          Local $equality.this
+      val $inline.5.other: Wide
+        Type Wide
+        Box
+          Type Key
+          FieldAccess 0
+            Type Box<Key>
+            Local $equality.other
+      goto bb6
+    bb8 inline.7.entry
+      val $inline.17.this: Key
+        Type Key
+        FieldAccess 0
+          Type Box<Key>
+          Local $inline.7.this
+      val $inline.17.other: Key
+        Type Key
+        FieldAccess 0
+          Type Box<Key>
+          Local $inline.7.other
+      goto bb18
+    bb9 inline.cont.9
+      val b: Box<Key>
+        Type Box<Key>
+        Local $inline.9.result
+      val $inline.7.this: Box<Key>
+        Type Box<Key>
+        Local a
+      val $inline.7.other: Box<Key>
+        Type Box<Key>
+        Local b
+      goto bb8
+    bb10 inline.9.entry
+      assign $inline.9.result
+        Type Box<Key>
+        StructInit Box<Key>
+          Type Key
+          Local $inline.9.value
+      goto bb9
+    bb11 inline.cont.11
+      val $argument.0: Key
+        Type Key
+        Local $inline.11.result
+      val $parameter.value: Key
+        Type Key
+        Local $argument.0
+      val $inline.9.value: Key
+        Type Key
+        Local $parameter.value
+      goto bb10
+    bb12 inline.11.entry
+      assign $inline.11.result
+        Type Key
+        StructInit Key
+          Type Int
+          IntegerLiteral Int value=1 bits=0x00000001
+      goto bb11
+    bb13 inline.cont.13
+      val a: Box<Key>
+        Type Box<Key>
+        Local $inline.13.result
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.id: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.11.id: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      goto bb12
+    bb14 inline.13.entry
+      assign $inline.13.result
+        Type Box<Key>
+        StructInit Box<Key>
+          Type Key
+          Local $inline.13.value
+      goto bb13
+    bb15 inline.cont.15
+      val $argument.0: Key
+        Type Key
+        Local $inline.15.result
+      val $parameter.value: Key
+        Type Key
+        Local $argument.0
+      val $inline.13.value: Key
+        Type Key
+        Local $parameter.value
+      goto bb14
+    bb16 inline.15.entry
+      assign $inline.15.result
+        Type Key
+        StructInit Key
+          Type Int
+          IntegerLiteral Int value=1 bits=0x00000001
+      goto bb15
+    bb17 inline.cont.17
+      val $inline.7.$call.1: Boolean
+        Type Boolean
+        BoolLiteral true
+      assign $inline.7.result
+        Type Boolean
+        BoolLiteral true
+      goto bb7
+    bb18 inline.17.entry
+      assign $inline.17.result
+        Type Boolean
+        BoolLiteral true
+      goto bb17
+    bb19 inline.cont.19
+      val $inline.1.$call.1: Boolean
+        Type Boolean
+        BoolLiteral true
+      assign $inline.1.result
+        Type Boolean
+        BoolLiteral true
+      goto bb1
+    bb20 inline.19.entry
+      assign $inline.19.result
+        Type Boolean
+        BoolLiteral true
+      goto bb19
+  fun Box.equals @fn3(this: Box<Key>, other: Box<Key>) -> Boolean
+    bb0 entry
+      val $inline.1.this: Key
+        Type Key
+        FieldAccess 0
+          Type Box<Key>
+          Local this
+      val $inline.1.other: Key
+        Type Key
+        FieldAccess 0
+          Type Box<Key>
+          Local other
+      goto bb2
+    bb1 inline.cont.1
+      val $call.1: Boolean
+        Type Boolean
+        BoolLiteral true
+      return
+        Type Boolean
+        BoolLiteral true
+    bb2 inline.1.entry
+      assign $inline.1.result
+        Type Boolean
+        BoolLiteral true
+      goto bb1
+  fun println @fn4(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.local.1: Boolean
+        Type Boolean
+        Local value
+      call $dependency.local.2: String = external0 direct
+        Type Boolean
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external1 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str0
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external1 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun genericSame @fn5(a: Box<Key>, b: Box<Key>) -> Boolean
+    bb0 entry
+      val $equality.this: Box<Key>
+        Type Box<Key>
+        Local a
+      val $equality.other: Box<Key>
+        Type Box<Key>
+        Local b
+      val $inline.1.this: Key
+        Type Key
+        FieldAccess 0
+          Type Box<Key>
+          Local $equality.this
+      val $inline.1.other: Wide
+        Type Wide
+        Box
+          Type Key
+          FieldAccess 0
+            Type Box<Key>
+            Local $equality.other
+      goto bb2
+    bb1 inline.cont.1
+      val $call.1: Boolean
+        Type Boolean
+        BoolLiteral false
+      return
+        Type Boolean
+        BoolLiteral false
+    bb2 inline.1.entry
+      assign $inline.1.result
+        Type Boolean
+        BoolLiteral false
+      goto bb1
+  fun namedSame @fn6(a: Box<Key>, b: Box<Key>) -> Boolean
+    bb0 entry
+      val $receiver: Box<Key>
+        Type Box<Key>
+        Local a
+      val $argument.0: Box<Key>
+        Type Box<Key>
+        Local b
+      val $parameter.other: Box<Key>
+        Type Box<Key>
+        Local $argument.0
+      val $equality.this: Box<Key>
+        Type Box<Key>
+        Local $receiver
+      val $equality.other: Box<Key>
+        Type Box<Key>
+        Local $parameter.other
+      val $inline.1.this: Key
+        Type Key
+        FieldAccess 0
+          Type Box<Key>
+          Local $equality.this
+      val $inline.1.other: Wide
+        Type Wide
+        Box
+          Type Key
+          FieldAccess 0
+            Type Box<Key>
+            Local $equality.other
+      goto bb2
+    bb1 inline.cont.1
+      val $call.1: Boolean
+        Type Boolean
+        BoolLiteral false
+      return
+        Type Boolean
+        BoolLiteral false
+    bb2 inline.1.entry
+      assign $inline.1.result
+        Type Boolean
+        BoolLiteral false
+      goto bb1
+  fun defaultSame @fn7(a: Box<Key>, b: Box<Key>, same: Boolean) -> Boolean
+    bb0 entry
+      return
+        Type Boolean
+        Local same
+  fun Continuation.resume @fn8(this: Continuation<Key>, value: Key) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn9(this: Continuation<Key>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn10(this: SuspendTask<Key>, $completion: Continuation<Key>) -> CoroutineStep<Key>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn11(this: SuspendRegistration<Key>, continuation: Continuation<Key>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn12(this: Continuation<Wide>, value: Wide) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn13(this: Continuation<Wide>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn14(this: SuspendTask<Wide>, $completion: Continuation<Wide>) -> CoroutineStep<Wide>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn15(this: SuspendRegistration<Wide>, continuation: Continuation<Wide>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Wide.equals @fn16(this: Wide, other: Wide) -> Boolean
+    bb0 entry
+      trap "call to abstract method `Wide.equals`"
+  fun ctor.Key.$c0 @fn17(id: Int) -> Key <no-gc>
+    bb0 entry
+      return
+        Type Key
+        StructInit Key
+          Type Int
+          Local id
+  fun ctor.Box.$c1 @fn18(value: Key) -> Box<Key> <no-gc>
+    bb0 entry
+      return
+        Type Box<Key>
+        StructInit Box<Key>
+          Type Key
+          Local value
+  fun startCoroutine<Key> @fn19(task: SuspendTask<Key>, completion: Continuation<Key>) -> Unit
+    bb0 context.unwind
+      landing_pad cleanup=true
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb1 context.catch_unwind
+      landing_pad cleanup=true
+      end_catch
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb2 suspended
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb3 completed unwind bb0
+      call @fn8 interface Continuation<Key>[0]
+        Type Continuation<Key>
+        Local completion
+        Type Key
+        EnumField v0 f0
+          Type CoroutineStep<Key>
+          Local $step
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb4 failed unwind bb0
+      call @fn9 interface Continuation<Key>[1]
+        Type Continuation<Key>
+        Local completion
+        Type Throwable
+        Local $exception
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb5 body_failure unwind bb1
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb4
+    bb6 run unwind bb5
+      call $step: CoroutineStep<Key> = @fn10 interface SuspendTask<Key>[0]
+        Type SuspendTask<Key>
+        Local task
+        Type Continuation<Key>
+        Local completion
+      branch bb3 bb2
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Key>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+    bb7 entry
+      val $child_context: internal<task-context>
+        Type internal<task-context>
+        ContextFork
+          Type internal<context-node>
+          ContextSnapshot
+      val $context_guard: internal<context-switch-guard>
+        Type internal<context-switch-guard>
+        ContextEnter
+          Type internal<task-context>
+          Local $child_context
+      goto bb6
+  fun startCoroutine<Wide> @fn20(task: SuspendTask<Wide>, completion: Continuation<Wide>) -> Unit
+    bb0 context.unwind
+      landing_pad cleanup=true
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb1 context.catch_unwind
+      landing_pad cleanup=true
+      end_catch
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb2 suspended
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb3 completed unwind bb0
+      call @fn12 interface Continuation<Wide>[0]
+        Type Continuation<Wide>
+        Local completion
+        Type Wide
+        EnumField v0 f0
+          Type CoroutineStep<Wide>
+          Local $step
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb4 failed unwind bb0
+      call @fn13 interface Continuation<Wide>[1]
+        Type Continuation<Wide>
+        Local completion
+        Type Throwable
+        Local $exception
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb5 body_failure unwind bb1
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb4
+    bb6 run unwind bb5
+      call $step: CoroutineStep<Wide> = @fn14 interface SuspendTask<Wide>[0]
+        Type SuspendTask<Wide>
+        Local task
+        Type Continuation<Wide>
+        Local completion
+      branch bb3 bb2
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Wide>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+    bb7 entry
+      val $child_context: internal<task-context>
+        Type internal<task-context>
+        ContextFork
+          Type internal<context-node>
+          ContextSnapshot
+      val $context_guard: internal<context-switch-guard>
+        Type internal<context-switch-guard>
+        ContextEnter
+          Type internal<task-context>
+          Local $child_context
+      goto bb6
+  fun thunk<Key> Wide.equals(Wide) @fn21(this: box<Key>, other: Wide) -> Boolean
+    bb0 entry
+      val $inline.1.this: Key
+        Type Key
+        Unbox
+          Type box<Key>
+          Local this
+      val $inline.1.other: Wide
+        Type Wide
+        Local other
+      goto bb2
+    bb1 inline.cont.1
+      val $call.1: Boolean
+        Type Boolean
+        BoolLiteral false
+      return
+        Type Boolean
+        BoolLiteral false
+    bb2 inline.1.entry
+      assign $inline.1.result
+        Type Boolean
+        BoolLiteral false
+      goto bb1
+  coroutine_step cs0 CoroutineStep<Key> result=Key
+  coroutine_step cs1 CoroutineStep<Wide> result=Wide
+  coroutine_slot cl0 CoroutineSlot<Key> value=Key
+  coroutine_slot cl1 CoroutineSlot<Wide> value=Wide
+  coroutine_start ct0 result=Key function=fn19
+  coroutine_start ct1 result=Wide function=fn20
+  coroutine_fn cf0 @fn10 source_return=Key step=cs0 immediate
+  coroutine_fn cf1 @fn14 source_return=Wide step=cs1 immediate
+  instance mi0 function=@fn4 <- println
+  instance mi1 function=@fn5 <- genericSame
+  instance mi2 function=@fn6 <- namedSame
+  instance mi3 function=@fn7 <- defaultSame
+  instance mi4 function=@fn8 <- Continuation.resume
+  instance mi5 function=@fn9 <- Continuation.resumeWithException
+  instance mi6 function=@fn10 <- SuspendTask.run
+  instance mi7 function=@fn11 <- SuspendRegistration.register
+  instance mi8 function=@fn12 <- Continuation.resume
+  instance mi9 function=@fn13 <- Continuation.resumeWithException
+  instance mi10 function=@fn14 <- SuspendTask.run
+  instance mi11 function=@fn15 <- SuspendRegistration.register
+  str @str0 "\n"
+  output executable @fn2

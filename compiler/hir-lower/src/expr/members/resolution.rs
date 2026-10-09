@@ -41,7 +41,7 @@ impl Lowerer {
         &mut self,
         resolved: crate::overload::ResolvedCallee,
         span: Span,
-        sink: &[hir::Statement],
+        sink: &mut Vec<hir::Statement>,
     ) -> Option<hir::Expr> {
         let ty = resolved.return_ty;
         let function = resolved.function();
@@ -73,19 +73,19 @@ impl Lowerer {
             self.functions[function].kind,
             hir::FunctionKind::DerivedEquality
         ) {
-            let callee = hir::MethodCallee::DerivedEquality(
-                self.derived_equality_application_by_type[&receiver.ty],
-            );
-            return Some(hir::Expr {
-                kind: ExprKind::MethodCall {
-                    receiver: Box::new(receiver),
-                    callee,
-                    args: resolved.args,
-                },
-                ty,
+            let application = self.derived_equality_application_by_type[&receiver.ty];
+            let other = resolved
+                .args
+                .into_iter()
+                .next()
+                .expect("equals has one argument");
+            return Some(self.lower_derived_equality_call(
+                application,
+                receiver,
+                other,
                 span,
-                origin: self.expression_origin(span),
-            });
+                sink,
+            ));
         }
         if let Some(expr) = self.normalize_primitive_method_call(
             function,

@@ -34,7 +34,7 @@ Module
       val $dependency.parameter.number: Int
         Type Int
         Local $dependency.argument.1
-      call left: Manual<Int> = @fn5 direct
+      call left: Manual<Int> = @fn4 direct
         Type Int
         Local $dependency.parameter.payload
         Type Int
@@ -57,7 +57,7 @@ Module
       val $dependency.receiver: Manual<Int>
         Type Manual<Int>
         Local $equality.lhs
-      call $dependency.argument.0: Manual<Int> = @fn5 direct
+      call $dependency.argument.0: Manual<Int> = @fn4 direct
         Type Int
         Local $dependency.parameter.payload
         Type Int
@@ -99,7 +99,7 @@ Module
       val $dependency.receiver: Manual<Int>
         Type Manual<Int>
         Local $equality.lhs
-      call $dependency.argument.0: Manual<Int> = @fn5 direct
+      call $dependency.argument.0: Manual<Int> = @fn4 direct
         Type Int
         Local $dependency.parameter.payload
         Type Int
@@ -128,7 +128,7 @@ Module
       val $dependency.parameter.number: Int
         Type Int
         Local $dependency.argument.0
-      call derived: Different<Int> = @fn6 direct
+      call derived: Different<Int> = @fn5 direct
         Type Int
         Local $dependency.parameter.number
       val $equality.lhs: Different<Int>
@@ -140,19 +140,25 @@ Module
       val $dependency.parameter.number: Int
         Type Int
         Local $dependency.argument.0
-      call $call.2: Different<Int> = @fn6 direct
-        Type Int
-        Local $dependency.parameter.number
-      call $call.3: Boolean = @fn3 direct
+      val $equality.this: Different<Int>
         Type Different<Int>
         Local $equality.lhs
-        Type Different<Int>
-        Local $call.2
+      call $equality.other: Different<Int> = @fn5 direct
+        Type Int
+        Local $dependency.parameter.number
       branch bb6 bb7
         Type Boolean
         Unary BoolNot
           Type Boolean
-          Local $call.3
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            FieldAccess 0
+              Type Different<Int>
+              Local $equality.this
+            Type Int
+            FieldAccess 0
+              Type Different<Int>
+              Local $equality.other
     bb6 if.then.6
       val $shortCircuit.1: Boolean
         Type Boolean
@@ -168,14 +174,23 @@ Module
       val $dependency.parameter.number: Int
         Type Int
         Local $dependency.argument.0
-      call $call.4: Different<Int> = @fn6 direct
-        Type Int
-        Local $dependency.parameter.number
-      call $shortCircuit.1: Boolean = @fn3 direct
+      val $equality.this: Different<Int>
         Type Different<Int>
         Local $equality.lhs
-        Type Different<Int>
-        Local $call.4
+      call $equality.other: Different<Int> = @fn5 direct
+        Type Int
+        Local $dependency.parameter.number
+      val $shortCircuit.1: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          FieldAccess 0
+            Type Different<Int>
+            Local $equality.this
+          Type Int
+          FieldAccess 0
+            Type Different<Int>
+            Local $equality.other
       goto bb8
     bb8 if.merge.8
       branch bb9 bb10
@@ -195,7 +210,7 @@ Module
       val $dependency.parameter.other: Int
         Type Int
         Local $dependency.argument.0
-      call $dependency.receiver: Boolean = @fn4 direct
+      call $dependency.receiver: Boolean = @fn3 direct
         Type Different<Int>
         Local $dependency.receiver
         Type Int
@@ -220,7 +235,7 @@ Module
       val $dependency.parameter.other: Int
         Type Int
         Local $dependency.argument.0
-      call $shortCircuit.2: Boolean = @fn4 direct
+      call $shortCircuit.2: Boolean = @fn3 direct
         Type Different<Int>
         Local $dependency.receiver
         Type Int
@@ -260,20 +275,7 @@ Module
           Local $dependency.local.2
           Type Int
           Local $dependency.local.4
-  fun $derived.equals.0 @fn3(this: Different<Int>, other: Different<Int>) -> Boolean
-    bb0 entry
-      return
-        Type Boolean
-        IntegerCompare equal operands=Int result=Boolean
-          Type Int
-          FieldAccess 0
-            Type Different<Int>
-            Local this
-          Type Int
-          FieldAccess 0
-            Type Different<Int>
-            Local other
-  fun equals @fn4(this: Different<Int>, other: Int) -> Boolean
+  fun equals @fn3(this: Different<Int>, other: Int) -> Boolean
     bb0 entry
       val $dependency.local.2: Int
         Type Int
@@ -293,7 +295,7 @@ Module
           Local $dependency.local.2
           Type Int
           Local $dependency.local.4
-  fun ctor.Manual.$c0 @fn5(payload: Int, number: Int) -> Manual<Int> <no-gc>
+  fun ctor.Manual.$c0 @fn4(payload: Int, number: Int) -> Manual<Int> <no-gc>
     bb0 entry
       return
         Type Manual<Int>
@@ -302,7 +304,7 @@ Module
           Local payload
           Type Int
           Local number
-  fun ctor.Different.$c1 @fn6(number: Int) -> Different<Int> <no-gc>
+  fun ctor.Different.$c1 @fn5(number: Int) -> Different<Int> <no-gc>
     bb0 entry
       return
         Type Different<Int>
@@ -311,5 +313,5 @@ Module
           Local number
   instance mi0 function=@fn1 <- exercise
   instance mi1 function=@fn2 <- equals
-  instance mi2 function=@fn4 <- equals
+  instance mi2 function=@fn3 <- equals
   output library

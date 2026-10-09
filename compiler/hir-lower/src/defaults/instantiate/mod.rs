@@ -5,6 +5,7 @@ use crate::defaults::{DefaultArgumentSource, DefaultExprTemplateRef};
 use crate::{Lowerer, Type};
 
 mod closures;
+mod derived;
 mod entities;
 mod expressions;
 mod patterns;

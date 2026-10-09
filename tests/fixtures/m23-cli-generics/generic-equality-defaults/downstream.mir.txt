@@ -24,7 +24,7 @@ Module
   generated_exact_type get4 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
   generated_exact_type get5 location=enum1 nominal_id=80d157c6ccec8b133fe619662528d53a6366ca314aff7d383660e986e2816d48 exact_id=8efd72b5194e66cf42a571b2b006fef87ffe79a4f93176dd27d1f629407bf987
   generated_exact_type get6 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
-  generated_callable gc0 function=@fn14 id=779729704fb04fc8ca3fc561955e0a4f8d72cdc6f65c6f6c96a5d4eb7b9f9f9a
+  generated_callable gc0 function=@fn12 id=779729704fb04fc8ca3fc561955e0a4f8d72cdc6f65c6f6c96a5d4eb7b9f9f9a
   fun check @fn0() -> Int
     bb0 entry
       call $argument.0: Int = external0 direct
@@ -34,7 +34,7 @@ Module
       assign $new.1
         Type Later
         ClassAlloc Later
-      call @fn11 direct
+      call @fn9 direct
         Type Later
         Local $new.1
         Type Int
@@ -89,7 +89,7 @@ Module
       assign $new.2
         Type Later
         ClassAlloc Later
-      call @fn11 direct
+      call @fn9 direct
         Type Later
         Local $new.2
         Type Int
@@ -164,7 +164,7 @@ Module
       val $dependency.local.3: Int
         Type Int
         Local $dependency.local.2
-      call $dependency.local.1: Counter<Later> = @fn12 direct
+      call $dependency.local.1: Counter<Later> = @fn10 direct
         Type Int
         Local $dependency.local.3
       val $dependency.local.6: Counter<Later>
@@ -176,7 +176,7 @@ Module
       val $dependency.local.5: Int
         Type Int
         Local $dependency.local.4
-      call $dependency.local.7: Counter<Later> = @fn12 direct
+      call $dependency.local.7: Counter<Later> = @fn10 direct
         Type Int
         Local $dependency.local.5
       val $dependency.local.8: Counter<Later>
@@ -185,119 +185,143 @@ Module
       val $dependency.local.9: Counter<Later>
         Type Counter<Later>
         Local $dependency.local.7
-      call $dependency.local.10: Boolean = @fn3 direct
+      val $dependency.local.10: Counter<Later>
         Type Counter<Later>
         Local $dependency.local.8
+      val $dependency.local.11: Counter<Later>
         Type Counter<Later>
         Local $dependency.local.9
-      call $dependency.local.11: Int = @fn4 direct
+      val $dependency.local.12: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          FieldAccess 0
+            Type Counter<Later>
+            Local $dependency.local.10
+          Type Int
+          FieldAccess 0
+            Type Counter<Later>
+            Local $dependency.local.11
+      call $dependency.local.13: Int = @fn3 direct
         Type Counter<Later>
         Local $dependency.local.8
         Type Counter<Later>
         Local $dependency.local.9
         Type Boolean
-        Local $dependency.local.10
-      val $dependency.local.12: Int
+        Local $dependency.local.12
+      val $dependency.local.14: Int
         Type Int
         IntegerLiteral Int value=0 bits=0x00000000
-      val $dependency.local.13: Int
+      val $dependency.local.15: Int
         Type Int
-        Local $dependency.local.12
+        Local $dependency.local.14
       branch bb1 bb2
         Type Boolean
         Unary BoolNot
           Type Boolean
           IntegerCompare equal operands=Int result=Boolean
             Type Int
-            Local $dependency.local.11
-            Type Int
             Local $dependency.local.13
+            Type Int
+            Local $dependency.local.15
     bb1 if.then.1
       return
         Type Int
         IntegerLiteral Int value=1 bits=0x00000001
     bb2 if.merge.2
-      val $dependency.local.16: Counter<Later>
+      val $dependency.local.18: Counter<Later>
         Type Counter<Later>
         Local $dependency.local.1
-      val $dependency.local.14: Int
+      val $dependency.local.16: Int
         Type Int
         IntegerLiteral Int value=1 bits=0x00000001
-      val $dependency.local.15: Int
+      val $dependency.local.17: Int
         Type Int
-        Local $dependency.local.14
-      call $dependency.local.17: Counter<Later> = @fn12 direct
+        Local $dependency.local.16
+      call $dependency.local.19: Counter<Later> = @fn10 direct
         Type Int
-        Local $dependency.local.15
-      val $dependency.local.18: Boolean
+        Local $dependency.local.17
+      val $dependency.local.20: Boolean
         Type Boolean
         BoolLiteral true
-      val $dependency.local.19: Counter<Later>
+      val $dependency.local.21: Counter<Later>
         Type Counter<Later>
-        Local $dependency.local.16
-      val $dependency.local.20: Counter<Later>
-        Type Counter<Later>
-        Local $dependency.local.17
-      val $dependency.local.21: Boolean
-        Type Boolean
         Local $dependency.local.18
-      call $dependency.local.22: Int = @fn4 direct
+      val $dependency.local.22: Counter<Later>
         Type Counter<Later>
         Local $dependency.local.19
-        Type Counter<Later>
+      val $dependency.local.23: Boolean
+        Type Boolean
         Local $dependency.local.20
-        Type Boolean
-        Local $dependency.local.21
-      val $dependency.local.23: Int
-        Type Int
-        IntegerLiteral Int value=42 bits=0x0000002a
-      val $dependency.local.24: Int
-        Type Int
-        Local $dependency.local.23
-      branch bb3 bb4
-        Type Boolean
-        Unary BoolNot
-          Type Boolean
-          IntegerCompare equal operands=Int result=Boolean
-            Type Int
-            Local $dependency.local.22
-            Type Int
-            Local $dependency.local.24
-    bb3 if.then.3
-      return
-        Type Int
-        IntegerLiteral Int value=2 bits=0x00000002
-    bb4 if.merge.4
-      val $dependency.local.27: Counter<Later>
+      call $dependency.local.24: Int = @fn3 direct
         Type Counter<Later>
-        Local $dependency.local.1
+        Local $dependency.local.21
+        Type Counter<Later>
+        Local $dependency.local.22
+        Type Boolean
+        Local $dependency.local.23
       val $dependency.local.25: Int
         Type Int
         IntegerLiteral Int value=42 bits=0x0000002a
       val $dependency.local.26: Int
         Type Int
         Local $dependency.local.25
-      call $dependency.local.28: Counter<Later> = @fn12 direct
+      branch bb3 bb4
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.24
+            Type Int
+            Local $dependency.local.26
+    bb3 if.then.3
+      return
         Type Int
-        Local $dependency.local.26
+        IntegerLiteral Int value=2 bits=0x00000002
+    bb4 if.merge.4
       val $dependency.local.29: Counter<Later>
         Type Counter<Later>
+        Local $dependency.local.1
+      val $dependency.local.27: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.local.28: Int
+        Type Int
         Local $dependency.local.27
-      val $dependency.local.30: Counter<Later>
-        Type Counter<Later>
+      call $dependency.local.30: Counter<Later> = @fn10 direct
+        Type Int
         Local $dependency.local.28
-      call $dependency.local.31: Boolean = @fn3 direct
+      val $dependency.local.31: Counter<Later>
         Type Counter<Later>
         Local $dependency.local.29
+      val $dependency.local.32: Counter<Later>
         Type Counter<Later>
         Local $dependency.local.30
-      call $call.1: Int = @fn4 direct
+      val $dependency.local.33: Counter<Later>
         Type Counter<Later>
-        Local $dependency.local.29
-        Type Counter<Later>
-        Local $dependency.local.30
-        Type Boolean
         Local $dependency.local.31
+      val $dependency.local.34: Counter<Later>
+        Type Counter<Later>
+        Local $dependency.local.32
+      val $dependency.local.35: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          FieldAccess 0
+            Type Counter<Later>
+            Local $dependency.local.33
+          Type Int
+          FieldAccess 0
+            Type Counter<Later>
+            Local $dependency.local.34
+      call $call.1: Int = @fn3 direct
+        Type Counter<Later>
+        Local $dependency.local.31
+        Type Counter<Later>
+        Local $dependency.local.32
+        Type Boolean
+        Local $dependency.local.35
       return
         Type Int
         Local $call.1
@@ -309,7 +333,7 @@ Module
       val $dependency.local.3: Int
         Type Int
         Local $dependency.local.2
-      call $dependency.local.1: Counter<Int> = @fn13 direct
+      call $dependency.local.1: Counter<Int> = @fn11 direct
         Type Int
         Local $dependency.local.3
       val $dependency.local.6: Counter<Int>
@@ -321,7 +345,7 @@ Module
       val $dependency.local.5: Int
         Type Int
         Local $dependency.local.4
-      call $dependency.local.7: Counter<Int> = @fn13 direct
+      call $dependency.local.7: Counter<Int> = @fn11 direct
         Type Int
         Local $dependency.local.5
       val $dependency.local.8: Counter<Int>
@@ -330,136 +354,147 @@ Module
       val $dependency.local.9: Counter<Int>
         Type Counter<Int>
         Local $dependency.local.7
-      call $dependency.local.10: Boolean = @fn5 direct
+      val $dependency.local.10: Counter<Int>
         Type Counter<Int>
         Local $dependency.local.8
+      val $dependency.local.11: Counter<Int>
         Type Counter<Int>
         Local $dependency.local.9
-      call $dependency.local.11: Int = @fn6 direct
+      val $dependency.local.12: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          FieldAccess 0
+            Type Counter<Int>
+            Local $dependency.local.10
+          Type Int
+          FieldAccess 0
+            Type Counter<Int>
+            Local $dependency.local.11
+      call $dependency.local.13: Int = @fn4 direct
         Type Counter<Int>
         Local $dependency.local.8
         Type Counter<Int>
         Local $dependency.local.9
         Type Boolean
-        Local $dependency.local.10
-      val $dependency.local.12: Int
+        Local $dependency.local.12
+      val $dependency.local.14: Int
         Type Int
         IntegerLiteral Int value=0 bits=0x00000000
-      val $dependency.local.13: Int
+      val $dependency.local.15: Int
         Type Int
-        Local $dependency.local.12
+        Local $dependency.local.14
       branch bb1 bb2
         Type Boolean
         Unary BoolNot
           Type Boolean
           IntegerCompare equal operands=Int result=Boolean
             Type Int
-            Local $dependency.local.11
-            Type Int
             Local $dependency.local.13
+            Type Int
+            Local $dependency.local.15
     bb1 if.then.1
       return
         Type Int
         IntegerLiteral Int value=1 bits=0x00000001
     bb2 if.merge.2
-      val $dependency.local.16: Counter<Int>
+      val $dependency.local.18: Counter<Int>
         Type Counter<Int>
         Local $dependency.local.1
-      val $dependency.local.14: Int
+      val $dependency.local.16: Int
         Type Int
         IntegerLiteral Int value=1 bits=0x00000001
-      val $dependency.local.15: Int
+      val $dependency.local.17: Int
         Type Int
-        Local $dependency.local.14
-      call $dependency.local.17: Counter<Int> = @fn13 direct
+        Local $dependency.local.16
+      call $dependency.local.19: Counter<Int> = @fn11 direct
         Type Int
-        Local $dependency.local.15
-      val $dependency.local.18: Boolean
+        Local $dependency.local.17
+      val $dependency.local.20: Boolean
         Type Boolean
         BoolLiteral true
-      val $dependency.local.19: Counter<Int>
+      val $dependency.local.21: Counter<Int>
         Type Counter<Int>
-        Local $dependency.local.16
-      val $dependency.local.20: Counter<Int>
-        Type Counter<Int>
-        Local $dependency.local.17
-      val $dependency.local.21: Boolean
-        Type Boolean
         Local $dependency.local.18
-      call $dependency.local.22: Int = @fn6 direct
+      val $dependency.local.22: Counter<Int>
         Type Counter<Int>
         Local $dependency.local.19
-        Type Counter<Int>
+      val $dependency.local.23: Boolean
+        Type Boolean
         Local $dependency.local.20
-        Type Boolean
-        Local $dependency.local.21
-      val $dependency.local.23: Int
-        Type Int
-        IntegerLiteral Int value=42 bits=0x0000002a
-      val $dependency.local.24: Int
-        Type Int
-        Local $dependency.local.23
-      branch bb3 bb4
-        Type Boolean
-        Unary BoolNot
-          Type Boolean
-          IntegerCompare equal operands=Int result=Boolean
-            Type Int
-            Local $dependency.local.22
-            Type Int
-            Local $dependency.local.24
-    bb3 if.then.3
-      return
-        Type Int
-        IntegerLiteral Int value=2 bits=0x00000002
-    bb4 if.merge.4
-      val $dependency.local.27: Counter<Int>
+      call $dependency.local.24: Int = @fn4 direct
         Type Counter<Int>
-        Local $dependency.local.1
+        Local $dependency.local.21
+        Type Counter<Int>
+        Local $dependency.local.22
+        Type Boolean
+        Local $dependency.local.23
       val $dependency.local.25: Int
         Type Int
         IntegerLiteral Int value=42 bits=0x0000002a
       val $dependency.local.26: Int
         Type Int
         Local $dependency.local.25
-      call $dependency.local.28: Counter<Int> = @fn13 direct
+      branch bb3 bb4
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.24
+            Type Int
+            Local $dependency.local.26
+    bb3 if.then.3
+      return
         Type Int
-        Local $dependency.local.26
+        IntegerLiteral Int value=2 bits=0x00000002
+    bb4 if.merge.4
       val $dependency.local.29: Counter<Int>
         Type Counter<Int>
+        Local $dependency.local.1
+      val $dependency.local.27: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.local.28: Int
+        Type Int
         Local $dependency.local.27
-      val $dependency.local.30: Counter<Int>
-        Type Counter<Int>
+      call $dependency.local.30: Counter<Int> = @fn11 direct
+        Type Int
         Local $dependency.local.28
-      call $dependency.local.31: Boolean = @fn5 direct
+      val $dependency.local.31: Counter<Int>
         Type Counter<Int>
         Local $dependency.local.29
+      val $dependency.local.32: Counter<Int>
         Type Counter<Int>
         Local $dependency.local.30
-      call $call.1: Int = @fn6 direct
+      val $dependency.local.33: Counter<Int>
         Type Counter<Int>
-        Local $dependency.local.29
-        Type Counter<Int>
-        Local $dependency.local.30
-        Type Boolean
         Local $dependency.local.31
+      val $dependency.local.34: Counter<Int>
+        Type Counter<Int>
+        Local $dependency.local.32
+      val $dependency.local.35: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          FieldAccess 0
+            Type Counter<Int>
+            Local $dependency.local.33
+          Type Int
+          FieldAccess 0
+            Type Counter<Int>
+            Local $dependency.local.34
+      call $call.1: Int = @fn4 direct
+        Type Counter<Int>
+        Local $dependency.local.31
+        Type Counter<Int>
+        Local $dependency.local.32
+        Type Boolean
+        Local $dependency.local.35
       return
         Type Int
         Local $call.1
-  fun $derived.equals.0 @fn3(this: Counter<Later>, other: Counter<Later>) -> Boolean
-    bb0 entry
-      return
-        Type Boolean
-        IntegerCompare equal operands=Int result=Boolean
-          Type Int
-          FieldAccess 0
-            Type Counter<Later>
-            Local this
-          Type Int
-          FieldAccess 0
-            Type Counter<Later>
-            Local other
-  fun defaultCompare @fn4(left: Counter<Later>, right: Counter<Later>, same: Boolean) -> Int
+  fun defaultCompare @fn3(left: Counter<Later>, right: Counter<Later>, same: Boolean) -> Int
     bb0 entry
       branch bb1 bb2
         Type Boolean
@@ -472,20 +507,7 @@ Module
       return
         Type Int
         IntegerLiteral Int value=0 bits=0x00000000
-  fun $derived.equals.0 @fn5(this: Counter<Int>, other: Counter<Int>) -> Boolean
-    bb0 entry
-      return
-        Type Boolean
-        IntegerCompare equal operands=Int result=Boolean
-          Type Int
-          FieldAccess 0
-            Type Counter<Int>
-            Local this
-          Type Int
-          FieldAccess 0
-            Type Counter<Int>
-            Local other
-  fun defaultCompare @fn6(left: Counter<Int>, right: Counter<Int>, same: Boolean) -> Int
+  fun defaultCompare @fn4(left: Counter<Int>, right: Counter<Int>, same: Boolean) -> Int
     bb0 entry
       branch bb1 bb2
         Type Boolean
@@ -498,19 +520,19 @@ Module
       return
         Type Int
         IntegerLiteral Int value=0 bits=0x00000000
-  fun Continuation.resume @fn7(this: Continuation<Later>, value: Later) -> Unit
+  fun Continuation.resume @fn5(this: Continuation<Later>, value: Later) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
-  fun Continuation.resumeWithException @fn8(this: Continuation<Later>, exception: Throwable) -> Unit
+  fun Continuation.resumeWithException @fn6(this: Continuation<Later>, exception: Throwable) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resumeWithException`"
-  fun SuspendTask.run @fn9(this: SuspendTask<Later>, $completion: Continuation<Later>) -> CoroutineStep<Later>
+  fun SuspendTask.run @fn7(this: SuspendTask<Later>, $completion: Continuation<Later>) -> CoroutineStep<Later>
     bb0 entry
       trap "call to abstract method `SuspendTask.run`"
-  fun SuspendRegistration.register @fn10(this: SuspendRegistration<Later>, continuation: Continuation<Later>) -> Unit
+  fun SuspendRegistration.register @fn8(this: SuspendRegistration<Later>, continuation: Continuation<Later>) -> Unit
     bb0 entry
       trap "call to abstract method `SuspendRegistration.register`"
-  fun init.Later.$c0 @fn11(this: Later, number: Int) -> Unit
+  fun init.Later.$c0 @fn9(this: Later, number: Int) -> Unit
     bb0 entry
       field_set 0
         Type Later
@@ -518,21 +540,21 @@ Module
         Type Int
         Local number
       return
-  fun ctor.Counter.$c0 @fn12(number: Int) -> Counter<Later> <no-gc>
+  fun ctor.Counter.$c0 @fn10(number: Int) -> Counter<Later> <no-gc>
     bb0 entry
       return
         Type Counter<Later>
         StructInit Counter<Later>
           Type Int
           Local number
-  fun ctor.Counter.$c0 @fn13(number: Int) -> Counter<Int> <no-gc>
+  fun ctor.Counter.$c0 @fn11(number: Int) -> Counter<Int> <no-gc>
     bb0 entry
       return
         Type Counter<Int>
         StructInit Counter<Int>
           Type Int
           Local number
-  fun startCoroutine<Later> @fn14(task: SuspendTask<Later>, completion: Continuation<Later>) -> Unit
+  fun startCoroutine<Later> @fn12(task: SuspendTask<Later>, completion: Continuation<Later>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -555,7 +577,7 @@ Module
         Local $context_guard
       return
     bb3 completed unwind bb0
-      call @fn7 interface Continuation<Later>[0]
+      call @fn5 interface Continuation<Later>[0]
         Type Continuation<Later>
         Local completion
         Type Later
@@ -568,7 +590,7 @@ Module
         Local $context_guard
       return
     bb4 failed unwind bb0
-      call @fn8 interface Continuation<Later>[1]
+      call @fn6 interface Continuation<Later>[1]
         Type Continuation<Later>
         Local completion
         Type Throwable
@@ -587,7 +609,7 @@ Module
       end_catch
       goto bb4
     bb6 run unwind bb5
-      call $step: CoroutineStep<Later> = @fn9 interface SuspendTask<Later>[0]
+      call $step: CoroutineStep<Later> = @fn7 interface SuspendTask<Later>[0]
         Type SuspendTask<Later>
         Local task
         Type Continuation<Later>
@@ -615,14 +637,14 @@ Module
       goto bb6
   coroutine_step cs0 CoroutineStep<Later> result=Later
   coroutine_slot cl0 CoroutineSlot<Later> value=Later
-  coroutine_start ct0 result=Later function=fn14
-  coroutine_fn cf0 @fn9 source_return=Later step=cs0 immediate
+  coroutine_start ct0 result=Later function=fn12
+  coroutine_fn cf0 @fn7 source_return=Later step=cs0 immediate
   instance mi0 function=@fn1 <- exercise
   instance mi1 function=@fn2 <- exercise
-  instance mi2 function=@fn4 <- defaultCompare
-  instance mi3 function=@fn6 <- defaultCompare
-  instance mi4 function=@fn7 <- Continuation.resume
-  instance mi5 function=@fn8 <- Continuation.resumeWithException
-  instance mi6 function=@fn9 <- SuspendTask.run
-  instance mi7 function=@fn10 <- SuspendRegistration.register
+  instance mi2 function=@fn3 <- defaultCompare
+  instance mi3 function=@fn4 <- defaultCompare
+  instance mi4 function=@fn5 <- Continuation.resume
+  instance mi5 function=@fn6 <- Continuation.resumeWithException
+  instance mi6 function=@fn7 <- SuspendTask.run
+  instance mi7 function=@fn8 <- SuspendRegistration.register
   output library

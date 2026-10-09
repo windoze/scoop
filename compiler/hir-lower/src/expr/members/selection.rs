@@ -177,7 +177,7 @@ impl Lowerer {
                 .commit_named_callable(*probe, &mut sink)
                 .and_then(|resolved| match kind {
                     MemberCallKind::Ordinary => {
-                        state.finish_resolved_method_call(resolved, call.span, &sink)
+                        state.finish_resolved_method_call(resolved, call.span, &mut sink)
                     }
                     MemberCallKind::DirectSuper => {
                         state.finish_resolved_super_method_call(resolved, &name.text, call.span)

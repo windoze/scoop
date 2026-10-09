@@ -79,7 +79,7 @@ singleton、runtime property 与 generic delegated application 保存完整初�
 
 判定派生签名是否被手写成员占用时，检查名为 `equals`、参数为完整宿主类型的原成员签名，不以 operator 标记或当前调用处的可见性过滤。普通同签名成员仍可按普通函数调用，但不会成为 operator；导入的 nominal 使用已保存的成员声明执行相同判断，不因成员正文或源码不可见而重新派生。
 
-结构比较沿用引入 Equality 统一方案之前的派生、具体化与产物路径。M33 只撤销 operator 对 Equality 的依赖，不新增按泛型上下文区分的比较模板、生成身份或 ODR 规则。`Equality.equalTo` 的新增实现由普通接口、泛型正文、装箱和跨库调用机制承担。原有泛型结构比较问题单独记录，不作为本轮库接口拆分的前置条件。
+结构比较在当前静态类型环境中绑定字段的 operator equals。宿主包含类型参数时，先按顺序保存两个操作数，再将已绑定的比较正文展开为普通字段调用和短路表达式；enum 的 payload 读取受相应 variant 检查保护。泛型正文、默认参数和跨 Cone 模板保留这些普通 HIR 操作，具体化时不得按具体宿主重新选择字段重载，也不得与直接比较该具体宿主的派生正文合并。封闭宿主仍使用按 exact owner 标识的既有派生 callable。`Equality.equalTo` 继续由普通接口、泛型正文、装箱和跨库调用机制承担。
 
 派生比较保留值传递、可见性和 InteriorMutable 的实际类型使用检查。NoGc 实现满足 Managed interface slot 时分别保留实现体 effect 和接口调用 effect，适用于显式 `equalTo` 及其他普通接口方法；独立的 intrinsic operator 比较保留原 effect。其他签名、访问、ordinary/suspend 与安全性检查遵守普通规则。
 

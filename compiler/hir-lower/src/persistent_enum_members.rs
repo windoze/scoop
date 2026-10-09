@@ -82,6 +82,32 @@ impl Lowerer {
             .expect("a current variant retains its declaration identity")
             .local_index()
     }
+
+    pub(crate) fn enum_variant_field_at(
+        &self,
+        variant: hir::EnumVariantApplication,
+        index: u32,
+    ) -> hir::EnumVariantFieldApplication {
+        let hir::Type::Enum(owner) = self.types[variant.owner] else {
+            unreachable!("a variant field retains its enum owner")
+        };
+        let template = self.enum_applications[owner].template;
+        let field = if let Some(definition) = self.loaded_enum_definitions.get(&template) {
+            definition.field_identity(self.enum_variant_index(variant) as usize, index as usize)
+        } else {
+            let identities = self
+                .enum_member_identities
+                .as_ref()
+                .expect("enum members are identified");
+            let declaration = identities
+                .variant_declaration(variant.variant)
+                .expect("the variant belongs to its declaration");
+            let field = hir::EnumVariantFieldRef::checked(&self.enums, declaration, index)
+                .expect("the field belongs to its variant");
+            identities[field].id()
+        };
+        hir::EnumVariantFieldApplication { variant, field }
+    }
 }
 
 #[derive(Debug)]

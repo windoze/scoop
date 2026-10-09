@@ -32,6 +32,24 @@ impl Lowerer {
             value.origin = instantiate_origin(source.origin, context.evaluation);
             return value;
         }
+        if let hir::ExprKind::MethodCall {
+            receiver,
+            callee: hir::MethodCallee::DerivedEquality(application),
+            args,
+        } = &source.kind
+            && self.type_contains_param(receiver.ty)
+        {
+            // Open nested derivations read prepared value fields. Expand them
+            // before any concrete owner can discard their bound field calls.
+            let receiver = self.instantiate_default_expr(receiver, context);
+            let other = self.instantiate_default_expr(&args[0], context);
+            return self.inline_derived_equality(
+                *application,
+                receiver,
+                other,
+                context.bindings.clone(),
+            );
+        }
         let origin = instantiate_origin(source.origin, context.evaluation);
         let kind = match &source.kind {
             hir::ExprKind::ContextLookup(requirement) => {

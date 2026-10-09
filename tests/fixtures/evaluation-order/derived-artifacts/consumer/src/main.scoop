@@ -1,0 +1,31 @@
+import comparisons.*
+
+struct Key(val id: Int) : Wide, Exact<Key> {
+    public override operator fun equals(other: Wide): Boolean = false
+    public override operator fun equals(other: Key): Boolean = true
+}
+
+fun check(value: Boolean) {
+    if (!value) { throw IllegalStateException() }
+}
+
+fun main() {
+    val key = Key(1)
+    val a = Box(key)
+    check(a == a)
+    check(!wide(a, a))
+    check(exact(a, a))
+    check(!named(a, a))
+    check(!tuple(key, key))
+    check(!defaultBox(a, a))
+    val item = Choice.Item(a)
+    check(item == item)
+    check(!choice(item, item))
+    check(!choice(item, Choice.Empty))
+    check(choice(Choice<Box<Key>>.Empty, Choice.Empty))
+    check(!defaultChoice(Choice.Item(key), Choice.Item(key)))
+    check(defaultChoice(Choice<Key>.Empty, Choice.Empty))
+    check(!defaultChoice(Choice.Pair(key, key), Choice.Item(key)))
+    check(!evaluate({ println("left"); a }, { println("right"); a }))
+    println("derived bindings")
+}

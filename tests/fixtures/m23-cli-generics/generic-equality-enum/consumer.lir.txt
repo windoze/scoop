@@ -42,60 +42,107 @@ Module
     local %27 $dependency.argument.0: ptr<managed>
     local %28 $dependency.parameter.value: ptr<managed>
     local %29 $equality.lhs: enum0
-    local %30 $dependency.argument.0: ptr<managed>
-    local %31 $dependency.argument.1: ptr<managed>
-    local %32 $dependency.parameter.first: ptr<managed>
-    local %33 $dependency.parameter.second: ptr<managed>
-    local %34 both: enum0
-    local %35 $dependency.argument.0: ptr<managed>
-    local %36 $dependency.argument.1: ptr<managed>
-    local %37 $dependency.parameter.first: ptr<managed>
-    local %38 $dependency.parameter.second: ptr<managed>
-    local %39 $dependency.argument.0: enum0
-    local %40 $dependency.argument.1: enum0
-    local %41 $dependency.parameter.left: enum0
-    local %42 $dependency.parameter.right: enum0
-    local %43 $dependency.receiver: i1
-    local %44 $dependency.argument.0: ptr<managed>
-    local %45 $dependency.argument.1: ptr<managed>
-    local %46 $dependency.parameter.first: ptr<managed>
-    local %47 $dependency.parameter.second: ptr<managed>
-    local %48 $equality.lhs: enum0
-    local %49 $new.1: ptr<managed>
-    local %50 $new.2: ptr<managed>
-    local %51 $new.3: ptr<managed>
-    local %52 $call.4: enum0
-    local %53 $call.5: i1
-    local %54 $logic.6: i1
-    local %55 $call.7: i1
-    local %56 $call.8: enum0
-    local %57 $call.9: i1
-    local %58 $call.10: enum0
-    local %59 $call.11: i1
-    local %60 $logic.12: i1
-    local %61 $call.13: i1
-    local %62 $sc.1: enum0
-    local %63 $sc.2: enum0
-    local %64 $sc.3: enum0
-    local %65 $sc.4: enum0
-    local %66 $sc.5: enum0
-    local %67 $sc.6: enum0
-    local %68 $sc.7: enum0
-    local %69 $sc.8: enum0
-    local %70 $sc.9: enum0
-    local %71 $sc.10: enum0
-    local %72 $sc.11: enum0
-    local %73 $sc.12: enum0
-    local %74 $sc.13: enum0
-    local %75 $sc.14: enum0
-    local %76 $sc.15: enum0
-    local %77 $sc.16: enum0
-    local %78 $sc.17: enum0
-    local %79 $sc.18: enum0
-    local %80 $sc.19: enum0
-    local %81 $sc.20: enum0
-    local %82 $sc.21: enum0
-    local %83 $sc.22: enum0
+    local %30 $equality.this: enum0
+    local %31 $equality.other: enum0
+    local %32 $equality.this: enum0
+    local %33 $equality.other: enum0
+    local %34 $shortCircuit.0: i1
+    local %35 $equality.this: enum0
+    local %36 $equality.other: enum0
+    local %37 $dependency.argument.0: ptr<managed>
+    local %38 $dependency.argument.1: ptr<managed>
+    local %39 $dependency.parameter.first: ptr<managed>
+    local %40 $dependency.parameter.second: ptr<managed>
+    local %41 both: enum0
+    local %42 $dependency.argument.0: ptr<managed>
+    local %43 $dependency.argument.1: ptr<managed>
+    local %44 $dependency.parameter.first: ptr<managed>
+    local %45 $dependency.parameter.second: ptr<managed>
+    local %46 $dependency.argument.0: enum0
+    local %47 $dependency.argument.1: enum0
+    local %48 $dependency.parameter.left: enum0
+    local %49 $dependency.parameter.right: enum0
+    local %50 $dependency.receiver: i1
+    local %51 $dependency.argument.0: ptr<managed>
+    local %52 $dependency.argument.1: ptr<managed>
+    local %53 $dependency.parameter.first: ptr<managed>
+    local %54 $dependency.parameter.second: ptr<managed>
+    local %55 $equality.lhs: enum0
+    local %56 $equality.this: enum0
+    local %57 $equality.other: enum0
+    local %58 $equality.this: enum0
+    local %59 $equality.other: enum0
+    local %60 $shortCircuit.1: i1
+    local %61 $new.1: ptr<managed>
+    local %62 $new.2: ptr<managed>
+    local %63 $new.3: ptr<managed>
+    local %64 $logic.4: i1
+    local %65 $logic.5: i1
+    local %66 $logic.6: i1
+    local %67 $logic.7: i1
+    local %68 $call.8: i1
+    local %69 $logic.9: i1
+    local %70 $logic.10: i1
+    local %71 $logic.11: i1
+    local %72 $call.12: i1
+    local %73 $logic.13: i1
+    local %74 $call.14: i1
+    local %75 $logic.15: i1
+    local %76 $logic.16: i1
+    local %77 $logic.17: i1
+    local %78 $logic.18: i1
+    local %79 $call.19: i1
+    local %80 $logic.20: i1
+    local %81 $logic.21: i1
+    local %82 $logic.22: i1
+    local %83 $call.23: i1
+    local %84 $logic.24: i1
+    local %85 $call.25: i1
+    local %86 $logic.26: i1
+    local %87 $logic.27: i1
+    local %88 $logic.28: i1
+    local %89 $logic.29: i1
+    local %90 $call.30: i1
+    local %91 $logic.31: i1
+    local %92 $logic.32: i1
+    local %93 $logic.33: i1
+    local %94 $call.34: i1
+    local %95 $logic.35: i1
+    local %96 $call.36: i1
+    local %97 $logic.37: i1
+    local %98 $logic.38: i1
+    local %99 $logic.39: i1
+    local %100 $logic.40: i1
+    local %101 $call.41: i1
+    local %102 $logic.42: i1
+    local %103 $logic.43: i1
+    local %104 $logic.44: i1
+    local %105 $call.45: i1
+    local %106 $logic.46: i1
+    local %107 $call.47: i1
+    local %108 $logic.48: i1
+    local %109 $logic.49: i1
+    local %110 $logic.50: i1
+    local %111 $logic.51: i1
+    local %112 $call.52: i1
+    local %113 $logic.53: i1
+    local %114 $logic.54: i1
+    local %115 $logic.55: i1
+    local %116 $call.56: i1
+    local %117 $logic.57: i1
+    local %118 $call.58: i1
+    local %119 $sc.1: enum0
+    local %120 $sc.2: enum0
+    local %121 $sc.3: enum0
+    local %122 $sc.4: enum0
+    local %123 $sc.5: enum0
+    local %124 $sc.6: enum0
+    local %125 $sc.7: enum0
+    local %126 $sc.8: enum0
+    local %127 $sc.9: enum0
+    local %128 $sc.10: enum0
+    local %129 $sc.11: enum0
+    local %130 $sc.12: enum0
   block entry
     poll managed-void-target3 sp<managed-poll:0> live=[]
     store param0 -> local0
@@ -103,45 +150,45 @@ Module
     store local0 -> local2
     store local1 -> local3
     call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td1, machine<byte-size>(ByteSize(24)))
-    store t0 -> local49
-    call managed-void-target0 sp<managed-call:1> live=[local49:ptr<managed>@0] sig=void0 (ptr<managed>, i32, i32) local-fn9(local49, local2, local3)
+    store t0 -> local61
+    call managed-void-target0 sp<managed-call:1> live=[local61:ptr<managed>@0] sig=void0 (ptr<managed>, i32, i32) local-fn8(local61, local2, local3)
     t1 = aggregate () : {}
-    store local49 -> local4
+    store local61 -> local4
     store param0 -> local5
     store integer<Int>(0x0000002a) -> local6
     store local5 -> local7
     store local6 -> local8
     call managed-direct-target1 sp<managed-call:2> live=[local4:ptr<managed>@0] t2 = sig=direct1 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td1, machine<byte-size>(ByteSize(24)))
-    store t2 -> local50
-    call managed-void-target1 sp<managed-call:3> live=[local4:ptr<managed>@0, local50:ptr<managed>@0] sig=void1 (ptr<managed>, i32, i32) local-fn9(local50, local7, local8)
+    store t2 -> local62
+    call managed-void-target1 sp<managed-call:3> live=[local4:ptr<managed>@0, local62:ptr<managed>@0] sig=void1 (ptr<managed>, i32, i32) local-fn8(local62, local7, local8)
     t3 = aggregate () : {}
-    store local50 -> local9
+    store local62 -> local9
     store param0 -> local10
     store integer<Int>(0x00000001) -> local11
     store local10 -> local12
     store local11 -> local13
     call managed-direct-target2 sp<managed-call:4> live=[local4:ptr<managed>@0, local9:ptr<managed>@0] t4 = sig=direct2 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td1, machine<byte-size>(ByteSize(24)))
-    store t4 -> local51
-    call managed-void-target2 sp<managed-call:5> live=[local4:ptr<managed>@0, local9:ptr<managed>@0, local51:ptr<managed>@0] sig=void2 (ptr<managed>, i32, i32) local-fn9(local51, local12, local13)
+    store t4 -> local63
+    call managed-void-target2 sp<managed-call:5> live=[local4:ptr<managed>@0, local9:ptr<managed>@0, local63:ptr<managed>@0] sig=void2 (ptr<managed>, i32, i32) local-fn8(local63, local12, local13)
     t5 = aggregate () : {}
-    store local51 -> local14
+    store local63 -> local14
     store local4 -> local15
     store local15 -> local16
-    call managed-indirect-target0 sp<managed-call:6> live=[local4:ptr<managed>@0, local9:ptr<managed>@0, local14:ptr<managed>@0, local16:ptr<managed>@0] local62 = sig=indirect0 (sret enum0 size=32 align=8 scan=refs[8, 16, 24], ptr<managed>) local-fn3(local16)
-    store local62 -> local17
+    call managed-indirect-target0 sp<managed-call:6> live=[local4:ptr<managed>@0, local9:ptr<managed>@0, local14:ptr<managed>@0, local16:ptr<managed>@0] local119 = sig=indirect0 (sret enum0 size=32 align=8 scan=refs[8, 16, 24], ptr<managed>) local-fn3(local16)
+    store local119 -> local17
     store local9 -> local18
     store local18 -> local19
-    call managed-indirect-target1 sp<managed-call:7> live=[local4:ptr<managed>@0, local9:ptr<managed>@0, local14:ptr<managed>@0, local17:enum0@8+16+24, local19:ptr<managed>@0] local63 = sig=indirect1 (sret enum0 size=32 align=8 scan=refs[8, 16, 24], ptr<managed>) local-fn3(local19)
-    store local63 -> local20
-    call managed-indirect-target2 sp<managed-call:8> live=[local4:ptr<managed>@0, local9:ptr<managed>@0, local14:ptr<managed>@0, local17:enum0@8+16+24, local20:enum0@8+16+24] local64 = sig=indirect2 (sret enum0 size=32 align=8 scan=refs[8, 16, 24]) local-fn4()
-    store local64 -> local21
+    call managed-indirect-target1 sp<managed-call:7> live=[local4:ptr<managed>@0, local9:ptr<managed>@0, local14:ptr<managed>@0, local17:enum0@8+16+24, local19:ptr<managed>@0] local120 = sig=indirect1 (sret enum0 size=32 align=8 scan=refs[8, 16, 24], ptr<managed>) local-fn3(local19)
+    store local120 -> local20
+    call managed-indirect-target2 sp<managed-call:8> live=[local4:ptr<managed>@0, local9:ptr<managed>@0, local14:ptr<managed>@0, local17:enum0@8+16+24, local20:enum0@8+16+24] local121 = sig=indirect2 (sret enum0 size=32 align=8 scan=refs[8, 16, 24]) local-fn4()
+    store local121 -> local21
     store local17 -> local22
     store local20 -> local23
     store local22 -> local24
     store local23 -> local25
-    store local24 -> local65
-    store local25 -> local66
-    call managed-direct-target3 sp<managed-call:9> live=[local4:ptr<managed>@0, local9:ptr<managed>@0, local14:ptr<managed>@0, local17:enum0@8+16+24, local21:enum0@8+16+24, local65:enum0@8+16+24, local66:enum0@8+16+24] t6 = sig=direct3 (indirect<enum0 size=32 align=8 scan=refs[8, 16, 24]>, indirect<enum0 size=32 align=8 scan=refs[8, 16, 24]>) -> i1 local-fn5(indirect local65, indirect local66)
+    store local24 -> local122
+    store local25 -> local123
+    call managed-direct-target3 sp<managed-call:9> live=[local4:ptr<managed>@0, local9:ptr<managed>@0, local14:ptr<managed>@0, local17:enum0@8+16+24, local21:enum0@8+16+24, local122:enum0@8+16+24, local123:enum0@8+16+24] t6 = sig=direct3 (indirect<enum0 size=32 align=8 scan=refs[8, 16, 24]>, indirect<enum0 size=32 align=8 scan=refs[8, 16, 24]>) -> i1 local-fn5(indirect local122, indirect local123)
     store t6 -> local26
     t7 = Not local26 : i1
     cbr t7 then @if.then.1 else @if.merge.2
@@ -151,90 +198,487 @@ Module
     store local17 -> local29
     store local14 -> local27
     store local27 -> local28
-    call managed-indirect-target3 sp<managed-call:10> live=[local4:ptr<managed>@0, local9:ptr<managed>@0, local14:ptr<managed>@0, local17:enum0@8+16+24, local21:enum0@8+16+24, local28:ptr<managed>@0, local29:enum0@8+16+24] local67 = sig=indirect3 (sret enum0 size=32 align=8 scan=refs[8, 16, 24], ptr<managed>) local-fn3(local28)
-    store local67 -> local52
-    store local29 -> local68
-    store local52 -> local69
-    call managed-direct-target4 sp<managed-call:11> live=[local4:ptr<managed>@0, local9:ptr<managed>@0, local14:ptr<managed>@0, local17:enum0@8+16+24, local21:enum0@8+16+24, local68:enum0@8+16+24, local69:enum0@8+16+24] t8 = sig=direct4 (indirect<enum0 size=32 align=8 scan=refs[8, 16, 24]>, indirect<enum0 size=32 align=8 scan=refs[8, 16, 24]>) -> i1 local-fn6(indirect local68, indirect local69)
-    store t8 -> local53
-    cbr local53 then @logic.short.4 else @logic.rhs.3
+    store local29 -> local30
+    call managed-indirect-target3 sp<managed-call:10> live=[local4:ptr<managed>@0, local9:ptr<managed>@0, local14:ptr<managed>@0, local17:enum0@8+16+24, local21:enum0@8+16+24, local28:ptr<managed>@0, local30:enum0@8+16+24] local124 = sig=indirect3 (sret enum0 size=32 align=8 scan=refs[8, 16, 24], ptr<managed>) local-fn3(local28)
+    store local124 -> local31
+    t8 = variant_test e0 v0 local30 : i1
+    cbr t8 then @logic.rhs.3 else @logic.short.4
   block logic.rhs.3
-    store local17 -> local70
-    store local21 -> local71
-    call managed-direct-target5 sp<managed-call:12> live=[local4:ptr<managed>@0, local9:ptr<managed>@0, local14:ptr<managed>@0, local17:enum0@8+16+24, local21:enum0@8+16+24, local70:enum0@8+16+24, local71:enum0@8+16+24] t9 = sig=direct5 (indirect<enum0 size=32 align=8 scan=refs[8, 16, 24]>, indirect<enum0 size=32 align=8 scan=refs[8, 16, 24]>) -> i1 local-fn6(indirect local70, indirect local71)
-    store t9 -> local55
-    store local55 -> local54
+    t9 = variant_test e0 v0 local31 : i1
+    store t9 -> local64
     br @logic.merge.5
   block logic.short.4
-    store true -> local54
+    store false -> local64
     br @logic.merge.5
   block logic.merge.5
-    cbr local54 then @if.then.6 else @if.merge.7
-  block if.then.6
-    ret integer<Int>(0x00000002)
-  block if.merge.7
-    call managed-indirect-target4 sp<managed-call:13> live=[local4:ptr<managed>@0, local9:ptr<managed>@0, local14:ptr<managed>@0, local17:enum0@8+16+24, local21:enum0@8+16+24] local72 = sig=indirect4 (sret enum0 size=32 align=8 scan=refs[8, 16, 24]) local-fn4()
-    store local72 -> local56
-    store local21 -> local73
-    store local56 -> local74
-    call managed-direct-target6 sp<managed-call:14> live=[local4:ptr<managed>@0, local9:ptr<managed>@0, local14:ptr<managed>@0, local17:enum0@8+16+24, local73:enum0@8+16+24, local74:enum0@8+16+24] t10 = sig=direct6 (indirect<enum0 size=32 align=8 scan=refs[8, 16, 24]>, indirect<enum0 size=32 align=8 scan=refs[8, 16, 24]>) -> i1 local-fn6(indirect local73, indirect local74)
-    store t10 -> local57
-    t11 = Not local57 : i1
-    cbr t11 then @if.then.8 else @if.merge.9
-  block if.then.8
-    ret integer<Int>(0x00000003)
-  block if.merge.9
-    store local4 -> local30
-    store local9 -> local31
-    store local30 -> local32
-    store local31 -> local33
-    call managed-indirect-target5 sp<managed-call:15> live=[local4:ptr<managed>@0, local9:ptr<managed>@0, local14:ptr<managed>@0, local17:enum0@8+16+24, local32:ptr<managed>@0, local33:ptr<managed>@0] local75 = sig=indirect5 (sret enum0 size=32 align=8 scan=refs[8, 16, 24], ptr<managed>, ptr<managed>) local-fn7(local32, local33)
-    store local75 -> local34
-    store local34 -> local39
-    store local9 -> local35
-    store local4 -> local36
-    store local35 -> local37
-    store local36 -> local38
-    call managed-indirect-target6 sp<managed-call:16> live=[local4:ptr<managed>@0, local14:ptr<managed>@0, local17:enum0@8+16+24, local34:enum0@8+16+24, local37:ptr<managed>@0, local38:ptr<managed>@0, local39:enum0@8+16+24] local76 = sig=indirect6 (sret enum0 size=32 align=8 scan=refs[8, 16, 24], ptr<managed>, ptr<managed>) local-fn7(local37, local38)
-    store local76 -> local40
-    store local39 -> local41
-    store local40 -> local42
-    store local41 -> local77
-    store local42 -> local78
-    call managed-direct-target7 sp<managed-call:17> live=[local4:ptr<managed>@0, local14:ptr<managed>@0, local17:enum0@8+16+24, local34:enum0@8+16+24, local77:enum0@8+16+24, local78:enum0@8+16+24] t12 = sig=direct7 (indirect<enum0 size=32 align=8 scan=refs[8, 16, 24]>, indirect<enum0 size=32 align=8 scan=refs[8, 16, 24]>) -> i1 local-fn5(indirect local77, indirect local78)
-    store t12 -> local43
-    t13 = Not local43 : i1
-    cbr t13 then @if.then.10 else @if.merge.11
-  block if.then.10
-    ret integer<Int>(0x00000004)
-  block if.merge.11
-    store local34 -> local48
-    store local4 -> local44
-    store local14 -> local45
-    store local44 -> local46
-    store local45 -> local47
-    call managed-indirect-target7 sp<managed-call:18> live=[local17:enum0@8+16+24, local34:enum0@8+16+24, local46:ptr<managed>@0, local47:ptr<managed>@0, local48:enum0@8+16+24] local79 = sig=indirect7 (sret enum0 size=32 align=8 scan=refs[8, 16, 24], ptr<managed>, ptr<managed>) local-fn7(local46, local47)
-    store local79 -> local58
-    store local48 -> local80
-    store local58 -> local81
-    call managed-direct-target8 sp<managed-call:19> live=[local17:enum0@8+16+24, local34:enum0@8+16+24, local80:enum0@8+16+24, local81:enum0@8+16+24] t14 = sig=direct8 (indirect<enum0 size=32 align=8 scan=refs[8, 16, 24]>, indirect<enum0 size=32 align=8 scan=refs[8, 16, 24]>) -> i1 local-fn6(indirect local80, indirect local81)
-    store t14 -> local59
-    cbr local59 then @logic.short.13 else @logic.rhs.12
+    cbr local64 then @logic.short.7 else @logic.rhs.6
+  block logic.rhs.6
+    t10 = variant_test e0 v1 local30 : i1
+    cbr t10 then @logic.rhs.9 else @logic.short.10
+  block logic.short.7
+    store true -> local65
+    br @logic.merge.8
+  block logic.merge.8
+    cbr local65 then @logic.short.16 else @logic.rhs.15
+  block logic.rhs.9
+    t11 = variant_test e0 v1 local31 : i1
+    cbr t11 then @logic.rhs.12 else @logic.short.13
+  block logic.short.10
+    store false -> local66
+    br @logic.merge.11
+  block logic.merge.11
+    store local66 -> local65
+    br @logic.merge.8
   block logic.rhs.12
-    store local34 -> local82
-    store local17 -> local83
-    call managed-direct-target9 sp<managed-call:20> live=[local82:enum0@8+16+24, local83:enum0@8+16+24] t15 = sig=direct9 (indirect<enum0 size=32 align=8 scan=refs[8, 16, 24]>, indirect<enum0 size=32 align=8 scan=refs[8, 16, 24]>) -> i1 local-fn6(indirect local82, indirect local83)
-    store t15 -> local61
-    store local61 -> local60
+    t12 = variant_payload_project e0 v1 f0 local30 : ptr<managed>
+    t13 = variant_payload_project e0 v1 f0 local31 : ptr<managed>
+    call managed-direct-target4 sp<managed-call:11> live=[local4:ptr<managed>@0, local9:ptr<managed>@0, local14:ptr<managed>@0, local17:enum0@8+16+24, local21:enum0@8+16+24, local30:enum0@8+16+24, local31:enum0@8+16+24, t12:ptr<managed>@0, t13:ptr<managed>@0] t14 = sig=direct4 (ptr<managed>, ptr<managed>) -> i1 local-fn2(t12, t13)
+    store t14 -> local68
+    store local68 -> local67
     br @logic.merge.14
   block logic.short.13
-    store true -> local60
+    store false -> local67
     br @logic.merge.14
   block logic.merge.14
-    cbr local60 then @if.then.15 else @if.merge.16
-  block if.then.15
+    store local67 -> local66
+    br @logic.merge.11
+  block logic.rhs.15
+    t15 = variant_test e0 v2 local30 : i1
+    cbr t15 then @logic.rhs.18 else @logic.short.19
+  block logic.short.16
+    store true -> local69
+    br @logic.merge.17
+  block logic.merge.17
+    cbr local69 then @if.then.27 else @if.else.28
+  block logic.rhs.18
+    t16 = variant_test e0 v2 local31 : i1
+    cbr t16 then @logic.rhs.21 else @logic.short.22
+  block logic.short.19
+    store false -> local70
+    br @logic.merge.20
+  block logic.merge.20
+    store local70 -> local69
+    br @logic.merge.17
+  block logic.rhs.21
+    t17 = variant_payload_project e0 v2 f0 local30 : ptr<managed>
+    t18 = variant_payload_project e0 v2 f0 local31 : ptr<managed>
+    call managed-direct-target5 sp<managed-call:12> live=[local4:ptr<managed>@0, local9:ptr<managed>@0, local14:ptr<managed>@0, local17:enum0@8+16+24, local21:enum0@8+16+24, local30:enum0@8+16+24, local31:enum0@8+16+24, t17:ptr<managed>@0, t18:ptr<managed>@0] t19 = sig=direct5 (ptr<managed>, ptr<managed>) -> i1 local-fn2(t17, t18)
+    store t19 -> local72
+    cbr local72 then @logic.rhs.24 else @logic.short.25
+  block logic.short.22
+    store false -> local71
+    br @logic.merge.23
+  block logic.merge.23
+    store local71 -> local70
+    br @logic.merge.20
+  block logic.rhs.24
+    t20 = variant_payload_project e0 v2 f1 local30 : ptr<managed>
+    t21 = variant_payload_project e0 v2 f1 local31 : ptr<managed>
+    call managed-direct-target6 sp<managed-call:13> live=[local4:ptr<managed>@0, local9:ptr<managed>@0, local14:ptr<managed>@0, local17:enum0@8+16+24, local21:enum0@8+16+24, t20:ptr<managed>@0, t21:ptr<managed>@0] t22 = sig=direct6 (ptr<managed>, ptr<managed>) -> i1 local-fn2(t20, t21)
+    store t22 -> local74
+    store local74 -> local73
+    br @logic.merge.26
+  block logic.short.25
+    store false -> local73
+    br @logic.merge.26
+  block logic.merge.26
+    store local73 -> local71
+    br @logic.merge.23
+  block if.then.27
+    store true -> local34
+    br @if.merge.29
+  block if.else.28
+    store local17 -> local32
+    store local21 -> local33
+    t23 = variant_test e0 v0 local32 : i1
+    cbr t23 then @logic.rhs.30 else @logic.short.31
+  block if.merge.29
+    cbr local34 then @if.then.54 else @if.merge.55
+  block logic.rhs.30
+    t24 = variant_test e0 v0 local33 : i1
+    store t24 -> local75
+    br @logic.merge.32
+  block logic.short.31
+    store false -> local75
+    br @logic.merge.32
+  block logic.merge.32
+    cbr local75 then @logic.short.34 else @logic.rhs.33
+  block logic.rhs.33
+    t25 = variant_test e0 v1 local32 : i1
+    cbr t25 then @logic.rhs.36 else @logic.short.37
+  block logic.short.34
+    store true -> local76
+    br @logic.merge.35
+  block logic.merge.35
+    cbr local76 then @logic.short.43 else @logic.rhs.42
+  block logic.rhs.36
+    t26 = variant_test e0 v1 local33 : i1
+    cbr t26 then @logic.rhs.39 else @logic.short.40
+  block logic.short.37
+    store false -> local77
+    br @logic.merge.38
+  block logic.merge.38
+    store local77 -> local76
+    br @logic.merge.35
+  block logic.rhs.39
+    t27 = variant_payload_project e0 v1 f0 local32 : ptr<managed>
+    t28 = variant_payload_project e0 v1 f0 local33 : ptr<managed>
+    call managed-direct-target7 sp<managed-call:14> live=[local4:ptr<managed>@0, local9:ptr<managed>@0, local14:ptr<managed>@0, local17:enum0@8+16+24, local21:enum0@8+16+24, local32:enum0@8+16+24, local33:enum0@8+16+24, t27:ptr<managed>@0, t28:ptr<managed>@0] t29 = sig=direct7 (ptr<managed>, ptr<managed>) -> i1 local-fn2(t27, t28)
+    store t29 -> local79
+    store local79 -> local78
+    br @logic.merge.41
+  block logic.short.40
+    store false -> local78
+    br @logic.merge.41
+  block logic.merge.41
+    store local78 -> local77
+    br @logic.merge.38
+  block logic.rhs.42
+    t30 = variant_test e0 v2 local32 : i1
+    cbr t30 then @logic.rhs.45 else @logic.short.46
+  block logic.short.43
+    store true -> local80
+    br @logic.merge.44
+  block logic.merge.44
+    store local80 -> local34
+    br @if.merge.29
+  block logic.rhs.45
+    t31 = variant_test e0 v2 local33 : i1
+    cbr t31 then @logic.rhs.48 else @logic.short.49
+  block logic.short.46
+    store false -> local81
+    br @logic.merge.47
+  block logic.merge.47
+    store local81 -> local80
+    br @logic.merge.44
+  block logic.rhs.48
+    t32 = variant_payload_project e0 v2 f0 local32 : ptr<managed>
+    t33 = variant_payload_project e0 v2 f0 local33 : ptr<managed>
+    call managed-direct-target8 sp<managed-call:15> live=[local4:ptr<managed>@0, local9:ptr<managed>@0, local14:ptr<managed>@0, local17:enum0@8+16+24, local21:enum0@8+16+24, local32:enum0@8+16+24, local33:enum0@8+16+24, t32:ptr<managed>@0, t33:ptr<managed>@0] t34 = sig=direct8 (ptr<managed>, ptr<managed>) -> i1 local-fn2(t32, t33)
+    store t34 -> local83
+    cbr local83 then @logic.rhs.51 else @logic.short.52
+  block logic.short.49
+    store false -> local82
+    br @logic.merge.50
+  block logic.merge.50
+    store local82 -> local81
+    br @logic.merge.47
+  block logic.rhs.51
+    t35 = variant_payload_project e0 v2 f1 local32 : ptr<managed>
+    t36 = variant_payload_project e0 v2 f1 local33 : ptr<managed>
+    call managed-direct-target9 sp<managed-call:16> live=[local4:ptr<managed>@0, local9:ptr<managed>@0, local14:ptr<managed>@0, local17:enum0@8+16+24, local21:enum0@8+16+24, t35:ptr<managed>@0, t36:ptr<managed>@0] t37 = sig=direct9 (ptr<managed>, ptr<managed>) -> i1 local-fn2(t35, t36)
+    store t37 -> local85
+    store local85 -> local84
+    br @logic.merge.53
+  block logic.short.52
+    store false -> local84
+    br @logic.merge.53
+  block logic.merge.53
+    store local84 -> local82
+    br @logic.merge.50
+  block if.then.54
+    ret integer<Int>(0x00000002)
+  block if.merge.55
+    store local21 -> local35
+    call managed-indirect-target4 sp<managed-call:17> live=[local4:ptr<managed>@0, local9:ptr<managed>@0, local14:ptr<managed>@0, local17:enum0@8+16+24, local35:enum0@8+16+24] local125 = sig=indirect4 (sret enum0 size=32 align=8 scan=refs[8, 16, 24]) local-fn4()
+    store local125 -> local36
+    t38 = variant_test e0 v0 local35 : i1
+    cbr t38 then @logic.rhs.56 else @logic.short.57
+  block logic.rhs.56
+    t39 = variant_test e0 v0 local36 : i1
+    store t39 -> local86
+    br @logic.merge.58
+  block logic.short.57
+    store false -> local86
+    br @logic.merge.58
+  block logic.merge.58
+    cbr local86 then @logic.short.60 else @logic.rhs.59
+  block logic.rhs.59
+    t40 = variant_test e0 v1 local35 : i1
+    cbr t40 then @logic.rhs.62 else @logic.short.63
+  block logic.short.60
+    store true -> local87
+    br @logic.merge.61
+  block logic.merge.61
+    cbr local87 then @logic.short.69 else @logic.rhs.68
+  block logic.rhs.62
+    t41 = variant_test e0 v1 local36 : i1
+    cbr t41 then @logic.rhs.65 else @logic.short.66
+  block logic.short.63
+    store false -> local88
+    br @logic.merge.64
+  block logic.merge.64
+    store local88 -> local87
+    br @logic.merge.61
+  block logic.rhs.65
+    t42 = variant_payload_project e0 v1 f0 local35 : ptr<managed>
+    t43 = variant_payload_project e0 v1 f0 local36 : ptr<managed>
+    call managed-direct-target10 sp<managed-call:18> live=[local4:ptr<managed>@0, local9:ptr<managed>@0, local14:ptr<managed>@0, local17:enum0@8+16+24, local35:enum0@8+16+24, local36:enum0@8+16+24, t42:ptr<managed>@0, t43:ptr<managed>@0] t44 = sig=direct10 (ptr<managed>, ptr<managed>) -> i1 local-fn2(t42, t43)
+    store t44 -> local90
+    store local90 -> local89
+    br @logic.merge.67
+  block logic.short.66
+    store false -> local89
+    br @logic.merge.67
+  block logic.merge.67
+    store local89 -> local88
+    br @logic.merge.64
+  block logic.rhs.68
+    t45 = variant_test e0 v2 local35 : i1
+    cbr t45 then @logic.rhs.71 else @logic.short.72
+  block logic.short.69
+    store true -> local91
+    br @logic.merge.70
+  block logic.merge.70
+    t46 = Not local91 : i1
+    cbr t46 then @if.then.80 else @if.merge.81
+  block logic.rhs.71
+    t47 = variant_test e0 v2 local36 : i1
+    cbr t47 then @logic.rhs.74 else @logic.short.75
+  block logic.short.72
+    store false -> local92
+    br @logic.merge.73
+  block logic.merge.73
+    store local92 -> local91
+    br @logic.merge.70
+  block logic.rhs.74
+    t48 = variant_payload_project e0 v2 f0 local35 : ptr<managed>
+    t49 = variant_payload_project e0 v2 f0 local36 : ptr<managed>
+    call managed-direct-target11 sp<managed-call:19> live=[local4:ptr<managed>@0, local9:ptr<managed>@0, local14:ptr<managed>@0, local17:enum0@8+16+24, local35:enum0@8+16+24, local36:enum0@8+16+24, t48:ptr<managed>@0, t49:ptr<managed>@0] t50 = sig=direct11 (ptr<managed>, ptr<managed>) -> i1 local-fn2(t48, t49)
+    store t50 -> local94
+    cbr local94 then @logic.rhs.77 else @logic.short.78
+  block logic.short.75
+    store false -> local93
+    br @logic.merge.76
+  block logic.merge.76
+    store local93 -> local92
+    br @logic.merge.73
+  block logic.rhs.77
+    t51 = variant_payload_project e0 v2 f1 local35 : ptr<managed>
+    t52 = variant_payload_project e0 v2 f1 local36 : ptr<managed>
+    call managed-direct-target12 sp<managed-call:20> live=[local4:ptr<managed>@0, local9:ptr<managed>@0, local14:ptr<managed>@0, local17:enum0@8+16+24, t51:ptr<managed>@0, t52:ptr<managed>@0] t53 = sig=direct12 (ptr<managed>, ptr<managed>) -> i1 local-fn2(t51, t52)
+    store t53 -> local96
+    store local96 -> local95
+    br @logic.merge.79
+  block logic.short.78
+    store false -> local95
+    br @logic.merge.79
+  block logic.merge.79
+    store local95 -> local93
+    br @logic.merge.76
+  block if.then.80
+    ret integer<Int>(0x00000003)
+  block if.merge.81
+    store local4 -> local37
+    store local9 -> local38
+    store local37 -> local39
+    store local38 -> local40
+    call managed-indirect-target5 sp<managed-call:21> live=[local4:ptr<managed>@0, local9:ptr<managed>@0, local14:ptr<managed>@0, local17:enum0@8+16+24, local39:ptr<managed>@0, local40:ptr<managed>@0] local126 = sig=indirect5 (sret enum0 size=32 align=8 scan=refs[8, 16, 24], ptr<managed>, ptr<managed>) local-fn6(local39, local40)
+    store local126 -> local41
+    store local41 -> local46
+    store local9 -> local42
+    store local4 -> local43
+    store local42 -> local44
+    store local43 -> local45
+    call managed-indirect-target6 sp<managed-call:22> live=[local4:ptr<managed>@0, local14:ptr<managed>@0, local17:enum0@8+16+24, local41:enum0@8+16+24, local44:ptr<managed>@0, local45:ptr<managed>@0, local46:enum0@8+16+24] local127 = sig=indirect6 (sret enum0 size=32 align=8 scan=refs[8, 16, 24], ptr<managed>, ptr<managed>) local-fn6(local44, local45)
+    store local127 -> local47
+    store local46 -> local48
+    store local47 -> local49
+    store local48 -> local128
+    store local49 -> local129
+    call managed-direct-target13 sp<managed-call:23> live=[local4:ptr<managed>@0, local14:ptr<managed>@0, local17:enum0@8+16+24, local41:enum0@8+16+24, local128:enum0@8+16+24, local129:enum0@8+16+24] t54 = sig=direct13 (indirect<enum0 size=32 align=8 scan=refs[8, 16, 24]>, indirect<enum0 size=32 align=8 scan=refs[8, 16, 24]>) -> i1 local-fn5(indirect local128, indirect local129)
+    store t54 -> local50
+    t55 = Not local50 : i1
+    cbr t55 then @if.then.82 else @if.merge.83
+  block if.then.82
+    ret integer<Int>(0x00000004)
+  block if.merge.83
+    store local41 -> local55
+    store local4 -> local51
+    store local14 -> local52
+    store local51 -> local53
+    store local52 -> local54
+    store local55 -> local56
+    call managed-indirect-target7 sp<managed-call:24> live=[local17:enum0@8+16+24, local41:enum0@8+16+24, local53:ptr<managed>@0, local54:ptr<managed>@0, local56:enum0@8+16+24] local130 = sig=indirect7 (sret enum0 size=32 align=8 scan=refs[8, 16, 24], ptr<managed>, ptr<managed>) local-fn6(local53, local54)
+    store local130 -> local57
+    t56 = variant_test e0 v0 local56 : i1
+    cbr t56 then @logic.rhs.84 else @logic.short.85
+  block logic.rhs.84
+    t57 = variant_test e0 v0 local57 : i1
+    store t57 -> local97
+    br @logic.merge.86
+  block logic.short.85
+    store false -> local97
+    br @logic.merge.86
+  block logic.merge.86
+    cbr local97 then @logic.short.88 else @logic.rhs.87
+  block logic.rhs.87
+    t58 = variant_test e0 v1 local56 : i1
+    cbr t58 then @logic.rhs.90 else @logic.short.91
+  block logic.short.88
+    store true -> local98
+    br @logic.merge.89
+  block logic.merge.89
+    cbr local98 then @logic.short.97 else @logic.rhs.96
+  block logic.rhs.90
+    t59 = variant_test e0 v1 local57 : i1
+    cbr t59 then @logic.rhs.93 else @logic.short.94
+  block logic.short.91
+    store false -> local99
+    br @logic.merge.92
+  block logic.merge.92
+    store local99 -> local98
+    br @logic.merge.89
+  block logic.rhs.93
+    t60 = variant_payload_project e0 v1 f0 local56 : ptr<managed>
+    t61 = variant_payload_project e0 v1 f0 local57 : ptr<managed>
+    call managed-direct-target14 sp<managed-call:25> live=[local17:enum0@8+16+24, local41:enum0@8+16+24, local56:enum0@8+16+24, local57:enum0@8+16+24, t60:ptr<managed>@0, t61:ptr<managed>@0] t62 = sig=direct14 (ptr<managed>, ptr<managed>) -> i1 local-fn2(t60, t61)
+    store t62 -> local101
+    store local101 -> local100
+    br @logic.merge.95
+  block logic.short.94
+    store false -> local100
+    br @logic.merge.95
+  block logic.merge.95
+    store local100 -> local99
+    br @logic.merge.92
+  block logic.rhs.96
+    t63 = variant_test e0 v2 local56 : i1
+    cbr t63 then @logic.rhs.99 else @logic.short.100
+  block logic.short.97
+    store true -> local102
+    br @logic.merge.98
+  block logic.merge.98
+    cbr local102 then @if.then.108 else @if.else.109
+  block logic.rhs.99
+    t64 = variant_test e0 v2 local57 : i1
+    cbr t64 then @logic.rhs.102 else @logic.short.103
+  block logic.short.100
+    store false -> local103
+    br @logic.merge.101
+  block logic.merge.101
+    store local103 -> local102
+    br @logic.merge.98
+  block logic.rhs.102
+    t65 = variant_payload_project e0 v2 f0 local56 : ptr<managed>
+    t66 = variant_payload_project e0 v2 f0 local57 : ptr<managed>
+    call managed-direct-target15 sp<managed-call:26> live=[local17:enum0@8+16+24, local41:enum0@8+16+24, local56:enum0@8+16+24, local57:enum0@8+16+24, t65:ptr<managed>@0, t66:ptr<managed>@0] t67 = sig=direct15 (ptr<managed>, ptr<managed>) -> i1 local-fn2(t65, t66)
+    store t67 -> local105
+    cbr local105 then @logic.rhs.105 else @logic.short.106
+  block logic.short.103
+    store false -> local104
+    br @logic.merge.104
+  block logic.merge.104
+    store local104 -> local103
+    br @logic.merge.101
+  block logic.rhs.105
+    t68 = variant_payload_project e0 v2 f1 local56 : ptr<managed>
+    t69 = variant_payload_project e0 v2 f1 local57 : ptr<managed>
+    call managed-direct-target16 sp<managed-call:27> live=[local17:enum0@8+16+24, local41:enum0@8+16+24, t68:ptr<managed>@0, t69:ptr<managed>@0] t70 = sig=direct16 (ptr<managed>, ptr<managed>) -> i1 local-fn2(t68, t69)
+    store t70 -> local107
+    store local107 -> local106
+    br @logic.merge.107
+  block logic.short.106
+    store false -> local106
+    br @logic.merge.107
+  block logic.merge.107
+    store local106 -> local104
+    br @logic.merge.104
+  block if.then.108
+    store true -> local60
+    br @if.merge.110
+  block if.else.109
+    store local41 -> local58
+    store local17 -> local59
+    t71 = variant_test e0 v0 local58 : i1
+    cbr t71 then @logic.rhs.111 else @logic.short.112
+  block if.merge.110
+    cbr local60 then @if.then.135 else @if.merge.136
+  block logic.rhs.111
+    t72 = variant_test e0 v0 local59 : i1
+    store t72 -> local108
+    br @logic.merge.113
+  block logic.short.112
+    store false -> local108
+    br @logic.merge.113
+  block logic.merge.113
+    cbr local108 then @logic.short.115 else @logic.rhs.114
+  block logic.rhs.114
+    t73 = variant_test e0 v1 local58 : i1
+    cbr t73 then @logic.rhs.117 else @logic.short.118
+  block logic.short.115
+    store true -> local109
+    br @logic.merge.116
+  block logic.merge.116
+    cbr local109 then @logic.short.124 else @logic.rhs.123
+  block logic.rhs.117
+    t74 = variant_test e0 v1 local59 : i1
+    cbr t74 then @logic.rhs.120 else @logic.short.121
+  block logic.short.118
+    store false -> local110
+    br @logic.merge.119
+  block logic.merge.119
+    store local110 -> local109
+    br @logic.merge.116
+  block logic.rhs.120
+    t75 = variant_payload_project e0 v1 f0 local58 : ptr<managed>
+    t76 = variant_payload_project e0 v1 f0 local59 : ptr<managed>
+    call managed-direct-target17 sp<managed-call:28> live=[local58:enum0@8+16+24, local59:enum0@8+16+24, t75:ptr<managed>@0, t76:ptr<managed>@0] t77 = sig=direct17 (ptr<managed>, ptr<managed>) -> i1 local-fn2(t75, t76)
+    store t77 -> local112
+    store local112 -> local111
+    br @logic.merge.122
+  block logic.short.121
+    store false -> local111
+    br @logic.merge.122
+  block logic.merge.122
+    store local111 -> local110
+    br @logic.merge.119
+  block logic.rhs.123
+    t78 = variant_test e0 v2 local58 : i1
+    cbr t78 then @logic.rhs.126 else @logic.short.127
+  block logic.short.124
+    store true -> local113
+    br @logic.merge.125
+  block logic.merge.125
+    store local113 -> local60
+    br @if.merge.110
+  block logic.rhs.126
+    t79 = variant_test e0 v2 local59 : i1
+    cbr t79 then @logic.rhs.129 else @logic.short.130
+  block logic.short.127
+    store false -> local114
+    br @logic.merge.128
+  block logic.merge.128
+    store local114 -> local113
+    br @logic.merge.125
+  block logic.rhs.129
+    t80 = variant_payload_project e0 v2 f0 local58 : ptr<managed>
+    t81 = variant_payload_project e0 v2 f0 local59 : ptr<managed>
+    call managed-direct-target18 sp<managed-call:29> live=[local58:enum0@8+16+24, local59:enum0@8+16+24, t80:ptr<managed>@0, t81:ptr<managed>@0] t82 = sig=direct18 (ptr<managed>, ptr<managed>) -> i1 local-fn2(t80, t81)
+    store t82 -> local116
+    cbr local116 then @logic.rhs.132 else @logic.short.133
+  block logic.short.130
+    store false -> local115
+    br @logic.merge.131
+  block logic.merge.131
+    store local115 -> local114
+    br @logic.merge.128
+  block logic.rhs.132
+    t83 = variant_payload_project e0 v2 f1 local58 : ptr<managed>
+    t84 = variant_payload_project e0 v2 f1 local59 : ptr<managed>
+    call managed-direct-target19 sp<managed-call:30> live=[t83:ptr<managed>@0, t84:ptr<managed>@0] t85 = sig=direct19 (ptr<managed>, ptr<managed>) -> i1 local-fn2(t83, t84)
+    store t85 -> local118
+    store local118 -> local117
+    br @logic.merge.134
+  block logic.short.133
+    store false -> local117
+    br @logic.merge.134
+  block logic.merge.134
+    store local117 -> local115
+    br @logic.merge.131
+  block if.then.135
     ret integer<Int>(0x00000005)
-  block if.merge.16
+  block if.merge.136
     ret integer<Int>(0x0000002a)
   fun @scoop$1$cb$7771b49bc38d256bc21652041ab7bca710f2759b0cf0239a7870cfabc447e44e(ptr<managed>, ptr<managed>) -> i1
     local %0 $dependency.local.2: i32
@@ -242,9 +686,9 @@ Module
     local %2 $dependency.local.4: i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0, param1:ptr<managed>@0]
-    call managed-direct-target0 sp<managed-call:0> live=[param0:ptr<managed>@0, param1:ptr<managed>@0] t0 = sig=direct0 (ptr<managed>) -> i32 local-fn8(param0)
+    call managed-direct-target0 sp<managed-call:0> live=[param0:ptr<managed>@0, param1:ptr<managed>@0] t0 = sig=direct0 (ptr<managed>) -> i32 local-fn7(param0)
     store t0 -> local0
-    call managed-direct-target1 sp<managed-call:1> live=[param1:ptr<managed>@0] t1 = sig=direct1 (ptr<managed>) -> i32 local-fn8(param1)
+    call managed-direct-target1 sp<managed-call:1> live=[param1:ptr<managed>@0] t1 = sig=direct1 (ptr<managed>) -> i32 local-fn7(param1)
     store t1 -> local1
     store local1 -> local2
     t2 = integer_compare_Equal<Int> local0, local2 : i1
@@ -264,106 +708,106 @@ Module
     t0 = enum_wrap e0 v0 () : enum0
     ret t0
   fun @scoop$1$cb$703da339607f493db9f0dd36a6d91770e05ebcbfccd4de850edaffebfe85fb20(indirect<enum0 size=32 align=8 scan=refs[8, 16, 24]>, indirect<enum0 size=32 align=8 scan=refs[8, 16, 24]>) -> i1
-    local %0 $call.1: i1
-    local %1 $sc.1: enum0
-    local %2 $sc.2: enum0
+    local %0 $dependency.local.2: enum0
+    local %1 $dependency.local.3: enum0
+    local %2 $logic.1: i1
+    local %3 $logic.2: i1
+    local %4 $logic.3: i1
+    local %5 $logic.4: i1
+    local %6 $call.5: i1
+    local %7 $logic.6: i1
+    local %8 $logic.7: i1
+    local %9 $logic.8: i1
+    local %10 $call.9: i1
+    local %11 $logic.10: i1
+    local %12 $call.11: i1
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:enum0@8+16+24, param1:enum0@8+16+24]
-    store param0 -> local1
-    store param1 -> local2
-    call managed-direct-target0 sp<managed-call:0> live=[local1:enum0@8+16+24, local2:enum0@8+16+24] t0 = sig=direct0 (indirect<enum0 size=32 align=8 scan=refs[8, 16, 24]>, indirect<enum0 size=32 align=8 scan=refs[8, 16, 24]>) -> i1 local-fn6(indirect local1, indirect local2)
-    store t0 -> local0
-    ret local0
-  fun @scoop$1$cb$8a628ce3737d7dbe7ef4358eb321506e850bd680d9ad23e7feb97283f181ce10(indirect<enum0 size=32 align=8 scan=refs[8, 16, 24]>, indirect<enum0 size=32 align=8 scan=refs[8, 16, 24]>) -> i1
-    local %0 $left.1.0: ptr<managed>
-    local %1 $right.1.0: ptr<managed>
-    local %2 $left.2.0: ptr<managed>
-    local %3 $right.2.0: ptr<managed>
-    local %4 $left.2.1: ptr<managed>
-    local %5 $right.2.1: ptr<managed>
-    local %6 $when.1: enum0
-    local %7 $pattern.subject.2: enum0
-    local %8 $when.3: enum0
-    local %9 $pattern.subject.4: enum0
-    local %10 $pattern.subject.5: enum0
-    local %11 $when.6: enum0
-    local %12 $pattern.subject.7: enum0
-    local %13 $pattern.subject.8: enum0
-    local %14 $when.9: enum0
-    local %15 $pattern.subject.10: enum0
-    local %16 $call.1: i1
-    local %17 $call.2: i1
-    local %18 $logic.3: i1
-    local %19 $call.4: i1
-  block entry
-    poll managed-void-target0 sp<managed-poll:0> live=[param0:enum0@8+16+24, param1:enum0@8+16+24]
-    store param0 -> local6
-    store local6 -> local7
-    t0 = variant_test e0 v0 local7 : i1
-    cbr t0 then @pattern.pass.1 else @pattern.else.2
-  block pattern.pass.1
-    store param1 -> local8
-    store local8 -> local9
-    t1 = variant_test e0 v0 local9 : i1
-    cbr t1 then @pattern.pass.4 else @pattern.else.5
-  block pattern.else.2
-    store local6 -> local10
-    t2 = variant_test e0 v1 local10 : i1
-    cbr t2 then @pattern.pass.7 else @pattern.else.8
-  block pattern.pass.4
-    ret true
-  block pattern.else.5
-    ret false
-  block pattern.pass.7
-    t3 = variant_payload_project e0 v1 f0 local10 : ptr<managed>
-    store t3 -> local0
-    store param1 -> local11
-    store local11 -> local12
-    t4 = variant_test e0 v1 local12 : i1
-    cbr t4 then @pattern.pass.10 else @pattern.else.11
-  block pattern.else.8
-    store local6 -> local13
-    t5 = variant_test e0 v2 local13 : i1
-    cbr t5 then @pattern.pass.13 else @pattern.else.14
-  block pattern.pass.10
-    t6 = variant_payload_project e0 v1 f0 local12 : ptr<managed>
-    store t6 -> local1
-    call managed-direct-target0 sp<managed-call:2> live=[local0:ptr<managed>@0, local1:ptr<managed>@0] t7 = sig=direct0 (ptr<managed>, ptr<managed>) -> i1 local-fn2(local0, local1)
-    store t7 -> local16
-    ret local16
-  block pattern.else.11
-    ret false
-  block pattern.pass.13
-    t8 = variant_payload_project e0 v2 f0 local13 : ptr<managed>
-    store t8 -> local2
-    t9 = variant_payload_project e0 v2 f1 local13 : ptr<managed>
-    store t9 -> local4
-    store param1 -> local14
-    store local14 -> local15
-    t10 = variant_test e0 v2 local15 : i1
-    cbr t10 then @pattern.pass.16 else @pattern.else.17
-  block pattern.else.14
-    unreachable
-  block pattern.pass.16
-    t11 = variant_payload_project e0 v2 f0 local15 : ptr<managed>
-    store t11 -> local3
-    t12 = variant_payload_project e0 v2 f1 local15 : ptr<managed>
-    store t12 -> local5
-    call managed-direct-target1 sp<managed-call:0> live=[local2:ptr<managed>@0, local3:ptr<managed>@0, local4:ptr<managed>@0, local5:ptr<managed>@0] t13 = sig=direct1 (ptr<managed>, ptr<managed>) -> i1 local-fn2(local2, local3)
-    store t13 -> local17
-    cbr local17 then @logic.rhs.19 else @logic.short.20
-  block pattern.else.17
-    ret false
+    store param0 -> local0
+    store param1 -> local1
+    t0 = variant_test e0 v0 local0 : i1
+    cbr t0 then @logic.rhs.1 else @logic.short.2
+  block logic.rhs.1
+    t1 = variant_test e0 v0 local1 : i1
+    store t1 -> local2
+    br @logic.merge.3
+  block logic.short.2
+    store false -> local2
+    br @logic.merge.3
+  block logic.merge.3
+    cbr local2 then @logic.short.5 else @logic.rhs.4
+  block logic.rhs.4
+    t2 = variant_test e0 v1 local0 : i1
+    cbr t2 then @logic.rhs.7 else @logic.short.8
+  block logic.short.5
+    store true -> local3
+    br @logic.merge.6
+  block logic.merge.6
+    cbr local3 then @logic.short.14 else @logic.rhs.13
+  block logic.rhs.7
+    t3 = variant_test e0 v1 local1 : i1
+    cbr t3 then @logic.rhs.10 else @logic.short.11
+  block logic.short.8
+    store false -> local4
+    br @logic.merge.9
+  block logic.merge.9
+    store local4 -> local3
+    br @logic.merge.6
+  block logic.rhs.10
+    t4 = variant_payload_project e0 v1 f0 local0 : ptr<managed>
+    t5 = variant_payload_project e0 v1 f0 local1 : ptr<managed>
+    call managed-direct-target0 sp<managed-call:0> live=[local0:enum0@8+16+24, local1:enum0@8+16+24, t4:ptr<managed>@0, t5:ptr<managed>@0] t6 = sig=direct0 (ptr<managed>, ptr<managed>) -> i1 local-fn2(t4, t5)
+    store t6 -> local6
+    store local6 -> local5
+    br @logic.merge.12
+  block logic.short.11
+    store false -> local5
+    br @logic.merge.12
+  block logic.merge.12
+    store local5 -> local4
+    br @logic.merge.9
+  block logic.rhs.13
+    t7 = variant_test e0 v2 local0 : i1
+    cbr t7 then @logic.rhs.16 else @logic.short.17
+  block logic.short.14
+    store true -> local7
+    br @logic.merge.15
+  block logic.merge.15
+    ret local7
+  block logic.rhs.16
+    t8 = variant_test e0 v2 local1 : i1
+    cbr t8 then @logic.rhs.19 else @logic.short.20
+  block logic.short.17
+    store false -> local8
+    br @logic.merge.18
+  block logic.merge.18
+    store local8 -> local7
+    br @logic.merge.15
   block logic.rhs.19
-    call managed-direct-target2 sp<managed-call:1> live=[local4:ptr<managed>@0, local5:ptr<managed>@0] t14 = sig=direct2 (ptr<managed>, ptr<managed>) -> i1 local-fn2(local4, local5)
-    store t14 -> local19
-    store local19 -> local18
-    br @logic.merge.21
+    t9 = variant_payload_project e0 v2 f0 local0 : ptr<managed>
+    t10 = variant_payload_project e0 v2 f0 local1 : ptr<managed>
+    call managed-direct-target1 sp<managed-call:1> live=[local0:enum0@8+16+24, local1:enum0@8+16+24, t9:ptr<managed>@0, t10:ptr<managed>@0] t11 = sig=direct1 (ptr<managed>, ptr<managed>) -> i1 local-fn2(t9, t10)
+    store t11 -> local10
+    cbr local10 then @logic.rhs.22 else @logic.short.23
   block logic.short.20
-    store false -> local18
+    store false -> local9
     br @logic.merge.21
   block logic.merge.21
-    ret local18
+    store local9 -> local8
+    br @logic.merge.18
+  block logic.rhs.22
+    t12 = variant_payload_project e0 v2 f1 local0 : ptr<managed>
+    t13 = variant_payload_project e0 v2 f1 local1 : ptr<managed>
+    call managed-direct-target2 sp<managed-call:2> live=[t12:ptr<managed>@0, t13:ptr<managed>@0] t14 = sig=direct2 (ptr<managed>, ptr<managed>) -> i1 local-fn2(t12, t13)
+    store t14 -> local12
+    store local12 -> local11
+    br @logic.merge.24
+  block logic.short.23
+    store false -> local11
+    br @logic.merge.24
+  block logic.merge.24
+    store local11 -> local9
+    br @logic.merge.21
   fun @scoop$1$cb$66a634f31391abb1bd6adffc81d225b5499bcdf8435d5ce7e4aa1e2d3bd25976(ptr<managed>, ptr<managed>) -> sret<enum0 size=32 align=8 scan=refs[8, 16, 24]>
     local %0 $dependency.local.2: ptr<managed>
     local %1 $dependency.local.3: ptr<managed>
