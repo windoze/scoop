@@ -1,7 +1,7 @@
 use super::*;
 
 impl BodyLowerer<'_> {
-    pub(crate) fn lower_expr(&mut self, expr: &hir::Expr) -> smir::Expr {
+    pub(super) fn lower_expr_inner(&mut self, expr: &hir::Expr) -> smir::Expr {
         if let hir::ExprKind::ConstructorParam(parameter) = expr.kind {
             return self.constructor_param_map[&parameter].clone();
         }

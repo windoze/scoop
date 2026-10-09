@@ -74,7 +74,10 @@ impl CfgLowerer<'_> {
 fn emits_cfg(expr: &smir::Expr) -> bool {
     use smir::ExprKind;
     match &expr.kind {
-        ExprKind::Call(_) | ExprKind::ClassNew { .. } | ExprKind::ShortCircuit { .. } => true,
+        ExprKind::Call(_)
+        | ExprKind::ClassNew { .. }
+        | ExprKind::ShortCircuit { .. }
+        | ExprKind::Diverging { .. } => true,
         ExprKind::MaybeUninit { operation, .. } => {
             operation.operand().is_some_and(|value| emits_cfg(value))
         }

@@ -6,6 +6,7 @@ mod calls;
 mod casts;
 mod coroutines;
 mod data_borrow;
+mod diverging;
 mod exceptions;
 mod expressions;
 mod function;

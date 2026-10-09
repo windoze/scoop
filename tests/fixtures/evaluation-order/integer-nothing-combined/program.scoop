@@ -1,0 +1,26 @@
+fun fail(): Nothing { throw IllegalStateException() }
+fun before(): Int { println("before"); return 3 }
+fun after(): Int { println("unexpected after"); return 4 }
+
+fun check(name: String, action: () -> Unit) {
+    try { action(); println("unexpected return") }
+    catch (error: IllegalStateException) { println(name) }
+    finally { println("finally") }
+}
+
+fun main() {
+    check("add", { println(before() + fail()) })
+    check("subtract", { println(before() - fail()) })
+    check("nested", { println(before() * (1 + fail())) })
+    check("divide", { println(before() / fail()) })
+    check("remainder", { println(before() % fail()) })
+    check("shift", { println(before().shl(fail())) })
+    check("compare", { println(before().compareTo(fail())) })
+    check("member", { println(before().plus(fail())) })
+    check("equals", { println(before().equals(fail())) })
+    check("left", { println((before() + fail()) + after()) })
+    check("unary", { println(-(before() + fail())) })
+    check("convert", { println((before() + fail()).toInt64()) })
+    check("wide", { println(1L < fail()) })
+    check("tuple", { val value: (Int, String) = (fail(), "unused"); println(value._1) })
+}
