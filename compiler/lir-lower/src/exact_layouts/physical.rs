@@ -137,6 +137,7 @@ impl Projection<'_> {
                 | Kind::QualifiedPointer(_)
                 | Kind::Interface
                 | Kind::Struct(_)
+                | Kind::MaybeUninit(_)
                 | Kind::Tuple(_)
                 | Kind::IntrinsicValue(_),
                 lir::LayoutKind::Plain { .. },

@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "initializer of `value` must be of type MaybeUninit<Parent>, found MaybeUninit<Child>; nominal application `MaybeUninit` is invariant: first differing type argument 1 (`T`) is `Child` in `MaybeUninit<Child>`, but `Parent` in `MaybeUninit<Parent>`; construct the target application directly or convert explicitly",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 130,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 91
+    },
+    "severity": "error"
+  }
+]

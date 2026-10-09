@@ -271,7 +271,12 @@ pub(super) fn install_with_intrinsics_at(
     };
     let operations = intrinsic_function_kinds()
         .into_iter()
-        .filter(|kind| !matches!(kind, IntrinsicFunctionKind::Atomic(_)))
+        .filter(|kind| {
+            !matches!(
+                kind,
+                IntrinsicFunctionKind::Atomic(_) | IntrinsicFunctionKind::MaybeUninit(_)
+            )
+        })
         .map(|kind| {
             let callable = builder.operation(
                 fixture_operation_owner(kind, &fundamental_types),

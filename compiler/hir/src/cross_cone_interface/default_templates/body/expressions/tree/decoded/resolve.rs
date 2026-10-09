@@ -391,6 +391,11 @@ impl DecodedDefaultExpressionKindV1 {
                     resolve_child(Box::new(operand), resolver, locals, 72, 1).map(|v| *v)
                 })?))
             }
+            Self::MaybeUninit(operation) => {
+                DefaultExpressionKindV1::MaybeUninit(Box::new(operation.try_into_map(
+                    |operand| resolve_child(Box::new(operand), resolver, locals, 73, 1).map(|v| *v),
+                )?))
+            }
             Self::Call {
                 callee,
                 arguments,

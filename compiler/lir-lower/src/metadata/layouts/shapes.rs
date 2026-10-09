@@ -40,6 +40,12 @@ pub(crate) fn struct_shape(
     } = &definition.representation
     else {
         return Ok(match definition.representation {
+            mir::StructRepresentation::Intrinsic(
+                mir::IntrinsicTypeRepresentation::MaybeUninit { ref value },
+            ) => {
+                let (size, align) = size_align(context, module, enum_shape, value)?;
+                (Vec::new(), size, align)
+            }
             mir::StructRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::Unit) => {
                 (Vec::new(), 0, 1)
             }

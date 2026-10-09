@@ -41,24 +41,31 @@ fn scan_value(
                 return Err(lir::RefScanValidationError::Cycle.into());
             }
             let definition = &structs[*id];
-            let scan = sequence(
-                (0..definition.field_count())
-                    .map(|index| {
-                        let ty = definition.field_storage_type(index).ok_or(
-                            StorageLoweringError::InvalidRepresentation(
-                                "missing struct field storage",
-                            ),
-                        )?;
-                        let offset = definition
-                            .field_layout(index)
-                            .ok_or(StorageLoweringError::InvalidRepresentation(
-                                "missing struct field placement",
-                            ))?
-                            .offset;
-                        scan_value(context, &ty, structs, enums, offset, visiting)
-                    })
-                    .collect::<StorageResult<Vec<_>>>()?,
-            )?;
+            let scan = if let lir::StructRepresentation::Intrinsic(
+                lir::IntrinsicTypeRepresentation::MaybeUninit { scan, .. },
+            ) = &definition.representation
+            {
+                scan.clone()
+            } else {
+                sequence(
+                    (0..definition.field_count())
+                        .map(|index| {
+                            let ty = definition.field_storage_type(index).ok_or(
+                                StorageLoweringError::InvalidRepresentation(
+                                    "missing struct field storage",
+                                ),
+                            )?;
+                            let offset = definition
+                                .field_layout(index)
+                                .ok_or(StorageLoweringError::InvalidRepresentation(
+                                    "missing struct field placement",
+                                ))?
+                                .offset;
+                            scan_value(context, &ty, structs, enums, offset, visiting)
+                        })
+                        .collect::<StorageResult<Vec<_>>>()?,
+                )?
+            };
             visiting.remove(id);
             scan
         }

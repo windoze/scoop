@@ -10,6 +10,7 @@ mod expression;
 mod expression_support;
 mod floating;
 mod interfaces;
+mod maybe_uninit;
 mod objects;
 mod places;
 mod pointers;

@@ -1,0 +1,4 @@
+@Unsafe fun main() {
+    val value = MaybeUninit<Int>.initialized(1)
+    val reader: () -> Int = value::assumeInit
+}

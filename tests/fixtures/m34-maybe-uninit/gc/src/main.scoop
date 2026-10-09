@@ -1,0 +1,38 @@
+@Extern(lib = "m34_maybe_gc", name = "m34_maybe_collect", abi = "scoop")
+fun nativeCollect(value: MaybeUninit<Rooted>): MaybeUninit<Rooted>
+@Extern(lib = "m34_maybe_gc", name = "m34_maybe_collect_interface", abi = "scoop")
+fun nativeInterface(value: MaybeUninit<Read>): MaybeUninit<Read>
+@Extern(lib = "m34_maybe_gc", name = "m34_maybe_zero", abi = "scoop")
+fun zeroInterface(value: MaybeUninit<Read>): Boolean
+@Extern(lib = "m34_maybe_gc", name = "m34_maybe_minor_count")
+fun minorCount(): Long
+@Extern(lib = "m34_maybe_gc", name = "m34_maybe_moving")
+fun movingStress(): Boolean
+
+interface Read { fun value(): Int }
+class Payload(val number: Int) : Read { override fun value(): Int = number }
+struct Rooted(val serial: Long, val payload: Payload)
+enum Packet { Empty, Data(Rooted), Number(Int) }
+class Holder(var data: MaybeUninit<Rooted>)
+object Shared { var data: MaybeUninit<Rooted> = MaybeUninit<Rooted>.uninit() }
+fun check(value: Boolean, marker: Int) { if (!value) { println(marker); throw IllegalStateException() } }
+
+fun minorCollection() {
+    @Unsafe {
+        if (movingStress()) { gcCollect(); return }
+        val before = minorCount()
+        while (minorCount() == before) {
+            var index = 0
+            while (index < 256) {
+                val churn = Payload(index)
+                index = churn.number + 1
+            }
+        }
+    }
+}
+
+@Unsafe fun main() {
+    rootsAndNative()
+    arrayAndFields()
+    println("maybe gc")
+}

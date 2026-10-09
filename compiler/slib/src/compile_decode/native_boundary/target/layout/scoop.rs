@@ -85,6 +85,17 @@ impl NativeBoundaryNormalizer<'_> {
     ) -> Result<PhysicalType, NativeBoundaryCompileError> {
         let (definition, binders) = self.definition(exact)?;
         match definition.shape() {
+            NativeBoundaryNominalShape::Intrinsic(representation)
+                if representation.family() == scoop_hir::IntrinsicTypeKind::MaybeUninit =>
+            {
+                let payload = self.signature_exact(
+                    &scoop_identity::SignatureTypeKey::Binder { depth: 0, index: 0 },
+                    &binders,
+                )?;
+                let mut layout = self.scoop_layout(payload)?;
+                layout.shape = ScoopAbiValueShape::Aggregate;
+                Ok(layout)
+            }
             NativeBoundaryNominalShape::Intrinsic(representation) => {
                 intrinsic_layout(self.target, representation.family())
             }

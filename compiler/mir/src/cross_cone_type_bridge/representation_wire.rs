@@ -8,6 +8,9 @@ pub use fields::*;
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum DecodedMirTypeRepresentationV1 {
     Intrinsic(MirParamFreeIntrinsicV1),
+    MaybeUninit {
+        value: DecodedPersistentId<PersistentExactTypeId>,
+    },
     Struct {
         fields: Vec<DecodedMirRepresentationFieldV1>,
         c_layout: MirTypeCLayoutPolicyV1,
@@ -51,6 +54,9 @@ impl DecodedMirTypeRepresentationV1 {
     ) -> Result<MirTypeRepresentationV1, MirTypeBridgeError> {
         Ok(match self {
             Self::Intrinsic(value) => MirTypeRepresentationV1::Intrinsic(value),
+            Self::MaybeUninit { value } => MirTypeRepresentationV1::MaybeUninit {
+                value: graph.resolve(value)?,
+            },
             Self::Struct {
                 fields,
                 c_layout,
@@ -171,6 +177,11 @@ macro_rules! encode_representation {
                         encoder.field(1)?;
                         value.encode(encoder)
                     }
+                    Self::MaybeUninit { value } => {
+                        tag(encoder, 2, 13)?;
+                        encoder.field(1)?;
+                        value.encode(encoder)
+                    }
                     Self::ObjectBacking { declared_fields } => {
                         tag(encoder, 2, 6)?;
                         encoder.field(1)?;
@@ -254,6 +265,9 @@ impl WireDecode for DecodedMirTypeRepresentationV1 {
                 element: decoder.field(1, DecodedPersistentId::decode)?,
             }),
             12 => Ok(Self::AtomicReference {
+                value: decoder.field(1, DecodedPersistentId::decode)?,
+            }),
+            13 => Ok(Self::MaybeUninit {
                 value: decoder.field(1, DecodedPersistentId::decode)?,
             }),
             tag => Err(error(decoder, WireErrorKind::UnknownTag { tag })),

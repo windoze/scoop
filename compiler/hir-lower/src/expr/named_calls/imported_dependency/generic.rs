@@ -204,6 +204,14 @@ impl Lowerer {
                     native_type: solution.callable[0],
                 },
             }
+        } else if let Some(kind) = candidate.maybe_uninit_intrinsic()
+            && (kind == hir::MaybeUninitIntrinsic::AssumeInit
+                || matches!(&receiver, ImportedCallReceiver::Member { value: ImportedMemberReceiver::Value(value), .. } if matches!(value.kind, hir::ExprKind::SingletonValue(_))))
+        {
+            ImportedCallImplementation::Intrinsic {
+                template,
+                operation: ImportedIntrinsicCall::MaybeUninit(kind),
+            }
         } else if let Some(kind) = candidate.atomic_intrinsic() {
             ImportedCallImplementation::Intrinsic {
                 template,

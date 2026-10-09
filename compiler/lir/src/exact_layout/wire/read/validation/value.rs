@@ -12,6 +12,7 @@ impl RawValue {
                 Ok(())
             }
             (Self::Interface, E::Interface) => Ok(()),
+            (Self::MaybeUninit(raw), E::MaybeUninit(expected)) => verify(raw, expected.layout()),
             (Self::Unit, E::IntrinsicValue(IntrinsicValueFamilyV1::Unit)) => Ok(()),
             (
                 Self::Struct {

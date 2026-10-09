@@ -167,6 +167,13 @@ impl ShapeProjection<'_> {
                         crate::canonical_type::encode_integer(*kind, e)
                     }
                     IntrinsicTypeRepresentation::Unit => tagged(e, 7, 1),
+                    IntrinsicTypeRepresentation::MaybeUninit { value, scan } => {
+                        tagged(e, 11, 3)?;
+                        e.field(1)?;
+                        crate::canonical_type::encode_type(self.module, value, e)?;
+                        e.field(2)?;
+                        scan.encode(e)
+                    }
                     IntrinsicTypeRepresentation::Boolean => tagged(e, 2, 1),
                     IntrinsicTypeRepresentation::Char => tagged(e, 6, 1),
                     IntrinsicTypeRepresentation::Float(kind) => {

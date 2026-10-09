@@ -115,6 +115,13 @@ impl Lowerer {
                 unreachable!("literal subjects commit through the pattern equality entry")
             }
         };
+        let receiver = match &implementation {
+            super::ImportedCallImplementation::Intrinsic {
+                operation: super::ImportedIntrinsicCall::MaybeUninit(kind),
+                ..
+            } => Self::maybe_uninit_receiver(*kind, receiver),
+            _ => receiver,
+        };
         let bound_declaration = receiver
             .as_ref()
             .filter(|receiver| matches!(self.types[receiver.ty], hir::Type::Param(_)))

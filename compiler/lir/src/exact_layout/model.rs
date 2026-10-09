@@ -169,6 +169,7 @@ pub(super) enum ValueRepresentation {
     Scalar(ScalarRepresentationKindV1),
     QualifiedPointer(NullNicheKind),
     Interface,
+    MaybeUninit(ValueLayoutConstituentV1),
     Struct(StructRepresentationLayoutV1),
     Tuple(TupleStorageLayoutV1),
     TaggedEnum(TaggedEnumRepresentationLayoutV1),
@@ -181,6 +182,7 @@ pub enum ExactRepresentationKindV1<'a> {
     Scalar(ScalarRepresentationKindV1),
     QualifiedPointer(NullNicheKind),
     Interface,
+    MaybeUninit(&'a ValueLayoutConstituentV1),
     Struct(&'a StructRepresentationLayoutV1),
     Tuple(&'a TupleStorageLayoutV1),
     TaggedEnum(&'a TaggedEnumRepresentationLayoutV1),
@@ -196,6 +198,9 @@ impl ExactRepresentationLayoutV1 {
                 ExactRepresentationKindV1::QualifiedPointer(*kind)
             }
             ValueRepresentation::Interface => ExactRepresentationKindV1::Interface,
+            ValueRepresentation::MaybeUninit(value) => {
+                ExactRepresentationKindV1::MaybeUninit(value)
+            }
             ValueRepresentation::Struct(value) => ExactRepresentationKindV1::Struct(value),
             ValueRepresentation::Tuple(value) => ExactRepresentationKindV1::Tuple(value),
             ValueRepresentation::TaggedEnum(value) => ExactRepresentationKindV1::TaggedEnum(value),

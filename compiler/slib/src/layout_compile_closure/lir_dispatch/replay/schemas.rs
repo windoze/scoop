@@ -40,6 +40,7 @@ pub(super) fn for_owner<'a>(
         Representation::Intrinsic(_)
         | Representation::AtomicReference { .. }
         | Representation::Struct { .. }
+        | Representation::MaybeUninit { .. }
         | Representation::Enum { .. }
         | Representation::Interface
         | Representation::ObjectBacking { .. }

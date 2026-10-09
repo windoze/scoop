@@ -38,6 +38,23 @@ impl Lowerer {
                 },
                 hir::StructRepresentation::Intrinsic { application, .. } => {
                     mir::StructRepresentation::Intrinsic(match application {
+                        hir::IntrinsicTypeRepresentation::MaybeUninit { value } => {
+                            let types = Types {
+                                module,
+                                struct_map: &self.struct_map,
+                                class_map: &self.class_map,
+                            };
+                            mir::IntrinsicTypeRepresentation::MaybeUninit {
+                                value: types.lower(
+                                    *value,
+                                    &mut self.source_exact_types,
+                                    &mut self.enums,
+                                    &mut self.structs,
+                                    &mut self.interfaces,
+                                    &mut self.shell,
+                                ),
+                            }
+                        }
                         hir::IntrinsicTypeRepresentation::Unit => {
                             mir::IntrinsicTypeRepresentation::Unit
                         }
@@ -325,6 +342,7 @@ impl Lowerer {
                             }
                         }
                         hir::IntrinsicTypeRepresentation::Unit
+                        | hir::IntrinsicTypeRepresentation::MaybeUninit { .. }
                         | hir::IntrinsicTypeRepresentation::Integer(_)
                         | hir::IntrinsicTypeRepresentation::Float(_)
                         | hir::IntrinsicTypeRepresentation::Char

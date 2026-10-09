@@ -45,6 +45,7 @@ impl<'a> NativeBoundaryNormalizer<'a> {
                     Err(NativeBoundaryTargetError::InvalidSignatureShape.into())
                 }
                 scoop_hir::IntrinsicTypeKind::Unit
+                | scoop_hir::IntrinsicTypeKind::MaybeUninit
                 | scoop_hir::IntrinsicTypeKind::Atomic(_)
                 | scoop_hir::IntrinsicTypeKind::Any
                 | scoop_hir::IntrinsicTypeKind::Nothing

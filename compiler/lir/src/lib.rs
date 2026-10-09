@@ -9,7 +9,7 @@ pub use scoop_identity::{
     AtomicCompareExchangeOrder, AtomicCompareExchangeResult, AtomicLoadOrder, AtomicMemoryOrder,
     AtomicRmwOperation, AtomicStoreOrder, AtomicValueKind, CAbiCallMode, CResultAdaptation,
     FloatBinaryOperator, FloatConstant as LirFloatConstant, FloatKind, FloatUnaryOperator,
-    PointerKind,
+    MaybeUninitOperation, PointerKind,
 };
 
 use std::num::NonZeroU32;

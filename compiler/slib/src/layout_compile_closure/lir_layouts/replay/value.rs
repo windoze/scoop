@@ -11,6 +11,10 @@ impl Replay<'_> {
         use mir::{MirParamFreeIntrinsicV1 as Intrinsic, MirTypeRepresentationV1 as Kind};
         let foundation = self.foundation;
         let value = match source.representation() {
+            Kind::MaybeUninit { value } => {
+                let payload = self.value_dependency(*value)?;
+                lir::ExactValueLayoutV1::maybe_uninit(identity, &payload, foundation)?
+            }
             Kind::Intrinsic(Intrinsic::Unit) => {
                 lir::ExactValueLayoutV1::unit(identity, foundation)?
             }

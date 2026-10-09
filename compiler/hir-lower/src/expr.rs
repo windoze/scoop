@@ -71,6 +71,7 @@ pub(crate) mod imported_origins;
 mod imported_properties;
 mod imported_singletons;
 mod iteration;
+mod maybe_uninit;
 mod named_calls;
 pub(crate) use imported_properties::{
     ImportedDependencyExtensionPropertyProbe, ImportedExtensionPropertyTarget,

@@ -840,6 +840,7 @@ pub enum LayoutKind {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum IntrinsicTypeRepresentation {
+    MaybeUninit { value: Box<LirType>, scan: RefScan },
     Any,
     Nothing,
     Unit,

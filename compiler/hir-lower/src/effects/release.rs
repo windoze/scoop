@@ -180,6 +180,7 @@ fn pure_intrinsic(kind: hir::IntrinsicFunctionKind) -> bool {
             hir::IntegerIntrinsicKind::NoGcOperation { .. }
                 | hir::IntegerIntrinsicKind::Conversion { .. }
         ) | hir::IntrinsicFunctionKind::Pointer(_)
+            | hir::IntrinsicFunctionKind::MaybeUninit(_)
             | hir::IntrinsicFunctionKind::PrimitiveUnary(hir::PrimitiveUnaryKind::BooleanNot)
     )
 }

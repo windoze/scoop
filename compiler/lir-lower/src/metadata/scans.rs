@@ -73,6 +73,12 @@ pub(crate) fn ref_scan(
             lir::RefScan::None
         }
         mir::Type::Struct(id) => {
+            if let mir::StructRepresentation::Intrinsic(
+                mir::IntrinsicTypeRepresentation::MaybeUninit { value },
+            ) = &module.structs[*id].representation
+            {
+                return ref_scan(context, module, enums, value, base);
+            }
             let fields: Vec<mir::Type> = module.structs[*id]
                 .declared_fields()
                 .iter()

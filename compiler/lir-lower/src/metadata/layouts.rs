@@ -162,6 +162,17 @@ pub(crate) fn layouts(
         .iter()
         .filter(|boxed| identity_roots.materializes_type(&mir::Type::Class(boxed.class())))
         .map(|boxed| boxed.payload())
+        .chain(module.structs.iter().filter_map(|(id, definition)| {
+            if !identity_roots.materializes_type(&mir::Type::Struct(id)) {
+                return None;
+            }
+            match &definition.representation {
+                mir::StructRepresentation::Intrinsic(
+                    mir::IntrinsicTypeRepresentation::MaybeUninit { value },
+                ) => Some(value),
+                _ => None,
+            }
+        }))
         .chain(module.classes.iter().filter_map(|(id, class)| {
             if !identity_roots.materializes_type(&mir::Type::Class(id)) {
                 return None;

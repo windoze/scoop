@@ -350,6 +350,9 @@ impl BodyProjection<'_, '_> {
             ExprKind::Atomic(atomic) => DefaultExpressionKindV1::Atomic(Box::new(
                 atomic.try_map(|value| self.expression(value))?,
             )),
+            ExprKind::MaybeUninit(operation) => DefaultExpressionKindV1::MaybeUninit(Box::new(
+                operation.try_map(|value| self.expression(value))?,
+            )),
             ExprKind::Call {
                 callee,
                 args,

@@ -90,6 +90,15 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                             offsets,
                         )?;
                     }
+                } else if let StructRepresentation::Intrinsic(
+                    scoop_lir::IntrinsicTypeRepresentation::MaybeUninit { scan, .. },
+                ) = &self.structs[*id].representation
+                {
+                    let start = offsets.len();
+                    flatten_ref_scan(scan, offsets);
+                    for offset in &mut offsets[start..] {
+                        *offset += base;
+                    }
                 }
             }
             LirType::Enum(id) => {

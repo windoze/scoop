@@ -6,6 +6,9 @@ impl<'a> FunctionLowerer<'a> {
     pub(super) fn lower_expr(&mut self, expr: &mir::Expr) -> StorageResult<lir::Value> {
         let ty = &expr.ty;
         Ok(match &expr.kind {
+            mir::ExprKind::MaybeUninit { wrapper, operation } => {
+                self.lower_maybe_uninit(*wrapper, operation, ty)?
+            }
             mir::ExprKind::DataBorrow(operation) => self.lower_data_borrow_operation(operation)?,
             mir::ExprKind::Context(operation) => self.lower_context_operation(operation, ty)?,
             mir::ExprKind::ReleaseFieldLoad { class, index } => {

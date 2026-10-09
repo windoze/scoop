@@ -59,6 +59,9 @@ impl DecodedExactTypeFactShapeV1 {
             Self::Scalar => ExactTypeFactShapeV1::Scalar,
             Self::Pointer => ExactTypeFactShapeV1::Pointer,
             Self::Reference => ExactTypeFactShapeV1::Reference,
+            Self::MaybeUninit { value } => ExactTypeFactShapeV1::MaybeUninit {
+                value: resolver.resolve(value).map_err(reference)?,
+            },
             Self::OrdinaryStruct { fields } => ExactTypeFactShapeV1::OrdinaryStruct {
                 fields: resolve_fields(fields, resolver, path)?,
             },

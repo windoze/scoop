@@ -86,6 +86,9 @@ pub(super) fn instruction_uses(
             closure: operand, ..
         } => vec![*operand],
         lir::Instruction::ForeignCallbackOperation(operation) => vec![operation.callback()],
+        lir::Instruction::MaybeUninit { operation, .. } => {
+            operation.operand().copied().into_iter().collect()
+        }
         lir::Instruction::MakeAggregate { elements, .. }
         | lir::Instruction::ArrayAlloc { elements, .. } => elements.clone(),
         lir::Instruction::ArrayAssembly { parts, .. } => parts
@@ -219,6 +222,7 @@ pub(super) fn instruction_defs(instruction: &lir::Instruction) -> Vec<LiveValue>
         lir::Instruction::Invoke { site } => return call_defs(site.result()),
         lir::Instruction::ForeignCallbackOperation(operation) => operation.out(),
         lir::Instruction::Store { local, .. } => return vec![LiveValue::Local(*local)],
+        lir::Instruction::MaybeUninit { out, .. } => return vec![LiveValue::Local(*out)],
         lir::Instruction::LandingPad { record, raw }
         | lir::Instruction::CleanupPad { record, raw } => {
             return vec![LiveValue::Temp(*record), LiveValue::Temp(*raw)];

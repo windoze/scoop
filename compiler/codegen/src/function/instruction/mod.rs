@@ -11,6 +11,7 @@ mod enums;
 mod exceptions;
 mod floating;
 mod heap;
+mod maybe_uninit;
 mod operators;
 mod pointers;
 mod values;
@@ -18,6 +19,11 @@ mod values;
 impl<'ctx> FnEmitter<'_, 'ctx> {
     pub(super) fn instruction(&mut self, instruction: &Instruction) -> Result<(), CodegenError> {
         match instruction {
+            Instruction::MaybeUninit {
+                out,
+                wrapper,
+                operation,
+            } => self.emit_maybe_uninit(*out, *wrapper, operation),
             Instruction::AtomicLoad { .. }
             | Instruction::AtomicStore { .. }
             | Instruction::AtomicRmw { .. }

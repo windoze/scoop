@@ -14,7 +14,7 @@
 | M34-6 多 region | 已完成 | 16 MiB region、独立 large mapping、稀疏地址索引、内联 cards、三 target 验收与两机性能对照。 |
 | M34-7 搬迁与归还 | 已完成 | region 选择性搬迁、旧代空洞复用、完整预留回滚、discard／unmap；三 target 验收与两机内存／性能对照。 |
 | M34-8 并行 mark | 已完成 | 原子首次标记、分块任务、全局终止、存活集合复用；三 target 回归、两机 TSan 与 1／2／4／8 worker 七轮对照完成，默认上限为 4。 |
-| M34-9 容器 | 待实施 | MaybeUninit 与 ArrayList／StringBuilder。 |
+| M34-9 容器 | 实施中 | MaybeUninit 的类型／操作／GC 闭环及三 target 验证已完成；待迁移 ArrayList／StringBuilder。 |
 | M34-10 总验收 | 待实施 | 三 target 的功能、CLI、ABI、GC、性能与实际版本清单。 |
 
 ## 验证与磁盘使用
@@ -193,3 +193,17 @@ mark 产生的唯一存活集合直接用于移动计划和每个当前副本的
 两机完成三种 131071-node 图的 1／2／4／8 worker 七轮对照，每进程五次 full；另对最终默认四 worker 补七轮 baseline 对照，以及三个既有 workload 的回归测量。初版长链逐对象队列与广播开销已修正为批内继续扫描后继，并保留修复前诊断样本。完整样本、阶段结果、CPU、RSS、构建与机器码见 [性能记录](PERFORMANCE.md)。两机保存 `marker-tools`／`marker-source`，初始默认八 worker 的源码和 binary 另存，供后续容器批次做精确对照。
 
 本批清理 target：Darwin 删除 148 项、337,525,691 bytes，Linux 删除 76 项、190,134,062 bytes；保留有效库、CLI、测试程序和缓存。记录为 `tmp/m34/batch8-target-cleanup-{darwin,linux}.json`。
+
+## M34-9a：MaybeUninit 存储原语
+
+core 通过实际的 intrinsic nominal 与三个方法声明提供 invariant `MaybeUninit<T>`。每个 application 有独立 exact identity，与 T 等 size／alignment；零构造清除完整存储，initialized 按值包装，assumeInit 按现有 unsafe context 检查。wrapper 不提供普通构造、payload 字段、隐式转换、派生相等／字符串化或 T 的 niche，GC-free 条件递归取决于实际 payload。
+
+HIR、默认实参模板、MIR、LIR 与产物均保存完整 typed 操作和 payload 身份。安全方法引用在普通 closure adapter 内展开，显式 companion receiver 按原调用／引用规则求值。LIR 操作直接写入独立 local place；LLVM 使用包含全部字节和精确 AS1 引用槽的值表示，包装、取值与 aggregate local 复制保留 padding 和浮点 bits。layout／scan 复用 payload，字段／数组写屏障和跨 safepoint roots 沿用普通路径，不增加 initialized 标记或 GC 协议。
+
+实际 section 版本为 HIR interface 69／type semantics 27、MIR type bridge 19、LIR layout ABI 15／layout link closure 8；MIR representation tag 13、LIR value representation tag 9、默认表达式 tag 73。runtime contract 12／metadata ABI 8、bootstrap 14、param-free MIR 2／LIR 3 与两套 target classifier 3 保持不变。产物消费实际覆盖泛型默认参数、具体函数与接口值，provider／consumer 使用相反 profile，删除源码后仅凭产物重新链接。
+
+新增生产模块为 13～90 行，closure adapter 与 body lowering 共用 typed 操作构造；未把新逻辑堆入既有大型文件，也未建立授权、初始化证明或通用预算机制。两机 workspace/all-targets clippy 通过；Darwin 的 HIR／产物 intrinsic 定向单元测试 42 项通过。
+
+新增 18 组正式 CLI fixture：值布局与复制、GC／native roots、跨 Cone 产物、安全方法引用，以及 14 项语言错误。组合覆盖 Int／Float bits、ZST 求值、padding 跨函数与 GC 保留、引用／双字接口、含引用 struct／enum、tuple、Option 与嵌套 wrapper，旧数组写入年轻引用及清零。Scoop native 入口使用独立 LLVM byval／sret shim，C companion 在收集期间为实际 byval 槽注册 roots。三个 target 的新增用例与四组小值 ABI／poll 回归各通过 22 组、30 variants、98 processes、60 goldens；debug／release 均执行普通、full-moving 和 minor-stress。跨主机共用 HIR／MIR 快照一致。最后补强的 padding 跨调用用例在三个 target 分别重跑通过，不重复无关全量测试。
+
+Darwin 清理中间对象／incremental 4,349 项、5,548,604,841 bytes；Linux 本批无新增可删中间对象，另清理已停用的 debug 与 M33 build 目录 8,654 项、18,326,714,520 bytes，保留源码目录、有效 release 工具和 M33 性能基线。记录为 `tmp/m34/batch9a-target-cleanup-darwin.json`、`batch9a-old-target-cleanup-linux.json`。两机保存 `maybe-tools`／`maybe-source`，使后续容器对照可以固定编译器及 GC，仅改变库的存储实现。

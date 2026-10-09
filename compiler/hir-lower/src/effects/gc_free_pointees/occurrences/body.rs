@@ -219,6 +219,11 @@ pub(in super::super) fn collect_expr_type_occurrences(
 
     use hir::ExprKind;
     match &expression.kind {
+        ExprKind::MaybeUninit(operation) => {
+            if let Some(operand) = operation.operand() {
+                collect_expr_type_occurrences(lowerer, operand, out);
+            }
+        }
         ExprKind::Atomic(atomic) => {
             for operand in atomic.operands() {
                 collect_expr_type_occurrences(lowerer, operand, out);

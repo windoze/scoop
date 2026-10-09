@@ -264,9 +264,9 @@ impl StructDef {
                 IntrinsicTypeRepresentation::Integer(kind) => Type::Integer(*kind),
                 IntrinsicTypeRepresentation::Unit => Type::Unit,
                 IntrinsicTypeRepresentation::Boolean => Type::Boolean,
-                IntrinsicTypeRepresentation::Char | IntrinsicTypeRepresentation::Float(_) => {
-                    Type::Struct(id)
-                }
+                IntrinsicTypeRepresentation::Char
+                | IntrinsicTypeRepresentation::Float(_)
+                | IntrinsicTypeRepresentation::MaybeUninit { .. } => Type::Struct(id),
                 IntrinsicTypeRepresentation::Ptr { pointee } => {
                     Type::Ptr(Box::new(pointee.clone()))
                 }
@@ -435,6 +435,9 @@ impl ClassDef {
 /// specialized nominal type. Family variants carry their MIR element type.
 #[derive(Debug, Clone, PartialEq)]
 pub enum IntrinsicTypeRepresentation {
+    MaybeUninit {
+        value: Type,
+    },
     Atomic(scoop_identity::AtomicStorage<Type>),
     Any,
     Nothing,

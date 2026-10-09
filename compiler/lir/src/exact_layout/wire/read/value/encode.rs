@@ -4,6 +4,10 @@ impl WireEncode for RawValue {
     fn encode(&self, encoder: &mut Encoder) -> EncodeResult {
         match self {
             Self::Interface => sum(encoder, 8, 0),
+            Self::MaybeUninit(value) => {
+                sum(encoder, 9, 1)?;
+                field(encoder, 1, value)
+            }
             Self::Scalar(kind) => {
                 sum(encoder, 1, 1)?;
                 encoder.field(1)?;

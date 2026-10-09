@@ -28,6 +28,7 @@ pub(super) fn for_owner<'a>(
     let ty = bridge.types().get(exact).ok_or(Error::MissingType(exact))?;
     match ty.representation() {
         mir::MirTypeRepresentationV1::AtomicReference { .. }
+        | mir::MirTypeRepresentationV1::MaybeUninit { .. }
         | mir::MirTypeRepresentationV1::Struct { .. }
         | mir::MirTypeRepresentationV1::Enum { .. }
         | mir::MirTypeRepresentationV1::CoroutineStep { .. }

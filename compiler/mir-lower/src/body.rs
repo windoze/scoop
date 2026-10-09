@@ -10,12 +10,15 @@ mod exceptions;
 mod expressions;
 mod function;
 mod imported_calls;
+mod maybe_uninit;
 mod operators;
 mod patterns;
 mod release;
 mod statements;
 mod static_callbacks;
 mod task_context;
+
+pub(super) use maybe_uninit::maybe_uninit_value;
 
 /// Per-function-body lowering state.
 pub(super) struct BodyLowerer<'a> {

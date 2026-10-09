@@ -1,0 +1,22 @@
+object Counts { var receivers: Int = 0 }
+fun check(value: Boolean) { if (!value) { throw IllegalStateException() } }
+fun companion(): MaybeUninit<Int>.Companion {
+    Counts.receivers += 1
+    return MaybeUninit<Int>.Companion
+}
+fun <T> wrapper(): (T) -> MaybeUninit<T> = MaybeUninit<T>.Companion::initialized
+
+@Unsafe fun main() {
+    val empty: () -> MaybeUninit<Int> = MaybeUninit<Int>.Companion::uninit
+    val initialized: (Int) -> MaybeUninit<Int> = companion()::initialized
+    val text = wrapper<String>()
+    gcCollect()
+    check(empty().assumeInit() == 0)
+    check(initialized(42).assumeInit() == 42)
+    check(initialized(53).assumeInit() == 53)
+    val stored = text("wrapped")
+    gcCollect()
+    check(stored.assumeInit() == "wrapped")
+    check(Counts.receivers == 1)
+    println("maybe callables")
+}

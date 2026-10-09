@@ -49,6 +49,9 @@ impl DecodedExactLayoutExportV1 {
         };
         match &self.semantic.body {
             RawBody::Value { representation, .. } => match representation {
+                RawValue::MaybeUninit(layout) => {
+                    dependencies.push(identities.resolve(*layout).map_err(link_error)?);
+                }
                 RawValue::Struct { fields, .. } => {
                     for value in fields {
                         field(&value.storage)?;

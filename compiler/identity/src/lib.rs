@@ -17,11 +17,13 @@ pub use abi_carrier::{
     AbiArrayElement, AbiCarrier, AbiCoercion, AbiCoercionError, AbiPart, PointerKind,
 };
 mod atomic;
+mod maybe_uninit;
 pub use atomic::{
     AtomicCompareExchangeOrder, AtomicCompareExchangeResult, AtomicExpression, AtomicLoadOrder,
     AtomicMemoryOrder, AtomicOperation, AtomicRmwOperation, AtomicStorage, AtomicStoreOrder,
     AtomicValueKind,
 };
+pub use maybe_uninit::MaybeUninitOperation;
 mod capability;
 mod cone;
 mod context;

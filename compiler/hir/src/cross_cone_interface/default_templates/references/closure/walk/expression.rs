@@ -31,6 +31,12 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
         pending: &mut Vec<ScheduledWork<'body>>,
     ) -> Result<(), V::Error> {
         match kind {
+            DefaultExpressionKindV1::MaybeUninit(operation) => {
+                if let Some(operand) = operation.operand() {
+                    self.push_child(pending, BodyNode::Expression(operand))?;
+                }
+                Ok(())
+            }
             DefaultExpressionKindV1::Atomic(atomic) => {
                 for operand in atomic.operands().rev() {
                     self.push_child(pending, BodyNode::Expression(operand))?;

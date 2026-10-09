@@ -132,6 +132,7 @@ impl MirTypeBridgeAuthority<'_> {
                     (
                         SourceDeclarationKind::Struct,
                         MirTypeRepresentationV1::Struct { .. }
+                            | MirTypeRepresentationV1::MaybeUninit { .. }
                     ) | (
                         SourceDeclarationKind::Enum,
                         MirTypeRepresentationV1::Enum { .. }
@@ -185,6 +186,7 @@ impl MirTypeBridgeAuthority<'_> {
                     (
                         SourceDeclarationKind::Struct,
                         MirTypeRepresentationV1::Struct { .. }
+                            | MirTypeRepresentationV1::MaybeUninit { .. }
                     ) | (
                         SourceDeclarationKind::Enum,
                         MirTypeRepresentationV1::Enum { .. }
@@ -255,6 +257,7 @@ impl MirTypeBridgeAuthority<'_> {
         use MirValueKindV1 as Kind;
         let facts = record.facts();
         let valid = match record.representation() {
+            Repr::MaybeUninit { .. } => facts.kind() != Kind::Reference,
             Repr::Intrinsic(MirParamFreeIntrinsicV1::Unit) => facts.kind() == Kind::ZeroSizedValue,
             Repr::Intrinsic(
                 MirParamFreeIntrinsicV1::Integer(_)

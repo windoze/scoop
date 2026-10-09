@@ -11,6 +11,20 @@ pub(super) fn dump_expr(
     let pad = "  ".repeat(indent);
     out.push_str(&format!("{pad}Type {}\n", type_name(module, &expr.ty)));
     match &expr.kind {
+        ExprKind::MaybeUninit { wrapper, operation } => {
+            let name = match operation {
+                MaybeUninitOperation::Uninit => "Uninit",
+                MaybeUninitOperation::Initialized(_) => "Initialized",
+                MaybeUninitOperation::AssumeInit(_) => "AssumeInit",
+            };
+            out.push_str(&format!(
+                "{pad}MaybeUninit.{name} {}\n",
+                module.structs[*wrapper].name
+            ));
+            if let Some(value) = operation.operand() {
+                dump_expr(module, locals, value, indent + 1, out);
+            }
+        }
         ExprKind::DataBorrow(operation) => {
             out.push_str(&format!("{pad}{}\n", operation.kind.name()));
             dump_expr(module, locals, &operation.operand, indent + 1, out);

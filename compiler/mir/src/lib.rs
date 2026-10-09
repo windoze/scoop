@@ -12,7 +12,7 @@
 
 pub use scoop_identity::{
     AtomicExpression, AtomicOperation, CAbiCallMode, FloatBinaryOperator,
-    FloatConstant as MirFloatConstant, FloatKind, FloatUnaryOperator,
+    FloatConstant as MirFloatConstant, FloatKind, FloatUnaryOperator, MaybeUninitOperation,
 };
 
 use la_arena::{Arena, Idx};

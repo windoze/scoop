@@ -33,6 +33,11 @@ impl FactProjector<'_> {
                     }
                     concrete::StructRepresentation::Intrinsic { application, .. } => {
                         match application {
+                            concrete::IntrinsicTypeRepresentation::MaybeUninit { value } => {
+                                ExactTypeFactShapeV1::MaybeUninit {
+                                    value: exacts(self.local, &[*value])?[0],
+                                }
+                            }
                             concrete::IntrinsicTypeRepresentation::Unit => {
                                 ExactTypeFactShapeV1::Unit
                             }

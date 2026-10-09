@@ -652,6 +652,10 @@ impl std::error::Error for MirVariantExprError {}
 
 #[derive(Debug, Clone)]
 pub enum ExprKind {
+    MaybeUninit {
+        wrapper: StructId,
+        operation: MaybeUninitOperation<Box<Expr>>,
+    },
     Context(ContextOperation<Expr>),
     DataBorrow(DataBorrowOperation<Expr>),
     StringConst(StringConstId),

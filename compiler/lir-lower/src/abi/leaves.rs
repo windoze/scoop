@@ -62,6 +62,12 @@ fn collect(
     match ty {
         lir::LirType::Struct(id) => {
             let definition = &structs[*id];
+            if let lir::StructRepresentation::Intrinsic(
+                lir::IntrinsicTypeRepresentation::MaybeUninit { value, .. },
+            ) = &definition.representation
+            {
+                return collect(context, value, structs, enums, offset, leaves);
+            }
             for index in 0..definition.field_count() {
                 let ty = definition
                     .field_storage_type(index)

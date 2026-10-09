@@ -1,5 +1,7 @@
 use super::*;
 
+mod maybe_uninit;
+
 /// The LLVM type of a (non-void) LIR type: aggregates are literal
 /// structs per the layout in LIR meta; Unit is the empty struct `{}`;
 /// enums follow their fixed representation (spec 7.4).
@@ -425,6 +427,19 @@ pub(crate) fn struct_ty<'ctx>(
     id: scoop_lir::StructDefId,
 ) -> Result<StructType<'ctx>, CodegenError> {
     let definition = &structs[id];
+    if let StructRepresentation::Intrinsic(scoop_lir::IntrinsicTypeRepresentation::MaybeUninit {
+        scan,
+        ..
+    }) = &definition.representation
+    {
+        return maybe_uninit::storage_type(
+            context,
+            managed_address_space,
+            definition.size,
+            definition.align,
+            scan,
+        );
+    }
     if let StructRepresentation::Scoop { fields } = &definition.representation {
         let llvm_fields = fields
             .iter()

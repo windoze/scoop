@@ -56,6 +56,11 @@ pub enum Value {
 
 #[derive(Debug)]
 pub enum Instruction {
+    MaybeUninit {
+        out: LocalId,
+        wrapper: StructDefId,
+        operation: MaybeUninitOperation<Value>,
+    },
     AtomicLoad {
         out: TempId,
         location: AtomicLocation,

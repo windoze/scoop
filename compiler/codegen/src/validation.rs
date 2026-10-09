@@ -566,6 +566,12 @@ pub(crate) fn contains_machine_scalar(
                 .any(|element| visit(structs, enums, element, seen_structs, seen_enums)),
             LirType::Struct(id) if seen_structs.insert(*id) => {
                 let definition = &structs[*id];
+                if let StructRepresentation::Intrinsic(
+                    scoop_lir::IntrinsicTypeRepresentation::MaybeUninit { value, .. },
+                ) = &definition.representation
+                {
+                    return visit(structs, enums, value, seen_structs, seen_enums);
+                }
                 (0..definition.field_count()).any(|index| {
                     let field_type = definition
                         .field_storage_type(index)

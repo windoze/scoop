@@ -1,0 +1,6 @@
+struct Container(val value: MaybeUninit<Int>)
+fun main() {
+    val a = Container(MaybeUninit<Int>.initialized(1))
+    val b = Container(MaybeUninit<Int>.initialized(2))
+    println(a == b)
+}

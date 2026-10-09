@@ -13,6 +13,7 @@ impl ExactValueLayoutV1 {
                 _ => ScoopAbiValueShape::Scalar,
             },
             ExactRepresentationKindV1::Struct(_)
+            | ExactRepresentationKindV1::MaybeUninit(_)
             | ExactRepresentationKindV1::Tuple(_)
             | ExactRepresentationKindV1::TaggedEnum(_)
             | ExactRepresentationKindV1::IntrinsicValue(_) => ScoopAbiValueShape::Aggregate,

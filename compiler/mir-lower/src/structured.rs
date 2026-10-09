@@ -345,6 +345,10 @@ impl Expr {
 
 #[derive(Debug, Clone)]
 pub(crate) enum ExprKind {
+    MaybeUninit {
+        wrapper: mir::StructId,
+        operation: mir::MaybeUninitOperation<Box<Expr>>,
+    },
     Context(mir::ContextOperation<Expr>),
     DataBorrow(mir::DataBorrowOperation<Expr>),
     StringConst(mir::StringConstId),

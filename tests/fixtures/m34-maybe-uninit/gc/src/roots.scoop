@@ -1,0 +1,36 @@
+fun collected(value: Int): Rooted {
+    val result = Rooted(17L, Payload(value))
+    gcCollect()
+    return result
+}
+fun captured(value: Int): () -> MaybeUninit<Rooted> {
+    val stored = MaybeUninit<Rooted>.initialized(collected(value))
+    return { gcCollect(); stored }
+}
+
+@Unsafe fun rootsAndNative() {
+    val empty = MaybeUninit<Read>.uninit()
+    val reference = MaybeUninit<Read>.initialized(Payload(31))
+    val rooted = MaybeUninit<Rooted>.initialized(collected(42))
+    val packet = MaybeUninit<Packet>.initialized(Packet.Data(collected(53)))
+    val nested = MaybeUninit<MaybeUninit<Rooted>>.initialized(rooted)
+    val none = MaybeUninit<Payload?>.initialized(None)
+    val boxed: Any = rooted
+    val closure = captured(64)
+    gcCollect()
+    check(zeroInterface(empty), 45)
+    check(reference.assumeInit().value() == 31, 44)
+    check(nativeInterface(reference).assumeInit().value() == 31, 43)
+    check(nativeCollect(rooted).assumeInit().payload.number == 42, 42)
+    check(nested.assumeInit().assumeInit().serial == 17L, 41)
+    check(when (none.assumeInit()) { None -> true; Some(_) -> false }, 40)
+    when (packet.assumeInit()) {
+        Packet.Empty -> { throw IllegalStateException() }
+        Packet.Number(value) -> { throw IllegalStateException() }
+        Packet.Data(value) -> { check(value.payload.number == 53, 39) }
+    }
+    check((boxed as MaybeUninit<Rooted>).assumeInit().payload.number == 42, 38)
+    check(closure().assumeInit().payload.number == 64, 37)
+    check(rooted.assumeInit().payload.number == 42, 36)
+    check(zeroInterface(empty), 35)
+}

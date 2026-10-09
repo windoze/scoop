@@ -2,6 +2,24 @@ use super::*;
 use crate::{BackendScalarKind, NullNicheKind};
 
 impl ExactValueLayoutV1 {
+    pub fn maybe_uninit(
+        identity: ExactLayoutIdentityV1,
+        payload: &Self,
+        foundation: &ConeLirFoundation,
+    ) -> Result<Self, ExactLayoutReplayError> {
+        require_roles(&identity, &[RepresentationRole::ManagedValue])?;
+        nominal(identity.exact_key())?;
+        if identity.target() != payload.identity().target() {
+            return Err(crate::StorageReplayError::TargetMismatch.into());
+        }
+        finish_value(
+            identity,
+            payload.value().storage().clone(),
+            ValueRepresentation::MaybeUninit(payload.value().clone()),
+            foundation,
+        )
+    }
+
     /// Replays scalar geometry. The complete section must join `kind` and the
     /// exact identity to the same provider's checked intrinsic representation.
     pub fn scalar(

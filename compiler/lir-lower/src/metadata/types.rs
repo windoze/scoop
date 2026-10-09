@@ -218,7 +218,7 @@ pub(crate) fn lower_structs(
                     definition.name.clone(),
                     size,
                     align,
-                    lower_intrinsic_type_representation(module, representation),
+                    lower_intrinsic_type_representation(context, module, enums, representation)?,
                 );
             }
         }
@@ -303,10 +303,18 @@ pub(crate) fn lir_return_type(module: &mir::Module, ty: &mir::Type) -> lir::LirR
 }
 
 pub(crate) fn lower_intrinsic_type_representation(
+    context: &LoweringContext,
     module: &mir::Module,
+    enums: &lir::EnumDefs,
     representation: &mir::IntrinsicTypeRepresentation,
-) -> lir::IntrinsicTypeRepresentation {
-    match representation {
+) -> StorageResult<lir::IntrinsicTypeRepresentation> {
+    Ok(match representation {
+        mir::IntrinsicTypeRepresentation::MaybeUninit { value } => {
+            lir::IntrinsicTypeRepresentation::MaybeUninit {
+                value: Box::new(lir_type(module, value)),
+                scan: ref_scan(context, module, enums, value, 0)?,
+            }
+        }
         mir::IntrinsicTypeRepresentation::Integer(kind) => {
             lir::IntrinsicTypeRepresentation::Integer(integer_kind(*kind))
         }
@@ -334,7 +342,7 @@ pub(crate) fn lower_intrinsic_type_representation(
         | mir::IntrinsicTypeRepresentation::Atomic(_) => {
             unreachable!("intrinsic class storage uses its own metadata layout")
         }
-    }
+    })
 }
 
 /// Map a MIR type onto its LIR value type (DESIGN 2.4 / 3.4): Unit is

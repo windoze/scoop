@@ -177,6 +177,7 @@ pub struct Expr {
 
 #[derive(Debug, Clone)]
 pub enum ExprKind {
+    MaybeUninit(MaybeUninitOperation<Box<Expr>>),
     ContextLookup {
         declaration: String,
         label: crate::ContextParameterLabel,

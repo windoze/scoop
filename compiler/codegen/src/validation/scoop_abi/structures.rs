@@ -122,6 +122,15 @@ impl AbiMetadataValidator<'_> {
                     scan: RefScan::None,
                 };
                 match representation {
+                    scoop_lir::IntrinsicTypeRepresentation::MaybeUninit { value, scan } => {
+                        let facts = self.storage_facts(&value, owner)?;
+                        if facts.scan != scan {
+                            return Err(CodegenError(format!(
+                                "{owner} MaybeUninit scan disagrees with its payload"
+                            )));
+                        }
+                        facts
+                    }
                     scoop_lir::IntrinsicTypeRepresentation::Unit => StorageFacts {
                         size: 0,
                         align: 1,

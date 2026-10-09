@@ -187,14 +187,21 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
     /// Store fields separately so source-level padding stays zero instead of
     /// being overwritten by undef aggregate padding. Tagged payload already
     /// has its complete, zero-initialized byte representation.
-    fn store_coercion_source(
+    pub(in crate::function) fn store_coercion_source(
         &self,
         ty: &LirType,
         value: BasicValueEnum<'ctx>,
         pointer: PointerValue<'ctx>,
     ) -> Result<(), CodegenError> {
         let fields = match ty {
-            LirType::Struct(id) => {
+            LirType::Struct(id)
+                if !matches!(
+                    self.structs[*id].representation,
+                    StructRepresentation::Intrinsic(
+                        scoop_lir::IntrinsicTypeRepresentation::MaybeUninit { .. }
+                    )
+                ) =>
+            {
                 let definition = &self.structs[*id];
                 let mut aggregate = value.into_struct_value();
                 if definition.is_c_layout() {
