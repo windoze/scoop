@@ -249,3 +249,9 @@ Linux 的跨 Cone nominal 签名和完整 core 产物测试暴露了小值 coerc
 按真实新 ABI 和 core 定义更新旧测试：小值检查完整 DirectParts storage／coercion，原 sret 用例改用 24-byte 值以继续覆盖间接返回；接口 default 表项检查必需的 receiver adapter；容器检查 MaybeUninit 实例化和新增 companion 初始化单元。原子指令测试将用户操作与 page-map 的原子 metadata load 分开计数，条件 poll 的精确根测试继续同时核对实际 stackmap 与注册记录。
 
 更新 target／C bridge、产物 capability、语义与缓存的完整固定向量，保持字节和摘要断言。Darwin 初跑的 61 个失败项已经逐项通过定向补跑闭合；Linux 对同一清单及新增 helper 回归完成复验，其中两项真实产物错误由上一批修复。没有再次运行完整 Rust 工作区，也没有降低格式、ABI、引用或 GC 检查要求。
+
+## M34-10d：最终对照程序与复跑脚本
+
+新增跨 Cone 接口基准，将已知／未知 receiver、循环前转换一次／每轮转换四种模式分开；纯计算 GC 响应基准复用已有 callback runner 和线程观测点，工作线程执行普通 Managed 整数循环。两台主机的 M33／M34 版本均已构建，Darwin 的 MIR／LIR 与机器码映射已提取；Linux 七轮交替测量完成，独立 checksum、整数和与 GC histogram 检查全部通过。Darwin 计时等待该机完整 CLI 验收结束。
+
+实际使用的构建、测量与结构提取脚本保存在 [最终对照基准](../../tests/benchmarks/m34/README.md)，分别为 185／143／59 行；新 C 辅助代码 39 行，通过格式和严格警告检查，Python 通过指定版本 ruff。完整样本与解释随总验收归档。Linux 此时再次检查 target，没有新增可删除的 rcgu 对象或 incremental 目录，未删除有效工具和基线。

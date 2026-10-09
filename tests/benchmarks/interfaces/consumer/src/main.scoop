@@ -1,0 +1,24 @@
+import dispatch.bench.*
+
+@GCLeaf @Extern(lib = "m34_interfaces", name = "bench_kind") fun kind(): Int
+@GCLeaf @Extern(lib = "m34_interfaces", name = "bench_count") fun count(): Int
+@GCLeaf @Extern(lib = "m34_interfaces", name = "bench_begin") fun begin()
+@GCLeaf @Extern(lib = "m34_interfaces", name = "bench_end") fun end()
+
+fun main() {
+    @Unsafe {
+        val selected = kind()
+        val iterations = count()
+        val cell = Cell(17U)
+        val reader: Reader = cell
+        begin()
+        val value = when (selected) {
+            0 -> known(cell, iterations)
+            1 -> unknown(reader, iterations)
+            2 -> convertedOnce(cell, iterations)
+            else -> convertedEach(cell, iterations)
+        }
+        end()
+        println(value)
+    }
+}

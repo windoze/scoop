@@ -1,0 +1,37 @@
+@Extern(lib = "ffi_benchmark", name = "bench_mode") fun mode(): Int
+@GCLeaf @Extern(lib = "ffi_benchmark", name = "bench_done") fun done(): Boolean
+@Extern(lib = "ffi_benchmark", name = "bench_pause") fun pause()
+@Extern(lib = "ffi_benchmark", name = "bench_run")
+fun run(worker: FunPtr<(Int, Ptr<Unit>) -> Long>, context: Ptr<Unit>,
+        collector: FunPtr<(Int, Ptr<Unit>) -> Long>, collectorContext: Ptr<Unit>)
+
+fun compute(count: Int): Long {
+    var sum = 0L
+    var index = 0
+    while (index < count) {
+        sum += index.toInt64() + 1L
+        index += 1
+    }
+    return sum
+}
+
+fun main() {
+    @Unsafe {
+        mode()
+        val worker = foreignCallback<(Int, Ptr<Unit>) -> Long>(
+            { count: Int -> compute(count) }, 1, ForeignCallbackMode.Reusable
+        )
+        val collector = foreignCallback<(Int, Ptr<Unit>) -> Long>(
+            { unused: Int ->
+                @Unsafe { while (!done()) { gcCollect(); pause() } }
+                0L
+            }, 1, ForeignCallbackMode.Reusable
+        )
+        run(worker.function, worker.context, collector.function, collector.context)
+        val failed = when (foreignCallbackFailure(worker)) { Some(_) -> true; None -> false }
+        val collectorFailed = when (foreignCallbackFailure(collector)) { Some(_) -> true; None -> false }
+        releaseForeignCallback(worker)
+        releaseForeignCallback(collector)
+        if (failed || collectorFailed) { throw IllegalStateException() }
+    }
+}
