@@ -38,6 +38,7 @@ impl Lowerer {
                             | hir::IntrinsicTypeKind::Ptr
                             | hir::IntrinsicTypeKind::Float(_)
                             | hir::IntrinsicTypeKind::Char
+                            | hir::IntrinsicTypeKind::MaybeUninit
                     ) =>
                 {
                     (

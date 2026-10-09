@@ -86,17 +86,26 @@ Module
   generated_exact_type get14 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
   generated_exact_type get15 location=enum3 nominal_id=ec5baaf8a7fae016de1a6bb6dbc43d4723795f1b65251b6db75c35cde6a19822 exact_id=f14d27d711cae8dc451e7c3a39300da6d4436eee136a5e17f70a544f16a502a7
   generated_exact_type get16 location=class8 nominal_id=970d67ec3f797653409a9a21e8236d8e3d5617beaa3d9e7a1432a27ac74ce2e2 exact_id=fc0cdd1471684db40b4f08956b8c1a6ec1bb3e94cdd6357187d239b80d93dc3f
-  generated_callable gc0 function=@fn55 id=069ae59ce4ea36c7d28b6ef967ebd972c05addcc2c7d742979dbd0f26759cf3f
-  generated_callable gc1 function=@fn47 id=1b89925109f3967a4828a071697df34868fcfbe97cc2d91e5005a479c162971f
-  generated_callable gc2 function=@fn53 id=35c3f106f4a96839f6da9d611eb8035a53ccc77ac3c82fd2b28387a75bf7b2a4
-  generated_callable gc3 function=@fn48 id=5380d7288183f19baee836c357f974facb460ce00c6540478a77bd1f73e5ab4b
-  generated_callable gc4 function=@fn50 id=5b34d6c29ee065e1a01e7ffe6d5f9a34486c75ae7d0270d5dc7a37f0fca95b07
-  generated_callable gc5 function=@fn51 id=64a8a75b406f4237049be77444804868b724c57c298578f2daa9f231e64612a2
-  generated_callable gc6 function=@fn54 id=676834121f3d3595acdb973c1075262ac5ac5f3ac1e5d794a1c71263089fa3c2
-  generated_callable gc7 function=@fn46 id=7b01dd3efa672c2ad77d9d9dd82d9525e5d739219bf8442879dbe9496c83d2e1
-  generated_callable gc8 function=@fn56 id=955375b2c5ff31c231cc916eb82016e7727db28188b949cd0902b936f2bf8a1d
-  generated_callable gc9 function=@fn52 id=98f97fdd397bb6fc69c64c09f55e4292c3071a7c7acf37c71461f2e86d0e23cc
-  generated_callable gc10 function=@fn49 id=9ec22bf33cd2d00a9c7d9b3fc185e5a22483220d3629b2553256c703517b550b
+  generated_callable gc0 function=@fn64 id=069ae59ce4ea36c7d28b6ef967ebd972c05addcc2c7d742979dbd0f26759cf3f
+  generated_callable gc1 function=@fn56 id=1b89925109f3967a4828a071697df34868fcfbe97cc2d91e5005a479c162971f
+  generated_callable gc2 function=@fn62 id=35c3f106f4a96839f6da9d611eb8035a53ccc77ac3c82fd2b28387a75bf7b2a4
+  generated_callable gc3 function=@fn44 id=3ae332ea0f4a659a2f81ba9b9fa2cd50eddd2db44b1c9413f3ddfc3fd125580b
+  generated_callable gc4 function=@fn40 id=3d8de7081fd04e092bc4f78a50a19b99339eb1be1ba2b902872608dc50288d46
+  generated_callable gc5 function=@fn43 id=40625297526d285e8591acf1d47ab407b279e9bf68fa26ff086df1841e2d4d7e
+  generated_callable gc6 function=@fn46 id=4583b646f76c3b442d94d0538c4b9e6b31a9bea617a50928a59d37328915e024
+  generated_callable gc7 function=@fn41 id=47cd6c7aef415a3bcd7f2ab78ea51a103d877a8bb8066cd2900a4e17f6598914
+  generated_callable gc8 function=@fn57 id=5380d7288183f19baee836c357f974facb460ce00c6540478a77bd1f73e5ab4b
+  generated_callable gc9 function=@fn59 id=5b34d6c29ee065e1a01e7ffe6d5f9a34486c75ae7d0270d5dc7a37f0fca95b07
+  generated_callable gc10 function=@fn60 id=64a8a75b406f4237049be77444804868b724c57c298578f2daa9f231e64612a2
+  generated_callable gc11 function=@fn63 id=676834121f3d3595acdb973c1075262ac5ac5f3ac1e5d794a1c71263089fa3c2
+  generated_callable gc12 function=@fn55 id=7b01dd3efa672c2ad77d9d9dd82d9525e5d739219bf8442879dbe9496c83d2e1
+  generated_callable gc13 function=@fn47 id=85c91b3662292328074f78bb6238a8b429f166c6a82032ece0cbaca67a57e7ce
+  generated_callable gc14 function=@fn65 id=955375b2c5ff31c231cc916eb82016e7727db28188b949cd0902b936f2bf8a1d
+  generated_callable gc15 function=@fn61 id=98f97fdd397bb6fc69c64c09f55e4292c3071a7c7acf37c71461f2e86d0e23cc
+  generated_callable gc16 function=@fn58 id=9ec22bf33cd2d00a9c7d9b3fc185e5a22483220d3629b2553256c703517b550b
+  generated_callable gc17 function=@fn45 id=c8378abac2314c14c420841e2846c2a5649f23223e1ddeed654192b8e0c8c944
+  generated_callable gc18 function=@fn42 id=caae13fbbcc9098233592f2d133afce36e617cd54e7dbeeb1c71e4b88066d34c
+  generated_callable gc19 function=@fn48 id=dc199d75e1500d7cc6fd0174ac9027dc76f864c6747ad00845c239739a846a7a
   fun Base.$get$item @fn0(this: Base) -> Int
     bb0 entry
       return
@@ -117,7 +126,7 @@ Module
       assign $new.1
         Type Singleton
         ClassAlloc Singleton
-      call @fn42 direct
+      call @fn51 direct
         Type Singleton
         Local $new.1
       global_assign $singleton$Singleton
@@ -233,7 +242,7 @@ Module
       assign $new.1
         Type Reader<String>
         ClassAlloc Reader<String>
-      call @fn44 direct
+      call @fn53 direct
         Type Reader<String>
         Local $new.1
         Type String
@@ -247,7 +256,7 @@ Module
       val $parameter.stored: Int
         Type Int
         Local $argument.0
-      call packet: Packet<Int> = @fn45 direct
+      call packet: Packet<Int> = @fn54 direct
         Type Int
         Local $parameter.stored
       val $argument.0: String
@@ -264,7 +273,7 @@ Module
       assign $new.2
         Type Store
         ClassAlloc Store
-      call @fn43 direct
+      call @fn52 direct
         Type Store
         Local $new.2
       val store: Store
@@ -534,7 +543,7 @@ Module
       assign $new.4
         Type Child
         ClassAlloc Child
-      call @fn41 direct
+      call @fn50 direct
         Type Child
         Local $new.4
       call $dependency.receiver: Int = @fn1 virtual[1]
@@ -841,24 +850,114 @@ Module
   fun Reading.$get$item @fn39(this: Reading<String>) -> String
     bb0 entry
       trap "call to abstract method `Reading.$get$item`"
-  fun init.Base.$c1 @fn40(this: Base) -> Unit
+  fun receiver<Base> Rich.$get$fallback @fn40(this: Base) -> Int
+    bb0 entry
+      call $call.1: Int = @fn33 direct
+        Type Reading<Int>
+        Retype Reading<Int>
+          Type Base
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun receiver<Singleton> Reading.$get$fallback @fn41(this: Singleton) -> Int
+    bb0 entry
+      call $call.1: Int = @fn33 direct
+        Type Reading<Int>
+        Retype Reading<Int>
+          Type Singleton
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun receiver<Singleton> Reading.$get$size @fn42(this: Singleton) -> Int
+    bb0 entry
+      call $call.1: Int = @fn34 direct
+        Type Reading<Int>
+        Retype Reading<Int>
+          Type Singleton
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun receiver<Store> Counter.$get$value @fn43(this: Store) -> Int
+    bb0 entry
+      call $call.1: Int = @fn31 direct
+        Type Counter
+        Retype Counter
+          Type Store
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun receiver<Store> Counter.$set$value @fn44(this: Store, value: Int) -> Unit
+    bb0 entry
+      call @fn32 direct
+        Type Counter
+        Retype Counter
+          Type Store
+          Local this
+        Type Int
+        Local value
+      return
+  fun receiver<Reader> Rich.$get$fallback @fn45(this: Reader<String>) -> String
+    bb0 entry
+      call $call.1: String = @fn36 direct
+        Type Reading<String>
+        Retype Reading<String>
+          Type Reader<String>
+          Local this
+      return
+        Type String
+        Local $call.1
+  fun receiver<Reader> Rich.$get$size @fn46(this: Reader<String>) -> Int
+    bb0 entry
+      call $call.1: Int = @fn37 direct
+        Type Rich<String>
+        Retype Rich<String>
+          Type Reader<String>
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun receiver<Reader> Reading.$get$size @fn47(this: Reader<String>) -> Int
+    bb0 entry
+      call $call.1: Int = @fn37 direct
+        Type Rich<String>
+        Retype Rich<String>
+          Type Reader<String>
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun receiver<Child> Rich.$get$fallback @fn48(this: Child) -> Int
+    bb0 entry
+      call $call.1: Int = @fn33 direct
+        Type Reading<Int>
+        Retype Reading<Int>
+          Type Child
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun init.Base.$c1 @fn49(this: Base) -> Unit
     bb0 entry
       return
-  fun init.Child.$c2 @fn41(this: Child) -> Unit
+  fun init.Child.$c2 @fn50(this: Child) -> Unit
     bb0 entry
-      call @fn40 direct
+      call @fn49 direct
         Type Base
         Retype Base
           Type Child
           Local this
       return
-  fun init.Singleton.$c4 @fn42(this: Singleton) -> Unit
+  fun init.Singleton.$c4 @fn51(this: Singleton) -> Unit
     bb0 entry
       return
-  fun init.Store.$c3 @fn43(this: Store) -> Unit
+  fun init.Store.$c3 @fn52(this: Store) -> Unit
     bb0 entry
       return
-  fun init.Reader.$c0 @fn44(this: Reader<String>, stored: String) -> Unit
+  fun init.Reader.$c0 @fn53(this: Reader<String>, stored: String) -> Unit
     bb0 entry
       field_set 0
         Type Reader<String>
@@ -866,14 +965,14 @@ Module
         Type String
         Local stored
       return
-  fun ctor.Packet.$c0 @fn45(stored: Int) -> Packet<Int> <no-gc>
+  fun ctor.Packet.$c0 @fn54(stored: Int) -> Packet<Int> <no-gc>
     bb0 entry
       return
         Type Packet<Int>
         StructInit Packet<Int>
           Type Int
           Local stored
-  fun startCoroutine<Child> @fn46(task: SuspendTask<Child>, completion: Continuation<Child>) -> Unit
+  fun startCoroutine<Child> @fn55(task: SuspendTask<Child>, completion: Continuation<Child>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -954,7 +1053,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Store> @fn47(task: SuspendTask<Store>, completion: Continuation<Store>) -> Unit
+  fun startCoroutine<Store> @fn56(task: SuspendTask<Store>, completion: Continuation<Store>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -1035,7 +1134,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Counter> @fn48(task: SuspendTask<Counter>, completion: Continuation<Counter>) -> Unit
+  fun startCoroutine<Counter> @fn57(task: SuspendTask<Counter>, completion: Continuation<Counter>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -1116,7 +1215,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Singleton> @fn49(task: SuspendTask<Singleton>, completion: Continuation<Singleton>) -> Unit
+  fun startCoroutine<Singleton> @fn58(task: SuspendTask<Singleton>, completion: Continuation<Singleton>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -1197,7 +1296,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Base> @fn50(task: SuspendTask<Base>, completion: Continuation<Base>) -> Unit
+  fun startCoroutine<Base> @fn59(task: SuspendTask<Base>, completion: Continuation<Base>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -1278,62 +1377,62 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun thunk<Packet<Int>> Reading.$get$item() @fn51(this: Reading<Int>) -> Int
+  fun thunk<Packet<Int>> Reading.$get$item() @fn60(this: box<Packet<Int>>) -> Int
     bb0 entry
       call $call.1: Int = @fn9 direct
         Type Packet<Int>
         Unbox
-          Type Reading<Int>
+          Type box<Packet<Int>>
           Local this
       return
         Type Int
         Local $call.1
-  fun thunk<Packet<Int>> Reading.$get$fallback() @fn52(this: Reading<Int>) -> Int
+  fun thunk<Packet<Int>> Reading.$get$fallback() @fn61(this: box<Packet<Int>>) -> Int
     bb0 entry
       call $call.1: Int = @fn33 direct
         Type Reading<Int>
         Retype Reading<Int>
-          Type Reading<Int>
+          Type box<Packet<Int>>
           Local this
       return
         Type Int
         Local $call.1
-  fun thunk<Packet<Int>> Reading.$get$size() @fn53(this: Reading<Int>) -> Int
+  fun thunk<Packet<Int>> Reading.$get$size() @fn62(this: box<Packet<Int>>) -> Int
     bb0 entry
       call $call.1: Int = @fn34 direct
         Type Reading<Int>
         Retype Reading<Int>
-          Type Reading<Int>
+          Type box<Packet<Int>>
           Local this
       return
         Type Int
         Local $call.1
-  fun thunk<Choice<String>> Reading.$get$item() @fn54(this: Reading<String>) -> String
+  fun thunk<Choice<String>> Reading.$get$item() @fn63(this: box<Choice<String>>) -> String
     bb0 entry
       call $call.1: String = @fn10 direct
         Type Choice<String>
         Unbox
-          Type Reading<String>
+          Type box<Choice<String>>
           Local this
       return
         Type String
         Local $call.1
-  fun thunk<Choice<String>> Reading.$get$fallback() @fn55(this: Reading<String>) -> String
+  fun thunk<Choice<String>> Reading.$get$fallback() @fn64(this: box<Choice<String>>) -> String
     bb0 entry
       call $call.1: String = @fn36 direct
         Type Reading<String>
         Retype Reading<String>
-          Type Reading<String>
+          Type box<Choice<String>>
           Local this
       return
         Type String
         Local $call.1
-  fun thunk<Choice<String>> Reading.$get$size() @fn56(this: Reading<String>) -> Int
+  fun thunk<Choice<String>> Reading.$get$size() @fn65(this: box<Choice<String>>) -> Int
     bb0 entry
       call $call.1: Int = @fn38 direct
         Type Reading<String>
         Retype Reading<String>
-          Type Reading<String>
+          Type box<Choice<String>>
           Local this
       return
         Type Int
@@ -1348,11 +1447,11 @@ Module
   coroutine_slot cl2 CoroutineSlot<Counter> value=Counter
   coroutine_slot cl3 CoroutineSlot<Singleton> value=Singleton
   coroutine_slot cl4 CoroutineSlot<Base> value=Base
-  coroutine_start ct0 result=Child function=fn46
-  coroutine_start ct1 result=Store function=fn47
-  coroutine_start ct2 result=Counter function=fn48
-  coroutine_start ct3 result=Singleton function=fn49
-  coroutine_start ct4 result=Base function=fn50
+  coroutine_start ct0 result=Child function=fn55
+  coroutine_start ct1 result=Store function=fn56
+  coroutine_start ct2 result=Counter function=fn57
+  coroutine_start ct3 result=Singleton function=fn58
+  coroutine_start ct4 result=Base function=fn59
   coroutine_fn cf0 @fn13 source_return=Counter step=cs2 immediate
   coroutine_fn cf1 @fn17 source_return=Base step=cs4 immediate
   coroutine_fn cf2 @fn21 source_return=Child step=cs0 immediate

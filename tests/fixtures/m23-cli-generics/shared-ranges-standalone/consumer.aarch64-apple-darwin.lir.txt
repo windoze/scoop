@@ -1,0 +1,78 @@
+Module
+  global @scoop$1$bs$4ebdda77c4612e6c035120b935d9a79e581d9a7580a912eceb34e77f3b123334 = c"call to abstract method `Iterator.next`"
+  enum Option tagged size=16 align=8 variants=(i32)@8+4 ()@8+0
+  fun @scoop$1$cb$9b636c1068c7ab71553449bf9ad1b71b004079f2bba17b8199168f9818eef511() -> i32
+    local %0 total: i32
+    local %1 $dependency.receiver: i32
+    local %2 $dependency.argument.0: i32
+    local %3 $dependency.parameter.endpoint: i32
+    local %4 $for.source.0: ptr<managed>
+    local %5 $dependency.receiver: ptr<managed>
+    local %6 $for.iterator.result.1: interface{object,itab}
+    local %7 $for.iterator.2: interface{object,itab}
+    local %8 $for.next.3: enum0
+    local %9 $for.element.4: i32
+    local %10 index: i32
+    local %11 $dependency.receiver: i32
+    local %12 $dependency.argument.0: i32
+    local %13 $dependency.parameter.other: i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store integer<Int>(0x00000000) -> local0
+    store integer<Int>(0x00000000) -> local1
+    store integer<Int>(0x00000007) -> local2
+    store local2 -> local3
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (i32, i32) -> ptr<managed> external-fn1(local1, local3)
+    store t0 -> local4
+    store local4 -> local5
+    call managed-direct-target1 sp<managed-call:1> live=[local5:ptr<managed>@0] t1 = sig=direct1 (ptr<managed>) -> interface{object,itab} external-fn0(local5)
+    store t1 -> local6
+    store local6 -> local7
+    br @while.cond.1
+  block while.cond.1
+    poll managed-void-target0 sp<managed-poll:1> live=[local7:interface{object,itab}@0]
+    t2 = extract local7, 1 : ptr<metadata>
+    t3 = extract local7, 0 : ptr<managed>
+    call managed-direct-target2 sp<managed-call:2> live=[local7:interface{object,itab}@0, t3:ptr<managed>@0] t4 = sig=direct2 (ptr<managed>) -> enum0 dispatch[Interface:0] t2(t3)
+    store t4 -> local8
+    t5 = variant_test e0 v0 local8 : i1
+    cbr t5 then @while.body.3 else @while.exit.2
+  block while.exit.2
+    ret local0
+  block while.body.3
+    t6 = variant_payload_project e0 v0 f0 local8 : i32
+    store t6 -> local9
+    store local9 -> local10
+    store local0 -> local11
+    store local10 -> local12
+    store local12 -> local13
+    t7 = integer_Add<Int> local11, local13 : i32
+    store t7 -> local0
+    br @while.cond.1
+  fun @scoop$1$cb$af02014a8278cd73a3e6b3d82a7ae2f57a0be4c79bac5ec7da77b32a8b362030() -> i32
+    local %0 $dependency.receiver: i32
+    local %1 $dependency.argument.0: i32
+    local %2 $dependency.parameter.other: i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 () -> i32 local-fn0()
+    store t0 -> local0
+    call managed-direct-target1 sp<managed-call:1> live=[] t1 = sig=direct1 () -> i32 local-fn0()
+    store t1 -> local1
+    store local1 -> local2
+    t2 = integer_Add<Int> local0, local2 : i32
+    ret t2
+  fun @scoop$1$cb$e467a9cd67423aa701663fee826edf69799ca08d50d4b899dd5612a02fdf337c(parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>) -> parts<enum0 [[2xi64]@0+16/8]>
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    br @unwrap.trap.1
+  block unwrap.trap.1
+    call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global0)
+    unreachable
+  td td0 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Iterable);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$2206d9a6dc209cc97da4cf2f303ac46366d0ac91141aa2b1ab7ffe6d20552366 type-id=17952577394713924878 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
+  td td1 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Iterator);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$f6443f3032dc57df8892c7ccf20b24dedc4bcbee56d7f7f8b1b9518ebd63b08d type-id=2998194612139334639 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
+  td td2 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=Option);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$99105b2fcc5c078d010bbcc6eb646fc28da5b9a4b54d1154614fd6786521a572 type-id=2541775214623186241 shape=BoxedValue minimum-size=32 align=8 parent=none vtable=[] itables=[]
+  layout Option size=16 align=8 enum-scan=none
+  layout Iterable value size=16 align=8 refs=[0]
+  layout Iterator value size=16 align=8 refs=[0]
+  output library

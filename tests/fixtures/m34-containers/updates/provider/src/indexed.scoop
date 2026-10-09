@@ -1,0 +1,57 @@
+package index.provider
+
+public var events: Int = 0
+
+public fun mark(code: Int): Int {
+    events = events * 10 + code
+    gcCollect()
+    return code
+}
+
+public class Indexed public constructor() {
+    private var stored: Int = 10
+
+    public operator fun get(index: Long, delta: Int = mark(3)): Int {
+        if (index != 0L) { throw IndexOutOfBoundsException() }
+        mark(4)
+        return stored + delta
+    }
+
+    public operator fun set(index: Long, delta: Int = mark(6), value: Int) {
+        if (index != 0L) { throw IndexOutOfBoundsException() }
+        mark(7)
+        stored = value - delta
+    }
+
+    public fun value(): Int = stored
+}
+
+public fun localUpdate(): Int {
+    val table = Indexed()
+    events = 0
+    table[0L] += 7
+    if (events != 3467) { throw IllegalStateException() }
+    return table.value()
+}
+
+public class Grid public constructor() {
+    private var stored: Int = 20
+
+    public operator fun get(vararg indices: Long): Int {
+        if (indices.size != 2L || indices[0L] != 2L || indices[1L] != 3L) {
+            throw IndexOutOfBoundsException()
+        }
+        mark(4)
+        return stored
+    }
+
+    public operator fun set(vararg indices: Long, value: Int) {
+        if (indices.size != 2L || indices[0L] != 2L || indices[1L] != 3L) {
+            throw IndexOutOfBoundsException()
+        }
+        mark(7)
+        stored = value
+    }
+
+    public fun value(): Int = stored
+}

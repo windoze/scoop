@@ -1,0 +1,573 @@
+Module
+  struct Pair (number: Long, tag: Int)
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum Option<Char>
+    Some(_0: Char)
+    None()
+  enum Option<MaybeUninit<Read>>
+    Some(_0: MaybeUninit<Read>)
+    None()
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class Payload vtable=0 itables=0
+  class UnwrapException vtable=0 itables=0
+  class box<MaybeUninit<Pair>> vtable=0 itables=0
+  interface Read
+  interface ToString
+  interface Hash
+  interface Equality<Char>
+  interface Iterable<Char>
+  interface Iterator<Char>
+  interface Equality<String>
+  closure cc0 $Closure$reference0 type=function_type0 invoke=@fn7 captures=0
+    bridge function_type1 -> @fn8 id=aa737b7b89bf4ed4c71b736cdb0cb275158f77d47cb02517306ac3ea15c1b8f2
+  generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
+  generated_exact_type get1 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
+  generated_exact_type get2 location=class5 nominal_id=c63b982d684de131a399f7fb1ea462ac7df5831e691d2af835e81ac240398269 exact_id=3e3ccc3848d3e3c7bea322565d7ed643653189a59c9ad8bee0548acd06c4f516
+  generated_exact_type get3 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
+  generated_exact_type get4 location=closure0 nominal_id=8514f3d7230a10e5c17a6a3d0126fd076c50fa2275b1de78800cdb7d22082b08 exact_id=749acbbb8e21e98e226cdb34cd3dcaa865cad9c5ba509ca2072ec930632ebef1
+  generated_exact_type get5 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
+  generated_exact_type get6 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
+  generated_callable gc0 function=@fn8 id=aa737b7b89bf4ed4c71b736cdb0cb275158f77d47cb02517306ac3ea15c1b8f2
+  fun check @fn0(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.receiver: Boolean
+        Type Boolean
+        Local value
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+    bb1 if.then.1
+      val $default.local.0: String
+        Type String
+        StringConst @str0
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.1
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $new.1
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.1
+    bb2 if.merge.2
+      return
+  fun main @fn1() -> Unit
+    bb0 entry
+      val $dependency.parameter.value: MaybeUninit<Int>
+        Type MaybeUninit<Int>
+        MaybeUninit.Uninit MaybeUninit
+      call $dependency.receiver: MaybeUninit<Int> = @fn2 direct
+        Type MaybeUninit<Int>
+        Local $dependency.parameter.value
+      val $dependency.receiver: Int
+        Type Int
+        MaybeUninit.AssumeInit MaybeUninit
+          Type MaybeUninit<Int>
+          Local $dependency.receiver
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=42 bits=0x000000000000002a
+      val $dependency.argument.1: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $dependency.parameter.number: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.parameter.tag: Int
+        Type Int
+        Local $dependency.argument.1
+      call $dependency.argument.0: Pair = external1 direct
+        Type Long
+        Local $dependency.parameter.number
+        Type Int
+        Local $dependency.parameter.tag
+      val $dependency.parameter.value: Pair
+        Type Pair
+        Local $dependency.argument.0
+      val $default.local.1: Pair
+        Type Pair
+        Local $dependency.parameter.value
+      val $default.local.2: Pair
+        Type Pair
+        Local $default.local.1
+      val $dependency.parameter.stored: MaybeUninit<Pair>
+        Type MaybeUninit<Pair>
+        MaybeUninit.Initialized MaybeUninit
+          Type Pair
+          Local $default.local.2
+      call value: MaybeUninit<Pair> = @fn3 direct
+        Type Pair
+        Local $dependency.parameter.value
+        Type MaybeUninit<Pair>
+        Local $dependency.parameter.stored
+      val $dependency.argument.0: MaybeUninit<Pair>
+        Type MaybeUninit<Pair>
+        Local value
+      val $dependency.parameter.value: MaybeUninit<Pair>
+        Type MaybeUninit<Pair>
+        Local $dependency.argument.0
+      val $default.local.1: MaybeUninit<Pair>
+        Type MaybeUninit<Pair>
+        Local $dependency.parameter.value
+      val $dependency.parameter.result: Pair
+        Type Pair
+        MaybeUninit.AssumeInit MaybeUninit
+          Type MaybeUninit<Pair>
+          Local $default.local.1
+      call $call.1: Pair = @fn4 direct
+        Type MaybeUninit<Pair>
+        Local $dependency.parameter.value
+        Type Pair
+        Local $dependency.parameter.result
+      val $dependency.receiver: Long
+        Type Long
+        FieldAccess 0
+          Type Pair
+          Local $call.1
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=42 bits=0x000000000000002a
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: MaybeUninit<Pair>
+        Type MaybeUninit<Pair>
+        Local value
+      val $dependency.parameter.value: MaybeUninit<Pair>
+        Type MaybeUninit<Pair>
+        Local $dependency.argument.0
+      call $dependency.receiver: MaybeUninit<Pair> = external2 direct
+        Type MaybeUninit<Pair>
+        Local $dependency.parameter.value
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 1
+          Type Pair
+          MaybeUninit.AssumeInit MaybeUninit
+            Type MaybeUninit<Pair>
+            Local $dependency.receiver
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      val callable: (MaybeUninit<Pair>) -> MaybeUninit<Pair>
+        Type (MaybeUninit<Pair>) -> MaybeUninit<Pair>
+        ClosureAlloc cc0 $Closure$reference0
+      call $dependency.receiver: MaybeUninit<Pair> = <closure:function_type0> closure[function_type0]
+        Type (MaybeUninit<Pair>) -> MaybeUninit<Pair>
+        Local callable
+        Type MaybeUninit<Pair>
+        Local value
+      val $dependency.receiver: Long
+        Type Long
+        FieldAccess 0
+          Type Pair
+          MaybeUninit.AssumeInit MaybeUninit
+            Type MaybeUninit<Pair>
+            Local $dependency.receiver
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=42 bits=0x000000000000002a
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=53 bits=0x00000035
+      val $dependency.parameter.number: Int
+        Type Int
+        Local $dependency.argument.0
+      assign $new.2
+        Type Payload
+        ClassAlloc Payload
+      call external4 direct
+        Type Payload
+        Local $new.2
+        Type Int
+        Local $dependency.parameter.number
+      val $dependency.argument.0: Read
+        Type Read
+        Retype Read
+          Type Payload
+          Local $new.2
+      val $dependency.parameter.value: Read
+        Type Read
+        Local $dependency.argument.0
+      val payload: MaybeUninit<Read>
+        Type MaybeUninit<Read>
+        MaybeUninit.Initialized MaybeUninit
+          Type Read
+          Local $dependency.parameter.value
+      val $dependency.argument.0: MaybeUninit<Read>
+        Type MaybeUninit<Read>
+        Local payload
+      val $dependency.parameter.value: MaybeUninit<Read>
+        Type MaybeUninit<Read>
+        Local $dependency.argument.0
+      call returned: MaybeUninit<Read> = @fn5 direct
+        Type MaybeUninit<Read>
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=64 bits=0x00000040
+      val $dependency.parameter.number: Int
+        Type Int
+        Local $dependency.argument.0
+      assign $new.3
+        Type Payload
+        ClassAlloc Payload
+      call external4 direct
+        Type Payload
+        Local $new.3
+        Type Int
+        Local $dependency.parameter.number
+      val $dependency.argument.0: Read
+        Type Read
+        Retype Read
+          Type Payload
+          Local $new.3
+      val $dependency.parameter.value: Read
+        Type Read
+        Local $dependency.argument.0
+      call capturedValue: () -> MaybeUninit<Read> = external5 direct
+        Type Read
+        Local $dependency.parameter.value
+      call @scoop_rt_gc_collect direct
+      val $dependency.receiver: MaybeUninit<Read>
+        Type MaybeUninit<Read>
+        Local returned
+      val $dependency.receiver: Read
+        Type Read
+        MaybeUninit.AssumeInit MaybeUninit
+          Type MaybeUninit<Read>
+          Local $dependency.receiver
+      call $dependency.receiver: Int = external6 interface Read[0]
+        Type Read
+        Local $dependency.receiver
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=53 bits=0x00000035
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      call $dependency.receiver: MaybeUninit<Read> = <closure:function_type2> closure[function_type2]
+        Type () -> MaybeUninit<Read>
+        Local capturedValue
+      val $dependency.receiver: Read
+        Type Read
+        MaybeUninit.AssumeInit MaybeUninit
+          Type MaybeUninit<Read>
+          Local $dependency.receiver
+      call $dependency.receiver: Int = external6 interface Read[0]
+        Type Read
+        Local $dependency.receiver
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=64 bits=0x00000040
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: MaybeUninit<Read>
+        Type MaybeUninit<Read>
+        Local returned
+      val $dependency.parameter._1: MaybeUninit<Read>
+        Type MaybeUninit<Read>
+        Local $dependency.argument.0
+      val optional: Option<MaybeUninit<Read>>
+        Type Option<MaybeUninit<Read>>
+        VariantConstruct Option<MaybeUninit<Read>> v0
+          Type MaybeUninit<Read>
+          Local $dependency.parameter._1
+      call @scoop_rt_gc_collect direct
+      val $opt.1: Option<MaybeUninit<Read>>
+        Type Option<MaybeUninit<Read>>
+        Local optional
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Option<MaybeUninit<Read>> v0
+          Type Option<MaybeUninit<Read>>
+          Local $opt.1
+    bb1 if.then.1
+      val $uw.2: MaybeUninit<Read>
+        Type MaybeUninit<Read>
+        VariantPayloadProject Option<MaybeUninit<Read>> v0 f0
+          Type Option<MaybeUninit<Read>>
+          Local $opt.1
+      goto bb3
+    bb2 if.else.2
+      assign $new.4
+        Type UnwrapException
+        ClassAlloc UnwrapException
+      call external9 direct
+        Type UnwrapException
+        Local $new.4
+      throw
+        Type UnwrapException
+        Local $new.4
+    bb3 if.merge.3
+      val $dependency.receiver: MaybeUninit<Read>
+        Type MaybeUninit<Read>
+        Local $uw.2
+      val $dependency.receiver: Read
+        Type Read
+        MaybeUninit.AssumeInit MaybeUninit
+          Type MaybeUninit<Read>
+          Local $dependency.receiver
+      call $dependency.receiver: Int = external6 interface Read[0]
+        Type Read
+        Local $dependency.receiver
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=53 bits=0x00000035
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str1
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type String
+        Local $dependency.parameter.value
+      return
+  fun storage @fn2(value: MaybeUninit<Int>) -> MaybeUninit<Int>
+    bb0 entry
+      return
+        Type MaybeUninit<Int>
+        Local value
+  fun wrap @fn3(value: Pair, stored: MaybeUninit<Pair>) -> MaybeUninit<Pair>
+    bb0 entry
+      return
+        Type MaybeUninit<Pair>
+        Local stored
+  fun extract @fn4(value: MaybeUninit<Pair>, result: Pair) -> Pair
+    bb0 entry
+      return
+        Type Pair
+        Local result
+  fun roundTrip @fn5(value: MaybeUninit<Read>) -> MaybeUninit<Read>
+    bb0 entry
+      goto bb8
+    bb1 try.unwind.1
+      landing_pad cleanup=false
+      goto bb2
+    bb2 try.dispatch.2
+      begin_catch
+      branch bb9 bb10
+        Type Boolean
+        IsInstance IllegalStateException
+          Type Any
+          CaughtException
+    bb3 try.handler_pad.3
+      landing_pad cleanup=true
+      goto bb4
+    bb4 try.handler_cleanup.4
+      end_catch
+      resume
+    bb5 try.exit_pad.5
+      landing_pad cleanup=true
+      goto bb6
+    bb6 try.exit_cleanup.6
+      end_catch
+      resume
+    bb7 try.end.7
+      unreachable
+    bb8 try.body.8 unwind bb1
+      call @scoop_rt_gc_collect direct
+      return
+        Type MaybeUninit<Read>
+        Local value
+    bb9 try.catch.9
+      call $catch.1: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val $dependency.local.1: IllegalStateException
+        Type IllegalStateException
+        Retype IllegalStateException
+          Type Any
+          Local $catch.1
+      goto bb11
+    bb10 try.next.10
+      rethrow unwind bb5
+    bb11 scope.11 unwind bb3
+      val $return.2: MaybeUninit<Read>
+        Type MaybeUninit<Read>
+        Local value
+      end_catch
+      goto bb12
+    bb12 scope.12
+      return
+        Type MaybeUninit<Read>
+        Local $return.2
+  fun println @fn6(value: String) -> Unit
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local value
+      call $dependency.local.2: String = external7 direct
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external8 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str2
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external8 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun $reference.0 @fn7($closure: (MaybeUninit<Pair>) -> MaybeUninit<Pair>, arg0: MaybeUninit<Pair>) -> MaybeUninit<Pair>
+    bb0 entry
+      call $call.1: MaybeUninit<Pair> = external2 direct
+        Type MaybeUninit<Pair>
+        Local arg0
+      return
+        Type MaybeUninit<Pair>
+        Local $call.1
+  fun function_bridge.$Closure$reference0.(Any) -> Any @fn8($source: (MaybeUninit<Pair>) -> MaybeUninit<Pair>, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: MaybeUninit<Pair> = <closure:function_type0> closure[function_type0]
+        Type (MaybeUninit<Pair>) -> MaybeUninit<Pair>
+        Local $source
+        Type MaybeUninit<Pair>
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type MaybeUninit<Pair>
+          Local $call.1
+  instance mi0 function=@fn2 <- storage
+  instance mi1 function=@fn3 <- wrap
+  instance mi2 function=@fn4 <- extract
+  instance mi3 function=@fn5 <- roundTrip
+  instance mi4 function=@fn6 <- println
+  str @str0 "illegal state"
+  str @str1 "maybe artifacts"
+  str @str2 "\n"
+  output executable @fn1

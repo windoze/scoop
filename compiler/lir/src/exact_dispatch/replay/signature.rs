@@ -1,5 +1,5 @@
 use super::*;
-use crate::{ExactRepresentationKindV1, NichePointerKind};
+use crate::{ExactRepresentationKindV1, NullNicheKind};
 use scoop_identity::RepresentationRole;
 
 pub(super) fn validate(
@@ -30,15 +30,12 @@ pub(super) fn validate(
             {
                 return Err(ExactDispatchError::AbiSignature(owner));
             }
-            let (Some(slot_receiver), Some(implementation_receiver)) = (
+            let (Some(slot_receiver), Some(_implementation_receiver)) = (
                 slot.receiver().into_option(),
                 implementation.receiver().into_option(),
             ) else {
                 return Err(ExactDispatchError::ReceiverAdaptation(owner));
             };
-            if slot_receiver == implementation_receiver {
-                return Err(ExactDispatchError::ReceiverAdaptation(owner));
-            }
             let Some(slot_layout) = input.slot_receiver_layout else {
                 return Err(ExactDispatchError::ReceiverLayout(owner));
             };
@@ -66,6 +63,7 @@ pub(super) fn validate(
 fn managed_reference(value: &crate::ExactValueLayoutV1) -> bool {
     matches!(
         value.representation().kind(),
-        ExactRepresentationKindV1::QualifiedPointer(NichePointerKind::Managed)
+        ExactRepresentationKindV1::QualifiedPointer(NullNicheKind::Managed)
+            | ExactRepresentationKindV1::Interface
     )
 }

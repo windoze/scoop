@@ -56,7 +56,7 @@ Module
   extern ef9 exit @scoop_rt_exit(Int) -> Nothing <abi=scoop managed>
   extern ef10 coreProgramArgc @scoop_rt_program_argc() -> Int <abi=c gc-leaf no-gc>
   extern ef11 coreProgramArgv @scoop_rt_program_argv(Int) -> Option<Ptr<Int8>> <abi=c gc-leaf no-gc>
-  extern ef12 coreStringJoinParts @scoop_rt_string_join_parts(MutableArray<Option<String>>, Long) -> String <abi=scoop managed>
+  extern ef12 coreStringJoinParts @scoop_rt_string_join_parts(MutableArray<MaybeUninit<String>>, Long) -> String <abi=scoop managed>
   extern ef13 coreStringEquals @scoop_rt_string_eq(String, String) -> Boolean <abi=scoop managed>
   extern ef14 coreStringHash @scoop_rt_string_hash(String) -> Long <abi=scoop managed>
   extern ef15 coreStringByteLength @scoop_rt_string_byte_length(String) -> Long <abi=scoop managed>
@@ -79,9 +79,6 @@ Module
   extern ef32 coreStringDecodeUtf8Lossy @scoop_rt_string_decode_utf8_lossy(Ptr<UInt8>, Long) -> String <abi=scoop managed>
   struct SharedAliasValue (count: Int, text: String)
   struct SourceLocation (file: String, line: Long, column: Long, functionName: String, typeName: String)
-  enum Option<String>
-    Some(_1: String)
-    None()
   enum MemoryOrder
     Relaxed()
     Acquire()
@@ -96,6 +93,9 @@ Module
     Active()
     Completed()
     Failed()
+  enum Option<String>
+    Some(_1: String)
+    None()
   enum Option<Ptr<Int8>>
     Some(_1: Ptr<Int8>)
     None()
@@ -105,8 +105,8 @@ Module
   enum Option<(Long, Long)>
     Some(_1: (Long, Long))
     None()
-  enum Option<Option<String>>
-    Some(_1: Option<String>)
+  enum Option<MaybeUninit<String>>
+    Some(_1: MaybeUninit<String>)
     None()
   enum Option<Int8>
     Some(_1: Int8)
@@ -576,7 +576,7 @@ Module
   class ULong.Companion vtable=0 itables=2
   class Boolean.Companion vtable=0 itables=2
   class String.Companion vtable=0 itables=2
-  class ListIterator<Option<String>> vtable=0 itables=1
+  class ListIterator<MaybeUninit<String>> vtable=0 itables=1
   class ListIterator<Char> vtable=0 itables=1
   class ListIterator<Int8> vtable=0 itables=1
   class ListIterator<String> vtable=0 itables=1
@@ -601,7 +601,7 @@ Module
   class box<ForeignCallbackMode> vtable=0 itables=0
   class box<Ptr<UInt8>> vtable=0 itables=1
   class box<(Option<String>, Long)> vtable=0 itables=0
-  class box<Option<String>> vtable=0 itables=0
+  class box<MaybeUninit<String>> vtable=0 itables=0
   interface Equality<Char>
   interface ToString
   interface Hash
@@ -609,9 +609,9 @@ Module
   interface Equality<Float>
   interface Equality<Double>
   interface Equality<Ptr<UInt8>>
-  interface List<Option<String>> : Iterable<Option<String>>
-  interface Iterable<Option<String>>
-  interface Iterator<Option<String>>
+  interface List<MaybeUninit<String>> : Iterable<MaybeUninit<String>>
+  interface Iterable<MaybeUninit<String>>
+  interface Iterator<MaybeUninit<String>>
   interface List<Char> : Iterable<Char>
   interface Iterable<Char>
   interface Iterator<Char>
@@ -889,7 +889,7 @@ Module
     bridge function_type1 -> @fn761 id=b57a4d9d01e5245cb832ce024aefce3175a4eef6443754a69d0fecca536ab5c8
   closure cc1 $Closure$lambda1 type=function_type2 invoke=@fn259 captures=1
     bridge function_type1 -> @fn762 id=af8dd7c59352df01fd6ad470dd6b4a2599ef71aceca74763810187f4720aeee0
-  closure cc2 $Closure$lambda2 type=function_type11 invoke=@fn284 captures=3
+  closure cc2 $Closure$lambda2 type=function_type11 invoke=@fn284 captures=2
     bridge function_type1 -> @fn763 id=f52e9fb1ee54d8ae79a0433ee9cf3d2128458dc56c0c19c7d013431b7395a700
   closure cc3 $Closure$lambda3 type=function_type0 invoke=@fn285 captures=1
     bridge function_type1 -> @fn764 id=a1ebfcca479021f4d94dd307a8a123c31453fedfdf00c28d1624733bae222974
@@ -980,38 +980,38 @@ Module
   generated_exact_type get70 location=enum112 nominal_id=14c3c6c66d477f56ee42b07c65de0862b60e398ddcd48d6e18e264d223676622 exact_id=72c485a492a88a01a07e81460a7b1e75c883f98a45a2d1b9062dca60ca971c35
   generated_exact_type get71 location=enum85 nominal_id=f35c3bb953ce32eb8dbd844dc5bdbed95ac715bf7bda65c6a3de0aa21c257aec exact_id=786eba236f2c9d5693af3ecb9209e407a8fbcd2f3758ed1668de395611fe5d1a
   generated_exact_type get72 location=enum139 nominal_id=1f72b0e70e64d671b7d2d6aab192c3ed4da57d9c7d6a3387a43eec02031c499f exact_id=7947a01346aacce1104b641b7ff2830112fea2756c002e814f4679b841802773
-  generated_exact_type get73 location=class77 nominal_id=2bfe99aa3138de0ece9b269daa5ec117f1166de4f319de07d9617b003d631074 exact_id=7a8939d2e85488cceb4dee3841b8e3767d2d0c12c79cc197e20656845154e60f
-  generated_exact_type get74 location=closure7 nominal_id=6f23c361f7ef943c1938b4b9826185e14780c297f2862f16018c37e64f97c302 exact_id=7b6c8e397c7b6235840b656eae1e6951652eccfc2db5053e349f3c41fdf7678f
-  generated_exact_type get75 location=enum141 nominal_id=21278ed52482292633247119ca9fe937e996edd1594d6384926e57077562c23f exact_id=7c260f354d53e21d4c4cbde8c1617d77dad3669a2ffd9992152d10a0fd63ceff
-  generated_exact_type get76 location=enum64 nominal_id=8d04dd0ed056f0091391a8cf156d39f9f07daa2ef5b50b4661679c0ab5741ee1 exact_id=7c38ca6285357ca73b2fad638957366da4864daf9f858d86262f85499f05dd42
-  generated_exact_type get77 location=closure1 nominal_id=b52b716baaf942e22422834fe39ba60653268d21072de0e46faae7656249a6ad exact_id=7f259cf1bc873b6b147b69bc4099db618699a797e1715392084c2769a92d3f4c
-  generated_exact_type get78 location=enum108 nominal_id=23e3556f3aa7883714e620fcca50c752ad0d3a2d22d7ee55363ea22a1a8f3b4d exact_id=7f94875c9fbdd68988ab50e98357ab3c7ca5bafc164da4963ae75c85e58556ea
-  generated_exact_type get79 location=enum63 nominal_id=ec7ab64f0515947e71733b1d06403a6ab678e6bc335be0e7e0504b3a02615377 exact_id=8074dbdd83a1f81068f19fcd9228623eac35c3650bc6fdfe2e7f156171b9eee7
-  generated_exact_type get80 location=enum35 nominal_id=944253140901454218e5ac3bc5beb4f84ee0b825ee336fbe9db4cc7f057a7f39 exact_id=80c08118e7a3859fadcb5e71656a655dbe1257fb7eb6ca2c69d51956c335d39a
-  generated_exact_type get81 location=enum149 nominal_id=18c9a0e5e5291585d56b872b57da81d00fa0960794c484ee435280514932b025 exact_id=810e6d0cd6d6f889fe3fc2d7a64ffada9229a76d43dde90ad0e0cf4ff28a23af
-  generated_exact_type get82 location=enum109 nominal_id=9a8553574543a39561fd5e0290f2011ce72ba7b1dc08bc4e75dfb57e022d317d exact_id=81a9e1efd7e9d4ad9cd65aa6c2874196855dd58653a2eed529ac94d6a801ae10
-  generated_exact_type get83 location=enum67 nominal_id=2f1aa6655e8f659c6839773c05acaad3e28463902421b0b532b539076f143216 exact_id=8455c95ed58bea69b48e078c2c779f76b8e890bbaed68206c55ea18de69f9be2
-  generated_exact_type get84 location=enum56 nominal_id=a9072f5a0d58835eb28330950f23fe78bc7b1fd12606d1c17a004aee15c76bfe exact_id=846ccecbae9d34a5f6aac37c7070fedb690e42b71801cdd39eb62fcfe47edd85
-  generated_exact_type get85 location=enum38 nominal_id=d73087f6b932df44a4b8822738d54852dfc08b1b2e9a8700accfd1b9c88cb724 exact_id=8747da6f12f978e5c512e054317175125b22af63c910bda585f566ad5d494691
-  generated_exact_type get86 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
-  generated_exact_type get87 location=enum90 nominal_id=7a52b8a414b30973f93aecaf70590ad86e00262b8e7599bd66c61cf02514673e exact_id=8b397624c7ffb2400b20ab7ab7ba588841c92b4ebefce404194312b279d4c583
-  generated_exact_type get88 location=enum31 nominal_id=61f8867043d94d750180c80cd7ba0229b54f5b6bda283332d040337185083af4 exact_id=8c5e99d0e58ddce28ad75f0caa47cf44a5b4847ddc74278aba619a2127a8ef0a
-  generated_exact_type get89 location=enum26 nominal_id=9c906d1dc5ceac5a0d328688ad47addb041844fd6a4723217254b645d695a0df exact_id=8e9c00de0e734eb5ac015ca87203577be56141c189ccf9ddae2b1d728b58c755
-  generated_exact_type get90 location=enum73 nominal_id=8f3e2d4a78565f4f6f12a365e7fc9dde332e274faff6ccdf3121b529103ee528 exact_id=9277ec67abda1fab8cba5a90f3a7f4318ebe8d060118d8349eb1ba61711fd830
-  generated_exact_type get91 location=enum89 nominal_id=34e3b64912f71536a3486cad6f1aa0f829efd2a2ab945b211de83ee7a9e47cdf exact_id=936736baef0f56c15609da61c9d63675e623de6a4411628f4dcabda1082cf5ee
-  generated_exact_type get92 location=enum37 nominal_id=eab25d45422f08ce20178d9f9b80c3216c7d2998dd9789d121747e23b34fbf75 exact_id=95acb78f37d8342b15ed19b7db3e97d479ae76fe6a050ab2bfa4c60624263814
-  generated_exact_type get93 location=class67 nominal_id=687c6a112b981aec82a1330c6397526a940d4fc282136306912bab4c4f2711c3 exact_id=97d0cb283d9b57a23ff3c45a282d0717028a4c66f59ff2c3117f77ac3295a472
-  generated_exact_type get94 location=enum104 nominal_id=eabdb99132d7173a5b3d34da85b9c69999f58d56aa6f16464701b1915d30001a exact_id=9b30cd646f818b5c2de3a4c74924273e0ec50c2731657bc9f1d13df91c341646
-  generated_exact_type get95 location=enum84 nominal_id=8bf7799526f5aa2647d638cd1068544f38385d3cfefeecb5a6a4e7392e6e925b exact_id=9cde50f26045640556ccca58e17c6129b70b5b821b858df564d6688be9a0113b
-  generated_exact_type get96 location=enum24 nominal_id=f6fedf8a32283ace85e90acdb3519ba8d57451e2a248f444fb2fb34ee226df89 exact_id=9d133de0a6de2efe3f11d187a1be5cf1e9f9c4e5b5eb72f769e9be4393485c4d
-  generated_exact_type get97 location=enum19 nominal_id=6be42d1339a5e5ff88e58bbbc2cda915b5587a635b4bcb167b2b00947ee4a93d exact_id=9dd1777ab992a33cf63e6c19d56b70406e053864ccdaa492631ae639f2d8daf3
-  generated_exact_type get98 location=enum75 nominal_id=1061f2b6e1689daffc0bc88977453fad6aa157e73ba67771ebaef4f49426e72c exact_id=9ee8e3e9c2738c74c6d6d74011c510f9dc6cfb1ca5707fee17776e41dc5f71fc
-  generated_exact_type get99 location=enum66 nominal_id=678c87e8373d79b0033e595fcb87251eee86c8f364328956ca3e1ae2844f6467 exact_id=9f7af8df0c7bd8b147293dd1a2659ee1e0378c0961ae361ab68eb783e05a5d5a
-  generated_exact_type get100 location=enum68 nominal_id=124973fe89c6012c4de9c7c16c26a86ee2af7d4c4d178827821732a397f170a0 exact_id=9fd55a5d3290339480c8c3e3543a5c920b5257216cd4de92c8b544408afb4bb9
-  generated_exact_type get101 location=closure3 nominal_id=63f5bbabc712150a76f50647b05440f97b2d3ba77c2b4f7acda30a76a7b691e7 exact_id=a0c81352c6ba0caf1553533cd753672ce394726032f621a0fadfa73c4699a17d
-  generated_exact_type get102 location=enum144 nominal_id=f2ac33734bc25670aa8391ccef1ddee464681fe9c92af49ad6fa9b2e6eac51ee exact_id=a1f3869062fdef4dcb3dbf74bd5f1d9011e3e8f8a29757e4f52160b752da47fb
-  generated_exact_type get103 location=enum87 nominal_id=e08e7d409c7fd384da699894205076aa0cbe2ac79eb7755419969fb49fab46a0 exact_id=a49b3d1229b739c8636d361d89831f003e1c40733ec4511e2a45cec3db5a0f64
-  generated_exact_type get104 location=enum27 nominal_id=1d90b9517ad16680767e5f5f346641f7fdb2b440fcc3407d6f34ee2acd38fd08 exact_id=a7b5de752f5b16397ac2dd0845c02cd2b3b0cbb363c4286d084a2bf5e77678a2
+  generated_exact_type get73 location=closure7 nominal_id=6f23c361f7ef943c1938b4b9826185e14780c297f2862f16018c37e64f97c302 exact_id=7b6c8e397c7b6235840b656eae1e6951652eccfc2db5053e349f3c41fdf7678f
+  generated_exact_type get74 location=enum141 nominal_id=21278ed52482292633247119ca9fe937e996edd1594d6384926e57077562c23f exact_id=7c260f354d53e21d4c4cbde8c1617d77dad3669a2ffd9992152d10a0fd63ceff
+  generated_exact_type get75 location=enum64 nominal_id=8d04dd0ed056f0091391a8cf156d39f9f07daa2ef5b50b4661679c0ab5741ee1 exact_id=7c38ca6285357ca73b2fad638957366da4864daf9f858d86262f85499f05dd42
+  generated_exact_type get76 location=closure1 nominal_id=b52b716baaf942e22422834fe39ba60653268d21072de0e46faae7656249a6ad exact_id=7f259cf1bc873b6b147b69bc4099db618699a797e1715392084c2769a92d3f4c
+  generated_exact_type get77 location=enum108 nominal_id=23e3556f3aa7883714e620fcca50c752ad0d3a2d22d7ee55363ea22a1a8f3b4d exact_id=7f94875c9fbdd68988ab50e98357ab3c7ca5bafc164da4963ae75c85e58556ea
+  generated_exact_type get78 location=enum63 nominal_id=ec7ab64f0515947e71733b1d06403a6ab678e6bc335be0e7e0504b3a02615377 exact_id=8074dbdd83a1f81068f19fcd9228623eac35c3650bc6fdfe2e7f156171b9eee7
+  generated_exact_type get79 location=enum35 nominal_id=944253140901454218e5ac3bc5beb4f84ee0b825ee336fbe9db4cc7f057a7f39 exact_id=80c08118e7a3859fadcb5e71656a655dbe1257fb7eb6ca2c69d51956c335d39a
+  generated_exact_type get80 location=enum149 nominal_id=18c9a0e5e5291585d56b872b57da81d00fa0960794c484ee435280514932b025 exact_id=810e6d0cd6d6f889fe3fc2d7a64ffada9229a76d43dde90ad0e0cf4ff28a23af
+  generated_exact_type get81 location=enum109 nominal_id=9a8553574543a39561fd5e0290f2011ce72ba7b1dc08bc4e75dfb57e022d317d exact_id=81a9e1efd7e9d4ad9cd65aa6c2874196855dd58653a2eed529ac94d6a801ae10
+  generated_exact_type get82 location=enum67 nominal_id=2f1aa6655e8f659c6839773c05acaad3e28463902421b0b532b539076f143216 exact_id=8455c95ed58bea69b48e078c2c779f76b8e890bbaed68206c55ea18de69f9be2
+  generated_exact_type get83 location=enum56 nominal_id=a9072f5a0d58835eb28330950f23fe78bc7b1fd12606d1c17a004aee15c76bfe exact_id=846ccecbae9d34a5f6aac37c7070fedb690e42b71801cdd39eb62fcfe47edd85
+  generated_exact_type get84 location=enum38 nominal_id=d73087f6b932df44a4b8822738d54852dfc08b1b2e9a8700accfd1b9c88cb724 exact_id=8747da6f12f978e5c512e054317175125b22af63c910bda585f566ad5d494691
+  generated_exact_type get85 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
+  generated_exact_type get86 location=enum90 nominal_id=7a52b8a414b30973f93aecaf70590ad86e00262b8e7599bd66c61cf02514673e exact_id=8b397624c7ffb2400b20ab7ab7ba588841c92b4ebefce404194312b279d4c583
+  generated_exact_type get87 location=enum31 nominal_id=61f8867043d94d750180c80cd7ba0229b54f5b6bda283332d040337185083af4 exact_id=8c5e99d0e58ddce28ad75f0caa47cf44a5b4847ddc74278aba619a2127a8ef0a
+  generated_exact_type get88 location=enum26 nominal_id=9c906d1dc5ceac5a0d328688ad47addb041844fd6a4723217254b645d695a0df exact_id=8e9c00de0e734eb5ac015ca87203577be56141c189ccf9ddae2b1d728b58c755
+  generated_exact_type get89 location=enum73 nominal_id=8f3e2d4a78565f4f6f12a365e7fc9dde332e274faff6ccdf3121b529103ee528 exact_id=9277ec67abda1fab8cba5a90f3a7f4318ebe8d060118d8349eb1ba61711fd830
+  generated_exact_type get90 location=enum89 nominal_id=34e3b64912f71536a3486cad6f1aa0f829efd2a2ab945b211de83ee7a9e47cdf exact_id=936736baef0f56c15609da61c9d63675e623de6a4411628f4dcabda1082cf5ee
+  generated_exact_type get91 location=enum37 nominal_id=eab25d45422f08ce20178d9f9b80c3216c7d2998dd9789d121747e23b34fbf75 exact_id=95acb78f37d8342b15ed19b7db3e97d479ae76fe6a050ab2bfa4c60624263814
+  generated_exact_type get92 location=class67 nominal_id=687c6a112b981aec82a1330c6397526a940d4fc282136306912bab4c4f2711c3 exact_id=97d0cb283d9b57a23ff3c45a282d0717028a4c66f59ff2c3117f77ac3295a472
+  generated_exact_type get93 location=enum104 nominal_id=eabdb99132d7173a5b3d34da85b9c69999f58d56aa6f16464701b1915d30001a exact_id=9b30cd646f818b5c2de3a4c74924273e0ec50c2731657bc9f1d13df91c341646
+  generated_exact_type get94 location=enum84 nominal_id=8bf7799526f5aa2647d638cd1068544f38385d3cfefeecb5a6a4e7392e6e925b exact_id=9cde50f26045640556ccca58e17c6129b70b5b821b858df564d6688be9a0113b
+  generated_exact_type get95 location=enum24 nominal_id=f6fedf8a32283ace85e90acdb3519ba8d57451e2a248f444fb2fb34ee226df89 exact_id=9d133de0a6de2efe3f11d187a1be5cf1e9f9c4e5b5eb72f769e9be4393485c4d
+  generated_exact_type get96 location=enum19 nominal_id=6be42d1339a5e5ff88e58bbbc2cda915b5587a635b4bcb167b2b00947ee4a93d exact_id=9dd1777ab992a33cf63e6c19d56b70406e053864ccdaa492631ae639f2d8daf3
+  generated_exact_type get97 location=enum75 nominal_id=1061f2b6e1689daffc0bc88977453fad6aa157e73ba67771ebaef4f49426e72c exact_id=9ee8e3e9c2738c74c6d6d74011c510f9dc6cfb1ca5707fee17776e41dc5f71fc
+  generated_exact_type get98 location=enum66 nominal_id=678c87e8373d79b0033e595fcb87251eee86c8f364328956ca3e1ae2844f6467 exact_id=9f7af8df0c7bd8b147293dd1a2659ee1e0378c0961ae361ab68eb783e05a5d5a
+  generated_exact_type get99 location=enum68 nominal_id=124973fe89c6012c4de9c7c16c26a86ee2af7d4c4d178827821732a397f170a0 exact_id=9fd55a5d3290339480c8c3e3543a5c920b5257216cd4de92c8b544408afb4bb9
+  generated_exact_type get100 location=closure3 nominal_id=63f5bbabc712150a76f50647b05440f97b2d3ba77c2b4f7acda30a76a7b691e7 exact_id=a0c81352c6ba0caf1553533cd753672ce394726032f621a0fadfa73c4699a17d
+  generated_exact_type get101 location=enum144 nominal_id=f2ac33734bc25670aa8391ccef1ddee464681fe9c92af49ad6fa9b2e6eac51ee exact_id=a1f3869062fdef4dcb3dbf74bd5f1d9011e3e8f8a29757e4f52160b752da47fb
+  generated_exact_type get102 location=enum87 nominal_id=e08e7d409c7fd384da699894205076aa0cbe2ac79eb7755419969fb49fab46a0 exact_id=a49b3d1229b739c8636d361d89831f003e1c40733ec4511e2a45cec3db5a0f64
+  generated_exact_type get103 location=enum27 nominal_id=1d90b9517ad16680767e5f5f346641f7fdb2b440fcc3407d6f34ee2acd38fd08 exact_id=a7b5de752f5b16397ac2dd0845c02cd2b3b0cbb363c4286d084a2bf5e77678a2
+  generated_exact_type get104 location=class77 nominal_id=94859e26b9726c826bbd21a8ce23e3e7c73e6f382d3f9221e0a857b4c8a0d9aa exact_id=a9467c0f11fc88d2e81930126eedc9e16609b6cf581081945137bd56ba6e5100
   generated_exact_type get105 location=enum113 nominal_id=bd415a042ff6d6b646182dea9d6ad19b962c52d4376dbf4766e4721d81fa4023 exact_id=a979a8a3d636798fde09478ffecfae98304732b07bcc9f78b66c3791c780577b
   generated_exact_type get106 location=enum25 nominal_id=e217c4a0fef24cca177191e6cd2c1e32c85c507bf6ce1c1188f69924dd12a09e exact_id=a9c8ac312e8a77a0d7b7b02f7e6433acd74df4ca52d349fcc6d6a400515ecb82
   generated_exact_type get107 location=enum102 nominal_id=ac90f798f1773f3cdd68f35910d18dc45c65f479846d432f0bf42f65b39394e3 exact_id=ac3d6214e893a4d28dcb1f69b90729f87dddacb601a339a2a47b6342cb4ea0f7
@@ -1353,12 +1353,12 @@ Module
       return
         Type Boolean
         Local $call.1
-  fun MutableArray.iterator @fn10(this: MutableArray<Option<String>>) -> Iterator<Option<String>>
+  fun MutableArray.iterator @fn10(this: MutableArray<MaybeUninit<String>>) -> Iterator<MaybeUninit<String>>
     bb0 entry
-      val $argument.0: List<Option<String>>
-        Type List<Option<String>>
-        Retype List<Option<String>>
-          Type MutableArray<Option<String>>
+      val $argument.0: List<MaybeUninit<String>>
+        Type List<MaybeUninit<String>>
+        Retype List<MaybeUninit<String>>
+          Type MutableArray<MaybeUninit<String>>
           Local this
       val $argument.1: Long
         Type Long
@@ -1366,8 +1366,8 @@ Module
       val $argument.2: Boolean
         Type Boolean
         BoolLiteral false
-      val $parameter.source: List<Option<String>>
-        Type List<Option<String>>
+      val $parameter.source: List<MaybeUninit<String>>
+        Type List<MaybeUninit<String>>
         Local $argument.0
       val $parameter.index: Long
         Type Long
@@ -1376,26 +1376,26 @@ Module
         Type Boolean
         Local $argument.2
       assign $new.1
-        Type ListIterator<Option<String>>
-        ClassAlloc ListIterator<Option<String>>
+        Type ListIterator<MaybeUninit<String>>
+        ClassAlloc ListIterator<MaybeUninit<String>>
       call @fn649 direct
-        Type ListIterator<Option<String>>
+        Type ListIterator<MaybeUninit<String>>
         Local $new.1
-        Type List<Option<String>>
+        Type List<MaybeUninit<String>>
         Local $parameter.source
         Type Long
         Local $parameter.index
         Type Boolean
         Local $parameter.exhausted
       return
-        Type Iterator<Option<String>>
-        Retype Iterator<Option<String>>
-          Type ListIterator<Option<String>>
+        Type Iterator<MaybeUninit<String>>
+        Retype Iterator<MaybeUninit<String>>
+          Type ListIterator<MaybeUninit<String>>
           Local $new.1
-  fun MutableArray.get @fn11(this: MutableArray<Option<String>>, index: Long) -> Option<String>
+  fun MutableArray.get @fn11(this: MutableArray<MaybeUninit<String>>, index: Long) -> MaybeUninit<String>
     bb0 entry
-      val $receiver: MutableArray<Option<String>>
-        Type MutableArray<Option<String>>
+      val $receiver: MutableArray<MaybeUninit<String>>
+        Type MutableArray<MaybeUninit<String>>
         Local this
       val $argument.0: Long
         Type Long
@@ -1403,8 +1403,8 @@ Module
       val $parameter.index: Long
         Type Long
         Local $argument.0
-      val $arr.1: MutableArray<Option<String>>
-        Type MutableArray<Option<String>>
+      val $arr.1: MutableArray<MaybeUninit<String>>
+        Type MutableArray<MaybeUninit<String>>
         Local $receiver
       val $idx.2: Long
         Type Long
@@ -1423,8 +1423,8 @@ Module
           Type Long
           Local $idx.2
           Type Long
-          ArrayLen MutableArray<Option<String>>
-            Type MutableArray<Option<String>>
+          ArrayLen MutableArray<MaybeUninit<String>>
+            Type MutableArray<MaybeUninit<String>>
             Local $arr.1
       goto bb3
     bb2 logic.short.2
@@ -1448,21 +1448,21 @@ Module
         Local $new.2
     bb5 if.merge.5
       return
-        Type Option<String>
-        ArrayGet MutableArray<Option<String>>
-          Type MutableArray<Option<String>>
+        Type MaybeUninit<String>
+        ArrayGet MutableArray<MaybeUninit<String>>
+          Type MutableArray<MaybeUninit<String>>
           Local $arr.1
           Type Long
           Local $idx.2
-  fun MutableArray.$get$size @fn12(this: MutableArray<Option<String>>) -> Long
+  fun MutableArray.$get$size @fn12(this: MutableArray<MaybeUninit<String>>) -> Long
     bb0 entry
-      val $receiver: MutableArray<Option<String>>
-        Type MutableArray<Option<String>>
+      val $receiver: MutableArray<MaybeUninit<String>>
+        Type MutableArray<MaybeUninit<String>>
         Local this
       return
         Type Long
-        ArrayLen MutableArray<Option<String>>
-          Type MutableArray<Option<String>>
+        ArrayLen MutableArray<MaybeUninit<String>>
+          Type MutableArray<MaybeUninit<String>>
           Local $receiver
   fun Array.iterator @fn13(this: Array<Char>) -> Iterator<Char>
     bb0 entry
@@ -9328,8 +9328,8 @@ Module
         Local $receiver
         Type Long
         Local $parameter.index
-      val $receiver: MutableArray<Option<String>>
-        Type MutableArray<Option<String>>
+      val $receiver: MutableArray<MaybeUninit<String>>
+        Type MutableArray<MaybeUninit<String>>
         FieldAccess 0
           Type ArrayList<String>
           Local this
@@ -9339,37 +9339,16 @@ Module
       val $parameter.index: Long
         Type Long
         Local $argument.0
-      call $opt.1: Option<String> = @fn11 direct
-        Type MutableArray<Option<String>>
+      call $receiver: MaybeUninit<String> = @fn11 direct
+        Type MutableArray<MaybeUninit<String>>
         Local $receiver
         Type Long
         Local $parameter.index
-      branch bb1 bb2
-        Type Boolean
-        VariantTest Option<String> v0
-          Type Option<String>
-          Local $opt.1
-    bb1 if.then.1
-      val $uw.2: String
-        Type String
-        VariantPayloadProject Option<String> v0 f0
-          Type Option<String>
-          Local $opt.1
-      goto bb3
-    bb2 if.else.2
-      assign $new.1
-        Type UnwrapException
-        ClassAlloc UnwrapException
-      call @fn626 direct
-        Type UnwrapException
-        Local $new.1
-      throw
-        Type UnwrapException
-        Local $new.1
-    bb3 if.merge.3
       return
         Type String
-        Local $uw.2
+        MaybeUninit.AssumeInit MaybeUninit
+          Type MaybeUninit<String>
+          Local $receiver
   fun ArrayList.$get$size @fn127(this: ArrayList<String>) -> Long
     bb0 entry
       return
@@ -9393,8 +9372,8 @@ Module
         Local $receiver
         Type Long
         Local $parameter.index
-      val $receiver: MutableArray<Option<String>>
-        Type MutableArray<Option<String>>
+      val $receiver: MutableArray<MaybeUninit<String>>
+        Type MutableArray<MaybeUninit<String>>
         FieldAccess 0
           Type ArrayList<String>
           Local this
@@ -9404,28 +9383,28 @@ Module
       val $argument.0: String
         Type String
         Local value
-      val $parameter._1: String
+      val $parameter.value: String
         Type String
         Local $argument.0
-      val $argument.1: Option<String>
-        Type Option<String>
-        VariantConstruct Option<String> v0
+      val $argument.1: MaybeUninit<String>
+        Type MaybeUninit<String>
+        MaybeUninit.Initialized MaybeUninit
           Type String
-          Local $parameter._1
+          Local $parameter.value
       val $parameter.index: Long
         Type Long
         Local $argument.0
-      val $parameter.value: Option<String>
-        Type Option<String>
+      val $parameter.value: MaybeUninit<String>
+        Type MaybeUninit<String>
         Local $argument.1
-      val $arr.1: MutableArray<Option<String>>
-        Type MutableArray<Option<String>>
+      val $arr.1: MutableArray<MaybeUninit<String>>
+        Type MutableArray<MaybeUninit<String>>
         Local $receiver
       val $idx.2: Long
         Type Long
         Local $parameter.index
-      val $value.3: Option<String>
-        Type Option<String>
+      val $value.3: MaybeUninit<String>
+        Type MaybeUninit<String>
         Local $parameter.value
       branch bb2 bb1
         Type Boolean
@@ -9441,8 +9420,8 @@ Module
           Type Long
           Local $idx.2
           Type Long
-          ArrayLen MutableArray<Option<String>>
-            Type MutableArray<Option<String>>
+          ArrayLen MutableArray<MaybeUninit<String>>
+            Type MutableArray<MaybeUninit<String>>
             Local $arr.1
       goto bb3
     bb2 logic.short.2
@@ -9465,12 +9444,12 @@ Module
         Type IndexOutOfBoundsException
         Local $new.2
     bb5 if.merge.5
-      array_set MutableArray<Option<String>>
-        Type MutableArray<Option<String>>
+      array_set MutableArray<MaybeUninit<String>>
+        Type MutableArray<MaybeUninit<String>>
         Local $arr.1
         Type Long
         Local $idx.2
-        Type Option<String>
+        Type MaybeUninit<String>
         Local $value.3
       return
   fun ArrayList.add @fn129(this: ArrayList<String>, value: String) -> Unit
@@ -9481,8 +9460,8 @@ Module
       call @fn265 direct
         Type ArrayList<String>
         Local $receiver
-      val $receiver: MutableArray<Option<String>>
-        Type MutableArray<Option<String>>
+      val $receiver: MutableArray<MaybeUninit<String>>
+        Type MutableArray<MaybeUninit<String>>
         FieldAccess 0
           Type ArrayList<String>
           Local this
@@ -9494,28 +9473,28 @@ Module
       val $argument.0: String
         Type String
         Local value
-      val $parameter._1: String
+      val $parameter.value: String
         Type String
         Local $argument.0
-      val $argument.1: Option<String>
-        Type Option<String>
-        VariantConstruct Option<String> v0
+      val $argument.1: MaybeUninit<String>
+        Type MaybeUninit<String>
+        MaybeUninit.Initialized MaybeUninit
           Type String
-          Local $parameter._1
+          Local $parameter.value
       val $parameter.index: Long
         Type Long
         Local $argument.0
-      val $parameter.value: Option<String>
-        Type Option<String>
+      val $parameter.value: MaybeUninit<String>
+        Type MaybeUninit<String>
         Local $argument.1
-      val $arr.1: MutableArray<Option<String>>
-        Type MutableArray<Option<String>>
+      val $arr.1: MutableArray<MaybeUninit<String>>
+        Type MutableArray<MaybeUninit<String>>
         Local $receiver
       val $idx.2: Long
         Type Long
         Local $parameter.index
-      val $value.3: Option<String>
-        Type Option<String>
+      val $value.3: MaybeUninit<String>
+        Type MaybeUninit<String>
         Local $parameter.value
       branch bb2 bb1
         Type Boolean
@@ -9531,8 +9510,8 @@ Module
           Type Long
           Local $idx.2
           Type Long
-          ArrayLen MutableArray<Option<String>>
-            Type MutableArray<Option<String>>
+          ArrayLen MutableArray<MaybeUninit<String>>
+            Type MutableArray<MaybeUninit<String>>
             Local $arr.1
       goto bb3
     bb2 logic.short.2
@@ -9555,12 +9534,12 @@ Module
         Type IndexOutOfBoundsException
         Local $new.2
     bb5 if.merge.5
-      array_set MutableArray<Option<String>>
-        Type MutableArray<Option<String>>
+      array_set MutableArray<MaybeUninit<String>>
+        Type MutableArray<MaybeUninit<String>>
         Local $arr.1
         Type Long
         Local $idx.2
-        Type Option<String>
+        Type MaybeUninit<String>
         Local $value.3
       val $receiver: Long
         Type Long
@@ -9683,8 +9662,8 @@ Module
           Type Long
           IntegerLiteral Long value=0 bits=0x0000000000000000
     bb7 while.exit.7
-      val $receiver: MutableArray<Option<String>>
-        Type MutableArray<Option<String>>
+      val $receiver: MutableArray<MaybeUninit<String>>
+        Type MutableArray<MaybeUninit<String>>
         FieldAccess 0
           Type ArrayList<String>
           Local this
@@ -9694,28 +9673,28 @@ Module
       val $argument.0: String
         Type String
         Local value
-      val $parameter._1: String
+      val $parameter.value: String
         Type String
         Local $argument.0
-      val $argument.1: Option<String>
-        Type Option<String>
-        VariantConstruct Option<String> v0
+      val $argument.1: MaybeUninit<String>
+        Type MaybeUninit<String>
+        MaybeUninit.Initialized MaybeUninit
           Type String
-          Local $parameter._1
+          Local $parameter.value
       val $parameter.index: Long
         Type Long
         Local $argument.0
-      val $parameter.value: Option<String>
-        Type Option<String>
+      val $parameter.value: MaybeUninit<String>
+        Type MaybeUninit<String>
         Local $argument.1
-      val $arr.4: MutableArray<Option<String>>
-        Type MutableArray<Option<String>>
+      val $arr.4: MutableArray<MaybeUninit<String>>
+        Type MutableArray<MaybeUninit<String>>
         Local $receiver
       val $idx.5: Long
         Type Long
         Local $parameter.index
-      val $value.6: Option<String>
-        Type Option<String>
+      val $value.6: MaybeUninit<String>
+        Type MaybeUninit<String>
         Local $parameter.value
       branch bb15 bb14
         Type Boolean
@@ -9725,16 +9704,16 @@ Module
           Type Long
           IntegerLiteral Long value=0 bits=0x0000000000000000
     bb8 while.body.8
-      val $receiver: MutableArray<Option<String>>
-        Type MutableArray<Option<String>>
+      val $receiver: MutableArray<MaybeUninit<String>>
+        Type MutableArray<MaybeUninit<String>>
         FieldAccess 0
           Type ArrayList<String>
           Local this
       val $argument.0: Long
         Type Long
         Local cursor
-      val $receiver: MutableArray<Option<String>>
-        Type MutableArray<Option<String>>
+      val $receiver: MutableArray<MaybeUninit<String>>
+        Type MutableArray<MaybeUninit<String>>
         FieldAccess 0
           Type ArrayList<String>
           Local this
@@ -9757,25 +9736,25 @@ Module
       val $parameter.index: Long
         Type Long
         Local $argument.0
-      call $argument.1: Option<String> = @fn11 direct
-        Type MutableArray<Option<String>>
+      call $argument.1: MaybeUninit<String> = @fn11 direct
+        Type MutableArray<MaybeUninit<String>>
         Local $receiver
         Type Long
         Local $parameter.index
       val $parameter.index: Long
         Type Long
         Local $argument.0
-      val $parameter.value: Option<String>
-        Type Option<String>
+      val $parameter.value: MaybeUninit<String>
+        Type MaybeUninit<String>
         Local $argument.1
-      val $arr.1: MutableArray<Option<String>>
-        Type MutableArray<Option<String>>
+      val $arr.1: MutableArray<MaybeUninit<String>>
+        Type MutableArray<MaybeUninit<String>>
         Local $receiver
       val $idx.2: Long
         Type Long
         Local $parameter.index
-      val $value.3: Option<String>
-        Type Option<String>
+      val $value.3: MaybeUninit<String>
+        Type MaybeUninit<String>
         Local $parameter.value
       branch bb10 bb9
         Type Boolean
@@ -9791,8 +9770,8 @@ Module
           Type Long
           Local $idx.2
           Type Long
-          ArrayLen MutableArray<Option<String>>
-            Type MutableArray<Option<String>>
+          ArrayLen MutableArray<MaybeUninit<String>>
+            Type MutableArray<MaybeUninit<String>>
             Local $arr.1
       goto bb11
     bb10 logic.short.10
@@ -9815,12 +9794,12 @@ Module
         Type IndexOutOfBoundsException
         Local $new.3
     bb13 if.merge.13
-      array_set MutableArray<Option<String>>
-        Type MutableArray<Option<String>>
+      array_set MutableArray<MaybeUninit<String>>
+        Type MutableArray<MaybeUninit<String>>
         Local $arr.1
         Type Long
         Local $idx.2
-        Type Option<String>
+        Type MaybeUninit<String>
         Local $value.3
       val $receiver: Long
         Type Long
@@ -9846,8 +9825,8 @@ Module
           Type Long
           Local $idx.5
           Type Long
-          ArrayLen MutableArray<Option<String>>
-            Type MutableArray<Option<String>>
+          ArrayLen MutableArray<MaybeUninit<String>>
+            Type MutableArray<MaybeUninit<String>>
             Local $arr.4
       goto bb16
     bb15 logic.short.15
@@ -9870,12 +9849,12 @@ Module
         Type IndexOutOfBoundsException
         Local $new.5
     bb18 if.merge.18
-      array_set MutableArray<Option<String>>
-        Type MutableArray<Option<String>>
+      array_set MutableArray<MaybeUninit<String>>
+        Type MutableArray<MaybeUninit<String>>
         Local $arr.4
         Type Long
         Local $idx.5
-        Type Option<String>
+        Type MaybeUninit<String>
         Local $value.6
       val $receiver: Long
         Type Long
@@ -9914,8 +9893,8 @@ Module
         Local $receiver
         Type Long
         Local $parameter.index
-      val $receiver: MutableArray<Option<String>>
-        Type MutableArray<Option<String>>
+      val $receiver: MutableArray<MaybeUninit<String>>
+        Type MutableArray<MaybeUninit<String>>
         FieldAccess 0
           Type ArrayList<String>
           Local this
@@ -9925,37 +9904,16 @@ Module
       val $parameter.index: Long
         Type Long
         Local $argument.0
-      call $opt.1: Option<String> = @fn11 direct
-        Type MutableArray<Option<String>>
+      call $receiver: MaybeUninit<String> = @fn11 direct
+        Type MutableArray<MaybeUninit<String>>
         Local $receiver
         Type Long
         Local $parameter.index
-      branch bb1 bb2
-        Type Boolean
-        VariantTest Option<String> v0
-          Type Option<String>
-          Local $opt.1
-    bb1 if.then.1
-      val $uw.2: String
-        Type String
-        VariantPayloadProject Option<String> v0 f0
-          Type Option<String>
-          Local $opt.1
-      goto bb3
-    bb2 if.else.2
-      assign $new.1
-        Type UnwrapException
-        ClassAlloc UnwrapException
-      call @fn626 direct
-        Type UnwrapException
-        Local $new.1
-      throw
-        Type UnwrapException
-        Local $new.1
-    bb3 if.merge.3
       val result: String
         Type String
-        Local $uw.2
+        MaybeUninit.AssumeInit MaybeUninit
+          Type MaybeUninit<String>
+          Local $receiver
       val $receiver: Long
         Type Long
         FieldAccess 1
@@ -9977,8 +9935,8 @@ Module
       var cursor: Long
         Type Long
         Local index
-      goto bb4
-    bb4 while.cond.4 <loop-header-poll>
+      goto bb1
+    bb1 while.cond.1 <loop-header-poll>
       val $receiver: Long
         Type Long
         Local cursor
@@ -9988,7 +9946,7 @@ Module
       val $parameter.other: Long
         Type Long
         Local $argument.0
-      branch bb6 bb5
+      branch bb3 bb2
         Type Boolean
         IntegerCompare less-than operands=Long result=Boolean
           Type Long
@@ -9999,51 +9957,51 @@ Module
             Local $parameter.other
           Type Long
           IntegerLiteral Long value=0 bits=0x0000000000000000
-    bb5 while.exit.5
-      val $receiver: MutableArray<Option<String>>
-        Type MutableArray<Option<String>>
+    bb2 while.exit.2
+      val $receiver: MutableArray<MaybeUninit<String>>
+        Type MutableArray<MaybeUninit<String>>
         FieldAccess 0
           Type ArrayList<String>
           Local this
       val $argument.0: Long
         Type Long
         Local last
-      val $argument.1: Option<String>
-        Type Option<String>
-        VariantConstruct Option<String> v1
+      val $argument.1: MaybeUninit<String>
+        Type MaybeUninit<String>
+        MaybeUninit.Uninit MaybeUninit
       val $parameter.index: Long
         Type Long
         Local $argument.0
-      val $parameter.value: Option<String>
-        Type Option<String>
+      val $parameter.value: MaybeUninit<String>
+        Type MaybeUninit<String>
         Local $argument.1
-      val $arr.6: MutableArray<Option<String>>
-        Type MutableArray<Option<String>>
+      val $arr.4: MutableArray<MaybeUninit<String>>
+        Type MutableArray<MaybeUninit<String>>
         Local $receiver
-      val $idx.7: Long
+      val $idx.5: Long
         Type Long
         Local $parameter.index
-      val $value.8: Option<String>
-        Type Option<String>
+      val $value.6: MaybeUninit<String>
+        Type MaybeUninit<String>
         Local $parameter.value
-      branch bb13 bb12
+      branch bb10 bb9
         Type Boolean
         IntegerCompare less-than operands=Long result=Boolean
           Type Long
-          Local $idx.7
+          Local $idx.5
           Type Long
           IntegerLiteral Long value=0 bits=0x0000000000000000
-    bb6 while.body.6
-      val $receiver: MutableArray<Option<String>>
-        Type MutableArray<Option<String>>
+    bb3 while.body.3
+      val $receiver: MutableArray<MaybeUninit<String>>
+        Type MutableArray<MaybeUninit<String>>
         FieldAccess 0
           Type ArrayList<String>
           Local this
       val $argument.0: Long
         Type Long
         Local cursor
-      val $receiver: MutableArray<Option<String>>
-        Type MutableArray<Option<String>>
+      val $receiver: MutableArray<MaybeUninit<String>>
+        Type MutableArray<MaybeUninit<String>>
         FieldAccess 0
           Type ArrayList<String>
           Local this
@@ -10066,71 +10024,71 @@ Module
       val $parameter.index: Long
         Type Long
         Local $argument.0
-      call $argument.1: Option<String> = @fn11 direct
-        Type MutableArray<Option<String>>
+      call $argument.1: MaybeUninit<String> = @fn11 direct
+        Type MutableArray<MaybeUninit<String>>
         Local $receiver
         Type Long
         Local $parameter.index
       val $parameter.index: Long
         Type Long
         Local $argument.0
-      val $parameter.value: Option<String>
-        Type Option<String>
+      val $parameter.value: MaybeUninit<String>
+        Type MaybeUninit<String>
         Local $argument.1
-      val $arr.3: MutableArray<Option<String>>
-        Type MutableArray<Option<String>>
+      val $arr.1: MutableArray<MaybeUninit<String>>
+        Type MutableArray<MaybeUninit<String>>
         Local $receiver
-      val $idx.4: Long
+      val $idx.2: Long
         Type Long
         Local $parameter.index
-      val $value.5: Option<String>
-        Type Option<String>
+      val $value.3: MaybeUninit<String>
+        Type MaybeUninit<String>
         Local $parameter.value
-      branch bb8 bb7
+      branch bb5 bb4
         Type Boolean
         IntegerCompare less-than operands=Long result=Boolean
           Type Long
-          Local $idx.4
+          Local $idx.2
           Type Long
           IntegerLiteral Long value=0 bits=0x0000000000000000
-    bb7 logic.rhs.7
-      assign $logic.2
+    bb4 logic.rhs.4
+      assign $logic.1
         Type Boolean
         IntegerCompare greater-than-or-equal operands=Long result=Boolean
           Type Long
-          Local $idx.4
+          Local $idx.2
           Type Long
-          ArrayLen MutableArray<Option<String>>
-            Type MutableArray<Option<String>>
-            Local $arr.3
-      goto bb9
-    bb8 logic.short.8
-      assign $logic.2
+          ArrayLen MutableArray<MaybeUninit<String>>
+            Type MutableArray<MaybeUninit<String>>
+            Local $arr.1
+      goto bb6
+    bb5 logic.short.5
+      assign $logic.1
         Type Boolean
         BoolLiteral true
-      goto bb9
-    bb9 logic.merge.9
-      branch bb10 bb11
+      goto bb6
+    bb6 logic.merge.6
+      branch bb7 bb8
         Type Boolean
-        Local $logic.2
-    bb10 if.then.10
-      assign $new.3
+        Local $logic.1
+    bb7 if.then.7
+      assign $new.2
         Type IndexOutOfBoundsException
         ClassAlloc IndexOutOfBoundsException
       call @fn630 direct
         Type IndexOutOfBoundsException
-        Local $new.3
+        Local $new.2
       throw
         Type IndexOutOfBoundsException
-        Local $new.3
-    bb11 if.merge.11
-      array_set MutableArray<Option<String>>
-        Type MutableArray<Option<String>>
-        Local $arr.3
+        Local $new.2
+    bb8 if.merge.8
+      array_set MutableArray<MaybeUninit<String>>
+        Type MutableArray<MaybeUninit<String>>
+        Local $arr.1
         Type Long
-        Local $idx.4
-        Type Option<String>
-        Local $value.5
+        Local $idx.2
+        Type MaybeUninit<String>
+        Local $value.3
       val $receiver: Long
         Type Long
         Local cursor
@@ -10147,45 +10105,45 @@ Module
           Local $receiver
           Type Long
           Local $parameter.other
-      goto bb4
-    bb12 logic.rhs.12
-      assign $logic.4
+      goto bb1
+    bb9 logic.rhs.9
+      assign $logic.3
         Type Boolean
         IntegerCompare greater-than-or-equal operands=Long result=Boolean
           Type Long
-          Local $idx.7
+          Local $idx.5
           Type Long
-          ArrayLen MutableArray<Option<String>>
-            Type MutableArray<Option<String>>
-            Local $arr.6
-      goto bb14
-    bb13 logic.short.13
-      assign $logic.4
+          ArrayLen MutableArray<MaybeUninit<String>>
+            Type MutableArray<MaybeUninit<String>>
+            Local $arr.4
+      goto bb11
+    bb10 logic.short.10
+      assign $logic.3
         Type Boolean
         BoolLiteral true
-      goto bb14
-    bb14 logic.merge.14
-      branch bb15 bb16
+      goto bb11
+    bb11 logic.merge.11
+      branch bb12 bb13
         Type Boolean
-        Local $logic.4
-    bb15 if.then.15
-      assign $new.5
+        Local $logic.3
+    bb12 if.then.12
+      assign $new.4
         Type IndexOutOfBoundsException
         ClassAlloc IndexOutOfBoundsException
       call @fn630 direct
         Type IndexOutOfBoundsException
-        Local $new.5
+        Local $new.4
       throw
         Type IndexOutOfBoundsException
-        Local $new.5
-    bb16 if.merge.16
-      array_set MutableArray<Option<String>>
-        Type MutableArray<Option<String>>
-        Local $arr.6
+        Local $new.4
+    bb13 if.merge.13
+      array_set MutableArray<MaybeUninit<String>>
+        Type MutableArray<MaybeUninit<String>>
+        Local $arr.4
         Type Long
-        Local $idx.7
-        Type Option<String>
-        Local $value.8
+        Local $idx.5
+        Type MaybeUninit<String>
+        Local $value.6
       field_set 1
         Type ArrayList<String>
         Local this
@@ -10231,31 +10189,31 @@ Module
         IntegerLiteral Long value=0 bits=0x0000000000000000
       return
     bb3 while.body.3
-      val $receiver: MutableArray<Option<String>>
-        Type MutableArray<Option<String>>
+      val $receiver: MutableArray<MaybeUninit<String>>
+        Type MutableArray<MaybeUninit<String>>
         FieldAccess 0
           Type ArrayList<String>
           Local this
       val $argument.0: Long
         Type Long
         Local cursor
-      val $argument.1: Option<String>
-        Type Option<String>
-        VariantConstruct Option<String> v1
+      val $argument.1: MaybeUninit<String>
+        Type MaybeUninit<String>
+        MaybeUninit.Uninit MaybeUninit
       val $parameter.index: Long
         Type Long
         Local $argument.0
-      val $parameter.value: Option<String>
-        Type Option<String>
+      val $parameter.value: MaybeUninit<String>
+        Type MaybeUninit<String>
         Local $argument.1
-      val $arr.1: MutableArray<Option<String>>
-        Type MutableArray<Option<String>>
+      val $arr.1: MutableArray<MaybeUninit<String>>
+        Type MutableArray<MaybeUninit<String>>
         Local $receiver
       val $idx.2: Long
         Type Long
         Local $parameter.index
-      val $value.3: Option<String>
-        Type Option<String>
+      val $value.3: MaybeUninit<String>
+        Type MaybeUninit<String>
         Local $parameter.value
       branch bb5 bb4
         Type Boolean
@@ -10271,8 +10229,8 @@ Module
           Type Long
           Local $idx.2
           Type Long
-          ArrayLen MutableArray<Option<String>>
-            Type MutableArray<Option<String>>
+          ArrayLen MutableArray<MaybeUninit<String>>
+            Type MutableArray<MaybeUninit<String>>
             Local $arr.1
       goto bb6
     bb5 logic.short.5
@@ -10295,12 +10253,12 @@ Module
         Type IndexOutOfBoundsException
         Local $new.2
     bb8 if.merge.8
-      array_set MutableArray<Option<String>>
-        Type MutableArray<Option<String>>
+      array_set MutableArray<MaybeUninit<String>>
+        Type MutableArray<MaybeUninit<String>>
         Local $arr.1
         Type Long
         Local $idx.2
-        Type Option<String>
+        Type MaybeUninit<String>
         Local $value.3
       val $receiver: Long
         Type Long
@@ -10342,7 +10300,7 @@ Module
         Local this
   fun StringBuilder.build @fn134(this: StringBuilder) -> String
     bb0 entry
-      call $argument.0: MutableArray<Option<String>> = @fn266 direct
+      call $argument.0: MutableArray<MaybeUninit<String>> = @fn266 direct
         Type ArrayList<String>
         FieldAccess 0
           Type StringBuilder
@@ -10352,14 +10310,14 @@ Module
         FieldAccess 0
           Type StringBuilder
           Local this
-      val $parameter.storage: MutableArray<Option<String>>
-        Type MutableArray<Option<String>>
+      val $parameter.storage: MutableArray<MaybeUninit<String>>
+        Type MutableArray<MaybeUninit<String>>
         Local $argument.0
       val $parameter.partCount: Long
         Type Long
         Local $argument.1
       call $call.1: String = extern12 @scoop_rt_string_join_parts direct
-        Type MutableArray<Option<String>>
+        Type MutableArray<MaybeUninit<String>>
         Local $parameter.storage
         Type Long
         Local $parameter.partCount
@@ -12116,10 +12074,10 @@ Module
       throw
         Type ArithmeticException
         Local $new.1
-  fun coreStringJoinParts @fn196(arg0: MutableArray<Option<String>>, arg1: Long) -> String
+  fun coreStringJoinParts @fn196(arg0: MutableArray<MaybeUninit<String>>, arg1: Long) -> String
     bb0 entry
       call $call.1: String = extern12 @scoop_rt_string_join_parts direct
-        Type MutableArray<Option<String>>
+        Type MutableArray<MaybeUninit<String>>
         Local arg0
         Type Long
         Local arg1
@@ -13648,7 +13606,7 @@ Module
       unreachable
     bb19 if.merge.19
       unreachable
-  fun $init$body$13 @fn243() -> Unit
+  fun $init$body$14 @fn243() -> Unit
     bb0 entry
       assign $new.1
         Type Boolean.Companion
@@ -13660,7 +13618,7 @@ Module
         Type Boolean.Companion
         Local $new.1
       return
-  fun $init$ensure$13 @fn244() -> Unit
+  fun $init$ensure$14 @fn244() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
         Type Ptr<Unit>
@@ -13758,7 +13716,7 @@ Module
       unreachable
     bb19 if.merge.19
       unreachable
-  fun $init$body$18 @fn245() -> Unit
+  fun $init$body$19 @fn245() -> Unit
     bb0 entry
       assign $new.1
         Type String.Companion
@@ -13770,7 +13728,7 @@ Module
         Type String.Companion
         Local $new.1
       return
-  fun $init$ensure$18 @fn246() -> Unit
+  fun $init$ensure$19 @fn246() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
         Type Ptr<Unit>
@@ -13912,27 +13870,27 @@ Module
           PtrToULong
             Type Ptr<UInt8>
             Local $receiver
-  fun ListIterator.next @fn249(this: ListIterator<Option<String>>) -> Option<Option<String>>
+  fun ListIterator.next @fn249(this: ListIterator<MaybeUninit<String>>) -> Option<MaybeUninit<String>>
     bb0 entry
       branch bb1 bb2
         Type Boolean
         FieldAccess 2
-          Type ListIterator<Option<String>>
+          Type ListIterator<MaybeUninit<String>>
           Local this
     bb1 if.then.1
       return
-        Type Option<Option<String>>
-        VariantConstruct Option<Option<String>> v1
+        Type Option<MaybeUninit<String>>
+        VariantConstruct Option<MaybeUninit<String>> v1
     bb2 if.merge.2
       val $receiver: Long
         Type Long
         FieldAccess 1
-          Type ListIterator<Option<String>>
+          Type ListIterator<MaybeUninit<String>>
           Local this
-      call $argument.0: Long = @fn326 interface List<Option<String>>[2]
-        Type List<Option<String>>
+      call $argument.0: Long = @fn326 interface List<MaybeUninit<String>>[2]
+        Type List<MaybeUninit<String>>
         FieldAccess 0
-          Type ListIterator<Option<String>>
+          Type ListIterator<MaybeUninit<String>>
           Local this
       val $parameter.other: Long
         Type Long
@@ -13950,36 +13908,36 @@ Module
           IntegerLiteral Long value=0 bits=0x0000000000000000
     bb3 if.then.3
       field_set 2
-        Type ListIterator<Option<String>>
+        Type ListIterator<MaybeUninit<String>>
         Local this
         Type Boolean
         BoolLiteral true
       return
-        Type Option<Option<String>>
-        VariantConstruct Option<Option<String>> v1
+        Type Option<MaybeUninit<String>>
+        VariantConstruct Option<MaybeUninit<String>> v1
     bb4 if.merge.4
-      val $receiver: List<Option<String>>
-        Type List<Option<String>>
+      val $receiver: List<MaybeUninit<String>>
+        Type List<MaybeUninit<String>>
         FieldAccess 0
-          Type ListIterator<Option<String>>
+          Type ListIterator<MaybeUninit<String>>
           Local this
       val $argument.0: Long
         Type Long
         FieldAccess 1
-          Type ListIterator<Option<String>>
+          Type ListIterator<MaybeUninit<String>>
           Local this
       val $parameter.index: Long
         Type Long
         Local $argument.0
-      call value: Option<String> = @fn327 interface List<Option<String>>[1]
-        Type List<Option<String>>
+      call value: MaybeUninit<String> = @fn327 interface List<MaybeUninit<String>>[1]
+        Type List<MaybeUninit<String>>
         Local $receiver
         Type Long
         Local $parameter.index
       val $receiver: Long
         Type Long
         FieldAccess 1
-          Type ListIterator<Option<String>>
+          Type ListIterator<MaybeUninit<String>>
           Local this
       val $argument.0: Long
         Type Long
@@ -13988,7 +13946,7 @@ Module
         Type Long
         Local $argument.0
       field_set 1
-        Type ListIterator<Option<String>>
+        Type ListIterator<MaybeUninit<String>>
         Local this
         Type Long
         IntegerBinary add kind=Long
@@ -13996,16 +13954,16 @@ Module
           Local $receiver
           Type Long
           Local $parameter.other
-      val $argument.0: Option<String>
-        Type Option<String>
+      val $argument.0: MaybeUninit<String>
+        Type MaybeUninit<String>
         Local value
-      val $parameter._1: Option<String>
-        Type Option<String>
+      val $parameter._1: MaybeUninit<String>
+        Type MaybeUninit<String>
         Local $argument.0
       return
-        Type Option<Option<String>>
-        VariantConstruct Option<Option<String>> v0
-          Type Option<String>
+        Type Option<MaybeUninit<String>>
+        VariantConstruct Option<MaybeUninit<String>> v0
+          Type MaybeUninit<String>
           Local $parameter._1
   fun ListIterator.next @fn250(this: ListIterator<Char>) -> Option<Char>
     bb0 entry
@@ -14887,7 +14845,7 @@ Module
           Type Long
           Local $parameter.other
       call capacity: Long = @fn12 direct
-        Type MutableArray<Option<String>>
+        Type MutableArray<MaybeUninit<String>>
         FieldAccess 0
           Type ArrayList<String>
           Local this
@@ -14951,8 +14909,8 @@ Module
       val nextCapacity: Long
         Type Long
         Local $result.12
-      val old: MutableArray<Option<String>>
-        Type MutableArray<Option<String>>
+      val old: MutableArray<MaybeUninit<String>>
+        Type MutableArray<MaybeUninit<String>>
         FieldAccess 0
           Type ArrayList<String>
           Local this
@@ -14964,29 +14922,26 @@ Module
       val $argument.0: Long
         Type Long
         Local nextCapacity
-      val $argument.1: (Long) -> Option<String>
-        Type (Long) -> Option<String>
+      val $argument.1: (Long) -> MaybeUninit<String>
+        Type (Long) -> MaybeUninit<String>
         ClosureAlloc cc2 $Closure$lambda2
           CaptureInit field=0
             Type Long
             Local count
-          CaptureInit field=2
-            Type MutableArray<Option<String>>
-            Local old
           CaptureInit field=1
-            Type ArrayList<String>
-            Local this
+            Type MutableArray<MaybeUninit<String>>
+            Local old
       val $parameter.size: Long
         Type Long
         Local $argument.0
-      val $parameter.init: (Long) -> Option<String>
-        Type (Long) -> Option<String>
+      val $parameter.init: (Long) -> MaybeUninit<String>
+        Type (Long) -> MaybeUninit<String>
         Local $argument.1
       val $array_size.1: Long
         Type Long
         Local $parameter.size
-      val $array_init.2: (Long) -> Option<String>
-        Type (Long) -> Option<String>
+      val $array_init.2: (Long) -> MaybeUninit<String>
+        Type (Long) -> MaybeUninit<String>
         Local $parameter.init
       branch bb11 bb12
         Type Boolean
@@ -15034,9 +14989,9 @@ Module
         Type IllegalArgumentException
         Local $new.1
     bb12 if.merge.12
-      val $array.3: MutableArray<Option<String>>
-        Type MutableArray<Option<String>>
-        ArrayAllocate MutableArray<Option<String>>
+      val $array.3: MutableArray<MaybeUninit<String>>
+        Type MutableArray<MaybeUninit<String>>
+        ArrayAllocate MutableArray<MaybeUninit<String>>
           Type Long
           Local $array_size.1
       var $array_index.4: Long
@@ -15052,27 +15007,27 @@ Module
           Type Long
           Local $array_size.1
     bb14 while.exit.14
-      val replacement: MutableArray<Option<String>>
-        Type MutableArray<Option<String>>
+      val replacement: MutableArray<MaybeUninit<String>>
+        Type MutableArray<MaybeUninit<String>>
         Local $array.3
       field_set 0
         Type ArrayList<String>
         Local this
-        Type MutableArray<Option<String>>
+        Type MutableArray<MaybeUninit<String>>
         Local replacement
       return
     bb15 while.body.15
-      call $array_value.5: Option<String> = <closure:function_type11> closure[function_type11]
-        Type (Long) -> Option<String>
+      call $array_value.5: MaybeUninit<String> = <closure:function_type11> closure[function_type11]
+        Type (Long) -> MaybeUninit<String>
         Local $array_init.2
         Type Long
         Local $array_index.4
-      array_set MutableArray<Option<String>>
-        Type MutableArray<Option<String>>
+      array_set MutableArray<MaybeUninit<String>>
+        Type MutableArray<MaybeUninit<String>>
         Local $array.3
         Type Long
         Local $array_index.4
-        Type Option<String>
+        Type MaybeUninit<String>
         Local $array_value.5
       assign $array_index.4
         Type Long
@@ -15082,10 +15037,10 @@ Module
           Type Long
           IntegerLiteral Long value=1 bits=0x0000000000000001
       goto bb13
-  fun ArrayList.$get$backing @fn266(this: ArrayList<String>) -> MutableArray<Option<String>>
+  fun ArrayList.$get$backing @fn266(this: ArrayList<String>) -> MutableArray<MaybeUninit<String>>
     bb0 entry
       return
-        Type MutableArray<Option<String>>
+        Type MutableArray<MaybeUninit<String>>
         FieldAccess 0
           Type ArrayList<String>
           Local this
@@ -15991,7 +15946,7 @@ Module
         Type Ptr<Unit>
         Local $pin_frame.3
       rethrow unwind bb3
-  fun $lambda.4 @fn284($closure: (Long) -> Option<String>, index: Long) -> Option<String>
+  fun $lambda.4 @fn284($closure: (Long) -> MaybeUninit<String>, index: Long) -> MaybeUninit<String>
     bb0 entry
       val $receiver: Long
         Type Long
@@ -15999,7 +15954,7 @@ Module
       val $argument.0: Long
         Type Long
         ClosureCapture cc2 0
-          Type (Long) -> Option<String>
+          Type (Long) -> MaybeUninit<String>
           Local $closure
       val $parameter.other: Long
         Type Long
@@ -16016,10 +15971,10 @@ Module
           Type Long
           IntegerLiteral Long value=0 bits=0x0000000000000000
     bb1 if.then.1
-      val $receiver: MutableArray<Option<String>>
-        Type MutableArray<Option<String>>
-        ClosureCapture cc2 2
-          Type (Long) -> Option<String>
+      val $receiver: MutableArray<MaybeUninit<String>>
+        Type MutableArray<MaybeUninit<String>>
+        ClosureCapture cc2 1
+          Type (Long) -> MaybeUninit<String>
           Local $closure
       val $argument.0: Long
         Type Long
@@ -16027,23 +15982,23 @@ Module
       val $parameter.index: Long
         Type Long
         Local $argument.0
-      call $call.1: Option<String> = @fn11 direct
-        Type MutableArray<Option<String>>
+      call $call.1: MaybeUninit<String> = @fn11 direct
+        Type MutableArray<MaybeUninit<String>>
         Local $receiver
         Type Long
         Local $parameter.index
       assign $result.13
-        Type Option<String>
+        Type MaybeUninit<String>
         Local $call.1
       goto bb3
     bb2 if.else.2
       assign $result.13
-        Type Option<String>
-        VariantConstruct Option<String> v1
+        Type MaybeUninit<String>
+        MaybeUninit.Uninit MaybeUninit
       goto bb3
     bb3 if.merge.3
       return
-        Type Option<String>
+        Type MaybeUninit<String>
         Local $result.13
   fun $lambda.2 @fn285($closure: (Long) -> Char, index: Long) -> Char
     bb0 entry
@@ -16206,11 +16161,11 @@ Module
         Type String
         Local $parameter.message
       return
-  fun $lambda.0 @fn289($closure: (Long) -> Option<String>, $arg.0: Long) -> Option<String>
+  fun $lambda.0 @fn289($closure: (Long) -> MaybeUninit<String>, $arg.0: Long) -> MaybeUninit<String>
     bb0 entry
       return
-        Type Option<String>
-        VariantConstruct Option<String> v1
+        Type MaybeUninit<String>
+        MaybeUninit.Uninit MaybeUninit
   fun ToString.toString @fn290(this: ToString) -> String
     bb0 entry
       trap "call to abstract method `ToString.toString`"
@@ -16319,10 +16274,10 @@ Module
   fun SharedAliasApi.read @fn325(this: SharedAliasApi) -> SharedAliasValue
     bb0 entry
       trap "call to abstract method `SharedAliasApi.read`"
-  fun List.$get$size @fn326(this: List<Option<String>>) -> Long
+  fun List.$get$size @fn326(this: List<MaybeUninit<String>>) -> Long
     bb0 entry
       trap "call to abstract method `List.$get$size`"
-  fun List.get @fn327(this: List<Option<String>>, index: Long) -> Option<String>
+  fun List.get @fn327(this: List<MaybeUninit<String>>, index: Long) -> MaybeUninit<String>
     bb0 entry
       trap "call to abstract method `List.get`"
   fun List.$get$size @fn328(this: List<Char>) -> Long
@@ -17660,7 +17615,7 @@ Module
         Type Option<String>
         Local $parameter.message
       return
-  fun init.IllegalArgumentException.$c56 @fn632(this: IllegalArgumentException) -> Unit
+  fun init.IllegalArgumentException.$c57 @fn632(this: IllegalArgumentException) -> Unit
     bb0 entry
       val $argument.0: String
         Type String
@@ -17695,7 +17650,7 @@ Module
         Type Option<String>
         Local $parameter.message
       return
-  fun init.IllegalStateException.$c55 @fn634(this: IllegalStateException) -> Unit
+  fun init.IllegalStateException.$c56 @fn634(this: IllegalStateException) -> Unit
     bb0 entry
       val $argument.0: String
         Type String
@@ -17776,26 +17731,26 @@ Module
   fun init.ULong.Companion.$c48 @fn646(this: ULong.Companion) -> Unit
     bb0 entry
       return
-  fun init.Boolean.Companion.$c49 @fn647(this: Boolean.Companion) -> Unit
+  fun init.Boolean.Companion.$c50 @fn647(this: Boolean.Companion) -> Unit
     bb0 entry
       return
-  fun init.String.Companion.$c54 @fn648(this: String.Companion) -> Unit
+  fun init.String.Companion.$c55 @fn648(this: String.Companion) -> Unit
     bb0 entry
       return
-  fun init.ListIterator.$c6 @fn649(this: ListIterator<Option<String>>, source: List<Option<String>>, index: Long, exhausted: Boolean) -> Unit
+  fun init.ListIterator.$c6 @fn649(this: ListIterator<MaybeUninit<String>>, source: List<MaybeUninit<String>>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
-        Type ListIterator<Option<String>>
+        Type ListIterator<MaybeUninit<String>>
         Local this
-        Type List<Option<String>>
+        Type List<MaybeUninit<String>>
         Local source
       field_set 1
-        Type ListIterator<Option<String>>
+        Type ListIterator<MaybeUninit<String>>
         Local this
         Type Long
         Local index
       field_set 2
-        Type ListIterator<Option<String>>
+        Type ListIterator<MaybeUninit<String>>
         Local this
         Type Boolean
         Local exhausted
@@ -17877,20 +17832,20 @@ Module
       val $argument.0: Long
         Type Long
         Local initialCapacity
-      val $argument.1: (Long) -> Option<String>
-        Type (Long) -> Option<String>
+      val $argument.1: (Long) -> MaybeUninit<String>
+        Type (Long) -> MaybeUninit<String>
         ClosureAlloc cc5 $Closure$lambda5
       val $parameter.size: Long
         Type Long
         Local $argument.0
-      val $parameter.init: (Long) -> Option<String>
-        Type (Long) -> Option<String>
+      val $parameter.init: (Long) -> MaybeUninit<String>
+        Type (Long) -> MaybeUninit<String>
         Local $argument.1
       val $array_size.1: Long
         Type Long
         Local $parameter.size
-      val $array_init.2: (Long) -> Option<String>
-        Type (Long) -> Option<String>
+      val $array_init.2: (Long) -> MaybeUninit<String>
+        Type (Long) -> MaybeUninit<String>
         Local $parameter.init
       branch bb1 bb2
         Type Boolean
@@ -17910,9 +17865,9 @@ Module
         Type IllegalArgumentException
         Local $new.1
     bb2 if.merge.2
-      val $array.3: MutableArray<Option<String>>
-        Type MutableArray<Option<String>>
-        ArrayAllocate MutableArray<Option<String>>
+      val $array.3: MutableArray<MaybeUninit<String>>
+        Type MutableArray<MaybeUninit<String>>
+        ArrayAllocate MutableArray<MaybeUninit<String>>
           Type Long
           Local $array_size.1
       var $array_index.4: Long
@@ -17931,7 +17886,7 @@ Module
       field_set 0
         Type ArrayList<String>
         Local this
-        Type MutableArray<Option<String>>
+        Type MutableArray<MaybeUninit<String>>
         Local $array.3
       field_set 1
         Type ArrayList<String>
@@ -17940,17 +17895,17 @@ Module
         IntegerLiteral Long value=0 bits=0x0000000000000000
       return
     bb5 while.body.5
-      call $array_value.5: Option<String> = <closure:function_type11> closure[function_type11]
-        Type (Long) -> Option<String>
+      call $array_value.5: MaybeUninit<String> = <closure:function_type11> closure[function_type11]
+        Type (Long) -> MaybeUninit<String>
         Local $array_init.2
         Type Long
         Local $array_index.4
-      array_set MutableArray<Option<String>>
-        Type MutableArray<Option<String>>
+      array_set MutableArray<MaybeUninit<String>>
+        Type MutableArray<MaybeUninit<String>>
         Local $array.3
         Type Long
         Local $array_index.4
-        Type Option<String>
+        Type MaybeUninit<String>
         Local $array_value.5
       assign $array_index.4
         Type Long
@@ -23492,388 +23447,388 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun thunk<UInt16> Equality.equalTo(UInt16) @fn725(this: Equality<UInt16>, other: UInt16) -> Boolean
+  fun thunk<UInt16> Equality.equalTo(UInt16) @fn725(this: box<UInt16>, other: UInt16) -> Boolean
     bb0 entry
       call $call.1: Boolean = @fn54 direct
         Type UInt16
         Unbox
-          Type Equality<UInt16>
+          Type box<UInt16>
           Local this
         Type UInt16
         Local other
       return
         Type Boolean
         Local $call.1
-  fun thunk<UInt16> ToString.toString() @fn726(this: ToString) -> String
+  fun thunk<UInt16> ToString.toString() @fn726(this: box<UInt16>) -> String
     bb0 entry
       call $call.1: String = @fn59 direct
         Type UInt16
         Unbox
-          Type ToString
+          Type box<UInt16>
           Local this
       return
         Type String
         Local $call.1
-  fun thunk<UInt16> Hash.hash() @fn727(this: Hash) -> Long
+  fun thunk<UInt16> Hash.hash() @fn727(this: box<UInt16>) -> Long
     bb0 entry
       call $call.1: Long = @fn60 direct
         Type UInt16
         Unbox
-          Type Hash
+          Type box<UInt16>
           Local this
       return
         Type Long
         Local $call.1
-  fun thunk<Int> Equality.equalTo(Int) @fn728(this: Equality<Int>, other: Int) -> Boolean
+  fun thunk<Int> Equality.equalTo(Int) @fn728(this: box<Int>, other: Int) -> Boolean
     bb0 entry
       call $call.1: Boolean = @fn19 direct
         Type Int
         Unbox
-          Type Equality<Int>
+          Type box<Int>
           Local this
         Type Int
         Local other
       return
         Type Boolean
         Local $call.1
-  fun thunk<Int> ToString.toString() @fn729(this: ToString) -> String
+  fun thunk<Int> ToString.toString() @fn729(this: box<Int>) -> String
     bb0 entry
       call $call.1: String = @fn24 direct
         Type Int
         Unbox
-          Type ToString
+          Type box<Int>
           Local this
       return
         Type String
         Local $call.1
-  fun thunk<Int> Hash.hash() @fn730(this: Hash) -> Long
+  fun thunk<Int> Hash.hash() @fn730(this: box<Int>) -> Long
     bb0 entry
       call $call.1: Long = @fn25 direct
         Type Int
         Unbox
-          Type Hash
+          Type box<Int>
           Local this
       return
         Type Long
         Local $call.1
-  fun thunk<Double> Equality.equalTo(Double) @fn731(this: Equality<Double>, other: Double) -> Boolean
+  fun thunk<Double> Equality.equalTo(Double) @fn731(this: box<Double>, other: Double) -> Boolean
     bb0 entry
       call $call.1: Boolean = @fn7 direct
         Type Double
         Unbox
-          Type Equality<Double>
+          Type box<Double>
           Local this
         Type Double
         Local other
       return
         Type Boolean
         Local $call.1
-  fun thunk<Double> ToString.toString() @fn732(this: ToString) -> String
+  fun thunk<Double> ToString.toString() @fn732(this: box<Double>) -> String
     bb0 entry
       call $call.1: String = @fn8 direct
         Type Double
         Unbox
-          Type ToString
+          Type box<Double>
           Local this
       return
         Type String
         Local $call.1
-  fun thunk<UInt8> Equality.equalTo(UInt8) @fn733(this: Equality<UInt8>, other: UInt8) -> Boolean
+  fun thunk<UInt8> Equality.equalTo(UInt8) @fn733(this: box<UInt8>, other: UInt8) -> Boolean
     bb0 entry
       call $call.1: Boolean = @fn61 direct
         Type UInt8
         Unbox
-          Type Equality<UInt8>
+          Type box<UInt8>
           Local this
         Type UInt8
         Local other
       return
         Type Boolean
         Local $call.1
-  fun thunk<UInt8> ToString.toString() @fn734(this: ToString) -> String
+  fun thunk<UInt8> ToString.toString() @fn734(this: box<UInt8>) -> String
     bb0 entry
       call $call.1: String = @fn66 direct
         Type UInt8
         Unbox
-          Type ToString
+          Type box<UInt8>
           Local this
       return
         Type String
         Local $call.1
-  fun thunk<UInt8> Hash.hash() @fn735(this: Hash) -> Long
+  fun thunk<UInt8> Hash.hash() @fn735(this: box<UInt8>) -> Long
     bb0 entry
       call $call.1: Long = @fn67 direct
         Type UInt8
         Unbox
-          Type Hash
+          Type box<UInt8>
           Local this
       return
         Type Long
         Local $call.1
-  fun thunk<ULong> Equality.equalTo(ULong) @fn736(this: Equality<ULong>, other: ULong) -> Boolean
+  fun thunk<ULong> Equality.equalTo(ULong) @fn736(this: box<ULong>, other: ULong) -> Boolean
     bb0 entry
       call $call.1: Boolean = @fn68 direct
         Type ULong
         Unbox
-          Type Equality<ULong>
+          Type box<ULong>
           Local this
         Type ULong
         Local other
       return
         Type Boolean
         Local $call.1
-  fun thunk<ULong> ToString.toString() @fn737(this: ToString) -> String
+  fun thunk<ULong> ToString.toString() @fn737(this: box<ULong>) -> String
     bb0 entry
       call $call.1: String = @fn73 direct
         Type ULong
         Unbox
-          Type ToString
+          Type box<ULong>
           Local this
       return
         Type String
         Local $call.1
-  fun thunk<ULong> Hash.hash() @fn738(this: Hash) -> Long
+  fun thunk<ULong> Hash.hash() @fn738(this: box<ULong>) -> Long
     bb0 entry
       call $call.1: Long = @fn74 direct
         Type ULong
         Unbox
-          Type Hash
+          Type box<ULong>
           Local this
       return
         Type Long
         Local $call.1
-  fun thunk<Float> Equality.equalTo(Float) @fn739(this: Equality<Float>, other: Float) -> Boolean
+  fun thunk<Float> Equality.equalTo(Float) @fn739(this: box<Float>, other: Float) -> Boolean
     bb0 entry
       call $call.1: Boolean = @fn5 direct
         Type Float
         Unbox
-          Type Equality<Float>
+          Type box<Float>
           Local this
         Type Float
         Local other
       return
         Type Boolean
         Local $call.1
-  fun thunk<Float> ToString.toString() @fn740(this: ToString) -> String
+  fun thunk<Float> ToString.toString() @fn740(this: box<Float>) -> String
     bb0 entry
       call $call.1: String = @fn6 direct
         Type Float
         Unbox
-          Type ToString
+          Type box<Float>
           Local this
       return
         Type String
         Local $call.1
-  fun thunk<Long> Equality.equalTo(Long) @fn741(this: Equality<Long>, other: Long) -> Boolean
+  fun thunk<Long> Equality.equalTo(Long) @fn741(this: box<Long>, other: Long) -> Boolean
     bb0 entry
       call $call.1: Boolean = @fn40 direct
         Type Long
         Unbox
-          Type Equality<Long>
+          Type box<Long>
           Local this
         Type Long
         Local other
       return
         Type Boolean
         Local $call.1
-  fun thunk<Long> ToString.toString() @fn742(this: ToString) -> String
+  fun thunk<Long> ToString.toString() @fn742(this: box<Long>) -> String
     bb0 entry
       call $call.1: String = @fn45 direct
         Type Long
         Unbox
-          Type ToString
+          Type box<Long>
           Local this
       return
         Type String
         Local $call.1
-  fun thunk<Long> Hash.hash() @fn743(this: Hash) -> Long
+  fun thunk<Long> Hash.hash() @fn743(this: box<Long>) -> Long
     bb0 entry
       call $call.1: Long = @fn46 direct
         Type Long
         Unbox
-          Type Hash
+          Type box<Long>
           Local this
       return
         Type Long
         Local $call.1
-  fun thunk<Int16> Equality.equalTo(Int16) @fn744(this: Equality<Int16>, other: Int16) -> Boolean
+  fun thunk<Int16> Equality.equalTo(Int16) @fn744(this: box<Int16>, other: Int16) -> Boolean
     bb0 entry
       call $call.1: Boolean = @fn26 direct
         Type Int16
         Unbox
-          Type Equality<Int16>
+          Type box<Int16>
           Local this
         Type Int16
         Local other
       return
         Type Boolean
         Local $call.1
-  fun thunk<Int16> ToString.toString() @fn745(this: ToString) -> String
+  fun thunk<Int16> ToString.toString() @fn745(this: box<Int16>) -> String
     bb0 entry
       call $call.1: String = @fn31 direct
         Type Int16
         Unbox
-          Type ToString
+          Type box<Int16>
           Local this
       return
         Type String
         Local $call.1
-  fun thunk<Int16> Hash.hash() @fn746(this: Hash) -> Long
+  fun thunk<Int16> Hash.hash() @fn746(this: box<Int16>) -> Long
     bb0 entry
       call $call.1: Long = @fn32 direct
         Type Int16
         Unbox
-          Type Hash
+          Type box<Int16>
           Local this
       return
         Type Long
         Local $call.1
-  fun thunk<Boolean> Equality.equalTo(Boolean) @fn747(this: Equality<Boolean>, other: Boolean) -> Boolean
+  fun thunk<Boolean> Equality.equalTo(Boolean) @fn747(this: box<Boolean>, other: Boolean) -> Boolean
     bb0 entry
       call $call.1: Boolean = @fn89 direct
         Type Boolean
         Unbox
-          Type Equality<Boolean>
+          Type box<Boolean>
           Local this
         Type Boolean
         Local other
       return
         Type Boolean
         Local $call.1
-  fun thunk<Boolean> ToString.toString() @fn748(this: ToString) -> String
+  fun thunk<Boolean> ToString.toString() @fn748(this: box<Boolean>) -> String
     bb0 entry
       call $call.1: String = @fn90 direct
         Type Boolean
         Unbox
-          Type ToString
+          Type box<Boolean>
           Local this
       return
         Type String
         Local $call.1
-  fun thunk<Boolean> Hash.hash() @fn749(this: Hash) -> Long
+  fun thunk<Boolean> Hash.hash() @fn749(this: box<Boolean>) -> Long
     bb0 entry
       call $call.1: Long = @fn91 direct
         Type Boolean
         Unbox
-          Type Hash
+          Type box<Boolean>
           Local this
       return
         Type Long
         Local $call.1
-  fun thunk<Char> Equality.equalTo(Char) @fn750(this: Equality<Char>, other: Char) -> Boolean
+  fun thunk<Char> Equality.equalTo(Char) @fn750(this: box<Char>, other: Char) -> Boolean
     bb0 entry
       call $call.1: Boolean = @fn0 direct
         Type Char
         Unbox
-          Type Equality<Char>
+          Type box<Char>
           Local this
         Type Char
         Local other
       return
         Type Boolean
         Local $call.1
-  fun thunk<Char> ToString.toString() @fn751(this: ToString) -> String
+  fun thunk<Char> ToString.toString() @fn751(this: box<Char>) -> String
     bb0 entry
       call $call.1: String = @fn1 direct
         Type Char
         Unbox
-          Type ToString
+          Type box<Char>
           Local this
       return
         Type String
         Local $call.1
-  fun thunk<Char> Hash.hash() @fn752(this: Hash) -> Long
+  fun thunk<Char> Hash.hash() @fn752(this: box<Char>) -> Long
     bb0 entry
       call $call.1: Long = @fn2 direct
         Type Char
         Unbox
-          Type Hash
+          Type box<Char>
           Local this
       return
         Type Long
         Local $call.1
-  fun thunk<Int8> Equality.equalTo(Int8) @fn753(this: Equality<Int8>, other: Int8) -> Boolean
+  fun thunk<Int8> Equality.equalTo(Int8) @fn753(this: box<Int8>, other: Int8) -> Boolean
     bb0 entry
       call $call.1: Boolean = @fn33 direct
         Type Int8
         Unbox
-          Type Equality<Int8>
+          Type box<Int8>
           Local this
         Type Int8
         Local other
       return
         Type Boolean
         Local $call.1
-  fun thunk<Int8> ToString.toString() @fn754(this: ToString) -> String
+  fun thunk<Int8> ToString.toString() @fn754(this: box<Int8>) -> String
     bb0 entry
       call $call.1: String = @fn38 direct
         Type Int8
         Unbox
-          Type ToString
+          Type box<Int8>
           Local this
       return
         Type String
         Local $call.1
-  fun thunk<Int8> Hash.hash() @fn755(this: Hash) -> Long
+  fun thunk<Int8> Hash.hash() @fn755(this: box<Int8>) -> Long
     bb0 entry
       call $call.1: Long = @fn39 direct
         Type Int8
         Unbox
-          Type Hash
+          Type box<Int8>
           Local this
       return
         Type Long
         Local $call.1
-  fun thunk<UInt> Equality.equalTo(UInt) @fn756(this: Equality<UInt>, other: UInt) -> Boolean
+  fun thunk<UInt> Equality.equalTo(UInt) @fn756(this: box<UInt>, other: UInt) -> Boolean
     bb0 entry
       call $call.1: Boolean = @fn47 direct
         Type UInt
         Unbox
-          Type Equality<UInt>
+          Type box<UInt>
           Local this
         Type UInt
         Local other
       return
         Type Boolean
         Local $call.1
-  fun thunk<UInt> ToString.toString() @fn757(this: ToString) -> String
+  fun thunk<UInt> ToString.toString() @fn757(this: box<UInt>) -> String
     bb0 entry
       call $call.1: String = @fn52 direct
         Type UInt
         Unbox
-          Type ToString
+          Type box<UInt>
           Local this
       return
         Type String
         Local $call.1
-  fun thunk<UInt> Hash.hash() @fn758(this: Hash) -> Long
+  fun thunk<UInt> Hash.hash() @fn758(this: box<UInt>) -> Long
     bb0 entry
       call $call.1: Long = @fn53 direct
         Type UInt
         Unbox
-          Type Hash
+          Type box<UInt>
           Local this
       return
         Type Long
         Local $call.1
-  fun thunk<Unit> Equality.equalTo(Unit) @fn759(this: Equality<Unit>, other: Unit) -> Boolean
+  fun thunk<Unit> Equality.equalTo(Unit) @fn759(this: box<Unit>, other: Unit) -> Boolean
     bb0 entry
       call $call.1: Boolean = @fn92 direct
         Type Unit
         Unbox
-          Type Equality<Unit>
+          Type box<Unit>
           Local this
         Type Unit
         Local other
       return
         Type Boolean
         Local $call.1
-  fun thunk<Ptr<UInt8>> Equality.equalTo(Ptr<UInt8>) @fn760(this: Equality<Ptr<UInt8>>, other: Ptr<UInt8>) -> Boolean
+  fun thunk<Ptr<UInt8>> Equality.equalTo(Ptr<UInt8>) @fn760(this: box<Ptr<UInt8>>, other: Ptr<UInt8>) -> Boolean
     bb0 entry
       call $call.1: Boolean = @fn9 direct
         Type Ptr<UInt8>
         Unbox
-          Type Equality<Ptr<UInt8>>
+          Type box<Ptr<UInt8>>
           Local this
         Type Ptr<UInt8>
         Local other
@@ -23908,10 +23863,10 @@ Module
         Box
           Type Int8
           Local $call.1
-  fun function_bridge.$Closure$lambda2.(Any) -> Any @fn763($source: (Long) -> Option<String>, arg0: Any) -> Any
+  fun function_bridge.$Closure$lambda2.(Any) -> Any @fn763($source: (Long) -> MaybeUninit<String>, arg0: Any) -> Any
     bb0 entry
-      call $call.1: Option<String> = <closure:function_type11> closure[function_type11]
-        Type (Long) -> Option<String>
+      call $call.1: MaybeUninit<String> = <closure:function_type11> closure[function_type11]
+        Type (Long) -> MaybeUninit<String>
         Local $source
         Type Long
         Unbox
@@ -23920,7 +23875,7 @@ Module
       return
         Type Any
         Box
-          Type Option<String>
+          Type MaybeUninit<String>
           Local $call.1
   fun function_bridge.$Closure$lambda3.(Any) -> Any @fn764($source: (Long) -> Char, arg0: Any) -> Any
     bb0 entry
@@ -23950,10 +23905,10 @@ Module
         Box
           Type Int8
           Local $call.1
-  fun function_bridge.$Closure$lambda5.(Any) -> Any @fn766($source: (Long) -> Option<String>, arg0: Any) -> Any
+  fun function_bridge.$Closure$lambda5.(Any) -> Any @fn766($source: (Long) -> MaybeUninit<String>, arg0: Any) -> Any
     bb0 entry
-      call $call.1: Option<String> = <closure:function_type11> closure[function_type11]
-        Type (Long) -> Option<String>
+      call $call.1: MaybeUninit<String> = <closure:function_type11> closure[function_type11]
+        Type (Long) -> MaybeUninit<String>
         Local $source
         Type Long
         Unbox
@@ -23962,7 +23917,7 @@ Module
       return
         Type Any
         Box
-          Type Option<String>
+          Type MaybeUninit<String>
           Local $call.1
   fun function_bridge.$Closure$anonymous0.(Any, Any) -> Any @fn767($source: (Ptr<UInt8>, Long) -> Unit, arg0: Any, arg1: Any) -> Any
     bb0 entry

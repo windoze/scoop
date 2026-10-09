@@ -176,9 +176,9 @@ Module
   layout Option size=16 align=8 enum-scan=none
   layout Box size=16 align=8 enum-scan=none
   layout Box size=8 align=8 enum-scan=refs[0]
-  layout Equality value size=8 align=8 refs=[0]
-  layout Equality value size=8 align=8 refs=[0]
-  layout Iterable value size=8 align=8 refs=[0]
-  layout Iterator value size=8 align=8 refs=[0]
-  layout Equality value size=8 align=8 refs=[0]
+  layout Equality value size=16 align=8 refs=[0]
+  layout Equality value size=16 align=8 refs=[0]
+  layout Iterable value size=16 align=8 refs=[0]
+  layout Iterator value size=16 align=8 refs=[0]
+  layout Equality value size=16 align=8 refs=[0]
   output executable @scoop$1$cb$a59ba8328a87a3c09df1111305261ccbca23796630e0ce6dea24e3ae106f48ca

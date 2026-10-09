@@ -17,7 +17,8 @@ pub fn context_type_representation(storage: ContextStorageType) -> crate::MirTyp
             declared_fields: fields,
             release_policy: Default::default(),
         },
-        ContextStorageRole::Binding => Repr::Interface,
+        // Runtime bindings erase a reference to its object, not an interface view.
+        ContextStorageRole::Binding => Repr::Intrinsic(crate::MirParamFreeIntrinsicV1::Any),
         ContextStorageRole::Mark | ContextStorageRole::SwitchGuard => Repr::Struct {
             fields,
             c_layout: crate::MirTypeCLayoutPolicyV1::Ordinary,

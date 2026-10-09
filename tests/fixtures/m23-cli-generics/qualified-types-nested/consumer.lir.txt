@@ -35,50 +35,45 @@ Module
     local %21 $dependency.receiver: i32
     local %22 $dependency.argument.0: i32
     local %23 $dependency.parameter.other: i32
-    local %24 $sc.1: struct0
-    local %25 $sc.2: struct1
-    local %26 $sc.3: struct2
-    local %27 $sc.4: struct1
-    local %28 $sc.5: struct3
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     store integer<Int>(0x00000028) -> local0
     store local0 -> local1
-    call no-gc-indirect-target0 local24 = sig=indirect0 (sret struct0 size=4 align=4 scan=none, i32) external-fn0(local1)
-    store local24 -> local2
+    call no-gc-direct-target0 t0 = sig=direct0 (i32) -> struct0 external-fn0(local1)
+    store t0 -> local2
     store param0 -> local3
     store local3 -> local4
-    call no-gc-indirect-target1 local25 = sig=indirect1 (sret struct1 size=4 align=4 scan=none, i32) local-fn2(local4)
-    store local25 -> local5
-    t0 = extract local5, 0 : i32
-    store t0 -> local6
+    call no-gc-direct-target1 t1 = sig=direct1 (i32) -> struct1 local-fn2(local4)
+    store t1 -> local5
+    t2 = extract local5, 0 : i32
+    store t2 -> local6
     store integer<Int>(0x00000002) -> local7
     store local7 -> local8
-    call no-gc-indirect-target2 local26 = sig=indirect2 (sret struct2 size=4 align=4 scan=none, i32) external-fn1(local8)
-    store local26 -> local9
+    call no-gc-direct-target2 t3 = sig=direct2 (i32) -> struct2 external-fn1(local8)
+    store t3 -> local9
     store local9 -> local10
     store local2 -> local11
-    t1 = extract local11, 0 : i32
-    store t1 -> local12
+    t4 = extract local11, 0 : i32
+    store t4 -> local12
     store local12 -> local13
-    call no-gc-indirect-target3 local27 = sig=indirect3 (sret struct1 size=4 align=4 scan=none, i32) local-fn2(local13)
-    store local27 -> local14
+    call no-gc-direct-target3 t5 = sig=direct3 (i32) -> struct1 local-fn2(local13)
+    store t5 -> local14
     store local10 -> local15
     store local15 -> local16
-    t2 = extract local14, 0 : i32
-    store t2 -> local17
+    t6 = extract local14, 0 : i32
+    store t6 -> local17
     store local17 -> local18
-    call no-gc-indirect-target4 local28 = sig=indirect4 (sret struct3 size=4 align=4 scan=none, i32) external-fn2(local18)
-    store local28 -> local19
+    call no-gc-direct-target4 t7 = sig=direct4 (i32) -> struct3 external-fn2(local18)
+    store t7 -> local19
     store local19 -> local20
-    t3 = extract local20, 0 : i32
-    store t3 -> local21
-    t4 = extract local16, 0 : i32
-    store t4 -> local22
+    t8 = extract local20, 0 : i32
+    store t8 -> local21
+    t9 = extract local16, 0 : i32
+    store t9 -> local22
     store local22 -> local23
-    t5 = integer_Add<Int> local21, local23 : i32
-    ret t5
-  fun @scoop$1$cb$0505747ed2a721ceee5f22503a7c8ada8b1bf41690ebee16520bd97f98e12c1b(i32) -> sret<struct1 size=4 align=4 scan=none> <no-gc>
+    t10 = integer_Add<Int> local21, local23 : i32
+    ret t10
+  fun @scoop$1$cb$0505747ed2a721ceee5f22503a7c8ada8b1bf41690ebee16520bd97f98e12c1b(i32) -> parts<struct1 [i32@0+4/4]> <no-gc>
   block entry
     t0 = aggregate (param0) : struct1
     ret t0

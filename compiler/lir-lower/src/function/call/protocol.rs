@@ -254,7 +254,7 @@ impl<'a> FunctionLowerer<'a> {
             lir::AbiReturn::Indirect(result) => {
                 let storage = self.new_hidden_local(result.storage_type().clone())?;
                 let signature = self.call_targets.indirect_result_signatures.alloc(
-                    lir::IndirectResultCallSignature::scoop_sret(
+                    lir::IndirectResultCallSignature::sret(
                         arguments,
                         result.clone(),
                         calling_convention,

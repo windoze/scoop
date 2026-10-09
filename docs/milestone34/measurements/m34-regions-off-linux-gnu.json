@@ -1,0 +1,1866 @@
+{
+  "revision": "6f6950575",
+  "host": "Linux-7.0.0-38-generic-x86_64-with-glibc2.43",
+  "profile": "release",
+  "runs": 7,
+  "builds": [
+    {
+      "case": "allocation",
+      "argv": [
+        "/home/chenxu/repos/scoop/tmp/m34/direct-c-tools/scoop",
+        "build",
+        "/home/chenxu/repos/scoop/tests/benchmarks/allocation.scoop",
+        "--scoopc",
+        "/home/chenxu/repos/scoop/tmp/m34/direct-c-tools/scoopc",
+        "--profile",
+        "release",
+        "--target",
+        "x86_64-unknown-linux-gnu",
+        "--sysroot",
+        "/home/chenxu/repos/scoop/tmp/m34/direct-c-source/sysroot",
+        "--runtime-root",
+        "/home/chenxu/repos/scoop/tmp/m34/direct-c-source/runtime",
+        "--cache-dir",
+        "/home/chenxu/repos/scoop/tmp/m34/interface-tests/cache",
+        "-o",
+        "/home/chenxu/repos/scoop/tmp/m34/regions-off-linux-gnu/allocation",
+        "--emit",
+        "all",
+        "--dump-dir",
+        "/home/chenxu/repos/scoop/tmp/m34/regions-off-linux-gnu/dump/allocation",
+        "--message-format",
+        "json",
+        "--unwind-prefix",
+        "/home/chenxu/repos/scoop/sysroot/native/x86_64-unknown-linux-gnu/unwind"
+      ],
+      "first_build_seconds": 6.044868535012938,
+      "warm_build_seconds": 5.992001197009813,
+      "records": [
+        {
+          "dependencies": [
+            {
+              "artifact_fingerprint": "699b95e2dacaab735de702135d269e50224267d631f776ec5c8c390ad31330ac",
+              "coordinate": {
+                "group": "scoop",
+                "name": "scoop.core",
+                "version": "0.1.0"
+              },
+              "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+              "path": "/home/chenxu/repos/scoop/tmp/m34/interface-tests/cache/compile-v1/7a6706ca4b98f7f5cefa68900dab32efbcfbdec02886862c1b408ba89a82bbbf/artifact.slib"
+            }
+          ],
+          "kind": "executable",
+          "link_plan_fingerprint": "0706d591fd5a582ce912542d7c7c7e918a5e0baea4f639c482cb646a55e1693b",
+          "observations": {
+            "child_invocations": [
+              "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6"
+            ],
+            "nodes": [
+              {
+                "cache_key": "7a6706ca4b98f7f5cefa68900dab32efbcfbdec02886862c1b408ba89a82bbbf",
+                "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+                "origin": "cache"
+              },
+              {
+                "cache_key": "b03d18241bcaf4d3e0eee5713be8b958c93b0de019f01c68779a1c615bb23aad",
+                "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+                "origin": "compiled"
+              }
+            ]
+          },
+          "output": "/home/chenxu/repos/scoop/tmp/m34/regions-off-linux-gnu/allocation",
+          "profile": "release",
+          "root": {
+            "artifact_fingerprint": "cb074c0ee5b98e06e92088ff1e0754cc20cdc5f271efa2202a22f73ae45f5966",
+            "coordinate": {
+              "group": "scoop",
+              "name": "single-file",
+              "version": "0.0.0"
+            },
+            "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+            "path": "/home/chenxu/repos/scoop/tmp/m34/interface-tests/cache/compile-v1/b03d18241bcaf4d3e0eee5713be8b958c93b0de019f01c68779a1c615bb23aad/artifact.slib"
+          },
+          "runtime_index": "/home/chenxu/repos/scoop/tmp/m34/interface-tests/cache/runtime-v1/4033efe2039ede8fc5f19cd574974a50f7a54ccf0a672ecc7923868561707b5d/index.cbor",
+          "schema": 1
+        }
+      ],
+      "executable_bytes": 4522472,
+      "slib_bytes": 281978
+    },
+    {
+      "case": "old-graph-large",
+      "argv": [
+        "/home/chenxu/repos/scoop/tmp/m34/direct-c-tools/scoop",
+        "build",
+        "/home/chenxu/repos/scoop/tests/benchmarks/old-graph-large.scoop",
+        "--scoopc",
+        "/home/chenxu/repos/scoop/tmp/m34/direct-c-tools/scoopc",
+        "--profile",
+        "release",
+        "--target",
+        "x86_64-unknown-linux-gnu",
+        "--sysroot",
+        "/home/chenxu/repos/scoop/tmp/m34/direct-c-source/sysroot",
+        "--runtime-root",
+        "/home/chenxu/repos/scoop/tmp/m34/direct-c-source/runtime",
+        "--cache-dir",
+        "/home/chenxu/repos/scoop/tmp/m34/interface-tests/cache",
+        "-o",
+        "/home/chenxu/repos/scoop/tmp/m34/regions-off-linux-gnu/old-graph-large",
+        "--emit",
+        "all",
+        "--dump-dir",
+        "/home/chenxu/repos/scoop/tmp/m34/regions-off-linux-gnu/dump/old-graph-large",
+        "--message-format",
+        "json",
+        "--unwind-prefix",
+        "/home/chenxu/repos/scoop/sysroot/native/x86_64-unknown-linux-gnu/unwind"
+      ],
+      "first_build_seconds": 6.142462218005676,
+      "warm_build_seconds": 6.357174197997665,
+      "records": [
+        {
+          "dependencies": [
+            {
+              "artifact_fingerprint": "699b95e2dacaab735de702135d269e50224267d631f776ec5c8c390ad31330ac",
+              "coordinate": {
+                "group": "scoop",
+                "name": "scoop.core",
+                "version": "0.1.0"
+              },
+              "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+              "path": "/home/chenxu/repos/scoop/tmp/m34/interface-tests/cache/compile-v1/7a6706ca4b98f7f5cefa68900dab32efbcfbdec02886862c1b408ba89a82bbbf/artifact.slib"
+            }
+          ],
+          "kind": "executable",
+          "link_plan_fingerprint": "2f5da07c4c43f2b7b59805a6ef01f07f2d38f59c46846ab664ee274ef582ae06",
+          "observations": {
+            "child_invocations": [
+              "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6"
+            ],
+            "nodes": [
+              {
+                "cache_key": "7a6706ca4b98f7f5cefa68900dab32efbcfbdec02886862c1b408ba89a82bbbf",
+                "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+                "origin": "cache"
+              },
+              {
+                "cache_key": "eb873f4118e262df5520a581668dd0a29f77cbd77023f0fa767aa5c57761244b",
+                "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+                "origin": "compiled"
+              }
+            ]
+          },
+          "output": "/home/chenxu/repos/scoop/tmp/m34/regions-off-linux-gnu/old-graph-large",
+          "profile": "release",
+          "root": {
+            "artifact_fingerprint": "6da945da3ef5fab1c411bb58613b902970241ee72a59dcb02ccb92d6e48b254d",
+            "coordinate": {
+              "group": "scoop",
+              "name": "single-file",
+              "version": "0.0.0"
+            },
+            "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+            "path": "/home/chenxu/repos/scoop/tmp/m34/interface-tests/cache/compile-v1/eb873f4118e262df5520a581668dd0a29f77cbd77023f0fa767aa5c57761244b/artifact.slib"
+          },
+          "runtime_index": "/home/chenxu/repos/scoop/tmp/m34/interface-tests/cache/runtime-v1/4033efe2039ede8fc5f19cd574974a50f7a54ccf0a672ecc7923868561707b5d/index.cbor",
+          "schema": 1
+        }
+      ],
+      "executable_bytes": 4609224,
+      "slib_bytes": 1022392
+    },
+    {
+      "case": "survivors",
+      "argv": [
+        "/home/chenxu/repos/scoop/tmp/m34/direct-c-tools/scoop",
+        "build",
+        "/home/chenxu/repos/scoop/tests/benchmarks/survivors.scoop",
+        "--scoopc",
+        "/home/chenxu/repos/scoop/tmp/m34/direct-c-tools/scoopc",
+        "--profile",
+        "release",
+        "--target",
+        "x86_64-unknown-linux-gnu",
+        "--sysroot",
+        "/home/chenxu/repos/scoop/tmp/m34/direct-c-source/sysroot",
+        "--runtime-root",
+        "/home/chenxu/repos/scoop/tmp/m34/direct-c-source/runtime",
+        "--cache-dir",
+        "/home/chenxu/repos/scoop/tmp/m34/interface-tests/cache",
+        "-o",
+        "/home/chenxu/repos/scoop/tmp/m34/regions-off-linux-gnu/survivors",
+        "--emit",
+        "all",
+        "--dump-dir",
+        "/home/chenxu/repos/scoop/tmp/m34/regions-off-linux-gnu/dump/survivors",
+        "--message-format",
+        "json",
+        "--unwind-prefix",
+        "/home/chenxu/repos/scoop/sysroot/native/x86_64-unknown-linux-gnu/unwind"
+      ],
+      "first_build_seconds": 6.2359472420066595,
+      "warm_build_seconds": 6.1752456969989,
+      "records": [
+        {
+          "dependencies": [
+            {
+              "artifact_fingerprint": "699b95e2dacaab735de702135d269e50224267d631f776ec5c8c390ad31330ac",
+              "coordinate": {
+                "group": "scoop",
+                "name": "scoop.core",
+                "version": "0.1.0"
+              },
+              "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+              "path": "/home/chenxu/repos/scoop/tmp/m34/interface-tests/cache/compile-v1/7a6706ca4b98f7f5cefa68900dab32efbcfbdec02886862c1b408ba89a82bbbf/artifact.slib"
+            }
+          ],
+          "kind": "executable",
+          "link_plan_fingerprint": "96b7baa6d367590e7f6f98bfda86ae3b8abf3ea40b3415adc254379ab9c3163e",
+          "observations": {
+            "child_invocations": [
+              "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6"
+            ],
+            "nodes": [
+              {
+                "cache_key": "7a6706ca4b98f7f5cefa68900dab32efbcfbdec02886862c1b408ba89a82bbbf",
+                "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+                "origin": "cache"
+              },
+              {
+                "cache_key": "624b864b733b67399008b9615ea545eedfda9b024d6966e9dcedb19110b418a6",
+                "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+                "origin": "compiled"
+              }
+            ]
+          },
+          "output": "/home/chenxu/repos/scoop/tmp/m34/regions-off-linux-gnu/survivors",
+          "profile": "release",
+          "root": {
+            "artifact_fingerprint": "81bd488f3cc482bbf53430fd9e0eae527bc3c4bf6d7bab4dbf6ca6715b6602fe",
+            "coordinate": {
+              "group": "scoop",
+              "name": "single-file",
+              "version": "0.0.0"
+            },
+            "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+            "path": "/home/chenxu/repos/scoop/tmp/m34/interface-tests/cache/compile-v1/624b864b733b67399008b9615ea545eedfda9b024d6966e9dcedb19110b418a6/artifact.slib"
+          },
+          "runtime_index": "/home/chenxu/repos/scoop/tmp/m34/interface-tests/cache/runtime-v1/4033efe2039ede8fc5f19cd574974a50f7a54ccf0a672ecc7923868561707b5d/index.cbor",
+          "schema": 1
+        }
+      ],
+      "executable_bytes": 4619304,
+      "slib_bytes": 1112236
+    },
+    {
+      "case": "region-stores",
+      "argv": [
+        "/home/chenxu/repos/scoop/tmp/m34/direct-c-tools/scoop",
+        "build",
+        "/home/chenxu/repos/scoop/tests/benchmarks/region-stores.scoop",
+        "--scoopc",
+        "/home/chenxu/repos/scoop/tmp/m34/direct-c-tools/scoopc",
+        "--profile",
+        "release",
+        "--target",
+        "x86_64-unknown-linux-gnu",
+        "--sysroot",
+        "/home/chenxu/repos/scoop/tmp/m34/direct-c-source/sysroot",
+        "--runtime-root",
+        "/home/chenxu/repos/scoop/tmp/m34/direct-c-source/runtime",
+        "--cache-dir",
+        "/home/chenxu/repos/scoop/tmp/m34/interface-tests/cache",
+        "-o",
+        "/home/chenxu/repos/scoop/tmp/m34/regions-off-linux-gnu/region-stores",
+        "--emit",
+        "all",
+        "--dump-dir",
+        "/home/chenxu/repos/scoop/tmp/m34/regions-off-linux-gnu/dump/region-stores",
+        "--message-format",
+        "json",
+        "--unwind-prefix",
+        "/home/chenxu/repos/scoop/sysroot/native/x86_64-unknown-linux-gnu/unwind"
+      ],
+      "first_build_seconds": 6.061788860999513,
+      "warm_build_seconds": 6.010839919006685,
+      "records": [
+        {
+          "dependencies": [
+            {
+              "artifact_fingerprint": "699b95e2dacaab735de702135d269e50224267d631f776ec5c8c390ad31330ac",
+              "coordinate": {
+                "group": "scoop",
+                "name": "scoop.core",
+                "version": "0.1.0"
+              },
+              "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+              "path": "/home/chenxu/repos/scoop/tmp/m34/interface-tests/cache/compile-v1/7a6706ca4b98f7f5cefa68900dab32efbcfbdec02886862c1b408ba89a82bbbf/artifact.slib"
+            }
+          ],
+          "kind": "executable",
+          "link_plan_fingerprint": "9696ae567fbbd8e6661d67f34cc04d446775ddc7ea224f716d585c303739b078",
+          "observations": {
+            "child_invocations": [
+              "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6"
+            ],
+            "nodes": [
+              {
+                "cache_key": "7a6706ca4b98f7f5cefa68900dab32efbcfbdec02886862c1b408ba89a82bbbf",
+                "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+                "origin": "cache"
+              },
+              {
+                "cache_key": "47bea9cacc4f36d9fd258468a6f4694895bdf7678d41f2db37892c0fc5a6a7e9",
+                "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+                "origin": "compiled"
+              }
+            ]
+          },
+          "output": "/home/chenxu/repos/scoop/tmp/m34/regions-off-linux-gnu/region-stores",
+          "profile": "release",
+          "root": {
+            "artifact_fingerprint": "d770202cf9fb77f54f80f9a974a7fd09990e8832d2bd43b5b7743538d89f4e17",
+            "coordinate": {
+              "group": "scoop",
+              "name": "single-file",
+              "version": "0.0.0"
+            },
+            "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+            "path": "/home/chenxu/repos/scoop/tmp/m34/interface-tests/cache/compile-v1/47bea9cacc4f36d9fd258468a6f4694895bdf7678d41f2db37892c0fc5a6a7e9/artifact.slib"
+          },
+          "runtime_index": "/home/chenxu/repos/scoop/tmp/m34/interface-tests/cache/runtime-v1/4033efe2039ede8fc5f19cd574974a50f7a54ccf0a672ecc7923868561707b5d/index.cbor",
+          "schema": 1
+        }
+      ],
+      "executable_bytes": 4558048,
+      "slib_bytes": 573368
+    }
+  ],
+  "cases": {
+    "allocation": [
+      {
+        "run_seconds": [
+          0.011752182006603107
+        ],
+        "gc": [
+          {
+            "scoop_gc": 1,
+            "minor_collections": 3,
+            "full_collections": 0,
+            "promotion_fallbacks": 0,
+            "allocated_bytes": 4160112,
+            "nursery_allocated_bytes": 4160112,
+            "promoted_bytes": 24,
+            "copied_bytes": 24,
+            "dirty_cards": 0,
+            "old_reference_slots": 0,
+            "root_slots": 96,
+            "traced_objects": 1,
+            "pause_ns": 2225795,
+            "maximum_pause_ns": 1430587,
+            "committed_bytes": 1081344,
+            "minor_pause_ns": 2225795,
+            "full_pause_ns": 0,
+            "pause_bucket_upper_ns": [
+              10000,
+              50000,
+              100000,
+              500000,
+              1000000,
+              5000000,
+              10000000,
+              null
+            ],
+            "pause_buckets": [
+              0,
+              0,
+              0,
+              2,
+              0,
+              1,
+              0,
+              0
+            ]
+          }
+        ],
+        "stderr": [
+          "{\"scoop_gc\":1,\"minor_collections\":3,\"full_collections\":0,\"promotion_fallbacks\":0,\"allocated_bytes\":4160112,\"nursery_allocated_bytes\":4160112,\"promoted_bytes\":24,\"copied_bytes\":24,\"dirty_cards\":0,\"old_reference_slots\":0,\"root_slots\":96,\"traced_objects\":1,\"pause_ns\":2225795,\"maximum_pause_ns\":1430587,\"committed_bytes\":1081344,\"minor_pause_ns\":2225795,\"full_pause_ns\":0,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,2,0,1,0,0]}\n"
+        ],
+        "median_seconds": 0.011752182006603107,
+        "min_seconds": 0.011752182006603107,
+        "max_seconds": 0.011752182006603107,
+        "stdout": "1599960000\n",
+        "round": 1
+      },
+      {
+        "run_seconds": [
+          0.009664245997555554
+        ],
+        "gc": [
+          {
+            "scoop_gc": 1,
+            "minor_collections": 3,
+            "full_collections": 0,
+            "promotion_fallbacks": 0,
+            "allocated_bytes": 4160112,
+            "nursery_allocated_bytes": 4160112,
+            "promoted_bytes": 24,
+            "copied_bytes": 24,
+            "dirty_cards": 0,
+            "old_reference_slots": 0,
+            "root_slots": 96,
+            "traced_objects": 1,
+            "pause_ns": 1999294,
+            "maximum_pause_ns": 1202548,
+            "committed_bytes": 1081344,
+            "minor_pause_ns": 1999294,
+            "full_pause_ns": 0,
+            "pause_bucket_upper_ns": [
+              10000,
+              50000,
+              100000,
+              500000,
+              1000000,
+              5000000,
+              10000000,
+              null
+            ],
+            "pause_buckets": [
+              0,
+              0,
+              0,
+              2,
+              0,
+              1,
+              0,
+              0
+            ]
+          }
+        ],
+        "stderr": [
+          "{\"scoop_gc\":1,\"minor_collections\":3,\"full_collections\":0,\"promotion_fallbacks\":0,\"allocated_bytes\":4160112,\"nursery_allocated_bytes\":4160112,\"promoted_bytes\":24,\"copied_bytes\":24,\"dirty_cards\":0,\"old_reference_slots\":0,\"root_slots\":96,\"traced_objects\":1,\"pause_ns\":1999294,\"maximum_pause_ns\":1202548,\"committed_bytes\":1081344,\"minor_pause_ns\":1999294,\"full_pause_ns\":0,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,2,0,1,0,0]}\n"
+        ],
+        "median_seconds": 0.009664245997555554,
+        "min_seconds": 0.009664245997555554,
+        "max_seconds": 0.009664245997555554,
+        "stdout": "1599960000\n",
+        "round": 2
+      },
+      {
+        "run_seconds": [
+          0.010366925009293482
+        ],
+        "gc": [
+          {
+            "scoop_gc": 1,
+            "minor_collections": 3,
+            "full_collections": 0,
+            "promotion_fallbacks": 0,
+            "allocated_bytes": 4160112,
+            "nursery_allocated_bytes": 4160112,
+            "promoted_bytes": 24,
+            "copied_bytes": 24,
+            "dirty_cards": 0,
+            "old_reference_slots": 0,
+            "root_slots": 96,
+            "traced_objects": 1,
+            "pause_ns": 2307909,
+            "maximum_pause_ns": 1510989,
+            "committed_bytes": 1081344,
+            "minor_pause_ns": 2307909,
+            "full_pause_ns": 0,
+            "pause_bucket_upper_ns": [
+              10000,
+              50000,
+              100000,
+              500000,
+              1000000,
+              5000000,
+              10000000,
+              null
+            ],
+            "pause_buckets": [
+              0,
+              0,
+              0,
+              2,
+              0,
+              1,
+              0,
+              0
+            ]
+          }
+        ],
+        "stderr": [
+          "{\"scoop_gc\":1,\"minor_collections\":3,\"full_collections\":0,\"promotion_fallbacks\":0,\"allocated_bytes\":4160112,\"nursery_allocated_bytes\":4160112,\"promoted_bytes\":24,\"copied_bytes\":24,\"dirty_cards\":0,\"old_reference_slots\":0,\"root_slots\":96,\"traced_objects\":1,\"pause_ns\":2307909,\"maximum_pause_ns\":1510989,\"committed_bytes\":1081344,\"minor_pause_ns\":2307909,\"full_pause_ns\":0,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,2,0,1,0,0]}\n"
+        ],
+        "median_seconds": 0.010366925009293482,
+        "min_seconds": 0.010366925009293482,
+        "max_seconds": 0.010366925009293482,
+        "stdout": "1599960000\n",
+        "round": 3
+      },
+      {
+        "run_seconds": [
+          0.008955083001637831
+        ],
+        "gc": [
+          {
+            "scoop_gc": 1,
+            "minor_collections": 3,
+            "full_collections": 0,
+            "promotion_fallbacks": 0,
+            "allocated_bytes": 4160112,
+            "nursery_allocated_bytes": 4160112,
+            "promoted_bytes": 24,
+            "copied_bytes": 24,
+            "dirty_cards": 0,
+            "old_reference_slots": 0,
+            "root_slots": 96,
+            "traced_objects": 1,
+            "pause_ns": 2024106,
+            "maximum_pause_ns": 1250246,
+            "committed_bytes": 1081344,
+            "minor_pause_ns": 2024106,
+            "full_pause_ns": 0,
+            "pause_bucket_upper_ns": [
+              10000,
+              50000,
+              100000,
+              500000,
+              1000000,
+              5000000,
+              10000000,
+              null
+            ],
+            "pause_buckets": [
+              0,
+              0,
+              0,
+              2,
+              0,
+              1,
+              0,
+              0
+            ]
+          }
+        ],
+        "stderr": [
+          "{\"scoop_gc\":1,\"minor_collections\":3,\"full_collections\":0,\"promotion_fallbacks\":0,\"allocated_bytes\":4160112,\"nursery_allocated_bytes\":4160112,\"promoted_bytes\":24,\"copied_bytes\":24,\"dirty_cards\":0,\"old_reference_slots\":0,\"root_slots\":96,\"traced_objects\":1,\"pause_ns\":2024106,\"maximum_pause_ns\":1250246,\"committed_bytes\":1081344,\"minor_pause_ns\":2024106,\"full_pause_ns\":0,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,2,0,1,0,0]}\n"
+        ],
+        "median_seconds": 0.008955083001637831,
+        "min_seconds": 0.008955083001637831,
+        "max_seconds": 0.008955083001637831,
+        "stdout": "1599960000\n",
+        "round": 4
+      },
+      {
+        "run_seconds": [
+          0.009062572993570939
+        ],
+        "gc": [
+          {
+            "scoop_gc": 1,
+            "minor_collections": 3,
+            "full_collections": 0,
+            "promotion_fallbacks": 0,
+            "allocated_bytes": 4160112,
+            "nursery_allocated_bytes": 4160112,
+            "promoted_bytes": 24,
+            "copied_bytes": 24,
+            "dirty_cards": 0,
+            "old_reference_slots": 0,
+            "root_slots": 96,
+            "traced_objects": 1,
+            "pause_ns": 1912017,
+            "maximum_pause_ns": 1230708,
+            "committed_bytes": 1081344,
+            "minor_pause_ns": 1912017,
+            "full_pause_ns": 0,
+            "pause_bucket_upper_ns": [
+              10000,
+              50000,
+              100000,
+              500000,
+              1000000,
+              5000000,
+              10000000,
+              null
+            ],
+            "pause_buckets": [
+              0,
+              0,
+              0,
+              2,
+              0,
+              1,
+              0,
+              0
+            ]
+          }
+        ],
+        "stderr": [
+          "{\"scoop_gc\":1,\"minor_collections\":3,\"full_collections\":0,\"promotion_fallbacks\":0,\"allocated_bytes\":4160112,\"nursery_allocated_bytes\":4160112,\"promoted_bytes\":24,\"copied_bytes\":24,\"dirty_cards\":0,\"old_reference_slots\":0,\"root_slots\":96,\"traced_objects\":1,\"pause_ns\":1912017,\"maximum_pause_ns\":1230708,\"committed_bytes\":1081344,\"minor_pause_ns\":1912017,\"full_pause_ns\":0,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,2,0,1,0,0]}\n"
+        ],
+        "median_seconds": 0.009062572993570939,
+        "min_seconds": 0.009062572993570939,
+        "max_seconds": 0.009062572993570939,
+        "stdout": "1599960000\n",
+        "round": 5
+      },
+      {
+        "run_seconds": [
+          0.00929360999725759
+        ],
+        "gc": [
+          {
+            "scoop_gc": 1,
+            "minor_collections": 3,
+            "full_collections": 0,
+            "promotion_fallbacks": 0,
+            "allocated_bytes": 4160112,
+            "nursery_allocated_bytes": 4160112,
+            "promoted_bytes": 24,
+            "copied_bytes": 24,
+            "dirty_cards": 0,
+            "old_reference_slots": 0,
+            "root_slots": 96,
+            "traced_objects": 1,
+            "pause_ns": 1999452,
+            "maximum_pause_ns": 1243279,
+            "committed_bytes": 1081344,
+            "minor_pause_ns": 1999452,
+            "full_pause_ns": 0,
+            "pause_bucket_upper_ns": [
+              10000,
+              50000,
+              100000,
+              500000,
+              1000000,
+              5000000,
+              10000000,
+              null
+            ],
+            "pause_buckets": [
+              0,
+              0,
+              0,
+              2,
+              0,
+              1,
+              0,
+              0
+            ]
+          }
+        ],
+        "stderr": [
+          "{\"scoop_gc\":1,\"minor_collections\":3,\"full_collections\":0,\"promotion_fallbacks\":0,\"allocated_bytes\":4160112,\"nursery_allocated_bytes\":4160112,\"promoted_bytes\":24,\"copied_bytes\":24,\"dirty_cards\":0,\"old_reference_slots\":0,\"root_slots\":96,\"traced_objects\":1,\"pause_ns\":1999452,\"maximum_pause_ns\":1243279,\"committed_bytes\":1081344,\"minor_pause_ns\":1999452,\"full_pause_ns\":0,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,2,0,1,0,0]}\n"
+        ],
+        "median_seconds": 0.00929360999725759,
+        "min_seconds": 0.00929360999725759,
+        "max_seconds": 0.00929360999725759,
+        "stdout": "1599960000\n",
+        "round": 6
+      },
+      {
+        "run_seconds": [
+          0.009643986995797604
+        ],
+        "gc": [
+          {
+            "scoop_gc": 1,
+            "minor_collections": 3,
+            "full_collections": 0,
+            "promotion_fallbacks": 0,
+            "allocated_bytes": 4160112,
+            "nursery_allocated_bytes": 4160112,
+            "promoted_bytes": 24,
+            "copied_bytes": 24,
+            "dirty_cards": 0,
+            "old_reference_slots": 0,
+            "root_slots": 96,
+            "traced_objects": 1,
+            "pause_ns": 1954432,
+            "maximum_pause_ns": 1215052,
+            "committed_bytes": 1081344,
+            "minor_pause_ns": 1954432,
+            "full_pause_ns": 0,
+            "pause_bucket_upper_ns": [
+              10000,
+              50000,
+              100000,
+              500000,
+              1000000,
+              5000000,
+              10000000,
+              null
+            ],
+            "pause_buckets": [
+              0,
+              0,
+              0,
+              2,
+              0,
+              1,
+              0,
+              0
+            ]
+          }
+        ],
+        "stderr": [
+          "{\"scoop_gc\":1,\"minor_collections\":3,\"full_collections\":0,\"promotion_fallbacks\":0,\"allocated_bytes\":4160112,\"nursery_allocated_bytes\":4160112,\"promoted_bytes\":24,\"copied_bytes\":24,\"dirty_cards\":0,\"old_reference_slots\":0,\"root_slots\":96,\"traced_objects\":1,\"pause_ns\":1954432,\"maximum_pause_ns\":1215052,\"committed_bytes\":1081344,\"minor_pause_ns\":1954432,\"full_pause_ns\":0,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,2,0,1,0,0]}\n"
+        ],
+        "median_seconds": 0.009643986995797604,
+        "min_seconds": 0.009643986995797604,
+        "max_seconds": 0.009643986995797604,
+        "stdout": "1599960000\n",
+        "round": 7
+      }
+    ],
+    "old-graph-large": [
+      {
+        "run_seconds": [
+          0.0390578749938868
+        ],
+        "gc": [
+          {
+            "scoop_gc": 1,
+            "minor_collections": 8,
+            "full_collections": 2,
+            "promotion_fallbacks": 0,
+            "allocated_bytes": 9021592,
+            "nursery_allocated_bytes": 8497280,
+            "promoted_bytes": 2097424,
+            "copied_bytes": 2097424,
+            "dirty_cards": 1028,
+            "old_reference_slots": 65455,
+            "root_slots": 332,
+            "traced_objects": 196363,
+            "pause_ns": 25983032,
+            "maximum_pause_ns": 6422970,
+            "committed_bytes": 2752512,
+            "minor_pause_ns": 14417005,
+            "full_pause_ns": 11566027,
+            "pause_bucket_upper_ns": [
+              10000,
+              50000,
+              100000,
+              500000,
+              1000000,
+              5000000,
+              10000000,
+              null
+            ],
+            "pause_buckets": [
+              0,
+              0,
+              0,
+              6,
+              0,
+              0,
+              4,
+              0
+            ]
+          }
+        ],
+        "stderr": [
+          "{\"scoop_gc\":1,\"minor_collections\":8,\"full_collections\":2,\"promotion_fallbacks\":0,\"allocated_bytes\":9021592,\"nursery_allocated_bytes\":8497280,\"promoted_bytes\":2097424,\"copied_bytes\":2097424,\"dirty_cards\":1028,\"old_reference_slots\":65455,\"root_slots\":332,\"traced_objects\":196363,\"pause_ns\":25983032,\"maximum_pause_ns\":6422970,\"committed_bytes\":2752512,\"minor_pause_ns\":14417005,\"full_pause_ns\":11566027,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,6,0,0,4,0]}\n"
+        ],
+        "median_seconds": 0.0390578749938868,
+        "min_seconds": 0.0390578749938868,
+        "max_seconds": 0.0390578749938868,
+        "stdout": "199680\n",
+        "round": 1
+      },
+      {
+        "run_seconds": [
+          0.03859642700990662
+        ],
+        "gc": [
+          {
+            "scoop_gc": 1,
+            "minor_collections": 8,
+            "full_collections": 2,
+            "promotion_fallbacks": 0,
+            "allocated_bytes": 9021592,
+            "nursery_allocated_bytes": 8497280,
+            "promoted_bytes": 2097424,
+            "copied_bytes": 2097424,
+            "dirty_cards": 1028,
+            "old_reference_slots": 65455,
+            "root_slots": 332,
+            "traced_objects": 196363,
+            "pause_ns": 25802273,
+            "maximum_pause_ns": 6454650,
+            "committed_bytes": 2752512,
+            "minor_pause_ns": 14394753,
+            "full_pause_ns": 11407520,
+            "pause_bucket_upper_ns": [
+              10000,
+              50000,
+              100000,
+              500000,
+              1000000,
+              5000000,
+              10000000,
+              null
+            ],
+            "pause_buckets": [
+              0,
+              0,
+              0,
+              6,
+              0,
+              0,
+              4,
+              0
+            ]
+          }
+        ],
+        "stderr": [
+          "{\"scoop_gc\":1,\"minor_collections\":8,\"full_collections\":2,\"promotion_fallbacks\":0,\"allocated_bytes\":9021592,\"nursery_allocated_bytes\":8497280,\"promoted_bytes\":2097424,\"copied_bytes\":2097424,\"dirty_cards\":1028,\"old_reference_slots\":65455,\"root_slots\":332,\"traced_objects\":196363,\"pause_ns\":25802273,\"maximum_pause_ns\":6454650,\"committed_bytes\":2752512,\"minor_pause_ns\":14394753,\"full_pause_ns\":11407520,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,6,0,0,4,0]}\n"
+        ],
+        "median_seconds": 0.03859642700990662,
+        "min_seconds": 0.03859642700990662,
+        "max_seconds": 0.03859642700990662,
+        "stdout": "199680\n",
+        "round": 2
+      },
+      {
+        "run_seconds": [
+          0.03831087800790556
+        ],
+        "gc": [
+          {
+            "scoop_gc": 1,
+            "minor_collections": 8,
+            "full_collections": 2,
+            "promotion_fallbacks": 0,
+            "allocated_bytes": 9021592,
+            "nursery_allocated_bytes": 8497280,
+            "promoted_bytes": 2097424,
+            "copied_bytes": 2097424,
+            "dirty_cards": 1028,
+            "old_reference_slots": 65455,
+            "root_slots": 332,
+            "traced_objects": 196363,
+            "pause_ns": 25618319,
+            "maximum_pause_ns": 6360150,
+            "committed_bytes": 2752512,
+            "minor_pause_ns": 14302933,
+            "full_pause_ns": 11315386,
+            "pause_bucket_upper_ns": [
+              10000,
+              50000,
+              100000,
+              500000,
+              1000000,
+              5000000,
+              10000000,
+              null
+            ],
+            "pause_buckets": [
+              0,
+              0,
+              0,
+              6,
+              0,
+              0,
+              4,
+              0
+            ]
+          }
+        ],
+        "stderr": [
+          "{\"scoop_gc\":1,\"minor_collections\":8,\"full_collections\":2,\"promotion_fallbacks\":0,\"allocated_bytes\":9021592,\"nursery_allocated_bytes\":8497280,\"promoted_bytes\":2097424,\"copied_bytes\":2097424,\"dirty_cards\":1028,\"old_reference_slots\":65455,\"root_slots\":332,\"traced_objects\":196363,\"pause_ns\":25618319,\"maximum_pause_ns\":6360150,\"committed_bytes\":2752512,\"minor_pause_ns\":14302933,\"full_pause_ns\":11315386,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,6,0,0,4,0]}\n"
+        ],
+        "median_seconds": 0.03831087800790556,
+        "min_seconds": 0.03831087800790556,
+        "max_seconds": 0.03831087800790556,
+        "stdout": "199680\n",
+        "round": 3
+      },
+      {
+        "run_seconds": [
+          0.040740033000474796
+        ],
+        "gc": [
+          {
+            "scoop_gc": 1,
+            "minor_collections": 8,
+            "full_collections": 2,
+            "promotion_fallbacks": 0,
+            "allocated_bytes": 9021592,
+            "nursery_allocated_bytes": 8497280,
+            "promoted_bytes": 2097424,
+            "copied_bytes": 2097424,
+            "dirty_cards": 1028,
+            "old_reference_slots": 65455,
+            "root_slots": 332,
+            "traced_objects": 196363,
+            "pause_ns": 26883187,
+            "maximum_pause_ns": 6812382,
+            "committed_bytes": 2752512,
+            "minor_pause_ns": 15260493,
+            "full_pause_ns": 11622694,
+            "pause_bucket_upper_ns": [
+              10000,
+              50000,
+              100000,
+              500000,
+              1000000,
+              5000000,
+              10000000,
+              null
+            ],
+            "pause_buckets": [
+              0,
+              0,
+              0,
+              6,
+              0,
+              0,
+              4,
+              0
+            ]
+          }
+        ],
+        "stderr": [
+          "{\"scoop_gc\":1,\"minor_collections\":8,\"full_collections\":2,\"promotion_fallbacks\":0,\"allocated_bytes\":9021592,\"nursery_allocated_bytes\":8497280,\"promoted_bytes\":2097424,\"copied_bytes\":2097424,\"dirty_cards\":1028,\"old_reference_slots\":65455,\"root_slots\":332,\"traced_objects\":196363,\"pause_ns\":26883187,\"maximum_pause_ns\":6812382,\"committed_bytes\":2752512,\"minor_pause_ns\":15260493,\"full_pause_ns\":11622694,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,6,0,0,4,0]}\n"
+        ],
+        "median_seconds": 0.040740033000474796,
+        "min_seconds": 0.040740033000474796,
+        "max_seconds": 0.040740033000474796,
+        "stdout": "199680\n",
+        "round": 4
+      },
+      {
+        "run_seconds": [
+          0.03964996698778123
+        ],
+        "gc": [
+          {
+            "scoop_gc": 1,
+            "minor_collections": 8,
+            "full_collections": 2,
+            "promotion_fallbacks": 0,
+            "allocated_bytes": 9021592,
+            "nursery_allocated_bytes": 8497280,
+            "promoted_bytes": 2097424,
+            "copied_bytes": 2097424,
+            "dirty_cards": 1028,
+            "old_reference_slots": 65455,
+            "root_slots": 332,
+            "traced_objects": 196363,
+            "pause_ns": 26293113,
+            "maximum_pause_ns": 6729925,
+            "committed_bytes": 2752512,
+            "minor_pause_ns": 14688607,
+            "full_pause_ns": 11604506,
+            "pause_bucket_upper_ns": [
+              10000,
+              50000,
+              100000,
+              500000,
+              1000000,
+              5000000,
+              10000000,
+              null
+            ],
+            "pause_buckets": [
+              0,
+              0,
+              0,
+              6,
+              0,
+              0,
+              4,
+              0
+            ]
+          }
+        ],
+        "stderr": [
+          "{\"scoop_gc\":1,\"minor_collections\":8,\"full_collections\":2,\"promotion_fallbacks\":0,\"allocated_bytes\":9021592,\"nursery_allocated_bytes\":8497280,\"promoted_bytes\":2097424,\"copied_bytes\":2097424,\"dirty_cards\":1028,\"old_reference_slots\":65455,\"root_slots\":332,\"traced_objects\":196363,\"pause_ns\":26293113,\"maximum_pause_ns\":6729925,\"committed_bytes\":2752512,\"minor_pause_ns\":14688607,\"full_pause_ns\":11604506,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,6,0,0,4,0]}\n"
+        ],
+        "median_seconds": 0.03964996698778123,
+        "min_seconds": 0.03964996698778123,
+        "max_seconds": 0.03964996698778123,
+        "stdout": "199680\n",
+        "round": 5
+      },
+      {
+        "run_seconds": [
+          0.040281324996612966
+        ],
+        "gc": [
+          {
+            "scoop_gc": 1,
+            "minor_collections": 8,
+            "full_collections": 2,
+            "promotion_fallbacks": 0,
+            "allocated_bytes": 9021592,
+            "nursery_allocated_bytes": 8497280,
+            "promoted_bytes": 2097424,
+            "copied_bytes": 2097424,
+            "dirty_cards": 1028,
+            "old_reference_slots": 65455,
+            "root_slots": 332,
+            "traced_objects": 196363,
+            "pause_ns": 26513576,
+            "maximum_pause_ns": 6678355,
+            "committed_bytes": 2752512,
+            "minor_pause_ns": 14918995,
+            "full_pause_ns": 11594581,
+            "pause_bucket_upper_ns": [
+              10000,
+              50000,
+              100000,
+              500000,
+              1000000,
+              5000000,
+              10000000,
+              null
+            ],
+            "pause_buckets": [
+              0,
+              0,
+              0,
+              6,
+              0,
+              0,
+              4,
+              0
+            ]
+          }
+        ],
+        "stderr": [
+          "{\"scoop_gc\":1,\"minor_collections\":8,\"full_collections\":2,\"promotion_fallbacks\":0,\"allocated_bytes\":9021592,\"nursery_allocated_bytes\":8497280,\"promoted_bytes\":2097424,\"copied_bytes\":2097424,\"dirty_cards\":1028,\"old_reference_slots\":65455,\"root_slots\":332,\"traced_objects\":196363,\"pause_ns\":26513576,\"maximum_pause_ns\":6678355,\"committed_bytes\":2752512,\"minor_pause_ns\":14918995,\"full_pause_ns\":11594581,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,6,0,0,4,0]}\n"
+        ],
+        "median_seconds": 0.040281324996612966,
+        "min_seconds": 0.040281324996612966,
+        "max_seconds": 0.040281324996612966,
+        "stdout": "199680\n",
+        "round": 6
+      },
+      {
+        "run_seconds": [
+          0.04074874898651615
+        ],
+        "gc": [
+          {
+            "scoop_gc": 1,
+            "minor_collections": 8,
+            "full_collections": 2,
+            "promotion_fallbacks": 0,
+            "allocated_bytes": 9021592,
+            "nursery_allocated_bytes": 8497280,
+            "promoted_bytes": 2097424,
+            "copied_bytes": 2097424,
+            "dirty_cards": 1028,
+            "old_reference_slots": 65455,
+            "root_slots": 332,
+            "traced_objects": 196363,
+            "pause_ns": 26638536,
+            "maximum_pause_ns": 6688370,
+            "committed_bytes": 2752512,
+            "minor_pause_ns": 14787612,
+            "full_pause_ns": 11850924,
+            "pause_bucket_upper_ns": [
+              10000,
+              50000,
+              100000,
+              500000,
+              1000000,
+              5000000,
+              10000000,
+              null
+            ],
+            "pause_buckets": [
+              0,
+              0,
+              0,
+              6,
+              0,
+              0,
+              4,
+              0
+            ]
+          }
+        ],
+        "stderr": [
+          "{\"scoop_gc\":1,\"minor_collections\":8,\"full_collections\":2,\"promotion_fallbacks\":0,\"allocated_bytes\":9021592,\"nursery_allocated_bytes\":8497280,\"promoted_bytes\":2097424,\"copied_bytes\":2097424,\"dirty_cards\":1028,\"old_reference_slots\":65455,\"root_slots\":332,\"traced_objects\":196363,\"pause_ns\":26638536,\"maximum_pause_ns\":6688370,\"committed_bytes\":2752512,\"minor_pause_ns\":14787612,\"full_pause_ns\":11850924,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,6,0,0,4,0]}\n"
+        ],
+        "median_seconds": 0.04074874898651615,
+        "min_seconds": 0.04074874898651615,
+        "max_seconds": 0.04074874898651615,
+        "stdout": "199680\n",
+        "round": 7
+      }
+    ],
+    "survivors": [
+      {
+        "run_seconds": [
+          0.06163694700808264
+        ],
+        "gc": [
+          {
+            "scoop_gc": 1,
+            "minor_collections": 6,
+            "full_collections": 1,
+            "promotion_fallbacks": 0,
+            "allocated_bytes": 6947000,
+            "nursery_allocated_bytes": 6815904,
+            "promoted_bytes": 6815768,
+            "copied_bytes": 6365264,
+            "dirty_cards": 1542,
+            "old_reference_slots": 98304,
+            "root_slots": 250,
+            "traced_objects": 408832,
+            "pause_ns": 49071205,
+            "maximum_pause_ns": 16989275,
+            "committed_bytes": 7045120,
+            "minor_pause_ns": 32081930,
+            "full_pause_ns": 16989275,
+            "pause_bucket_upper_ns": [
+              10000,
+              50000,
+              100000,
+              500000,
+              1000000,
+              5000000,
+              10000000,
+              null
+            ],
+            "pause_buckets": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              6,
+              1
+            ]
+          }
+        ],
+        "stderr": [
+          "{\"scoop_gc\":1,\"minor_collections\":6,\"full_collections\":1,\"promotion_fallbacks\":0,\"allocated_bytes\":6947000,\"nursery_allocated_bytes\":6815904,\"promoted_bytes\":6815768,\"copied_bytes\":6365264,\"dirty_cards\":1542,\"old_reference_slots\":98304,\"root_slots\":250,\"traced_objects\":408832,\"pause_ns\":49071205,\"maximum_pause_ns\":16989275,\"committed_bytes\":7045120,\"minor_pause_ns\":32081930,\"full_pause_ns\":16989275,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,0,0,0,6,1]}\n"
+        ],
+        "median_seconds": 0.06163694700808264,
+        "min_seconds": 0.06163694700808264,
+        "max_seconds": 0.06163694700808264,
+        "stdout": "196614\n",
+        "round": 1
+      },
+      {
+        "run_seconds": [
+          0.06294158598757349
+        ],
+        "gc": [
+          {
+            "scoop_gc": 1,
+            "minor_collections": 6,
+            "full_collections": 1,
+            "promotion_fallbacks": 0,
+            "allocated_bytes": 6947000,
+            "nursery_allocated_bytes": 6815904,
+            "promoted_bytes": 6815768,
+            "copied_bytes": 6365264,
+            "dirty_cards": 1542,
+            "old_reference_slots": 98304,
+            "root_slots": 250,
+            "traced_objects": 408832,
+            "pause_ns": 49684020,
+            "maximum_pause_ns": 17289480,
+            "committed_bytes": 7045120,
+            "minor_pause_ns": 32394540,
+            "full_pause_ns": 17289480,
+            "pause_bucket_upper_ns": [
+              10000,
+              50000,
+              100000,
+              500000,
+              1000000,
+              5000000,
+              10000000,
+              null
+            ],
+            "pause_buckets": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              1,
+              5,
+              1
+            ]
+          }
+        ],
+        "stderr": [
+          "{\"scoop_gc\":1,\"minor_collections\":6,\"full_collections\":1,\"promotion_fallbacks\":0,\"allocated_bytes\":6947000,\"nursery_allocated_bytes\":6815904,\"promoted_bytes\":6815768,\"copied_bytes\":6365264,\"dirty_cards\":1542,\"old_reference_slots\":98304,\"root_slots\":250,\"traced_objects\":408832,\"pause_ns\":49684020,\"maximum_pause_ns\":17289480,\"committed_bytes\":7045120,\"minor_pause_ns\":32394540,\"full_pause_ns\":17289480,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,0,0,1,5,1]}\n"
+        ],
+        "median_seconds": 0.06294158598757349,
+        "min_seconds": 0.06294158598757349,
+        "max_seconds": 0.06294158598757349,
+        "stdout": "196614\n",
+        "round": 2
+      },
+      {
+        "run_seconds": [
+          0.062060353986453265
+        ],
+        "gc": [
+          {
+            "scoop_gc": 1,
+            "minor_collections": 6,
+            "full_collections": 1,
+            "promotion_fallbacks": 0,
+            "allocated_bytes": 6947000,
+            "nursery_allocated_bytes": 6815904,
+            "promoted_bytes": 6815768,
+            "copied_bytes": 6365264,
+            "dirty_cards": 1542,
+            "old_reference_slots": 98304,
+            "root_slots": 250,
+            "traced_objects": 408832,
+            "pause_ns": 49567335,
+            "maximum_pause_ns": 18033462,
+            "committed_bytes": 7045120,
+            "minor_pause_ns": 31533873,
+            "full_pause_ns": 18033462,
+            "pause_bucket_upper_ns": [
+              10000,
+              50000,
+              100000,
+              500000,
+              1000000,
+              5000000,
+              10000000,
+              null
+            ],
+            "pause_buckets": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              1,
+              5,
+              1
+            ]
+          }
+        ],
+        "stderr": [
+          "{\"scoop_gc\":1,\"minor_collections\":6,\"full_collections\":1,\"promotion_fallbacks\":0,\"allocated_bytes\":6947000,\"nursery_allocated_bytes\":6815904,\"promoted_bytes\":6815768,\"copied_bytes\":6365264,\"dirty_cards\":1542,\"old_reference_slots\":98304,\"root_slots\":250,\"traced_objects\":408832,\"pause_ns\":49567335,\"maximum_pause_ns\":18033462,\"committed_bytes\":7045120,\"minor_pause_ns\":31533873,\"full_pause_ns\":18033462,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,0,0,1,5,1]}\n"
+        ],
+        "median_seconds": 0.062060353986453265,
+        "min_seconds": 0.062060353986453265,
+        "max_seconds": 0.062060353986453265,
+        "stdout": "196614\n",
+        "round": 3
+      },
+      {
+        "run_seconds": [
+          0.06197161300224252
+        ],
+        "gc": [
+          {
+            "scoop_gc": 1,
+            "minor_collections": 6,
+            "full_collections": 1,
+            "promotion_fallbacks": 0,
+            "allocated_bytes": 6947000,
+            "nursery_allocated_bytes": 6815904,
+            "promoted_bytes": 6815768,
+            "copied_bytes": 6365264,
+            "dirty_cards": 1542,
+            "old_reference_slots": 98304,
+            "root_slots": 250,
+            "traced_objects": 408832,
+            "pause_ns": 49658935,
+            "maximum_pause_ns": 18067559,
+            "committed_bytes": 7045120,
+            "minor_pause_ns": 31591376,
+            "full_pause_ns": 18067559,
+            "pause_bucket_upper_ns": [
+              10000,
+              50000,
+              100000,
+              500000,
+              1000000,
+              5000000,
+              10000000,
+              null
+            ],
+            "pause_buckets": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              6,
+              1
+            ]
+          }
+        ],
+        "stderr": [
+          "{\"scoop_gc\":1,\"minor_collections\":6,\"full_collections\":1,\"promotion_fallbacks\":0,\"allocated_bytes\":6947000,\"nursery_allocated_bytes\":6815904,\"promoted_bytes\":6815768,\"copied_bytes\":6365264,\"dirty_cards\":1542,\"old_reference_slots\":98304,\"root_slots\":250,\"traced_objects\":408832,\"pause_ns\":49658935,\"maximum_pause_ns\":18067559,\"committed_bytes\":7045120,\"minor_pause_ns\":31591376,\"full_pause_ns\":18067559,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,0,0,0,6,1]}\n"
+        ],
+        "median_seconds": 0.06197161300224252,
+        "min_seconds": 0.06197161300224252,
+        "max_seconds": 0.06197161300224252,
+        "stdout": "196614\n",
+        "round": 4
+      },
+      {
+        "run_seconds": [
+          0.0619757880049292
+        ],
+        "gc": [
+          {
+            "scoop_gc": 1,
+            "minor_collections": 6,
+            "full_collections": 1,
+            "promotion_fallbacks": 0,
+            "allocated_bytes": 6947000,
+            "nursery_allocated_bytes": 6815904,
+            "promoted_bytes": 6815768,
+            "copied_bytes": 6365264,
+            "dirty_cards": 1542,
+            "old_reference_slots": 98304,
+            "root_slots": 250,
+            "traced_objects": 408832,
+            "pause_ns": 49469338,
+            "maximum_pause_ns": 17355669,
+            "committed_bytes": 7045120,
+            "minor_pause_ns": 32113669,
+            "full_pause_ns": 17355669,
+            "pause_bucket_upper_ns": [
+              10000,
+              50000,
+              100000,
+              500000,
+              1000000,
+              5000000,
+              10000000,
+              null
+            ],
+            "pause_buckets": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              6,
+              1
+            ]
+          }
+        ],
+        "stderr": [
+          "{\"scoop_gc\":1,\"minor_collections\":6,\"full_collections\":1,\"promotion_fallbacks\":0,\"allocated_bytes\":6947000,\"nursery_allocated_bytes\":6815904,\"promoted_bytes\":6815768,\"copied_bytes\":6365264,\"dirty_cards\":1542,\"old_reference_slots\":98304,\"root_slots\":250,\"traced_objects\":408832,\"pause_ns\":49469338,\"maximum_pause_ns\":17355669,\"committed_bytes\":7045120,\"minor_pause_ns\":32113669,\"full_pause_ns\":17355669,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,0,0,0,6,1]}\n"
+        ],
+        "median_seconds": 0.0619757880049292,
+        "min_seconds": 0.0619757880049292,
+        "max_seconds": 0.0619757880049292,
+        "stdout": "196614\n",
+        "round": 5
+      },
+      {
+        "run_seconds": [
+          0.06446555600268766
+        ],
+        "gc": [
+          {
+            "scoop_gc": 1,
+            "minor_collections": 6,
+            "full_collections": 1,
+            "promotion_fallbacks": 0,
+            "allocated_bytes": 6947000,
+            "nursery_allocated_bytes": 6815904,
+            "promoted_bytes": 6815768,
+            "copied_bytes": 6365264,
+            "dirty_cards": 1542,
+            "old_reference_slots": 98304,
+            "root_slots": 250,
+            "traced_objects": 408832,
+            "pause_ns": 50625310,
+            "maximum_pause_ns": 17945532,
+            "committed_bytes": 7045120,
+            "minor_pause_ns": 32679778,
+            "full_pause_ns": 17945532,
+            "pause_bucket_upper_ns": [
+              10000,
+              50000,
+              100000,
+              500000,
+              1000000,
+              5000000,
+              10000000,
+              null
+            ],
+            "pause_buckets": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              1,
+              5,
+              1
+            ]
+          }
+        ],
+        "stderr": [
+          "{\"scoop_gc\":1,\"minor_collections\":6,\"full_collections\":1,\"promotion_fallbacks\":0,\"allocated_bytes\":6947000,\"nursery_allocated_bytes\":6815904,\"promoted_bytes\":6815768,\"copied_bytes\":6365264,\"dirty_cards\":1542,\"old_reference_slots\":98304,\"root_slots\":250,\"traced_objects\":408832,\"pause_ns\":50625310,\"maximum_pause_ns\":17945532,\"committed_bytes\":7045120,\"minor_pause_ns\":32679778,\"full_pause_ns\":17945532,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,0,0,1,5,1]}\n"
+        ],
+        "median_seconds": 0.06446555600268766,
+        "min_seconds": 0.06446555600268766,
+        "max_seconds": 0.06446555600268766,
+        "stdout": "196614\n",
+        "round": 6
+      },
+      {
+        "run_seconds": [
+          0.06143450699164532
+        ],
+        "gc": [
+          {
+            "scoop_gc": 1,
+            "minor_collections": 6,
+            "full_collections": 1,
+            "promotion_fallbacks": 0,
+            "allocated_bytes": 6947000,
+            "nursery_allocated_bytes": 6815904,
+            "promoted_bytes": 6815768,
+            "copied_bytes": 6365264,
+            "dirty_cards": 1542,
+            "old_reference_slots": 98304,
+            "root_slots": 250,
+            "traced_objects": 408832,
+            "pause_ns": 49010715,
+            "maximum_pause_ns": 17206495,
+            "committed_bytes": 7045120,
+            "minor_pause_ns": 31804220,
+            "full_pause_ns": 17206495,
+            "pause_bucket_upper_ns": [
+              10000,
+              50000,
+              100000,
+              500000,
+              1000000,
+              5000000,
+              10000000,
+              null
+            ],
+            "pause_buckets": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              2,
+              4,
+              1
+            ]
+          }
+        ],
+        "stderr": [
+          "{\"scoop_gc\":1,\"minor_collections\":6,\"full_collections\":1,\"promotion_fallbacks\":0,\"allocated_bytes\":6947000,\"nursery_allocated_bytes\":6815904,\"promoted_bytes\":6815768,\"copied_bytes\":6365264,\"dirty_cards\":1542,\"old_reference_slots\":98304,\"root_slots\":250,\"traced_objects\":408832,\"pause_ns\":49010715,\"maximum_pause_ns\":17206495,\"committed_bytes\":7045120,\"minor_pause_ns\":31804220,\"full_pause_ns\":17206495,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,0,0,2,4,1]}\n"
+        ],
+        "median_seconds": 0.06143450699164532,
+        "min_seconds": 0.06143450699164532,
+        "max_seconds": 0.06143450699164532,
+        "stdout": "196614\n",
+        "round": 7
+      }
+    ],
+    "region-stores": [
+      {
+        "run_seconds": [
+          0.05270727298920974
+        ],
+        "gc": [
+          {
+            "scoop_gc": 1,
+            "minor_collections": 0,
+            "full_collections": 1,
+            "promotion_fallbacks": 0,
+            "allocated_bytes": 200,
+            "nursery_allocated_bytes": 200,
+            "promoted_bytes": 120,
+            "copied_bytes": 120,
+            "dirty_cards": 0,
+            "old_reference_slots": 0,
+            "root_slots": 35,
+            "traced_objects": 4,
+            "pause_ns": 1041604,
+            "maximum_pause_ns": 1041604,
+            "committed_bytes": 65536,
+            "minor_pause_ns": 0,
+            "full_pause_ns": 1041604,
+            "pause_bucket_upper_ns": [
+              10000,
+              50000,
+              100000,
+              500000,
+              1000000,
+              5000000,
+              10000000,
+              null
+            ],
+            "pause_buckets": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              1,
+              0,
+              0
+            ]
+          }
+        ],
+        "stderr": [
+          "{\"scoop_gc\":1,\"minor_collections\":0,\"full_collections\":1,\"promotion_fallbacks\":0,\"allocated_bytes\":200,\"nursery_allocated_bytes\":200,\"promoted_bytes\":120,\"copied_bytes\":120,\"dirty_cards\":0,\"old_reference_slots\":0,\"root_slots\":35,\"traced_objects\":4,\"pause_ns\":1041604,\"maximum_pause_ns\":1041604,\"committed_bytes\":65536,\"minor_pause_ns\":0,\"full_pause_ns\":1041604,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,0,0,1,0,0]}\n"
+        ],
+        "median_seconds": 0.05270727298920974,
+        "min_seconds": 0.05270727298920974,
+        "max_seconds": 0.05270727298920974,
+        "stdout": "9\n",
+        "round": 1
+      },
+      {
+        "run_seconds": [
+          0.052518296986818314
+        ],
+        "gc": [
+          {
+            "scoop_gc": 1,
+            "minor_collections": 0,
+            "full_collections": 1,
+            "promotion_fallbacks": 0,
+            "allocated_bytes": 200,
+            "nursery_allocated_bytes": 200,
+            "promoted_bytes": 120,
+            "copied_bytes": 120,
+            "dirty_cards": 0,
+            "old_reference_slots": 0,
+            "root_slots": 35,
+            "traced_objects": 4,
+            "pause_ns": 983712,
+            "maximum_pause_ns": 983712,
+            "committed_bytes": 65536,
+            "minor_pause_ns": 0,
+            "full_pause_ns": 983712,
+            "pause_bucket_upper_ns": [
+              10000,
+              50000,
+              100000,
+              500000,
+              1000000,
+              5000000,
+              10000000,
+              null
+            ],
+            "pause_buckets": [
+              0,
+              0,
+              0,
+              0,
+              1,
+              0,
+              0,
+              0
+            ]
+          }
+        ],
+        "stderr": [
+          "{\"scoop_gc\":1,\"minor_collections\":0,\"full_collections\":1,\"promotion_fallbacks\":0,\"allocated_bytes\":200,\"nursery_allocated_bytes\":200,\"promoted_bytes\":120,\"copied_bytes\":120,\"dirty_cards\":0,\"old_reference_slots\":0,\"root_slots\":35,\"traced_objects\":4,\"pause_ns\":983712,\"maximum_pause_ns\":983712,\"committed_bytes\":65536,\"minor_pause_ns\":0,\"full_pause_ns\":983712,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,0,1,0,0,0]}\n"
+        ],
+        "median_seconds": 0.052518296986818314,
+        "min_seconds": 0.052518296986818314,
+        "max_seconds": 0.052518296986818314,
+        "stdout": "9\n",
+        "round": 2
+      },
+      {
+        "run_seconds": [
+          0.052270896994741634
+        ],
+        "gc": [
+          {
+            "scoop_gc": 1,
+            "minor_collections": 0,
+            "full_collections": 1,
+            "promotion_fallbacks": 0,
+            "allocated_bytes": 200,
+            "nursery_allocated_bytes": 200,
+            "promoted_bytes": 120,
+            "copied_bytes": 120,
+            "dirty_cards": 0,
+            "old_reference_slots": 0,
+            "root_slots": 35,
+            "traced_objects": 4,
+            "pause_ns": 1027812,
+            "maximum_pause_ns": 1027812,
+            "committed_bytes": 65536,
+            "minor_pause_ns": 0,
+            "full_pause_ns": 1027812,
+            "pause_bucket_upper_ns": [
+              10000,
+              50000,
+              100000,
+              500000,
+              1000000,
+              5000000,
+              10000000,
+              null
+            ],
+            "pause_buckets": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              1,
+              0,
+              0
+            ]
+          }
+        ],
+        "stderr": [
+          "{\"scoop_gc\":1,\"minor_collections\":0,\"full_collections\":1,\"promotion_fallbacks\":0,\"allocated_bytes\":200,\"nursery_allocated_bytes\":200,\"promoted_bytes\":120,\"copied_bytes\":120,\"dirty_cards\":0,\"old_reference_slots\":0,\"root_slots\":35,\"traced_objects\":4,\"pause_ns\":1027812,\"maximum_pause_ns\":1027812,\"committed_bytes\":65536,\"minor_pause_ns\":0,\"full_pause_ns\":1027812,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,0,0,1,0,0]}\n"
+        ],
+        "median_seconds": 0.052270896994741634,
+        "min_seconds": 0.052270896994741634,
+        "max_seconds": 0.052270896994741634,
+        "stdout": "9\n",
+        "round": 3
+      },
+      {
+        "run_seconds": [
+          0.05535314400913194
+        ],
+        "gc": [
+          {
+            "scoop_gc": 1,
+            "minor_collections": 0,
+            "full_collections": 1,
+            "promotion_fallbacks": 0,
+            "allocated_bytes": 200,
+            "nursery_allocated_bytes": 200,
+            "promoted_bytes": 120,
+            "copied_bytes": 120,
+            "dirty_cards": 0,
+            "old_reference_slots": 0,
+            "root_slots": 35,
+            "traced_objects": 4,
+            "pause_ns": 1660325,
+            "maximum_pause_ns": 1660325,
+            "committed_bytes": 65536,
+            "minor_pause_ns": 0,
+            "full_pause_ns": 1660325,
+            "pause_bucket_upper_ns": [
+              10000,
+              50000,
+              100000,
+              500000,
+              1000000,
+              5000000,
+              10000000,
+              null
+            ],
+            "pause_buckets": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              1,
+              0,
+              0
+            ]
+          }
+        ],
+        "stderr": [
+          "{\"scoop_gc\":1,\"minor_collections\":0,\"full_collections\":1,\"promotion_fallbacks\":0,\"allocated_bytes\":200,\"nursery_allocated_bytes\":200,\"promoted_bytes\":120,\"copied_bytes\":120,\"dirty_cards\":0,\"old_reference_slots\":0,\"root_slots\":35,\"traced_objects\":4,\"pause_ns\":1660325,\"maximum_pause_ns\":1660325,\"committed_bytes\":65536,\"minor_pause_ns\":0,\"full_pause_ns\":1660325,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,0,0,1,0,0]}\n"
+        ],
+        "median_seconds": 0.05535314400913194,
+        "min_seconds": 0.05535314400913194,
+        "max_seconds": 0.05535314400913194,
+        "stdout": "9\n",
+        "round": 4
+      },
+      {
+        "run_seconds": [
+          0.05385003599803895
+        ],
+        "gc": [
+          {
+            "scoop_gc": 1,
+            "minor_collections": 0,
+            "full_collections": 1,
+            "promotion_fallbacks": 0,
+            "allocated_bytes": 200,
+            "nursery_allocated_bytes": 200,
+            "promoted_bytes": 120,
+            "copied_bytes": 120,
+            "dirty_cards": 0,
+            "old_reference_slots": 0,
+            "root_slots": 35,
+            "traced_objects": 4,
+            "pause_ns": 1123753,
+            "maximum_pause_ns": 1123753,
+            "committed_bytes": 65536,
+            "minor_pause_ns": 0,
+            "full_pause_ns": 1123753,
+            "pause_bucket_upper_ns": [
+              10000,
+              50000,
+              100000,
+              500000,
+              1000000,
+              5000000,
+              10000000,
+              null
+            ],
+            "pause_buckets": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              1,
+              0,
+              0
+            ]
+          }
+        ],
+        "stderr": [
+          "{\"scoop_gc\":1,\"minor_collections\":0,\"full_collections\":1,\"promotion_fallbacks\":0,\"allocated_bytes\":200,\"nursery_allocated_bytes\":200,\"promoted_bytes\":120,\"copied_bytes\":120,\"dirty_cards\":0,\"old_reference_slots\":0,\"root_slots\":35,\"traced_objects\":4,\"pause_ns\":1123753,\"maximum_pause_ns\":1123753,\"committed_bytes\":65536,\"minor_pause_ns\":0,\"full_pause_ns\":1123753,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,0,0,1,0,0]}\n"
+        ],
+        "median_seconds": 0.05385003599803895,
+        "min_seconds": 0.05385003599803895,
+        "max_seconds": 0.05385003599803895,
+        "stdout": "9\n",
+        "round": 5
+      },
+      {
+        "run_seconds": [
+          0.05460768801276572
+        ],
+        "gc": [
+          {
+            "scoop_gc": 1,
+            "minor_collections": 0,
+            "full_collections": 1,
+            "promotion_fallbacks": 0,
+            "allocated_bytes": 200,
+            "nursery_allocated_bytes": 200,
+            "promoted_bytes": 120,
+            "copied_bytes": 120,
+            "dirty_cards": 0,
+            "old_reference_slots": 0,
+            "root_slots": 35,
+            "traced_objects": 4,
+            "pause_ns": 1163205,
+            "maximum_pause_ns": 1163205,
+            "committed_bytes": 65536,
+            "minor_pause_ns": 0,
+            "full_pause_ns": 1163205,
+            "pause_bucket_upper_ns": [
+              10000,
+              50000,
+              100000,
+              500000,
+              1000000,
+              5000000,
+              10000000,
+              null
+            ],
+            "pause_buckets": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              1,
+              0,
+              0
+            ]
+          }
+        ],
+        "stderr": [
+          "{\"scoop_gc\":1,\"minor_collections\":0,\"full_collections\":1,\"promotion_fallbacks\":0,\"allocated_bytes\":200,\"nursery_allocated_bytes\":200,\"promoted_bytes\":120,\"copied_bytes\":120,\"dirty_cards\":0,\"old_reference_slots\":0,\"root_slots\":35,\"traced_objects\":4,\"pause_ns\":1163205,\"maximum_pause_ns\":1163205,\"committed_bytes\":65536,\"minor_pause_ns\":0,\"full_pause_ns\":1163205,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,0,0,1,0,0]}\n"
+        ],
+        "median_seconds": 0.05460768801276572,
+        "min_seconds": 0.05460768801276572,
+        "max_seconds": 0.05460768801276572,
+        "stdout": "9\n",
+        "round": 6
+      },
+      {
+        "run_seconds": [
+          0.05247943598078564
+        ],
+        "gc": [
+          {
+            "scoop_gc": 1,
+            "minor_collections": 0,
+            "full_collections": 1,
+            "promotion_fallbacks": 0,
+            "allocated_bytes": 200,
+            "nursery_allocated_bytes": 200,
+            "promoted_bytes": 120,
+            "copied_bytes": 120,
+            "dirty_cards": 0,
+            "old_reference_slots": 0,
+            "root_slots": 35,
+            "traced_objects": 4,
+            "pause_ns": 983165,
+            "maximum_pause_ns": 983165,
+            "committed_bytes": 65536,
+            "minor_pause_ns": 0,
+            "full_pause_ns": 983165,
+            "pause_bucket_upper_ns": [
+              10000,
+              50000,
+              100000,
+              500000,
+              1000000,
+              5000000,
+              10000000,
+              null
+            ],
+            "pause_buckets": [
+              0,
+              0,
+              0,
+              0,
+              1,
+              0,
+              0,
+              0
+            ]
+          }
+        ],
+        "stderr": [
+          "{\"scoop_gc\":1,\"minor_collections\":0,\"full_collections\":1,\"promotion_fallbacks\":0,\"allocated_bytes\":200,\"nursery_allocated_bytes\":200,\"promoted_bytes\":120,\"copied_bytes\":120,\"dirty_cards\":0,\"old_reference_slots\":0,\"root_slots\":35,\"traced_objects\":4,\"pause_ns\":983165,\"maximum_pause_ns\":983165,\"committed_bytes\":65536,\"minor_pause_ns\":0,\"full_pause_ns\":983165,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,0,1,0,0,0]}\n"
+        ],
+        "median_seconds": 0.05247943598078564,
+        "min_seconds": 0.05247943598078564,
+        "max_seconds": 0.05247943598078564,
+        "stdout": "9\n",
+        "round": 7
+      }
+    ]
+  },
+  "tool_versions": {
+    "native_compiler": "gcc (Ubuntu 15.2.0-16ubuntu1) 15.2.0",
+    "llvm": "22.1.2"
+  }
+}

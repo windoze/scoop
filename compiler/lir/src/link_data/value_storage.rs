@@ -16,7 +16,7 @@ pub(crate) type LinkLayouts = BTreeMap<PersistentLayoutId, ExactLayoutExportV1>;
 pub(crate) struct LinkValueStorage {
     pub value: ValueLayoutConstituentV1,
     pub shape: ScoopAbiValueShape,
-    pub pointer: Option<NichePointerKind>,
+    pub pointer: Option<NullNicheKind>,
 }
 
 #[derive(Default)]
@@ -47,6 +47,7 @@ impl ValueStorageReader {
                     .ok_or_else(|| LinkDataError(format!("missing value layout {id}")))?;
                 let pointer = match layout.representation().kind() {
                     ExactRepresentationKindV1::QualifiedPointer(kind) => Some(kind),
+                    ExactRepresentationKindV1::Interface => Some(NullNicheKind::Interface),
                     _ => None,
                 };
                 let result = LinkValueStorage {
@@ -71,17 +72,17 @@ impl ValueStorageReader {
             ExactTypeKey::Function { .. } => pointer_storage(
                 target.managed_pointer_layout(),
                 RefScan::References(vec![0]),
-                NichePointerKind::Managed,
+                NullNicheKind::Managed,
             )?,
             ExactTypeKey::RawPointer(_) => pointer_storage(
                 target.data_pointer().layout(),
                 RefScan::None,
-                NichePointerKind::Raw,
+                NullNicheKind::Raw,
             )?,
             ExactTypeKey::NativeFunctionPointer { .. } => pointer_storage(
                 target.code_pointer().layout(),
                 RefScan::None,
-                NichePointerKind::Code,
+                NullNicheKind::Code,
             )?,
         };
         let value = ValueLayoutConstituentV1::new(
@@ -140,12 +141,12 @@ pub(crate) fn value_dependencies(
 fn pointer_storage(
     layout: ScalarLayout,
     scan: RefScan,
-    pointer: NichePointerKind,
+    pointer: NullNicheKind,
 ) -> Result<
     (
         ValueStorageLayoutV1,
         ScoopAbiValueShape,
-        Option<NichePointerKind>,
+        Option<NullNicheKind>,
     ),
     LinkDataError,
 > {

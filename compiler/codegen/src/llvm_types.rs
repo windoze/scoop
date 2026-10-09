@@ -1,5 +1,7 @@
 use super::*;
 
+mod maybe_uninit;
+
 /// The LLVM type of a (non-void) LIR type: aggregates are literal
 /// structs per the layout in LIR meta; Unit is the empty struct `{}`;
 /// enums follow their fixed representation (spec 7.4).
@@ -27,6 +29,15 @@ pub(crate) fn basic_ty<'ctx>(
         // this final physical lowering boundary.
         LirType::MachineScalar(_) => context.i64_type().into(),
         LirType::Ptr(kind) => pointer_ty(context, managed_address_space, *kind).into(),
+        LirType::Interface => context
+            .struct_type(
+                &[
+                    pointer_ty(context, managed_address_space, PointerKind::Managed).into(),
+                    pointer_ty(context, managed_address_space, PointerKind::Metadata).into(),
+                ],
+                false,
+            )
+            .into(),
         LirType::ExceptionRecord => context
             .struct_type(
                 &[
@@ -48,9 +59,13 @@ pub(crate) fn basic_ty<'ctx>(
         }
         LirType::Enum(id) => match &enums[*id].repr {
             // Niche optimization: the value is a bare pointer.
-            EnumRepr::Niche { kind, .. } => {
-                pointer_ty(context, managed_address_space, kind.pointer_kind()).into()
-            }
+            EnumRepr::Niche { kind, .. } => basic_ty(
+                context,
+                structs,
+                enums,
+                managed_address_space,
+                &kind.storage_type(),
+            )?,
             EnumRepr::Tagged { size, align, .. } => tagged_ty(
                 context,
                 managed_address_space,
@@ -171,7 +186,7 @@ pub(crate) fn llvm_constant<'ctx>(
                                 .to_string(),
                         ));
                     }
-                    ty.into_pointer_type().const_null().into()
+                    ty.const_zero()
                 }
                 EnumRepr::Tagged { variants, .. } => {
                     let representation = &variants[variant_index as usize];
@@ -412,6 +427,19 @@ pub(crate) fn struct_ty<'ctx>(
     id: scoop_lir::StructDefId,
 ) -> Result<StructType<'ctx>, CodegenError> {
     let definition = &structs[id];
+    if let StructRepresentation::Intrinsic(scoop_lir::IntrinsicTypeRepresentation::MaybeUninit {
+        scan,
+        ..
+    }) = &definition.representation
+    {
+        return maybe_uninit::storage_type(
+            context,
+            managed_address_space,
+            definition.size,
+            definition.align,
+            scan,
+        );
+    }
     if let StructRepresentation::Scoop { fields } = &definition.representation {
         let llvm_fields = fields
             .iter()

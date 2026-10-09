@@ -22,21 +22,21 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 if function.locals[id].storage().is_zst() {
                     ty.const_zero()
                 } else {
-                    self.builder
-                        .build_load(ty, self.local_pointer(id)?, &function.locals[id].name)
-                        .map_err(|e| {
-                            CodegenError(format!("load %{}: {e}", function.locals[id].name))
-                        })?
+                    self.load_stored_value(
+                        function.locals[id].ty(),
+                        self.local_pointer(id)?,
+                        &function.locals[id].name,
+                    )?
                 }
             }
             Value::Param(index) => {
                 let source = scoop_lir::CallerRootSource::Param(index);
                 if let Some(storage) = self.root_storage.get(&source) {
-                    self.builder
-                        .build_load(storage.ty, storage.pointer, "root_param")
-                        .map_err(|error| {
-                            CodegenError(format!("load rooted param {index}: {error}"))
-                        })?
+                    self.load_stored_value(
+                        self.statepoint_source_type(source)?,
+                        storage.pointer,
+                        "root_param",
+                    )?
                 } else {
                     let logical_index = index as usize;
                     let argument = self
@@ -62,6 +62,12 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                             value.storage_type(),
                         )?
                         .const_zero(),
+                        (
+                            scoop_lir::AbiArgument::Direct(scoop_lir::AbiDirectValue::DirectParts(
+                                parts,
+                            )),
+                            scoop_lir::AbiArgumentLocation::Parts { first, .. },
+                        ) => self.incoming_direct_parts(parts, first)?,
                         (
                             scoop_lir::AbiArgument::Direct(_),
                             scoop_lir::AbiArgumentLocation::Parameter(physical_index),
@@ -127,14 +133,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             Value::Temp(id) => {
                 let source = scoop_lir::CallerRootSource::Temp(id);
                 if let Some(storage) = self.root_storage.get(&source) {
-                    self.builder
-                        .build_load(storage.ty, storage.pointer, "root_temp")
-                        .map_err(|error| {
-                            CodegenError(format!(
-                                "load rooted temp t{}: {error}",
-                                id.into_raw().into_u32()
-                            ))
-                        })?
+                    self.load_stored_value(&function.temps[id].ty, storage.pointer, "root_temp")?
                 } else {
                     *self.temps.get(&id).ok_or_else(|| {
                         CodegenError(format!(

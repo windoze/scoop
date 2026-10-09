@@ -281,12 +281,12 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun thunk<LocalReader> ValueReader.value(Token, Counter) @fn8(this: ValueReader, marker: Token, input: Counter) -> WideValue
+  fun thunk<LocalReader> ValueReader.value(Token, Counter) @fn8(this: box<LocalReader>, marker: Token, input: Counter) -> WideValue
     bb0 entry
       call $call.1: WideValue = @fn0 direct
         Type LocalReader
         Unbox
-          Type ValueReader
+          Type box<LocalReader>
           Local this
         Type Token
         Local marker

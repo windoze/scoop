@@ -2,7 +2,7 @@
 //! link-object verification.
 
 /// Version shared by emitted runtime records and artifact readers.
-pub const RUNTIME_METADATA_ABI_VERSION_V1: u32 = 7;
+pub const RUNTIME_METADATA_ABI_VERSION_V1: u32 = 8;
 
 use std::collections::BTreeMap;
 use std::fmt;
@@ -22,6 +22,10 @@ const INITIAL_SCHEMA: u64 = 1;
 
 /// One Immix block minus its reserved first line; shared by generated TLAB code.
 pub const REGULAR_MANAGED_OBJECT_MAX_SIZE: u64 = 32768 - 128;
+
+/// Runtime-private poll words; the C layout is asserted in generated_entries.h.
+pub const POLL_WORLD_RUNNING: u64 = 0;
+pub const POLL_THREAD_MANAGED: u64 = 1;
 
 mod machine;
 pub use machine::{CompilerNativeContractV1, CompilerNativeValueV1};
@@ -66,7 +70,7 @@ impl WireEncode for RuntimeAbiContract {
         for field in 1..=3 {
             encoder.field(field)?;
             encoder.unsigned(match field {
-                1 => 11,
+                1 => 12,
                 3 => 2,
                 _ => INITIAL_SCHEMA,
             })?;
@@ -86,7 +90,10 @@ pub enum RuntimeAbiSymbolV1 {
     CoreStringTypeDescriptor,
     ArrayClone,
     AllocationContext,
-    CardTable,
+    PollState,
+    WorldPhase,
+    GcEpoch,
+    PageMap,
     WriteBarrier,
     FinishTlabAllocation,
     AllocateSlow,
@@ -112,7 +119,10 @@ pub enum RuntimeAbiSymbolV1 {
 }
 
 impl RuntimeAbiSymbolV1 {
-    pub const ALL: [Self; 62] = [
+    pub const ALL: [Self; 65] = [
+        Self::PollState,
+        Self::WorldPhase,
+        Self::GcEpoch,
         Self::PushPinFrame,
         Self::PopPinFrame,
         Self::LirCall(RuntimeFunction::Managed(
@@ -178,7 +188,7 @@ impl RuntimeAbiSymbolV1 {
         Self::CoreStringTypeDescriptor,
         Self::ArrayClone,
         Self::AllocationContext,
-        Self::CardTable,
+        Self::PageMap,
         Self::WriteBarrier,
         Self::FinishTlabAllocation,
         Self::AllocateSlow,
@@ -306,7 +316,10 @@ impl RuntimeAbiSymbolV1 {
             Self::CoreStringTypeDescriptor => "scoop_td_String",
             Self::ArrayClone => "scoop_rt_array_clone",
             Self::AllocationContext => "scoop_rt_allocation_context",
-            Self::CardTable => "scoop_gc_card_table",
+            Self::PollState => "scoop_rt_poll_state",
+            Self::WorldPhase => "scoop_thread_world_phase",
+            Self::GcEpoch => "scoop_thread_gc_epoch",
+            Self::PageMap => "scoop_gc_page_map",
             Self::WriteBarrier => "scoop_rt_gc_write_barrier",
             Self::FinishTlabAllocation => "scoop_runtime_finish_tlab_alloc",
             Self::AllocateSlow => "scoop_runtime_alloc_slow",
@@ -339,7 +352,7 @@ impl RuntimeAbiSymbolV1 {
             Self::CoreStringTypeDescriptor => 3,
             Self::ArrayClone => 4,
             Self::AllocationContext => 5,
-            Self::CardTable => 6,
+            Self::PageMap => 32,
             Self::FinishTlabAllocation => 7,
             Self::AllocateSlow => 8,
             Self::BeginCatch => 9,
@@ -362,6 +375,9 @@ impl RuntimeAbiSymbolV1 {
             Self::WriteBarrier => 26,
             Self::PushPinFrame => 27,
             Self::PopPinFrame => 28,
+            Self::PollState => 29,
+            Self::WorldPhase => 30,
+            Self::GcEpoch => 31,
         }
     }
 }
@@ -766,10 +782,10 @@ mod tests {
 
     #[test]
     fn runtime_abi_contract_versions_regular_allocation_and_barriers() {
-        assert_eq!(hex(&encode(&RuntimeAbiContract).unwrap()), "a3010b02010302");
+        assert_eq!(hex(&encode(&RuntimeAbiContract).unwrap()), "a3010c02010302");
         assert_eq!(
             RuntimeAbiContract.fingerprint().unwrap().to_string(),
-            "8d0878fbaa8a430839c184f53feba9db6305368881034179e1bb13e5e0b8d583"
+            "54f8b11101c6fd80f93492fe8ccd2b2bcd0e917cf1a697273de5d8c379376586"
         );
     }
 
@@ -843,7 +859,7 @@ mod tests {
         assert_eq!(allocation.symbol(), RuntimeAbiSymbolV1::AllocationContext);
         assert_eq!(
             allocation.id().to_string(),
-            "6ca04e73635c291e2dd1c31e8684f7c24008f83be12460f1ac2fb5e5b9738ce2"
+            "438b82e34c509a3ef475d3ee5177a55385b5fc6b6095e1b8899225c9bf2eef83"
         );
         assert!(
             registry
@@ -899,7 +915,7 @@ mod tests {
                 .unwrap()
                 .id()
                 .to_string(),
-            "dba99561f14b1e29b1182e43ab531fa9bef5f851f99771082ccc0af090e78dc7"
+            "c7bff79f28cb631b2742589021487189512304722f0976947933def615e69ee6"
         );
     }
 

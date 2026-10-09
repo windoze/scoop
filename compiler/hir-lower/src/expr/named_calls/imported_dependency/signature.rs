@@ -45,6 +45,7 @@ impl Lowerer {
             || candidate.pointer_intrinsic().is_some()
             || candidate.array_intrinsic().is_some()
             || candidate.atomic_intrinsic().is_some()
+            || candidate.maybe_uninit_intrinsic().is_some()
             || candidate.callback_intrinsic().is_some()
             || matches!(
                 interface.effects().implementation(),

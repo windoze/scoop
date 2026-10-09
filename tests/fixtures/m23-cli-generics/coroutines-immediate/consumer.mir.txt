@@ -724,8 +724,10 @@ Module
       call $step.1: CoroutineStep<Long> = external0 direct
         Type Long
         Local $dependency.parameter.value
-        Type CoroutineAdapter<LongTask.run>$1
-        Local $adapter.1
+        Type Continuation<Long>
+        Retype Continuation<Long>
+          Type CoroutineAdapter<LongTask.run>$1
+          Local $adapter.1
       branch bb5 bb6
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -1228,8 +1230,10 @@ Module
       call $step.1: CoroutineStep<Int> = @fn20 direct
         Type Int
         Local $dependency.local.2
-        Type CoroutineAdapter<run>$1
-        Local $adapter.1
+        Type Continuation<Int>
+        Retype Continuation<Int>
+          Type CoroutineAdapter<run>$1
+          Local $adapter.1
       branch bb5 bb6
         Type Boolean
         Binary MachineEq(EnumTag)

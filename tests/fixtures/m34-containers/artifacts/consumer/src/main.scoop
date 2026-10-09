@@ -1,0 +1,24 @@
+import compact.provider.*
+
+fun check(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+fun main() {
+    val values = views()
+    val alias: MutableList<Read> = values
+    alias.add(1L, Cell(5))
+    val snapshot = alias.toArray()
+    gcCollect()
+    check(alias.removeAt(0L).value() == 3 && snapshot[1L].value() == 5)
+    val records = list(Pair(Cell(11), 1L), Pair(Cell(22), 2L))
+    records.add(0L, Pair(Cell(33), 3L))
+    gcCollect()
+    check(records[2L].view.value() == 22 && records[0L].stamp == 3L)
+    val text = builder("value=")
+    append(text, 42)
+    gcCollect()
+    check(text.build() == "value=42")
+    records.clear()
+    alias.clear()
+    check(records.size == 0L && alias.size == 0L && snapshot[2L].value() == 7)
+    println("compact artifacts")
+}

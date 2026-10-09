@@ -1,10 +1,7 @@
 //! Per-artifact strong LIR production and dependency-bridge validation.
 
 use scoop_hir::{CoreBootstrapInterfaceSectionV1, CrossConeHirInterfaceSectionV1};
-use scoop_identity::{
-    CanonicalScoopAbiFunctionSignature, ConeCoordinate, ConeIdentity, ExactCallableSignature,
-    GcEffect, ValidatedIdentityGraph,
-};
+use scoop_identity::{ConeCoordinate, ConeIdentity, ValidatedIdentityGraph};
 use scoop_lir::{
     ConeLirFoundation, ConeProductionSectionV1, CrossConeLirBridgeSectionV1,
     CrossConeLirBridgeValidationError,
@@ -14,10 +11,7 @@ use scoop_mir::{CoreBootstrapBridgeSectionV1, CrossConeMirBridgeSectionV1};
 use super::MirBridgeValidatedCrossConeHirFrontSections;
 use crate::{
     NativeBoundaryCompileError, ValidatedGraphArtifact,
-    compile_decode::{
-        NativeBoundaryFoundationView, replay_canonical_scoop_abi,
-        validate_shared_native_boundary_parts,
-    },
+    compile_decode::{NativeBoundaryFoundationView, validate_shared_native_boundary_parts},
     strong_compile_decode::{
         CanonicalFoundationSet, StrongProfileLirProductionError, StrongProfileSemanticFront,
         validate_strong_profile_lir_with_shape_sources,
@@ -94,21 +88,6 @@ impl<'input> LirBridgeValidatedCrossConeHirFrontSections<'input> {
         &self.lir_cross_cone_bridge
     }
 
-    pub(crate) fn replay_canonical_scoop_abi<'a>(
-        &mut self,
-        dependencies: impl ExactSizeIterator<Item = crate::AbiReplayDependency<'a>>,
-        signature: &ExactCallableSignature,
-        gc_effect: GcEffect,
-    ) -> Result<CanonicalScoopAbiFunctionSignature, NativeBoundaryCompileError> {
-        let current = crate::AbiReplayDependency {
-            identity: self.graph.identity(),
-            identities: &self.identities,
-            foundation: &self.foundations.hir,
-            nominals: self.hir_interface.nominal_interfaces(),
-        };
-        replay_canonical_scoop_abi(&mut self.graph, current, dependencies, signature, gc_effect)
-    }
-
     pub(crate) fn abi_replay_types(&self) -> crate::AbiReplayDependency<'_> {
         crate::AbiReplayDependency {
             identity: self.graph.identity(),
@@ -118,16 +97,13 @@ impl<'input> LirBridgeValidatedCrossConeHirFrontSections<'input> {
         }
     }
 
-    pub(crate) fn append_abi_expectations(
-        &mut self,
-        expectations: &mut Vec<crate::AbiExpectation>,
+    pub(crate) fn validate_local_projection(
+        &self,
     ) -> Result<(), crate::CrossConeLirClosureRelationError> {
         crate::validate_local_projection(
-            self.graph.identity(),
             &self.hir_interface,
             &self.mir_cross_cone_bridge,
             &self.lir_cross_cone_bridge,
-            expectations,
         )
     }
 }

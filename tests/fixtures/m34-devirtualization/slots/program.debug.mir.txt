@@ -1,0 +1,1086 @@
+Module
+  struct Small (number: Int)
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum Option<Char>
+    Some(_0: Char)
+    None()
+  enum CoroutineStep<Root>
+    Completed(value: Root)
+    Suspended()
+  enum CoroutineSlot<Root>
+    Empty()
+    Value(value: Root)
+  class Base vtable=1 itables=1
+  class Derived vtable=1 itables=5
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class MissingContextException vtable=0 itables=0
+  class ClassCastException vtable=0 itables=0
+  class box<Small> vtable=0 itables=4
+  class box<Int> vtable=0 itables=0
+  interface Diamond : Left, Right
+  interface Left : Root
+  interface Root
+  interface Right : Root
+  interface Overloaded
+  interface ToString
+  interface Hash
+  interface Equality<Char>
+  interface Iterable<Char>
+  interface Iterator<Char>
+  interface Equality<String>
+  interface Continuation<Root>
+  interface SuspendTask<Root>
+  interface SuspendRegistration<Root>
+  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn8 captures=1
+    bridge function_type1 -> @fn37 id=0d15cd9a99d0a0b9482991a66e6f7bbbcfbf33af55bccffb75d4d8dc91056a7a
+  closure cc1 $Closure$lambda1 type=function_type4 invoke=@fn9 captures=1
+    bridge function_type1 -> @fn38 id=e2572b542aa0133ce053cff45a48ff221860a2b4ab1e246af49e4a9d6de0498d
+  closure cc2 $Closure$reference0 type=function_type2 invoke=@fn23 captures=1
+    bridge function_type3 -> @fn39 id=a64569ecdd7fee9d4ac087001e51d3c6c12ca940c937c386a6e4f7862851aaef
+  closure cc3 $Closure$dynamic_adapter$(Root) -> Root type=function_type5 invoke=@fn27 captures=1
+    bridge function_type1 -> @fn40 id=c4c5296b5999edd3e41edd3d220ae976562e8736835e5f8624c5a31a36fec94c
+  generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
+  generated_exact_type get1 location=closure0 nominal_id=2fcc5dceba1f09c36d231287088079138d2c04817531ae31cc6d2cc1c02b5c0b exact_id=2302a5386d95a61953db931e029826819dc2e78ed627925872f2aaa8f36b4d72
+  generated_exact_type get2 location=class7 nominal_id=21619dac217a969634da92158e23f466d1f457484e69752e05617fb700395dc1 exact_id=2cc6e30f2c8a782cbe2f9b535d9a81bb5f8c421d82fee157bfd4ba657c068428
+  generated_exact_type get3 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
+  generated_exact_type get4 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
+  generated_exact_type get5 location=enum2 nominal_id=988339898a1883c44111f789e3e7f493b5877195489b5d552155b0abb4cf8ffc exact_id=51d1a1e92cbee048268a6bc405e17d2bc0db4bb7a29665a5d1bece09f99c1b49
+  generated_exact_type get6 location=closure3 nominal_id=c21a74923e5884907f0591a58b69e53333463fa86a59dd2adcb5a2fc0631726b exact_id=6635f1ca5eeab7f54a9609a3b481d0eaf649d77d14a9b711fabbae6161dd0575
+  generated_exact_type get7 location=closure1 nominal_id=4448086172d49813e9faf5f5f4482caeaf80ecd2eb94fc8b4e14e73f95c92706 exact_id=7f5f6914f0e48750cf712e99871e6a5837c62f0449c43604a094cca816ea92b8
+  generated_exact_type get8 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
+  generated_exact_type get9 location=enum3 nominal_id=ee22565cfd76fbd52102d603fc7d1912db7d23107753f48622f7fd6534a17f39 exact_id=8fe1f8306043fec1e39e8496f8c295727db9039123b58cbbc592705f8cf8bf4a
+  generated_exact_type get10 location=closure2 nominal_id=f874136277b146368b5105d72074178ee40ec33e01f9439c28a2d7e1505cba93 exact_id=cb83ad14693bb4e9877fdfa2a03447b6878c94ccdd03acaa290b56769c654eba
+  generated_exact_type get11 location=class8 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_exact_type get12 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
+  generated_callable gc0 function=@fn36 id=0cc9348bc1ab17b5edbd8df44b72ed31a6f388609c89c28da302c61c74b13a69
+  generated_callable gc1 function=@fn37 id=0d15cd9a99d0a0b9482991a66e6f7bbbcfbf33af55bccffb75d4d8dc91056a7a
+  generated_callable gc2 function=@fn20 id=1870a7c6872cac0a636ae87dcefedc55b2833d1873f03508d90b815c87ec0e6f
+  generated_callable gc3 function=@fn30 id=38ac0988f805009c9b71117dcfd13715b47beba17f6eb72c6a0c71b7cac330d6
+  generated_callable gc4 function=@fn29 id=47bbb71f537f91df8852c5c707832bd7d592f0fc0dc0083b8ecef000caea57ab
+  generated_callable gc5 function=@fn32 id=7d71060f66371db3221f6b798fddf25b652926c75d61757f43a5656eb542af90
+  generated_callable gc6 function=@fn22 id=8c1c293613acc5b76df6354f07c433901e3c4cb1712cbc5a8a0e3183f6bb1b58
+  generated_callable gc7 function=@fn34 id=91a25f6a3eb1cdf3d80efda00470a1aa73c501ffb16a59720e1ceb4d76f065b5
+  generated_callable gc8 function=@fn39 id=a64569ecdd7fee9d4ac087001e51d3c6c12ca940c937c386a6e4f7862851aaef
+  generated_callable gc9 function=@fn27 id=a80347c5ca5631d43cd73c271dae067f09d17380e9b71e419054d680517024ab
+  generated_callable gc10 function=@fn31 id=b13ac316c2413dd61980a099ea4d2ceffda552c3da0c5d648c88d4baf0e422a1
+  generated_callable gc11 function=@fn40 id=c4c5296b5999edd3e41edd3d220ae976562e8736835e5f8624c5a31a36fec94c
+  generated_callable gc12 function=@fn38 id=e2572b542aa0133ce053cff45a48ff221860a2b4ab1e246af49e4a9d6de0498d
+  generated_callable gc13 function=@fn28 id=e9159c311e7aaa1433b32293d629ef7f7154d1121aa4e4f831ebe640e6dfb88c
+  generated_callable gc14 function=@fn21 id=ed0b0a4cffba4c2a87607f948322cc2524bf5dccbee70231511045cf1f7469bb
+  generated_callable gc15 function=@fn33 id=f447f776a8f0d882c7cc7f51058d1af307cd179e687ce9c5576741185cccf78b
+  generated_callable gc16 function=@fn35 id=fc0bdce573978fca408e30b765b4d77376132d58771c475047727e66b9b44485
+  dynamic_adapter da0 class=cc3 target=function_type5
+  fun Small.get @fn0(this: Small) -> Int <no-gc>
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type Small
+          Local this
+  fun Base.get @fn1(this: Base) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+  fun Derived.get @fn2(this: Derived) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+  fun Derived.get @fn3(this: Derived, extra: Int) -> Int
+    bb0 entry
+      val $dependency.receiver: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $dependency.argument.0: Int
+        Type Int
+        Local extra
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun check @fn4(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.receiver: Boolean
+        Type Boolean
+        Local value
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+    bb1 if.then.1
+      val $default.local.0: String
+        Type String
+        StringConst @str0
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.1
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $new.1
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.1
+    bb2 if.merge.2
+      return
+  fun contextual @fn5() -> Int
+    bb0 entry
+      val $context_binding.1: internal<context-binding-ref>
+        Type internal<context-binding-ref>
+        ContextTryGet 176b83947cc68f4371d5eb3bc684dcf201a2612f6b9b4f5a0c6976923070a950
+      branch bb1 bb2
+        Type Boolean
+        ContextIsPresent
+          Type internal<context-binding-ref>
+          Local $context_binding.1
+    bb1 if.then.1
+      goto bb3
+    bb2 if.else.2
+      assign $new.1
+        Type MissingContextException
+        ClassAlloc MissingContextException
+      call external3 direct
+        Type MissingContextException
+        Local $new.1
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          StringConst @str1
+      throw
+        Type MissingContextException
+        Local $new.1
+    bb3 if.merge.3
+      val value: Root
+        Type Root
+        ContextUnwrapBinding
+          Type internal<context-binding-ref>
+          Local $context_binding.1
+      val $receiver: Root
+        Type Root
+        Local value
+      call $call.2: Int = @fn16 interface Root[1]
+        Type Root
+        Local $receiver
+      return
+        Type Int
+        Local $call.2
+  fun main @fn6() -> Unit
+    bb0 entry
+      assign $new.1
+        Type Derived
+        ClassAlloc Derived
+      call @fn25 direct
+        Type Derived
+        Local $new.1
+      val concrete: Derived
+        Type Derived
+        Local $new.1
+      val root: Root
+        Type Root
+        Retype Root
+          Type Derived
+          Local concrete
+      val diamond: Diamond
+        Type Diamond
+        Retype Diamond
+          Type Derived
+          Local concrete
+      val overloaded: Overloaded
+        Type Overloaded
+        Retype Overloaded
+          Type Derived
+          Local concrete
+      call @scoop_rt_gc_collect direct
+      val $receiver: Root
+        Type Root
+        Local root
+      call $dependency.receiver: Int = @fn16 interface Root[1]
+        Type Root
+        Local $receiver
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=21 bits=0x00000015
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+    bb1 if.then.1
+      val $receiver: Diamond
+        Type Diamond
+        Local diamond
+      call $dependency.receiver: Int = @fn15 interface Root[0]
+        Type Root
+        Retype Root
+          Type Diamond
+          Local $receiver
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      goto bb3
+    bb2 if.else.2
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 if.merge.3
+      val $argument.0: Boolean
+        Type Boolean
+        Local $shortCircuit.0
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn4 direct
+        Type Boolean
+        Local $parameter.value
+      val $receiver: Overloaded
+        Type Overloaded
+        Local overloaded
+      call $dependency.receiver: Int = @fn18 interface Overloaded[0]
+        Type Overloaded
+        Local $receiver
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb4 bb5
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+    bb4 if.then.4
+      val $receiver: Overloaded
+        Type Overloaded
+        Local overloaded
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=5 bits=0x00000005
+      val $parameter.extra: Int
+        Type Int
+        Local $argument.0
+      call $dependency.receiver: Int = @fn19 interface Overloaded[1]
+        Type Overloaded
+        Local $receiver
+        Type Int
+        Local $parameter.extra
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=12 bits=0x0000000c
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.1: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      goto bb6
+    bb5 if.else.5
+      val $shortCircuit.1: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb6
+    bb6 if.merge.6
+      val $argument.0: Boolean
+        Type Boolean
+        Local $shortCircuit.1
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn4 direct
+        Type Boolean
+        Local $parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=9 bits=0x00000009
+      val $parameter.number: Int
+        Type Int
+        Local $argument.0
+      call $call.2: Small = @fn26 direct
+        Type Int
+        Local $parameter.number
+      val boxed: Root
+        Type Root
+        Box
+          Type Small
+          Local $call.2
+      call @scoop_rt_gc_collect direct
+      val $receiver: Root
+        Type Root
+        Local boxed
+      call $dependency.receiver: Int = @fn15 interface Root[0]
+        Type Root
+        Local $receiver
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=9 bits=0x00000009
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb7 bb8
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+    bb7 if.then.7
+      val $receiver: Root
+        Type Root
+        Local boxed
+      call $dependency.receiver: Int = @fn16 interface Root[1]
+        Type Root
+        Local $receiver
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=27 bits=0x0000001b
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.2: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      goto bb9
+    bb8 if.else.8
+      val $shortCircuit.2: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb9
+    bb9 if.merge.9
+      val $argument.0: Boolean
+        Type Boolean
+        Local $shortCircuit.2
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn4 direct
+        Type Boolean
+        Local $parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=6 bits=0x00000006
+      val $parameter.number: Int
+        Type Int
+        Local $argument.0
+      call $argument.0: Small = @fn26 direct
+        Type Int
+        Local $parameter.number
+      val $parameter.value: Small
+        Type Small
+        Local $argument.0
+      call $dependency.receiver: Int = @fn7 direct
+        Type Small
+        Local $parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=18 bits=0x00000012
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn4 direct
+        Type Boolean
+        Local $parameter.value
+      val closure: (Int) -> Root
+        Type (Int) -> Root
+        ClosureAlloc cc0 $Closure$lambda0
+          CaptureInit field=0
+            Type Root
+            Local boxed
+      val copied: (Int) -> Root
+        Type (Int) -> Root
+        Local closure
+      val bound: () -> Int
+        Type () -> Int
+        ClosureAlloc cc2 $Closure$reference0
+          CaptureInit field=0
+            Type Left
+            Retype Left
+              Type Diamond
+              Local diamond
+      call @scoop_rt_gc_collect direct
+      call $receiver: Root = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Root
+        Local copied
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      call $dependency.receiver: Int = @fn15 interface Root[0]
+        Type Root
+        Local $receiver
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=9 bits=0x00000009
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb10 bb11
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+    bb10 if.then.10
+      call $dependency.receiver: Int = <closure:function_type2> closure[function_type2]
+        Type () -> Int
+        Local bound
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=21 bits=0x00000015
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.3: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      goto bb12
+    bb11 if.else.11
+      val $shortCircuit.3: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb12
+    bb12 if.merge.12
+      val $argument.0: Boolean
+        Type Boolean
+        Local $shortCircuit.3
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn4 direct
+        Type Boolean
+        Local $parameter.value
+      val exact: (Any) -> Root
+        Type (Any) -> Root
+        ClosureAlloc cc1 $Closure$lambda1
+          CaptureInit field=0
+            Type Root
+            Local root
+      val erased: Any
+        Type Any
+        Retype Any
+          Type (Any) -> Root
+          Local exact
+      val $cast.1: Any
+        Type Any
+        Local erased
+      branch bb13 bb14
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IsInstance (Root) -> Root
+            Type Any
+            Local $cast.1
+    bb13 if.then.13
+      assign $new.3
+        Type ClassCastException
+        ClassAlloc ClassCastException
+      call external4 direct
+        Type ClassCastException
+        Local $new.3
+      throw
+        Type ClassCastException
+        Local $new.3
+    bb14 if.merge.14
+      val dynamic: (Root) -> Root
+        Type (Root) -> Root
+        ClosureAlloc cc3 $Closure$dynamic_adapter$(Root) -> Root
+          CaptureInit field=0
+            Type Any
+            Local $cast.1
+      call $receiver: Root = <closure:function_type5> closure[function_type5]
+        Type (Root) -> Root
+        Local dynamic
+        Type Root
+        Local boxed
+      call $dependency.receiver: Int = @fn16 interface Root[1]
+        Type Root
+        Local $receiver
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=21 bits=0x00000015
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn4 direct
+        Type Boolean
+        Local $parameter.value
+      val $context_mark.2: internal<context-mark>
+        Type internal<context-mark>
+        ContextPush 176b83947cc68f4371d5eb3bc684dcf201a2612f6b9b4f5a0c6976923070a950
+          Type Root
+          Local root
+      goto bb20
+    bb15 try.unwind.15
+      landing_pad cleanup=false
+      goto bb16
+    bb16 try.dispatch.16
+      begin_catch
+      goto bb25
+    bb17 try.exit_pad.17
+      landing_pad cleanup=true
+      goto bb18
+    bb18 try.exit_cleanup.18
+      end_catch
+      resume
+    bb19 try.end.19
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str2
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn10 direct
+        Type String
+        Local $dependency.parameter.value
+      return
+    bb20 try.body.20 unwind bb15
+      call @scoop_rt_gc_collect direct
+      call $dependency.receiver: Int = @fn5 direct
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=21 bits=0x00000015
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb21 bb22
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+    bb21 if.then.21 unwind bb15
+      val $receiver: Root
+        Type Root
+        Local root
+      call $dependency.receiver: Int = @fn15 interface Root[0]
+        Type Root
+        Local $receiver
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.4: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      goto bb23
+    bb22 if.else.22 unwind bb15
+      val $shortCircuit.4: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb23
+    bb23 if.merge.23 unwind bb15
+      val $argument.0: Boolean
+        Type Boolean
+        Local $shortCircuit.4
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn4 direct
+        Type Boolean
+        Local $parameter.value
+      goto bb24
+    bb24 scope.24
+      Type Unit
+      ContextRestore
+        Type internal<context-mark>
+        Local $context_mark.2
+      goto bb19
+    bb25 scope.25 unwind bb17
+      Type Unit
+      ContextRestore
+        Type internal<context-mark>
+        Local $context_mark.2
+      rethrow unwind bb17
+  fun generic @fn7(value: Small) -> Int
+    bb0 entry
+      val $receiver: Small
+        Type Small
+        Local value
+      call $call.1: Int = @fn17 interface Left[1]
+        Type Left
+        Box
+          Type Small
+          Local $receiver
+      return
+        Type Int
+        Local $call.1
+  fun $lambda.0 @fn8($closure: (Int) -> Root, $arg.0: Int) -> Root
+    bb0 entry
+      call @scoop_rt_gc_collect direct
+      return
+        Type Root
+        ClosureCapture cc0 0
+          Type (Int) -> Root
+          Local $closure
+  fun $lambda.1 @fn9($closure: (Any) -> Root, $arg.0: Any) -> Root
+    bb0 entry
+      return
+        Type Root
+        ClosureCapture cc1 0
+          Type (Any) -> Root
+          Local $closure
+  fun println @fn10(value: String) -> Unit
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local value
+      call $dependency.local.2: String = external1 direct
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external2 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str3
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external2 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun Continuation.resume @fn11(this: Continuation<Root>, value: Root) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn12(this: Continuation<Root>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn13(this: SuspendTask<Root>, $completion: Continuation<Root>) -> CoroutineStep<Root>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn14(this: SuspendRegistration<Root>, continuation: Continuation<Root>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Root.get @fn15(this: Root) -> Int
+    bb0 entry
+      trap "call to abstract method `Root.get`"
+  fun Root.twice @fn16(this: Root) -> Int
+    bb0 entry
+      val $receiver: Root
+        Type Root
+        Local this
+      call $dependency.receiver: Int = @fn15 interface Root[0]
+        Type Root
+        Local $receiver
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary multiply kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun Left.twice @fn17(this: Left) -> Int
+    bb0 entry
+      val $receiver: Left
+        Type Left
+        Local this
+      call $dependency.receiver: Int = @fn15 interface Root[0]
+        Type Root
+        Retype Root
+          Type Left
+          Local $receiver
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary multiply kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun Overloaded.get @fn18(this: Overloaded) -> Int
+    bb0 entry
+      trap "call to abstract method `Overloaded.get`"
+  fun Overloaded.get @fn19(this: Overloaded, extra: Int) -> Int
+    bb0 entry
+      trap "call to abstract method `Overloaded.get`"
+  fun receiver<Base> Root.twice @fn20(this: Base) -> Int
+    bb0 entry
+      call $call.1: Int = @fn16 direct
+        Type Root
+        Retype Root
+          Type Base
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun receiver<Derived> Diamond.twice @fn21(this: Derived) -> Int
+    bb0 entry
+      call $call.1: Int = @fn17 direct
+        Type Left
+        Retype Left
+          Type Derived
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun receiver<Derived> Root.twice @fn22(this: Derived) -> Int
+    bb0 entry
+      call $call.1: Int = @fn17 direct
+        Type Left
+        Retype Left
+          Type Derived
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun $reference.0 @fn23($closure: () -> Int) -> Int
+    bb0 entry
+      call $call.1: Int = @fn17 interface Left[1]
+        Type Left
+        ClosureCapture cc2 0
+          Type () -> Int
+          Local $closure
+      return
+        Type Int
+        Local $call.1
+  fun init.Base.$c0 @fn24(this: Base) -> Unit
+    bb0 entry
+      return
+  fun init.Derived.$c1 @fn25(this: Derived) -> Unit
+    bb0 entry
+      call @fn24 direct
+        Type Base
+        Retype Base
+          Type Derived
+          Local this
+      return
+  fun ctor.Small.$c0 @fn26(number: Int) -> Small <no-gc>
+    bb0 entry
+      return
+        Type Small
+        StructInit Small
+          Type Int
+          Local number
+  fun $dynamic_adapter.(Root) -> Root @fn27($closure: (Root) -> Root, arg0: Root) -> Root
+    bb0 entry
+      call $call.1: Any = <function_bridge:function_type1> function_bridge[function_type1]
+        Type Any
+        ClosureCapture cc3 0
+          Type (Root) -> Root
+          Local $closure
+        Type Any
+        Retype Any
+          Type Root
+          Local arg0
+      return
+        Type Root
+        Retype Root
+          Type Any
+          Local $call.1
+  fun startCoroutine<Root> @fn28(task: SuspendTask<Root>, completion: Continuation<Root>) -> Unit
+    bb0 context.unwind
+      landing_pad cleanup=true
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb1 context.catch_unwind
+      landing_pad cleanup=true
+      end_catch
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb2 suspended
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb3 completed unwind bb0
+      call @fn11 interface Continuation<Root>[0]
+        Type Continuation<Root>
+        Local completion
+        Type Root
+        EnumField v0 f0
+          Type CoroutineStep<Root>
+          Local $step
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb4 failed unwind bb0
+      call @fn12 interface Continuation<Root>[1]
+        Type Continuation<Root>
+        Local completion
+        Type Throwable
+        Local $exception
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb5 body_failure unwind bb1
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb4
+    bb6 run unwind bb5
+      call $step: CoroutineStep<Root> = @fn13 interface SuspendTask<Root>[0]
+        Type SuspendTask<Root>
+        Local task
+        Type Continuation<Root>
+        Local completion
+      branch bb3 bb2
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Root>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+    bb7 entry
+      val $child_context: internal<task-context>
+        Type internal<task-context>
+        ContextFork
+          Type internal<context-node>
+          ContextSnapshot
+      val $context_guard: internal<context-switch-guard>
+        Type internal<context-switch-guard>
+        ContextEnter
+          Type internal<task-context>
+          Local $child_context
+      goto bb6
+  fun thunk<Small> Diamond.get() @fn29(this: box<Small>) -> Int
+    bb0 entry
+      call $call.1: Int = @fn0 direct
+        Type Small
+        Unbox
+          Type box<Small>
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun thunk<Small> Diamond.twice() @fn30(this: box<Small>) -> Int
+    bb0 entry
+      call $call.1: Int = @fn17 direct
+        Type Left
+        Retype Left
+          Type box<Small>
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun thunk<Small> Left.get() @fn31(this: box<Small>) -> Int
+    bb0 entry
+      call $call.1: Int = @fn0 direct
+        Type Small
+        Unbox
+          Type box<Small>
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun thunk<Small> Left.twice() @fn32(this: box<Small>) -> Int
+    bb0 entry
+      call $call.1: Int = @fn17 direct
+        Type Left
+        Retype Left
+          Type box<Small>
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun thunk<Small> Root.get() @fn33(this: box<Small>) -> Int
+    bb0 entry
+      call $call.1: Int = @fn0 direct
+        Type Small
+        Unbox
+          Type box<Small>
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun thunk<Small> Root.twice() @fn34(this: box<Small>) -> Int
+    bb0 entry
+      call $call.1: Int = @fn17 direct
+        Type Left
+        Retype Left
+          Type box<Small>
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun thunk<Small> Right.get() @fn35(this: box<Small>) -> Int
+    bb0 entry
+      call $call.1: Int = @fn0 direct
+        Type Small
+        Unbox
+          Type box<Small>
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun thunk<Small> Right.twice() @fn36(this: box<Small>) -> Int
+    bb0 entry
+      call $call.1: Int = @fn17 direct
+        Type Left
+        Retype Left
+          Type box<Small>
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn37($source: (Int) -> Root, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Root = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Root
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Retype Any
+          Type Root
+          Local $call.1
+  fun function_bridge.$Closure$lambda1.(Any) -> Any @fn38($source: (Any) -> Root, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Root = <closure:function_type4> closure[function_type4]
+        Type (Any) -> Root
+        Local $source
+        Type Any
+        Local arg0
+      return
+        Type Any
+        Retype Any
+          Type Root
+          Local $call.1
+  fun function_bridge.$Closure$reference0.() -> Any @fn39($source: () -> Int) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type2> closure[function_type2]
+        Type () -> Int
+        Local $source
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$dynamic_adapter$(Root) -> Root.(Any) -> Any @fn40($source: (Root) -> Root, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Root = <closure:function_type5> closure[function_type5]
+        Type (Root) -> Root
+        Local $source
+        Type Root
+        Retype Root
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Retype Any
+          Type Root
+          Local $call.1
+  coroutine_step cs0 CoroutineStep<Root> result=Root
+  coroutine_slot cl0 CoroutineSlot<Root> value=Root
+  coroutine_start ct0 result=Root function=fn28
+  coroutine_fn cf0 @fn13 source_return=Root step=cs0 immediate
+  instance mi0 function=@fn7 <- generic
+  instance mi1 function=@fn10 <- println
+  instance mi2 function=@fn11 <- Continuation.resume
+  instance mi3 function=@fn12 <- Continuation.resumeWithException
+  instance mi4 function=@fn13 <- SuspendTask.run
+  instance mi5 function=@fn14 <- SuspendRegistration.register
+  str @str0 "illegal state"
+  str @str1 "missing context contextual.value: Root"
+  str @str2 "devirtualized slots"
+  str @str3 "\n"
+  output executable @fn6

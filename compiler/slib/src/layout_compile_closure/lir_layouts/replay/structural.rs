@@ -22,9 +22,9 @@ impl Replay<'_> {
                     self.foundation,
                 )?);
             }
-            ExactTypeKey::Function { .. } => lir::NichePointerKind::Managed,
-            ExactTypeKey::RawPointer(_) => lir::NichePointerKind::Raw,
-            ExactTypeKey::NativeFunctionPointer { .. } => lir::NichePointerKind::Code,
+            ExactTypeKey::Function { .. } => lir::NullNicheKind::Managed,
+            ExactTypeKey::RawPointer(_) => lir::NullNicheKind::Raw,
+            ExactTypeKey::NativeFunctionPointer { .. } => lir::NullNicheKind::Code,
             ExactTypeKey::Nominal(_) | ExactTypeKey::NominalApplication { .. } => {
                 return Err(Error::MissingMirShape(identity.exact()));
             }

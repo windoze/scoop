@@ -2,11 +2,11 @@ Module
   global @scoop$1$io$5b150b9a087b1c8a15caa55cfa092ea3d8ea7a2adeaff2ea753d789ac919417a = "\n"
   global @scoop$1$ss$9b273ab0bbc562dd7f8e8b0487c0e98f4a7d0781b1cb5aa5b6d69c2d8a7f66b1 : ptr<managed> scan=refs[0]
   enum Signal tagged size=8 align=8 variants=()@8+0 ()@8+0
-  fun @scoop$1$cb$3299b363a049903749bc398d9944de721c0ff9801a8717488db85c681c7476c7(indirect<enum0 size=8 align=8 scan=none>) -> i32
+  fun @scoop$1$cb$3299b363a049903749bc398d9944de721c0ff9801a8717488db85c681c7476c7(parts<enum0 [i64@0+8/8]>) -> i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret integer<Int>(0x00000002)
-  fun @scoop$1$cb$c7124fab352882060acbb267afa61d2bb1705470fc70abc3ff36a6a81fd11202(indirect<enum0 size=8 align=8 scan=none>) -> i32
+  fun @scoop$1$cb$c7124fab352882060acbb267afa61d2bb1705470fc70abc3ff36a6a81fd11202(parts<enum0 [i64@0+8/8]>) -> i32
     local %0 Raedy: enum0
     local %1 $argument.0: enum0
     local %2 $parameter.value: enum0
@@ -14,7 +14,6 @@ Module
     local %4 $when.1: enum0
     local %5 $pattern.subject.2: enum0
     local %6 $call.1: i32
-    local %7 $sc.1: enum0
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     store param0 -> local4
@@ -28,8 +27,7 @@ Module
     store local4 -> local0
     store local0 -> local1
     store local1 -> local2
-    store local2 -> local7
-    call managed-direct-target0 sp<managed-call:0> live=[] t1 = sig=direct0 (indirect<enum0 size=8 align=8 scan=none>) -> i32 local-fn0(indirect local7)
+    call managed-direct-target0 sp<managed-call:0> live=[] t1 = sig=direct0 (parts<enum0 [i64@0+8/8]>) -> i32 local-fn0(local2)
     store t1 -> local6
     store local6 -> local3
     br @pattern.merge.3
@@ -44,15 +42,12 @@ Module
     local %5 $parameter.value: enum0
     local %6 $dependency.argument.0: i32
     local %7 $dependency.parameter.value: i32
-    local %8 $sc.1: enum0
-    local %9 $sc.2: enum0
   block entry
     poll managed-void-target2 sp<managed-poll:0> live=[]
     t0 = enum_wrap e0 v0 () : enum0
     store t0 -> local0
     store local0 -> local1
-    store local1 -> local8
-    call managed-direct-target0 sp<managed-call:0> live=[] t1 = sig=direct0 (indirect<enum0 size=8 align=8 scan=none>) -> i32 local-fn1(indirect local8)
+    call managed-direct-target0 sp<managed-call:0> live=[] t1 = sig=direct0 (parts<enum0 [i64@0+8/8]>) -> i32 local-fn1(local1)
     store t1 -> local2
     store local2 -> local3
     call managed-void-target0 sp<managed-call:1> live=[] sig=void0 (i32) local-fn3(local3)
@@ -60,8 +55,7 @@ Module
     t3 = enum_wrap e0 v1 () : enum0
     store t3 -> local4
     store local4 -> local5
-    store local5 -> local9
-    call managed-direct-target1 sp<managed-call:2> live=[] t4 = sig=direct1 (indirect<enum0 size=8 align=8 scan=none>) -> i32 local-fn1(indirect local9)
+    call managed-direct-target1 sp<managed-call:2> live=[] t4 = sig=direct1 (parts<enum0 [i64@0+8/8]>) -> i32 local-fn1(local5)
     store t4 -> local6
     store local6 -> local7
     call managed-void-target1 sp<managed-call:3> live=[] sig=void1 (i32) local-fn3(local7)
@@ -105,5 +99,5 @@ Module
   td td0 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Equality);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$6fb0bdfcaef72d458561b350a56fb80e86e68f4c020173148c7fe1ec239ea687 type-id=940003777485400453 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
   td td1 n(c=scoop%3Asingle-file%3A0.0.0;p=;o=-;k=E;x=Signal) @scoop$1$td$169e602dc68e91cf30797bf323ec5bb693a61d602e7d651452b70cf43599e705 type-id=11821722871246130035 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
   layout Signal size=8 align=8 enum-scan=none
-  layout Equality value size=8 align=8 refs=[0]
+  layout Equality value size=16 align=8 refs=[0]
   output executable @scoop$1$cb$a59ba8328a87a3c09df1111305261ccbca23796630e0ce6dea24e3ae106f48ca

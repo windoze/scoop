@@ -1,0 +1,51 @@
+interface Root {
+    fun get(): Int
+    fun twice(): Int = get() * 2
+}
+interface Left : Root { override fun twice(): Int = get() * 3 }
+interface Right : Root {}
+interface Diamond : Left, Right {}
+interface Overloaded {
+    fun get(): Int
+    fun get(extra: Int): Int
+}
+open class Base : Root { public override fun get(): Int = 4 }
+class Derived : Base(), Diamond, Overloaded {
+    public override fun get(): Int = 7
+    public override fun get(extra: Int): Int = 7 + extra
+}
+struct Small(val number: Int) : Diamond {
+    @NoGC public override fun get(): Int = number
+}
+fun check(value: Boolean) { if (!value) { throw IllegalStateException() } }
+fun <T : Root> generic(value: T): Int = value.twice()
+context(value: Root)
+fun contextual(): Int = value.twice()
+
+fun main() {
+    val concrete = Derived()
+    val root: Root = concrete
+    val diamond: Diamond = concrete
+    val overloaded: Overloaded = concrete
+    gcCollect()
+    check(root.twice() == 21 && diamond.get() == 7)
+    check(overloaded.get() == 7 && overloaded.get(5) == 12)
+    val boxed: Root = Small(9)
+    gcCollect()
+    check(boxed.get() == 9 && boxed.twice() == 27)
+    check(generic(Small(6)) == 18)
+    val closure: (Int) -> Root = { _ -> gcCollect(); boxed }
+    val copied = closure
+    val bound: () -> Int = diamond::twice
+    gcCollect()
+    check(copied(3).get() == 9 && bound() == 21)
+    val exact: (Any) -> Root = { _ -> root }
+    val erased: Any = exact
+    val dynamic = erased as (Root) -> Root
+    check(dynamic(boxed).twice() == 21)
+    context(root) {
+        gcCollect()
+        check(contextual() == 21 && root.get() == 7)
+    }
+    println("devirtualized slots")
+}

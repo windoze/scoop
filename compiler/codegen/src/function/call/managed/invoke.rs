@@ -44,12 +44,12 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 .as_pointer_value(),
         };
         let result_type = match result {
-            TypedCallResult::Direct { value, .. } => Some(basic_ty(
+            TypedCallResult::Direct { value, .. } => Some(abi::direct_type(
                 self.context,
                 self.structs,
                 self.enums,
                 self.managed_address_space,
-                value.storage_type(),
+                value,
             )?),
             TypedCallResult::Void
             | TypedCallResult::ElidedZst { .. }
@@ -146,13 +146,14 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 )?;
                 self.temps.insert(*out, ty.const_zero());
             }
-            TypedCallResult::Direct { out, .. } => {
+            TypedCallResult::Direct { out, value: plan } => {
                 let value = direct_value.ok_or_else(|| {
                     CodegenError(format!(
                         "typed invoke @{} produced no direct result",
                         self.function.symbol()
                     ))
                 })?;
+                let value = self.decode_direct_result(plan, value)?;
                 self.temps.insert(*out, value);
                 self.sync_root_temp(*out)?;
             }

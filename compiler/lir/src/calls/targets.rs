@@ -81,19 +81,19 @@ impl ElidedZstCallSignature {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DirectCallSignature {
     arguments: Vec<AbiArgument>,
-    result: AbiValue,
+    result: AbiDirectValue,
     calling_convention: CallingConvention,
 }
 
 impl DirectCallSignature {
-    pub const fn new(
+    pub fn new(
         arguments: Vec<AbiArgument>,
-        result: AbiValue,
+        result: impl Into<AbiDirectValue>,
         calling_convention: CallingConvention,
     ) -> Self {
         Self {
             arguments,
-            result,
+            result: result.into(),
             calling_convention,
         }
     }
@@ -102,7 +102,7 @@ impl DirectCallSignature {
         &self.arguments
     }
 
-    pub const fn result(&self) -> &AbiValue {
+    pub const fn result(&self) -> &AbiDirectValue {
         &self.result
     }
 
@@ -112,11 +112,11 @@ impl DirectCallSignature {
 }
 
 /// The physical meaning of the leading storage pointer on an indirect-result
-/// call. Only Scoop ABI calls may use `ScoopSret`; a C storage bridge receives
-/// an ordinary pointer and must never inherit Scoop `sret` attributes.
+/// call. Scoop and direct C ABI calls use `Sret`; a C storage bridge
+/// receives an ordinary pointer without an `sret` attribute.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum IndirectResultConvention {
-    ScoopSret,
+    Sret,
     CStoragePointer,
 }
 
@@ -129,7 +129,7 @@ pub struct IndirectResultCallSignature {
 }
 
 impl IndirectResultCallSignature {
-    pub const fn scoop_sret(
+    pub const fn sret(
         arguments: Vec<AbiArgument>,
         result: AbiValue,
         calling_convention: CallingConvention,
@@ -137,7 +137,7 @@ impl IndirectResultCallSignature {
         Self {
             arguments,
             result,
-            convention: IndirectResultConvention::ScoopSret,
+            convention: IndirectResultConvention::Sret,
             calling_convention,
         }
     }

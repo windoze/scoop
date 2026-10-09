@@ -11,14 +11,10 @@ fn declared_any_uses_managed_scoop_storage_and_rejects_c_storage() {
             (layout.size, layout.alignment, layout.gc_free),
             (8, 8, false)
         );
-        assert!(
-            matches!(normalizer.scoop_argument(exact).unwrap(), ScoopAbiArgument::Direct(storage)
-            if storage.exact_type() == exact && storage.byte_size() == 8)
-        );
-        assert!(
-            matches!(normalizer.scoop_return(exact).unwrap(), ScoopAbiReturn::Direct(storage)
-            if storage.exact_type() == exact && storage.byte_size() == 8)
-        );
+        assert!(matches!(normalizer.scoop_storage(exact).unwrap(), storage
+            if storage.exact_type() == exact && storage.byte_size() == 8));
+        assert!(matches!(normalizer.scoop_storage(exact).unwrap(), storage
+            if storage.exact_type() == exact && storage.byte_size() == 8));
         assert_eq!(
             normalizer.niche_pointer_kind(exact),
             Some(scoop_lir::PointerKind::Managed)
@@ -47,14 +43,10 @@ fn declared_any_in_a_tuple_preserves_aggregate_passing_and_managed_storage() {
             (layout.size, layout.alignment, layout.gc_free),
             (8, 8, false)
         );
-        assert!(
-            matches!(normalizer.scoop_argument(exact).unwrap(), ScoopAbiArgument::Indirect(storage)
-            if storage.exact_type() == exact && storage.byte_size() == 8)
-        );
-        assert!(
-            matches!(normalizer.scoop_return(exact).unwrap(), ScoopAbiReturn::Indirect(storage)
-            if storage.exact_type() == exact && storage.byte_size() == 8)
-        );
+        assert!(matches!(normalizer.scoop_storage(exact).unwrap(), storage
+            if storage.exact_type() == exact && storage.byte_size() == 8));
+        assert!(matches!(normalizer.scoop_storage(exact).unwrap(), storage
+            if storage.exact_type() == exact && storage.byte_size() == 8));
     });
 }
 
@@ -65,7 +57,7 @@ fn any_requires_its_exact_key_and_source_declaration() {
     ))
     .unwrap();
     with_keys(vec![], &[], |normalizer| {
-        assert!(matches!(normalizer.scoop_argument(any),
+        assert!(matches!(normalizer.scoop_storage(any),
             Err(NativeBoundaryCompileError::Target(NativeBoundaryTargetError::MissingExactType { exact }))
                 if exact == any));
     });
@@ -75,7 +67,7 @@ fn any_requires_its_exact_key_and_source_declaration() {
         &[],
         |normalizer| {
             assert_eq!(normalizer.niche_pointer_kind(any), None);
-            assert!(matches!(normalizer.scoop_argument(any),
+            assert!(matches!(normalizer.scoop_storage(any),
             Err(NativeBoundaryCompileError::ClosureRequired { owner: NativeBoundaryNominalOwner::Concrete(rejected) })
                 if rejected == declared_owner));
         },
@@ -98,7 +90,7 @@ fn any_requires_its_exact_key_and_source_declaration() {
     assert_ne!(any, exact);
     with_keys(vec![key], &[], |normalizer| {
         assert_eq!(normalizer.niche_pointer_kind(exact), None);
-        assert!(matches!(normalizer.scoop_argument(exact),
+        assert!(matches!(normalizer.scoop_storage(exact),
             Err(NativeBoundaryCompileError::ClosureRequired { owner: NativeBoundaryNominalOwner::Concrete(rejected) })
                 if rejected == owner));
     });
@@ -120,7 +112,7 @@ fn with_keys<T>(
     let initialization_units = HashMap::new();
     let definitions = records
         .iter()
-        .map(|record| (record.owner(), AbiNominalDefinition::native(record)))
+        .map(|record| (record.owner(), AbiNominalDefinition::native(record, false)))
         .collect();
 
     let mut normalizer = NativeBoundaryNormalizer::new(

@@ -3,6 +3,12 @@ use super::*;
 impl<'a> Traversal<'a> {
     pub(super) fn expression(&mut self, expression: &'a Expr) -> Result<(), StructureError> {
         match &expression.kind {
+            ExprKind::MaybeUninit(operation) => {
+                if let Some(operand) = operation.operand() {
+                    self.push(Item::Expression(operand))?;
+                }
+                Ok(())
+            }
             ExprKind::Atomic(atomic) => {
                 for operand in atomic.operands().rev() {
                     self.push(Item::Expression(operand))?;

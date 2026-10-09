@@ -3,6 +3,8 @@ use super::*;
 mod allocation;
 mod arrays;
 mod barrier;
+mod card;
+mod poll;
 
 impl<'ctx> FnEmitter<'_, 'ctx> {
     /// Get or declare a runtime function with the given signature.
@@ -116,105 +118,6 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 symbol = self.function.symbol()
             ))
         })
-    }
-
-    /// Mark one managed reference slot after its store. Concurrent mutators
-    /// may touch different fields on the same card, so this must be atomic.
-    pub(super) fn card_mark(&self, addr: PointerValue<'ctx>) -> Result<(), CodegenError> {
-        let context = self.context;
-        let builder = self.builder;
-        let error = |e: inkwell::builder::BuilderError| {
-            CodegenError(format!(
-                "card mark @{symbol}: {e}",
-                symbol = self.function.symbol()
-            ))
-        };
-        // The card table is a runtime POINTER VARIABLE (`extern
-        // unsigned char *scoop_gc_card_table`), pre-biased by the
-        // runtime with the arena base so `base + (addr >> 9)` lands
-        // inside the backing table for every heap address (see
-        // runtime/include/scoop_rt.h): load the pointer, then GEP.
-        let card_table_symbol = scoop_lir::RuntimeAbiSymbolV1::CardTable.logical_symbol();
-        let card_table_global = self.llvm.get_global(card_table_symbol).unwrap_or_else(|| {
-            self.llvm
-                .add_global(ptr_ty(context), None, card_table_symbol)
-        });
-        let card_table = builder
-            .build_load(
-                ptr_ty(context),
-                card_table_global.as_pointer_value(),
-                "card_table",
-            )
-            .map_err(error)?
-            .into_pointer_value();
-        let addr = builder
-            .build_ptr_to_int(addr, context.i64_type(), "card_addr")
-            .map_err(error)?;
-        mark_typed_managed_pointer_boundary(
-            context,
-            addr.as_instruction_value()
-                .expect("a non-constant ptrtoint is an instruction"),
-            statepoint::TypedManagedPointerBoundary::CardAddress,
-        )?;
-        // Logical shift: the card index of the address.
-        let card = builder
-            .build_right_shift(
-                addr,
-                context.i64_type().const_int(CARD_SHIFT, false),
-                false,
-                "card_index",
-            )
-            .map_err(error)?;
-        // SAFETY: the loaded card table base is pre-biased so that
-        // `base + card` addresses the card of any heap address (one
-        // card per 512 bytes of the GC window).
-        let card_ptr =
-            unsafe { builder.build_gep(context.i8_type(), card_table, &[card], "card_ptr") }
-                .map_err(error)?;
-        builder
-            .build_atomicrmw(
-                AtomicRMWBinOp::Or,
-                card_ptr,
-                context.i8_type().const_int(1, false),
-                AtomicOrdering::Monotonic,
-            )
-            .map_err(error)?;
-        Ok(())
-    }
-
-    /// Emit one explicit LIR poll. Its typed target, unique id and liveness
-    /// plan were fixed by lir-lower; codegen does not inspect the CFG.
-    pub(super) fn safepoint_poll(
-        &mut self,
-        site: &scoop_lir::ManagedPollSite,
-    ) -> Result<(), CodegenError> {
-        let target = self.function.call_targets.managed_targets.void[site.target].destination;
-        if target
-            != scoop_lir::ManagedCallDestination::runtime(
-                scoop_lir::ManagedRuntimeFunction::Safepoint,
-            )
-        {
-            return Err(CodegenError(format!(
-                "managed poll @{} has a non-safepoint target",
-                self.function.symbol()
-            )));
-        }
-        let safepoint = self.safepoint_id(site.safepoint);
-        let live = self.materialize_statepoint_live(&site.live, safepoint)?;
-        let poll = self.runtime_fn(
-            scoop_lir::RuntimeFunction::Managed(scoop_lir::ManagedRuntimeFunction::Safepoint)
-                .symbol(),
-            self.context.void_type().fn_type(&[], false),
-        );
-        let call = self.builder.build_call(poll, &[], "").map_err(|e| {
-            CodegenError(format!(
-                "safepoint poll @{symbol}: {e}",
-                symbol = self.function.symbol()
-            ))
-        })?;
-        self.apply_safepoint_id(call, safepoint);
-        self.restore_statepoint_live(live, safepoint)?;
-        Ok(())
     }
 
     /// Address of the tag field of a tagged enum value in memory.

@@ -10,11 +10,11 @@ impl FunctionLowerer<'_> {
         ty: &mir::Type,
     ) -> StorageResult<lir::Value> {
         let storage = self.value_type(ty);
-        match abi::classify_argument(self.context, storage, self.structs, self.enums)? {
-            lir::AbiArgument::ElidedZst(representation) => {
+        match abi::classify_storage(self.context, storage, self.structs, self.enums)? {
+            abi::ValueStorage::ZeroSized(representation) => {
                 Ok(self.logical_zst_value(ty, representation))
             }
-            lir::AbiArgument::Direct(value) | lir::AbiArgument::Indirect(value) => {
+            abi::ValueStorage::NonZero(value) => {
                 let (offsets, _, _) = class_shape(
                     self.context,
                     self.module,
@@ -37,11 +37,11 @@ impl FunctionLowerer<'_> {
         ty: &mir::Type,
     ) -> StorageResult<lir::Value> {
         let storage = self.value_type(ty);
-        match abi::classify_argument(self.context, storage, self.structs, self.enums)? {
-            lir::AbiArgument::ElidedZst(representation) => {
+        match abi::classify_storage(self.context, storage, self.structs, self.enums)? {
+            abi::ValueStorage::ZeroSized(representation) => {
                 Ok(self.logical_zst_value(ty, representation))
             }
-            lir::AbiArgument::Direct(value) | lir::AbiArgument::Indirect(value) => {
+            abi::ValueStorage::NonZero(value) => {
                 let out = self.load_at_offset(object, offset, value.storage_type().clone());
                 Ok(lir::Value::Temp(out))
             }
@@ -56,9 +56,9 @@ impl FunctionLowerer<'_> {
         ty: &mir::Type,
     ) -> StorageResult<()> {
         let storage = self.value_type(ty);
-        match abi::classify_argument(self.context, storage, self.structs, self.enums)? {
-            lir::AbiArgument::ElidedZst(_) => Ok(()),
-            lir::AbiArgument::Direct(storage) | lir::AbiArgument::Indirect(storage) => {
+        match abi::classify_storage(self.context, storage, self.structs, self.enums)? {
+            abi::ValueStorage::ZeroSized(_) => Ok(()),
+            abi::ValueStorage::NonZero(storage) => {
                 self.store_at_offset(object, offset, value, storage.storage_type().clone());
                 Ok(())
             }

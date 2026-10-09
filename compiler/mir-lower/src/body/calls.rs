@@ -193,6 +193,9 @@ impl BodyLowerer<'_> {
         result_ty: hir::TypeId,
     ) -> smir::Expr {
         let function = match kind {
+            hir::IntrinsicFunctionKind::MaybeUninit(kind) => {
+                return self.lower_maybe_uninit(kind, args.first(), result_ty);
+            }
             hir::IntrinsicFunctionKind::DataBorrow(kind) => {
                 return self.lower_data_borrow(kind, args, result_ty);
             }
@@ -270,6 +273,20 @@ impl BodyLowerer<'_> {
         let function = module.callable_function(callable);
         self.record_suspend_function_call(function);
         let f = &module.functions[function];
+        if let hir::FunctionKind::Intrinsic(hir::IntrinsicFunction {
+            kind: hir::IntrinsicFunctionKind::MaybeUninit(kind),
+            ..
+        }) = &f.kind
+        {
+            let operand = if *kind == hir::MaybeUninitIntrinsic::AssumeInit {
+                Some(receiver)
+            } else {
+                let receiver = self.lower_expr(receiver);
+                self.prelude.push(smir::StatementKind::Expr(receiver));
+                args.first()
+            };
+            return self.lower_maybe_uninit(*kind, operand, result_ty);
+        }
         let callee = self.instances.get(function).map_or_else(
             || mir::Callee::User(self.function_map[&function]),
             mir::Callee::Monomorphized,

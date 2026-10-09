@@ -1,0 +1,14 @@
+Module
+  global @scoop$1$io$e98968438cdf6a39f6b2d82ef2ea6e0777f2bf180f2d49a056eb7365de85c630 = "factory"
+  fun @scoop$1$cb$4d2987678eb50d886e96a0c914c6e5b0d4e0e3044c6023fb0e007eb94be39863() -> parts<struct0 [i64@0+8/8,i64@8+8/8]>
+    local %0 $dependency.argument.0: ptr<managed>
+    local %1 $dependency.parameter.text: ptr<managed>
+    local %2 $call.1: struct0
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store global0 -> local0
+    store local0 -> local1
+    call managed-direct-target0 sp<managed-call:0> live=[local1:ptr<managed>@0] t0 = sig=direct0 (ptr<managed>) -> struct0 external-fn0(local1)
+    store t0 -> local2
+    ret local2
+  output library

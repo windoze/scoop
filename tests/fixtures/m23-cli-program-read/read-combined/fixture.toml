@@ -49,7 +49,7 @@ checks = [
   {"file" = "${work}/dump/program/${program.result.root.identity}/ast.txt", "snapshot" = "program.ast.txt"},
   {"file" = "${work}/dump/program/${program.result.root.identity}/hir.txt", "snapshot" = "program.hir.txt"},
   {"file" = "${work}/dump/program/${program.result.root.identity}/mir.txt", "snapshot" = "program.mir.txt"},
-  {"file" = "${work}/dump/program/${program.result.root.identity}/lir.txt", "snapshot" = "program.lir.txt"},
+  {"file" = "${work}/dump/program/${program.result.root.identity}/lir.txt", "snapshot" = "program.${target}.lir.txt"},
 ]
 
 [[steps]]
@@ -74,7 +74,7 @@ checks = [
   {"file" = "${work}/dump/verified/${verified.result.root.identity}/ast.txt", "snapshot" = "verified.ast.txt"},
   {"file" = "${work}/dump/verified/${verified.result.root.identity}/hir.txt", "snapshot" = "verified.hir.txt"},
   {"file" = "${work}/dump/verified/${verified.result.root.identity}/mir.txt", "snapshot" = "verified.mir.txt"},
-  {"file" = "${work}/dump/verified/${verified.result.root.identity}/lir.txt", "snapshot" = "verified.lir.txt"},
+  {"file" = "${work}/dump/verified/${verified.result.root.identity}/lir.txt", "snapshot" = "verified.${target}.lir.txt"},
 ]
 
 [[steps]]

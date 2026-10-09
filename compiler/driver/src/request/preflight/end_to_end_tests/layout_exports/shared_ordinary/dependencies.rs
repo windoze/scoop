@@ -18,6 +18,8 @@ pub(in super::super) fn check_dependency_uses(
         dependencies.layouts,
     )
     .unwrap();
+    let expected =
+        scoop_lir_lower::lower_cross_cone_bridge_section(input.mir, ordinary, input.lir).unwrap();
     let replay = |callables: &[&lir::CrossConeLirBridgeSectionV1]| {
         scoop_slib::replay_shared_ordinary_lir_bridge(
             input.lir.module().meta.target_profile,
@@ -30,10 +32,9 @@ pub(in super::super) fn check_dependency_uses(
                 callables,
             },
             input.lir.foundation(),
+            &expected,
         )
     };
-    let expected =
-        scoop_lir_lower::lower_cross_cone_bridge_section(input.mir, ordinary, input.lir).unwrap();
     let actual = replay(&[terminal]).unwrap();
     assert_eq!(actual, expected);
     let wire: lir::DecodedCrossConeLirBridgeSectionV1 = decoded(&expected);

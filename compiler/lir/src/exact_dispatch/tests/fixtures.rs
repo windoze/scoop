@@ -46,17 +46,12 @@ impl DirectFixture {
             scoop_identity::CanonicalScoopAbiFunctionSignature::new(
                 signature,
                 vec![
-                    target_receiver
-                        .value_handle()
-                        .unwrap()
-                        .scoop_abi_argument(TARGET)
-                        .unwrap(),
-                ],
-                result
-                    .value_handle()
-                    .unwrap()
-                    .scoop_abi_return(TARGET)
+                    scoop_identity::ScoopAbiArgument::direct(
+                        target_receiver.value_handle().unwrap().canonical_storage(),
+                    )
                     .unwrap(),
+                ],
+                scoop_identity::ScoopAbiReturn::UnitVoid,
                 (ExactCallableProtocolV1::OrdinaryManaged).gc_effect(),
             )
             .unwrap(),
@@ -184,13 +179,9 @@ pub(super) fn empty_itable() -> EmptyItable {
 
 fn named_pointer(name: &str) -> ExactLayoutExportV1 {
     let bound = Bound::value(exact(&source(name, SourceNominalKind::Class, 0)));
-    ExactValueLayoutV1::qualified_pointer(
-        bound.identity,
-        NichePointerKind::Managed,
-        &bound.foundation,
-    )
-    .unwrap()
-    .into()
+    ExactValueLayoutV1::qualified_pointer(bound.identity, NullNicheKind::Managed, &bound.foundation)
+        .unwrap()
+        .into()
 }
 
 fn callable_foundation(name: &str) -> (StrongCallableDefinitionOwner, ConeLirFoundation) {

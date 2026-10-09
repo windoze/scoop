@@ -244,12 +244,12 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun thunk<InterfaceTag<Later>> Chooser.choose(Later) @fn10(this: Chooser<Later>, value: Later) -> Later
+  fun thunk<InterfaceTag<Later>> Chooser.choose(Later) @fn10(this: box<InterfaceTag<Later>>, value: Later) -> Later
     bb0 entry
       call $call.1: Later = @fn2 direct
         Type Chooser<Later>
         Retype Chooser<Later>
-          Type Chooser<Later>
+          Type box<InterfaceTag<Later>>
           Local this
         Type Later
         Local value

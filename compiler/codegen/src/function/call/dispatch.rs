@@ -186,7 +186,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         };
         self.apply_c_abi_attributes(destination, |location, attribute| {
             function.add_attribute(location, attribute)
-        });
+        })?;
         Ok(function)
     }
 

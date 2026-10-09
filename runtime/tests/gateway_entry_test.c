@@ -85,6 +85,7 @@ static void nested_target(Rendezvous *sync, const void *boundary) {
 static void *target_thread(void *context) {
     Rendezvous *sync = context;
     assert(scoop_rt_attach_foreign_thread());
+    assert(scoop_rt_poll_state == &scoop_thread_current_required()->poll);
     const void *boundary = __builtin_frame_address(0);
     _Alignas(16) uintptr_t frame[4];
     frame_init(frame, boundary);
@@ -111,7 +112,7 @@ static void *target_thread(void *context) {
     }
     ScoopThreadState *state = scoop_thread_current_required();
     assert(state->managed_stack_boundary == NULL && state->managed_anchor == NULL);
-    assert(atomic_load(&state->mode) == SCOOP_THREAD_NATIVE_SAFE && state->managed_depth == 0);
+    assert(atomic_load(&state->poll.mode) == SCOOP_THREAD_NATIVE_SAFE && state->managed_depth == 0);
     assert(state->callback_depth == 0 && state->current_transition == NULL);
     assert(pthread_mutex_lock(&sync->lock) == 0);
     sync->stage = 3;
@@ -120,6 +121,7 @@ static void *target_thread(void *context) {
         assert(pthread_cond_wait(&sync->changed, &sync->lock) == 0);
     assert(pthread_mutex_unlock(&sync->lock) == 0);
     scoop_rt_detach_foreign_thread();
+    assert(scoop_rt_poll_state == NULL);
     return NULL;
 }
 
@@ -176,7 +178,7 @@ static void run_scenario(Scenario scenario) {
     wait_stage(&sync, 2);
     if (scenario == PENDING_POLL) {
         scoop_thread_registry_lock();
-        while (atomic_load(&sync.target->mode) != SCOOP_THREAD_PARKED)
+        while (atomic_load(&sync.target->poll.mode) != SCOOP_THREAD_PARKED)
             scoop_thread_world_wait();
         assert(sync.target->parked_from == SCOOP_THREAD_MANAGED_PENDING);
         assert(sync.target->managed_anchor == NULL);
@@ -185,17 +187,17 @@ static void run_scenario(Scenario scenario) {
         wait_world(SCOOP_WORLD_COLLECTING);
         scoop_thread_registry_lock();
         if (scenario == RETURN_TO_NATIVE) {
-            assert(atomic_load(&sync.target->mode) == SCOOP_THREAD_NATIVE_SAFE);
+            assert(atomic_load(&sync.target->poll.mode) == SCOOP_THREAD_NATIVE_SAFE);
             assert(sync.target->managed_stack_boundary == NULL);
         } else {
-            assert(atomic_load(&sync.target->mode) == SCOOP_THREAD_PARKED);
+            assert(atomic_load(&sync.target->poll.mode) == SCOOP_THREAD_PARKED);
             assert(sync.target->parked_from == SCOOP_THREAD_MANAGED);
             assert(sync.target->managed_anchor != NULL);
         }
         scoop_thread_registry_unlock();
     } else {
         scoop_thread_registry_lock();
-        assert(atomic_load(&sync.target->mode) == SCOOP_THREAD_NATIVE_SAFE);
+        assert(atomic_load(&sync.target->poll.mode) == SCOOP_THREAD_NATIVE_SAFE);
         assert(sync.target->managed_stack_boundary == NULL);
         scoop_thread_registry_unlock();
     }

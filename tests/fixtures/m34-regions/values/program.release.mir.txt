@@ -1,0 +1,3369 @@
+Module
+  extern ef0 stressMode @m34_region_stress() -> Boolean <abi=c no-gc lib=m34_regions>
+  extern ef1 movingMode @m34_region_moving() -> Boolean <abi=c no-gc lib=m34_regions>
+  extern ef2 regionCount @m34_region_count() -> ULong <abi=c no-gc lib=m34_regions>
+  extern ef3 minorCount @m34_region_minor_count() -> ULong <abi=c no-gc lib=m34_regions>
+  enum Option<Node>
+    Some(_0: Node)
+    None()
+  enum Option<Value>
+    Some(_0: Value)
+    None()
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum Option<Option<Node>>
+    Some(_0: Option<Node>)
+    None()
+  enum Option<Option<Value>>
+    Some(_0: Option<Value>)
+    None()
+  enum Option<Char>
+    Some(_0: Char)
+    None()
+  enum MemoryOrder
+    Relaxed()
+    Acquire()
+    Release()
+    AcqRel()
+    SeqCst()
+  enum CoroutineStep<Node>
+    Completed(value: Node)
+    Suspended()
+  enum CoroutineSlot<Node>
+    Empty()
+    Value(value: Node)
+  enum CoroutineStep<Value>
+    Completed(value: Value)
+    Suspended()
+  enum CoroutineSlot<Value>
+    Empty()
+    Value(value: Value)
+  class Node vtable=0 itables=1
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class IndexOutOfBoundsException vtable=0 itables=0
+  class UnwrapException vtable=0 itables=0
+  class ArithmeticException vtable=0 itables=0
+  class IllegalArgumentException vtable=0 itables=0
+  class ListIterator<Option<Node>> vtable=0 itables=1
+  class ListIterator<Option<Value>> vtable=0 itables=1
+  class box<Long> vtable=0 itables=0
+  class box<Option<Value>> vtable=0 itables=0
+  class box<Option<Node>> vtable=0 itables=0
+  interface Value
+  interface List<Option<Node>> : Iterable<Option<Node>>
+  interface Iterable<Option<Node>>
+  interface Iterator<Option<Node>>
+  interface List<Option<Value>> : Iterable<Option<Value>>
+  interface Iterable<Option<Value>>
+  interface Iterator<Option<Value>>
+  interface ToString
+  interface Hash
+  interface Equality<Char>
+  interface Iterable<Char>
+  interface Iterator<Char>
+  interface Equality<String>
+  interface Continuation<Value>
+  interface SuspendTask<Value>
+  interface SuspendRegistration<Value>
+  interface Continuation<Node>
+  interface SuspendTask<Node>
+  interface SuspendRegistration<Node>
+  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn19 captures=0
+    bridge function_type1 -> @fn43 id=0d15cd9a99d0a0b9482991a66e6f7bbbcfbf33af55bccffb75d4d8dc91056a7a
+  closure cc1 $Closure$lambda1 type=function_type2 invoke=@fn20 captures=0
+    bridge function_type1 -> @fn44 id=e2572b542aa0133ce053cff45a48ff221860a2b4ab1e246af49e4a9d6de0498d
+  closure cc2 $Closure$lambda2 type=function_type3 invoke=@fn21 captures=2
+    bridge function_type4 -> @fn45 id=148b8eaa34b12926dbcf536ba226b94375730788f81b4484c8126d0488b7ed15
+  generated_exact_type get0 location=enum8 nominal_id=8acc2d18c02ed1d11986f7cdcc6367a6f64dc11b79fe26c1bf339fec8797ebaf exact_id=017212fda02d7a6fe3161cf59db8e5f70eceac9246af471cc0a1e17c3bbb4695
+  generated_exact_type get1 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
+  generated_exact_type get2 location=class15 nominal_id=84bf4c26d5f2ed91dba8d473acec600c14cfe25113f1955ee2af708740170b60 exact_id=2198cc77d7dad6697eebb27dc0dd347c3751c25a7cb8df6a4e2e03f029500ac1
+  generated_exact_type get3 location=closure0 nominal_id=2fcc5dceba1f09c36d231287088079138d2c04817531ae31cc6d2cc1c02b5c0b exact_id=2302a5386d95a61953db931e029826819dc2e78ed627925872f2aaa8f36b4d72
+  generated_exact_type get4 location=class16 nominal_id=57955d288ec1c35820b551a8302fe0043f5067b076f185cdf943eb8372039410 exact_id=2d250c4326e667496d35e8cee417a7417a4392404ae171759d8b463c3a94f16d
+  generated_exact_type get5 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
+  generated_exact_type get6 location=enum7 nominal_id=4c11f1b9edee91471449c0e901d4b80952dc7785a1e2c1fb23d3dab35a618916 exact_id=459852cd3b39addb80b38839dccfbf5a967250f899592367fb909347fcfa6904
+  generated_exact_type get7 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
+  generated_exact_type get8 location=enum9 nominal_id=ead222e3ca89ee5caec4aed8eaee7ecc21f3520974c56c48c9c62137037d4a5d exact_id=7f061923f2b8e5c28ba73c0a57b9ffb2f461801662d4b507d728408f778e450e
+  generated_exact_type get9 location=closure1 nominal_id=4448086172d49813e9faf5f5f4482caeaf80ecd2eb94fc8b4e14e73f95c92706 exact_id=7f5f6914f0e48750cf712e99871e6a5837c62f0449c43604a094cca816ea92b8
+  generated_exact_type get10 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
+  generated_exact_type get11 location=closure2 nominal_id=9d01c256549e39c8bee1aa8e63315830d35fd0d8bca156722967aa0bc59cd9c3 exact_id=8de0c17c7f336529fe49a7537238c16d8d225f8457e97a5ed0fdd4983469231f
+  generated_exact_type get12 location=enum10 nominal_id=761137569bd654c44630db343d13aab64f98718994463137b63929856a3d2bd6 exact_id=ab1467854119314f0edcf32880bae1164c1260e41af7c0081450631f3b155f05
+  generated_exact_type get13 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
+  generated_exact_type get14 location=class14 nominal_id=1019845dbac8b40486c7a8317715dddb4016698da08e810513dc12e31dd8b68f exact_id=f4ac53b66a5aaca260a9f537cf582a82b69042d884a570f92ccc8e738ababceb
+  generated_callable gc0 function=@fn43 id=0d15cd9a99d0a0b9482991a66e6f7bbbcfbf33af55bccffb75d4d8dc91056a7a
+  generated_callable gc1 function=@fn45 id=148b8eaa34b12926dbcf536ba226b94375730788f81b4484c8126d0488b7ed15
+  generated_callable gc2 function=@fn42 id=5ddd7ee68487e6be003ea078ea7e4b54d2653439db6c0e046da3b12d9be4dd41
+  generated_callable gc3 function=@fn41 id=7716e09d018f9b6381f6346085c242c704dcc84fc70ae128e2fe6a9783b645aa
+  generated_callable gc4 function=@fn44 id=e2572b542aa0133ce053cff45a48ff221860a2b4ab1e246af49e4a9d6de0498d
+  fun Node.get @fn0(this: Node) -> Long
+    bb0 entry
+      return
+        Type Long
+        FieldAccess 0
+          Type Node
+          Local this
+  fun stressMode @fn1() -> Boolean
+    bb0 entry
+      call $call.1: Boolean = extern0 @m34_region_stress direct
+      return
+        Type Boolean
+        Local $call.1
+  fun movingMode @fn2() -> Boolean
+    bb0 entry
+      call $call.1: Boolean = extern1 @m34_region_moving direct
+      return
+        Type Boolean
+        Local $call.1
+  fun regionCount @fn3() -> ULong
+    bb0 entry
+      call $call.1: ULong = extern2 @m34_region_count direct
+      return
+        Type ULong
+        Local $call.1
+  fun minorCount @fn4() -> ULong
+    bb0 entry
+      call $call.1: ULong = extern3 @m34_region_minor_count direct
+      return
+        Type ULong
+        Local $call.1
+  fun check @fn5(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.receiver: Boolean
+        Type Boolean
+        Local value
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+    bb1 if.then.1
+      val $default.local.0: String
+        Type String
+        StringConst @str0
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.1
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $new.1
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.1
+    bb2 if.merge.2
+      return
+  fun fill @fn6(roots: MutableArray<Option<Node>>) -> Unit
+    bb0 entry
+      var index: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      goto bb1
+    bb1 while.cond.1 <loop-header-poll>
+      val $dependency.receiver: Long
+        Type Long
+        Local index
+      val $inline.11.this: MutableArray<Option<Node>>
+        Type MutableArray<Option<Node>>
+        Local roots
+      goto bb12
+    bb2 while.exit.2
+      return
+    bb3 while.body.3
+      val $dependency.receiver: MutableArray<Option<Node>>
+        Type MutableArray<Option<Node>>
+        Local roots
+      val $dependency.argument.0: Long
+        Type Long
+        Local index
+      val $argument.0: Long
+        Type Long
+        Local index
+      val $argument.1: Option<Node>
+        Type Option<Node>
+        VariantConstruct Option<Node> v1
+      val $parameter.value: Long
+        Type Long
+        Local $argument.0
+      val $parameter.next: Option<Node>
+        Type Option<Node>
+        Local $argument.1
+      assign $new.1
+        Type Node
+        ClassAlloc Node
+      val $inline.9.this: Node
+        Type Node
+        Local $new.1
+      val $inline.9.value: Long
+        Type Long
+        Local $parameter.value
+      val $inline.9.next: Option<Node>
+        Type Option<Node>
+        Local $parameter.next
+      goto bb10
+    bb4 logic.rhs.4
+      assign $logic.2
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          ArrayLen MutableArray<Option<Node>>
+            Type MutableArray<Option<Node>>
+            Local $arr.1
+      goto bb6
+    bb5 logic.short.5
+      assign $logic.2
+        Type Boolean
+        BoolLiteral true
+      goto bb6
+    bb6 logic.merge.6
+      branch bb7 bb8
+        Type Boolean
+        Local $logic.2
+    bb7 if.then.7
+      assign $new.3
+        Type IndexOutOfBoundsException
+        ClassAlloc IndexOutOfBoundsException
+      call external6 direct
+        Type IndexOutOfBoundsException
+        Local $new.3
+      throw
+        Type IndexOutOfBoundsException
+        Local $new.3
+    bb8 if.merge.8
+      array_set MutableArray<Option<Node>>
+        Type MutableArray<Option<Node>>
+        Local $arr.1
+        Type Long
+        Local $idx.2
+        Type Option<Node>
+        Local $value.3
+      val $old.0: Long
+        Type Long
+        Local index
+      val $dependency.receiver: Long
+        Type Long
+        Local $old.0
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.parameter.other: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      assign index
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          IntegerLiteral Long value=1 bits=0x0000000000000001
+      goto bb1
+    bb9 inline.cont.9
+      val $dependency.argument.0: Node
+        Type Node
+        Local $new.1
+      val $dependency.parameter._1: Node
+        Type Node
+        Local $dependency.argument.0
+      val $dependency.argument.1: Option<Node>
+        Type Option<Node>
+        VariantConstruct Option<Node> v0
+          Type Node
+          Local $dependency.parameter._1
+      val $dependency.parameter.index: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.parameter.value: Option<Node>
+        Type Option<Node>
+        Local $dependency.argument.1
+      val $arr.1: MutableArray<Option<Node>>
+        Type MutableArray<Option<Node>>
+        Local $dependency.receiver
+      val $idx.2: Long
+        Type Long
+        Local $dependency.parameter.index
+      val $value.3: Option<Node>
+        Type Option<Node>
+        Local $dependency.parameter.value
+      branch bb5 bb4
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb10 inline.9.entry
+      field_set 0
+        Type Node
+        Local $inline.9.this
+        Type Long
+        Local $inline.9.value
+      field_set 1
+        Type Node
+        Local $inline.9.this
+        Type Option<Node>
+        Local $inline.9.next
+      goto bb9
+    bb11 inline.cont.11
+      val $dependency.argument.0: Long
+        Type Long
+        Local $inline.11.result
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      branch bb3 bb2
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Long result=Long
+            Type Long
+            Local $dependency.receiver
+            Type Long
+            Local $dependency.parameter.other
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb12 inline.11.entry
+      val $inline.11.$dependency.local.1: MutableArray<Option<Node>>
+        Type MutableArray<Option<Node>>
+        Local $inline.11.this
+      assign $inline.11.result
+        Type Long
+        ArrayLen MutableArray<Option<Node>>
+          Type MutableArray<Option<Node>>
+          Local $inline.11.$dependency.local.1
+      goto bb11
+  fun mutate @fn7(roots: MutableArray<Option<Node>>, values: MutableArray<Option<Value>>, cell: AtomicRef<Value>) -> Unit
+    bb0 entry
+      val $dependency.receiver: MutableArray<Option<Node>>
+        Type MutableArray<Option<Node>>
+        Local roots
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.parameter.index: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $argument.0: Long
+        Type Long
+        IntegerLiteral Long value=70 bits=0x0000000000000046
+      val $dependency.receiver: MutableArray<Option<Node>>
+        Type MutableArray<Option<Node>>
+        Local roots
+      val $inline.41.this: MutableArray<Option<Node>>
+        Type MutableArray<Option<Node>>
+        Local roots
+      goto bb42
+    bb1 if.then.1
+      val $uw.2: Node
+        Type Node
+        VariantPayloadProject Option<Node> v0 f0
+          Type Option<Node>
+          Local $opt.1
+      goto bb3
+    bb2 if.else.2
+      assign $new.2
+        Type UnwrapException
+        ClassAlloc UnwrapException
+      call external4 direct
+        Type UnwrapException
+        Local $new.2
+      throw
+        Type UnwrapException
+        Local $new.2
+    bb3 if.merge.3
+      field_set 1
+        Type Node
+        Local $uw.2
+        Type Option<Node>
+        VariantConstruct Option<Node> v0
+          Type Node
+          Local $dependency.parameter._1
+      val $dependency.receiver: MutableArray<Option<Value>>
+        Type MutableArray<Option<Value>>
+        Local values
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $argument.0: Long
+        Type Long
+        IntegerLiteral Long value=71 bits=0x0000000000000047
+      val $argument.1: Option<Node>
+        Type Option<Node>
+        VariantConstruct Option<Node> v1
+      val $parameter.value: Long
+        Type Long
+        IntegerLiteral Long value=71 bits=0x0000000000000047
+      val $parameter.next: Option<Node>
+        Type Option<Node>
+        Local $argument.1
+      assign $new.3
+        Type Node
+        ClassAlloc Node
+      val $inline.37.this: Node
+        Type Node
+        Local $new.3
+      val $inline.37.value: Long
+        Type Long
+        IntegerLiteral Long value=71 bits=0x0000000000000047
+      val $inline.37.next: Option<Node>
+        Type Option<Node>
+        Local $parameter.next
+      goto bb38
+    bb4 logic.rhs.4
+      assign $logic.4
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+          Type Long
+          ArrayLen MutableArray<Option<Value>>
+            Type MutableArray<Option<Value>>
+            Local $arr.3
+      goto bb6
+    bb5 logic.short.5
+      unreachable
+    bb6 logic.merge.6
+      branch bb7 bb8
+        Type Boolean
+        Local $logic.4
+    bb7 if.then.7
+      assign $new.5
+        Type IndexOutOfBoundsException
+        ClassAlloc IndexOutOfBoundsException
+      call external6 direct
+        Type IndexOutOfBoundsException
+        Local $new.5
+      throw
+        Type IndexOutOfBoundsException
+        Local $new.5
+    bb8 if.merge.8
+      array_set MutableArray<Option<Value>>
+        Type MutableArray<Option<Value>>
+        Local $arr.3
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+        Type Option<Value>
+        Local $value.5
+      val $dependency.receiver: MutableArray<Option<Value>>
+        Type MutableArray<Option<Value>>
+        Local values
+      val $inline.35.this: MutableArray<Option<Value>>
+        Type MutableArray<Option<Value>>
+        Local values
+      goto bb36
+    bb9 if.then.9
+      unreachable
+    bb10 if.merge.10
+      branch bb11 bb12
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          Local $div.6
+          Type Long
+          IntegerLiteral Long value=-9223372036854775808 bits=0x8000000000000000
+    bb11 logic.rhs.11
+      assign $logic.7
+        Type Boolean
+        BoolLiteral false
+      goto bb13
+    bb12 logic.short.12
+      assign $logic.7
+        Type Boolean
+        BoolLiteral false
+      goto bb13
+    bb13 logic.merge.13
+      goto bb15
+    bb14 if.then.14
+      unreachable
+    bb15 if.else.15
+      assign $div.result.8
+        Type Long
+        SafeIntegerDivRem divide kind=Long
+          Type Long
+          Local $div.6
+          Type Long
+          IntegerLiteral Long value=2 bits=0x0000000000000002
+      goto bb16
+    bb16 if.merge.16
+      val $dependency.argument.0: Long
+        Type Long
+        Local $div.result.8
+      val $argument.0: Long
+        Type Long
+        IntegerLiteral Long value=72 bits=0x0000000000000048
+      val $argument.1: Option<Node>
+        Type Option<Node>
+        VariantConstruct Option<Node> v1
+      val $parameter.value: Long
+        Type Long
+        IntegerLiteral Long value=72 bits=0x0000000000000048
+      val $parameter.next: Option<Node>
+        Type Option<Node>
+        Local $argument.1
+      assign $new.8
+        Type Node
+        ClassAlloc Node
+      val $inline.33.this: Node
+        Type Node
+        Local $new.8
+      val $inline.33.value: Long
+        Type Long
+        IntegerLiteral Long value=72 bits=0x0000000000000048
+      val $inline.33.next: Option<Node>
+        Type Option<Node>
+        Local $parameter.next
+      goto bb34
+    bb17 logic.rhs.17
+      assign $logic.9
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          Local $idx.10
+          Type Long
+          ArrayLen MutableArray<Option<Value>>
+            Type MutableArray<Option<Value>>
+            Local $arr.9
+      goto bb19
+    bb18 logic.short.18
+      assign $logic.9
+        Type Boolean
+        BoolLiteral true
+      goto bb19
+    bb19 logic.merge.19
+      branch bb20 bb21
+        Type Boolean
+        Local $logic.9
+    bb20 if.then.20
+      assign $new.10
+        Type IndexOutOfBoundsException
+        ClassAlloc IndexOutOfBoundsException
+      call external6 direct
+        Type IndexOutOfBoundsException
+        Local $new.10
+      throw
+        Type IndexOutOfBoundsException
+        Local $new.10
+    bb21 if.merge.21
+      array_set MutableArray<Option<Value>>
+        Type MutableArray<Option<Value>>
+        Local $arr.9
+        Type Long
+        Local $idx.10
+        Type Option<Value>
+        Local $value.11
+      val $dependency.receiver: MutableArray<Option<Value>>
+        Type MutableArray<Option<Value>>
+        Local values
+      val $inline.31.this: MutableArray<Option<Value>>
+        Type MutableArray<Option<Value>>
+        Local values
+      goto bb32
+    bb22 logic.rhs.22
+      assign $logic.12
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          Local $idx.13
+          Type Long
+          ArrayLen MutableArray<Option<Value>>
+            Type MutableArray<Option<Value>>
+            Local $arr.12
+      goto bb24
+    bb23 logic.short.23
+      assign $logic.12
+        Type Boolean
+        BoolLiteral true
+      goto bb24
+    bb24 logic.merge.24
+      branch bb25 bb26
+        Type Boolean
+        Local $logic.12
+    bb25 if.then.25
+      assign $new.13
+        Type IndexOutOfBoundsException
+        ClassAlloc IndexOutOfBoundsException
+      call external6 direct
+        Type IndexOutOfBoundsException
+        Local $new.13
+      throw
+        Type IndexOutOfBoundsException
+        Local $new.13
+    bb26 if.merge.26
+      array_set MutableArray<Option<Value>>
+        Type MutableArray<Option<Value>>
+        Local $arr.12
+        Type Long
+        Local $idx.13
+        Type Option<Value>
+        Local $value.14
+      val $dependency.receiver: AtomicRef<Value>
+        Type AtomicRef<Value>
+        Local cell
+      val $argument.0: Long
+        Type Long
+        IntegerLiteral Long value=74 bits=0x000000000000004a
+      val $argument.1: Option<Node>
+        Type Option<Node>
+        VariantConstruct Option<Node> v1
+      val $parameter.value: Long
+        Type Long
+        IntegerLiteral Long value=74 bits=0x000000000000004a
+      val $parameter.next: Option<Node>
+        Type Option<Node>
+        Local $argument.1
+      assign $new.14
+        Type Node
+        ClassAlloc Node
+      val $inline.27.this: Node
+        Type Node
+        Local $new.14
+      val $inline.27.value: Long
+        Type Long
+        IntegerLiteral Long value=74 bits=0x000000000000004a
+      val $inline.27.next: Option<Node>
+        Type Option<Node>
+        Local $parameter.next
+      goto bb28
+    bb27 inline.cont.27
+      val $dependency.argument.0: Value
+        Type Value
+        Retype Value
+          Type Node
+          Local $new.14
+      val $dependency.parameter.value: Value
+        Type Value
+        Local $dependency.argument.0
+      val $dependency.parameter.order: MemoryOrder
+        Type MemoryOrder
+        VariantConstruct MemoryOrder v4
+      Type Unit
+      AtomicStore SeqCst Reference
+        Type AtomicRef<Value>
+        Local $dependency.receiver
+        Type Value
+        Local $dependency.parameter.value
+      return
+    bb28 inline.27.entry
+      field_set 0
+        Type Node
+        Local $inline.27.this
+        Type Long
+        IntegerLiteral Long value=74 bits=0x000000000000004a
+      field_set 1
+        Type Node
+        Local $inline.27.this
+        Type Option<Node>
+        Local $inline.27.next
+      goto bb27
+    bb29 inline.cont.29
+      val $dependency.argument.0: Value
+        Type Value
+        Retype Value
+          Type Node
+          Local $new.11
+      val $dependency.parameter._1: Value
+        Type Value
+        Local $dependency.argument.0
+      val $dependency.argument.1: Option<Value>
+        Type Option<Value>
+        VariantConstruct Option<Value> v0
+          Type Value
+          Local $dependency.parameter._1
+      val $dependency.parameter.index: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.parameter.value: Option<Value>
+        Type Option<Value>
+        Local $dependency.argument.1
+      val $arr.12: MutableArray<Option<Value>>
+        Type MutableArray<Option<Value>>
+        Local $dependency.receiver
+      val $idx.13: Long
+        Type Long
+        Local $dependency.parameter.index
+      val $value.14: Option<Value>
+        Type Option<Value>
+        Local $dependency.parameter.value
+      branch bb23 bb22
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $idx.13
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb30 inline.29.entry
+      field_set 0
+        Type Node
+        Local $inline.29.this
+        Type Long
+        IntegerLiteral Long value=73 bits=0x0000000000000049
+      field_set 1
+        Type Node
+        Local $inline.29.this
+        Type Option<Node>
+        Local $inline.29.next
+      goto bb29
+    bb31 inline.cont.31
+      val $dependency.receiver: Long
+        Type Long
+        Local $inline.31.result
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.parameter.other: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerBinary subtract kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $argument.0: Long
+        Type Long
+        IntegerLiteral Long value=73 bits=0x0000000000000049
+      val $argument.1: Option<Node>
+        Type Option<Node>
+        VariantConstruct Option<Node> v1
+      val $parameter.value: Long
+        Type Long
+        IntegerLiteral Long value=73 bits=0x0000000000000049
+      val $parameter.next: Option<Node>
+        Type Option<Node>
+        Local $argument.1
+      assign $new.11
+        Type Node
+        ClassAlloc Node
+      val $inline.29.this: Node
+        Type Node
+        Local $new.11
+      val $inline.29.value: Long
+        Type Long
+        IntegerLiteral Long value=73 bits=0x0000000000000049
+      val $inline.29.next: Option<Node>
+        Type Option<Node>
+        Local $parameter.next
+      goto bb30
+    bb32 inline.31.entry
+      val $inline.31.$dependency.local.1: MutableArray<Option<Value>>
+        Type MutableArray<Option<Value>>
+        Local $inline.31.this
+      assign $inline.31.result
+        Type Long
+        ArrayLen MutableArray<Option<Value>>
+          Type MutableArray<Option<Value>>
+          Local $inline.31.$dependency.local.1
+      goto bb31
+    bb33 inline.cont.33
+      val $dependency.argument.0: Value
+        Type Value
+        Retype Value
+          Type Node
+          Local $new.8
+      val $dependency.parameter._1: Value
+        Type Value
+        Local $dependency.argument.0
+      val $dependency.argument.1: Option<Value>
+        Type Option<Value>
+        VariantConstruct Option<Value> v0
+          Type Value
+          Local $dependency.parameter._1
+      val $dependency.parameter.index: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.parameter.value: Option<Value>
+        Type Option<Value>
+        Local $dependency.argument.1
+      val $arr.9: MutableArray<Option<Value>>
+        Type MutableArray<Option<Value>>
+        Local $dependency.receiver
+      val $idx.10: Long
+        Type Long
+        Local $dependency.parameter.index
+      val $value.11: Option<Value>
+        Type Option<Value>
+        Local $dependency.parameter.value
+      branch bb18 bb17
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $idx.10
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb34 inline.33.entry
+      field_set 0
+        Type Node
+        Local $inline.33.this
+        Type Long
+        IntegerLiteral Long value=72 bits=0x0000000000000048
+      field_set 1
+        Type Node
+        Local $inline.33.this
+        Type Option<Node>
+        Local $inline.33.next
+      goto bb33
+    bb35 inline.cont.35
+      val $dependency.receiver: Long
+        Type Long
+        Local $inline.35.result
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=2 bits=0x0000000000000002
+      val $dependency.parameter.other: Long
+        Type Long
+        IntegerLiteral Long value=2 bits=0x0000000000000002
+      val $div.6: Long
+        Type Long
+        Local $dependency.receiver
+      val $div.7: Long
+        Type Long
+        IntegerLiteral Long value=2 bits=0x0000000000000002
+      goto bb10
+    bb36 inline.35.entry
+      val $inline.35.$dependency.local.1: MutableArray<Option<Value>>
+        Type MutableArray<Option<Value>>
+        Local $inline.35.this
+      assign $inline.35.result
+        Type Long
+        ArrayLen MutableArray<Option<Value>>
+          Type MutableArray<Option<Value>>
+          Local $inline.35.$dependency.local.1
+      goto bb35
+    bb37 inline.cont.37
+      val $dependency.argument.0: Value
+        Type Value
+        Retype Value
+          Type Node
+          Local $new.3
+      val $dependency.parameter._1: Value
+        Type Value
+        Local $dependency.argument.0
+      val $dependency.argument.1: Option<Value>
+        Type Option<Value>
+        VariantConstruct Option<Value> v0
+          Type Value
+          Local $dependency.parameter._1
+      val $dependency.parameter.index: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.parameter.value: Option<Value>
+        Type Option<Value>
+        Local $dependency.argument.1
+      val $arr.3: MutableArray<Option<Value>>
+        Type MutableArray<Option<Value>>
+        Local $dependency.receiver
+      val $idx.4: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $value.5: Option<Value>
+        Type Option<Value>
+        Local $dependency.parameter.value
+      goto bb4
+    bb38 inline.37.entry
+      field_set 0
+        Type Node
+        Local $inline.37.this
+        Type Long
+        IntegerLiteral Long value=71 bits=0x0000000000000047
+      field_set 1
+        Type Node
+        Local $inline.37.this
+        Type Option<Node>
+        Local $inline.37.next
+      goto bb37
+    bb39 inline.cont.39
+      val $dependency.argument.0: Node
+        Type Node
+        Local $new.1
+      val $dependency.parameter._1: Node
+        Type Node
+        Local $dependency.argument.0
+      call $opt.1: Option<Node> = @fn11 direct
+        Type MutableArray<Option<Node>>
+        Local $dependency.receiver
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Option<Node> v0
+          Type Option<Node>
+          Local $opt.1
+    bb40 inline.39.entry
+      field_set 0
+        Type Node
+        Local $inline.39.this
+        Type Long
+        IntegerLiteral Long value=70 bits=0x0000000000000046
+      field_set 1
+        Type Node
+        Local $inline.39.this
+        Type Option<Node>
+        Local $inline.39.next
+      goto bb39
+    bb41 inline.cont.41
+      val $dependency.receiver: Long
+        Type Long
+        Local $inline.41.result
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.parameter.other: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerBinary subtract kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.parameter.index: Long
+        Type Long
+        Local $dependency.argument.0
+      call $argument.1: Option<Node> = @fn11 direct
+        Type MutableArray<Option<Node>>
+        Local $dependency.receiver
+        Type Long
+        Local $dependency.parameter.index
+      val $parameter.value: Long
+        Type Long
+        IntegerLiteral Long value=70 bits=0x0000000000000046
+      val $parameter.next: Option<Node>
+        Type Option<Node>
+        Local $argument.1
+      assign $new.1
+        Type Node
+        ClassAlloc Node
+      val $inline.39.this: Node
+        Type Node
+        Local $new.1
+      val $inline.39.value: Long
+        Type Long
+        IntegerLiteral Long value=70 bits=0x0000000000000046
+      val $inline.39.next: Option<Node>
+        Type Option<Node>
+        Local $parameter.next
+      goto bb40
+    bb42 inline.41.entry
+      val $inline.41.$dependency.local.1: MutableArray<Option<Node>>
+        Type MutableArray<Option<Node>>
+        Local $inline.41.this
+      assign $inline.41.result
+        Type Long
+        ArrayLen MutableArray<Option<Node>>
+          Type MutableArray<Option<Node>>
+          Local $inline.41.$dependency.local.1
+      goto bb41
+  fun minorCollection @fn8(moving: Boolean) -> Unit
+    bb0 entry
+      branch bb1 bb2
+        Type Boolean
+        Local moving
+    bb1 if.then.1
+      call @scoop_rt_gc_collect direct
+      return
+    bb2 if.merge.2
+      call before: ULong = extern3 @m34_region_minor_count direct
+      goto bb3
+    bb3 while.cond.3 <loop-header-poll>
+      call $dependency.receiver: ULong = extern3 @m34_region_minor_count direct
+      val $dependency.argument.0: ULong
+        Type ULong
+        Local before
+      val $dependency.parameter.other: ULong
+        Type ULong
+        Local $dependency.argument.0
+      branch bb5 bb4
+        Type Boolean
+        IntegerCompare equal operands=ULong result=Boolean
+          Type ULong
+          Local $dependency.receiver
+          Type ULong
+          Local $dependency.parameter.other
+    bb4 while.exit.4
+      return
+    bb5 while.body.5
+      var index: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      goto bb6
+    bb6 while.cond.6 <loop-header-poll>
+      val $dependency.receiver: Long
+        Type Long
+        Local index
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=4096 bits=0x0000000000001000
+      val $dependency.parameter.other: Long
+        Type Long
+        IntegerLiteral Long value=4096 bits=0x0000000000001000
+      branch bb8 bb7
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Long result=Long
+            Type Long
+            Local $dependency.receiver
+            Type Long
+            IntegerLiteral Long value=4096 bits=0x0000000000001000
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb7 while.exit.7
+      goto bb3
+    bb8 while.body.8
+      val $argument.0: Long
+        Type Long
+        Local index
+      val $argument.1: Option<Node>
+        Type Option<Node>
+        VariantConstruct Option<Node> v1
+      val $parameter.value: Long
+        Type Long
+        Local $argument.0
+      val $parameter.next: Option<Node>
+        Type Option<Node>
+        Local $argument.1
+      assign $new.1
+        Type Node
+        ClassAlloc Node
+      val $inline.9.this: Node
+        Type Node
+        Local $new.1
+      val $inline.9.value: Long
+        Type Long
+        Local $parameter.value
+      val $inline.9.next: Option<Node>
+        Type Option<Node>
+        Local $parameter.next
+      goto bb10
+    bb9 inline.cont.9
+      val node: Node
+        Type Node
+        Local $new.1
+      val $dependency.receiver: Long
+        Type Long
+        FieldAccess 0
+          Type Node
+          Local node
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.parameter.other: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      assign index
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          IntegerLiteral Long value=1 bits=0x0000000000000001
+      goto bb6
+    bb10 inline.9.entry
+      field_set 0
+        Type Node
+        Local $inline.9.this
+        Type Long
+        Local $inline.9.value
+      field_set 1
+        Type Node
+        Local $inline.9.this
+        Type Option<Node>
+        Local $inline.9.next
+      goto bb9
+  fun main @fn9() -> Unit
+    bb0 entry
+      call stress: Boolean = extern0 @m34_region_stress direct
+      branch bb1 bb2
+        Type Boolean
+        Local stress
+    bb1 if.then.1
+      assign $result.1
+        Type Long
+        IntegerLiteral Long value=64 bits=0x0000000000000040
+      goto bb3
+    bb2 if.else.2
+      assign $result.1
+        Type Long
+        IntegerLiteral Long value=600000 bits=0x00000000000927c0
+      goto bb3
+    bb3 if.merge.3
+      val count: Long
+        Type Long
+        Local $result.1
+      branch bb4 bb5
+        Type Boolean
+        Local stress
+    bb4 if.then.4
+      assign $result.2
+        Type Long
+        IntegerLiteral Long value=8193 bits=0x0000000000002001
+      goto bb6
+    bb5 if.else.5
+      assign $result.2
+        Type Long
+        IntegerLiteral Long value=1100000 bits=0x000000000010c8e0
+      goto bb6
+    bb6 if.merge.6
+      val capacity: Long
+        Type Long
+        Local $result.2
+      val $argument.0: Long
+        Type Long
+        Local count
+      val $argument.1: (Long) -> Option<Node>
+        Type (Long) -> Option<Node>
+        ClosureAlloc cc0 $Closure$lambda0
+      val $parameter.size: Long
+        Type Long
+        Local $argument.0
+      val $parameter.init: (Long) -> Option<Node>
+        Type (Long) -> Option<Node>
+        Local $argument.1
+      val $array_size.1: Long
+        Type Long
+        Local $parameter.size
+      val $array_init.2: (Long) -> Option<Node>
+        Type (Long) -> Option<Node>
+        Local $parameter.init
+      branch bb7 bb8
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $array_size.1
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb7 if.then.7
+      assign $new.1
+        Type IllegalArgumentException
+        ClassAlloc IllegalArgumentException
+      call external5 direct
+        Type IllegalArgumentException
+        Local $new.1
+      throw
+        Type IllegalArgumentException
+        Local $new.1
+    bb8 if.merge.8
+      val $array.3: MutableArray<Option<Node>>
+        Type MutableArray<Option<Node>>
+        ArrayAllocate MutableArray<Option<Node>>
+          Type Long
+          Local $array_size.1
+      var $array_index.4: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      goto bb9
+    bb9 while.cond.9 <loop-header-poll>
+      branch bb11 bb10
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $array_index.4
+          Type Long
+          Local $array_size.1
+    bb10 while.exit.10
+      val roots: MutableArray<Option<Node>>
+        Type MutableArray<Option<Node>>
+        Local $array.3
+      val $argument.0: MutableArray<Option<Node>>
+        Type MutableArray<Option<Node>>
+        Local roots
+      val $parameter.roots: MutableArray<Option<Node>>
+        Type MutableArray<Option<Node>>
+        Local $argument.0
+      call @fn6 direct
+        Type MutableArray<Option<Node>>
+        Local $parameter.roots
+      val $argument.0: Long
+        Type Long
+        Local capacity
+      val $argument.1: (Long) -> Option<Value>
+        Type (Long) -> Option<Value>
+        ClosureAlloc cc1 $Closure$lambda1
+      val $parameter.size: Long
+        Type Long
+        Local $argument.0
+      val $parameter.init: (Long) -> Option<Value>
+        Type (Long) -> Option<Value>
+        Local $argument.1
+      val $array_size.6: Long
+        Type Long
+        Local $parameter.size
+      val $array_init.7: (Long) -> Option<Value>
+        Type (Long) -> Option<Value>
+        Local $parameter.init
+      branch bb12 bb13
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $array_size.6
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb11 while.body.11
+      val $inline.80.$closure: (Long) -> Option<Node>
+        Type (Long) -> Option<Node>
+        Local $array_init.2
+      val $inline.80.index: Long
+        Type Long
+        Local $array_index.4
+      goto bb81
+    bb12 if.then.12
+      assign $new.2
+        Type IllegalArgumentException
+        ClassAlloc IllegalArgumentException
+      call external5 direct
+        Type IllegalArgumentException
+        Local $new.2
+      throw
+        Type IllegalArgumentException
+        Local $new.2
+    bb13 if.merge.13
+      val $array.8: MutableArray<Option<Value>>
+        Type MutableArray<Option<Value>>
+        ArrayAllocate MutableArray<Option<Value>>
+          Type Long
+          Local $array_size.6
+      var $array_index.9: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      goto bb14
+    bb14 while.cond.14 <loop-header-poll>
+      branch bb16 bb15
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $array_index.9
+          Type Long
+          Local $array_size.6
+    bb15 while.exit.15
+      val values: MutableArray<Option<Value>>
+        Type MutableArray<Option<Value>>
+        Local $array.8
+      val $dependency.receiver: MutableArray<Option<Node>>
+        Type MutableArray<Option<Node>>
+        Local roots
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.parameter.index: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      call $opt.11: Option<Node> = @fn11 direct
+        Type MutableArray<Option<Node>>
+        Local $dependency.receiver
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      branch bb17 bb18
+        Type Boolean
+        VariantTest Option<Node> v0
+          Type Option<Node>
+          Local $opt.11
+    bb16 while.body.16
+      val $inline.78.$closure: (Long) -> Option<Value>
+        Type (Long) -> Option<Value>
+        Local $array_init.7
+      val $inline.78.index: Long
+        Type Long
+        Local $array_index.9
+      goto bb79
+    bb17 if.then.17
+      val $uw.12: Node
+        Type Node
+        VariantPayloadProject Option<Node> v0 f0
+          Type Option<Node>
+          Local $opt.11
+      goto bb19
+    bb18 if.else.18
+      assign $new.3
+        Type UnwrapException
+        ClassAlloc UnwrapException
+      call external4 direct
+        Type UnwrapException
+        Local $new.3
+      throw
+        Type UnwrapException
+        Local $new.3
+    bb19 if.merge.19
+      val $argument.0: Value
+        Type Value
+        Retype Value
+          Type Node
+          Local $uw.12
+      val $parameter.initial: Value
+        Type Value
+        Local $argument.0
+      val cell: AtomicRef<Value>
+        Type AtomicRef<Value>
+        AtomicNew AtomicRef<Value>
+          Type Value
+          Local $parameter.initial
+      call @scoop_rt_gc_collect direct
+      val $dependency.receiver: Boolean
+        Type Boolean
+        Local stress
+      branch bb20 bb21
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+    bb20 if.then.20
+      call $dependency.receiver: ULong = extern2 @m34_region_count direct
+      val $dependency.argument.0: ULong
+        Type ULong
+        IntegerLiteral ULong value=2 bits=0x0000000000000002
+      val $dependency.parameter.other: ULong
+        Type ULong
+        IntegerLiteral ULong value=2 bits=0x0000000000000002
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=ULong result=Long
+            Type ULong
+            Local $dependency.receiver
+            Type ULong
+            IntegerLiteral ULong value=2 bits=0x0000000000000002
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn5 direct
+        Type Boolean
+        Local $parameter.value
+      goto bb21
+    bb21 if.merge.21
+      val $argument.0: MutableArray<Option<Node>>
+        Type MutableArray<Option<Node>>
+        Local roots
+      val $argument.1: MutableArray<Option<Value>>
+        Type MutableArray<Option<Value>>
+        Local values
+      val $argument.2: AtomicRef<Value>
+        Type AtomicRef<Value>
+        Local cell
+      val $parameter.roots: MutableArray<Option<Node>>
+        Type MutableArray<Option<Node>>
+        Local $argument.0
+      val $parameter.values: MutableArray<Option<Value>>
+        Type MutableArray<Option<Value>>
+        Local $argument.1
+      val $parameter.cell: AtomicRef<Value>
+        Type AtomicRef<Value>
+        Local $argument.2
+      call @fn7 direct
+        Type MutableArray<Option<Node>>
+        Local $parameter.roots
+        Type MutableArray<Option<Value>>
+        Local $parameter.values
+        Type AtomicRef<Value>
+        Local $parameter.cell
+      val $dependency.receiver: MutableArray<Option<Value>>
+        Type MutableArray<Option<Value>>
+        Local values
+      val copied: Array<Option<Value>>
+        Type Array<Option<Value>>
+        ArrayClone MutableArray<Option<Value>> -> Array<Option<Value>>
+          Type MutableArray<Option<Value>>
+          Local $dependency.receiver
+      call $argument.0: Boolean = extern1 @m34_region_moving direct
+      val $parameter.moving: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn8 direct
+        Type Boolean
+        Local $parameter.moving
+      val $dependency.receiver: MutableArray<Option<Node>>
+        Type MutableArray<Option<Node>>
+        Local roots
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.parameter.index: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      call $opt.13: Option<Node> = @fn11 direct
+        Type MutableArray<Option<Node>>
+        Local $dependency.receiver
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      branch bb22 bb23
+        Type Boolean
+        VariantTest Option<Node> v0
+          Type Option<Node>
+          Local $opt.13
+    bb22 if.then.22
+      val $uw.14: Node
+        Type Node
+        VariantPayloadProject Option<Node> v0 f0
+          Type Option<Node>
+          Local $opt.13
+      goto bb24
+    bb23 if.else.23
+      assign $new.4
+        Type UnwrapException
+        ClassAlloc UnwrapException
+      call external4 direct
+        Type UnwrapException
+        Local $new.4
+      throw
+        Type UnwrapException
+        Local $new.4
+    bb24 if.merge.24
+      val $opt.15: Option<Node>
+        Type Option<Node>
+        FieldAccess 1
+          Type Node
+          Local $uw.14
+      branch bb25 bb26
+        Type Boolean
+        VariantTest Option<Node> v0
+          Type Option<Node>
+          Local $opt.15
+    bb25 if.then.25
+      val $uw.16: Node
+        Type Node
+        VariantPayloadProject Option<Node> v0 f0
+          Type Option<Node>
+          Local $opt.15
+      goto bb27
+    bb26 if.else.26
+      assign $new.5
+        Type UnwrapException
+        ClassAlloc UnwrapException
+      call external4 direct
+        Type UnwrapException
+        Local $new.5
+      throw
+        Type UnwrapException
+        Local $new.5
+    bb27 if.merge.27
+      val $dependency.receiver: Long
+        Type Long
+        FieldAccess 0
+          Type Node
+          Local $uw.16
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=70 bits=0x0000000000000046
+      val $dependency.parameter.other: Long
+        Type Long
+        IntegerLiteral Long value=70 bits=0x0000000000000046
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          IntegerLiteral Long value=70 bits=0x0000000000000046
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn5 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.receiver: MutableArray<Option<Node>>
+        Type MutableArray<Option<Node>>
+        Local roots
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.parameter.index: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      call $opt.17: Option<Node> = @fn11 direct
+        Type MutableArray<Option<Node>>
+        Local $dependency.receiver
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      branch bb28 bb29
+        Type Boolean
+        VariantTest Option<Node> v0
+          Type Option<Node>
+          Local $opt.17
+    bb28 if.then.28
+      val $uw.18: Node
+        Type Node
+        VariantPayloadProject Option<Node> v0 f0
+          Type Option<Node>
+          Local $opt.17
+      goto bb30
+    bb29 if.else.29
+      assign $new.6
+        Type UnwrapException
+        ClassAlloc UnwrapException
+      call external4 direct
+        Type UnwrapException
+        Local $new.6
+      throw
+        Type UnwrapException
+        Local $new.6
+    bb30 if.merge.30
+      val $opt.19: Option<Node>
+        Type Option<Node>
+        FieldAccess 1
+          Type Node
+          Local $uw.18
+      branch bb31 bb32
+        Type Boolean
+        VariantTest Option<Node> v0
+          Type Option<Node>
+          Local $opt.19
+    bb31 if.then.31
+      val $uw.20: Node
+        Type Node
+        VariantPayloadProject Option<Node> v0 f0
+          Type Option<Node>
+          Local $opt.19
+      goto bb33
+    bb32 if.else.32
+      assign $new.7
+        Type UnwrapException
+        ClassAlloc UnwrapException
+      call external4 direct
+        Type UnwrapException
+        Local $new.7
+      throw
+        Type UnwrapException
+        Local $new.7
+    bb33 if.merge.33
+      val $opt.21: Option<Node>
+        Type Option<Node>
+        FieldAccess 1
+          Type Node
+          Local $uw.20
+      branch bb34 bb35
+        Type Boolean
+        VariantTest Option<Node> v0
+          Type Option<Node>
+          Local $opt.21
+    bb34 if.then.34
+      val $uw.22: Node
+        Type Node
+        VariantPayloadProject Option<Node> v0 f0
+          Type Option<Node>
+          Local $opt.21
+      goto bb36
+    bb35 if.else.35
+      assign $new.8
+        Type UnwrapException
+        ClassAlloc UnwrapException
+      call external4 direct
+        Type UnwrapException
+        Local $new.8
+      throw
+        Type UnwrapException
+        Local $new.8
+    bb36 if.merge.36
+      val $equality.lhs: Long
+        Type Long
+        FieldAccess 0
+          Type Node
+          Local $uw.22
+      val $dependency.receiver: Long
+        Type Long
+        Local count
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.parameter.other: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.receiver: Long
+        Type Long
+        Local $equality.lhs
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerBinary subtract kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn5 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.receiver: MutableArray<Option<Value>>
+        Type MutableArray<Option<Value>>
+        Local values
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.parameter.index: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      call $opt.23: Option<Value> = @fn14 direct
+        Type MutableArray<Option<Value>>
+        Local $dependency.receiver
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      branch bb37 bb38
+        Type Boolean
+        VariantTest Option<Value> v0
+          Type Option<Value>
+          Local $opt.23
+    bb37 if.then.37
+      val $uw.24: Value
+        Type Value
+        VariantPayloadProject Option<Value> v0 f0
+          Type Option<Value>
+          Local $opt.23
+      goto bb39
+    bb38 if.else.38
+      assign $new.9
+        Type UnwrapException
+        ClassAlloc UnwrapException
+      call external4 direct
+        Type UnwrapException
+        Local $new.9
+      throw
+        Type UnwrapException
+        Local $new.9
+    bb39 if.merge.39
+      val $receiver: Value
+        Type Value
+        Local $uw.24
+      call $dependency.receiver: Long = @fn37 interface Value[0]
+        Type Value
+        Local $receiver
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=71 bits=0x0000000000000047
+      val $dependency.parameter.other: Long
+        Type Long
+        IntegerLiteral Long value=71 bits=0x0000000000000047
+      branch bb40 bb41
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          IntegerLiteral Long value=71 bits=0x0000000000000047
+    bb40 if.then.40
+      val $dependency.receiver: MutableArray<Option<Value>>
+        Type MutableArray<Option<Value>>
+        Local values
+      val $dependency.receiver: Long
+        Type Long
+        Local capacity
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=2 bits=0x0000000000000002
+      val $dependency.parameter.other: Long
+        Type Long
+        IntegerLiteral Long value=2 bits=0x0000000000000002
+      val $div.25: Long
+        Type Long
+        Local $dependency.receiver
+      val $div.26: Long
+        Type Long
+        IntegerLiteral Long value=2 bits=0x0000000000000002
+      goto bb44
+    bb41 if.else.41
+      val $shortCircuit.3: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb42
+    bb42 if.merge.42
+      val $argument.0: Boolean
+        Type Boolean
+        Local $shortCircuit.3
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn5 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.receiver: MutableArray<Option<Value>>
+        Type MutableArray<Option<Value>>
+        Local values
+      val $dependency.receiver: Long
+        Type Long
+        Local capacity
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.parameter.other: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerBinary subtract kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.parameter.index: Long
+        Type Long
+        Local $dependency.argument.0
+      call $opt.30: Option<Value> = @fn14 direct
+        Type MutableArray<Option<Value>>
+        Local $dependency.receiver
+        Type Long
+        Local $dependency.parameter.index
+      branch bb54 bb55
+        Type Boolean
+        VariantTest Option<Value> v0
+          Type Option<Value>
+          Local $opt.30
+    bb43 if.then.43
+      unreachable
+    bb44 if.merge.44
+      branch bb45 bb46
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          Local $div.25
+          Type Long
+          IntegerLiteral Long value=-9223372036854775808 bits=0x8000000000000000
+    bb45 logic.rhs.45
+      assign $logic.11
+        Type Boolean
+        BoolLiteral false
+      goto bb47
+    bb46 logic.short.46
+      assign $logic.11
+        Type Boolean
+        BoolLiteral false
+      goto bb47
+    bb47 logic.merge.47
+      goto bb49
+    bb48 if.then.48
+      unreachable
+    bb49 if.else.49
+      assign $div.result.27
+        Type Long
+        SafeIntegerDivRem divide kind=Long
+          Type Long
+          Local $div.25
+          Type Long
+          IntegerLiteral Long value=2 bits=0x0000000000000002
+      goto bb50
+    bb50 if.merge.50
+      val $dependency.argument.0: Long
+        Type Long
+        Local $div.result.27
+      val $dependency.parameter.index: Long
+        Type Long
+        Local $dependency.argument.0
+      call $opt.28: Option<Value> = @fn14 direct
+        Type MutableArray<Option<Value>>
+        Local $dependency.receiver
+        Type Long
+        Local $dependency.parameter.index
+      branch bb51 bb52
+        Type Boolean
+        VariantTest Option<Value> v0
+          Type Option<Value>
+          Local $opt.28
+    bb51 if.then.51
+      val $uw.29: Value
+        Type Value
+        VariantPayloadProject Option<Value> v0 f0
+          Type Option<Value>
+          Local $opt.28
+      goto bb53
+    bb52 if.else.52
+      assign $new.12
+        Type UnwrapException
+        ClassAlloc UnwrapException
+      call external4 direct
+        Type UnwrapException
+        Local $new.12
+      throw
+        Type UnwrapException
+        Local $new.12
+    bb53 if.merge.53
+      val $receiver: Value
+        Type Value
+        Local $uw.29
+      call $dependency.receiver: Long = @fn37 interface Value[0]
+        Type Value
+        Local $receiver
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=72 bits=0x0000000000000048
+      val $dependency.parameter.other: Long
+        Type Long
+        IntegerLiteral Long value=72 bits=0x0000000000000048
+      val $shortCircuit.3: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          IntegerLiteral Long value=72 bits=0x0000000000000048
+      goto bb42
+    bb54 if.then.54
+      val $uw.31: Value
+        Type Value
+        VariantPayloadProject Option<Value> v0 f0
+          Type Option<Value>
+          Local $opt.30
+      goto bb56
+    bb55 if.else.55
+      assign $new.13
+        Type UnwrapException
+        ClassAlloc UnwrapException
+      call external4 direct
+        Type UnwrapException
+        Local $new.13
+      throw
+        Type UnwrapException
+        Local $new.13
+    bb56 if.merge.56
+      val $receiver: Value
+        Type Value
+        Local $uw.31
+      call $dependency.receiver: Long = @fn37 interface Value[0]
+        Type Value
+        Local $receiver
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=73 bits=0x0000000000000049
+      val $dependency.parameter.other: Long
+        Type Long
+        IntegerLiteral Long value=73 bits=0x0000000000000049
+      branch bb57 bb58
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          IntegerLiteral Long value=73 bits=0x0000000000000049
+    bb57 if.then.57
+      val $dependency.receiver: AtomicRef<Value>
+        Type AtomicRef<Value>
+        Local cell
+      val $dependency.parameter.order: MemoryOrder
+        Type MemoryOrder
+        VariantConstruct MemoryOrder v4
+      val $receiver: Value
+        Type Value
+        AtomicLoad SeqCst Reference
+          Type AtomicRef<Value>
+          Local $dependency.receiver
+      call $dependency.receiver: Long = @fn37 interface Value[0]
+        Type Value
+        Local $receiver
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=74 bits=0x000000000000004a
+      val $dependency.parameter.other: Long
+        Type Long
+        IntegerLiteral Long value=74 bits=0x000000000000004a
+      val $shortCircuit.4: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          IntegerLiteral Long value=74 bits=0x000000000000004a
+      goto bb59
+    bb58 if.else.58
+      val $shortCircuit.4: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb59
+    bb59 if.merge.59
+      val $argument.0: Boolean
+        Type Boolean
+        Local $shortCircuit.4
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn5 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.receiver: Array<Option<Value>>
+        Type Array<Option<Value>>
+        Local copied
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.parameter.index: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.receiver: MutableArray<Option<Value>>
+        Type MutableArray<Option<Value>>
+        Local values
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.parameter.index: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      call $opt.32: Option<Value> = @fn17 direct
+        Type Array<Option<Value>>
+        Local $dependency.receiver
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      branch bb60 bb61
+        Type Boolean
+        VariantTest Option<Value> v0
+          Type Option<Value>
+          Local $opt.32
+    bb60 if.then.60
+      val $uw.33: Value
+        Type Value
+        VariantPayloadProject Option<Value> v0 f0
+          Type Option<Value>
+          Local $opt.32
+      goto bb62
+    bb61 if.else.61
+      assign $new.14
+        Type UnwrapException
+        ClassAlloc UnwrapException
+      call external4 direct
+        Type UnwrapException
+        Local $new.14
+      throw
+        Type UnwrapException
+        Local $new.14
+    bb62 if.merge.62
+      call $opt.34: Option<Value> = @fn14 direct
+        Type MutableArray<Option<Value>>
+        Local $dependency.receiver
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      branch bb63 bb64
+        Type Boolean
+        VariantTest Option<Value> v0
+          Type Option<Value>
+          Local $opt.34
+    bb63 if.then.63
+      val $uw.35: Value
+        Type Value
+        VariantPayloadProject Option<Value> v0 f0
+          Type Option<Value>
+          Local $opt.34
+      goto bb65
+    bb64 if.else.64
+      assign $new.15
+        Type UnwrapException
+        ClassAlloc UnwrapException
+      call external4 direct
+        Type UnwrapException
+        Local $new.15
+      throw
+        Type UnwrapException
+        Local $new.15
+    bb65 if.merge.65
+      val $argument.0: Boolean
+        Type Boolean
+        Binary RefEq
+          Type Value
+          Local $uw.33
+          Type Value
+          Local $uw.35
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn5 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.receiver: Array<Option<Value>>
+        Type Array<Option<Value>>
+        Local copied
+      val $dependency.receiver: Long
+        Type Long
+        Local capacity
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.parameter.other: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerBinary subtract kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.parameter.index: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.receiver: MutableArray<Option<Value>>
+        Type MutableArray<Option<Value>>
+        Local values
+      val $dependency.receiver: Long
+        Type Long
+        Local capacity
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.parameter.other: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerBinary subtract kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.parameter.index: Long
+        Type Long
+        Local $dependency.argument.0
+      call $opt.36: Option<Value> = @fn17 direct
+        Type Array<Option<Value>>
+        Local $dependency.receiver
+        Type Long
+        Local $dependency.parameter.index
+      branch bb66 bb67
+        Type Boolean
+        VariantTest Option<Value> v0
+          Type Option<Value>
+          Local $opt.36
+    bb66 if.then.66
+      val $uw.37: Value
+        Type Value
+        VariantPayloadProject Option<Value> v0 f0
+          Type Option<Value>
+          Local $opt.36
+      goto bb68
+    bb67 if.else.67
+      assign $new.16
+        Type UnwrapException
+        ClassAlloc UnwrapException
+      call external4 direct
+        Type UnwrapException
+        Local $new.16
+      throw
+        Type UnwrapException
+        Local $new.16
+    bb68 if.merge.68
+      call $opt.38: Option<Value> = @fn14 direct
+        Type MutableArray<Option<Value>>
+        Local $dependency.receiver
+        Type Long
+        Local $dependency.parameter.index
+      branch bb69 bb70
+        Type Boolean
+        VariantTest Option<Value> v0
+          Type Option<Value>
+          Local $opt.38
+    bb69 if.then.69
+      val $uw.39: Value
+        Type Value
+        VariantPayloadProject Option<Value> v0 f0
+          Type Option<Value>
+          Local $opt.38
+      goto bb71
+    bb70 if.else.70
+      assign $new.17
+        Type UnwrapException
+        ClassAlloc UnwrapException
+      call external4 direct
+        Type UnwrapException
+        Local $new.17
+      throw
+        Type UnwrapException
+        Local $new.17
+    bb71 if.merge.71
+      val $argument.0: Boolean
+        Type Boolean
+        Binary RefEq
+          Type Value
+          Local $uw.37
+          Type Value
+          Local $uw.39
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn5 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.receiver: Array<Option<Value>>
+        Type Array<Option<Value>>
+        Local copied
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.parameter.index: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      call $opt.40: Option<Value> = @fn17 direct
+        Type Array<Option<Value>>
+        Local $dependency.receiver
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      branch bb72 bb73
+        Type Boolean
+        VariantTest Option<Value> v0
+          Type Option<Value>
+          Local $opt.40
+    bb72 if.then.72
+      val $uw.41: Value
+        Type Value
+        VariantPayloadProject Option<Value> v0 f0
+          Type Option<Value>
+          Local $opt.40
+      goto bb74
+    bb73 if.else.73
+      assign $new.18
+        Type UnwrapException
+        ClassAlloc UnwrapException
+      call external4 direct
+        Type UnwrapException
+        Local $new.18
+      throw
+        Type UnwrapException
+        Local $new.18
+    bb74 if.merge.74
+      val $aggregate.0: Value
+        Type Value
+        Local $uw.41
+      val $dependency.receiver: MutableArray<Option<Node>>
+        Type MutableArray<Option<Node>>
+        Local roots
+      val $dependency.receiver: Long
+        Type Long
+        Local count
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.parameter.other: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerBinary subtract kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.parameter.index: Long
+        Type Long
+        Local $dependency.argument.0
+      call $opt.42: Option<Node> = @fn11 direct
+        Type MutableArray<Option<Node>>
+        Local $dependency.receiver
+        Type Long
+        Local $dependency.parameter.index
+      branch bb75 bb76
+        Type Boolean
+        VariantTest Option<Node> v0
+          Type Option<Node>
+          Local $opt.42
+    bb75 if.then.75
+      val $uw.43: Node
+        Type Node
+        VariantPayloadProject Option<Node> v0 f0
+          Type Option<Node>
+          Local $opt.42
+      goto bb77
+    bb76 if.else.76
+      assign $new.19
+        Type UnwrapException
+        ClassAlloc UnwrapException
+      call external4 direct
+        Type UnwrapException
+        Local $new.19
+      throw
+        Type UnwrapException
+        Local $new.19
+    bb77 if.merge.77
+      val $aggregate.1: Node
+        Type Node
+        Local $uw.43
+      val held: (Value, Node)
+        Type (Value, Node)
+        TupleLiteral
+          Type Value
+          Local $aggregate.0
+          Type Node
+          Local $aggregate.1
+      val closure: () -> Long
+        Type () -> Long
+        ClosureAlloc cc2 $Closure$lambda2
+          CaptureInit field=1
+            Type Array<Option<Value>>
+            Local copied
+          CaptureInit field=0
+            Type Long
+            Local capacity
+      call @scoop_rt_gc_collect direct
+      val $binding.subject.5: (Value, Node)
+        Type (Value, Node)
+        Local held
+      val $binding.projection.6: Value
+        Type Value
+        FieldAccess 0
+          Type (Value, Node)
+          Local $binding.subject.5
+      val first: Value
+        Type Value
+        Local $binding.projection.6
+      val $binding.projection.7: Node
+        Type Node
+        FieldAccess 1
+          Type (Value, Node)
+          Local $binding.subject.5
+      val last: Node
+        Type Node
+        Local $binding.projection.7
+      val $receiver: Value
+        Type Value
+        Local first
+      call $dependency.receiver: Long = @fn37 interface Value[0]
+        Type Value
+        Local $receiver
+      val $dependency.argument.0: Long
+        Type Long
+        FieldAccess 0
+          Type Node
+          Local last
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.receiver: Long
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      call $dependency.argument.0: Long = @fn21 direct
+        Type () -> Long
+        Local closure
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $equality.lhs: Long
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      val $dependency.receiver: Long
+        Type Long
+        Local count
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=143 bits=0x000000000000008f
+      val $dependency.parameter.other: Long
+        Type Long
+        IntegerLiteral Long value=143 bits=0x000000000000008f
+      val $dependency.receiver: Long
+        Type Long
+        Local $equality.lhs
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          IntegerLiteral Long value=143 bits=0x000000000000008f
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn5 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str1
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn22 direct
+        Type String
+        Local $dependency.parameter.value
+      return
+    bb78 inline.cont.78
+      val $array_value.10: Option<Value>
+        Type Option<Value>
+        Local $inline.78.result
+      array_set MutableArray<Option<Value>>
+        Type MutableArray<Option<Value>>
+        Local $array.8
+        Type Long
+        Local $array_index.9
+        Type Option<Value>
+        Local $array_value.10
+      assign $array_index.9
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $array_index.9
+          Type Long
+          IntegerLiteral Long value=1 bits=0x0000000000000001
+      goto bb14
+    bb79 inline.78.entry
+      assign $inline.78.result
+        Type Option<Value>
+        VariantConstruct Option<Value> v1
+      goto bb78
+    bb80 inline.cont.80
+      val $array_value.5: Option<Node>
+        Type Option<Node>
+        Local $inline.80.result
+      array_set MutableArray<Option<Node>>
+        Type MutableArray<Option<Node>>
+        Local $array.3
+        Type Long
+        Local $array_index.4
+        Type Option<Node>
+        Local $array_value.5
+      assign $array_index.4
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $array_index.4
+          Type Long
+          IntegerLiteral Long value=1 bits=0x0000000000000001
+      goto bb9
+    bb81 inline.80.entry
+      assign $inline.80.result
+        Type Option<Node>
+        VariantConstruct Option<Node> v1
+      goto bb80
+  fun iterator @fn10(this: MutableArray<Option<Node>>) -> Iterator<Option<Node>>
+    bb0 entry
+      val $dependency.local.1: List<Option<Node>>
+        Type List<Option<Node>>
+        Retype List<Option<Node>>
+          Type MutableArray<Option<Node>>
+          Local this
+      val $dependency.local.2: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.local.3: Boolean
+        Type Boolean
+        BoolLiteral false
+      val $dependency.local.4: List<Option<Node>>
+        Type List<Option<Node>>
+        Local $dependency.local.1
+      val $dependency.local.5: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.local.6: Boolean
+        Type Boolean
+        BoolLiteral false
+      assign $new.1
+        Type ListIterator<Option<Node>>
+        ClassAlloc ListIterator<Option<Node>>
+      val $inline.1.this: ListIterator<Option<Node>>
+        Type ListIterator<Option<Node>>
+        Local $new.1
+      val $inline.1.source: List<Option<Node>>
+        Type List<Option<Node>>
+        Local $dependency.local.4
+      val $inline.1.index: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $inline.1.exhausted: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb2
+    bb1 inline.cont.1
+      return
+        Type Iterator<Option<Node>>
+        Retype Iterator<Option<Node>>
+          Type ListIterator<Option<Node>>
+          Local $new.1
+    bb2 inline.1.entry
+      field_set 0
+        Type ListIterator<Option<Node>>
+        Local $inline.1.this
+        Type List<Option<Node>>
+        Local $inline.1.source
+      field_set 1
+        Type ListIterator<Option<Node>>
+        Local $inline.1.this
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      field_set 2
+        Type ListIterator<Option<Node>>
+        Local $inline.1.this
+        Type Boolean
+        BoolLiteral false
+      goto bb1
+  fun get @fn11(this: MutableArray<Option<Node>>, index: Long) -> Option<Node>
+    bb0 entry
+      val $dependency.local.2: MutableArray<Option<Node>>
+        Type MutableArray<Option<Node>>
+        Local this
+      val $dependency.local.3: Long
+        Type Long
+        Local index
+      val $dependency.local.4: Long
+        Type Long
+        Local $dependency.local.3
+      val $arr.1: MutableArray<Option<Node>>
+        Type MutableArray<Option<Node>>
+        Local $dependency.local.2
+      val $idx.2: Long
+        Type Long
+        Local $dependency.local.4
+      branch bb2 bb1
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb1 logic.rhs.1
+      assign $logic.1
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          ArrayLen MutableArray<Option<Node>>
+            Type MutableArray<Option<Node>>
+            Local $arr.1
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.1
+        Type Boolean
+        BoolLiteral true
+      goto bb3
+    bb3 logic.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $logic.1
+    bb4 if.then.4
+      assign $new.2
+        Type IndexOutOfBoundsException
+        ClassAlloc IndexOutOfBoundsException
+      call external6 direct
+        Type IndexOutOfBoundsException
+        Local $new.2
+      throw
+        Type IndexOutOfBoundsException
+        Local $new.2
+    bb5 if.merge.5
+      return
+        Type Option<Node>
+        ArrayGet MutableArray<Option<Node>>
+          Type MutableArray<Option<Node>>
+          Local $arr.1
+          Type Long
+          Local $idx.2
+  fun size @fn12(this: MutableArray<Option<Node>>) -> Long
+    bb0 entry
+      val $dependency.local.1: MutableArray<Option<Node>>
+        Type MutableArray<Option<Node>>
+        Local this
+      return
+        Type Long
+        ArrayLen MutableArray<Option<Node>>
+          Type MutableArray<Option<Node>>
+          Local $dependency.local.1
+  fun iterator @fn13(this: MutableArray<Option<Value>>) -> Iterator<Option<Value>>
+    bb0 entry
+      val $dependency.local.1: List<Option<Value>>
+        Type List<Option<Value>>
+        Retype List<Option<Value>>
+          Type MutableArray<Option<Value>>
+          Local this
+      val $dependency.local.2: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.local.3: Boolean
+        Type Boolean
+        BoolLiteral false
+      val $dependency.local.4: List<Option<Value>>
+        Type List<Option<Value>>
+        Local $dependency.local.1
+      val $dependency.local.5: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.local.6: Boolean
+        Type Boolean
+        BoolLiteral false
+      assign $new.1
+        Type ListIterator<Option<Value>>
+        ClassAlloc ListIterator<Option<Value>>
+      val $inline.1.this: ListIterator<Option<Value>>
+        Type ListIterator<Option<Value>>
+        Local $new.1
+      val $inline.1.source: List<Option<Value>>
+        Type List<Option<Value>>
+        Local $dependency.local.4
+      val $inline.1.index: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $inline.1.exhausted: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb2
+    bb1 inline.cont.1
+      return
+        Type Iterator<Option<Value>>
+        Retype Iterator<Option<Value>>
+          Type ListIterator<Option<Value>>
+          Local $new.1
+    bb2 inline.1.entry
+      field_set 0
+        Type ListIterator<Option<Value>>
+        Local $inline.1.this
+        Type List<Option<Value>>
+        Local $inline.1.source
+      field_set 1
+        Type ListIterator<Option<Value>>
+        Local $inline.1.this
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      field_set 2
+        Type ListIterator<Option<Value>>
+        Local $inline.1.this
+        Type Boolean
+        BoolLiteral false
+      goto bb1
+  fun get @fn14(this: MutableArray<Option<Value>>, index: Long) -> Option<Value>
+    bb0 entry
+      val $dependency.local.2: MutableArray<Option<Value>>
+        Type MutableArray<Option<Value>>
+        Local this
+      val $dependency.local.3: Long
+        Type Long
+        Local index
+      val $dependency.local.4: Long
+        Type Long
+        Local $dependency.local.3
+      val $arr.1: MutableArray<Option<Value>>
+        Type MutableArray<Option<Value>>
+        Local $dependency.local.2
+      val $idx.2: Long
+        Type Long
+        Local $dependency.local.4
+      branch bb2 bb1
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb1 logic.rhs.1
+      assign $logic.1
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          ArrayLen MutableArray<Option<Value>>
+            Type MutableArray<Option<Value>>
+            Local $arr.1
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.1
+        Type Boolean
+        BoolLiteral true
+      goto bb3
+    bb3 logic.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $logic.1
+    bb4 if.then.4
+      assign $new.2
+        Type IndexOutOfBoundsException
+        ClassAlloc IndexOutOfBoundsException
+      call external6 direct
+        Type IndexOutOfBoundsException
+        Local $new.2
+      throw
+        Type IndexOutOfBoundsException
+        Local $new.2
+    bb5 if.merge.5
+      return
+        Type Option<Value>
+        ArrayGet MutableArray<Option<Value>>
+          Type MutableArray<Option<Value>>
+          Local $arr.1
+          Type Long
+          Local $idx.2
+  fun size @fn15(this: MutableArray<Option<Value>>) -> Long
+    bb0 entry
+      val $dependency.local.1: MutableArray<Option<Value>>
+        Type MutableArray<Option<Value>>
+        Local this
+      return
+        Type Long
+        ArrayLen MutableArray<Option<Value>>
+          Type MutableArray<Option<Value>>
+          Local $dependency.local.1
+  fun iterator @fn16(this: Array<Option<Value>>) -> Iterator<Option<Value>>
+    bb0 entry
+      val $dependency.local.1: List<Option<Value>>
+        Type List<Option<Value>>
+        Retype List<Option<Value>>
+          Type Array<Option<Value>>
+          Local this
+      val $dependency.local.2: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.local.3: Boolean
+        Type Boolean
+        BoolLiteral false
+      val $dependency.local.4: List<Option<Value>>
+        Type List<Option<Value>>
+        Local $dependency.local.1
+      val $dependency.local.5: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.local.6: Boolean
+        Type Boolean
+        BoolLiteral false
+      assign $new.1
+        Type ListIterator<Option<Value>>
+        ClassAlloc ListIterator<Option<Value>>
+      val $inline.1.this: ListIterator<Option<Value>>
+        Type ListIterator<Option<Value>>
+        Local $new.1
+      val $inline.1.source: List<Option<Value>>
+        Type List<Option<Value>>
+        Local $dependency.local.4
+      val $inline.1.index: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $inline.1.exhausted: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb2
+    bb1 inline.cont.1
+      return
+        Type Iterator<Option<Value>>
+        Retype Iterator<Option<Value>>
+          Type ListIterator<Option<Value>>
+          Local $new.1
+    bb2 inline.1.entry
+      field_set 0
+        Type ListIterator<Option<Value>>
+        Local $inline.1.this
+        Type List<Option<Value>>
+        Local $inline.1.source
+      field_set 1
+        Type ListIterator<Option<Value>>
+        Local $inline.1.this
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      field_set 2
+        Type ListIterator<Option<Value>>
+        Local $inline.1.this
+        Type Boolean
+        BoolLiteral false
+      goto bb1
+  fun get @fn17(this: Array<Option<Value>>, index: Long) -> Option<Value>
+    bb0 entry
+      val $dependency.local.2: Array<Option<Value>>
+        Type Array<Option<Value>>
+        Local this
+      val $dependency.local.3: Long
+        Type Long
+        Local index
+      val $dependency.local.4: Long
+        Type Long
+        Local $dependency.local.3
+      val $arr.1: Array<Option<Value>>
+        Type Array<Option<Value>>
+        Local $dependency.local.2
+      val $idx.2: Long
+        Type Long
+        Local $dependency.local.4
+      branch bb2 bb1
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb1 logic.rhs.1
+      assign $logic.1
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          ArrayLen Array<Option<Value>>
+            Type Array<Option<Value>>
+            Local $arr.1
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.1
+        Type Boolean
+        BoolLiteral true
+      goto bb3
+    bb3 logic.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $logic.1
+    bb4 if.then.4
+      assign $new.2
+        Type IndexOutOfBoundsException
+        ClassAlloc IndexOutOfBoundsException
+      call external6 direct
+        Type IndexOutOfBoundsException
+        Local $new.2
+      throw
+        Type IndexOutOfBoundsException
+        Local $new.2
+    bb5 if.merge.5
+      return
+        Type Option<Value>
+        ArrayGet Array<Option<Value>>
+          Type Array<Option<Value>>
+          Local $arr.1
+          Type Long
+          Local $idx.2
+  fun size @fn18(this: Array<Option<Value>>) -> Long
+    bb0 entry
+      val $dependency.local.1: Array<Option<Value>>
+        Type Array<Option<Value>>
+        Local this
+      return
+        Type Long
+        ArrayLen Array<Option<Value>>
+          Type Array<Option<Value>>
+          Local $dependency.local.1
+  fun $lambda.0 @fn19($closure: (Long) -> Option<Node>, index: Long) -> Option<Node>
+    bb0 entry
+      return
+        Type Option<Node>
+        VariantConstruct Option<Node> v1
+  fun $lambda.1 @fn20($closure: (Long) -> Option<Value>, index: Long) -> Option<Value>
+    bb0 entry
+      return
+        Type Option<Value>
+        VariantConstruct Option<Value> v1
+  fun $lambda.2 @fn21($closure: () -> Long) -> Long
+    bb0 entry
+      val $dependency.receiver: Array<Option<Value>>
+        Type Array<Option<Value>>
+        ClosureCapture cc2 1
+          Type () -> Long
+          Local $closure
+      val $dependency.receiver: Long
+        Type Long
+        ClosureCapture cc2 0
+          Type () -> Long
+          Local $closure
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.parameter.other: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerBinary subtract kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.parameter.index: Long
+        Type Long
+        Local $dependency.argument.0
+      call $opt.1: Option<Value> = @fn17 direct
+        Type Array<Option<Value>>
+        Local $dependency.receiver
+        Type Long
+        Local $dependency.parameter.index
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Option<Value> v0
+          Type Option<Value>
+          Local $opt.1
+    bb1 if.then.1
+      val $uw.2: Value
+        Type Value
+        VariantPayloadProject Option<Value> v0 f0
+          Type Option<Value>
+          Local $opt.1
+      goto bb3
+    bb2 if.else.2
+      assign $new.1
+        Type UnwrapException
+        ClassAlloc UnwrapException
+      call external4 direct
+        Type UnwrapException
+        Local $new.1
+      throw
+        Type UnwrapException
+        Local $new.1
+    bb3 if.merge.3
+      val $receiver: Value
+        Type Value
+        Local $uw.2
+      call $call.2: Long = @fn37 interface Value[0]
+        Type Value
+        Local $receiver
+      return
+        Type Long
+        Local $call.2
+  fun println @fn22(value: String) -> Unit
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local value
+      call $dependency.local.2: String = external1 direct
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external2 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str2
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external2 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun next @fn23(this: ListIterator<Option<Node>>) -> Option<Option<Node>>
+    bb0 entry
+      branch bb1 bb2
+        Type Boolean
+        FieldAccess 2
+          Type ListIterator<Option<Node>>
+          Local this
+    bb1 if.then.1
+      return
+        Type Option<Option<Node>>
+        VariantConstruct Option<Option<Node>> v1
+    bb2 if.merge.2
+      val $dependency.local.2: Long
+        Type Long
+        FieldAccess 1
+          Type ListIterator<Option<Node>>
+          Local this
+      call $dependency.local.3: Long = @fn25 interface List<Option<Node>>[2]
+        Type List<Option<Node>>
+        FieldAccess 0
+          Type ListIterator<Option<Node>>
+          Local this
+      val $dependency.local.4: Long
+        Type Long
+        Local $dependency.local.3
+      branch bb3 bb4
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Long result=Long
+            Type Long
+            Local $dependency.local.2
+            Type Long
+            Local $dependency.local.4
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb3 if.then.3
+      field_set 2
+        Type ListIterator<Option<Node>>
+        Local this
+        Type Boolean
+        BoolLiteral true
+      return
+        Type Option<Option<Node>>
+        VariantConstruct Option<Option<Node>> v1
+    bb4 if.merge.4
+      val $dependency.local.5: List<Option<Node>>
+        Type List<Option<Node>>
+        FieldAccess 0
+          Type ListIterator<Option<Node>>
+          Local this
+      val $dependency.local.6: Long
+        Type Long
+        FieldAccess 1
+          Type ListIterator<Option<Node>>
+          Local this
+      val $dependency.local.7: Long
+        Type Long
+        Local $dependency.local.6
+      call $dependency.local.1: Option<Node> = @fn26 interface List<Option<Node>>[1]
+        Type List<Option<Node>>
+        Local $dependency.local.5
+        Type Long
+        Local $dependency.local.7
+      val $dependency.local.8: Long
+        Type Long
+        FieldAccess 1
+          Type ListIterator<Option<Node>>
+          Local this
+      val $dependency.local.9: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.local.10: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      field_set 1
+        Type ListIterator<Option<Node>>
+        Local this
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.local.8
+          Type Long
+          IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.local.11: Option<Node>
+        Type Option<Node>
+        Local $dependency.local.1
+      val $dependency.local.12: Option<Node>
+        Type Option<Node>
+        Local $dependency.local.11
+      return
+        Type Option<Option<Node>>
+        VariantConstruct Option<Option<Node>> v0
+          Type Option<Node>
+          Local $dependency.local.12
+  fun next @fn24(this: ListIterator<Option<Value>>) -> Option<Option<Value>>
+    bb0 entry
+      branch bb1 bb2
+        Type Boolean
+        FieldAccess 2
+          Type ListIterator<Option<Value>>
+          Local this
+    bb1 if.then.1
+      return
+        Type Option<Option<Value>>
+        VariantConstruct Option<Option<Value>> v1
+    bb2 if.merge.2
+      val $dependency.local.2: Long
+        Type Long
+        FieldAccess 1
+          Type ListIterator<Option<Value>>
+          Local this
+      call $dependency.local.3: Long = @fn27 interface List<Option<Value>>[2]
+        Type List<Option<Value>>
+        FieldAccess 0
+          Type ListIterator<Option<Value>>
+          Local this
+      val $dependency.local.4: Long
+        Type Long
+        Local $dependency.local.3
+      branch bb3 bb4
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Long result=Long
+            Type Long
+            Local $dependency.local.2
+            Type Long
+            Local $dependency.local.4
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb3 if.then.3
+      field_set 2
+        Type ListIterator<Option<Value>>
+        Local this
+        Type Boolean
+        BoolLiteral true
+      return
+        Type Option<Option<Value>>
+        VariantConstruct Option<Option<Value>> v1
+    bb4 if.merge.4
+      val $dependency.local.5: List<Option<Value>>
+        Type List<Option<Value>>
+        FieldAccess 0
+          Type ListIterator<Option<Value>>
+          Local this
+      val $dependency.local.6: Long
+        Type Long
+        FieldAccess 1
+          Type ListIterator<Option<Value>>
+          Local this
+      val $dependency.local.7: Long
+        Type Long
+        Local $dependency.local.6
+      call $dependency.local.1: Option<Value> = @fn28 interface List<Option<Value>>[1]
+        Type List<Option<Value>>
+        Local $dependency.local.5
+        Type Long
+        Local $dependency.local.7
+      val $dependency.local.8: Long
+        Type Long
+        FieldAccess 1
+          Type ListIterator<Option<Value>>
+          Local this
+      val $dependency.local.9: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.local.10: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      field_set 1
+        Type ListIterator<Option<Value>>
+        Local this
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.local.8
+          Type Long
+          IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.local.11: Option<Value>
+        Type Option<Value>
+        Local $dependency.local.1
+      val $dependency.local.12: Option<Value>
+        Type Option<Value>
+        Local $dependency.local.11
+      return
+        Type Option<Option<Value>>
+        VariantConstruct Option<Option<Value>> v0
+          Type Option<Value>
+          Local $dependency.local.12
+  fun List.$get$size @fn25(this: List<Option<Node>>) -> Long
+    bb0 entry
+      trap "call to abstract method `List.$get$size`"
+  fun List.get @fn26(this: List<Option<Node>>, index: Long) -> Option<Node>
+    bb0 entry
+      trap "call to abstract method `List.get`"
+  fun List.$get$size @fn27(this: List<Option<Value>>) -> Long
+    bb0 entry
+      trap "call to abstract method `List.$get$size`"
+  fun List.get @fn28(this: List<Option<Value>>, index: Long) -> Option<Value>
+    bb0 entry
+      trap "call to abstract method `List.get`"
+  fun Continuation.resume @fn29(this: Continuation<Value>, value: Value) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn30(this: Continuation<Value>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn31(this: SuspendTask<Value>, $completion: Continuation<Value>) -> CoroutineStep<Value>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn32(this: SuspendRegistration<Value>, continuation: Continuation<Value>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn33(this: Continuation<Node>, value: Node) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn34(this: Continuation<Node>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn35(this: SuspendTask<Node>, $completion: Continuation<Node>) -> CoroutineStep<Node>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn36(this: SuspendRegistration<Node>, continuation: Continuation<Node>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Value.get @fn37(this: Value) -> Long
+    bb0 entry
+      trap "call to abstract method `Value.get`"
+  fun init.Node.$c0 @fn38(this: Node, value: Long, next: Option<Node>) -> Unit
+    bb0 entry
+      field_set 0
+        Type Node
+        Local this
+        Type Long
+        Local value
+      field_set 1
+        Type Node
+        Local this
+        Type Option<Node>
+        Local next
+      return
+  fun init.ListIterator.$c0 @fn39(this: ListIterator<Option<Node>>, source: List<Option<Node>>, index: Long, exhausted: Boolean) -> Unit
+    bb0 entry
+      field_set 0
+        Type ListIterator<Option<Node>>
+        Local this
+        Type List<Option<Node>>
+        Local source
+      field_set 1
+        Type ListIterator<Option<Node>>
+        Local this
+        Type Long
+        Local index
+      field_set 2
+        Type ListIterator<Option<Node>>
+        Local this
+        Type Boolean
+        Local exhausted
+      return
+  fun init.ListIterator.$c0 @fn40(this: ListIterator<Option<Value>>, source: List<Option<Value>>, index: Long, exhausted: Boolean) -> Unit
+    bb0 entry
+      field_set 0
+        Type ListIterator<Option<Value>>
+        Local this
+        Type List<Option<Value>>
+        Local source
+      field_set 1
+        Type ListIterator<Option<Value>>
+        Local this
+        Type Long
+        Local index
+      field_set 2
+        Type ListIterator<Option<Value>>
+        Local this
+        Type Boolean
+        Local exhausted
+      return
+  fun startCoroutine<Node> @fn41(task: SuspendTask<Node>, completion: Continuation<Node>) -> Unit
+    bb0 context.unwind
+      landing_pad cleanup=true
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb1 context.catch_unwind
+      landing_pad cleanup=true
+      end_catch
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb2 suspended
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb3 completed unwind bb0
+      call @fn33 interface Continuation<Node>[0]
+        Type Continuation<Node>
+        Local completion
+        Type Node
+        EnumField v0 f0
+          Type CoroutineStep<Node>
+          Local $step
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb4 failed unwind bb0
+      call @fn34 interface Continuation<Node>[1]
+        Type Continuation<Node>
+        Local completion
+        Type Throwable
+        Local $exception
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb5 body_failure unwind bb1
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb4
+    bb6 run unwind bb5
+      call $step: CoroutineStep<Node> = @fn35 interface SuspendTask<Node>[0]
+        Type SuspendTask<Node>
+        Local task
+        Type Continuation<Node>
+        Local completion
+      branch bb3 bb2
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Node>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+    bb7 entry
+      val $child_context: internal<task-context>
+        Type internal<task-context>
+        ContextFork
+          Type internal<context-node>
+          ContextSnapshot
+      val $context_guard: internal<context-switch-guard>
+        Type internal<context-switch-guard>
+        ContextEnter
+          Type internal<task-context>
+          Local $child_context
+      goto bb6
+  fun startCoroutine<Value> @fn42(task: SuspendTask<Value>, completion: Continuation<Value>) -> Unit
+    bb0 context.unwind
+      landing_pad cleanup=true
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb1 context.catch_unwind
+      landing_pad cleanup=true
+      end_catch
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb2 suspended
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb3 completed unwind bb0
+      call @fn29 interface Continuation<Value>[0]
+        Type Continuation<Value>
+        Local completion
+        Type Value
+        EnumField v0 f0
+          Type CoroutineStep<Value>
+          Local $step
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb4 failed unwind bb0
+      call @fn30 interface Continuation<Value>[1]
+        Type Continuation<Value>
+        Local completion
+        Type Throwable
+        Local $exception
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb5 body_failure unwind bb1
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb4
+    bb6 run unwind bb5
+      call $step: CoroutineStep<Value> = @fn31 interface SuspendTask<Value>[0]
+        Type SuspendTask<Value>
+        Local task
+        Type Continuation<Value>
+        Local completion
+      branch bb3 bb2
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Value>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+    bb7 entry
+      val $child_context: internal<task-context>
+        Type internal<task-context>
+        ContextFork
+          Type internal<context-node>
+          ContextSnapshot
+      val $context_guard: internal<context-switch-guard>
+        Type internal<context-switch-guard>
+        ContextEnter
+          Type internal<task-context>
+          Local $child_context
+      goto bb6
+  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn43($source: (Long) -> Option<Node>, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Option<Node> = <closure:function_type0> closure[function_type0]
+        Type (Long) -> Option<Node>
+        Local $source
+        Type Long
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Option<Node>
+          Local $call.1
+  fun function_bridge.$Closure$lambda1.(Any) -> Any @fn44($source: (Long) -> Option<Value>, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Option<Value> = <closure:function_type2> closure[function_type2]
+        Type (Long) -> Option<Value>
+        Local $source
+        Type Long
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Option<Value>
+          Local $call.1
+  fun function_bridge.$Closure$lambda2.() -> Any @fn45($source: () -> Long) -> Any
+    bb0 entry
+      call $call.1: Long = <closure:function_type3> closure[function_type3]
+        Type () -> Long
+        Local $source
+      return
+        Type Any
+        Box
+          Type Long
+          Local $call.1
+  coroutine_step cs0 CoroutineStep<Node> result=Node
+  coroutine_step cs1 CoroutineStep<Value> result=Value
+  coroutine_slot cl0 CoroutineSlot<Node> value=Node
+  coroutine_slot cl1 CoroutineSlot<Value> value=Value
+  coroutine_start ct0 result=Node function=fn41
+  coroutine_start ct1 result=Value function=fn42
+  coroutine_fn cf0 @fn31 source_return=Value step=cs1 immediate
+  coroutine_fn cf1 @fn35 source_return=Node step=cs0 immediate
+  instance mi0 function=@fn10 <- iterator
+  instance mi1 function=@fn11 <- get
+  instance mi2 function=@fn12 <- size
+  instance mi3 function=@fn13 <- iterator
+  instance mi4 function=@fn14 <- get
+  instance mi5 function=@fn15 <- size
+  instance mi6 function=@fn16 <- iterator
+  instance mi7 function=@fn17 <- get
+  instance mi8 function=@fn18 <- size
+  instance mi9 function=@fn22 <- println
+  instance mi10 function=@fn23 <- next
+  instance mi11 function=@fn24 <- next
+  instance mi12 function=@fn25 <- List.$get$size
+  instance mi13 function=@fn26 <- List.get
+  instance mi14 function=@fn27 <- List.$get$size
+  instance mi15 function=@fn28 <- List.get
+  instance mi16 function=@fn29 <- Continuation.resume
+  instance mi17 function=@fn30 <- Continuation.resumeWithException
+  instance mi18 function=@fn31 <- SuspendTask.run
+  instance mi19 function=@fn32 <- SuspendRegistration.register
+  instance mi20 function=@fn33 <- Continuation.resume
+  instance mi21 function=@fn34 <- Continuation.resumeWithException
+  instance mi22 function=@fn35 <- SuspendTask.run
+  instance mi23 function=@fn36 <- SuspendRegistration.register
+  str @str0 "illegal state"
+  str @str1 "region values"
+  str @str2 "\n"
+  output executable @fn9

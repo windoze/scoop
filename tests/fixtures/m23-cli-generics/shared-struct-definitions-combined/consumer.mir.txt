@@ -1723,128 +1723,128 @@ Module
           Local value
           Type Option<Link<Unit>>
           Local next
-  fun thunk<LocalCell<String>> Readable.read() @fn44(this: Readable<String>) -> String
+  fun thunk<LocalCell<String>> Readable.read() @fn44(this: box<LocalCell<String>>) -> String
     bb0 entry
       call $call.1: String = @fn14 direct
         Type LocalCell<String>
         Unbox
-          Type Readable<String>
+          Type box<LocalCell<String>>
           Local this
       return
         Type String
         Local $call.1
-  fun thunk<LocalCell<String>> Readable.apply((String) -> Int) @fn45(this: Readable<String>, action: (String) -> Int) -> Int
+  fun thunk<LocalCell<String>> Readable.apply((String) -> Int) @fn45(this: box<LocalCell<String>>, action: (String) -> Int) -> Int
     bb0 entry
       call $call.1: Int = @fn13 direct
         Type Readable<String>
         Retype Readable<String>
-          Type Readable<String>
+          Type box<LocalCell<String>>
           Local this
         Type (String) -> Int
         Local action
       return
         Type Int
         Local $call.1
-  fun thunk<Cell<String>> Readable.read() @fn46(this: Readable<String>) -> String
+  fun thunk<Cell<String>> Readable.read() @fn46(this: box<Cell<String>>) -> String
     bb0 entry
       call $call.1: String = @fn12 direct
         Type Cell<String>
         Unbox
-          Type Readable<String>
+          Type box<Cell<String>>
           Local this
       return
         Type String
         Local $call.1
-  fun thunk<Cell<String>> Readable.apply((String) -> Int) @fn47(this: Readable<String>, action: (String) -> Int) -> Int
+  fun thunk<Cell<String>> Readable.apply((String) -> Int) @fn47(this: box<Cell<String>>, action: (String) -> Int) -> Int
     bb0 entry
       call $call.1: Int = @fn13 direct
         Type Readable<String>
         Retype Readable<String>
-          Type Readable<String>
+          Type box<Cell<String>>
           Local this
         Type (String) -> Int
         Local action
       return
         Type Int
         Local $call.1
-  fun thunk<LocalCell<Unit>> Readable.read() @fn48(this: Readable<Unit>) -> Unit
+  fun thunk<LocalCell<Unit>> Readable.read() @fn48(this: box<LocalCell<Unit>>) -> Unit
     bb0 entry
       call @fn21 direct
         Type LocalCell<Unit>
         Unbox
-          Type Readable<Unit>
+          Type box<LocalCell<Unit>>
           Local this
       return
-  fun thunk<LocalCell<Unit>> Readable.apply((Unit) -> Int) @fn49(this: Readable<Unit>, action: (Unit) -> Int) -> Int
+  fun thunk<LocalCell<Unit>> Readable.apply((Unit) -> Int) @fn49(this: box<LocalCell<Unit>>, action: (Unit) -> Int) -> Int
     bb0 entry
       call $call.1: Int = @fn20 direct
         Type Readable<Unit>
         Retype Readable<Unit>
-          Type Readable<Unit>
+          Type box<LocalCell<Unit>>
           Local this
         Type (Unit) -> Int
         Local action
       return
         Type Int
         Local $call.1
-  fun thunk<Cell<Unit>> Readable.read() @fn50(this: Readable<Unit>) -> Unit
+  fun thunk<Cell<Unit>> Readable.read() @fn50(this: box<Cell<Unit>>) -> Unit
     bb0 entry
       call @fn19 direct
         Type Cell<Unit>
         Unbox
-          Type Readable<Unit>
+          Type box<Cell<Unit>>
           Local this
       return
-  fun thunk<Cell<Unit>> Readable.apply((Unit) -> Int) @fn51(this: Readable<Unit>, action: (Unit) -> Int) -> Int
+  fun thunk<Cell<Unit>> Readable.apply((Unit) -> Int) @fn51(this: box<Cell<Unit>>, action: (Unit) -> Int) -> Int
     bb0 entry
       call $call.1: Int = @fn20 direct
         Type Readable<Unit>
         Retype Readable<Unit>
-          Type Readable<Unit>
+          Type box<Cell<Unit>>
           Local this
         Type (Unit) -> Int
         Local action
       return
         Type Int
         Local $call.1
-  fun thunk<LocalCell<Int>> Readable.read() @fn52(this: Readable<Int>) -> Int
+  fun thunk<LocalCell<Int>> Readable.read() @fn52(this: box<LocalCell<Int>>) -> Int
     bb0 entry
       call $call.1: Int = @fn26 direct
         Type LocalCell<Int>
         Unbox
-          Type Readable<Int>
+          Type box<LocalCell<Int>>
           Local this
       return
         Type Int
         Local $call.1
-  fun thunk<LocalCell<Int>> Readable.apply((Int) -> Int) @fn53(this: Readable<Int>, action: (Int) -> Int) -> Int
+  fun thunk<LocalCell<Int>> Readable.apply((Int) -> Int) @fn53(this: box<LocalCell<Int>>, action: (Int) -> Int) -> Int
     bb0 entry
       call $call.1: Int = @fn2 direct
         Type Readable<Int>
         Retype Readable<Int>
-          Type Readable<Int>
+          Type box<LocalCell<Int>>
           Local this
         Type (Int) -> Int
         Local action
       return
         Type Int
         Local $call.1
-  fun thunk<Cell<Int>> Readable.read() @fn54(this: Readable<Int>) -> Int
+  fun thunk<Cell<Int>> Readable.read() @fn54(this: box<Cell<Int>>) -> Int
     bb0 entry
       call $call.1: Int = @fn1 direct
         Type Cell<Int>
         Unbox
-          Type Readable<Int>
+          Type box<Cell<Int>>
           Local this
       return
         Type Int
         Local $call.1
-  fun thunk<Cell<Int>> Readable.apply((Int) -> Int) @fn55(this: Readable<Int>, action: (Int) -> Int) -> Int
+  fun thunk<Cell<Int>> Readable.apply((Int) -> Int) @fn55(this: box<Cell<Int>>, action: (Int) -> Int) -> Int
     bb0 entry
       call $call.1: Int = @fn2 direct
         Type Readable<Int>
         Retype Readable<Int>
-          Type Readable<Int>
+          Type box<Cell<Int>>
           Local this
         Type (Int) -> Int
         Local action

@@ -597,7 +597,7 @@ pub(super) fn test_safepoints(
     test_safepoints_for_owner(callable_body(owner_symbol).id(), blocks, entry)
 }
 
-fn test_safepoints_for_owner(
+pub(super) fn test_safepoints_for_owner(
     owner: scoop_identity::PersistentCallableBodyId,
     blocks: &Arena<BasicBlock>,
     entry: scoop_lir::BlockId,
@@ -768,12 +768,11 @@ fn abi_layout(
             }
             (size.next_multiple_of(align), align)
         }
+        LirType::Interface => (16, 8),
         LirType::Struct(id) => (structs[*id].size, structs[*id].align),
         LirType::Enum(id) => match &enums[*id].repr {
             EnumRepr::Niche { kind, .. } => {
-                let layout =
-                    scoop_lir::LirTargetProfile::DARWIN_AARCH64.pointer_layout(kind.pointer_kind());
-                (layout.size_bytes(), layout.alignment_bytes())
+                kind.layout(scoop_lir::LirTargetProfile::DARWIN_AARCH64)
             }
             EnumRepr::Tagged { size, align, .. } => (*size, *align),
         },
@@ -787,7 +786,7 @@ fn abi_scan(
     base: u64,
 ) -> RefScan {
     match ty {
-        LirType::Ptr(PointerKind::Managed) => RefScan::References(vec![base]),
+        LirType::Ptr(PointerKind::Managed) | LirType::Interface => RefScan::References(vec![base]),
         LirType::Aggregate(fields) => {
             let mut offset = 0u64;
             abi_sequence(fields.iter().map(|field| {
@@ -859,15 +858,18 @@ fn abi_argument(
     }
     let scan = abi_scan(structs, enums, &ty, 0);
     let value = abi_value_with_layout(ty, size, align, scan);
-    match scoop_lir::classify_non_zero_scoop_abi_value(
-        scoop_lir::LirTargetProfile::DARWIN_AARCH64,
-        enums,
-        value.storage_type(),
-    )
-    .expect("test ABI helper only classifies valid non-void value types")
+    // General codegen fixtures retain byval aggregates; tests of optimized
+    // small-value calls provide their complete carrier plans explicitly.
+    match scoop_lir::scoop_abi_value_shape(enums, value.storage_type())
+        .expect("valid non-void fixture storage")
     {
-        scoop_lir::ScoopAbiPassing::Direct => scoop_lir::AbiArgument::Direct(value),
-        scoop_lir::ScoopAbiPassing::Indirect => scoop_lir::AbiArgument::Indirect(value),
+        scoop_lir::ScoopAbiValueShape::Scalar => scoop_lir::AbiArgument::Direct(value.into()),
+        scoop_lir::ScoopAbiValueShape::Interface => {
+            scoop_lir::AbiArgument::Direct(scoop_lir::AbiDirectValue::DirectParts(
+                scoop_lir::AbiDirectParts::interface(value).unwrap(),
+            ))
+        }
+        scoop_lir::ScoopAbiValueShape::Aggregate => scoop_lir::AbiArgument::Indirect(value),
     }
 }
 

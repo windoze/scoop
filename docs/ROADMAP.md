@@ -504,6 +504,18 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 - 按设计第 12 节拆分功能提交，完成三份规范、独立与组合 fixture、负例及各阶段转储；最小平台 Cone 在三个 target 上完成源码、产物、独立链接、文件操作及并发 GC 闭环，musl 另有 PIE 验收。
 - 2026-10-09 总验收完成：Rust 工作区 5,394 项和公共 runner 44 项通过；Darwin 的 2,850 项适用 fixture 覆盖闭合，其中 1,977 项普通比较、873 项审阅后的完整快照更新执行，另 16 项不适用。Linux GNU／musl 的 M33 专项分别为 260／255 项普通通过，各另通过 6 项必要旧回归；保留实际选择范围与逐项成功来源，避免重复全量测试。既有泛型结构比较正文选择问题单独记录，未扩展 Equality 或 M33 的验收范围。
 
+### M34 接口与调用优化、可扩展并行标记 Immix（已完成，[设计](milestone34/DESIGN.md)，[实施记录](milestone34/PROGRESS.md)，[验收](milestone34/ACCEPTANCE.md)）
+
+- 面向正常桌面和服务器，以执行效率、吞吐和合理停顿为目标，允许适量内存换性能；同时测量 RSS、GC 工作量和代码大小。规范先行、两地 M33 基线、必要的 LLVM／C ABI 实验及各批实现已完成，实际结果见实施记录与验收。
+- interface value 改为 object + itab 的双字表示，将查询移到接口构造／转换处；动态调用直接读取 slot。完成 identity、Option niche、字段／数组、精确扫描、AtomicRef、Scoop ABI native、closure／continuation 与跨 Cone 适配，slot 的隐藏 receiver 保留明确的单字 object projection。
+- 在完整 MIR 上进行 receiver 实际类型传播、唯一目标去虚拟化和本 Cone 已有正文的小函数自动内联；内联按调用点的化简后成本采用三档策略，控制 caller 累计代码增长，包含在本地物化的外部泛型实例。不得把当前 Cone 只有一个实现当成全程序闭合。
+- 增加内联 safepoint 检查与冷慢路径、小型 GC-free 值的直接 ABI，并把合法 C-layout aggregate 的正向 extern 调用扩展为按目标 C ABI 分类的 DirectC。
+- 在 M31 已有分代 Immix 上改为按需增长的多 region、稀疏地址索引和分区 card table；选择低存活区域跨区搬迁，保留高存活／pin 区域的 line 复用，完成空页 discard 与空 region unmap。移除固定 1 GiB 总堆限制，大对象不受普通 region 大小限制。
+- region 与屏障稳定后增加 STW 并行 mark、任务分块和正确的全局终止判定，保留存活对象集合供引用更新；首版复制、引用回写与 release hook 仍由 coordinator 执行。分配统计改为线程局部累计与精确汇总。
+- 提供与 T 等大、全零可扫描的 `MaybeUninit<T>`，通过合法值包装与 unsafe assumeInit 维护初始化契约；ArrayList 使用普通 `MutableArray<MaybeUninit<T>>`，删除／clear 清零引用。StringBuilder 继续持有 `ArrayList<String>` 复用扩容，仅适配 build 的 backing 消费边界。复用现有数组 shape 与按容量扫描的规则，单独测量低占用大容量的 GC 成本。
+- 已按设计分十批实施，迁移到 runtime ABI contract 12／metadata ABI 8，新 ABI 的 debug/release 保持互通，旧 ABI 产物明确拒绝并要求重建。完成三个 target 的源码／产物／链接／运行、独立 C compiler 互调、moving／多 mutator／并行 mark、真实扩容与内存归还，以及可复跑的分阶段性能报告；并发 GC、survivor、全程序优化、通用逃逸分析和 frame elision 留待后续。
+- 2026-10-10 总验收完成：Rust 工作区初跑 5,404 项中的 61 项失败均在两机定向闭合，后续最终 codegen 的 Darwin 363／GNU 378 项与公共 runner 44 项通过。正式 CLI 按实际运行来源去重，Darwin 2,904 项通过、16 项不适用；GNU 1,317 项通过、30 项不适用；musl 503 项通过，均无未闭合失败。Darwin 完整初跑与后续迁移、GNU／musl 受影响选择及严格复验分别记录，没有重复无关全量；两机共 28 组最终同机性能对照保存全部七轮样本与收益、回退。
+
 ## 3. 备注
 
 - 里程碑内的特性验收标准：独立 fixture + 组合 fixture + 相关编译错误规则的 negative fixture + 各 stage 的 golden dump（见 AGENTS.md 编码准则）。
@@ -627,10 +639,10 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 
 ### 来自 M9
 
-- 分代（nursery、首次存活晋升、remembered set 消费卡片表、代间引用检查）→ M31，见[设计](milestone31/DESIGN.md)；survivor/多级代龄与并行/并发 collector 另行设计；
+- 分代（nursery、首次存活晋升、remembered set 消费卡片表、代间引用检查）→ M31，见[设计](milestone31/DESIGN.md)；STW 并行 mark → M34（已完成，见[验收](milestone34/ACCEPTANCE.md)）；survivor/多级代龄、并行搬迁与并发 collector 仍留后续；
 - 精确消费statepoint stackmap、root relocation与Immix evacuation/defragmentation → M15；
-- arena扩容、多段arena与普通模式下的长期碎片率/compaction启发式调优仍待后续；
-- ~~多 mutator STW协调、线程注册/握手与线程安全分配/根表 → M13~~（已完成：pthread registry、合作式epoch握手、per-thread TLAB及同步heap/root/handle/pin元数据；parallel/concurrent collector仍待后续）；
+- arena 扩容、多 region、集中 evacuation、空页／空 region 归还与相应碎片策略 → M34（已完成，见[验收](milestone34/ACCEPTANCE.md)）；
+- ~~多 mutator STW协调、线程注册/握手与线程安全分配/根表 → M13~~（已完成：pthread registry、合作式epoch握手、per-thread TLAB及同步heap/root/handle/pin元数据；STW 并行 mark 已由 M34 交付，并发 collector 仍待后续）；
 - ~~tagged enum的精确扫描描述发射~~（M13修订：移除`SCOOP_REFS_ENUM`按tag分派，独占ref-bearing slot的固定偏移可与`SCOOP_REFS_SEQUENCE`及数组元素扫描组合）；
 - ~~hir-lower 的泛型 struct 字段类型形参作用域~~（已完成：移除 core GC struct 按名识别 stopgap，泛型定义本身不进入 MIR，仅发射具体实例）；
 - 其余定宽整数族与固定宽度alias → M22；既有64位`Int`/`UInt`实现迁为canonical `Long`/`ULong` identity，新canonical `Int`/`UInt`为32位，`Int32`/`UInt32`与`Int64`/`UInt64`分别作为对应透明alias。

@@ -8,17 +8,17 @@ Module
   interface Values<Unit, Unit>
   interface Values<Int, Unit>
   closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn1 captures=0
-    bridge function_type1 -> @fn34 id=5617a2649fd661cf53e75e7bbf5ed7d81ea576c06549a6389eaa2a47f86aface
+    bridge function_type1 -> @fn37 id=5617a2649fd661cf53e75e7bbf5ed7d81ea576c06549a6389eaa2a47f86aface
   closure cc1 $Closure$lambda1 type=function_type2 invoke=@fn3 captures=0
-    bridge function_type1 -> @fn35 id=b4f1e1b9272caa9565d37768817c8add900983b74f031bb80b56d68815df5bfa
+    bridge function_type1 -> @fn38 id=b4f1e1b9272caa9565d37768817c8add900983b74f031bb80b56d68815df5bfa
   closure cc2 $Closure$lambda2 type=function_type3 invoke=@fn5 captures=0
-    bridge function_type1 -> @fn36 id=46e4624807eb28e5a43a00884ee66713c58f6a83f6ca2364554d02f6fc56fbe6
+    bridge function_type1 -> @fn39 id=46e4624807eb28e5a43a00884ee66713c58f6a83f6ca2364554d02f6fc56fbe6
   closure cc3 $Closure$lambda3 type=function_type2 invoke=@fn12 captures=0
-    bridge function_type1 -> @fn37 id=9cbb61e9ec6b184f233ebe0a96506ded0ff1418dfed4df0fef0e2e085de133e4
+    bridge function_type1 -> @fn40 id=9cbb61e9ec6b184f233ebe0a96506ded0ff1418dfed4df0fef0e2e085de133e4
   closure cc4 $Closure$lambda4 type=function_type2 invoke=@fn18 captures=0
-    bridge function_type1 -> @fn38 id=29d4b56444fd056a6c7e4fdb1b4951595a1ac676a2d37f92db32c5ca8bfcbe86
+    bridge function_type1 -> @fn41 id=29d4b56444fd056a6c7e4fdb1b4951595a1ac676a2d37f92db32c5ca8bfcbe86
   closure cc5 $Closure$lambda5 type=function_type2 invoke=@fn24 captures=0
-    bridge function_type1 -> @fn39 id=787299f2ff68bebe79869b48668495c44a946b3fa9efd85fbf63e59040584a9b
+    bridge function_type1 -> @fn42 id=787299f2ff68bebe79869b48668495c44a946b3fa9efd85fbf63e59040584a9b
   generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
   generated_exact_type get1 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
   generated_exact_type get2 location=class3 nominal_id=2d46c9bb220fbefe39c9d1e29a6611ec7bc6e5ae56b1648ee5f0f44bea118eda exact_id=3fffd277817e10802b81aa1eaa231983087c84e2f97f68e50ca3b7bfd6209975
@@ -32,12 +32,15 @@ Module
   generated_exact_type get10 location=closure1 nominal_id=a2df42c2d815b1a0006dc4a43ea5f2eb08706a6401f017ed5065dfdb45242eff exact_id=e734b3df4ac60c226f306ca887890a676ed4bed74257ba2d9da2bbe615f2a1c5
   generated_exact_type get11 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
   generated_exact_type get12 location=closure5 nominal_id=8230ac3acf6ade048ffb14d9d7a81cc5cfaa246f9e4642eed91621004e36b295 exact_id=fc105694e59e05a41668f2130faa2ca8c07975d9506b05a2ac66c70fefe3212d
-  generated_callable gc0 function=@fn38 id=29d4b56444fd056a6c7e4fdb1b4951595a1ac676a2d37f92db32c5ca8bfcbe86
-  generated_callable gc1 function=@fn36 id=46e4624807eb28e5a43a00884ee66713c58f6a83f6ca2364554d02f6fc56fbe6
-  generated_callable gc2 function=@fn34 id=5617a2649fd661cf53e75e7bbf5ed7d81ea576c06549a6389eaa2a47f86aface
-  generated_callable gc3 function=@fn39 id=787299f2ff68bebe79869b48668495c44a946b3fa9efd85fbf63e59040584a9b
-  generated_callable gc4 function=@fn37 id=9cbb61e9ec6b184f233ebe0a96506ded0ff1418dfed4df0fef0e2e085de133e4
-  generated_callable gc5 function=@fn35 id=b4f1e1b9272caa9565d37768817c8add900983b74f031bb80b56d68815df5bfa
+  generated_callable gc0 function=@fn31 id=0e65c7ded21cec18327e7c218792e3dde5837b7db2d5d2a7400033697092bbaa
+  generated_callable gc1 function=@fn41 id=29d4b56444fd056a6c7e4fdb1b4951595a1ac676a2d37f92db32c5ca8bfcbe86
+  generated_callable gc2 function=@fn39 id=46e4624807eb28e5a43a00884ee66713c58f6a83f6ca2364554d02f6fc56fbe6
+  generated_callable gc3 function=@fn37 id=5617a2649fd661cf53e75e7bbf5ed7d81ea576c06549a6389eaa2a47f86aface
+  generated_callable gc4 function=@fn42 id=787299f2ff68bebe79869b48668495c44a946b3fa9efd85fbf63e59040584a9b
+  generated_callable gc5 function=@fn33 id=8e9033168f0b77597c1b49e3fdff905468e377f3b736dff308378b52bedcd8dd
+  generated_callable gc6 function=@fn40 id=9cbb61e9ec6b184f233ebe0a96506ded0ff1418dfed4df0fef0e2e085de133e4
+  generated_callable gc7 function=@fn32 id=b2f2aba83afcccc9a160d502072af5ce3ea9c49e7e03f2fe199d44abc7d8848e
+  generated_callable gc8 function=@fn38 id=b4f1e1b9272caa9565d37768817c8add900983b74f031bb80b56d68815df5bfa
   fun result @fn0() -> Int
     bb0 entry
       val $argument.0: String
@@ -156,7 +159,7 @@ Module
       assign $new.1
         Type Remote<String, Unit>
         ClassAlloc Remote<String, Unit>
-      call @fn31 direct
+      call @fn34 direct
         Type Remote<String, Unit>
         Local $new.1
         Type String
@@ -223,7 +226,7 @@ Module
       assign $new.1
         Type Remote<Unit, Unit>
         ClassAlloc Remote<Unit, Unit>
-      call @fn32 direct
+      call @fn35 direct
         Type Remote<Unit, Unit>
         Local $new.1
         Type Unit
@@ -290,7 +293,7 @@ Module
       assign $new.1
         Type Remote<Int, Unit>
         ClassAlloc Remote<Int, Unit>
-      call @fn33 direct
+      call @fn36 direct
         Type Remote<Int, Unit>
         Local $new.1
         Type Int
@@ -527,7 +530,49 @@ Module
   fun Values.$get$second @fn30(this: Values<Int, Unit>) -> Unit
     bb0 entry
       trap "call to abstract method `Values.$get$second`"
-  fun init.Remote.$c0 @fn31(this: Remote<String, Unit>, a: String, b: Unit) -> Unit
+  fun receiver<Remote> Values.total @fn31(this: Remote<String, Unit>, left: (String) -> Int, right: (Unit) -> Int) -> Int
+    bb0 entry
+      call $call.1: Int = @fn7 direct
+        Type Values<String, Unit>
+        Retype Values<String, Unit>
+          Type Remote<String, Unit>
+          Local this
+        Type (String) -> Int
+        Local left
+        Type (Unit) -> Int
+        Local right
+      return
+        Type Int
+        Local $call.1
+  fun receiver<Remote> Values.total @fn32(this: Remote<Unit, Unit>, left: (Unit) -> Int, right: (Unit) -> Int) -> Int
+    bb0 entry
+      call $call.1: Int = @fn13 direct
+        Type Values<Unit, Unit>
+        Retype Values<Unit, Unit>
+          Type Remote<Unit, Unit>
+          Local this
+        Type (Unit) -> Int
+        Local left
+        Type (Unit) -> Int
+        Local right
+      return
+        Type Int
+        Local $call.1
+  fun receiver<Remote> Values.total @fn33(this: Remote<Int, Unit>, left: (Int) -> Int, right: (Unit) -> Int) -> Int
+    bb0 entry
+      call $call.1: Int = @fn19 direct
+        Type Values<Int, Unit>
+        Retype Values<Int, Unit>
+          Type Remote<Int, Unit>
+          Local this
+        Type (Int) -> Int
+        Local left
+        Type (Unit) -> Int
+        Local right
+      return
+        Type Int
+        Local $call.1
+  fun init.Remote.$c0 @fn34(this: Remote<String, Unit>, a: String, b: Unit) -> Unit
     bb0 entry
       field_set 0
         Type Remote<String, Unit>
@@ -540,7 +585,7 @@ Module
         Type Unit
         Local b
       return
-  fun init.Remote.$c0 @fn32(this: Remote<Unit, Unit>, a: Unit, b: Unit) -> Unit
+  fun init.Remote.$c0 @fn35(this: Remote<Unit, Unit>, a: Unit, b: Unit) -> Unit
     bb0 entry
       field_set 0
         Type Remote<Unit, Unit>
@@ -553,7 +598,7 @@ Module
         Type Unit
         Local b
       return
-  fun init.Remote.$c0 @fn33(this: Remote<Int, Unit>, a: Int, b: Unit) -> Unit
+  fun init.Remote.$c0 @fn36(this: Remote<Int, Unit>, a: Int, b: Unit) -> Unit
     bb0 entry
       field_set 0
         Type Remote<Int, Unit>
@@ -566,7 +611,7 @@ Module
         Type Unit
         Local b
       return
-  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn34($source: (String) -> Int, arg0: Any) -> Any
+  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn37($source: (String) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type0> closure[function_type0]
         Type (String) -> Int
@@ -580,7 +625,7 @@ Module
         Box
           Type Int
           Local $call.1
-  fun function_bridge.$Closure$lambda1.(Any) -> Any @fn35($source: (Unit) -> Int, arg0: Any) -> Any
+  fun function_bridge.$Closure$lambda1.(Any) -> Any @fn38($source: (Unit) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type2> closure[function_type2]
         Type (Unit) -> Int
@@ -594,7 +639,7 @@ Module
         Box
           Type Int
           Local $call.1
-  fun function_bridge.$Closure$lambda2.(Any) -> Any @fn36($source: (Int) -> Int, arg0: Any) -> Any
+  fun function_bridge.$Closure$lambda2.(Any) -> Any @fn39($source: (Int) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type3> closure[function_type3]
         Type (Int) -> Int
@@ -608,7 +653,7 @@ Module
         Box
           Type Int
           Local $call.1
-  fun function_bridge.$Closure$lambda3.(Any) -> Any @fn37($source: (Unit) -> Int, arg0: Any) -> Any
+  fun function_bridge.$Closure$lambda3.(Any) -> Any @fn40($source: (Unit) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type2> closure[function_type2]
         Type (Unit) -> Int
@@ -622,7 +667,7 @@ Module
         Box
           Type Int
           Local $call.1
-  fun function_bridge.$Closure$lambda4.(Any) -> Any @fn38($source: (Unit) -> Int, arg0: Any) -> Any
+  fun function_bridge.$Closure$lambda4.(Any) -> Any @fn41($source: (Unit) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type2> closure[function_type2]
         Type (Unit) -> Int
@@ -636,7 +681,7 @@ Module
         Box
           Type Int
           Local $call.1
-  fun function_bridge.$Closure$lambda5.(Any) -> Any @fn39($source: (Unit) -> Int, arg0: Any) -> Any
+  fun function_bridge.$Closure$lambda5.(Any) -> Any @fn42($source: (Unit) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type2> closure[function_type2]
         Type (Unit) -> Int

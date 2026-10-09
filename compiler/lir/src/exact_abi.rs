@@ -15,7 +15,6 @@ use crate::{
 mod replay;
 pub use replay::ExactCallableAbiError;
 mod canonical;
-pub use canonical::{canonical_scoop_abi_argument, canonical_scoop_abi_value_return};
 
 mod table;
 pub use table::*;

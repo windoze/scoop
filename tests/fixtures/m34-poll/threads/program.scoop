@@ -1,0 +1,39 @@
+@Extern(lib = "m34_poll_threads", name = "m13_run_many")
+fun workers(function: FunPtr<(Int, Ptr<Unit>) -> Int>, context: Ptr<Unit>, base: Int, count: Int): Int
+
+interface Value { fun get(): Int }
+class Node(val value: Int) : Value { public override fun get(): Int = value }
+fun check(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+fun wait(started: AtomicInt, done: AtomicBoolean, value: Value,
+         pair: (Node, Value), optional: Value?): Int {
+    val (first, second) = pair
+    started.fetchAdd(1, MemoryOrder.Release)
+    while (!done.load(MemoryOrder.Acquire)) {}
+    check(first === second && second === value && optional!! === value)
+    return first.value + second.get() + value.get() + optional!!.get()
+}
+
+@Unsafe fun main() {
+    val started = AtomicInt(0)
+    val done = AtomicBoolean(false)
+    val action: (Int) -> Int = { worker ->
+        if (worker == 0) {
+            while (started.load(MemoryOrder.Acquire) < 3) {}
+            var round = 0
+            while (round < 4) { gcCollect(); round += 1 }
+            done.store(true, MemoryOrder.Release)
+            0
+        } else {
+            val node = Node(worker + 20)
+            val value: Value = node
+            wait(started, done, value, (node, value), Some(value))
+        }
+    }
+    val callback = foreignCallback<(Int, Ptr<Unit>) -> Int>(action, 1, ForeignCallbackMode.Reusable)
+    try {
+        check(workers(callback.function, callback.context, 0, 4) == 264)
+        check(when (foreignCallbackFailure(callback)) { None -> true; Some(_) -> false })
+    } finally { releaseForeignCallback(callback) }
+    println("conditional poll threads")
+}

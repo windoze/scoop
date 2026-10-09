@@ -13,7 +13,7 @@ Module
   class IllegalStateException vtable=0 itables=0
   class Exception vtable=0 itables=0
   class Throwable vtable=0 itables=0
-  class Companion vtable=0 itables=2
+  class Companion vtable=0 itables=0
   class ListIterator<Char> vtable=0 itables=1
   class IndexOutOfBoundsException vtable=0 itables=0
   interface ToString

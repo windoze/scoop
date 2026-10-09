@@ -4775,8 +4775,10 @@ Module
         Local $dependency.local.5
         Type Counter
         Local $dependency.local.6
-        Type CoroutineAdapter<run>$1
-        Local $adapter.1
+        Type Continuation<Local>
+        Retype Continuation<Local>
+          Type CoroutineAdapter<run>$1
+          Local $adapter.1
       branch bb5 bb6
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -5295,8 +5297,10 @@ Module
         Local $dependency.local.5
         Type Counter
         Local $dependency.local.6
-        Type CoroutineAdapter<run>$1
-        Local $adapter.1
+        Type Continuation<Local>
+        Retype Continuation<Local>
+          Type CoroutineAdapter<run>$1
+          Local $adapter.1
       branch bb5 bb6
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -5815,8 +5819,10 @@ Module
         Local $dependency.local.5
         Type Counter
         Local $dependency.local.6
-        Type CoroutineAdapter<run>$1
-        Local $adapter.1
+        Type Continuation<Int>
+        Retype Continuation<Int>
+          Type CoroutineAdapter<run>$1
+          Local $adapter.1
       branch bb5 bb6
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -6335,8 +6341,10 @@ Module
         Local $dependency.local.5
         Type Counter
         Local $dependency.local.6
-        Type CoroutineAdapter<run>$1
-        Local $adapter.1
+        Type Continuation<Int>
+        Retype Continuation<Int>
+          Type CoroutineAdapter<run>$1
+          Local $adapter.1
       branch bb5 bb6
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -6858,8 +6866,10 @@ Module
         Local $dependency.local.5
         Type Counter
         Local $dependency.local.6
-        Type CoroutineAdapter<run>$1
-        Local $adapter.1
+        Type Continuation<Unit>
+        Retype Continuation<Unit>
+          Type CoroutineAdapter<run>$1
+          Local $adapter.1
       branch bb5 bb6
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -7357,8 +7367,10 @@ Module
         Local $dependency.local.5
         Type Counter
         Local $dependency.local.6
-        Type CoroutineAdapter<run>$1
-        Local $adapter.1
+        Type Continuation<Unit>
+        Retype Continuation<Unit>
+          Type CoroutineAdapter<run>$1
+          Local $adapter.1
       branch bb5 bb6
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -7908,8 +7920,10 @@ Module
       call $step.1: CoroutineStep<Local> = @fn79 direct
         Type Gate<Local>
         Local $dependency.local.5
-        Type CoroutineAdapter<recover>$1
-        Local $adapter.1
+        Type Continuation<Local>
+        Retype Continuation<Local>
+          Type CoroutineAdapter<recover>$1
+          Local $adapter.1
       branch bb16 bb17
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -8577,8 +8591,10 @@ Module
       call $step.1: CoroutineStep<Unit> = @fn80 direct
         Type Gate<Unit>
         Local $dependency.local.6
-        Type CoroutineAdapter<delayedFinally>$1
-        Local $adapter.1
+        Type Continuation<Unit>
+        Retype Continuation<Unit>
+          Type CoroutineAdapter<delayedFinally>$1
+          Local $adapter.1
       branch bb26 bb27
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -8632,8 +8648,10 @@ Module
       call $step.2: CoroutineStep<Local> = @fn79 direct
         Type Gate<Local>
         Local $dependency.local.4
-        Type CoroutineAdapter<delayedFinally>$2
-        Local $adapter.2
+        Type Continuation<Local>
+        Retype Continuation<Local>
+          Type CoroutineAdapter<delayedFinally>$2
+          Local $adapter.2
       branch bb18 bb19
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -8685,8 +8703,10 @@ Module
       call $step.3: CoroutineStep<Unit> = @fn80 direct
         Type Gate<Unit>
         Local $dependency.local.6
-        Type CoroutineAdapter<delayedFinally>$3
-        Local $adapter.3
+        Type Continuation<Unit>
+        Retype Continuation<Unit>
+          Type CoroutineAdapter<delayedFinally>$3
+          Local $adapter.3
       branch bb10 bb11
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -10222,8 +10242,10 @@ Module
       call $step.1: CoroutineStep<Int> = @fn81 direct
         Type Gate<Int>
         Local $dependency.local.5
-        Type CoroutineAdapter<recover>$1
-        Local $adapter.1
+        Type Continuation<Int>
+        Retype Continuation<Int>
+          Type CoroutineAdapter<recover>$1
+          Local $adapter.1
       branch bb16 bb17
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -10891,8 +10913,10 @@ Module
       call $step.1: CoroutineStep<Unit> = @fn80 direct
         Type Gate<Unit>
         Local $dependency.local.6
-        Type CoroutineAdapter<delayedFinally>$1
-        Local $adapter.1
+        Type Continuation<Unit>
+        Retype Continuation<Unit>
+          Type CoroutineAdapter<delayedFinally>$1
+          Local $adapter.1
       branch bb26 bb27
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -10946,8 +10970,10 @@ Module
       call $step.2: CoroutineStep<Int> = @fn81 direct
         Type Gate<Int>
         Local $dependency.local.4
-        Type CoroutineAdapter<delayedFinally>$2
-        Local $adapter.2
+        Type Continuation<Int>
+        Retype Continuation<Int>
+          Type CoroutineAdapter<delayedFinally>$2
+          Local $adapter.2
       branch bb18 bb19
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -10999,8 +11025,10 @@ Module
       call $step.3: CoroutineStep<Unit> = @fn80 direct
         Type Gate<Unit>
         Local $dependency.local.6
-        Type CoroutineAdapter<delayedFinally>$3
-        Local $adapter.3
+        Type Continuation<Unit>
+        Retype Continuation<Unit>
+          Type CoroutineAdapter<delayedFinally>$3
+          Local $adapter.3
       branch bb10 bb11
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -12536,8 +12564,10 @@ Module
       call $step.1: CoroutineStep<Unit> = @fn80 direct
         Type Gate<Unit>
         Local $dependency.local.5
-        Type CoroutineAdapter<recover>$1
-        Local $adapter.1
+        Type Continuation<Unit>
+        Retype Continuation<Unit>
+          Type CoroutineAdapter<recover>$1
+          Local $adapter.1
       branch bb16 bb17
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -13180,8 +13210,10 @@ Module
       call $step.1: CoroutineStep<Unit> = @fn80 direct
         Type Gate<Unit>
         Local $dependency.local.6
-        Type CoroutineAdapter<delayedFinally>$1
-        Local $adapter.1
+        Type Continuation<Unit>
+        Retype Continuation<Unit>
+          Type CoroutineAdapter<delayedFinally>$1
+          Local $adapter.1
       branch bb26 bb27
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -13235,8 +13267,10 @@ Module
       call $step.2: CoroutineStep<Unit> = @fn80 direct
         Type Gate<Unit>
         Local $dependency.local.4
-        Type CoroutineAdapter<delayedFinally>$2
-        Local $adapter.2
+        Type Continuation<Unit>
+        Retype Continuation<Unit>
+          Type CoroutineAdapter<delayedFinally>$2
+          Local $adapter.2
       branch bb18 bb19
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -13281,8 +13315,10 @@ Module
       call $step.3: CoroutineStep<Unit> = @fn80 direct
         Type Gate<Unit>
         Local $dependency.local.6
-        Type CoroutineAdapter<delayedFinally>$3
-        Local $adapter.3
+        Type Continuation<Unit>
+        Retype Continuation<Unit>
+          Type CoroutineAdapter<delayedFinally>$3
+          Local $adapter.3
       branch bb10 bb11
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -14746,8 +14782,10 @@ Module
       call @fn93 interface SuspendRegistration<Local>[0]
         Type SuspendRegistration<Local>
         Local $dependency.local.4
-        Type CoroutineAdapter<await>$1
-        Local $safe_adapter.1
+        Type Continuation<Local>
+        Retype Continuation<Local>
+          Type CoroutineAdapter<await>$1
+          Local $safe_adapter.1
       goto bb14
     bb3 coroutine.registered_success.1
       atomic_store_release kind=coroutine-adapter-state field=1
@@ -15504,8 +15542,10 @@ Module
       call @fn89 interface SuspendRegistration<Unit>[0]
         Type SuspendRegistration<Unit>
         Local $dependency.local.4
-        Type CoroutineAdapter<await>$1
-        Local $safe_adapter.1
+        Type Continuation<Unit>
+        Retype Continuation<Unit>
+          Type CoroutineAdapter<await>$1
+          Local $safe_adapter.1
       goto bb14
     bb3 coroutine.registered_success.1
       atomic_store_release kind=coroutine-adapter-state field=1
@@ -16239,8 +16279,10 @@ Module
       call @fn91 interface SuspendRegistration<Int>[0]
         Type SuspendRegistration<Int>
         Local $dependency.local.4
-        Type CoroutineAdapter<await>$1
-        Local $safe_adapter.1
+        Type Continuation<Int>
+        Retype Continuation<Int>
+          Type CoroutineAdapter<await>$1
+          Local $safe_adapter.1
       goto bb14
     bb3 coroutine.registered_success.1
       atomic_store_release kind=coroutine-adapter-state field=1

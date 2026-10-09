@@ -1,0 +1,36 @@
+@Extern(lib = "m34_allocation_threads", name = "m13_run_many")
+fun workers(function: FunPtr<(Int, Ptr<Unit>) -> Int>, context: Ptr<Unit>, base: Int, count: Int): Int
+
+class Node(val value: Int)
+fun check(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+fun churn(worker: Int): Int {
+    val values = MutableArray<Node?>(80L) { index -> None }
+    var index = 0L
+    while (index < values.size) {
+        values[index] = Some(Node(worker + index.toInt32()))
+        if (index % 17L == 0L) { gcCollect() }
+        index += 1L
+    }
+    gcCollect()
+    check(gcStats() >= 80uL)
+    var sum = 0
+    index = 0L
+    while (index < values.size) { sum += values[index]!!.value; index += 1L }
+    return sum
+}
+
+@Unsafe fun main() {
+    val action: (Int) -> Int = { worker -> churn(worker) }
+    val callback = foreignCallback<(Int, Ptr<Unit>) -> Int>(action, 1, ForeignCallbackMode.Reusable)
+    try {
+        var round = 0
+        while (round < 3) {
+            check(workers(callback.function, callback.context, 1, 4) == 13440)
+            check(when (foreignCallbackFailure(callback)) { None -> true; Some(_) -> false })
+            gcCollect()
+            round += 1
+        }
+    } finally { releaseForeignCallback(callback) }
+    println("allocation threads")
+}

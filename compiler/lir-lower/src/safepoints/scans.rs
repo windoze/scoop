@@ -21,7 +21,9 @@ fn scan_value(
 ) -> StorageResult<lir::RefScan> {
     let (size, alignment) = lir_size_align(context, ty, structs, enums)?;
     let scan = match ty {
-        lir::LirType::Ptr(lir::PointerKind::Managed) => lir::RefScan::References(vec![0]),
+        lir::LirType::Interface | lir::LirType::Ptr(lir::PointerKind::Managed) => {
+            lir::RefScan::References(vec![0])
+        }
         lir::LirType::Aggregate(fields) => {
             let (offsets, _, _) = layout::lir_aggregate_shape(context, fields, structs, enums)?;
             sequence(
@@ -39,24 +41,31 @@ fn scan_value(
                 return Err(lir::RefScanValidationError::Cycle.into());
             }
             let definition = &structs[*id];
-            let scan = sequence(
-                (0..definition.field_count())
-                    .map(|index| {
-                        let ty = definition.field_storage_type(index).ok_or(
-                            StorageLoweringError::InvalidRepresentation(
-                                "missing struct field storage",
-                            ),
-                        )?;
-                        let offset = definition
-                            .field_layout(index)
-                            .ok_or(StorageLoweringError::InvalidRepresentation(
-                                "missing struct field placement",
-                            ))?
-                            .offset;
-                        scan_value(context, &ty, structs, enums, offset, visiting)
-                    })
-                    .collect::<StorageResult<Vec<_>>>()?,
-            )?;
+            let scan = if let lir::StructRepresentation::Intrinsic(
+                lir::IntrinsicTypeRepresentation::MaybeUninit { scan, .. },
+            ) = &definition.representation
+            {
+                scan.clone()
+            } else {
+                sequence(
+                    (0..definition.field_count())
+                        .map(|index| {
+                            let ty = definition.field_storage_type(index).ok_or(
+                                StorageLoweringError::InvalidRepresentation(
+                                    "missing struct field storage",
+                                ),
+                            )?;
+                            let offset = definition
+                                .field_layout(index)
+                                .ok_or(StorageLoweringError::InvalidRepresentation(
+                                    "missing struct field placement",
+                                ))?
+                                .offset;
+                            scan_value(context, &ty, structs, enums, offset, visiting)
+                        })
+                        .collect::<StorageResult<Vec<_>>>()?,
+                )?
+            };
             visiting.remove(id);
             scan
         }

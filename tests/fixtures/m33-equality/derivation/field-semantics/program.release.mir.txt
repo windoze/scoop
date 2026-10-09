@@ -1,0 +1,2381 @@
+Module
+  struct Inherited (child: Child)
+  struct Pair (first: Traced, second: Traced)
+  struct Multiple (value: Int)
+  struct Raw (pointer: Ptr<UInt8>)
+  struct NativeWord (value: Int) <interior-mutable>
+  enum Tagged
+    First(_1: Pair)
+    Second(_1: Traced)
+    Empty()
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum Option<Char>
+    Some(_0: Char)
+    None()
+  class Child vtable=0 itables=0
+  class Base vtable=0 itables=0
+  class Traced vtable=0 itables=0
+  class Trace vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  interface Equality<Ptr<UInt8>>
+  interface ToString
+  interface Hash
+  interface Equality<Char>
+  interface Iterable<Char>
+  interface Iterator<Char>
+  interface Equality<String>
+  generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
+  generated_exact_type get1 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
+  generated_exact_type get2 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
+  generated_exact_type get3 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
+  generated_exact_type get4 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
+  fun Base.equals @fn0(this: Base, other: Base) -> Boolean
+    bb0 entry
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Base
+          Local this
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type Base
+          Local other
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun Inherited.equals @fn1(this: Inherited, other: Inherited) -> Boolean
+    bb0 entry
+      val $inline.1.this: Base
+        Type Base
+        Retype Base
+          Type Child
+          FieldAccess 0
+            Type Inherited
+            Local this
+      val $inline.1.other: Base
+        Type Base
+        Retype Base
+          Type Child
+          FieldAccess 0
+            Type Inherited
+            Local other
+      goto bb2
+    bb1 inline.cont.1
+      val $call.1: Boolean
+        Type Boolean
+        Local $inline.1.result
+      return
+        Type Boolean
+        Local $call.1
+    bb2 inline.1.entry
+      val $inline.1.$dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Base
+          Local $inline.1.this
+      val $inline.1.$dependency.argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type Base
+          Local $inline.1.other
+      val $inline.1.$dependency.parameter.other: Int
+        Type Int
+        Local $inline.1.$dependency.argument.0
+      assign $inline.1.result
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $inline.1.$dependency.receiver
+          Type Int
+          Local $inline.1.$dependency.parameter.other
+      goto bb1
+  fun Traced.equals @fn2(this: Traced, other: Traced) -> Boolean
+    bb0 entry
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Trace
+          FieldAccess 2
+            Type Traced
+            Local this
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+      val $dependency.receiver: Int
+        Type Int
+        IntegerBinary multiply kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          IntegerLiteral Int value=10 bits=0x0000000a
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 1
+          Type Traced
+          Local this
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      field_set 0
+        Type Trace
+        FieldAccess 2
+          Type Traced
+          Local this
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Traced
+          Local this
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type Traced
+          Local other
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun Pair.equals @fn3(this: Pair, other: Pair) -> Boolean
+    bb0 entry
+      call $call.1: Boolean = @fn2 direct
+        Type Traced
+        FieldAccess 0
+          Type Pair
+          Local this
+        Type Traced
+        FieldAccess 0
+          Type Pair
+          Local other
+      branch bb1 bb2
+        Type Boolean
+        Local $call.1
+    bb1 logic.rhs.1
+      call $call.3: Boolean = @fn2 direct
+        Type Traced
+        FieldAccess 1
+          Type Pair
+          Local this
+        Type Traced
+        FieldAccess 1
+          Type Pair
+          Local other
+      assign $logic.2
+        Type Boolean
+        Local $call.3
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.2
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 logic.merge.3
+      return
+        Type Boolean
+        Local $logic.2
+  fun Multiple.equals @fn4(this: Multiple, other: Int) -> Boolean
+    bb0 entry
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Multiple
+          Local this
+      val $dependency.argument.0: Int
+        Type Int
+        Local other
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun Multiple.equals @fn5(this: Multiple, other: Multiple) -> Boolean
+    bb0 entry
+      return
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          FieldAccess 0
+            Type Multiple
+            Local this
+          Type Int
+          FieldAccess 0
+            Type Multiple
+            Local other
+  fun equalTo @fn6(this: Ptr<UInt8>, other: Ptr<UInt8>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<UInt8>
+        Type Ptr<UInt8>
+        Local this
+      val $dependency.local.3: Ptr<UInt8>
+        Type Ptr<UInt8>
+        Local other
+      val $dependency.local.4: Ptr<UInt8>
+        Type Ptr<UInt8>
+        Local $dependency.local.3
+      val $inline.1.this: Ptr<UInt8>
+        Type Ptr<UInt8>
+        Local $dependency.local.2
+      val $inline.1.other: Ptr<UInt8>
+        Type Ptr<UInt8>
+        Local $dependency.local.4
+      goto bb2
+    bb1 inline.cont.1
+      val $call.1: Boolean
+        Type Boolean
+        Local $inline.1.result
+      return
+        Type Boolean
+        Local $call.1
+    bb2 inline.1.entry
+      val $inline.1.$dependency.local.2: Ptr<UInt8>
+        Type Ptr<UInt8>
+        Local $inline.1.this
+      val $inline.1.$dependency.local.4: ULong
+        Type ULong
+        PtrToULong
+          Type Ptr<UInt8>
+          Local $inline.1.$dependency.local.2
+      val $inline.1.$dependency.local.3: Ptr<UInt8>
+        Type Ptr<UInt8>
+        Local $inline.1.other
+      assign $inline.1.result
+        Type Boolean
+        IntegerCompare equal operands=ULong result=Boolean
+          Type ULong
+          Local $inline.1.$dependency.local.4
+          Type ULong
+          PtrToULong
+            Type Ptr<UInt8>
+            Local $inline.1.$dependency.local.3
+      goto bb1
+  fun Raw.equals @fn7(this: Raw, other: Raw) -> Boolean
+    bb0 entry
+      val $inline.1.this: Ptr<UInt8>
+        Type Ptr<UInt8>
+        FieldAccess 0
+          Type Raw
+          Local this
+      val $inline.1.other: Ptr<UInt8>
+        Type Ptr<UInt8>
+        FieldAccess 0
+          Type Raw
+          Local other
+      goto bb2
+    bb1 inline.cont.1
+      val $call.1: Boolean
+        Type Boolean
+        Local $inline.1.result
+      return
+        Type Boolean
+        Local $call.1
+    bb2 inline.1.entry
+      val $inline.1.$dependency.local.2: Ptr<UInt8>
+        Type Ptr<UInt8>
+        Local $inline.1.this
+      val $inline.1.$dependency.local.4: ULong
+        Type ULong
+        PtrToULong
+          Type Ptr<UInt8>
+          Local $inline.1.$dependency.local.2
+      val $inline.1.$dependency.local.3: Ptr<UInt8>
+        Type Ptr<UInt8>
+        Local $inline.1.other
+      assign $inline.1.result
+        Type Boolean
+        IntegerCompare equal operands=ULong result=Boolean
+          Type ULong
+          Local $inline.1.$dependency.local.4
+          Type ULong
+          PtrToULong
+            Type Ptr<UInt8>
+            Local $inline.1.$dependency.local.3
+      goto bb1
+  fun equals @fn8(this: Ptr<UInt8>, other: Ptr<UInt8>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<UInt8>
+        Type Ptr<UInt8>
+        Local this
+      val $dependency.local.4: ULong
+        Type ULong
+        PtrToULong
+          Type Ptr<UInt8>
+          Local $dependency.local.2
+      val $dependency.local.3: Ptr<UInt8>
+        Type Ptr<UInt8>
+        Local other
+      return
+        Type Boolean
+        IntegerCompare equal operands=ULong result=Boolean
+          Type ULong
+          Local $dependency.local.4
+          Type ULong
+          PtrToULong
+            Type Ptr<UInt8>
+            Local $dependency.local.3
+  fun NativeWord.equals @fn9(this: NativeWord, other: NativeWord) -> Boolean
+    bb0 entry
+      return
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          FieldAccess 0
+            Type NativeWord
+            Local this
+          Type Int
+          FieldAccess 0
+            Type NativeWord
+            Local other
+  fun Tagged.equals @fn10(this: Tagged, other: Tagged) -> Boolean
+    bb0 entry
+      val $when.1: Tagged
+        Type Tagged
+        Local this
+      val $pattern.subject.2: Tagged
+        Type Tagged
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Tagged v0
+          Type Tagged
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val $left.0.0: Pair
+        Type Pair
+        VariantPayloadProject Tagged v0 f0
+          Type Tagged
+          Local $pattern.subject.2
+      val $when.3: Tagged
+        Type Tagged
+        Local other
+      val $pattern.subject.4: Tagged
+        Type Tagged
+        Local $when.3
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Tagged v0
+          Type Tagged
+          Local $pattern.subject.4
+    bb2 pattern.else.2
+      val $pattern.subject.5: Tagged
+        Type Tagged
+        Local $when.1
+      branch bb7 bb8
+        Type Boolean
+        VariantTest Tagged v1
+          Type Tagged
+          Local $pattern.subject.5
+    bb3 pattern.merge.3
+      unreachable
+    bb4 pattern.pass.4
+      val $right.0.0: Pair
+        Type Pair
+        VariantPayloadProject Tagged v0 f0
+          Type Tagged
+          Local $pattern.subject.4
+      call $call.1: Boolean = @fn3 direct
+        Type Pair
+        Local $left.0.0
+        Type Pair
+        Local $right.0.0
+      return
+        Type Boolean
+        Local $call.1
+    bb5 pattern.else.5
+      return
+        Type Boolean
+        BoolLiteral false
+    bb6 pattern.merge.6
+      unreachable
+    bb7 pattern.pass.7
+      val $left.1.0: Traced
+        Type Traced
+        VariantPayloadProject Tagged v1 f0
+          Type Tagged
+          Local $pattern.subject.5
+      val $when.6: Tagged
+        Type Tagged
+        Local other
+      val $pattern.subject.7: Tagged
+        Type Tagged
+        Local $when.6
+      branch bb10 bb11
+        Type Boolean
+        VariantTest Tagged v1
+          Type Tagged
+          Local $pattern.subject.7
+    bb8 pattern.else.8
+      val $pattern.subject.8: Tagged
+        Type Tagged
+        Local $when.1
+      branch bb13 bb14
+        Type Boolean
+        VariantTest Tagged v2
+          Type Tagged
+          Local $pattern.subject.8
+    bb9 pattern.merge.9
+      unreachable
+    bb10 pattern.pass.10
+      val $right.1.0: Traced
+        Type Traced
+        VariantPayloadProject Tagged v1 f0
+          Type Tagged
+          Local $pattern.subject.7
+      call $call.2: Boolean = @fn2 direct
+        Type Traced
+        Local $left.1.0
+        Type Traced
+        Local $right.1.0
+      return
+        Type Boolean
+        Local $call.2
+    bb11 pattern.else.11
+      return
+        Type Boolean
+        BoolLiteral false
+    bb12 pattern.merge.12
+      unreachable
+    bb13 pattern.pass.13
+      val $when.9: Tagged
+        Type Tagged
+        Local other
+      val $pattern.subject.10: Tagged
+        Type Tagged
+        Local $when.9
+      branch bb16 bb17
+        Type Boolean
+        VariantTest Tagged v2
+          Type Tagged
+          Local $pattern.subject.10
+    bb14 pattern.else.14
+      unreachable
+    bb15 pattern.merge.15
+      unreachable
+    bb16 pattern.pass.16
+      return
+        Type Boolean
+        BoolLiteral true
+    bb17 pattern.else.17
+      return
+        Type Boolean
+        BoolLiteral false
+    bb18 pattern.merge.18
+      unreachable
+  fun check @fn11(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.receiver: Boolean
+        Type Boolean
+        Local value
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+    bb1 if.then.1
+      val $default.local.0: String
+        Type String
+        StringConst @str0
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.1
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $new.1
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.1
+    bb2 if.merge.2
+      return
+  fun main @fn12() -> Unit
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+      val $argument.1: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.detail: Int
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+      val $parameter.key: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      assign $new.1
+        Type Child
+        ClassAlloc Child
+      val $inline.75.this: Child
+        Type Child
+        Local $new.1
+      val $inline.75.detail: Int
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+      val $inline.75.key: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      goto bb76
+    bb1 inline.cont.1
+      val $argument.0: Boolean
+        Type Boolean
+        Local $inline.1.result
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn11 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str1
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn13 direct
+        Type String
+        Local $dependency.parameter.value
+      return
+    bb2 inline.1.entry
+      assign $inline.1.result
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          FieldAccess 0
+            Type NativeWord
+            Local $inline.1.this
+          Type Int
+          FieldAccess 0
+            Type NativeWord
+            Local $inline.1.other
+      goto bb1
+    bb3 inline.cont.3
+      val $call.24: Boolean
+        Type Boolean
+        Local $inline.3.result
+      val $argument.0: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $call.24
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn11 direct
+        Type Boolean
+        Local $parameter.value
+      val $receiver: NativeWord
+        Type NativeWord
+        Local word
+      val $argument.0: NativeWord
+        Type NativeWord
+        Local word
+      val $parameter.other: NativeWord
+        Type NativeWord
+        Local $argument.0
+      val $inline.1.this: NativeWord
+        Type NativeWord
+        Local $receiver
+      val $inline.1.other: NativeWord
+        Type NativeWord
+        Local $parameter.other
+      goto bb2
+    bb4 inline.3.entry
+      assign $inline.3.result
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          FieldAccess 0
+            Type NativeWord
+            Local $inline.3.this
+          Type Int
+          FieldAccess 0
+            Type NativeWord
+            Local $inline.3.other
+      goto bb3
+    bb5 inline.cont.5
+      val $call.23: NativeWord
+        Type NativeWord
+        Local $inline.5.result
+      val $inline.3.this: NativeWord
+        Type NativeWord
+        Local $equality.lhs
+      val $inline.3.other: NativeWord
+        Type NativeWord
+        Local $call.23
+      goto bb4
+    bb6 inline.5.entry
+      assign $inline.5.result
+        Type NativeWord
+        StructInit NativeWord
+          Type Int
+          IntegerLiteral Int value=8 bits=0x00000008
+      goto bb5
+    bb7 inline.cont.7
+      val $argument.0: Boolean
+        Type Boolean
+        Local $inline.7.result
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn11 direct
+        Type Boolean
+        Local $parameter.value
+      val $equality.lhs: NativeWord
+        Type NativeWord
+        Local word
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=8 bits=0x00000008
+      val $parameter.value: Int
+        Type Int
+        IntegerLiteral Int value=8 bits=0x00000008
+      val $inline.5.value: Int
+        Type Int
+        IntegerLiteral Int value=8 bits=0x00000008
+      goto bb6
+    bb8 inline.7.entry
+      assign $inline.7.result
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          FieldAccess 0
+            Type NativeWord
+            Local $inline.7.this
+          Type Int
+          FieldAccess 0
+            Type NativeWord
+            Local $inline.7.other
+      goto bb7
+    bb9 inline.cont.9
+      val $call.22: NativeWord
+        Type NativeWord
+        Local $inline.9.result
+      val $inline.7.this: NativeWord
+        Type NativeWord
+        Local $equality.lhs
+      val $inline.7.other: NativeWord
+        Type NativeWord
+        Local $call.22
+      goto bb8
+    bb10 inline.9.entry
+      assign $inline.9.result
+        Type NativeWord
+        StructInit NativeWord
+          Type Int
+          IntegerLiteral Int value=7 bits=0x00000007
+      goto bb9
+    bb11 inline.cont.11
+      val word: NativeWord
+        Type NativeWord
+        Local $inline.11.result
+      val $equality.lhs: NativeWord
+        Type NativeWord
+        Local word
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $parameter.value: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $inline.9.value: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      goto bb10
+    bb12 inline.11.entry
+      assign $inline.11.result
+        Type NativeWord
+        StructInit NativeWord
+          Type Int
+          IntegerLiteral Int value=7 bits=0x00000007
+      goto bb11
+    bb13 inline.cont.13
+      val $argument.0: Boolean
+        Type Boolean
+        Local $inline.13.result
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn11 direct
+        Type Boolean
+        Local $parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $parameter.value: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $inline.11.value: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      goto bb12
+    bb14 inline.13.entry
+      val $inline.93.this: Ptr<UInt8>
+        Type Ptr<UInt8>
+        FieldAccess 0
+          Type Raw
+          Local $inline.13.this
+      val $inline.93.other: Ptr<UInt8>
+        Type Ptr<UInt8>
+        FieldAccess 0
+          Type Raw
+          Local $inline.13.other
+      goto bb94
+    bb15 inline.cont.15
+      val $call.21: Boolean
+        Type Boolean
+        Local $inline.15.result
+      val $argument.0: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $call.21
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn11 direct
+        Type Boolean
+        Local $parameter.value
+      val $receiver: Raw
+        Type Raw
+        Local raw
+      val $argument.0: Raw
+        Type Raw
+        Local raw
+      val $parameter.other: Raw
+        Type Raw
+        Local $argument.0
+      val $inline.13.this: Raw
+        Type Raw
+        Local $receiver
+      val $inline.13.other: Raw
+        Type Raw
+        Local $parameter.other
+      goto bb14
+    bb16 inline.15.entry
+      val $inline.91.this: Ptr<UInt8>
+        Type Ptr<UInt8>
+        FieldAccess 0
+          Type Raw
+          Local $inline.15.this
+      val $inline.91.other: Ptr<UInt8>
+        Type Ptr<UInt8>
+        FieldAccess 0
+          Type Raw
+          Local $inline.15.other
+      goto bb92
+    bb17 inline.cont.17
+      val $call.20: Raw
+        Type Raw
+        Local $inline.17.result
+      val $inline.15.this: Raw
+        Type Raw
+        Local $equality.lhs
+      val $inline.15.other: Raw
+        Type Raw
+        Local $call.20
+      goto bb16
+    bb18 inline.17.entry
+      assign $inline.17.result
+        Type Raw
+        StructInit Raw
+          Type Ptr<UInt8>
+          Local $inline.17.pointer
+      goto bb17
+    bb19 inline.cont.19
+      val $argument.0: Boolean
+        Type Boolean
+        Local $inline.19.result
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn11 direct
+        Type Boolean
+        Local $parameter.value
+      val $equality.lhs: Raw
+        Type Raw
+        Local raw
+      val $argument.0: Ptr<UInt8>
+        Type Ptr<UInt8>
+        PtrFromNonZeroULong UInt8
+          Type ULong
+          IntegerLiteral ULong value=2 bits=0x0000000000000002
+      val $parameter.pointer: Ptr<UInt8>
+        Type Ptr<UInt8>
+        Local $argument.0
+      val $inline.17.pointer: Ptr<UInt8>
+        Type Ptr<UInt8>
+        Local $parameter.pointer
+      goto bb18
+    bb20 inline.19.entry
+      val $inline.89.this: Ptr<UInt8>
+        Type Ptr<UInt8>
+        FieldAccess 0
+          Type Raw
+          Local $inline.19.this
+      val $inline.89.other: Ptr<UInt8>
+        Type Ptr<UInt8>
+        FieldAccess 0
+          Type Raw
+          Local $inline.19.other
+      goto bb90
+    bb21 inline.cont.21
+      val raw: Raw
+        Type Raw
+        Local $inline.21.result
+      val $inline.19.this: Raw
+        Type Raw
+        Local raw
+      val $inline.19.other: Raw
+        Type Raw
+        Local raw
+      goto bb20
+    bb22 inline.21.entry
+      assign $inline.21.result
+        Type Raw
+        StructInit Raw
+          Type Ptr<UInt8>
+          Local $inline.21.pointer
+      goto bb21
+    bb23 inline.cont.23
+      val $argument.0: Boolean
+        Type Boolean
+        Local $inline.23.result
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn11 direct
+        Type Boolean
+        Local $parameter.value
+      val $argument.0: Ptr<UInt8>
+        Type Ptr<UInt8>
+        PtrFromNonZeroULong UInt8
+          Type ULong
+          IntegerLiteral ULong value=1 bits=0x0000000000000001
+      val $parameter.pointer: Ptr<UInt8>
+        Type Ptr<UInt8>
+        Local $argument.0
+      val $inline.21.pointer: Ptr<UInt8>
+        Type Ptr<UInt8>
+        Local $parameter.pointer
+      goto bb22
+    bb24 inline.23.entry
+      assign $inline.23.result
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          FieldAccess 0
+            Type Multiple
+            Local $inline.23.this
+          Type Int
+          FieldAccess 0
+            Type Multiple
+            Local $inline.23.other
+      goto bb23
+    bb25 inline.cont.25
+      val $argument.0: Multiple
+        Type Multiple
+        Local $inline.25.result
+      val $parameter.other: Multiple
+        Type Multiple
+        Local $argument.0
+      val $inline.23.this: Multiple
+        Type Multiple
+        Local $receiver
+      val $inline.23.other: Multiple
+        Type Multiple
+        Local $parameter.other
+      goto bb24
+    bb26 inline.25.entry
+      assign $inline.25.result
+        Type Multiple
+        StructInit Multiple
+          Type Int
+          IntegerLiteral Int value=7 bits=0x00000007
+      goto bb25
+    bb27 inline.cont.27
+      val $argument.0: Boolean
+        Type Boolean
+        Local $inline.27.result
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn11 direct
+        Type Boolean
+        Local $parameter.value
+      val $receiver: Multiple
+        Type Multiple
+        Local multiple
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $parameter.value: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $inline.25.value: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      goto bb26
+    bb28 inline.27.entry
+      val $inline.27.$dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Multiple
+          Local $inline.27.this
+      val $inline.27.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $inline.27.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      assign $inline.27.result
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $inline.27.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=7 bits=0x00000007
+      goto bb27
+    bb29 inline.cont.29
+      val $argument.0: Boolean
+        Type Boolean
+        Local $inline.29.result
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn11 direct
+        Type Boolean
+        Local $parameter.value
+      val $receiver: Multiple
+        Type Multiple
+        Local multiple
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $inline.27.this: Multiple
+        Type Multiple
+        Local $receiver
+      val $inline.27.other: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      goto bb28
+    bb30 inline.29.entry
+      assign $inline.29.result
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          FieldAccess 0
+            Type Multiple
+            Local $inline.29.this
+          Type Int
+          FieldAccess 0
+            Type Multiple
+            Local $inline.29.other
+      goto bb29
+    bb31 inline.cont.31
+      val $call.19: Multiple
+        Type Multiple
+        Local $inline.31.result
+      val $inline.29.this: Multiple
+        Type Multiple
+        Local $equality.lhs
+      val $inline.29.other: Multiple
+        Type Multiple
+        Local $call.19
+      goto bb30
+    bb32 inline.31.entry
+      assign $inline.31.result
+        Type Multiple
+        StructInit Multiple
+          Type Int
+          IntegerLiteral Int value=7 bits=0x00000007
+      goto bb31
+    bb33 inline.cont.33
+      val $argument.0: Boolean
+        Type Boolean
+        Local $inline.33.result
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn11 direct
+        Type Boolean
+        Local $parameter.value
+      val $equality.lhs: Multiple
+        Type Multiple
+        Local multiple
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $parameter.value: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $inline.31.value: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      goto bb32
+    bb34 inline.33.entry
+      val $inline.33.$dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Multiple
+          Local $inline.33.this
+      val $inline.33.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $inline.33.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      assign $inline.33.result
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $inline.33.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=7 bits=0x00000007
+      goto bb33
+    bb35 inline.cont.35
+      val multiple: Multiple
+        Type Multiple
+        Local $inline.35.result
+      val $inline.33.this: Multiple
+        Type Multiple
+        Local multiple
+      val $inline.33.other: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      goto bb34
+    bb36 inline.35.entry
+      assign $inline.35.result
+        Type Multiple
+        StructInit Multiple
+          Type Int
+          IntegerLiteral Int value=7 bits=0x00000007
+      goto bb35
+    bb37 inline.cont.37
+      val $call.16: Pair
+        Type Pair
+        Local $inline.37.result
+      call $call.17: Boolean = @fn3 direct
+        Type Pair
+        Local $equality.lhs
+        Type Pair
+        Local $call.16
+      val $argument.0: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $call.17
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn11 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Trace
+          Local trace
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn11 direct
+        Type Boolean
+        Local $parameter.value
+      field_set 0
+        Type Trace
+        Local trace
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $argument.0: Pair
+        Type Pair
+        Local left
+      val $parameter._1: Pair
+        Type Pair
+        Local $argument.0
+      val $equality.lhs: Tagged
+        Type Tagged
+        VariantConstruct Tagged v0
+          Type Pair
+          Local $parameter._1
+      val $argument.0: Traced
+        Type Traced
+        FieldAccess 0
+          Type Pair
+          Local left
+      val $parameter._1: Traced
+        Type Traced
+        Local $argument.0
+      call $call.18: Boolean = @fn10 direct
+        Type Tagged
+        Local $equality.lhs
+        Type Tagged
+        VariantConstruct Tagged v1
+          Type Traced
+          Local $parameter._1
+      val $argument.0: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $call.18
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn11 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Trace
+          Local trace
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          IntegerLiteral Int value=0 bits=0x00000000
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn11 direct
+        Type Boolean
+        Local $parameter.value
+      val $argument.0: Pair
+        Type Pair
+        Local left
+      val $parameter._1: Pair
+        Type Pair
+        Local $argument.0
+      val $equality.lhs: Tagged
+        Type Tagged
+        VariantConstruct Tagged v0
+          Type Pair
+          Local $parameter._1
+      val $argument.0: Pair
+        Type Pair
+        Local left
+      val $parameter._1: Pair
+        Type Pair
+        Local $argument.0
+      call $argument.0: Boolean = @fn10 direct
+        Type Tagged
+        Local $equality.lhs
+        Type Tagged
+        VariantConstruct Tagged v0
+          Type Pair
+          Local $parameter._1
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn11 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Trace
+          Local trace
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=12 bits=0x0000000c
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=12 bits=0x0000000c
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          IntegerLiteral Int value=12 bits=0x0000000c
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn11 direct
+        Type Boolean
+        Local $parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $parameter.value: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $inline.35.value: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      goto bb36
+    bb38 inline.37.entry
+      assign $inline.37.result
+        Type Pair
+        StructInit Pair
+          Type Traced
+          Local $inline.37.first
+          Type Traced
+          Local $inline.37.second
+      goto bb37
+    bb39 inline.cont.39
+      val $argument.1: Traced
+        Type Traced
+        Local $new.15
+      val $parameter.first: Traced
+        Type Traced
+        Local $argument.0
+      val $parameter.second: Traced
+        Type Traced
+        Local $argument.1
+      val $inline.37.first: Traced
+        Type Traced
+        Local $parameter.first
+      val $inline.37.second: Traced
+        Type Traced
+        Local $parameter.second
+      goto bb38
+    bb40 inline.39.entry
+      field_set 0
+        Type Traced
+        Local $inline.39.this
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      field_set 1
+        Type Traced
+        Local $inline.39.this
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      field_set 2
+        Type Traced
+        Local $inline.39.this
+        Type Trace
+        Local $inline.39.trace
+      goto bb39
+    bb41 inline.cont.41
+      val $argument.0: Traced
+        Type Traced
+        Local $new.14
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $argument.1: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $argument.2: Trace
+        Type Trace
+        Local trace
+      val $parameter.value: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $parameter.digit: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $parameter.trace: Trace
+        Type Trace
+        Local $argument.2
+      assign $new.15
+        Type Traced
+        ClassAlloc Traced
+      val $inline.39.this: Traced
+        Type Traced
+        Local $new.15
+      val $inline.39.value: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.39.digit: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.39.trace: Trace
+        Type Trace
+        Local $parameter.trace
+      goto bb40
+    bb42 inline.41.entry
+      field_set 0
+        Type Traced
+        Local $inline.41.this
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      field_set 1
+        Type Traced
+        Local $inline.41.this
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      field_set 2
+        Type Traced
+        Local $inline.41.this
+        Type Trace
+        Local $inline.41.trace
+      goto bb41
+    bb43 inline.cont.43
+      val $call.13: Pair
+        Type Pair
+        Local $inline.43.result
+      call $argument.0: Boolean = @fn3 direct
+        Type Pair
+        Local $equality.lhs
+        Type Pair
+        Local $call.13
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn11 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Trace
+          Local trace
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=12 bits=0x0000000c
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=12 bits=0x0000000c
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          IntegerLiteral Int value=12 bits=0x0000000c
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn11 direct
+        Type Boolean
+        Local $parameter.value
+      field_set 0
+        Type Trace
+        Local trace
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $equality.lhs: Pair
+        Type Pair
+        Local left
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $argument.1: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $argument.2: Trace
+        Type Trace
+        Local trace
+      val $parameter.value: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $parameter.digit: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.trace: Trace
+        Type Trace
+        Local $argument.2
+      assign $new.14
+        Type Traced
+        ClassAlloc Traced
+      val $inline.41.this: Traced
+        Type Traced
+        Local $new.14
+      val $inline.41.value: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $inline.41.digit: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.41.trace: Trace
+        Type Trace
+        Local $parameter.trace
+      goto bb42
+    bb44 inline.43.entry
+      assign $inline.43.result
+        Type Pair
+        StructInit Pair
+          Type Traced
+          Local $inline.43.first
+          Type Traced
+          Local $inline.43.second
+      goto bb43
+    bb45 inline.cont.45
+      val $argument.1: Traced
+        Type Traced
+        Local $new.12
+      val $parameter.first: Traced
+        Type Traced
+        Local $argument.0
+      val $parameter.second: Traced
+        Type Traced
+        Local $argument.1
+      val $inline.43.first: Traced
+        Type Traced
+        Local $parameter.first
+      val $inline.43.second: Traced
+        Type Traced
+        Local $parameter.second
+      goto bb44
+    bb46 inline.45.entry
+      field_set 0
+        Type Traced
+        Local $inline.45.this
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      field_set 1
+        Type Traced
+        Local $inline.45.this
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      field_set 2
+        Type Traced
+        Local $inline.45.this
+        Type Trace
+        Local $inline.45.trace
+      goto bb45
+    bb47 inline.cont.47
+      val $argument.0: Traced
+        Type Traced
+        Local $new.11
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $argument.1: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $argument.2: Trace
+        Type Trace
+        Local trace
+      val $parameter.value: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $parameter.digit: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $parameter.trace: Trace
+        Type Trace
+        Local $argument.2
+      assign $new.12
+        Type Traced
+        ClassAlloc Traced
+      val $inline.45.this: Traced
+        Type Traced
+        Local $new.12
+      val $inline.45.value: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.45.digit: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.45.trace: Trace
+        Type Trace
+        Local $parameter.trace
+      goto bb46
+    bb48 inline.47.entry
+      field_set 0
+        Type Traced
+        Local $inline.47.this
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      field_set 1
+        Type Traced
+        Local $inline.47.this
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      field_set 2
+        Type Traced
+        Local $inline.47.this
+        Type Trace
+        Local $inline.47.trace
+      goto bb47
+    bb49 inline.cont.49
+      val left: Pair
+        Type Pair
+        Local $inline.49.result
+      val $equality.lhs: Pair
+        Type Pair
+        Local left
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $argument.1: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $argument.2: Trace
+        Type Trace
+        Local trace
+      val $parameter.value: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.digit: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.trace: Trace
+        Type Trace
+        Local $argument.2
+      assign $new.11
+        Type Traced
+        ClassAlloc Traced
+      val $inline.47.this: Traced
+        Type Traced
+        Local $new.11
+      val $inline.47.value: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.47.digit: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.47.trace: Trace
+        Type Trace
+        Local $parameter.trace
+      goto bb48
+    bb50 inline.49.entry
+      assign $inline.49.result
+        Type Pair
+        StructInit Pair
+          Type Traced
+          Local $inline.49.first
+          Type Traced
+          Local $inline.49.second
+      goto bb49
+    bb51 inline.cont.51
+      val $argument.1: Traced
+        Type Traced
+        Local $new.10
+      val $parameter.first: Traced
+        Type Traced
+        Local $argument.0
+      val $parameter.second: Traced
+        Type Traced
+        Local $argument.1
+      val $inline.49.first: Traced
+        Type Traced
+        Local $parameter.first
+      val $inline.49.second: Traced
+        Type Traced
+        Local $parameter.second
+      goto bb50
+    bb52 inline.51.entry
+      field_set 0
+        Type Traced
+        Local $inline.51.this
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      field_set 1
+        Type Traced
+        Local $inline.51.this
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      field_set 2
+        Type Traced
+        Local $inline.51.this
+        Type Trace
+        Local $inline.51.trace
+      goto bb51
+    bb53 inline.cont.53
+      val $argument.0: Traced
+        Type Traced
+        Local $new.9
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $argument.1: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $argument.2: Trace
+        Type Trace
+        Local trace
+      val $parameter.value: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $parameter.digit: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $parameter.trace: Trace
+        Type Trace
+        Local $argument.2
+      assign $new.10
+        Type Traced
+        ClassAlloc Traced
+      val $inline.51.this: Traced
+        Type Traced
+        Local $new.10
+      val $inline.51.value: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.51.digit: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.51.trace: Trace
+        Type Trace
+        Local $parameter.trace
+      goto bb52
+    bb54 inline.53.entry
+      field_set 0
+        Type Traced
+        Local $inline.53.this
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      field_set 1
+        Type Traced
+        Local $inline.53.this
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      field_set 2
+        Type Traced
+        Local $inline.53.this
+        Type Trace
+        Local $inline.53.trace
+      goto bb53
+    bb55 inline.cont.55
+      val trace: Trace
+        Type Trace
+        Local $new.8
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $argument.1: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $argument.2: Trace
+        Type Trace
+        Local trace
+      val $parameter.value: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.digit: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.trace: Trace
+        Type Trace
+        Local $argument.2
+      assign $new.9
+        Type Traced
+        ClassAlloc Traced
+      val $inline.53.this: Traced
+        Type Traced
+        Local $new.9
+      val $inline.53.value: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.53.digit: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.53.trace: Trace
+        Type Trace
+        Local $parameter.trace
+      goto bb54
+    bb56 inline.55.entry
+      field_set 0
+        Type Trace
+        Local $inline.55.this
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      goto bb55
+    bb57 inline.cont.57
+      val $call.7: Boolean
+        Type Boolean
+        Local $inline.57.result
+      val $argument.0: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $call.7
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn11 direct
+        Type Boolean
+        Local $parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $parameter.order: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      assign $new.8
+        Type Trace
+        ClassAlloc Trace
+      val $inline.55.this: Trace
+        Type Trace
+        Local $new.8
+      val $inline.55.order: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      goto bb56
+    bb58 inline.57.entry
+      val $inline.87.this: Base
+        Type Base
+        Retype Base
+          Type Child
+          FieldAccess 0
+            Type Inherited
+            Local $inline.57.this
+      val $inline.87.other: Base
+        Type Base
+        Retype Base
+          Type Child
+          FieldAccess 0
+            Type Inherited
+            Local $inline.57.other
+      goto bb88
+    bb59 inline.cont.59
+      val $call.6: Inherited
+        Type Inherited
+        Local $inline.59.result
+      val $inline.57.this: Inherited
+        Type Inherited
+        Local $equality.lhs
+      val $inline.57.other: Inherited
+        Type Inherited
+        Local $call.6
+      goto bb58
+    bb60 inline.59.entry
+      assign $inline.59.result
+        Type Inherited
+        StructInit Inherited
+          Type Child
+          Local $inline.59.child
+      goto bb59
+    bb61 inline.cont.61
+      val $argument.0: Child
+        Type Child
+        Local $new.5
+      val $parameter.child: Child
+        Type Child
+        Local $argument.0
+      val $inline.59.child: Child
+        Type Child
+        Local $parameter.child
+      goto bb60
+    bb62 inline.61.entry
+      val $inline.61.$argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.61.$parameter.key: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.85.this: Base
+        Type Base
+        Retype Base
+          Type Child
+          Local $inline.61.this
+      val $inline.85.key: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      goto bb86
+    bb63 inline.cont.63
+      val $equality.lhs: Inherited
+        Type Inherited
+        Local $inline.63.result
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+      val $argument.1: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $parameter.detail: Int
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+      val $parameter.key: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      assign $new.5
+        Type Child
+        ClassAlloc Child
+      val $inline.61.this: Child
+        Type Child
+        Local $new.5
+      val $inline.61.detail: Int
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+      val $inline.61.key: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      goto bb62
+    bb64 inline.63.entry
+      assign $inline.63.result
+        Type Inherited
+        StructInit Inherited
+          Type Child
+          Local $inline.63.child
+      goto bb63
+    bb65 inline.cont.65
+      val $argument.0: Child
+        Type Child
+        Local $new.4
+      val $parameter.child: Child
+        Type Child
+        Local $argument.0
+      val $inline.63.child: Child
+        Type Child
+        Local $parameter.child
+      goto bb64
+    bb66 inline.65.entry
+      val $inline.65.$argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.65.$parameter.key: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.83.this: Base
+        Type Base
+        Retype Base
+          Type Child
+          Local $inline.65.this
+      val $inline.83.key: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      goto bb84
+    bb67 inline.cont.67
+      val $argument.0: Boolean
+        Type Boolean
+        Local $inline.67.result
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn11 direct
+        Type Boolean
+        Local $parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+      val $argument.1: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.detail: Int
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+      val $parameter.key: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      assign $new.4
+        Type Child
+        ClassAlloc Child
+      val $inline.65.this: Child
+        Type Child
+        Local $new.4
+      val $inline.65.detail: Int
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+      val $inline.65.key: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      goto bb66
+    bb68 inline.67.entry
+      val $inline.81.this: Base
+        Type Base
+        Retype Base
+          Type Child
+          FieldAccess 0
+            Type Inherited
+            Local $inline.67.this
+      val $inline.81.other: Base
+        Type Base
+        Retype Base
+          Type Child
+          FieldAccess 0
+            Type Inherited
+            Local $inline.67.other
+      goto bb82
+    bb69 inline.cont.69
+      val $call.3: Inherited
+        Type Inherited
+        Local $inline.69.result
+      val $inline.67.this: Inherited
+        Type Inherited
+        Local $equality.lhs
+      val $inline.67.other: Inherited
+        Type Inherited
+        Local $call.3
+      goto bb68
+    bb70 inline.69.entry
+      assign $inline.69.result
+        Type Inherited
+        StructInit Inherited
+          Type Child
+          Local $inline.69.child
+      goto bb69
+    bb71 inline.cont.71
+      val $argument.0: Child
+        Type Child
+        Local $new.2
+      val $parameter.child: Child
+        Type Child
+        Local $argument.0
+      val $inline.69.child: Child
+        Type Child
+        Local $parameter.child
+      goto bb70
+    bb72 inline.71.entry
+      val $inline.71.$argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.71.$parameter.key: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.79.this: Base
+        Type Base
+        Retype Base
+          Type Child
+          Local $inline.71.this
+      val $inline.79.key: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      goto bb80
+    bb73 inline.cont.73
+      val $equality.lhs: Inherited
+        Type Inherited
+        Local $inline.73.result
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=20 bits=0x00000014
+      val $argument.1: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.detail: Int
+        Type Int
+        IntegerLiteral Int value=20 bits=0x00000014
+      val $parameter.key: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      assign $new.2
+        Type Child
+        ClassAlloc Child
+      val $inline.71.this: Child
+        Type Child
+        Local $new.2
+      val $inline.71.detail: Int
+        Type Int
+        IntegerLiteral Int value=20 bits=0x00000014
+      val $inline.71.key: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      goto bb72
+    bb74 inline.73.entry
+      assign $inline.73.result
+        Type Inherited
+        StructInit Inherited
+          Type Child
+          Local $inline.73.child
+      goto bb73
+    bb75 inline.cont.75
+      val $argument.0: Child
+        Type Child
+        Local $new.1
+      val $parameter.child: Child
+        Type Child
+        Local $argument.0
+      val $inline.73.child: Child
+        Type Child
+        Local $parameter.child
+      goto bb74
+    bb76 inline.75.entry
+      val $inline.75.$argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.75.$parameter.key: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.77.this: Base
+        Type Base
+        Retype Base
+          Type Child
+          Local $inline.75.this
+      val $inline.77.key: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      goto bb78
+    bb77 inline.cont.77
+      field_set 1
+        Type Child
+        Local $inline.75.this
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+      goto bb75
+    bb78 inline.77.entry
+      field_set 0
+        Type Base
+        Local $inline.77.this
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      goto bb77
+    bb79 inline.cont.79
+      field_set 1
+        Type Child
+        Local $inline.71.this
+        Type Int
+        IntegerLiteral Int value=20 bits=0x00000014
+      goto bb71
+    bb80 inline.79.entry
+      field_set 0
+        Type Base
+        Local $inline.79.this
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      goto bb79
+    bb81 inline.cont.81
+      val $inline.67.$call.1: Boolean
+        Type Boolean
+        Local $inline.81.result
+      assign $inline.67.result
+        Type Boolean
+        Local $inline.67.$call.1
+      goto bb67
+    bb82 inline.81.entry
+      val $inline.81.$dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Base
+          Local $inline.81.this
+      val $inline.81.$dependency.argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type Base
+          Local $inline.81.other
+      val $inline.81.$dependency.parameter.other: Int
+        Type Int
+        Local $inline.81.$dependency.argument.0
+      assign $inline.81.result
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $inline.81.$dependency.receiver
+          Type Int
+          Local $inline.81.$dependency.parameter.other
+      goto bb81
+    bb83 inline.cont.83
+      field_set 1
+        Type Child
+        Local $inline.65.this
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+      goto bb65
+    bb84 inline.83.entry
+      field_set 0
+        Type Base
+        Local $inline.83.this
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      goto bb83
+    bb85 inline.cont.85
+      field_set 1
+        Type Child
+        Local $inline.61.this
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+      goto bb61
+    bb86 inline.85.entry
+      field_set 0
+        Type Base
+        Local $inline.85.this
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      goto bb85
+    bb87 inline.cont.87
+      val $inline.57.$call.1: Boolean
+        Type Boolean
+        Local $inline.87.result
+      assign $inline.57.result
+        Type Boolean
+        Local $inline.57.$call.1
+      goto bb57
+    bb88 inline.87.entry
+      val $inline.87.$dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Base
+          Local $inline.87.this
+      val $inline.87.$dependency.argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type Base
+          Local $inline.87.other
+      val $inline.87.$dependency.parameter.other: Int
+        Type Int
+        Local $inline.87.$dependency.argument.0
+      assign $inline.87.result
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $inline.87.$dependency.receiver
+          Type Int
+          Local $inline.87.$dependency.parameter.other
+      goto bb87
+    bb89 inline.cont.89
+      val $inline.19.$call.1: Boolean
+        Type Boolean
+        Local $inline.89.result
+      assign $inline.19.result
+        Type Boolean
+        Local $inline.19.$call.1
+      goto bb19
+    bb90 inline.89.entry
+      val $inline.89.$dependency.local.2: Ptr<UInt8>
+        Type Ptr<UInt8>
+        Local $inline.89.this
+      val $inline.89.$dependency.local.4: ULong
+        Type ULong
+        PtrToULong
+          Type Ptr<UInt8>
+          Local $inline.89.$dependency.local.2
+      val $inline.89.$dependency.local.3: Ptr<UInt8>
+        Type Ptr<UInt8>
+        Local $inline.89.other
+      assign $inline.89.result
+        Type Boolean
+        IntegerCompare equal operands=ULong result=Boolean
+          Type ULong
+          Local $inline.89.$dependency.local.4
+          Type ULong
+          PtrToULong
+            Type Ptr<UInt8>
+            Local $inline.89.$dependency.local.3
+      goto bb89
+    bb91 inline.cont.91
+      val $inline.15.$call.1: Boolean
+        Type Boolean
+        Local $inline.91.result
+      assign $inline.15.result
+        Type Boolean
+        Local $inline.15.$call.1
+      goto bb15
+    bb92 inline.91.entry
+      val $inline.91.$dependency.local.2: Ptr<UInt8>
+        Type Ptr<UInt8>
+        Local $inline.91.this
+      val $inline.91.$dependency.local.4: ULong
+        Type ULong
+        PtrToULong
+          Type Ptr<UInt8>
+          Local $inline.91.$dependency.local.2
+      val $inline.91.$dependency.local.3: Ptr<UInt8>
+        Type Ptr<UInt8>
+        Local $inline.91.other
+      assign $inline.91.result
+        Type Boolean
+        IntegerCompare equal operands=ULong result=Boolean
+          Type ULong
+          Local $inline.91.$dependency.local.4
+          Type ULong
+          PtrToULong
+            Type Ptr<UInt8>
+            Local $inline.91.$dependency.local.3
+      goto bb91
+    bb93 inline.cont.93
+      val $inline.13.$call.1: Boolean
+        Type Boolean
+        Local $inline.93.result
+      assign $inline.13.result
+        Type Boolean
+        Local $inline.13.$call.1
+      goto bb13
+    bb94 inline.93.entry
+      val $inline.93.$dependency.local.2: Ptr<UInt8>
+        Type Ptr<UInt8>
+        Local $inline.93.this
+      val $inline.93.$dependency.local.4: ULong
+        Type ULong
+        PtrToULong
+          Type Ptr<UInt8>
+          Local $inline.93.$dependency.local.2
+      val $inline.93.$dependency.local.3: Ptr<UInt8>
+        Type Ptr<UInt8>
+        Local $inline.93.other
+      assign $inline.93.result
+        Type Boolean
+        IntegerCompare equal operands=ULong result=Boolean
+          Type ULong
+          Local $inline.93.$dependency.local.4
+          Type ULong
+          PtrToULong
+            Type Ptr<UInt8>
+            Local $inline.93.$dependency.local.3
+      goto bb93
+  fun println @fn13(value: String) -> Unit
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local value
+      call $dependency.local.2: String = external1 direct
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external2 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str2
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external2 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun init.Base.$c1 @fn14(this: Base, key: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Base
+        Local this
+        Type Int
+        Local key
+      return
+  fun init.Child.$c2 @fn15(this: Child, detail: Int, key: Int) -> Unit
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        Local key
+      val $parameter.key: Int
+        Type Int
+        Local $argument.0
+      val $inline.1.this: Base
+        Type Base
+        Retype Base
+          Type Child
+          Local this
+      val $inline.1.key: Int
+        Type Int
+        Local $parameter.key
+      goto bb2
+    bb1 inline.cont.1
+      field_set 1
+        Type Child
+        Local this
+        Type Int
+        Local detail
+      return
+    bb2 inline.1.entry
+      field_set 0
+        Type Base
+        Local $inline.1.this
+        Type Int
+        Local $inline.1.key
+      goto bb1
+  fun init.Trace.$c0 @fn16(this: Trace, order: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Trace
+        Local this
+        Type Int
+        Local order
+      return
+  fun init.Traced.$c3 @fn17(this: Traced, value: Int, digit: Int, trace: Trace) -> Unit
+    bb0 entry
+      field_set 0
+        Type Traced
+        Local this
+        Type Int
+        Local value
+      field_set 1
+        Type Traced
+        Local this
+        Type Int
+        Local digit
+      field_set 2
+        Type Traced
+        Local this
+        Type Trace
+        Local trace
+      return
+  fun ctor.Inherited.$c0 @fn18(child: Child) -> Inherited <no-gc>
+    bb0 entry
+      return
+        Type Inherited
+        StructInit Inherited
+          Type Child
+          Local child
+  fun ctor.Pair.$c1 @fn19(first: Traced, second: Traced) -> Pair <no-gc>
+    bb0 entry
+      return
+        Type Pair
+        StructInit Pair
+          Type Traced
+          Local first
+          Type Traced
+          Local second
+  fun ctor.Multiple.$c2 @fn20(value: Int) -> Multiple <no-gc>
+    bb0 entry
+      return
+        Type Multiple
+        StructInit Multiple
+          Type Int
+          Local value
+  fun ctor.Raw.$c3 @fn21(pointer: Ptr<UInt8>) -> Raw <no-gc>
+    bb0 entry
+      return
+        Type Raw
+        StructInit Raw
+          Type Ptr<UInt8>
+          Local pointer
+  fun ctor.NativeWord.$c4 @fn22(value: Int) -> NativeWord <no-gc>
+    bb0 entry
+      return
+        Type NativeWord
+        StructInit NativeWord
+          Type Int
+          Local value
+  instance mi0 function=@fn6 <- equalTo
+  instance mi1 function=@fn8 <- equals
+  instance mi2 function=@fn13 <- println
+  str @str0 "illegal state"
+  str @str1 "derived field semantics"
+  str @str2 "\n"
+  output executable @fn12

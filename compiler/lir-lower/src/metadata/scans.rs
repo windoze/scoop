@@ -73,6 +73,12 @@ pub(crate) fn ref_scan(
             lir::RefScan::None
         }
         mir::Type::Struct(id) => {
+            if let mir::StructRepresentation::Intrinsic(
+                mir::IntrinsicTypeRepresentation::MaybeUninit { value },
+            ) = &module.structs[*id].representation
+            {
+                return ref_scan(context, module, enums, value, base);
+            }
             let fields: Vec<mir::Type> = module.structs[*id]
                 .declared_fields()
                 .iter()
@@ -93,11 +99,11 @@ pub(crate) fn ref_scan(
         }
         mir::Type::Enum(id, _) => match &enums[enum_def_id(*id)].repr {
             lir::EnumRepr::Niche {
-                kind: lir::NichePointerKind::Managed,
+                kind: lir::NullNicheKind::Managed | lir::NullNicheKind::Interface,
                 ..
             } => lir::RefScan::References(vec![base]),
             lir::EnumRepr::Niche {
-                kind: lir::NichePointerKind::Raw | lir::NichePointerKind::Code,
+                kind: lir::NullNicheKind::Raw | lir::NullNicheKind::Code,
                 ..
             } => lir::RefScan::None,
             lir::EnumRepr::Tagged { variants, .. } => sequence(

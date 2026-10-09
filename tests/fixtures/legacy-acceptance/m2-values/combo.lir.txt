@@ -207,9 +207,9 @@ Module
   td td6 n(c=scoop%3Asingle-file%3A0.0.0;p=;o=-;k=S;x=Tagged) @scoop$1$td$ff669aac4a09c51eb32d1e24ce55f4d45881f510ea92f93180265b24da5dc678 type-id=3147387033755242211 shape=BoxedValue minimum-size=40 align=8 parent=none vtable=[] itables=[]
   layout Tagged size=24 align=8 refs=[0, 16]
   layout Option size=16 align=8 enum-scan=none
-  layout Equality value size=8 align=8 refs=[0]
-  layout Equality value size=8 align=8 refs=[0]
-  layout Iterable value size=8 align=8 refs=[0]
-  layout Iterator value size=8 align=8 refs=[0]
-  layout Equality value size=8 align=8 refs=[0]
+  layout Equality value size=16 align=8 refs=[0]
+  layout Equality value size=16 align=8 refs=[0]
+  layout Iterable value size=16 align=8 refs=[0]
+  layout Iterator value size=16 align=8 refs=[0]
+  layout Equality value size=16 align=8 refs=[0]
   output executable @scoop$1$cb$a59ba8328a87a3c09df1111305261ccbca23796630e0ce6dea24e3ae106f48ca

@@ -328,7 +328,7 @@ fn install_generated_callables(module: &mut Module) {
             point.identity().failure().signature_record().subject(),
         );
     }
-    for adjust in &module.meta.boxing_adjusts {
+    for adjust in &module.meta.interface_adjusts {
         register(
             adjust.function(),
             adjust.identity().callable_record(),
@@ -392,7 +392,7 @@ fn install_callable_signatures(module: &mut Module) {
         register(point.identity().success().signature_record());
         register(point.identity().failure().signature_record());
     }
-    for adjust in &module.meta.boxing_adjusts {
+    for adjust in &module.meta.interface_adjusts {
         register(adjust.identity().signature_record());
     }
     for (_, coroutine) in module.meta.coroutine_functions.iter() {

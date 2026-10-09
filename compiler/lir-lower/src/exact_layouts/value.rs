@@ -11,6 +11,10 @@ impl Projection<'_> {
         use mir::{MirParamFreeIntrinsicV1 as Intrinsic, MirTypeRepresentationV1 as Kind};
         let foundation = self.output.foundation();
         Ok(match source.representation() {
+            Kind::MaybeUninit { value } => {
+                let payload = self.value_dependency(*value)?;
+                lir::ExactValueLayoutV1::maybe_uninit(identity, &payload, foundation)?
+            }
             Kind::Intrinsic(Intrinsic::Unit) => {
                 lir::ExactValueLayoutV1::unit(identity, foundation)?
             }
@@ -45,14 +49,14 @@ impl Projection<'_> {
             | Kind::Class { .. }
             | Kind::InlineArray { .. }
             | Kind::AtomicReference { .. }
-            | Kind::Interface
             | Kind::Object { .. }
             | Kind::ObjectBacking { .. }
             | Kind::BoxedValue { .. } => lir::ExactValueLayoutV1::qualified_pointer(
                 identity,
-                lir::NichePointerKind::Managed,
+                lir::NullNicheKind::Managed,
                 foundation,
             )?,
+            Kind::Interface => lir::ExactValueLayoutV1::interface(identity, foundation)?,
             Kind::Struct {
                 fields,
                 c_layout,

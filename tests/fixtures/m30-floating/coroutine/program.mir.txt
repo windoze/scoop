@@ -1495,8 +1495,10 @@ Module
       call $step.1: CoroutineStep<Float> = @fn4 direct
         Type Gate<Float>
         Local $parameter.gate
-        Type CoroutineAdapter<Task.run>$1
-        Local $adapter.1
+        Type Continuation<Float>
+        Retype Continuation<Float>
+          Type CoroutineAdapter<Task.run>$1
+          Local $adapter.1
       branch bb25 bb26
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -1827,8 +1829,10 @@ Module
       call $step.2: CoroutineStep<Double> = @fn5 direct
         Type Gate<Double>
         Local $parameter.gate
-        Type CoroutineAdapter<Task.run>$2
-        Local $adapter.2
+        Type Continuation<Double>
+        Retype Continuation<Double>
+          Type CoroutineAdapter<Task.run>$2
+          Local $adapter.2
       branch bb17 bb18
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -2741,8 +2745,10 @@ Module
       call @fn24 interface SuspendRegistration<Float>[0]
         Type SuspendRegistration<Float>
         Local $dependency.parameter.registration
-        Type CoroutineAdapter<awaitSingle>$1
-        Local $safe_adapter.1
+        Type Continuation<Float>
+        Retype Continuation<Float>
+          Type CoroutineAdapter<awaitSingle>$1
+          Local $safe_adapter.1
       goto bb14
     bb3 coroutine.registered_success.1
       atomic_store_release kind=coroutine-adapter-state field=1
@@ -3499,8 +3505,10 @@ Module
       call @fn27 interface SuspendRegistration<Double>[0]
         Type SuspendRegistration<Double>
         Local $dependency.parameter.registration
-        Type CoroutineAdapter<awaitWide>$1
-        Local $safe_adapter.1
+        Type Continuation<Double>
+        Retype Continuation<Double>
+          Type CoroutineAdapter<awaitWide>$1
+          Local $safe_adapter.1
       goto bb14
     bb3 coroutine.registered_success.1
       atomic_store_release kind=coroutine-adapter-state field=1

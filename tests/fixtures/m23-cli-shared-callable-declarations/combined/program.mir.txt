@@ -6,7 +6,7 @@ Module
   class IllegalStateException vtable=0 itables=0
   class Exception vtable=0 itables=0
   class Throwable vtable=0 itables=0
-  class Service vtable=1 itables=1
+  class Service vtable=1 itables=0
   class Base vtable=1 itables=0
   class Cache vtable=0 itables=0
   interface Contract

@@ -27,7 +27,7 @@ Module
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
     t0 = heap_load param0 +24 : ptr<managed>
     ret t0
-  fun @scoop$1$cb$40f440966d6e4eb857247d389be55dee8f5c2acdc41a1c8af32f2118a1b66aa8(ptr<managed>) -> ptr<managed>
+  fun @scoop$1$cb$40f440966d6e4eb857247d389be55dee8f5c2acdc41a1c8af32f2118a1b66aa8(parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>) -> ptr<managed>
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     br @unwrap.trap.1
@@ -58,7 +58,7 @@ Module
   td td5 n(c=test%3Ascoop-hir-lower%3A0.0.0;p=;o=-;k=S;x=Packet) @scoop$1$td$de8b640231850ed869192b5fe39080c8cba124f39bf6d4cbe528c7bcd1ae7d31 type-id=7964248508795504848 shape=BoxedValue minimum-size=32 align=8 parent=none vtable=[] itables=[]
   layout Packet size=16 align=8 refs=[8]
   layout Envelope size=24 align=8 enum-scan=refs[16]
-  layout Reader value size=8 align=8 refs=[0]
+  layout Reader value size=16 align=8 refs=[0]
   layout Cell value size=8 align=8 refs=[0]
   layout Cell size=40 align=8 refs=[32]
   layout $Closure$lambda0 value size=8 align=8 refs=[0]

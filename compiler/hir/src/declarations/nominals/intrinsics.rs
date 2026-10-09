@@ -16,6 +16,7 @@ pub enum IntrinsicTypeKind {
     Any,
     Nothing,
     Atomic(AtomicValueKind),
+    MaybeUninit,
 }
 
 impl IntrinsicTypeKind {
@@ -37,6 +38,7 @@ impl IntrinsicTypeKind {
             Self::Atomic(AtomicValueKind::Long) => "core_atomic_long",
             Self::Atomic(AtomicValueKind::Boolean) => "core_atomic_boolean",
             Self::Atomic(AtomicValueKind::Reference) => "core_atomic_ref",
+            Self::MaybeUninit => "core_maybe_uninit",
         }
     }
 
@@ -55,6 +57,7 @@ impl IntrinsicTypeKind {
             Self::Any => "Any",
             Self::Nothing => "Nothing",
             Self::Atomic(kind) => kind.source_name(),
+            Self::MaybeUninit => "MaybeUninit",
         }
     }
 
@@ -66,6 +69,7 @@ impl IntrinsicTypeKind {
             | Self::Float(_)
             | Self::Char
             | Self::Ptr
+            | Self::MaybeUninit
             | Self::FunPtr => IntrinsicTypeTarget::Struct,
             Self::String
             | Self::Array
@@ -90,7 +94,9 @@ impl IntrinsicTypeKind {
                 AtomicValueKind::Int | AtomicValueKind::Long | AtomicValueKind::Boolean,
             ) => IntrinsicTypeParameters::None,
             Self::Atomic(AtomicValueKind::Reference) => IntrinsicTypeParameters::OneInvariantRef,
-            Self::Array | Self::MutableArray => IntrinsicTypeParameters::OneInvariantUnconstrained,
+            Self::Array | Self::MutableArray | Self::MaybeUninit => {
+                IntrinsicTypeParameters::OneInvariantUnconstrained
+            }
             Self::Ptr => IntrinsicTypeParameters::OneInvariantValue,
             Self::FunPtr => IntrinsicTypeParameters::OneInvariantUnconstrained,
         }
@@ -119,6 +125,9 @@ impl IntrinsicTypeKind {
                 IntrinsicTypeRepresentation::Atomic(AtomicStorage::Reference(*value))
             }
             (Self::Array, [element]) => IntrinsicTypeRepresentation::Array { element: *element },
+            (Self::MaybeUninit, [value]) => {
+                IntrinsicTypeRepresentation::MaybeUninit { value: *value }
+            }
             (Self::MutableArray, [element]) => {
                 IntrinsicTypeRepresentation::MutableArray { element: *element }
             }
@@ -135,6 +144,7 @@ impl IntrinsicTypeKind {
 /// family variants contain their concrete element type directly.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum IntrinsicTypeRepresentation {
+    MaybeUninit { value: TypeId },
     Atomic(AtomicStorage<TypeId>),
     Unit,
     Integer(IntegerKind),

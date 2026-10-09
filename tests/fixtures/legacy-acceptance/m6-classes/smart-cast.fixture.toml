@@ -14,7 +14,7 @@ stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-checks = [{"file" = "${work}/dump/${build.result.root.identity}/ast.txt", "snapshot" = "smart-cast.ast.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/hir.txt", "snapshot" = "smart-cast.hir.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/mir.txt", "snapshot" = "smart-cast.mir.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/lir.txt", "snapshot" = "smart-cast.lir.txt"}]
+checks = [{"file" = "${work}/dump/${build.result.root.identity}/ast.txt", "snapshot" = "smart-cast.ast.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/hir.txt", "snapshot" = "smart-cast.hir.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/mir.txt", "snapshot" = "smart-cast.mir.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/lir.txt", "snapshot" = "smart-cast.${target}.lir.txt"}]
 
 [[steps]]
 name = "run"

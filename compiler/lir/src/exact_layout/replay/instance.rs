@@ -57,7 +57,8 @@ impl ExactInstanceLayoutV1 {
         require_roles(&payload.identity, &[RepresentationRole::ManagedValue])?;
         if matches!(
             payload.representation.kind(),
-            ExactRepresentationKindV1::QualifiedPointer(crate::NichePointerKind::Managed)
+            ExactRepresentationKindV1::QualifiedPointer(crate::NullNicheKind::Managed)
+                | ExactRepresentationKindV1::Interface
         ) {
             return Err(ExactLayoutReplayError::BoxPayloadKind);
         }

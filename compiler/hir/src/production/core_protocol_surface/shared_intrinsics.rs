@@ -20,8 +20,11 @@ impl CoreCompilerProtocolSurfaceV1 {
         {
             return Err(IntrinsicCallableContractError::CallableKind(kind));
         }
-        if matches!(kind, IntrinsicFunctionKind::Atomic(_)) {
-            // Atomic owners and MemoryOrder are ordinary nominal declarations,
+        if matches!(
+            kind,
+            IntrinsicFunctionKind::Atomic(_) | IntrinsicFunctionKind::MaybeUninit(_)
+        ) {
+            // Atomic and MaybeUninit owners are ordinary nominal declarations,
             // not members of the fixed bootstrap protocol surface.
             return Ok(());
         }

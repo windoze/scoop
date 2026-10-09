@@ -1,6 +1,6 @@
 Module
   enum Signal tagged size=8 align=8 variants=()@8+0 ()@8+0
-  fun @scoop$1$cb$4a13af2f6cace4ade35e94aaebb31833ac629d6d3261fd3b49d1e8f2f00e8f5c(indirect<enum0 size=8 align=8 scan=none>) -> i32
+  fun @scoop$1$cb$4a13af2f6cace4ade35e94aaebb31833ac629d6d3261fd3b49d1e8f2f00e8f5c(parts<enum0 [i64@0+8/8]>) -> i32
     local %0 Raedy: enum0
     local %1 $result.0: i32
     local %2 $when.1: enum0

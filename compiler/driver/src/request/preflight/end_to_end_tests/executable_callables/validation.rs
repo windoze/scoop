@@ -29,12 +29,12 @@ pub(super) fn check_machine_input(request: SingleConeBuildRequest, selected_coun
             .is_empty(),
     );
     assert_eq!(projected.len(), selected_count + initialization_count);
-    scoop_mir_lower::lower_current_cone(&hir.hir, projected).unwrap();
+    scoop_mir_lower::lower_current_cone(&hir.hir, projected, Default::default()).unwrap();
     if selected_count != 0 {
         let consumer = hir.hir.output().local.module().cone;
         let missing = scoop_mir::SelectedExternalMirSet::empty(consumer);
         assert!(matches!(
-            scoop_mir_lower::lower_current_cone(&hir.hir, missing),
+            scoop_mir_lower::lower_current_cone(&hir.hir, missing, Default::default()),
             Err(scoop_mir_lower::CurrentConeMirLoweringError::MissingDependencyMirCallable { .. })
         ));
     }

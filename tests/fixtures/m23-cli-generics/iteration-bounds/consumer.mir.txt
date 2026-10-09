@@ -2066,32 +2066,32 @@ Module
         StructInit Direct<DiamondCursor<Int>>
           Type DiamondCursor<Int>
           Local value
-  fun thunk<LocalValue<Int>> Iterator.next() @fn57(this: Iterator<Int>) -> Option<Int>
+  fun thunk<LocalValue<Int>> Iterator.next() @fn57(this: box<LocalValue<Int>>) -> Option<Int>
     bb0 entry
       call $call.1: Option<Int> = @fn6 direct
         Type LocalValue<Int>
         Unbox
-          Type Iterator<Int>
+          Type box<LocalValue<Int>>
           Local this
       return
         Type Option<Int>
         Local $call.1
-  fun thunk<ValueCursor<Int>> Iterator.next() @fn58(this: Iterator<Int>) -> Option<Int>
+  fun thunk<ValueCursor<Int>> Iterator.next() @fn58(this: box<ValueCursor<Int>>) -> Option<Int>
     bb0 entry
       call $call.1: Option<Int> = @fn22 direct
         Type ValueCursor<Int>
         Unbox
-          Type Iterator<Int>
+          Type box<ValueCursor<Int>>
           Local this
       return
         Type Option<Int>
         Local $call.1
-  fun thunk<EnumCursor<Int>> Iterator.next() @fn59(this: Iterator<Int>) -> Option<Int>
+  fun thunk<EnumCursor<Int>> Iterator.next() @fn59(this: box<EnumCursor<Int>>) -> Option<Int>
     bb0 entry
       call $call.1: Option<Int> = @fn23 direct
         Type EnumCursor<Int>
         Unbox
-          Type Iterator<Int>
+          Type box<EnumCursor<Int>>
           Local this
       return
         Type Option<Int>

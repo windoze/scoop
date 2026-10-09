@@ -5,8 +5,8 @@ Module
     local %2 $dependency.argument.0: ptr<managed>
     local %3 $dependency.parameter.reference: ptr<managed>
     local %4 input: struct0
-    local %5 echo: ptr<managed>
-    local %6 $dependency.receiver: ptr<managed>
+    local %5 echo: interface{object,itab}
+    local %6 $dependency.receiver: interface{object,itab}
     local %7 $dependency.argument.0: struct0
     local %8 $dependency.parameter.value: struct0
     local %9 $new.1: ptr<managed>
@@ -29,15 +29,18 @@ Module
     store local11 -> local4
     store local4 -> local12
     t2 = box_value external-td5, local12 scan=refs[0] sp<managed-call:2> live=[local4:struct0@0, local12:struct0@0]
-    store t2 -> local5
+    t3 = heap_load external-td5 +96 : ptr<metadata>
+    t4 = heap_load t3 +8 : ptr<metadata>
+    t5 = aggregate (t2, t4) : interface{object,itab}
+    store t5 -> local5
     store local5 -> local6
     store local4 -> local7
     store local7 -> local8
-    t3 = heap_load local6 +0 : ptr<metadata>
-    call no-gc-direct-target0 t4 = sig=direct1 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t3, external-td6)
+    t6 = extract local6, 1 : ptr<metadata>
+    t7 = extract local6, 0 : ptr<managed>
     store local8 -> local13
-    call managed-indirect-target0 sp<managed-call:3> live=[local6:ptr<managed>@0, local13:struct0@0] local14 = sig=indirect1 (sret struct0 size=8 align=8 scan=refs[0], ptr<managed>, indirect<struct0 size=8 align=8 scan=refs[0]>) dispatch[Interface:0] t4(local6, indirect local13)
+    call managed-indirect-target0 sp<managed-call:3> live=[local13:struct0@0, t7:ptr<managed>@0] local14 = sig=indirect1 (sret struct0 size=8 align=8 scan=refs[0], ptr<managed>, indirect<struct0 size=8 align=8 scan=refs[0]>) dispatch[Interface:0] t6(t7, indirect local13)
     store local14 -> local10
-    t5 = extract local10, 0 : ptr<managed>
-    ret t5
+    t8 = extract local10, 0 : ptr<managed>
+    ret t8
   output library

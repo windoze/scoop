@@ -12,7 +12,7 @@ Module
   enum Option<Int8>
     Some(_0: Int8)
     None()
-  class Companion vtable=0 itables=2
+  class Companion vtable=0 itables=0
   class ListIterator<Int8> vtable=0 itables=1
   class IndexOutOfBoundsException vtable=0 itables=0
   class Exception vtable=0 itables=0

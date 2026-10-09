@@ -19,8 +19,8 @@ Module
   interface Continuation<Later>
   interface SuspendTask<Later>
   interface SuspendRegistration<Later>
-  closure cc0 $Closure$reference0 type=function_type0 invoke=@fn9 captures=1
-    bridge function_type1 -> @fn14 id=58afde605335e39c0d5f029cc4777ebb9dc0f7b095a149771c74e5b1481b6826
+  closure cc0 $Closure$reference0 type=function_type0 invoke=@fn10 captures=1
+    bridge function_type1 -> @fn15 id=58afde605335e39c0d5f029cc4777ebb9dc0f7b095a149771c74e5b1481b6826
   generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
   generated_exact_type get1 location=enum2 nominal_id=278ef3875c88e26f3a9a4127be816f8751682f7b0bdd6d55ffddbcb1d8ec150f exact_id=125d9fa435a5f5c1c2d4c5835a97bf7b5acda2e655739308cf5d15e2138fd8fc
   generated_exact_type get2 location=closure0 nominal_id=f9a88563f424d7696c5b5fab065383d981edccf9fd7452ca00397dd00a4310c9 exact_id=27137a715fef33ea8aedbc2c99535651e5347b44ea83ca68ab5e3d741bdaf9ca
@@ -30,8 +30,9 @@ Module
   generated_exact_type get6 location=enum1 nominal_id=d8d780799907a124f2fec716d97eee48e772950a578b51756a64fff8ca42c192 exact_id=8ef33cbf39264dd46cc734acc2df53e22a19e6a887e35bc0c50c9fd874b8bd2f
   generated_exact_type get7 location=class6 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
   generated_exact_type get8 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
-  generated_callable gc0 function=@fn13 id=2d5b77a957b98f9a4c4d61195afa07b39a40464b4379cff223385d30494a7047
-  generated_callable gc1 function=@fn14 id=58afde605335e39c0d5f029cc4777ebb9dc0f7b095a149771c74e5b1481b6826
+  generated_callable gc0 function=@fn14 id=2d5b77a957b98f9a4c4d61195afa07b39a40464b4379cff223385d30494a7047
+  generated_callable gc1 function=@fn15 id=58afde605335e39c0d5f029cc4777ebb9dc0f7b095a149771c74e5b1481b6826
+  generated_callable gc2 function=@fn9 id=ff62aece9204349f1b3cc3bccbfc2cb1489d98bc52402ef6865755cd4636fbd2
   fun check @fn0() -> Int
     bb0 entry
       call $argument.0: Int = external0 direct
@@ -41,7 +42,7 @@ Module
       assign $new.1
         Type Later
         ClassAlloc Later
-      call @fn10 direct
+      call @fn11 direct
         Type Later
         Local $new.1
         Type Int
@@ -67,7 +68,7 @@ Module
       assign $new.2
         Type Later
         ClassAlloc Later
-      call @fn10 direct
+      call @fn11 direct
         Type Later
         Local $new.2
         Type Int
@@ -145,7 +146,7 @@ Module
       assign $new.1
         Type ActualReader<Later>
         ClassAlloc ActualReader<Later>
-      call @fn11 direct
+      call @fn12 direct
         Type ActualReader<Later>
         Local $new.1
         Type Later
@@ -239,7 +240,17 @@ Module
   fun SuspendRegistration.register @fn8(this: SuspendRegistration<Later>, continuation: Continuation<Later>) -> Unit
     bb0 entry
       trap "call to abstract method `SuspendRegistration.register`"
-  fun $reference.0 @fn9($closure: () -> Int) -> Int
+  fun receiver<AbstractReader> Readable.read @fn9(this: AbstractReader<Later>) -> Int
+    bb0 entry
+      call $call.1: Int = external1 direct
+        Type Readable
+        Retype Readable
+          Type AbstractReader<Later>
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun $reference.0 @fn10($closure: () -> Int) -> Int
     bb0 entry
       call $call.1: Int = external1 interface Readable[0]
         Type Readable
@@ -249,7 +260,7 @@ Module
       return
         Type Int
         Local $call.1
-  fun init.Later.$c0 @fn10(this: Later, value: Int) -> Unit
+  fun init.Later.$c0 @fn11(this: Later, value: Int) -> Unit
     bb0 entry
       field_set 0
         Type Later
@@ -257,9 +268,9 @@ Module
         Type Int
         Local value
       return
-  fun init.ActualReader.$c0 @fn11(this: ActualReader<Later>, payload: Later) -> Unit
+  fun init.ActualReader.$c0 @fn12(this: ActualReader<Later>, payload: Later) -> Unit
     bb0 entry
-      call @fn12 direct
+      call @fn13 direct
         Type AbstractReader<Later>
         Retype AbstractReader<Later>
           Type ActualReader<Later>
@@ -270,10 +281,10 @@ Module
         Type Later
         Local payload
       return
-  fun init.AbstractReader.$c1 @fn12(this: AbstractReader<Later>) -> Unit
+  fun init.AbstractReader.$c1 @fn13(this: AbstractReader<Later>) -> Unit
     bb0 entry
       return
-  fun startCoroutine<Later> @fn13(task: SuspendTask<Later>, completion: Continuation<Later>) -> Unit
+  fun startCoroutine<Later> @fn14(task: SuspendTask<Later>, completion: Continuation<Later>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -354,7 +365,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun function_bridge.$Closure$reference0.() -> Any @fn14($source: () -> Int) -> Any
+  fun function_bridge.$Closure$reference0.() -> Any @fn15($source: () -> Int) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type0> closure[function_type0]
         Type () -> Int
@@ -366,7 +377,7 @@ Module
           Local $call.1
   coroutine_step cs0 CoroutineStep<Later> result=Later
   coroutine_slot cl0 CoroutineSlot<Later> value=Later
-  coroutine_start ct0 result=Later function=fn13
+  coroutine_start ct0 result=Later function=fn14
   coroutine_fn cf0 @fn7 source_return=Later step=cs0 immediate
   instance mi0 function=@fn1 <- exercise
   instance mi1 function=@fn2 <- read

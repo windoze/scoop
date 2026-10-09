@@ -156,7 +156,7 @@ Module
   td td1 n(c=scoop%3Asingle-file%3A0.0.0;p=;o=-;k=C;x=Base) @scoop$1$td$7478b96874ea6fab040e5db4adfda5cc7c3dc52ef48f1cfdc53fbf7df4660a83 type-id=14673526173061897487 shape=FixedObject minimum-size=16 align=8 parent=none vtable=[local-fn0, local-fn2] itables=[]
   td td2 n(c=scoop%3Asingle-file%3A0.0.0;p=;o=-;k=C;x=Middle) @scoop$1$td$7f2c59a8f62869e45d94a2cf4c1913f9eea0510aa964bc852f095536ee164dc3 type-id=16528889971631990805 shape=FixedObject minimum-size=16 align=8 parent=td1 vtable=[local-fn3, local-fn4] itables=[]
   td td3 n(c=scoop%3Asingle-file%3A0.0.0;p=;o=-;k=C;x=Leaf) @scoop$1$td$58480f514422abd19152cf31ec89f35f35b43403eb406bb2b0c8e2d6b6f1723c type-id=16403115606268273828 shape=FixedObject minimum-size=16 align=8 parent=td2 vtable=[local-fn5, local-fn4] itables=[]
-  layout Equality value size=8 align=8 refs=[0]
+  layout Equality value size=16 align=8 refs=[0]
   layout Base value size=8 align=8 refs=[0]
   layout Base size=16 align=8 refs=[]
   layout Middle value size=8 align=8 refs=[0]

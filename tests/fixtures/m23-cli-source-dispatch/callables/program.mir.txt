@@ -19,7 +19,7 @@ Module
   class Task vtable=0 itables=1
   class IllegalStateException vtable=0 itables=0
   class Exception vtable=0 itables=0
-  class User vtable=0 itables=1
+  class User vtable=0 itables=0
   class Base vtable=3 itables=0
   class Child vtable=3 itables=0
   class CoroutineFrame<Task.run> vtable=0 itables=0
@@ -536,8 +536,10 @@ Module
         Local $dependency.receiver
         Type Int
         Local $dependency.parameter.value
-        Type CoroutineAdapter<Task.run>$1
-        Local $adapter.1
+        Type Continuation<Long>
+        Retype Continuation<Long>
+          Type CoroutineAdapter<Task.run>$1
+          Local $adapter.1
       branch bb5 bb6
         Type Boolean
         Binary MachineEq(EnumTag)

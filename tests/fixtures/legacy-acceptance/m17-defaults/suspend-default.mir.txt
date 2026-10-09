@@ -714,8 +714,10 @@ Module
       call $step.1: CoroutineStep<Int> = @fn6 direct
         Type DefaultGate
         Local $parameter.gate
-        Type CoroutineAdapter<DefaultTask.run>$1
-        Local $adapter.1
+        Type Continuation<Int>
+        Retype Continuation<Int>
+          Type CoroutineAdapter<DefaultTask.run>$1
+          Local $adapter.1
       branch bb13 bb14
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -830,8 +832,10 @@ Module
         Local $parameter.value
         Type Int
         Local $parameter.tail
-        Type CoroutineAdapter<DefaultTask.run>$2
-        Local $adapter.2
+        Type Continuation<Int>
+        Retype Continuation<Int>
+          Type CoroutineAdapter<DefaultTask.run>$2
+          Local $adapter.2
       branch bb5 bb6
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -1710,8 +1714,10 @@ Module
       call $step.1: CoroutineStep<Int> = @fn6 direct
         Type DefaultGate
         Local $parameter.gate
-        Type CoroutineAdapter<ExplicitTask.run>$1
-        Local $adapter.1
+        Type Continuation<Int>
+        Retype Continuation<Int>
+          Type CoroutineAdapter<ExplicitTask.run>$1
+          Local $adapter.1
       branch bb13 bb14
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -1832,8 +1838,10 @@ Module
         Local $parameter.value
         Type Int
         Local $parameter.tail
-        Type CoroutineAdapter<ExplicitTask.run>$2
-        Local $adapter.2
+        Type Continuation<Int>
+        Retype Continuation<Int>
+          Type CoroutineAdapter<ExplicitTask.run>$2
+          Local $adapter.2
       branch bb5 bb6
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -2732,8 +2740,10 @@ Module
       call @fn15 interface SuspendRegistration<Int>[0]
         Type SuspendRegistration<Int>
         Local $dependency.parameter.registration
-        Type CoroutineAdapter<awaitDefault>$1
-        Local $safe_adapter.1
+        Type Continuation<Int>
+        Retype Continuation<Int>
+          Type CoroutineAdapter<awaitDefault>$1
+          Local $safe_adapter.1
       goto bb14
     bb3 coroutine.registered_success.1
       atomic_store_release kind=coroutine-adapter-state field=1

@@ -30,7 +30,7 @@ Module
     br @logic.merge.3
   block logic.merge.3
     ret local1
-  fun @scoop$1$cb$d3dec72cfb5b4712bbee92812e014baf7c07b01b25ea5e3b3aabf422b467154d(indirect<enum0 size=8 align=8 scan=none>, indirect<enum0 size=8 align=8 scan=none>) -> i1
+  fun @scoop$1$cb$d3dec72cfb5b4712bbee92812e014baf7c07b01b25ea5e3b3aabf422b467154d(parts<enum0 [i64@0+8/8]>, parts<enum0 [i64@0+8/8]>) -> i1
     local %0 $left.0.0: struct1 <logical-zst 923e232bf6170da8f674c34a35acb6e5bc0af8eb2cd8c5e7db8f911a82cf0478>
     local %1 $right.0.0: struct1 <logical-zst 923e232bf6170da8f674c34a35acb6e5bc0af8eb2cd8c5e7db8f911a82cf0478>
     local %2 $when.1: enum0
@@ -81,7 +81,7 @@ Module
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret param2
-  fun @scoop$1$cb$4b6bc02255ab28c527505b3642af3290426169451c23c7fb1b7c295d83a6c34a(indirect<enum0 size=8 align=8 scan=none>, indirect<enum0 size=8 align=8 scan=none>, i1) -> i1
+  fun @scoop$1$cb$4b6bc02255ab28c527505b3642af3290426169451c23c7fb1b7c295d83a6c34a(parts<enum0 [i64@0+8/8]>, parts<enum0 [i64@0+8/8]>, i1) -> i1
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret param2
@@ -116,10 +116,6 @@ Module
     local %23 $call.2: ptr<managed>
     local %24 $call.3: i1
     local %25 $call.4: i1
-    local %26 $sc.1: enum0
-    local %27 $sc.2: enum0
-    local %28 $sc.3: enum0
-    local %29 $sc.4: enum0
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     call no-gc-elided-zst-target0 t0 = sig=elided-zst0 () -> elided-zst<struct0 size=0 align=1> local-fn10()
@@ -158,13 +154,9 @@ Module
     store t10 -> local18
     store local17 -> local19
     store local18 -> local20
-    store local19 -> local26
-    store local20 -> local27
-    call managed-direct-target5 sp<managed-call:5> live=[] t11 = sig=direct5 (indirect<enum0 size=8 align=8 scan=none>, indirect<enum0 size=8 align=8 scan=none>) -> i1 local-fn2(indirect local26, indirect local27)
+    call managed-direct-target5 sp<managed-call:5> live=[] t11 = sig=direct5 (parts<enum0 [i64@0+8/8]>, parts<enum0 [i64@0+8/8]>) -> i1 local-fn2(local19, local20)
     store t11 -> local21
-    store local19 -> local28
-    store local20 -> local29
-    call managed-direct-target6 sp<managed-call:6> live=[] t12 = sig=direct6 (indirect<enum0 size=8 align=8 scan=none>, indirect<enum0 size=8 align=8 scan=none>, i1) -> i1 local-fn4(indirect local28, indirect local29, local21)
+    call managed-direct-target6 sp<managed-call:6> live=[] t12 = sig=direct6 (parts<enum0 [i64@0+8/8]>, parts<enum0 [i64@0+8/8]>, i1) -> i1 local-fn4(local19, local20, local21)
     store t12 -> local25
     ret local25
   fun @scoop$1$cb$cc897d60d7bae33ce5ddd9b1dba554a9c55afee3f97936e499a45de286fceab7(i1) -> void
@@ -236,14 +228,6 @@ Module
     local %41 $argument.0: i1
     local %42 $parameter.value: i1
     local %43 $call.1: ptr<managed>
-    local %44 $sc.1: enum0
-    local %45 $sc.2: enum0
-    local %46 $sc.3: enum0
-    local %47 $sc.4: enum0
-    local %48 $sc.5: enum0
-    local %49 $sc.6: enum0
-    local %50 $sc.7: enum0
-    local %51 $sc.8: enum0
   block entry
     poll managed-void-target5 sp<managed-poll:0> live=[]
     call no-gc-elided-zst-target0 t0 = sig=elided-zst0 () -> elided-zst<struct0 size=0 align=1> local-fn10()
@@ -297,13 +281,9 @@ Module
     store t15 -> local27
     store local26 -> local28
     store local27 -> local29
-    store local28 -> local44
-    store local29 -> local45
-    call managed-direct-target6 sp<managed-call:9> live=[] t16 = sig=direct6 (indirect<enum0 size=8 align=8 scan=none>, indirect<enum0 size=8 align=8 scan=none>) -> i1 local-fn2(indirect local44, indirect local45)
+    call managed-direct-target6 sp<managed-call:9> live=[] t16 = sig=direct6 (parts<enum0 [i64@0+8/8]>, parts<enum0 [i64@0+8/8]>) -> i1 local-fn2(local28, local29)
     store t16 -> local30
-    store local28 -> local46
-    store local29 -> local47
-    call managed-direct-target7 sp<managed-call:10> live=[] t17 = sig=direct7 (indirect<enum0 size=8 align=8 scan=none>, indirect<enum0 size=8 align=8 scan=none>, i1) -> i1 local-fn4(indirect local46, indirect local47, local30)
+    call managed-direct-target7 sp<managed-call:10> live=[] t17 = sig=direct7 (parts<enum0 [i64@0+8/8]>, parts<enum0 [i64@0+8/8]>, i1) -> i1 local-fn4(local28, local29, local30)
     store t17 -> local31
     store local31 -> local32
     call managed-void-target3 sp<managed-call:11> live=[] sig=void3 (i1) local-fn7(local32)
@@ -316,13 +296,9 @@ Module
     store t20 -> local36
     store local35 -> local37
     store local36 -> local38
-    store local37 -> local48
-    store local38 -> local49
-    call managed-direct-target8 sp<managed-call:12> live=[] t21 = sig=direct8 (indirect<enum0 size=8 align=8 scan=none>, indirect<enum0 size=8 align=8 scan=none>) -> i1 local-fn2(indirect local48, indirect local49)
+    call managed-direct-target8 sp<managed-call:12> live=[] t21 = sig=direct8 (parts<enum0 [i64@0+8/8]>, parts<enum0 [i64@0+8/8]>) -> i1 local-fn2(local37, local38)
     store t21 -> local39
-    store local37 -> local50
-    store local38 -> local51
-    call managed-direct-target9 sp<managed-call:13> live=[] t22 = sig=direct9 (indirect<enum0 size=8 align=8 scan=none>, indirect<enum0 size=8 align=8 scan=none>, i1) -> i1 local-fn4(indirect local50, indirect local51, local39)
+    call managed-direct-target9 sp<managed-call:13> live=[] t22 = sig=direct9 (parts<enum0 [i64@0+8/8]>, parts<enum0 [i64@0+8/8]>, i1) -> i1 local-fn4(local37, local38, local39)
     store t22 -> local40
     t23 = Not local40 : i1
     store t23 -> local41

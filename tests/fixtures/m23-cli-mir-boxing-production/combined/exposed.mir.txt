@@ -140,40 +140,45 @@ Module
   generated_exact_type get25 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
   generated_exact_type get26 location=enum14 nominal_id=4ea6b66d7d03c79e912cbb80401be8f0da35c97cd767ca8a671b71e06a68f67f exact_id=f0ef0e76863e442384e451f1db8b948d5f7cd9dbaa89e7f1b6bba84e77442ba1
   generated_exact_type get27 location=enum19 nominal_id=3e307b882548ffcbb96227d24a990ffa182297dd6906b5a0eeb3e34475150ff4 exact_id=fc881a105b93a1e3faef44861181ebe4a517dd4eb019055f4a721d1e45f5aeb2
-  generated_callable gc0 function=@fn78 id=02043ae851be999c21dacb261b10583000b83602e4a33c4607eb728830ad51e6
-  generated_callable gc1 function=@fn62 id=0d9656b42146eda3f7fae25fae071f4beb042449d80d65c763e178ea5385816e
-  generated_callable gc2 function=@fn61 id=122b4d747bc6af1889b1d755e91355b9d85338d738cee6bd10673cf71ac681e7
-  generated_callable gc3 function=@fn77 id=18b509978523b4a3665dfae4344c95d22fa1e775bc18304fcc6bff46ee5572dc
-  generated_callable gc4 function=@fn58 id=256ed06f6fbd9bd1910b9c19afbdcb26d28c1ec5c3df4ff007708c0d7f5e0cc5
-  generated_callable gc5 function=@fn56 id=261278648ebf47d3f4950ad71d9cd06d9d97b37afad951a3aaba6ca9aad2704e
-  generated_callable gc6 function=@fn66 id=2b3bdea0fb24c4bae0d649fc867bdbe093b85777021f9bb283bdf28a05f5402a
-  generated_callable gc7 function=@fn60 id=2c774a296506ca3d435c986191f74e5fd936102ae58f01735c379e2ce87d463b
-  generated_callable gc8 function=@fn67 id=313826c483cd63abd53190775cb05c9243310d644a38a524dd9d36090ae2fc7f
-  generated_callable gc9 function=@fn82 id=3ba213d9c26185d8963fe73aa5f5306f468cbc714b3e10909ae7c69c8670d424
-  generated_callable gc10 function=@fn55 id=412515c56765e8a11b142fad424fa73599c225dcaefd17a7dcb0ff69d2186c29
-  generated_callable gc11 function=@fn80 id=4db7653d1173c4d856c35280332ba1569bfb8ae1661acd442d45daf24d07852f
-  generated_callable gc12 function=@fn73 id=4e8add7f5658988698157d234af5f45de53405087e7744c441073f2b0f4a3158
-  generated_callable gc13 function=@fn84 id=5507673e3c3c829c85fbce663a3fa0960d26206a653620c988213d90c24bf37b
-  generated_callable gc14 function=@fn86 id=5ef322a760fbf928db8bdbe6739ed8b771a8cdf88dc5027d79b20368edb505d9
-  generated_callable gc15 function=@fn57 id=605004b959a590061824fef2df8d596fda4d83d569fafb904e7a4bb569c52a50
-  generated_callable gc16 function=@fn87 id=63efd9517dcfa40fc493a5bbef9c020ddea4921f4988834ac1b952ff9e0622a0
-  generated_callable gc17 function=@fn59 id=64aa3f63e9e33ade94a3f6efe6b4b637057b3b3c4449f88a7e36d78d6c5989fd
-  generated_callable gc18 function=@fn76 id=751ef23746718fdaf13fab9c69ddf3e65810d74d9893e9a8e1ecf143bf927155
-  generated_callable gc19 function=@fn72 id=77aaf76e7f6a1d379fa48deb6b3c92726eae51fbaf25b2440e863b5ddc366003
-  generated_callable gc20 function=@fn81 id=923e3aa9fab2c5e3a1637fe4a34e8e234b0e929a8909a774213a170732ca80db
-  generated_callable gc21 function=@fn70 id=94405fd491319c89fa19180e3f6a9d1c1799fa5896de107c79d946325a8a6013
-  generated_callable gc22 function=@fn88 id=96ccea3d6db9d4469793c0b100f5a1335de3cf60255442697a9864647c60740a
-  generated_callable gc23 function=@fn63 id=ab60c71c88f23e6a4c1cdc3cc9a6e17e4bf2607665d51b0f168fdc8cb8f364ea
-  generated_callable gc24 function=@fn65 id=af8fede268f73ff0a8d3cd1ba4b7bb59fa08dc0ec73b5e940abb35203dc3f785
-  generated_callable gc25 function=@fn71 id=b81ac4b4b4d2a56c81eb83206d659ceed21ccca7c7cff137acae66dba0e3173b
-  generated_callable gc26 function=@fn79 id=b911c9861240ad6040be3f3b5675f134bfc9662f94f54bfcd6b3dd627a236ea8
-  generated_callable gc27 function=@fn74 id=b9b62df53b2adaf946c497d505a31b430ba47c4632d1ff8f306797954c0ba83c
-  generated_callable gc28 function=@fn69 id=c70dc367b9ff497c0414d7dff20247e2199c3f070896412e51c4feb8341e4477
-  generated_callable gc29 function=@fn68 id=e71fe15741bb85b5edbffae568ea06f6032c11ccfb57e89ca6ed10fd9705045f
-  generated_callable gc30 function=@fn85 id=f7e0d7b98634574ee899b9ab08ed441c8178c70980da313f71571724fc1a53b2
-  generated_callable gc31 function=@fn64 id=f826edffa5993bf65614b472e83059d5f3254a94cc7f3e4ba380dfdadc3ce6cf
-  generated_callable gc32 function=@fn75 id=f8338db91eae61ecef00925a4cf8219a19aa16419abc2d8032f7a6211d1a269b
-  generated_callable gc33 function=@fn83 id=fe14684d05a1de992c0bdc72380cf039c56225e1527ec0bd94245810e0795046
+  generated_callable gc0 function=@fn83 id=02043ae851be999c21dacb261b10583000b83602e4a33c4607eb728830ad51e6
+  generated_callable gc1 function=@fn55 id=09aadcfffb4511ca31674b07f7a3dc6889e417a78b708a847c1a8cc0ba472f99
+  generated_callable gc2 function=@fn67 id=0d9656b42146eda3f7fae25fae071f4beb042449d80d65c763e178ea5385816e
+  generated_callable gc3 function=@fn54 id=106f1d27438abcce57a2af525a4b0f1195e800b09716f823797444ad6c194810
+  generated_callable gc4 function=@fn66 id=122b4d747bc6af1889b1d755e91355b9d85338d738cee6bd10673cf71ac681e7
+  generated_callable gc5 function=@fn51 id=16e7b5ad3275e8facd1a28fadf56ea415a58560fc8f48f21d3c84bc1f1e82cbf
+  generated_callable gc6 function=@fn82 id=18b509978523b4a3665dfae4344c95d22fa1e775bc18304fcc6bff46ee5572dc
+  generated_callable gc7 function=@fn52 id=194c0b02e007d9252b749183d12c4dc31b05cda9ef0b2f89fe032637ee0ac194
+  generated_callable gc8 function=@fn63 id=256ed06f6fbd9bd1910b9c19afbdcb26d28c1ec5c3df4ff007708c0d7f5e0cc5
+  generated_callable gc9 function=@fn61 id=261278648ebf47d3f4950ad71d9cd06d9d97b37afad951a3aaba6ca9aad2704e
+  generated_callable gc10 function=@fn71 id=2b3bdea0fb24c4bae0d649fc867bdbe093b85777021f9bb283bdf28a05f5402a
+  generated_callable gc11 function=@fn65 id=2c774a296506ca3d435c986191f74e5fd936102ae58f01735c379e2ce87d463b
+  generated_callable gc12 function=@fn72 id=313826c483cd63abd53190775cb05c9243310d644a38a524dd9d36090ae2fc7f
+  generated_callable gc13 function=@fn87 id=3ba213d9c26185d8963fe73aa5f5306f468cbc714b3e10909ae7c69c8670d424
+  generated_callable gc14 function=@fn60 id=412515c56765e8a11b142fad424fa73599c225dcaefd17a7dcb0ff69d2186c29
+  generated_callable gc15 function=@fn53 id=4c09a67a3c44dafc3de733f020c6740c6be216a41e4532e351dd3698a4b183d6
+  generated_callable gc16 function=@fn85 id=4db7653d1173c4d856c35280332ba1569bfb8ae1661acd442d45daf24d07852f
+  generated_callable gc17 function=@fn78 id=4e8add7f5658988698157d234af5f45de53405087e7744c441073f2b0f4a3158
+  generated_callable gc18 function=@fn89 id=5507673e3c3c829c85fbce663a3fa0960d26206a653620c988213d90c24bf37b
+  generated_callable gc19 function=@fn91 id=5ef322a760fbf928db8bdbe6739ed8b771a8cdf88dc5027d79b20368edb505d9
+  generated_callable gc20 function=@fn62 id=605004b959a590061824fef2df8d596fda4d83d569fafb904e7a4bb569c52a50
+  generated_callable gc21 function=@fn92 id=63efd9517dcfa40fc493a5bbef9c020ddea4921f4988834ac1b952ff9e0622a0
+  generated_callable gc22 function=@fn64 id=64aa3f63e9e33ade94a3f6efe6b4b637057b3b3c4449f88a7e36d78d6c5989fd
+  generated_callable gc23 function=@fn81 id=751ef23746718fdaf13fab9c69ddf3e65810d74d9893e9a8e1ecf143bf927155
+  generated_callable gc24 function=@fn77 id=77aaf76e7f6a1d379fa48deb6b3c92726eae51fbaf25b2440e863b5ddc366003
+  generated_callable gc25 function=@fn86 id=923e3aa9fab2c5e3a1637fe4a34e8e234b0e929a8909a774213a170732ca80db
+  generated_callable gc26 function=@fn75 id=94405fd491319c89fa19180e3f6a9d1c1799fa5896de107c79d946325a8a6013
+  generated_callable gc27 function=@fn93 id=96ccea3d6db9d4469793c0b100f5a1335de3cf60255442697a9864647c60740a
+  generated_callable gc28 function=@fn68 id=ab60c71c88f23e6a4c1cdc3cc9a6e17e4bf2607665d51b0f168fdc8cb8f364ea
+  generated_callable gc29 function=@fn70 id=af8fede268f73ff0a8d3cd1ba4b7bb59fa08dc0ec73b5e940abb35203dc3f785
+  generated_callable gc30 function=@fn76 id=b81ac4b4b4d2a56c81eb83206d659ceed21ccca7c7cff137acae66dba0e3173b
+  generated_callable gc31 function=@fn84 id=b911c9861240ad6040be3f3b5675f134bfc9662f94f54bfcd6b3dd627a236ea8
+  generated_callable gc32 function=@fn79 id=b9b62df53b2adaf946c497d505a31b430ba47c4632d1ff8f306797954c0ba83c
+  generated_callable gc33 function=@fn74 id=c70dc367b9ff497c0414d7dff20247e2199c3f070896412e51c4feb8341e4477
+  generated_callable gc34 function=@fn73 id=e71fe15741bb85b5edbffae568ea06f6032c11ccfb57e89ca6ed10fd9705045f
+  generated_callable gc35 function=@fn90 id=f7e0d7b98634574ee899b9ab08ed441c8178c70980da313f71571724fc1a53b2
+  generated_callable gc36 function=@fn69 id=f826edffa5993bf65614b472e83059d5f3254a94cc7f3e4ba380dfdadc3ce6cf
+  generated_callable gc37 function=@fn80 id=f8338db91eae61ecef00925a4cf8219a19aa16419abc2d8032f7a6211d1a269b
+  generated_callable gc38 function=@fn88 id=fe14684d05a1de992c0bdc72380cf039c56225e1527ec0bd94245810e0795046
   fun Token.equals @fn0(this: Token, other: Token) -> Boolean
     bb0 entry
       return
@@ -223,7 +228,7 @@ Module
       assign $new.1
         Type Ref
         ClassAlloc Ref
-      call @fn51 direct
+      call @fn56 direct
         Type Ref
         Local $new.1
       return
@@ -234,7 +239,7 @@ Module
       assign $new.1
         Type Singleton
         ClassAlloc Singleton
-      call @fn52 direct
+      call @fn57 direct
         Type Singleton
         Local $new.1
       global_assign $singleton$Singleton
@@ -466,7 +471,7 @@ Module
         Local value
   fun Root.$get$token @fn46(this: Root) -> Token
     bb0 entry
-      call $call.1: Token = @fn53 direct
+      call $call.1: Token = @fn58 direct
       return
         Type Token
         Local $call.1
@@ -490,25 +495,83 @@ Module
       return
         Type Token
         Local value
-  fun init.Ref.$c0 @fn51(this: Ref) -> Unit
+  fun receiver<Singleton> Diamond.$get$token @fn51(this: Singleton) -> Token
+    bb0 entry
+      call $call.1: Token = @fn46 direct
+        Type Root
+        Retype Root
+          Type Singleton
+          Local this
+      return
+        Type Token
+        Local $call.1
+  fun receiver<Singleton> Diamond.left @fn52(this: Singleton, value: Token) -> Token
+    bb0 entry
+      call $call.1: Token = @fn47 direct
+        Type Left
+        Retype Left
+          Type Singleton
+          Local this
+        Type Token
+        Local value
+      return
+        Type Token
+        Local $call.1
+  fun receiver<Singleton> Diamond.right @fn53(this: Singleton, value: Token) -> Token
+    bb0 entry
+      call $call.1: Token = @fn48 direct
+        Type Right
+        Retype Right
+          Type Singleton
+          Local this
+        Type Token
+        Local value
+      return
+        Type Token
+        Local $call.1
+  fun receiver<Singleton> Diamond.echo @fn54(this: Singleton, value: Token) -> Token
+    bb0 entry
+      call $call.1: Token = @fn49 direct
+        Type Diamond
+        Retype Diamond
+          Type Singleton
+          Local this
+        Type Token
+        Local value
+      return
+        Type Token
+        Local $call.1
+  fun receiver<Singleton> Left.echo @fn55(this: Singleton, value: Token) -> Token
+    bb0 entry
+      call $call.1: Token = @fn49 direct
+        Type Diamond
+        Retype Diamond
+          Type Singleton
+          Local this
+        Type Token
+        Local value
+      return
+        Type Token
+        Local $call.1
+  fun init.Ref.$c0 @fn56(this: Ref) -> Unit
     bb0 entry
       return
-  fun init.Singleton.$c1 @fn52(this: Singleton) -> Unit
+  fun init.Singleton.$c1 @fn57(this: Singleton) -> Unit
     bb0 entry
       return
-  fun ctor.Token.$c0 @fn53() -> Token <no-gc>
+  fun ctor.Token.$c0 @fn58() -> Token <no-gc>
     bb0 entry
       return
         Type Token
         StructInit Token
-  fun ctor.Payload.$c1 @fn54(reference: Ref) -> Payload <no-gc>
+  fun ctor.Payload.$c1 @fn59(reference: Ref) -> Payload <no-gc>
     bb0 entry
       return
         Type Payload
         StructInit Payload
           Type Ref
           Local reference
-  fun startCoroutine<Ref> @fn55(task: SuspendTask<Ref>, completion: Continuation<Ref>) -> Unit
+  fun startCoroutine<Ref> @fn60(task: SuspendTask<Ref>, completion: Continuation<Ref>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -589,7 +652,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Diamond> @fn56(task: SuspendTask<Diamond>, completion: Continuation<Diamond>) -> Unit
+  fun startCoroutine<Diamond> @fn61(task: SuspendTask<Diamond>, completion: Continuation<Diamond>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -670,7 +733,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Root> @fn57(task: SuspendTask<Root>, completion: Continuation<Root>) -> Unit
+  fun startCoroutine<Root> @fn62(task: SuspendTask<Root>, completion: Continuation<Root>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -751,7 +814,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Singleton> @fn58(task: SuspendTask<Singleton>, completion: Continuation<Singleton>) -> Unit
+  fun startCoroutine<Singleton> @fn63(task: SuspendTask<Singleton>, completion: Continuation<Singleton>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -832,7 +895,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Right> @fn59(task: SuspendTask<Right>, completion: Continuation<Right>) -> Unit
+  fun startCoroutine<Right> @fn64(task: SuspendTask<Right>, completion: Continuation<Right>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -913,7 +976,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Unused> @fn60(task: SuspendTask<Unused>, completion: Continuation<Unused>) -> Unit
+  fun startCoroutine<Unused> @fn65(task: SuspendTask<Unused>, completion: Continuation<Unused>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -994,7 +1057,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Token> @fn61(task: SuspendTask<Token>, completion: Continuation<Token>) -> Unit
+  fun startCoroutine<Token> @fn66(task: SuspendTask<Token>, completion: Continuation<Token>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -1075,7 +1138,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Payload> @fn62(task: SuspendTask<Payload>, completion: Continuation<Payload>) -> Unit
+  fun startCoroutine<Payload> @fn67(task: SuspendTask<Payload>, completion: Continuation<Payload>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -1156,7 +1219,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Left> @fn63(task: SuspendTask<Left>, completion: Continuation<Left>) -> Unit
+  fun startCoroutine<Left> @fn68(task: SuspendTask<Left>, completion: Continuation<Left>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -1237,7 +1300,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Choice> @fn64(task: SuspendTask<Choice>, completion: Continuation<Choice>) -> Unit
+  fun startCoroutine<Choice> @fn69(task: SuspendTask<Choice>, completion: Continuation<Choice>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -1318,272 +1381,272 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun thunk<Payload> Diamond.$get$token() @fn65(this: Diamond) -> Token
+  fun thunk<Payload> Diamond.$get$token() @fn70(this: box<Payload>) -> Token
     bb0 entry
       call $call.1: Token = @fn46 direct
         Type Root
         Retype Root
-          Type Diamond
+          Type box<Payload>
           Local this
       return
         Type Token
         Local $call.1
-  fun thunk<Payload> Diamond.left(Token) @fn66(this: Diamond, value: Token) -> Token
+  fun thunk<Payload> Diamond.left(Token) @fn71(this: box<Payload>, value: Token) -> Token
     bb0 entry
       call $call.1: Token = @fn47 direct
         Type Left
         Retype Left
-          Type Diamond
+          Type box<Payload>
           Local this
         Type Token
         Local value
       return
         Type Token
         Local $call.1
-  fun thunk<Payload> Diamond.right(Token) @fn67(this: Diamond, value: Token) -> Token
+  fun thunk<Payload> Diamond.right(Token) @fn72(this: box<Payload>, value: Token) -> Token
     bb0 entry
       call $call.1: Token = @fn48 direct
         Type Right
         Retype Right
-          Type Diamond
+          Type box<Payload>
           Local this
         Type Token
         Local value
       return
         Type Token
         Local $call.1
-  fun thunk<Payload> Diamond.echo(Token) @fn68(this: Diamond, value: Token) -> Token
+  fun thunk<Payload> Diamond.echo(Token) @fn73(this: box<Payload>, value: Token) -> Token
     bb0 entry
       call $call.1: Token = @fn49 direct
         Type Diamond
         Retype Diamond
-          Type Diamond
+          Type box<Payload>
           Local this
         Type Token
         Local value
       return
         Type Token
         Local $call.1
-  fun thunk<Payload> Left.echo(Token) @fn69(this: Left, value: Token) -> Token
+  fun thunk<Payload> Left.echo(Token) @fn74(this: box<Payload>, value: Token) -> Token
     bb0 entry
       call $call.1: Token = @fn49 direct
         Type Diamond
         Retype Diamond
-          Type Left
+          Type box<Payload>
           Local this
         Type Token
         Local value
       return
         Type Token
         Local $call.1
-  fun thunk<Payload> Left.$get$token() @fn70(this: Left) -> Token
+  fun thunk<Payload> Left.$get$token() @fn75(this: box<Payload>) -> Token
     bb0 entry
       call $call.1: Token = @fn46 direct
         Type Root
         Retype Root
-          Type Left
+          Type box<Payload>
           Local this
       return
         Type Token
         Local $call.1
-  fun thunk<Payload> Left.left(Token) @fn71(this: Left, value: Token) -> Token
+  fun thunk<Payload> Left.left(Token) @fn76(this: box<Payload>, value: Token) -> Token
     bb0 entry
       call $call.1: Token = @fn47 direct
         Type Left
         Retype Left
-          Type Left
+          Type box<Payload>
           Local this
         Type Token
         Local value
       return
         Type Token
         Local $call.1
-  fun thunk<Payload> Root.echo(Token) @fn72(this: Root, value: Token) -> Token
+  fun thunk<Payload> Root.echo(Token) @fn77(this: box<Payload>, value: Token) -> Token
     bb0 entry
       call $call.1: Token = @fn49 direct
         Type Diamond
         Retype Diamond
-          Type Root
+          Type box<Payload>
           Local this
         Type Token
         Local value
       return
         Type Token
         Local $call.1
-  fun thunk<Payload> Root.$get$token() @fn73(this: Root) -> Token
+  fun thunk<Payload> Root.$get$token() @fn78(this: box<Payload>) -> Token
     bb0 entry
       call $call.1: Token = @fn46 direct
         Type Root
         Retype Root
-          Type Root
+          Type box<Payload>
           Local this
       return
         Type Token
         Local $call.1
-  fun thunk<Payload> Right.echo(Token) @fn74(this: Right, value: Token) -> Token
+  fun thunk<Payload> Right.echo(Token) @fn79(this: box<Payload>, value: Token) -> Token
     bb0 entry
       call $call.1: Token = @fn49 direct
         Type Diamond
         Retype Diamond
-          Type Right
+          Type box<Payload>
           Local this
         Type Token
         Local value
       return
         Type Token
         Local $call.1
-  fun thunk<Payload> Right.$get$token() @fn75(this: Right) -> Token
+  fun thunk<Payload> Right.$get$token() @fn80(this: box<Payload>) -> Token
     bb0 entry
       call $call.1: Token = @fn46 direct
         Type Root
         Retype Root
-          Type Right
+          Type box<Payload>
           Local this
       return
         Type Token
         Local $call.1
-  fun thunk<Payload> Right.right(Token) @fn76(this: Right, value: Token) -> Token
+  fun thunk<Payload> Right.right(Token) @fn81(this: box<Payload>, value: Token) -> Token
     bb0 entry
       call $call.1: Token = @fn48 direct
         Type Right
         Retype Right
-          Type Right
+          Type box<Payload>
           Local this
         Type Token
         Local value
       return
         Type Token
         Local $call.1
-  fun thunk<Choice> Diamond.$get$token() @fn77(this: Diamond) -> Token
+  fun thunk<Choice> Diamond.$get$token() @fn82(this: box<Choice>) -> Token
     bb0 entry
       call $call.1: Token = @fn46 direct
         Type Root
         Retype Root
-          Type Diamond
+          Type box<Choice>
           Local this
       return
         Type Token
         Local $call.1
-  fun thunk<Choice> Diamond.left(Token) @fn78(this: Diamond, value: Token) -> Token
+  fun thunk<Choice> Diamond.left(Token) @fn83(this: box<Choice>, value: Token) -> Token
     bb0 entry
       call $call.1: Token = @fn47 direct
         Type Left
         Retype Left
-          Type Diamond
+          Type box<Choice>
           Local this
         Type Token
         Local value
       return
         Type Token
         Local $call.1
-  fun thunk<Choice> Diamond.right(Token) @fn79(this: Diamond, value: Token) -> Token
+  fun thunk<Choice> Diamond.right(Token) @fn84(this: box<Choice>, value: Token) -> Token
     bb0 entry
       call $call.1: Token = @fn48 direct
         Type Right
         Retype Right
-          Type Diamond
+          Type box<Choice>
           Local this
         Type Token
         Local value
       return
         Type Token
         Local $call.1
-  fun thunk<Choice> Diamond.echo(Token) @fn80(this: Diamond, value: Token) -> Token
+  fun thunk<Choice> Diamond.echo(Token) @fn85(this: box<Choice>, value: Token) -> Token
     bb0 entry
       call $call.1: Token = @fn49 direct
         Type Diamond
         Retype Diamond
-          Type Diamond
+          Type box<Choice>
           Local this
         Type Token
         Local value
       return
         Type Token
         Local $call.1
-  fun thunk<Choice> Left.echo(Token) @fn81(this: Left, value: Token) -> Token
+  fun thunk<Choice> Left.echo(Token) @fn86(this: box<Choice>, value: Token) -> Token
     bb0 entry
       call $call.1: Token = @fn49 direct
         Type Diamond
         Retype Diamond
-          Type Left
+          Type box<Choice>
           Local this
         Type Token
         Local value
       return
         Type Token
         Local $call.1
-  fun thunk<Choice> Left.$get$token() @fn82(this: Left) -> Token
+  fun thunk<Choice> Left.$get$token() @fn87(this: box<Choice>) -> Token
     bb0 entry
       call $call.1: Token = @fn46 direct
         Type Root
         Retype Root
-          Type Left
+          Type box<Choice>
           Local this
       return
         Type Token
         Local $call.1
-  fun thunk<Choice> Left.left(Token) @fn83(this: Left, value: Token) -> Token
+  fun thunk<Choice> Left.left(Token) @fn88(this: box<Choice>, value: Token) -> Token
     bb0 entry
       call $call.1: Token = @fn47 direct
         Type Left
         Retype Left
-          Type Left
+          Type box<Choice>
           Local this
         Type Token
         Local value
       return
         Type Token
         Local $call.1
-  fun thunk<Choice> Root.echo(Token) @fn84(this: Root, value: Token) -> Token
+  fun thunk<Choice> Root.echo(Token) @fn89(this: box<Choice>, value: Token) -> Token
     bb0 entry
       call $call.1: Token = @fn49 direct
         Type Diamond
         Retype Diamond
-          Type Root
+          Type box<Choice>
           Local this
         Type Token
         Local value
       return
         Type Token
         Local $call.1
-  fun thunk<Choice> Root.$get$token() @fn85(this: Root) -> Token
+  fun thunk<Choice> Root.$get$token() @fn90(this: box<Choice>) -> Token
     bb0 entry
       call $call.1: Token = @fn46 direct
         Type Root
         Retype Root
-          Type Root
+          Type box<Choice>
           Local this
       return
         Type Token
         Local $call.1
-  fun thunk<Choice> Right.echo(Token) @fn86(this: Right, value: Token) -> Token
+  fun thunk<Choice> Right.echo(Token) @fn91(this: box<Choice>, value: Token) -> Token
     bb0 entry
       call $call.1: Token = @fn49 direct
         Type Diamond
         Retype Diamond
-          Type Right
+          Type box<Choice>
           Local this
         Type Token
         Local value
       return
         Type Token
         Local $call.1
-  fun thunk<Choice> Right.$get$token() @fn87(this: Right) -> Token
+  fun thunk<Choice> Right.$get$token() @fn92(this: box<Choice>) -> Token
     bb0 entry
       call $call.1: Token = @fn46 direct
         Type Root
         Retype Root
-          Type Right
+          Type box<Choice>
           Local this
       return
         Type Token
         Local $call.1
-  fun thunk<Choice> Right.right(Token) @fn88(this: Right, value: Token) -> Token
+  fun thunk<Choice> Right.right(Token) @fn93(this: box<Choice>, value: Token) -> Token
     bb0 entry
       call $call.1: Token = @fn48 direct
         Type Right
         Retype Right
-          Type Right
+          Type box<Choice>
           Local this
         Type Token
         Local value
@@ -1610,16 +1673,16 @@ Module
   coroutine_slot cl7 CoroutineSlot<Payload> value=Payload
   coroutine_slot cl8 CoroutineSlot<Left> value=Left
   coroutine_slot cl9 CoroutineSlot<Choice> value=Choice
-  coroutine_start ct0 result=Ref function=fn55
-  coroutine_start ct1 result=Diamond function=fn56
-  coroutine_start ct2 result=Root function=fn57
-  coroutine_start ct3 result=Singleton function=fn58
-  coroutine_start ct4 result=Right function=fn59
-  coroutine_start ct5 result=Unused function=fn60
-  coroutine_start ct6 result=Token function=fn61
-  coroutine_start ct7 result=Payload function=fn62
-  coroutine_start ct8 result=Left function=fn63
-  coroutine_start ct9 result=Choice function=fn64
+  coroutine_start ct0 result=Ref function=fn60
+  coroutine_start ct1 result=Diamond function=fn61
+  coroutine_start ct2 result=Root function=fn62
+  coroutine_start ct3 result=Singleton function=fn63
+  coroutine_start ct4 result=Right function=fn64
+  coroutine_start ct5 result=Unused function=fn65
+  coroutine_start ct6 result=Token function=fn66
+  coroutine_start ct7 result=Payload function=fn67
+  coroutine_start ct8 result=Left function=fn68
+  coroutine_start ct9 result=Choice function=fn69
   coroutine_fn cf0 @fn7 source_return=Token step=cs6 immediate
   coroutine_fn cf1 @fn11 source_return=Payload step=cs7 immediate
   coroutine_fn cf2 @fn15 source_return=Ref step=cs0 immediate

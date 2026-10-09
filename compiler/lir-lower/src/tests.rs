@@ -1098,7 +1098,10 @@ fn c_abi_preserves_all_eight_exact_integer_kinds() {
     assert_eq!(
         plan.params
             .iter()
-            .map(|value| value.extension)
+            .map(|value| match value {
+                lir::DirectCArgument::Scalar(value) => value.extension,
+                _ => panic!("C integer parameters must be direct scalars"),
+            })
             .collect::<Vec<_>>(),
         [
             lir::CIntegerExtension::Sign,

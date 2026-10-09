@@ -134,22 +134,22 @@ Module
       return
         Type Int
         Local $call.1
-  fun thunk<DefaultTag<Int>> DefaultReadable.read() @fn6(this: DefaultReadable) -> Int
+  fun thunk<DefaultTag<Int>> DefaultReadable.read() @fn6(this: box<DefaultTag<Int>>) -> Int
     bb0 entry
       call $call.1: Int = external0 direct
         Type DefaultReadable
         Retype DefaultReadable
-          Type DefaultReadable
+          Type box<DefaultTag<Int>>
           Local this
       return
         Type Int
         Local $call.1
-  fun thunk<DefaultTag<Int>> Readable.read() @fn7(this: Readable) -> Int
+  fun thunk<DefaultTag<Int>> Readable.read() @fn7(this: box<DefaultTag<Int>>) -> Int
     bb0 entry
       call $call.1: Int = external0 direct
         Type DefaultReadable
         Retype DefaultReadable
-          Type Readable
+          Type box<DefaultTag<Int>>
           Local this
       return
         Type Int

@@ -82,7 +82,7 @@ impl ExactDispatchImplementationV1 {
             Self::AbstractObligation { receiver, .. }
             | Self::DirectStrongTarget { receiver, .. }
             | Self::InterfaceDefaultTarget { receiver, .. } => receiver,
-            Self::AdjustThunkTarget(_) => ExactDispatchReceiverAdaptationV1::Identity,
+            Self::AdjustThunkTarget(_) => ExactDispatchReceiverAdaptationV1::ReferenceDispatch,
         }
     }
 }

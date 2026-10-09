@@ -453,6 +453,7 @@ impl ClassDef {
 /// this application's already-lowered arguments.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum IntrinsicTypeRepresentation {
+    MaybeUninit { value: TypeId },
     Atomic(scoop_identity::AtomicStorage<TypeId>),
     Unit,
     Integer(IntegerKind),

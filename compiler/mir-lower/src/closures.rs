@@ -2,6 +2,7 @@ use super::*;
 
 mod anonymous;
 mod lambdas;
+mod maybe_uninit;
 mod references;
 mod reuse;
 use reuse::{ClosureDefinition, ClosureDefinitions};

@@ -1,0 +1,12 @@
+import benchmark.small.Pair
+import benchmark.small.step
+
+fun main() {
+    var value = Pair(0L, 10L)
+    var index = 0
+    while (index < 10000000) {
+        value = step(value)
+        index += 1
+    }
+    println(value.first + value.second)
+}

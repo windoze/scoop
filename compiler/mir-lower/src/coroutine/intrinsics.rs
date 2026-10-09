@@ -30,20 +30,8 @@ pub(super) fn rewrite_intrinsic_site(
         unreachable!("intrinsic site carries its concrete register method")
     };
     let throwable = crate::coroutine_registry::throwable_type(module, &lowerer.class_map);
-    let (result_latch_id, result_latch_ty) = lowerer.coroutines.slot_for(
-        &lowerer.source_exact_types,
-        &site.result,
-        &lowerer.structs,
-        &mut lowerer.enums,
-        &mut lowerer.shell,
-    );
-    let (failure_latch_id, failure_latch_ty) = lowerer.coroutines.slot_for(
-        &lowerer.source_exact_types,
-        &throwable,
-        &lowerer.structs,
-        &mut lowerer.enums,
-        &mut lowerer.shell,
-    );
+    let (result_latch_id, result_latch_ty) = lowerer.coroutine_slot_for(&site.result);
+    let (failure_latch_id, failure_latch_ty) = lowerer.coroutine_slot_for(&throwable);
     let result_latch = FrameSlot::new(
         2,
         result_latch_id,
@@ -128,10 +116,7 @@ pub(super) fn rewrite_intrinsic_site(
         ],
     ));
     call.target.callee = mir::Callee::Monomorphized(register);
-    call.args.push(mir::Expr::local(
-        adapter_local,
-        mir::Type::Class(adapter.class),
-    ));
+    call.args.push(adapter.reference(adapter_local));
     let register_call = body.blocks.alloc(mir::BasicBlock {
         name: format!("coroutine.register.{}", site.state),
         statements: vec![statement(mir::StatementKind::Call(mir::CallEffect::Unit(

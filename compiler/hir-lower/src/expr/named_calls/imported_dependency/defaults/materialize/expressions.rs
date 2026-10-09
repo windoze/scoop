@@ -348,6 +348,12 @@ impl Lowerer {
                     self.materialize_imported_default_expression(value, context)
                 })?))
             }
+            Kind::MaybeUninit(operation) => {
+                hir::ExprKind::MaybeUninit(operation.try_map(|value| {
+                    self.materialize_imported_default_expression(value, context)
+                        .map(Box::new)
+                })?)
+            }
             Kind::StructConstruct { fields, .. } => {
                 let hir::Type::Struct(application) = self.types[ty] else {
                     return Err(ImportedDefaultMaterializationError::Plan(

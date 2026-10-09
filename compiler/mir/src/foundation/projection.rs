@@ -303,7 +303,7 @@ fn odr_records(
             insert_optional_identity(&mut members, member, MirFoundationTable::OdrMember)?;
         }
     }
-    for adjust in &module.meta.boxing_adjusts {
+    for adjust in &module.meta.interface_adjusts {
         register_exact_root(adjust.identity().root(), &mut groups, &mut members)?;
     }
 

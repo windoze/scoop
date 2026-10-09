@@ -22,7 +22,7 @@ Module
     Value(value: LocalExtra)
   class LocalBase vtable=2 itables=2
   class ForeignDerived vtable=1 itables=3
-  class PlainBase vtable=1 itables=2
+  class PlainBase vtable=1 itables=0
   class HolderImpl<Int> vtable=0 itables=2
   class IllegalStateException vtable=0 itables=0
   class Exception vtable=0 itables=0

@@ -2,7 +2,7 @@ use std::fmt;
 
 use scoop_identity::{ConeIdentity, DependencyCallableDeclarationId, GcEffect};
 
-use crate::{CrossConeLirFrontValidationError, NativeBoundaryCompileError};
+use crate::CrossConeLirFrontValidationError;
 
 #[derive(Debug)]
 pub enum CrossConeClosureLirBridgeError {
@@ -12,11 +12,6 @@ pub enum CrossConeClosureLirBridgeError {
     Artifact {
         identity: ConeIdentity,
         source: Box<CrossConeLirFrontValidationError>,
-    },
-    AbiReplay {
-        identity: ConeIdentity,
-        declaration: DependencyCallableDeclarationId,
-        source: Box<NativeBoundaryCompileError>,
     },
     Relation {
         identity: ConeIdentity,
@@ -37,14 +32,6 @@ impl fmt::Display for CrossConeClosureLirBridgeError {
                     "invalid LIR bridge payload for {identity}: {source}"
                 )
             }
-            Self::AbiReplay {
-                identity,
-                declaration,
-                source,
-            } => write!(
-                formatter,
-                "cannot replay canonical ABI for {identity}:{declaration:?}: {source}"
-            ),
             Self::Relation { identity, source } => {
                 write!(
                     formatter,
@@ -59,7 +46,6 @@ impl std::error::Error for CrossConeClosureLirBridgeError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::Artifact { source, .. } => Some(source.as_ref()),
-            Self::AbiReplay { source, .. } => Some(source.as_ref()),
             Self::Relation { source, .. } => Some(source.as_ref()),
             Self::Allocation { .. } => None,
         }
@@ -90,9 +76,6 @@ pub enum CrossConeLirClosureRelationError {
         actual: GcEffect,
     },
     ExportCallingConventionMismatch {
-        declaration: DependencyCallableDeclarationId,
-    },
-    NonCanonicalExportAbi {
         declaration: DependencyCallableDeclarationId,
     },
     MissingLirSelection {

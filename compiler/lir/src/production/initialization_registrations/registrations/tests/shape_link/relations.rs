@@ -22,11 +22,7 @@ fn shape_link_terminal_rebind_rejects_same_body_with_changed_gc_protocol() {
                 result.identity().exact(),
             ),
             vec![],
-            result
-                .value_handle()
-                .unwrap()
-                .scoop_abi_return(TARGET)
-                .unwrap(),
+            scoop_identity::ScoopAbiReturn::UnitVoid,
             (ExactCallableProtocolV1::OrdinaryNoGc).gc_effect(),
         )
         .unwrap(),

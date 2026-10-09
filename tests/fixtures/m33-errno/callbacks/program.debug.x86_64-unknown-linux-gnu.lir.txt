@@ -29,7 +29,7 @@ Module
     call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (ptr<raw>, ptr<raw>) -> i1 local-fn9(local0, local2)
     store t0 -> local3
     ret local3
-  fun @scoop$1$cb$ccf7dfe097c8db47ea2b08ceb323823ace2bfabb71fc1547de0f2790d349296d(ptr<code>, ptr<raw>, i32) -> sret<{i32, i32} size=8 align=4 scan=none>
+  fun @scoop$1$cb$ccf7dfe097c8db47ea2b08ceb323823ace2bfabb71fc1547de0f2790d349296d(ptr<code>, ptr<raw>, i32) -> parts<{i32, i32} [i64@0+8/4]>
     local %0 $call.1: {i32, i32}
     local %1 $sc.1: ptr<code>
     local %2 $sc.2: ptr<raw>
@@ -44,7 +44,7 @@ Module
     t1 = aggregate (local4, t0) : {i32, i32}
     store t1 -> local0
     ret local0
-  fun @scoop$1$cb$23ad82fee5642bf73f45ea72ff50ff77d41a42abf5c91ef4a09a40e417ff7eca(ptr<code>, ptr<raw>) -> sret<{i32, i32} size=8 align=4 scan=none>
+  fun @scoop$1$cb$23ad82fee5642bf73f45ea72ff50ff77d41a42abf5c91ef4a09a40e417ff7eca(ptr<code>, ptr<raw>) -> parts<{i32, i32} [i64@0+8/4]>
     local %0 $call.1: {i32, i32}
     local %1 $sc.1: ptr<code>
     local %2 $sc.2: ptr<raw>
@@ -57,7 +57,7 @@ Module
     t1 = aggregate (local3, t0) : {i32, i32}
     store t1 -> local0
     ret local0
-  fun @scoop$1$cb$e18aad1b61f84a88c134c2028073895cb7e247ff650e74a0ac6c98bb25697719(i32, i32, i32) -> sret<{i32, i32} size=8 align=4 scan=none> <no-gc>
+  fun @scoop$1$cb$e18aad1b61f84a88c134c2028073895cb7e247ff650e74a0ac6c98bb25697719(i32, i32, i32) -> parts<{i32, i32} [i64@0+8/4]> <no-gc>
     local %0 $call.1: {i32, i32}
     local %1 $sc.1: i32
     local %2 $sc.2: i32
@@ -306,8 +306,6 @@ Module
     local %66 $sc.5: ptr<code>
     local %67 $sc.6: ptr<raw>
     local %68 $sc.7: i32
-    local %69 $sc.8: enum1
-    local %70 $sc.9: enum1
   block entry
     poll managed-void-target5 sp<managed-poll:0> live=[]
     call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td7, machine<byte-size>(ByteSize(24)))
@@ -403,9 +401,7 @@ Module
     store local45 -> local46
     t22 = foreign_callback_State family0 local46 : enum1
     t23 = enum_wrap e1 v0 () : enum1
-    store t22 -> local69
-    store t23 -> local70
-    call managed-direct-target1 sp<managed-call:3> live=[] t24 = sig=direct3 (indirect<enum1 size=8 align=8 scan=none>, indirect<enum1 size=8 align=8 scan=none>) -> i1 external-fn3(indirect local69, indirect local70)
+    call managed-direct-target1 sp<managed-call:3> live=[] t24 = sig=direct3 (parts<enum1 [i64@0+8/8]>, parts<enum1 [i64@0+8/8]>) -> i1 external-fn3(t22, t23)
     store t24 -> local47
     store local47 -> local48
     call managed-void-target2 sp<managed-call:4> live=[] sig=void2 (i1) local-fn6(local48)
@@ -583,11 +579,11 @@ Module
   layout Option size=8 align=8 enum-scan=refs[0]
   layout Option size=16 align=8 enum-scan=none
   layout Option size=8 align=8 enum-scan=refs[0]
-  layout Equality value size=8 align=8 refs=[0]
-  layout Equality value size=8 align=8 refs=[0]
-  layout Iterable value size=8 align=8 refs=[0]
-  layout Iterator value size=8 align=8 refs=[0]
-  layout Equality value size=8 align=8 refs=[0]
+  layout Equality value size=16 align=8 refs=[0]
+  layout Equality value size=16 align=8 refs=[0]
+  layout Iterable value size=16 align=8 refs=[0]
+  layout Iterator value size=16 align=8 refs=[0]
+  layout Equality value size=16 align=8 refs=[0]
   layout Cell value size=8 align=8 refs=[0]
   layout Cell size=24 align=8 refs=[]
   layout $Closure$lambda0 value size=8 align=8 refs=[0]

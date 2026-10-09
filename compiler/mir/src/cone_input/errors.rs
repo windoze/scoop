@@ -21,9 +21,6 @@ pub enum ConeMirInputError {
     ForeignExternalCallable {
         index: u32,
     },
-    UnreferencedExternalCallable {
-        index: u32,
-    },
     DuplicateExternalImplementation {
         implementation: scoop_identity::StrongCallableDefinitionOwner,
     },
@@ -90,7 +87,6 @@ impl std::error::Error for ConeMirInputError {
             Self::ForeignExternalCallableSelection { .. }
             | Self::ExternalCallableCountMismatch { .. }
             | Self::ForeignExternalCallable { .. }
-            | Self::UnreferencedExternalCallable { .. }
             | Self::DuplicateExternalImplementation { .. }
             | Self::ExternalCallbackSignatureMismatch { .. }
             | Self::StrongCallableSurfaceMismatch

@@ -73,7 +73,8 @@ fn emitted_registration_and_stackmap_use_final_ssa_root_count() {
                 .safepoints()
                 .registrations();
             assert_eq!(registrations.len(), 1);
-            let expected = u32::from(!null);
+            // Conditional polls preserve separate root leaves, including null slots.
+            let expected = 2;
             assert_eq!(registrations[0].root_pair_count(), expected);
             let normalization = input
                 .module()

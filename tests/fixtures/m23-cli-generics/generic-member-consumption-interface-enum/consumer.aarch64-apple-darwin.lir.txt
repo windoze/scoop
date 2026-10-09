@@ -1,0 +1,63 @@
+Module
+  enum InterfaceTag tagged size=16 align=8 variants=()@8+0 (i32)@8+4
+  fun @scoop$1$cb$77ef8bd0f49412de714a65b11b1a1382c281feda4c893dc1bbd48844af84721a() -> i32
+    local %0 $dependency.argument.0: i32
+    local %1 $dependency.parameter.value: i32
+    local %2 chooser: interface{object,itab}
+    local %3 $dependency.receiver: interface{object,itab}
+    local %4 $dependency.argument.0: i32
+    local %5 $dependency.parameter.value: i32
+    local %6 $call.1: enum0
+    local %7 $call.2: i32
+    local %8 $box.1: enum0
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store integer<Int>(0x00000001) -> local0
+    store local0 -> local1
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (i32) -> enum0 local-fn2(local1)
+    store t0 -> local6
+    store local6 -> local8
+    t1 = box_value td1, local8 scan=none sp<managed-call:1> live=[]
+    t2 = heap_load td1 +96 : ptr<metadata>
+    t3 = heap_load t2 +8 : ptr<metadata>
+    t4 = aggregate (t1, t3) : interface{object,itab}
+    store t4 -> local2
+    store local2 -> local3
+    store integer<Int>(0x0000002a) -> local4
+    store local4 -> local5
+    t5 = extract local3, 1 : ptr<metadata>
+    t6 = extract local3, 0 : ptr<managed>
+    call managed-direct-target1 sp<managed-call:2> live=[t6:ptr<managed>@0] t7 = sig=direct1 (ptr<managed>, i32) -> i32 dispatch[Interface:0] t5(t6, local5)
+    store t7 -> local7
+    ret local7
+  fun @scoop$1$cb$376b47ae755a4a20054d60f8e00d6de35f3cd87f2edc5744453fab69c9dca689(parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>, i32) -> i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    ret param1
+  fun @scoop$1$cb$b57eb4f0336058454b5da44744b25d0297bf0a7aa66293a9998ec8b20df3b91d(i32) -> parts<enum0 [[2xi64]@0+16/8]>
+    local %0 $dependency.local.1: i32
+    local %1 $dependency.local.2: i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store param0 -> local0
+    store local0 -> local1
+    t0 = enum_wrap e0 v1 (local1) : enum0
+    ret t0
+  fun @scoop$1$cb$deff82355ad009896f96400bd83beb49994bd67661ab47d902e56f4da8f9eb4c(ptr<managed>, i32) -> i32
+    local %0 $call.1: i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
+    t0 = heap_load td1 +96 : ptr<metadata>
+    t1 = heap_load t0 +8 : ptr<metadata>
+    t2 = aggregate (param0, t1) : interface{object,itab}
+    call managed-direct-target0 sp<managed-call:0> live=[t2:interface{object,itab}@0] t3 = sig=direct0 (parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>, i32) -> i32 local-fn1(t2, param1)
+    store t3 -> local0
+    ret local0
+  td td0 a(n(c=dev.example%3Ageneric-member-provider%3A0.1.0;p=templates.members;o=-;k=I;x=Chooser);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$14b9116756e9ad2f0229c0fa5ab03e4a9dd14bf57038c5fd161e06d8dc293036 type-id=6899980662842889677 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
+  td td1 g(r=00000006;i=bfbde54b7afa8e5a73c231f4e21e6017ba9702f2beaf42e9e2bb0be859a99b4a) @scoop$1$td$3bd289bbfca0d045c82f76cc7dc981e3369baea95062afad7dcfabe03c0d2257 type-id=15344019987536293212 shape=BoxedValue minimum-size=32 align=8 parent=none vtable=[] itables=[td0:[local-fn3]]
+  td td2 a(n(c=dev.example%3Ageneric-member-provider%3A0.1.0;p=templates.members;o=-;k=E;x=InterfaceTag);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$47f3b9a5d6f01a1f2facf97230229c8332403611a25aa6ff46480affec12fb2f type-id=11800821482075696754 shape=BoxedValue minimum-size=32 align=8 parent=none vtable=[] itables=[]
+  layout InterfaceTag size=16 align=8 enum-scan=none
+  layout Chooser value size=16 align=8 refs=[0]
+  layout box<InterfaceTag<Int>> value size=8 align=8 refs=[0]
+  layout box<InterfaceTag<Int>> size=32 align=8 refs=[]
+  output library

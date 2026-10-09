@@ -60,6 +60,7 @@ pub(super) fn intrinsic(source: hir::IntrinsicTypeKind) -> Option<mir::MirParamF
         hir::IntrinsicTypeKind::Any => mir::MirParamFreeIntrinsicV1::Any,
         hir::IntrinsicTypeKind::Nothing => mir::MirParamFreeIntrinsicV1::Nothing,
         hir::IntrinsicTypeKind::Array
+        | hir::IntrinsicTypeKind::MaybeUninit
         | hir::IntrinsicTypeKind::MutableArray
         | hir::IntrinsicTypeKind::Ptr
         | hir::IntrinsicTypeKind::FunPtr => return None,

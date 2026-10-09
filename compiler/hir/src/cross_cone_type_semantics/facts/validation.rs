@@ -19,6 +19,9 @@ pub enum ExactTypeFactShapeV1 {
     Scalar,
     Pointer,
     Reference,
+    MaybeUninit {
+        value: PersistentExactTypeId,
+    },
     OrdinaryStruct {
         fields: Vec<PersistentExactTypeId>,
     },
@@ -148,6 +151,7 @@ impl<A> Validation<'_, A> {
             ),
             ExactTypeFactShapeV1::OrdinaryStruct { fields }
             | ExactTypeFactShapeV1::Tuple { elements: fields } => self.fields(fields)?,
+            ExactTypeFactShapeV1::MaybeUninit { value } => self.fields(&[*value])?,
             ExactTypeFactShapeV1::CLayoutStruct { fields } => {
                 if fields.is_empty() {
                     return Err(ExactTypeFactsSemanticError::EmptyCLayout(exact));

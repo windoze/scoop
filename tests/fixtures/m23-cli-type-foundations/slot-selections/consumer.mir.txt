@@ -1,5 +1,5 @@
 Module
-  class Leaf vtable=1 itables=2
+  class Leaf vtable=1 itables=0
   class Base vtable=1 itables=0
   interface Specific : Root
   interface Root

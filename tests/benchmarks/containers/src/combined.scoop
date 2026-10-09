@@ -1,0 +1,57 @@
+import scoop.json.Json
+
+@Unsafe fun lowOccupancy(count: Long): Long {
+    beginPhase()
+    val values = ArrayList<Cell>(count)
+    endPhase(0)
+    values.add(Cell(7))
+    reportLayout(values)
+    gcCollect()
+    var round = 0
+    var sum = 0L
+    while (round < 5) {
+        beginPhase()
+        gcCollect()
+        endPhase(4)
+        sum += values[0L].number.toInt64()
+        round += 1
+    }
+    check(sum == 35L)
+    return sum
+}
+
+@Unsafe fun buildStrings(count: Long): Long {
+    val builder = StringBuilder()
+    beginPhase()
+    var index = 0L
+    var expected = 0L
+    while (index < count) {
+        val part = index.toString()
+        builder.add(part)
+        expected += part.length
+        index += 1L
+    }
+    endPhase(1)
+    beginPhase()
+    val text = builder.build()
+    endPhase(2)
+    check(text.length == expected)
+    return text.length
+}
+
+@Unsafe fun jsonRoundTrip(count: Long): Long {
+    val values = ArrayList<Int>(count)
+    reportLayout(values)
+    beginPhase()
+    var index = 0L
+    while (index < count) { values.add(index.toInt32()); index += 1L }
+    endPhase(1)
+    beginPhase()
+    val text = Json.encode(values, ArrayList<Int>.encoder(Int.Companion))
+    endPhase(2)
+    beginPhase()
+    val decoded = Json.decode(text, ArrayList<Int>.decoder(Int.Companion))
+    endPhase(3)
+    check(decoded.size == count && decoded[count - 1L] == (count - 1L).toInt32())
+    return text.length + decoded.size
+}

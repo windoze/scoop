@@ -169,8 +169,8 @@ pub enum CallKind {
     Virtual {
         slot: u32,
     },
-    /// itable lookup (`scoop_rt_itable_lookup(td, iface_td)`), then
-    /// `slot` within the returned table.
+    /// `slot` in the interface value's carried itable. The selected entry
+    /// receives the object component as its hidden receiver.
     Interface {
         interface: InterfaceId,
         slot: u32,

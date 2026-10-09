@@ -822,12 +822,12 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun thunk<Payload> Marker.value() @fn36(this: Marker) -> Int
+  fun thunk<Payload> Marker.value() @fn36(this: box<Payload>) -> Int
     bb0 entry
       call $call.1: Int = @fn26 direct
         Type Marker
         Retype Marker
-          Type Marker
+          Type box<Payload>
           Local this
       return
         Type Int

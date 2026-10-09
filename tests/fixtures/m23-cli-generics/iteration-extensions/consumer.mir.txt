@@ -786,12 +786,12 @@ Module
         StructInit ValueCursor<Int>
           Type Cursor<Int>
           Local inner
-  fun thunk<ValueCursor<Int>> Iterator.next() @fn19(this: Iterator<Int>) -> Option<Int>
+  fun thunk<ValueCursor<Int>> Iterator.next() @fn19(this: box<ValueCursor<Int>>) -> Option<Int>
     bb0 entry
       call $call.1: Option<Int> = @fn5 direct
         Type ValueCursor<Int>
         Unbox
-          Type Iterator<Int>
+          Type box<ValueCursor<Int>>
           Local this
       return
         Type Option<Int>

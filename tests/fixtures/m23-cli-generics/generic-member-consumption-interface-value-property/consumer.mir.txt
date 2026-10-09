@@ -57,22 +57,22 @@ Module
         StructInit PropertyCell<Int>
           Type Int
           Local stored
-  fun thunk<PropertyCell<Int>> ReadOnlyProperty.value() @fn5(this: ReadOnlyProperty<Int>) -> Int
+  fun thunk<PropertyCell<Int>> ReadOnlyProperty.value() @fn5(this: box<PropertyCell<Int>>) -> Int
     bb0 entry
       call $call.1: Int = @fn1 direct
         Type PropertyCell<Int>
         Unbox
-          Type ReadOnlyProperty<Int>
+          Type box<PropertyCell<Int>>
           Local this
       return
         Type Int
         Local $call.1
-  fun thunk<PropertyCell<Int>> ReadOnlyProperty.read() @fn6(this: ReadOnlyProperty<Int>) -> Int
+  fun thunk<PropertyCell<Int>> ReadOnlyProperty.read() @fn6(this: box<PropertyCell<Int>>) -> Int
     bb0 entry
       call $call.1: Int = @fn2 direct
         Type ReadOnlyProperty<Int>
         Retype ReadOnlyProperty<Int>
-          Type ReadOnlyProperty<Int>
+          Type box<PropertyCell<Int>>
           Local this
       return
         Type Int

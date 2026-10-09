@@ -8,8 +8,8 @@ use super::{
     ScoopAbiReturn, ScoopAbiValueShape,
 };
 use crate::{
-    DecodedExactCallableSignature, DecodedPersistentId, ExactCallableSignatureResolutionError,
-    GcEffect, PersistentExactTypeId, PersistentIdResolver,
+    AbiCoercion, DecodedExactCallableSignature, DecodedPersistentId,
+    ExactCallableSignatureResolutionError, GcEffect, PersistentExactTypeId, PersistentIdResolver,
 };
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -65,6 +65,7 @@ pub enum DecodedScoopAbiArgument {
     ElidedZst(DecodedCanonicalScoopStorage),
     Direct(DecodedCanonicalScoopStorage),
     Indirect(DecodedCanonicalScoopStorage),
+    DirectParts(DecodedCanonicalScoopStorage, AbiCoercion),
 }
 
 impl DecodedScoopAbiArgument {
@@ -91,6 +92,12 @@ impl DecodedScoopAbiArgument {
                     .resolve(resolver)
                     .map_err(ScoopAbiResolutionError::Reference)?,
             ),
+            Self::DirectParts(storage, coercion) => ScoopAbiArgument::direct_parts(
+                storage
+                    .resolve(resolver)
+                    .map_err(ScoopAbiResolutionError::Reference)?,
+                coercion,
+            ),
         }
         .map_err(ScoopAbiResolutionError::Shape)
     }
@@ -102,6 +109,7 @@ impl WireEncode for DecodedScoopAbiArgument {
             Self::ElidedZst(storage) => encode_value_sum(encoder, 1, storage),
             Self::Direct(storage) => encode_value_sum(encoder, 2, storage),
             Self::Indirect(storage) => encode_value_sum(encoder, 3, storage),
+            Self::DirectParts(storage, coercion) => encode_parts(encoder, 4, storage, coercion),
         }
     }
 }
@@ -109,11 +117,12 @@ impl WireEncode for DecodedScoopAbiArgument {
 impl WireDecode for DecodedScoopAbiArgument {
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let (fields, tag) = decode_sum_header(decoder)?;
-        expect_sum_length(decoder, fields, 2)?;
+        expect_sum_length(decoder, fields, if tag == 4 { 3 } else { 2 })?;
         match tag {
             1 => decode_storage_variant(decoder, Self::ElidedZst),
             2 => decode_storage_variant(decoder, Self::Direct),
             3 => decode_storage_variant(decoder, Self::Indirect),
+            4 => decode_parts(decoder, Self::DirectParts),
             tag => Err(unknown_tag(decoder, tag)),
         }
     }
@@ -125,6 +134,7 @@ pub enum DecodedScoopAbiReturn {
     ElidedZst(DecodedCanonicalScoopStorage),
     Direct(DecodedCanonicalScoopStorage),
     Indirect(DecodedCanonicalScoopStorage),
+    DirectParts(DecodedCanonicalScoopStorage, AbiCoercion),
 }
 
 impl DecodedScoopAbiReturn {
@@ -155,6 +165,13 @@ impl DecodedScoopAbiReturn {
                     .map_err(ScoopAbiResolutionError::Reference)?,
             )
             .map_err(ScoopAbiResolutionError::Shape),
+            Self::DirectParts(storage, coercion) => ScoopAbiReturn::direct_parts(
+                storage
+                    .resolve(resolver)
+                    .map_err(ScoopAbiResolutionError::Reference)?,
+                coercion,
+            )
+            .map_err(ScoopAbiResolutionError::Shape),
         }
     }
 }
@@ -166,6 +183,7 @@ impl WireEncode for DecodedScoopAbiReturn {
             Self::ElidedZst(storage) => encode_value_sum(encoder, 2, storage),
             Self::Direct(storage) => encode_value_sum(encoder, 3, storage),
             Self::Indirect(storage) => encode_value_sum(encoder, 4, storage),
+            Self::DirectParts(storage, coercion) => encode_parts(encoder, 5, storage, coercion),
         }
     }
 }
@@ -189,6 +207,10 @@ impl WireDecode for DecodedScoopAbiReturn {
             4 => {
                 expect_sum_length(decoder, fields, 2)?;
                 decode_storage_variant(decoder, Self::Indirect)
+            }
+            5 => {
+                expect_sum_length(decoder, fields, 3)?;
+                decode_parts(decoder, Self::DirectParts)
             }
             tag => Err(unknown_tag(decoder, tag)),
         }
@@ -270,6 +292,7 @@ impl WireDecode for ScoopAbiValueShape {
         match decoder.unsigned()? {
             1 => Ok(Self::Scalar),
             2 => Ok(Self::Aggregate),
+            3 => Ok(Self::Interface),
             tag => Err(unknown_tag(decoder, tag)),
         }
     }
@@ -362,3 +385,26 @@ fn encode_value_sum(
 
 #[cfg(test)]
 mod tests;
+
+fn encode_parts(
+    e: &mut Encoder,
+    tag: u64,
+    storage: &DecodedCanonicalScoopStorage,
+    coercion: &AbiCoercion,
+) -> Result<(), scoop_wire::cbor::EncodeError> {
+    e.map(3)?;
+    encode_tag(e, tag)?;
+    e.field(1)?;
+    storage.encode(e)?;
+    e.field(2)?;
+    coercion.encode(e)
+}
+fn decode_parts<T>(
+    d: &mut Decoder<'_>,
+    wrap: impl FnOnce(DecodedCanonicalScoopStorage, AbiCoercion) -> T,
+) -> Result<T, WireError> {
+    Ok(wrap(
+        d.field(1, DecodedCanonicalScoopStorage::decode)?,
+        d.field(2, AbiCoercion::decode)?,
+    ))
+}

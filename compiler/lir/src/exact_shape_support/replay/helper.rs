@@ -6,7 +6,7 @@ use scoop_identity::{
 
 use super::*;
 use crate::{
-    ExactRepresentationKindV1, FieldStorageKindV1, InstanceRepresentationKindV1, NichePointerKind,
+    ExactRepresentationKindV1, FieldStorageKindV1, InstanceRepresentationKindV1, NullNicheKind,
 };
 
 pub(super) fn validate_boxed(
@@ -18,7 +18,7 @@ pub(super) fn validate_boxed(
     let descriptor = descriptor(boxed, descriptors)?;
     if !matches!(
         descriptor.value_layout().representation().kind(),
-        ExactRepresentationKindV1::QualifiedPointer(NichePointerKind::Managed)
+        ExactRepresentationKindV1::QualifiedPointer(NullNicheKind::Managed)
     ) {
         return Err(ParamFreeShapeSupportExportError::BoxedRepresentation(boxed));
     }

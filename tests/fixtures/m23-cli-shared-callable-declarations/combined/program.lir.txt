@@ -29,8 +29,8 @@ Module
     ret
   fun @scoop$1$cb$b88900155ee4da1706f95df63c97e0219e4d77361a20126bc6f7a96f13b3c71d() -> void
     local %0 value: ptr<managed>
-    local %1 contract: ptr<managed>
-    local %2 $dependency.receiver: ptr<managed>
+    local %1 contract: interface{object,itab}
+    local %2 $dependency.receiver: interface{object,itab}
     local %3 $dependency.argument.0: i32
     local %4 $dependency.parameter.value: i32
     local %5 $dependency.receiver: i32
@@ -51,28 +51,31 @@ Module
     poll managed-void-target4 sp<managed-poll:0> live=[]
     call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 () -> ptr<managed> external-fn4()
     store t0 -> local0
-    store local0 -> local1
+    t1 = heap_load external-td9 +96 : ptr<metadata>
+    t2 = heap_load t1 +8 : ptr<metadata>
+    t3 = aggregate (local0, t2) : interface{object,itab}
+    store t3 -> local1
     store local1 -> local2
     store integer<Int>(0x00000011) -> local3
     store local3 -> local4
-    t1 = heap_load local2 +0 : ptr<metadata>
-    call no-gc-direct-target0 t2 = sig=direct1 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t1, external-td5)
-    call managed-direct-target1 sp<managed-call:1> live=[local0:ptr<managed>@0, local2:ptr<managed>@0] t3 = sig=direct2 (ptr<managed>, i32) -> i32 dispatch[Interface:0] t2(local2, local4)
-    store t3 -> local5
+    t4 = extract local2, 1 : ptr<metadata>
+    t5 = extract local2, 0 : ptr<managed>
+    call managed-direct-target1 sp<managed-call:1> live=[local0:ptr<managed>@0, t5:ptr<managed>@0] t6 = sig=direct1 (ptr<managed>, i32) -> i32 dispatch[Interface:0] t4(t5, local4)
+    store t6 -> local5
     store integer<Int>(0x00000011) -> local6
     store local6 -> local7
-    t4 = integer_compare_Equal<Int> local5, local7 : i1
-    cbr t4 then @if.then.1 else @if.else.2
+    t7 = integer_compare_Equal<Int> local5, local7 : i1
+    cbr t7 then @if.then.1 else @if.else.2
   block if.then.1
     store local0 -> local8
     store integer<Int>(0x00000017) -> local9
     store local9 -> local10
-    call managed-direct-target2 sp<managed-call:2> live=[local8:ptr<managed>@0] t5 = sig=direct3 (ptr<managed>, i32) -> i32 external-fn6(local8, local10)
-    store t5 -> local11
+    call managed-direct-target2 sp<managed-call:2> live=[local8:ptr<managed>@0] t8 = sig=direct2 (ptr<managed>, i32) -> i32 external-fn6(local8, local10)
+    store t8 -> local11
     store integer<Int>(0x00000017) -> local12
     store local12 -> local13
-    t6 = integer_compare_Equal<Int> local11, local13 : i1
-    store t6 -> local14
+    t9 = integer_compare_Equal<Int> local11, local13 : i1
+    store t9 -> local14
     br @if.merge.3
   block if.else.2
     store false -> local14
@@ -81,18 +84,18 @@ Module
     store local14 -> local15
     store local15 -> local16
     call managed-void-target0 sp<managed-call:3> live=[] sig=void0 (i1) local-fn0(local16)
-    t7 = aggregate () : {}
+    t10 = aggregate () : {}
     call managed-void-target1 sp<managed-call:4> live=[] sig=void1 () external-fn7()
-    t8 = aggregate () : {}
+    t11 = aggregate () : {}
     call managed-void-target2 sp<managed-call:5> live=[] sig=void2 () external-fn7()
-    t9 = aggregate () : {}
-    t10 = global_load global1 : ptr<managed>
-    t11 = global_load global1 : ptr<managed>
-    t12 = Eq t10, t11 : i1
-    store t12 -> local17
+    t12 = aggregate () : {}
+    t13 = global_load global1 : ptr<managed>
+    t14 = global_load global1 : ptr<managed>
+    t15 = Eq t13, t14 : i1
+    store t15 -> local17
     store local17 -> local18
     call managed-void-target3 sp<managed-call:6> live=[] sig=void3 (i1) local-fn0(local18)
-    t13 = aggregate () : {}
+    t16 = aggregate () : {}
     ret
   fun @scoop$1$cb$d21ff3ee06fdf28f45ff1c440ef9482ba06dc5338c65c7ec87c484df9f9f7bf0(i32, ptr<raw>, ptr<raw>) -> i32
   block entry

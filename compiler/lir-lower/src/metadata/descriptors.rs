@@ -35,10 +35,22 @@ pub(crate) struct TypeDescriptorRefs {
     closures: HashMap<mir::ClosureClassId, lir::TypeDescriptorRef>,
     functions: HashMap<mir::FunctionTypeId, lir::TypeDescriptorRef>,
     boxed: Vec<(mir::Type, lir::BoxedValueDescriptor)>,
+    itable_interfaces: HashMap<mir::ClassId, Vec<scoop_identity::PersistentExactTypeId>>,
     string: Option<lir::TypeDescriptorRef>,
 }
 
 impl TypeDescriptorRefs {
+    pub(crate) fn interface_table_index(
+        &self,
+        class: mir::ClassId,
+        interface: scoop_identity::PersistentExactTypeId,
+    ) -> usize {
+        self.itable_interfaces[&class]
+            .iter()
+            .position(|exact| *exact == interface)
+            .expect("a concrete conversion has an exact interface in its descriptor")
+    }
+
     pub(crate) fn for_boxed_type(&self, ty: &mir::Type) -> lir::BoxedValueDescriptor {
         self.boxed
             .iter()
@@ -127,6 +139,7 @@ pub(crate) fn type_descriptors(
     let mut descriptors = Arena::new();
     let mut refs = TypeDescriptorRefs {
         boxed: dependencies.boxed,
+        itable_interfaces: dependencies.itable_interfaces,
         ..TypeDescriptorRefs::default()
     };
     for (ty, reference) in dependencies.source {
@@ -231,6 +244,21 @@ pub(crate) fn type_descriptors(
             local_functions,
             external_callables,
         )?;
+        refs.itable_interfaces.insert(
+            id,
+            descriptor
+                .itables
+                .iter()
+                .map(|table| {
+                    let scoop_identity::OptionalExactInterface::Present(interface) =
+                        table.identity_record().key().interface()
+                    else {
+                        unreachable!("an itable has an exact interface identity")
+                    };
+                    interface
+                })
+                .collect(),
+        );
         let descriptor = lir::TypeDescriptorRef::Local(descriptors.alloc(descriptor));
         assert!(refs.classes.insert(id, descriptor).is_none());
         if is_string {

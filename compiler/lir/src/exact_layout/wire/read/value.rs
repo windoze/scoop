@@ -8,7 +8,7 @@ mod scalar;
 #[derive(Debug)]
 pub(super) enum RawValue {
     Scalar(ScalarRepresentationKindV1),
-    QualifiedPointer(crate::NichePointerKind),
+    QualifiedPointer(crate::NullNicheKind),
     Struct {
         policy: RawPolicy,
         interior_mutable: bool,
@@ -21,11 +21,13 @@ pub(super) enum RawValue {
         variants: Vec<RawTaggedVariant>,
     },
     NicheEnum {
-        pointer: crate::NichePointerKind,
+        pointer: crate::NullNicheKind,
         variants: Vec<RawVariant>,
         payload: DecodedPersistentId<PersistentEnumVariantId>,
     },
     Unit,
+    Interface,
+    MaybeUninit(DecodedPersistentId<scoop_identity::PersistentLayoutId>),
 }
 
 #[derive(Debug)]
@@ -87,6 +89,16 @@ impl WireDecode for RawValue {
                         tag => Err(unknown(decoder, tag)),
                     }
                 })
+            }
+            8 => {
+                length(decoder, fields, 1)?;
+                Ok(Self::Interface)
+            }
+            9 => {
+                length(decoder, fields, 2)?;
+                Ok(Self::MaybeUninit(
+                    decoder.field(1, DecodedPersistentId::decode)?,
+                ))
             }
             tag => Err(unknown(decoder, tag)),
         }

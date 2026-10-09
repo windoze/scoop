@@ -205,7 +205,7 @@ fn expression_requirement(
             }
             _ => None,
         },
-        mir::ExprKind::Context(_) => None,
+        mir::ExprKind::Context(_) | mir::ExprKind::MaybeUninit { .. } => None,
         mir::ExprKind::ClassAlloc { class_id } => {
             unavailable_descriptor(module, roots, dependencies, &mir::Type::Class(*class_id))
         }

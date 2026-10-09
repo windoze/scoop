@@ -10,8 +10,6 @@ Module
     local %6 $dependency.parameter.left: enum0
     local %7 $dependency.parameter.right: enum0
     local %8 $call.1: i1
-    local %9 $sc.1: enum0
-    local %10 $sc.2: enum0
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     call no-gc-elided-zst-target0 t0 = sig=elided-zst0 () -> elided-zst<struct0 size=0 align=1> external-fn0()
@@ -26,9 +24,7 @@ Module
     store t3 -> local5
     store local4 -> local6
     store local5 -> local7
-    store local6 -> local9
-    store local7 -> local10
-    call managed-direct-target0 sp<managed-call:0> live=[] t4 = sig=direct0 (indirect<enum0 size=8 align=8 scan=none>, indirect<enum0 size=8 align=8 scan=none>) -> i1 external-fn1(indirect local9, indirect local10)
+    call managed-direct-target0 sp<managed-call:0> live=[] t4 = sig=direct0 (parts<enum0 [i64@0+8/8]>, parts<enum0 [i64@0+8/8]>) -> i1 external-fn1(local6, local7)
     store t4 -> local8
     ret local8
   output library

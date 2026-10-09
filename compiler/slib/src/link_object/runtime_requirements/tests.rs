@@ -31,6 +31,22 @@ fn classifies_only_exact_runtime_contract_symbols() {
 
 #[test]
 fn requires_tlvp_forms_only_for_the_runtime_tls_contract() {
+    let poll = classify_with_form(
+        b"_scoop_rt_poll_state",
+        VerifiedObjectRelocationFormV1::TlvpLoadPage21,
+    )
+    .unwrap();
+    assert_eq!(
+        poll.runtime_requirements()[0].contract().symbol(),
+        RuntimeAbiSymbolV1::PollState
+    );
+    assert!(
+        classify_with_form(
+            b"_scoop_rt_poll_state",
+            VerifiedObjectRelocationFormV1::Branch26,
+        )
+        .is_err()
+    );
     assert!(matches!(
         classify_with_form(
             b"_scoop_rt_allocation_context",

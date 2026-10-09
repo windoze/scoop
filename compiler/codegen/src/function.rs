@@ -1,5 +1,6 @@
 use super::*;
 
+mod abi_parts;
 mod call;
 mod instruction;
 mod local_storage;
@@ -62,6 +63,8 @@ struct FnEmitter<'a, 'ctx> {
     compiler_unwind_blocks: HashSet<scoop_lir::BlockId>,
     compiler_invoke_index: u32,
     allocation_index: u32,
+    /// The attached thread address stays stable throughout this invocation.
+    cached_poll_state: Option<PointerValue<'ctx>>,
     /// Checked array-size failures share one block per callable-owned message.
     array_size_trap_blocks: HashMap<scoop_lir::GlobalId, inkwell::basic_block::BasicBlock<'ctx>>,
 }
@@ -102,6 +105,21 @@ struct StatepointLiveLeaf<'ctx> {
 struct MaterializedStatepointLive<'ctx> {
     arguments: HashMap<scoop_lir::CallerRootSource, BasicValueEnum<'ctx>>,
     leaves: Vec<StatepointLiveLeaf<'ctx>>,
+}
+
+impl<'ctx> MaterializedStatepointLive<'ctx> {
+    fn interface_object(&self, value: Value) -> Option<PointerValue<'ctx>> {
+        let source = match value {
+            Value::Param(index) => scoop_lir::CallerRootSource::Param(index),
+            Value::Local(id) => scoop_lir::CallerRootSource::Local(id),
+            Value::Temp(id) => scoop_lir::CallerRootSource::Temp(id),
+            _ => return None,
+        };
+        self.leaves
+            .iter()
+            .find(|leaf| leaf.source == source && leaf.byte_offset == 0)
+            .map(|leaf| leaf.value)
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -153,7 +171,7 @@ enum TypedCallResult<'a> {
     },
     Direct {
         out: TempId,
-        value: &'a scoop_lir::AbiValue,
+        value: &'a scoop_lir::AbiDirectValue,
     },
     Indirect {
         storage: scoop_lir::LocalId,
@@ -165,9 +183,8 @@ enum TypedCallResult<'a> {
 fn result_scan<'a>(result: &TypedCallResult<'a>) -> &'a RefScan {
     match result {
         TypedCallResult::Void | TypedCallResult::ElidedZst { .. } => &RefScan::None,
-        TypedCallResult::Direct { value, .. } | TypedCallResult::Indirect { value, .. } => {
-            value.scan()
-        }
+        TypedCallResult::Direct { value, .. } => value.scan(),
+        TypedCallResult::Indirect { value, .. } => value.scan(),
     }
 }
 
@@ -297,6 +314,7 @@ pub(super) fn emit_function<'ctx>(
         compiler_unwind_blocks,
         compiler_invoke_index: 0,
         allocation_index: 0,
+        cached_poll_state: None,
         array_size_trap_blocks: HashMap::new(),
     };
 
@@ -427,8 +445,9 @@ pub(super) fn emit_function<'ctx>(
                             CodegenError(format!("ret @{}: {e}", function.symbol()))
                         })?;
                     }
-                    scoop_lir::AbiReturn::Direct(_) => {
+                    scoop_lir::AbiReturn::Direct(plan) => {
                         let value = emitter.value(value.expect("direct result was validated"))?;
+                        let value = emitter.encode_direct_result(plan, value)?;
                         builder.build_return(Some(&value)).map_err(|e| {
                             CodegenError(format!("ret @{}: {e}", function.symbol()))
                         })?;

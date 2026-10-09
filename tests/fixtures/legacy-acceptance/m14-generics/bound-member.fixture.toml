@@ -14,7 +14,7 @@ stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-checks = [{"file" = "${work}/dump/${build.result.root.identity}/ast.txt", "snapshot" = "bound-member.ast.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/hir.txt", "snapshot" = "bound-member.hir.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/mir.txt", "snapshot" = "bound-member.mir.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/lir.txt", "snapshot" = "bound-member.lir.txt"}]
+checks = [{"file" = "${work}/dump/${build.result.root.identity}/ast.txt", "snapshot" = "bound-member.ast.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/hir.txt", "snapshot" = "bound-member.hir.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/mir.txt", "snapshot" = "bound-member.mir.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/lir.txt", "snapshot" = "bound-member.${target}.lir.txt"}]
 
 [[steps]]
 name = "run"

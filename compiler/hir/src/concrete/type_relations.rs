@@ -109,6 +109,7 @@ impl<'a> ConcreteTypeRelations<'a> {
             )) => visit(*value),
             IntrinsicTypeRepresentation::Atomic(_) => Ok(()),
             IntrinsicTypeRepresentation::Array { element }
+            | IntrinsicTypeRepresentation::MaybeUninit { value: element }
             | IntrinsicTypeRepresentation::MutableArray { element }
             | IntrinsicTypeRepresentation::Ptr { pointee: element } => visit(*element),
             IntrinsicTypeRepresentation::FunPtr { signature } => {

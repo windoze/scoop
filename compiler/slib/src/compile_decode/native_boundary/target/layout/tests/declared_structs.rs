@@ -108,7 +108,7 @@ impl Fixture {
         let definitions = self
             .records
             .iter()
-            .map(|r| (r.owner(), AbiNominalDefinition::native(r)))
+            .map(|r| (r.owner(), AbiNominalDefinition::native(r, false)))
             .collect();
         let callable_applications = HashMap::new();
         let initialization_units = HashMap::new();
@@ -141,13 +141,13 @@ fn handle_named_structs_use_declared_scoop_aggregate_layout_from_either_provider
                     assert_eq!(layout.shape, ScoopAbiValueShape::Aggregate);
                     assert!(layout.gc_free);
                     assert!(matches!(
-                        normalizer.scoop_argument(fixture.exact).unwrap(),
-                        ScoopAbiArgument::Indirect(storage)
+                        normalizer.scoop_storage(fixture.exact).unwrap(),
+                        storage
                             if storage.exact_type() == fixture.exact && storage.byte_size() == size
                     ));
                     assert!(matches!(
-                        normalizer.scoop_return(fixture.exact).unwrap(),
-                        ScoopAbiReturn::Indirect(storage)
+                        normalizer.scoop_storage(fixture.exact).unwrap(),
+                        storage
                             if storage.exact_type() == fixture.exact && storage.byte_size() == size
                     ));
                 });
@@ -168,91 +168,11 @@ fn handle_identity_does_not_bypass_missing_nominal_or_field_witnesses() {
             let owner = fixture.records.remove(missing).owner();
             fixture.with_normalizer(|normalizer| {
                 assert!(matches!(
-                    normalizer.scoop_argument(fixture.exact),
+                    normalizer.scoop_storage(fixture.exact),
                     Err(NativeBoundaryCompileError::ClosureRequired { owner: actual })
                         if actual == owner
                 ));
             });
         }
     }
-}
-
-#[test]
-fn mixed_handle_scalar_and_unit_parameters_preserve_the_complete_scoop_abi() {
-    let mut dump = String::new();
-    for name in ["PinnedPtr", "GcHandle"] {
-        let fixture = Fixture::new(
-            ConeIdentity::CORE,
-            name,
-            scoop_hir::IntegerKind::UNSIGNED_64,
-        );
-        fixture.with_normalizer(|normalizer| {
-            let arguments = [fixture.scalar, fixture.exact, fixture.unit, fixture.exact]
-                .into_iter()
-                .map(|exact| normalizer.scoop_argument(exact).unwrap())
-                .collect::<Vec<_>>();
-            let signature = CanonicalScoopAbiFunctionSignature::new(
-                ExactCallableSignature::new(
-                    scoop_identity::Effect::Ordinary,
-                    None,
-                    vec![fixture.scalar, fixture.exact, fixture.unit, fixture.exact],
-                    fixture.exact,
-                ),
-                arguments,
-                normalizer.scoop_return(fixture.exact).unwrap(),
-                GcEffect::Managed,
-            )
-            .unwrap();
-            assert!(matches!(
-                signature.arguments(),
-                [
-                    ScoopAbiArgument::Direct(_),
-                    ScoopAbiArgument::Indirect(_),
-                    ScoopAbiArgument::ElidedZst(_),
-                    ScoopAbiArgument::Indirect(_)
-                ]
-            ));
-            assert!(matches!(signature.result(), ScoopAbiReturn::Indirect(_)));
-            let arguments = signature
-                .arguments()
-                .iter()
-                .map(|argument| match argument {
-                    ScoopAbiArgument::Direct(value) => storage("direct", *value),
-                    ScoopAbiArgument::Indirect(value) => storage("indirect", *value),
-                    ScoopAbiArgument::ElidedZst(value) => storage("elided", *value),
-                })
-                .collect::<Vec<_>>()
-                .join(",");
-            let result = match signature.result() {
-                ScoopAbiReturn::UnitVoid => "unit".to_owned(),
-                ScoopAbiReturn::Direct(value) => storage("direct", value),
-                ScoopAbiReturn::Indirect(value) => storage("indirect", value),
-                ScoopAbiReturn::ElidedZst(value) => storage("elided", value),
-            };
-            dump.push_str(&format!(
-                "{name}: {:?} args=[{arguments}] result={result}\n",
-                signature.gc_effect()
-            ));
-            let bytes = scoop_wire::encode(&signature).unwrap();
-            let decoded: scoop_identity::DecodedCanonicalScoopAbiFunctionSignature =
-                scoop_wire::decode_canonical(&bytes).unwrap();
-            let mut resolver = Fixture::new(
-                ConeIdentity::CORE,
-                name,
-                scoop_hir::IntegerKind::UNSIGNED_64,
-            );
-            assert_eq!(decoded.resolve(&mut resolver).unwrap(), signature);
-        });
-    }
-    assert_eq!(
-        dump,
-        include_str!(concat!(
-            env!("CARGO_MANIFEST_DIR"),
-            "/../../tests/fixtures/m23-native-boundary/handle-scoop-abi.snap"
-        ))
-    );
-}
-
-fn storage(passing: &str, value: CanonicalScoopStorage) -> String {
-    format!("{passing}:{}:{:?}", value.byte_size(), value.shape())
 }

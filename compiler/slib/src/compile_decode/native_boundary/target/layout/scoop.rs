@@ -1,27 +1,7 @@
 use super::*;
 
 impl NativeBoundaryNormalizer<'_> {
-    pub(in super::super) fn scoop_argument(
-        &mut self,
-        exact: PersistentExactTypeId,
-    ) -> Result<ScoopAbiArgument, NativeBoundaryCompileError> {
-        let storage = self.scoop_storage(exact)?;
-        scoop_lir::canonical_scoop_abi_argument(self.target, storage)
-            .map_err(NativeBoundaryTargetError::ScoopAbi)
-            .map_err(Into::into)
-    }
-
-    pub(in super::super) fn scoop_return(
-        &mut self,
-        exact: PersistentExactTypeId,
-    ) -> Result<ScoopAbiReturn, NativeBoundaryCompileError> {
-        let storage = self.scoop_storage(exact)?;
-        scoop_lir::canonical_scoop_abi_value_return(self.target, storage)
-            .map_err(NativeBoundaryTargetError::ScoopAbi)
-            .map_err(Into::into)
-    }
-
-    fn scoop_storage(
+    pub(in super::super) fn scoop_storage(
         &mut self,
         exact: PersistentExactTypeId,
     ) -> Result<CanonicalScoopStorage, NativeBoundaryCompileError> {
@@ -36,7 +16,7 @@ impl NativeBoundaryNormalizer<'_> {
         ))
     }
 
-    pub(super) fn scoop_layout(
+    pub(in super::super) fn scoop_layout(
         &mut self,
         exact: PersistentExactTypeId,
     ) -> Result<PhysicalType, NativeBoundaryCompileError> {
@@ -105,12 +85,30 @@ impl NativeBoundaryNormalizer<'_> {
     ) -> Result<PhysicalType, NativeBoundaryCompileError> {
         let (definition, binders) = self.definition(exact)?;
         match definition.shape() {
+            NativeBoundaryNominalShape::Intrinsic(representation)
+                if representation.family() == scoop_hir::IntrinsicTypeKind::MaybeUninit =>
+            {
+                let payload = self.signature_exact(
+                    &scoop_identity::SignatureTypeKey::Binder { depth: 0, index: 0 },
+                    &binders,
+                )?;
+                let mut layout = self.scoop_layout(payload)?;
+                layout.shape = ScoopAbiValueShape::Aggregate;
+                Ok(layout)
+            }
             NativeBoundaryNominalShape::Intrinsic(representation) => {
                 intrinsic_layout(self.target, representation.family())
             }
-            NativeBoundaryNominalShape::Reference => {
-                Ok(pointer(self.target, scoop_lir::PointerKind::Managed, false))
-            }
+            NativeBoundaryNominalShape::Reference => Ok(if definition.is_interface() {
+                PhysicalType {
+                    size: 16,
+                    alignment: 8,
+                    shape: ScoopAbiValueShape::Interface,
+                    gc_free: false,
+                }
+            } else {
+                pointer(self.target, scoop_lir::PointerKind::Managed, false)
+            }),
             NativeBoundaryNominalShape::Struct { c_layout, fields } => {
                 let mut normalized = allocate_vec(fields.len(), &WirePath::root().field(1))?;
                 for field in fields {
@@ -140,19 +138,17 @@ impl NativeBoundaryNormalizer<'_> {
         exact: PersistentExactTypeId,
         variants: &[Vec<(PersistentExactTypeId, PhysicalType)>],
     ) -> Result<PhysicalType, NativeBoundaryCompileError> {
-        let niche_pointer_kind = variants
+        let niche_payload = variants
             .iter()
             .find(|variant| !variant.is_empty())
             .filter(|variant| variant.len() == 1)
-            .and_then(|variant| self.niche_pointer_kind(variant[0].0));
+            .filter(|variant| self.niche_pointer_kind(variant[0].0).is_some())
+            .map(|variant| variant[0].1);
         if variants.len() == 2
             && variants.iter().any(Vec::is_empty)
-            && let Some(niche_pointer_kind) = niche_pointer_kind
+            && let Some(payload) = niche_payload
         {
-            let gc_free = variants.iter().flatten().all(|(_, field)| field.gc_free);
-            let mut layout = pointer(self.target, niche_pointer_kind, gc_free);
-            layout.gc_free = gc_free;
-            return Ok(layout);
+            return Ok(payload);
         }
 
         let mut payloads = allocate_vec(variants.len(), &WirePath::root().field(1))?;

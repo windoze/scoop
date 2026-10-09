@@ -10,7 +10,7 @@ Module
     call native-borrowed-void-target0 sp<native-borrowed:0> roots=[local0:refs[16]] sig=void0 (indirect<struct0 size=24 align=8 scan=refs[16]>, i8, i16, i32, i64, i8, i16, i32, i64) extern0(indirect local0, param1, param2, param3, param4, param5, param6, param7, param8)
     t0 = aggregate () : {}
     ret
-  fun @scoop$1$cb$1a652c005ca59f15f66874cd060b265bbd02815f73e74296db8dab895d53566a(i8, i1) -> sret<struct1 size=8 align=8 scan=none> <no-gc>
+  fun @scoop$1$cb$1a652c005ca59f15f66874cd060b265bbd02815f73e74296db8dab895d53566a(i8, i1) -> parts<struct1 [i64@0+8/8]> <no-gc>
   block entry
     t0 = aggregate (param0, param1) : struct1
     ret t0
@@ -18,7 +18,7 @@ Module
   block entry
     t0 = aggregate (param0) : struct0
     ret t0
-  fun @scoop$1$cb$2a144a79e92b53b617bbadf0ffa4e1707313f43f42d7e1ca7eba0004897db579(i64) -> sret<struct2 size=8 align=8 scan=none> <no-gc>
+  fun @scoop$1$cb$2a144a79e92b53b617bbadf0ffa4e1707313f43f42d7e1ca7eba0004897db579(i64) -> parts<struct2 [i64@0+8/8]> <no-gc>
   block entry
     t0 = aggregate (param0) : struct2
     ret t0

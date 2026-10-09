@@ -41,11 +41,18 @@ impl Lowerer {
                 )
             })
             .collect::<Vec<_>>();
+        let receiver = match self.functions[request.function].kind {
+            hir::FunctionKind::Intrinsic(hir::IntrinsicFunction {
+                kind: hir::IntrinsicFunctionKind::MaybeUninit(kind),
+                ..
+            }) => Self::maybe_uninit_receiver(kind, request.receiver),
+            _ => request.receiver,
+        };
         self.materialize_argument_inputs(
             ResolvedArgumentMaterialization {
                 parameters: &parameters,
                 inputs: &request.argument_map.parameters,
-                receiver: request.receiver,
+                receiver,
                 source_args: request.source_args,
                 argument_sinks: request.argument_sinks,
                 call_span: request.call_span,

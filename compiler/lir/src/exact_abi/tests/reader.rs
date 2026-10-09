@@ -29,8 +29,19 @@ impl WireEncode for Modified<'_> {
 fn reader_rejects_storage_pass_mode_protocol_and_logical_type_drift() {
     let value = fixtures::aggregate(false);
     let unit: ExactLayoutExportV1 = unit().into();
-    let expected = fixtures::function(&value, &[&value]);
-    let wrong_layouts = fixtures::function(&unit, &[&unit]);
+    let storage = value.value_handle().unwrap().canonical_storage();
+    let expected = fixtures::function(
+        value.identity().exact(),
+        ScoopAbiReturn::direct_parts(storage, fixtures::integer_part(storage, 8)).unwrap(),
+        vec![ScoopAbiArgument::direct_parts(storage, fixtures::integer_part(storage, 64)).unwrap()],
+    );
+    let wrong_layouts = fixtures::function(
+        unit.identity().exact(),
+        ScoopAbiReturn::UnitVoid,
+        vec![
+            ScoopAbiArgument::elided_zst(unit.value_handle().unwrap().canonical_storage()).unwrap(),
+        ],
+    );
     let canonical = expected.canonical_signature();
     let raw_storage = canonical.arguments()[0].storage();
     let scalar = CanonicalScoopStorage::new(

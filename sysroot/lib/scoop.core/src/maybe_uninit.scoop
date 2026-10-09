@@ -1,0 +1,13 @@
+@Intrinsic("core_maybe_uninit")
+public struct MaybeUninit<T> {
+    @NoGC @Unsafe @Intrinsic("maybe_uninit_assume_init")
+    public fun assumeInit(): T
+
+    public companion object {
+        @NoGC @Intrinsic("maybe_uninit_zero")
+        public fun uninit(): MaybeUninit<T>
+
+        @NoGC @Intrinsic("maybe_uninit_initialized")
+        public fun initialized(value: T): MaybeUninit<T>
+    }
+}

@@ -128,7 +128,7 @@ fn niche_enum_reader_requires_the_replayed_pointer_family_and_payload_variant() 
         let RawValue::NicheEnum { pointer, .. } = value(raw) else {
             panic!("niche")
         };
-        *pointer = NichePointerKind::Raw;
+        *pointer = NullNicheKind::Raw;
     });
     reject(&expected, |raw| {
         let RawValue::NicheEnum {

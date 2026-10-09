@@ -95,7 +95,7 @@ Module
     unreachable
   block if.merge.2
     ret
-  fun @scoop$1$cb$d01712eda743bdf8c93537ef0b02265cf2b8d8943e0772d9217dc6c717c1add3() -> sret<struct1 size=16 align=8 scan=none>
+  fun @scoop$1$cb$d01712eda743bdf8c93537ef0b02265cf2b8d8943e0772d9217dc6c717c1add3() -> parts<struct1 [[2xi64]@0+16/8]>
     local %0 $argument.0: i32
     local %1 $parameter.id: i32
     local %2 $dependency.argument.0: ptr<managed>
@@ -207,87 +207,84 @@ Module
     local %58 $pattern.subject.3: enum4
     local %59 $pattern.subject.4: enum4
     local %60 $new.1: ptr<managed>
-    local %61 $sc.1: struct1
-    local %62 $sc.2: exception_record
-    local %63 $sc.3: ptr<raw>
-    local %64 $sc.4: ptr<managed>
-    local %65 $sc.5: enum1
-    local %66 $sc.6: enum1
+    local %61 $sc.1: exception_record
+    local %62 $sc.2: ptr<raw>
+    local %63 $sc.3: ptr<managed>
   block entry
     poll managed-void-target8 sp<managed-poll:0> live=[]
-    call managed-indirect-target0 sp<managed-call:0> live=[] local61 = sig=indirect0 (sret struct1 size=16 align=8 scan=none) local-fn6()
-    store local61 -> local0
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 () -> struct1 local-fn6()
+    store t0 -> local0
     call managed-void-target0 sp<managed-call:1> live=[] sig=void0 () runtime @scoop_rt_gc_collect()
-    t0 = aggregate () : {}
+    t1 = aggregate () : {}
     store integer<Int>(0x00000009) -> local1
     store local1 -> local2
-    call managed-direct-target0 sp<managed-call:2> live=[] t1 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td5, machine<byte-size>(ByteSize(24)))
-    store t1 -> local60
+    call managed-direct-target1 sp<managed-call:2> live=[] t2 = sig=direct1 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td5, machine<byte-size>(ByteSize(24)))
+    store t2 -> local60
     call managed-void-target1 sp<managed-call:3> live=[local60:ptr<managed>@0] sig=void1 (ptr<managed>, i32) local-fn11(local60, local2)
-    t2 = aggregate () : {}
-    call no-gc-direct-target0 t3 = sig=direct1 () -> ptr<managed> runtime @scoop_rt_context_current()
-    call managed-direct-target1 sp<managed-call:4> live=[local60:ptr<managed>@0, t3:ptr<managed>@0] t4 = sig=direct2 (ptr<raw>, ptr<managed>, ptr<metadata>) -> ptr<managed> runtime @scoop_rt_context_push(context-cell<b3441b23d1c0338301d893d9c03cfce0491507e6742898bf14c794268ae3e01b>, local60, external-td2)
-    t5 = aggregate (t3, t4) : {ptr<managed>, ptr<managed>}
-    store t5 -> local56
+    t3 = aggregate () : {}
+    call no-gc-direct-target0 t4 = sig=direct2 () -> ptr<managed> runtime @scoop_rt_context_current()
+    call managed-direct-target2 sp<managed-call:4> live=[local60:ptr<managed>@0, t4:ptr<managed>@0] t5 = sig=direct3 (ptr<raw>, ptr<managed>, ptr<metadata>) -> ptr<managed> runtime @scoop_rt_context_push(context-cell<b3441b23d1c0338301d893d9c03cfce0491507e6742898bf14c794268ae3e01b>, local60, external-td2)
+    t6 = aggregate (t4, t5) : {ptr<managed>, ptr<managed>}
+    store t6 -> local56
     br @try.body.6
   block try.unwind.1
-    (t6, t7) = landingpad : (exception_record, ptr<raw>)
-    store t6 -> local62
-    store t7 -> local63
+    (t7, t8) = landingpad : (exception_record, ptr<raw>)
+    store t7 -> local61
+    store t8 -> local62
     br @try.dispatch.2
   block try.dispatch.2
-    t8 = begin_catch local63 : ptr<managed>
-    store t8 -> local64
+    t9 = begin_catch local62 : ptr<managed>
+    store t9 -> local63
     br @scope.17
   block try.exit_pad.3
-    (t9, t10) = cleanup_pad : (exception_record, ptr<raw>)
-    store t9 -> local62
-    store t10 -> local63
+    (t10, t11) = cleanup_pad : (exception_record, ptr<raw>)
+    store t10 -> local61
+    store t11 -> local62
     br @try.exit_cleanup.4
   block try.exit_cleanup.4
     end_catch
-    resume local62
+    resume local61
   block try.end.5
     store global2 -> local54
     store local54 -> local55
     call managed-void-target2 sp<managed-call:5> live=[local55:ptr<managed>@0] sig=void2 (ptr<managed>) local-fn10(local55)
-    t11 = aggregate () : {}
+    t12 = aggregate () : {}
     ret
   block try.body.6
     store local0 -> local3
     store local3 -> local4
-    t12 = foreign_callback_Retain family0 local4 : struct1
-    store t12 -> local5
+    t13 = foreign_callback_Retain family0 local4 : struct1
+    store t13 -> local5
     store local0 -> local6
     store local6 -> local7
     foreign_callback_Release family0 local7
-    t13 = aggregate () : {}
-    t14 = extract local5, 0 : ptr<code>
-    store t14 -> local8
-    t15 = extract local5, 1 : ptr<raw>
-    store t15 -> local9
+    t14 = aggregate () : {}
+    t15 = extract local5, 0 : ptr<code>
+    store t15 -> local8
+    t16 = extract local5, 1 : ptr<raw>
+    store t16 -> local9
     store integer<Int>(0x0000000a) -> local10
     store integer<Int>(0x00000004) -> local11
     store local8 -> local12
     store local9 -> local13
     store local10 -> local14
     store local11 -> local15
-    call native-safe-direct-target0 sp<native-safe:0> roots=[local56:refs[0, 8]] t16 = sig=direct3 (ptr<code>, ptr<raw>, i32, i32) -> i32 extern0(local12, local13, local14, local15)
-    store t16 -> local16
+    call native-safe-direct-target0 sp<native-safe:0> roots=[local56:refs[0, 8]] t17 = sig=direct4 (ptr<code>, ptr<raw>, i32, i32) -> i32 extern0(local12, local13, local14, local15)
+    store t17 -> local16
     store integer<Int>(0x0000002e) -> local17
     store local17 -> local18
-    t17 = integer_compare_Equal<Int> local16, local18 : i1
-    store t17 -> local19
+    t18 = integer_compare_Equal<Int> local16, local18 : i1
+    store t18 -> local19
     store local19 -> local20
     invoke managed-void-target3 sp<managed-invoke:0> roots=[local56:refs[0, 8]:normal+unwind] sig=void3 (i1) local-fn5(local20) normal @invoke.normal.1 unwind @try.unwind.1
     br @invoke.normal.1
   block if.then.7
-    call native-safe-direct-target2 sp<native-safe:2> roots=[local56:refs[0, 8]] t26 = sig=direct6 () -> i32 extern2()
-    store t26 -> local37
+    call native-safe-direct-target2 sp<native-safe:2> roots=[local56:refs[0, 8]] t27 = sig=direct7 () -> i32 extern2()
+    store t27 -> local37
     store integer<Int>(0x00000001) -> local38
     store local38 -> local39
-    t27 = integer_compare_Equal<Int> local37, local39 : i1
-    store t27 -> local40
+    t28 = integer_compare_Equal<Int> local37, local39 : i1
+    store t28 -> local40
     br @if.merge.9
   block if.else.8
     store false -> local40
@@ -302,8 +299,8 @@ Module
     br @pattern.merge.12
   block pattern.else.11
     store local57 -> local59
-    t35 = variant_test e4 v1 local59 : i1
-    cbr t35 then @pattern.pass.13 else @pattern.else.14
+    t36 = variant_test e4 v1 local59 : i1
+    cbr t36 then @pattern.pass.13 else @pattern.else.14
   block pattern.merge.12
     store local49 -> local50
     store local50 -> local51
@@ -317,79 +314,77 @@ Module
   block pattern.merge.15
     br @pattern.merge.12
   block scope.16
-    t38 = extract local56, 0 : ptr<managed>
-    t39 = extract local56, 1 : ptr<managed>
-    call no-gc-void-target0 sig=void8 (ptr<managed>, ptr<managed>) runtime @scoop_rt_context_restore(t38, t39)
-    t40 = aggregate () : {}
+    t39 = extract local56, 0 : ptr<managed>
+    t40 = extract local56, 1 : ptr<managed>
+    call no-gc-void-target0 sig=void8 (ptr<managed>, ptr<managed>) runtime @scoop_rt_context_restore(t39, t40)
+    t41 = aggregate () : {}
     br @try.end.5
   block scope.17
-    t41 = extract local56, 0 : ptr<managed>
-    t42 = extract local56, 1 : ptr<managed>
-    call no-gc-void-target1 sig=void9 (ptr<managed>, ptr<managed>) runtime @scoop_rt_context_restore(t41, t42)
-    t43 = aggregate () : {}
+    t42 = extract local56, 0 : ptr<managed>
+    t43 = extract local56, 1 : ptr<managed>
+    call no-gc-void-target1 sig=void9 (ptr<managed>, ptr<managed>) runtime @scoop_rt_context_restore(t42, t43)
+    t44 = aggregate () : {}
     invoke no-gc-void-target2 sig=void10 () runtime @scoop_rt_rethrow() normal @rethrow.normal.8 unwind @try.exit_pad.3
     br @rethrow.normal.8
   block invoke.normal.1
-    t18 = aggregate () : {}
-    t19 = extract local5, 0 : ptr<code>
-    store t19 -> local21
-    t20 = extract local5, 1 : ptr<raw>
-    store t20 -> local22
+    t19 = aggregate () : {}
+    t20 = extract local5, 0 : ptr<code>
+    store t20 -> local21
+    t21 = extract local5, 1 : ptr<raw>
+    store t21 -> local22
     store integer<Int>(0x00000014) -> local23
     store integer<Int>(0x00000004) -> local24
     store local21 -> local25
     store local22 -> local26
     store local23 -> local27
     store local24 -> local28
-    call native-safe-direct-target1 sp<native-safe:1> roots=[local56:refs[0, 8]] t21 = sig=direct4 (ptr<code>, ptr<raw>, i32, i32) -> i32 extern0(local25, local26, local27, local28)
-    store t21 -> local29
+    call native-safe-direct-target1 sp<native-safe:1> roots=[local56:refs[0, 8]] t22 = sig=direct5 (ptr<code>, ptr<raw>, i32, i32) -> i32 extern0(local25, local26, local27, local28)
+    store t22 -> local29
     store integer<Int>(0x00000056) -> local30
     store local30 -> local31
-    t22 = integer_compare_Equal<Int> local29, local31 : i1
-    store t22 -> local32
+    t23 = integer_compare_Equal<Int> local29, local31 : i1
+    store t23 -> local32
     store local32 -> local33
     invoke managed-void-target4 sp<managed-invoke:1> roots=[local56:refs[0, 8]:normal+unwind] sig=void4 (i1) local-fn5(local33) normal @invoke.normal.2 unwind @try.unwind.1
     br @invoke.normal.2
   block invoke.normal.2
-    t23 = aggregate () : {}
-    invoke managed-direct-target2 sp<managed-invoke:2> roots=[local56:refs[0, 8]:normal+unwind] t24 = sig=direct5 () -> i32 local-fn4() normal @invoke.normal.3 unwind @try.unwind.1
+    t24 = aggregate () : {}
+    invoke managed-direct-target3 sp<managed-invoke:2> roots=[local56:refs[0, 8]:normal+unwind] t25 = sig=direct6 () -> i32 local-fn4() normal @invoke.normal.3 unwind @try.unwind.1
     br @invoke.normal.3
   block invoke.normal.3
-    store t24 -> local34
+    store t25 -> local34
     store integer<Int>(0x00000009) -> local35
     store local35 -> local36
-    t25 = integer_compare_Equal<Int> local34, local36 : i1
-    cbr t25 then @if.then.7 else @if.else.8
+    t26 = integer_compare_Equal<Int> local34, local36 : i1
+    cbr t26 then @if.then.7 else @if.else.8
   block invoke.normal.4
-    t28 = aggregate () : {}
+    t29 = aggregate () : {}
     store local5 -> local43
     store local43 -> local44
-    t29 = foreign_callback_State family0 local44 : enum1
-    t30 = enum_wrap e1 v0 () : enum1
-    store t29 -> local65
-    store t30 -> local66
-    invoke managed-direct-target3 sp<managed-invoke:4> roots=[local56:refs[0, 8]:normal+unwind] t31 = sig=direct7 (indirect<enum1 size=8 align=8 scan=none>, indirect<enum1 size=8 align=8 scan=none>) -> i1 external-fn4(indirect local65, indirect local66) normal @invoke.normal.5 unwind @try.unwind.1
+    t30 = foreign_callback_State family0 local44 : enum1
+    t31 = enum_wrap e1 v0 () : enum1
+    invoke managed-direct-target4 sp<managed-invoke:4> roots=[local56:refs[0, 8]:normal+unwind] t32 = sig=direct8 (parts<enum1 [i64@0+8/8]>, parts<enum1 [i64@0+8/8]>) -> i1 external-fn4(t30, t31) normal @invoke.normal.5 unwind @try.unwind.1
     br @invoke.normal.5
   block invoke.normal.5
-    store t31 -> local45
+    store t32 -> local45
     store local45 -> local46
     invoke managed-void-target6 sp<managed-invoke:5> roots=[local56:refs[0, 8]:normal+unwind] sig=void6 (i1) local-fn5(local46) normal @invoke.normal.6 unwind @try.unwind.1
     br @invoke.normal.6
   block invoke.normal.6
-    t32 = aggregate () : {}
+    t33 = aggregate () : {}
     store local5 -> local47
     store local47 -> local48
-    t33 = foreign_callback_Failure family0 local48 : enum4
-    store t33 -> local57
+    t34 = foreign_callback_Failure family0 local48 : enum4
+    store t34 -> local57
     store local57 -> local58
-    t34 = variant_test e4 v0 local58 : i1
-    cbr t34 then @pattern.pass.10 else @pattern.else.11
+    t35 = variant_test e4 v0 local58 : i1
+    cbr t35 then @pattern.pass.10 else @pattern.else.11
   block invoke.normal.7
-    t36 = aggregate () : {}
+    t37 = aggregate () : {}
     store local5 -> local52
     store local52 -> local53
     foreign_callback_Release family0 local53
-    t37 = aggregate () : {}
+    t38 = aggregate () : {}
     br @scope.16
   block rethrow.normal.8
     unreachable
@@ -652,11 +647,11 @@ Module
   layout Option size=8 align=8 enum-scan=refs[0]
   layout Option size=16 align=8 enum-scan=none
   layout Option size=8 align=8 enum-scan=refs[0]
-  layout Equality value size=8 align=8 refs=[0]
-  layout Equality value size=8 align=8 refs=[0]
-  layout Iterable value size=8 align=8 refs=[0]
-  layout Iterator value size=8 align=8 refs=[0]
-  layout Equality value size=8 align=8 refs=[0]
+  layout Equality value size=16 align=8 refs=[0]
+  layout Equality value size=16 align=8 refs=[0]
+  layout Iterable value size=16 align=8 refs=[0]
+  layout Iterator value size=16 align=8 refs=[0]
+  layout Equality value size=16 align=8 refs=[0]
   layout Request value size=8 align=8 refs=[0]
   layout Request size=24 align=8 refs=[]
   layout $Closure$lambda0 value size=8 align=8 refs=[0]

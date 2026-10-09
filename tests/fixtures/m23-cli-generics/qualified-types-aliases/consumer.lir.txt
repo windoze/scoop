@@ -26,34 +26,33 @@ Module
     local %12 $dependency.receiver: ptr<raw>
     local %13 $dependency.argument.0: i32
     local %14 $dependency.parameter.value: i32
-    local %15 $sc.1: struct0
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     store integer<Int>(0x00000028) -> local0
     store integer<Int>(0x00000002) -> local1
     store local1 -> local2
-    call no-gc-indirect-target0 local15 = sig=indirect0 (sret struct0 size=4 align=4 scan=none, i32) local-fn4(local2)
-    store local15 -> local3
-    t0 = local_address local0 : ptr
-    store t0 -> local4
-    t1 = ptr_to_ulong local4 : i64
-    store t1 -> local5
-    t2 = ulong_to_ptr local5 : ptr
-    store t2 -> local6
+    call no-gc-direct-target0 t0 = sig=direct0 (i32) -> struct0 local-fn4(local2)
+    store t0 -> local3
+    t1 = local_address local0 : ptr
+    store t1 -> local4
+    t2 = ptr_to_ulong local4 : i64
+    store t2 -> local5
     t3 = ulong_to_ptr local5 : ptr
-    store t3 -> local7
+    store t3 -> local6
+    t4 = ulong_to_ptr local5 : ptr
+    store t4 -> local7
     store local6 -> local12
     store local7 -> local8
-    t4 = raw_load local8 align 4 : i32
-    store t4 -> local9
-    t5 = extract local3, 0 : i32
-    store t5 -> local10
+    t5 = raw_load local8 align 4 : i32
+    store t5 -> local9
+    t6 = extract local3, 0 : i32
+    store t6 -> local10
     store local10 -> local11
-    t6 = integer_Add<Int> local9, local11 : i32
-    store t6 -> local13
+    t7 = integer_Add<Int> local9, local11 : i32
+    store t7 -> local13
     store local13 -> local14
     raw_store local12 local14 align 4
-    t7 = aggregate () : {}
+    t8 = aggregate () : {}
     ret local0
   fun @scoop$1$cb$aefb014273e0beeb534f58fee527f3a9a80a492578c7f9b86e35dd081479b845(ptr<raw>, ptr<raw>) -> i1
     local %0 $dependency.local.2: ptr<raw>
@@ -81,12 +80,12 @@ Module
     t1 = ptr_to_ulong local1 : i64
     t2 = integer_compare_Equal<ULong> local2, t1 : i1
     ret t2
-  fun @scoop$1$cb$5c20d2d83fae8feff681e11d6a2f0f1095a65f8f5c5898f61141eebea835071f(i32) -> sret<struct0 size=4 align=4 scan=none> <no-gc>
+  fun @scoop$1$cb$5c20d2d83fae8feff681e11d6a2f0f1095a65f8f5c5898f61141eebea835071f(i32) -> parts<struct0 [i32@0+4/4]> <no-gc>
   block entry
     t0 = aggregate (param0) : struct0
     ret t0
   td td0 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Equality);[r(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int))]) @scoop$1$td$417d849ab9faf4ee7cc245d7444316539a92fddeb0d74a52baa9166df5b641dd type-id=6625804449091664072 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
   td td1 a(n(c=dev.example%3Ageneric-member-provider%3A0.1.0;p=dependency.paths;o=-;k=S;x=Box);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$752a5456b0a2783b00d2a32bfef4debe960b3049bd538d843987067a3f5de48d type-id=16554596730385784203 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
   layout Box size=4 align=4 refs=[]
-  layout Equality value size=8 align=8 refs=[0]
+  layout Equality value size=16 align=8 refs=[0]
   output library

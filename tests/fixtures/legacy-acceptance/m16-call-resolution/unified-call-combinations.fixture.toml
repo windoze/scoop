@@ -14,7 +14,7 @@ stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-checks = [{"file" = "${work}/dump/${build.result.root.identity}/ast.txt", "snapshot" = "unified-call-combinations.ast.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/hir.txt", "snapshot" = "unified-call-combinations.hir.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/mir.txt", "snapshot" = "unified-call-combinations.mir.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/lir.txt", "snapshot" = "unified-call-combinations.lir.txt"}]
+checks = [{"file" = "${work}/dump/${build.result.root.identity}/ast.txt", "snapshot" = "unified-call-combinations.ast.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/hir.txt", "snapshot" = "unified-call-combinations.hir.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/mir.txt", "snapshot" = "unified-call-combinations.mir.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/lir.txt", "snapshot" = "unified-call-combinations.${target}.lir.txt"}]
 
 [[steps]]
 name = "run"

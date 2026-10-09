@@ -23,7 +23,7 @@ checks = [
   {file = "${work}/dump/${build.result.root.identity}/ast.txt", snapshot = "m10-suspend-constructor-argument.ast.txt"},
   {file = "${work}/dump/${build.result.root.identity}/hir.txt", snapshot = "m10-suspend-constructor-argument.hir.txt"},
   {file = "${work}/dump/${build.result.root.identity}/mir.txt", snapshot = "m10-suspend-constructor-argument.mir.txt"},
-  {file = "${work}/dump/${build.result.root.identity}/lir.txt", snapshot = "m10-suspend-constructor-argument.lir.txt"},
+  {file = "${work}/dump/${build.result.root.identity}/lir.txt", snapshot = "m10-suspend-constructor-argument.${target}.lir.txt"},
 ]
 
 [[steps]]

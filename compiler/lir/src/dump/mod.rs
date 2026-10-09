@@ -8,6 +8,7 @@ mod metadata;
 mod names;
 
 use instruction::dump_instruction;
+pub(crate) use names::abi_direct_name;
 use names::*;
 
 pub use initialization::dump_initialization_dependencies;
@@ -134,7 +135,7 @@ pub fn dump(module: &Module) -> String {
             } => out.push_str(&format!(
                 "  enum {} niche(kind={},payload_variant={})\n",
                 def.name,
-                kind.pointer_kind().dump(),
+                kind.dump(),
                 payload_variant
             )),
             EnumRepr::Tagged {

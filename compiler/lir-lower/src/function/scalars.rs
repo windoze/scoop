@@ -9,8 +9,16 @@ impl FunctionLowerer<'_> {
         rhs: &mir::Expr,
     ) -> StorageResult<lir::Value> {
         let lir_op = binary_op(*op);
-        let lhs = self.lower_expr(lhs)?;
-        let rhs = self.lower_expr(rhs)?;
+        let left = self.lower_expr(lhs)?;
+        let right = self.lower_expr(rhs)?;
+        let (lhs, rhs) = if matches!(op, mir::BinOp::RefEq | mir::BinOp::RefNe) {
+            (
+                self.reference_object(left, &lhs.ty),
+                self.reference_object(right, &rhs.ty),
+            )
+        } else {
+            (left, right)
+        };
         let out_ty = self.value_type(ty);
         let out = self.new_temp(out_ty);
         self.push(lir::Instruction::BinOp {

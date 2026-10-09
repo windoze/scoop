@@ -595,6 +595,17 @@ pub(super) fn dump_expr(
                 dump_expr(module, locals, operand, indent + 1, out);
             }
         }
+        ExprKind::MaybeUninit(operation) => {
+            let kind = match operation {
+                crate::MaybeUninitOperation::Uninit => "uninit",
+                crate::MaybeUninitOperation::Initialized(_) => "initialized",
+                crate::MaybeUninitOperation::AssumeInit(_) => "assumeInit",
+            };
+            out.push_str(&format!("{pad}MaybeUninit.{kind} : {ty}\n"));
+            if let Some(operand) = operation.operand() {
+                dump_expr(module, locals, operand, indent + 1, out);
+            }
+        }
 
         ExprKind::ConstructorReceiver => {
             out.push_str(&format!("{pad}ConstructorReceiver : {ty}\n"))

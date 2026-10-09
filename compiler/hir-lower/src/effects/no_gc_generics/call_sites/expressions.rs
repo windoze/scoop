@@ -53,6 +53,11 @@ impl Lowerer {
             }
         };
         match &expr.kind {
+            ExprKind::MaybeUninit(operation) => {
+                if let Some(operand) = operation.operand() {
+                    self.collect_generic_calls_in_expr(operand, out);
+                }
+            }
             ExprKind::Atomic(atomic) => {
                 for operand in atomic.operands() {
                     self.collect_generic_calls_in_expr(operand, out);

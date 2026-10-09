@@ -18,6 +18,10 @@ Module
   generated_exact_type get2 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
   generated_exact_type get3 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
   generated_exact_type get4 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
+  generated_callable gc0 function=@fn13 id=2223ed66340ab802010216d470328c77869ba20bf3d48d64cce7cd1f8bdc99b0
+  generated_callable gc1 function=@fn12 id=9bc16ff8ba99da72e6d2fd864b309c1961415238834a1591bbbf74fb45209d70
+  generated_callable gc2 function=@fn11 id=cbffad71efd463b428b152e26e8d5a229eea3840adeb4889dff92bc33c8b22ba
+  generated_callable gc3 function=@fn14 id=ebcc781443e041dc0b85ad9dcac89cffee43ca2e6b37ba1ab2171d81d35d06ae
   fun verifyDispatch @fn0(value: Boolean) -> Unit
     bb0 entry
       val $dependency.receiver: Boolean
@@ -287,7 +291,7 @@ Module
       assign $new.1
         Type Leaf<Int>
         ClassAlloc Leaf<Int>
-      call @fn11 direct
+      call @fn15 direct
         Type Leaf<Int>
         Local $new.1
       return
@@ -303,32 +307,80 @@ Module
       assign $new.1
         Type Leaf<String>
         ClassAlloc Leaf<String>
-      call @fn12 direct
+      call @fn16 direct
         Type Leaf<String>
         Local $new.1
       return
         Type Leaf<String>
         Local $new.1
-  fun init.Leaf.$c0 @fn11(this: Leaf<Int>) -> Unit
+  fun receiver<Leaf> Refined.value @fn11(this: Leaf<Int>, input: Int) -> Int
     bb0 entry
-      call @fn13 direct
+      call $call.1: Int = @fn4 direct
+        Type Refined<Int>
+        Retype Refined<Int>
+          Type Leaf<Int>
+          Local this
+        Type Int
+        Local input
+      return
+        Type Int
+        Local $call.1
+  fun receiver<Leaf> Generic.value @fn12(this: Leaf<Int>, input: Int) -> Int
+    bb0 entry
+      call $call.1: Int = @fn4 direct
+        Type Refined<Int>
+        Retype Refined<Int>
+          Type Leaf<Int>
+          Local this
+        Type Int
+        Local input
+      return
+        Type Int
+        Local $call.1
+  fun receiver<Leaf> Refined.value @fn13(this: Leaf<String>, input: String) -> String
+    bb0 entry
+      call $call.1: String = @fn7 direct
+        Type Refined<String>
+        Retype Refined<String>
+          Type Leaf<String>
+          Local this
+        Type String
+        Local input
+      return
+        Type String
+        Local $call.1
+  fun receiver<Leaf> Generic.value @fn14(this: Leaf<String>, input: String) -> String
+    bb0 entry
+      call $call.1: String = @fn7 direct
+        Type Refined<String>
+        Retype Refined<String>
+          Type Leaf<String>
+          Local this
+        Type String
+        Local input
+      return
+        Type String
+        Local $call.1
+  fun init.Leaf.$c0 @fn15(this: Leaf<Int>) -> Unit
+    bb0 entry
+      call @fn17 direct
         Type Base<Int>
         Retype Base<Int>
           Type Leaf<Int>
           Local this
       return
-  fun init.Leaf.$c0 @fn12(this: Leaf<String>) -> Unit
+  fun init.Leaf.$c0 @fn16(this: Leaf<String>) -> Unit
     bb0 entry
-      call @fn14 direct
+      call @fn18 direct
         Type Base<String>
         Retype Base<String>
           Type Leaf<String>
           Local this
       return
-  fun init.Base.$c1 @fn13(this: Base<Int>) -> Unit
+  fun init.Base.$c1 @fn17(this: Base<Int>) -> Unit
     bb0 entry
       return
-  fun init.Base.$c1 @fn14(this: Base<String>) -> Unit
+  fun init.Base.$c1 @fn18(this: Base<String>) -> Unit
     bb0 entry
       return
   instance mi0 function=@fn2 <- compute

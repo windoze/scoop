@@ -44,8 +44,8 @@ mod physical;
 mod scoop_abi;
 use physical::*;
 
+pub(crate) use scoop_abi::AbiReplayDependency;
 use scoop_abi::exact_type_records;
-pub(crate) use scoop_abi::{AbiReplayDependency, collect_abi_types, replay_canonical_scoop_abi};
 
 pub(super) fn validate_target_normalization(
     artifact: &mut ValidatedGraphArtifact<'_>,
@@ -54,7 +54,7 @@ pub(super) fn validate_target_normalization(
 ) -> Result<(), NativeBoundaryCompileError> {
     let types = scoop_abi::AbiReplayTypes {
         exact: exact_type_records(graph)?,
-        definitions: nominals::native_definitions(view.type_definitions)?,
+        definitions: nominals::native_definitions(view.type_definitions, graph)?,
     };
     normalization::validate(artifact, graph, view, types, &[])
 }
@@ -210,6 +210,7 @@ impl<'a> NativeBoundaryNormalizer<'a> {
     fn normalize_external(
         &mut self,
         source: &SourceNativeExternalContractRecord,
+        actual: &NativeExternalContractRecord,
     ) -> Result<NativeExternalContractRecord, NativeBoundaryCompileError> {
         let (symbol, source_library) = source_target(source.contract());
         let symbol = NativeExternalSymbolKey::for_target(self.target.wire_id(), symbol)
@@ -232,11 +233,21 @@ impl<'a> NativeBoundaryNormalizer<'a> {
                 SourceExternFunctionAbi::Scoop {
                     signature,
                     gc_effect,
-                } => NativeExternalContract::scoop_function(
-                    library,
-                    self.scoop_signature(signature, *gc_effect, &[])?,
-                    TargetCallingConvention::Cdecl,
-                ),
+                } => {
+                    let NativeExternalContract::Function {
+                        abi: scoop_identity::NativeExternAbi::Scoop(physical),
+                        ..
+                    } = actual.contract()
+                    else {
+                        return Err(NativeBoundaryTargetError::NativeContractMismatch.into());
+                    };
+                    self.check_scoop_signature(signature, *gc_effect, physical)?;
+                    NativeExternalContract::scoop_function(
+                        library,
+                        physical.clone(),
+                        TargetCallingConvention::Cdecl,
+                    )
+                }
             },
             SourceNativeExternalContract::ReadOnlyData { storage, .. } => {
                 let exact = self.signature_exact(storage, &[])?;
@@ -328,32 +339,48 @@ impl<'a> NativeBoundaryNormalizer<'a> {
             .map_err(Into::into)
     }
 
-    fn scoop_signature(
+    fn check_scoop_signature(
         &mut self,
         source: &SourceScoopAbiFunctionSignature,
         gc_effect: GcEffect,
-        binders: &[Vec<PersistentExactTypeId>],
-    ) -> Result<CanonicalScoopAbiFunctionSignature, NativeBoundaryCompileError> {
-        let path = WirePath::root().field(14);
-        let mut parameters = allocate_vec(source.parameters().len(), &path)?;
+        actual: &CanonicalScoopAbiFunctionSignature,
+    ) -> Result<(), NativeBoundaryCompileError> {
+        let mut parameters = allocate_vec(source.parameters().len(), &WirePath::root().field(14))?;
         for parameter in source.parameters() {
-            parameters.push(self.signature_exact(parameter, binders)?);
+            parameters.push(self.signature_exact(parameter, &[])?);
         }
-        let result = self.signature_exact(source.result(), binders)?;
-        let mut arguments = allocate_vec(parameters.len(), &path)?;
-        for exact in &parameters {
-            arguments.push(self.scoop_argument(*exact)?);
-        }
-        let exact_signature =
+        let result = self.signature_exact(source.result(), &[])?;
+        let exact =
             ExactCallableSignature::new(scoop_identity::Effect::Ordinary, None, parameters, result);
-        let result = if self.is_unit(result) {
-            ScoopAbiReturn::UnitVoid
-        } else {
-            self.scoop_return(result)?
-        };
-        CanonicalScoopAbiFunctionSignature::new(exact_signature, arguments, result, gc_effect)
-            .map_err(NativeBoundaryTargetError::ScoopAbi)
-            .map_err(Into::into)
+        if actual.signature() != &exact || actual.gc_effect() != gc_effect {
+            return Err(NativeBoundaryTargetError::NativeContractMismatch.into());
+        }
+        for argument in actual.arguments() {
+            let storage = argument.storage();
+            if storage != self.scoop_storage(storage.exact_type())? {
+                return Err(NativeBoundaryTargetError::NativeContractMismatch.into());
+            }
+            if let ScoopAbiArgument::DirectParts(_, _) = argument
+                && storage.shape() == ScoopAbiValueShape::Aggregate
+                && !self.scoop_layout(storage.exact_type())?.gc_free
+            {
+                return Err(NativeBoundaryTargetError::NativeContractMismatch.into());
+            }
+        }
+        if self.is_unit(result) {
+            if actual.result() != ScoopAbiReturn::UnitVoid {
+                return Err(NativeBoundaryTargetError::NativeContractMismatch.into());
+            }
+        } else if actual.result().storage() != Some(self.scoop_storage(result)?) {
+            return Err(NativeBoundaryTargetError::NativeContractMismatch.into());
+        }
+        if matches!(actual.result(), ScoopAbiReturn::DirectParts(storage, _)
+            if storage.shape() == ScoopAbiValueShape::Aggregate)
+            && !self.scoop_layout(result)?.gc_free
+        {
+            return Err(NativeBoundaryTargetError::NativeContractMismatch.into());
+        }
+        Ok(())
     }
 
     fn managed_signature(

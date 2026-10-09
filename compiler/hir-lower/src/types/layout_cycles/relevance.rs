@@ -79,6 +79,10 @@ impl Lowerer {
         relevance: &HashMap<hir::SourceNominalId, HashSet<hir::TypeParamId>>,
         out: &mut HashSet<hir::TypeParamId>,
     ) {
+        if let Some(value) = self.maybe_uninit_value_type(ty) {
+            self.collect_inline_type_parameters(value, relevance, out);
+            return;
+        }
         match &self.types[ty] {
             Type::Param(parameter) => {
                 out.insert(*parameter);

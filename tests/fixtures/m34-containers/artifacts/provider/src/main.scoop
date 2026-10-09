@@ -1,0 +1,16 @@
+package compact.provider
+
+public interface Read { public fun value(): Int }
+public class Cell public constructor(val number: Int) : Read {
+    public override fun value(): Int = number
+}
+public struct Pair(val view: Read, val stamp: Long)
+public fun <T> list(first: T, last: T): ArrayList<T> {
+    val result = ArrayList<T>()
+    result.add(first)
+    result.add(last)
+    return result
+}
+public fun views(): ArrayList<Read> = list<Read>(Cell(3), Cell(7))
+public fun builder(prefix: String): StringBuilder = StringBuilder().add(prefix)
+public fun <T : ToString> append(builder: StringBuilder, value: T): StringBuilder = builder.add(value)

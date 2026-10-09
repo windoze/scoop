@@ -45,27 +45,30 @@ pub(super) fn lower_extern_functions(
                     ),
                 };
                 let result = extern_.result.adaptation();
-                let direct = (result == scoop_identity::CResultAdaptation::Direct)
-                    .then(|| direct_c::classify(context.target_profile(), &signature))
-                    .flatten();
-                let call_plan = match direct {
-                    Some(signature) => lir::CAbiCallPlan::Direct(signature),
-                    None => lir::CAbiCallPlan::StorageBridge {
-                        entry: Box::new(
-                            lir::GeneratedBridgeEntryIdentity::new(
-                                module.cone,
-                                scoop_identity::GeneratedBridgeUnitKey::OutboundFunction(
-                                    native_externals
-                                        .contract(extern_.source_contract.id())
-                                        .expect("every C extern has one normalized target contract")
-                                        .fingerprint(),
-                                    result,
-                                ),
-                            )
-                            .expect("validated C extern bridge identities are encodable"),
-                        ),
-                        result,
-                    },
+                let call_plan = match result {
+                    scoop_identity::CResultAdaptation::Direct => lir::CAbiCallPlan::Direct(
+                        direct_c::classify(context, &signature, structs, enums)?,
+                    ),
+                    scoop_identity::CResultAdaptation::CaptureErrno => {
+                        lir::CAbiCallPlan::StorageBridge {
+                            entry: Box::new(
+                                lir::GeneratedBridgeEntryIdentity::new(
+                                    module.cone,
+                                    scoop_identity::GeneratedBridgeUnitKey::OutboundFunction(
+                                        native_externals
+                                            .contract(extern_.source_contract.id())
+                                            .expect(
+                                                "every C extern has one normalized target contract",
+                                            )
+                                            .fingerprint(),
+                                        result,
+                                    ),
+                                )
+                                .expect("validated C extern bridge identities are encodable"),
+                            ),
+                            result,
+                        }
+                    }
                 };
                 LoweredExternFunctionRef::C(functions.alloc_c(lir::CExternFunction {
                     call_mode,

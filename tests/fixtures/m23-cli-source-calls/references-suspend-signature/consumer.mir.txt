@@ -237,8 +237,10 @@ Module
       call $step.1: CoroutineStep<Int> = @fn2 direct
         Type Int
         Local arg0
-        Type CoroutineAdapter<$reference.0>$1
-        Local $adapter.1
+        Type Continuation<Int>
+        Retype Continuation<Int>
+          Type CoroutineAdapter<$reference.0>$1
+          Local $adapter.1
       branch bb5 bb6
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -746,8 +748,10 @@ Module
         Unbox
           Type Any
           Local arg0
-        Type CoroutineAdapter<function_bridge.$Closure$reference0.suspend (Any) -> Any>$1
-        Local $adapter.1
+        Type Continuation<Int>
+        Retype Continuation<Int>
+          Type CoroutineAdapter<function_bridge.$Closure$reference0.suspend (Any) -> Any>$1
+          Local $adapter.1
       branch bb5 bb6
         Type Boolean
         Binary MachineEq(EnumTag)

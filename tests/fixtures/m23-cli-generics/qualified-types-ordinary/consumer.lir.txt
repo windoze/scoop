@@ -21,41 +21,37 @@ Module
     local %7 $dependency.argument.0: i32
     local %8 $dependency.parameter.value: i32
     local %9 concrete: struct0
-    local %10 $sc.1: struct0
-    local %11 $sc.2: struct1
-    local %12 $sc.3: struct0
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     store param0 -> local0
     store local0 -> local1
-    call managed-indirect-target0 sp<managed-call:0> live=[] local10 = sig=indirect0 (sret struct0 size=4 align=4 scan=none, i32) local-fn2(local1)
-    store local10 -> local2
-    t0 = extract local2, 0 : i32
-    store t0 -> local3
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (i32) -> struct0 local-fn2(local1)
+    store t0 -> local2
+    t1 = extract local2, 0 : i32
+    store t1 -> local3
     store integer<Int>(0x0000002a) -> local4
     store local4 -> local5
-    call no-gc-indirect-target0 local11 = sig=indirect1 (sret struct1 size=4 align=4 scan=none, i32) external-fn0(local5)
-    store local11 -> local6
-    t1 = extract local6, 0 : i32
-    store t1 -> local7
+    call no-gc-direct-target0 t2 = sig=direct1 (i32) -> struct1 external-fn0(local5)
+    store t2 -> local6
+    t3 = extract local6, 0 : i32
+    store t3 -> local7
     store local7 -> local8
-    call no-gc-indirect-target1 local12 = sig=indirect2 (sret struct0 size=4 align=4 scan=none, i32) local-fn3(local8)
-    store local12 -> local9
-    t2 = extract local9, 0 : i32
-    ret t2
-  fun @scoop$1$cb$a2741f9e405da4592c5a05085f14d753c95480926d2ff2767e92a58b6eb27fa6(i32) -> sret<struct0 size=4 align=4 scan=none>
+    call no-gc-direct-target1 t4 = sig=direct2 (i32) -> struct0 local-fn3(local8)
+    store t4 -> local9
+    t5 = extract local9, 0 : i32
+    ret t5
+  fun @scoop$1$cb$a2741f9e405da4592c5a05085f14d753c95480926d2ff2767e92a58b6eb27fa6(i32) -> parts<struct0 [i32@0+4/4]>
     local %0 $dependency.local.1: i32
     local %1 $dependency.local.2: i32
     local %2 $call.1: struct0
-    local %3 $sc.1: struct0
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     store param0 -> local0
     store local0 -> local1
-    call no-gc-indirect-target0 local3 = sig=indirect0 (sret struct0 size=4 align=4 scan=none, i32) local-fn3(local1)
-    store local3 -> local2
+    call no-gc-direct-target0 t0 = sig=direct0 (i32) -> struct0 local-fn3(local1)
+    store t0 -> local2
     ret local2
-  fun @scoop$1$cb$5c20d2d83fae8feff681e11d6a2f0f1095a65f8f5c5898f61141eebea835071f(i32) -> sret<struct0 size=4 align=4 scan=none> <no-gc>
+  fun @scoop$1$cb$5c20d2d83fae8feff681e11d6a2f0f1095a65f8f5c5898f61141eebea835071f(i32) -> parts<struct0 [i32@0+4/4]> <no-gc>
   block entry
     t0 = aggregate (param0) : struct0
     ret t0

@@ -991,8 +991,10 @@ Module
       call @fn17 interface SuspendRegistration<Int>[0]
         Type SuspendRegistration<Int>
         Local $dependency.parameter.registration
-        Type CoroutineAdapter<FailureTask.run>$1
-        Local $safe_adapter.1
+        Type Continuation<Int>
+        Retype Continuation<Int>
+          Type CoroutineAdapter<FailureTask.run>$1
+          Local $safe_adapter.1
       goto bb25
     bb14 coroutine.registered_success.1 unwind bb1
       atomic_store_release kind=coroutine-adapter-state field=1

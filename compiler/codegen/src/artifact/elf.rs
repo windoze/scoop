@@ -72,7 +72,7 @@ impl ElfCode {
                             text: TextSection {
                                 address: symbol.address(),
                                 bytes,
-                                non_unwinding_calls: super::copy_calls::non_unwinding_calls(
+                                non_unwinding_calls: super::memory_calls::non_unwinding_calls(
                                     file, &section,
                                 )?
                                 .range(symbol.address()..end as u64)

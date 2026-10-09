@@ -49,14 +49,13 @@ fn aggregate_call(
     locals: &Arena<Local>,
 ) -> CallSite {
     let value = aggregate_value();
-    let signature =
-        targets
-            .indirect_result_signatures
-            .alloc(IndirectResultCallSignature::scoop_sret(
-                vec![scoop_lir::AbiArgument::Indirect(value.clone())],
-                value.clone(),
-                scoop_lir::CallingConvention::Cdecl,
-            ));
+    let signature = targets
+        .indirect_result_signatures
+        .alloc(IndirectResultCallSignature::sret(
+            vec![scoop_lir::AbiArgument::Indirect(value.clone())],
+            value.clone(),
+            scoop_lir::CallingConvention::Cdecl,
+        ));
     let storage = scoop_lir::AbiArgumentStorage::new(argument, locals[argument].ty(), &value)
         .expect("test aggregate argument storage has its exact ABI type");
     protocol_site(
@@ -335,7 +334,7 @@ fn native_aggregate_module() -> Module {
     let signature =
         call_targets
             .indirect_result_signatures
-            .alloc(IndirectResultCallSignature::scoop_sret(
+            .alloc(IndirectResultCallSignature::sret(
                 vec![scoop_lir::AbiArgument::Indirect(abi_value.clone())],
                 abi_value.clone(),
                 scoop_lir::CallingConvention::Cdecl,

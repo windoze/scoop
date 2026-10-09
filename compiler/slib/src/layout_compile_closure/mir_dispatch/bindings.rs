@@ -67,15 +67,35 @@ impl Replay<'_> {
         owner: PersistentExactTypeId,
         slot: PersistentDispatchSlotId,
         interface: PersistentExactTypeId,
+        value: bool,
         source: &hir::InheritanceSlotTargetV1,
-    ) -> Result<CallableDefinitionOwner, Error> {
-        let key = GeneratedCallableKey::BoxingAdjust {
-            slot,
-            payload: owner,
-            interface,
+        implementation: CallableDefinitionOwner,
+    ) -> Result<(), Error> {
+        let binding = self.binding(implementation)?;
+        let origin = binding.origin();
+        let mir::MirCallableOriginV1::Generated { callable, role } = origin.as_ref() else {
+            return Err(Error::Entry {
+                owner,
+                slot,
+                component: Component::CallableOrigin,
+            });
         };
-
-        let callable = PersistentGeneratedCallableId::from_key(&key).map_err(Error::Key)?;
+        // MIR has already checked the generated identity and its physical receiver.
+        // This boundary checks only its association with the selected HIR slot.
+        let matches_slot = match role {
+            GeneratedCallableKey::BoxingAdjust {
+                slot: actual,
+                payload,
+                interface: actual_interface,
+            } => value && *actual == slot && *payload == owner && *actual_interface == interface,
+            GeneratedCallableKey::DispatchAdjust {
+                slot: actual,
+                implementor,
+                ..
+            } => !value && *actual == slot && *implementor == owner,
+            _ => false,
+        };
+        Error::entry(owner, slot, Component::CallableOrigin, matches_slot)?;
         let target = self.target(source)?;
         let semantic = signature(
             source.signature(),
@@ -87,11 +107,16 @@ impl Replay<'_> {
         )?;
         self.source_binding(owner, slot, target, &semantic)?;
         let lowered = self.lowered_signature(&mir::MirBridgeCallableSignatureV1::new(
-            exact_signature(source.signature(), Some(interface))?,
-            mir::GcEffect::Managed,
+            exact_signature(
+                source.signature(),
+                binding.lowered_signature().exact().receiver().into_option(),
+            )?,
+            if value {
+                mir::GcEffect::Managed
+            } else {
+                semantic.gc_effect()
+            },
         ))?;
-        let implementation = StrongCallableDefinitionOwner::GeneratedCallable(callable).into();
-        let binding = self.binding(implementation)?;
 
         Error::entry(
             owner,
@@ -99,23 +124,18 @@ impl Replay<'_> {
             Component::CallableSignature,
             binding.semantic_signature() == &semantic && binding.lowered_signature() == &lowered,
         )?;
-        Error::entry(
-            owner,
-            slot,
-            Component::CallableOrigin,
-            binding.origin().as_ref()
-                == &mir::MirCallableOriginV1::Generated {
-                    callable,
-                    role: key,
-                },
-        )?;
+        let role = if value {
+            mir::MirCallableLoweringRoleV1::BoxingAdjust { target }
+        } else {
+            mir::MirCallableLoweringRoleV1::DispatchAdjust { target }
+        };
         Error::entry(
             owner,
             slot,
             Component::CallableRole,
-            binding.lowering_role() == &mir::MirCallableLoweringRoleV1::BoxingAdjust { target },
+            binding.lowering_role() == &role,
         )?;
-        insert(&mut self.adjustments, callable)?;
-        Ok(implementation)
+        let callable = *callable;
+        insert(&mut self.adjustments, callable)
     }
 }

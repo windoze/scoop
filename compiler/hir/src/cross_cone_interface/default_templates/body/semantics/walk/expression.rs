@@ -40,6 +40,12 @@ where
         pending: &mut Vec<WorkItem<'body>>,
     ) -> Result<(), M::Error> {
         match kind {
+            DefaultExpressionKindV1::MaybeUninit(operation) => {
+                if let Some(operand) = operation.operand() {
+                    self.push_child(pending, BodyNode::Expression(operand))?;
+                }
+                Ok(())
+            }
             DefaultExpressionKindV1::Atomic(atomic) => {
                 for operand in atomic.operands().rev() {
                     self.push_child(pending, BodyNode::Expression(operand))?;

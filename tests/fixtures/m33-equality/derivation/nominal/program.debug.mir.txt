@@ -1,0 +1,1681 @@
+Module
+  struct Point (x: Int, y: Int)
+  struct Declared (value: Int)
+  struct Empty ()
+  struct Record (label: String, point: Point)
+  struct Floating (single: Float, double: Double)
+  struct Incomparable (value: Opaque)
+  enum Choice
+    Empty()
+    Value(_1: Record)
+    Number(_1: Long)
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum Option<Char>
+    Some(_0: Char)
+    None()
+  enum CoroutineStep<Opaque>
+    Completed(value: Opaque)
+    Suspended()
+  enum CoroutineSlot<Opaque>
+    Empty()
+    Value(value: Opaque)
+  enum CoroutineStep<Point>
+    Completed(value: Point)
+    Suspended()
+  enum CoroutineSlot<Point>
+    Empty()
+    Value(value: Point)
+  enum CoroutineStep<Incomparable>
+    Completed(value: Incomparable)
+    Suspended()
+  enum CoroutineSlot<Incomparable>
+    Empty()
+    Value(value: Incomparable)
+  enum CoroutineStep<Declared>
+    Completed(value: Declared)
+    Suspended()
+  enum CoroutineSlot<Declared>
+    Empty()
+    Value(value: Declared)
+  class Opaque vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class box<Point> vtable=0 itables=0
+  class box<Declared> vtable=0 itables=1
+  class box<Incomparable> vtable=0 itables=0
+  interface Equality<Declared>
+  interface ToString
+  interface Equality<Float>
+  interface Equality<Double>
+  interface Equality<Point>
+  interface Equality<Incomparable>
+  interface Hash
+  interface Equality<Char>
+  interface Iterable<Char>
+  interface Iterator<Char>
+  interface Equality<String>
+  interface Continuation<Point>
+  interface SuspendTask<Point>
+  interface SuspendRegistration<Point>
+  interface Continuation<Declared>
+  interface SuspendTask<Declared>
+  interface SuspendRegistration<Declared>
+  interface Continuation<Incomparable>
+  interface SuspendTask<Incomparable>
+  interface SuspendRegistration<Incomparable>
+  interface Continuation<Opaque>
+  interface SuspendTask<Opaque>
+  interface SuspendRegistration<Opaque>
+  generated_exact_type get0 location=enum5 nominal_id=ccac458f1167fa753072394c97ec264da000aaa86840136c77a9e04f70980f83 exact_id=01289d22dae9748bde2ad73b697df11cc3845128f52d08b8da0523f629da6cae
+  generated_exact_type get1 location=enum3 nominal_id=e6717c3ae4b5d443b396d2f171e69d64f69bb9deaed844a2209b5e42e9c44ffc exact_id=03024d8d539c63d01369b5e198e77051cc28c6bbd8cbb3ab6294cf4833f1d0a9
+  generated_exact_type get2 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
+  generated_exact_type get3 location=enum8 nominal_id=90891b47d59d4f48f842ae493aa5f79ea0126b5651f15b8a02b885a10775eeb8 exact_id=161cc712565168dda62f37029101082d4141288008e92e5bbe73abde64508514
+  generated_exact_type get4 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
+  generated_exact_type get5 location=class5 nominal_id=1e824bb1a9d1afbb4bdcf6efbd2e8a66fecc03a63dd5edf849fae8cbc8b71013 exact_id=4273a0e35e3d0e1c9ea47d4e751fe74120f6d2dabb02fb060192d559c7e80da5
+  generated_exact_type get6 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
+  generated_exact_type get7 location=enum7 nominal_id=f3594034fc83b1bd1aa5bae545bf75861bfdd04cab7c9458d892ac96bb03814f exact_id=643560be3ee5673f7b72b7ce43b77acebb04412d6d90da4c1444c4550db08424
+  generated_exact_type get8 location=enum4 nominal_id=2ac6a56bee0161e613038507a0b155e5072d209b91080ab3f1aed1c308a54beb exact_id=6b9bcf521321c778f21b23d9a857c63c692f3578075b54d34cd7229e4f0ba675
+  generated_exact_type get9 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
+  generated_exact_type get10 location=enum6 nominal_id=58fdada013fcf18d269530cebf57be93f9f345cc299ec384986d62b11d712f4c exact_id=a0d2a9d499ae1f7970e62979fcebe6fa71a937ecbe4748a275c4a57449992946
+  generated_exact_type get11 location=class6 nominal_id=ece9052bf338b4001ce89c5eb9102bc8adb1f0caffebd13d2b73c7b2f22299b2 exact_id=b74765c5996644a4d7155181ea0a86f53d4108913e6b4542b56a988798416c38
+  generated_exact_type get12 location=class4 nominal_id=f3f91b4130a1ee3233f394c01e48e0d668ede5f7f3b647f8dbd7bb0c6d30c2ee exact_id=c9bccfaf04f63846264d81bab213b36668c75f122087aa26bce5d19d9e5140d6
+  generated_exact_type get13 location=enum9 nominal_id=d87cfd30ea40424d8e419c922043c44cc19bfdae853b1fa8823fef67f865623f exact_id=cc116df6670c67bad14db335248c0dcf82824a38af1c52425066a5c9e9c2b196
+  generated_exact_type get14 location=enum10 nominal_id=025b77f285ccc2e2a1676df99eaf593251b20569941d57119ad7bbebea72ea1c exact_id=dcf707e2821de8412a22e8ff7b4a5e768c6d8b1107569cbf4863418632db163f
+  generated_exact_type get15 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
+  generated_callable gc0 function=@fn37 id=4bfaabc6951bf14468f8d546fd2f05e5da21a03db29fcd4c8a2a30d80f013c06
+  generated_callable gc1 function=@fn36 id=6174dd99525e716b794aba5355ba3ec4522a7a701ae26813a5cee383f46b0e40
+  generated_callable gc2 function=@fn35 id=9c3eacc6da778e5cdcbb647c0ce7ff05550d13da7c1852ec458744374c78ae6c
+  generated_callable gc3 function=@fn38 id=dffe16d44bf288ce5a6c30b01badcfa274274b917f9a9e02c05ff53ea6fe1183
+  generated_callable gc4 function=@fn34 id=e9530c45e0706bde65b4c07d60dee7972d8e8e3ef1609dd702b7d5ccbede639e
+  fun Point.equals @fn0(this: Point, other: Point) -> Boolean
+    bb0 entry
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          FieldAccess 0
+            Type Point
+            Local this
+          Type Int
+          FieldAccess 0
+            Type Point
+            Local other
+    bb1 logic.rhs.1
+      assign $logic.1
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          FieldAccess 1
+            Type Point
+            Local this
+          Type Int
+          FieldAccess 1
+            Type Point
+            Local other
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.1
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 logic.merge.3
+      return
+        Type Boolean
+        Local $logic.1
+  fun Declared.equalTo @fn1(this: Declared, other: Declared) -> Boolean
+    bb0 entry
+      val $receiver: Declared
+        Type Declared
+        Local this
+      val $argument.0: Declared
+        Type Declared
+        Local other
+      val $parameter.other: Declared
+        Type Declared
+        Local $argument.0
+      call $call.1: Boolean = @fn2 direct
+        Type Declared
+        Local $receiver
+        Type Declared
+        Local $parameter.other
+      return
+        Type Boolean
+        Local $call.1
+  fun Declared.equals @fn2(this: Declared, other: Declared) -> Boolean
+    bb0 entry
+      return
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          FieldAccess 0
+            Type Declared
+            Local this
+          Type Int
+          FieldAccess 0
+            Type Declared
+            Local other
+  fun Empty.equals @fn3(this: Empty, other: Empty) -> Boolean
+    bb0 entry
+      return
+        Type Boolean
+        BoolLiteral true
+  fun Record.equals @fn4(this: Record, other: Record) -> Boolean
+    bb0 entry
+      call $call.1: Boolean = external1 direct
+        Type String
+        FieldAccess 0
+          Type Record
+          Local this
+        Type String
+        FieldAccess 0
+          Type Record
+          Local other
+      branch bb1 bb2
+        Type Boolean
+        Local $call.1
+    bb1 logic.rhs.1
+      call $call.3: Boolean = @fn0 direct
+        Type Point
+        FieldAccess 1
+          Type Record
+          Local this
+        Type Point
+        FieldAccess 1
+          Type Record
+          Local other
+      assign $logic.2
+        Type Boolean
+        Local $call.3
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.2
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 logic.merge.3
+      return
+        Type Boolean
+        Local $logic.2
+  fun Floating.equals @fn5(this: Floating, other: Floating) -> Boolean
+    bb0 entry
+      branch bb1 bb2
+        Type Boolean
+        FloatBinary F32 Equal
+          Type Float
+          FieldAccess 0
+            Type Floating
+            Local this
+          Type Float
+          FieldAccess 0
+            Type Floating
+            Local other
+    bb1 logic.rhs.1
+      assign $logic.1
+        Type Boolean
+        FloatBinary F64 Equal
+          Type Double
+          FieldAccess 1
+            Type Floating
+            Local this
+          Type Double
+          FieldAccess 1
+            Type Floating
+            Local other
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.1
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 logic.merge.3
+      return
+        Type Boolean
+        Local $logic.1
+  fun Choice.equals @fn6(this: Choice, other: Choice) -> Boolean
+    bb0 entry
+      val $when.1: Choice
+        Type Choice
+        Local this
+      val $pattern.subject.2: Choice
+        Type Choice
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Choice v0
+          Type Choice
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val $when.3: Choice
+        Type Choice
+        Local other
+      val $pattern.subject.4: Choice
+        Type Choice
+        Local $when.3
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Choice v0
+          Type Choice
+          Local $pattern.subject.4
+    bb2 pattern.else.2
+      val $pattern.subject.5: Choice
+        Type Choice
+        Local $when.1
+      branch bb7 bb8
+        Type Boolean
+        VariantTest Choice v1
+          Type Choice
+          Local $pattern.subject.5
+    bb3 pattern.merge.3
+      unreachable
+    bb4 pattern.pass.4
+      return
+        Type Boolean
+        BoolLiteral true
+    bb5 pattern.else.5
+      return
+        Type Boolean
+        BoolLiteral false
+    bb6 pattern.merge.6
+      unreachable
+    bb7 pattern.pass.7
+      val $left.1.0: Record
+        Type Record
+        VariantPayloadProject Choice v1 f0
+          Type Choice
+          Local $pattern.subject.5
+      val $when.6: Choice
+        Type Choice
+        Local other
+      val $pattern.subject.7: Choice
+        Type Choice
+        Local $when.6
+      branch bb10 bb11
+        Type Boolean
+        VariantTest Choice v1
+          Type Choice
+          Local $pattern.subject.7
+    bb8 pattern.else.8
+      val $pattern.subject.8: Choice
+        Type Choice
+        Local $when.1
+      branch bb13 bb14
+        Type Boolean
+        VariantTest Choice v2
+          Type Choice
+          Local $pattern.subject.8
+    bb9 pattern.merge.9
+      unreachable
+    bb10 pattern.pass.10
+      val $right.1.0: Record
+        Type Record
+        VariantPayloadProject Choice v1 f0
+          Type Choice
+          Local $pattern.subject.7
+      call $call.1: Boolean = @fn4 direct
+        Type Record
+        Local $left.1.0
+        Type Record
+        Local $right.1.0
+      return
+        Type Boolean
+        Local $call.1
+    bb11 pattern.else.11
+      return
+        Type Boolean
+        BoolLiteral false
+    bb12 pattern.merge.12
+      unreachable
+    bb13 pattern.pass.13
+      val $left.2.0: Long
+        Type Long
+        VariantPayloadProject Choice v2 f0
+          Type Choice
+          Local $pattern.subject.8
+      val $when.9: Choice
+        Type Choice
+        Local other
+      val $pattern.subject.10: Choice
+        Type Choice
+        Local $when.9
+      branch bb16 bb17
+        Type Boolean
+        VariantTest Choice v2
+          Type Choice
+          Local $pattern.subject.10
+    bb14 pattern.else.14
+      unreachable
+    bb15 pattern.merge.15
+      unreachable
+    bb16 pattern.pass.16
+      val $right.2.0: Long
+        Type Long
+        VariantPayloadProject Choice v2 f0
+          Type Choice
+          Local $pattern.subject.10
+      return
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          Local $left.2.0
+          Type Long
+          Local $right.2.0
+    bb17 pattern.else.17
+      return
+        Type Boolean
+        BoolLiteral false
+    bb18 pattern.merge.18
+      unreachable
+  fun check @fn7(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.receiver: Boolean
+        Type Boolean
+        Local value
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+    bb1 if.then.1
+      val $default.local.0: String
+        Type String
+        StringConst @str0
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.1
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $new.1
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.1
+    bb2 if.merge.2
+      return
+  fun main @fn8() -> Unit
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $argument.1: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $parameter.x: Int
+        Type Int
+        Local $argument.0
+      val $parameter.y: Int
+        Type Int
+        Local $argument.1
+      call point: Point = @fn28 direct
+        Type Int
+        Local $parameter.x
+        Type Int
+        Local $parameter.y
+      val $equality.lhs: Point
+        Type Point
+        Local point
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $argument.1: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $parameter.x: Int
+        Type Int
+        Local $argument.0
+      val $parameter.y: Int
+        Type Int
+        Local $argument.1
+      call $call.1: Point = @fn28 direct
+        Type Int
+        Local $parameter.x
+        Type Int
+        Local $parameter.y
+      call $argument.0: Boolean = @fn0 direct
+        Type Point
+        Local $equality.lhs
+        Type Point
+        Local $call.1
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn7 direct
+        Type Boolean
+        Local $parameter.value
+      val $equality.lhs: Point
+        Type Point
+        Local point
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $argument.1: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.x: Int
+        Type Int
+        Local $argument.0
+      val $parameter.y: Int
+        Type Int
+        Local $argument.1
+      call $call.2: Point = @fn28 direct
+        Type Int
+        Local $parameter.x
+        Type Int
+        Local $parameter.y
+      call $call.3: Boolean = @fn0 direct
+        Type Point
+        Local $equality.lhs
+        Type Point
+        Local $call.2
+      val $argument.0: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $call.3
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn7 direct
+        Type Boolean
+        Local $parameter.value
+      val $receiver: Point
+        Type Point
+        Local point
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $argument.1: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $parameter.x: Int
+        Type Int
+        Local $argument.0
+      val $parameter.y: Int
+        Type Int
+        Local $argument.1
+      call $argument.0: Point = @fn28 direct
+        Type Int
+        Local $parameter.x
+        Type Int
+        Local $parameter.y
+      val $parameter.other: Point
+        Type Point
+        Local $argument.0
+      call $argument.0: Boolean = @fn0 direct
+        Type Point
+        Local $receiver
+        Type Point
+        Local $parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn7 direct
+        Type Boolean
+        Local $parameter.value
+      val $receiver: Point
+        Type Point
+        Local point
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $argument.1: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.x: Int
+        Type Int
+        Local $argument.0
+      val $parameter.y: Int
+        Type Int
+        Local $argument.1
+      call $argument.0: Point = @fn28 direct
+        Type Int
+        Local $parameter.x
+        Type Int
+        Local $parameter.y
+      val $parameter.other: Point
+        Type Point
+        Local $argument.0
+      call $dependency.receiver: Boolean = @fn0 direct
+        Type Point
+        Local $receiver
+        Type Point
+        Local $parameter.other
+      val $argument.0: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn7 direct
+        Type Boolean
+        Local $parameter.value
+      val pointBox: Any
+        Type Any
+        Box
+          Type Point
+          Local point
+      val $dependency.receiver: Boolean
+        Type Boolean
+        IsInstance Equality<Point>
+          Type Any
+          Local pointBox
+      val $argument.0: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn7 direct
+        Type Boolean
+        Local $parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $equality.lhs: Declared = @fn29 direct
+        Type Int
+        Local $parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.4: Declared = @fn29 direct
+        Type Int
+        Local $parameter.value
+      call $argument.0: Boolean = @fn2 direct
+        Type Declared
+        Local $equality.lhs
+        Type Declared
+        Local $call.4
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn7 direct
+        Type Boolean
+        Local $parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $equality.lhs: Declared = @fn29 direct
+        Type Int
+        Local $parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=8 bits=0x00000008
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.5: Declared = @fn29 direct
+        Type Int
+        Local $parameter.value
+      call $call.6: Boolean = @fn2 direct
+        Type Declared
+        Local $equality.lhs
+        Type Declared
+        Local $call.5
+      val $argument.0: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $call.6
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn7 direct
+        Type Boolean
+        Local $parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.7: Declared = @fn29 direct
+        Type Int
+        Local $parameter.value
+      val declared: Equality<Declared>
+        Type Equality<Declared>
+        Box
+          Type Declared
+          Local $call.7
+      val $dependency.receiver: Equality<Declared>
+        Type Equality<Declared>
+        Local declared
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $dependency.argument.0: Declared = @fn29 direct
+        Type Int
+        Local $parameter.value
+      val $dependency.parameter.other: Declared
+        Type Declared
+        Local $dependency.argument.0
+      call $argument.0: Boolean = @fn9 interface Equality<Declared>[0]
+        Type Equality<Declared>
+        Local $dependency.receiver
+        Type Declared
+        Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn7 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.receiver: Equality<Declared>
+        Type Equality<Declared>
+        Local declared
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=8 bits=0x00000008
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $dependency.argument.0: Declared = @fn29 direct
+        Type Int
+        Local $parameter.value
+      val $dependency.parameter.other: Declared
+        Type Declared
+        Local $dependency.argument.0
+      call $dependency.receiver: Boolean = @fn9 interface Equality<Declared>[0]
+        Type Equality<Declared>
+        Local $dependency.receiver
+        Type Declared
+        Local $dependency.parameter.other
+      val $argument.0: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn7 direct
+        Type Boolean
+        Local $parameter.value
+      call $call.8: Empty = @fn30 direct
+      call $call.9: Empty = @fn30 direct
+      call $argument.0: Boolean = @fn3 direct
+        Type Empty
+        Local $call.8
+        Type Empty
+        Local $call.9
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn7 direct
+        Type Boolean
+        Local $parameter.value
+      val $argument.0: String
+        Type String
+        StringConst @str1
+      val $argument.1: Point
+        Type Point
+        Local point
+      val $parameter.label: String
+        Type String
+        Local $argument.0
+      val $parameter.point: Point
+        Type Point
+        Local $argument.1
+      call record: Record = @fn31 direct
+        Type String
+        Local $parameter.label
+        Type Point
+        Local $parameter.point
+      val $equality.lhs: Record
+        Type Record
+        Local record
+      val $argument.0: String
+        Type String
+        StringConst @str2
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $argument.1: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $parameter.x: Int
+        Type Int
+        Local $argument.0
+      val $parameter.y: Int
+        Type Int
+        Local $argument.1
+      call $argument.1: Point = @fn28 direct
+        Type Int
+        Local $parameter.x
+        Type Int
+        Local $parameter.y
+      val $parameter.label: String
+        Type String
+        Local $argument.0
+      val $parameter.point: Point
+        Type Point
+        Local $argument.1
+      call $call.10: Record = @fn31 direct
+        Type String
+        Local $parameter.label
+        Type Point
+        Local $parameter.point
+      call $argument.0: Boolean = @fn4 direct
+        Type Record
+        Local $equality.lhs
+        Type Record
+        Local $call.10
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn7 direct
+        Type Boolean
+        Local $parameter.value
+      val $equality.lhs: Record
+        Type Record
+        Local record
+      val $argument.0: String
+        Type String
+        StringConst @str3
+      val $argument.1: Point
+        Type Point
+        Local point
+      val $parameter.label: String
+        Type String
+        Local $argument.0
+      val $parameter.point: Point
+        Type Point
+        Local $argument.1
+      call $call.11: Record = @fn31 direct
+        Type String
+        Local $parameter.label
+        Type Point
+        Local $parameter.point
+      call $call.12: Boolean = @fn4 direct
+        Type Record
+        Local $equality.lhs
+        Type Record
+        Local $call.11
+      val $argument.0: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $call.12
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn7 direct
+        Type Boolean
+        Local $parameter.value
+      call $argument.0: Boolean = @fn6 direct
+        Type Choice
+        VariantConstruct Choice v0
+        Type Choice
+        VariantConstruct Choice v0
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn7 direct
+        Type Boolean
+        Local $parameter.value
+      val $argument.0: Record
+        Type Record
+        Local record
+      val $parameter._1: Record
+        Type Record
+        Local $argument.0
+      val $equality.lhs: Choice
+        Type Choice
+        VariantConstruct Choice v1
+          Type Record
+          Local $parameter._1
+      val $argument.0: String
+        Type String
+        StringConst @str4
+      val $argument.1: Point
+        Type Point
+        Local point
+      val $parameter.label: String
+        Type String
+        Local $argument.0
+      val $parameter.point: Point
+        Type Point
+        Local $argument.1
+      call $argument.0: Record = @fn31 direct
+        Type String
+        Local $parameter.label
+        Type Point
+        Local $parameter.point
+      val $parameter._1: Record
+        Type Record
+        Local $argument.0
+      call $argument.0: Boolean = @fn6 direct
+        Type Choice
+        Local $equality.lhs
+        Type Choice
+        VariantConstruct Choice v1
+          Type Record
+          Local $parameter._1
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn7 direct
+        Type Boolean
+        Local $parameter.value
+      val $argument.0: Record
+        Type Record
+        Local record
+      val $parameter._1: Record
+        Type Record
+        Local $argument.0
+      val $equality.lhs: Choice
+        Type Choice
+        VariantConstruct Choice v1
+          Type Record
+          Local $parameter._1
+      val $argument.0: Long
+        Type Long
+        IntegerLiteral Long value=3 bits=0x0000000000000003
+      val $parameter._1: Long
+        Type Long
+        Local $argument.0
+      call $call.13: Boolean = @fn6 direct
+        Type Choice
+        Local $equality.lhs
+        Type Choice
+        VariantConstruct Choice v2
+          Type Long
+          Local $parameter._1
+      val $argument.0: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $call.13
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn7 direct
+        Type Boolean
+        Local $parameter.value
+      val $argument.0: Long
+        Type Long
+        IntegerLiteral Long value=3 bits=0x0000000000000003
+      val $parameter._1: Long
+        Type Long
+        Local $argument.0
+      val $equality.lhs: Choice
+        Type Choice
+        VariantConstruct Choice v2
+          Type Long
+          Local $parameter._1
+      val $argument.0: Long
+        Type Long
+        IntegerLiteral Long value=4 bits=0x0000000000000004
+      val $parameter._1: Long
+        Type Long
+        Local $argument.0
+      call $call.14: Boolean = @fn6 direct
+        Type Choice
+        Local $equality.lhs
+        Type Choice
+        VariantConstruct Choice v2
+          Type Long
+          Local $parameter._1
+      val $argument.0: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $call.14
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn7 direct
+        Type Boolean
+        Local $parameter.value
+      val $receiver: Choice
+        Type Choice
+        VariantConstruct Choice v0
+      val $argument.0: Choice
+        Type Choice
+        VariantConstruct Choice v0
+      val $parameter.other: Choice
+        Type Choice
+        Local $argument.0
+      call $argument.0: Boolean = @fn6 direct
+        Type Choice
+        Local $receiver
+        Type Choice
+        Local $parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn7 direct
+        Type Boolean
+        Local $parameter.value
+      val $argument.0: Float
+        Type Float
+        FloatLiteral f32(0x7fc00000)
+      val $argument.1: Double
+        Type Double
+        FloatLiteral f64(0x3ff0000000000000)
+      val $parameter.single: Float
+        Type Float
+        Local $argument.0
+      val $parameter.double: Double
+        Type Double
+        Local $argument.1
+      call $equality.lhs: Floating = @fn32 direct
+        Type Float
+        Local $parameter.single
+        Type Double
+        Local $parameter.double
+      val $argument.0: Float
+        Type Float
+        FloatLiteral f32(0x7fc00000)
+      val $argument.1: Double
+        Type Double
+        FloatLiteral f64(0x3ff0000000000000)
+      val $parameter.single: Float
+        Type Float
+        Local $argument.0
+      val $parameter.double: Double
+        Type Double
+        Local $argument.1
+      call $call.15: Floating = @fn32 direct
+        Type Float
+        Local $parameter.single
+        Type Double
+        Local $parameter.double
+      call $call.16: Boolean = @fn5 direct
+        Type Floating
+        Local $equality.lhs
+        Type Floating
+        Local $call.15
+      val $argument.0: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $call.16
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn7 direct
+        Type Boolean
+        Local $parameter.value
+      val $argument.0: Float
+        Type Float
+        FloatLiteral f32(0x3f800000)
+      val $argument.1: Double
+        Type Double
+        FloatLiteral f64(0x7ff8000000000000)
+      val $parameter.single: Float
+        Type Float
+        Local $argument.0
+      val $parameter.double: Double
+        Type Double
+        Local $argument.1
+      call $equality.lhs: Floating = @fn32 direct
+        Type Float
+        Local $parameter.single
+        Type Double
+        Local $parameter.double
+      val $argument.0: Float
+        Type Float
+        FloatLiteral f32(0x3f800000)
+      val $argument.1: Double
+        Type Double
+        FloatLiteral f64(0x7ff8000000000000)
+      val $parameter.single: Float
+        Type Float
+        Local $argument.0
+      val $parameter.double: Double
+        Type Double
+        Local $argument.1
+      call $call.17: Floating = @fn32 direct
+        Type Float
+        Local $parameter.single
+        Type Double
+        Local $parameter.double
+      call $call.18: Boolean = @fn5 direct
+        Type Floating
+        Local $equality.lhs
+        Type Floating
+        Local $call.17
+      val $argument.0: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $call.18
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn7 direct
+        Type Boolean
+        Local $parameter.value
+      val $argument.0: Float
+        Type Float
+        FloatLiteral f32(0x00000000)
+      val $argument.1: Double
+        Type Double
+        FloatLiteral f64(0x8000000000000000)
+      val $parameter.single: Float
+        Type Float
+        Local $argument.0
+      val $parameter.double: Double
+        Type Double
+        Local $argument.1
+      call $equality.lhs: Floating = @fn32 direct
+        Type Float
+        Local $parameter.single
+        Type Double
+        Local $parameter.double
+      val $argument.0: Float
+        Type Float
+        FloatLiteral f32(0x80000000)
+      val $argument.1: Double
+        Type Double
+        FloatLiteral f64(0x0000000000000000)
+      val $parameter.single: Float
+        Type Float
+        Local $argument.0
+      val $parameter.double: Double
+        Type Double
+        Local $argument.1
+      call $call.19: Floating = @fn32 direct
+        Type Float
+        Local $parameter.single
+        Type Double
+        Local $parameter.double
+      call $argument.0: Boolean = @fn5 direct
+        Type Floating
+        Local $equality.lhs
+        Type Floating
+        Local $call.19
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn7 direct
+        Type Boolean
+        Local $parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.20
+        Type Opaque
+        ClassAlloc Opaque
+      call @fn27 direct
+        Type Opaque
+        Local $new.20
+        Type Int
+        Local $parameter.value
+      val $argument.0: Opaque
+        Type Opaque
+        Local $new.20
+      val $parameter.value: Opaque
+        Type Opaque
+        Local $argument.0
+      call $call.21: Incomparable = @fn33 direct
+        Type Opaque
+        Local $parameter.value
+      val opaque: Any
+        Type Any
+        Box
+          Type Incomparable
+          Local $call.21
+      val $dependency.receiver: Boolean
+        Type Boolean
+        IsInstance Equality<Incomparable>
+          Type Any
+          Local opaque
+      val $argument.0: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn7 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str5
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn10 direct
+        Type String
+        Local $dependency.parameter.value
+      return
+  fun Equality.equalTo @fn9(this: Equality<Declared>, other: Declared) -> Boolean
+    bb0 entry
+      trap "call to abstract method `Equality.equalTo`"
+  fun println @fn10(value: String) -> Unit
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local value
+      call $dependency.local.2: String = external2 direct
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external3 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str6
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external3 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun Continuation.resume @fn11(this: Continuation<Point>, value: Point) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn12(this: Continuation<Point>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn13(this: SuspendTask<Point>, $completion: Continuation<Point>) -> CoroutineStep<Point>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn14(this: SuspendRegistration<Point>, continuation: Continuation<Point>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn15(this: Continuation<Declared>, value: Declared) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn16(this: Continuation<Declared>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn17(this: SuspendTask<Declared>, $completion: Continuation<Declared>) -> CoroutineStep<Declared>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn18(this: SuspendRegistration<Declared>, continuation: Continuation<Declared>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn19(this: Continuation<Incomparable>, value: Incomparable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn20(this: Continuation<Incomparable>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn21(this: SuspendTask<Incomparable>, $completion: Continuation<Incomparable>) -> CoroutineStep<Incomparable>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn22(this: SuspendRegistration<Incomparable>, continuation: Continuation<Incomparable>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn23(this: Continuation<Opaque>, value: Opaque) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn24(this: Continuation<Opaque>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn25(this: SuspendTask<Opaque>, $completion: Continuation<Opaque>) -> CoroutineStep<Opaque>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn26(this: SuspendRegistration<Opaque>, continuation: Continuation<Opaque>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.Opaque.$c0 @fn27(this: Opaque, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Opaque
+        Local this
+        Type Int
+        Local value
+      return
+  fun ctor.Point.$c0 @fn28(x: Int, y: Int) -> Point <no-gc>
+    bb0 entry
+      return
+        Type Point
+        StructInit Point
+          Type Int
+          Local x
+          Type Int
+          Local y
+  fun ctor.Declared.$c1 @fn29(value: Int) -> Declared <no-gc>
+    bb0 entry
+      return
+        Type Declared
+        StructInit Declared
+          Type Int
+          Local value
+  fun ctor.Empty.$c2 @fn30() -> Empty <no-gc>
+    bb0 entry
+      return
+        Type Empty
+        StructInit Empty
+  fun ctor.Record.$c3 @fn31(label: String, point: Point) -> Record <no-gc>
+    bb0 entry
+      return
+        Type Record
+        StructInit Record
+          Type String
+          Local label
+          Type Point
+          Local point
+  fun ctor.Floating.$c4 @fn32(single: Float, double: Double) -> Floating <no-gc>
+    bb0 entry
+      return
+        Type Floating
+        StructInit Floating
+          Type Float
+          Local single
+          Type Double
+          Local double
+  fun ctor.Incomparable.$c5 @fn33(value: Opaque) -> Incomparable <no-gc>
+    bb0 entry
+      return
+        Type Incomparable
+        StructInit Incomparable
+          Type Opaque
+          Local value
+  fun startCoroutine<Opaque> @fn34(task: SuspendTask<Opaque>, completion: Continuation<Opaque>) -> Unit
+    bb0 context.unwind
+      landing_pad cleanup=true
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb1 context.catch_unwind
+      landing_pad cleanup=true
+      end_catch
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb2 suspended
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb3 completed unwind bb0
+      call @fn23 interface Continuation<Opaque>[0]
+        Type Continuation<Opaque>
+        Local completion
+        Type Opaque
+        EnumField v0 f0
+          Type CoroutineStep<Opaque>
+          Local $step
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb4 failed unwind bb0
+      call @fn24 interface Continuation<Opaque>[1]
+        Type Continuation<Opaque>
+        Local completion
+        Type Throwable
+        Local $exception
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb5 body_failure unwind bb1
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb4
+    bb6 run unwind bb5
+      call $step: CoroutineStep<Opaque> = @fn25 interface SuspendTask<Opaque>[0]
+        Type SuspendTask<Opaque>
+        Local task
+        Type Continuation<Opaque>
+        Local completion
+      branch bb3 bb2
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Opaque>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+    bb7 entry
+      val $child_context: internal<task-context>
+        Type internal<task-context>
+        ContextFork
+          Type internal<context-node>
+          ContextSnapshot
+      val $context_guard: internal<context-switch-guard>
+        Type internal<context-switch-guard>
+        ContextEnter
+          Type internal<task-context>
+          Local $child_context
+      goto bb6
+  fun startCoroutine<Point> @fn35(task: SuspendTask<Point>, completion: Continuation<Point>) -> Unit
+    bb0 context.unwind
+      landing_pad cleanup=true
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb1 context.catch_unwind
+      landing_pad cleanup=true
+      end_catch
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb2 suspended
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb3 completed unwind bb0
+      call @fn11 interface Continuation<Point>[0]
+        Type Continuation<Point>
+        Local completion
+        Type Point
+        EnumField v0 f0
+          Type CoroutineStep<Point>
+          Local $step
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb4 failed unwind bb0
+      call @fn12 interface Continuation<Point>[1]
+        Type Continuation<Point>
+        Local completion
+        Type Throwable
+        Local $exception
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb5 body_failure unwind bb1
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb4
+    bb6 run unwind bb5
+      call $step: CoroutineStep<Point> = @fn13 interface SuspendTask<Point>[0]
+        Type SuspendTask<Point>
+        Local task
+        Type Continuation<Point>
+        Local completion
+      branch bb3 bb2
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Point>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+    bb7 entry
+      val $child_context: internal<task-context>
+        Type internal<task-context>
+        ContextFork
+          Type internal<context-node>
+          ContextSnapshot
+      val $context_guard: internal<context-switch-guard>
+        Type internal<context-switch-guard>
+        ContextEnter
+          Type internal<task-context>
+          Local $child_context
+      goto bb6
+  fun startCoroutine<Incomparable> @fn36(task: SuspendTask<Incomparable>, completion: Continuation<Incomparable>) -> Unit
+    bb0 context.unwind
+      landing_pad cleanup=true
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb1 context.catch_unwind
+      landing_pad cleanup=true
+      end_catch
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb2 suspended
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb3 completed unwind bb0
+      call @fn19 interface Continuation<Incomparable>[0]
+        Type Continuation<Incomparable>
+        Local completion
+        Type Incomparable
+        EnumField v0 f0
+          Type CoroutineStep<Incomparable>
+          Local $step
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb4 failed unwind bb0
+      call @fn20 interface Continuation<Incomparable>[1]
+        Type Continuation<Incomparable>
+        Local completion
+        Type Throwable
+        Local $exception
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb5 body_failure unwind bb1
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb4
+    bb6 run unwind bb5
+      call $step: CoroutineStep<Incomparable> = @fn21 interface SuspendTask<Incomparable>[0]
+        Type SuspendTask<Incomparable>
+        Local task
+        Type Continuation<Incomparable>
+        Local completion
+      branch bb3 bb2
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Incomparable>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+    bb7 entry
+      val $child_context: internal<task-context>
+        Type internal<task-context>
+        ContextFork
+          Type internal<context-node>
+          ContextSnapshot
+      val $context_guard: internal<context-switch-guard>
+        Type internal<context-switch-guard>
+        ContextEnter
+          Type internal<task-context>
+          Local $child_context
+      goto bb6
+  fun startCoroutine<Declared> @fn37(task: SuspendTask<Declared>, completion: Continuation<Declared>) -> Unit
+    bb0 context.unwind
+      landing_pad cleanup=true
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb1 context.catch_unwind
+      landing_pad cleanup=true
+      end_catch
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb2 suspended
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb3 completed unwind bb0
+      call @fn15 interface Continuation<Declared>[0]
+        Type Continuation<Declared>
+        Local completion
+        Type Declared
+        EnumField v0 f0
+          Type CoroutineStep<Declared>
+          Local $step
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb4 failed unwind bb0
+      call @fn16 interface Continuation<Declared>[1]
+        Type Continuation<Declared>
+        Local completion
+        Type Throwable
+        Local $exception
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb5 body_failure unwind bb1
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb4
+    bb6 run unwind bb5
+      call $step: CoroutineStep<Declared> = @fn17 interface SuspendTask<Declared>[0]
+        Type SuspendTask<Declared>
+        Local task
+        Type Continuation<Declared>
+        Local completion
+      branch bb3 bb2
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Declared>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+    bb7 entry
+      val $child_context: internal<task-context>
+        Type internal<task-context>
+        ContextFork
+          Type internal<context-node>
+          ContextSnapshot
+      val $context_guard: internal<context-switch-guard>
+        Type internal<context-switch-guard>
+        ContextEnter
+          Type internal<task-context>
+          Local $child_context
+      goto bb6
+  fun thunk<Declared> Equality.equalTo(Declared) @fn38(this: box<Declared>, other: Declared) -> Boolean
+    bb0 entry
+      call $call.1: Boolean = @fn1 direct
+        Type Declared
+        Unbox
+          Type box<Declared>
+          Local this
+        Type Declared
+        Local other
+      return
+        Type Boolean
+        Local $call.1
+  coroutine_step cs0 CoroutineStep<Opaque> result=Opaque
+  coroutine_step cs1 CoroutineStep<Point> result=Point
+  coroutine_step cs2 CoroutineStep<Incomparable> result=Incomparable
+  coroutine_step cs3 CoroutineStep<Declared> result=Declared
+  coroutine_slot cl0 CoroutineSlot<Opaque> value=Opaque
+  coroutine_slot cl1 CoroutineSlot<Point> value=Point
+  coroutine_slot cl2 CoroutineSlot<Incomparable> value=Incomparable
+  coroutine_slot cl3 CoroutineSlot<Declared> value=Declared
+  coroutine_start ct0 result=Opaque function=fn34
+  coroutine_start ct1 result=Point function=fn35
+  coroutine_start ct2 result=Incomparable function=fn36
+  coroutine_start ct3 result=Declared function=fn37
+  coroutine_fn cf0 @fn13 source_return=Point step=cs1 immediate
+  coroutine_fn cf1 @fn17 source_return=Declared step=cs3 immediate
+  coroutine_fn cf2 @fn21 source_return=Incomparable step=cs2 immediate
+  coroutine_fn cf3 @fn25 source_return=Opaque step=cs0 immediate
+  instance mi0 function=@fn9 <- Equality.equalTo
+  instance mi1 function=@fn10 <- println
+  instance mi2 function=@fn11 <- Continuation.resume
+  instance mi3 function=@fn12 <- Continuation.resumeWithException
+  instance mi4 function=@fn13 <- SuspendTask.run
+  instance mi5 function=@fn14 <- SuspendRegistration.register
+  instance mi6 function=@fn15 <- Continuation.resume
+  instance mi7 function=@fn16 <- Continuation.resumeWithException
+  instance mi8 function=@fn17 <- SuspendTask.run
+  instance mi9 function=@fn18 <- SuspendRegistration.register
+  instance mi10 function=@fn19 <- Continuation.resume
+  instance mi11 function=@fn20 <- Continuation.resumeWithException
+  instance mi12 function=@fn21 <- SuspendTask.run
+  instance mi13 function=@fn22 <- SuspendRegistration.register
+  instance mi14 function=@fn23 <- Continuation.resume
+  instance mi15 function=@fn24 <- Continuation.resumeWithException
+  instance mi16 function=@fn25 <- SuspendTask.run
+  instance mi17 function=@fn26 <- SuspendRegistration.register
+  str @str0 "illegal state"
+  str @str1 "value"
+  str @str2 "value"
+  str @str3 "other"
+  str @str4 "value"
+  str @str5 "derived nominal equality"
+  str @str6 "\n"
+  output executable @fn8

@@ -14,7 +14,7 @@ stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-checks = [{"file" = "${work}/dump/${build.result.root.identity}/ast.txt", "snapshot" = "option-niche-consumers.ast.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/hir.txt", "snapshot" = "option-niche-consumers.hir.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/mir.txt", "snapshot" = "option-niche-consumers.mir.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/lir.txt", "snapshot" = "option-niche-consumers.lir.txt"}]
+checks = [{"file" = "${work}/dump/${build.result.root.identity}/ast.txt", "snapshot" = "option-niche-consumers.ast.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/hir.txt", "snapshot" = "option-niche-consumers.hir.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/mir.txt", "snapshot" = "option-niche-consumers.mir.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/lir.txt", "snapshot" = "option-niche-consumers.${target}.lir.txt"}]
 
 [[steps]]
 name = "run"

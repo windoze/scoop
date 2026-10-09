@@ -28,17 +28,17 @@ Module
   interface SuspendTask<Payload>
   interface SuspendRegistration<Payload>
   closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn1 captures=0
-    bridge function_type1 -> @fn31 id=2018cf00e765278e8412a74596cfe48cc4952826a299b7a16eefa65f782efe73
+    bridge function_type1 -> @fn33 id=2018cf00e765278e8412a74596cfe48cc4952826a299b7a16eefa65f782efe73
   closure cc1 $Closure$lambda1 type=function_type2 invoke=@fn3 captures=0
-    bridge function_type1 -> @fn32 id=719c29abc1d5752c381a988cbb93dd6d3060072029c925c39d7de20c00047a8c
+    bridge function_type1 -> @fn34 id=719c29abc1d5752c381a988cbb93dd6d3060072029c925c39d7de20c00047a8c
   closure cc2 $Closure$lambda2 type=function_type3 invoke=@fn10 captures=0
-    bridge function_type1 -> @fn33 id=501625a5eb3b74f1aa686f5976cc07790f4e31839f5e7f99c64a5f0125684fd7
+    bridge function_type1 -> @fn35 id=501625a5eb3b74f1aa686f5976cc07790f4e31839f5e7f99c64a5f0125684fd7
   closure cc3 $Closure$lambda3 type=function_type3 invoke=@fn11 captures=0
-    bridge function_type1 -> @fn34 id=da33a0dc985bc395f90dec61f5329388f3fde6cc2c665aeaff49b80ed127e09f
+    bridge function_type1 -> @fn36 id=da33a0dc985bc395f90dec61f5329388f3fde6cc2c665aeaff49b80ed127e09f
   closure cc4 $Closure$lambda4 type=function_type3 invoke=@fn17 captures=0
-    bridge function_type1 -> @fn35 id=13abf00baa09bd0aa9485ce82fbe4f69b448e4d6518f76e591755f7608288bee
+    bridge function_type1 -> @fn37 id=13abf00baa09bd0aa9485ce82fbe4f69b448e4d6518f76e591755f7608288bee
   closure cc5 $Closure$lambda5 type=function_type3 invoke=@fn18 captures=0
-    bridge function_type1 -> @fn36 id=fb898471683ec9fe647c7a4eb2092f9b8c49db661dcd05317813361cb9f7970f
+    bridge function_type1 -> @fn38 id=fb898471683ec9fe647c7a4eb2092f9b8c49db661dcd05317813361cb9f7970f
   generated_exact_type get0 location=closure0 nominal_id=5ae7cf6922f33b4b3a0a8dc35c9465abd7d3d0cc2df89e843ece3ace55f0345d exact_id=05a87b8afbeb1a56aaf15390c2885ed506d1e155268b31f88569c69210b99e49
   generated_exact_type get1 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
   generated_exact_type get2 location=closure2 nominal_id=1c338043a31fb69b924853b8169ccd2d9115dab448055015bdf025441d6e7ca8 exact_id=24ea8b2a402d088876db28a603c5906d15a08eea7222d3f2c83d1b696b5a7d11
@@ -54,13 +54,15 @@ Module
   generated_exact_type get12 location=enum1 nominal_id=4b2656b10a0d965a7eb6675a2a20621f2ee03940d90d1e9d604039bc0c7b32bb exact_id=d19f75285cd62aad45da0c33de6db5b84d62ba3cd33ec79f380a7b05fe1f93e2
   generated_exact_type get13 location=class7 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
   generated_exact_type get14 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
-  generated_callable gc0 function=@fn35 id=13abf00baa09bd0aa9485ce82fbe4f69b448e4d6518f76e591755f7608288bee
-  generated_callable gc1 function=@fn31 id=2018cf00e765278e8412a74596cfe48cc4952826a299b7a16eefa65f782efe73
-  generated_callable gc2 function=@fn33 id=501625a5eb3b74f1aa686f5976cc07790f4e31839f5e7f99c64a5f0125684fd7
-  generated_callable gc3 function=@fn32 id=719c29abc1d5752c381a988cbb93dd6d3060072029c925c39d7de20c00047a8c
-  generated_callable gc4 function=@fn30 id=c951c1d26f63c4191f2e51a91b50a218acc235b822c629945f226017c572b8e4
-  generated_callable gc5 function=@fn34 id=da33a0dc985bc395f90dec61f5329388f3fde6cc2c665aeaff49b80ed127e09f
-  generated_callable gc6 function=@fn36 id=fb898471683ec9fe647c7a4eb2092f9b8c49db661dcd05317813361cb9f7970f
+  generated_callable gc0 function=@fn37 id=13abf00baa09bd0aa9485ce82fbe4f69b448e4d6518f76e591755f7608288bee
+  generated_callable gc1 function=@fn33 id=2018cf00e765278e8412a74596cfe48cc4952826a299b7a16eefa65f782efe73
+  generated_callable gc2 function=@fn35 id=501625a5eb3b74f1aa686f5976cc07790f4e31839f5e7f99c64a5f0125684fd7
+  generated_callable gc3 function=@fn34 id=719c29abc1d5752c381a988cbb93dd6d3060072029c925c39d7de20c00047a8c
+  generated_callable gc4 function=@fn28 id=9a003168072095444a4336d04cde3ff237d6c82c94c5f4afebbe8ad965b55b30
+  generated_callable gc5 function=@fn32 id=c951c1d26f63c4191f2e51a91b50a218acc235b822c629945f226017c572b8e4
+  generated_callable gc6 function=@fn27 id=d5066ecb42d35624195bfca648ec4fccf445e092f3eab57377ac28b3fb39472a
+  generated_callable gc7 function=@fn36 id=da33a0dc985bc395f90dec61f5329388f3fde6cc2c665aeaff49b80ed127e09f
+  generated_callable gc8 function=@fn38 id=fb898471683ec9fe647c7a4eb2092f9b8c49db661dcd05317813361cb9f7970f
   fun check @fn0() -> Int
     bb0 entry
       call $argument.0: Int = external0 direct
@@ -70,7 +72,7 @@ Module
       assign $new.1
         Type Payload
         ClassAlloc Payload
-      call @fn27 direct
+      call @fn29 direct
         Type Payload
         Local $new.1
         Type Int
@@ -161,7 +163,7 @@ Module
       assign $new.2
         Type Payload
         ClassAlloc Payload
-      call @fn27 direct
+      call @fn29 direct
         Type Payload
         Local $new.2
         Type Int
@@ -213,7 +215,7 @@ Module
       assign $new.1
         Type Local<Payload, Unit>
         ClassAlloc Local<Payload, Unit>
-      call @fn28 direct
+      call @fn30 direct
         Type Local<Payload, Unit>
         Local $new.1
         Type Payload
@@ -338,7 +340,7 @@ Module
       assign $new.1
         Type Local<Int, Unit>
         ClassAlloc Local<Int, Unit>
-      call @fn29 direct
+      call @fn31 direct
         Type Local<Int, Unit>
         Local $new.1
         Type Int
@@ -591,7 +593,35 @@ Module
   fun SuspendRegistration.register @fn26(this: SuspendRegistration<Payload>, continuation: Continuation<Payload>) -> Unit
     bb0 entry
       trap "call to abstract method `SuspendRegistration.register`"
-  fun init.Payload.$c0 @fn27(this: Payload, value: Int) -> Unit
+  fun receiver<Local> Diamond.total @fn27(this: Local<Payload, Unit>, left: (Payload) -> Int, right: (Unit) -> Int) -> Int
+    bb0 entry
+      call $call.1: Int = @fn5 direct
+        Type Values<Payload, Unit>
+        Retype Values<Payload, Unit>
+          Type Local<Payload, Unit>
+          Local this
+        Type (Payload) -> Int
+        Local left
+        Type (Unit) -> Int
+        Local right
+      return
+        Type Int
+        Local $call.1
+  fun receiver<Local> Diamond.total @fn28(this: Local<Int, Unit>, left: (Int) -> Int, right: (Unit) -> Int) -> Int
+    bb0 entry
+      call $call.1: Int = @fn12 direct
+        Type Values<Int, Unit>
+        Retype Values<Int, Unit>
+          Type Local<Int, Unit>
+          Local this
+        Type (Int) -> Int
+        Local left
+        Type (Unit) -> Int
+        Local right
+      return
+        Type Int
+        Local $call.1
+  fun init.Payload.$c0 @fn29(this: Payload, value: Int) -> Unit
     bb0 entry
       field_set 0
         Type Payload
@@ -599,7 +629,7 @@ Module
         Type Int
         Local value
       return
-  fun init.Local.$c0 @fn28(this: Local<Payload, Unit>, a: Payload, b: Unit) -> Unit
+  fun init.Local.$c0 @fn30(this: Local<Payload, Unit>, a: Payload, b: Unit) -> Unit
     bb0 entry
       field_set 0
         Type Local<Payload, Unit>
@@ -612,7 +642,7 @@ Module
         Type Unit
         Local b
       return
-  fun init.Local.$c0 @fn29(this: Local<Int, Unit>, a: Int, b: Unit) -> Unit
+  fun init.Local.$c0 @fn31(this: Local<Int, Unit>, a: Int, b: Unit) -> Unit
     bb0 entry
       field_set 0
         Type Local<Int, Unit>
@@ -625,7 +655,7 @@ Module
         Type Unit
         Local b
       return
-  fun startCoroutine<Payload> @fn30(task: SuspendTask<Payload>, completion: Continuation<Payload>) -> Unit
+  fun startCoroutine<Payload> @fn32(task: SuspendTask<Payload>, completion: Continuation<Payload>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -706,7 +736,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn31($source: (Payload) -> Int, arg0: Any) -> Any
+  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn33($source: (Payload) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type0> closure[function_type0]
         Type (Payload) -> Int
@@ -720,7 +750,7 @@ Module
         Box
           Type Int
           Local $call.1
-  fun function_bridge.$Closure$lambda1.(Any) -> Any @fn32($source: (Int) -> Int, arg0: Any) -> Any
+  fun function_bridge.$Closure$lambda1.(Any) -> Any @fn34($source: (Int) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type2> closure[function_type2]
         Type (Int) -> Int
@@ -734,7 +764,7 @@ Module
         Box
           Type Int
           Local $call.1
-  fun function_bridge.$Closure$lambda2.(Any) -> Any @fn33($source: (Unit) -> Int, arg0: Any) -> Any
+  fun function_bridge.$Closure$lambda2.(Any) -> Any @fn35($source: (Unit) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type3> closure[function_type3]
         Type (Unit) -> Int
@@ -748,7 +778,7 @@ Module
         Box
           Type Int
           Local $call.1
-  fun function_bridge.$Closure$lambda3.(Any) -> Any @fn34($source: (Unit) -> Int, arg0: Any) -> Any
+  fun function_bridge.$Closure$lambda3.(Any) -> Any @fn36($source: (Unit) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type3> closure[function_type3]
         Type (Unit) -> Int
@@ -762,7 +792,7 @@ Module
         Box
           Type Int
           Local $call.1
-  fun function_bridge.$Closure$lambda4.(Any) -> Any @fn35($source: (Unit) -> Int, arg0: Any) -> Any
+  fun function_bridge.$Closure$lambda4.(Any) -> Any @fn37($source: (Unit) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type3> closure[function_type3]
         Type (Unit) -> Int
@@ -776,7 +806,7 @@ Module
         Box
           Type Int
           Local $call.1
-  fun function_bridge.$Closure$lambda5.(Any) -> Any @fn36($source: (Unit) -> Int, arg0: Any) -> Any
+  fun function_bridge.$Closure$lambda5.(Any) -> Any @fn38($source: (Unit) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type3> closure[function_type3]
         Type (Unit) -> Int
@@ -792,7 +822,7 @@ Module
           Local $call.1
   coroutine_step cs0 CoroutineStep<Payload> result=Payload
   coroutine_slot cl0 CoroutineSlot<Payload> value=Payload
-  coroutine_start ct0 result=Payload function=fn30
+  coroutine_start ct0 result=Payload function=fn32
   coroutine_fn cf0 @fn25 source_return=Payload step=cs0 immediate
   instance mi0 function=@fn2 <- exercise
   instance mi1 function=@fn4 <- exercise

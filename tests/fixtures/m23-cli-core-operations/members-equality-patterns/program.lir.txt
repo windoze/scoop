@@ -141,8 +141,6 @@ Module
     local %131 $new.3: ptr<managed>
     local %132 $new.4: ptr<managed>
     local %133 $new.5: ptr<managed>
-    local %134 $sc.1: {i32, i8}
-    local %135 $sc.2: {i32, i8}
   block entry
     poll managed-void-target5 sp<managed-poll:0> live=[]
     store integer<Int8>(0x80) -> local0
@@ -458,8 +456,7 @@ Module
     t65 = aggregate (integer<Int>(0x00000001), integer<Int8>(0x02)) : {i32, i8}
     store t65 -> local114
     store local114 -> local115
-    store local115 -> local134
-    call managed-direct-target20 sp<managed-call:16> live=[] t66 = sig=direct23 (indirect<{i32, i8} size=8 align=4 scan=none>) -> i32 local-fn10(indirect local134)
+    call managed-direct-target20 sp<managed-call:16> live=[] t66 = sig=direct23 (parts<{i32, i8} [i64@0+8/4]>) -> i32 local-fn10(local115)
     store t66 -> local116
     store integer<Int>(0x00000001) -> local117
     store local117 -> local118
@@ -476,8 +473,7 @@ Module
     t69 = aggregate (integer<Int>(0x00000001), integer<Int8>(0x03)) : {i32, i8}
     store t69 -> local120
     store local120 -> local121
-    store local121 -> local135
-    call managed-direct-target21 sp<managed-call:17> live=[] t70 = sig=direct24 (indirect<{i32, i8} size=8 align=4 scan=none>) -> i32 local-fn10(indirect local135)
+    call managed-direct-target21 sp<managed-call:17> live=[] t70 = sig=direct24 (parts<{i32, i8} [i64@0+8/4]>) -> i32 local-fn10(local121)
     store t70 -> local122
     store integer<Int>(0x00000000) -> local123
     store local123 -> local124
@@ -661,7 +657,7 @@ Module
     br @pattern.merge.3
   block pattern.merge.3
     ret local7
-  fun @scoop$1$cb$7a3f1836b3043f0f6555a11008c343e1d86290f03b125ba29aa97c4cc3e24827(indirect<{i32, i8} size=8 align=4 scan=none>) -> i32
+  fun @scoop$1$cb$7a3f1836b3043f0f6555a11008c343e1d86290f03b125ba29aa97c4cc3e24827(parts<{i32, i8} [i64@0+8/4]>) -> i32
     local %0 $result.25: i32
     local %1 $when.1: {i32, i8}
   block entry

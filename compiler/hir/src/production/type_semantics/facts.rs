@@ -117,6 +117,13 @@ impl FactProjector<'_> {
                 zst: ZstStatus::NonZero,
             },
             ExactTypeFactShapeV1::Reference => ExactTypeKindV1::Reference,
+            ExactTypeFactShapeV1::MaybeUninit { value } => ExactTypeKindV1::Value {
+                zst: if self.is_zero_sized(*value)? {
+                    ZstStatus::ZeroSized
+                } else {
+                    ZstStatus::NonZero
+                },
+            },
             ExactTypeFactShapeV1::OrdinaryStruct { fields }
             | ExactTypeFactShapeV1::Tuple { elements: fields } => {
                 let mut zero = true;
@@ -229,6 +236,7 @@ fn exacts(
 
 fn shape_children(shape: &ExactTypeFactShapeV1) -> Vec<PersistentExactTypeId> {
     match shape {
+        ExactTypeFactShapeV1::MaybeUninit { value } => vec![*value],
         ExactTypeFactShapeV1::OrdinaryStruct { fields }
         | ExactTypeFactShapeV1::CLayoutStruct { fields }
         | ExactTypeFactShapeV1::Tuple { elements: fields } => fields.clone(),

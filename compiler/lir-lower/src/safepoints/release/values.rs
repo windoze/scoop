@@ -16,7 +16,7 @@ impl<'a> MachineValues<'a> {
     pub(super) fn gc_free(&mut self, ty: &lir::LirType) -> bool {
         use lir::LirType as T;
         match ty {
-            T::Ptr(lir::PointerKind::Managed) | T::ExceptionRecord => false,
+            T::Ptr(lir::PointerKind::Managed) | T::Interface | T::ExceptionRecord => false,
             T::Aggregate(elements) => elements.iter().all(|ty| self.gc_free(ty)),
             T::Struct(id) => {
                 if let Some(value) = self.structs.get(id) {

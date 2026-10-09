@@ -1,0 +1,101 @@
+schema = 1
+name = "m34-parallel-threads"
+root = "program.scoop"
+inputs = ["program.scoop", "../native.c", "../../m34-regions/native.c", "../../m13-callback/native.c"]
+tools = ["scoop", "scoopc", "cc", "ar"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["m34", "parallel", "gc", "stage-golden"]
+variants = [
+  {name = "debug", vars = {profile = "debug"}},
+  {name = "release", vars = {profile = "release"}},
+]
+
+[[steps]]
+name = "native"
+argv = ["${cc}", {each = "${cc_args}"}, "-std=c11", "-O2", "-Wall", "-Wextra", "-Werror", "-I", "${runtime}/include", "-c", "${fixture}/../native.c", "-o", "${work}/native.o"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "thread-native"
+argv = ["${cc}", {each = "${cc_args}"}, "-std=c11", "-O2", "-c", "${fixture}/../../m13-callback/native.c", "-o", "${work}/threads.o"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "archive"
+argv = ["${ar}", "rcs", "${work}/libm34_parallel.a", "${work}/native.o", "${work}/threads.o"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${root}", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--library-path", "${work}", "--emit", "all", "--dump-dir", "${work}/dump", "--message-format", "json"]
+timeout = 300
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {file = "${work}/dump/${build.result.root.identity}/hir.txt", snapshot = "program.${profile}.hir.txt"},
+  {file = "${work}/dump/${build.result.root.identity}/mir.txt", snapshot = "program.${profile}.mir.txt"},
+  {file = "${work}/dump/${build.result.root.identity}/lir.txt", snapshot = "program.${profile}.${target}.lir.txt"},
+]
+
+[[steps]]
+name = "workers-1"
+timeout = 180
+argv = ["${build.result.output}"]
+env = {SCOOP_GC_WORKERS = "1"}
+exit = 0
+stdout = "parallel frozen roots\n"
+stderr = ""
+
+[[steps]]
+name = "workers-2"
+timeout = 180
+argv = ["${build.result.output}"]
+env = {SCOOP_GC_WORKERS = "2"}
+exit = 0
+stdout = "parallel frozen roots\n"
+stderr = ""
+
+[[steps]]
+name = "workers-4"
+timeout = 180
+argv = ["${build.result.output}"]
+env = {SCOOP_GC_WORKERS = "4"}
+exit = 0
+stdout = "parallel frozen roots\n"
+stderr = ""
+
+[[steps]]
+name = "workers-8"
+timeout = 180
+argv = ["${build.result.output}"]
+env = {SCOOP_GC_WORKERS = "8"}
+exit = 0
+stdout = "parallel frozen roots\n"
+stderr = ""
+
+[[steps]]
+name = "moving"
+timeout = 180
+argv = ["${build.result.output}"]
+env = {SCOOP_GC_WORKERS = "4", SCOOP_GC_STRESS_MOVE = "1"}
+exit = 0
+stdout = "parallel frozen roots\n"
+stderr = ""
+
+[[steps]]
+name = "minor"
+timeout = 180
+argv = ["${build.result.output}"]
+env = {SCOOP_GC_WORKERS = "4", SCOOP_GC_STRESS_MINOR = "1"}
+exit = 0
+stdout = "parallel frozen roots\n"
+stderr = ""

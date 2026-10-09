@@ -1,0 +1,22 @@
+@Extern(lib = "m34_allocation_bench", name = "m13_run_many")
+fun workers(function: FunPtr<(Int, Ptr<Unit>) -> Int>, context: Ptr<Unit>, base: Int, count: Int): Int
+
+class Item(val value: Int)
+
+fun churn(seed: Int): Int {
+    var sum = 0
+    var index = 0
+    while (index < 200000) {
+        val item = Item(seed)
+        sum += item.value
+        index += 1
+    }
+    return sum
+}
+
+@Unsafe fun main() {
+    val action: (Int) -> Int = { seed -> churn(seed) }
+    val callback = foreignCallback<(Int, Ptr<Unit>) -> Int>(action, 1, ForeignCallbackMode.Reusable)
+    try { println(workers(callback.function, callback.context, 1, 4)) }
+    finally { releaseForeignCallback(callback) }
+}

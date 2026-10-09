@@ -6,6 +6,7 @@ use crate::imported_core::ImportedTypeBindings;
 use scoop_identity::SignatureTypeKey;
 
 mod atomics;
+mod maybe_uninit;
 
 #[derive(Clone)]
 pub(crate) struct LoadedCallableSignature {
@@ -110,6 +111,7 @@ impl ImportedIntrinsicSignature {
             bindings,
         };
         prepared.validate_atomic(state)?;
+        prepared.validate_maybe_uninit(state)?;
         Ok(prepared)
     }
 }

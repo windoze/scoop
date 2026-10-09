@@ -265,10 +265,36 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                         function.locals[*local].ty().dump()
                     )));
                 }
-                let operand = self.value(*v)?;
                 if function.locals[*local].storage().is_zst() {
                     return Ok(());
                 }
+                if let Value::Local(source) = v
+                    && matches!(
+                        value_ty,
+                        LirType::Struct(_) | LirType::Aggregate(_) | LirType::Enum(_)
+                    )
+                {
+                    if source != local {
+                        let scoop_lir::LocalStorage::NonZero(value) =
+                            function.locals[*local].storage()
+                        else {
+                            unreachable!("zero-sized copies return above")
+                        };
+                        builder
+                            .build_memcpy(
+                                self.local_pointer(*local)?,
+                                value.layout().alignment().get() as u32,
+                                self.local_pointer(*source)?,
+                                value.layout().alignment().get() as u32,
+                                context
+                                    .i64_type()
+                                    .const_int(value.layout().size().get(), false),
+                            )
+                            .map_err(|e| CodegenError(format!("copy aggregate local: {e}")))?;
+                    }
+                    return Ok(());
+                }
+                let operand = self.value(*v)?;
                 builder
                     .build_store(self.local_pointer(*local)?, operand)
                     .map_err(|e| {

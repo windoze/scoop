@@ -138,12 +138,13 @@ fn bool_value(decoder: &mut Decoder<'_>) -> Result<bool, WireError> {
     }
 }
 
-fn pointer_kind(decoder: &mut Decoder<'_>) -> Result<crate::NichePointerKind, WireError> {
+fn pointer_kind(decoder: &mut Decoder<'_>) -> Result<crate::NullNicheKind, WireError> {
     decoder.expect_map(1)?;
     match decoder.field(0, Decoder::unsigned)? {
-        1 => Ok(crate::NichePointerKind::Managed),
-        2 => Ok(crate::NichePointerKind::Raw),
-        3 => Ok(crate::NichePointerKind::Code),
+        1 => Ok(crate::NullNicheKind::Managed),
+        2 => Ok(crate::NullNicheKind::Raw),
+        3 => Ok(crate::NullNicheKind::Code),
+        4 => Ok(crate::NullNicheKind::Interface),
         tag => Err(unknown(decoder, tag)),
     }
 }

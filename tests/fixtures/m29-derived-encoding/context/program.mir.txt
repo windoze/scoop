@@ -9,9 +9,6 @@ Module
   init1 companion:Array.Companion singleton lazy global1 initializer=@fn47 ensure=@fn48 failure=5 deps=[]
   struct Item<Int> (pair: (Int, Array<Int>))
   struct JsonMember (name: String, value: JsonValue)
-  enum Option<JsonMember>
-    Some(_0: JsonMember)
-    None()
   enum JsonValue
     Null()
     BooleanValue(_0: Boolean)
@@ -31,11 +28,14 @@ Module
   enum Option<Int>
     Some(_0: Int)
     None()
-  enum Option<Option<JsonMember>>
-    Some(_0: Option<JsonMember>)
+  enum Option<MaybeUninit<JsonMember>>
+    Some(_0: MaybeUninit<JsonMember>)
     None()
-  enum Option<Option<JsonValue>>
-    Some(_0: Option<JsonValue>)
+  enum Option<JsonMember>
+    Some(_0: JsonMember)
+    None()
+  enum Option<MaybeUninit<JsonValue>>
+    Some(_0: MaybeUninit<JsonValue>)
     None()
   enum Option<Char>
     Some(_0: Char)
@@ -45,7 +45,7 @@ Module
   class IllegalStateException vtable=0 itables=0
   class Exception vtable=0 itables=0
   class Throwable vtable=0 itables=0
-  class Companion vtable=0 itables=2
+  class Companion vtable=0 itables=0
   class MissingContextException vtable=0 itables=0
   class ItemEncoder<Int> vtable=0 itables=1
   class Json vtable=0 itables=0
@@ -53,19 +53,18 @@ Module
   class ListIterator<Int> vtable=0 itables=1
   class IndexOutOfBoundsException vtable=0 itables=0
   class EncodeFunction<(Int, Array<Int>)> vtable=0 itables=1
-  class JsonEncoder vtable=0 itables=2
+  class JsonEncoder vtable=0 itables=0
   class ArrayList<JsonMember> vtable=0 itables=3
   class ArrayList<JsonValue> vtable=0 itables=3
   class Companion<Int> vtable=0 itables=0
-  class ListIterator<Option<JsonMember>> vtable=0 itables=1
+  class ListIterator<MaybeUninit<JsonMember>> vtable=0 itables=1
   class ListIterator<JsonMember> vtable=0 itables=1
-  class UnwrapException vtable=0 itables=0
-  class ListIterator<Option<JsonValue>> vtable=0 itables=1
+  class ListIterator<MaybeUninit<JsonValue>> vtable=0 itables=1
   class ListIterator<JsonValue> vtable=0 itables=1
   class ArrayEncoder<Int> vtable=0 itables=1
   class box<Long> vtable=0 itables=0
-  class box<Option<JsonValue>> vtable=0 itables=0
-  class box<Option<JsonMember>> vtable=0 itables=0
+  class box<MaybeUninit<JsonValue>> vtable=0 itables=0
+  class box<MaybeUninit<JsonMember>> vtable=0 itables=0
   class box<(Int, Array<Int>)> vtable=0 itables=0
   class box<Unit> vtable=0 itables=0
   class box<Int> vtable=0 itables=0
@@ -90,16 +89,16 @@ Module
   interface Iterator<Int>
   interface Encodable<Item<Int>>
   interface Encodable<(Int, Array<Int>)>
-  interface List<Option<JsonMember>> : Iterable<Option<JsonMember>>
-  interface Iterable<Option<JsonMember>>
-  interface Iterator<Option<JsonMember>>
+  interface List<MaybeUninit<JsonMember>> : Iterable<MaybeUninit<JsonMember>>
+  interface Iterable<MaybeUninit<JsonMember>>
+  interface Iterator<MaybeUninit<JsonMember>>
   interface MutableList<JsonMember> : List<JsonMember>
   interface List<JsonMember> : Iterable<JsonMember>
   interface Iterable<JsonMember>
   interface Iterator<JsonMember>
-  interface List<Option<JsonValue>> : Iterable<Option<JsonValue>>
-  interface Iterable<Option<JsonValue>>
-  interface Iterator<Option<JsonValue>>
+  interface List<MaybeUninit<JsonValue>> : Iterable<MaybeUninit<JsonValue>>
+  interface Iterable<MaybeUninit<JsonValue>>
+  interface Iterator<MaybeUninit<JsonValue>>
   interface MutableList<JsonValue> : List<JsonValue>
   interface List<JsonValue> : Iterable<JsonValue>
   interface Iterable<JsonValue>
@@ -116,26 +115,26 @@ Module
     bridge function_type1 -> @fn84 id=1e9c76037a9e6ffb7627d65dbb13f48d3015ca93d3437c885cca1c78e27b14ae
   closure cc2 $Closure$lambda2 type=function_type2 invoke=@fn16 captures=1
     bridge function_type3 -> @fn85 id=1895e7e05a1737f8b600c866f8d663bd57064357c6d64be03736dcc8a8e19e05
-  closure cc3 $Closure$lambda3 type=function_type4 invoke=@fn62 captures=3
+  closure cc3 $Closure$lambda3 type=function_type4 invoke=@fn62 captures=2
     bridge function_type1 -> @fn86 id=b6ba18e5ce1502205e80d5795d96bf8a8b81a82b0b79a00cf75930008cf7c808
-  closure cc4 $Closure$lambda4 type=function_type5 invoke=@fn67 captures=3
+  closure cc4 $Closure$lambda4 type=function_type5 invoke=@fn67 captures=2
     bridge function_type1 -> @fn87 id=40b40038af11641262a6048a895c58353a0ed868c75cbf0954c7e5010287676b
   generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
   generated_exact_type get1 location=closure2 nominal_id=d0b1202a6e6501c0d879da32113bbe971f17e501cbbfb17aa86a41bb050fb7f7 exact_id=146cf38aed7a9b5818f0d65896b4ee64bb5b8e709ce75d28a08a78c8b60aa5e3
-  generated_exact_type get2 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
-  generated_exact_type get3 location=closure4 nominal_id=d2e01d81d71cf66bb767b547709ecd720eae0ec08aae77cd9f0f814e53fa68e0 exact_id=3df168e2bc26886559f4c1974c91899685242b3742bf3fb01a7890c1c8299fc1
-  generated_exact_type get4 location=class29 nominal_id=cb1fc730e25434cc970f306434e84c0d40b7f8eb774a65bf52ffb909e205c9f8 exact_id=3eb988d2eb182975bf9f36fd2a8f4afb8e0e5805e8040e0489e6689fc4a9497f
-  generated_exact_type get5 location=class30 nominal_id=2d46c9bb220fbefe39c9d1e29a6611ec7bc6e5ae56b1648ee5f0f44bea118eda exact_id=3fffd277817e10802b81aa1eaa231983087c84e2f97f68e50ca3b7bfd6209975
-  generated_exact_type get6 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
-  generated_exact_type get7 location=closure3 nominal_id=89c59f2b3368459439480a55080f093cfabf561510567e8941cefb774a2c3d82 exact_id=51e5a8ca184c2a21572483066e3b3305c82220145aa916d7b99be050d1a0513e
-  generated_exact_type get8 location=closure0 nominal_id=63ec694760b1ed90aab86a6823b6b2aa3109e014c2ee4959d7374bc4b81d0892 exact_id=62135728da654f9bc88b47d35b168268ea810d745546d50f7ed0413aecd6c8c6
-  generated_exact_type get9 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
-  generated_exact_type get10 location=closure1 nominal_id=53861f35de7559b923e38e2d68d35d027ff22d2e614f466c2dd1c2906d080b63 exact_id=8f12b3bb38f692e1580e6f8efd3e2e9dc5b20299a810915586f166bc9adc1ecf
-  generated_exact_type get11 location=class27 nominal_id=ef3df60b062be59d8b40fac4e05462aa4b76921392b57e0ba4f120c872372a77 exact_id=ac709f337081c79069896cdb1493927789c4ea66d50bc61f5a3a39aec65bbca5
-  generated_exact_type get12 location=class28 nominal_id=cc6eedc14ddcf549ef580d33b45ee4afac3123de41b8125fcb3b9f6ed9f1bce4 exact_id=af0f7ba8c0fbb316703e3ae51c254064a1236c691d463ba8405493261033a466
-  generated_exact_type get13 location=class31 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_exact_type get2 location=class27 nominal_id=93f06c71f6ceee388c6a0fc0c8b1a5bf66c2c307e16d0ec067b231b39c936d0b exact_id=2f264fa44bb5dea9488d66649ff2b0d71f1d33745b3239a73c225d2cf7077b94
+  generated_exact_type get3 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
+  generated_exact_type get4 location=closure4 nominal_id=d2e01d81d71cf66bb767b547709ecd720eae0ec08aae77cd9f0f814e53fa68e0 exact_id=3df168e2bc26886559f4c1974c91899685242b3742bf3fb01a7890c1c8299fc1
+  generated_exact_type get5 location=class28 nominal_id=cb1fc730e25434cc970f306434e84c0d40b7f8eb774a65bf52ffb909e205c9f8 exact_id=3eb988d2eb182975bf9f36fd2a8f4afb8e0e5805e8040e0489e6689fc4a9497f
+  generated_exact_type get6 location=class29 nominal_id=2d46c9bb220fbefe39c9d1e29a6611ec7bc6e5ae56b1648ee5f0f44bea118eda exact_id=3fffd277817e10802b81aa1eaa231983087c84e2f97f68e50ca3b7bfd6209975
+  generated_exact_type get7 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
+  generated_exact_type get8 location=closure3 nominal_id=89c59f2b3368459439480a55080f093cfabf561510567e8941cefb774a2c3d82 exact_id=51e5a8ca184c2a21572483066e3b3305c82220145aa916d7b99be050d1a0513e
+  generated_exact_type get9 location=closure0 nominal_id=63ec694760b1ed90aab86a6823b6b2aa3109e014c2ee4959d7374bc4b81d0892 exact_id=62135728da654f9bc88b47d35b168268ea810d745546d50f7ed0413aecd6c8c6
+  generated_exact_type get10 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
+  generated_exact_type get11 location=closure1 nominal_id=53861f35de7559b923e38e2d68d35d027ff22d2e614f466c2dd1c2906d080b63 exact_id=8f12b3bb38f692e1580e6f8efd3e2e9dc5b20299a810915586f166bc9adc1ecf
+  generated_exact_type get12 location=class26 nominal_id=4c365d47f94bff7245a4f8a2e16a74e4dceac06096c441fe17d61e1ed387726a exact_id=917188b0305bcb23f2bd37a5b52441cd83637bdf5e82753a752f232d2225c2b1
+  generated_exact_type get13 location=class30 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
   generated_exact_type get14 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
-  generated_exact_type get15 location=class26 nominal_id=1019845dbac8b40486c7a8317715dddb4016698da08e810513dc12e31dd8b68f exact_id=f4ac53b66a5aaca260a9f537cf582a82b69042d884a570f92ccc8e738ababceb
+  generated_exact_type get15 location=class25 nominal_id=1019845dbac8b40486c7a8317715dddb4016698da08e810513dc12e31dd8b68f exact_id=f4ac53b66a5aaca260a9f537cf582a82b69042d884a570f92ccc8e738ababceb
   generated_callable gc0 function=@fn85 id=1895e7e05a1737f8b600c866f8d663bd57064357c6d64be03736dcc8a8e19e05
   generated_callable gc1 function=@fn84 id=1e9c76037a9e6ffb7627d65dbb13f48d3015ca93d3437c885cca1c78e27b14ae
   generated_callable gc2 function=@fn87 id=40b40038af11641262a6048a895c58353a0ed868c75cbf0954c7e5010287676b
@@ -278,7 +277,7 @@ Module
         Type IllegalStateException
         Local $new.2
     bb5 if.merge.5
-      call external33 direct
+      call external32 direct
       val $dependency.receiver: Companion
         Type Companion
         GlobalRead $singleton$084dce1061546480d414f0e784b877e7b0a86f5ea92899946ac0c582c71fe504
@@ -481,7 +480,7 @@ Module
       assign $new.2
         Type IllegalArgumentException
         ClassAlloc IllegalArgumentException
-      call external32 direct
+      call external31 direct
         Type IllegalArgumentException
         Local $new.2
       throw
@@ -578,7 +577,7 @@ Module
     bb10 try.end.10
       goto bb29
     bb11 try.body.11 unwind bb6
-      call external34 direct
+      call external33 direct
       val $dependency.receiver: Json
         Type Json
         GlobalRead $singleton$892d83739c24001e6c28aad599b7dfade0b20ccd06e06d8d97171b06c63999b8
@@ -653,7 +652,7 @@ Module
       end_catch
       goto bb7
     bb16 try.end.16 unwind bb6
-      call external34 direct
+      call external33 direct
       val $dependency.receiver: Json
         Type Json
         GlobalRead $singleton$892d83739c24001e6c28aad599b7dfade0b20ccd06e06d8d97171b06c63999b8
@@ -697,7 +696,7 @@ Module
         Local $parameter.value
       goto bb20
     bb17 try.body.17 unwind bb12
-      call external34 direct
+      call external33 direct
       val $dependency.receiver: Json
         Type Json
         GlobalRead $singleton$892d83739c24001e6c28aad599b7dfade0b20ccd06e06d8d97171b06c63999b8
@@ -808,7 +807,7 @@ Module
           Local $new.7
       goto bb39
     bb29 try.body.29 unwind bb22
-      call external34 direct
+      call external33 direct
       val $dependency.receiver: Json
         Type Json
         GlobalRead $singleton$892d83739c24001e6c28aad599b7dfade0b20ccd06e06d8d97171b06c63999b8
@@ -916,7 +915,7 @@ Module
       assign $new.8
         Type IllegalArgumentException
         ClassAlloc IllegalArgumentException
-      call external32 direct
+      call external31 direct
         Type IllegalArgumentException
         Local $new.8
       throw unwind bb34
@@ -1002,7 +1001,7 @@ Module
       end_catch
       goto bb35
     bb51 try.end.51 unwind bb34
-      call external34 direct
+      call external33 direct
       val $dependency.receiver: Json
         Type Json
         GlobalRead $singleton$892d83739c24001e6c28aad599b7dfade0b20ccd06e06d8d97171b06c63999b8
@@ -1046,7 +1045,7 @@ Module
         Local $parameter.value
       goto bb57
     bb52 try.body.52 unwind bb45
-      call external34 direct
+      call external33 direct
       val $dependency.receiver: Json
         Type Json
         GlobalRead $singleton$892d83739c24001e6c28aad599b7dfade0b20ccd06e06d8d97171b06c63999b8
@@ -1818,12 +1817,12 @@ Module
   fun Encodable.encode @fn18(this: Encodable<(Int, Array<Int>)>, value: (Int, Array<Int>), encoder: Encoder) -> Unit
     bb0 entry
       trap "call to abstract method `Encodable.encode`"
-  fun iterator @fn19(this: MutableArray<Option<JsonMember>>) -> Iterator<Option<JsonMember>>
+  fun iterator @fn19(this: MutableArray<MaybeUninit<JsonMember>>) -> Iterator<MaybeUninit<JsonMember>>
     bb0 entry
-      val $dependency.local.1: List<Option<JsonMember>>
-        Type List<Option<JsonMember>>
-        Retype List<Option<JsonMember>>
-          Type MutableArray<Option<JsonMember>>
+      val $dependency.local.1: List<MaybeUninit<JsonMember>>
+        Type List<MaybeUninit<JsonMember>>
+        Retype List<MaybeUninit<JsonMember>>
+          Type MutableArray<MaybeUninit<JsonMember>>
           Local this
       val $dependency.local.2: Long
         Type Long
@@ -1831,8 +1830,8 @@ Module
       val $dependency.local.3: Boolean
         Type Boolean
         BoolLiteral false
-      val $dependency.local.4: List<Option<JsonMember>>
-        Type List<Option<JsonMember>>
+      val $dependency.local.4: List<MaybeUninit<JsonMember>>
+        Type List<MaybeUninit<JsonMember>>
         Local $dependency.local.1
       val $dependency.local.5: Long
         Type Long
@@ -1841,26 +1840,26 @@ Module
         Type Boolean
         Local $dependency.local.3
       assign $new.1
-        Type ListIterator<Option<JsonMember>>
-        ClassAlloc ListIterator<Option<JsonMember>>
+        Type ListIterator<MaybeUninit<JsonMember>>
+        ClassAlloc ListIterator<MaybeUninit<JsonMember>>
       call @fn76 direct
-        Type ListIterator<Option<JsonMember>>
+        Type ListIterator<MaybeUninit<JsonMember>>
         Local $new.1
-        Type List<Option<JsonMember>>
+        Type List<MaybeUninit<JsonMember>>
         Local $dependency.local.4
         Type Long
         Local $dependency.local.5
         Type Boolean
         Local $dependency.local.6
       return
-        Type Iterator<Option<JsonMember>>
-        Retype Iterator<Option<JsonMember>>
-          Type ListIterator<Option<JsonMember>>
+        Type Iterator<MaybeUninit<JsonMember>>
+        Retype Iterator<MaybeUninit<JsonMember>>
+          Type ListIterator<MaybeUninit<JsonMember>>
           Local $new.1
-  fun get @fn20(this: MutableArray<Option<JsonMember>>, index: Long) -> Option<JsonMember>
+  fun get @fn20(this: MutableArray<MaybeUninit<JsonMember>>, index: Long) -> MaybeUninit<JsonMember>
     bb0 entry
-      val $dependency.local.2: MutableArray<Option<JsonMember>>
-        Type MutableArray<Option<JsonMember>>
+      val $dependency.local.2: MutableArray<MaybeUninit<JsonMember>>
+        Type MutableArray<MaybeUninit<JsonMember>>
         Local this
       val $dependency.local.3: Long
         Type Long
@@ -1868,8 +1867,8 @@ Module
       val $dependency.local.4: Long
         Type Long
         Local $dependency.local.3
-      val $arr.1: MutableArray<Option<JsonMember>>
-        Type MutableArray<Option<JsonMember>>
+      val $arr.1: MutableArray<MaybeUninit<JsonMember>>
+        Type MutableArray<MaybeUninit<JsonMember>>
         Local $dependency.local.2
       val $idx.2: Long
         Type Long
@@ -1888,8 +1887,8 @@ Module
           Type Long
           Local $idx.2
           Type Long
-          ArrayLen MutableArray<Option<JsonMember>>
-            Type MutableArray<Option<JsonMember>>
+          ArrayLen MutableArray<MaybeUninit<JsonMember>>
+            Type MutableArray<MaybeUninit<JsonMember>>
             Local $arr.1
       goto bb3
     bb2 logic.short.2
@@ -1913,21 +1912,21 @@ Module
         Local $new.2
     bb5 if.merge.5
       return
-        Type Option<JsonMember>
-        ArrayGet MutableArray<Option<JsonMember>>
-          Type MutableArray<Option<JsonMember>>
+        Type MaybeUninit<JsonMember>
+        ArrayGet MutableArray<MaybeUninit<JsonMember>>
+          Type MutableArray<MaybeUninit<JsonMember>>
           Local $arr.1
           Type Long
           Local $idx.2
-  fun size @fn21(this: MutableArray<Option<JsonMember>>) -> Long
+  fun size @fn21(this: MutableArray<MaybeUninit<JsonMember>>) -> Long
     bb0 entry
-      val $dependency.local.1: MutableArray<Option<JsonMember>>
-        Type MutableArray<Option<JsonMember>>
+      val $dependency.local.1: MutableArray<MaybeUninit<JsonMember>>
+        Type MutableArray<MaybeUninit<JsonMember>>
         Local this
       return
         Type Long
-        ArrayLen MutableArray<Option<JsonMember>>
-          Type MutableArray<Option<JsonMember>>
+        ArrayLen MutableArray<MaybeUninit<JsonMember>>
+          Type MutableArray<MaybeUninit<JsonMember>>
           Local $dependency.local.1
   fun iterator @fn22(this: ArrayList<JsonMember>) -> Iterator<JsonMember>
     bb0 entry
@@ -1984,8 +1983,8 @@ Module
         Local $dependency.local.2
         Type Long
         Local $dependency.local.4
-      val $dependency.local.5: MutableArray<Option<JsonMember>>
-        Type MutableArray<Option<JsonMember>>
+      val $dependency.local.5: MutableArray<MaybeUninit<JsonMember>>
+        Type MutableArray<MaybeUninit<JsonMember>>
         FieldAccess 0
           Type ArrayList<JsonMember>
           Local this
@@ -1995,37 +1994,16 @@ Module
       val $dependency.local.7: Long
         Type Long
         Local $dependency.local.6
-      call $opt.1: Option<JsonMember> = @fn20 direct
-        Type MutableArray<Option<JsonMember>>
+      call $dependency.local.8: MaybeUninit<JsonMember> = @fn20 direct
+        Type MutableArray<MaybeUninit<JsonMember>>
         Local $dependency.local.5
         Type Long
         Local $dependency.local.7
-      branch bb1 bb2
-        Type Boolean
-        VariantTest Option<JsonMember> v0
-          Type Option<JsonMember>
-          Local $opt.1
-    bb1 if.then.1
-      val $uw.2: JsonMember
-        Type JsonMember
-        VariantPayloadProject Option<JsonMember> v0 f0
-          Type Option<JsonMember>
-          Local $opt.1
-      goto bb3
-    bb2 if.else.2
-      assign $new.1
-        Type UnwrapException
-        ClassAlloc UnwrapException
-      call external31 direct
-        Type UnwrapException
-        Local $new.1
-      throw
-        Type UnwrapException
-        Local $new.1
-    bb3 if.merge.3
       return
         Type JsonMember
-        Local $uw.2
+        MaybeUninit.AssumeInit MaybeUninit
+          Type MaybeUninit<JsonMember>
+          Local $dependency.local.8
   fun size @fn24(this: ArrayList<JsonMember>) -> Long
     bb0 entry
       return
@@ -2049,8 +2027,8 @@ Module
         Local $dependency.local.3
         Type Long
         Local $dependency.local.5
-      val $dependency.local.8: MutableArray<Option<JsonMember>>
-        Type MutableArray<Option<JsonMember>>
+      val $dependency.local.8: MutableArray<MaybeUninit<JsonMember>>
+        Type MutableArray<MaybeUninit<JsonMember>>
         FieldAccess 0
           Type ArrayList<JsonMember>
           Local this
@@ -2063,25 +2041,25 @@ Module
       val $dependency.local.7: JsonMember
         Type JsonMember
         Local $dependency.local.6
-      val $dependency.local.10: Option<JsonMember>
-        Type Option<JsonMember>
-        VariantConstruct Option<JsonMember> v0
+      val $dependency.local.10: MaybeUninit<JsonMember>
+        Type MaybeUninit<JsonMember>
+        MaybeUninit.Initialized MaybeUninit
           Type JsonMember
           Local $dependency.local.7
       val $dependency.local.11: Long
         Type Long
         Local $dependency.local.9
-      val $dependency.local.12: Option<JsonMember>
-        Type Option<JsonMember>
+      val $dependency.local.12: MaybeUninit<JsonMember>
+        Type MaybeUninit<JsonMember>
         Local $dependency.local.10
-      val $arr.1: MutableArray<Option<JsonMember>>
-        Type MutableArray<Option<JsonMember>>
+      val $arr.1: MutableArray<MaybeUninit<JsonMember>>
+        Type MutableArray<MaybeUninit<JsonMember>>
         Local $dependency.local.8
       val $idx.2: Long
         Type Long
         Local $dependency.local.11
-      val $value.3: Option<JsonMember>
-        Type Option<JsonMember>
+      val $value.3: MaybeUninit<JsonMember>
+        Type MaybeUninit<JsonMember>
         Local $dependency.local.12
       branch bb2 bb1
         Type Boolean
@@ -2097,8 +2075,8 @@ Module
           Type Long
           Local $idx.2
           Type Long
-          ArrayLen MutableArray<Option<JsonMember>>
-            Type MutableArray<Option<JsonMember>>
+          ArrayLen MutableArray<MaybeUninit<JsonMember>>
+            Type MutableArray<MaybeUninit<JsonMember>>
             Local $arr.1
       goto bb3
     bb2 logic.short.2
@@ -2121,12 +2099,12 @@ Module
         Type IndexOutOfBoundsException
         Local $new.2
     bb5 if.merge.5
-      array_set MutableArray<Option<JsonMember>>
-        Type MutableArray<Option<JsonMember>>
+      array_set MutableArray<MaybeUninit<JsonMember>>
+        Type MutableArray<MaybeUninit<JsonMember>>
         Local $arr.1
         Type Long
         Local $idx.2
-        Type Option<JsonMember>
+        Type MaybeUninit<JsonMember>
         Local $value.3
       return
   fun add @fn26(this: ArrayList<JsonMember>, value: JsonMember) -> Unit
@@ -2137,8 +2115,8 @@ Module
       call @fn52 direct
         Type ArrayList<JsonMember>
         Local $dependency.local.2
-      val $dependency.local.5: MutableArray<Option<JsonMember>>
-        Type MutableArray<Option<JsonMember>>
+      val $dependency.local.5: MutableArray<MaybeUninit<JsonMember>>
+        Type MutableArray<MaybeUninit<JsonMember>>
         FieldAccess 0
           Type ArrayList<JsonMember>
           Local this
@@ -2153,25 +2131,25 @@ Module
       val $dependency.local.4: JsonMember
         Type JsonMember
         Local $dependency.local.3
-      val $dependency.local.7: Option<JsonMember>
-        Type Option<JsonMember>
-        VariantConstruct Option<JsonMember> v0
+      val $dependency.local.7: MaybeUninit<JsonMember>
+        Type MaybeUninit<JsonMember>
+        MaybeUninit.Initialized MaybeUninit
           Type JsonMember
           Local $dependency.local.4
       val $dependency.local.8: Long
         Type Long
         Local $dependency.local.6
-      val $dependency.local.9: Option<JsonMember>
-        Type Option<JsonMember>
+      val $dependency.local.9: MaybeUninit<JsonMember>
+        Type MaybeUninit<JsonMember>
         Local $dependency.local.7
-      val $arr.1: MutableArray<Option<JsonMember>>
-        Type MutableArray<Option<JsonMember>>
+      val $arr.1: MutableArray<MaybeUninit<JsonMember>>
+        Type MutableArray<MaybeUninit<JsonMember>>
         Local $dependency.local.5
       val $idx.2: Long
         Type Long
         Local $dependency.local.8
-      val $value.3: Option<JsonMember>
-        Type Option<JsonMember>
+      val $value.3: MaybeUninit<JsonMember>
+        Type MaybeUninit<JsonMember>
         Local $dependency.local.9
       branch bb2 bb1
         Type Boolean
@@ -2187,8 +2165,8 @@ Module
           Type Long
           Local $idx.2
           Type Long
-          ArrayLen MutableArray<Option<JsonMember>>
-            Type MutableArray<Option<JsonMember>>
+          ArrayLen MutableArray<MaybeUninit<JsonMember>>
+            Type MutableArray<MaybeUninit<JsonMember>>
             Local $arr.1
       goto bb3
     bb2 logic.short.2
@@ -2211,12 +2189,12 @@ Module
         Type IndexOutOfBoundsException
         Local $new.2
     bb5 if.merge.5
-      array_set MutableArray<Option<JsonMember>>
-        Type MutableArray<Option<JsonMember>>
+      array_set MutableArray<MaybeUninit<JsonMember>>
+        Type MutableArray<MaybeUninit<JsonMember>>
         Local $arr.1
         Type Long
         Local $idx.2
-        Type Option<JsonMember>
+        Type MaybeUninit<JsonMember>
         Local $value.3
       val $dependency.local.10: Long
         Type Long
@@ -2339,8 +2317,8 @@ Module
           Type Long
           IntegerLiteral Long value=0 bits=0x0000000000000000
     bb7 while.exit.7
-      val $dependency.local.31: MutableArray<Option<JsonMember>>
-        Type MutableArray<Option<JsonMember>>
+      val $dependency.local.31: MutableArray<MaybeUninit<JsonMember>>
+        Type MutableArray<MaybeUninit<JsonMember>>
         FieldAccess 0
           Type ArrayList<JsonMember>
           Local this
@@ -2353,25 +2331,25 @@ Module
       val $dependency.local.30: JsonMember
         Type JsonMember
         Local $dependency.local.29
-      val $dependency.local.33: Option<JsonMember>
-        Type Option<JsonMember>
-        VariantConstruct Option<JsonMember> v0
+      val $dependency.local.33: MaybeUninit<JsonMember>
+        Type MaybeUninit<JsonMember>
+        MaybeUninit.Initialized MaybeUninit
           Type JsonMember
           Local $dependency.local.30
       val $dependency.local.34: Long
         Type Long
         Local $dependency.local.32
-      val $dependency.local.35: Option<JsonMember>
-        Type Option<JsonMember>
+      val $dependency.local.35: MaybeUninit<JsonMember>
+        Type MaybeUninit<JsonMember>
         Local $dependency.local.33
-      val $arr.4: MutableArray<Option<JsonMember>>
-        Type MutableArray<Option<JsonMember>>
+      val $arr.4: MutableArray<MaybeUninit<JsonMember>>
+        Type MutableArray<MaybeUninit<JsonMember>>
         Local $dependency.local.31
       val $idx.5: Long
         Type Long
         Local $dependency.local.34
-      val $value.6: Option<JsonMember>
-        Type Option<JsonMember>
+      val $value.6: MaybeUninit<JsonMember>
+        Type MaybeUninit<JsonMember>
         Local $dependency.local.35
       branch bb15 bb14
         Type Boolean
@@ -2381,16 +2359,16 @@ Module
           Type Long
           IntegerLiteral Long value=0 bits=0x0000000000000000
     bb8 while.body.8
-      val $dependency.local.21: MutableArray<Option<JsonMember>>
-        Type MutableArray<Option<JsonMember>>
+      val $dependency.local.21: MutableArray<MaybeUninit<JsonMember>>
+        Type MutableArray<MaybeUninit<JsonMember>>
         FieldAccess 0
           Type ArrayList<JsonMember>
           Local this
       val $dependency.local.22: Long
         Type Long
         Local $dependency.local.3
-      val $dependency.local.18: MutableArray<Option<JsonMember>>
-        Type MutableArray<Option<JsonMember>>
+      val $dependency.local.18: MutableArray<MaybeUninit<JsonMember>>
+        Type MutableArray<MaybeUninit<JsonMember>>
         FieldAccess 0
           Type ArrayList<JsonMember>
           Local this
@@ -2413,25 +2391,25 @@ Module
       val $dependency.local.20: Long
         Type Long
         Local $dependency.local.19
-      call $dependency.local.23: Option<JsonMember> = @fn20 direct
-        Type MutableArray<Option<JsonMember>>
+      call $dependency.local.23: MaybeUninit<JsonMember> = @fn20 direct
+        Type MutableArray<MaybeUninit<JsonMember>>
         Local $dependency.local.18
         Type Long
         Local $dependency.local.20
       val $dependency.local.24: Long
         Type Long
         Local $dependency.local.22
-      val $dependency.local.25: Option<JsonMember>
-        Type Option<JsonMember>
+      val $dependency.local.25: MaybeUninit<JsonMember>
+        Type MaybeUninit<JsonMember>
         Local $dependency.local.23
-      val $arr.1: MutableArray<Option<JsonMember>>
-        Type MutableArray<Option<JsonMember>>
+      val $arr.1: MutableArray<MaybeUninit<JsonMember>>
+        Type MutableArray<MaybeUninit<JsonMember>>
         Local $dependency.local.21
       val $idx.2: Long
         Type Long
         Local $dependency.local.24
-      val $value.3: Option<JsonMember>
-        Type Option<JsonMember>
+      val $value.3: MaybeUninit<JsonMember>
+        Type MaybeUninit<JsonMember>
         Local $dependency.local.25
       branch bb10 bb9
         Type Boolean
@@ -2447,8 +2425,8 @@ Module
           Type Long
           Local $idx.2
           Type Long
-          ArrayLen MutableArray<Option<JsonMember>>
-            Type MutableArray<Option<JsonMember>>
+          ArrayLen MutableArray<MaybeUninit<JsonMember>>
+            Type MutableArray<MaybeUninit<JsonMember>>
             Local $arr.1
       goto bb11
     bb10 logic.short.10
@@ -2471,12 +2449,12 @@ Module
         Type IndexOutOfBoundsException
         Local $new.3
     bb13 if.merge.13
-      array_set MutableArray<Option<JsonMember>>
-        Type MutableArray<Option<JsonMember>>
+      array_set MutableArray<MaybeUninit<JsonMember>>
+        Type MutableArray<MaybeUninit<JsonMember>>
         Local $arr.1
         Type Long
         Local $idx.2
-        Type Option<JsonMember>
+        Type MaybeUninit<JsonMember>
         Local $value.3
       val $dependency.local.26: Long
         Type Long
@@ -2502,8 +2480,8 @@ Module
           Type Long
           Local $idx.5
           Type Long
-          ArrayLen MutableArray<Option<JsonMember>>
-            Type MutableArray<Option<JsonMember>>
+          ArrayLen MutableArray<MaybeUninit<JsonMember>>
+            Type MutableArray<MaybeUninit<JsonMember>>
             Local $arr.4
       goto bb16
     bb15 logic.short.15
@@ -2526,12 +2504,12 @@ Module
         Type IndexOutOfBoundsException
         Local $new.5
     bb18 if.merge.18
-      array_set MutableArray<Option<JsonMember>>
-        Type MutableArray<Option<JsonMember>>
+      array_set MutableArray<MaybeUninit<JsonMember>>
+        Type MutableArray<MaybeUninit<JsonMember>>
         Local $arr.4
         Type Long
         Local $idx.5
-        Type Option<JsonMember>
+        Type MaybeUninit<JsonMember>
         Local $value.6
       val $dependency.local.36: Long
         Type Long
@@ -2570,8 +2548,8 @@ Module
         Local $dependency.local.5
         Type Long
         Local $dependency.local.7
-      val $dependency.local.8: MutableArray<Option<JsonMember>>
-        Type MutableArray<Option<JsonMember>>
+      val $dependency.local.8: MutableArray<MaybeUninit<JsonMember>>
+        Type MutableArray<MaybeUninit<JsonMember>>
         FieldAccess 0
           Type ArrayList<JsonMember>
           Local this
@@ -2581,267 +2559,246 @@ Module
       val $dependency.local.10: Long
         Type Long
         Local $dependency.local.9
-      call $opt.1: Option<JsonMember> = @fn20 direct
-        Type MutableArray<Option<JsonMember>>
+      call $dependency.local.11: MaybeUninit<JsonMember> = @fn20 direct
+        Type MutableArray<MaybeUninit<JsonMember>>
         Local $dependency.local.8
         Type Long
         Local $dependency.local.10
-      branch bb1 bb2
-        Type Boolean
-        VariantTest Option<JsonMember> v0
-          Type Option<JsonMember>
-          Local $opt.1
-    bb1 if.then.1
-      val $uw.2: JsonMember
-        Type JsonMember
-        VariantPayloadProject Option<JsonMember> v0 f0
-          Type Option<JsonMember>
-          Local $opt.1
-      goto bb3
-    bb2 if.else.2
-      assign $new.1
-        Type UnwrapException
-        ClassAlloc UnwrapException
-      call external31 direct
-        Type UnwrapException
-        Local $new.1
-      throw
-        Type UnwrapException
-        Local $new.1
-    bb3 if.merge.3
       val $dependency.local.2: JsonMember
         Type JsonMember
-        Local $uw.2
-      val $dependency.local.11: Long
+        MaybeUninit.AssumeInit MaybeUninit
+          Type MaybeUninit<JsonMember>
+          Local $dependency.local.11
+      val $dependency.local.12: Long
         Type Long
         FieldAccess 1
           Type ArrayList<JsonMember>
           Local this
-      val $dependency.local.12: Long
-        Type Long
-        IntegerLiteral Long value=1 bits=0x0000000000000001
       val $dependency.local.13: Long
         Type Long
-        Local $dependency.local.12
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.local.14: Long
+        Type Long
+        Local $dependency.local.13
       val $dependency.local.3: Long
         Type Long
         IntegerBinary subtract kind=Long
           Type Long
-          Local $dependency.local.11
+          Local $dependency.local.12
           Type Long
-          Local $dependency.local.13
+          Local $dependency.local.14
       var $dependency.local.4: Long
         Type Long
         Local index
-      goto bb4
-    bb4 while.cond.4 <loop-header-poll>
-      val $dependency.local.14: Long
-        Type Long
-        Local $dependency.local.4
+      goto bb1
+    bb1 while.cond.1 <loop-header-poll>
       val $dependency.local.15: Long
         Type Long
-        Local $dependency.local.3
+        Local $dependency.local.4
       val $dependency.local.16: Long
         Type Long
-        Local $dependency.local.15
-      branch bb6 bb5
+        Local $dependency.local.3
+      val $dependency.local.17: Long
+        Type Long
+        Local $dependency.local.16
+      branch bb3 bb2
         Type Boolean
         IntegerCompare less-than operands=Long result=Boolean
           Type Long
           IntegerCompareTo operands=Long result=Long
             Type Long
-            Local $dependency.local.14
+            Local $dependency.local.15
             Type Long
-            Local $dependency.local.16
+            Local $dependency.local.17
           Type Long
           IntegerLiteral Long value=0 bits=0x0000000000000000
-    bb5 while.exit.5
-      val $dependency.local.31: MutableArray<Option<JsonMember>>
-        Type MutableArray<Option<JsonMember>>
+    bb2 while.exit.2
+      val $dependency.local.32: MutableArray<MaybeUninit<JsonMember>>
+        Type MutableArray<MaybeUninit<JsonMember>>
         FieldAccess 0
           Type ArrayList<JsonMember>
           Local this
-      val $dependency.local.32: Long
+      val $dependency.local.33: Long
         Type Long
         Local $dependency.local.3
-      val $dependency.local.33: Option<JsonMember>
-        Type Option<JsonMember>
-        VariantConstruct Option<JsonMember> v1
-      val $dependency.local.34: Long
+      val $dependency.local.34: MaybeUninit<JsonMember>
+        Type MaybeUninit<JsonMember>
+        MaybeUninit.Uninit MaybeUninit
+      val $dependency.local.35: Long
         Type Long
-        Local $dependency.local.32
-      val $dependency.local.35: Option<JsonMember>
-        Type Option<JsonMember>
         Local $dependency.local.33
-      val $arr.6: MutableArray<Option<JsonMember>>
-        Type MutableArray<Option<JsonMember>>
-        Local $dependency.local.31
-      val $idx.7: Long
-        Type Long
+      val $dependency.local.36: MaybeUninit<JsonMember>
+        Type MaybeUninit<JsonMember>
         Local $dependency.local.34
-      val $value.8: Option<JsonMember>
-        Type Option<JsonMember>
+      val $arr.4: MutableArray<MaybeUninit<JsonMember>>
+        Type MutableArray<MaybeUninit<JsonMember>>
+        Local $dependency.local.32
+      val $idx.5: Long
+        Type Long
         Local $dependency.local.35
-      branch bb13 bb12
+      val $value.6: MaybeUninit<JsonMember>
+        Type MaybeUninit<JsonMember>
+        Local $dependency.local.36
+      branch bb10 bb9
         Type Boolean
         IntegerCompare less-than operands=Long result=Boolean
           Type Long
-          Local $idx.7
+          Local $idx.5
           Type Long
           IntegerLiteral Long value=0 bits=0x0000000000000000
-    bb6 while.body.6
-      val $dependency.local.23: MutableArray<Option<JsonMember>>
-        Type MutableArray<Option<JsonMember>>
+    bb3 while.body.3
+      val $dependency.local.24: MutableArray<MaybeUninit<JsonMember>>
+        Type MutableArray<MaybeUninit<JsonMember>>
         FieldAccess 0
           Type ArrayList<JsonMember>
           Local this
-      val $dependency.local.24: Long
+      val $dependency.local.25: Long
         Type Long
         Local $dependency.local.4
-      val $dependency.local.20: MutableArray<Option<JsonMember>>
-        Type MutableArray<Option<JsonMember>>
+      val $dependency.local.21: MutableArray<MaybeUninit<JsonMember>>
+        Type MutableArray<MaybeUninit<JsonMember>>
         FieldAccess 0
           Type ArrayList<JsonMember>
           Local this
-      val $dependency.local.17: Long
-        Type Long
-        Local $dependency.local.4
       val $dependency.local.18: Long
         Type Long
-        IntegerLiteral Long value=1 bits=0x0000000000000001
+        Local $dependency.local.4
       val $dependency.local.19: Long
         Type Long
-        Local $dependency.local.18
-      val $dependency.local.21: Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.local.20: Long
+        Type Long
+        Local $dependency.local.19
+      val $dependency.local.22: Long
         Type Long
         IntegerBinary add kind=Long
           Type Long
-          Local $dependency.local.17
+          Local $dependency.local.18
           Type Long
-          Local $dependency.local.19
-      val $dependency.local.22: Long
-        Type Long
-        Local $dependency.local.21
-      call $dependency.local.25: Option<JsonMember> = @fn20 direct
-        Type MutableArray<Option<JsonMember>>
-        Local $dependency.local.20
+          Local $dependency.local.20
+      val $dependency.local.23: Long
         Type Long
         Local $dependency.local.22
-      val $dependency.local.26: Long
+      call $dependency.local.26: MaybeUninit<JsonMember> = @fn20 direct
+        Type MutableArray<MaybeUninit<JsonMember>>
+        Local $dependency.local.21
         Type Long
-        Local $dependency.local.24
-      val $dependency.local.27: Option<JsonMember>
-        Type Option<JsonMember>
-        Local $dependency.local.25
-      val $arr.3: MutableArray<Option<JsonMember>>
-        Type MutableArray<Option<JsonMember>>
         Local $dependency.local.23
-      val $idx.4: Long
+      val $dependency.local.27: Long
         Type Long
+        Local $dependency.local.25
+      val $dependency.local.28: MaybeUninit<JsonMember>
+        Type MaybeUninit<JsonMember>
         Local $dependency.local.26
-      val $value.5: Option<JsonMember>
-        Type Option<JsonMember>
+      val $arr.1: MutableArray<MaybeUninit<JsonMember>>
+        Type MutableArray<MaybeUninit<JsonMember>>
+        Local $dependency.local.24
+      val $idx.2: Long
+        Type Long
         Local $dependency.local.27
-      branch bb8 bb7
+      val $value.3: MaybeUninit<JsonMember>
+        Type MaybeUninit<JsonMember>
+        Local $dependency.local.28
+      branch bb5 bb4
         Type Boolean
         IntegerCompare less-than operands=Long result=Boolean
           Type Long
-          Local $idx.4
+          Local $idx.2
           Type Long
           IntegerLiteral Long value=0 bits=0x0000000000000000
-    bb7 logic.rhs.7
-      assign $logic.2
+    bb4 logic.rhs.4
+      assign $logic.1
         Type Boolean
         IntegerCompare greater-than-or-equal operands=Long result=Boolean
           Type Long
-          Local $idx.4
+          Local $idx.2
           Type Long
-          ArrayLen MutableArray<Option<JsonMember>>
-            Type MutableArray<Option<JsonMember>>
-            Local $arr.3
-      goto bb9
-    bb8 logic.short.8
-      assign $logic.2
+          ArrayLen MutableArray<MaybeUninit<JsonMember>>
+            Type MutableArray<MaybeUninit<JsonMember>>
+            Local $arr.1
+      goto bb6
+    bb5 logic.short.5
+      assign $logic.1
         Type Boolean
         BoolLiteral true
-      goto bb9
-    bb9 logic.merge.9
-      branch bb10 bb11
+      goto bb6
+    bb6 logic.merge.6
+      branch bb7 bb8
         Type Boolean
-        Local $logic.2
-    bb10 if.then.10
-      assign $new.3
+        Local $logic.1
+    bb7 if.then.7
+      assign $new.2
         Type IndexOutOfBoundsException
         ClassAlloc IndexOutOfBoundsException
       call external25 direct
         Type IndexOutOfBoundsException
-        Local $new.3
+        Local $new.2
       throw
         Type IndexOutOfBoundsException
-        Local $new.3
-    bb11 if.merge.11
-      array_set MutableArray<Option<JsonMember>>
-        Type MutableArray<Option<JsonMember>>
-        Local $arr.3
+        Local $new.2
+    bb8 if.merge.8
+      array_set MutableArray<MaybeUninit<JsonMember>>
+        Type MutableArray<MaybeUninit<JsonMember>>
+        Local $arr.1
         Type Long
-        Local $idx.4
-        Type Option<JsonMember>
-        Local $value.5
-      val $dependency.local.28: Long
-        Type Long
-        Local $dependency.local.4
+        Local $idx.2
+        Type MaybeUninit<JsonMember>
+        Local $value.3
       val $dependency.local.29: Long
         Type Long
-        IntegerLiteral Long value=1 bits=0x0000000000000001
+        Local $dependency.local.4
       val $dependency.local.30: Long
         Type Long
-        Local $dependency.local.29
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.local.31: Long
+        Type Long
+        Local $dependency.local.30
       assign $dependency.local.4
         Type Long
         IntegerBinary add kind=Long
           Type Long
-          Local $dependency.local.28
+          Local $dependency.local.29
           Type Long
-          Local $dependency.local.30
-      goto bb4
-    bb12 logic.rhs.12
-      assign $logic.4
+          Local $dependency.local.31
+      goto bb1
+    bb9 logic.rhs.9
+      assign $logic.3
         Type Boolean
         IntegerCompare greater-than-or-equal operands=Long result=Boolean
           Type Long
-          Local $idx.7
+          Local $idx.5
           Type Long
-          ArrayLen MutableArray<Option<JsonMember>>
-            Type MutableArray<Option<JsonMember>>
-            Local $arr.6
-      goto bb14
-    bb13 logic.short.13
-      assign $logic.4
+          ArrayLen MutableArray<MaybeUninit<JsonMember>>
+            Type MutableArray<MaybeUninit<JsonMember>>
+            Local $arr.4
+      goto bb11
+    bb10 logic.short.10
+      assign $logic.3
         Type Boolean
         BoolLiteral true
-      goto bb14
-    bb14 logic.merge.14
-      branch bb15 bb16
+      goto bb11
+    bb11 logic.merge.11
+      branch bb12 bb13
         Type Boolean
-        Local $logic.4
-    bb15 if.then.15
-      assign $new.5
+        Local $logic.3
+    bb12 if.then.12
+      assign $new.4
         Type IndexOutOfBoundsException
         ClassAlloc IndexOutOfBoundsException
       call external25 direct
         Type IndexOutOfBoundsException
-        Local $new.5
+        Local $new.4
       throw
         Type IndexOutOfBoundsException
-        Local $new.5
-    bb16 if.merge.16
-      array_set MutableArray<Option<JsonMember>>
-        Type MutableArray<Option<JsonMember>>
-        Local $arr.6
+        Local $new.4
+    bb13 if.merge.13
+      array_set MutableArray<MaybeUninit<JsonMember>>
+        Type MutableArray<MaybeUninit<JsonMember>>
+        Local $arr.4
         Type Long
-        Local $idx.7
-        Type Option<JsonMember>
-        Local $value.8
+        Local $idx.5
+        Type MaybeUninit<JsonMember>
+        Local $value.6
       field_set 1
         Type ArrayList<JsonMember>
         Local this
@@ -2887,31 +2844,31 @@ Module
         IntegerLiteral Long value=0 bits=0x0000000000000000
       return
     bb3 while.body.3
-      val $dependency.local.5: MutableArray<Option<JsonMember>>
-        Type MutableArray<Option<JsonMember>>
+      val $dependency.local.5: MutableArray<MaybeUninit<JsonMember>>
+        Type MutableArray<MaybeUninit<JsonMember>>
         FieldAccess 0
           Type ArrayList<JsonMember>
           Local this
       val $dependency.local.6: Long
         Type Long
         Local $dependency.local.1
-      val $dependency.local.7: Option<JsonMember>
-        Type Option<JsonMember>
-        VariantConstruct Option<JsonMember> v1
+      val $dependency.local.7: MaybeUninit<JsonMember>
+        Type MaybeUninit<JsonMember>
+        MaybeUninit.Uninit MaybeUninit
       val $dependency.local.8: Long
         Type Long
         Local $dependency.local.6
-      val $dependency.local.9: Option<JsonMember>
-        Type Option<JsonMember>
+      val $dependency.local.9: MaybeUninit<JsonMember>
+        Type MaybeUninit<JsonMember>
         Local $dependency.local.7
-      val $arr.1: MutableArray<Option<JsonMember>>
-        Type MutableArray<Option<JsonMember>>
+      val $arr.1: MutableArray<MaybeUninit<JsonMember>>
+        Type MutableArray<MaybeUninit<JsonMember>>
         Local $dependency.local.5
       val $idx.2: Long
         Type Long
         Local $dependency.local.8
-      val $value.3: Option<JsonMember>
-        Type Option<JsonMember>
+      val $value.3: MaybeUninit<JsonMember>
+        Type MaybeUninit<JsonMember>
         Local $dependency.local.9
       branch bb5 bb4
         Type Boolean
@@ -2927,8 +2884,8 @@ Module
           Type Long
           Local $idx.2
           Type Long
-          ArrayLen MutableArray<Option<JsonMember>>
-            Type MutableArray<Option<JsonMember>>
+          ArrayLen MutableArray<MaybeUninit<JsonMember>>
+            Type MutableArray<MaybeUninit<JsonMember>>
             Local $arr.1
       goto bb6
     bb5 logic.short.5
@@ -2951,12 +2908,12 @@ Module
         Type IndexOutOfBoundsException
         Local $new.2
     bb8 if.merge.8
-      array_set MutableArray<Option<JsonMember>>
-        Type MutableArray<Option<JsonMember>>
+      array_set MutableArray<MaybeUninit<JsonMember>>
+        Type MutableArray<MaybeUninit<JsonMember>>
         Local $arr.1
         Type Long
         Local $idx.2
-        Type Option<JsonMember>
+        Type MaybeUninit<JsonMember>
         Local $value.3
       val $dependency.local.10: Long
         Type Long
@@ -2975,12 +2932,12 @@ Module
           Type Long
           Local $dependency.local.12
       goto bb1
-  fun iterator @fn30(this: MutableArray<Option<JsonValue>>) -> Iterator<Option<JsonValue>>
+  fun iterator @fn30(this: MutableArray<MaybeUninit<JsonValue>>) -> Iterator<MaybeUninit<JsonValue>>
     bb0 entry
-      val $dependency.local.1: List<Option<JsonValue>>
-        Type List<Option<JsonValue>>
-        Retype List<Option<JsonValue>>
-          Type MutableArray<Option<JsonValue>>
+      val $dependency.local.1: List<MaybeUninit<JsonValue>>
+        Type List<MaybeUninit<JsonValue>>
+        Retype List<MaybeUninit<JsonValue>>
+          Type MutableArray<MaybeUninit<JsonValue>>
           Local this
       val $dependency.local.2: Long
         Type Long
@@ -2988,8 +2945,8 @@ Module
       val $dependency.local.3: Boolean
         Type Boolean
         BoolLiteral false
-      val $dependency.local.4: List<Option<JsonValue>>
-        Type List<Option<JsonValue>>
+      val $dependency.local.4: List<MaybeUninit<JsonValue>>
+        Type List<MaybeUninit<JsonValue>>
         Local $dependency.local.1
       val $dependency.local.5: Long
         Type Long
@@ -2998,26 +2955,26 @@ Module
         Type Boolean
         Local $dependency.local.3
       assign $new.1
-        Type ListIterator<Option<JsonValue>>
-        ClassAlloc ListIterator<Option<JsonValue>>
+        Type ListIterator<MaybeUninit<JsonValue>>
+        ClassAlloc ListIterator<MaybeUninit<JsonValue>>
       call @fn78 direct
-        Type ListIterator<Option<JsonValue>>
+        Type ListIterator<MaybeUninit<JsonValue>>
         Local $new.1
-        Type List<Option<JsonValue>>
+        Type List<MaybeUninit<JsonValue>>
         Local $dependency.local.4
         Type Long
         Local $dependency.local.5
         Type Boolean
         Local $dependency.local.6
       return
-        Type Iterator<Option<JsonValue>>
-        Retype Iterator<Option<JsonValue>>
-          Type ListIterator<Option<JsonValue>>
+        Type Iterator<MaybeUninit<JsonValue>>
+        Retype Iterator<MaybeUninit<JsonValue>>
+          Type ListIterator<MaybeUninit<JsonValue>>
           Local $new.1
-  fun get @fn31(this: MutableArray<Option<JsonValue>>, index: Long) -> Option<JsonValue>
+  fun get @fn31(this: MutableArray<MaybeUninit<JsonValue>>, index: Long) -> MaybeUninit<JsonValue>
     bb0 entry
-      val $dependency.local.2: MutableArray<Option<JsonValue>>
-        Type MutableArray<Option<JsonValue>>
+      val $dependency.local.2: MutableArray<MaybeUninit<JsonValue>>
+        Type MutableArray<MaybeUninit<JsonValue>>
         Local this
       val $dependency.local.3: Long
         Type Long
@@ -3025,8 +2982,8 @@ Module
       val $dependency.local.4: Long
         Type Long
         Local $dependency.local.3
-      val $arr.1: MutableArray<Option<JsonValue>>
-        Type MutableArray<Option<JsonValue>>
+      val $arr.1: MutableArray<MaybeUninit<JsonValue>>
+        Type MutableArray<MaybeUninit<JsonValue>>
         Local $dependency.local.2
       val $idx.2: Long
         Type Long
@@ -3045,8 +3002,8 @@ Module
           Type Long
           Local $idx.2
           Type Long
-          ArrayLen MutableArray<Option<JsonValue>>
-            Type MutableArray<Option<JsonValue>>
+          ArrayLen MutableArray<MaybeUninit<JsonValue>>
+            Type MutableArray<MaybeUninit<JsonValue>>
             Local $arr.1
       goto bb3
     bb2 logic.short.2
@@ -3070,21 +3027,21 @@ Module
         Local $new.2
     bb5 if.merge.5
       return
-        Type Option<JsonValue>
-        ArrayGet MutableArray<Option<JsonValue>>
-          Type MutableArray<Option<JsonValue>>
+        Type MaybeUninit<JsonValue>
+        ArrayGet MutableArray<MaybeUninit<JsonValue>>
+          Type MutableArray<MaybeUninit<JsonValue>>
           Local $arr.1
           Type Long
           Local $idx.2
-  fun size @fn32(this: MutableArray<Option<JsonValue>>) -> Long
+  fun size @fn32(this: MutableArray<MaybeUninit<JsonValue>>) -> Long
     bb0 entry
-      val $dependency.local.1: MutableArray<Option<JsonValue>>
-        Type MutableArray<Option<JsonValue>>
+      val $dependency.local.1: MutableArray<MaybeUninit<JsonValue>>
+        Type MutableArray<MaybeUninit<JsonValue>>
         Local this
       return
         Type Long
-        ArrayLen MutableArray<Option<JsonValue>>
-          Type MutableArray<Option<JsonValue>>
+        ArrayLen MutableArray<MaybeUninit<JsonValue>>
+          Type MutableArray<MaybeUninit<JsonValue>>
           Local $dependency.local.1
   fun iterator @fn33(this: ArrayList<JsonValue>) -> Iterator<JsonValue>
     bb0 entry
@@ -3141,8 +3098,8 @@ Module
         Local $dependency.local.2
         Type Long
         Local $dependency.local.4
-      val $dependency.local.5: MutableArray<Option<JsonValue>>
-        Type MutableArray<Option<JsonValue>>
+      val $dependency.local.5: MutableArray<MaybeUninit<JsonValue>>
+        Type MutableArray<MaybeUninit<JsonValue>>
         FieldAccess 0
           Type ArrayList<JsonValue>
           Local this
@@ -3152,37 +3109,16 @@ Module
       val $dependency.local.7: Long
         Type Long
         Local $dependency.local.6
-      call $opt.1: Option<JsonValue> = @fn31 direct
-        Type MutableArray<Option<JsonValue>>
+      call $dependency.local.8: MaybeUninit<JsonValue> = @fn31 direct
+        Type MutableArray<MaybeUninit<JsonValue>>
         Local $dependency.local.5
         Type Long
         Local $dependency.local.7
-      branch bb1 bb2
-        Type Boolean
-        VariantTest Option<JsonValue> v0
-          Type Option<JsonValue>
-          Local $opt.1
-    bb1 if.then.1
-      val $uw.2: JsonValue
-        Type JsonValue
-        VariantPayloadProject Option<JsonValue> v0 f0
-          Type Option<JsonValue>
-          Local $opt.1
-      goto bb3
-    bb2 if.else.2
-      assign $new.1
-        Type UnwrapException
-        ClassAlloc UnwrapException
-      call external31 direct
-        Type UnwrapException
-        Local $new.1
-      throw
-        Type UnwrapException
-        Local $new.1
-    bb3 if.merge.3
       return
         Type JsonValue
-        Local $uw.2
+        MaybeUninit.AssumeInit MaybeUninit
+          Type MaybeUninit<JsonValue>
+          Local $dependency.local.8
   fun size @fn35(this: ArrayList<JsonValue>) -> Long
     bb0 entry
       return
@@ -3206,8 +3142,8 @@ Module
         Local $dependency.local.3
         Type Long
         Local $dependency.local.5
-      val $dependency.local.8: MutableArray<Option<JsonValue>>
-        Type MutableArray<Option<JsonValue>>
+      val $dependency.local.8: MutableArray<MaybeUninit<JsonValue>>
+        Type MutableArray<MaybeUninit<JsonValue>>
         FieldAccess 0
           Type ArrayList<JsonValue>
           Local this
@@ -3220,25 +3156,25 @@ Module
       val $dependency.local.7: JsonValue
         Type JsonValue
         Local $dependency.local.6
-      val $dependency.local.10: Option<JsonValue>
-        Type Option<JsonValue>
-        VariantConstruct Option<JsonValue> v0
+      val $dependency.local.10: MaybeUninit<JsonValue>
+        Type MaybeUninit<JsonValue>
+        MaybeUninit.Initialized MaybeUninit
           Type JsonValue
           Local $dependency.local.7
       val $dependency.local.11: Long
         Type Long
         Local $dependency.local.9
-      val $dependency.local.12: Option<JsonValue>
-        Type Option<JsonValue>
+      val $dependency.local.12: MaybeUninit<JsonValue>
+        Type MaybeUninit<JsonValue>
         Local $dependency.local.10
-      val $arr.1: MutableArray<Option<JsonValue>>
-        Type MutableArray<Option<JsonValue>>
+      val $arr.1: MutableArray<MaybeUninit<JsonValue>>
+        Type MutableArray<MaybeUninit<JsonValue>>
         Local $dependency.local.8
       val $idx.2: Long
         Type Long
         Local $dependency.local.11
-      val $value.3: Option<JsonValue>
-        Type Option<JsonValue>
+      val $value.3: MaybeUninit<JsonValue>
+        Type MaybeUninit<JsonValue>
         Local $dependency.local.12
       branch bb2 bb1
         Type Boolean
@@ -3254,8 +3190,8 @@ Module
           Type Long
           Local $idx.2
           Type Long
-          ArrayLen MutableArray<Option<JsonValue>>
-            Type MutableArray<Option<JsonValue>>
+          ArrayLen MutableArray<MaybeUninit<JsonValue>>
+            Type MutableArray<MaybeUninit<JsonValue>>
             Local $arr.1
       goto bb3
     bb2 logic.short.2
@@ -3278,12 +3214,12 @@ Module
         Type IndexOutOfBoundsException
         Local $new.2
     bb5 if.merge.5
-      array_set MutableArray<Option<JsonValue>>
-        Type MutableArray<Option<JsonValue>>
+      array_set MutableArray<MaybeUninit<JsonValue>>
+        Type MutableArray<MaybeUninit<JsonValue>>
         Local $arr.1
         Type Long
         Local $idx.2
-        Type Option<JsonValue>
+        Type MaybeUninit<JsonValue>
         Local $value.3
       return
   fun add @fn37(this: ArrayList<JsonValue>, value: JsonValue) -> Unit
@@ -3294,8 +3230,8 @@ Module
       call @fn56 direct
         Type ArrayList<JsonValue>
         Local $dependency.local.2
-      val $dependency.local.5: MutableArray<Option<JsonValue>>
-        Type MutableArray<Option<JsonValue>>
+      val $dependency.local.5: MutableArray<MaybeUninit<JsonValue>>
+        Type MutableArray<MaybeUninit<JsonValue>>
         FieldAccess 0
           Type ArrayList<JsonValue>
           Local this
@@ -3310,25 +3246,25 @@ Module
       val $dependency.local.4: JsonValue
         Type JsonValue
         Local $dependency.local.3
-      val $dependency.local.7: Option<JsonValue>
-        Type Option<JsonValue>
-        VariantConstruct Option<JsonValue> v0
+      val $dependency.local.7: MaybeUninit<JsonValue>
+        Type MaybeUninit<JsonValue>
+        MaybeUninit.Initialized MaybeUninit
           Type JsonValue
           Local $dependency.local.4
       val $dependency.local.8: Long
         Type Long
         Local $dependency.local.6
-      val $dependency.local.9: Option<JsonValue>
-        Type Option<JsonValue>
+      val $dependency.local.9: MaybeUninit<JsonValue>
+        Type MaybeUninit<JsonValue>
         Local $dependency.local.7
-      val $arr.1: MutableArray<Option<JsonValue>>
-        Type MutableArray<Option<JsonValue>>
+      val $arr.1: MutableArray<MaybeUninit<JsonValue>>
+        Type MutableArray<MaybeUninit<JsonValue>>
         Local $dependency.local.5
       val $idx.2: Long
         Type Long
         Local $dependency.local.8
-      val $value.3: Option<JsonValue>
-        Type Option<JsonValue>
+      val $value.3: MaybeUninit<JsonValue>
+        Type MaybeUninit<JsonValue>
         Local $dependency.local.9
       branch bb2 bb1
         Type Boolean
@@ -3344,8 +3280,8 @@ Module
           Type Long
           Local $idx.2
           Type Long
-          ArrayLen MutableArray<Option<JsonValue>>
-            Type MutableArray<Option<JsonValue>>
+          ArrayLen MutableArray<MaybeUninit<JsonValue>>
+            Type MutableArray<MaybeUninit<JsonValue>>
             Local $arr.1
       goto bb3
     bb2 logic.short.2
@@ -3368,12 +3304,12 @@ Module
         Type IndexOutOfBoundsException
         Local $new.2
     bb5 if.merge.5
-      array_set MutableArray<Option<JsonValue>>
-        Type MutableArray<Option<JsonValue>>
+      array_set MutableArray<MaybeUninit<JsonValue>>
+        Type MutableArray<MaybeUninit<JsonValue>>
         Local $arr.1
         Type Long
         Local $idx.2
-        Type Option<JsonValue>
+        Type MaybeUninit<JsonValue>
         Local $value.3
       val $dependency.local.10: Long
         Type Long
@@ -3496,8 +3432,8 @@ Module
           Type Long
           IntegerLiteral Long value=0 bits=0x0000000000000000
     bb7 while.exit.7
-      val $dependency.local.31: MutableArray<Option<JsonValue>>
-        Type MutableArray<Option<JsonValue>>
+      val $dependency.local.31: MutableArray<MaybeUninit<JsonValue>>
+        Type MutableArray<MaybeUninit<JsonValue>>
         FieldAccess 0
           Type ArrayList<JsonValue>
           Local this
@@ -3510,25 +3446,25 @@ Module
       val $dependency.local.30: JsonValue
         Type JsonValue
         Local $dependency.local.29
-      val $dependency.local.33: Option<JsonValue>
-        Type Option<JsonValue>
-        VariantConstruct Option<JsonValue> v0
+      val $dependency.local.33: MaybeUninit<JsonValue>
+        Type MaybeUninit<JsonValue>
+        MaybeUninit.Initialized MaybeUninit
           Type JsonValue
           Local $dependency.local.30
       val $dependency.local.34: Long
         Type Long
         Local $dependency.local.32
-      val $dependency.local.35: Option<JsonValue>
-        Type Option<JsonValue>
+      val $dependency.local.35: MaybeUninit<JsonValue>
+        Type MaybeUninit<JsonValue>
         Local $dependency.local.33
-      val $arr.4: MutableArray<Option<JsonValue>>
-        Type MutableArray<Option<JsonValue>>
+      val $arr.4: MutableArray<MaybeUninit<JsonValue>>
+        Type MutableArray<MaybeUninit<JsonValue>>
         Local $dependency.local.31
       val $idx.5: Long
         Type Long
         Local $dependency.local.34
-      val $value.6: Option<JsonValue>
-        Type Option<JsonValue>
+      val $value.6: MaybeUninit<JsonValue>
+        Type MaybeUninit<JsonValue>
         Local $dependency.local.35
       branch bb15 bb14
         Type Boolean
@@ -3538,16 +3474,16 @@ Module
           Type Long
           IntegerLiteral Long value=0 bits=0x0000000000000000
     bb8 while.body.8
-      val $dependency.local.21: MutableArray<Option<JsonValue>>
-        Type MutableArray<Option<JsonValue>>
+      val $dependency.local.21: MutableArray<MaybeUninit<JsonValue>>
+        Type MutableArray<MaybeUninit<JsonValue>>
         FieldAccess 0
           Type ArrayList<JsonValue>
           Local this
       val $dependency.local.22: Long
         Type Long
         Local $dependency.local.3
-      val $dependency.local.18: MutableArray<Option<JsonValue>>
-        Type MutableArray<Option<JsonValue>>
+      val $dependency.local.18: MutableArray<MaybeUninit<JsonValue>>
+        Type MutableArray<MaybeUninit<JsonValue>>
         FieldAccess 0
           Type ArrayList<JsonValue>
           Local this
@@ -3570,25 +3506,25 @@ Module
       val $dependency.local.20: Long
         Type Long
         Local $dependency.local.19
-      call $dependency.local.23: Option<JsonValue> = @fn31 direct
-        Type MutableArray<Option<JsonValue>>
+      call $dependency.local.23: MaybeUninit<JsonValue> = @fn31 direct
+        Type MutableArray<MaybeUninit<JsonValue>>
         Local $dependency.local.18
         Type Long
         Local $dependency.local.20
       val $dependency.local.24: Long
         Type Long
         Local $dependency.local.22
-      val $dependency.local.25: Option<JsonValue>
-        Type Option<JsonValue>
+      val $dependency.local.25: MaybeUninit<JsonValue>
+        Type MaybeUninit<JsonValue>
         Local $dependency.local.23
-      val $arr.1: MutableArray<Option<JsonValue>>
-        Type MutableArray<Option<JsonValue>>
+      val $arr.1: MutableArray<MaybeUninit<JsonValue>>
+        Type MutableArray<MaybeUninit<JsonValue>>
         Local $dependency.local.21
       val $idx.2: Long
         Type Long
         Local $dependency.local.24
-      val $value.3: Option<JsonValue>
-        Type Option<JsonValue>
+      val $value.3: MaybeUninit<JsonValue>
+        Type MaybeUninit<JsonValue>
         Local $dependency.local.25
       branch bb10 bb9
         Type Boolean
@@ -3604,8 +3540,8 @@ Module
           Type Long
           Local $idx.2
           Type Long
-          ArrayLen MutableArray<Option<JsonValue>>
-            Type MutableArray<Option<JsonValue>>
+          ArrayLen MutableArray<MaybeUninit<JsonValue>>
+            Type MutableArray<MaybeUninit<JsonValue>>
             Local $arr.1
       goto bb11
     bb10 logic.short.10
@@ -3628,12 +3564,12 @@ Module
         Type IndexOutOfBoundsException
         Local $new.3
     bb13 if.merge.13
-      array_set MutableArray<Option<JsonValue>>
-        Type MutableArray<Option<JsonValue>>
+      array_set MutableArray<MaybeUninit<JsonValue>>
+        Type MutableArray<MaybeUninit<JsonValue>>
         Local $arr.1
         Type Long
         Local $idx.2
-        Type Option<JsonValue>
+        Type MaybeUninit<JsonValue>
         Local $value.3
       val $dependency.local.26: Long
         Type Long
@@ -3659,8 +3595,8 @@ Module
           Type Long
           Local $idx.5
           Type Long
-          ArrayLen MutableArray<Option<JsonValue>>
-            Type MutableArray<Option<JsonValue>>
+          ArrayLen MutableArray<MaybeUninit<JsonValue>>
+            Type MutableArray<MaybeUninit<JsonValue>>
             Local $arr.4
       goto bb16
     bb15 logic.short.15
@@ -3683,12 +3619,12 @@ Module
         Type IndexOutOfBoundsException
         Local $new.5
     bb18 if.merge.18
-      array_set MutableArray<Option<JsonValue>>
-        Type MutableArray<Option<JsonValue>>
+      array_set MutableArray<MaybeUninit<JsonValue>>
+        Type MutableArray<MaybeUninit<JsonValue>>
         Local $arr.4
         Type Long
         Local $idx.5
-        Type Option<JsonValue>
+        Type MaybeUninit<JsonValue>
         Local $value.6
       val $dependency.local.36: Long
         Type Long
@@ -3727,8 +3663,8 @@ Module
         Local $dependency.local.5
         Type Long
         Local $dependency.local.7
-      val $dependency.local.8: MutableArray<Option<JsonValue>>
-        Type MutableArray<Option<JsonValue>>
+      val $dependency.local.8: MutableArray<MaybeUninit<JsonValue>>
+        Type MutableArray<MaybeUninit<JsonValue>>
         FieldAccess 0
           Type ArrayList<JsonValue>
           Local this
@@ -3738,267 +3674,246 @@ Module
       val $dependency.local.10: Long
         Type Long
         Local $dependency.local.9
-      call $opt.1: Option<JsonValue> = @fn31 direct
-        Type MutableArray<Option<JsonValue>>
+      call $dependency.local.11: MaybeUninit<JsonValue> = @fn31 direct
+        Type MutableArray<MaybeUninit<JsonValue>>
         Local $dependency.local.8
         Type Long
         Local $dependency.local.10
-      branch bb1 bb2
-        Type Boolean
-        VariantTest Option<JsonValue> v0
-          Type Option<JsonValue>
-          Local $opt.1
-    bb1 if.then.1
-      val $uw.2: JsonValue
-        Type JsonValue
-        VariantPayloadProject Option<JsonValue> v0 f0
-          Type Option<JsonValue>
-          Local $opt.1
-      goto bb3
-    bb2 if.else.2
-      assign $new.1
-        Type UnwrapException
-        ClassAlloc UnwrapException
-      call external31 direct
-        Type UnwrapException
-        Local $new.1
-      throw
-        Type UnwrapException
-        Local $new.1
-    bb3 if.merge.3
       val $dependency.local.2: JsonValue
         Type JsonValue
-        Local $uw.2
-      val $dependency.local.11: Long
+        MaybeUninit.AssumeInit MaybeUninit
+          Type MaybeUninit<JsonValue>
+          Local $dependency.local.11
+      val $dependency.local.12: Long
         Type Long
         FieldAccess 1
           Type ArrayList<JsonValue>
           Local this
-      val $dependency.local.12: Long
-        Type Long
-        IntegerLiteral Long value=1 bits=0x0000000000000001
       val $dependency.local.13: Long
         Type Long
-        Local $dependency.local.12
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.local.14: Long
+        Type Long
+        Local $dependency.local.13
       val $dependency.local.3: Long
         Type Long
         IntegerBinary subtract kind=Long
           Type Long
-          Local $dependency.local.11
+          Local $dependency.local.12
           Type Long
-          Local $dependency.local.13
+          Local $dependency.local.14
       var $dependency.local.4: Long
         Type Long
         Local index
-      goto bb4
-    bb4 while.cond.4 <loop-header-poll>
-      val $dependency.local.14: Long
-        Type Long
-        Local $dependency.local.4
+      goto bb1
+    bb1 while.cond.1 <loop-header-poll>
       val $dependency.local.15: Long
         Type Long
-        Local $dependency.local.3
+        Local $dependency.local.4
       val $dependency.local.16: Long
         Type Long
-        Local $dependency.local.15
-      branch bb6 bb5
+        Local $dependency.local.3
+      val $dependency.local.17: Long
+        Type Long
+        Local $dependency.local.16
+      branch bb3 bb2
         Type Boolean
         IntegerCompare less-than operands=Long result=Boolean
           Type Long
           IntegerCompareTo operands=Long result=Long
             Type Long
-            Local $dependency.local.14
+            Local $dependency.local.15
             Type Long
-            Local $dependency.local.16
+            Local $dependency.local.17
           Type Long
           IntegerLiteral Long value=0 bits=0x0000000000000000
-    bb5 while.exit.5
-      val $dependency.local.31: MutableArray<Option<JsonValue>>
-        Type MutableArray<Option<JsonValue>>
+    bb2 while.exit.2
+      val $dependency.local.32: MutableArray<MaybeUninit<JsonValue>>
+        Type MutableArray<MaybeUninit<JsonValue>>
         FieldAccess 0
           Type ArrayList<JsonValue>
           Local this
-      val $dependency.local.32: Long
+      val $dependency.local.33: Long
         Type Long
         Local $dependency.local.3
-      val $dependency.local.33: Option<JsonValue>
-        Type Option<JsonValue>
-        VariantConstruct Option<JsonValue> v1
-      val $dependency.local.34: Long
+      val $dependency.local.34: MaybeUninit<JsonValue>
+        Type MaybeUninit<JsonValue>
+        MaybeUninit.Uninit MaybeUninit
+      val $dependency.local.35: Long
         Type Long
-        Local $dependency.local.32
-      val $dependency.local.35: Option<JsonValue>
-        Type Option<JsonValue>
         Local $dependency.local.33
-      val $arr.6: MutableArray<Option<JsonValue>>
-        Type MutableArray<Option<JsonValue>>
-        Local $dependency.local.31
-      val $idx.7: Long
-        Type Long
+      val $dependency.local.36: MaybeUninit<JsonValue>
+        Type MaybeUninit<JsonValue>
         Local $dependency.local.34
-      val $value.8: Option<JsonValue>
-        Type Option<JsonValue>
+      val $arr.4: MutableArray<MaybeUninit<JsonValue>>
+        Type MutableArray<MaybeUninit<JsonValue>>
+        Local $dependency.local.32
+      val $idx.5: Long
+        Type Long
         Local $dependency.local.35
-      branch bb13 bb12
+      val $value.6: MaybeUninit<JsonValue>
+        Type MaybeUninit<JsonValue>
+        Local $dependency.local.36
+      branch bb10 bb9
         Type Boolean
         IntegerCompare less-than operands=Long result=Boolean
           Type Long
-          Local $idx.7
+          Local $idx.5
           Type Long
           IntegerLiteral Long value=0 bits=0x0000000000000000
-    bb6 while.body.6
-      val $dependency.local.23: MutableArray<Option<JsonValue>>
-        Type MutableArray<Option<JsonValue>>
+    bb3 while.body.3
+      val $dependency.local.24: MutableArray<MaybeUninit<JsonValue>>
+        Type MutableArray<MaybeUninit<JsonValue>>
         FieldAccess 0
           Type ArrayList<JsonValue>
           Local this
-      val $dependency.local.24: Long
+      val $dependency.local.25: Long
         Type Long
         Local $dependency.local.4
-      val $dependency.local.20: MutableArray<Option<JsonValue>>
-        Type MutableArray<Option<JsonValue>>
+      val $dependency.local.21: MutableArray<MaybeUninit<JsonValue>>
+        Type MutableArray<MaybeUninit<JsonValue>>
         FieldAccess 0
           Type ArrayList<JsonValue>
           Local this
-      val $dependency.local.17: Long
-        Type Long
-        Local $dependency.local.4
       val $dependency.local.18: Long
         Type Long
-        IntegerLiteral Long value=1 bits=0x0000000000000001
+        Local $dependency.local.4
       val $dependency.local.19: Long
         Type Long
-        Local $dependency.local.18
-      val $dependency.local.21: Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.local.20: Long
+        Type Long
+        Local $dependency.local.19
+      val $dependency.local.22: Long
         Type Long
         IntegerBinary add kind=Long
           Type Long
-          Local $dependency.local.17
+          Local $dependency.local.18
           Type Long
-          Local $dependency.local.19
-      val $dependency.local.22: Long
-        Type Long
-        Local $dependency.local.21
-      call $dependency.local.25: Option<JsonValue> = @fn31 direct
-        Type MutableArray<Option<JsonValue>>
-        Local $dependency.local.20
+          Local $dependency.local.20
+      val $dependency.local.23: Long
         Type Long
         Local $dependency.local.22
-      val $dependency.local.26: Long
+      call $dependency.local.26: MaybeUninit<JsonValue> = @fn31 direct
+        Type MutableArray<MaybeUninit<JsonValue>>
+        Local $dependency.local.21
         Type Long
-        Local $dependency.local.24
-      val $dependency.local.27: Option<JsonValue>
-        Type Option<JsonValue>
-        Local $dependency.local.25
-      val $arr.3: MutableArray<Option<JsonValue>>
-        Type MutableArray<Option<JsonValue>>
         Local $dependency.local.23
-      val $idx.4: Long
+      val $dependency.local.27: Long
         Type Long
+        Local $dependency.local.25
+      val $dependency.local.28: MaybeUninit<JsonValue>
+        Type MaybeUninit<JsonValue>
         Local $dependency.local.26
-      val $value.5: Option<JsonValue>
-        Type Option<JsonValue>
+      val $arr.1: MutableArray<MaybeUninit<JsonValue>>
+        Type MutableArray<MaybeUninit<JsonValue>>
+        Local $dependency.local.24
+      val $idx.2: Long
+        Type Long
         Local $dependency.local.27
-      branch bb8 bb7
+      val $value.3: MaybeUninit<JsonValue>
+        Type MaybeUninit<JsonValue>
+        Local $dependency.local.28
+      branch bb5 bb4
         Type Boolean
         IntegerCompare less-than operands=Long result=Boolean
           Type Long
-          Local $idx.4
+          Local $idx.2
           Type Long
           IntegerLiteral Long value=0 bits=0x0000000000000000
-    bb7 logic.rhs.7
-      assign $logic.2
+    bb4 logic.rhs.4
+      assign $logic.1
         Type Boolean
         IntegerCompare greater-than-or-equal operands=Long result=Boolean
           Type Long
-          Local $idx.4
+          Local $idx.2
           Type Long
-          ArrayLen MutableArray<Option<JsonValue>>
-            Type MutableArray<Option<JsonValue>>
-            Local $arr.3
-      goto bb9
-    bb8 logic.short.8
-      assign $logic.2
+          ArrayLen MutableArray<MaybeUninit<JsonValue>>
+            Type MutableArray<MaybeUninit<JsonValue>>
+            Local $arr.1
+      goto bb6
+    bb5 logic.short.5
+      assign $logic.1
         Type Boolean
         BoolLiteral true
-      goto bb9
-    bb9 logic.merge.9
-      branch bb10 bb11
+      goto bb6
+    bb6 logic.merge.6
+      branch bb7 bb8
         Type Boolean
-        Local $logic.2
-    bb10 if.then.10
-      assign $new.3
+        Local $logic.1
+    bb7 if.then.7
+      assign $new.2
         Type IndexOutOfBoundsException
         ClassAlloc IndexOutOfBoundsException
       call external25 direct
         Type IndexOutOfBoundsException
-        Local $new.3
+        Local $new.2
       throw
         Type IndexOutOfBoundsException
-        Local $new.3
-    bb11 if.merge.11
-      array_set MutableArray<Option<JsonValue>>
-        Type MutableArray<Option<JsonValue>>
-        Local $arr.3
+        Local $new.2
+    bb8 if.merge.8
+      array_set MutableArray<MaybeUninit<JsonValue>>
+        Type MutableArray<MaybeUninit<JsonValue>>
+        Local $arr.1
         Type Long
-        Local $idx.4
-        Type Option<JsonValue>
-        Local $value.5
-      val $dependency.local.28: Long
-        Type Long
-        Local $dependency.local.4
+        Local $idx.2
+        Type MaybeUninit<JsonValue>
+        Local $value.3
       val $dependency.local.29: Long
         Type Long
-        IntegerLiteral Long value=1 bits=0x0000000000000001
+        Local $dependency.local.4
       val $dependency.local.30: Long
         Type Long
-        Local $dependency.local.29
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.local.31: Long
+        Type Long
+        Local $dependency.local.30
       assign $dependency.local.4
         Type Long
         IntegerBinary add kind=Long
           Type Long
-          Local $dependency.local.28
+          Local $dependency.local.29
           Type Long
-          Local $dependency.local.30
-      goto bb4
-    bb12 logic.rhs.12
-      assign $logic.4
+          Local $dependency.local.31
+      goto bb1
+    bb9 logic.rhs.9
+      assign $logic.3
         Type Boolean
         IntegerCompare greater-than-or-equal operands=Long result=Boolean
           Type Long
-          Local $idx.7
+          Local $idx.5
           Type Long
-          ArrayLen MutableArray<Option<JsonValue>>
-            Type MutableArray<Option<JsonValue>>
-            Local $arr.6
-      goto bb14
-    bb13 logic.short.13
-      assign $logic.4
+          ArrayLen MutableArray<MaybeUninit<JsonValue>>
+            Type MutableArray<MaybeUninit<JsonValue>>
+            Local $arr.4
+      goto bb11
+    bb10 logic.short.10
+      assign $logic.3
         Type Boolean
         BoolLiteral true
-      goto bb14
-    bb14 logic.merge.14
-      branch bb15 bb16
+      goto bb11
+    bb11 logic.merge.11
+      branch bb12 bb13
         Type Boolean
-        Local $logic.4
-    bb15 if.then.15
-      assign $new.5
+        Local $logic.3
+    bb12 if.then.12
+      assign $new.4
         Type IndexOutOfBoundsException
         ClassAlloc IndexOutOfBoundsException
       call external25 direct
         Type IndexOutOfBoundsException
-        Local $new.5
+        Local $new.4
       throw
         Type IndexOutOfBoundsException
-        Local $new.5
-    bb16 if.merge.16
-      array_set MutableArray<Option<JsonValue>>
-        Type MutableArray<Option<JsonValue>>
-        Local $arr.6
+        Local $new.4
+    bb13 if.merge.13
+      array_set MutableArray<MaybeUninit<JsonValue>>
+        Type MutableArray<MaybeUninit<JsonValue>>
+        Local $arr.4
         Type Long
-        Local $idx.7
-        Type Option<JsonValue>
-        Local $value.8
+        Local $idx.5
+        Type MaybeUninit<JsonValue>
+        Local $value.6
       field_set 1
         Type ArrayList<JsonValue>
         Local this
@@ -4044,31 +3959,31 @@ Module
         IntegerLiteral Long value=0 bits=0x0000000000000000
       return
     bb3 while.body.3
-      val $dependency.local.5: MutableArray<Option<JsonValue>>
-        Type MutableArray<Option<JsonValue>>
+      val $dependency.local.5: MutableArray<MaybeUninit<JsonValue>>
+        Type MutableArray<MaybeUninit<JsonValue>>
         FieldAccess 0
           Type ArrayList<JsonValue>
           Local this
       val $dependency.local.6: Long
         Type Long
         Local $dependency.local.1
-      val $dependency.local.7: Option<JsonValue>
-        Type Option<JsonValue>
-        VariantConstruct Option<JsonValue> v1
+      val $dependency.local.7: MaybeUninit<JsonValue>
+        Type MaybeUninit<JsonValue>
+        MaybeUninit.Uninit MaybeUninit
       val $dependency.local.8: Long
         Type Long
         Local $dependency.local.6
-      val $dependency.local.9: Option<JsonValue>
-        Type Option<JsonValue>
+      val $dependency.local.9: MaybeUninit<JsonValue>
+        Type MaybeUninit<JsonValue>
         Local $dependency.local.7
-      val $arr.1: MutableArray<Option<JsonValue>>
-        Type MutableArray<Option<JsonValue>>
+      val $arr.1: MutableArray<MaybeUninit<JsonValue>>
+        Type MutableArray<MaybeUninit<JsonValue>>
         Local $dependency.local.5
       val $idx.2: Long
         Type Long
         Local $dependency.local.8
-      val $value.3: Option<JsonValue>
-        Type Option<JsonValue>
+      val $value.3: MaybeUninit<JsonValue>
+        Type MaybeUninit<JsonValue>
         Local $dependency.local.9
       branch bb5 bb4
         Type Boolean
@@ -4084,8 +3999,8 @@ Module
           Type Long
           Local $idx.2
           Type Long
-          ArrayLen MutableArray<Option<JsonValue>>
-            Type MutableArray<Option<JsonValue>>
+          ArrayLen MutableArray<MaybeUninit<JsonValue>>
+            Type MutableArray<MaybeUninit<JsonValue>>
             Local $arr.1
       goto bb6
     bb5 logic.short.5
@@ -4108,12 +4023,12 @@ Module
         Type IndexOutOfBoundsException
         Local $new.2
     bb8 if.merge.8
-      array_set MutableArray<Option<JsonValue>>
-        Type MutableArray<Option<JsonValue>>
+      array_set MutableArray<MaybeUninit<JsonValue>>
+        Type MutableArray<MaybeUninit<JsonValue>>
         Local $arr.1
         Type Long
         Local $idx.2
-        Type Option<JsonValue>
+        Type MaybeUninit<JsonValue>
         Local $value.3
       val $dependency.local.10: Long
         Type Long
@@ -4278,27 +4193,27 @@ Module
       unreachable
     bb19 if.merge.19
       unreachable
-  fun next @fn49(this: ListIterator<Option<JsonMember>>) -> Option<Option<JsonMember>>
+  fun next @fn49(this: ListIterator<MaybeUninit<JsonMember>>) -> Option<MaybeUninit<JsonMember>>
     bb0 entry
       branch bb1 bb2
         Type Boolean
         FieldAccess 2
-          Type ListIterator<Option<JsonMember>>
+          Type ListIterator<MaybeUninit<JsonMember>>
           Local this
     bb1 if.then.1
       return
-        Type Option<Option<JsonMember>>
-        VariantConstruct Option<Option<JsonMember>> v1
+        Type Option<MaybeUninit<JsonMember>>
+        VariantConstruct Option<MaybeUninit<JsonMember>> v1
     bb2 if.merge.2
       val $dependency.local.2: Long
         Type Long
         FieldAccess 1
-          Type ListIterator<Option<JsonMember>>
+          Type ListIterator<MaybeUninit<JsonMember>>
           Local this
-      call $dependency.local.3: Long = @fn58 interface List<Option<JsonMember>>[2]
-        Type List<Option<JsonMember>>
+      call $dependency.local.3: Long = @fn58 interface List<MaybeUninit<JsonMember>>[2]
+        Type List<MaybeUninit<JsonMember>>
         FieldAccess 0
-          Type ListIterator<Option<JsonMember>>
+          Type ListIterator<MaybeUninit<JsonMember>>
           Local this
       val $dependency.local.4: Long
         Type Long
@@ -4316,36 +4231,36 @@ Module
           IntegerLiteral Long value=0 bits=0x0000000000000000
     bb3 if.then.3
       field_set 2
-        Type ListIterator<Option<JsonMember>>
+        Type ListIterator<MaybeUninit<JsonMember>>
         Local this
         Type Boolean
         BoolLiteral true
       return
-        Type Option<Option<JsonMember>>
-        VariantConstruct Option<Option<JsonMember>> v1
+        Type Option<MaybeUninit<JsonMember>>
+        VariantConstruct Option<MaybeUninit<JsonMember>> v1
     bb4 if.merge.4
-      val $dependency.local.5: List<Option<JsonMember>>
-        Type List<Option<JsonMember>>
+      val $dependency.local.5: List<MaybeUninit<JsonMember>>
+        Type List<MaybeUninit<JsonMember>>
         FieldAccess 0
-          Type ListIterator<Option<JsonMember>>
+          Type ListIterator<MaybeUninit<JsonMember>>
           Local this
       val $dependency.local.6: Long
         Type Long
         FieldAccess 1
-          Type ListIterator<Option<JsonMember>>
+          Type ListIterator<MaybeUninit<JsonMember>>
           Local this
       val $dependency.local.7: Long
         Type Long
         Local $dependency.local.6
-      call $dependency.local.1: Option<JsonMember> = @fn59 interface List<Option<JsonMember>>[1]
-        Type List<Option<JsonMember>>
+      call $dependency.local.1: MaybeUninit<JsonMember> = @fn59 interface List<MaybeUninit<JsonMember>>[1]
+        Type List<MaybeUninit<JsonMember>>
         Local $dependency.local.5
         Type Long
         Local $dependency.local.7
       val $dependency.local.8: Long
         Type Long
         FieldAccess 1
-          Type ListIterator<Option<JsonMember>>
+          Type ListIterator<MaybeUninit<JsonMember>>
           Local this
       val $dependency.local.9: Long
         Type Long
@@ -4354,7 +4269,7 @@ Module
         Type Long
         Local $dependency.local.9
       field_set 1
-        Type ListIterator<Option<JsonMember>>
+        Type ListIterator<MaybeUninit<JsonMember>>
         Local this
         Type Long
         IntegerBinary add kind=Long
@@ -4362,16 +4277,16 @@ Module
           Local $dependency.local.8
           Type Long
           Local $dependency.local.10
-      val $dependency.local.11: Option<JsonMember>
-        Type Option<JsonMember>
+      val $dependency.local.11: MaybeUninit<JsonMember>
+        Type MaybeUninit<JsonMember>
         Local $dependency.local.1
-      val $dependency.local.12: Option<JsonMember>
-        Type Option<JsonMember>
+      val $dependency.local.12: MaybeUninit<JsonMember>
+        Type MaybeUninit<JsonMember>
         Local $dependency.local.11
       return
-        Type Option<Option<JsonMember>>
-        VariantConstruct Option<Option<JsonMember>> v0
-          Type Option<JsonMember>
+        Type Option<MaybeUninit<JsonMember>>
+        VariantConstruct Option<MaybeUninit<JsonMember>> v0
+          Type MaybeUninit<JsonMember>
           Local $dependency.local.12
   fun next @fn50(this: ListIterator<JsonMember>) -> Option<JsonMember>
     bb0 entry
@@ -4569,7 +4484,7 @@ Module
           Type Long
           Local $dependency.local.9
       call $dependency.local.2: Long = @fn21 direct
-        Type MutableArray<Option<JsonMember>>
+        Type MutableArray<MaybeUninit<JsonMember>>
         FieldAccess 0
           Type ArrayList<JsonMember>
           Local this
@@ -4633,8 +4548,8 @@ Module
       val $dependency.local.3: Long
         Type Long
         Local $dependency.local.20
-      val $dependency.local.4: MutableArray<Option<JsonMember>>
-        Type MutableArray<Option<JsonMember>>
+      val $dependency.local.4: MutableArray<MaybeUninit<JsonMember>>
+        Type MutableArray<MaybeUninit<JsonMember>>
         FieldAccess 0
           Type ArrayList<JsonMember>
           Local this
@@ -4646,29 +4561,26 @@ Module
       val $dependency.local.21: Long
         Type Long
         Local $dependency.local.3
-      val $dependency.local.22: (Long) -> Option<JsonMember>
-        Type (Long) -> Option<JsonMember>
+      val $dependency.local.22: (Long) -> MaybeUninit<JsonMember>
+        Type (Long) -> MaybeUninit<JsonMember>
         ClosureAlloc cc3 $Closure$lambda3
           CaptureInit field=1
             Type Long
             Local $dependency.local.5
           CaptureInit field=0
-            Type MutableArray<Option<JsonMember>>
+            Type MutableArray<MaybeUninit<JsonMember>>
             Local $dependency.local.4
-          CaptureInit field=2
-            Type ArrayList<JsonMember>
-            Local this
       val $dependency.local.23: Long
         Type Long
         Local $dependency.local.21
-      val $dependency.local.24: (Long) -> Option<JsonMember>
-        Type (Long) -> Option<JsonMember>
+      val $dependency.local.24: (Long) -> MaybeUninit<JsonMember>
+        Type (Long) -> MaybeUninit<JsonMember>
         Local $dependency.local.22
       val $array_size.1: Long
         Type Long
         Local $dependency.local.23
-      val $array_init.2: (Long) -> Option<JsonMember>
-        Type (Long) -> Option<JsonMember>
+      val $array_init.2: (Long) -> MaybeUninit<JsonMember>
+        Type (Long) -> MaybeUninit<JsonMember>
         Local $dependency.local.24
       branch bb11 bb12
         Type Boolean
@@ -4709,16 +4621,16 @@ Module
       assign $new.1
         Type IllegalArgumentException
         ClassAlloc IllegalArgumentException
-      call external32 direct
+      call external31 direct
         Type IllegalArgumentException
         Local $new.1
       throw
         Type IllegalArgumentException
         Local $new.1
     bb12 if.merge.12
-      val $array.3: MutableArray<Option<JsonMember>>
-        Type MutableArray<Option<JsonMember>>
-        ArrayAllocate MutableArray<Option<JsonMember>>
+      val $array.3: MutableArray<MaybeUninit<JsonMember>>
+        Type MutableArray<MaybeUninit<JsonMember>>
+        ArrayAllocate MutableArray<MaybeUninit<JsonMember>>
           Type Long
           Local $array_size.1
       var $array_index.4: Long
@@ -4734,27 +4646,27 @@ Module
           Type Long
           Local $array_size.1
     bb14 while.exit.14
-      val $dependency.local.6: MutableArray<Option<JsonMember>>
-        Type MutableArray<Option<JsonMember>>
+      val $dependency.local.6: MutableArray<MaybeUninit<JsonMember>>
+        Type MutableArray<MaybeUninit<JsonMember>>
         Local $array.3
       field_set 0
         Type ArrayList<JsonMember>
         Local this
-        Type MutableArray<Option<JsonMember>>
+        Type MutableArray<MaybeUninit<JsonMember>>
         Local $dependency.local.6
       return
     bb15 while.body.15
-      call $array_value.5: Option<JsonMember> = <closure:function_type4> closure[function_type4]
-        Type (Long) -> Option<JsonMember>
+      call $array_value.5: MaybeUninit<JsonMember> = <closure:function_type4> closure[function_type4]
+        Type (Long) -> MaybeUninit<JsonMember>
         Local $array_init.2
         Type Long
         Local $array_index.4
-      array_set MutableArray<Option<JsonMember>>
-        Type MutableArray<Option<JsonMember>>
+      array_set MutableArray<MaybeUninit<JsonMember>>
+        Type MutableArray<MaybeUninit<JsonMember>>
         Local $array.3
         Type Long
         Local $array_index.4
-        Type Option<JsonMember>
+        Type MaybeUninit<JsonMember>
         Local $array_value.5
       assign $array_index.4
         Type Long
@@ -4764,27 +4676,27 @@ Module
           Type Long
           IntegerLiteral Long value=1 bits=0x0000000000000001
       goto bb13
-  fun next @fn53(this: ListIterator<Option<JsonValue>>) -> Option<Option<JsonValue>>
+  fun next @fn53(this: ListIterator<MaybeUninit<JsonValue>>) -> Option<MaybeUninit<JsonValue>>
     bb0 entry
       branch bb1 bb2
         Type Boolean
         FieldAccess 2
-          Type ListIterator<Option<JsonValue>>
+          Type ListIterator<MaybeUninit<JsonValue>>
           Local this
     bb1 if.then.1
       return
-        Type Option<Option<JsonValue>>
-        VariantConstruct Option<Option<JsonValue>> v1
+        Type Option<MaybeUninit<JsonValue>>
+        VariantConstruct Option<MaybeUninit<JsonValue>> v1
     bb2 if.merge.2
       val $dependency.local.2: Long
         Type Long
         FieldAccess 1
-          Type ListIterator<Option<JsonValue>>
+          Type ListIterator<MaybeUninit<JsonValue>>
           Local this
-      call $dependency.local.3: Long = @fn63 interface List<Option<JsonValue>>[2]
-        Type List<Option<JsonValue>>
+      call $dependency.local.3: Long = @fn63 interface List<MaybeUninit<JsonValue>>[2]
+        Type List<MaybeUninit<JsonValue>>
         FieldAccess 0
-          Type ListIterator<Option<JsonValue>>
+          Type ListIterator<MaybeUninit<JsonValue>>
           Local this
       val $dependency.local.4: Long
         Type Long
@@ -4802,36 +4714,36 @@ Module
           IntegerLiteral Long value=0 bits=0x0000000000000000
     bb3 if.then.3
       field_set 2
-        Type ListIterator<Option<JsonValue>>
+        Type ListIterator<MaybeUninit<JsonValue>>
         Local this
         Type Boolean
         BoolLiteral true
       return
-        Type Option<Option<JsonValue>>
-        VariantConstruct Option<Option<JsonValue>> v1
+        Type Option<MaybeUninit<JsonValue>>
+        VariantConstruct Option<MaybeUninit<JsonValue>> v1
     bb4 if.merge.4
-      val $dependency.local.5: List<Option<JsonValue>>
-        Type List<Option<JsonValue>>
+      val $dependency.local.5: List<MaybeUninit<JsonValue>>
+        Type List<MaybeUninit<JsonValue>>
         FieldAccess 0
-          Type ListIterator<Option<JsonValue>>
+          Type ListIterator<MaybeUninit<JsonValue>>
           Local this
       val $dependency.local.6: Long
         Type Long
         FieldAccess 1
-          Type ListIterator<Option<JsonValue>>
+          Type ListIterator<MaybeUninit<JsonValue>>
           Local this
       val $dependency.local.7: Long
         Type Long
         Local $dependency.local.6
-      call $dependency.local.1: Option<JsonValue> = @fn64 interface List<Option<JsonValue>>[1]
-        Type List<Option<JsonValue>>
+      call $dependency.local.1: MaybeUninit<JsonValue> = @fn64 interface List<MaybeUninit<JsonValue>>[1]
+        Type List<MaybeUninit<JsonValue>>
         Local $dependency.local.5
         Type Long
         Local $dependency.local.7
       val $dependency.local.8: Long
         Type Long
         FieldAccess 1
-          Type ListIterator<Option<JsonValue>>
+          Type ListIterator<MaybeUninit<JsonValue>>
           Local this
       val $dependency.local.9: Long
         Type Long
@@ -4840,7 +4752,7 @@ Module
         Type Long
         Local $dependency.local.9
       field_set 1
-        Type ListIterator<Option<JsonValue>>
+        Type ListIterator<MaybeUninit<JsonValue>>
         Local this
         Type Long
         IntegerBinary add kind=Long
@@ -4848,16 +4760,16 @@ Module
           Local $dependency.local.8
           Type Long
           Local $dependency.local.10
-      val $dependency.local.11: Option<JsonValue>
-        Type Option<JsonValue>
+      val $dependency.local.11: MaybeUninit<JsonValue>
+        Type MaybeUninit<JsonValue>
         Local $dependency.local.1
-      val $dependency.local.12: Option<JsonValue>
-        Type Option<JsonValue>
+      val $dependency.local.12: MaybeUninit<JsonValue>
+        Type MaybeUninit<JsonValue>
         Local $dependency.local.11
       return
-        Type Option<Option<JsonValue>>
-        VariantConstruct Option<Option<JsonValue>> v0
-          Type Option<JsonValue>
+        Type Option<MaybeUninit<JsonValue>>
+        VariantConstruct Option<MaybeUninit<JsonValue>> v0
+          Type MaybeUninit<JsonValue>
           Local $dependency.local.12
   fun next @fn54(this: ListIterator<JsonValue>) -> Option<JsonValue>
     bb0 entry
@@ -5055,7 +4967,7 @@ Module
           Type Long
           Local $dependency.local.9
       call $dependency.local.2: Long = @fn32 direct
-        Type MutableArray<Option<JsonValue>>
+        Type MutableArray<MaybeUninit<JsonValue>>
         FieldAccess 0
           Type ArrayList<JsonValue>
           Local this
@@ -5119,8 +5031,8 @@ Module
       val $dependency.local.3: Long
         Type Long
         Local $dependency.local.20
-      val $dependency.local.4: MutableArray<Option<JsonValue>>
-        Type MutableArray<Option<JsonValue>>
+      val $dependency.local.4: MutableArray<MaybeUninit<JsonValue>>
+        Type MutableArray<MaybeUninit<JsonValue>>
         FieldAccess 0
           Type ArrayList<JsonValue>
           Local this
@@ -5132,29 +5044,26 @@ Module
       val $dependency.local.21: Long
         Type Long
         Local $dependency.local.3
-      val $dependency.local.22: (Long) -> Option<JsonValue>
-        Type (Long) -> Option<JsonValue>
+      val $dependency.local.22: (Long) -> MaybeUninit<JsonValue>
+        Type (Long) -> MaybeUninit<JsonValue>
         ClosureAlloc cc4 $Closure$lambda4
-          CaptureInit field=2
+          CaptureInit field=1
             Type Long
             Local $dependency.local.5
-          CaptureInit field=1
-            Type MutableArray<Option<JsonValue>>
-            Local $dependency.local.4
           CaptureInit field=0
-            Type ArrayList<JsonValue>
-            Local this
+            Type MutableArray<MaybeUninit<JsonValue>>
+            Local $dependency.local.4
       val $dependency.local.23: Long
         Type Long
         Local $dependency.local.21
-      val $dependency.local.24: (Long) -> Option<JsonValue>
-        Type (Long) -> Option<JsonValue>
+      val $dependency.local.24: (Long) -> MaybeUninit<JsonValue>
+        Type (Long) -> MaybeUninit<JsonValue>
         Local $dependency.local.22
       val $array_size.1: Long
         Type Long
         Local $dependency.local.23
-      val $array_init.2: (Long) -> Option<JsonValue>
-        Type (Long) -> Option<JsonValue>
+      val $array_init.2: (Long) -> MaybeUninit<JsonValue>
+        Type (Long) -> MaybeUninit<JsonValue>
         Local $dependency.local.24
       branch bb11 bb12
         Type Boolean
@@ -5195,16 +5104,16 @@ Module
       assign $new.1
         Type IllegalArgumentException
         ClassAlloc IllegalArgumentException
-      call external32 direct
+      call external31 direct
         Type IllegalArgumentException
         Local $new.1
       throw
         Type IllegalArgumentException
         Local $new.1
     bb12 if.merge.12
-      val $array.3: MutableArray<Option<JsonValue>>
-        Type MutableArray<Option<JsonValue>>
-        ArrayAllocate MutableArray<Option<JsonValue>>
+      val $array.3: MutableArray<MaybeUninit<JsonValue>>
+        Type MutableArray<MaybeUninit<JsonValue>>
+        ArrayAllocate MutableArray<MaybeUninit<JsonValue>>
           Type Long
           Local $array_size.1
       var $array_index.4: Long
@@ -5220,27 +5129,27 @@ Module
           Type Long
           Local $array_size.1
     bb14 while.exit.14
-      val $dependency.local.6: MutableArray<Option<JsonValue>>
-        Type MutableArray<Option<JsonValue>>
+      val $dependency.local.6: MutableArray<MaybeUninit<JsonValue>>
+        Type MutableArray<MaybeUninit<JsonValue>>
         Local $array.3
       field_set 0
         Type ArrayList<JsonValue>
         Local this
-        Type MutableArray<Option<JsonValue>>
+        Type MutableArray<MaybeUninit<JsonValue>>
         Local $dependency.local.6
       return
     bb15 while.body.15
-      call $array_value.5: Option<JsonValue> = <closure:function_type5> closure[function_type5]
-        Type (Long) -> Option<JsonValue>
+      call $array_value.5: MaybeUninit<JsonValue> = <closure:function_type5> closure[function_type5]
+        Type (Long) -> MaybeUninit<JsonValue>
         Local $array_init.2
         Type Long
         Local $array_index.4
-      array_set MutableArray<Option<JsonValue>>
-        Type MutableArray<Option<JsonValue>>
+      array_set MutableArray<MaybeUninit<JsonValue>>
+        Type MutableArray<MaybeUninit<JsonValue>>
         Local $array.3
         Type Long
         Local $array_index.4
-        Type Option<JsonValue>
+        Type MaybeUninit<JsonValue>
         Local $array_value.5
       assign $array_index.4
         Type Long
@@ -5282,10 +5191,10 @@ Module
         Type Encoder
         Local $dependency.local.8
       return
-  fun List.$get$size @fn58(this: List<Option<JsonMember>>) -> Long
+  fun List.$get$size @fn58(this: List<MaybeUninit<JsonMember>>) -> Long
     bb0 entry
       trap "call to abstract method `List.$get$size`"
-  fun List.get @fn59(this: List<Option<JsonMember>>, index: Long) -> Option<JsonMember>
+  fun List.get @fn59(this: List<MaybeUninit<JsonMember>>, index: Long) -> MaybeUninit<JsonMember>
     bb0 entry
       trap "call to abstract method `List.get`"
   fun List.$get$size @fn60(this: List<JsonMember>) -> Long
@@ -5294,7 +5203,7 @@ Module
   fun List.get @fn61(this: List<JsonMember>, index: Long) -> JsonMember
     bb0 entry
       trap "call to abstract method `List.get`"
-  fun $lambda @fn62($argument.0: (Long) -> Option<JsonMember>, $argument.1: Long) -> Option<JsonMember>
+  fun $lambda @fn62($argument.0: (Long) -> MaybeUninit<JsonMember>, $argument.1: Long) -> MaybeUninit<JsonMember>
     bb0 entry
       val $dependency.local.1: Long
         Type Long
@@ -5302,7 +5211,7 @@ Module
       val $dependency.local.2: Long
         Type Long
         ClosureCapture cc3 1
-          Type (Long) -> Option<JsonMember>
+          Type (Long) -> MaybeUninit<JsonMember>
           Local $argument.0
       val $dependency.local.3: Long
         Type Long
@@ -5319,10 +5228,10 @@ Module
           Type Long
           IntegerLiteral Long value=0 bits=0x0000000000000000
     bb1 if.then.1
-      val $dependency.local.4: MutableArray<Option<JsonMember>>
-        Type MutableArray<Option<JsonMember>>
+      val $dependency.local.4: MutableArray<MaybeUninit<JsonMember>>
+        Type MutableArray<MaybeUninit<JsonMember>>
         ClosureCapture cc3 0
-          Type (Long) -> Option<JsonMember>
+          Type (Long) -> MaybeUninit<JsonMember>
           Local $argument.0
       val $dependency.local.5: Long
         Type Long
@@ -5330,28 +5239,28 @@ Module
       val $dependency.local.6: Long
         Type Long
         Local $dependency.local.5
-      call $call.1: Option<JsonMember> = @fn20 direct
-        Type MutableArray<Option<JsonMember>>
+      call $call.1: MaybeUninit<JsonMember> = @fn20 direct
+        Type MutableArray<MaybeUninit<JsonMember>>
         Local $dependency.local.4
         Type Long
         Local $dependency.local.6
       assign $dependency.local.7
-        Type Option<JsonMember>
+        Type MaybeUninit<JsonMember>
         Local $call.1
       goto bb3
     bb2 if.else.2
       assign $dependency.local.7
-        Type Option<JsonMember>
-        VariantConstruct Option<JsonMember> v1
+        Type MaybeUninit<JsonMember>
+        MaybeUninit.Uninit MaybeUninit
       goto bb3
     bb3 if.merge.3
       return
-        Type Option<JsonMember>
+        Type MaybeUninit<JsonMember>
         Local $dependency.local.7
-  fun List.$get$size @fn63(this: List<Option<JsonValue>>) -> Long
+  fun List.$get$size @fn63(this: List<MaybeUninit<JsonValue>>) -> Long
     bb0 entry
       trap "call to abstract method `List.$get$size`"
-  fun List.get @fn64(this: List<Option<JsonValue>>, index: Long) -> Option<JsonValue>
+  fun List.get @fn64(this: List<MaybeUninit<JsonValue>>, index: Long) -> MaybeUninit<JsonValue>
     bb0 entry
       trap "call to abstract method `List.get`"
   fun List.$get$size @fn65(this: List<JsonValue>) -> Long
@@ -5360,15 +5269,15 @@ Module
   fun List.get @fn66(this: List<JsonValue>, index: Long) -> JsonValue
     bb0 entry
       trap "call to abstract method `List.get`"
-  fun $lambda @fn67($argument.0: (Long) -> Option<JsonValue>, $argument.1: Long) -> Option<JsonValue>
+  fun $lambda @fn67($argument.0: (Long) -> MaybeUninit<JsonValue>, $argument.1: Long) -> MaybeUninit<JsonValue>
     bb0 entry
       val $dependency.local.1: Long
         Type Long
         Local $argument.1
       val $dependency.local.2: Long
         Type Long
-        ClosureCapture cc4 2
-          Type (Long) -> Option<JsonValue>
+        ClosureCapture cc4 1
+          Type (Long) -> MaybeUninit<JsonValue>
           Local $argument.0
       val $dependency.local.3: Long
         Type Long
@@ -5385,10 +5294,10 @@ Module
           Type Long
           IntegerLiteral Long value=0 bits=0x0000000000000000
     bb1 if.then.1
-      val $dependency.local.4: MutableArray<Option<JsonValue>>
-        Type MutableArray<Option<JsonValue>>
-        ClosureCapture cc4 1
-          Type (Long) -> Option<JsonValue>
+      val $dependency.local.4: MutableArray<MaybeUninit<JsonValue>>
+        Type MutableArray<MaybeUninit<JsonValue>>
+        ClosureCapture cc4 0
+          Type (Long) -> MaybeUninit<JsonValue>
           Local $argument.0
       val $dependency.local.5: Long
         Type Long
@@ -5396,23 +5305,23 @@ Module
       val $dependency.local.6: Long
         Type Long
         Local $dependency.local.5
-      call $call.1: Option<JsonValue> = @fn31 direct
-        Type MutableArray<Option<JsonValue>>
+      call $call.1: MaybeUninit<JsonValue> = @fn31 direct
+        Type MutableArray<MaybeUninit<JsonValue>>
         Local $dependency.local.4
         Type Long
         Local $dependency.local.6
       assign $dependency.local.7
-        Type Option<JsonValue>
+        Type MaybeUninit<JsonValue>
         Local $call.1
       goto bb3
     bb2 if.else.2
       assign $dependency.local.7
-        Type Option<JsonValue>
-        VariantConstruct Option<JsonValue> v1
+        Type MaybeUninit<JsonValue>
+        MaybeUninit.Uninit MaybeUninit
       goto bb3
     bb3 if.merge.3
       return
-        Type Option<JsonValue>
+        Type MaybeUninit<JsonValue>
         Local $dependency.local.7
   fun encodeList @fn68(values: List<Int>, element: Encodable<Int>, encoder: Encoder) -> Unit
     bb0 entry
@@ -5540,20 +5449,20 @@ Module
         Type ((Int, Array<Int>), Encoder) -> Unit
         Local body
       return
-  fun init.ListIterator.$c2 @fn76(this: ListIterator<Option<JsonMember>>, source: List<Option<JsonMember>>, index: Long, exhausted: Boolean) -> Unit
+  fun init.ListIterator.$c2 @fn76(this: ListIterator<MaybeUninit<JsonMember>>, source: List<MaybeUninit<JsonMember>>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
-        Type ListIterator<Option<JsonMember>>
+        Type ListIterator<MaybeUninit<JsonMember>>
         Local this
-        Type List<Option<JsonMember>>
+        Type List<MaybeUninit<JsonMember>>
         Local source
       field_set 1
-        Type ListIterator<Option<JsonMember>>
+        Type ListIterator<MaybeUninit<JsonMember>>
         Local this
         Type Long
         Local index
       field_set 2
-        Type ListIterator<Option<JsonMember>>
+        Type ListIterator<MaybeUninit<JsonMember>>
         Local this
         Type Boolean
         Local exhausted
@@ -5576,20 +5485,20 @@ Module
         Type Boolean
         Local exhausted
       return
-  fun init.ListIterator.$c2 @fn78(this: ListIterator<Option<JsonValue>>, source: List<Option<JsonValue>>, index: Long, exhausted: Boolean) -> Unit
+  fun init.ListIterator.$c2 @fn78(this: ListIterator<MaybeUninit<JsonValue>>, source: List<MaybeUninit<JsonValue>>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
-        Type ListIterator<Option<JsonValue>>
+        Type ListIterator<MaybeUninit<JsonValue>>
         Local this
-        Type List<Option<JsonValue>>
+        Type List<MaybeUninit<JsonValue>>
         Local source
       field_set 1
-        Type ListIterator<Option<JsonValue>>
+        Type ListIterator<MaybeUninit<JsonValue>>
         Local this
         Type Long
         Local index
       field_set 2
-        Type ListIterator<Option<JsonValue>>
+        Type ListIterator<MaybeUninit<JsonValue>>
         Local this
         Type Boolean
         Local exhausted
@@ -5676,10 +5585,10 @@ Module
         Box
           Type Unit
           UnitLiteral
-  fun function_bridge.$Closure$lambda3.(Any) -> Any @fn86($source: (Long) -> Option<JsonMember>, arg0: Any) -> Any
+  fun function_bridge.$Closure$lambda3.(Any) -> Any @fn86($source: (Long) -> MaybeUninit<JsonMember>, arg0: Any) -> Any
     bb0 entry
-      call $call.1: Option<JsonMember> = <closure:function_type4> closure[function_type4]
-        Type (Long) -> Option<JsonMember>
+      call $call.1: MaybeUninit<JsonMember> = <closure:function_type4> closure[function_type4]
+        Type (Long) -> MaybeUninit<JsonMember>
         Local $source
         Type Long
         Unbox
@@ -5688,12 +5597,12 @@ Module
       return
         Type Any
         Box
-          Type Option<JsonMember>
+          Type MaybeUninit<JsonMember>
           Local $call.1
-  fun function_bridge.$Closure$lambda4.(Any) -> Any @fn87($source: (Long) -> Option<JsonValue>, arg0: Any) -> Any
+  fun function_bridge.$Closure$lambda4.(Any) -> Any @fn87($source: (Long) -> MaybeUninit<JsonValue>, arg0: Any) -> Any
     bb0 entry
-      call $call.1: Option<JsonValue> = <closure:function_type5> closure[function_type5]
-        Type (Long) -> Option<JsonValue>
+      call $call.1: MaybeUninit<JsonValue> = <closure:function_type5> closure[function_type5]
+        Type (Long) -> MaybeUninit<JsonValue>
         Local $source
         Type Long
         Unbox
@@ -5702,7 +5611,7 @@ Module
       return
         Type Any
         Box
-          Type Option<JsonValue>
+          Type MaybeUninit<JsonValue>
           Local $call.1
   instance mi0 function=@fn6 <- iterator
   instance mi1 function=@fn7 <- get

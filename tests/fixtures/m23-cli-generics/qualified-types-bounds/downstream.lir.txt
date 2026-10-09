@@ -61,11 +61,11 @@ Module
   block if.merge.6
     ret local15
   fun @scoop$1$cb$4b47f7a951381362d546a15befd798e8a3a3d8880067a4e0a53f3c870ba334ff(ptr<managed>) -> i32
-    local %0 $dependency.local.1: ptr<managed>
+    local %0 $dependency.local.1: interface{object,itab}
     local %1 $dependency.local.2: i32
     local %2 $dependency.local.3: i32
-    local %3 $dependency.local.4: ptr<managed>
-    local %4 $dependency.local.5: ptr<managed>
+    local %3 $dependency.local.4: interface{object,itab}
+    local %4 $dependency.local.5: interface{object,itab}
     local %5 $new.1: ptr<managed>
     local %6 $call.2: i32
   block entry
@@ -76,18 +76,21 @@ Module
     store t0 -> local5
     call managed-void-target0 sp<managed-call:1> live=[local5:ptr<managed>@0] sig=void0 (ptr<managed>, i32) external-fn2(local5, local2)
     t1 = aggregate () : {}
-    store local5 -> local0
+    t2 = heap_load external-td6 +96 : ptr<metadata>
+    t3 = heap_load t2 +8 : ptr<metadata>
+    t4 = aggregate (local5, t3) : interface{object,itab}
+    store t4 -> local0
     store local0 -> local3
     store local3 -> local4
-    call managed-direct-target1 sp<managed-call:2> live=[local4:ptr<managed>@0] t2 = sig=direct1 (ptr<managed>) -> i32 local-fn3(local4)
-    store t2 -> local6
+    call managed-direct-target1 sp<managed-call:2> live=[local4:interface{object,itab}@0] t5 = sig=direct1 (parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>) -> i32 local-fn3(local4)
+    store t5 -> local6
     ret local6
   fun @scoop$1$cb$09412a07ce29f94821f3125704ebc70d058b7950d272d9323a40fd195eab8ef7(i32) -> i32
-    local %0 $dependency.local.1: ptr<managed>
+    local %0 $dependency.local.1: interface{object,itab}
     local %1 $dependency.local.2: i32
     local %2 $dependency.local.3: i32
-    local %3 $dependency.local.4: ptr<managed>
-    local %4 $dependency.local.5: ptr<managed>
+    local %3 $dependency.local.4: interface{object,itab}
+    local %4 $dependency.local.5: interface{object,itab}
     local %5 $new.1: ptr<managed>
     local %6 $call.2: i32
   block entry
@@ -98,21 +101,24 @@ Module
     store t0 -> local5
     call managed-void-target0 sp<managed-call:1> live=[local5:ptr<managed>@0] sig=void0 (ptr<managed>, i32) external-fn2(local5, local2)
     t1 = aggregate () : {}
-    store local5 -> local0
+    t2 = heap_load external-td6 +96 : ptr<metadata>
+    t3 = heap_load t2 +8 : ptr<metadata>
+    t4 = aggregate (local5, t3) : interface{object,itab}
+    store t4 -> local0
     store local0 -> local3
     store local3 -> local4
-    call managed-direct-target1 sp<managed-call:2> live=[local4:ptr<managed>@0] t2 = sig=direct1 (ptr<managed>) -> i32 local-fn3(local4)
-    store t2 -> local6
+    call managed-direct-target1 sp<managed-call:2> live=[local4:interface{object,itab}@0] t5 = sig=direct1 (parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>) -> i32 local-fn3(local4)
+    store t5 -> local6
     ret local6
-  fun @scoop$1$cb$8bd9a99a2826e586d123e57215bfa25658fcd9b0266cef831d7828cfc3d5604c(ptr<managed>) -> i32
-    local %0 $dependency.local.1: ptr<managed>
+  fun @scoop$1$cb$8bd9a99a2826e586d123e57215bfa25658fcd9b0266cef831d7828cfc3d5604c(parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>) -> i32
+    local %0 $dependency.local.1: interface{object,itab}
     local %1 $call.1: i32
   block entry
-    poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
+    poll managed-void-target0 sp<managed-poll:0> live=[param0:interface{object,itab}@0]
     store param0 -> local0
-    t0 = heap_load local0 +0 : ptr<metadata>
-    call no-gc-direct-target0 t1 = sig=direct0 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t0, external-td5)
-    call managed-direct-target0 sp<managed-call:0> live=[local0:ptr<managed>@0] t2 = sig=direct1 (ptr<managed>) -> i32 dispatch[Interface:0] t1(local0)
+    t0 = extract local0, 1 : ptr<metadata>
+    t1 = extract local0, 0 : ptr<managed>
+    call managed-direct-target0 sp<managed-call:0> live=[t1:ptr<managed>@0] t2 = sig=direct0 (ptr<managed>) -> i32 dispatch[Interface:0] t0(t1)
     store t2 -> local1
     ret local1
   fun @scoop$1$cb$c93f571c34bcafa256ccb0a8371310a94ef8917dda13e2737beefc96a02f8343(ptr<managed>, i32) -> void

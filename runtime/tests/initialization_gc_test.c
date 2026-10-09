@@ -126,7 +126,7 @@ static void wait_until_parked(Waiter waiters[WAITER_COUNT]) {
             ScoopThreadState *state = waiters[index].state;
             if (state != NULL &&
                 state->initialization_wait == &waiters[index].unit->descriptor &&
-                atomic_load_explicit(&state->mode, memory_order_acquire) ==
+                atomic_load_explicit(&state->poll.mode, memory_order_acquire) ==
                     SCOOP_THREAD_PARKED) {
                 count++;
             }

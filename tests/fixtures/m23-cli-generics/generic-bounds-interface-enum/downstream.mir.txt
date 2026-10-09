@@ -342,22 +342,22 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun thunk<DefaultTag<Later>> DefaultReadable.read() @fn12(this: DefaultReadable) -> Int
+  fun thunk<DefaultTag<Later>> DefaultReadable.read() @fn12(this: box<DefaultTag<Later>>) -> Int
     bb0 entry
       call $call.1: Int = external1 direct
         Type DefaultReadable
         Retype DefaultReadable
-          Type DefaultReadable
+          Type box<DefaultTag<Later>>
           Local this
       return
         Type Int
         Local $call.1
-  fun thunk<DefaultTag<Later>> Readable.read() @fn13(this: Readable) -> Int
+  fun thunk<DefaultTag<Later>> Readable.read() @fn13(this: box<DefaultTag<Later>>) -> Int
     bb0 entry
       call $call.1: Int = external1 direct
         Type DefaultReadable
         Retype DefaultReadable
-          Type Readable
+          Type box<DefaultTag<Later>>
           Local this
       return
         Type Int

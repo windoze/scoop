@@ -1,0 +1,264 @@
+{
+  "description": "Actual target cleanup records. Sizes are logical bytes; item counts may include directories. Active tools, libraries and test executables were retained.",
+  "hosts": {
+    "darwin": {
+      "logical_bytes": 114293748135,
+      "records": [
+        {
+          "report": "tmp/m34/batch1-target-cleanup.json",
+          "metrics": {
+            "removed_count": 96,
+            "removed_bytes": 3132545645
+          }
+        },
+        {
+          "report": "tmp/m34/batch10-target-cleanup-darwin.json",
+          "metrics": {
+            "files": 25118,
+            "bytes": 20470244147
+          }
+        },
+        {
+          "report": "tmp/m34/batch2-target-cleanup-final.json",
+          "metrics": {
+            "time": 1791501130.767662,
+            "items": 19386,
+            "bytes": 25990788896,
+            "scope": "linked rcgu objects and inactive incremental directories"
+          }
+        },
+        {
+          "report": "tmp/m34/batch2-target-cleanup.json",
+          "metrics": {
+            "phase": "M34-2 compiled CLI",
+            "removed_items": 5967,
+            "reclaimed_bytes": 12761510552
+          }
+        },
+        {
+          "report": "tmp/m34/batch3a-target-cleanup.json",
+          "metrics": {
+            "batch": "m34-3a",
+            "files": 1805,
+            "logical_bytes": 3590215643
+          }
+        },
+        {
+          "report": "tmp/m34/batch3b-target-cleanup.json",
+          "metrics": {
+            "batch": "m34-3b",
+            "files": 6382,
+            "logical_bytes": 8215828137
+          }
+        },
+        {
+          "report": "tmp/m34/batch4a-target-cleanup.json",
+          "metrics": {
+            "time": "2026-10-09T00:49:52.506504+00:00",
+            "files": 5622,
+            "bytes": 6273385579,
+            "scope": "linked rcgu objects and incremental; libraries, tools and tests retained"
+          }
+        },
+        {
+          "report": "tmp/m34/batch4b-target-cleanup.json",
+          "metrics": {
+            "time": "2026-10-09T01:13:02.031784+00:00",
+            "files": 520,
+            "bytes": 444825719,
+            "scope": "linked rcgu objects and incremental; libraries, tools and tests retained"
+          }
+        },
+        {
+          "report": "tmp/m34/batch5a-target-cleanup.json",
+          "metrics": {
+            "files": 19276,
+            "bytes": 22542764718
+          }
+        },
+        {
+          "report": "tmp/m34/batch5b-target-cleanup.json",
+          "metrics": {
+            "files": 324,
+            "bytes": 1812724794
+          }
+        },
+        {
+          "report": "tmp/m34/batch6-target-cleanup.json",
+          "metrics": {
+            "files": 320,
+            "bytes": 1512187367
+          }
+        },
+        {
+          "report": "tmp/m34/batch7-target-cleanup.json",
+          "metrics": {
+            "removed_files": 72,
+            "removed_bytes": 151091917
+          }
+        },
+        {
+          "report": "tmp/m34/batch8-target-cleanup-darwin.json",
+          "metrics": {
+            "files": 148,
+            "bytes": 337525691
+          }
+        },
+        {
+          "report": "tmp/m34/batch9a-target-cleanup-darwin.json",
+          "metrics": {
+            "files": 4349,
+            "bytes": 5548604841
+          }
+        },
+        {
+          "report": "tmp/m34/batch9b-target-cleanup-darwin.json",
+          "metrics": {
+            "files": 0,
+            "bytes": 0
+          }
+        },
+        {
+          "report": "tmp/m34/batch11-target-cleanup-darwin.json",
+          "metrics": {
+            "files": 215,
+            "bytes": 1509504489
+          }
+        }
+      ]
+    },
+    "linux-gnu": {
+      "logical_bytes": 35331927274,
+      "records": [
+        {
+          "report": "tmp/m34/batch1-target-cleanup.json",
+          "metrics": {
+            "removed_count": 52,
+            "removed_bytes": 1997877943
+          }
+        },
+        {
+          "report": "tmp/m34/batch10-target-cleanup-linux.json",
+          "metrics": {
+            "files": 0,
+            "bytes": 0
+          }
+        },
+        {
+          "report": "tmp/m34/batch2-target-cleanup-final.json",
+          "metrics": {
+            "time": 1791501055.73594,
+            "items": 119,
+            "bytes": 2013536457,
+            "scope": "linked rcgu objects and inactive incremental directories"
+          }
+        },
+        {
+          "report": "tmp/m34/batch2-target-cleanup.json",
+          "metrics": {
+            "phase": "M34-2 before Linux validation",
+            "removed_items": 2,
+            "reclaimed_bytes": 61986640
+          }
+        },
+        {
+          "report": "tmp/m34/batch3a-target-cleanup.json",
+          "metrics": {
+            "batch": "m34-3a",
+            "files": 224,
+            "logical_bytes": 1216699824
+          }
+        },
+        {
+          "report": "tmp/m34/batch3b-target-cleanup.json",
+          "metrics": {
+            "batch": "m34-3b",
+            "files": 224,
+            "logical_bytes": 1219044107
+          }
+        },
+        {
+          "report": "tmp/m34/batch4a-target-cleanup.json",
+          "metrics": {
+            "time": "2026-10-09T00:57:02.799740+00:00",
+            "files": 4362,
+            "bytes": 4987043809,
+            "scope": "linked rcgu objects and incremental; libraries, tools and tests retained"
+          }
+        },
+        {
+          "report": "tmp/m34/batch4b-target-cleanup.json",
+          "metrics": {
+            "time": "2026-10-09T01:13:02.806160+00:00",
+            "files": 264,
+            "bytes": 380448508,
+            "scope": "linked rcgu objects and incremental; libraries, tools and tests retained"
+          }
+        },
+        {
+          "report": "tmp/m34/batch5a-target-cleanup.json",
+          "metrics": {
+            "files": 298,
+            "bytes": 1984919128
+          }
+        },
+        {
+          "report": "tmp/m34/batch5b-target-cleanup.json",
+          "metrics": {
+            "files": 147,
+            "bytes": 767645502
+          }
+        },
+        {
+          "report": "tmp/m34/batch6-target-cleanup.json",
+          "metrics": {
+            "files": 117,
+            "bytes": 616166385
+          }
+        },
+        {
+          "report": "tmp/m34/batch7-target-cleanup.json",
+          "metrics": {
+            "removed_files": 144,
+            "removed_bytes": 156877294
+          }
+        },
+        {
+          "report": "tmp/m34/batch8-target-cleanup-linux.json",
+          "metrics": {
+            "files": 76,
+            "bytes": 190134062
+          }
+        },
+        {
+          "report": "tmp/m34/batch9a-old-target-cleanup-linux.json",
+          "metrics": {
+            "files": 8654,
+            "bytes": 18326714520
+          }
+        },
+        {
+          "report": "tmp/m34/batch9a-target-cleanup-linux.json",
+          "metrics": {
+            "files": 0,
+            "bytes": 0
+          }
+        },
+        {
+          "report": "tmp/m34/batch9b-target-cleanup-linux.json",
+          "metrics": {
+            "files": 0,
+            "bytes": 0
+          }
+        },
+        {
+          "report": "tmp/m34/batch11-target-cleanup-linux.json",
+          "metrics": {
+            "files": 203,
+            "bytes": 1412833095
+          }
+        }
+      ]
+    }
+  }
+}

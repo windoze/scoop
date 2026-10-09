@@ -2,6 +2,7 @@
 #define SCOOP_RT_GENERATED_ENTRIES_H
 
 #include <stddef.h>
+#include <stdatomic.h>
 #include <stdint.h>
 
 #include "scoop_rt.h"
@@ -17,6 +18,22 @@ typedef struct ScoopAllocationContext {
 } ScoopAllocationContext;
 
 extern _Thread_local ScoopAllocationContext *scoop_rt_allocation_context;
+
+/* One view of the registered thread's actual mode and acknowledged epoch. */
+typedef struct ScoopPollState {
+    _Atomic(uint32_t) mode;
+    _Atomic(uint64_t) observed_gc_epoch;
+} ScoopPollState;
+
+_Static_assert(sizeof(ScoopPollState) == 16 && _Alignof(ScoopPollState) == 8,
+               "generated poll state layout drifted");
+_Static_assert(offsetof(ScoopPollState, mode) == 0 &&
+                   offsetof(ScoopPollState, observed_gc_epoch) == 8,
+               "generated poll state offsets drifted");
+
+extern _Thread_local ScoopPollState *scoop_rt_poll_state;
+extern _Atomic(uint32_t) scoop_thread_world_phase;
+extern _Atomic(uint64_t) scoop_thread_gc_epoch;
 
 void scoop_runtime_finish_tlab_alloc(void *object, const ScoopTypeDescriptor *td, size_t size);
 
@@ -112,8 +129,9 @@ void scoop_rt_leave_native_safe(ScoopThreadTransition *transition);
 void scoop_rt_enter_native_borrowed(ScoopThreadTransition *transition, uintptr_t managed_stack_low);
 void scoop_rt_leave_native_borrowed(ScoopThreadTransition *transition);
 
-/* Generated write barriers mark this pre-biased card table after heap stores. */
-extern unsigned char *scoop_gc_card_table;
+/* Four radix levels of 4096 atomic pointers; see runtime spec section 3.6. */
+typedef _Atomic(void *) ScoopGcPageMapEntry;
+extern ScoopGcPageMapEntry scoop_gc_page_map[4096];
 
 /* Other compiler/runtime ABI declarations that are not part of the native
  * FFI-author surface. */

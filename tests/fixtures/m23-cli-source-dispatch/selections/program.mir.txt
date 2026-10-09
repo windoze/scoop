@@ -9,11 +9,11 @@ Module
   class IllegalStateException vtable=0 itables=0
   class Exception vtable=0 itables=0
   class Throwable vtable=0 itables=0
-  class Complete vtable=0 itables=3
-  class Pending vtable=0 itables=3
-  class Winner vtable=2 itables=2
+  class Complete vtable=0 itables=0
+  class Pending vtable=0 itables=0
+  class Winner vtable=2 itables=0
   class Virtual vtable=1 itables=0
-  class Singleton vtable=2 itables=2
+  class Singleton vtable=2 itables=0
   class Final vtable=1 itables=0
   class Reabstract vtable=1 itables=0
   class box<Value> vtable=0 itables=0

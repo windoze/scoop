@@ -24,7 +24,7 @@ Module
     call native-gc-leaf-direct-target0 t0 = sig=direct0 () -> i32 extern1()
     store t0 -> local0
     ret local0
-  fun @scoop$1$cb$1e20ac5e73c4edab4bdd77e685b84f66abe4b58b6836243505d993d3325777a6() -> sret<{i32, i32} size=8 align=4 scan=none>
+  fun @scoop$1$cb$1e20ac5e73c4edab4bdd77e685b84f66abe4b58b6836243505d993d3325777a6() -> parts<{i32, i32} [i64@0+8/4]>
     local %0 $call.1: {i32, i32}
     local %1 $sc.1: i32
   block entry
@@ -96,8 +96,8 @@ Module
     call native-safe-direct-target0 sp<native-safe:0> roots=[local3] t1 = sig=direct1 () -> i32 extern0()
     store t1 -> local4
     store integer<Int>(0x0000002a) -> local5
-    store local5 -> local6
-    t2 = integer_compare_Equal<Int> local4, local6 : i1
+    store integer<Int>(0x0000002a) -> local6
+    t2 = integer_compare_Equal<Int> local4, integer<Int>(0x0000002a) : i1
     t3 = Not t2 : i1
     cbr t3 then @if.then.1 else @if.else.2
   block if.then.1
@@ -107,8 +107,8 @@ Module
     call native-gc-leaf-direct-target1 t4 = sig=direct2 () -> i32 extern1()
     store t4 -> local7
     store integer<Int>(0x0000002a) -> local8
-    store local8 -> local9
-    t5 = integer_compare_Equal<Int> local7, local9 : i1
+    store integer<Int>(0x0000002a) -> local9
+    t5 = integer_compare_Equal<Int> local7, integer<Int>(0x0000002a) : i1
     t6 = Not t5 : i1
     store t6 -> local10
     br @if.merge.3
@@ -137,8 +137,8 @@ Module
     store local17 -> local18
     store local16 -> local19
     store integer<Int>(0x0000002a) -> local20
-    store local20 -> local21
-    t14 = integer_compare_Equal<Int> local19, local21 : i1
+    store integer<Int>(0x0000002a) -> local21
+    t14 = integer_compare_Equal<Int> local19, integer<Int>(0x0000002a) : i1
     t15 = Not t14 : i1
     cbr t15 then @if.then.6 else @if.else.7
   block if.then.6
@@ -147,8 +147,8 @@ Module
   block if.else.7
     store local18 -> local22
     store integer<Int>(0x00000007) -> local23
-    store local23 -> local24
-    t16 = integer_compare_Equal<Int> local22, local24 : i1
+    store integer<Int>(0x00000007) -> local24
+    t16 = integer_compare_Equal<Int> local22, integer<Int>(0x00000007) : i1
     t17 = Not t16 : i1
     store t17 -> local25
     br @if.merge.8
@@ -235,8 +235,8 @@ Module
     call native-safe-direct-target3 sp<native-safe:2> roots=[local38] t38 = sig=direct11 () -> i32 extern0()
     store t38 -> local39
     store integer<Int>(0x0000002a) -> local40
-    store local40 -> local41
-    t39 = integer_compare_Equal<Int> local39, local41 : i1
+    store integer<Int>(0x0000002a) -> local41
+    t39 = integer_compare_Equal<Int> local39, integer<Int>(0x0000002a) : i1
     t40 = Not t39 : i1
     cbr t40 then @if.then.24 else @if.merge.25
   block if.then.24

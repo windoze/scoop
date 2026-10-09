@@ -2386,8 +2386,10 @@ Module
       call $step.1: CoroutineStep<Local> = @fn30 direct
         Type Gate<Local>
         Local $dependency.local.4
-        Type CoroutineAdapter<run>$1
-        Local $adapter.1
+        Type Continuation<Local>
+        Retype Continuation<Local>
+          Type CoroutineAdapter<run>$1
+          Local $adapter.1
       branch bb5 bb6
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -2951,8 +2953,10 @@ Module
       call $step.1: CoroutineStep<Int> = @fn41 direct
         Type Gate<Int>
         Local $dependency.local.4
-        Type CoroutineAdapter<run>$1
-        Local $adapter.1
+        Type Continuation<Int>
+        Retype Continuation<Int>
+          Type CoroutineAdapter<run>$1
+          Local $adapter.1
       branch bb5 bb6
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -3519,8 +3523,10 @@ Module
       call $step.1: CoroutineStep<Unit> = @fn52 direct
         Type Gate<Unit>
         Local $dependency.local.4
-        Type CoroutineAdapter<run>$1
-        Local $adapter.1
+        Type Continuation<Unit>
+        Retype Continuation<Unit>
+          Type CoroutineAdapter<run>$1
+          Local $adapter.1
       branch bb5 bb6
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -4085,8 +4091,10 @@ Module
       call @fn72 interface SuspendRegistration<Local>[0]
         Type SuspendRegistration<Local>
         Local $dependency.local.4
-        Type CoroutineAdapter<await>$1
-        Local $safe_adapter.1
+        Type Continuation<Local>
+        Retype Continuation<Local>
+          Type CoroutineAdapter<await>$1
+          Local $safe_adapter.1
       goto bb14
     bb3 coroutine.registered_success.1
       atomic_store_release kind=coroutine-adapter-state field=1
@@ -4843,8 +4851,10 @@ Module
       call @fn69 interface SuspendRegistration<Int>[0]
         Type SuspendRegistration<Int>
         Local $dependency.local.4
-        Type CoroutineAdapter<await>$1
-        Local $safe_adapter.1
+        Type Continuation<Int>
+        Retype Continuation<Int>
+          Type CoroutineAdapter<await>$1
+          Local $safe_adapter.1
       goto bb14
     bb3 coroutine.registered_success.1
       atomic_store_release kind=coroutine-adapter-state field=1
@@ -5601,8 +5611,10 @@ Module
       call @fn66 interface SuspendRegistration<Unit>[0]
         Type SuspendRegistration<Unit>
         Local $dependency.local.4
-        Type CoroutineAdapter<await>$1
-        Local $safe_adapter.1
+        Type Continuation<Unit>
+        Retype Continuation<Unit>
+          Type CoroutineAdapter<await>$1
+          Local $safe_adapter.1
       goto bb14
     bb3 coroutine.registered_success.1
       atomic_store_release kind=coroutine-adapter-state field=1

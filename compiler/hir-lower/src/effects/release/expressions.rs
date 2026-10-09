@@ -13,6 +13,11 @@ impl Lowerer {
             facts.violation.get_or_insert(expression.span);
         }
         match &expression.kind {
+            E::MaybeUninit(operation) => {
+                if let Some(operand) = operation.operand() {
+                    self.release_expression(operand, values, facts);
+                }
+            }
             E::ContextLookup(_) => {
                 facts.requirements = None;
                 facts.violation.get_or_insert(expression.span);

@@ -7,6 +7,7 @@ Module
   generated_exact_type get2 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
   generated_exact_type get3 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
   generated_exact_type get4 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
+  generated_callable gc0 function=@fn6 id=78dc15238d1b1788ce5892b1826692eacaf4bf204fea44d2ff5f1d0d61b85190
   fun result @fn0() -> Int
     bb0 entry
       val $dependency.argument.0: Int
@@ -18,7 +19,7 @@ Module
       assign $new.1
         Type PropertyItem<Int>
         ClassAlloc PropertyItem<Int>
-      call @fn6 direct
+      call @fn7 direct
         Type PropertyItem<Int>
         Local $new.1
         Type Int
@@ -71,7 +72,17 @@ Module
   fun ReadOnlyProperty.$get$value @fn5(this: ReadOnlyProperty<Int>) -> Int
     bb0 entry
       trap "call to abstract method `ReadOnlyProperty.$get$value`"
-  fun init.PropertyItem.$c0 @fn6(this: PropertyItem<Int>, value: Int) -> Unit
+  fun receiver<PropertyItem> MutableProperty.read @fn6(this: PropertyItem<Int>) -> Int
+    bb0 entry
+      call $call.1: Int = @fn1 direct
+        Type ReadOnlyProperty<Int>
+        Retype ReadOnlyProperty<Int>
+          Type PropertyItem<Int>
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun init.PropertyItem.$c0 @fn7(this: PropertyItem<Int>, value: Int) -> Unit
     bb0 entry
       field_set 0
         Type PropertyItem<Int>

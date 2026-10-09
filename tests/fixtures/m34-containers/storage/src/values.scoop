@@ -1,0 +1,60 @@
+struct Pair(val number: Int, val stamp: Long)
+struct Empty()
+object Counts { var calls: Int = 0 }
+fun emptyValue(): Empty { Counts.calls += 1; return Empty() }
+interface Read { fun value(): Int }
+class Cell(val number: Int) : Read { override fun value(): Int = number }
+
+@Unsafe fun scalarsAndOptions() {
+    val values = ArrayList<Int>(5L)
+    inspectStorage(values, 4L)
+    var index = 0
+    while (index < 17) { values.add(index); index += 1 }
+    values.add(0L, -1)
+    values.add(5L, 99)
+    values[6L] = 100
+    check(values.removeAt(5L) == 99 && values[5L] == 100, 1)
+    check(values.size == 18L && values[17L] == 16, 2)
+    inspectStorage(values, 4L)
+    val snapshot = values.toArray()
+    values.clear()
+    inspectStorage(values, 4L)
+    check(values.size == 0L && snapshot[5L] == 100, 3)
+    val options = ArrayList<Int?>()
+    options.add(None)
+    options.add(Some(7))
+    options.add(1L, None)
+    inspectStorage(options, sizeOf<Int?>().toInt64())
+    check(options.removeAt(0L) == None && options[0L] == None && options[1L] == Some(7), 4)
+    options.clear()
+    inspectStorage(options, sizeOf<Int?>().toInt64())
+}
+
+@Unsafe fun valuesAndInterfaces() {
+    val pairs = ArrayList<Pair>()
+    pairs.add(Pair(3, 8L))
+    pairs.add(0L, Pair(4, 9L))
+    inspectStorage(pairs, 16L)
+    check(pairs.removeAt(1L).stamp == 8L && pairs[0L].number == 4, 5)
+    pairs.clear()
+    inspectStorage(pairs, 16L)
+    val views = ArrayList<Read>()
+    var index = 0
+    while (index < 35) { views.add(Cell(index)); index += 1 }
+    val alias: MutableList<Read> = views
+    alias.add(1L, Cell(99))
+    gcCollect()
+    check(alias.removeAt(1L).value() == 99 && alias[34L].value() == 34, 6)
+    inspectStorage(views, 16L)
+    views.clear()
+    inspectStorage(views, 16L)
+    val empty = ArrayList<Empty>(100L)
+    inspectStorage(empty, 0L)
+    index = 0
+    while (index < 121) { empty.add(emptyValue()); index += 1 }
+    empty.removeAt(0L)
+    check(empty.size == 120L && Counts.calls == 121, 7)
+    empty.clear()
+    inspectStorage(empty, 0L)
+    check(Counts.calls == 121, 8)
+}

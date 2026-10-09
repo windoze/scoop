@@ -61,10 +61,11 @@ Module
   generated_exact_type get10 location=enum2 nominal_id=c92f6ade02c9693419a5db9783ba748944c0434edf5e7b0782b1d9214db6e60d exact_id=d82a3ede15784166437b394769fdb4d28f84d5e667f95d3058f8a89e7926a389
   generated_exact_type get11 location=enum5 nominal_id=349a1e42596e5b4b951c9017511d68221236a0fe8c63d32278f4c851f1f9320a exact_id=ea82ba66b91f02c5bc9fe0e2e1730aa8e7a05c181ef340476f56f316bb910931
   generated_exact_type get12 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
-  generated_callable gc0 function=@fn33 id=177be4c0a3f72c0622e9e2d8d14c6b99be97ae08b15bda7d8241f9c93e430d26
-  generated_callable gc1 function=@fn32 id=256ed06f6fbd9bd1910b9c19afbdcb26d28c1ec5c3df4ff007708c0d7f5e0cc5
-  generated_callable gc2 function=@fn31 id=2cc01ab9f6bcbcbb49560fe89955bdf5c02a2ee33899e3c04b544a8ec0135004
-  generated_callable gc3 function=@fn30 id=ea0875363d45e13427a2b4691a35654c8cf176dd61419502b2f1d0234464dcdc
+  generated_callable gc0 function=@fn25 id=10ae1575e48fcd06530ad82f872310c41908cccb4edb0f394db345e141d2e2b5
+  generated_callable gc1 function=@fn34 id=177be4c0a3f72c0622e9e2d8d14c6b99be97ae08b15bda7d8241f9c93e430d26
+  generated_callable gc2 function=@fn33 id=256ed06f6fbd9bd1910b9c19afbdcb26d28c1ec5c3df4ff007708c0d7f5e0cc5
+  generated_callable gc3 function=@fn32 id=2cc01ab9f6bcbcbb49560fe89955bdf5c02a2ee33899e3c04b544a8ec0135004
+  generated_callable gc4 function=@fn31 id=ea0875363d45e13427a2b4691a35654c8cf176dd61419502b2f1d0234464dcdc
   fun Base.inherited @fn0(this: Base) -> Int
     bb0 entry
       return
@@ -82,7 +83,7 @@ Module
       assign $new.1
         Type Base
         ClassAlloc Base
-      call @fn25 direct
+      call @fn26 direct
         Type Base
         Local $new.1
       return
@@ -106,7 +107,7 @@ Module
       assign $new.1
         Type Defaults
         ClassAlloc Defaults
-      call @fn29 direct
+      call @fn30 direct
         Type Defaults
         Local $new.1
         Type Boolean
@@ -119,7 +120,7 @@ Module
       assign $new.1
         Type Singleton
         ClassAlloc Singleton
-      call @fn26 direct
+      call @fn27 direct
         Type Singleton
         Local $new.1
       global_assign $singleton$Singleton
@@ -288,10 +289,20 @@ Module
       return
         Type Int
         Local $call.1
-  fun init.Base.$c1 @fn25(this: Base) -> Unit
+  fun receiver<Singleton> Marker.mark @fn25(this: Singleton) -> Int
+    bb0 entry
+      call $call.1: Int = @fn24 direct
+        Type Marker
+        Retype Marker
+          Type Singleton
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun init.Base.$c1 @fn26(this: Base) -> Unit
     bb0 entry
       return
-  fun init.Singleton.$c7 @fn26(this: Singleton) -> Unit
+  fun init.Singleton.$c7 @fn27(this: Singleton) -> Unit
     bb0 entry
       field_set 0
         Type Singleton
@@ -299,7 +310,7 @@ Module
         Type Int
         IntegerLiteral Int value=7 bits=0x00000007
       return
-  fun init.Defaults.$c4 @fn27(this: Defaults, number: Int) -> Unit
+  fun init.Defaults.$c4 @fn28(this: Defaults, number: Int) -> Unit
     bb0 entry
       field_set 0
         Type Defaults
@@ -307,7 +318,7 @@ Module
         Type Int
         Local number
       return
-  fun init.Defaults.$c5 @fn28(this: Defaults, text: String) -> Unit
+  fun init.Defaults.$c5 @fn29(this: Defaults, text: String) -> Unit
     bb0 entry
       val $argument.0: Int
         Type Int
@@ -315,13 +326,13 @@ Module
       val $parameter.number: Int
         Type Int
         Local $argument.0
-      call @fn27 direct
+      call @fn28 direct
         Type Defaults
         Local this
         Type Int
         Local $parameter.number
       return
-  fun init.Defaults.$c6 @fn29(this: Defaults, flag: Boolean) -> Unit
+  fun init.Defaults.$c6 @fn30(this: Defaults, flag: Boolean) -> Unit
     bb0 entry
       val $argument.0: Int
         Type Int
@@ -329,13 +340,13 @@ Module
       val $parameter.number: Int
         Type Int
         Local $argument.0
-      call @fn27 direct
+      call @fn28 direct
         Type Defaults
         Local this
         Type Int
         Local $parameter.number
       return
-  fun startCoroutine<Defaults> @fn30(task: SuspendTask<Defaults>, completion: Continuation<Defaults>) -> Unit
+  fun startCoroutine<Defaults> @fn31(task: SuspendTask<Defaults>, completion: Continuation<Defaults>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -416,7 +427,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Marker> @fn31(task: SuspendTask<Marker>, completion: Continuation<Marker>) -> Unit
+  fun startCoroutine<Marker> @fn32(task: SuspendTask<Marker>, completion: Continuation<Marker>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -497,7 +508,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Singleton> @fn32(task: SuspendTask<Singleton>, completion: Continuation<Singleton>) -> Unit
+  fun startCoroutine<Singleton> @fn33(task: SuspendTask<Singleton>, completion: Continuation<Singleton>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -578,7 +589,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Base> @fn33(task: SuspendTask<Base>, completion: Continuation<Base>) -> Unit
+  fun startCoroutine<Base> @fn34(task: SuspendTask<Base>, completion: Continuation<Base>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -667,10 +678,10 @@ Module
   coroutine_slot cl1 CoroutineSlot<Marker> value=Marker
   coroutine_slot cl2 CoroutineSlot<Singleton> value=Singleton
   coroutine_slot cl3 CoroutineSlot<Base> value=Base
-  coroutine_start ct0 result=Defaults function=fn30
-  coroutine_start ct1 result=Marker function=fn31
-  coroutine_start ct2 result=Singleton function=fn32
-  coroutine_start ct3 result=Base function=fn33
+  coroutine_start ct0 result=Defaults function=fn31
+  coroutine_start ct1 result=Marker function=fn32
+  coroutine_start ct2 result=Singleton function=fn33
+  coroutine_start ct3 result=Base function=fn34
   coroutine_fn cf0 @fn9 source_return=Marker step=cs1 immediate
   coroutine_fn cf1 @fn13 source_return=Base step=cs3 immediate
   coroutine_fn cf2 @fn17 source_return=Singleton step=cs2 immediate

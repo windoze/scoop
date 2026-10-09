@@ -3,6 +3,8 @@ mod atomics;
 pub use atomics::*;
 mod data_borrow;
 pub use data_borrow::*;
+mod maybe_uninit;
+pub use maybe_uninit::*;
 mod registry;
 #[cfg(test)]
 mod tests;
@@ -41,6 +43,7 @@ pub enum IntrinsicFunctionKind {
     Pointer(PointerIntrinsic),
     DataBorrow(DataBorrowIntrinsic),
     Atomic(AtomicIntrinsic),
+    MaybeUninit(MaybeUninitIntrinsic),
 }
 
 impl IntrinsicFunctionKind {
@@ -93,6 +96,7 @@ impl IntrinsicFunctionKind {
             Self::Pointer(kind) => kind.name().to_string(),
             Self::DataBorrow(kind) => kind.name().to_string(),
             Self::Atomic(kind) => kind.name(),
+            Self::MaybeUninit(kind) => kind.name().to_owned(),
         }
     }
 

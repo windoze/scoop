@@ -58,11 +58,14 @@ pub(crate) fn layouts(
         if !identity_roots.materializes_type(&ty) {
             continue;
         }
-        layouts.alloc(managed_reference_value_layout(
+        let mut layout = managed_reference_value_layout(
             context,
             managed_value_layout_identity(context, identity_roots, module, &ty),
             &def.name,
-        ));
+        );
+        layout.size = 16;
+        layout.align = 8;
+        layouts.alloc(layout);
     }
     for (id, def) in module.classes.iter() {
         let ty = def.physical_type(id);
@@ -159,6 +162,17 @@ pub(crate) fn layouts(
         .iter()
         .filter(|boxed| identity_roots.materializes_type(&mir::Type::Class(boxed.class())))
         .map(|boxed| boxed.payload())
+        .chain(module.structs.iter().filter_map(|(id, definition)| {
+            if !identity_roots.materializes_type(&mir::Type::Struct(id)) {
+                return None;
+            }
+            match &definition.representation {
+                mir::StructRepresentation::Intrinsic(
+                    mir::IntrinsicTypeRepresentation::MaybeUninit { value },
+                ) => Some(value),
+                _ => None,
+            }
+        }))
         .chain(module.classes.iter().filter_map(|(id, class)| {
             if !identity_roots.materializes_type(&mir::Type::Class(id)) {
                 return None;

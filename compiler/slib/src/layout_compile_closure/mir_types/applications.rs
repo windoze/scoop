@@ -181,6 +181,15 @@ pub(super) fn validate(
             None
         }
         (Source::Interface, Repr::Interface) => None,
+        (Source::Intrinsic(source), Repr::MaybeUninit { value }) => {
+            Error::require(
+                exact,
+                Component::Representation,
+                source.family() == hir::IntrinsicTypeKind::MaybeUninit
+                    && arguments.as_slice() == [*value],
+            )?;
+            None
+        }
         (Source::Intrinsic(source), Repr::InlineArray { element }) => {
             Error::require(
                 exact,

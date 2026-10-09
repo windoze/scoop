@@ -21,7 +21,6 @@ pub(crate) fn validate_external_callables(
             selected: selected.len(),
         });
     }
-    let referenced = crate::external_callable::referenced_external_callables(module);
     let mut implementations = HashSet::new();
     let mut roots = Vec::with_capacity(selected.len());
     for (callable, value) in module.meta.external_callables.iter() {
@@ -33,9 +32,6 @@ pub(crate) fn validate_external_callables(
             return Err(Error::DuplicateExternalImplementation {
                 implementation: selected.implementation(),
             });
-        }
-        if !referenced.contains(&callable) {
-            return Err(Error::UnreferencedExternalCallable { index });
         }
         roots.push(StrongExternalCallableRoot {
             callable,

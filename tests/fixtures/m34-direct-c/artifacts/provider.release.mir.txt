@@ -1,0 +1,765 @@
+Module
+  extern ef0 leaf @m34_art_hfa(Hfa4) -> Hfa4 <abi=c gc-leaf no-gc lib=fixture_direct_c>
+  extern ef1 safe @m34_art_hfa(Hfa4) -> Hfa4 <abi=c no-gc lib=fixture_direct_c>
+  extern ef2 word @m34_art_word(Wrap<Long>) -> Wrap<Long> <abi=c gc-leaf no-gc lib=fixture_direct_c>
+  extern ef3 nested @m34_art_nested(Wrap<Hfa4>) -> Wrap<Hfa4> <abi=c gc-leaf no-gc lib=fixture_direct_c>
+  extern ef4 large @m34_art_big(Big) -> Big <abi=c no-gc lib=fixture_direct_c>
+  struct Hfa4 (a: Double, b: Double, c: Double, d: Double) <c-layout aligned=natural packed=natural>
+  struct Wrap<Long> (value: Long) <c-layout aligned=natural packed=natural>
+  struct Wrap<Hfa4> (value: Hfa4) <c-layout aligned=natural packed=natural>
+  struct Big (a: Long, b: Long, c: Long, d: Long, e: Long) <c-layout aligned=natural packed=natural>
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<Big>
+    Completed(value: Big)
+    Suspended()
+  enum CoroutineSlot<Big>
+    Empty()
+    Value(value: Big)
+  enum CoroutineStep<Hfa4>
+    Completed(value: Hfa4)
+    Suspended()
+  enum CoroutineSlot<Hfa4>
+    Empty()
+    Value(value: Hfa4)
+  enum CoroutineStep<Worker>
+    Completed(value: Worker)
+    Suspended()
+  enum CoroutineSlot<Worker>
+    Empty()
+    Value(value: Worker)
+  enum CoroutineStep<Transform>
+    Completed(value: Transform)
+    Suspended()
+  enum CoroutineSlot<Transform>
+    Empty()
+    Value(value: Transform)
+  class Worker vtable=0 itables=1
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class box<Big> vtable=0 itables=0
+  class box<Hfa4> vtable=0 itables=0
+  interface ToString
+  interface Equality<Double>
+  interface Transform
+  interface Continuation<Hfa4>
+  interface SuspendTask<Hfa4>
+  interface SuspendRegistration<Hfa4>
+  interface Continuation<Big>
+  interface SuspendTask<Big>
+  interface SuspendRegistration<Big>
+  interface Continuation<Transform>
+  interface SuspendTask<Transform>
+  interface SuspendRegistration<Transform>
+  interface Continuation<Worker>
+  interface SuspendTask<Worker>
+  interface SuspendRegistration<Worker>
+  generated_exact_type get0 location=class4 nominal_id=239a4592efd0427d3a1a12a6d07f93bfc7695a9e176d9610e2f4ea7719fef647 exact_id=060070a01a006fe3b6c929c084c97ccc4fb265445019b4bdf88fa09caf20849c
+  generated_exact_type get1 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
+  generated_exact_type get2 location=enum3 nominal_id=cdaae63c3a14cd685c9463f9c28fbe089950ac471a870301726c1a812ed38aec exact_id=152b1485caedf20e73b746893c271e7d2393d5edc03cb3aea8f4bc7a3dbbc3d5
+  generated_exact_type get3 location=enum7 nominal_id=499cd870e37a96af8023c1b2251b23a77a08dea9ebf81bb8abfdcc375a8483a3 exact_id=162142f161686d60de81b2856b0358407294367a463a5dd3cd80043f22d03e86
+  generated_exact_type get4 location=enum5 nominal_id=e7d56c37bdb69070c7f35b85ebeb0290936840db7210af414c55de57f1d3785e exact_id=17e6cd0f88b97f02cfee0adcaa16be0f06534947834f4eda4c5a8a7622864d0f
+  generated_exact_type get5 location=enum1 nominal_id=10f2f73ce33cffcd904f854022cda5675ccb10a8ca0b0d4554fd705a91ee0eec exact_id=27e8d80e00c796767e385c121d492d7c4e43a079fac11153d1c32d84716ef3a2
+  generated_exact_type get6 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
+  generated_exact_type get7 location=class5 nominal_id=aa4f851fef6efa3f9c1caadaabb8e03a21b43baf70e9e4dbc2023daa4b0eceb0 exact_id=4093f700bdbc28f7f7e6a40d4565757aa13ed24d6e15f5f720ebcc398abbad8b
+  generated_exact_type get8 location=enum6 nominal_id=192ef7a9e145c7c9207f8d5f30801236ba23af36aff2ebc1567b2ae927bb7fc1 exact_id=4b1c533c166bdde150097866b28939f46c512e7f104e0ffbad86eb53d0b9de60
+  generated_exact_type get9 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
+  generated_exact_type get10 location=enum2 nominal_id=0435ee4e0db2b8f77348da22efbf9de0cf04811cf68bfd5a50a4445c02e70ae7 exact_id=645aa08fb742efd65a419ebe6d2a98dc7318a0ff9a36673eac2ebb4fed47244a
+  generated_exact_type get11 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
+  generated_exact_type get12 location=enum4 nominal_id=db039f7f50cbefb7990549ca9792ccde66e3fbf48f453430f290cb947575cf53 exact_id=b3d8856fd9b2b1f2fb7c9da2c833e6f766921debc5e5b78a5567a0694fba307a
+  generated_exact_type get13 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
+  generated_exact_type get14 location=enum8 nominal_id=6b400049313d59c2a4a8700ef35dc31ffccec9ed20db1c9f997694caf7ed998b exact_id=fab195040cabc015bce984b02d578e90540e1db440092c170cb926f1222566ec
+  generated_callable gc0 function=@fn29 id=94c5dd4c16c2ff58c1d814755c9058ea4f597b62398858c732658b20747a7fad
+  generated_callable gc1 function=@fn30 id=9e42681ea0a4661cc3ccde89957b1976d4b0365f4a3bfaa2587b52a15184502f
+  generated_callable gc2 function=@fn31 id=c1f4faedc0be82d626257be83fbce77d627e69ce499ff35cf7b9ed89c64b0542
+  generated_callable gc3 function=@fn32 id=e5f79b35d5a58d81f35c5f78357d40ff86260c2d25768b3f3e309f1714531ded
+  fun Hfa4.equals @fn0(this: Hfa4, other: Hfa4) -> Boolean
+    bb0 entry
+      branch bb1 bb2
+        Type Boolean
+        FloatBinary F64 Equal
+          Type Double
+          FieldAccess 0
+            Type Hfa4
+            Local this
+          Type Double
+          FieldAccess 0
+            Type Hfa4
+            Local other
+    bb1 logic.rhs.1
+      assign $logic.1
+        Type Boolean
+        FloatBinary F64 Equal
+          Type Double
+          FieldAccess 1
+            Type Hfa4
+            Local this
+          Type Double
+          FieldAccess 1
+            Type Hfa4
+            Local other
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.1
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 logic.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $logic.1
+    bb4 logic.rhs.4
+      assign $logic.2
+        Type Boolean
+        FloatBinary F64 Equal
+          Type Double
+          FieldAccess 2
+            Type Hfa4
+            Local this
+          Type Double
+          FieldAccess 2
+            Type Hfa4
+            Local other
+      goto bb6
+    bb5 logic.short.5
+      assign $logic.2
+        Type Boolean
+        BoolLiteral false
+      goto bb6
+    bb6 logic.merge.6
+      branch bb7 bb8
+        Type Boolean
+        Local $logic.2
+    bb7 logic.rhs.7
+      assign $logic.3
+        Type Boolean
+        FloatBinary F64 Equal
+          Type Double
+          FieldAccess 3
+            Type Hfa4
+            Local this
+          Type Double
+          FieldAccess 3
+            Type Hfa4
+            Local other
+      goto bb9
+    bb8 logic.short.8
+      assign $logic.3
+        Type Boolean
+        BoolLiteral false
+      goto bb9
+    bb9 logic.merge.9
+      return
+        Type Boolean
+        Local $logic.3
+  fun Big.equals @fn1(this: Big, other: Big) -> Boolean
+    bb0 entry
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          FieldAccess 0
+            Type Big
+            Local this
+          Type Long
+          FieldAccess 0
+            Type Big
+            Local other
+    bb1 logic.rhs.1
+      assign $logic.1
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          FieldAccess 1
+            Type Big
+            Local this
+          Type Long
+          FieldAccess 1
+            Type Big
+            Local other
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.1
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 logic.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $logic.1
+    bb4 logic.rhs.4
+      assign $logic.2
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          FieldAccess 2
+            Type Big
+            Local this
+          Type Long
+          FieldAccess 2
+            Type Big
+            Local other
+      goto bb6
+    bb5 logic.short.5
+      assign $logic.2
+        Type Boolean
+        BoolLiteral false
+      goto bb6
+    bb6 logic.merge.6
+      branch bb7 bb8
+        Type Boolean
+        Local $logic.2
+    bb7 logic.rhs.7
+      assign $logic.3
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          FieldAccess 3
+            Type Big
+            Local this
+          Type Long
+          FieldAccess 3
+            Type Big
+            Local other
+      goto bb9
+    bb8 logic.short.8
+      assign $logic.3
+        Type Boolean
+        BoolLiteral false
+      goto bb9
+    bb9 logic.merge.9
+      branch bb10 bb11
+        Type Boolean
+        Local $logic.3
+    bb10 logic.rhs.10
+      assign $logic.4
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          FieldAccess 4
+            Type Big
+            Local this
+          Type Long
+          FieldAccess 4
+            Type Big
+            Local other
+      goto bb12
+    bb11 logic.short.11
+      assign $logic.4
+        Type Boolean
+        BoolLiteral false
+      goto bb12
+    bb12 logic.merge.12
+      return
+        Type Boolean
+        Local $logic.4
+  fun Worker.apply @fn2(this: Worker, value: Hfa4) -> Hfa4
+    bb0 entry
+      val $argument.0: Hfa4
+        Type Hfa4
+        Local value
+      val $parameter.value: Hfa4
+        Type Hfa4
+        Local $argument.0
+      call $call.1: Hfa4 = extern0 @m34_art_hfa direct
+        Type Hfa4
+        Local $parameter.value
+      return
+        Type Hfa4
+        Local $call.1
+  fun leaf @fn3(arg0: Hfa4) -> Hfa4 <no-gc>
+    bb0 entry
+      call $call.1: Hfa4 = extern0 @m34_art_hfa direct
+        Type Hfa4
+        Local arg0
+      return
+        Type Hfa4
+        Local $call.1
+  fun safe @fn4(arg0: Hfa4) -> Hfa4
+    bb0 entry
+      call $call.1: Hfa4 = extern1 @m34_art_hfa direct
+        Type Hfa4
+        Local arg0
+      return
+        Type Hfa4
+        Local $call.1
+  fun word @fn5(arg0: Wrap<Long>) -> Wrap<Long> <no-gc>
+    bb0 entry
+      call $call.1: Wrap<Long> = extern2 @m34_art_word direct
+        Type Wrap<Long>
+        Local arg0
+      return
+        Type Wrap<Long>
+        Local $call.1
+  fun nested @fn6(arg0: Wrap<Hfa4>) -> Wrap<Hfa4> <no-gc>
+    bb0 entry
+      call $call.1: Wrap<Hfa4> = extern3 @m34_art_nested direct
+        Type Wrap<Hfa4>
+        Local arg0
+      return
+        Type Wrap<Hfa4>
+        Local $call.1
+  fun large @fn7(arg0: Big) -> Big
+    bb0 entry
+      call $call.1: Big = extern4 @m34_art_big direct
+        Type Big
+        Local arg0
+      return
+        Type Big
+        Local $call.1
+  fun wrapped @fn8(value: Hfa4) -> Hfa4
+    bb0 entry
+      call @scoop_rt_gc_collect direct
+      val $argument.0: Hfa4
+        Type Hfa4
+        Local value
+      val $parameter.value: Hfa4
+        Type Hfa4
+        Local $argument.0
+      call $call.1: Hfa4 = extern1 @m34_art_hfa direct
+        Type Hfa4
+        Local $parameter.value
+      return
+        Type Hfa4
+        Local $call.1
+  fun Continuation.resume @fn9(this: Continuation<Hfa4>, value: Hfa4) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn10(this: Continuation<Hfa4>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn11(this: SuspendTask<Hfa4>, $completion: Continuation<Hfa4>) -> CoroutineStep<Hfa4>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn12(this: SuspendRegistration<Hfa4>, continuation: Continuation<Hfa4>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn13(this: Continuation<Big>, value: Big) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn14(this: Continuation<Big>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn15(this: SuspendTask<Big>, $completion: Continuation<Big>) -> CoroutineStep<Big>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn16(this: SuspendRegistration<Big>, continuation: Continuation<Big>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn17(this: Continuation<Transform>, value: Transform) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn18(this: Continuation<Transform>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn19(this: SuspendTask<Transform>, $completion: Continuation<Transform>) -> CoroutineStep<Transform>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn20(this: SuspendRegistration<Transform>, continuation: Continuation<Transform>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn21(this: Continuation<Worker>, value: Worker) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn22(this: Continuation<Worker>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn23(this: SuspendTask<Worker>, $completion: Continuation<Worker>) -> CoroutineStep<Worker>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn24(this: SuspendRegistration<Worker>, continuation: Continuation<Worker>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Transform.apply @fn25(this: Transform, value: Hfa4) -> Hfa4
+    bb0 entry
+      trap "call to abstract method `Transform.apply`"
+  fun init.Worker.$c0 @fn26(this: Worker) -> Unit
+    bb0 entry
+      return
+  fun ctor.Hfa4.$c0 @fn27(a: Double, b: Double, c: Double, d: Double) -> Hfa4 <no-gc>
+    bb0 entry
+      return
+        Type Hfa4
+        StructInit Hfa4
+          Type Double
+          Local a
+          Type Double
+          Local b
+          Type Double
+          Local c
+          Type Double
+          Local d
+  fun ctor.Big.$c2 @fn28(a: Long, b: Long, c: Long, d: Long, e: Long) -> Big <no-gc>
+    bb0 entry
+      return
+        Type Big
+        StructInit Big
+          Type Long
+          Local a
+          Type Long
+          Local b
+          Type Long
+          Local c
+          Type Long
+          Local d
+          Type Long
+          Local e
+  fun startCoroutine<Big> @fn29(task: SuspendTask<Big>, completion: Continuation<Big>) -> Unit
+    bb0 context.unwind
+      landing_pad cleanup=true
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb1 context.catch_unwind
+      landing_pad cleanup=true
+      end_catch
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb2 suspended
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb3 completed unwind bb0
+      call @fn13 interface Continuation<Big>[0]
+        Type Continuation<Big>
+        Local completion
+        Type Big
+        EnumField v0 f0
+          Type CoroutineStep<Big>
+          Local $step
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb4 failed unwind bb0
+      call @fn14 interface Continuation<Big>[1]
+        Type Continuation<Big>
+        Local completion
+        Type Throwable
+        Local $exception
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb5 body_failure unwind bb1
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb4
+    bb6 run unwind bb5
+      call $step: CoroutineStep<Big> = @fn15 interface SuspendTask<Big>[0]
+        Type SuspendTask<Big>
+        Local task
+        Type Continuation<Big>
+        Local completion
+      branch bb3 bb2
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Big>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+    bb7 entry
+      val $child_context: internal<task-context>
+        Type internal<task-context>
+        ContextFork
+          Type internal<context-node>
+          ContextSnapshot
+      val $context_guard: internal<context-switch-guard>
+        Type internal<context-switch-guard>
+        ContextEnter
+          Type internal<task-context>
+          Local $child_context
+      goto bb6
+  fun startCoroutine<Hfa4> @fn30(task: SuspendTask<Hfa4>, completion: Continuation<Hfa4>) -> Unit
+    bb0 context.unwind
+      landing_pad cleanup=true
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb1 context.catch_unwind
+      landing_pad cleanup=true
+      end_catch
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb2 suspended
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb3 completed unwind bb0
+      call @fn9 interface Continuation<Hfa4>[0]
+        Type Continuation<Hfa4>
+        Local completion
+        Type Hfa4
+        EnumField v0 f0
+          Type CoroutineStep<Hfa4>
+          Local $step
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb4 failed unwind bb0
+      call @fn10 interface Continuation<Hfa4>[1]
+        Type Continuation<Hfa4>
+        Local completion
+        Type Throwable
+        Local $exception
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb5 body_failure unwind bb1
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb4
+    bb6 run unwind bb5
+      call $step: CoroutineStep<Hfa4> = @fn11 interface SuspendTask<Hfa4>[0]
+        Type SuspendTask<Hfa4>
+        Local task
+        Type Continuation<Hfa4>
+        Local completion
+      branch bb3 bb2
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Hfa4>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+    bb7 entry
+      val $child_context: internal<task-context>
+        Type internal<task-context>
+        ContextFork
+          Type internal<context-node>
+          ContextSnapshot
+      val $context_guard: internal<context-switch-guard>
+        Type internal<context-switch-guard>
+        ContextEnter
+          Type internal<task-context>
+          Local $child_context
+      goto bb6
+  fun startCoroutine<Worker> @fn31(task: SuspendTask<Worker>, completion: Continuation<Worker>) -> Unit
+    bb0 context.unwind
+      landing_pad cleanup=true
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb1 context.catch_unwind
+      landing_pad cleanup=true
+      end_catch
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb2 suspended
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb3 completed unwind bb0
+      call @fn21 interface Continuation<Worker>[0]
+        Type Continuation<Worker>
+        Local completion
+        Type Worker
+        EnumField v0 f0
+          Type CoroutineStep<Worker>
+          Local $step
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb4 failed unwind bb0
+      call @fn22 interface Continuation<Worker>[1]
+        Type Continuation<Worker>
+        Local completion
+        Type Throwable
+        Local $exception
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb5 body_failure unwind bb1
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb4
+    bb6 run unwind bb5
+      call $step: CoroutineStep<Worker> = @fn23 interface SuspendTask<Worker>[0]
+        Type SuspendTask<Worker>
+        Local task
+        Type Continuation<Worker>
+        Local completion
+      branch bb3 bb2
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Worker>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+    bb7 entry
+      val $child_context: internal<task-context>
+        Type internal<task-context>
+        ContextFork
+          Type internal<context-node>
+          ContextSnapshot
+      val $context_guard: internal<context-switch-guard>
+        Type internal<context-switch-guard>
+        ContextEnter
+          Type internal<task-context>
+          Local $child_context
+      goto bb6
+  fun startCoroutine<Transform> @fn32(task: SuspendTask<Transform>, completion: Continuation<Transform>) -> Unit
+    bb0 context.unwind
+      landing_pad cleanup=true
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb1 context.catch_unwind
+      landing_pad cleanup=true
+      end_catch
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb2 suspended
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb3 completed unwind bb0
+      call @fn17 interface Continuation<Transform>[0]
+        Type Continuation<Transform>
+        Local completion
+        Type Transform
+        EnumField v0 f0
+          Type CoroutineStep<Transform>
+          Local $step
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb4 failed unwind bb0
+      call @fn18 interface Continuation<Transform>[1]
+        Type Continuation<Transform>
+        Local completion
+        Type Throwable
+        Local $exception
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb5 body_failure unwind bb1
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb4
+    bb6 run unwind bb5
+      call $step: CoroutineStep<Transform> = @fn19 interface SuspendTask<Transform>[0]
+        Type SuspendTask<Transform>
+        Local task
+        Type Continuation<Transform>
+        Local completion
+      branch bb3 bb2
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Transform>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+    bb7 entry
+      val $child_context: internal<task-context>
+        Type internal<task-context>
+        ContextFork
+          Type internal<context-node>
+          ContextSnapshot
+      val $context_guard: internal<context-switch-guard>
+        Type internal<context-switch-guard>
+        ContextEnter
+          Type internal<task-context>
+          Local $child_context
+      goto bb6
+  coroutine_step cs0 CoroutineStep<Big> result=Big
+  coroutine_step cs1 CoroutineStep<Hfa4> result=Hfa4
+  coroutine_step cs2 CoroutineStep<Worker> result=Worker
+  coroutine_step cs3 CoroutineStep<Transform> result=Transform
+  coroutine_slot cl0 CoroutineSlot<Big> value=Big
+  coroutine_slot cl1 CoroutineSlot<Hfa4> value=Hfa4
+  coroutine_slot cl2 CoroutineSlot<Worker> value=Worker
+  coroutine_slot cl3 CoroutineSlot<Transform> value=Transform
+  coroutine_start ct0 result=Big function=fn29
+  coroutine_start ct1 result=Hfa4 function=fn30
+  coroutine_start ct2 result=Worker function=fn31
+  coroutine_start ct3 result=Transform function=fn32
+  coroutine_fn cf0 @fn11 source_return=Hfa4 step=cs1 immediate
+  coroutine_fn cf1 @fn15 source_return=Big step=cs0 immediate
+  coroutine_fn cf2 @fn19 source_return=Transform step=cs3 immediate
+  coroutine_fn cf3 @fn23 source_return=Worker step=cs2 immediate
+  instance mi0 function=@fn9 <- Continuation.resume
+  instance mi1 function=@fn10 <- Continuation.resumeWithException
+  instance mi2 function=@fn11 <- SuspendTask.run
+  instance mi3 function=@fn12 <- SuspendRegistration.register
+  instance mi4 function=@fn13 <- Continuation.resume
+  instance mi5 function=@fn14 <- Continuation.resumeWithException
+  instance mi6 function=@fn15 <- SuspendTask.run
+  instance mi7 function=@fn16 <- SuspendRegistration.register
+  instance mi8 function=@fn17 <- Continuation.resume
+  instance mi9 function=@fn18 <- Continuation.resumeWithException
+  instance mi10 function=@fn19 <- SuspendTask.run
+  instance mi11 function=@fn20 <- SuspendRegistration.register
+  instance mi12 function=@fn21 <- Continuation.resume
+  instance mi13 function=@fn22 <- Continuation.resumeWithException
+  instance mi14 function=@fn23 <- SuspendTask.run
+  instance mi15 function=@fn24 <- SuspendRegistration.register
+  output library

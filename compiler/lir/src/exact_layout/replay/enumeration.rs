@@ -7,7 +7,7 @@ use scoop_identity::{
 
 use super::*;
 use crate::{
-    EnumStorageGeometryV1, EnumVariantGeometryInputV1, FieldStorageV1, NichePointerKind,
+    EnumStorageGeometryV1, EnumVariantGeometryInputV1, FieldStorageV1, NullNicheKind,
     StorageGeometryV1,
 };
 
@@ -15,7 +15,7 @@ use crate::{
 pub struct EnumLayoutFieldInputV1<'a> {
     pub field: &'a CborIdentityRecord<PersistentEnumVariantFieldId, EnumVariantFieldKey>,
     pub value: &'a ValueLayoutConstituentV1,
-    pub pointer_kind: Option<NichePointerKind>,
+    pub pointer_kind: Option<NullNicheKind>,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -35,8 +35,10 @@ impl ExactValueLayoutV1 {
         validate_variants(&identity, variants)?;
         if let Some((index, kind, payload)) = niche(variants) {
             let roles: &[RepresentationRole] = match kind {
-                NichePointerKind::Managed => &[RepresentationRole::ManagedValue],
-                NichePointerKind::Raw | NichePointerKind::Code => {
+                NullNicheKind::Managed | NullNicheKind::Interface => {
+                    &[RepresentationRole::ManagedValue]
+                }
+                NullNicheKind::Raw | NullNicheKind::Code => {
                     &[RepresentationRole::ManagedValue, RepresentationRole::CValue]
                 }
             };
@@ -183,7 +185,7 @@ fn validate_variants(
 
 fn niche<'a>(
     variants: &[EnumLayoutVariantInputV1<'a>],
-) -> Option<(usize, NichePointerKind, &'a ValueLayoutConstituentV1)> {
+) -> Option<(usize, NullNicheKind, &'a ValueLayoutConstituentV1)> {
     let [first, second] = variants else {
         return None;
     };

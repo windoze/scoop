@@ -1,0 +1,2115 @@
+Module
+  extern ef0 openNative @m33_platform_open(Ptr<Int8>, Int) -> (Int, Int) <abi=c no-gc capture-errno native-result=Int>
+  extern ef1 sizeNative @m33_platform_size(Ptr<Int8>) -> (Long, Int) <abi=c no-gc capture-errno native-result=Long>
+  extern ef2 entriesNative @m33_platform_entries(Ptr<Int8>) -> (Long, Int) <abi=c no-gc capture-errno native-result=Long>
+  extern ef3 readBytes @read(Int, Ptr<UInt8>, ULong) -> (Long, Int) <abi=c no-gc capture-errno native-result=Long>
+  extern ef4 writeBytes @write(Int, Ptr<UInt8>, ULong) -> (Long, Int) <abi=c no-gc capture-errno native-result=Long>
+  extern ef5 closeFile @close(Int) -> (Int, Int) <abi=c no-gc capture-errno native-result=Int>
+  extern ef6 spawnNative @m33_platform_spawn(FunPtr<(Ptr<Unit>) -> Int>, Ptr<Unit>) -> (Option<Ptr<Unit>>, Int) <abi=c no-gc capture-errno native-result=Option<Ptr<Unit>>>
+  extern ef7 joinNative @m33_platform_join(Ptr<Unit>) -> (Int, Int) <abi=c no-gc capture-errno native-result=Int>
+  foreign_callback_family fcf0 callback=ForeignCallback<(Ptr<Unit>) -> Int> state=ForeignCallbackState failure=Option<Throwable>
+  foreign_callback_bridge fcb0 family=fcf0 native=function_type0 managed=function_type4 context=0 mode=ForeignCallbackMode.OneShot adapter=@fn45
+  struct Thread (native: Ptr<Unit>, observer: ForeignCallback<(Ptr<Unit>) -> Int>)
+  struct ForeignCallback<(Ptr<Unit>) -> Int> (function: FunPtr<(Ptr<Unit>) -> Int>, context: Ptr<Unit>)
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum ForeignCallbackState
+    Registered()
+    Active()
+    Completed()
+    Failed()
+  enum Option<Ptr<Unit>>
+    Some(_0: Ptr<Unit>)
+    None()
+  enum Option<UInt8>
+    Some(_0: UInt8)
+    None()
+  enum ForeignCallbackMode
+    Reusable()
+    OneShot()
+  enum Option<Throwable>
+    Some(_0: Throwable)
+    None()
+  enum CoroutineStep<Thread>
+    Completed(value: Thread)
+    Suspended()
+  enum CoroutineSlot<Thread>
+    Empty()
+    Value(value: Thread)
+  class Throwable vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class IllegalArgumentException vtable=0 itables=0
+  class ListIterator<UInt8> vtable=0 itables=1
+  class IndexOutOfBoundsException vtable=0 itables=0
+  class box<Thread> vtable=0 itables=0
+  class box<Ptr<UInt8>> vtable=0 itables=1
+  class box<Long> vtable=0 itables=0
+  class box<(Long, Int)> vtable=0 itables=0
+  class box<(Int, Int)> vtable=0 itables=0
+  class box<Ptr<Int8>> vtable=0 itables=1
+  class box<UInt8> vtable=0 itables=0
+  interface Equality<Ptr<Int8>>
+  interface Equality<Ptr<UInt8>>
+  interface Equality<Ptr<Unit>>
+  interface List<UInt8> : Iterable<UInt8>
+  interface Iterable<UInt8>
+  interface Iterator<UInt8>
+  interface Continuation<Thread>
+  interface SuspendTask<Thread>
+  interface SuspendRegistration<Thread>
+  closure cc0 $Closure$lambda0 type=function_type6 invoke=@fn30 captures=2
+    bridge function_type1 -> @fn49 id=7e6449bb14e86500fe261a17a5440441000064f2434b36beaafd58f5b84b796d
+  closure cc1 $Closure$lambda1 type=function_type6 invoke=@fn33 captures=2
+    bridge function_type1 -> @fn50 id=af0083974b52205d950ff8dca672be55550dcea986b3e63d3d077a7304495130
+  closure cc2 $Closure$anonymous0 type=function_type2 invoke=@fn21 captures=0
+    bridge function_type1 -> @fn51 id=2f625c26c865955e24f6a2d5a9350e847b49f94e4b8143443089c1bcced3710c
+  closure cc3 $Closure$anonymous1 type=function_type2 invoke=@fn23 captures=0
+    bridge function_type1 -> @fn52 id=30de89389c6b1a6279357ff8df16a259f377c684eccd0f600b84e868505bd3bb
+  closure cc4 $Closure$anonymous2 type=function_type3 invoke=@fn24 captures=0
+    bridge function_type1 -> @fn53 id=97a48e9f69b557763347580f76c656f0eb67b141db1414ddb5a86003897dd7b0
+  closure cc5 $Closure$anonymous3 type=function_type3 invoke=@fn26 captures=0
+    bridge function_type1 -> @fn54 id=72209bbf84593487ae3efc4b32bc45cc55b3ff92847f730625b48ed7e110f329
+  closure cc6 $Closure$anonymous4 type=function_type7 invoke=@fn31 captures=1
+    bridge function_type8 -> @fn55 id=dd8c186015a38f4d20d5744a1bf6ab3e2ded18dc8115f454fb01e68955769fa4
+  closure cc7 $Closure$anonymous5 type=function_type9 invoke=@fn34 captures=1
+    bridge function_type8 -> @fn56 id=b6a8d5f4d7df2df34a11bc3f1b6bdf519d3a909639bbb1b44fefb568b2202a91
+  generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
+  generated_exact_type get1 location=class10 nominal_id=58ff4121272b144263966aefcbd1b5b3fd4532e5e029fe15fc026440f819e295 exact_id=1ac50f9dea3ea7c27d300cb0af209b0a7f8a03eac773273d47bcf2df16f620e8
+  generated_exact_type get2 location=class7 nominal_id=ff79a0503de88130ffa48142f1443438e16c84df3da435502ac2604d049255cc exact_id=20a6d63c7bf32d9a909415fae648f8809376ed5b8f874da3c9b6d855c295d3c9
+  generated_exact_type get3 location=closure4 nominal_id=72cd361ec47aebfce8b80d377f7bd6564d201ecd42055ef06a2e7bb9474e8a8f exact_id=22f4f05c04538d4c1623c270265f112d74ae8a913e01b61ba5ad747c7b2c04cd
+  generated_exact_type get4 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
+  generated_exact_type get5 location=closure7 nominal_id=8da714029de3883c044d16c8d9180d5a26edb0dfa31f98b2e97ec0c9b7110868 exact_id=3db952ebb9e3b11e26a666039ce9d79443e29b355324a9c1be0514d8d8600f93
+  generated_exact_type get6 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
+  generated_exact_type get7 location=closure2 nominal_id=9b8b0605d6d1c9fcca8343115b5951117eebfba1ca5257cf81a4ddbf0094a240 exact_id=54a0778f90d10181f3fe7c1e74b95cce983b08cc7c793fc0a61e9bf40682251d
+  generated_exact_type get8 location=class11 nominal_id=f899deb4166a3bbc8d0087df7d070b8b39b0f0bb0f1e3980f9361b0090dc97ec exact_id=7b73acd50e9944a7530292aeab91e26a05c7ae6a2d8ebea4ab22d2a968bebdee
+  generated_exact_type get9 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
+  generated_exact_type get10 location=closure0 nominal_id=b0a928ea8be33f39531f052ed1056a79fc216329a74e33d0d5fa659f79c4e37a exact_id=8a17b35bb869b3e164f4a9c491d1e9f7255f7d7a89dd6dea6dc58d829fd49eca
+  generated_exact_type get11 location=class12 nominal_id=a1f548de825e41e744a700acd0c0b4e990f558b029a6dbb975534902a29f965d exact_id=907a551295fb8605f305c99202ce79707bf42dcaf3db8f738ade05d5fb2e2564
+  generated_exact_type get12 location=closure6 nominal_id=7e0b5cc08aa0d2c8e2fcec38e4dedb4931ed5bdb9871a4d52122db33dc0f1572 exact_id=9b16c3699d89086beb54f35a5919a3b6f7e07c1e5ec1bd08bfe1fe171bd43131
+  generated_exact_type get13 location=closure5 nominal_id=7cb3c80a8c45deab47713583f4a76bfcb2f6d3ab8aa018df47d53e0e37699ca2 exact_id=a775a603d712b4969acd50c5bd41d2cfc68d935bf475b88eb5f57575cab028e2
+  generated_exact_type get14 location=class8 nominal_id=e4ec7d6b35190924acf349c23aa85b835331b1cde257b59a1cf209a4f577efb6 exact_id=acbd9a5050cdf37dd5a6fad9850d5d4669abd0b71fdf840928443f44fe027453
+  generated_exact_type get15 location=closure3 nominal_id=8f1c8ead8b883d4c24720d7a5370f24b4ff57888d257243fcadfdaf8680fe7e9 exact_id=b2a2bff248d39a27bb6f128c24bd0805338c674e008f2ec80f1825269a943b5c
+  generated_exact_type get16 location=class13 nominal_id=ea29b4b462ff68321554b9a22923fb4511a95fbd8a9db3ae48d8e354df33f1dd exact_id=bb6274a8ad942aaa9e497e7cf9cedec226cd43a70f4602c59619ea3af8ce965e
+  generated_exact_type get17 location=enum7 nominal_id=7f38a90f6ab4c6ec3461b5554888926c6dfed2f71dd163b02a81fe53d0395861 exact_id=d57e9d1f816691718f1169cbb04784e768a055d52d2f666f1d7a201e95961021
+  generated_exact_type get18 location=closure1 nominal_id=e8b2e81ef5113f40a47df57034a535633b186b407405d4853b08481208c97ae3 exact_id=ed00a7fda2201f1c1d61f2fd0ca5d563363269e6ab0ec56278b80c1f2c34bef3
+  generated_exact_type get19 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
+  generated_exact_type get20 location=class9 nominal_id=1019845dbac8b40486c7a8317715dddb4016698da08e810513dc12e31dd8b68f exact_id=f4ac53b66a5aaca260a9f537cf582a82b69042d884a570f92ccc8e738ababceb
+  generated_exact_type get21 location=enum6 nominal_id=525c52531d3dc523c6b34093c0223807006bb27ca84d8f69544eedaeb398c9b1 exact_id=fb888b70f968fb98d4b2bda5229925608e7902779f71ae3875d8ae02851b5e9f
+  generated_callable gc0 function=@fn45 id=1876f09c24933aa35fcc689eff5d314bc67c3e295119c887fe482bf8fa0a3766
+  generated_callable gc1 function=@fn51 id=2f625c26c865955e24f6a2d5a9350e847b49f94e4b8143443089c1bcced3710c
+  generated_callable gc2 function=@fn52 id=30de89389c6b1a6279357ff8df16a259f377c684eccd0f600b84e868505bd3bb
+  generated_callable gc3 function=@fn47 id=6c50a4c9e65e6baba3fe39e1ba87d275ce062f7a46e6ef0f217eb11d0048af9c
+  generated_callable gc4 function=@fn54 id=72209bbf84593487ae3efc4b32bc45cc55b3ff92847f730625b48ed7e110f329
+  generated_callable gc5 function=@fn48 id=72949478cf03cafe0562eb9390bb4c230ef44642421cb840038d08cb47967712
+  generated_callable gc6 function=@fn49 id=7e6449bb14e86500fe261a17a5440441000064f2434b36beaafd58f5b84b796d
+  generated_callable gc7 function=@fn53 id=97a48e9f69b557763347580f76c656f0eb67b141db1414ddb5a86003897dd7b0
+  generated_callable gc8 function=@fn50 id=af0083974b52205d950ff8dca672be55550dcea986b3e63d3d077a7304495130
+  generated_callable gc9 function=@fn56 id=b6a8d5f4d7df2df34a11bc3f1b6bdf519d3a909639bbb1b44fefb568b2202a91
+  generated_callable gc10 function=@fn46 id=b92a2596051242e1d03c7710a5a7048b9d4b14e5262b9502b3e0b4f65fbebff4
+  generated_callable gc11 function=@fn55 id=dd8c186015a38f4d20d5744a1bf6ab3e2ded18dc8115f454fb01e68955769fa4
+  fun equalTo @fn0(this: Ptr<Int8>, other: Ptr<Int8>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<Int8>
+        Type Ptr<Int8>
+        Local this
+      val $dependency.local.3: Ptr<Int8>
+        Type Ptr<Int8>
+        Local other
+      val $dependency.local.4: Ptr<Int8>
+        Type Ptr<Int8>
+        Local $dependency.local.3
+      call $call.1: Boolean = @fn18 direct
+        Type Ptr<Int8>
+        Local $dependency.local.2
+        Type Ptr<Int8>
+        Local $dependency.local.4
+      return
+        Type Boolean
+        Local $call.1
+  fun equalTo @fn1(this: Ptr<UInt8>, other: Ptr<UInt8>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<UInt8>
+        Type Ptr<UInt8>
+        Local this
+      val $dependency.local.3: Ptr<UInt8>
+        Type Ptr<UInt8>
+        Local other
+      val $dependency.local.4: Ptr<UInt8>
+        Type Ptr<UInt8>
+        Local $dependency.local.3
+      call $call.1: Boolean = @fn19 direct
+        Type Ptr<UInt8>
+        Local $dependency.local.2
+        Type Ptr<UInt8>
+        Local $dependency.local.4
+      return
+        Type Boolean
+        Local $call.1
+  fun equalTo @fn2(this: Ptr<Unit>, other: Ptr<Unit>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<Unit>
+        Type Ptr<Unit>
+        Local this
+      val $dependency.local.3: Ptr<Unit>
+        Type Ptr<Unit>
+        Local other
+      val $dependency.local.4: Ptr<Unit>
+        Type Ptr<Unit>
+        Local $dependency.local.3
+      call $call.1: Boolean = @fn20 direct
+        Type Ptr<Unit>
+        Local $dependency.local.2
+        Type Ptr<Unit>
+        Local $dependency.local.4
+      return
+        Type Boolean
+        Local $call.1
+  fun outputFlags @fn3() -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=577 bits=0x00000241
+  fun openNative @fn4(arg0: Ptr<Int8>, arg1: Int) -> (Int, Int)
+    bb0 entry
+      call $call.1: (Int, Int) = extern0 @m33_platform_open direct
+        Type Ptr<Int8>
+        Local arg0
+        Type Int
+        Local arg1
+      return
+        Type (Int, Int)
+        Local $call.1
+  fun sizeNative @fn5(arg0: Ptr<Int8>) -> (Long, Int)
+    bb0 entry
+      call $call.1: (Long, Int) = extern1 @m33_platform_size direct
+        Type Ptr<Int8>
+        Local arg0
+      return
+        Type (Long, Int)
+        Local $call.1
+  fun entriesNative @fn6(arg0: Ptr<Int8>) -> (Long, Int)
+    bb0 entry
+      call $call.1: (Long, Int) = extern2 @m33_platform_entries direct
+        Type Ptr<Int8>
+        Local arg0
+      return
+        Type (Long, Int)
+        Local $call.1
+  fun readBytes @fn7(arg0: Int, arg1: Ptr<UInt8>, arg2: ULong) -> (Long, Int)
+    bb0 entry
+      call $call.1: (Long, Int) = extern3 @read direct
+        Type Int
+        Local arg0
+        Type Ptr<UInt8>
+        Local arg1
+        Type ULong
+        Local arg2
+      return
+        Type (Long, Int)
+        Local $call.1
+  fun writeBytes @fn8(arg0: Int, arg1: Ptr<UInt8>, arg2: ULong) -> (Long, Int)
+    bb0 entry
+      call $call.1: (Long, Int) = extern4 @write direct
+        Type Int
+        Local arg0
+        Type Ptr<UInt8>
+        Local arg1
+        Type ULong
+        Local arg2
+      return
+        Type (Long, Int)
+        Local $call.1
+  fun closeFile @fn9(arg0: Int) -> (Int, Int)
+    bb0 entry
+      call $call.1: (Int, Int) = extern5 @close direct
+        Type Int
+        Local arg0
+      return
+        Type (Int, Int)
+        Local $call.1
+  fun openInput @fn10(path: String) -> (Int, Int)
+    bb0 entry
+      val $dependency.receiver: String
+        Type String
+        Local path
+      val $dependency.argument.0: (Ptr<Int8>) -> (Int, Int)
+        Type (Ptr<Int8>) -> (Int, Int)
+        ClosureAlloc cc2 $Closure$anonymous0
+      val $dependency.parameter.block: (Ptr<Int8>) -> (Int, Int)
+        Type (Ptr<Int8>) -> (Int, Int)
+        Local $dependency.argument.0
+      call $call.1: (Int, Int) = @fn22 direct
+        Type String
+        Local $dependency.receiver
+        Type (Ptr<Int8>) -> (Int, Int)
+        Local $dependency.parameter.block
+      return
+        Type (Int, Int)
+        Local $call.1
+  fun openOutput @fn11(path: String) -> (Int, Int)
+    bb0 entry
+      val $dependency.receiver: String
+        Type String
+        Local path
+      val $dependency.argument.0: (Ptr<Int8>) -> (Int, Int)
+        Type (Ptr<Int8>) -> (Int, Int)
+        ClosureAlloc cc3 $Closure$anonymous1
+      val $dependency.parameter.block: (Ptr<Int8>) -> (Int, Int)
+        Type (Ptr<Int8>) -> (Int, Int)
+        Local $dependency.argument.0
+      call $call.1: (Int, Int) = @fn22 direct
+        Type String
+        Local $dependency.receiver
+        Type (Ptr<Int8>) -> (Int, Int)
+        Local $dependency.parameter.block
+      return
+        Type (Int, Int)
+        Local $call.1
+  fun fileSize @fn12(path: String) -> (Long, Int)
+    bb0 entry
+      val $dependency.receiver: String
+        Type String
+        Local path
+      val $dependency.argument.0: (Ptr<Int8>) -> (Long, Int)
+        Type (Ptr<Int8>) -> (Long, Int)
+        ClosureAlloc cc4 $Closure$anonymous2
+      val $dependency.parameter.block: (Ptr<Int8>) -> (Long, Int)
+        Type (Ptr<Int8>) -> (Long, Int)
+        Local $dependency.argument.0
+      call $call.1: (Long, Int) = @fn25 direct
+        Type String
+        Local $dependency.receiver
+        Type (Ptr<Int8>) -> (Long, Int)
+        Local $dependency.parameter.block
+      return
+        Type (Long, Int)
+        Local $call.1
+  fun directoryEntries @fn13(path: String) -> (Long, Int)
+    bb0 entry
+      val $dependency.receiver: String
+        Type String
+        Local path
+      val $dependency.argument.0: (Ptr<Int8>) -> (Long, Int)
+        Type (Ptr<Int8>) -> (Long, Int)
+        ClosureAlloc cc5 $Closure$anonymous3
+      val $dependency.parameter.block: (Ptr<Int8>) -> (Long, Int)
+        Type (Ptr<Int8>) -> (Long, Int)
+        Local $dependency.argument.0
+      call $call.1: (Long, Int) = @fn25 direct
+        Type String
+        Local $dependency.receiver
+        Type (Ptr<Int8>) -> (Long, Int)
+        Local $dependency.parameter.block
+      return
+        Type (Long, Int)
+        Local $call.1
+  fun spawnNative @fn14(arg0: FunPtr<(Ptr<Unit>) -> Int>, arg1: Ptr<Unit>) -> (Option<Ptr<Unit>>, Int)
+    bb0 entry
+      call $call.1: (Option<Ptr<Unit>>, Int) = extern6 @m33_platform_spawn direct
+        Type FunPtr<(Ptr<Unit>) -> Int>
+        Local arg0
+        Type Ptr<Unit>
+        Local arg1
+      return
+        Type (Option<Ptr<Unit>>, Int)
+        Local $call.1
+  fun joinNative @fn15(arg0: Ptr<Unit>) -> (Int, Int)
+    bb0 entry
+      call $call.1: (Int, Int) = extern7 @m33_platform_join direct
+        Type Ptr<Unit>
+        Local arg0
+      return
+        Type (Int, Int)
+        Local $call.1
+  fun spawn @fn16(action: () -> Int) -> Thread
+    bb0 entry
+      val $dependency.argument.0: () -> Int
+        Type () -> Int
+        Local action
+      val $dependency.argument.1: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.argument.2: ForeignCallbackMode
+        Type ForeignCallbackMode
+        VariantConstruct ForeignCallbackMode v1
+      val $dependency.parameter.callback: () -> Int
+        Type () -> Int
+        Local $dependency.argument.0
+      val $dependency.parameter.contextIndex: Long
+        Type Long
+        Local $dependency.argument.1
+      val $dependency.parameter.mode: ForeignCallbackMode
+        Type ForeignCallbackMode
+        Local $dependency.argument.2
+      val callback: ForeignCallback<(Ptr<Unit>) -> Int>
+        Type ForeignCallback<(Ptr<Unit>) -> Int>
+        ForeignCallbackRegister fcb0 family=fcf0
+          Type () -> Int
+          Local $dependency.parameter.callback
+      val $dependency.argument.0: ForeignCallback<(Ptr<Unit>) -> Int>
+        Type ForeignCallback<(Ptr<Unit>) -> Int>
+        Local callback
+      val $dependency.parameter.callback: ForeignCallback<(Ptr<Unit>) -> Int>
+        Type ForeignCallback<(Ptr<Unit>) -> Int>
+        Local $dependency.argument.0
+      val observer: ForeignCallback<(Ptr<Unit>) -> Int>
+        Type ForeignCallback<(Ptr<Unit>) -> Int>
+        ForeignCallbackRetain family0
+          Type ForeignCallback<(Ptr<Unit>) -> Int>
+          Local $dependency.parameter.callback
+      val $argument.0: FunPtr<(Ptr<Unit>) -> Int>
+        Type FunPtr<(Ptr<Unit>) -> Int>
+        FieldAccess 0
+          Type ForeignCallback<(Ptr<Unit>) -> Int>
+          Local callback
+      val $argument.1: Ptr<Unit>
+        Type Ptr<Unit>
+        FieldAccess 1
+          Type ForeignCallback<(Ptr<Unit>) -> Int>
+          Local callback
+      val $parameter.function: FunPtr<(Ptr<Unit>) -> Int>
+        Type FunPtr<(Ptr<Unit>) -> Int>
+        Local $argument.0
+      val $parameter.context: Ptr<Unit>
+        Type Ptr<Unit>
+        Local $argument.1
+      call $binding.subject.0: (Option<Ptr<Unit>>, Int) = extern6 @m33_platform_spawn direct
+        Type FunPtr<(Ptr<Unit>) -> Int>
+        Local $parameter.function
+        Type Ptr<Unit>
+        Local $parameter.context
+      val $binding.projection.1: Option<Ptr<Unit>>
+        Type Option<Ptr<Unit>>
+        FieldAccess 0
+          Type (Option<Ptr<Unit>>, Int)
+          Local $binding.subject.0
+      val thread: Option<Ptr<Unit>>
+        Type Option<Ptr<Unit>>
+        Local $binding.projection.1
+      val $binding.projection.2: Int
+        Type Int
+        FieldAccess 1
+          Type (Option<Ptr<Unit>>, Int)
+          Local $binding.subject.0
+      val error: Int
+        Type Int
+        Local $binding.projection.2
+      val $when.1: Option<Ptr<Unit>>
+        Type Option<Ptr<Unit>>
+        Local thread
+      val $pattern.subject.2: Option<Ptr<Unit>>
+        Type Option<Ptr<Unit>>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Option<Ptr<Unit>> v1
+          Type Option<Ptr<Unit>>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val $dependency.argument.0: ForeignCallback<(Ptr<Unit>) -> Int>
+        Type ForeignCallback<(Ptr<Unit>) -> Int>
+        Local callback
+      val $dependency.parameter.callback: ForeignCallback<(Ptr<Unit>) -> Int>
+        Type ForeignCallback<(Ptr<Unit>) -> Int>
+        Local $dependency.argument.0
+      Type Unit
+      ForeignCallbackRelease family0
+        Type ForeignCallback<(Ptr<Unit>) -> Int>
+        Local $dependency.parameter.callback
+      val $dependency.argument.0: ForeignCallback<(Ptr<Unit>) -> Int>
+        Type ForeignCallback<(Ptr<Unit>) -> Int>
+        Local observer
+      val $dependency.parameter.callback: ForeignCallback<(Ptr<Unit>) -> Int>
+        Type ForeignCallback<(Ptr<Unit>) -> Int>
+        Local $dependency.argument.0
+      Type Unit
+      ForeignCallbackRelease family0
+        Type ForeignCallback<(Ptr<Unit>) -> Int>
+        Local $dependency.parameter.callback
+      val $default.local.0: String
+        Type String
+        StringConst @str0
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.1
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $new.1
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.1
+    bb2 pattern.else.2
+      val $pattern.subject.3: Option<Ptr<Unit>>
+        Type Option<Ptr<Unit>>
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Option<Ptr<Unit>> v0
+          Type Option<Ptr<Unit>>
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      unreachable
+    bb4 pattern.pass.4
+      val handle: Ptr<Unit>
+        Type Ptr<Unit>
+        VariantPayloadProject Option<Ptr<Unit>> v0 f0
+          Type Option<Ptr<Unit>>
+          Local $pattern.subject.3
+      val $argument.0: Ptr<Unit>
+        Type Ptr<Unit>
+        Local handle
+      val $argument.1: ForeignCallback<(Ptr<Unit>) -> Int>
+        Type ForeignCallback<(Ptr<Unit>) -> Int>
+        Local observer
+      val $parameter.native: Ptr<Unit>
+        Type Ptr<Unit>
+        Local $argument.0
+      val $parameter.observer: ForeignCallback<(Ptr<Unit>) -> Int>
+        Type ForeignCallback<(Ptr<Unit>) -> Int>
+        Local $argument.1
+      call $call.2: Thread = @fn44 direct
+        Type Ptr<Unit>
+        Local $parameter.native
+        Type ForeignCallback<(Ptr<Unit>) -> Int>
+        Local $parameter.observer
+      return
+        Type Thread
+        Local $call.2
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      unreachable
+  fun join @fn17(thread: Thread) -> Int
+    bb0 entry
+      val $argument.0: Ptr<Unit>
+        Type Ptr<Unit>
+        FieldAccess 0
+          Type Thread
+          Local thread
+      val $parameter.thread: Ptr<Unit>
+        Type Ptr<Unit>
+        Local $argument.0
+      call $binding.subject.3: (Int, Int) = extern7 @m33_platform_join direct
+        Type Ptr<Unit>
+        Local $parameter.thread
+      val $binding.projection.4: Int
+        Type Int
+        FieldAccess 0
+          Type (Int, Int)
+          Local $binding.subject.3
+      val result: Int
+        Type Int
+        Local $binding.projection.4
+      val $binding.projection.5: Int
+        Type Int
+        FieldAccess 1
+          Type (Int, Int)
+          Local $binding.subject.3
+      val error: Int
+        Type Int
+        Local $binding.projection.5
+      val $dependency.receiver: Int
+        Type Int
+        Local error
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb1 if.then.1
+      val $default.local.0: String
+        Type String
+        StringConst @str1
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.1
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $new.1
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.1
+    bb2 if.merge.2
+      goto bb8
+    bb3 try.unwind.3
+      landing_pad cleanup=false
+      goto bb4
+    bb4 try.dispatch.4
+      begin_catch
+      goto bb18
+    bb5 try.exit_pad.5
+      landing_pad cleanup=true
+      goto bb6
+    bb6 try.exit_cleanup.6
+      end_catch
+      resume
+    bb7 try.end.7
+      unreachable
+    bb8 try.body.8 unwind bb3
+      val $dependency.argument.0: ForeignCallback<(Ptr<Unit>) -> Int>
+        Type ForeignCallback<(Ptr<Unit>) -> Int>
+        FieldAccess 1
+          Type Thread
+          Local thread
+      val $dependency.parameter.callback: ForeignCallback<(Ptr<Unit>) -> Int>
+        Type ForeignCallback<(Ptr<Unit>) -> Int>
+        Local $dependency.argument.0
+      val $when.1: Option<Throwable>
+        Type Option<Throwable>
+        ForeignCallbackFailure family0
+          Type ForeignCallback<(Ptr<Unit>) -> Int>
+          Local $dependency.parameter.callback
+      val $pattern.subject.2: Option<Throwable>
+        Type Option<Throwable>
+        Local $when.1
+      branch bb9 bb10
+        Type Boolean
+        VariantTest Option<Throwable> v1
+          Type Option<Throwable>
+          Local $pattern.subject.2
+    bb9 pattern.pass.9 unwind bb3
+      goto bb11
+    bb10 pattern.else.10 unwind bb3
+      val $pattern.subject.3: Option<Throwable>
+        Type Option<Throwable>
+        Local $when.1
+      branch bb12 bb13
+        Type Boolean
+        VariantTest Option<Throwable> v0
+          Type Option<Throwable>
+          Local $pattern.subject.3
+    bb11 pattern.merge.11 unwind bb3
+      val $dependency.argument.0: ForeignCallback<(Ptr<Unit>) -> Int>
+        Type ForeignCallback<(Ptr<Unit>) -> Int>
+        FieldAccess 1
+          Type Thread
+          Local thread
+      val $dependency.parameter.callback: ForeignCallback<(Ptr<Unit>) -> Int>
+        Type ForeignCallback<(Ptr<Unit>) -> Int>
+        Local $dependency.argument.0
+      call $call.2: Boolean = external6 direct
+        Type ForeignCallbackState
+        ForeignCallbackState family0
+          Type ForeignCallback<(Ptr<Unit>) -> Int>
+          Local $dependency.parameter.callback
+        Type ForeignCallbackState
+        VariantConstruct ForeignCallbackState v2
+      branch bb15 bb16
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $call.2
+    bb12 pattern.pass.12 unwind bb3
+      val failure: Throwable
+        Type Throwable
+        VariantPayloadProject Option<Throwable> v0 f0
+          Type Option<Throwable>
+          Local $pattern.subject.3
+      throw unwind bb3
+        Type Throwable
+        Local failure
+    bb13 pattern.else.13 unwind bb3
+      unreachable
+    bb14 pattern.merge.14 unwind bb3
+      unreachable
+    bb15 if.then.15 unwind bb3
+      val $default.local.0: String
+        Type String
+        StringConst @str2
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.3
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $new.3
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw unwind bb3
+        Type IllegalStateException
+        Local $new.3
+    bb16 if.merge.16 unwind bb3
+      val $return.4: Int
+        Type Int
+        Local result
+      goto bb17
+    bb17 scope.17
+      val $dependency.argument.0: ForeignCallback<(Ptr<Unit>) -> Int>
+        Type ForeignCallback<(Ptr<Unit>) -> Int>
+        FieldAccess 1
+          Type Thread
+          Local thread
+      val $dependency.parameter.callback: ForeignCallback<(Ptr<Unit>) -> Int>
+        Type ForeignCallback<(Ptr<Unit>) -> Int>
+        Local $dependency.argument.0
+      Type Unit
+      ForeignCallbackRelease family0
+        Type ForeignCallback<(Ptr<Unit>) -> Int>
+        Local $dependency.parameter.callback
+      return
+        Type Int
+        Local $return.4
+    bb18 scope.18 unwind bb5
+      val $dependency.argument.0: ForeignCallback<(Ptr<Unit>) -> Int>
+        Type ForeignCallback<(Ptr<Unit>) -> Int>
+        FieldAccess 1
+          Type Thread
+          Local thread
+      val $dependency.parameter.callback: ForeignCallback<(Ptr<Unit>) -> Int>
+        Type ForeignCallback<(Ptr<Unit>) -> Int>
+        Local $dependency.argument.0
+      Type Unit
+      ForeignCallbackRelease family0
+        Type ForeignCallback<(Ptr<Unit>) -> Int>
+        Local $dependency.parameter.callback
+      rethrow unwind bb5
+  fun equals @fn18(this: Ptr<Int8>, other: Ptr<Int8>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<Int8>
+        Type Ptr<Int8>
+        Local this
+      val $dependency.local.4: ULong
+        Type ULong
+        PtrToULong
+          Type Ptr<Int8>
+          Local $dependency.local.2
+      val $dependency.local.3: Ptr<Int8>
+        Type Ptr<Int8>
+        Local other
+      return
+        Type Boolean
+        IntegerCompare equal operands=ULong result=Boolean
+          Type ULong
+          Local $dependency.local.4
+          Type ULong
+          PtrToULong
+            Type Ptr<Int8>
+            Local $dependency.local.3
+  fun equals @fn19(this: Ptr<UInt8>, other: Ptr<UInt8>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<UInt8>
+        Type Ptr<UInt8>
+        Local this
+      val $dependency.local.4: ULong
+        Type ULong
+        PtrToULong
+          Type Ptr<UInt8>
+          Local $dependency.local.2
+      val $dependency.local.3: Ptr<UInt8>
+        Type Ptr<UInt8>
+        Local other
+      return
+        Type Boolean
+        IntegerCompare equal operands=ULong result=Boolean
+          Type ULong
+          Local $dependency.local.4
+          Type ULong
+          PtrToULong
+            Type Ptr<UInt8>
+            Local $dependency.local.3
+  fun equals @fn20(this: Ptr<Unit>, other: Ptr<Unit>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<Unit>
+        Type Ptr<Unit>
+        Local this
+      val $dependency.local.4: ULong
+        Type ULong
+        PtrToULong
+          Type Ptr<Unit>
+          Local $dependency.local.2
+      val $dependency.local.3: Ptr<Unit>
+        Type Ptr<Unit>
+        Local other
+      return
+        Type Boolean
+        IntegerCompare equal operands=ULong result=Boolean
+          Type ULong
+          Local $dependency.local.4
+          Type ULong
+          PtrToULong
+            Type Ptr<Unit>
+            Local $dependency.local.3
+  fun $anonymous.0 @fn21($closure: (Ptr<Int8>) -> (Int, Int), pointer: Ptr<Int8>) -> (Int, Int)
+    bb0 entry
+      val $argument.0: Ptr<Int8>
+        Type Ptr<Int8>
+        Local pointer
+      val $argument.1: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $parameter.path: Ptr<Int8>
+        Type Ptr<Int8>
+        Local $argument.0
+      val $parameter.flags: Int
+        Type Int
+        Local $argument.1
+      call $call.1: (Int, Int) = extern0 @m33_platform_open direct
+        Type Ptr<Int8>
+        Local $parameter.path
+        Type Int
+        Local $parameter.flags
+      return
+        Type (Int, Int)
+        Local $call.1
+  fun $extension.withCString @fn22(this: String, block: (Ptr<Int8>) -> (Int, Int)) -> (Int, Int)
+    bb0 entry
+      val $dependency.local.2: String
+        Type String
+        Local this
+      call $dependency.local.3: Long = external1 direct
+        Type String
+        Local this
+      var $dependency.local.4: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      goto bb1
+    bb1 while.cond.1 <loop-header-poll>
+      val $dependency.local.6: Long
+        Type Long
+        Local $dependency.local.4
+      val $dependency.local.7: Long
+        Type Long
+        Local $dependency.local.3
+      val $dependency.local.8: Long
+        Type Long
+        Local $dependency.local.7
+      branch bb3 bb2
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Long result=Long
+            Type Long
+            Local $dependency.local.6
+            Type Long
+            Local $dependency.local.8
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb2 while.exit.2
+      val $dependency.local.19: Long
+        Type Long
+        Local $dependency.local.3
+      val $dependency.local.20: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.local.21: Long
+        Type Long
+        Local $dependency.local.20
+      val $dependency.local.22: Long
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.local.19
+          Type Long
+          Local $dependency.local.21
+      val $dependency.local.23: (Long) -> UInt8
+        Type (Long) -> UInt8
+        ClosureAlloc cc0 $Closure$lambda0
+          CaptureInit field=1
+            Type Long
+            Local $dependency.local.3
+          CaptureInit field=0
+            Type String
+            Local $dependency.local.2
+      val $dependency.local.24: Long
+        Type Long
+        Local $dependency.local.22
+      val $dependency.local.25: (Long) -> UInt8
+        Type (Long) -> UInt8
+        Local $dependency.local.23
+      val $array_size.1: Long
+        Type Long
+        Local $dependency.local.24
+      val $array_init.2: (Long) -> UInt8
+        Type (Long) -> UInt8
+        Local $dependency.local.25
+      branch bb6 bb7
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $array_size.1
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb3 while.body.3
+      val $dependency.local.9: String
+        Type String
+        Local $dependency.local.2
+      val $dependency.local.10: Long
+        Type Long
+        Local $dependency.local.4
+      val $dependency.local.11: String
+        Type String
+        Local $dependency.local.9
+      val $dependency.local.12: Long
+        Type Long
+        Local $dependency.local.10
+      call $call.1: Int8 = external2 direct
+        Type String
+        Local $dependency.local.11
+        Type Long
+        Local $dependency.local.12
+      branch bb4 bb5
+        Type Boolean
+        IntegerCompare equal operands=Int8 result=Boolean
+          Type Int8
+          Local $call.1
+          Type Int8
+          IntegerLiteral Int8 value=0 bits=0x00
+    bb4 if.then.4
+      val $dependency.local.13: String
+        Type String
+        StringConst @str3
+      val $dependency.local.14: String
+        Type String
+        Local $dependency.local.13
+      val $dependency.local.15: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $dependency.local.14
+      assign $new.2
+        Type IllegalArgumentException
+        ClassAlloc IllegalArgumentException
+      call external3 direct
+        Type IllegalArgumentException
+        Local $new.2
+        Type Option<String>
+        Local $dependency.local.15
+      throw
+        Type IllegalArgumentException
+        Local $new.2
+    bb5 if.merge.5
+      val $dependency.local.16: Long
+        Type Long
+        Local $dependency.local.4
+      val $dependency.local.17: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.local.18: Long
+        Type Long
+        Local $dependency.local.17
+      assign $dependency.local.4
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.local.16
+          Type Long
+          Local $dependency.local.18
+      goto bb1
+    bb6 if.then.6
+      assign $new.3
+        Type IllegalArgumentException
+        ClassAlloc IllegalArgumentException
+      call external4 direct
+        Type IllegalArgumentException
+        Local $new.3
+      throw
+        Type IllegalArgumentException
+        Local $new.3
+    bb7 if.merge.7
+      val $array.3: MutableArray<UInt8>
+        Type MutableArray<UInt8>
+        ArrayAllocate MutableArray<UInt8>
+          Type Long
+          Local $array_size.1
+      var $array_index.4: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      goto bb8
+    bb8 while.cond.8 <loop-header-poll>
+      branch bb10 bb9
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $array_index.4
+          Type Long
+          Local $array_size.1
+    bb9 while.exit.9
+      val $dependency.local.5: MutableArray<UInt8>
+        Type MutableArray<UInt8>
+        Local $array.3
+      val $dependency.local.26: MutableArray<UInt8>
+        Type MutableArray<UInt8>
+        Local $dependency.local.5
+      val $dependency.local.27: (Ptr<UInt8>, Long) -> (Int, Int)
+        Type (Ptr<UInt8>, Long) -> (Int, Int)
+        ClosureAlloc cc6 $Closure$anonymous4
+          CaptureInit field=0
+            Type (Ptr<Int8>) -> (Int, Int)
+            Local block
+      val $dependency.local.28: (Ptr<UInt8>, Long) -> (Int, Int)
+        Type (Ptr<UInt8>, Long) -> (Int, Int)
+        Local $dependency.local.27
+      call $call.4: (Int, Int) = @fn32 direct
+        Type MutableArray<UInt8>
+        Local $dependency.local.26
+        Type (Ptr<UInt8>, Long) -> (Int, Int)
+        Local $dependency.local.28
+      return
+        Type (Int, Int)
+        Local $call.4
+    bb10 while.body.10
+      call $array_value.5: UInt8 = <closure:function_type6> closure[function_type6]
+        Type (Long) -> UInt8
+        Local $array_init.2
+        Type Long
+        Local $array_index.4
+      array_set MutableArray<UInt8>
+        Type MutableArray<UInt8>
+        Local $array.3
+        Type Long
+        Local $array_index.4
+        Type UInt8
+        Local $array_value.5
+      assign $array_index.4
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $array_index.4
+          Type Long
+          IntegerLiteral Long value=1 bits=0x0000000000000001
+      goto bb8
+  fun $anonymous.1 @fn23($closure: (Ptr<Int8>) -> (Int, Int), pointer: Ptr<Int8>) -> (Int, Int)
+    bb0 entry
+      val $argument.0: Ptr<Int8>
+        Type Ptr<Int8>
+        Local pointer
+      call $argument.1: Int = @fn3 direct
+      val $parameter.path: Ptr<Int8>
+        Type Ptr<Int8>
+        Local $argument.0
+      val $parameter.flags: Int
+        Type Int
+        Local $argument.1
+      call $call.1: (Int, Int) = extern0 @m33_platform_open direct
+        Type Ptr<Int8>
+        Local $parameter.path
+        Type Int
+        Local $parameter.flags
+      return
+        Type (Int, Int)
+        Local $call.1
+  fun $anonymous.2 @fn24($closure: (Ptr<Int8>) -> (Long, Int), pointer: Ptr<Int8>) -> (Long, Int)
+    bb0 entry
+      val $argument.0: Ptr<Int8>
+        Type Ptr<Int8>
+        Local pointer
+      val $parameter.path: Ptr<Int8>
+        Type Ptr<Int8>
+        Local $argument.0
+      call $call.1: (Long, Int) = extern1 @m33_platform_size direct
+        Type Ptr<Int8>
+        Local $parameter.path
+      return
+        Type (Long, Int)
+        Local $call.1
+  fun $extension.withCString @fn25(this: String, block: (Ptr<Int8>) -> (Long, Int)) -> (Long, Int)
+    bb0 entry
+      val $dependency.local.2: String
+        Type String
+        Local this
+      call $dependency.local.3: Long = external1 direct
+        Type String
+        Local this
+      var $dependency.local.4: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      goto bb1
+    bb1 while.cond.1 <loop-header-poll>
+      val $dependency.local.6: Long
+        Type Long
+        Local $dependency.local.4
+      val $dependency.local.7: Long
+        Type Long
+        Local $dependency.local.3
+      val $dependency.local.8: Long
+        Type Long
+        Local $dependency.local.7
+      branch bb3 bb2
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Long result=Long
+            Type Long
+            Local $dependency.local.6
+            Type Long
+            Local $dependency.local.8
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb2 while.exit.2
+      val $dependency.local.19: Long
+        Type Long
+        Local $dependency.local.3
+      val $dependency.local.20: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.local.21: Long
+        Type Long
+        Local $dependency.local.20
+      val $dependency.local.22: Long
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.local.19
+          Type Long
+          Local $dependency.local.21
+      val $dependency.local.23: (Long) -> UInt8
+        Type (Long) -> UInt8
+        ClosureAlloc cc1 $Closure$lambda1
+          CaptureInit field=1
+            Type Long
+            Local $dependency.local.3
+          CaptureInit field=0
+            Type String
+            Local $dependency.local.2
+      val $dependency.local.24: Long
+        Type Long
+        Local $dependency.local.22
+      val $dependency.local.25: (Long) -> UInt8
+        Type (Long) -> UInt8
+        Local $dependency.local.23
+      val $array_size.1: Long
+        Type Long
+        Local $dependency.local.24
+      val $array_init.2: (Long) -> UInt8
+        Type (Long) -> UInt8
+        Local $dependency.local.25
+      branch bb6 bb7
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $array_size.1
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb3 while.body.3
+      val $dependency.local.9: String
+        Type String
+        Local $dependency.local.2
+      val $dependency.local.10: Long
+        Type Long
+        Local $dependency.local.4
+      val $dependency.local.11: String
+        Type String
+        Local $dependency.local.9
+      val $dependency.local.12: Long
+        Type Long
+        Local $dependency.local.10
+      call $call.1: Int8 = external2 direct
+        Type String
+        Local $dependency.local.11
+        Type Long
+        Local $dependency.local.12
+      branch bb4 bb5
+        Type Boolean
+        IntegerCompare equal operands=Int8 result=Boolean
+          Type Int8
+          Local $call.1
+          Type Int8
+          IntegerLiteral Int8 value=0 bits=0x00
+    bb4 if.then.4
+      val $dependency.local.13: String
+        Type String
+        StringConst @str4
+      val $dependency.local.14: String
+        Type String
+        Local $dependency.local.13
+      val $dependency.local.15: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $dependency.local.14
+      assign $new.2
+        Type IllegalArgumentException
+        ClassAlloc IllegalArgumentException
+      call external3 direct
+        Type IllegalArgumentException
+        Local $new.2
+        Type Option<String>
+        Local $dependency.local.15
+      throw
+        Type IllegalArgumentException
+        Local $new.2
+    bb5 if.merge.5
+      val $dependency.local.16: Long
+        Type Long
+        Local $dependency.local.4
+      val $dependency.local.17: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.local.18: Long
+        Type Long
+        Local $dependency.local.17
+      assign $dependency.local.4
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.local.16
+          Type Long
+          Local $dependency.local.18
+      goto bb1
+    bb6 if.then.6
+      assign $new.3
+        Type IllegalArgumentException
+        ClassAlloc IllegalArgumentException
+      call external4 direct
+        Type IllegalArgumentException
+        Local $new.3
+      throw
+        Type IllegalArgumentException
+        Local $new.3
+    bb7 if.merge.7
+      val $array.3: MutableArray<UInt8>
+        Type MutableArray<UInt8>
+        ArrayAllocate MutableArray<UInt8>
+          Type Long
+          Local $array_size.1
+      var $array_index.4: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      goto bb8
+    bb8 while.cond.8 <loop-header-poll>
+      branch bb10 bb9
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $array_index.4
+          Type Long
+          Local $array_size.1
+    bb9 while.exit.9
+      val $dependency.local.5: MutableArray<UInt8>
+        Type MutableArray<UInt8>
+        Local $array.3
+      val $dependency.local.26: MutableArray<UInt8>
+        Type MutableArray<UInt8>
+        Local $dependency.local.5
+      val $dependency.local.27: (Ptr<UInt8>, Long) -> (Long, Int)
+        Type (Ptr<UInt8>, Long) -> (Long, Int)
+        ClosureAlloc cc7 $Closure$anonymous5
+          CaptureInit field=0
+            Type (Ptr<Int8>) -> (Long, Int)
+            Local block
+      val $dependency.local.28: (Ptr<UInt8>, Long) -> (Long, Int)
+        Type (Ptr<UInt8>, Long) -> (Long, Int)
+        Local $dependency.local.27
+      call $call.4: (Long, Int) = @fn35 direct
+        Type MutableArray<UInt8>
+        Local $dependency.local.26
+        Type (Ptr<UInt8>, Long) -> (Long, Int)
+        Local $dependency.local.28
+      return
+        Type (Long, Int)
+        Local $call.4
+    bb10 while.body.10
+      call $array_value.5: UInt8 = <closure:function_type6> closure[function_type6]
+        Type (Long) -> UInt8
+        Local $array_init.2
+        Type Long
+        Local $array_index.4
+      array_set MutableArray<UInt8>
+        Type MutableArray<UInt8>
+        Local $array.3
+        Type Long
+        Local $array_index.4
+        Type UInt8
+        Local $array_value.5
+      assign $array_index.4
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $array_index.4
+          Type Long
+          IntegerLiteral Long value=1 bits=0x0000000000000001
+      goto bb8
+  fun $anonymous.3 @fn26($closure: (Ptr<Int8>) -> (Long, Int), pointer: Ptr<Int8>) -> (Long, Int)
+    bb0 entry
+      val $argument.0: Ptr<Int8>
+        Type Ptr<Int8>
+        Local pointer
+      val $parameter.path: Ptr<Int8>
+        Type Ptr<Int8>
+        Local $argument.0
+      call $call.1: (Long, Int) = extern2 @m33_platform_entries direct
+        Type Ptr<Int8>
+        Local $parameter.path
+      return
+        Type (Long, Int)
+        Local $call.1
+  fun iterator @fn27(this: MutableArray<UInt8>) -> Iterator<UInt8>
+    bb0 entry
+      val $dependency.local.1: List<UInt8>
+        Type List<UInt8>
+        Retype List<UInt8>
+          Type MutableArray<UInt8>
+          Local this
+      val $dependency.local.2: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.local.3: Boolean
+        Type Boolean
+        BoolLiteral false
+      val $dependency.local.4: List<UInt8>
+        Type List<UInt8>
+        Local $dependency.local.1
+      val $dependency.local.5: Long
+        Type Long
+        Local $dependency.local.2
+      val $dependency.local.6: Boolean
+        Type Boolean
+        Local $dependency.local.3
+      assign $new.1
+        Type ListIterator<UInt8>
+        ClassAlloc ListIterator<UInt8>
+      call @fn43 direct
+        Type ListIterator<UInt8>
+        Local $new.1
+        Type List<UInt8>
+        Local $dependency.local.4
+        Type Long
+        Local $dependency.local.5
+        Type Boolean
+        Local $dependency.local.6
+      return
+        Type Iterator<UInt8>
+        Retype Iterator<UInt8>
+          Type ListIterator<UInt8>
+          Local $new.1
+  fun get @fn28(this: MutableArray<UInt8>, index: Long) -> UInt8
+    bb0 entry
+      val $dependency.local.2: MutableArray<UInt8>
+        Type MutableArray<UInt8>
+        Local this
+      val $dependency.local.3: Long
+        Type Long
+        Local index
+      val $dependency.local.4: Long
+        Type Long
+        Local $dependency.local.3
+      val $arr.1: MutableArray<UInt8>
+        Type MutableArray<UInt8>
+        Local $dependency.local.2
+      val $idx.2: Long
+        Type Long
+        Local $dependency.local.4
+      branch bb2 bb1
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb1 logic.rhs.1
+      assign $logic.1
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          ArrayLen MutableArray<UInt8>
+            Type MutableArray<UInt8>
+            Local $arr.1
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.1
+        Type Boolean
+        BoolLiteral true
+      goto bb3
+    bb3 logic.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $logic.1
+    bb4 if.then.4
+      assign $new.2
+        Type IndexOutOfBoundsException
+        ClassAlloc IndexOutOfBoundsException
+      call external5 direct
+        Type IndexOutOfBoundsException
+        Local $new.2
+      throw
+        Type IndexOutOfBoundsException
+        Local $new.2
+    bb5 if.merge.5
+      return
+        Type UInt8
+        ArrayGet MutableArray<UInt8>
+          Type MutableArray<UInt8>
+          Local $arr.1
+          Type Long
+          Local $idx.2
+  fun size @fn29(this: MutableArray<UInt8>) -> Long
+    bb0 entry
+      val $dependency.local.1: MutableArray<UInt8>
+        Type MutableArray<UInt8>
+        Local this
+      return
+        Type Long
+        ArrayLen MutableArray<UInt8>
+          Type MutableArray<UInt8>
+          Local $dependency.local.1
+  fun $lambda @fn30($argument.0: (Long) -> UInt8, $argument.1: Long) -> UInt8
+    bb0 entry
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          Local $argument.1
+          Type Long
+          ClosureCapture cc0 1
+            Type (Long) -> UInt8
+            Local $argument.0
+    bb1 if.then.1
+      assign $dependency.local.6
+        Type UInt8
+        IntegerLiteral UInt8 value=0 bits=0x00
+      goto bb3
+    bb2 if.else.2
+      val $dependency.local.1: String
+        Type String
+        ClosureCapture cc0 0
+          Type (Long) -> UInt8
+          Local $argument.0
+      val $dependency.local.2: Long
+        Type Long
+        Local $argument.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.4: Long
+        Type Long
+        Local $dependency.local.2
+      call $dependency.local.5: Int8 = external2 direct
+        Type String
+        Local $dependency.local.3
+        Type Long
+        Local $dependency.local.4
+      assign $dependency.local.6
+        Type UInt8
+        IntegerConversion Int8 -> UInt8
+          Type Int8
+          Local $dependency.local.5
+      goto bb3
+    bb3 if.merge.3
+      return
+        Type UInt8
+        Local $dependency.local.6
+  fun $anonymous @fn31($argument.0: (Ptr<UInt8>, Long) -> (Int, Int), $argument.1: Ptr<UInt8>, $argument.2: Long) -> (Int, Int)
+    bb0 entry
+      val $dependency.local.3: (Ptr<Int8>) -> (Int, Int)
+        Type (Ptr<Int8>) -> (Int, Int)
+        ClosureCapture cc6 0
+          Type (Ptr<UInt8>, Long) -> (Int, Int)
+          Local $argument.0
+      val $dependency.local.2: Ptr<UInt8>
+        Type Ptr<UInt8>
+        Local $argument.1
+      call $call.1: (Int, Int) = <closure:function_type2> closure[function_type2]
+        Type (Ptr<Int8>) -> (Int, Int)
+        Local $dependency.local.3
+        Type Ptr<Int8>
+        PtrCast Int8
+          Type Ptr<UInt8>
+          Local $dependency.local.2
+      return
+        Type (Int, Int)
+        Local $call.1
+  fun $extension.withDataPointer @fn32(this: MutableArray<UInt8>, block: (Ptr<UInt8>, Long) -> (Int, Int)) -> (Int, Int)
+    bb0 entry
+      val $dependency.local.2: MutableArray<UInt8>
+        Type MutableArray<UInt8>
+        Local this
+      val $dependency.local.3: (Ptr<UInt8>, Long) -> (Int, Int)
+        Type (Ptr<UInt8>, Long) -> (Int, Int)
+        Local block
+      val $dependency.local.4: MutableArray<UInt8>
+        Type MutableArray<UInt8>
+        Local $dependency.local.2
+      val $dependency.local.5: (Ptr<UInt8>, Long) -> (Int, Int)
+        Type (Ptr<UInt8>, Long) -> (Int, Int)
+        Local $dependency.local.3
+      val $borrow_object.1: MutableArray<UInt8>
+        Type MutableArray<UInt8>
+        Local $dependency.local.4
+      val $borrow_block.2: (Ptr<UInt8>, Long) -> (Int, Int)
+        Type (Ptr<UInt8>, Long) -> (Int, Int)
+        Local $dependency.local.5
+      val $pin_frame.3: Ptr<Unit>
+        Type Ptr<Unit>
+        PushPinFrame
+          Type MutableArray<UInt8>
+          Local $borrow_object.1
+      goto bb6
+    bb1 try.unwind.1
+      landing_pad cleanup=false
+      goto bb2
+    bb2 try.dispatch.2
+      begin_catch
+      goto bb8
+    bb3 try.exit_pad.3
+      landing_pad cleanup=true
+      goto bb4
+    bb4 try.exit_cleanup.4
+      end_catch
+      resume
+    bb5 try.end.5
+      return
+        Type (Int, Int)
+        Local $borrow_result.4
+    bb6 try.body.6 unwind bb1
+      call $borrow_result.4: (Int, Int) = <closure:function_type7> closure[function_type7]
+        Type (Ptr<UInt8>, Long) -> (Int, Int)
+        Local $borrow_block.2
+        Type Ptr<UInt8>
+        BorrowDataPointer
+          Type MutableArray<UInt8>
+          Local $borrow_object.1
+        Type Long
+        BorrowDataLength
+          Type MutableArray<UInt8>
+          Local $borrow_object.1
+      goto bb7
+    bb7 scope.7
+      Type Unit
+      PopPinFrame
+        Type Ptr<Unit>
+        Local $pin_frame.3
+      goto bb5
+    bb8 scope.8 unwind bb3
+      Type Unit
+      PopPinFrame
+        Type Ptr<Unit>
+        Local $pin_frame.3
+      rethrow unwind bb3
+  fun $lambda @fn33($argument.0: (Long) -> UInt8, $argument.1: Long) -> UInt8
+    bb0 entry
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          Local $argument.1
+          Type Long
+          ClosureCapture cc1 1
+            Type (Long) -> UInt8
+            Local $argument.0
+    bb1 if.then.1
+      assign $dependency.local.6
+        Type UInt8
+        IntegerLiteral UInt8 value=0 bits=0x00
+      goto bb3
+    bb2 if.else.2
+      val $dependency.local.1: String
+        Type String
+        ClosureCapture cc1 0
+          Type (Long) -> UInt8
+          Local $argument.0
+      val $dependency.local.2: Long
+        Type Long
+        Local $argument.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.4: Long
+        Type Long
+        Local $dependency.local.2
+      call $dependency.local.5: Int8 = external2 direct
+        Type String
+        Local $dependency.local.3
+        Type Long
+        Local $dependency.local.4
+      assign $dependency.local.6
+        Type UInt8
+        IntegerConversion Int8 -> UInt8
+          Type Int8
+          Local $dependency.local.5
+      goto bb3
+    bb3 if.merge.3
+      return
+        Type UInt8
+        Local $dependency.local.6
+  fun $anonymous @fn34($argument.0: (Ptr<UInt8>, Long) -> (Long, Int), $argument.1: Ptr<UInt8>, $argument.2: Long) -> (Long, Int)
+    bb0 entry
+      val $dependency.local.3: (Ptr<Int8>) -> (Long, Int)
+        Type (Ptr<Int8>) -> (Long, Int)
+        ClosureCapture cc7 0
+          Type (Ptr<UInt8>, Long) -> (Long, Int)
+          Local $argument.0
+      val $dependency.local.2: Ptr<UInt8>
+        Type Ptr<UInt8>
+        Local $argument.1
+      call $call.1: (Long, Int) = <closure:function_type3> closure[function_type3]
+        Type (Ptr<Int8>) -> (Long, Int)
+        Local $dependency.local.3
+        Type Ptr<Int8>
+        PtrCast Int8
+          Type Ptr<UInt8>
+          Local $dependency.local.2
+      return
+        Type (Long, Int)
+        Local $call.1
+  fun $extension.withDataPointer @fn35(this: MutableArray<UInt8>, block: (Ptr<UInt8>, Long) -> (Long, Int)) -> (Long, Int)
+    bb0 entry
+      val $dependency.local.2: MutableArray<UInt8>
+        Type MutableArray<UInt8>
+        Local this
+      val $dependency.local.3: (Ptr<UInt8>, Long) -> (Long, Int)
+        Type (Ptr<UInt8>, Long) -> (Long, Int)
+        Local block
+      val $dependency.local.4: MutableArray<UInt8>
+        Type MutableArray<UInt8>
+        Local $dependency.local.2
+      val $dependency.local.5: (Ptr<UInt8>, Long) -> (Long, Int)
+        Type (Ptr<UInt8>, Long) -> (Long, Int)
+        Local $dependency.local.3
+      val $borrow_object.1: MutableArray<UInt8>
+        Type MutableArray<UInt8>
+        Local $dependency.local.4
+      val $borrow_block.2: (Ptr<UInt8>, Long) -> (Long, Int)
+        Type (Ptr<UInt8>, Long) -> (Long, Int)
+        Local $dependency.local.5
+      val $pin_frame.3: Ptr<Unit>
+        Type Ptr<Unit>
+        PushPinFrame
+          Type MutableArray<UInt8>
+          Local $borrow_object.1
+      goto bb6
+    bb1 try.unwind.1
+      landing_pad cleanup=false
+      goto bb2
+    bb2 try.dispatch.2
+      begin_catch
+      goto bb8
+    bb3 try.exit_pad.3
+      landing_pad cleanup=true
+      goto bb4
+    bb4 try.exit_cleanup.4
+      end_catch
+      resume
+    bb5 try.end.5
+      return
+        Type (Long, Int)
+        Local $borrow_result.4
+    bb6 try.body.6 unwind bb1
+      call $borrow_result.4: (Long, Int) = <closure:function_type9> closure[function_type9]
+        Type (Ptr<UInt8>, Long) -> (Long, Int)
+        Local $borrow_block.2
+        Type Ptr<UInt8>
+        BorrowDataPointer
+          Type MutableArray<UInt8>
+          Local $borrow_object.1
+        Type Long
+        BorrowDataLength
+          Type MutableArray<UInt8>
+          Local $borrow_object.1
+      goto bb7
+    bb7 scope.7
+      Type Unit
+      PopPinFrame
+        Type Ptr<Unit>
+        Local $pin_frame.3
+      goto bb5
+    bb8 scope.8 unwind bb3
+      Type Unit
+      PopPinFrame
+        Type Ptr<Unit>
+        Local $pin_frame.3
+      rethrow unwind bb3
+  fun next @fn36(this: ListIterator<UInt8>) -> Option<UInt8>
+    bb0 entry
+      branch bb1 bb2
+        Type Boolean
+        FieldAccess 2
+          Type ListIterator<UInt8>
+          Local this
+    bb1 if.then.1
+      return
+        Type Option<UInt8>
+        VariantConstruct Option<UInt8> v1
+    bb2 if.merge.2
+      val $dependency.local.2: Long
+        Type Long
+        FieldAccess 1
+          Type ListIterator<UInt8>
+          Local this
+      call $dependency.local.3: Long = @fn37 interface List<UInt8>[2]
+        Type List<UInt8>
+        FieldAccess 0
+          Type ListIterator<UInt8>
+          Local this
+      val $dependency.local.4: Long
+        Type Long
+        Local $dependency.local.3
+      branch bb3 bb4
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Long result=Long
+            Type Long
+            Local $dependency.local.2
+            Type Long
+            Local $dependency.local.4
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb3 if.then.3
+      field_set 2
+        Type ListIterator<UInt8>
+        Local this
+        Type Boolean
+        BoolLiteral true
+      return
+        Type Option<UInt8>
+        VariantConstruct Option<UInt8> v1
+    bb4 if.merge.4
+      val $dependency.local.5: List<UInt8>
+        Type List<UInt8>
+        FieldAccess 0
+          Type ListIterator<UInt8>
+          Local this
+      val $dependency.local.6: Long
+        Type Long
+        FieldAccess 1
+          Type ListIterator<UInt8>
+          Local this
+      val $dependency.local.7: Long
+        Type Long
+        Local $dependency.local.6
+      call $dependency.local.1: UInt8 = @fn38 interface List<UInt8>[1]
+        Type List<UInt8>
+        Local $dependency.local.5
+        Type Long
+        Local $dependency.local.7
+      val $dependency.local.8: Long
+        Type Long
+        FieldAccess 1
+          Type ListIterator<UInt8>
+          Local this
+      val $dependency.local.9: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.local.10: Long
+        Type Long
+        Local $dependency.local.9
+      field_set 1
+        Type ListIterator<UInt8>
+        Local this
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.local.8
+          Type Long
+          Local $dependency.local.10
+      val $dependency.local.11: UInt8
+        Type UInt8
+        Local $dependency.local.1
+      val $dependency.local.12: UInt8
+        Type UInt8
+        Local $dependency.local.11
+      return
+        Type Option<UInt8>
+        VariantConstruct Option<UInt8> v0
+          Type UInt8
+          Local $dependency.local.12
+  fun List.$get$size @fn37(this: List<UInt8>) -> Long
+    bb0 entry
+      trap "call to abstract method `List.$get$size`"
+  fun List.get @fn38(this: List<UInt8>, index: Long) -> UInt8
+    bb0 entry
+      trap "call to abstract method `List.get`"
+  fun Continuation.resume @fn39(this: Continuation<Thread>, value: Thread) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn40(this: Continuation<Thread>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn41(this: SuspendTask<Thread>, $completion: Continuation<Thread>) -> CoroutineStep<Thread>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn42(this: SuspendRegistration<Thread>, continuation: Continuation<Thread>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.ListIterator.$c0 @fn43(this: ListIterator<UInt8>, source: List<UInt8>, index: Long, exhausted: Boolean) -> Unit
+    bb0 entry
+      field_set 0
+        Type ListIterator<UInt8>
+        Local this
+        Type List<UInt8>
+        Local source
+      field_set 1
+        Type ListIterator<UInt8>
+        Local this
+        Type Long
+        Local index
+      field_set 2
+        Type ListIterator<UInt8>
+        Local this
+        Type Boolean
+        Local exhausted
+      return
+  fun ctor.Thread.$c0 @fn44(native: Ptr<Unit>, observer: ForeignCallback<(Ptr<Unit>) -> Int>) -> Thread <no-gc>
+    bb0 entry
+      return
+        Type Thread
+        StructInit Thread
+          Type Ptr<Unit>
+          Local native
+          Type ForeignCallback<(Ptr<Unit>) -> Int>
+          Local observer
+  fun foreign callback adapter 0 @fn45($closure: () -> Int, $snapshot: internal<context-node>, $result: Ptr<Int>, $arguments: Ptr<Ptr<Unit>>, $exception: Ptr<Throwable>) -> machine<foreign-callback-status>
+    bb0 context.unwind
+      landing_pad cleanup=true
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb1 context.catch_unwind
+      landing_pad cleanup=true
+      end_catch
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb2 callback.failure unwind bb1
+      landing_pad cleanup=false
+      begin_catch
+      call $caught: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      Type Unit
+      PtrStore Throwable
+        Type Ptr<Throwable>
+        Local $exception
+        Type Throwable
+        Local $caught
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+        Type machine<foreign-callback-status>
+        MachineScalarLiteral ForeignCallbackStatus(Threw)
+    bb3 callback.invoke unwind bb2
+      call $value: Int = <closure:function_type4> closure[function_type4]
+        Type () -> Int
+        Local $closure
+      Type Unit
+      PtrStore Int
+        Type Ptr<Int>
+        Local $result
+        Type Int
+        Local $value
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+        Type machine<foreign-callback-status>
+        MachineScalarLiteral ForeignCallbackStatus(Returned)
+    bb4 entry
+      val $child_context: internal<task-context>
+        Type internal<task-context>
+        ContextFork
+          Type internal<context-node>
+          Local $snapshot
+      val $context_guard: internal<context-switch-guard>
+        Type internal<context-switch-guard>
+        ContextEnter
+          Type internal<task-context>
+          Local $child_context
+      goto bb3
+  fun startCoroutine<Thread> @fn46(task: SuspendTask<Thread>, completion: Continuation<Thread>) -> Unit
+    bb0 context.unwind
+      landing_pad cleanup=true
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb1 context.catch_unwind
+      landing_pad cleanup=true
+      end_catch
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb2 suspended
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb3 completed unwind bb0
+      call @fn39 interface Continuation<Thread>[0]
+        Type Continuation<Thread>
+        Local completion
+        Type Thread
+        EnumField v0 f0
+          Type CoroutineStep<Thread>
+          Local $step
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb4 failed unwind bb0
+      call @fn40 interface Continuation<Thread>[1]
+        Type Continuation<Thread>
+        Local completion
+        Type Throwable
+        Local $exception
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb5 body_failure unwind bb1
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb4
+    bb6 run unwind bb5
+      call $step: CoroutineStep<Thread> = @fn41 interface SuspendTask<Thread>[0]
+        Type SuspendTask<Thread>
+        Local task
+        Type Continuation<Thread>
+        Local completion
+      branch bb3 bb2
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Thread>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+    bb7 entry
+      val $child_context: internal<task-context>
+        Type internal<task-context>
+        ContextFork
+          Type internal<context-node>
+          ContextSnapshot
+      val $context_guard: internal<context-switch-guard>
+        Type internal<context-switch-guard>
+        ContextEnter
+          Type internal<task-context>
+          Local $child_context
+      goto bb6
+  fun thunk<Ptr<UInt8>> Equality.equalTo(Ptr<UInt8>) @fn47(this: box<Ptr<UInt8>>, other: Ptr<UInt8>) -> Boolean
+    bb0 entry
+      call $call.1: Boolean = @fn1 direct
+        Type Ptr<UInt8>
+        Unbox
+          Type box<Ptr<UInt8>>
+          Local this
+        Type Ptr<UInt8>
+        Local other
+      return
+        Type Boolean
+        Local $call.1
+  fun thunk<Ptr<Int8>> Equality.equalTo(Ptr<Int8>) @fn48(this: box<Ptr<Int8>>, other: Ptr<Int8>) -> Boolean
+    bb0 entry
+      call $call.1: Boolean = @fn0 direct
+        Type Ptr<Int8>
+        Unbox
+          Type box<Ptr<Int8>>
+          Local this
+        Type Ptr<Int8>
+        Local other
+      return
+        Type Boolean
+        Local $call.1
+  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn49($source: (Long) -> UInt8, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: UInt8 = <closure:function_type6> closure[function_type6]
+        Type (Long) -> UInt8
+        Local $source
+        Type Long
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type UInt8
+          Local $call.1
+  fun function_bridge.$Closure$lambda1.(Any) -> Any @fn50($source: (Long) -> UInt8, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: UInt8 = <closure:function_type6> closure[function_type6]
+        Type (Long) -> UInt8
+        Local $source
+        Type Long
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type UInt8
+          Local $call.1
+  fun function_bridge.$Closure$anonymous0.(Any) -> Any @fn51($source: (Ptr<Int8>) -> (Int, Int), arg0: Any) -> Any
+    bb0 entry
+      call $call.1: (Int, Int) = <closure:function_type2> closure[function_type2]
+        Type (Ptr<Int8>) -> (Int, Int)
+        Local $source
+        Type Ptr<Int8>
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type (Int, Int)
+          Local $call.1
+  fun function_bridge.$Closure$anonymous1.(Any) -> Any @fn52($source: (Ptr<Int8>) -> (Int, Int), arg0: Any) -> Any
+    bb0 entry
+      call $call.1: (Int, Int) = <closure:function_type2> closure[function_type2]
+        Type (Ptr<Int8>) -> (Int, Int)
+        Local $source
+        Type Ptr<Int8>
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type (Int, Int)
+          Local $call.1
+  fun function_bridge.$Closure$anonymous2.(Any) -> Any @fn53($source: (Ptr<Int8>) -> (Long, Int), arg0: Any) -> Any
+    bb0 entry
+      call $call.1: (Long, Int) = <closure:function_type3> closure[function_type3]
+        Type (Ptr<Int8>) -> (Long, Int)
+        Local $source
+        Type Ptr<Int8>
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type (Long, Int)
+          Local $call.1
+  fun function_bridge.$Closure$anonymous3.(Any) -> Any @fn54($source: (Ptr<Int8>) -> (Long, Int), arg0: Any) -> Any
+    bb0 entry
+      call $call.1: (Long, Int) = <closure:function_type3> closure[function_type3]
+        Type (Ptr<Int8>) -> (Long, Int)
+        Local $source
+        Type Ptr<Int8>
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type (Long, Int)
+          Local $call.1
+  fun function_bridge.$Closure$anonymous4.(Any, Any) -> Any @fn55($source: (Ptr<UInt8>, Long) -> (Int, Int), arg0: Any, arg1: Any) -> Any
+    bb0 entry
+      call $call.1: (Int, Int) = <closure:function_type7> closure[function_type7]
+        Type (Ptr<UInt8>, Long) -> (Int, Int)
+        Local $source
+        Type Ptr<UInt8>
+        Unbox
+          Type Any
+          Local arg0
+        Type Long
+        Unbox
+          Type Any
+          Local arg1
+      return
+        Type Any
+        Box
+          Type (Int, Int)
+          Local $call.1
+  fun function_bridge.$Closure$anonymous5.(Any, Any) -> Any @fn56($source: (Ptr<UInt8>, Long) -> (Long, Int), arg0: Any, arg1: Any) -> Any
+    bb0 entry
+      call $call.1: (Long, Int) = <closure:function_type9> closure[function_type9]
+        Type (Ptr<UInt8>, Long) -> (Long, Int)
+        Local $source
+        Type Ptr<UInt8>
+        Unbox
+          Type Any
+          Local arg0
+        Type Long
+        Unbox
+          Type Any
+          Local arg1
+      return
+        Type Any
+        Box
+          Type (Long, Int)
+          Local $call.1
+  coroutine_step cs0 CoroutineStep<Thread> result=Thread
+  coroutine_slot cl0 CoroutineSlot<Thread> value=Thread
+  coroutine_start ct0 result=Thread function=fn46
+  coroutine_fn cf0 @fn41 source_return=Thread step=cs0 immediate
+  instance mi0 function=@fn0 <- equalTo
+  instance mi1 function=@fn1 <- equalTo
+  instance mi2 function=@fn2 <- equalTo
+  instance mi3 function=@fn18 <- equals
+  instance mi4 function=@fn19 <- equals
+  instance mi5 function=@fn20 <- equals
+  instance mi6 function=@fn22 <- $extension.withCString
+  instance mi7 function=@fn25 <- $extension.withCString
+  instance mi8 function=@fn27 <- iterator
+  instance mi9 function=@fn28 <- get
+  instance mi10 function=@fn29 <- size
+  instance mi11 function=@fn30 <- $lambda
+  instance mi12 function=@fn31 <- $anonymous
+  instance mi13 function=@fn32 <- $extension.withDataPointer
+  instance mi14 function=@fn33 <- $lambda
+  instance mi15 function=@fn34 <- $anonymous
+  instance mi16 function=@fn35 <- $extension.withDataPointer
+  instance mi17 function=@fn36 <- next
+  instance mi18 function=@fn37 <- List.$get$size
+  instance mi19 function=@fn38 <- List.get
+  instance mi20 function=@fn39 <- Continuation.resume
+  instance mi21 function=@fn40 <- Continuation.resumeWithException
+  instance mi22 function=@fn41 <- SuspendTask.run
+  instance mi23 function=@fn42 <- SuspendRegistration.register
+  str @str0 "illegal state"
+  str @str1 "illegal state"
+  str @str2 "illegal state"
+  str @str3 "illegal argument"
+  str @str4 "illegal argument"
+  output library

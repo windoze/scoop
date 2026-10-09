@@ -1550,12 +1550,12 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun thunk<ValueReader> Readable.read() @fn85(this: Readable) -> Int
+  fun thunk<ValueReader> Readable.read() @fn85(this: box<ValueReader>) -> Int
     bb0 entry
       call $call.1: Int = @fn0 direct
         Type ValueReader
         Unbox
-          Type Readable
+          Type box<ValueReader>
           Local this
       return
         Type Int

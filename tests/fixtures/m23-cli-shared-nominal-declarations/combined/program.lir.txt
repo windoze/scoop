@@ -196,7 +196,7 @@ Module
   td td1 a(n(c=test%3Ascoop-hir-lower%3A0.0.0;p=;o=C:Container;k=C;x=Visible);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=String)]) @scoop$1$td$82904d87539c97dafc109cfb0e680828a1ff9650d6a26b4fb5dce5a738d21570 type-id=1332366014149810763 shape=FixedObject minimum-size=16 align=8 parent=none vtable=[] itables=[]
   td td2 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=Option);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=String)]) @scoop$1$td$ae549cdc775dd9ab0e9bae5a7a2d6790f211d7978acd71210d6088d347896a35 type-id=12995891512699415417 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
   layout Option size=8 align=8 enum-scan=refs[0]
-  layout DeferredGeneric value size=8 align=8 refs=[0]
+  layout DeferredGeneric value size=16 align=8 refs=[0]
   layout Visible value size=8 align=8 refs=[0]
   layout Visible size=16 align=8 refs=[]
   output executable @scoop$1$cb$1497d9d6f37b19c975f19b69d943a43b734b2c378da6281d71b04dbde21c74c0

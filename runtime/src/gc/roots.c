@@ -60,7 +60,7 @@ bool scoop_gc_is_immortal_object_locked(const void *object) {
     return scoop_image_immortal(scoop_image_current(), object) != NULL;
 }
 
-bool scoop_gc_is_external_object_locked(const void *object) {
+static bool is_external_object(const void *object) {
     for (size_t index = 0; index < roots_len; index++) {
         if (roots[index].kind == SCOOP_GC_ROOT_EXTERNAL_OBJECT &&
             roots[index].source.external_object == object) {
@@ -68,6 +68,13 @@ bool scoop_gc_is_external_object_locked(const void *object) {
         }
     }
     return false;
+}
+
+bool scoop_gc_is_external_object_locked(const void *object) { return is_external_object(object); }
+
+bool scoop_gc_stw_is_stable_object(const void *object) {
+    return scoop_image_immortal(scoop_image_current(), object) != NULL ||
+           is_external_object(object);
 }
 
 bool scoop_gc_is_published_object(const void *object) {
@@ -131,8 +138,7 @@ void scoop_gc_visit_roots_locked(ScoopGcRootVisitor visitor) {
     const ScoopImageRegistry *registry = scoop_image_current();
     for (size_t index = 0; index < registry->static_root_count; index++) {
         const ScoopStaticStorageDescriptorV1 *storage = registry->static_roots[index];
-        visitor.visit_region(storage->writable_base, storage->scan_program,
-                             visitor.context);
+        visitor.visit_region(storage->writable_base, storage->scan_program, visitor.context);
     }
     for (size_t index = 0; index < roots_len; index++) {
         switch (roots[index].kind) {
@@ -140,8 +146,7 @@ void scoop_gc_visit_roots_locked(ScoopGcRootVisitor visitor) {
             visitor.visit_slot(roots[index].source.slot, visitor.context);
             break;
         case SCOOP_GC_ROOT_EXTERNAL_OBJECT:
-            visitor.visit_external_object(roots[index].source.external_object,
-                                          visitor.context);
+            visitor.visit_external_object(roots[index].source.external_object, visitor.context);
             break;
         }
     }

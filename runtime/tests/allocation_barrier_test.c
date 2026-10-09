@@ -46,14 +46,13 @@ static void collect(void) {
 static void check_metadata(void *object, size_t size) {
     scoop_gc_heap_lock();
     assert(scoop_gc_object_size_locked(object) == size);
-    uint32_t block_index;
+    ScoopGcBlockMeta *block;
     size_t word;
-    assert(scoop_heap_object_meta(object, &block_index, &word));
-    ScoopGcBlockMeta *block = &blocks[block_index];
+    assert(scoop_heap_object_meta(object, &block, &word));
     if (size <= GC_REGULAR_MAX) {
         assert(block->kind == SCOOP_BLOCK_KIND_SMALL);
         assert((size_t)block->size_units[word] * 8 == size);
-        size_t offset = (uintptr_t)object - (uintptr_t)scoop_heap_block_base(block_index);
+        size_t offset = (uintptr_t)object - (uintptr_t)scoop_heap_block_base(block);
         for (size_t line = offset / GC_LINE_SIZE; line <= (offset + size - 1) / GC_LINE_SIZE;
              line++) {
             assert(scoop_heap_bit_test(block->line_occupied, line));
@@ -72,14 +71,16 @@ static void *mark_shared_card(void *address) {
 }
 
 static void check_barrier(void *object, size_t size) {
-    unsigned char *cards = card_table_storage;
-    memset(cards, 0, GC_CARD_TABLE_SIZE);
+    ScoopGcRegion *region = scoop_heap_region_for_address((uintptr_t)object);
+    assert(region != NULL);
+    unsigned char *cards = region->cards;
+    memset(cards, 0, region->size >> GC_CARD_SHIFT);
     scoop_rt_gc_write_barrier(NULL, 0);
     uintptr_t address = (uintptr_t)object + 24;
     size_t bytes = size - 24;
     scoop_rt_gc_write_barrier((void *)address, bytes);
-    size_t first = (address - arena_base) >> GC_CARD_SHIFT;
-    size_t last = (address + bytes - 1 - arena_base) >> GC_CARD_SHIFT;
+    size_t first = (address - region->base) >> GC_CARD_SHIFT;
+    size_t last = (address + bytes - 1 - region->base) >> GC_CARD_SHIFT;
     assert(first == 0 || cards[first - 1] == 0);
     assert(cards[last + 1] == 0);
     for (size_t card = first; card <= last; card++) {
@@ -138,7 +139,7 @@ int main(void) {
     assert((uintptr_t)second - (uintptr_t)first == 80);
     check_metadata(second, 80);
     collect();
-    assert(scoop_rt_gc_debug_last_moved_count() > 0);
+    assert(scoop_rt_gc_debug_last_moved_count() == 0);
     for (size_t index = 0; index < SIZE_COUNT; index++) {
         check_metadata(objects[index], sizes[index]);
         const unsigned char *payload = objects[index];

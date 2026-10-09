@@ -1,0 +1,794 @@
+Module
+  global0 $singleton$Counts: Counts managed initial=zeroed-for-runtime-unit
+  global1 $singleton$Companion: Companion<Int> managed initial=zeroed-for-runtime-unit
+  global2 $singleton$Companion: Companion<String> managed initial=zeroed-for-runtime-unit
+  global3 $init$failure$0: Any managed initial=zeroed-for-runtime-unit
+  global4 $init$failure$1: Any managed initial=zeroed-for-runtime-unit
+  global5 $init$failure$2: Any managed initial=zeroed-for-runtime-unit
+  init0 object:Counts singleton lazy global0 initializer=@fn0 ensure=@fn1 failure=3 deps=[]
+  init1 companion:MaybeUninit.Companion singleton lazy global1 initializer=@fn5 ensure=@fn6 failure=4 deps=[]
+  init2 companion:MaybeUninit.Companion singleton lazy global2 initializer=@fn9 ensure=@fn10 failure=5 deps=[]
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum Option<Char>
+    Some(_0: Char)
+    None()
+  class Counts vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class Companion<Int> vtable=0 itables=0
+  class Companion<String> vtable=0 itables=0
+  class box<MaybeUninit<String>> vtable=0 itables=0
+  class box<Int> vtable=0 itables=0
+  class box<MaybeUninit<Int>> vtable=0 itables=0
+  interface ToString
+  interface Hash
+  interface Equality<Char>
+  interface Iterable<Char>
+  interface Iterator<Char>
+  interface Equality<String>
+  closure cc0 $Closure$reference0 type=function_type0 invoke=@fn11 captures=1
+    bridge function_type1 -> @fn17 id=a64569ecdd7fee9d4ac087001e51d3c6c12ca940c937c386a6e4f7862851aaef
+  closure cc1 $Closure$reference1 type=function_type2 invoke=@fn12 captures=1
+    bridge function_type3 -> @fn18 id=1dbc4c63a5c1656bae0fb66267b62cb646a4e816aae3599b10398a252e9214bc
+  closure cc2 $Closure$reference2 type=function_type4 invoke=@fn13 captures=1
+    bridge function_type3 -> @fn19 id=eb670d825619e5a8dd02df31091688d6978b56606167670ed09ac57a6db07e22
+  generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
+  generated_exact_type get1 location=closure2 nominal_id=38bfd76668f56461513c2980e06eb6a62d3a932ddbc2dd49113a06c44794b9c9 exact_id=3319545d7fcddb7a50a2abaf1d3c096f575c4d4b6f4d0bdd0151a596336abf5d
+  generated_exact_type get2 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
+  generated_exact_type get3 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
+  generated_exact_type get4 location=closure1 nominal_id=56d5d19f267f41cb4849f87bfe826b618342b73ab75285c52ff834be6990b45a exact_id=741a25eb051e92e6db12dc1e0b2be64aee656f85941de30a5f56d645a46f8f71
+  generated_exact_type get5 location=class8 nominal_id=2ccf3af472f973e7227a488741da7cd9e3639296badad3b00a29224dd93db566 exact_id=83f946c0a8becb1da98ab74a3ac84f3f76af3aee0349adc10b4f8f1bfb02ee98
+  generated_exact_type get6 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
+  generated_exact_type get7 location=class6 nominal_id=94859e26b9726c826bbd21a8ce23e3e7c73e6f382d3f9221e0a857b4c8a0d9aa exact_id=a9467c0f11fc88d2e81930126eedc9e16609b6cf581081945137bd56ba6e5100
+  generated_exact_type get8 location=closure0 nominal_id=f874136277b146368b5105d72074178ee40ec33e01f9439c28a2d7e1505cba93 exact_id=cb83ad14693bb4e9877fdfa2a03447b6878c94ccdd03acaa290b56769c654eba
+  generated_exact_type get9 location=class7 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_exact_type get10 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
+  generated_callable gc0 function=@fn18 id=1dbc4c63a5c1656bae0fb66267b62cb646a4e816aae3599b10398a252e9214bc
+  generated_callable gc1 function=@fn17 id=a64569ecdd7fee9d4ac087001e51d3c6c12ca940c937c386a6e4f7862851aaef
+  generated_callable gc2 function=@fn19 id=eb670d825619e5a8dd02df31091688d6978b56606167670ed09ac57a6db07e22
+  fun $init$body$0 @fn0() -> Unit
+    bb0 entry
+      assign $new.1
+        Type Counts
+        ClassAlloc Counts
+      val $inline.1.this: Counts
+        Type Counts
+        Local $new.1
+      goto bb2
+    bb1 inline.cont.1
+      global_assign $singleton$Counts
+        Type Counts
+        Local $new.1
+      return
+    bb2 inline.1.entry
+      field_set 0
+        Type Counts
+        Local $inline.1.this
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      goto bb1
+  fun $init$ensure$0 @fn1() -> Unit
+    bb0 entry
+      call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object:Counts
+      branch bb1 bb2
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(RunInitializer)
+    bb1 if.then.1
+      goto bb11
+    bb2 if.else.2
+      branch bb14 bb15
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Ready)
+    bb3 if.merge.3
+      return
+    bb4 try.unwind.4
+      landing_pad cleanup=false
+      goto bb5
+    bb5 try.dispatch.5
+      begin_catch
+      goto bb12
+    bb6 try.handler_pad.6
+      landing_pad cleanup=true
+      goto bb7
+    bb7 try.handler_cleanup.7
+      end_catch
+      resume
+    bb8 try.exit_pad.8
+      unreachable
+    bb9 try.exit_cleanup.9
+      unreachable
+    bb10 try.end.10
+      goto bb3
+    bb11 try.body.11 unwind bb4
+      call @fn0 direct
+      call @scoop_rt_init_succeed direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object:Counts
+      goto bb10
+    bb12 try.catch.12
+      call $catch.1: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val $init.caught: Any
+        Type Any
+        Retype Any
+          Type Any
+          Local $catch.1
+      goto bb13
+    bb13 scope.13 unwind bb6
+      call @scoop_rt_init_fail direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object:Counts
+        Type Any
+        Local $init.caught
+      throw unwind bb6
+        Type Any
+        Local $init.caught
+    bb14 if.then.14
+      goto bb16
+    bb15 if.else.15
+      branch bb17 bb18
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Failed)
+    bb16 if.merge.16
+      goto bb3
+    bb17 if.then.17
+      call $init.failure: Any = @scoop_rt_init_failure direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object:Counts
+      throw
+        Type Any
+        Local $init.failure
+    bb18 if.else.18
+      call $init.message: String = @scoop_rt_init_cycle_message direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object:Counts
+      call external4 direct
+        Type String
+        Local $init.message
+      unreachable
+    bb19 if.merge.19
+      unreachable
+  fun check @fn2(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.receiver: Boolean
+        Type Boolean
+        Local value
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+    bb1 if.then.1
+      val $default.local.0: String
+        Type String
+        StringConst @str0
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.1
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $new.1
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.1
+    bb2 if.merge.2
+      return
+  fun companion @fn3() -> Companion<Int>
+    bb0 entry
+      call @fn1 direct
+      val $place.0: Counts
+        Type Counts
+        GlobalRead $singleton$Counts
+      val $old.1: Int
+        Type Int
+        FieldAccess 0
+          Type Counts
+          Local $place.0
+      val $dependency.receiver: Int
+        Type Int
+        Local $old.1
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      field_set 0
+        Type Counts
+        Local $place.0
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          IntegerLiteral Int value=1 bits=0x00000001
+      call @fn6 direct
+      return
+        Type Companion<Int>
+        GlobalRead $singleton$Companion
+  fun main @fn4() -> Unit
+    bb0 entry
+      call @fn6 direct
+      val empty: () -> MaybeUninit<Int>
+        Type () -> MaybeUninit<Int>
+        ClosureAlloc cc0 $Closure$reference0
+          CaptureInit field=0
+            Type Companion<Int>
+            GlobalRead $singleton$Companion
+      call $call.1: Companion<Int> = @fn3 direct
+      val initialized: (Int) -> MaybeUninit<Int>
+        Type (Int) -> MaybeUninit<Int>
+        ClosureAlloc cc1 $Closure$reference1
+          CaptureInit field=0
+            Type Companion<Int>
+            Local $call.1
+      goto bb8
+    bb1 inline.cont.1
+      val $dependency.receiver: MaybeUninit<Int>
+        Type MaybeUninit<Int>
+        Local $inline.1.result
+      val $dependency.receiver: Int
+        Type Int
+        MaybeUninit.AssumeInit MaybeUninit
+          Type MaybeUninit<Int>
+          Local $dependency.receiver
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=53 bits=0x00000035
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=53 bits=0x00000035
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          IntegerLiteral Int value=53 bits=0x00000035
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn2 direct
+        Type Boolean
+        Local $parameter.value
+      call stored: MaybeUninit<String> = @fn13 direct
+        Type (String) -> MaybeUninit<String>
+        Local text
+        Type String
+        StringConst @str1
+      call @scoop_rt_gc_collect direct
+      val $dependency.receiver: MaybeUninit<String>
+        Type MaybeUninit<String>
+        Local stored
+      val $dependency.receiver: String
+        Type String
+        MaybeUninit.AssumeInit MaybeUninit
+          Type MaybeUninit<String>
+          Local $dependency.receiver
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str2
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $argument.0: Boolean = external1 direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn2 direct
+        Type Boolean
+        Local $parameter.value
+      call @fn1 direct
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Counts
+          GlobalRead $singleton$Counts
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn2 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str3
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn8 direct
+        Type String
+        Local $dependency.parameter.value
+      return
+    bb2 inline.1.entry
+      assign $inline.1.result
+        Type MaybeUninit<Int>
+        MaybeUninit.Initialized MaybeUninit
+          Type Int
+          IntegerLiteral Int value=53 bits=0x00000035
+      goto bb1
+    bb3 inline.cont.3
+      val $dependency.receiver: MaybeUninit<Int>
+        Type MaybeUninit<Int>
+        Local $inline.3.result
+      val $dependency.receiver: Int
+        Type Int
+        MaybeUninit.AssumeInit MaybeUninit
+          Type MaybeUninit<Int>
+          Local $dependency.receiver
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          IntegerLiteral Int value=42 bits=0x0000002a
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn2 direct
+        Type Boolean
+        Local $parameter.value
+      val $inline.1.$closure: (Int) -> MaybeUninit<Int>
+        Type (Int) -> MaybeUninit<Int>
+        Local initialized
+      val $inline.1.arg0: Int
+        Type Int
+        IntegerLiteral Int value=53 bits=0x00000035
+      goto bb2
+    bb4 inline.3.entry
+      assign $inline.3.result
+        Type MaybeUninit<Int>
+        MaybeUninit.Initialized MaybeUninit
+          Type Int
+          IntegerLiteral Int value=42 bits=0x0000002a
+      goto bb3
+    bb5 inline.cont.5
+      val $dependency.receiver: MaybeUninit<Int>
+        Type MaybeUninit<Int>
+        Local $inline.5.result
+      val $dependency.receiver: Int
+        Type Int
+        MaybeUninit.AssumeInit MaybeUninit
+          Type MaybeUninit<Int>
+          Local $dependency.receiver
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          IntegerLiteral Int value=0 bits=0x00000000
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn2 direct
+        Type Boolean
+        Local $parameter.value
+      val $inline.3.$closure: (Int) -> MaybeUninit<Int>
+        Type (Int) -> MaybeUninit<Int>
+        Local initialized
+      val $inline.3.arg0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      goto bb4
+    bb6 inline.5.entry
+      assign $inline.5.result
+        Type MaybeUninit<Int>
+        MaybeUninit.Uninit MaybeUninit
+      goto bb5
+    bb7 inline.cont.7
+      val text: (String) -> MaybeUninit<String>
+        Type (String) -> MaybeUninit<String>
+        Local $inline.7.result
+      call @scoop_rt_gc_collect direct
+      val $inline.5.$closure: () -> MaybeUninit<Int>
+        Type () -> MaybeUninit<Int>
+        Local empty
+      goto bb6
+    bb8 inline.7.entry
+      call @fn10 direct
+      assign $inline.7.result
+        Type (String) -> MaybeUninit<String>
+        ClosureAlloc cc2 $Closure$reference2
+          CaptureInit field=0
+            Type Companion<String>
+            GlobalRead $singleton$Companion
+      goto bb7
+  fun Companion$initialize$Initializer @fn5() -> Unit
+    bb0 entry
+      assign $new.1
+        Type Companion<Int>
+        ClassAlloc Companion<Int>
+      val $inline.1.this: Companion<Int>
+        Type Companion<Int>
+        Local $new.1
+      goto bb2
+    bb1 inline.cont.1
+      global_assign $singleton$Companion
+        Type Companion<Int>
+        Local $new.1
+      return
+    bb2 inline.1.entry
+      goto bb1
+  fun Companion$initialize$Ensure @fn6() -> Unit
+    bb0 entry
+      call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 companion:MaybeUninit.Companion
+      branch bb1 bb2
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(RunInitializer)
+    bb1 if.then.1
+      goto bb11
+    bb2 if.else.2
+      branch bb14 bb15
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Ready)
+    bb3 if.merge.3
+      return
+    bb4 try.unwind.4
+      landing_pad cleanup=false
+      goto bb5
+    bb5 try.dispatch.5
+      begin_catch
+      goto bb12
+    bb6 try.handler_pad.6
+      landing_pad cleanup=true
+      goto bb7
+    bb7 try.handler_cleanup.7
+      end_catch
+      resume
+    bb8 try.exit_pad.8
+      unreachable
+    bb9 try.exit_cleanup.9
+      unreachable
+    bb10 try.end.10
+      goto bb3
+    bb11 try.body.11 unwind bb4
+      call @fn5 direct
+      call @scoop_rt_init_succeed direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 companion:MaybeUninit.Companion
+      goto bb10
+    bb12 try.catch.12
+      call $catch.1: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val $init.caught: Any
+        Type Any
+        Retype Any
+          Type Any
+          Local $catch.1
+      goto bb13
+    bb13 scope.13 unwind bb6
+      call @scoop_rt_init_fail direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 companion:MaybeUninit.Companion
+        Type Any
+        Local $init.caught
+      throw unwind bb6
+        Type Any
+        Local $init.caught
+    bb14 if.then.14
+      goto bb16
+    bb15 if.else.15
+      branch bb17 bb18
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Failed)
+    bb16 if.merge.16
+      goto bb3
+    bb17 if.then.17
+      call $init.failure: Any = @scoop_rt_init_failure direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 companion:MaybeUninit.Companion
+      throw
+        Type Any
+        Local $init.failure
+    bb18 if.else.18
+      call $init.message: String = @scoop_rt_init_cycle_message direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 companion:MaybeUninit.Companion
+      call external4 direct
+        Type String
+        Local $init.message
+      unreachable
+    bb19 if.merge.19
+      unreachable
+  fun wrapper @fn7() -> (String) -> MaybeUninit<String>
+    bb0 entry
+      call @fn10 direct
+      return
+        Type (String) -> MaybeUninit<String>
+        ClosureAlloc cc2 $Closure$reference2
+          CaptureInit field=0
+            Type Companion<String>
+            GlobalRead $singleton$Companion
+  fun println @fn8(value: String) -> Unit
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local value
+      call $dependency.local.2: String = external2 direct
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external3 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str4
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external3 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun Companion$initialize$Initializer @fn9() -> Unit
+    bb0 entry
+      assign $new.1
+        Type Companion<String>
+        ClassAlloc Companion<String>
+      val $inline.1.this: Companion<String>
+        Type Companion<String>
+        Local $new.1
+      goto bb2
+    bb1 inline.cont.1
+      global_assign $singleton$Companion
+        Type Companion<String>
+        Local $new.1
+      return
+    bb2 inline.1.entry
+      goto bb1
+  fun Companion$initialize$Ensure @fn10() -> Unit
+    bb0 entry
+      call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init2 companion:MaybeUninit.Companion
+      branch bb1 bb2
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(RunInitializer)
+    bb1 if.then.1
+      goto bb11
+    bb2 if.else.2
+      branch bb14 bb15
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Ready)
+    bb3 if.merge.3
+      return
+    bb4 try.unwind.4
+      landing_pad cleanup=false
+      goto bb5
+    bb5 try.dispatch.5
+      begin_catch
+      goto bb12
+    bb6 try.handler_pad.6
+      landing_pad cleanup=true
+      goto bb7
+    bb7 try.handler_cleanup.7
+      end_catch
+      resume
+    bb8 try.exit_pad.8
+      unreachable
+    bb9 try.exit_cleanup.9
+      unreachable
+    bb10 try.end.10
+      goto bb3
+    bb11 try.body.11 unwind bb4
+      call @fn9 direct
+      call @scoop_rt_init_succeed direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init2 companion:MaybeUninit.Companion
+      goto bb10
+    bb12 try.catch.12
+      call $catch.1: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val $init.caught: Any
+        Type Any
+        Retype Any
+          Type Any
+          Local $catch.1
+      goto bb13
+    bb13 scope.13 unwind bb6
+      call @scoop_rt_init_fail direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init2 companion:MaybeUninit.Companion
+        Type Any
+        Local $init.caught
+      throw unwind bb6
+        Type Any
+        Local $init.caught
+    bb14 if.then.14
+      goto bb16
+    bb15 if.else.15
+      branch bb17 bb18
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Failed)
+    bb16 if.merge.16
+      goto bb3
+    bb17 if.then.17
+      call $init.failure: Any = @scoop_rt_init_failure direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init2 companion:MaybeUninit.Companion
+      throw
+        Type Any
+        Local $init.failure
+    bb18 if.else.18
+      call $init.message: String = @scoop_rt_init_cycle_message direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init2 companion:MaybeUninit.Companion
+      call external4 direct
+        Type String
+        Local $init.message
+      unreachable
+    bb19 if.merge.19
+      unreachable
+  fun $reference.0 @fn11($closure: () -> MaybeUninit<Int>) -> MaybeUninit<Int>
+    bb0 entry
+      return
+        Type MaybeUninit<Int>
+        MaybeUninit.Uninit MaybeUninit
+  fun $reference.1 @fn12($closure: (Int) -> MaybeUninit<Int>, arg0: Int) -> MaybeUninit<Int>
+    bb0 entry
+      return
+        Type MaybeUninit<Int>
+        MaybeUninit.Initialized MaybeUninit
+          Type Int
+          Local arg0
+  fun $reference.2 @fn13($closure: (String) -> MaybeUninit<String>, arg0: String) -> MaybeUninit<String>
+    bb0 entry
+      return
+        Type MaybeUninit<String>
+        MaybeUninit.Initialized MaybeUninit
+          Type String
+          Local arg0
+  fun init.Counts.$c0 @fn14(this: Counts) -> Unit
+    bb0 entry
+      field_set 0
+        Type Counts
+        Local this
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      return
+  fun init.Companion.$c0 @fn15(this: Companion<Int>) -> Unit
+    bb0 entry
+      return
+  fun init.Companion.$c0 @fn16(this: Companion<String>) -> Unit
+    bb0 entry
+      return
+  fun function_bridge.$Closure$reference0.() -> Any @fn17($source: () -> MaybeUninit<Int>) -> Any
+    bb0 entry
+      call $call.1: MaybeUninit<Int> = <closure:function_type0> closure[function_type0]
+        Type () -> MaybeUninit<Int>
+        Local $source
+      return
+        Type Any
+        Box
+          Type MaybeUninit<Int>
+          Local $call.1
+  fun function_bridge.$Closure$reference1.(Any) -> Any @fn18($source: (Int) -> MaybeUninit<Int>, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: MaybeUninit<Int> = <closure:function_type2> closure[function_type2]
+        Type (Int) -> MaybeUninit<Int>
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type MaybeUninit<Int>
+          Local $call.1
+  fun function_bridge.$Closure$reference2.(Any) -> Any @fn19($source: (String) -> MaybeUninit<String>, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: MaybeUninit<String> = <closure:function_type4> closure[function_type4]
+        Type (String) -> MaybeUninit<String>
+        Local $source
+        Type String
+        Retype String
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type MaybeUninit<String>
+          Local $call.1
+  instance mi0 function=@fn5 <- Companion$initialize$Initializer
+  instance mi1 function=@fn6 <- Companion$initialize$Ensure
+  instance mi2 function=@fn7 <- wrapper
+  instance mi3 function=@fn8 <- println
+  instance mi4 function=@fn9 <- Companion$initialize$Initializer
+  instance mi5 function=@fn10 <- Companion$initialize$Ensure
+  str @str0 "illegal state"
+  str @str1 "wrapped"
+  str @str2 "wrapped"
+  str @str3 "maybe callables"
+  str @str4 "\n"
+  output executable @fn4

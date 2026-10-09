@@ -86,27 +86,25 @@ Module
     local %0 $dependency.local.1: struct0
     local %1 $dependency.local.2: i32
     local %2 $dependency.local.3: i32
-    local %3 $sc.1: struct0
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     store integer<Int>(0x0000002a) -> local1
     store local1 -> local2
-    call no-gc-indirect-target0 local3 = sig=indirect0 (sret struct0 size=4 align=4 scan=none, i32) local-fn4(local2)
-    store local3 -> local0
+    call no-gc-direct-target0 t0 = sig=direct0 (i32) -> struct0 local-fn4(local2)
+    store t0 -> local0
     ret param0
   fun @scoop$1$cb$20b010856be2fa6053ef7368bfd7cf19d8addf7cf30e78c1e1707196fa80bddd(ptr<managed>) -> ptr<managed>
     local %0 $dependency.local.1: struct0
     local %1 $dependency.local.2: i32
     local %2 $dependency.local.3: i32
-    local %3 $sc.1: struct0
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
     store integer<Int>(0x0000002a) -> local1
     store local1 -> local2
-    call no-gc-indirect-target0 local3 = sig=indirect0 (sret struct0 size=4 align=4 scan=none, i32) local-fn4(local2)
-    store local3 -> local0
+    call no-gc-direct-target0 t0 = sig=direct0 (i32) -> struct0 local-fn4(local2)
+    store t0 -> local0
     ret param0
-  fun @scoop$1$cb$e9d5cf711ed63897282add656ea363a4eaf9506d7423a2fe25dd3ae76fcf65f4(i32) -> sret<struct0 size=4 align=4 scan=none> <no-gc>
+  fun @scoop$1$cb$e9d5cf711ed63897282add656ea363a4eaf9506d7423a2fe25dd3ae76fcf65f4(i32) -> parts<struct0 [i32@0+4/4]> <no-gc>
   block entry
     t0 = aggregate (param0) : struct0
     ret t0

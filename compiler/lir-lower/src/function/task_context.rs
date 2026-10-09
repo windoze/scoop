@@ -19,7 +19,8 @@ impl FunctionLowerer<'_> {
                 vec![lir::Value::ContextKeyCell(*key)],
             ),
             Op::Push { key, value } => {
-                let value = self.lower_expr(value)?;
+                let lowered = self.lower_expr(value)?;
+                let value = self.reference_object(lowered, &value.ty);
                 let task = self.emit_plain_call(
                     leaf(Leaf::ContextCurrent),
                     vec![],
@@ -93,7 +94,10 @@ impl FunctionLowerer<'_> {
                 });
                 Ok(lir::Value::Temp(out))
             }
-            Op::UnwrapBinding { binding } => self.lower_expr(binding),
+            Op::UnwrapBinding { binding } => {
+                let object = self.lower_expr(binding)?;
+                self.restore_reference_value(object, ty)
+            }
             Op::EnsureRoot => {
                 let descriptor = self.context_descriptor(mir::ContextStorageRole::Task);
                 self.emit_plain_call(

@@ -74,7 +74,7 @@ pub(super) fn intrinsic_layout(
         | IntrinsicTypeKind::MutableArray
         | IntrinsicTypeKind::Any
         | IntrinsicTypeKind::Nothing => Ok(pointer(target, scoop_lir::PointerKind::Managed, false)),
-        IntrinsicTypeKind::Ptr | IntrinsicTypeKind::FunPtr => {
+        IntrinsicTypeKind::Ptr | IntrinsicTypeKind::FunPtr | IntrinsicTypeKind::MaybeUninit => {
             Err(NativeBoundaryTargetError::InvalidSignatureShape.into())
         }
     }

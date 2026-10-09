@@ -8,10 +8,10 @@ Module
   class IllegalStateException vtable=0 itables=0
   class Exception vtable=0 itables=0
   class Throwable vtable=0 itables=0
-  class Factory vtable=1 itables=2
-  class Child vtable=1 itables=2
-  class FinalReader vtable=0 itables=1
-  class DeferredRoot vtable=0 itables=1
+  class Factory vtable=1 itables=0
+  class Child vtable=1 itables=0
+  class FinalReader vtable=0 itables=0
+  class DeferredRoot vtable=0 itables=0
   class box<Value> vtable=0 itables=0
   interface Root : Readable
   interface Readable

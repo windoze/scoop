@@ -376,6 +376,22 @@ impl BodyLowerer<'_> {
             hir::ExprKind::Atomic(atomic) => {
                 smir::ExprKind::Atomic(Box::new(atomic.map(|value| self.lower_expr(value))))
             }
+            hir::ExprKind::MaybeUninit(operation) => {
+                let kind = match operation {
+                    hir::MaybeUninitOperation::Uninit => hir::MaybeUninitIntrinsic::Uninit,
+                    hir::MaybeUninitOperation::Initialized(_) => {
+                        hir::MaybeUninitIntrinsic::Initialized
+                    }
+                    hir::MaybeUninitOperation::AssumeInit(_) => {
+                        hir::MaybeUninitIntrinsic::AssumeInit
+                    }
+                };
+                return self.lower_maybe_uninit(
+                    kind,
+                    operation.operand().map(Box::as_ref),
+                    expr.ty,
+                );
+            }
             hir::ExprKind::PtrFromNonZeroULong(operand) => {
                 let mir::Type::Ptr(pointee) = self.lower_type(expr.ty) else {
                     unreachable!("PtrFromNonZeroULong has a pointer type")

@@ -78,7 +78,7 @@ checks = [
   {"file" = "${work}/dump/consumer/${consumer.result.root.identity}/ast.txt", "snapshot" = "consumer.ast.txt"},
   {"file" = "${work}/dump/consumer/${consumer.result.root.identity}/hir.txt", "snapshot" = "consumer.hir.txt"},
   {"file" = "${work}/dump/consumer/${consumer.result.root.identity}/mir.txt", "snapshot" = "consumer.mir.txt"},
-  {"file" = "${work}/dump/consumer/${consumer.result.root.identity}/lir.txt", "snapshot" = "consumer.lir.txt"},
+  {"file" = "${work}/dump/consumer/${consumer.result.root.identity}/lir.txt", "snapshot" = "consumer.${target}.lir.txt"},
   {"file" = "${work}/dump/consumer/${consumer.result.root.identity}/hir.txt", "not_contains" = "\n  class Box"},
   {"file" = "${work}/dump/consumer/${consumer.result.root.identity}/hir.txt", "contains" = "arguments: Method {"},
 ]

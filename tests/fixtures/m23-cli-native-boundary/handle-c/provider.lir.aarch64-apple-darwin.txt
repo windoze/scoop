@@ -1,6 +1,6 @@
 Module
   extern ef0 handleRoundTrip @handle_round_trip(i64) -> i64 <c exact=(ULong)->ULong direct-c=(i64)->i64 gc-leaf nounwind>
-  fun @scoop$1$cb$76928f3d698834740317bd6f3661fd3140b223e8e8ed4f569c090172724ce3ab(indirect<struct0 size=8 align=8 scan=none>) -> sret<struct0 size=8 align=8 scan=none>
+  fun @scoop$1$cb$76928f3d698834740317bd6f3661fd3140b223e8e8ed4f569c090172724ce3ab(parts<struct0 [i64@0+8/8]>) -> parts<struct0 [i64@0+8/8]>
     local %0 $call.1: struct0
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
@@ -15,20 +15,19 @@ Module
     local %2 $argument.0: struct0
     local %3 $parameter.value: struct0
     local %4 result: struct0
-    local %5 $sc.1: struct0
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     store integer<ULong>(0x000000000000002a) -> local0
     store local0 -> local1
-    call no-gc-indirect-target0 local5 = sig=indirect0 (sret struct0 size=8 align=8 scan=none, i64) local-fn2(local1)
-    store local5 -> local2
+    call no-gc-direct-target0 t0 = sig=direct0 (i64) -> struct0 local-fn2(local1)
+    store t0 -> local2
     store local2 -> local3
-    t0 = extract local3, 0 : i64
-    call native-safe-direct-target0 sp<native-safe:0> roots=[] t1 = sig=direct0 (i64) -> i64 extern0(t0)
-    t2 = aggregate (t1) : struct0
-    store t2 -> local4
+    t1 = extract local3, 0 : i64
+    call native-safe-direct-target0 sp<native-safe:0> roots=[] t2 = sig=direct1 (i64) -> i64 extern0(t1)
+    t3 = aggregate (t2) : struct0
+    store t3 -> local4
     ret
-  fun @scoop$1$cb$5de9fd09d6fd1391d730b0fb135fd200662f47e2a13fa4abae2c32adecb95e97(i64) -> sret<struct0 size=8 align=8 scan=none> <no-gc>
+  fun @scoop$1$cb$5de9fd09d6fd1391d730b0fb135fd200662f47e2a13fa4abae2c32adecb95e97(i64) -> parts<struct0 [i64@0+8/8]> <no-gc>
   block entry
     t0 = aggregate (param0) : struct0
     ret t0

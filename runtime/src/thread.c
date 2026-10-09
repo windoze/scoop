@@ -1,6 +1,8 @@
+#define _POSIX_C_SOURCE 200809L
 #include "floating.h"
 #include "thread/internal.h"
 #include <errno.h>
+#include <string.h>
 #include <time.h>
 
 pthread_mutex_t scoop_thread_world_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -8,12 +10,31 @@ pthread_cond_t scoop_thread_world_changed = PTHREAD_COND_INITIALIZER;
 ScoopThreadState *scoop_thread_registry;
 uint64_t scoop_thread_registry_count;
 ScoopRuntimeLifecycle scoop_thread_runtime_lifecycle = SCOOP_RUNTIME_UNINITIALIZED;
-_Atomic(ScoopWorldPhase) scoop_thread_world_phase = SCOOP_WORLD_RUNNING;
+_Atomic(uint32_t) scoop_thread_world_phase = SCOOP_WORLD_RUNNING;
 _Atomic(uint64_t) scoop_thread_gc_epoch;
 _Atomic(uint64_t) scoop_thread_last_gc_parked_count;
 _Atomic(uint64_t) scoop_thread_last_gc_native_safe_count;
 _Thread_local ScoopThreadState *scoop_thread_tls;
 _Thread_local ScoopAllocationContext *scoop_rt_allocation_context;
+_Thread_local ScoopPollState *scoop_rt_poll_state;
+static ScoopAllocationTotals detached_allocations;
+
+static void add_allocation_counters(ScoopAllocationTotals *total,
+                                    const ScoopAllocationCounters *counters) {
+    total->objects += atomic_load_explicit(&counters->objects, memory_order_relaxed);
+    total->nursery_objects += atomic_load_explicit(&counters->nursery_objects, memory_order_relaxed);
+    total->bytes += atomic_load_explicit(&counters->bytes, memory_order_relaxed);
+    total->nursery_bytes += atomic_load_explicit(&counters->nursery_bytes, memory_order_relaxed);
+}
+
+ScoopAllocationTotals scoop_thread_allocation_totals_locked(void) {
+    ScoopAllocationTotals total = detached_allocations;
+    for (ScoopThreadState *state = scoop_thread_registry; state != NULL;
+         state = state->registry_next) {
+        add_allocation_counters(&total, &state->allocation_counters);
+    }
+    return total;
+}
 
 _Noreturn void scoop_thread_fatal(const char *message) {
     fprintf(stderr, "scoop runtime: %s\n", message);
@@ -90,20 +111,26 @@ static ScoopThreadState *new_thread_state(ScoopThreadAttachmentKind kind, ScoopT
     if (!scoop_float_init_environment()) {
         scoop_thread_fatal("failed to initialize the floating-point environment");
     }
-    ScoopThreadState *state = calloc(1, sizeof *state);
-    if (state == NULL) {
+    void *storage = NULL;
+    if (posix_memalign(&storage, _Alignof(ScoopThreadState), sizeof(ScoopThreadState)) != 0) {
         scoop_thread_fatal("out of memory attaching a thread");
     }
+    ScoopThreadState *state = storage;
+    memset(state, 0, sizeof *state);
     state->os_thread = pthread_self();
     ScoopPlatformStackBounds bounds = scoop_platform_stack_bounds();
     state->stack_low = bounds.low;
     state->stack_high = bounds.high;
-    atomic_init(&state->mode, mode);
-    atomic_init(&state->observed_gc_epoch,
+    atomic_init(&state->poll.mode, mode);
+    atomic_init(&state->poll.observed_gc_epoch,
                 atomic_load_explicit(&scoop_thread_gc_epoch, memory_order_acquire));
     state->parked_from = mode;
     state->managed_depth = managed_depth;
     state->attachment_kind = kind;
+    atomic_init(&state->allocation_counters.objects, 0);
+    atomic_init(&state->allocation_counters.nursery_objects, 0);
+    atomic_init(&state->allocation_counters.bytes, 0);
+    atomic_init(&state->allocation_counters.nursery_bytes, 0);
     return state;
 }
 
@@ -141,7 +168,7 @@ static void require_detachable(const ScoopThreadState *state,
                                ? "attempted to detach a foreign thread as the main thread"
                                : "attempted to detach the main thread as a foreign thread");
     }
-    if (atomic_load_explicit(&state->mode, memory_order_acquire) != SCOOP_THREAD_NATIVE_SAFE) {
+    if (atomic_load_explicit(&state->poll.mode, memory_order_acquire) != SCOOP_THREAD_NATIVE_SAFE) {
         scoop_thread_fatal("thread is not in a detachable execution mode");
     }
     if (state->managed_depth != 0 || state->managed_stack_boundary != NULL ||
@@ -167,10 +194,12 @@ static void detach_current(ScoopThreadAttachmentKind expected_kind) {
     scoop_thread_wait_for_running_world();
     require_detachable(state, expected_kind);
     state->current_task_context = NULL;
-    atomic_store_explicit(&state->mode, SCOOP_THREAD_DETACHING, memory_order_release);
+    atomic_store_explicit(&state->poll.mode, SCOOP_THREAD_DETACHING, memory_order_release);
+    add_allocation_counters(&detached_allocations, &state->allocation_counters);
     registry_remove(state);
     scoop_thread_tls = NULL;
     scoop_rt_allocation_context = NULL;
+    scoop_rt_poll_state = NULL;
     scoop_thread_registry_unlock();
     free(state->initialization_stack);
     free(state->initialization_cycle_path);
@@ -209,6 +238,7 @@ void scoop_thread_attach_main(void) {
     registry_insert(state);
     scoop_thread_tls = state;
     scoop_rt_allocation_context = &state->allocation;
+    scoop_rt_poll_state = &state->poll;
     scoop_thread_registry_unlock();
 }
 
@@ -228,6 +258,7 @@ bool scoop_rt_attach_foreign_thread(void) {
     registry_insert(state);
     scoop_thread_tls = state;
     scoop_rt_allocation_context = &state->allocation;
+    scoop_rt_poll_state = &state->poll;
     scoop_thread_registry_unlock();
     return true;
 }
@@ -285,7 +316,7 @@ ScoopThreadState *scoop_thread_current_required(void) {
 
 void scoop_thread_require_managed(void) {
     ScoopThreadState *state = scoop_thread_current_required();
-    if (atomic_load_explicit(&state->mode, memory_order_acquire) != SCOOP_THREAD_MANAGED ||
+    if (atomic_load_explicit(&state->poll.mode, memory_order_acquire) != SCOOP_THREAD_MANAGED ||
         state->managed_depth == 0) {
         scoop_thread_fatal("thread entered managed code from a non-managed state");
     }

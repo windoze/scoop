@@ -88,7 +88,7 @@ diagnostics = []
 checks = [
   {file = "${work}/dump/b/${b.result.root.identity}/hir.txt", snapshot = "b.hir.txt"},
   {file = "${work}/dump/b/${b.result.root.identity}/mir.txt", snapshot = "b.mir.txt"},
-  {file = "${work}/dump/b/${b.result.root.identity}/lir.txt", snapshot = "b.lir.txt"},
+  {file = "${work}/dump/b/${b.result.root.identity}/lir.txt", snapshot = "b.${target}.lir.txt"},
 ]
 
 [[steps]]

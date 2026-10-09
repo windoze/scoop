@@ -63,8 +63,16 @@ fn c_projection_produces_uint64_contracts_without_changing_the_scoop_struct() {
         &module.enums,
     )
     .unwrap();
-    assert!(scoop.arguments()[0].is_indirect());
-    assert!(scoop.result().is_indirect());
+    assert!(matches!(scoop.arguments()[0], lir::AbiArgument::Direct(_)));
+    assert!(matches!(scoop.result(), lir::AbiReturn::Direct(_)));
+    assert_eq!(
+        scoop.arguments()[0].logical_storage_type(),
+        &lir::LirType::Struct(struct_def_id(id))
+    );
+    assert_eq!(
+        scoop.result().logical_storage_type(),
+        Some(&lir::LirType::Struct(struct_def_id(id)))
+    );
 }
 
 #[test]

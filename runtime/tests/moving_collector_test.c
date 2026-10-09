@@ -9,6 +9,8 @@
 #include <unistd.h>
 
 #include "../src/gc/gc_internal.h"
+#include "../src/gc/heap_internal.h"
+#undef stress_move
 #include "../src/managed_entries.h"
 #include "../src/thread.h"
 #include "platform/image_fixture.h"
@@ -178,8 +180,7 @@ static const ScoopTypeDescriptor array_ref_td = {
             .inline_scan = pointer_element_scan,
         },
     .object_scan = pointer_array_scan,
-    .diagnostic_name = {(const uint8_t *)"Array<TestLeaf>",
-                        sizeof("Array<TestLeaf>") - 1},
+    .diagnostic_name = {(const uint8_t *)"Array<TestLeaf>", sizeof("Array<TestLeaf>") - 1},
 };
 
 static const TestLeaf immortal_leaf = {
@@ -208,10 +209,8 @@ static const ScoopImmortalObjectDescriptorV1 immortal_registration = {
     .object_start = &immortal_leaf,
     .object_size = sizeof immortal_leaf,
 };
-static const ScoopStaticStorageDescriptorV1 *const managed_globals[] = {
-    &global_registration};
-static const ScoopImmortalObjectDescriptorV1 *const immortal_objects[] = {
-    &immortal_registration};
+static const ScoopStaticStorageDescriptorV1 *const managed_globals[] = {&global_registration};
+static const ScoopImmortalObjectDescriptorV1 *const immortal_objects[] = {&immortal_registration};
 static const ScoopTypeDescriptor *const registered_types[] = {
     &leaf_td, &node_td, &pair_td, &large_td, &string_td, &array_i64_td, &array_ref_td,
 };
@@ -278,7 +277,10 @@ static void *collect_with_stack_root(void *root) {
     _Alignas(16) uintptr_t frame[4] = {0};
     memcpy(&frame[0], &root, sizeof root);
     frame[2] = (uintptr_t)scoop_thread_current_required()->managed_stack_boundary;
+    // Construct the C graph without implicit collections; force movement at its exact root sites.
+    scoop_gc_heap_state.stress_move = true;
     scoop_rt_gc_collect_impl(0x1010, (uintptr_t)&frame[0], (uintptr_t)&frame[2]);
+    scoop_gc_heap_state.stress_move = false;
     memcpy(&root, &frame[0], sizeof root);
     return root;
 }
@@ -302,9 +304,7 @@ static void expect_abort(AbortProbe probe, const void *argument) {
     assert(WTERMSIG(status) == SIGABRT);
 }
 
-static void collect_invalid_root(const void *root) {
-    (void)collect_with_stack_root((void *)root);
-}
+static void collect_invalid_root(const void *root) { (void)collect_with_stack_root((void *)root); }
 
 static void register_null_root(const void *unused) {
     (void)unused;
@@ -454,7 +454,7 @@ static void test_handle_external_and_immortal_roots(void) {
     assert(immortal_leaf.value == UINT64_C(0xfeedface));
 }
 
-static void test_pin_partial_block_and_unpin(void) {
+static void test_pin_and_unpin(void) {
     TestLeaf *child = new_leaf(60);
     TestNode *pinned = new_node(child, 61);
     TestLeaf *sibling = new_leaf(62);
@@ -540,8 +540,7 @@ static void test_variable_object_exact_sizes(void) {
 int main(void) {
     uintptr_t managed_boundary_marker = 0;
     scoop_thread_runtime_init();
-    scoop_test_image_init(registered_types,
-                          sizeof registered_types / sizeof *registered_types,
+    scoop_test_image_init(registered_types, sizeof registered_types / sizeof *registered_types,
                           managed_globals, 1, immortal_objects, 1);
     scoop_thread_attach_main();
     scoop_thread_enter_managed(&managed_boundary_marker);
@@ -552,7 +551,7 @@ int main(void) {
     test_global_and_explicit_roots();
     test_frame_root_families();
     test_handle_external_and_immortal_roots();
-    test_pin_partial_block_and_unpin();
+    test_pin_and_unpin();
     test_large_exact_size_and_no_conservative_retention();
     test_variable_object_exact_sizes();
 

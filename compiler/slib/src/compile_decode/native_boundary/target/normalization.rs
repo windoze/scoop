@@ -107,7 +107,10 @@ pub(super) fn validate(
     }
 
     for source in view.source_contracts {
-        let expected = normalizer.normalize_external(source)?;
+        let actual = actual_contracts
+            .get(&source.id())
+            .ok_or(NativeBoundaryTargetError::NativeContractMismatch)?;
+        let expected = normalizer.normalize_external(source, actual)?;
         expected_contracts.insert(expected.source(), expected);
     }
     require_equal_records(

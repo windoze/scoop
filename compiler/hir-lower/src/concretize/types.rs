@@ -109,6 +109,11 @@ impl Concretizer<'_> {
         substitution: &[concrete::TypeId],
     ) -> concrete::IntrinsicTypeRepresentation {
         match representation {
+            export::IntrinsicTypeRepresentation::MaybeUninit { value } => {
+                concrete::IntrinsicTypeRepresentation::MaybeUninit {
+                    value: self.lower_type(value, substitution),
+                }
+            }
             export::IntrinsicTypeRepresentation::Atomic(storage) => {
                 concrete::IntrinsicTypeRepresentation::Atomic(
                     storage.map(|ty| self.lower_type(ty, substitution)),

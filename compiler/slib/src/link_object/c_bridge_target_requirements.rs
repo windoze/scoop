@@ -258,6 +258,7 @@ pub fn verify_c_bridge_target_support_requirements_v1(
             }
             scoop_lir::CBridgeTargetSupportV1::TlsGetAddr
             | scoop_lir::CBridgeTargetSupportV1::Memcpy
+            | scoop_lir::CBridgeTargetSupportV1::Memset
             | scoop_lir::CBridgeTargetSupportV1::Fmodf
             | scoop_lir::CBridgeTargetSupportV1::DarwinErrno
             | scoop_lir::CBridgeTargetSupportV1::LinuxErrno

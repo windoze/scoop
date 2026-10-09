@@ -160,7 +160,7 @@ Module
     br @pattern.merge.3
   block pattern.merge.3
     ret local7
-  fun @scoop$1$cb$7a3f1836b3043f0f6555a11008c343e1d86290f03b125ba29aa97c4cc3e24827(indirect<{i32, i8} size=8 align=4 scan=none>) -> i32
+  fun @scoop$1$cb$7a3f1836b3043f0f6555a11008c343e1d86290f03b125ba29aa97c4cc3e24827(parts<{i32, i8} [i64@0+8/4]>) -> i32
     local %0 $result.9: i32
     local %1 $when.1: {i32, i8}
   block entry

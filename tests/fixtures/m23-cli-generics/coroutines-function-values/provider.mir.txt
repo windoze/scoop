@@ -1455,8 +1455,10 @@ Module
       call $step.1: CoroutineStep<Int> = @fn8 direct
         Type Any
         Local arg0
-        Type CoroutineAdapter<$reference.0>$1
-        Local $adapter.1
+        Type Continuation<Int>
+        Retype Continuation<Int>
+          Type CoroutineAdapter<$reference.0>$1
+          Local $adapter.1
       branch bb5 bb6
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -1960,8 +1962,10 @@ Module
       call $step.1: CoroutineStep<Int> = @fn8 direct
         Type Any
         Local arg0
-        Type CoroutineAdapter<$reference.1>$1
-        Local $adapter.1
+        Type Continuation<Int>
+        Retype Continuation<Int>
+          Type CoroutineAdapter<$reference.1>$1
+          Local $adapter.1
       branch bb5 bb6
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -2471,8 +2475,10 @@ Module
       call $step.1: CoroutineStep<DerivedResult> = @fn11 direct
         Type Gate<DerivedResult>
         Local $parameter.gate
-        Type CoroutineAdapter<DeferredDerivedTask.run>$1
-        Local $adapter.1
+        Type Continuation<DerivedResult>
+        Retype Continuation<DerivedResult>
+          Type CoroutineAdapter<DeferredDerivedTask.run>$1
+          Local $adapter.1
       branch bb5 bb6
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -2975,8 +2981,10 @@ Module
       call $step.1: CoroutineStep<Long> = @fn12 direct
         Type Gate<Long>
         Local $parameter.gate
-        Type CoroutineAdapter<awaitLong>$1
-        Local $adapter.1
+        Type Continuation<Long>
+        Retype Continuation<Long>
+          Type CoroutineAdapter<awaitLong>$1
+          Local $adapter.1
       branch bb5 bb6
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -3479,8 +3487,10 @@ Module
         Box
           Type Int
           Local arg0
-        Type CoroutineAdapter<$adapter.suspend (Any) -> Int.suspend (Int) -> Any>$1
-        Local $adapter.1
+        Type Continuation<Int>
+        Retype Continuation<Int>
+          Type CoroutineAdapter<$adapter.suspend (Any) -> Int.suspend (Int) -> Any>$1
+          Local $adapter.1
       branch bb5 bb6
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -4026,8 +4036,10 @@ Module
       call @fn38 interface SuspendRegistration<DerivedResult>[0]
         Type SuspendRegistration<DerivedResult>
         Local $dependency.parameter.registration
-        Type CoroutineAdapter<await>$1
-        Local $safe_adapter.1
+        Type Continuation<DerivedResult>
+        Retype Continuation<DerivedResult>
+          Type CoroutineAdapter<await>$1
+          Local $safe_adapter.1
       goto bb14
     bb3 coroutine.registered_success.1
       atomic_store_release kind=coroutine-adapter-state field=1
@@ -4784,8 +4796,10 @@ Module
       call @fn26 interface SuspendRegistration<Long>[0]
         Type SuspendRegistration<Long>
         Local $dependency.parameter.registration
-        Type CoroutineAdapter<await>$1
-        Local $safe_adapter.1
+        Type Continuation<Long>
+        Retype Continuation<Long>
+          Type CoroutineAdapter<await>$1
+          Local $safe_adapter.1
       goto bb14
     bb3 coroutine.registered_success.1
       atomic_store_release kind=coroutine-adapter-state field=1
@@ -5504,8 +5518,10 @@ Module
         Local $source
         Type Any
         Local arg0
-        Type CoroutineAdapter<function_bridge.$Closure$reference0.suspend (Any) -> Any>$1
-        Local $adapter.1
+        Type Continuation<Int>
+        Retype Continuation<Int>
+          Type CoroutineAdapter<function_bridge.$Closure$reference0.suspend (Any) -> Any>$1
+          Local $adapter.1
       branch bb5 bb6
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -6013,8 +6029,10 @@ Module
         Local $source
         Type Any
         Local arg0
-        Type CoroutineAdapter<function_bridge.$Closure$reference1.suspend (Any) -> Any>$1
-        Local $adapter.1
+        Type Continuation<Int>
+        Retype Continuation<Int>
+          Type CoroutineAdapter<function_bridge.$Closure$reference1.suspend (Any) -> Any>$1
+          Local $adapter.1
       branch bb5 bb6
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -6524,8 +6542,10 @@ Module
         Unbox
           Type Any
           Local arg0
-        Type CoroutineAdapter<function_bridge.$Closure$adapter$suspend (Any) -> Int$suspend (Int) -> Any.suspend (Any) -> Any>$1
-        Local $adapter.1
+        Type Continuation<Any>
+        Retype Continuation<Any>
+          Type CoroutineAdapter<function_bridge.$Closure$adapter$suspend (Any) -> Int$suspend (Int) -> Any.suspend (Any) -> Any>$1
+          Local $adapter.1
       branch bb5 bb6
         Type Boolean
         Binary MachineEq(EnumTag)

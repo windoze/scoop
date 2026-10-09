@@ -18,7 +18,7 @@ Module
     call no-gc-direct-target0 t0 = sig=direct0 (indirect<enum0 size=24 align=8 scan=none>) -> i64 external-fn1(indirect local3)
     store t0 -> local2
     ret local2
-  fun @scoop$1$cb$0355262f183427219171140c7e172b29a06efbfbfe492cd91292bd30a53755fb(indirect<enum1 size=8 align=8 scan=none>) -> i64 <no-gc>
+  fun @scoop$1$cb$0355262f183427219171140c7e172b29a06efbfbfe492cd91292bd30a53755fb(parts<enum1 [i64@0+8/8]>) -> i64 <no-gc>
     local %0 $result.0: i64
     local %1 $when.1: enum1
     local %2 $pattern.subject.2: enum1
@@ -44,7 +44,7 @@ Module
     unreachable
   block pattern.merge.6
     br @pattern.merge.3
-  fun @scoop$1$cb$79be11c1fd77e0d9784c2a21219ad88335b547fc424866ee39eb3e9ad9326bbe(indirect<enum2 size=8 align=8 scan=none>) -> i64 <no-gc>
+  fun @scoop$1$cb$79be11c1fd77e0d9784c2a21219ad88335b547fc424866ee39eb3e9ad9326bbe(parts<enum2 [i64@0+8/8]>) -> i64 <no-gc>
     local %0 $result.1: i64
     local %1 $when.1: enum2
     local %2 $pattern.subject.2: enum2
@@ -264,10 +264,6 @@ Module
     local %115 $sc.7: enum3
     local %116 $sc.8: enum0
     local %117 $sc.9: enum0
-    local %118 $sc.10: enum1
-    local %119 $sc.11: enum1
-    local %120 $sc.12: enum2
-    local %121 $sc.13: enum2
   block entry
     store integer<Long>(0xffffffffffffffe3) -> local0
     call no-gc-elided-zst-target0 t0 = sig=elided-zst0 () -> elided-zst<struct0 size=0 align=1> external-fn0()
@@ -457,8 +453,7 @@ Module
     store t42 -> local85
     store local85 -> local86
     store local86 -> local87
-    store local87 -> local118
-    call no-gc-direct-target7 t43 = sig=direct7 (indirect<enum1 size=8 align=8 scan=none>) -> i64 local-fn2(indirect local118)
+    call no-gc-direct-target7 t43 = sig=direct7 (parts<enum1 [i64@0+8/8]>) -> i64 local-fn2(local87)
     store t43 -> local88
     store integer<Long>(0x0000000000000000) -> local89
     store local89 -> local90
@@ -471,8 +466,7 @@ Module
     t46 = enum_wrap e1 v1 () : enum1
     store t46 -> local91
     store local91 -> local92
-    store local92 -> local119
-    call no-gc-direct-target8 t47 = sig=direct8 (indirect<enum1 size=8 align=8 scan=none>) -> i64 local-fn2(indirect local119)
+    call no-gc-direct-target8 t47 = sig=direct8 (parts<enum1 [i64@0+8/8]>) -> i64 local-fn2(local92)
     store t47 -> local93
     store integer<Long>(0x0000000000000001) -> local94
     store local94 -> local95
@@ -485,8 +479,7 @@ Module
     t50 = enum_wrap e2 v0 () : enum2
     store t50 -> local96
     store local96 -> local97
-    store local97 -> local120
-    call no-gc-direct-target9 t51 = sig=direct9 (indirect<enum2 size=8 align=8 scan=none>) -> i64 local-fn3(indirect local120)
+    call no-gc-direct-target9 t51 = sig=direct9 (parts<enum2 [i64@0+8/8]>) -> i64 local-fn3(local97)
     store t51 -> local98
     store integer<Long>(0x0000000000000000) -> local99
     store local99 -> local100
@@ -499,8 +492,7 @@ Module
     t54 = enum_wrap e2 v0 () : enum2
     store t54 -> local101
     store local101 -> local102
-    store local102 -> local121
-    call no-gc-direct-target10 t55 = sig=direct10 (indirect<enum2 size=8 align=8 scan=none>) -> i64 local-fn3(indirect local121)
+    call no-gc-direct-target10 t55 = sig=direct10 (parts<enum2 [i64@0+8/8]>) -> i64 local-fn3(local102)
     store t55 -> local103
     store integer<Long>(0x0000000000000000) -> local104
     store local104 -> local105

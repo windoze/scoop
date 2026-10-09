@@ -1,0 +1,1942 @@
+{
+  "revision": "m34-regions",
+  "host": "macOS-27.0.1-arm64-arm-64bit-Mach-O",
+  "profile": "release",
+  "runs": 7,
+  "builds": [
+    {
+      "case": "allocation",
+      "argv": [
+        "/Volumes/Data/home/chenxu/repos/scoop/target/release/scoop",
+        "build",
+        "/Volumes/Data/home/chenxu/repos/scoop/tests/benchmarks/allocation.scoop",
+        "--scoopc",
+        "/Volumes/Data/home/chenxu/repos/scoop/target/release/scoopc",
+        "--profile",
+        "release",
+        "--target",
+        "aarch64-apple-darwin",
+        "--sysroot",
+        "/Volumes/Data/home/chenxu/repos/scoop/sysroot",
+        "--runtime-root",
+        "/Volumes/Data/home/chenxu/repos/scoop/runtime",
+        "--cache-dir",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/interface-third/cache",
+        "-o",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/regions-on-darwin/allocation",
+        "--emit",
+        "all",
+        "--dump-dir",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/regions-on-darwin/dump/allocation",
+        "--message-format",
+        "json"
+      ],
+      "first_build_seconds": 5.026424707961269,
+      "warm_build_seconds": 4.9198345829499885,
+      "records": [
+        {
+          "dependencies": [
+            {
+              "artifact_fingerprint": "4af5688bfa0179b8dec15ddd1442bebc2d3b7000c7113f55a1fad7a2a909f5dc",
+              "coordinate": {
+                "group": "scoop",
+                "name": "scoop.core",
+                "version": "0.1.0"
+              },
+              "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+              "path": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/interface-third/cache/compile-v1/e657f86a182b72c0f6c1e6f62099be5eef16b2a103c96deca43fbf00464c3ebc/artifact.slib"
+            }
+          ],
+          "kind": "executable",
+          "link_plan_fingerprint": "c7014ed8116a6cb3a8ee797bccf43298365344fc842ea1b2ac2d6a9630543dd7",
+          "observations": {
+            "child_invocations": [
+              "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6"
+            ],
+            "nodes": [
+              {
+                "cache_key": "e657f86a182b72c0f6c1e6f62099be5eef16b2a103c96deca43fbf00464c3ebc",
+                "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+                "origin": "cache"
+              },
+              {
+                "cache_key": "a8c5a4e0a5100f4f12e115910a99b88d807c2021293b8e4d2a5ddbfaf11ac2c4",
+                "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+                "origin": "compiled"
+              }
+            ]
+          },
+          "output": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/regions-on-darwin/allocation",
+          "profile": "release",
+          "root": {
+            "artifact_fingerprint": "573de4d6e865ac7782da39ecb20dfd3668345fc396439102bc942977451915cc",
+            "coordinate": {
+              "group": "scoop",
+              "name": "single-file",
+              "version": "0.0.0"
+            },
+            "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+            "path": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/interface-third/cache/compile-v1/a8c5a4e0a5100f4f12e115910a99b88d807c2021293b8e4d2a5ddbfaf11ac2c4/artifact.slib"
+          },
+          "runtime_index": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/interface-third/cache/runtime-v1/b676ff98aabd4cad06f23c248494ccec5f06ce4b5a4b4da61f773241769b36d2/index.cbor",
+          "schema": 1
+        }
+      ],
+      "executable_bytes": 6057448,
+      "slib_bytes": 263888
+    },
+    {
+      "case": "old-graph-large",
+      "argv": [
+        "/Volumes/Data/home/chenxu/repos/scoop/target/release/scoop",
+        "build",
+        "/Volumes/Data/home/chenxu/repos/scoop/tests/benchmarks/old-graph-large.scoop",
+        "--scoopc",
+        "/Volumes/Data/home/chenxu/repos/scoop/target/release/scoopc",
+        "--profile",
+        "release",
+        "--target",
+        "aarch64-apple-darwin",
+        "--sysroot",
+        "/Volumes/Data/home/chenxu/repos/scoop/sysroot",
+        "--runtime-root",
+        "/Volumes/Data/home/chenxu/repos/scoop/runtime",
+        "--cache-dir",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/interface-third/cache",
+        "-o",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/regions-on-darwin/old-graph-large",
+        "--emit",
+        "all",
+        "--dump-dir",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/regions-on-darwin/dump/old-graph-large",
+        "--message-format",
+        "json"
+      ],
+      "first_build_seconds": 5.371568167000078,
+      "warm_build_seconds": 5.227773958002217,
+      "records": [
+        {
+          "dependencies": [
+            {
+              "artifact_fingerprint": "4af5688bfa0179b8dec15ddd1442bebc2d3b7000c7113f55a1fad7a2a909f5dc",
+              "coordinate": {
+                "group": "scoop",
+                "name": "scoop.core",
+                "version": "0.1.0"
+              },
+              "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+              "path": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/interface-third/cache/compile-v1/e657f86a182b72c0f6c1e6f62099be5eef16b2a103c96deca43fbf00464c3ebc/artifact.slib"
+            }
+          ],
+          "kind": "executable",
+          "link_plan_fingerprint": "5a69d02abf5915e707362fc1bb79c3cfb50b6a438d55bc96e464d69fae7ba34f",
+          "observations": {
+            "child_invocations": [
+              "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6"
+            ],
+            "nodes": [
+              {
+                "cache_key": "e657f86a182b72c0f6c1e6f62099be5eef16b2a103c96deca43fbf00464c3ebc",
+                "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+                "origin": "cache"
+              },
+              {
+                "cache_key": "7b008cae61ad0ddf9b26d46370ff6476212f4e0fd62dafb4a75d0bcd7af659b7",
+                "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+                "origin": "compiled"
+              }
+            ]
+          },
+          "output": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/regions-on-darwin/old-graph-large",
+          "profile": "release",
+          "root": {
+            "artifact_fingerprint": "7b6d7022c2aa8ef93c1895682e2786d38638daac02051597d88c84964baaf279",
+            "coordinate": {
+              "group": "scoop",
+              "name": "single-file",
+              "version": "0.0.0"
+            },
+            "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+            "path": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/interface-third/cache/compile-v1/7b008cae61ad0ddf9b26d46370ff6476212f4e0fd62dafb4a75d0bcd7af659b7/artifact.slib"
+          },
+          "runtime_index": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/interface-third/cache/runtime-v1/b676ff98aabd4cad06f23c248494ccec5f06ce4b5a4b4da61f773241769b36d2/index.cbor",
+          "schema": 1
+        }
+      ],
+      "executable_bytes": 6169944,
+      "slib_bytes": 938862
+    },
+    {
+      "case": "survivors",
+      "argv": [
+        "/Volumes/Data/home/chenxu/repos/scoop/target/release/scoop",
+        "build",
+        "/Volumes/Data/home/chenxu/repos/scoop/tests/benchmarks/survivors.scoop",
+        "--scoopc",
+        "/Volumes/Data/home/chenxu/repos/scoop/target/release/scoopc",
+        "--profile",
+        "release",
+        "--target",
+        "aarch64-apple-darwin",
+        "--sysroot",
+        "/Volumes/Data/home/chenxu/repos/scoop/sysroot",
+        "--runtime-root",
+        "/Volumes/Data/home/chenxu/repos/scoop/runtime",
+        "--cache-dir",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/interface-third/cache",
+        "-o",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/regions-on-darwin/survivors",
+        "--emit",
+        "all",
+        "--dump-dir",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/regions-on-darwin/dump/survivors",
+        "--message-format",
+        "json"
+      ],
+      "first_build_seconds": 5.476683542015962,
+      "warm_build_seconds": 5.273574042017572,
+      "records": [
+        {
+          "dependencies": [
+            {
+              "artifact_fingerprint": "4af5688bfa0179b8dec15ddd1442bebc2d3b7000c7113f55a1fad7a2a909f5dc",
+              "coordinate": {
+                "group": "scoop",
+                "name": "scoop.core",
+                "version": "0.1.0"
+              },
+              "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+              "path": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/interface-third/cache/compile-v1/e657f86a182b72c0f6c1e6f62099be5eef16b2a103c96deca43fbf00464c3ebc/artifact.slib"
+            }
+          ],
+          "kind": "executable",
+          "link_plan_fingerprint": "d467c26edb71bbbe648682c0efb9455dfa9a2b793929a9a25649467ba4980dcc",
+          "observations": {
+            "child_invocations": [
+              "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6"
+            ],
+            "nodes": [
+              {
+                "cache_key": "e657f86a182b72c0f6c1e6f62099be5eef16b2a103c96deca43fbf00464c3ebc",
+                "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+                "origin": "cache"
+              },
+              {
+                "cache_key": "e7e8eb9a12df56788d464e68159efdb9efc6b3b47d59b042f9419933ede296ea",
+                "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+                "origin": "compiled"
+              }
+            ]
+          },
+          "output": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/regions-on-darwin/survivors",
+          "profile": "release",
+          "root": {
+            "artifact_fingerprint": "ab3b6ab83dcbb99ae6d4bcb444f4e05114f7c5a3728feb19865f7b13bbab66ab",
+            "coordinate": {
+              "group": "scoop",
+              "name": "single-file",
+              "version": "0.0.0"
+            },
+            "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+            "path": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/interface-third/cache/compile-v1/e7e8eb9a12df56788d464e68159efdb9efc6b3b47d59b042f9419933ede296ea/artifact.slib"
+          },
+          "runtime_index": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/interface-third/cache/runtime-v1/b676ff98aabd4cad06f23c248494ccec5f06ce4b5a4b4da61f773241769b36d2/index.cbor",
+          "schema": 1
+        }
+      ],
+      "executable_bytes": 6179512,
+      "slib_bytes": 1026452
+    },
+    {
+      "case": "region-stores",
+      "argv": [
+        "/Volumes/Data/home/chenxu/repos/scoop/target/release/scoop",
+        "build",
+        "/Volumes/Data/home/chenxu/repos/scoop/tests/benchmarks/region-stores.scoop",
+        "--scoopc",
+        "/Volumes/Data/home/chenxu/repos/scoop/target/release/scoopc",
+        "--profile",
+        "release",
+        "--target",
+        "aarch64-apple-darwin",
+        "--sysroot",
+        "/Volumes/Data/home/chenxu/repos/scoop/sysroot",
+        "--runtime-root",
+        "/Volumes/Data/home/chenxu/repos/scoop/runtime",
+        "--cache-dir",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/interface-third/cache",
+        "-o",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/regions-on-darwin/region-stores",
+        "--emit",
+        "all",
+        "--dump-dir",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/regions-on-darwin/dump/region-stores",
+        "--message-format",
+        "json"
+      ],
+      "first_build_seconds": 5.141231000074185,
+      "warm_build_seconds": 5.058896625065245,
+      "records": [
+        {
+          "dependencies": [
+            {
+              "artifact_fingerprint": "4af5688bfa0179b8dec15ddd1442bebc2d3b7000c7113f55a1fad7a2a909f5dc",
+              "coordinate": {
+                "group": "scoop",
+                "name": "scoop.core",
+                "version": "0.1.0"
+              },
+              "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+              "path": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/interface-third/cache/compile-v1/e657f86a182b72c0f6c1e6f62099be5eef16b2a103c96deca43fbf00464c3ebc/artifact.slib"
+            }
+          ],
+          "kind": "executable",
+          "link_plan_fingerprint": "6b580b7dea26bedeac1093464a15a45879c8210aac3a8ce29ff5f19d4e70ad23",
+          "observations": {
+            "child_invocations": [
+              "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6"
+            ],
+            "nodes": [
+              {
+                "cache_key": "e657f86a182b72c0f6c1e6f62099be5eef16b2a103c96deca43fbf00464c3ebc",
+                "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+                "origin": "cache"
+              },
+              {
+                "cache_key": "146f861d651183f5b2f6811cc4f6853b92c2fd85ccac27ffee21c8c5f4d49f8f",
+                "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+                "origin": "compiled"
+              }
+            ]
+          },
+          "output": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/regions-on-darwin/region-stores",
+          "profile": "release",
+          "root": {
+            "artifact_fingerprint": "5037e096d16d4ea83e31141024ed4306f468d42b652842871b54194b055fbd76",
+            "coordinate": {
+              "group": "scoop",
+              "name": "single-file",
+              "version": "0.0.0"
+            },
+            "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+            "path": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/interface-third/cache/compile-v1/146f861d651183f5b2f6811cc4f6853b92c2fd85ccac27ffee21c8c5f4d49f8f/artifact.slib"
+          },
+          "runtime_index": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/interface-third/cache/runtime-v1/b676ff98aabd4cad06f23c248494ccec5f06ce4b5a4b4da61f773241769b36d2/index.cbor",
+          "schema": 1
+        }
+      ],
+      "executable_bytes": 6112520,
+      "slib_bytes": 528994
+    }
+  ],
+  "cases": {
+    "allocation": [
+      {
+        "run_seconds": [
+          0.35090558300726116
+        ],
+        "gc": [
+          {
+            "scoop_gc": 1,
+            "minor_collections": 3,
+            "full_collections": 0,
+            "promotion_fallbacks": 0,
+            "allocated_bytes": 4160112,
+            "nursery_allocated_bytes": 4160112,
+            "promoted_bytes": 24,
+            "copied_bytes": 24,
+            "dirty_cards": 0,
+            "old_reference_slots": 0,
+            "root_slots": 96,
+            "traced_objects": 1,
+            "pause_ns": 581000,
+            "maximum_pause_ns": 203000,
+            "committed_bytes": 1081344,
+            "minor_pause_ns": 581000,
+            "full_pause_ns": 0,
+            "region_count": 1,
+            "large_mapping_count": 0,
+            "mapped_bytes": 16777216,
+            "pause_bucket_upper_ns": [
+              10000,
+              50000,
+              100000,
+              500000,
+              1000000,
+              5000000,
+              10000000,
+              null
+            ],
+            "pause_buckets": [
+              0,
+              0,
+              0,
+              3,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        ],
+        "stderr": [
+          "{\"scoop_gc\":1,\"minor_collections\":3,\"full_collections\":0,\"promotion_fallbacks\":0,\"allocated_bytes\":4160112,\"nursery_allocated_bytes\":4160112,\"promoted_bytes\":24,\"copied_bytes\":24,\"dirty_cards\":0,\"old_reference_slots\":0,\"root_slots\":96,\"traced_objects\":1,\"pause_ns\":581000,\"maximum_pause_ns\":203000,\"committed_bytes\":1081344,\"minor_pause_ns\":581000,\"full_pause_ns\":0,\"region_count\":1,\"large_mapping_count\":0,\"mapped_bytes\":16777216,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,3,0,0,0,0]}\n"
+        ],
+        "median_seconds": 0.35090558300726116,
+        "min_seconds": 0.35090558300726116,
+        "max_seconds": 0.35090558300726116,
+        "stdout": "1599960000\n",
+        "round": 1
+      },
+      {
+        "run_seconds": [
+          0.010643457993865013
+        ],
+        "gc": [
+          {
+            "scoop_gc": 1,
+            "minor_collections": 3,
+            "full_collections": 0,
+            "promotion_fallbacks": 0,
+            "allocated_bytes": 4160112,
+            "nursery_allocated_bytes": 4160112,
+            "promoted_bytes": 24,
+            "copied_bytes": 24,
+            "dirty_cards": 0,
+            "old_reference_slots": 0,
+            "root_slots": 96,
+            "traced_objects": 1,
+            "pause_ns": 633000,
+            "maximum_pause_ns": 220000,
+            "committed_bytes": 1081344,
+            "minor_pause_ns": 633000,
+            "full_pause_ns": 0,
+            "region_count": 1,
+            "large_mapping_count": 0,
+            "mapped_bytes": 16777216,
+            "pause_bucket_upper_ns": [
+              10000,
+              50000,
+              100000,
+              500000,
+              1000000,
+              5000000,
+              10000000,
+              null
+            ],
+            "pause_buckets": [
+              0,
+              0,
+              0,
+              3,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        ],
+        "stderr": [
+          "{\"scoop_gc\":1,\"minor_collections\":3,\"full_collections\":0,\"promotion_fallbacks\":0,\"allocated_bytes\":4160112,\"nursery_allocated_bytes\":4160112,\"promoted_bytes\":24,\"copied_bytes\":24,\"dirty_cards\":0,\"old_reference_slots\":0,\"root_slots\":96,\"traced_objects\":1,\"pause_ns\":633000,\"maximum_pause_ns\":220000,\"committed_bytes\":1081344,\"minor_pause_ns\":633000,\"full_pause_ns\":0,\"region_count\":1,\"large_mapping_count\":0,\"mapped_bytes\":16777216,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,3,0,0,0,0]}\n"
+        ],
+        "median_seconds": 0.010643457993865013,
+        "min_seconds": 0.010643457993865013,
+        "max_seconds": 0.010643457993865013,
+        "stdout": "1599960000\n",
+        "round": 2
+      },
+      {
+        "run_seconds": [
+          0.010428124922327697
+        ],
+        "gc": [
+          {
+            "scoop_gc": 1,
+            "minor_collections": 3,
+            "full_collections": 0,
+            "promotion_fallbacks": 0,
+            "allocated_bytes": 4160112,
+            "nursery_allocated_bytes": 4160112,
+            "promoted_bytes": 24,
+            "copied_bytes": 24,
+            "dirty_cards": 0,
+            "old_reference_slots": 0,
+            "root_slots": 96,
+            "traced_objects": 1,
+            "pause_ns": 598000,
+            "maximum_pause_ns": 207000,
+            "committed_bytes": 1081344,
+            "minor_pause_ns": 598000,
+            "full_pause_ns": 0,
+            "region_count": 1,
+            "large_mapping_count": 0,
+            "mapped_bytes": 16777216,
+            "pause_bucket_upper_ns": [
+              10000,
+              50000,
+              100000,
+              500000,
+              1000000,
+              5000000,
+              10000000,
+              null
+            ],
+            "pause_buckets": [
+              0,
+              0,
+              0,
+              3,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        ],
+        "stderr": [
+          "{\"scoop_gc\":1,\"minor_collections\":3,\"full_collections\":0,\"promotion_fallbacks\":0,\"allocated_bytes\":4160112,\"nursery_allocated_bytes\":4160112,\"promoted_bytes\":24,\"copied_bytes\":24,\"dirty_cards\":0,\"old_reference_slots\":0,\"root_slots\":96,\"traced_objects\":1,\"pause_ns\":598000,\"maximum_pause_ns\":207000,\"committed_bytes\":1081344,\"minor_pause_ns\":598000,\"full_pause_ns\":0,\"region_count\":1,\"large_mapping_count\":0,\"mapped_bytes\":16777216,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,3,0,0,0,0]}\n"
+        ],
+        "median_seconds": 0.010428124922327697,
+        "min_seconds": 0.010428124922327697,
+        "max_seconds": 0.010428124922327697,
+        "stdout": "1599960000\n",
+        "round": 3
+      },
+      {
+        "run_seconds": [
+          0.010415624943561852
+        ],
+        "gc": [
+          {
+            "scoop_gc": 1,
+            "minor_collections": 3,
+            "full_collections": 0,
+            "promotion_fallbacks": 0,
+            "allocated_bytes": 4160112,
+            "nursery_allocated_bytes": 4160112,
+            "promoted_bytes": 24,
+            "copied_bytes": 24,
+            "dirty_cards": 0,
+            "old_reference_slots": 0,
+            "root_slots": 96,
+            "traced_objects": 1,
+            "pause_ns": 580000,
+            "maximum_pause_ns": 202000,
+            "committed_bytes": 1081344,
+            "minor_pause_ns": 580000,
+            "full_pause_ns": 0,
+            "region_count": 1,
+            "large_mapping_count": 0,
+            "mapped_bytes": 16777216,
+            "pause_bucket_upper_ns": [
+              10000,
+              50000,
+              100000,
+              500000,
+              1000000,
+              5000000,
+              10000000,
+              null
+            ],
+            "pause_buckets": [
+              0,
+              0,
+              0,
+              3,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        ],
+        "stderr": [
+          "{\"scoop_gc\":1,\"minor_collections\":3,\"full_collections\":0,\"promotion_fallbacks\":0,\"allocated_bytes\":4160112,\"nursery_allocated_bytes\":4160112,\"promoted_bytes\":24,\"copied_bytes\":24,\"dirty_cards\":0,\"old_reference_slots\":0,\"root_slots\":96,\"traced_objects\":1,\"pause_ns\":580000,\"maximum_pause_ns\":202000,\"committed_bytes\":1081344,\"minor_pause_ns\":580000,\"full_pause_ns\":0,\"region_count\":1,\"large_mapping_count\":0,\"mapped_bytes\":16777216,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,3,0,0,0,0]}\n"
+        ],
+        "median_seconds": 0.010415624943561852,
+        "min_seconds": 0.010415624943561852,
+        "max_seconds": 0.010415624943561852,
+        "stdout": "1599960000\n",
+        "round": 4
+      },
+      {
+        "run_seconds": [
+          0.010527333011850715
+        ],
+        "gc": [
+          {
+            "scoop_gc": 1,
+            "minor_collections": 3,
+            "full_collections": 0,
+            "promotion_fallbacks": 0,
+            "allocated_bytes": 4160112,
+            "nursery_allocated_bytes": 4160112,
+            "promoted_bytes": 24,
+            "copied_bytes": 24,
+            "dirty_cards": 0,
+            "old_reference_slots": 0,
+            "root_slots": 96,
+            "traced_objects": 1,
+            "pause_ns": 580000,
+            "maximum_pause_ns": 202000,
+            "committed_bytes": 1081344,
+            "minor_pause_ns": 580000,
+            "full_pause_ns": 0,
+            "region_count": 1,
+            "large_mapping_count": 0,
+            "mapped_bytes": 16777216,
+            "pause_bucket_upper_ns": [
+              10000,
+              50000,
+              100000,
+              500000,
+              1000000,
+              5000000,
+              10000000,
+              null
+            ],
+            "pause_buckets": [
+              0,
+              0,
+              0,
+              3,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        ],
+        "stderr": [
+          "{\"scoop_gc\":1,\"minor_collections\":3,\"full_collections\":0,\"promotion_fallbacks\":0,\"allocated_bytes\":4160112,\"nursery_allocated_bytes\":4160112,\"promoted_bytes\":24,\"copied_bytes\":24,\"dirty_cards\":0,\"old_reference_slots\":0,\"root_slots\":96,\"traced_objects\":1,\"pause_ns\":580000,\"maximum_pause_ns\":202000,\"committed_bytes\":1081344,\"minor_pause_ns\":580000,\"full_pause_ns\":0,\"region_count\":1,\"large_mapping_count\":0,\"mapped_bytes\":16777216,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,3,0,0,0,0]}\n"
+        ],
+        "median_seconds": 0.010527333011850715,
+        "min_seconds": 0.010527333011850715,
+        "max_seconds": 0.010527333011850715,
+        "stdout": "1599960000\n",
+        "round": 5
+      },
+      {
+        "run_seconds": [
+          0.01063204207457602
+        ],
+        "gc": [
+          {
+            "scoop_gc": 1,
+            "minor_collections": 3,
+            "full_collections": 0,
+            "promotion_fallbacks": 0,
+            "allocated_bytes": 4160112,
+            "nursery_allocated_bytes": 4160112,
+            "promoted_bytes": 24,
+            "copied_bytes": 24,
+            "dirty_cards": 0,
+            "old_reference_slots": 0,
+            "root_slots": 96,
+            "traced_objects": 1,
+            "pause_ns": 597000,
+            "maximum_pause_ns": 204000,
+            "committed_bytes": 1081344,
+            "minor_pause_ns": 597000,
+            "full_pause_ns": 0,
+            "region_count": 1,
+            "large_mapping_count": 0,
+            "mapped_bytes": 16777216,
+            "pause_bucket_upper_ns": [
+              10000,
+              50000,
+              100000,
+              500000,
+              1000000,
+              5000000,
+              10000000,
+              null
+            ],
+            "pause_buckets": [
+              0,
+              0,
+              0,
+              3,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        ],
+        "stderr": [
+          "{\"scoop_gc\":1,\"minor_collections\":3,\"full_collections\":0,\"promotion_fallbacks\":0,\"allocated_bytes\":4160112,\"nursery_allocated_bytes\":4160112,\"promoted_bytes\":24,\"copied_bytes\":24,\"dirty_cards\":0,\"old_reference_slots\":0,\"root_slots\":96,\"traced_objects\":1,\"pause_ns\":597000,\"maximum_pause_ns\":204000,\"committed_bytes\":1081344,\"minor_pause_ns\":597000,\"full_pause_ns\":0,\"region_count\":1,\"large_mapping_count\":0,\"mapped_bytes\":16777216,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,3,0,0,0,0]}\n"
+        ],
+        "median_seconds": 0.01063204207457602,
+        "min_seconds": 0.01063204207457602,
+        "max_seconds": 0.01063204207457602,
+        "stdout": "1599960000\n",
+        "round": 6
+      },
+      {
+        "run_seconds": [
+          0.010239916970022023
+        ],
+        "gc": [
+          {
+            "scoop_gc": 1,
+            "minor_collections": 3,
+            "full_collections": 0,
+            "promotion_fallbacks": 0,
+            "allocated_bytes": 4160112,
+            "nursery_allocated_bytes": 4160112,
+            "promoted_bytes": 24,
+            "copied_bytes": 24,
+            "dirty_cards": 0,
+            "old_reference_slots": 0,
+            "root_slots": 96,
+            "traced_objects": 1,
+            "pause_ns": 584000,
+            "maximum_pause_ns": 206000,
+            "committed_bytes": 1081344,
+            "minor_pause_ns": 584000,
+            "full_pause_ns": 0,
+            "region_count": 1,
+            "large_mapping_count": 0,
+            "mapped_bytes": 16777216,
+            "pause_bucket_upper_ns": [
+              10000,
+              50000,
+              100000,
+              500000,
+              1000000,
+              5000000,
+              10000000,
+              null
+            ],
+            "pause_buckets": [
+              0,
+              0,
+              0,
+              3,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        ],
+        "stderr": [
+          "{\"scoop_gc\":1,\"minor_collections\":3,\"full_collections\":0,\"promotion_fallbacks\":0,\"allocated_bytes\":4160112,\"nursery_allocated_bytes\":4160112,\"promoted_bytes\":24,\"copied_bytes\":24,\"dirty_cards\":0,\"old_reference_slots\":0,\"root_slots\":96,\"traced_objects\":1,\"pause_ns\":584000,\"maximum_pause_ns\":206000,\"committed_bytes\":1081344,\"minor_pause_ns\":584000,\"full_pause_ns\":0,\"region_count\":1,\"large_mapping_count\":0,\"mapped_bytes\":16777216,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,3,0,0,0,0]}\n"
+        ],
+        "median_seconds": 0.010239916970022023,
+        "min_seconds": 0.010239916970022023,
+        "max_seconds": 0.010239916970022023,
+        "stdout": "1599960000\n",
+        "round": 7
+      }
+    ],
+    "old-graph-large": [
+      {
+        "run_seconds": [
+          0.37181404198054224
+        ],
+        "gc": [
+          {
+            "scoop_gc": 1,
+            "minor_collections": 8,
+            "full_collections": 2,
+            "promotion_fallbacks": 0,
+            "allocated_bytes": 9021592,
+            "nursery_allocated_bytes": 8497280,
+            "promoted_bytes": 2097424,
+            "copied_bytes": 2097424,
+            "dirty_cards": 1028,
+            "old_reference_slots": 65455,
+            "root_slots": 332,
+            "traced_objects": 196363,
+            "pause_ns": 24126000,
+            "maximum_pause_ns": 6547000,
+            "committed_bytes": 2785280,
+            "minor_pause_ns": 12494000,
+            "full_pause_ns": 11632000,
+            "region_count": 1,
+            "large_mapping_count": 1,
+            "mapped_bytes": 17367040,
+            "pause_bucket_upper_ns": [
+              10000,
+              50000,
+              100000,
+              500000,
+              1000000,
+              5000000,
+              10000000,
+              null
+            ],
+            "pause_buckets": [
+              0,
+              0,
+              0,
+              6,
+              0,
+              1,
+              3,
+              0
+            ]
+          }
+        ],
+        "stderr": [
+          "{\"scoop_gc\":1,\"minor_collections\":8,\"full_collections\":2,\"promotion_fallbacks\":0,\"allocated_bytes\":9021592,\"nursery_allocated_bytes\":8497280,\"promoted_bytes\":2097424,\"copied_bytes\":2097424,\"dirty_cards\":1028,\"old_reference_slots\":65455,\"root_slots\":332,\"traced_objects\":196363,\"pause_ns\":24126000,\"maximum_pause_ns\":6547000,\"committed_bytes\":2785280,\"minor_pause_ns\":12494000,\"full_pause_ns\":11632000,\"region_count\":1,\"large_mapping_count\":1,\"mapped_bytes\":17367040,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,6,0,1,3,0]}\n"
+        ],
+        "median_seconds": 0.37181404198054224,
+        "min_seconds": 0.37181404198054224,
+        "max_seconds": 0.37181404198054224,
+        "stdout": "199680\n",
+        "round": 1
+      },
+      {
+        "run_seconds": [
+          0.03878995799459517
+        ],
+        "gc": [
+          {
+            "scoop_gc": 1,
+            "minor_collections": 8,
+            "full_collections": 2,
+            "promotion_fallbacks": 0,
+            "allocated_bytes": 9021592,
+            "nursery_allocated_bytes": 8497280,
+            "promoted_bytes": 2097424,
+            "copied_bytes": 2097424,
+            "dirty_cards": 1028,
+            "old_reference_slots": 65455,
+            "root_slots": 332,
+            "traced_objects": 196363,
+            "pause_ns": 22755000,
+            "maximum_pause_ns": 6142000,
+            "committed_bytes": 2785280,
+            "minor_pause_ns": 10755000,
+            "full_pause_ns": 12000000,
+            "region_count": 1,
+            "large_mapping_count": 1,
+            "mapped_bytes": 17367040,
+            "pause_bucket_upper_ns": [
+              10000,
+              50000,
+              100000,
+              500000,
+              1000000,
+              5000000,
+              10000000,
+              null
+            ],
+            "pause_buckets": [
+              0,
+              0,
+              0,
+              6,
+              0,
+              2,
+              2,
+              0
+            ]
+          }
+        ],
+        "stderr": [
+          "{\"scoop_gc\":1,\"minor_collections\":8,\"full_collections\":2,\"promotion_fallbacks\":0,\"allocated_bytes\":9021592,\"nursery_allocated_bytes\":8497280,\"promoted_bytes\":2097424,\"copied_bytes\":2097424,\"dirty_cards\":1028,\"old_reference_slots\":65455,\"root_slots\":332,\"traced_objects\":196363,\"pause_ns\":22755000,\"maximum_pause_ns\":6142000,\"committed_bytes\":2785280,\"minor_pause_ns\":10755000,\"full_pause_ns\":12000000,\"region_count\":1,\"large_mapping_count\":1,\"mapped_bytes\":17367040,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,6,0,2,2,0]}\n"
+        ],
+        "median_seconds": 0.03878995799459517,
+        "min_seconds": 0.03878995799459517,
+        "max_seconds": 0.03878995799459517,
+        "stdout": "199680\n",
+        "round": 2
+      },
+      {
+        "run_seconds": [
+          0.03829595900606364
+        ],
+        "gc": [
+          {
+            "scoop_gc": 1,
+            "minor_collections": 8,
+            "full_collections": 2,
+            "promotion_fallbacks": 0,
+            "allocated_bytes": 9021592,
+            "nursery_allocated_bytes": 8497280,
+            "promoted_bytes": 2097424,
+            "copied_bytes": 2097424,
+            "dirty_cards": 1028,
+            "old_reference_slots": 65455,
+            "root_slots": 332,
+            "traced_objects": 196363,
+            "pause_ns": 22363000,
+            "maximum_pause_ns": 6138000,
+            "committed_bytes": 2785280,
+            "minor_pause_ns": 10442000,
+            "full_pause_ns": 11921000,
+            "region_count": 1,
+            "large_mapping_count": 1,
+            "mapped_bytes": 17367040,
+            "pause_bucket_upper_ns": [
+              10000,
+              50000,
+              100000,
+              500000,
+              1000000,
+              5000000,
+              10000000,
+              null
+            ],
+            "pause_buckets": [
+              0,
+              0,
+              0,
+              6,
+              0,
+              2,
+              2,
+              0
+            ]
+          }
+        ],
+        "stderr": [
+          "{\"scoop_gc\":1,\"minor_collections\":8,\"full_collections\":2,\"promotion_fallbacks\":0,\"allocated_bytes\":9021592,\"nursery_allocated_bytes\":8497280,\"promoted_bytes\":2097424,\"copied_bytes\":2097424,\"dirty_cards\":1028,\"old_reference_slots\":65455,\"root_slots\":332,\"traced_objects\":196363,\"pause_ns\":22363000,\"maximum_pause_ns\":6138000,\"committed_bytes\":2785280,\"minor_pause_ns\":10442000,\"full_pause_ns\":11921000,\"region_count\":1,\"large_mapping_count\":1,\"mapped_bytes\":17367040,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,6,0,2,2,0]}\n"
+        ],
+        "median_seconds": 0.03829595900606364,
+        "min_seconds": 0.03829595900606364,
+        "max_seconds": 0.03829595900606364,
+        "stdout": "199680\n",
+        "round": 3
+      },
+      {
+        "run_seconds": [
+          0.03757799998857081
+        ],
+        "gc": [
+          {
+            "scoop_gc": 1,
+            "minor_collections": 8,
+            "full_collections": 2,
+            "promotion_fallbacks": 0,
+            "allocated_bytes": 9021592,
+            "nursery_allocated_bytes": 8497280,
+            "promoted_bytes": 2097424,
+            "copied_bytes": 2097424,
+            "dirty_cards": 1028,
+            "old_reference_slots": 65455,
+            "root_slots": 332,
+            "traced_objects": 196363,
+            "pause_ns": 22182000,
+            "maximum_pause_ns": 6064000,
+            "committed_bytes": 2785280,
+            "minor_pause_ns": 10402000,
+            "full_pause_ns": 11780000,
+            "region_count": 1,
+            "large_mapping_count": 1,
+            "mapped_bytes": 17367040,
+            "pause_bucket_upper_ns": [
+              10000,
+              50000,
+              100000,
+              500000,
+              1000000,
+              5000000,
+              10000000,
+              null
+            ],
+            "pause_buckets": [
+              0,
+              0,
+              0,
+              6,
+              0,
+              2,
+              2,
+              0
+            ]
+          }
+        ],
+        "stderr": [
+          "{\"scoop_gc\":1,\"minor_collections\":8,\"full_collections\":2,\"promotion_fallbacks\":0,\"allocated_bytes\":9021592,\"nursery_allocated_bytes\":8497280,\"promoted_bytes\":2097424,\"copied_bytes\":2097424,\"dirty_cards\":1028,\"old_reference_slots\":65455,\"root_slots\":332,\"traced_objects\":196363,\"pause_ns\":22182000,\"maximum_pause_ns\":6064000,\"committed_bytes\":2785280,\"minor_pause_ns\":10402000,\"full_pause_ns\":11780000,\"region_count\":1,\"large_mapping_count\":1,\"mapped_bytes\":17367040,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,6,0,2,2,0]}\n"
+        ],
+        "median_seconds": 0.03757799998857081,
+        "min_seconds": 0.03757799998857081,
+        "max_seconds": 0.03757799998857081,
+        "stdout": "199680\n",
+        "round": 4
+      },
+      {
+        "run_seconds": [
+          0.038425292004831135
+        ],
+        "gc": [
+          {
+            "scoop_gc": 1,
+            "minor_collections": 8,
+            "full_collections": 2,
+            "promotion_fallbacks": 0,
+            "allocated_bytes": 9021592,
+            "nursery_allocated_bytes": 8497280,
+            "promoted_bytes": 2097424,
+            "copied_bytes": 2097424,
+            "dirty_cards": 1028,
+            "old_reference_slots": 65455,
+            "root_slots": 332,
+            "traced_objects": 196363,
+            "pause_ns": 22761000,
+            "maximum_pause_ns": 6143000,
+            "committed_bytes": 2785280,
+            "minor_pause_ns": 10867000,
+            "full_pause_ns": 11894000,
+            "region_count": 1,
+            "large_mapping_count": 1,
+            "mapped_bytes": 17367040,
+            "pause_bucket_upper_ns": [
+              10000,
+              50000,
+              100000,
+              500000,
+              1000000,
+              5000000,
+              10000000,
+              null
+            ],
+            "pause_buckets": [
+              0,
+              0,
+              0,
+              6,
+              0,
+              2,
+              2,
+              0
+            ]
+          }
+        ],
+        "stderr": [
+          "{\"scoop_gc\":1,\"minor_collections\":8,\"full_collections\":2,\"promotion_fallbacks\":0,\"allocated_bytes\":9021592,\"nursery_allocated_bytes\":8497280,\"promoted_bytes\":2097424,\"copied_bytes\":2097424,\"dirty_cards\":1028,\"old_reference_slots\":65455,\"root_slots\":332,\"traced_objects\":196363,\"pause_ns\":22761000,\"maximum_pause_ns\":6143000,\"committed_bytes\":2785280,\"minor_pause_ns\":10867000,\"full_pause_ns\":11894000,\"region_count\":1,\"large_mapping_count\":1,\"mapped_bytes\":17367040,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,6,0,2,2,0]}\n"
+        ],
+        "median_seconds": 0.038425292004831135,
+        "min_seconds": 0.038425292004831135,
+        "max_seconds": 0.038425292004831135,
+        "stdout": "199680\n",
+        "round": 5
+      },
+      {
+        "run_seconds": [
+          0.03819816594477743
+        ],
+        "gc": [
+          {
+            "scoop_gc": 1,
+            "minor_collections": 8,
+            "full_collections": 2,
+            "promotion_fallbacks": 0,
+            "allocated_bytes": 9021592,
+            "nursery_allocated_bytes": 8497280,
+            "promoted_bytes": 2097424,
+            "copied_bytes": 2097424,
+            "dirty_cards": 1028,
+            "old_reference_slots": 65455,
+            "root_slots": 332,
+            "traced_objects": 196363,
+            "pause_ns": 21785000,
+            "maximum_pause_ns": 5984000,
+            "committed_bytes": 2785280,
+            "minor_pause_ns": 10192000,
+            "full_pause_ns": 11593000,
+            "region_count": 1,
+            "large_mapping_count": 1,
+            "mapped_bytes": 17367040,
+            "pause_bucket_upper_ns": [
+              10000,
+              50000,
+              100000,
+              500000,
+              1000000,
+              5000000,
+              10000000,
+              null
+            ],
+            "pause_buckets": [
+              0,
+              0,
+              0,
+              6,
+              0,
+              2,
+              2,
+              0
+            ]
+          }
+        ],
+        "stderr": [
+          "{\"scoop_gc\":1,\"minor_collections\":8,\"full_collections\":2,\"promotion_fallbacks\":0,\"allocated_bytes\":9021592,\"nursery_allocated_bytes\":8497280,\"promoted_bytes\":2097424,\"copied_bytes\":2097424,\"dirty_cards\":1028,\"old_reference_slots\":65455,\"root_slots\":332,\"traced_objects\":196363,\"pause_ns\":21785000,\"maximum_pause_ns\":5984000,\"committed_bytes\":2785280,\"minor_pause_ns\":10192000,\"full_pause_ns\":11593000,\"region_count\":1,\"large_mapping_count\":1,\"mapped_bytes\":17367040,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,6,0,2,2,0]}\n"
+        ],
+        "median_seconds": 0.03819816594477743,
+        "min_seconds": 0.03819816594477743,
+        "max_seconds": 0.03819816594477743,
+        "stdout": "199680\n",
+        "round": 6
+      },
+      {
+        "run_seconds": [
+          0.039010874927043915
+        ],
+        "gc": [
+          {
+            "scoop_gc": 1,
+            "minor_collections": 8,
+            "full_collections": 2,
+            "promotion_fallbacks": 0,
+            "allocated_bytes": 9021592,
+            "nursery_allocated_bytes": 8497280,
+            "promoted_bytes": 2097424,
+            "copied_bytes": 2097424,
+            "dirty_cards": 1028,
+            "old_reference_slots": 65455,
+            "root_slots": 332,
+            "traced_objects": 196363,
+            "pause_ns": 22437000,
+            "maximum_pause_ns": 6458000,
+            "committed_bytes": 2785280,
+            "minor_pause_ns": 10324000,
+            "full_pause_ns": 12113000,
+            "region_count": 1,
+            "large_mapping_count": 1,
+            "mapped_bytes": 17367040,
+            "pause_bucket_upper_ns": [
+              10000,
+              50000,
+              100000,
+              500000,
+              1000000,
+              5000000,
+              10000000,
+              null
+            ],
+            "pause_buckets": [
+              0,
+              0,
+              0,
+              6,
+              0,
+              2,
+              2,
+              0
+            ]
+          }
+        ],
+        "stderr": [
+          "{\"scoop_gc\":1,\"minor_collections\":8,\"full_collections\":2,\"promotion_fallbacks\":0,\"allocated_bytes\":9021592,\"nursery_allocated_bytes\":8497280,\"promoted_bytes\":2097424,\"copied_bytes\":2097424,\"dirty_cards\":1028,\"old_reference_slots\":65455,\"root_slots\":332,\"traced_objects\":196363,\"pause_ns\":22437000,\"maximum_pause_ns\":6458000,\"committed_bytes\":2785280,\"minor_pause_ns\":10324000,\"full_pause_ns\":12113000,\"region_count\":1,\"large_mapping_count\":1,\"mapped_bytes\":17367040,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,6,0,2,2,0]}\n"
+        ],
+        "median_seconds": 0.039010874927043915,
+        "min_seconds": 0.039010874927043915,
+        "max_seconds": 0.039010874927043915,
+        "stdout": "199680\n",
+        "round": 7
+      }
+    ],
+    "survivors": [
+      {
+        "run_seconds": [
+          0.396752665983513
+        ],
+        "gc": [
+          {
+            "scoop_gc": 1,
+            "minor_collections": 6,
+            "full_collections": 1,
+            "promotion_fallbacks": 0,
+            "allocated_bytes": 6947000,
+            "nursery_allocated_bytes": 6815904,
+            "promoted_bytes": 6815768,
+            "copied_bytes": 6365264,
+            "dirty_cards": 1542,
+            "old_reference_slots": 98304,
+            "root_slots": 250,
+            "traced_objects": 408832,
+            "pause_ns": 43895000,
+            "maximum_pause_ns": 17307000,
+            "committed_bytes": 7077888,
+            "minor_pause_ns": 26588000,
+            "full_pause_ns": 17307000,
+            "region_count": 1,
+            "large_mapping_count": 1,
+            "mapped_bytes": 16973824,
+            "pause_bucket_upper_ns": [
+              10000,
+              50000,
+              100000,
+              500000,
+              1000000,
+              5000000,
+              10000000,
+              null
+            ],
+            "pause_buckets": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              6,
+              0,
+              1
+            ]
+          }
+        ],
+        "stderr": [
+          "{\"scoop_gc\":1,\"minor_collections\":6,\"full_collections\":1,\"promotion_fallbacks\":0,\"allocated_bytes\":6947000,\"nursery_allocated_bytes\":6815904,\"promoted_bytes\":6815768,\"copied_bytes\":6365264,\"dirty_cards\":1542,\"old_reference_slots\":98304,\"root_slots\":250,\"traced_objects\":408832,\"pause_ns\":43895000,\"maximum_pause_ns\":17307000,\"committed_bytes\":7077888,\"minor_pause_ns\":26588000,\"full_pause_ns\":17307000,\"region_count\":1,\"large_mapping_count\":1,\"mapped_bytes\":16973824,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,0,0,6,0,1]}\n"
+        ],
+        "median_seconds": 0.396752665983513,
+        "min_seconds": 0.396752665983513,
+        "max_seconds": 0.396752665983513,
+        "stdout": "196614\n",
+        "round": 1
+      },
+      {
+        "run_seconds": [
+          0.05926679098047316
+        ],
+        "gc": [
+          {
+            "scoop_gc": 1,
+            "minor_collections": 6,
+            "full_collections": 1,
+            "promotion_fallbacks": 0,
+            "allocated_bytes": 6947000,
+            "nursery_allocated_bytes": 6815904,
+            "promoted_bytes": 6815768,
+            "copied_bytes": 6365264,
+            "dirty_cards": 1542,
+            "old_reference_slots": 98304,
+            "root_slots": 250,
+            "traced_objects": 408832,
+            "pause_ns": 44856000,
+            "maximum_pause_ns": 17352000,
+            "committed_bytes": 7077888,
+            "minor_pause_ns": 27504000,
+            "full_pause_ns": 17352000,
+            "region_count": 1,
+            "large_mapping_count": 1,
+            "mapped_bytes": 16973824,
+            "pause_bucket_upper_ns": [
+              10000,
+              50000,
+              100000,
+              500000,
+              1000000,
+              5000000,
+              10000000,
+              null
+            ],
+            "pause_buckets": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              6,
+              0,
+              1
+            ]
+          }
+        ],
+        "stderr": [
+          "{\"scoop_gc\":1,\"minor_collections\":6,\"full_collections\":1,\"promotion_fallbacks\":0,\"allocated_bytes\":6947000,\"nursery_allocated_bytes\":6815904,\"promoted_bytes\":6815768,\"copied_bytes\":6365264,\"dirty_cards\":1542,\"old_reference_slots\":98304,\"root_slots\":250,\"traced_objects\":408832,\"pause_ns\":44856000,\"maximum_pause_ns\":17352000,\"committed_bytes\":7077888,\"minor_pause_ns\":27504000,\"full_pause_ns\":17352000,\"region_count\":1,\"large_mapping_count\":1,\"mapped_bytes\":16973824,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,0,0,6,0,1]}\n"
+        ],
+        "median_seconds": 0.05926679098047316,
+        "min_seconds": 0.05926679098047316,
+        "max_seconds": 0.05926679098047316,
+        "stdout": "196614\n",
+        "round": 2
+      },
+      {
+        "run_seconds": [
+          0.05894087499473244
+        ],
+        "gc": [
+          {
+            "scoop_gc": 1,
+            "minor_collections": 6,
+            "full_collections": 1,
+            "promotion_fallbacks": 0,
+            "allocated_bytes": 6947000,
+            "nursery_allocated_bytes": 6815904,
+            "promoted_bytes": 6815768,
+            "copied_bytes": 6365264,
+            "dirty_cards": 1542,
+            "old_reference_slots": 98304,
+            "root_slots": 250,
+            "traced_objects": 408832,
+            "pause_ns": 44437000,
+            "maximum_pause_ns": 17335000,
+            "committed_bytes": 7077888,
+            "minor_pause_ns": 27102000,
+            "full_pause_ns": 17335000,
+            "region_count": 1,
+            "large_mapping_count": 1,
+            "mapped_bytes": 16973824,
+            "pause_bucket_upper_ns": [
+              10000,
+              50000,
+              100000,
+              500000,
+              1000000,
+              5000000,
+              10000000,
+              null
+            ],
+            "pause_buckets": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              6,
+              0,
+              1
+            ]
+          }
+        ],
+        "stderr": [
+          "{\"scoop_gc\":1,\"minor_collections\":6,\"full_collections\":1,\"promotion_fallbacks\":0,\"allocated_bytes\":6947000,\"nursery_allocated_bytes\":6815904,\"promoted_bytes\":6815768,\"copied_bytes\":6365264,\"dirty_cards\":1542,\"old_reference_slots\":98304,\"root_slots\":250,\"traced_objects\":408832,\"pause_ns\":44437000,\"maximum_pause_ns\":17335000,\"committed_bytes\":7077888,\"minor_pause_ns\":27102000,\"full_pause_ns\":17335000,\"region_count\":1,\"large_mapping_count\":1,\"mapped_bytes\":16973824,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,0,0,6,0,1]}\n"
+        ],
+        "median_seconds": 0.05894087499473244,
+        "min_seconds": 0.05894087499473244,
+        "max_seconds": 0.05894087499473244,
+        "stdout": "196614\n",
+        "round": 3
+      },
+      {
+        "run_seconds": [
+          0.05951245897449553
+        ],
+        "gc": [
+          {
+            "scoop_gc": 1,
+            "minor_collections": 6,
+            "full_collections": 1,
+            "promotion_fallbacks": 0,
+            "allocated_bytes": 6947000,
+            "nursery_allocated_bytes": 6815904,
+            "promoted_bytes": 6815768,
+            "copied_bytes": 6365264,
+            "dirty_cards": 1542,
+            "old_reference_slots": 98304,
+            "root_slots": 250,
+            "traced_objects": 408832,
+            "pause_ns": 44651000,
+            "maximum_pause_ns": 17467000,
+            "committed_bytes": 7077888,
+            "minor_pause_ns": 27184000,
+            "full_pause_ns": 17467000,
+            "region_count": 1,
+            "large_mapping_count": 1,
+            "mapped_bytes": 16973824,
+            "pause_bucket_upper_ns": [
+              10000,
+              50000,
+              100000,
+              500000,
+              1000000,
+              5000000,
+              10000000,
+              null
+            ],
+            "pause_buckets": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              6,
+              0,
+              1
+            ]
+          }
+        ],
+        "stderr": [
+          "{\"scoop_gc\":1,\"minor_collections\":6,\"full_collections\":1,\"promotion_fallbacks\":0,\"allocated_bytes\":6947000,\"nursery_allocated_bytes\":6815904,\"promoted_bytes\":6815768,\"copied_bytes\":6365264,\"dirty_cards\":1542,\"old_reference_slots\":98304,\"root_slots\":250,\"traced_objects\":408832,\"pause_ns\":44651000,\"maximum_pause_ns\":17467000,\"committed_bytes\":7077888,\"minor_pause_ns\":27184000,\"full_pause_ns\":17467000,\"region_count\":1,\"large_mapping_count\":1,\"mapped_bytes\":16973824,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,0,0,6,0,1]}\n"
+        ],
+        "median_seconds": 0.05951245897449553,
+        "min_seconds": 0.05951245897449553,
+        "max_seconds": 0.05951245897449553,
+        "stdout": "196614\n",
+        "round": 4
+      },
+      {
+        "run_seconds": [
+          0.05886450002435595
+        ],
+        "gc": [
+          {
+            "scoop_gc": 1,
+            "minor_collections": 6,
+            "full_collections": 1,
+            "promotion_fallbacks": 0,
+            "allocated_bytes": 6947000,
+            "nursery_allocated_bytes": 6815904,
+            "promoted_bytes": 6815768,
+            "copied_bytes": 6365264,
+            "dirty_cards": 1542,
+            "old_reference_slots": 98304,
+            "root_slots": 250,
+            "traced_objects": 408832,
+            "pause_ns": 44431000,
+            "maximum_pause_ns": 17468000,
+            "committed_bytes": 7077888,
+            "minor_pause_ns": 26963000,
+            "full_pause_ns": 17468000,
+            "region_count": 1,
+            "large_mapping_count": 1,
+            "mapped_bytes": 16973824,
+            "pause_bucket_upper_ns": [
+              10000,
+              50000,
+              100000,
+              500000,
+              1000000,
+              5000000,
+              10000000,
+              null
+            ],
+            "pause_buckets": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              6,
+              0,
+              1
+            ]
+          }
+        ],
+        "stderr": [
+          "{\"scoop_gc\":1,\"minor_collections\":6,\"full_collections\":1,\"promotion_fallbacks\":0,\"allocated_bytes\":6947000,\"nursery_allocated_bytes\":6815904,\"promoted_bytes\":6815768,\"copied_bytes\":6365264,\"dirty_cards\":1542,\"old_reference_slots\":98304,\"root_slots\":250,\"traced_objects\":408832,\"pause_ns\":44431000,\"maximum_pause_ns\":17468000,\"committed_bytes\":7077888,\"minor_pause_ns\":26963000,\"full_pause_ns\":17468000,\"region_count\":1,\"large_mapping_count\":1,\"mapped_bytes\":16973824,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,0,0,6,0,1]}\n"
+        ],
+        "median_seconds": 0.05886450002435595,
+        "min_seconds": 0.05886450002435595,
+        "max_seconds": 0.05886450002435595,
+        "stdout": "196614\n",
+        "round": 5
+      },
+      {
+        "run_seconds": [
+          0.0590377920307219
+        ],
+        "gc": [
+          {
+            "scoop_gc": 1,
+            "minor_collections": 6,
+            "full_collections": 1,
+            "promotion_fallbacks": 0,
+            "allocated_bytes": 6947000,
+            "nursery_allocated_bytes": 6815904,
+            "promoted_bytes": 6815768,
+            "copied_bytes": 6365264,
+            "dirty_cards": 1542,
+            "old_reference_slots": 98304,
+            "root_slots": 250,
+            "traced_objects": 408832,
+            "pause_ns": 44857000,
+            "maximum_pause_ns": 17786000,
+            "committed_bytes": 7077888,
+            "minor_pause_ns": 27071000,
+            "full_pause_ns": 17786000,
+            "region_count": 1,
+            "large_mapping_count": 1,
+            "mapped_bytes": 16973824,
+            "pause_bucket_upper_ns": [
+              10000,
+              50000,
+              100000,
+              500000,
+              1000000,
+              5000000,
+              10000000,
+              null
+            ],
+            "pause_buckets": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              6,
+              0,
+              1
+            ]
+          }
+        ],
+        "stderr": [
+          "{\"scoop_gc\":1,\"minor_collections\":6,\"full_collections\":1,\"promotion_fallbacks\":0,\"allocated_bytes\":6947000,\"nursery_allocated_bytes\":6815904,\"promoted_bytes\":6815768,\"copied_bytes\":6365264,\"dirty_cards\":1542,\"old_reference_slots\":98304,\"root_slots\":250,\"traced_objects\":408832,\"pause_ns\":44857000,\"maximum_pause_ns\":17786000,\"committed_bytes\":7077888,\"minor_pause_ns\":27071000,\"full_pause_ns\":17786000,\"region_count\":1,\"large_mapping_count\":1,\"mapped_bytes\":16973824,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,0,0,6,0,1]}\n"
+        ],
+        "median_seconds": 0.0590377920307219,
+        "min_seconds": 0.0590377920307219,
+        "max_seconds": 0.0590377920307219,
+        "stdout": "196614\n",
+        "round": 6
+      },
+      {
+        "run_seconds": [
+          0.058395958971232176
+        ],
+        "gc": [
+          {
+            "scoop_gc": 1,
+            "minor_collections": 6,
+            "full_collections": 1,
+            "promotion_fallbacks": 0,
+            "allocated_bytes": 6947000,
+            "nursery_allocated_bytes": 6815904,
+            "promoted_bytes": 6815768,
+            "copied_bytes": 6365264,
+            "dirty_cards": 1542,
+            "old_reference_slots": 98304,
+            "root_slots": 250,
+            "traced_objects": 408832,
+            "pause_ns": 44168000,
+            "maximum_pause_ns": 17420000,
+            "committed_bytes": 7077888,
+            "minor_pause_ns": 26748000,
+            "full_pause_ns": 17420000,
+            "region_count": 1,
+            "large_mapping_count": 1,
+            "mapped_bytes": 16973824,
+            "pause_bucket_upper_ns": [
+              10000,
+              50000,
+              100000,
+              500000,
+              1000000,
+              5000000,
+              10000000,
+              null
+            ],
+            "pause_buckets": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              6,
+              0,
+              1
+            ]
+          }
+        ],
+        "stderr": [
+          "{\"scoop_gc\":1,\"minor_collections\":6,\"full_collections\":1,\"promotion_fallbacks\":0,\"allocated_bytes\":6947000,\"nursery_allocated_bytes\":6815904,\"promoted_bytes\":6815768,\"copied_bytes\":6365264,\"dirty_cards\":1542,\"old_reference_slots\":98304,\"root_slots\":250,\"traced_objects\":408832,\"pause_ns\":44168000,\"maximum_pause_ns\":17420000,\"committed_bytes\":7077888,\"minor_pause_ns\":26748000,\"full_pause_ns\":17420000,\"region_count\":1,\"large_mapping_count\":1,\"mapped_bytes\":16973824,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,0,0,6,0,1]}\n"
+        ],
+        "median_seconds": 0.058395958971232176,
+        "min_seconds": 0.058395958971232176,
+        "max_seconds": 0.058395958971232176,
+        "stdout": "196614\n",
+        "round": 7
+      }
+    ],
+    "region-stores": [
+      {
+        "run_seconds": [
+          0.37323708296753466
+        ],
+        "gc": [
+          {
+            "scoop_gc": 1,
+            "minor_collections": 0,
+            "full_collections": 1,
+            "promotion_fallbacks": 0,
+            "allocated_bytes": 200,
+            "nursery_allocated_bytes": 200,
+            "promoted_bytes": 120,
+            "copied_bytes": 120,
+            "dirty_cards": 0,
+            "old_reference_slots": 0,
+            "root_slots": 35,
+            "traced_objects": 4,
+            "pause_ns": 37000,
+            "maximum_pause_ns": 37000,
+            "committed_bytes": 65536,
+            "minor_pause_ns": 0,
+            "full_pause_ns": 37000,
+            "region_count": 1,
+            "large_mapping_count": 0,
+            "mapped_bytes": 16777216,
+            "pause_bucket_upper_ns": [
+              10000,
+              50000,
+              100000,
+              500000,
+              1000000,
+              5000000,
+              10000000,
+              null
+            ],
+            "pause_buckets": [
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        ],
+        "stderr": [
+          "{\"scoop_gc\":1,\"minor_collections\":0,\"full_collections\":1,\"promotion_fallbacks\":0,\"allocated_bytes\":200,\"nursery_allocated_bytes\":200,\"promoted_bytes\":120,\"copied_bytes\":120,\"dirty_cards\":0,\"old_reference_slots\":0,\"root_slots\":35,\"traced_objects\":4,\"pause_ns\":37000,\"maximum_pause_ns\":37000,\"committed_bytes\":65536,\"minor_pause_ns\":0,\"full_pause_ns\":37000,\"region_count\":1,\"large_mapping_count\":0,\"mapped_bytes\":16777216,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,1,0,0,0,0,0,0]}\n"
+        ],
+        "median_seconds": 0.37323708296753466,
+        "min_seconds": 0.37323708296753466,
+        "max_seconds": 0.37323708296753466,
+        "stdout": "9\n",
+        "round": 1
+      },
+      {
+        "run_seconds": [
+          0.03546304197516292
+        ],
+        "gc": [
+          {
+            "scoop_gc": 1,
+            "minor_collections": 0,
+            "full_collections": 1,
+            "promotion_fallbacks": 0,
+            "allocated_bytes": 200,
+            "nursery_allocated_bytes": 200,
+            "promoted_bytes": 120,
+            "copied_bytes": 120,
+            "dirty_cards": 0,
+            "old_reference_slots": 0,
+            "root_slots": 35,
+            "traced_objects": 4,
+            "pause_ns": 18000,
+            "maximum_pause_ns": 18000,
+            "committed_bytes": 65536,
+            "minor_pause_ns": 0,
+            "full_pause_ns": 18000,
+            "region_count": 1,
+            "large_mapping_count": 0,
+            "mapped_bytes": 16777216,
+            "pause_bucket_upper_ns": [
+              10000,
+              50000,
+              100000,
+              500000,
+              1000000,
+              5000000,
+              10000000,
+              null
+            ],
+            "pause_buckets": [
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        ],
+        "stderr": [
+          "{\"scoop_gc\":1,\"minor_collections\":0,\"full_collections\":1,\"promotion_fallbacks\":0,\"allocated_bytes\":200,\"nursery_allocated_bytes\":200,\"promoted_bytes\":120,\"copied_bytes\":120,\"dirty_cards\":0,\"old_reference_slots\":0,\"root_slots\":35,\"traced_objects\":4,\"pause_ns\":18000,\"maximum_pause_ns\":18000,\"committed_bytes\":65536,\"minor_pause_ns\":0,\"full_pause_ns\":18000,\"region_count\":1,\"large_mapping_count\":0,\"mapped_bytes\":16777216,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,1,0,0,0,0,0,0]}\n"
+        ],
+        "median_seconds": 0.03546304197516292,
+        "min_seconds": 0.03546304197516292,
+        "max_seconds": 0.03546304197516292,
+        "stdout": "9\n",
+        "round": 2
+      },
+      {
+        "run_seconds": [
+          0.03472370910458267
+        ],
+        "gc": [
+          {
+            "scoop_gc": 1,
+            "minor_collections": 0,
+            "full_collections": 1,
+            "promotion_fallbacks": 0,
+            "allocated_bytes": 200,
+            "nursery_allocated_bytes": 200,
+            "promoted_bytes": 120,
+            "copied_bytes": 120,
+            "dirty_cards": 0,
+            "old_reference_slots": 0,
+            "root_slots": 35,
+            "traced_objects": 4,
+            "pause_ns": 21000,
+            "maximum_pause_ns": 21000,
+            "committed_bytes": 65536,
+            "minor_pause_ns": 0,
+            "full_pause_ns": 21000,
+            "region_count": 1,
+            "large_mapping_count": 0,
+            "mapped_bytes": 16777216,
+            "pause_bucket_upper_ns": [
+              10000,
+              50000,
+              100000,
+              500000,
+              1000000,
+              5000000,
+              10000000,
+              null
+            ],
+            "pause_buckets": [
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        ],
+        "stderr": [
+          "{\"scoop_gc\":1,\"minor_collections\":0,\"full_collections\":1,\"promotion_fallbacks\":0,\"allocated_bytes\":200,\"nursery_allocated_bytes\":200,\"promoted_bytes\":120,\"copied_bytes\":120,\"dirty_cards\":0,\"old_reference_slots\":0,\"root_slots\":35,\"traced_objects\":4,\"pause_ns\":21000,\"maximum_pause_ns\":21000,\"committed_bytes\":65536,\"minor_pause_ns\":0,\"full_pause_ns\":21000,\"region_count\":1,\"large_mapping_count\":0,\"mapped_bytes\":16777216,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,1,0,0,0,0,0,0]}\n"
+        ],
+        "median_seconds": 0.03472370910458267,
+        "min_seconds": 0.03472370910458267,
+        "max_seconds": 0.03472370910458267,
+        "stdout": "9\n",
+        "round": 3
+      },
+      {
+        "run_seconds": [
+          0.03552379203028977
+        ],
+        "gc": [
+          {
+            "scoop_gc": 1,
+            "minor_collections": 0,
+            "full_collections": 1,
+            "promotion_fallbacks": 0,
+            "allocated_bytes": 200,
+            "nursery_allocated_bytes": 200,
+            "promoted_bytes": 120,
+            "copied_bytes": 120,
+            "dirty_cards": 0,
+            "old_reference_slots": 0,
+            "root_slots": 35,
+            "traced_objects": 4,
+            "pause_ns": 20000,
+            "maximum_pause_ns": 20000,
+            "committed_bytes": 65536,
+            "minor_pause_ns": 0,
+            "full_pause_ns": 20000,
+            "region_count": 1,
+            "large_mapping_count": 0,
+            "mapped_bytes": 16777216,
+            "pause_bucket_upper_ns": [
+              10000,
+              50000,
+              100000,
+              500000,
+              1000000,
+              5000000,
+              10000000,
+              null
+            ],
+            "pause_buckets": [
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        ],
+        "stderr": [
+          "{\"scoop_gc\":1,\"minor_collections\":0,\"full_collections\":1,\"promotion_fallbacks\":0,\"allocated_bytes\":200,\"nursery_allocated_bytes\":200,\"promoted_bytes\":120,\"copied_bytes\":120,\"dirty_cards\":0,\"old_reference_slots\":0,\"root_slots\":35,\"traced_objects\":4,\"pause_ns\":20000,\"maximum_pause_ns\":20000,\"committed_bytes\":65536,\"minor_pause_ns\":0,\"full_pause_ns\":20000,\"region_count\":1,\"large_mapping_count\":0,\"mapped_bytes\":16777216,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,1,0,0,0,0,0,0]}\n"
+        ],
+        "median_seconds": 0.03552379203028977,
+        "min_seconds": 0.03552379203028977,
+        "max_seconds": 0.03552379203028977,
+        "stdout": "9\n",
+        "round": 4
+      },
+      {
+        "run_seconds": [
+          0.03537449997384101
+        ],
+        "gc": [
+          {
+            "scoop_gc": 1,
+            "minor_collections": 0,
+            "full_collections": 1,
+            "promotion_fallbacks": 0,
+            "allocated_bytes": 200,
+            "nursery_allocated_bytes": 200,
+            "promoted_bytes": 120,
+            "copied_bytes": 120,
+            "dirty_cards": 0,
+            "old_reference_slots": 0,
+            "root_slots": 35,
+            "traced_objects": 4,
+            "pause_ns": 18000,
+            "maximum_pause_ns": 18000,
+            "committed_bytes": 65536,
+            "minor_pause_ns": 0,
+            "full_pause_ns": 18000,
+            "region_count": 1,
+            "large_mapping_count": 0,
+            "mapped_bytes": 16777216,
+            "pause_bucket_upper_ns": [
+              10000,
+              50000,
+              100000,
+              500000,
+              1000000,
+              5000000,
+              10000000,
+              null
+            ],
+            "pause_buckets": [
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        ],
+        "stderr": [
+          "{\"scoop_gc\":1,\"minor_collections\":0,\"full_collections\":1,\"promotion_fallbacks\":0,\"allocated_bytes\":200,\"nursery_allocated_bytes\":200,\"promoted_bytes\":120,\"copied_bytes\":120,\"dirty_cards\":0,\"old_reference_slots\":0,\"root_slots\":35,\"traced_objects\":4,\"pause_ns\":18000,\"maximum_pause_ns\":18000,\"committed_bytes\":65536,\"minor_pause_ns\":0,\"full_pause_ns\":18000,\"region_count\":1,\"large_mapping_count\":0,\"mapped_bytes\":16777216,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,1,0,0,0,0,0,0]}\n"
+        ],
+        "median_seconds": 0.03537449997384101,
+        "min_seconds": 0.03537449997384101,
+        "max_seconds": 0.03537449997384101,
+        "stdout": "9\n",
+        "round": 5
+      },
+      {
+        "run_seconds": [
+          0.0351154999807477
+        ],
+        "gc": [
+          {
+            "scoop_gc": 1,
+            "minor_collections": 0,
+            "full_collections": 1,
+            "promotion_fallbacks": 0,
+            "allocated_bytes": 200,
+            "nursery_allocated_bytes": 200,
+            "promoted_bytes": 120,
+            "copied_bytes": 120,
+            "dirty_cards": 0,
+            "old_reference_slots": 0,
+            "root_slots": 35,
+            "traced_objects": 4,
+            "pause_ns": 20000,
+            "maximum_pause_ns": 20000,
+            "committed_bytes": 65536,
+            "minor_pause_ns": 0,
+            "full_pause_ns": 20000,
+            "region_count": 1,
+            "large_mapping_count": 0,
+            "mapped_bytes": 16777216,
+            "pause_bucket_upper_ns": [
+              10000,
+              50000,
+              100000,
+              500000,
+              1000000,
+              5000000,
+              10000000,
+              null
+            ],
+            "pause_buckets": [
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        ],
+        "stderr": [
+          "{\"scoop_gc\":1,\"minor_collections\":0,\"full_collections\":1,\"promotion_fallbacks\":0,\"allocated_bytes\":200,\"nursery_allocated_bytes\":200,\"promoted_bytes\":120,\"copied_bytes\":120,\"dirty_cards\":0,\"old_reference_slots\":0,\"root_slots\":35,\"traced_objects\":4,\"pause_ns\":20000,\"maximum_pause_ns\":20000,\"committed_bytes\":65536,\"minor_pause_ns\":0,\"full_pause_ns\":20000,\"region_count\":1,\"large_mapping_count\":0,\"mapped_bytes\":16777216,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,1,0,0,0,0,0,0]}\n"
+        ],
+        "median_seconds": 0.0351154999807477,
+        "min_seconds": 0.0351154999807477,
+        "max_seconds": 0.0351154999807477,
+        "stdout": "9\n",
+        "round": 6
+      },
+      {
+        "run_seconds": [
+          0.03551079099997878
+        ],
+        "gc": [
+          {
+            "scoop_gc": 1,
+            "minor_collections": 0,
+            "full_collections": 1,
+            "promotion_fallbacks": 0,
+            "allocated_bytes": 200,
+            "nursery_allocated_bytes": 200,
+            "promoted_bytes": 120,
+            "copied_bytes": 120,
+            "dirty_cards": 0,
+            "old_reference_slots": 0,
+            "root_slots": 35,
+            "traced_objects": 4,
+            "pause_ns": 17000,
+            "maximum_pause_ns": 17000,
+            "committed_bytes": 65536,
+            "minor_pause_ns": 0,
+            "full_pause_ns": 17000,
+            "region_count": 1,
+            "large_mapping_count": 0,
+            "mapped_bytes": 16777216,
+            "pause_bucket_upper_ns": [
+              10000,
+              50000,
+              100000,
+              500000,
+              1000000,
+              5000000,
+              10000000,
+              null
+            ],
+            "pause_buckets": [
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        ],
+        "stderr": [
+          "{\"scoop_gc\":1,\"minor_collections\":0,\"full_collections\":1,\"promotion_fallbacks\":0,\"allocated_bytes\":200,\"nursery_allocated_bytes\":200,\"promoted_bytes\":120,\"copied_bytes\":120,\"dirty_cards\":0,\"old_reference_slots\":0,\"root_slots\":35,\"traced_objects\":4,\"pause_ns\":17000,\"maximum_pause_ns\":17000,\"committed_bytes\":65536,\"minor_pause_ns\":0,\"full_pause_ns\":17000,\"region_count\":1,\"large_mapping_count\":0,\"mapped_bytes\":16777216,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,1,0,0,0,0,0,0]}\n"
+        ],
+        "median_seconds": 0.03551079099997878,
+        "min_seconds": 0.03551079099997878,
+        "max_seconds": 0.03551079099997878,
+        "stdout": "9\n",
+        "round": 7
+      }
+    ]
+  },
+  "tool_versions": {
+    "native_compiler": "Apple clang version 21.0.0 (clang-2100.3.34.2)",
+    "llvm": "22.1.8"
+  }
+}

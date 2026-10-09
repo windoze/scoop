@@ -33,7 +33,7 @@ fn support_contract_binds_target_and_complete_toolchain_profile() {
     assert_ne!(first.id(), second.id());
     assert_eq!(
         hex(&encode(&first).unwrap()),
-        "a501a301781d6f72672e73636f6f702d6c616e672e7461726765742d70726f66696c65026e64617277696e2d616172636836340301025820251eda029a5db3b45ee339ad22f68dcf5edc54a30525b4e49a25ba2bc14b455e03a30178296f72672e73636f6f702d6c616e672e632d6272696467652d746f6f6c636861696e2d70726f66696c6502781a64617277696e2d616172636836342d6170706c652d636c616e67030104582048f52e85164f62e1d19d557c8e97df0579f462c692d998ac097e8e8d1d4c98150501"
+        "a501a301781d6f72672e73636f6f702d6c616e672e7461726765742d70726f66696c65026e64617277696e2d616172636836340301025820e028c9fb172ca19a32f8b2e157a049608c6ceac14711e267b1a3a1647d1705ce03a30178296f72672e73636f6f702d6c616e672e632d6272696467652d746f6f6c636861696e2d70726f66696c6502781a64617277696e2d616172636836342d6170706c652d636c616e670301045820041d5f159ec2ab50b5effb369a0c70101ad8db7c63231bc2e2514d03e0d45e170501"
     );
 }
 
@@ -44,7 +44,7 @@ fn registry_is_a_closed_typed_lookup() {
         CBridgeTargetSupportRegistryV1::current(LirTargetProfile::DARWIN_AARCH64, &profile)
             .unwrap();
 
-    assert_eq!(registry.requirements().len(), 5);
+    assert_eq!(registry.requirements().len(), 6);
     assert_eq!(
         registry
             .requirement_for_object_symbol(b"___error")
@@ -66,6 +66,13 @@ fn registry_is_a_closed_typed_lookup() {
             .support(),
         CBridgeTargetSupportV1::Memcpy
     );
+    assert_eq!(
+        registry
+            .requirement_for_object_symbol(b"_memset")
+            .unwrap()
+            .support(),
+        CBridgeTargetSupportV1::Memset
+    );
     assert!(
         registry
             .requirement_for_object_symbol(b"_memmove")
@@ -83,7 +90,14 @@ fn linux_support_uses_its_tls_resolver_and_preserves_darwin_tags() {
             crate::GccCompilerIdentityV1::new("15.2.0", scoop_wire::sha256(b"gcc inputs")).unwrap();
         let profile = CBridgeToolchainProfileV1::new_linux_gcc(target, compiler).unwrap();
         let registry = CBridgeTargetSupportRegistryV1::current(target, &profile).unwrap();
-        assert_eq!(registry.requirements().len(), 5);
+        assert_eq!(registry.requirements().len(), 6);
+        assert_eq!(
+            registry
+                .requirement_for_object_symbol(b"memset")
+                .unwrap()
+                .support(),
+            CBridgeTargetSupportV1::Memset
+        );
         assert_eq!(
             registry
                 .requirement_for_object_symbol(b"__errno_location")
@@ -120,6 +134,7 @@ fn linux_support_uses_its_tls_resolver_and_preserves_darwin_tags() {
         (CBridgeTargetSupportV1::Fmod, 5),
         (CBridgeTargetSupportV1::DarwinErrno, 6),
         (CBridgeTargetSupportV1::LinuxErrno, 7),
+        (CBridgeTargetSupportV1::Memset, 8),
     ] {
         assert_eq!(encode(&support).unwrap(), vec![tag]);
     }

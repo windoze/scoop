@@ -1,0 +1,4 @@
+fun main() {
+    val value = MaybeUninit<Int>.initialized(7)
+    println(value.assumeInit())
+}

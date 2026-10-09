@@ -23,7 +23,7 @@ checks = [
   {file = "${work}/dump/${build.result.root.identity}/ast.txt", snapshot = "m21-properties-properties.ast.txt"},
   {file = "${work}/dump/${build.result.root.identity}/hir.txt", snapshot = "m21-properties-properties.hir.txt"},
   {file = "${work}/dump/${build.result.root.identity}/mir.txt", snapshot = "m21-properties-properties.mir.txt"},
-  {file = "${work}/dump/${build.result.root.identity}/lir.txt", snapshot = "m21-properties-properties.lir.txt"},
+  {file = "${work}/dump/${build.result.root.identity}/lir.txt", snapshot = "m21-properties-properties.${target}.lir.txt"},
 ]
 
 [[steps]]

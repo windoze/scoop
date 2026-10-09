@@ -138,14 +138,14 @@ impl<'a> FunctionLowerer<'a> {
                     mir::Callee::Extern(_) => unreachable!("handled above"),
                 };
                 let callee = &self.module.functions[id];
-                let signature = self.function_signatures[&id].clone();
+                let mut signature = self.function_signatures[&id].clone();
                 assert_eq!(
                     call.args.len(),
                     signature.logical_argument_count(),
                     "user call arity"
                 );
                 // Arguments are evaluated left to right, before the call.
-                let args: Vec<lir::Value> = call
+                let mut args: Vec<lir::Value> = call
                     .args
                     .iter()
                     .map(|arg| self.lower_expr(arg))
@@ -159,6 +159,7 @@ impl<'a> FunctionLowerer<'a> {
                     kind @ (mir::CallKind::Virtual { .. } | mir::CallKind::Interface { .. }) => {
                         let destination =
                             self.load_dispatch_destination(kind, args[0], callee.gc_effect)?;
+                        self.project_dispatch_receiver(kind, &mut args, &mut signature)?;
                         self.finish_indirect(destination, args, &signature)?
                     }
                     mir::CallKind::Closure { .. } => {
@@ -201,7 +202,10 @@ impl<'a> FunctionLowerer<'a> {
                 let args: Vec<lir::Value> = call
                     .args
                     .iter()
-                    .map(|arg| self.lower_expr(arg))
+                    .map(|arg| {
+                        let value = self.lower_expr(arg)?;
+                        Ok::<_, StorageLoweringError>(self.reference_object(value, &arg.ty))
+                    })
                     .collect::<StorageResult<Vec<_>>>()?;
                 let (parameter_types, result_type) = match function {
                     mir::RuntimeFn::StringConcat => {
@@ -260,12 +264,13 @@ impl<'a> FunctionLowerer<'a> {
                     }
                 };
                 let function = lower_runtime_function(function);
-                self.emit_plain_call(
+                let value = self.emit_plain_call(
                     runtime_call_destination(function),
                     parameter_types,
                     result_type,
                     args,
-                )?
+                )?;
+                self.restore_reference_value(value, result_ty)?
             }
         };
         Ok(value)
@@ -282,13 +287,13 @@ impl<'a> FunctionLowerer<'a> {
             callable.signature().logical_argument_count(),
             "external call arity"
         );
-        let args = call
+        let mut args = call
             .args
             .iter()
             .map(|argument| self.lower_expr(argument))
             .collect::<StorageResult<Vec<_>>>()?;
         let effect = callable.gc_effect();
-        let signature = callable.signature().clone();
+        let mut signature = callable.signature().clone();
         let destination = match &call.target.kind {
             mir::CallKind::Direct => LoweredCallDestination::external(id, effect),
             kind @ (mir::CallKind::Virtual { .. } | mir::CallKind::Interface { .. }) => {
@@ -302,6 +307,7 @@ impl<'a> FunctionLowerer<'a> {
                 unreachable!("external declarations do not use closure dispatch")
             }
         };
+        self.project_dispatch_receiver(&call.target.kind, &mut args, &mut signature)?;
         self.emit_non_native_call_with_signature(destination, &signature, args)
     }
 

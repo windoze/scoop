@@ -22,7 +22,17 @@ Module
   generated_exact_type get3 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
   generated_exact_type get4 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
   generated_exact_type get5 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
-  generated_callable gc0 function=@fn26 id=eee592a4c353a85c7fcc9ae53568294eb25bd1db74371c6391993a176f85b7c1
+  generated_callable gc0 function=@fn19 id=0ee0859816606d0dc3e2865e65d95a20f25bdf2c95bc980e1e17ce713b543a88
+  generated_callable gc1 function=@fn26 id=226ec2e3545998596498071f4026ff7156b97dfd9a88ce1188f1a41af364f2c5
+  generated_callable gc2 function=@fn25 id=48af279c039ab5d68c514e6c75dfa4d56695b9da65e3f9a82d4db2e8683b4f34
+  generated_callable gc3 function=@fn24 id=698fdbfbae58ed0c7313cbbdf743fdd0a95757b606bce1ca56e10862c4939582
+  generated_callable gc4 function=@fn20 id=7ab2258bc0a22410e564c8ffd902662556be1c98fa2b3489ca21fc313bbc8f8d
+  generated_callable gc5 function=@fn23 id=8e70d95c1e9563b701e7c9a483c1ea81045a112da8e55210ea19f73058f6bc12
+  generated_callable gc6 function=@fn27 id=9e25c7255284cc6ac51e52bb4b6e828756c230432861b26f12f424e9cf4a5dd2
+  generated_callable gc7 function=@fn21 id=cb76c4a3a2749024e2d14cceb92fb561bb901e6ca8c136d748830610b23d21c9
+  generated_callable gc8 function=@fn18 id=e397c6dcb970b60af5920af1d22706f42af411223e4550580cb5cb5c3df89aec
+  generated_callable gc9 function=@fn22 id=ee2464107f26a3dede07801634ff2da432bc24f4cecc7d6f297f84e83a2dd765
+  generated_callable gc10 function=@fn36 id=eee592a4c353a85c7fcc9ae53568294eb25bd1db74371c6391993a176f85b7c1
   fun ClassWinner.number @fn0(this: ClassWinner) -> Int
     bb0 entry
       return
@@ -140,7 +150,7 @@ Module
       assign $new.1
         Type Chosen
         ClassAlloc Chosen
-      call @fn18 direct
+      call @fn28 direct
         Type Chosen
         Local $new.1
       val $argument.0: BaseDefault
@@ -163,7 +173,7 @@ Module
       assign $new.2
         Type DerivedWinner
         ClassAlloc DerivedWinner
-      call @fn20 direct
+      call @fn30 direct
         Type DerivedWinner
         Local $new.2
       val $argument.0: BaseDefault
@@ -186,7 +196,7 @@ Module
       assign $new.3
         Type Combined
         ClassAlloc Combined
-      call @fn21 direct
+      call @fn31 direct
         Type Combined
         Local $new.3
       val $receiver: Combined
@@ -204,7 +214,7 @@ Module
       assign $new.4
         Type MutableUser
         ClassAlloc MutableUser
-      call @fn22 direct
+      call @fn32 direct
         Type MutableUser
         Local $new.4
       val mutable: MutableUser
@@ -239,7 +249,7 @@ Module
       assign $new.5
         Type HelperClass
         ClassAlloc HelperClass
-      call @fn23 direct
+      call @fn33 direct
         Type HelperClass
         Local $new.5
       val $argument.0: Helper
@@ -259,7 +269,7 @@ Module
       call @fn9 direct
         Type Int
         Local $dependency.parameter.value
-      call $call.6: HelperValue = @fn25 direct
+      call $call.6: HelperValue = @fn35 direct
       val $argument.0: Helper
         Type Helper
         Box
@@ -280,7 +290,7 @@ Module
       assign $new.7
         Type IntEcho
         ClassAlloc IntEcho
-      call @fn24 direct
+      call @fn34 direct
         Type IntEcho
         Local $new.7
       val $argument.0: Echo<Int>
@@ -396,43 +406,145 @@ Module
       return
         Type Int
         Local value
-  fun init.Chosen.$c0 @fn18(this: Chosen) -> Unit
+  fun receiver<Chosen> MoreSpecific.$get$delta @fn18(this: Chosen) -> Int
+    bb0 entry
+      call $call.1: Int = @fn13 direct
+        Type BaseDefault
+        Retype BaseDefault
+          Type Chosen
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun receiver<Chosen> MoreSpecific.number @fn19(this: Chosen) -> Int
+    bb0 entry
+      call $call.1: Int = @fn14 direct
+        Type MoreSpecific
+        Retype MoreSpecific
+          Type Chosen
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun receiver<Chosen> BaseDefault.number @fn20(this: Chosen) -> Int
+    bb0 entry
+      call $call.1: Int = @fn14 direct
+        Type MoreSpecific
+        Retype MoreSpecific
+          Type Chosen
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun receiver<ClassWinner> BaseDefault.$get$delta @fn21(this: ClassWinner) -> Int
+    bb0 entry
+      call $call.1: Int = @fn13 direct
+        Type BaseDefault
+        Retype BaseDefault
+          Type ClassWinner
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun receiver<Combined> BaseDefault.$get$delta @fn22(this: Combined) -> Int
+    bb0 entry
+      call $call.1: Int = @fn13 direct
+        Type BaseDefault
+        Retype BaseDefault
+          Type Combined
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun receiver<MutableUser> MutableDefault.$get$value @fn23(this: MutableUser) -> Int
+    bb0 entry
+      call $call.1: Int = @fn15 direct
+        Type MutableDefault
+        Retype MutableDefault
+          Type MutableUser
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun receiver<MutableUser> MutableDefault.$set$value @fn24(this: MutableUser, value: Int) -> Unit
+    bb0 entry
+      call @fn16 direct
+        Type MutableDefault
+        Retype MutableDefault
+          Type MutableUser
+          Local this
+        Type Int
+        Local value
+      return
+  fun receiver<HelperClass> Helper.result @fn25(this: HelperClass) -> Int
+    bb0 entry
+      call $call.1: Int = @fn11 direct
+        Type Helper
+        Retype Helper
+          Type HelperClass
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun receiver<IntEcho> Echo.echo @fn26(this: IntEcho, value: Int) -> Int
+    bb0 entry
+      call $call.1: Int = @fn17 direct
+        Type Echo<Int>
+        Retype Echo<Int>
+          Type IntEcho
+          Local this
+        Type Int
+        Local value
+      return
+        Type Int
+        Local $call.1
+  fun receiver<DerivedWinner> BaseDefault.$get$delta @fn27(this: DerivedWinner) -> Int
+    bb0 entry
+      call $call.1: Int = @fn13 direct
+        Type BaseDefault
+        Retype BaseDefault
+          Type DerivedWinner
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun init.Chosen.$c0 @fn28(this: Chosen) -> Unit
     bb0 entry
       return
-  fun init.ClassWinner.$c1 @fn19(this: ClassWinner) -> Unit
+  fun init.ClassWinner.$c1 @fn29(this: ClassWinner) -> Unit
     bb0 entry
       return
-  fun init.DerivedWinner.$c2 @fn20(this: DerivedWinner) -> Unit
+  fun init.DerivedWinner.$c2 @fn30(this: DerivedWinner) -> Unit
     bb0 entry
-      call @fn19 direct
+      call @fn29 direct
         Type ClassWinner
         Retype ClassWinner
           Type DerivedWinner
           Local this
       return
-  fun init.Combined.$c3 @fn21(this: Combined) -> Unit
+  fun init.Combined.$c3 @fn31(this: Combined) -> Unit
     bb0 entry
       return
-  fun init.MutableUser.$c4 @fn22(this: MutableUser) -> Unit
+  fun init.MutableUser.$c4 @fn32(this: MutableUser) -> Unit
     bb0 entry
       return
-  fun init.HelperClass.$c5 @fn23(this: HelperClass) -> Unit
+  fun init.HelperClass.$c5 @fn33(this: HelperClass) -> Unit
     bb0 entry
       return
-  fun init.IntEcho.$c6 @fn24(this: IntEcho) -> Unit
+  fun init.IntEcho.$c6 @fn34(this: IntEcho) -> Unit
     bb0 entry
       return
-  fun ctor.HelperValue.$c0 @fn25() -> HelperValue <no-gc>
+  fun ctor.HelperValue.$c0 @fn35() -> HelperValue <no-gc>
     bb0 entry
       return
         Type HelperValue
         StructInit HelperValue
-  fun thunk<HelperValue> Helper.result() @fn26(this: Helper) -> Int
+  fun thunk<HelperValue> Helper.result() @fn36(this: box<HelperValue>) -> Int
     bb0 entry
       call $call.1: Int = @fn11 direct
         Type Helper
         Retype Helper
-          Type Helper
+          Type box<HelperValue>
           Local this
       return
         Type Int

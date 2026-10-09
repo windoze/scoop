@@ -23,6 +23,22 @@ impl<C, D, T> UnselectedCrossConeLayoutAbiSectionV1<crate::CanonicalExactLayoutE
 }
 
 impl LayoutsResolvedCrossConeLayoutAbiSectionV1 {
+    pub fn read_callables(
+        self,
+        target: crate::LirTargetProfile,
+        foundation: &crate::ConeLirFoundation,
+        identities: &mut scoop_identity::ValidatedIdentityGraph,
+    ) -> Result<CallablesResolvedCrossConeLayoutAbiSectionV1, crate::LinkDataError> {
+        Ok(CallablesResolvedCrossConeLayoutAbiSectionV1 {
+            layouts: self.layouts,
+            descriptors: self.descriptors,
+            dispatch: self.dispatch,
+            callables: self.callables.read_link(target, foundation, identities)?,
+            shape_support: self.shape_support,
+            selected: self.selected,
+        })
+    }
+
     pub fn validate_callables(
         self,
         expected: &crate::CanonicalExactCallableAbiExportsV1,

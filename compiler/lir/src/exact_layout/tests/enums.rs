@@ -58,7 +58,7 @@ fn enum_replay_selects_pointer_niche_but_keeps_zst_payload_tagged() {
                 assert_eq!(encode(result.representation()).unwrap()[2], 5);
             }
             ExactRepresentationKindV1::NicheEnum(layout) => {
-                assert_eq!(layout.pointer_kind(), NichePointerKind::Managed);
+                assert_eq!(layout.pointer_kind(), NullNicheKind::Managed);
                 assert_eq!(layout.payload_variant(), some.id());
                 assert_eq!(scan(&result), &RefScan::References(vec![0]));
                 assert_eq!(encode(result.representation()).unwrap()[2], 6);

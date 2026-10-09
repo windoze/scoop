@@ -264,7 +264,7 @@ fn typed_variant_primitives_lower_through_niche_layout() {
     assert!(matches!(
         module.enums[variant.definition()].repr,
         lir::EnumRepr::Niche {
-            kind: lir::NichePointerKind::Managed,
+            kind: lir::NullNicheKind::Managed,
             payload_variant: 0,
         }
     ));

@@ -87,6 +87,14 @@ impl Lowerer {
                 if !visiting.insert(ty) {
                     return None;
                 }
+                if let hir::StructApplicationRepresentation::Intrinsic(
+                    hir::IntrinsicTypeRepresentation::MaybeUninit { value },
+                ) = application.representation
+                {
+                    let result = self.gc_free_requirements_inner(value, environment, visiting);
+                    visiting.remove(&ty);
+                    return result;
+                }
                 let nested = TypeEnvironment {
                     bindings: self
                         .struct_definition(id)

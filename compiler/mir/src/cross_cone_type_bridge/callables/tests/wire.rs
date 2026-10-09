@@ -17,7 +17,7 @@ fn complete_callable_products_round_trip_without_collapsing_the_two_signatures()
         .bind(
             generated(&fixture.boxing),
             sig(Some(fixture.value), vec![], fixture.unit),
-            sig(Some(fixture.interface), vec![], fixture.unit),
+            sig(Some(fixture.boxed), vec![], fixture.unit),
             MirCallableLoweringRoleV1::BoxingAdjust {
                 target: scoop_identity::CallableDefinitionOwner::Strong(
                     StrongCallableDefinitionOwner::Function(fixture.method.id()),

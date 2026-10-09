@@ -150,7 +150,10 @@ fn check_core_layout_exports(names: &[&str]) {
         .unwrap();
         let mir = hir
             .machine_input()
-            .lower_selected_mir(mir::SelectedExternalMirSet::empty(ConeIdentity::CORE))
+            .lower_selected_mir(
+                mir::SelectedExternalMirSet::empty(ConeIdentity::CORE),
+                Default::default(),
+            )
             .unwrap();
         let coordinates = [ConeCoordinate::reserved_core()];
         let source_graph = identity_graph(&hir.hir, &mir.strong, None);

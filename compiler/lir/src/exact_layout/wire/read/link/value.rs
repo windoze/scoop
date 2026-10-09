@@ -12,6 +12,15 @@ impl LayoutReader<'_> {
             RawValue::QualifiedPointer(kind) => {
                 ExactValueLayoutV1::qualified_pointer(identity, *kind, self.foundation)
             }
+            RawValue::Interface => ExactValueLayoutV1::interface(identity, self.foundation),
+            RawValue::MaybeUninit(layout) => {
+                let layout = self.identities.resolve(*layout).map_err(link_error)?;
+                ExactValueLayoutV1::maybe_uninit(
+                    identity,
+                    self.value_by_id(layout)?.as_ref(),
+                    self.foundation,
+                )
+            }
             RawValue::Unit => ExactValueLayoutV1::unit(identity, self.foundation),
             RawValue::Tuple(elements) => {
                 let values = elements

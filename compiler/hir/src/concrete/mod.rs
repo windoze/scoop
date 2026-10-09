@@ -10,13 +10,14 @@ pub use scoop_identity::{
     CallableApplicationKey, CallableMaterialization, CallableMaterializationContext,
     CallableOdrMemberId, CallableTemplateOwner, CallbackApplicationKey, CallbackMode,
     CborIdentityRecord, Effect, ExactCallableSignature, GeneratedCallableKey,
-    InitializationUnitKey, LexicalCallableParent, LocalValueKey, LocalValueSelector, NonEmptyVec,
-    OdrGroupId, OdrMemberDiscriminator, OdrMemberId, OdrMemberIdentityError, OdrMemberKey,
-    OdrMemberRole, PersistentCallableApplicationId, PersistentCallbackApplicationId,
-    PersistentExactTypeId, PersistentFieldId, PersistentFunctionId, PersistentGeneratedCallableId,
-    PersistentInitializationUnitId, PersistentLocalValueId, SourceNativeExternalContractRecord,
-    SpecializationKey, StructuralDefinitionPath, StructuralDefinitionSiteRole,
-    StructuralPathSegment, SyntheticLocalRole,
+    InitializationUnitKey, LexicalCallableParent, LocalValueKey, LocalValueSelector,
+    MaybeUninitOperation, NonEmptyVec, OdrGroupId, OdrMemberDiscriminator, OdrMemberId,
+    OdrMemberIdentityError, OdrMemberKey, OdrMemberRole, PersistentCallableApplicationId,
+    PersistentCallbackApplicationId, PersistentExactTypeId, PersistentFieldId,
+    PersistentFunctionId, PersistentGeneratedCallableId, PersistentInitializationUnitId,
+    PersistentLocalValueId, SourceNativeExternalContractRecord, SpecializationKey,
+    StructuralDefinitionPath, StructuralDefinitionSiteRole, StructuralPathSegment,
+    SyntheticLocalRole,
 };
 
 pub use super::{
@@ -25,9 +26,9 @@ pub use super::{
     FunctionAttributes, GcEffect, HirCLayoutContract, HirCLayoutValue, HirIntegerConstant,
     IntegerConversion, IntegerDivRem, IntegerKind, IntegerOperation, IntegerOperationArity,
     IntegerSignedness, IntegerTypeCore, IntegerWidth, IntrinsicFunction, IntrinsicFunctionKind,
-    IntrinsicProviderId, IntrinsicTypeKind, LocalValueDefinitionSite, MethodModifier,
-    NoGcIntegerOperation, OperatorKind, PrimitiveBinaryKind, PrimitiveUnaryKind, Safety,
-    StringConstantOwner, StructAttributes, UnOp,
+    IntrinsicProviderId, IntrinsicTypeKind, LocalValueDefinitionSite, MaybeUninitIntrinsic,
+    MethodModifier, NoGcIntegerOperation, OperatorKind, PrimitiveBinaryKind, PrimitiveUnaryKind,
+    Safety, StringConstantOwner, StructAttributes, UnOp,
 };
 
 mod types;

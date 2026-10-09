@@ -141,7 +141,7 @@ Module
     call managed-void-target1 sp<managed-call:3> live=[] sig=void1 (i1) local-fn12(local7)
     t4 = aggregate () : {}
     ret
-  fun @scoop$1$cb$eeaaadbcb19f43b33b2839bf6f1c1cf1b2868bcff323cfded3f5ba29208ac258() -> sret<struct1 size=16 align=8 scan=none>
+  fun @scoop$1$cb$eeaaadbcb19f43b33b2839bf6f1c1cf1b2868bcff323cfded3f5ba29208ac258() -> parts<struct1 [[2xi64]@0+16/8]>
     local %0 $argument.0: i32
     local %1 $parameter.code: i32
     local %2 owner: ptr<managed>
@@ -203,57 +203,56 @@ Module
     local %24 $dependency.argument.0: struct1
     local %25 $dependency.parameter.callback: struct1
     local %26 $new.1: ptr<managed>
-    local %27 $sc.1: struct1
   block entry
     poll managed-void-target5 sp<managed-poll:0> live=[]
-    call managed-indirect-target0 sp<managed-call:0> live=[] local27 = sig=indirect0 (sret struct1 size=16 align=8 scan=none) local-fn8()
-    store local27 -> local0
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 () -> struct1 local-fn8()
+    store t0 -> local0
     store integer<Int>(0x00000008) -> local1
     store local1 -> local2
-    call managed-direct-target0 sp<managed-call:1> live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td2, machine<byte-size>(ByteSize(24)))
-    store t0 -> local26
+    call managed-direct-target1 sp<managed-call:1> live=[] t1 = sig=direct1 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td2, machine<byte-size>(ByteSize(24)))
+    store t1 -> local26
     call managed-void-target0 sp<managed-call:2> live=[local26:ptr<managed>@0] sig=void0 (ptr<managed>, i32) local-fn15(local26, local2)
-    t1 = aggregate () : {}
+    t2 = aggregate () : {}
     publish_release_ready local26
     store local26 -> local3
     store integer<Int>(0x00000007) -> local4
     store local4 -> local5
     call managed-void-target1 sp<managed-call:3> live=[local3:ptr<managed>@0] sig=void1 (i32) local-fn3(local5)
-    t2 = aggregate () : {}
+    t3 = aggregate () : {}
     store integer<Int>(0x00000008) -> local6
     store local6 -> local7
     call managed-void-target2 sp<managed-call:4> live=[local3:ptr<managed>@0] sig=void2 (i32) local-fn3(local7)
-    t3 = aggregate () : {}
-    t4 = extract local0, 0 : ptr<code>
-    store t4 -> local8
-    t5 = extract local0, 1 : ptr<raw>
-    store t5 -> local9
+    t4 = aggregate () : {}
+    t5 = extract local0, 0 : ptr<code>
+    store t5 -> local8
+    t6 = extract local0, 1 : ptr<raw>
+    store t6 -> local9
     store integer<Int>(0x00000000) -> local10
     store local8 -> local11
     store local9 -> local12
     store local10 -> local13
-    call native-safe-direct-target0 sp<native-safe:0> roots=[local3] t6 = sig=direct1 (ptr<code>, ptr<raw>, i32) -> i32 extern2(local11, local12, local13)
-    store t6 -> local14
+    call native-safe-direct-target0 sp<native-safe:0> roots=[local3] t7 = sig=direct2 (ptr<code>, ptr<raw>, i32) -> i32 extern2(local11, local12, local13)
+    store t7 -> local14
     store integer<Int>(0x00000007) -> local15
     store local15 -> local16
-    t7 = integer_compare_Equal<Int> local14, local16 : i1
-    store t7 -> local17
+    t8 = integer_compare_Equal<Int> local14, local16 : i1
+    store t8 -> local17
     store local17 -> local18
     call managed-void-target3 sp<managed-call:5> live=[local3:ptr<managed>@0] sig=void3 (i1) local-fn12(local18)
-    t8 = aggregate () : {}
-    t9 = heap_load local3 +16 : i32
-    store t9 -> local19
+    t9 = aggregate () : {}
+    t10 = heap_load local3 +16 : i32
+    store t10 -> local19
     store integer<Int>(0x00000008) -> local20
     store local20 -> local21
-    t10 = integer_compare_Equal<Int> local19, local21 : i1
-    store t10 -> local22
+    t11 = integer_compare_Equal<Int> local19, local21 : i1
+    store t11 -> local22
     store local22 -> local23
     call managed-void-target4 sp<managed-call:6> live=[] sig=void4 (i1) local-fn12(local23)
-    t11 = aggregate () : {}
+    t12 = aggregate () : {}
     store local0 -> local24
     store local24 -> local25
     foreign_callback_Release family0 local25
-    t12 = aggregate () : {}
+    t13 = aggregate () : {}
     ret
   fun @scoop$1$cb$a59ba8328a87a3c09df1111305261ccbca23796630e0ce6dea24e3ae106f48ca() -> void
     local %0 $argument.0: i32
@@ -443,8 +442,8 @@ Module
   td td8 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=Option);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=Throwable)]) @scoop$1$td$4b8ea079dc04e7ae271ee91c900f548dbf5f61f2c7a332bb68081ddd6b28eea1 type-id=17143387170564388700 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
   layout ForeignCallback size=16 align=8 refs=[]
   layout Option size=8 align=8 enum-scan=refs[0]
-  layout Equality value size=8 align=8 refs=[0]
-  layout Equality value size=8 align=8 refs=[0]
+  layout Equality value size=16 align=8 refs=[0]
+  layout Equality value size=16 align=8 refs=[0]
   layout Owner value size=8 align=8 refs=[0]
   layout Owner size=24 align=8 refs=[]
   layout $Closure$lambda0 value size=8 align=8 refs=[0]

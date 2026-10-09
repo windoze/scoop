@@ -17,10 +17,10 @@ Module
   enum Option<Char>
     Some(_0: Char)
     None()
-  class IntRange vtable=0 itables=1
-  class LongRange vtable=0 itables=1
-  class UIntRange vtable=0 itables=1
-  class ULongRange vtable=0 itables=1
+  class IntRange vtable=0 itables=0
+  class LongRange vtable=0 itables=0
+  class UIntRange vtable=0 itables=0
+  class ULongRange vtable=0 itables=0
   class IllegalArgumentException vtable=0 itables=0
   class Exception vtable=0 itables=0
   class Throwable vtable=0 itables=0

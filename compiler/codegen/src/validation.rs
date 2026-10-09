@@ -359,8 +359,10 @@ fn validate_niche_representations(module: &Module) -> Result<(), CodegenError> {
             )));
         }
         let valid_scan = match kind {
-            scoop_lir::NichePointerKind::Managed => definition.scan == RefScan::References(vec![0]),
-            scoop_lir::NichePointerKind::Raw | scoop_lir::NichePointerKind::Code => {
+            scoop_lir::NullNicheKind::Managed | scoop_lir::NullNicheKind::Interface => {
+                definition.scan == RefScan::References(vec![0])
+            }
+            scoop_lir::NullNicheKind::Raw | scoop_lir::NullNicheKind::Code => {
                 definition.scan == RefScan::None
             }
         };
@@ -368,7 +370,7 @@ fn validate_niche_representations(module: &Module) -> Result<(), CodegenError> {
             return Err(CodegenError(format!(
                 "niche enum `{}` has {} pointer provenance but incompatible scan {}",
                 definition.name,
-                kind.pointer_kind().dump(),
+                kind.dump(),
                 definition.scan.dump(),
             )));
         }
@@ -564,6 +566,12 @@ pub(crate) fn contains_machine_scalar(
                 .any(|element| visit(structs, enums, element, seen_structs, seen_enums)),
             LirType::Struct(id) if seen_structs.insert(*id) => {
                 let definition = &structs[*id];
+                if let StructRepresentation::Intrinsic(
+                    scoop_lir::IntrinsicTypeRepresentation::MaybeUninit { value, .. },
+                ) = &definition.representation
+                {
+                    return visit(structs, enums, value, seen_structs, seen_enums);
+                }
                 (0..definition.field_count()).any(|index| {
                     let field_type = definition
                         .field_storage_type(index)
@@ -591,7 +599,7 @@ fn validate_c_abi(module: &Module) -> Result<(), CodegenError> {
     for (_, function) in module.extern_functions.iter() {
         match &function.kind {
             ExternFunctionKind::C { signature, .. } => {
-                c_call_plan::validate(function)?;
+                c_call_plan::validate(module.meta.target_profile, function)?;
                 for (index, parameter) in signature.params.iter().enumerate() {
                     validate_c_type(module, parameter, false, &mut HashSet::new()).map_err(
                         |error| {
@@ -832,7 +840,7 @@ fn validate_c_return_type(
     }
 }
 
-fn niche_pointer_kind(module: &Module, lir: &LirType) -> Option<scoop_lir::NichePointerKind> {
+fn niche_pointer_kind(module: &Module, lir: &LirType) -> Option<scoop_lir::NullNicheKind> {
     let LirType::Enum(id) = lir else {
         return None;
     };
@@ -904,7 +912,7 @@ fn validate_c_type(
                     )));
                 }
                 if niche_pointer_kind(module, &LirType::Enum(id))
-                    != Some(scoop_lir::NichePointerKind::Raw)
+                    != Some(scoop_lir::NullNicheKind::Raw)
                 {
                     return Err(CodegenError(format!(
                         "nullable C data pointer references enum `{}` without raw-pointer provenance",
@@ -939,7 +947,7 @@ fn validate_c_type(
                     )));
                 }
                 if niche_pointer_kind(module, &LirType::Enum(id))
-                    != Some(scoop_lir::NichePointerKind::Code)
+                    != Some(scoop_lir::NullNicheKind::Code)
                 {
                     return Err(CodegenError(format!(
                         "nullable C code pointer references enum `{}` without code-pointer provenance",

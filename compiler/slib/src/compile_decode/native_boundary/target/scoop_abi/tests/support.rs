@@ -49,7 +49,7 @@ impl Fixture {
         )
     }
 
-    fn from_shape(
+    pub(super) fn from_shape(
         provider: ConeIdentity,
         kind: SourceNominalKind,
         shape: NativeBoundaryNominalShape,
@@ -66,10 +66,18 @@ impl Fixture {
             kind,
             0,
         );
-        let nominals = match &shape {
+        let shared_shape = match &shape {
             NativeBoundaryNominalShape::Intrinsic(representation) => {
+                Some(scoop_hir::NominalSourceShapeV1::Intrinsic(*representation))
+            }
+            NativeBoundaryNominalShape::Reference if kind == SourceNominalKind::Interface => {
+                Some(scoop_hir::NominalSourceShapeV1::Interface)
+            }
+            _ => None,
+        };
+        let nominals = match shared_shape {
+            Some(source_shape) => {
                 use scoop_hir::*;
-                let source_shape = NominalSourceShapeV1::Intrinsic(*representation);
                 CanonicalNominalInterfacesV1::try_new(vec![
                     crate::nominal_interface_fixture::public_record(
                         SourceNominalId::Concrete(
@@ -87,7 +95,7 @@ impl Fixture {
                 ])
                 .unwrap()
             }
-            _ => scoop_hir::CanonicalNominalInterfacesV1::default(),
+            None => scoop_hir::CanonicalNominalInterfacesV1::default(),
         };
         let mut foundation = CanonicalHirFoundation::empty();
         foundation

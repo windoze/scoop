@@ -1,11 +1,12 @@
 public class ArrayList<T> public constructor(initialCapacity: Long = 0L) : MutableList<T> {
-    private var storage: MutableArray<T?> = MutableArray<T?>(initialCapacity) { _ -> None }
+    private var storage: MutableArray<MaybeUninit<T>> =
+        MutableArray<MaybeUninit<T>>(initialCapacity) { _ -> MaybeUninit<T>.uninit() }
     private var elementCount: Long = 0L
 
     public override val size: Long get() = elementCount
 
     // Used by StringBuilder's concrete parts boundary inside scoop.core.
-    internal val backing: MutableArray<T?> get() = storage
+    internal val backing: MutableArray<MaybeUninit<T>> get() = storage
 
     private fun checkIndex(index: Long) {
         if (index < 0L || index >= elementCount) { throw IndexOutOfBoundsException() }
@@ -21,25 +22,25 @@ public class ArrayList<T> public constructor(initialCapacity: Long = 0L) : Mutab
         }
         val old = storage
         val count = elementCount
-        val replacement = MutableArray<T?>(nextCapacity) { index ->
-            if (index < count) { old[index] } else { None }
+        val replacement = MutableArray<MaybeUninit<T>>(nextCapacity) { index ->
+            if (index < count) { old[index] } else { MaybeUninit<T>.uninit() }
         }
         storage = replacement
     }
 
     public override operator fun get(index: Long): T {
         checkIndex(index)
-        return storage[index]!!
+        @Unsafe { return storage[index].assumeInit() }
     }
 
     public override operator fun set(index: Long, value: T) {
         checkIndex(index)
-        storage[index] = Some(value)
+        storage[index] = MaybeUninit<T>.initialized(value)
     }
 
     public override fun add(value: T) {
         ensureRoom()
-        storage[elementCount] = Some(value)
+        storage[elementCount] = MaybeUninit<T>.initialized(value)
         elementCount = elementCount + 1L
     }
 
@@ -51,28 +52,30 @@ public class ArrayList<T> public constructor(initialCapacity: Long = 0L) : Mutab
             storage[cursor] = storage[cursor - 1L]
             cursor = cursor - 1L
         }
-        storage[index] = Some(value)
+        storage[index] = MaybeUninit<T>.initialized(value)
         elementCount = elementCount + 1L
     }
 
     public override fun removeAt(index: Long): T {
         checkIndex(index)
-        val result = storage[index]!!
-        val last = elementCount - 1L
-        var cursor = index
-        while (cursor < last) {
-            storage[cursor] = storage[cursor + 1L]
-            cursor = cursor + 1L
+        @Unsafe {
+            val result = storage[index].assumeInit()
+            val last = elementCount - 1L
+            var cursor = index
+            while (cursor < last) {
+                storage[cursor] = storage[cursor + 1L]
+                cursor = cursor + 1L
+            }
+            storage[last] = MaybeUninit<T>.uninit()
+            elementCount = last
+            return result
         }
-        storage[last] = None
-        elementCount = last
-        return result
     }
 
     public override fun clear() {
         var cursor = 0L
         while (cursor < elementCount) {
-            storage[cursor] = None
+            storage[cursor] = MaybeUninit<T>.uninit()
             cursor = cursor + 1L
         }
         elementCount = 0L

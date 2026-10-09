@@ -21,7 +21,7 @@ pub(crate) fn initialize_task(gateway: &mut LoweredFunction, descriptor: lir::Ty
         .call_targets
         .direct_signatures
         .alloc(lir::DirectCallSignature::new(
-            vec![lir::AbiArgument::Direct(metadata)],
+            vec![lir::AbiArgument::Direct(metadata.into())],
             reference,
             lir::CallingConvention::Cdecl,
         ));

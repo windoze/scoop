@@ -154,8 +154,14 @@ fn validate_runtime_relocation(
     form: VerifiedObjectRelocationFormV1,
     target: scoop_lir::LirTargetProfile,
 ) -> Result<(), RuntimeAndEhRequirementValidationError> {
-    let is_allocation_context = contract.symbol() == RuntimeAbiSymbolV1::AllocationContext;
-    if form.is_tls_reference(target) != is_allocation_context {
+    let is_thread_local = matches!(
+        contract.symbol().machine_contract(),
+        scoop_lir::CompilerNativeContractV1::Data {
+            thread_local: true,
+            ..
+        }
+    );
+    if form.is_tls_reference(target) != is_thread_local {
         return Err(
             RuntimeAndEhRequirementValidationError::RuntimeRelocationFormMismatch {
                 symbol: contract.symbol(),

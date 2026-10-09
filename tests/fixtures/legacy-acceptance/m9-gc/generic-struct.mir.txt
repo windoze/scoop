@@ -319,12 +319,12 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun thunk<Holder<Int>> Readable.read() @fn16(this: Readable) -> String
+  fun thunk<Holder<Int>> Readable.read() @fn16(this: box<Holder<Int>>) -> String
     bb0 entry
       call $call.1: String = @fn5 direct
         Type Holder<Int>
         Unbox
-          Type Readable
+          Type box<Holder<Int>>
           Local this
       return
         Type String

@@ -1,0 +1,67 @@
+public interface Value { public fun get(): Int }
+class Item(val number: Int) : Value {
+    public override fun get(): Int = number
+}
+public class Gate : SuspendRegistration<Value> {
+    var waiter: Continuation<Value>? = None
+    public override fun register(continuation: Continuation<Value>) {
+        waiter = Some(continuation)
+    }
+    fun complete(value: Value) {
+        val continuation = waiter!!
+        waiter = None
+        continuation.resume(value)
+    }
+}
+class Completion : Continuation<Value> {
+    var calls: Int = 0
+    var result: Value? = None
+    public override fun resume(value: Value) { calls += 1; result = Some(value) }
+    public override fun resumeWithException(error: Throwable) { throw error }
+}
+fun check(value: Boolean) { if (!value) { throw IllegalStateException() } }
+suspend fun await(gate: Gate): Value = suspendCoroutine(gate)
+struct AwaitTask(val gate: Gate) : SuspendTask<Value> {
+    public override suspend fun run(): Value = await(gate)
+}
+public struct ExportedTask(val gate: Gate) : SuspendTask<Value> {
+    public override suspend fun run(): Value = await(gate)
+}
+
+@Unsafe fun main() {
+    val gate = Gate()
+    val completion = Completion()
+    val before: Value = Item(11)
+    startCoroutine(suspend {
+        val after = await(gate)
+        gcCollect()
+        check(before.get() == 11)
+        after
+    }, completion)
+    check(completion.calls == 0)
+    gcCollect()
+    gate.complete(Item(22))
+    check(completion.calls == 1)
+    gcCollect()
+    check(completion.result!!.get() == 22)
+    val nextGate = Gate()
+    val nextCompletion = Completion()
+    startCoroutine(AwaitTask(nextGate), nextCompletion)
+    check(nextCompletion.calls == 0)
+    gcCollect()
+    nextGate.complete(Item(33))
+    check(nextCompletion.calls == 1)
+    check(nextCompletion.result!!.get() == 33)
+    val exportedGate = Gate()
+    val exportedCompletion = Completion()
+    startCoroutine(ExportedTask(exportedGate), exportedCompletion)
+    check(exportedCompletion.calls == 0)
+    gcCollect()
+    exportedGate.complete(Item(44))
+    check(exportedCompletion.calls == 1)
+    check(exportedCompletion.result!!.get() == 44)
+    val immediate = Completion()
+    startCoroutine(suspend { before }, immediate)
+    check(immediate.calls == 1 && immediate.result!!.get() == 11)
+    println("interface coroutines")
+}

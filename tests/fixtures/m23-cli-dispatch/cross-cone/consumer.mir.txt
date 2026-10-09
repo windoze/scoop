@@ -2,10 +2,10 @@ Module
   enum Option<Char>
     Some(_0: Char)
     None()
-  class Both vtable=0 itables=2
+  class Both vtable=0 itables=0
   class Wrapped<String> vtable=0 itables=2
-  class Defaults vtable=0 itables=2
-  class RefinedDefaults vtable=0 itables=4
+  class Defaults vtable=0 itables=0
+  class RefinedDefaults vtable=0 itables=0
   interface Describe<String>
   interface Describe<Int>
   interface Echo<String>

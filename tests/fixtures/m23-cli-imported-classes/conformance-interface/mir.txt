@@ -292,54 +292,54 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun thunk<LocalValue> LocalReader.answer(Long) @fn16(this: LocalReader, extra: Long) -> Long
+  fun thunk<LocalValue> LocalReader.answer(Long) @fn16(this: box<LocalValue>, extra: Long) -> Long
     bb0 entry
       call $call.1: Long = external0 direct
         Type Readable
         Retype Readable
-          Type LocalReader
+          Type box<LocalValue>
           Local this
         Type Long
         Local extra
       return
         Type Long
         Local $call.1
-  fun thunk<LocalValue> LocalReader.read() @fn17(this: LocalReader) -> Long
+  fun thunk<LocalValue> LocalReader.read() @fn17(this: box<LocalValue>) -> Long
     bb0 entry
       call $call.1: Long = @fn11 direct
         Type LocalReader
         Retype LocalReader
-          Type LocalReader
+          Type box<LocalValue>
           Local this
       return
         Type Long
         Local $call.1
-  fun thunk<LocalValue> LocalReader.complete() @fn18(this: LocalReader) -> Long
+  fun thunk<LocalValue> LocalReader.complete() @fn18(this: box<LocalValue>) -> Long
     bb0 entry
       call $call.1: Long = @fn12 direct
         Type LocalReader
         Retype LocalReader
-          Type LocalReader
+          Type box<LocalValue>
           Local this
       return
         Type Long
         Local $call.1
-  fun thunk<LocalValue> Readable.read() @fn19(this: Readable) -> Long
+  fun thunk<LocalValue> Readable.read() @fn19(this: box<LocalValue>) -> Long
     bb0 entry
       call $call.1: Long = @fn11 direct
         Type LocalReader
         Retype LocalReader
-          Type Readable
+          Type box<LocalValue>
           Local this
       return
         Type Long
         Local $call.1
-  fun thunk<LocalValue> Readable.answer(Long) @fn20(this: Readable, extra: Long) -> Long
+  fun thunk<LocalValue> Readable.answer(Long) @fn20(this: box<LocalValue>, extra: Long) -> Long
     bb0 entry
       call $call.1: Long = external0 direct
         Type Readable
         Retype Readable
-          Type Readable
+          Type box<LocalValue>
           Local this
         Type Long
         Local extra

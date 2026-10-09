@@ -98,7 +98,7 @@ fn expected_signatures(module: &Module) -> Result<MirCallableSignatures, MirVali
         register(point.identity().success().signature_record());
         register(point.identity().failure().signature_record());
     }
-    for adjust in &module.meta.boxing_adjusts {
+    for adjust in &module.meta.interface_adjusts {
         register(adjust.identity().signature_record());
     }
 
@@ -133,7 +133,10 @@ fn signature_exact_types(
         .chain(std::iter::once(signature.result()))
 }
 
-fn exact_type_exists(module: &Module, exact: scoop_identity::PersistentExactTypeId) -> bool {
+pub(super) fn exact_type_exists(
+    module: &Module,
+    exact: scoop_identity::PersistentExactTypeId,
+) -> bool {
     module
         .meta
         .source_exact_types

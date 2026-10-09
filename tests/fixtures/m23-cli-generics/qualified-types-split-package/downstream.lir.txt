@@ -70,25 +70,23 @@ Module
     local %6 $dependency.local.7: i32
     local %7 $dependency.local.8: i32
     local %8 $dependency.local.9: i32
-    local %9 $sc.1: struct0
-    local %10 $sc.2: struct1
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     store integer<Int>(0x00000028) -> local2
     store local2 -> local3
-    call no-gc-indirect-target0 local9 = sig=indirect0 (sret struct0 size=4 align=4 scan=none, i32) external-fn1(local3)
-    store local9 -> local0
+    call no-gc-direct-target0 t0 = sig=direct0 (i32) -> struct0 external-fn1(local3)
+    store t0 -> local0
     store integer<Int>(0x00000002) -> local4
     store local4 -> local5
-    call no-gc-indirect-target1 local10 = sig=indirect1 (sret struct1 size=4 align=4 scan=none, i32) external-fn2(local5)
-    store local10 -> local1
-    t0 = extract local0, 0 : i32
-    store t0 -> local6
-    t1 = extract local1, 0 : i32
-    store t1 -> local7
+    call no-gc-direct-target1 t1 = sig=direct1 (i32) -> struct1 external-fn2(local5)
+    store t1 -> local1
+    t2 = extract local0, 0 : i32
+    store t2 -> local6
+    t3 = extract local1, 0 : i32
+    store t3 -> local7
     store local7 -> local8
-    t2 = integer_Add<Int> local6, local8 : i32
-    ret t2
+    t4 = integer_Add<Int> local6, local8 : i32
+    ret t4
   fun @scoop$1$cb$d1e3744f315a62f8d95a2091c50c3d44684bfdbbe72096dc319d73123ed47f1d(i32) -> i32
     local %0 $dependency.local.1: struct0
     local %1 $dependency.local.2: struct1
@@ -99,25 +97,23 @@ Module
     local %6 $dependency.local.7: i32
     local %7 $dependency.local.8: i32
     local %8 $dependency.local.9: i32
-    local %9 $sc.1: struct0
-    local %10 $sc.2: struct1
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     store integer<Int>(0x00000028) -> local2
     store local2 -> local3
-    call no-gc-indirect-target0 local9 = sig=indirect0 (sret struct0 size=4 align=4 scan=none, i32) external-fn1(local3)
-    store local9 -> local0
+    call no-gc-direct-target0 t0 = sig=direct0 (i32) -> struct0 external-fn1(local3)
+    store t0 -> local0
     store integer<Int>(0x00000002) -> local4
     store local4 -> local5
-    call no-gc-indirect-target1 local10 = sig=indirect1 (sret struct1 size=4 align=4 scan=none, i32) external-fn2(local5)
-    store local10 -> local1
-    t0 = extract local0, 0 : i32
-    store t0 -> local6
-    t1 = extract local1, 0 : i32
-    store t1 -> local7
+    call no-gc-direct-target1 t1 = sig=direct1 (i32) -> struct1 external-fn2(local5)
+    store t1 -> local1
+    t2 = extract local0, 0 : i32
+    store t2 -> local6
+    t3 = extract local1, 0 : i32
+    store t3 -> local7
     store local7 -> local8
-    t2 = integer_Add<Int> local6, local8 : i32
-    ret t2
+    t4 = integer_Add<Int> local6, local8 : i32
+    ret t4
   fun @scoop$1$cb$3880ebe2ef5294d13c9b6355b5cd215ad6cae9a3f790e654d1c7927e1cefe061(ptr<managed>, i32) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]

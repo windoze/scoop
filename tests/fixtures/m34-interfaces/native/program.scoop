@@ -1,0 +1,26 @@
+interface Value { fun get(): Int }
+interface Empty {}
+class Item(val number: Int) : Value, Empty {
+    public override fun get(): Int = number
+}
+@Extern(lib = "fixture_native", name = "m34_interface", abi = "scoop")
+fun native(first: Value, second: Value, chooseFirst: Boolean): Value
+@Extern(lib = "fixture_native", name = "m34_optional_interface", abi = "scoop")
+fun nativeOptional(value: Value?): Value?
+@Extern(lib = "fixture_native", name = "m34_empty_interface", abi = "scoop")
+fun nativeEmpty(value: Empty): Empty
+fun check(value: Boolean) { if (!value) { throw IllegalStateException() } }
+fun main() {
+    val first: Value = Item(11)
+    val second: Value = Item(22)
+    check(native(first, second, true).get() == 11)
+    val result = try { native(first, second, false) }
+        catch (error: IllegalStateException) { first }
+    gcCollect()
+    check(result.get() == 22)
+    check(when (nativeOptional(None)) { Some(_) -> false; None -> true })
+    check(nativeOptional(Some(first))!!.get() == 11)
+    val empty: Empty = Item(33)
+    check(nativeEmpty(empty) === empty)
+    println("interface native")
+}

@@ -12,7 +12,7 @@ Module
   class Base vtable=1 itables=0
   class VirtualBox<Later> vtable=1 itables=0
   class Derived vtable=1 itables=0
-  class Reader vtable=0 itables=1
+  class Reader vtable=0 itables=0
   class VirtualChild<Later> vtable=1 itables=0
   class Choosing<Later> vtable=0 itables=1
   class VirtualBox<Int> vtable=1 itables=0
@@ -28,22 +28,22 @@ Module
   interface Continuation<Later>
   interface SuspendTask<Later>
   interface SuspendRegistration<Later>
-  closure cc0 $Closure$reference0 type=function_type0 invoke=@fn15 captures=1
-    bridge function_type1 -> @fn31 id=01f2f34a58fd24a7e0e2a2254ebe1623d1cad7fcb22ceff032c430c8b7075c67
-  closure cc1 $Closure$reference1 type=function_type0 invoke=@fn16 captures=1
-    bridge function_type1 -> @fn32 id=70fb82337d62c8ca663f53ccd6e93302cb22c110a7e21863a2fb8b2f66b4d6c6
-  closure cc2 $Closure$reference2 type=function_type2 invoke=@fn17 captures=1
-    bridge function_type1 -> @fn33 id=4abeae580aca0ea89d316d58dabcd9b27555503c456a434fe5277d84728ea1a4
-  closure cc3 $Closure$reference3 type=function_type3 invoke=@fn18 captures=1
-    bridge function_type4 -> @fn34 id=49bbce39146de9e2f5da5a8d6782f90146426a630a50472f4593b1a8fb1eb88d
-  closure cc4 $Closure$reference4 type=function_type0 invoke=@fn19 captures=1
-    bridge function_type1 -> @fn35 id=6940f27a26f2aaafba8681cdc5c2a865aa8acb9b8b7ab26cf3a0424d9ee7066a
-  closure cc5 $Closure$reference5 type=function_type0 invoke=@fn20 captures=1
-    bridge function_type1 -> @fn36 id=8ca3cb7d7988239fc42a6cbec78501ba1a8b8b5053c62764940eec06cd5ffaa1
-  closure cc6 $Closure$reference6 type=function_type0 invoke=@fn21 captures=1
-    bridge function_type1 -> @fn37 id=acc0b0750ee310abfc4b14243a2e4c7ded074aea3ce92c6c7b18b278609e4938
-  closure cc7 $Closure$reference7 type=function_type5 invoke=@fn22 captures=1
-    bridge function_type4 -> @fn38 id=efca0ced97aaf124decf6bfabbbfb05a647b5b508d95319356b00ffcbc9ff4a1
+  closure cc0 $Closure$reference0 type=function_type0 invoke=@fn17 captures=1
+    bridge function_type1 -> @fn33 id=01f2f34a58fd24a7e0e2a2254ebe1623d1cad7fcb22ceff032c430c8b7075c67
+  closure cc1 $Closure$reference1 type=function_type0 invoke=@fn18 captures=1
+    bridge function_type1 -> @fn34 id=70fb82337d62c8ca663f53ccd6e93302cb22c110a7e21863a2fb8b2f66b4d6c6
+  closure cc2 $Closure$reference2 type=function_type2 invoke=@fn19 captures=1
+    bridge function_type1 -> @fn35 id=4abeae580aca0ea89d316d58dabcd9b27555503c456a434fe5277d84728ea1a4
+  closure cc3 $Closure$reference3 type=function_type3 invoke=@fn20 captures=1
+    bridge function_type4 -> @fn36 id=49bbce39146de9e2f5da5a8d6782f90146426a630a50472f4593b1a8fb1eb88d
+  closure cc4 $Closure$reference4 type=function_type0 invoke=@fn21 captures=1
+    bridge function_type1 -> @fn37 id=6940f27a26f2aaafba8681cdc5c2a865aa8acb9b8b7ab26cf3a0424d9ee7066a
+  closure cc5 $Closure$reference5 type=function_type0 invoke=@fn22 captures=1
+    bridge function_type1 -> @fn38 id=8ca3cb7d7988239fc42a6cbec78501ba1a8b8b5053c62764940eec06cd5ffaa1
+  closure cc6 $Closure$reference6 type=function_type0 invoke=@fn23 captures=1
+    bridge function_type1 -> @fn39 id=acc0b0750ee310abfc4b14243a2e4c7ded074aea3ce92c6c7b18b278609e4938
+  closure cc7 $Closure$reference7 type=function_type5 invoke=@fn24 captures=1
+    bridge function_type4 -> @fn40 id=efca0ced97aaf124decf6bfabbbfb05a647b5b508d95319356b00ffcbc9ff4a1
   generated_exact_type get0 location=closure2 nominal_id=e79b21b7e4426dce4f760a5b2c619ba0aaae4df654214a31260b59f8d0c3b854 exact_id=01ce236e71e2b807d1f8ad231ac7a05fdf2a66dde1411a1ff18a2d2cb1793593
   generated_exact_type get1 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
   generated_exact_type get2 location=closure0 nominal_id=a230e324143c9da8398f50c3bff699e3ba2219d72831b77a9144910b46ce739f exact_id=1ef94d4ce08409a1363529a1702943606797901b7d7163259ff42a903d8f9500
@@ -60,15 +60,17 @@ Module
   generated_exact_type get13 location=class13 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
   generated_exact_type get14 location=closure7 nominal_id=db604dd04204c268d10fa4940a97cf1912a970f0561d0480f76fcf2e4417620c exact_id=ea3dbefc9549f1dda3ae0db48bfc6845348d067a8f316802b7603262c419f0fd
   generated_exact_type get15 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
-  generated_callable gc0 function=@fn31 id=01f2f34a58fd24a7e0e2a2254ebe1623d1cad7fcb22ceff032c430c8b7075c67
-  generated_callable gc1 function=@fn34 id=49bbce39146de9e2f5da5a8d6782f90146426a630a50472f4593b1a8fb1eb88d
-  generated_callable gc2 function=@fn33 id=4abeae580aca0ea89d316d58dabcd9b27555503c456a434fe5277d84728ea1a4
-  generated_callable gc3 function=@fn35 id=6940f27a26f2aaafba8681cdc5c2a865aa8acb9b8b7ab26cf3a0424d9ee7066a
-  generated_callable gc4 function=@fn32 id=70fb82337d62c8ca663f53ccd6e93302cb22c110a7e21863a2fb8b2f66b4d6c6
-  generated_callable gc5 function=@fn36 id=8ca3cb7d7988239fc42a6cbec78501ba1a8b8b5053c62764940eec06cd5ffaa1
-  generated_callable gc6 function=@fn37 id=acc0b0750ee310abfc4b14243a2e4c7ded074aea3ce92c6c7b18b278609e4938
-  generated_callable gc7 function=@fn30 id=ca6807beb6ede6e0844f2fe7db16dc8a9b113bbf5749d907361a62cedbfd362f
-  generated_callable gc8 function=@fn38 id=efca0ced97aaf124decf6bfabbbfb05a647b5b508d95319356b00ffcbc9ff4a1
+  generated_callable gc0 function=@fn33 id=01f2f34a58fd24a7e0e2a2254ebe1623d1cad7fcb22ceff032c430c8b7075c67
+  generated_callable gc1 function=@fn16 id=18ef556b52354586756e3e169d6f5963a342dc51671a2d34371f39063ce16c55
+  generated_callable gc2 function=@fn36 id=49bbce39146de9e2f5da5a8d6782f90146426a630a50472f4593b1a8fb1eb88d
+  generated_callable gc3 function=@fn35 id=4abeae580aca0ea89d316d58dabcd9b27555503c456a434fe5277d84728ea1a4
+  generated_callable gc4 function=@fn37 id=6940f27a26f2aaafba8681cdc5c2a865aa8acb9b8b7ab26cf3a0424d9ee7066a
+  generated_callable gc5 function=@fn34 id=70fb82337d62c8ca663f53ccd6e93302cb22c110a7e21863a2fb8b2f66b4d6c6
+  generated_callable gc6 function=@fn38 id=8ca3cb7d7988239fc42a6cbec78501ba1a8b8b5053c62764940eec06cd5ffaa1
+  generated_callable gc7 function=@fn39 id=acc0b0750ee310abfc4b14243a2e4c7ded074aea3ce92c6c7b18b278609e4938
+  generated_callable gc8 function=@fn32 id=ca6807beb6ede6e0844f2fe7db16dc8a9b113bbf5749d907361a62cedbfd362f
+  generated_callable gc9 function=@fn40 id=efca0ced97aaf124decf6bfabbbfb05a647b5b508d95319356b00ffcbc9ff4a1
+  generated_callable gc10 function=@fn15 id=f1edff31752ca12c2a93e1b901a61f5803e1a9702dd7e286c3d308c47565f30d
   fun check @fn0() -> Int
     bb0 entry
       call $argument.0: Int = external0 direct
@@ -78,7 +80,7 @@ Module
       assign $new.1
         Type Later
         ClassAlloc Later
-      call @fn23 direct
+      call @fn25 direct
         Type Later
         Local $new.1
         Type Int
@@ -133,7 +135,7 @@ Module
       assign $new.2
         Type Later
         ClassAlloc Later
-      call @fn23 direct
+      call @fn25 direct
         Type Later
         Local $new.2
         Type Int
@@ -251,7 +253,7 @@ Module
       assign $new.3
         Type VirtualChild<Later>
         ClassAlloc VirtualChild<Later>
-      call @fn24 direct
+      call @fn26 direct
         Type VirtualChild<Later>
         Local $new.3
         Type Later
@@ -272,7 +274,7 @@ Module
       assign $new.4
         Type Choosing<Later>
         ClassAlloc Choosing<Later>
-      call @fn25 direct
+      call @fn27 direct
         Type Choosing<Later>
         Local $new.4
       val $dependency.local.7: Chooser<Later>
@@ -381,7 +383,7 @@ Module
       assign $new.3
         Type VirtualChild<Int>
         ClassAlloc VirtualChild<Int>
-      call @fn26 direct
+      call @fn28 direct
         Type VirtualChild<Int>
         Local $new.3
         Type Int
@@ -402,7 +404,7 @@ Module
       assign $new.4
         Type Choosing<Int>
         ClassAlloc Choosing<Int>
-      call @fn27 direct
+      call @fn29 direct
         Type Choosing<Int>
         Local $new.4
       val $dependency.local.7: Chooser<Int>
@@ -526,7 +528,31 @@ Module
   fun SuspendRegistration.register @fn14(this: SuspendRegistration<Later>, continuation: Continuation<Later>) -> Unit
     bb0 entry
       trap "call to abstract method `SuspendRegistration.register`"
-  fun $reference.0 @fn15($closure: () -> Int) -> Int
+  fun receiver<Choosing> Chooser.choose @fn15(this: Choosing<Later>, value: Later) -> Later
+    bb0 entry
+      call $call.1: Later = @fn5 direct
+        Type Chooser<Later>
+        Retype Chooser<Later>
+          Type Choosing<Later>
+          Local this
+        Type Later
+        Local value
+      return
+        Type Later
+        Local $call.1
+  fun receiver<Choosing> Chooser.choose @fn16(this: Choosing<Int>, value: Int) -> Int
+    bb0 entry
+      call $call.1: Int = @fn8 direct
+        Type Chooser<Int>
+        Retype Chooser<Int>
+          Type Choosing<Int>
+          Local this
+        Type Int
+        Local value
+      return
+        Type Int
+        Local $call.1
+  fun $reference.0 @fn17($closure: () -> Int) -> Int
     bb0 entry
       call $call.1: Int = external1 virtual[0]
         Type Base
@@ -536,7 +562,7 @@ Module
       return
         Type Int
         Local $call.1
-  fun $reference.1 @fn16($closure: () -> Int) -> Int
+  fun $reference.1 @fn18($closure: () -> Int) -> Int
     bb0 entry
       call $call.1: Int = external6 interface Readable[0]
         Type Readable
@@ -546,7 +572,7 @@ Module
       return
         Type Int
         Local $call.1
-  fun $reference.2 @fn17($closure: () -> Later) -> Later
+  fun $reference.2 @fn19($closure: () -> Later) -> Later
     bb0 entry
       call $call.1: Later = @fn3 virtual[0]
         Type VirtualBox<Later>
@@ -556,7 +582,7 @@ Module
       return
         Type Later
         Local $call.1
-  fun $reference.3 @fn18($closure: (Later) -> Later, arg0: Later) -> Later
+  fun $reference.3 @fn20($closure: (Later) -> Later, arg0: Later) -> Later
     bb0 entry
       call $call.1: Later = @fn5 interface Chooser<Later>[0]
         Type Chooser<Later>
@@ -568,7 +594,7 @@ Module
       return
         Type Later
         Local $call.1
-  fun $reference.4 @fn19($closure: () -> Int) -> Int
+  fun $reference.4 @fn21($closure: () -> Int) -> Int
     bb0 entry
       call $call.1: Int = external1 virtual[0]
         Type Base
@@ -578,7 +604,7 @@ Module
       return
         Type Int
         Local $call.1
-  fun $reference.5 @fn20($closure: () -> Int) -> Int
+  fun $reference.5 @fn22($closure: () -> Int) -> Int
     bb0 entry
       call $call.1: Int = external6 interface Readable[0]
         Type Readable
@@ -588,7 +614,7 @@ Module
       return
         Type Int
         Local $call.1
-  fun $reference.6 @fn21($closure: () -> Int) -> Int
+  fun $reference.6 @fn23($closure: () -> Int) -> Int
     bb0 entry
       call $call.1: Int = @fn6 virtual[0]
         Type VirtualBox<Int>
@@ -598,7 +624,7 @@ Module
       return
         Type Int
         Local $call.1
-  fun $reference.7 @fn22($closure: (Int) -> Int, arg0: Int) -> Int
+  fun $reference.7 @fn24($closure: (Int) -> Int, arg0: Int) -> Int
     bb0 entry
       call $call.1: Int = @fn8 interface Chooser<Int>[0]
         Type Chooser<Int>
@@ -610,7 +636,7 @@ Module
       return
         Type Int
         Local $call.1
-  fun init.Later.$c0 @fn23(this: Later, number: Int) -> Unit
+  fun init.Later.$c0 @fn25(this: Later, number: Int) -> Unit
     bb0 entry
       field_set 0
         Type Later
@@ -618,7 +644,7 @@ Module
         Type Int
         Local number
       return
-  fun init.VirtualChild.$c0 @fn24(this: VirtualChild<Later>, value: Later, other: Later) -> Unit
+  fun init.VirtualChild.$c0 @fn26(this: VirtualChild<Later>, value: Later, other: Later) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Later
         Type Later
@@ -626,7 +652,7 @@ Module
       val $dependency.constructor.local.1: Later
         Type Later
         Local $dependency.constructor.local.0
-      call @fn28 direct
+      call @fn30 direct
         Type VirtualBox<Later>
         Retype VirtualBox<Later>
           Type VirtualChild<Later>
@@ -639,10 +665,10 @@ Module
         Type Later
         Local other
       return
-  fun init.Choosing.$c1 @fn25(this: Choosing<Later>) -> Unit
+  fun init.Choosing.$c1 @fn27(this: Choosing<Later>) -> Unit
     bb0 entry
       return
-  fun init.VirtualChild.$c0 @fn26(this: VirtualChild<Int>, value: Int, other: Int) -> Unit
+  fun init.VirtualChild.$c0 @fn28(this: VirtualChild<Int>, value: Int, other: Int) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Int
         Type Int
@@ -650,7 +676,7 @@ Module
       val $dependency.constructor.local.1: Int
         Type Int
         Local $dependency.constructor.local.0
-      call @fn29 direct
+      call @fn31 direct
         Type VirtualBox<Int>
         Retype VirtualBox<Int>
           Type VirtualChild<Int>
@@ -663,10 +689,10 @@ Module
         Type Int
         Local other
       return
-  fun init.Choosing.$c1 @fn27(this: Choosing<Int>) -> Unit
+  fun init.Choosing.$c1 @fn29(this: Choosing<Int>) -> Unit
     bb0 entry
       return
-  fun init.VirtualBox.$c2 @fn28(this: VirtualBox<Later>, value: Later) -> Unit
+  fun init.VirtualBox.$c2 @fn30(this: VirtualBox<Later>, value: Later) -> Unit
     bb0 entry
       field_set 0
         Type VirtualBox<Later>
@@ -674,7 +700,7 @@ Module
         Type Later
         Local value
       return
-  fun init.VirtualBox.$c2 @fn29(this: VirtualBox<Int>, value: Int) -> Unit
+  fun init.VirtualBox.$c2 @fn31(this: VirtualBox<Int>, value: Int) -> Unit
     bb0 entry
       field_set 0
         Type VirtualBox<Int>
@@ -682,7 +708,7 @@ Module
         Type Int
         Local value
       return
-  fun startCoroutine<Later> @fn30(task: SuspendTask<Later>, completion: Continuation<Later>) -> Unit
+  fun startCoroutine<Later> @fn32(task: SuspendTask<Later>, completion: Continuation<Later>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -763,7 +789,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun function_bridge.$Closure$reference0.() -> Any @fn31($source: () -> Int) -> Any
+  fun function_bridge.$Closure$reference0.() -> Any @fn33($source: () -> Int) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type0> closure[function_type0]
         Type () -> Int
@@ -773,7 +799,7 @@ Module
         Box
           Type Int
           Local $call.1
-  fun function_bridge.$Closure$reference1.() -> Any @fn32($source: () -> Int) -> Any
+  fun function_bridge.$Closure$reference1.() -> Any @fn34($source: () -> Int) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type0> closure[function_type0]
         Type () -> Int
@@ -783,7 +809,7 @@ Module
         Box
           Type Int
           Local $call.1
-  fun function_bridge.$Closure$reference2.() -> Any @fn33($source: () -> Later) -> Any
+  fun function_bridge.$Closure$reference2.() -> Any @fn35($source: () -> Later) -> Any
     bb0 entry
       call $call.1: Later = <closure:function_type2> closure[function_type2]
         Type () -> Later
@@ -793,7 +819,7 @@ Module
         Retype Any
           Type Later
           Local $call.1
-  fun function_bridge.$Closure$reference3.(Any) -> Any @fn34($source: (Later) -> Later, arg0: Any) -> Any
+  fun function_bridge.$Closure$reference3.(Any) -> Any @fn36($source: (Later) -> Later, arg0: Any) -> Any
     bb0 entry
       call $call.1: Later = <closure:function_type3> closure[function_type3]
         Type (Later) -> Later
@@ -807,7 +833,7 @@ Module
         Retype Any
           Type Later
           Local $call.1
-  fun function_bridge.$Closure$reference4.() -> Any @fn35($source: () -> Int) -> Any
+  fun function_bridge.$Closure$reference4.() -> Any @fn37($source: () -> Int) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type0> closure[function_type0]
         Type () -> Int
@@ -817,7 +843,7 @@ Module
         Box
           Type Int
           Local $call.1
-  fun function_bridge.$Closure$reference5.() -> Any @fn36($source: () -> Int) -> Any
+  fun function_bridge.$Closure$reference5.() -> Any @fn38($source: () -> Int) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type0> closure[function_type0]
         Type () -> Int
@@ -827,7 +853,7 @@ Module
         Box
           Type Int
           Local $call.1
-  fun function_bridge.$Closure$reference6.() -> Any @fn37($source: () -> Int) -> Any
+  fun function_bridge.$Closure$reference6.() -> Any @fn39($source: () -> Int) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type0> closure[function_type0]
         Type () -> Int
@@ -837,7 +863,7 @@ Module
         Box
           Type Int
           Local $call.1
-  fun function_bridge.$Closure$reference7.(Any) -> Any @fn38($source: (Int) -> Int, arg0: Any) -> Any
+  fun function_bridge.$Closure$reference7.(Any) -> Any @fn40($source: (Int) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type5> closure[function_type5]
         Type (Int) -> Int
@@ -853,7 +879,7 @@ Module
           Local $call.1
   coroutine_step cs0 CoroutineStep<Later> result=Later
   coroutine_slot cl0 CoroutineSlot<Later> value=Later
-  coroutine_start ct0 result=Later function=fn30
+  coroutine_start ct0 result=Later function=fn32
   coroutine_fn cf0 @fn13 source_return=Later step=cs0 immediate
   instance mi0 function=@fn1 <- exercise
   instance mi1 function=@fn2 <- exercise

@@ -283,8 +283,8 @@ Module
   td td3 a(n(c=dev.example%3Ageneric-member-provider%3A0.1.0;p=templates.bounds;o=-;k=C;x=HolderImpl);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$a3e2ca93eb2c05c5632c8101f80141fe79315abe54e7ab0b21c40776f4045077 type-id=18264054619356672142 shape=FixedObject minimum-size=24 align=8 parent=none vtable=[] itables=[td1:[local-fn2], td0:[local-fn2]]
   td td4 f(o;[]->n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)) @scoop$1$td$12b88be5eb815a46bc3bd328ffa4199715a900c0a960abd79a0d8b1916bc6a3b type-id=10983983008742581487 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] function=ordinary()->external-td4
   td td5 g(r=00000001;i=41ed08f13d69caf8a3bfafddce021cc3c0fa29255eea6a55998d26691bc5f63c) @scoop$1$td$9dfc6b93a97c512cc5ea35a5885186ad967de541873315ec470a15519603ff7f type-id=17979471858542011071 shape=FixedObject minimum-size=32 align=8 parent=td4 vtable=[local-fn13] itables=[]
-  layout ChildHolder value size=8 align=8 refs=[0]
-  layout Holder value size=8 align=8 refs=[0]
+  layout ChildHolder value size=16 align=8 refs=[0]
+  layout Holder value size=16 align=8 refs=[0]
   layout Later value size=8 align=8 refs=[0]
   layout Later size=24 align=8 refs=[]
   layout HolderImpl value size=8 align=8 refs=[0]

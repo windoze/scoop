@@ -218,7 +218,7 @@ pub(crate) fn lower_structs(
                     definition.name.clone(),
                     size,
                     align,
-                    lower_intrinsic_type_representation(module, representation),
+                    lower_intrinsic_type_representation(context, module, enums, representation)?,
                 );
             }
         }
@@ -303,10 +303,18 @@ pub(crate) fn lir_return_type(module: &mir::Module, ty: &mir::Type) -> lir::LirR
 }
 
 pub(crate) fn lower_intrinsic_type_representation(
+    context: &LoweringContext,
     module: &mir::Module,
+    enums: &lir::EnumDefs,
     representation: &mir::IntrinsicTypeRepresentation,
-) -> lir::IntrinsicTypeRepresentation {
-    match representation {
+) -> StorageResult<lir::IntrinsicTypeRepresentation> {
+    Ok(match representation {
+        mir::IntrinsicTypeRepresentation::MaybeUninit { value } => {
+            lir::IntrinsicTypeRepresentation::MaybeUninit {
+                value: Box::new(lir_type(module, value)),
+                scan: ref_scan(context, module, enums, value, 0)?,
+            }
+        }
         mir::IntrinsicTypeRepresentation::Integer(kind) => {
             lir::IntrinsicTypeRepresentation::Integer(integer_kind(*kind))
         }
@@ -334,7 +342,7 @@ pub(crate) fn lower_intrinsic_type_representation(
         | mir::IntrinsicTypeRepresentation::Atomic(_) => {
             unreachable!("intrinsic class storage uses its own metadata layout")
         }
-    }
+    })
 }
 
 /// Map a MIR type onto its LIR value type (DESIGN 2.4 / 3.4): Unit is
@@ -346,6 +354,7 @@ pub(crate) fn lower_intrinsic_type_representation(
 /// lives only in typed `ArrayType` metadata.
 pub(crate) fn lir_type(module: &mir::Module, ty: &mir::Type) -> lir::LirType {
     match ty {
+        mir::Type::Interface(_) => lir::LirType::Interface,
         mir::Type::Context(storage) => match storage.role {
             mir::ContextStorageRole::Task
             | mir::ContextStorageRole::Node
@@ -359,11 +368,9 @@ pub(crate) fn lir_type(module: &mir::Module, ty: &mir::Type) -> lir::LirType {
         mir::Type::Integer(kind) => integer_kind(*kind).scalar_type(),
         mir::Type::MachineScalar(kind) => lir::LirType::MachineScalar(machine_scalar_kind(*kind)),
         mir::Type::Boolean => lir::LirType::I1,
-        mir::Type::String
-        | mir::Type::Class(_)
-        | mir::Type::Interface(_)
-        | mir::Type::Function(_)
-        | mir::Type::Any => lir::LirType::Ptr(lir::PointerKind::Managed),
+        mir::Type::String | mir::Type::Class(_) | mir::Type::Function(_) | mir::Type::Any => {
+            lir::LirType::Ptr(lir::PointerKind::Managed)
+        }
         mir::Type::Ptr(_) => lir::LirType::Ptr(lir::PointerKind::Raw),
         mir::Type::FunPtr(_) => lir::LirType::Ptr(lir::PointerKind::Code),
         mir::Type::Struct(id) => match module.structs[*id].representation {

@@ -38,7 +38,8 @@ Module
   generated_exact_type get4 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
   generated_exact_type get5 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
   generated_exact_type get6 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
-  generated_callable gc0 function=@fn27 id=468399f4b34c972576b6e2da167cbb0a1d7aea28e3f908e2152ee59aa4d06a51
+  generated_callable gc0 function=@fn22 id=2218422f80eb0c048f9cb1e32796fd6584d0cd6b1a76e669cea86df854d8a63e
+  generated_callable gc1 function=@fn28 id=468399f4b34c972576b6e2da167cbb0a1d7aea28e3f908e2152ee59aa4d06a51
   fun ReaderImpl.read @fn0(this: ReaderImpl) -> Int
     bb0 entry
       val $context_binding.1: internal<context-binding-ref>
@@ -367,7 +368,7 @@ Module
       assign $new.1
         Type Request
         ClassAlloc Request
-      call @fn22 direct
+      call @fn23 direct
         Type Request
         Local $new.1
         Type Int
@@ -378,7 +379,7 @@ Module
       assign $new.2
         Type ReaderImpl
         ClassAlloc ReaderImpl
-      call @fn23 direct
+      call @fn24 direct
         Type ReaderImpl
         Local $new.2
       val reader: Reader
@@ -389,7 +390,7 @@ Module
       assign $new.3
         Type ConcreteReader
         ClassAlloc ConcreteReader
-      call @fn25 direct
+      call @fn26 direct
         Type ConcreteReader
         Local $new.3
       val abstractReader: AbstractReader
@@ -509,7 +510,7 @@ Module
       assign $new.4
         Type Calculator
         ClassAlloc Calculator
-      call @fn26 direct
+      call @fn27 direct
         Type Calculator
         Local $new.4
       val $receiver: Calculator
@@ -851,7 +852,17 @@ Module
   fun Reader.$set$current @fn21(this: Reader, value: Int) -> Unit
     bb0 entry
       trap "call to abstract method `Reader.$set$current`"
-  fun init.Request.$c0 @fn22(this: Request, value: Int) -> Unit
+  fun receiver<ReaderImpl> Reader.twice @fn22(this: ReaderImpl) -> Int
+    bb0 entry
+      call $call.1: Int = @fn19 direct
+        Type Reader
+        Retype Reader
+          Type ReaderImpl
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun init.Request.$c0 @fn23(this: Request, value: Int) -> Unit
     bb0 entry
       field_set 0
         Type Request
@@ -859,24 +870,24 @@ Module
         Type Int
         Local value
       return
-  fun init.ReaderImpl.$c1 @fn23(this: ReaderImpl) -> Unit
+  fun init.ReaderImpl.$c1 @fn24(this: ReaderImpl) -> Unit
     bb0 entry
       return
-  fun init.AbstractReader.$c2 @fn24(this: AbstractReader) -> Unit
+  fun init.AbstractReader.$c2 @fn25(this: AbstractReader) -> Unit
     bb0 entry
       return
-  fun init.ConcreteReader.$c3 @fn25(this: ConcreteReader) -> Unit
+  fun init.ConcreteReader.$c3 @fn26(this: ConcreteReader) -> Unit
     bb0 entry
-      call @fn24 direct
+      call @fn25 direct
         Type AbstractReader
         Retype AbstractReader
           Type ConcreteReader
           Local this
       return
-  fun init.Calculator.$c4 @fn26(this: Calculator) -> Unit
+  fun init.Calculator.$c4 @fn27(this: Calculator) -> Unit
     bb0 entry
       return
-  fun startCoroutine<Request> @fn27(task: SuspendTask<Request>, completion: Continuation<Request>) -> Unit
+  fun startCoroutine<Request> @fn28(task: SuspendTask<Request>, completion: Continuation<Request>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -959,7 +970,7 @@ Module
       goto bb6
   coroutine_step cs0 CoroutineStep<Request> result=Request
   coroutine_slot cl0 CoroutineSlot<Request> value=Request
-  coroutine_start ct0 result=Request function=fn27
+  coroutine_start ct0 result=Request function=fn28
   coroutine_fn cf0 @fn16 source_return=Request step=cs0 immediate
   instance mi0 function=@fn11 <- println
   instance mi1 function=@fn13 <- println

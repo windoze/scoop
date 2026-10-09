@@ -148,6 +148,7 @@ pub(crate) fn instruction_temp_defs(instruction: &Instruction) -> [Option<TempId
         }
         Instruction::ForeignCallbackOperation(operation) => operation.out(),
         Instruction::Store { .. }
+        | Instruction::MaybeUninit { .. }
         | Instruction::GlobalStore { .. }
         | Instruction::PublishReleaseReady { .. }
         | Instruction::NativeGlobalStore { .. }

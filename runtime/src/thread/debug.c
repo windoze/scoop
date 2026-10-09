@@ -3,7 +3,7 @@
 bool scoop_rt_thread_debug_is_attached(void) { return scoop_thread_tls != NULL; }
 uint32_t scoop_rt_thread_debug_mode(void) {
     ScoopThreadState *state = scoop_thread_current_required();
-    ScoopThreadMode mode = atomic_load_explicit(&state->mode, memory_order_acquire);
+    ScoopThreadMode mode = atomic_load_explicit(&state->poll.mode, memory_order_acquire);
     switch (mode) {
     case SCOOP_THREAD_MANAGED_PENDING:
         return SCOOP_THREAD_DEBUG_MANAGED;

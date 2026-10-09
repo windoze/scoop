@@ -39,7 +39,7 @@ diagnostics = []
 checks = [
   {file = "${work}/dump/provider/${provider.result.root.identity}/hir.txt", snapshot = "provider.hir.txt"},
   {file = "${work}/dump/provider/${provider.result.root.identity}/mir.txt", snapshot = "provider.mir.txt"},
-  {file = "${work}/dump/provider/${provider.result.root.identity}/lir.txt", snapshot = "provider.lir.txt"},
+  {file = "${work}/dump/provider/${provider.result.root.identity}/lir.txt", snapshot = "provider.${target}.lir.txt"},
 ]
 
 [[steps]]
@@ -57,7 +57,7 @@ diagnostics = []
 checks = [
   {file = "${work}/dump/consumer/${consumer.result.root.identity}/hir.txt", snapshot = "consumer.hir.txt"},
   {file = "${work}/dump/consumer/${consumer.result.root.identity}/mir.txt", snapshot = "consumer.mir.txt"},
-  {file = "${work}/dump/consumer/${consumer.result.root.identity}/lir.txt", snapshot = "consumer.lir.txt"},
+  {file = "${work}/dump/consumer/${consumer.result.root.identity}/lir.txt", snapshot = "consumer.${target}.lir.txt"},
 ]
 
 [[steps]]

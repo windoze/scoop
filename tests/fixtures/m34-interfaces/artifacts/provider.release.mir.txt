@@ -1,0 +1,876 @@
+Module
+  global0 $singleton$Singleton: Singleton managed initial=zeroed-for-runtime-unit
+  global1 $init$failure$0: Any managed initial=zeroed-for-runtime-unit
+  init0 object:Singleton singleton lazy global0 initializer=@fn3 ensure=@fn4 failure=1 deps=[]
+  struct Small (number: Int)
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<Small>
+    Completed(value: Small)
+    Suspended()
+  enum CoroutineSlot<Small>
+    Empty()
+    Value(value: Small)
+  enum CoroutineStep<Value>
+    Completed(value: Value)
+    Suspended()
+  enum CoroutineSlot<Value>
+    Empty()
+    Value(value: Value)
+  enum CoroutineStep<Singleton>
+    Completed(value: Singleton)
+    Suspended()
+  enum CoroutineSlot<Singleton>
+    Empty()
+    Value(value: Singleton)
+  enum CoroutineStep<Base>
+    Completed(value: Base)
+    Suspended()
+  enum CoroutineSlot<Base>
+    Empty()
+    Value(value: Base)
+  class Base vtable=1 itables=1
+  class Singleton vtable=1 itables=1
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class box<Small> vtable=0 itables=1
+  interface Value
+  interface Continuation<Small>
+  interface SuspendTask<Small>
+  interface SuspendRegistration<Small>
+  interface Continuation<Value>
+  interface SuspendTask<Value>
+  interface SuspendRegistration<Value>
+  interface Continuation<Base>
+  interface SuspendTask<Base>
+  interface SuspendRegistration<Base>
+  interface Continuation<Singleton>
+  interface SuspendTask<Singleton>
+  interface SuspendRegistration<Singleton>
+  generated_exact_type get0 location=enum8 nominal_id=834238142cf7f123096317ae1b9d160e7ce1c8af91239371d34837112ae3cf9d exact_id=0a31b8a0128b1ad03c88b1322422a110ac99f282103d247a2322f16683a96e13
+  generated_exact_type get1 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
+  generated_exact_type get2 location=enum7 nominal_id=047cbb5a5c2b1bea3f3dcdd5bb509472e1afd37640aa7031237f17d01188520c exact_id=311068ea04157d0670356579833eefa89a2e2d1789b1454f9f235690a54e3bd4
+  generated_exact_type get3 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
+  generated_exact_type get4 location=class5 nominal_id=38f57fd31cbe4fd5fe6c69582b5524fe88eba9e3f95e3e588d7b26fb78db8dbb exact_id=4314a9b26832d6390d1f52807220d081995fe6b8ea92f2c5ff9ad7fea84db6c6
+  generated_exact_type get5 location=enum4 nominal_id=e860d3be8eb258218ee5e72c30670cf8856077fe8cdb80b94f6fb591779557a4 exact_id=462e0eccd3c43ae1f9a93c06062692d9e1f8ea98a7cb832a6e149de78aa21170
+  generated_exact_type get6 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
+  generated_exact_type get7 location=enum3 nominal_id=bd24c60cf9a7e1d2e0ff17430de6f2235ecdb26fd401396ebfb3410c107925d1 exact_id=69351f774b0a05d7bbfcbcc9467567a453395a29691cfcfd71c13fa27839982f
+  generated_exact_type get8 location=enum6 nominal_id=51d06d3e35b32501d6bdcc3dbb605151f77e5d76a026fc38e6bff8d84d3c4316 exact_id=7562d56ccd4a05fae65c9315e5a518242223eeca4295687d5de6d2953ff33112
+  generated_exact_type get9 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
+  generated_exact_type get10 location=enum1 nominal_id=266faa868626123a05e80228912cfb94bb94a234bc3aa17ab0b98179d9730bc9 exact_id=8f7a4b3a748b7b883587918dde86d4ce3f2c213b3f8776e194309291c0a87a29
+  generated_exact_type get11 location=enum5 nominal_id=0dd234859c37f9c8b8773a1166beee2575c0922105bb8328d18399c444ad55f8 exact_id=c1e2b63960fbd5142f29d16c333d3f38d3cea26b55ea4048aafa1b6edd3d0581
+  generated_exact_type get12 location=enum2 nominal_id=4abe8389cd223a6eed28f70185bd56eb7e761d06356e24dcb7f9de0232db7150 exact_id=ed0209dbb83e43aad680ce76a7891a6624a4592b5aa0f2e5cc90de095a7f30ee
+  generated_exact_type get13 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
+  generated_callable gc0 function=@fn26 id=0986c9063a6706b89c18bb9e8858ec5724dec99acd90d14587eeac882e50b4c0
+  generated_callable gc1 function=@fn30 id=4ddd20a7a7b8d07847fd05908804903247e8ad30afe0c65527d24c4641c979a7
+  generated_callable gc2 function=@fn34 id=76a5291b67a8824f8bd4a6b1ea88297bd3f2b311a82de44c98dd9d7ee67b4757
+  generated_callable gc3 function=@fn25 id=9044a94d5e71f63c7b8de3b780037e434aff34e4ed77a1ad6dfea48dcffea164
+  generated_callable gc4 function=@fn31 id=bee097bedba45bb284c2a78d74c3570265621ad08dc4fcb4f250c3dbf033dd4b
+  generated_callable gc5 function=@fn32 id=bf5d5c4075656a601be228ddb1d70cf18d9c5a54e63b9a6df65bdb94da5f0b35
+  generated_callable gc6 function=@fn35 id=cbb1d7ac330b7a5564ed8d7cf9de975184a5a625dc4cd3b337306dbf7aa270ef
+  generated_callable gc7 function=@fn33 id=f9c311992c3469a569b4b9342fbb5f0854d36168ff19c06d47c7c54999354811
+  fun Small.get @fn0(this: Small) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type Small
+          Local this
+  fun Small.equals @fn1(this: Small, other: Small) -> Boolean
+    bb0 entry
+      return
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          FieldAccess 0
+            Type Small
+            Local this
+          Type Int
+          FieldAccess 0
+            Type Small
+            Local other
+  fun Base.get @fn2(this: Base) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type Base
+          Local this
+  fun $init$body$0 @fn3() -> Unit
+    bb0 entry
+      assign $new.1
+        Type Singleton
+        ClassAlloc Singleton
+      val $inline.1.this: Singleton
+        Type Singleton
+        Local $new.1
+      goto bb2
+    bb1 inline.cont.1
+      global_assign $singleton$Singleton
+        Type Singleton
+        Local $new.1
+      return
+    bb2 inline.1.entry
+      val $inline.1.$argument.0: Int
+        Type Int
+        IntegerLiteral Int value=19 bits=0x00000013
+      val $inline.1.$parameter.number: Int
+        Type Int
+        IntegerLiteral Int value=19 bits=0x00000013
+      val $inline.3.this: Base
+        Type Base
+        Retype Base
+          Type Singleton
+          Local $inline.1.this
+      val $inline.3.number: Int
+        Type Int
+        IntegerLiteral Int value=19 bits=0x00000013
+      goto bb4
+    bb3 inline.cont.3
+      goto bb1
+    bb4 inline.3.entry
+      field_set 0
+        Type Base
+        Local $inline.3.this
+        Type Int
+        IntegerLiteral Int value=19 bits=0x00000013
+      goto bb3
+  fun $init$ensure$0 @fn4() -> Unit
+    bb0 entry
+      call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object:Singleton
+      branch bb1 bb2
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(RunInitializer)
+    bb1 if.then.1
+      goto bb11
+    bb2 if.else.2
+      branch bb14 bb15
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Ready)
+    bb3 if.merge.3
+      return
+    bb4 try.unwind.4
+      landing_pad cleanup=false
+      goto bb5
+    bb5 try.dispatch.5
+      begin_catch
+      goto bb12
+    bb6 try.handler_pad.6
+      landing_pad cleanup=true
+      goto bb7
+    bb7 try.handler_cleanup.7
+      end_catch
+      resume
+    bb8 try.exit_pad.8
+      unreachable
+    bb9 try.exit_cleanup.9
+      unreachable
+    bb10 try.end.10
+      goto bb3
+    bb11 try.body.11 unwind bb4
+      call @fn3 direct
+      call @scoop_rt_init_succeed direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object:Singleton
+      goto bb10
+    bb12 try.catch.12
+      call $catch.1: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val $init.caught: Any
+        Type Any
+        Retype Any
+          Type Any
+          Local $catch.1
+      goto bb13
+    bb13 scope.13 unwind bb6
+      call @scoop_rt_init_fail direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object:Singleton
+        Type Any
+        Local $init.caught
+      throw unwind bb6
+        Type Any
+        Local $init.caught
+    bb14 if.then.14
+      goto bb16
+    bb15 if.else.15
+      branch bb17 bb18
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Failed)
+    bb16 if.merge.16
+      goto bb3
+    bb17 if.then.17
+      call $init.failure: Any = @scoop_rt_init_failure direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object:Singleton
+      throw
+        Type Any
+        Local $init.failure
+    bb18 if.else.18
+      call $init.message: String = @scoop_rt_init_cycle_message direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object:Singleton
+      call external0 direct
+        Type String
+        Local $init.message
+      unreachable
+    bb19 if.merge.19
+      unreachable
+  fun make @fn5(number: Int) -> Value
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        Local number
+      val $parameter.number: Int
+        Type Int
+        Local $argument.0
+      assign $new.1
+        Type Base
+        ClassAlloc Base
+      val $inline.1.this: Base
+        Type Base
+        Local $new.1
+      val $inline.1.number: Int
+        Type Int
+        Local $parameter.number
+      goto bb2
+    bb1 inline.cont.1
+      return
+        Type Value
+        Retype Value
+          Type Base
+          Local $new.1
+    bb2 inline.1.entry
+      field_set 0
+        Type Base
+        Local $inline.1.this
+        Type Int
+        Local $inline.1.number
+      goto bb1
+  fun keep @fn6(value: Value) -> Value
+    bb0 entry
+      call @scoop_rt_gc_collect direct
+      return
+        Type Value
+        Local value
+  fun Continuation.resume @fn7(this: Continuation<Small>, value: Small) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn8(this: Continuation<Small>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn9(this: SuspendTask<Small>, $completion: Continuation<Small>) -> CoroutineStep<Small>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn10(this: SuspendRegistration<Small>, continuation: Continuation<Small>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn11(this: Continuation<Value>, value: Value) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn12(this: Continuation<Value>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn13(this: SuspendTask<Value>, $completion: Continuation<Value>) -> CoroutineStep<Value>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn14(this: SuspendRegistration<Value>, continuation: Continuation<Value>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn15(this: Continuation<Base>, value: Base) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn16(this: Continuation<Base>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn17(this: SuspendTask<Base>, $completion: Continuation<Base>) -> CoroutineStep<Base>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn18(this: SuspendRegistration<Base>, continuation: Continuation<Base>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn19(this: Continuation<Singleton>, value: Singleton) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn20(this: Continuation<Singleton>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn21(this: SuspendTask<Singleton>, $completion: Continuation<Singleton>) -> CoroutineStep<Singleton>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn22(this: SuspendRegistration<Singleton>, continuation: Continuation<Singleton>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Value.get @fn23(this: Value) -> Int
+    bb0 entry
+      trap "call to abstract method `Value.get`"
+  fun Value.doubled @fn24(this: Value) -> Int
+    bb0 entry
+      val $receiver: Value
+        Type Value
+        Local this
+      call $dependency.receiver: Int = @fn23 interface Value[0]
+        Type Value
+        Local $receiver
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      return
+        Type Int
+        IntegerBinary multiply kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          IntegerLiteral Int value=2 bits=0x00000002
+  fun receiver<Base> Value.doubled @fn25(this: Base) -> Int
+    bb0 entry
+      val $inline.1.this: Value
+        Type Value
+        Retype Value
+          Type Base
+          Local this
+      goto bb2
+    bb1 inline.cont.1
+      val $call.1: Int
+        Type Int
+        Local $inline.1.result
+      return
+        Type Int
+        Local $call.1
+    bb2 inline.1.entry
+      val $inline.1.$receiver: Value
+        Type Value
+        Local $inline.1.this
+      call $inline.1.$dependency.receiver: Int = @fn23 interface Value[0]
+        Type Value
+        Local $inline.1.$receiver
+      val $inline.1.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.1.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      assign $inline.1.result
+        Type Int
+        IntegerBinary multiply kind=Int
+          Type Int
+          Local $inline.1.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=2 bits=0x00000002
+      goto bb1
+  fun receiver<Singleton> Value.doubled @fn26(this: Singleton) -> Int
+    bb0 entry
+      val $inline.1.this: Value
+        Type Value
+        Retype Value
+          Type Singleton
+          Local this
+      goto bb2
+    bb1 inline.cont.1
+      val $call.1: Int
+        Type Int
+        Local $inline.1.result
+      return
+        Type Int
+        Local $call.1
+    bb2 inline.1.entry
+      val $inline.1.$receiver: Value
+        Type Value
+        Local $inline.1.this
+      call $inline.1.$dependency.receiver: Int = @fn2 direct
+        Type Base
+        Retype Base
+          Type Value
+          Local $inline.1.$receiver
+      val $inline.1.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.1.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      assign $inline.1.result
+        Type Int
+        IntegerBinary multiply kind=Int
+          Type Int
+          Local $inline.1.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=2 bits=0x00000002
+      goto bb1
+  fun init.Base.$c0 @fn27(this: Base, number: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Base
+        Local this
+        Type Int
+        Local number
+      return
+  fun init.Singleton.$c1 @fn28(this: Singleton) -> Unit
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=19 bits=0x00000013
+      val $parameter.number: Int
+        Type Int
+        IntegerLiteral Int value=19 bits=0x00000013
+      val $inline.1.this: Base
+        Type Base
+        Retype Base
+          Type Singleton
+          Local this
+      val $inline.1.number: Int
+        Type Int
+        IntegerLiteral Int value=19 bits=0x00000013
+      goto bb2
+    bb1 inline.cont.1
+      return
+    bb2 inline.1.entry
+      field_set 0
+        Type Base
+        Local $inline.1.this
+        Type Int
+        IntegerLiteral Int value=19 bits=0x00000013
+      goto bb1
+  fun ctor.Small.$c0 @fn29(number: Int) -> Small <no-gc>
+    bb0 entry
+      return
+        Type Small
+        StructInit Small
+          Type Int
+          Local number
+  fun startCoroutine<Small> @fn30(task: SuspendTask<Small>, completion: Continuation<Small>) -> Unit
+    bb0 context.unwind
+      landing_pad cleanup=true
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb1 context.catch_unwind
+      landing_pad cleanup=true
+      end_catch
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb2 suspended
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb3 completed unwind bb0
+      call @fn7 interface Continuation<Small>[0]
+        Type Continuation<Small>
+        Local completion
+        Type Small
+        EnumField v0 f0
+          Type CoroutineStep<Small>
+          Local $step
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb4 failed unwind bb0
+      call @fn8 interface Continuation<Small>[1]
+        Type Continuation<Small>
+        Local completion
+        Type Throwable
+        Local $exception
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb5 body_failure unwind bb1
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb4
+    bb6 run unwind bb5
+      call $step: CoroutineStep<Small> = @fn9 interface SuspendTask<Small>[0]
+        Type SuspendTask<Small>
+        Local task
+        Type Continuation<Small>
+        Local completion
+      branch bb3 bb2
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Small>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+    bb7 entry
+      val $child_context: internal<task-context>
+        Type internal<task-context>
+        ContextFork
+          Type internal<context-node>
+          ContextSnapshot
+      val $context_guard: internal<context-switch-guard>
+        Type internal<context-switch-guard>
+        ContextEnter
+          Type internal<task-context>
+          Local $child_context
+      goto bb6
+  fun startCoroutine<Value> @fn31(task: SuspendTask<Value>, completion: Continuation<Value>) -> Unit
+    bb0 context.unwind
+      landing_pad cleanup=true
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb1 context.catch_unwind
+      landing_pad cleanup=true
+      end_catch
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb2 suspended
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb3 completed unwind bb0
+      call @fn11 interface Continuation<Value>[0]
+        Type Continuation<Value>
+        Local completion
+        Type Value
+        EnumField v0 f0
+          Type CoroutineStep<Value>
+          Local $step
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb4 failed unwind bb0
+      call @fn12 interface Continuation<Value>[1]
+        Type Continuation<Value>
+        Local completion
+        Type Throwable
+        Local $exception
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb5 body_failure unwind bb1
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb4
+    bb6 run unwind bb5
+      call $step: CoroutineStep<Value> = @fn13 interface SuspendTask<Value>[0]
+        Type SuspendTask<Value>
+        Local task
+        Type Continuation<Value>
+        Local completion
+      branch bb3 bb2
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Value>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+    bb7 entry
+      val $child_context: internal<task-context>
+        Type internal<task-context>
+        ContextFork
+          Type internal<context-node>
+          ContextSnapshot
+      val $context_guard: internal<context-switch-guard>
+        Type internal<context-switch-guard>
+        ContextEnter
+          Type internal<task-context>
+          Local $child_context
+      goto bb6
+  fun startCoroutine<Singleton> @fn32(task: SuspendTask<Singleton>, completion: Continuation<Singleton>) -> Unit
+    bb0 context.unwind
+      landing_pad cleanup=true
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb1 context.catch_unwind
+      landing_pad cleanup=true
+      end_catch
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb2 suspended
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb3 completed unwind bb0
+      call @fn19 interface Continuation<Singleton>[0]
+        Type Continuation<Singleton>
+        Local completion
+        Type Singleton
+        EnumField v0 f0
+          Type CoroutineStep<Singleton>
+          Local $step
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb4 failed unwind bb0
+      call @fn20 interface Continuation<Singleton>[1]
+        Type Continuation<Singleton>
+        Local completion
+        Type Throwable
+        Local $exception
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb5 body_failure unwind bb1
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb4
+    bb6 run unwind bb5
+      call $step: CoroutineStep<Singleton> = @fn21 interface SuspendTask<Singleton>[0]
+        Type SuspendTask<Singleton>
+        Local task
+        Type Continuation<Singleton>
+        Local completion
+      branch bb3 bb2
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Singleton>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+    bb7 entry
+      val $child_context: internal<task-context>
+        Type internal<task-context>
+        ContextFork
+          Type internal<context-node>
+          ContextSnapshot
+      val $context_guard: internal<context-switch-guard>
+        Type internal<context-switch-guard>
+        ContextEnter
+          Type internal<task-context>
+          Local $child_context
+      goto bb6
+  fun startCoroutine<Base> @fn33(task: SuspendTask<Base>, completion: Continuation<Base>) -> Unit
+    bb0 context.unwind
+      landing_pad cleanup=true
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb1 context.catch_unwind
+      landing_pad cleanup=true
+      end_catch
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb2 suspended
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb3 completed unwind bb0
+      call @fn15 interface Continuation<Base>[0]
+        Type Continuation<Base>
+        Local completion
+        Type Base
+        EnumField v0 f0
+          Type CoroutineStep<Base>
+          Local $step
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb4 failed unwind bb0
+      call @fn16 interface Continuation<Base>[1]
+        Type Continuation<Base>
+        Local completion
+        Type Throwable
+        Local $exception
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb5 body_failure unwind bb1
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb4
+    bb6 run unwind bb5
+      call $step: CoroutineStep<Base> = @fn17 interface SuspendTask<Base>[0]
+        Type SuspendTask<Base>
+        Local task
+        Type Continuation<Base>
+        Local completion
+      branch bb3 bb2
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Base>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+    bb7 entry
+      val $child_context: internal<task-context>
+        Type internal<task-context>
+        ContextFork
+          Type internal<context-node>
+          ContextSnapshot
+      val $context_guard: internal<context-switch-guard>
+        Type internal<context-switch-guard>
+        ContextEnter
+          Type internal<task-context>
+          Local $child_context
+      goto bb6
+  fun thunk<Small> Value.get() @fn34(this: box<Small>) -> Int
+    bb0 entry
+      val $inline.1.this: Small
+        Type Small
+        Unbox
+          Type box<Small>
+          Local this
+      goto bb2
+    bb1 inline.cont.1
+      val $call.1: Int
+        Type Int
+        Local $inline.1.result
+      return
+        Type Int
+        Local $call.1
+    bb2 inline.1.entry
+      assign $inline.1.result
+        Type Int
+        FieldAccess 0
+          Type Small
+          Local $inline.1.this
+      goto bb1
+  fun thunk<Small> Value.doubled() @fn35(this: box<Small>) -> Int
+    bb0 entry
+      val $inline.1.this: Value
+        Type Value
+        Retype Value
+          Type box<Small>
+          Local this
+      goto bb2
+    bb1 inline.cont.1
+      val $call.1: Int
+        Type Int
+        Local $inline.1.result
+      return
+        Type Int
+        Local $call.1
+    bb2 inline.1.entry
+      val $inline.1.$receiver: Value
+        Type Value
+        Local $inline.1.this
+      call $inline.1.$dependency.receiver: Int = @fn34 direct
+        Type box<Small>
+        Retype box<Small>
+          Type Value
+          Local $inline.1.$receiver
+      val $inline.1.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.1.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      assign $inline.1.result
+        Type Int
+        IntegerBinary multiply kind=Int
+          Type Int
+          Local $inline.1.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=2 bits=0x00000002
+      goto bb1
+  coroutine_step cs0 CoroutineStep<Small> result=Small
+  coroutine_step cs1 CoroutineStep<Value> result=Value
+  coroutine_step cs2 CoroutineStep<Singleton> result=Singleton
+  coroutine_step cs3 CoroutineStep<Base> result=Base
+  coroutine_slot cl0 CoroutineSlot<Small> value=Small
+  coroutine_slot cl1 CoroutineSlot<Value> value=Value
+  coroutine_slot cl2 CoroutineSlot<Singleton> value=Singleton
+  coroutine_slot cl3 CoroutineSlot<Base> value=Base
+  coroutine_start ct0 result=Small function=fn30
+  coroutine_start ct1 result=Value function=fn31
+  coroutine_start ct2 result=Singleton function=fn32
+  coroutine_start ct3 result=Base function=fn33
+  coroutine_fn cf0 @fn9 source_return=Small step=cs0 immediate
+  coroutine_fn cf1 @fn13 source_return=Value step=cs1 immediate
+  coroutine_fn cf2 @fn17 source_return=Base step=cs3 immediate
+  coroutine_fn cf3 @fn21 source_return=Singleton step=cs2 immediate
+  instance mi0 function=@fn7 <- Continuation.resume
+  instance mi1 function=@fn8 <- Continuation.resumeWithException
+  instance mi2 function=@fn9 <- SuspendTask.run
+  instance mi3 function=@fn10 <- SuspendRegistration.register
+  instance mi4 function=@fn11 <- Continuation.resume
+  instance mi5 function=@fn12 <- Continuation.resumeWithException
+  instance mi6 function=@fn13 <- SuspendTask.run
+  instance mi7 function=@fn14 <- SuspendRegistration.register
+  instance mi8 function=@fn15 <- Continuation.resume
+  instance mi9 function=@fn16 <- Continuation.resumeWithException
+  instance mi10 function=@fn17 <- SuspendTask.run
+  instance mi11 function=@fn18 <- SuspendRegistration.register
+  instance mi12 function=@fn19 <- Continuation.resume
+  instance mi13 function=@fn20 <- Continuation.resumeWithException
+  instance mi14 function=@fn21 <- SuspendTask.run
+  instance mi15 function=@fn22 <- SuspendRegistration.register
+  output library

@@ -23,7 +23,7 @@ checks = [
   {file = "${work}/dump/${build.result.root.identity}/ast.txt", snapshot = "m18-invoke-combined.ast.txt"},
   {file = "${work}/dump/${build.result.root.identity}/hir.txt", snapshot = "m18-invoke-combined.hir.txt"},
   {file = "${work}/dump/${build.result.root.identity}/mir.txt", snapshot = "m18-invoke-combined.mir.txt"},
-  {file = "${work}/dump/${build.result.root.identity}/lir.txt", snapshot = "m18-invoke-combined.lir.txt"},
+  {file = "${work}/dump/${build.result.root.identity}/lir.txt", snapshot = "m18-invoke-combined.${target}.lir.txt"},
 ]
 
 [[steps]]

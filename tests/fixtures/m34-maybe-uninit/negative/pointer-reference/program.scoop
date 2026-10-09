@@ -1,0 +1,4 @@
+@Unsafe fun main() {
+    val value = MaybeUninit<String>.uninit()
+    addressOf(value)
+}

@@ -7,6 +7,27 @@ pub(super) fn dump_instruction(
     buf: &mut String,
 ) {
     match instruction {
+        Instruction::MaybeUninit {
+            out,
+            wrapper,
+            operation,
+        } => {
+            let (kind, operand) = match operation {
+                MaybeUninitOperation::Uninit => ("uninit", String::new()),
+                MaybeUninitOperation::Initialized(value) => {
+                    ("initialized", format!(" {}", value_name(*value)))
+                }
+                MaybeUninitOperation::AssumeInit(value) => {
+                    ("assume_init", format!(" {}", value_name(*value)))
+                }
+            };
+            buf.push_str(&format!(
+                "    local{} = maybe_uninit.{kind} {}{operand} : {}\n",
+                out.into_raw(),
+                module.structs[*wrapper].name,
+                function.locals[*out].ty().dump()
+            ));
+        }
         Instruction::AtomicLoad { .. }
         | Instruction::AtomicStore { .. }
         | Instruction::AtomicRmw { .. }

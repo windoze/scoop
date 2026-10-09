@@ -66,14 +66,19 @@ fn linux_runtime_sources_compile_and_define_the_complete_runtime_abi() {
         let registry = RuntimeSymbolContractRegistryV1::current(target).unwrap();
         for contract in registry.contracts() {
             let name = String::from_utf8(contract.object_symbol(target)).unwrap();
-            let kind = match contract.symbol() {
-                RuntimeAbiSymbolV1::CoreStringTypeDescriptor => {
-                    assert!(!definitions.contains_key(&name));
-                    continue;
-                }
-                RuntimeAbiSymbolV1::AllocationContext => SymbolKind::Tls,
-                RuntimeAbiSymbolV1::CardTable => SymbolKind::Data,
-                _ => SymbolKind::Text,
+            if contract.symbol() == RuntimeAbiSymbolV1::CoreStringTypeDescriptor {
+                assert!(!definitions.contains_key(&name));
+                continue;
+            }
+            let kind = match contract.symbol().machine_contract() {
+                CompilerNativeContractV1::Data {
+                    thread_local: true, ..
+                } => SymbolKind::Tls,
+                CompilerNativeContractV1::Data {
+                    thread_local: false,
+                    ..
+                } => SymbolKind::Data,
+                CompilerNativeContractV1::Function { .. } => SymbolKind::Text,
             };
             assert_eq!(definitions.get(&name), Some(&kind), "{name}");
         }

@@ -11,6 +11,11 @@ pub fn visit_expr(expr: &Expr, visitor: &mut impl FnMut(&Expr)) {
 /// choose whether to process the root itself.
 pub fn walk_expr(expr: &Expr, visitor: &mut impl FnMut(&Expr)) {
     match &expr.kind {
+        ExprKind::MaybeUninit { operation, .. } => {
+            if let Some(value) = operation.operand() {
+                visit_expr(value, visitor);
+            }
+        }
         ExprKind::Atomic(atomic) => {
             for operand in atomic.operands() {
                 visit_expr(operand, visitor);
@@ -170,6 +175,11 @@ pub fn visit_expr_mut(expr: &mut Expr, visitor: &mut impl FnMut(&mut Expr)) {
 /// child's complete subtree.
 pub fn walk_expr_mut(expr: &mut Expr, visitor: &mut impl FnMut(&mut Expr)) {
     match &mut expr.kind {
+        ExprKind::MaybeUninit { operation, .. } => {
+            if let Some(value) = operation.operand_mut() {
+                visit_expr_mut(value, visitor);
+            }
+        }
         ExprKind::Atomic(atomic) => {
             for operand in atomic.operands_mut() {
                 visit_expr_mut(operand, visitor);

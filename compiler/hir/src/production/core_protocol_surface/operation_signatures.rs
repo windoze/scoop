@@ -17,8 +17,8 @@ pub(super) fn expected_operation_signature(
     let binder = SignatureTypeKey::Binder { depth: 0, index: 0 };
 
     let (effect, parameters, result) = match kind {
-        IntrinsicFunctionKind::Atomic(_) => {
-            unreachable!("atomic signatures are provided by their ordinary nominal declaration")
+        IntrinsicFunctionKind::Atomic(_) | IntrinsicFunctionKind::MaybeUninit(_) => {
+            unreachable!("these signatures come from their ordinary nominal declaration")
         }
         IntrinsicFunctionKind::Float(kind) => {
             let floating = |kind| SignatureTypeKey::Nominal(surface.float_source_type(kind));
@@ -323,6 +323,7 @@ pub(super) fn operation_own_type_parameter_count(kind: IntrinsicFunctionKind) ->
         | IntrinsicFunctionKind::ArrayAccess(_)
         | IntrinsicFunctionKind::Array(_)
         | IntrinsicFunctionKind::Atomic(_)
+        | IntrinsicFunctionKind::MaybeUninit(_)
         | IntrinsicFunctionKind::Pointer(_) => 0,
     }
 }

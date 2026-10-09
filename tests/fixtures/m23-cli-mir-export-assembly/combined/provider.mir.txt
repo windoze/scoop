@@ -136,18 +136,24 @@ Module
   generated_exact_type get24 location=enum10 nominal_id=4ea6b66d7d03c79e912cbb80401be8f0da35c97cd767ca8a671b71e06a68f67f exact_id=f0ef0e76863e442384e451f1db8b948d5f7cd9dbaa89e7f1b6bba84e77442ba1
   generated_exact_type get25 location=enum6 nominal_id=07b4087664bc136f510bb8769d66ae5e3e22af71adc30fca419253858c1f6e4a exact_id=f9f288dcc9e31e69b215e1fa3fb2a93917fe9645083a542406dbb3846bf28c25
   generated_exact_type get26 location=enum16 nominal_id=5742e0733f2cb3bd4135fa60957bff475c61643194c69daeee9ebe629bfd870e exact_id=fac1d7907f0a44b9ccc3263b9f135b3a4ec5c68f1fcf51972a6b1e9925298fed
-  generated_callable gc0 function=@fn74 id=029ea675a92256f0c196ac60b1ea6755cecc1bac83461f0740a26a553c52bd38
-  generated_callable gc1 function=@fn72 id=122b4d747bc6af1889b1d755e91355b9d85338d738cee6bd10673cf71ac681e7
-  generated_callable gc2 function=@fn73 id=177be4c0a3f72c0622e9e2d8d14c6b99be97ae08b15bda7d8241f9c93e430d26
-  generated_callable gc3 function=@fn69 id=1a41709e10bbdfe00155e56d3efa6352912675d03410512136103bf575755aeb
-  generated_callable gc4 function=@fn79 id=35daed3a5ff49f54d7b8ac5c7469f807edced7b2e0b5267528be1b8220e12059
-  generated_callable gc5 function=@fn71 id=c548f4dbc544a4bbab409c4408b700789f603e2daec4ce22a2aa6591cbc27be0
-  generated_callable gc6 function=@fn78 id=c6aac3dd647e7ee450d189c064849ee5af8d192174a993bd46b9d14575387444
-  generated_callable gc7 function=@fn70 id=cea90ef30d6733c64eee0d15b1ee7d6d251cad3a288d9a4d32800b465bdc4491
-  generated_callable gc8 function=@fn68 id=d0136d722d9fd9b3248f3ec6cc89b531e1ef9e32830bc1b0cf627bc4d9c05650
-  generated_callable gc9 function=@fn77 id=d760385f9ea36576a4765b15d2c0131a73c430a6bcc20b12b8498149c5d5ed1a
-  generated_callable gc10 function=@fn75 id=ea6e57d8721f885a281466b2bf790357b8d8a6e871ab5bbce9df8f49a07da87f
-  generated_callable gc11 function=@fn76 id=f826edffa5993bf65614b472e83059d5f3254a94cc7f3e4ba380dfdadc3ce6cf
+  generated_callable gc0 function=@fn62 id=01984c9931753a371a3bb1d855a153759fd3dbb7c584c598fe20cfca1749542b
+  generated_callable gc1 function=@fn80 id=029ea675a92256f0c196ac60b1ea6755cecc1bac83461f0740a26a553c52bd38
+  generated_callable gc2 function=@fn78 id=122b4d747bc6af1889b1d755e91355b9d85338d738cee6bd10673cf71ac681e7
+  generated_callable gc3 function=@fn79 id=177be4c0a3f72c0622e9e2d8d14c6b99be97ae08b15bda7d8241f9c93e430d26
+  generated_callable gc4 function=@fn75 id=1a41709e10bbdfe00155e56d3efa6352912675d03410512136103bf575755aeb
+  generated_callable gc5 function=@fn59 id=26a067d78623a3a8110e17d9bf69746ed0df886bca18a7deb45929b99a58a29b
+  generated_callable gc6 function=@fn85 id=35daed3a5ff49f54d7b8ac5c7469f807edced7b2e0b5267528be1b8220e12059
+  generated_callable gc7 function=@fn60 id=64dd8229414cdc490a7c9d46b816a0c0b7d5279ed55c55f0021ed96c3d286b8b
+  generated_callable gc8 function=@fn61 id=76c108a818f68475d331074efc1ecb23531efd84b539b90589994e0581b229fc
+  generated_callable gc9 function=@fn77 id=c548f4dbc544a4bbab409c4408b700789f603e2daec4ce22a2aa6591cbc27be0
+  generated_callable gc10 function=@fn84 id=c6aac3dd647e7ee450d189c064849ee5af8d192174a993bd46b9d14575387444
+  generated_callable gc11 function=@fn57 id=ccdb246963e3c6f536b69c217b961911edafbc6a4a2ef28385ea5f4e43e6fb03
+  generated_callable gc12 function=@fn76 id=cea90ef30d6733c64eee0d15b1ee7d6d251cad3a288d9a4d32800b465bdc4491
+  generated_callable gc13 function=@fn74 id=d0136d722d9fd9b3248f3ec6cc89b531e1ef9e32830bc1b0cf627bc4d9c05650
+  generated_callable gc14 function=@fn83 id=d760385f9ea36576a4765b15d2c0131a73c430a6bcc20b12b8498149c5d5ed1a
+  generated_callable gc15 function=@fn58 id=df8f97af54c162e0172dc6aa5eebc8a5da8e31d0abfdce0c7f1766dedca33bc8
+  generated_callable gc16 function=@fn81 id=ea6e57d8721f885a281466b2bf790357b8d8a6e871ab5bbce9df8f49a07da87f
+  generated_callable gc17 function=@fn82 id=f826edffa5993bf65614b472e83059d5f3254a94cc7f3e4ba380dfdadc3ce6cf
   fun Token.equals @fn0(this: Token, other: Token) -> Boolean
     bb0 entry
       return
@@ -197,7 +203,7 @@ Module
         Local value
   fun Value.$get$token @fn3(this: Value) -> Token
     bb0 entry
-      call $call.1: Token = @fn63 direct
+      call $call.1: Token = @fn69 direct
       return
         Type Token
         Local $call.1
@@ -320,7 +326,7 @@ Module
       assign $new.1
         Type Registry
         ClassAlloc Registry
-      call @fn61 direct
+      call @fn67 direct
         Type Registry
         Local $new.1
       global_assign $singleton$Registry
@@ -440,7 +446,7 @@ Module
       val $receiver: Base
         Type Base
         Local value
-      call $argument.0: Token = @fn63 direct
+      call $argument.0: Token = @fn69 direct
       val $parameter.value: Token
         Type Token
         Local $argument.0
@@ -462,7 +468,7 @@ Module
       assign $new.1
         Type HiddenRegistry
         ClassAlloc HiddenRegistry
-      call @fn62 direct
+      call @fn68 direct
         Type HiddenRegistry
         Local $new.1
       global_assign $singleton$HiddenRegistry
@@ -691,7 +697,77 @@ Module
   fun Contract.$get$token @fn56(this: Contract) -> Token
     bb0 entry
       trap "call to abstract method `Contract.$get$token`"
-  fun init.Base.$c0 @fn57(this: Base, stored: Token) -> Unit
+  fun receiver<Base> Contract.echo @fn57(this: Base, value: Token) -> Token
+    bb0 entry
+      call $call.1: Token = @fn55 direct
+        Type Contract
+        Retype Contract
+          Type Base
+          Local this
+        Type Token
+        Local value
+      return
+        Type Token
+        Local $call.1
+  fun receiver<Pending> Contract.run @fn58(this: Pending, value: Token) -> Token
+    bb0 entry
+      call $call.1: Token = @fn54 direct
+        Type Contract
+        Retype Contract
+          Type Pending
+          Local this
+        Type Token
+        Local value
+      return
+        Type Token
+        Local $call.1
+  fun receiver<Pending> Contract.echo @fn59(this: Pending, value: Token) -> Token
+    bb0 entry
+      call $call.1: Token = @fn55 direct
+        Type Contract
+        Retype Contract
+          Type Pending
+          Local this
+        Type Token
+        Local value
+      return
+        Type Token
+        Local $call.1
+  fun receiver<Pending> Contract.$get$token @fn60(this: Pending) -> Token
+    bb0 entry
+      call $call.1: Token = @fn56 direct
+        Type Contract
+        Retype Contract
+          Type Pending
+          Local this
+      return
+        Type Token
+        Local $call.1
+  fun receiver<Derived> Contract.echo @fn61(this: Derived, value: Token) -> Token
+    bb0 entry
+      call $call.1: Token = @fn55 direct
+        Type Contract
+        Retype Contract
+          Type Derived
+          Local this
+        Type Token
+        Local value
+      return
+        Type Token
+        Local $call.1
+  fun receiver<Registry> Contract.echo @fn62(this: Registry, value: Token) -> Token
+    bb0 entry
+      call $call.1: Token = @fn55 direct
+        Type Contract
+        Retype Contract
+          Type Registry
+          Local this
+        Type Token
+        Local value
+      return
+        Type Token
+        Local $call.1
+  fun init.Base.$c0 @fn63(this: Base, stored: Token) -> Unit
     bb0 entry
       field_set 0
         Type Base
@@ -699,19 +775,19 @@ Module
         Type Token
         Local stored
       return
-  fun init.Base.$c1 @fn58(this: Base) -> Unit
+  fun init.Base.$c1 @fn64(this: Base) -> Unit
     bb0 entry
-      call $argument.0: Token = @fn63 direct
+      call $argument.0: Token = @fn69 direct
       val $parameter.stored: Token
         Type Token
         Local $argument.0
-      call @fn57 direct
+      call @fn63 direct
         Type Base
         Local this
         Type Token
         Local $parameter.stored
       return
-  fun init.Derived.$c2 @fn59(this: Derived, value: Token) -> Unit
+  fun init.Derived.$c2 @fn65(this: Derived, value: Token) -> Unit
     bb0 entry
       val $argument.0: Token
         Type Token
@@ -719,7 +795,7 @@ Module
       val $parameter.stored: Token
         Type Token
         Local $argument.0
-      call @fn57 direct
+      call @fn63 direct
         Type Base
         Retype Base
           Type Derived
@@ -727,16 +803,16 @@ Module
         Type Token
         Local $parameter.stored
       return
-  fun init.Pending.$c3 @fn60(this: Pending) -> Unit
+  fun init.Pending.$c3 @fn66(this: Pending) -> Unit
     bb0 entry
       return
-  fun init.Registry.$c4 @fn61(this: Registry) -> Unit
+  fun init.Registry.$c4 @fn67(this: Registry) -> Unit
     bb0 entry
-      call $argument.0: Token = @fn63 direct
+      call $argument.0: Token = @fn69 direct
       val $parameter.stored: Token
         Type Token
         Local $argument.0
-      call @fn57 direct
+      call @fn63 direct
         Type Base
         Retype Base
           Type Registry
@@ -744,15 +820,15 @@ Module
         Type Token
         Local $parameter.stored
       return
-  fun init.HiddenRegistry.$c5 @fn62(this: HiddenRegistry) -> Unit
+  fun init.HiddenRegistry.$c5 @fn68(this: HiddenRegistry) -> Unit
     bb0 entry
       return
-  fun ctor.Token.$c0 @fn63() -> Token <no-gc>
+  fun ctor.Token.$c0 @fn69() -> Token <no-gc>
     bb0 entry
       return
         Type Token
         StructInit Token
-  fun ctor.Pair.$c1 @fn64(left: Token, right: Token) -> Pair <no-gc>
+  fun ctor.Pair.$c1 @fn70(left: Token, right: Token) -> Pair <no-gc>
     bb0 entry
       return
         Type Pair
@@ -761,17 +837,17 @@ Module
           Local left
           Type Token
           Local right
-  fun ctor.Pair.$c2 @fn65() -> Pair <no-gc>
+  fun ctor.Pair.$c2 @fn71() -> Pair <no-gc>
     bb0 entry
-      call $argument.0: Token = @fn63 direct
-      call $argument.1: Token = @fn63 direct
+      call $argument.0: Token = @fn69 direct
+      call $argument.1: Token = @fn69 direct
       val $parameter.left: Token
         Type Token
         Local $argument.0
       val $parameter.right: Token
         Type Token
         Local $argument.1
-      call $this: Pair = @fn64 direct
+      call $this: Pair = @fn70 direct
         Type Token
         Local $parameter.left
         Type Token
@@ -779,17 +855,17 @@ Module
       return
         Type Pair
         Local $this
-  fun ctor.Value.$c3 @fn66() -> Value <no-gc>
+  fun ctor.Value.$c3 @fn72() -> Value <no-gc>
     bb0 entry
       return
         Type Value
         StructInit Value
-  fun ctor.Hidden.$c4 @fn67() -> Hidden <no-gc>
+  fun ctor.Hidden.$c4 @fn73() -> Hidden <no-gc>
     bb0 entry
       return
         Type Hidden
         StructInit Hidden
-  fun startCoroutine<Pending> @fn68(task: SuspendTask<Pending>, completion: Continuation<Pending>) -> Unit
+  fun startCoroutine<Pending> @fn74(task: SuspendTask<Pending>, completion: Continuation<Pending>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -870,7 +946,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Registry> @fn69(task: SuspendTask<Registry>, completion: Continuation<Registry>) -> Unit
+  fun startCoroutine<Registry> @fn75(task: SuspendTask<Registry>, completion: Continuation<Registry>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -951,7 +1027,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Pair> @fn70(task: SuspendTask<Pair>, completion: Continuation<Pair>) -> Unit
+  fun startCoroutine<Pair> @fn76(task: SuspendTask<Pair>, completion: Continuation<Pair>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -1032,7 +1108,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Contract> @fn71(task: SuspendTask<Contract>, completion: Continuation<Contract>) -> Unit
+  fun startCoroutine<Contract> @fn77(task: SuspendTask<Contract>, completion: Continuation<Contract>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -1113,7 +1189,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Token> @fn72(task: SuspendTask<Token>, completion: Continuation<Token>) -> Unit
+  fun startCoroutine<Token> @fn78(task: SuspendTask<Token>, completion: Continuation<Token>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -1194,7 +1270,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Base> @fn73(task: SuspendTask<Base>, completion: Continuation<Base>) -> Unit
+  fun startCoroutine<Base> @fn79(task: SuspendTask<Base>, completion: Continuation<Base>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -1275,7 +1351,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Value> @fn74(task: SuspendTask<Value>, completion: Continuation<Value>) -> Unit
+  fun startCoroutine<Value> @fn80(task: SuspendTask<Value>, completion: Continuation<Value>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -1356,7 +1432,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Derived> @fn75(task: SuspendTask<Derived>, completion: Continuation<Derived>) -> Unit
+  fun startCoroutine<Derived> @fn81(task: SuspendTask<Derived>, completion: Continuation<Derived>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -1437,7 +1513,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Choice> @fn76(task: SuspendTask<Choice>, completion: Continuation<Choice>) -> Unit
+  fun startCoroutine<Choice> @fn82(task: SuspendTask<Choice>, completion: Continuation<Choice>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -1518,36 +1594,36 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun thunk<Value> Contract.run(Token) @fn77(this: Contract, value: Token) -> Token
+  fun thunk<Value> Contract.run(Token) @fn83(this: box<Value>, value: Token) -> Token
     bb0 entry
       call $call.1: Token = @fn2 direct
         Type Value
         Unbox
-          Type Contract
+          Type box<Value>
           Local this
         Type Token
         Local value
       return
         Type Token
         Local $call.1
-  fun thunk<Value> Contract.echo(Token) @fn78(this: Contract, value: Token) -> Token
+  fun thunk<Value> Contract.echo(Token) @fn84(this: box<Value>, value: Token) -> Token
     bb0 entry
       call $call.1: Token = @fn55 direct
         Type Contract
         Retype Contract
-          Type Contract
+          Type box<Value>
           Local this
         Type Token
         Local value
       return
         Type Token
         Local $call.1
-  fun thunk<Value> Contract.$get$token() @fn79(this: Contract) -> Token
+  fun thunk<Value> Contract.$get$token() @fn85(this: box<Value>) -> Token
     bb0 entry
       call $call.1: Token = @fn3 direct
         Type Value
         Unbox
-          Type Contract
+          Type box<Value>
           Local this
       return
         Type Token
@@ -1570,15 +1646,15 @@ Module
   coroutine_slot cl6 CoroutineSlot<Value> value=Value
   coroutine_slot cl7 CoroutineSlot<Derived> value=Derived
   coroutine_slot cl8 CoroutineSlot<Choice> value=Choice
-  coroutine_start ct0 result=Pending function=fn68
-  coroutine_start ct1 result=Registry function=fn69
-  coroutine_start ct2 result=Pair function=fn70
-  coroutine_start ct3 result=Contract function=fn71
-  coroutine_start ct4 result=Token function=fn72
-  coroutine_start ct5 result=Base function=fn73
-  coroutine_start ct6 result=Value function=fn74
-  coroutine_start ct7 result=Derived function=fn75
-  coroutine_start ct8 result=Choice function=fn76
+  coroutine_start ct0 result=Pending function=fn74
+  coroutine_start ct1 result=Registry function=fn75
+  coroutine_start ct2 result=Pair function=fn76
+  coroutine_start ct3 result=Contract function=fn77
+  coroutine_start ct4 result=Token function=fn78
+  coroutine_start ct5 result=Base function=fn79
+  coroutine_start ct6 result=Value function=fn80
+  coroutine_start ct7 result=Derived function=fn81
+  coroutine_start ct8 result=Choice function=fn82
   coroutine_fn cf0 @fn20 source_return=Token step=cs4 immediate
   coroutine_fn cf1 @fn24 source_return=Pair step=cs2 immediate
   coroutine_fn cf2 @fn28 source_return=Value step=cs6 immediate

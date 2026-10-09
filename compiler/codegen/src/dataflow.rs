@@ -127,6 +127,9 @@ pub(super) fn instruction_uses(instruction: &Instruction, function: &Function) -
             closure: operand, ..
         } => vec![*operand],
         Instruction::ForeignCallbackOperation(operation) => vec![operation.callback()],
+        Instruction::MaybeUninit { operation, .. } => {
+            operation.operand().copied().into_iter().collect()
+        }
         Instruction::MakeAggregate { elements, .. } | Instruction::ArrayAlloc { elements, .. } => {
             elements.clone()
         }
@@ -261,6 +264,7 @@ pub(super) fn instruction_defs(instruction: &Instruction) -> Vec<LiveValue> {
         Instruction::Invoke { site } => return call_defs(site.result()),
         Instruction::ForeignCallbackOperation(operation) => operation.out(),
         Instruction::Store { local, .. } => return vec![LiveValue::Local(*local)],
+        Instruction::MaybeUninit { out, .. } => return vec![LiveValue::Local(*out)],
         Instruction::LandingPad { record, raw } | Instruction::CleanupPad { record, raw } => {
             return vec![LiveValue::Temp(*record), LiveValue::Temp(*raw)];
         }

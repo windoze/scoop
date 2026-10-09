@@ -17,12 +17,12 @@ pub(super) fn check(
         dependencies.layouts,
     )
     .unwrap();
-    let abis = replay(input, &layouts, dependencies.layouts).unwrap();
+    let abis = replay(input, &layouts, dependencies.layouts, expected.callables()).unwrap();
     assert_eq!(&abis, expected.callables());
     let wire: lir::DecodedCanonicalExactCallableAbiExportsV1 = decoded(expected.callables());
     assert_eq!(wire.validate_against(&abis).unwrap(), abis);
     if !dependencies.layouts.is_empty() {
-        let missing = replay(input, &layouts, &[]);
+        let missing = replay(input, &layouts, &[], &abis);
         let has_foreign = input.bridge.callables().entries().iter().any(|binding| {
             let signature = binding.lowered_signature().exact();
             signature
@@ -46,16 +46,16 @@ pub(super) fn check(
         let mut duplicate = dependencies.layouts.to_vec();
         duplicate.push(dependencies.layouts[0]);
         assert!(matches!(
-            replay(input, &layouts, &duplicate),
+            replay(input, &layouts, &duplicate, &abis),
             Err(Error::DependencyProvider(_))
         ));
         assert!(matches!(
-            replay(input, dependencies.layouts[0], &[]),
+            replay(input, dependencies.layouts[0], &[], &abis),
             Err(Error::LocalProvider)
         ));
     }
     assert!(matches!(
-        replay(input, &layouts, &[&layouts]),
+        replay(input, &layouts, &[&layouts], &abis),
         Err(Error::DependencyProvider(_))
     ));
 }
@@ -71,13 +71,16 @@ fn replay(
     input: LayoutAbiExportInputV1<'_>,
     local: &lir::CanonicalExactLayoutExportsV1,
     dependencies: &[&lir::CanonicalExactLayoutExportsV1],
+    actual: &lir::CanonicalExactCallableAbiExportsV1,
 ) -> Result<lir::CanonicalExactCallableAbiExportsV1, Error> {
-    scoop_slib::replay_shared_mir_callable_abis(
+    scoop_slib::validate_shared_mir_callable_abis(
         input.lir.module().meta.target_profile,
         input.bridge.callables(),
         local,
         dependencies,
         input.lir.foundation(),
         input.identities,
-    )
+        actual,
+    )?;
+    Ok(actual.clone())
 }

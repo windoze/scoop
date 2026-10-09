@@ -2360,22 +2360,22 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun thunk<ValueCursor<Int>> Iterator.next() @fn62(this: Iterator<Int>) -> Option<Int>
+  fun thunk<ValueCursor<Int>> Iterator.next() @fn62(this: box<ValueCursor<Int>>) -> Option<Int>
     bb0 entry
       call $call.1: Option<Int> = @fn23 direct
         Type ValueCursor<Int>
         Unbox
-          Type Iterator<Int>
+          Type box<ValueCursor<Int>>
           Local this
       return
         Type Option<Int>
         Local $call.1
-  fun thunk<EnumCursor<Int>> Iterator.next() @fn63(this: Iterator<Int>) -> Option<Int>
+  fun thunk<EnumCursor<Int>> Iterator.next() @fn63(this: box<EnumCursor<Int>>) -> Option<Int>
     bb0 entry
       call $call.1: Option<Int> = @fn24 direct
         Type EnumCursor<Int>
         Unbox
-          Type Iterator<Int>
+          Type box<EnumCursor<Int>>
           Local this
       return
         Type Option<Int>

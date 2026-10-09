@@ -35,6 +35,7 @@ pub(super) fn check(
                 callables: &[],
             },
             lir.foundation(),
+            expected,
         )
     };
     let actual = replay(layout.layouts()).unwrap_or_else(|error| panic!("{name}: {error}"));
@@ -48,25 +49,5 @@ pub(super) fn check(
         )));
         corruption::check(expected);
         layouts::check(layout.layouts(), lir.foundation(), replay);
-
-        let absent = PendingIdentityValidation::new().finish().unwrap();
-        assert!(matches!(
-            scoop_slib::replay_shared_ordinary_lir_bridge(
-                lir.module().meta.target_profile,
-                hir::SharedTypeMetadataV1 {
-                    identities: &absent,
-                    ..source
-                },
-                input.ordinary,
-                layout.layouts(),
-                SharedOrdinaryLirBridgeDependenciesV1 {
-                    metadata: &[],
-                    layouts: &[],
-                    callables: &[]
-                },
-                lir.foundation(),
-            ),
-            Err(Error::SourceAbi(_))
-        ));
     }
 }

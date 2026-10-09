@@ -73,6 +73,7 @@ mod interning;
 mod invariance;
 mod kinds;
 mod layout_cycles;
+mod maybe_uninit;
 mod nominal;
 mod qualified;
 mod relations;

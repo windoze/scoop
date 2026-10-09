@@ -142,9 +142,9 @@ fn boxed_interface_implementations_dispatch_through_adjust_thunks() {
     assert_eq!(record.interface, boxed.interfaces[0]);
     assert_eq!(record.slots.len(), 1);
     let thunk_name = slot_fn(&module, &record.slots[0]);
-    assert_eq!(module.meta.boxing_adjusts.len(), 1);
-    let adjust = &module.meta.boxing_adjusts[0];
-    assert_eq!(adjust.boxed(), boxed_meta.class());
+    assert_eq!(module.meta.interface_adjusts.len(), 1);
+    let adjust = &module.meta.interface_adjusts[0];
+    assert_eq!(adjust.class(), boxed_meta.class());
     assert_eq!(adjust.interface(), record.interface);
     assert_eq!(adjust.slot(), 0);
     let mir::TableSlot::Function(thunk_id) = record.slots[0] else {
@@ -189,7 +189,9 @@ fn boxed_interface_implementations_dispatch_through_adjust_thunks() {
     ));
     assert_eq!(
         adjust.identity().signature_record().signature().receiver(),
-        scoop_identity::OptionalExactOwner::Present(interface_exact)
+        scoop_identity::OptionalExactOwner::Present(
+            mir::InterfaceAdjustIdentity::boxed_receiver(payload_exact).unwrap()
+        )
     );
     assert_eq!(module.validate(), Ok(()));
     assert_eq!(thunk_name, "thunk<S> Describable.describe()");
@@ -198,7 +200,7 @@ fn boxed_interface_implementations_dispatch_through_adjust_thunks() {
     // tail-calls the value method.
     let thunk = &module.functions[thunk_id];
     assert_eq!(thunk.params.len(), 1);
-    assert_eq!(thunk.params[0].ty, mir::Type::Interface(record.interface));
+    assert_eq!(thunk.params[0].ty, mir::Type::Class(boxed_meta.class()));
     assert_eq!(thunk.params[0].name, "this");
     let (call, _) = statement_call(&entry_statements(&thunk.body)[0]);
     assert!(matches!(call.target.kind, mir::CallKind::Direct));
@@ -216,7 +218,7 @@ fn boxed_interface_implementations_dispatch_through_adjust_thunks() {
         erased.validate(),
         Err(mir::MirValidationError {
             kind: mir::MirValidationErrorKind::InvalidBoxingAdjust {
-                reason: "the adjust receiver does not retain its interface type",
+                reason: "the adjust receiver is not the concrete object type",
             },
             ..
         })
@@ -248,14 +250,14 @@ fn every_boxed_itable_slot_requires_one_persistent_adjust_identity() {
         },
     );
     let mut module = lower(&h.finish(main));
-    assert_eq!(module.meta.boxing_adjusts.len(), 1);
-    let adjust = module.meta.boxing_adjusts[0].clone();
+    assert_eq!(module.meta.interface_adjusts.len(), 1);
+    let adjust = module.meta.interface_adjusts[0].clone();
     for target in [
-        mir::BoxingAdjustTarget::Local(mir::FunctionId::from_raw(u32::MAX.into())),
-        mir::BoxingAdjustTarget::External(mir::ExternalCallableUseId::from_raw(u32::MAX.into())),
+        mir::InterfaceAdjustTarget::Local(mir::FunctionId::from_raw(u32::MAX.into())),
+        mir::InterfaceAdjustTarget::External(mir::ExternalCallableUseId::from_raw(u32::MAX.into())),
     ] {
-        module.meta.boxing_adjusts[0] =
-            mir::BoxingAdjust::new(adjust.location(), target, adjust.identity().clone());
+        module.meta.interface_adjusts[0] =
+            mir::InterfaceAdjust::new(adjust.location(), target, adjust.identity().clone());
         assert!(matches!(
             module.validate(),
             Err(mir::MirValidationError {
@@ -264,7 +266,7 @@ fn every_boxed_itable_slot_requires_one_persistent_adjust_identity() {
             })
         ));
     }
-    module.meta.boxing_adjusts.clear();
+    module.meta.interface_adjusts.clear();
 
     assert!(matches!(
         module.validate(),

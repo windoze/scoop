@@ -82,7 +82,7 @@ checks = [
   {"file" = "${work}/dump/exposed/${exposed.result.root.identity}/ast.txt", "snapshot" = "exposed.ast.txt"},
   {"file" = "${work}/dump/exposed/${exposed.result.root.identity}/hir.txt", "snapshot" = "exposed.hir.txt"},
   {"file" = "${work}/dump/exposed/${exposed.result.root.identity}/mir.txt", "snapshot" = "exposed.mir.txt"},
-  {"file" = "${work}/dump/exposed/${exposed.result.root.identity}/lir.txt", "snapshot" = "exposed.lir.txt"},
+  {"file" = "${work}/dump/exposed/${exposed.result.root.identity}/lir.txt", "snapshot" = "exposed.${target}.lir.txt"},
 ]
 
 [[steps]]
@@ -108,7 +108,7 @@ checks = [
   {"file" = "${work}/dump/program/${program.result.root.identity}/ast.txt", "snapshot" = "program.ast.txt"},
   {"file" = "${work}/dump/program/${program.result.root.identity}/hir.txt", "snapshot" = "program.hir.txt"},
   {"file" = "${work}/dump/program/${program.result.root.identity}/mir.txt", "snapshot" = "program.mir.txt"},
-  {"file" = "${work}/dump/program/${program.result.root.identity}/lir.txt", "snapshot" = "program.lir.txt"},
+  {"file" = "${work}/dump/program/${program.result.root.identity}/lir.txt", "snapshot" = "program.${target}.lir.txt"},
 ]
 
 [[steps]]

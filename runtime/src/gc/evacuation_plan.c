@@ -10,153 +10,155 @@ typedef struct PlannedMove {
     void *destination;
     size_t size;
     size_t word;
-    uint32_t source_block;
-    uint32_t target_block;
+    ScoopGcBlockMeta *source_block;
+    ScoopGcBlockMeta *target_block;
 } PlannedMove;
 
-static bool block_has_pins(const ScoopGcBlockMeta *block) {
-    if (block->kind == SCOOP_BLOCK_KIND_LARGE) {
-        return block->large_pinned;
-    }
-    for (size_t index = 0; index < GC_BITMAP_WORDS; index++) {
-        if (block->pins[index] != 0) {
-            return true;
-        }
-    }
-    return false;
-}
+typedef struct MovingPlan {
+    PlannedMove *moves;
+    size_t count;
+    size_t capacity;
+    bool reuse_runs;
+    bool allow_growth;
+    bool reserved;
+} MovingPlan;
 
-static void select_source(uint32_t index) {
-    ScoopGcBlockMeta *source = &blocks[index];
-    source->state = SCOOP_BLOCK_EVACUATION_SOURCE;
-    if (source->kind == SCOOP_BLOCK_KIND_SMALL) {
-        source->forwarding = calloc(GC_WORDS_PER_BLOCK, sizeof(void *));
-        if (source->forwarding == NULL) {
-            heap_fatal("out of memory allocating forwarding metadata");
-        }
-    }
-}
-
-static void select_sources(bool minor) {
-    uint32_t selected = UINT32_MAX;
-    for (uint32_t index = 0; index < arena_next_block; index++) {
-        ScoopGcBlockMeta *block = &blocks[index];
-        if (!active_head(block) || block->movable_live_bytes == 0) {
-            continue;
-        }
-        if (minor) {
-            if (block->generation == SCOOP_GC_YOUNG && !block_has_pins(block)) {
-                select_source(index);
-            }
-        } else if (stress_move) {
-            select_source(index);
-        } else if (selected == UINT32_MAX || block->live_bytes * blocks[selected].span_blocks <
-                                                 blocks[selected].live_bytes * block->span_blocks) {
-            selected = index;
-        }
-    }
-    if (!minor && !stress_move && selected != UINT32_MAX) {
-        select_source(selected);
-    }
-}
-
-static void *reserve_target(size_t size, size_t alignment, uint32_t *index) {
+static void *reserve_target(size_t size, size_t alignment, ScoopGcBlockMeta **block,
+                            bool reuse_runs, bool allow_growth) {
     if (size > GC_REGULAR_MAX) {
-        *index = activate_large_block(size, SCOOP_BLOCK_EVACUATION_TARGET);
-        return *index == UINT32_MAX ? NULL : (char *)block_base(*index) + GC_LINE_SIZE;
+        *block = activate_large_block(size, SCOOP_BLOCK_EVACUATION_TARGET);
+        return *block == NULL ? NULL : (char *)block_base(*block) + GC_LINE_SIZE;
     }
     void *object = scoop_heap_bump(&evacuation_cursor, evacuation_limit, size, alignment);
+    if (object == NULL && reuse_runs) {
+        ScoopGcBlockMeta *reused =
+            scoop_heap_take_free_run(size, &evacuation_cursor, &evacuation_limit);
+        if (reused != NULL) {
+            evacuation_block = reused;
+            object = scoop_heap_bump(&evacuation_cursor, evacuation_limit, size, alignment);
+        }
+    }
     if (object == NULL) {
-        evacuation_block = activate_small_block(SCOOP_BLOCK_EVACUATION_TARGET);
-        if (evacuation_block == UINT32_MAX) {
+        evacuation_block = activate_small_block(SCOOP_BLOCK_EVACUATION_TARGET, allow_growth);
+        if (evacuation_block == NULL) {
             return NULL;
         }
         evacuation_cursor = (char *)block_base(evacuation_block) + GC_LINE_SIZE;
         evacuation_limit = (char *)block_base(evacuation_block) + GC_BLOCK_SIZE;
         object = scoop_heap_bump(&evacuation_cursor, evacuation_limit, size, alignment);
     }
-    *index = evacuation_block;
+    *block = evacuation_block;
     return object;
 }
 
 static void rollback_reservations(void) {
-    for (uint32_t index = 0; index < arena_next_block; index++) {
-        ScoopGcBlockMeta *block = &blocks[index];
+    for (ScoopGcBlockMeta *block = scoop_heap_first_block(); block != NULL;
+         block = scoop_heap_next_block(block)) {
         if (block->state == SCOOP_BLOCK_EVACUATION_TARGET) {
-            scoop_heap_release_block(index);
+            scoop_heap_release_block(block);
         } else if (block->state == SCOOP_BLOCK_EVACUATION_SOURCE) {
-            block->state = block_has_pins(block) ? SCOOP_BLOCK_PINNED_PARTIAL : SCOOP_BLOCK_MUTATOR;
+            block->state =
+                scoop_heap_block_has_pins(block) ? SCOOP_BLOCK_PINNED_PARTIAL : SCOOP_BLOCK_MUTATOR;
             free(block->forwarding);
             block->forwarding = NULL;
         }
     }
-    evacuation_block = UINT32_MAX;
+    for (ScoopGcRegion *region = scoop_gc_heap_state.regions; region != NULL;
+         region = region->next) {
+        region->evacuation_source = false;
+        region->evacuation_destination = false;
+    }
+    evacuation_block = NULL;
     evacuation_cursor = evacuation_limit = NULL;
 }
 
-static bool append_move(PlannedMove **moves, size_t *count, size_t *capacity, uint32_t block_index,
-                        size_t word) {
-    if (*count == *capacity) {
-        size_t next = *capacity == 0 ? 256 : *capacity * 2;
-        PlannedMove *grown = realloc(*moves, next * sizeof *grown);
+static void append_move(void *object, void *context) {
+    MovingPlan *plan = context;
+    if (!plan->reserved) {
+        return;
+    }
+    ScoopGcBlockMeta *block = pointer_block(object);
+    size_t word = ((uintptr_t)object - (uintptr_t)block_base(block)) / sizeof(uint64_t);
+    if (block->state != SCOOP_BLOCK_EVACUATION_SOURCE || object_pinned(block, word)) {
+        return;
+    }
+    if (plan->count == plan->capacity) {
+        size_t next = plan->capacity == 0 ? 256 : plan->capacity * 2;
+        if (next < plan->capacity || next > SIZE_MAX / sizeof *plan->moves) {
+            heap_fatal("evacuation plan size overflow");
+        }
+        PlannedMove *grown = realloc(plan->moves, next * sizeof *grown);
         if (grown == NULL) {
             heap_fatal("out of memory planning evacuation");
         }
-        *moves = grown;
-        *capacity = next;
+        plan->moves = grown;
+        plan->capacity = next;
     }
-    void *source = (char *)block_base(block_index) + word * sizeof(uint64_t);
-    size_t size = scoop_gc_object_size_locked(source);
-    const ScoopTypeDescriptor *td = ((ScoopObjectHeader *)source)->td;
-    uint32_t target;
-    void *destination =
-        reserve_target(size, (size_t)td->instance_shape.instance_alignment, &target);
+    size_t size = block->kind == SCOOP_BLOCK_KIND_LARGE
+                      ? block->exact_size
+                      : (size_t)block->size_units[word] * sizeof(uint64_t);
+    const ScoopTypeDescriptor *td = ((ScoopObjectHeader *)object)->td;
+    ScoopGcBlockMeta *target;
+    void *destination = reserve_target(size, (size_t)td->instance_shape.instance_alignment, &target,
+                                       plan->reuse_runs, plan->allow_growth);
     if (destination == NULL) {
-        return false;
+        plan->reserved = false;
+        return;
     }
-    (*moves)[(*count)++] = (PlannedMove){source, destination, size, word, block_index, target};
-    return true;
+    plan->moves[plan->count++] = (PlannedMove){object, destination, size, word, block, target};
 }
 
 bool scoop_gc_heap_plan_moving_locked(bool minor) {
     if (!collection_active) {
         heap_fatal("evacuation planned outside collection");
     }
-    select_sources(minor);
-    PlannedMove *moves = NULL;
-    size_t count = 0, capacity = 0;
-    bool reserved = true;
-    for (uint32_t index = 0; reserved && index < arena_next_block; index++) {
-        ScoopGcBlockMeta *block = &blocks[index];
-        if (block->state != SCOOP_BLOCK_EVACUATION_SOURCE) {
-            continue;
-        }
-        if (block->kind == SCOOP_BLOCK_KIND_LARGE) {
-            reserved =
-                append_move(&moves, &count, &capacity, index, GC_LINE_SIZE / sizeof(uint64_t));
-            continue;
-        }
-        for (size_t word = GC_LINE_SIZE / sizeof(uint64_t); reserved && word < GC_WORDS_PER_BLOCK;
-             word++) {
-            if (bit_test(block->starts, word) && bit_test(block->marks, word) &&
-                !bit_test(block->pins, word)) {
-                reserved = append_move(&moves, &count, &capacity, index, word);
+    size_t source_regions = scoop_heap_select_evacuation_sources(minor);
+    bool ordinary_full = !minor && !stress_move;
+    if (ordinary_full) {
+        scoop_gc_heap_state.metrics.last_full_source_regions = 0;
+        scoop_gc_heap_state.metrics.last_full_target_regions = 0;
+    }
+    if (ordinary_full && source_regions == 0) {
+        return true;
+    }
+    if (ordinary_full) {
+        scoop_heap_prepare_evacuation_targets();
+    }
+    MovingPlan plan = {.reuse_runs = ordinary_full,
+                       .allow_growth = !ordinary_full || source_regions > 1,
+                       .reserved = true};
+    scoop_gc_mark_visit_live(append_move, &plan);
+    size_t target_regions = 0;
+    if (ordinary_full) {
+        size_t occupied_destinations = 0;
+        for (size_t index = 0; index < plan.count; index++) {
+            ScoopGcRegion *region = plan.moves[index].target_block->region;
+            if (!region->evacuation_destination) {
+                region->evacuation_destination = true;
+                target_regions++;
+                occupied_destinations += region->collection_live_bytes == 0;
             }
         }
+        plan.reserved &= occupied_destinations < source_regions;
     }
-    if (!reserved) {
-        free(moves);
+    if (!plan.reserved) {
+        free(plan.moves);
         rollback_reservations();
         if (stress_move) {
-            heap_fatal("stress arena exhausted during evacuation reservation");
+            heap_fatal("stress heap exhausted during evacuation reservation");
         }
         return false;
     }
-    for (size_t index = 0; index < count; index++) {
-        PlannedMove *move = &moves[index];
+    if (ordinary_full) {
+        scoop_gc_heap_state.metrics.last_full_source_regions = source_regions;
+        scoop_gc_heap_state.metrics.last_full_target_regions = target_regions;
+    }
+    uint64_t copy_started = scoop_gc_monotonic_ns();
+    for (size_t index = 0; index < plan.count; index++) {
+        PlannedMove *move = &plan.moves[index];
         memcpy(move->destination, move->source, move->size);
         scoop_gc_heap_state.copied_bytes += move->size;
-        ScoopGcBlockMeta *source = &blocks[move->source_block];
+        ScoopGcBlockMeta *source = move->source_block;
         if (move->size <= GC_REGULAR_MAX) {
             record_small_object(move->target_block, move->destination, move->size, true);
             source->forwarding[move->word] = move->destination;
@@ -166,6 +168,7 @@ bool scoop_gc_heap_plan_moving_locked(bool minor) {
         }
         moved_objects++;
     }
-    free(moves);
+    scoop_gc_heap_state.metrics.copy_ns += scoop_gc_monotonic_ns() - copy_started;
+    free(plan.moves);
     return true;
 }

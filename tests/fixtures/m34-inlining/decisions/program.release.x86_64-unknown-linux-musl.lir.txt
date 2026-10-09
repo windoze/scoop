@@ -1,0 +1,1600 @@
+Module
+  global @scoop$1$io$d4c102321abf878aeb0ab356c7ecce41efcb9154bc7b4ecd57ac294b5fb561c5 = "illegal state"
+  global @scoop$1$io$71a26c79ac22ff482f6ba3fbb052e16c2be7f861bab4f3f320864d8df82b48cc = "inlined decisions"
+  global @scoop$1$io$5f21604d2e4e126b3ec45d6462f3d27156b8da96e7b690422f6f233dc3e56888 = "\n"
+  global @scoop$1$ss$9b273ab0bbc562dd7f8e8b0487c0e98f4a7d0781b1cb5aa5b6d69c2d8a7f66b1 : ptr<managed> scan=refs[0]
+  enum Option niche(kind=managed,payload_variant=0)
+  enum Option tagged size=16 align=8 variants=(i32)@8+4 ()@8+0
+  fun @scoop$1$cb$06573494cb684b376f9f7e4bf39489d19ce7611309b6e42e6a23383fa8590dbf(i1) -> void
+    local %0 $dependency.receiver: i1
+    local %1 $default.local.0: ptr<managed>
+    local %2 $default.local.1: ptr<managed>
+    local %3 $dependency.parameter.message: enum0
+    local %4 $new.1: ptr<managed>
+  block entry
+    poll managed-void-target1 sp<managed-poll:0> live=[]
+    store param0 -> local0
+    t0 = Not local0 : i1
+    cbr t0 then @if.then.1 else @if.merge.2
+  block if.then.1
+    store global0 -> local1
+    store local1 -> local2
+    t1 = enum_wrap e0 v0 (local2) : enum0
+    store t1 -> local3
+    call managed-direct-target0 sp<managed-call:0> live=[local3:enum0@0] t2 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td8, machine<byte-size>(ByteSize(24)))
+    store t2 -> local4
+    call managed-void-target0 sp<managed-call:1> live=[local3:enum0@0, local4:ptr<managed>@0] sig=void0 (ptr<managed>, enum0) external-fn0(local4, local3)
+    t3 = aggregate () : {}
+    throw local4
+    unreachable
+  block if.merge.2
+    ret
+  fun @scoop$1$cb$4cb5da1e2de7875db2e7f0408755f1e69493a6a3751ce7cef66f2fa7f47f1ceb(i32) -> i32
+    local %0 $dependency.receiver: i32
+    local %1 $dependency.argument.0: i32
+    local %2 $dependency.parameter.other: i32
+    local %3 a: i32
+    local %4 $dependency.receiver: i32
+    local %5 $dependency.argument.0: i32
+    local %6 $dependency.parameter.other: i32
+    local %7 b: i32
+    local %8 $dependency.receiver: i32
+    local %9 $dependency.argument.0: i32
+    local %10 $dependency.parameter.other: i32
+    local %11 c: i32
+    local %12 $dependency.receiver: i32
+    local %13 $dependency.argument.0: i32
+    local %14 $dependency.parameter.other: i32
+    local %15 d: i32
+    local %16 $dependency.receiver: i32
+    local %17 $dependency.argument.0: i32
+    local %18 $dependency.parameter.other: i32
+    local %19 e: i32
+    local %20 $dependency.receiver: i32
+    local %21 $dependency.argument.0: i32
+    local %22 $dependency.parameter.other: i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store param0 -> local0
+    store integer<Int>(0x00000001) -> local1
+    store integer<Int>(0x00000001) -> local2
+    t0 = integer_Add<Int> local0, integer<Int>(0x00000001) : i32
+    store t0 -> local3
+    store local3 -> local4
+    store integer<Int>(0x00000003) -> local5
+    store integer<Int>(0x00000003) -> local6
+    t1 = integer_Multiply<Int> local4, integer<Int>(0x00000003) : i32
+    store t1 -> local7
+    store local7 -> local8
+    store integer<Int>(0x00000002) -> local9
+    store integer<Int>(0x00000002) -> local10
+    t2 = integer_Subtract<Int> local8, integer<Int>(0x00000002) : i32
+    store t2 -> local11
+    store local11 -> local12
+    store integer<Int>(0x00000005) -> local13
+    store integer<Int>(0x00000005) -> local14
+    t3 = integer_Multiply<Int> local12, integer<Int>(0x00000005) : i32
+    store t3 -> local15
+    store local15 -> local16
+    store integer<Int>(0x00000007) -> local17
+    store integer<Int>(0x00000007) -> local18
+    t4 = integer_Add<Int> local16, integer<Int>(0x00000007) : i32
+    store t4 -> local19
+    store local19 -> local20
+    store integer<Int>(0x00000002) -> local21
+    store integer<Int>(0x00000002) -> local22
+    t5 = integer_Multiply<Int> local20, integer<Int>(0x00000002) : i32
+    ret t5
+  fun @scoop$1$cb$0bc9e29e77de375cf98c72b0f31cba6c8f14565295feaeae0a71aedef23973a9(i32) -> i32
+    local %0 $argument.0: i32
+    local %1 $parameter.value: i32
+    local %2 $call.1: i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store param0 -> local0
+    store local0 -> local1
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (i32) -> i32 local-fn1(local1)
+    store t0 -> local2
+    ret local2
+  fun @scoop$1$cb$d67993af413b9e0389a28891fa2f01f028c7f0a2d52b0dd27d11bed595c6d3e9(i32) -> i32
+    local %0 result: i32
+    local %1 index: i32
+    local %2 $dependency.receiver: i32
+    local %3 $dependency.argument.0: i32
+    local %4 $dependency.parameter.other: i32
+    local %5 $old.0: i32
+    local %6 $argument.0: i32
+    local %7 $parameter.value: i32
+    local %8 $dependency.receiver: i32
+    local %9 $dependency.argument.0: i32
+    local %10 $dependency.parameter.other: i32
+    local %11 $old.1: i32
+    local %12 $dependency.receiver: i32
+    local %13 $dependency.argument.0: i32
+    local %14 $dependency.parameter.other: i32
+    local %15 $inline.4.result: i32
+    local %16 $inline.4.value: i32
+    local %17 $inline.4.$dependency.receiver: i32
+    local %18 $inline.4.$dependency.argument.0: i32
+    local %19 $inline.4.$dependency.parameter.other: i32
+    local %20 $inline.4.a: i32
+    local %21 $inline.4.$dependency.receiver: i32
+    local %22 $inline.4.$dependency.argument.0: i32
+    local %23 $inline.4.$dependency.parameter.other: i32
+    local %24 $inline.4.b: i32
+    local %25 $inline.4.$dependency.receiver: i32
+    local %26 $inline.4.$dependency.argument.0: i32
+    local %27 $inline.4.$dependency.parameter.other: i32
+    local %28 $inline.4.c: i32
+    local %29 $inline.4.$dependency.receiver: i32
+    local %30 $inline.4.$dependency.argument.0: i32
+    local %31 $inline.4.$dependency.parameter.other: i32
+    local %32 $inline.4.d: i32
+    local %33 $inline.4.$dependency.receiver: i32
+    local %34 $inline.4.$dependency.argument.0: i32
+    local %35 $inline.4.$dependency.parameter.other: i32
+    local %36 $inline.4.e: i32
+    local %37 $inline.4.$dependency.receiver: i32
+    local %38 $inline.4.$dependency.argument.0: i32
+    local %39 $inline.4.$dependency.parameter.other: i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store integer<Int>(0x00000000) -> local0
+    store integer<Int>(0x00000000) -> local1
+    br @while.cond.1
+  block while.cond.1
+    poll managed-void-target0 sp<managed-poll:1> live=[]
+    store local1 -> local2
+    store param0 -> local3
+    store local3 -> local4
+    t0 = integer_compare_to<Int> local2, local4 : i64
+    t1 = integer_compare_Less<Long> t0, integer<Long>(0x0000000000000000) : i1
+    cbr t1 then @while.body.3 else @while.exit.2
+  block while.exit.2
+    ret local0
+  block while.body.3
+    store local0 -> local5
+    store local5 -> local8
+    store local1 -> local6
+    store local6 -> local7
+    store local7 -> local16
+    br @inline.4.entry
+  block inline.cont.4
+    store local15 -> local9
+    store local9 -> local10
+    t2 = integer_Add<Int> local8, local10 : i32
+    store t2 -> local0
+    store local1 -> local11
+    store local11 -> local12
+    store integer<Int>(0x00000001) -> local13
+    store integer<Int>(0x00000001) -> local14
+    t3 = integer_Add<Int> local12, integer<Int>(0x00000001) : i32
+    store t3 -> local1
+    br @while.cond.1
+  block inline.4.entry
+    store local16 -> local17
+    store integer<Int>(0x00000001) -> local18
+    store integer<Int>(0x00000001) -> local19
+    t4 = integer_Add<Int> local17, integer<Int>(0x00000001) : i32
+    store t4 -> local20
+    store local20 -> local21
+    store integer<Int>(0x00000003) -> local22
+    store integer<Int>(0x00000003) -> local23
+    t5 = integer_Multiply<Int> local21, integer<Int>(0x00000003) : i32
+    store t5 -> local24
+    store local24 -> local25
+    store integer<Int>(0x00000002) -> local26
+    store integer<Int>(0x00000002) -> local27
+    t6 = integer_Subtract<Int> local25, integer<Int>(0x00000002) : i32
+    store t6 -> local28
+    store local28 -> local29
+    store integer<Int>(0x00000005) -> local30
+    store integer<Int>(0x00000005) -> local31
+    t7 = integer_Multiply<Int> local29, integer<Int>(0x00000005) : i32
+    store t7 -> local32
+    store local32 -> local33
+    store integer<Int>(0x00000007) -> local34
+    store integer<Int>(0x00000007) -> local35
+    t8 = integer_Add<Int> local33, integer<Int>(0x00000007) : i32
+    store t8 -> local36
+    store local36 -> local37
+    store integer<Int>(0x00000002) -> local38
+    store integer<Int>(0x00000002) -> local39
+    t9 = integer_Multiply<Int> local37, integer<Int>(0x00000002) : i32
+    store t9 -> local15
+    br @inline.cont.4
+  fun @scoop$1$cb$210c37bd12fba459cb69868f0b6cab9667d7a7fdc2646dad3526dc20ef948e11(i32, i1) -> i32
+    local %0 result: i32
+    local %1 index: i32
+    local %2 $dependency.receiver: i32
+    local %3 $dependency.argument.0: i32
+    local %4 $dependency.parameter.other: i32
+    local %5 $argument.0: i32
+    local %6 $parameter.value: i32
+    local %7 $old.2: i32
+    local %8 $dependency.receiver: i32
+    local %9 $dependency.argument.0: i32
+    local %10 $dependency.parameter.other: i32
+    local %11 $dependency.receiver: i32
+    local %12 $dependency.argument.0: i32
+    local %13 $dependency.parameter.other: i32
+    local %14 $call.1: i32
+    local %15 $inline.6.result: i32
+    local %16 $inline.6.value: i32
+    local %17 $inline.6.$dependency.receiver: i32
+    local %18 $inline.6.$dependency.argument.0: i32
+    local %19 $inline.6.$dependency.parameter.other: i32
+    local %20 $inline.6.a: i32
+    local %21 $inline.6.$dependency.receiver: i32
+    local %22 $inline.6.$dependency.argument.0: i32
+    local %23 $inline.6.$dependency.parameter.other: i32
+    local %24 $inline.6.b: i32
+    local %25 $inline.6.$dependency.receiver: i32
+    local %26 $inline.6.$dependency.argument.0: i32
+    local %27 $inline.6.$dependency.parameter.other: i32
+    local %28 $inline.6.c: i32
+    local %29 $inline.6.$dependency.receiver: i32
+    local %30 $inline.6.$dependency.argument.0: i32
+    local %31 $inline.6.$dependency.parameter.other: i32
+    local %32 $inline.6.d: i32
+    local %33 $inline.6.$dependency.receiver: i32
+    local %34 $inline.6.$dependency.argument.0: i32
+    local %35 $inline.6.$dependency.parameter.other: i32
+    local %36 $inline.6.e: i32
+    local %37 $inline.6.$dependency.receiver: i32
+    local %38 $inline.6.$dependency.argument.0: i32
+    local %39 $inline.6.$dependency.parameter.other: i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    cbr param1 then @if.then.1 else @if.merge.2
+  block if.then.1
+    store param0 -> local0
+    store integer<Int>(0x00000000) -> local1
+    br @while.cond.3
+  block if.merge.2
+    store param0 -> local11
+    store integer<Int>(0x00000001) -> local12
+    store integer<Int>(0x00000001) -> local13
+    t0 = integer_Add<Int> local11, integer<Int>(0x00000001) : i32
+    ret t0
+  block while.cond.3
+    poll managed-void-target0 sp<managed-poll:1> live=[]
+    store local1 -> local2
+    store integer<Int>(0x00000008) -> local3
+    store integer<Int>(0x00000008) -> local4
+    t1 = integer_compare_to<Int> local2, integer<Int>(0x00000008) : i64
+    t2 = integer_compare_Less<Long> t1, integer<Long>(0x0000000000000000) : i1
+    cbr t2 then @while.body.5 else @while.exit.4
+  block while.exit.4
+    ret local0
+  block while.body.5
+    store local0 -> local5
+    store local5 -> local6
+    store local6 -> local16
+    br @inline.6.entry
+  block inline.cont.6
+    store local15 -> local14
+    store local14 -> local0
+    store local1 -> local7
+    store local7 -> local8
+    store integer<Int>(0x00000001) -> local9
+    store integer<Int>(0x00000001) -> local10
+    t3 = integer_Add<Int> local8, integer<Int>(0x00000001) : i32
+    store t3 -> local1
+    br @while.cond.3
+  block inline.6.entry
+    store local16 -> local17
+    store integer<Int>(0x00000001) -> local18
+    store integer<Int>(0x00000001) -> local19
+    t4 = integer_Add<Int> local17, integer<Int>(0x00000001) : i32
+    store t4 -> local20
+    store local20 -> local21
+    store integer<Int>(0x00000003) -> local22
+    store integer<Int>(0x00000003) -> local23
+    t5 = integer_Multiply<Int> local21, integer<Int>(0x00000003) : i32
+    store t5 -> local24
+    store local24 -> local25
+    store integer<Int>(0x00000002) -> local26
+    store integer<Int>(0x00000002) -> local27
+    t6 = integer_Subtract<Int> local25, integer<Int>(0x00000002) : i32
+    store t6 -> local28
+    store local28 -> local29
+    store integer<Int>(0x00000005) -> local30
+    store integer<Int>(0x00000005) -> local31
+    t7 = integer_Multiply<Int> local29, integer<Int>(0x00000005) : i32
+    store t7 -> local32
+    store local32 -> local33
+    store integer<Int>(0x00000007) -> local34
+    store integer<Int>(0x00000007) -> local35
+    t8 = integer_Add<Int> local33, integer<Int>(0x00000007) : i32
+    store t8 -> local36
+    store local36 -> local37
+    store integer<Int>(0x00000002) -> local38
+    store integer<Int>(0x00000002) -> local39
+    t9 = integer_Multiply<Int> local37, integer<Int>(0x00000002) : i32
+    store t9 -> local15
+    br @inline.cont.6
+  fun @scoop$1$cb$ae00a04d97b36ee1556b3881a0a4ce3178db39df28f0c7c924d85d19b3a116b4(i32) -> i32
+    local %0 $argument.0: i32
+    local %1 $argument.1: i1
+    local %2 $parameter.value: i32
+    local %3 $parameter.checked: i1
+    local %4 $call.1: i32
+    local %5 $inline.1.result: i32
+    local %6 $inline.1.value: i32
+    local %7 $inline.1.checked: i1
+    local %8 $inline.1.$dependency.receiver: i32
+    local %9 $inline.1.$dependency.argument.0: i32
+    local %10 $inline.1.$dependency.parameter.other: i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store param0 -> local0
+    store false -> local1
+    store local0 -> local2
+    store false -> local3
+    store local2 -> local6
+    store false -> local7
+    br @inline.1.entry
+  block inline.cont.1
+    store local5 -> local4
+    ret local4
+  block inline.1.entry
+    br @inline.1.if.merge.2
+  block inline.1.if.merge.2
+    store local6 -> local8
+    store integer<Int>(0x00000001) -> local9
+    store integer<Int>(0x00000001) -> local10
+    t0 = integer_Add<Int> local8, integer<Int>(0x00000001) : i32
+    store t0 -> local5
+    br @inline.cont.1
+  fun @scoop$1$cb$576f38bd8a67293982ff48ad25f0557209cd4473918f7837e1f1a83ec6a80a34(i32, i1) -> i32
+    local %0 $argument.0: i32
+    local %1 $argument.1: i1
+    local %2 $parameter.value: i32
+    local %3 $parameter.checked: i1
+    local %4 $call.1: i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store param0 -> local0
+    store param1 -> local1
+    store local0 -> local2
+    store local1 -> local3
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (i32, i1) -> i32 local-fn4(local2, local3)
+    store t0 -> local4
+    ret local4
+  fun @scoop$1$cb$27306dcfed13d1c948ec6d9fd6c78a1777805b79473a487d9d07af73c705a2dd(i32) -> i1
+    local %0 $dependency.receiver: i32
+    local %1 $dependency.argument.0: i32
+    local %2 $dependency.parameter.other: i32
+    local %3 $dependency.receiver: i32
+    local %4 $dependency.argument.0: i32
+    local %5 $dependency.parameter.other: i32
+    local %6 $argument.0: i32
+    local %7 $parameter.value: i32
+    local %8 $call.1: i1
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store param0 -> local0
+    store integer<Int>(0x00000000) -> local1
+    store integer<Int>(0x00000000) -> local2
+    t0 = integer_compare_Equal<Int> local0, integer<Int>(0x00000000) : i1
+    cbr t0 then @if.then.1 else @if.merge.2
+  block if.then.1
+    ret true
+  block if.merge.2
+    store param0 -> local3
+    store integer<Int>(0x00000001) -> local4
+    store integer<Int>(0x00000001) -> local5
+    t1 = integer_Subtract<Int> local3, integer<Int>(0x00000001) : i32
+    store t1 -> local6
+    store local6 -> local7
+    call managed-direct-target0 sp<managed-call:0> live=[] t2 = sig=direct0 (i32) -> i1 local-fn8(local7)
+    store t2 -> local8
+    ret local8
+  fun @scoop$1$cb$bb68d2afed0b548efd537f96d3048be302925455551afc911c6b25c96670add8(i32) -> i1
+    local %0 $dependency.receiver: i32
+    local %1 $dependency.argument.0: i32
+    local %2 $dependency.parameter.other: i32
+    local %3 $dependency.receiver: i32
+    local %4 $dependency.argument.0: i32
+    local %5 $dependency.parameter.other: i32
+    local %6 $argument.0: i32
+    local %7 $parameter.value: i32
+    local %8 $call.1: i1
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store param0 -> local0
+    store integer<Int>(0x00000000) -> local1
+    store integer<Int>(0x00000000) -> local2
+    t0 = integer_compare_Equal<Int> local0, integer<Int>(0x00000000) : i1
+    cbr t0 then @if.then.1 else @if.merge.2
+  block if.then.1
+    ret false
+  block if.merge.2
+    store param0 -> local3
+    store integer<Int>(0x00000001) -> local4
+    store integer<Int>(0x00000001) -> local5
+    t1 = integer_Subtract<Int> local3, integer<Int>(0x00000001) : i32
+    store t1 -> local6
+    store local6 -> local7
+    call managed-direct-target0 sp<managed-call:0> live=[] t2 = sig=direct0 (i32) -> i1 local-fn7(local7)
+    store t2 -> local8
+    ret local8
+  fun @scoop$1$cb$4a37fbe821d6b10a4cd000f5d48ae5aa47d86fc032a08a35a7882b89b5f5ce96(i32) -> i32
+    local %0 $dependency.receiver: i32
+    local %1 $dependency.argument.0: i32
+    local %2 $dependency.parameter.other: i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store param0 -> local0
+    store integer<Int>(0x00000001) -> local1
+    store integer<Int>(0x00000001) -> local2
+    t0 = integer_Add<Int> local0, integer<Int>(0x00000001) : i32
+    ret t0
+  fun @scoop$1$cb$f5fd80d0f243d8d7e5b1fb6d30c750d875f2d2010db5c073b092c4c446d7fabd(i32) -> i32
+    local %0 $argument.0: i32
+    local %1 $parameter.value: i32
+    local %2 $call.1: i32
+    local %3 $inline.1.result: i32
+    local %4 $inline.1.value: i32
+    local %5 $inline.1.$dependency.receiver: i32
+    local %6 $inline.1.$dependency.argument.0: i32
+    local %7 $inline.1.$dependency.parameter.other: i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store param0 -> local0
+    store local0 -> local1
+    store local1 -> local4
+    br @inline.1.entry
+  block inline.cont.1
+    store local3 -> local2
+    ret local2
+  block inline.1.entry
+    store local4 -> local5
+    store integer<Int>(0x00000001) -> local6
+    store integer<Int>(0x00000001) -> local7
+    t0 = integer_Add<Int> local5, integer<Int>(0x00000001) : i32
+    store t0 -> local3
+    br @inline.cont.1
+  fun @scoop$1$cb$c0887c1874f0083fed00fef09f3ae697de07c53460a10e86190c4abcf9db44fd(i32) -> i32
+    local %0 $argument.0: i32
+    local %1 $parameter.value: i32
+    local %2 $call.1: i32
+    local %3 $inline.1.result: i32
+    local %4 $inline.1.value: i32
+    local %5 $inline.1.$argument.0: i32
+    local %6 $inline.1.$parameter.value: i32
+    local %7 $inline.1.$call.1: i32
+    local %8 $inline.3.result: i32
+    local %9 $inline.3.value: i32
+    local %10 $inline.3.$dependency.receiver: i32
+    local %11 $inline.3.$dependency.argument.0: i32
+    local %12 $inline.3.$dependency.parameter.other: i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store param0 -> local0
+    store local0 -> local1
+    store local1 -> local4
+    br @inline.1.entry
+  block inline.cont.1
+    store local3 -> local2
+    ret local2
+  block inline.1.entry
+    store local4 -> local5
+    store local5 -> local6
+    store local6 -> local9
+    br @inline.3.entry
+  block inline.cont.3
+    store local8 -> local7
+    store local7 -> local3
+    br @inline.cont.1
+  block inline.3.entry
+    store local9 -> local10
+    store integer<Int>(0x00000001) -> local11
+    store integer<Int>(0x00000001) -> local12
+    t0 = integer_Add<Int> local10, integer<Int>(0x00000001) : i32
+    store t0 -> local8
+    br @inline.cont.3
+  fun @scoop$1$cb$477446ed7a1dfdc40c9ecd840aab7522237e732adadcdc5beed5f786c4df1822(i32) -> i32
+    local %0 $argument.0: i32
+    local %1 $parameter.value: i32
+    local %2 $call.1: i32
+    local %3 $inline.1.result: i32
+    local %4 $inline.1.value: i32
+    local %5 $inline.1.$argument.0: i32
+    local %6 $inline.1.$parameter.value: i32
+    local %7 $inline.1.$call.1: i32
+    local %8 $inline.3.result: i32
+    local %9 $inline.3.value: i32
+    local %10 $inline.3.$argument.0: i32
+    local %11 $inline.3.$parameter.value: i32
+    local %12 $inline.3.$call.1: i32
+    local %13 $inline.5.result: i32
+    local %14 $inline.5.value: i32
+    local %15 $inline.5.$dependency.receiver: i32
+    local %16 $inline.5.$dependency.argument.0: i32
+    local %17 $inline.5.$dependency.parameter.other: i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store param0 -> local0
+    store local0 -> local1
+    store local1 -> local4
+    br @inline.1.entry
+  block inline.cont.1
+    store local3 -> local2
+    ret local2
+  block inline.1.entry
+    store local4 -> local5
+    store local5 -> local6
+    store local6 -> local9
+    br @inline.3.entry
+  block inline.cont.3
+    store local8 -> local7
+    store local7 -> local3
+    br @inline.cont.1
+  block inline.3.entry
+    store local9 -> local10
+    store local10 -> local11
+    store local11 -> local14
+    br @inline.5.entry
+  block inline.cont.5
+    store local13 -> local12
+    store local12 -> local8
+    br @inline.cont.3
+  block inline.5.entry
+    store local14 -> local15
+    store integer<Int>(0x00000001) -> local16
+    store integer<Int>(0x00000001) -> local17
+    t0 = integer_Add<Int> local15, integer<Int>(0x00000001) : i32
+    store t0 -> local13
+    br @inline.cont.5
+  fun @scoop$1$cb$702c8bdefe4243ebd917ff8322644fc8e8681544c97f231bd496b4673a5691c8(i32) -> i32
+    local %0 $argument.0: i32
+    local %1 $parameter.value: i32
+    local %2 $call.1: i32
+    local %3 $inline.1.result: i32
+    local %4 $inline.1.value: i32
+    local %5 $inline.1.$argument.0: i32
+    local %6 $inline.1.$parameter.value: i32
+    local %7 $inline.1.$call.1: i32
+    local %8 $inline.3.result: i32
+    local %9 $inline.3.value: i32
+    local %10 $inline.3.$argument.0: i32
+    local %11 $inline.3.$parameter.value: i32
+    local %12 $inline.3.$call.1: i32
+    local %13 $inline.5.result: i32
+    local %14 $inline.5.value: i32
+    local %15 $inline.5.$argument.0: i32
+    local %16 $inline.5.$parameter.value: i32
+    local %17 $inline.5.$call.1: i32
+    local %18 $inline.7.result: i32
+    local %19 $inline.7.value: i32
+    local %20 $inline.7.$dependency.receiver: i32
+    local %21 $inline.7.$dependency.argument.0: i32
+    local %22 $inline.7.$dependency.parameter.other: i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store param0 -> local0
+    store local0 -> local1
+    store local1 -> local4
+    br @inline.1.entry
+  block inline.cont.1
+    store local3 -> local2
+    ret local2
+  block inline.1.entry
+    store local4 -> local5
+    store local5 -> local6
+    store local6 -> local9
+    br @inline.3.entry
+  block inline.cont.3
+    store local8 -> local7
+    store local7 -> local3
+    br @inline.cont.1
+  block inline.3.entry
+    store local9 -> local10
+    store local10 -> local11
+    store local11 -> local14
+    br @inline.5.entry
+  block inline.cont.5
+    store local13 -> local12
+    store local12 -> local8
+    br @inline.cont.3
+  block inline.5.entry
+    store local14 -> local15
+    store local15 -> local16
+    store local16 -> local19
+    br @inline.7.entry
+  block inline.cont.7
+    store local18 -> local17
+    store local17 -> local13
+    br @inline.cont.5
+  block inline.7.entry
+    store local19 -> local20
+    store integer<Int>(0x00000001) -> local21
+    store integer<Int>(0x00000001) -> local22
+    t0 = integer_Add<Int> local20, integer<Int>(0x00000001) : i32
+    store t0 -> local18
+    br @inline.cont.7
+  fun @scoop$1$cb$fe9f2453d6e65349b281861cd55d27eb6b345f2385008e145087e4d9e1532fa9(i32) -> i32
+    local %0 $argument.0: i32
+    local %1 $parameter.value: i32
+    local %2 $call.1: i32
+    local %3 $inline.1.result: i32
+    local %4 $inline.1.value: i32
+    local %5 $inline.1.$argument.0: i32
+    local %6 $inline.1.$parameter.value: i32
+    local %7 $inline.1.$call.1: i32
+    local %8 $inline.3.result: i32
+    local %9 $inline.3.value: i32
+    local %10 $inline.3.$argument.0: i32
+    local %11 $inline.3.$parameter.value: i32
+    local %12 $inline.3.$call.1: i32
+    local %13 $inline.5.result: i32
+    local %14 $inline.5.value: i32
+    local %15 $inline.5.$argument.0: i32
+    local %16 $inline.5.$parameter.value: i32
+    local %17 $inline.5.$call.1: i32
+    local %18 $inline.7.result: i32
+    local %19 $inline.7.value: i32
+    local %20 $inline.7.$argument.0: i32
+    local %21 $inline.7.$parameter.value: i32
+    local %22 $inline.7.$call.1: i32
+    local %23 $inline.9.result: i32
+    local %24 $inline.9.value: i32
+    local %25 $inline.9.$dependency.receiver: i32
+    local %26 $inline.9.$dependency.argument.0: i32
+    local %27 $inline.9.$dependency.parameter.other: i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store param0 -> local0
+    store local0 -> local1
+    store local1 -> local4
+    br @inline.1.entry
+  block inline.cont.1
+    store local3 -> local2
+    ret local2
+  block inline.1.entry
+    store local4 -> local5
+    store local5 -> local6
+    store local6 -> local9
+    br @inline.3.entry
+  block inline.cont.3
+    store local8 -> local7
+    store local7 -> local3
+    br @inline.cont.1
+  block inline.3.entry
+    store local9 -> local10
+    store local10 -> local11
+    store local11 -> local14
+    br @inline.5.entry
+  block inline.cont.5
+    store local13 -> local12
+    store local12 -> local8
+    br @inline.cont.3
+  block inline.5.entry
+    store local14 -> local15
+    store local15 -> local16
+    store local16 -> local19
+    br @inline.7.entry
+  block inline.cont.7
+    store local18 -> local17
+    store local17 -> local13
+    br @inline.cont.5
+  block inline.7.entry
+    store local19 -> local20
+    store local20 -> local21
+    store local21 -> local24
+    br @inline.9.entry
+  block inline.cont.9
+    store local23 -> local22
+    store local22 -> local18
+    br @inline.cont.7
+  block inline.9.entry
+    store local24 -> local25
+    store integer<Int>(0x00000001) -> local26
+    store integer<Int>(0x00000001) -> local27
+    t0 = integer_Add<Int> local25, integer<Int>(0x00000001) : i32
+    store t0 -> local23
+    br @inline.cont.9
+  fun @scoop$1$cb$6cd3b8c0c2e655e5b2b6a3c130e0235c2c2c6c429a854ffddcb37e2cba94ebce(i32) -> i32
+    local %0 $argument.0: i32
+    local %1 $parameter.value: i32
+    local %2 $call.1: i32
+    local %3 $inline.1.result: i32
+    local %4 $inline.1.value: i32
+    local %5 $inline.1.$argument.0: i32
+    local %6 $inline.1.$parameter.value: i32
+    local %7 $inline.1.$call.1: i32
+    local %8 $inline.3.result: i32
+    local %9 $inline.3.value: i32
+    local %10 $inline.3.$argument.0: i32
+    local %11 $inline.3.$parameter.value: i32
+    local %12 $inline.3.$call.1: i32
+    local %13 $inline.5.result: i32
+    local %14 $inline.5.value: i32
+    local %15 $inline.5.$argument.0: i32
+    local %16 $inline.5.$parameter.value: i32
+    local %17 $inline.5.$call.1: i32
+    local %18 $inline.7.result: i32
+    local %19 $inline.7.value: i32
+    local %20 $inline.7.$argument.0: i32
+    local %21 $inline.7.$parameter.value: i32
+    local %22 $inline.7.$call.1: i32
+    local %23 $inline.9.result: i32
+    local %24 $inline.9.value: i32
+    local %25 $inline.9.$argument.0: i32
+    local %26 $inline.9.$parameter.value: i32
+    local %27 $inline.9.$call.1: i32
+    local %28 $inline.11.result: i32
+    local %29 $inline.11.value: i32
+    local %30 $inline.11.$dependency.receiver: i32
+    local %31 $inline.11.$dependency.argument.0: i32
+    local %32 $inline.11.$dependency.parameter.other: i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store param0 -> local0
+    store local0 -> local1
+    store local1 -> local4
+    br @inline.1.entry
+  block inline.cont.1
+    store local3 -> local2
+    ret local2
+  block inline.1.entry
+    store local4 -> local5
+    store local5 -> local6
+    store local6 -> local9
+    br @inline.3.entry
+  block inline.cont.3
+    store local8 -> local7
+    store local7 -> local3
+    br @inline.cont.1
+  block inline.3.entry
+    store local9 -> local10
+    store local10 -> local11
+    store local11 -> local14
+    br @inline.5.entry
+  block inline.cont.5
+    store local13 -> local12
+    store local12 -> local8
+    br @inline.cont.3
+  block inline.5.entry
+    store local14 -> local15
+    store local15 -> local16
+    store local16 -> local19
+    br @inline.7.entry
+  block inline.cont.7
+    store local18 -> local17
+    store local17 -> local13
+    br @inline.cont.5
+  block inline.7.entry
+    store local19 -> local20
+    store local20 -> local21
+    store local21 -> local24
+    br @inline.9.entry
+  block inline.cont.9
+    store local23 -> local22
+    store local22 -> local18
+    br @inline.cont.7
+  block inline.9.entry
+    store local24 -> local25
+    store local25 -> local26
+    store local26 -> local29
+    br @inline.11.entry
+  block inline.cont.11
+    store local28 -> local27
+    store local27 -> local23
+    br @inline.cont.9
+  block inline.11.entry
+    store local29 -> local30
+    store integer<Int>(0x00000001) -> local31
+    store integer<Int>(0x00000001) -> local32
+    t0 = integer_Add<Int> local30, integer<Int>(0x00000001) : i32
+    store t0 -> local28
+    br @inline.cont.11
+  fun @scoop$1$cb$b3f78af80e96db3f3fbd3361e744dc73664756903e5132a4526ecb4c458bbb60(i32) -> i32
+    local %0 $argument.0: i32
+    local %1 $parameter.value: i32
+    local %2 $call.1: i32
+    local %3 $inline.1.result: i32
+    local %4 $inline.1.value: i32
+    local %5 $inline.1.$argument.0: i32
+    local %6 $inline.1.$parameter.value: i32
+    local %7 $inline.1.$call.1: i32
+    local %8 $inline.3.result: i32
+    local %9 $inline.3.value: i32
+    local %10 $inline.3.$argument.0: i32
+    local %11 $inline.3.$parameter.value: i32
+    local %12 $inline.3.$call.1: i32
+    local %13 $inline.5.result: i32
+    local %14 $inline.5.value: i32
+    local %15 $inline.5.$argument.0: i32
+    local %16 $inline.5.$parameter.value: i32
+    local %17 $inline.5.$call.1: i32
+    local %18 $inline.7.result: i32
+    local %19 $inline.7.value: i32
+    local %20 $inline.7.$argument.0: i32
+    local %21 $inline.7.$parameter.value: i32
+    local %22 $inline.7.$call.1: i32
+    local %23 $inline.9.result: i32
+    local %24 $inline.9.value: i32
+    local %25 $inline.9.$argument.0: i32
+    local %26 $inline.9.$parameter.value: i32
+    local %27 $inline.9.$call.1: i32
+    local %28 $inline.11.result: i32
+    local %29 $inline.11.value: i32
+    local %30 $inline.11.$argument.0: i32
+    local %31 $inline.11.$parameter.value: i32
+    local %32 $inline.11.$call.1: i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store param0 -> local0
+    store local0 -> local1
+    store local1 -> local4
+    br @inline.1.entry
+  block inline.cont.1
+    store local3 -> local2
+    ret local2
+  block inline.1.entry
+    store local4 -> local5
+    store local5 -> local6
+    store local6 -> local9
+    br @inline.3.entry
+  block inline.cont.3
+    store local8 -> local7
+    store local7 -> local3
+    br @inline.cont.1
+  block inline.3.entry
+    store local9 -> local10
+    store local10 -> local11
+    store local11 -> local14
+    br @inline.5.entry
+  block inline.cont.5
+    store local13 -> local12
+    store local12 -> local8
+    br @inline.cont.3
+  block inline.5.entry
+    store local14 -> local15
+    store local15 -> local16
+    store local16 -> local19
+    br @inline.7.entry
+  block inline.cont.7
+    store local18 -> local17
+    store local17 -> local13
+    br @inline.cont.5
+  block inline.7.entry
+    store local19 -> local20
+    store local20 -> local21
+    store local21 -> local24
+    br @inline.9.entry
+  block inline.cont.9
+    store local23 -> local22
+    store local22 -> local18
+    br @inline.cont.7
+  block inline.9.entry
+    store local24 -> local25
+    store local25 -> local26
+    store local26 -> local29
+    br @inline.11.entry
+  block inline.cont.11
+    store local28 -> local27
+    store local27 -> local23
+    br @inline.cont.9
+  block inline.11.entry
+    store local29 -> local30
+    store local30 -> local31
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (i32) -> i32 local-fn9(local31)
+    store t0 -> local32
+    store local32 -> local28
+    br @inline.cont.11
+  fun @scoop$1$cb$23ff88dca2db5ee0b17a3901c04c5d60f44cf64adf9f3caa0ca786bdd89c80b4(i32) -> i32
+    local %0 $argument.0: i32
+    local %1 $parameter.value: i32
+    local %2 $call.1: i32
+    local %3 $inline.1.result: i32
+    local %4 $inline.1.value: i32
+    local %5 $inline.1.$argument.0: i32
+    local %6 $inline.1.$parameter.value: i32
+    local %7 $inline.1.$call.1: i32
+    local %8 $inline.3.result: i32
+    local %9 $inline.3.value: i32
+    local %10 $inline.3.$argument.0: i32
+    local %11 $inline.3.$parameter.value: i32
+    local %12 $inline.3.$call.1: i32
+    local %13 $inline.5.result: i32
+    local %14 $inline.5.value: i32
+    local %15 $inline.5.$argument.0: i32
+    local %16 $inline.5.$parameter.value: i32
+    local %17 $inline.5.$call.1: i32
+    local %18 $inline.7.result: i32
+    local %19 $inline.7.value: i32
+    local %20 $inline.7.$argument.0: i32
+    local %21 $inline.7.$parameter.value: i32
+    local %22 $inline.7.$call.1: i32
+    local %23 $inline.9.result: i32
+    local %24 $inline.9.value: i32
+    local %25 $inline.9.$argument.0: i32
+    local %26 $inline.9.$parameter.value: i32
+    local %27 $inline.9.$call.1: i32
+    local %28 $inline.11.result: i32
+    local %29 $inline.11.value: i32
+    local %30 $inline.11.$argument.0: i32
+    local %31 $inline.11.$parameter.value: i32
+    local %32 $inline.11.$call.1: i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store param0 -> local0
+    store local0 -> local1
+    store local1 -> local4
+    br @inline.1.entry
+  block inline.cont.1
+    store local3 -> local2
+    ret local2
+  block inline.1.entry
+    store local4 -> local5
+    store local5 -> local6
+    store local6 -> local9
+    br @inline.3.entry
+  block inline.cont.3
+    store local8 -> local7
+    store local7 -> local3
+    br @inline.cont.1
+  block inline.3.entry
+    store local9 -> local10
+    store local10 -> local11
+    store local11 -> local14
+    br @inline.5.entry
+  block inline.cont.5
+    store local13 -> local12
+    store local12 -> local8
+    br @inline.cont.3
+  block inline.5.entry
+    store local14 -> local15
+    store local15 -> local16
+    store local16 -> local19
+    br @inline.7.entry
+  block inline.cont.7
+    store local18 -> local17
+    store local17 -> local13
+    br @inline.cont.5
+  block inline.7.entry
+    store local19 -> local20
+    store local20 -> local21
+    store local21 -> local24
+    br @inline.9.entry
+  block inline.cont.9
+    store local23 -> local22
+    store local22 -> local18
+    br @inline.cont.7
+  block inline.9.entry
+    store local24 -> local25
+    store local25 -> local26
+    store local26 -> local29
+    br @inline.11.entry
+  block inline.cont.11
+    store local28 -> local27
+    store local27 -> local23
+    br @inline.cont.9
+  block inline.11.entry
+    store local29 -> local30
+    store local30 -> local31
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (i32) -> i32 local-fn10(local31)
+    store t0 -> local32
+    store local32 -> local28
+    br @inline.cont.11
+  fun @scoop$1$cb$fa296f57e3c78ae8d670fc453a11a61be44af395be5bc58051b11a2850a3b68b(i8) -> i8
+    local %0 $dependency.receiver: i8
+    local %1 $dependency.argument.0: i8
+    local %2 $dependency.parameter.other: i8
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store param0 -> local0
+    store integer<Int8>(0x01) -> local1
+    store integer<Int8>(0x01) -> local2
+    t0 = integer_Add<Int8> local0, integer<Int8>(0x01) : i8
+    ret t0
+  fun @scoop$1$cb$1eacd06d3a42860e67aa36f041a5fdc7cb9b1e6ac38dec56ad0ca8615515428b(i8) -> i8
+    local %0 $dependency.receiver: i8
+    local %1 $dependency.argument.0: i8
+    local %2 $dependency.parameter.other: i8
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store param0 -> local0
+    store integer<UInt8>(0x01) -> local1
+    store integer<UInt8>(0x01) -> local2
+    t0 = integer_Add<UInt8> local0, integer<UInt8>(0x01) : i8
+    ret t0
+  fun @scoop$1$cb$69d06b1254a9c5c3b166d9e65e4d071c50972eb01d700b51dbfe205790894ca5(i8) -> i32
+    local %0 $dependency.receiver: i8
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store param0 -> local0
+    t0 = integer_convert<UInt8->Int> local0 : i32
+    ret t0
+  fun @scoop$1$cb$b7e579c065f9ad5284df3229692739564d1663c9d9ea7b406e67cf43be691d3e(i8) -> i1
+    local %0 $dependency.receiver: i8
+    local %1 $dependency.argument.0: i8
+    local %2 $dependency.parameter.other: i8
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store param0 -> local0
+    store integer<Int8>(0x00) -> local1
+    store integer<Int8>(0x00) -> local2
+    t0 = integer_compare_to<Int8> local0, integer<Int8>(0x00) : i64
+    t1 = integer_compare_Less<Long> t0, integer<Long>(0x0000000000000000) : i1
+    ret t1
+  fun @scoop$1$cb$a59ba8328a87a3c09df1111305261ccbca23796630e0ce6dea24e3ae106f48ca() -> void
+    local %0 $argument.0: i32
+    local %1 $parameter.value: i32
+    local %2 $dependency.receiver: i32
+    local %3 $dependency.argument.0: i32
+    local %4 $dependency.parameter.other: i32
+    local %5 $argument.0: i32
+    local %6 $parameter.count: i32
+    local %7 $dependency.receiver: i32
+    local %8 $dependency.argument.0: i32
+    local %9 $dependency.parameter.other: i32
+    local %10 $shortCircuit.3: i1
+    local %11 $argument.0: i1
+    local %12 $parameter.value: i1
+    local %13 $argument.0: i32
+    local %14 $parameter.value: i32
+    local %15 $dependency.receiver: i32
+    local %16 $dependency.argument.0: i32
+    local %17 $dependency.parameter.other: i32
+    local %18 $argument.0: i32
+    local %19 $argument.1: i1
+    local %20 $parameter.value: i32
+    local %21 $parameter.checked: i1
+    local %22 $dependency.receiver: i32
+    local %23 $dependency.argument.0: i32
+    local %24 $dependency.parameter.other: i32
+    local %25 $shortCircuit.4: i1
+    local %26 $argument.0: i1
+    local %27 $parameter.value: i1
+    local %28 $argument.0: i32
+    local %29 $parameter.value: i32
+    local %30 $argument.0: i32
+    local %31 $parameter.value: i32
+    local %32 $dependency.receiver: i1
+    local %33 $shortCircuit.5: i1
+    local %34 $argument.0: i32
+    local %35 $parameter.value: i32
+    local %36 $shortCircuit.6: i1
+    local %37 $argument.0: i1
+    local %38 $parameter.value: i1
+    local %39 $argument.0: i32
+    local %40 $parameter.value: i32
+    local %41 $dependency.receiver: i32
+    local %42 $dependency.argument.0: i32
+    local %43 $dependency.parameter.other: i32
+    local %44 $argument.0: i1
+    local %45 $parameter.value: i1
+    local %46 $argument.0: i8
+    local %47 $parameter.value: i8
+    local %48 $dependency.receiver: i8
+    local %49 $dependency.argument.0: i8
+    local %50 $dependency.parameter.other: i8
+    local %51 $argument.0: i8
+    local %52 $parameter.value: i8
+    local %53 $dependency.receiver: i8
+    local %54 $dependency.argument.0: i8
+    local %55 $dependency.parameter.other: i8
+    local %56 $shortCircuit.7: i1
+    local %57 $argument.0: i1
+    local %58 $parameter.value: i1
+    local %59 $argument.0: i8
+    local %60 $parameter.value: i8
+    local %61 $dependency.receiver: i32
+    local %62 $dependency.argument.0: i32
+    local %63 $dependency.parameter.other: i32
+    local %64 $argument.0: i8
+    local %65 $parameter.value: i8
+    local %66 $shortCircuit.8: i1
+    local %67 $argument.0: i8
+    local %68 $parameter.value: i8
+    local %69 $dependency.receiver: i1
+    local %70 $shortCircuit.9: i1
+    local %71 $argument.0: i1
+    local %72 $parameter.value: i1
+    local %73 $dependency.argument.0: ptr<managed>
+    local %74 $dependency.parameter.value: ptr<managed>
+    local %75 $call.1: i1
+    local %76 $inline.22.result: i1
+    local %77 $inline.22.value: i8
+    local %78 $inline.22.$dependency.receiver: i8
+    local %79 $inline.22.$dependency.argument.0: i8
+    local %80 $inline.22.$dependency.parameter.other: i8
+    local %81 $inline.24.result: i1
+    local %82 $inline.24.value: i8
+    local %83 $inline.24.$dependency.receiver: i8
+    local %84 $inline.24.$dependency.argument.0: i8
+    local %85 $inline.24.$dependency.parameter.other: i8
+    local %86 $inline.26.result: i32
+    local %87 $inline.26.value: i8
+    local %88 $inline.26.$dependency.receiver: i8
+    local %89 $inline.28.result: i8
+    local %90 $inline.28.value: i8
+    local %91 $inline.28.$dependency.receiver: i8
+    local %92 $inline.28.$dependency.argument.0: i8
+    local %93 $inline.28.$dependency.parameter.other: i8
+    local %94 $inline.30.result: i8
+    local %95 $inline.30.value: i8
+    local %96 $inline.30.$dependency.receiver: i8
+    local %97 $inline.30.$dependency.argument.0: i8
+    local %98 $inline.30.$dependency.parameter.other: i8
+    local %99 $inline.32.result: i32
+    local %100 $inline.32.value: i32
+    local %101 $inline.32.$argument.0: i32
+    local %102 $inline.32.$parameter.value: i32
+    local %103 $inline.32.$call.1: i32
+    local %104 $inline.34.result: i32
+    local %105 $inline.34.value: i32
+    local %106 $inline.34.checked: i1
+    local %107 $inline.34.$argument.0: i32
+    local %108 $inline.34.$argument.1: i1
+    local %109 $inline.34.$parameter.value: i32
+    local %110 $inline.34.$parameter.checked: i1
+    local %111 $inline.34.$call.1: i32
+    local %112 $inline.36.result: i32
+    local %113 $inline.36.value: i32
+    local %114 $inline.36.$argument.0: i32
+    local %115 $inline.36.$argument.1: i1
+    local %116 $inline.36.$parameter.value: i32
+    local %117 $inline.36.$parameter.checked: i1
+    local %118 $inline.36.$call.1: i32
+    local %119 $inline.38.result: i32
+    local %120 $inline.38.value: i32
+    local %121 $inline.38.$argument.0: i32
+    local %122 $inline.38.$parameter.value: i32
+    local %123 $inline.38.$call.1: i32
+    local %124 $inline.40.result: i32
+    local %125 $inline.40.value: i32
+    local %126 $inline.40.$dependency.receiver: i32
+    local %127 $inline.40.$dependency.argument.0: i32
+    local %128 $inline.40.$dependency.parameter.other: i32
+    local %129 $inline.40.a: i32
+    local %130 $inline.40.$dependency.receiver: i32
+    local %131 $inline.40.$dependency.argument.0: i32
+    local %132 $inline.40.$dependency.parameter.other: i32
+    local %133 $inline.40.b: i32
+    local %134 $inline.40.$dependency.receiver: i32
+    local %135 $inline.40.$dependency.argument.0: i32
+    local %136 $inline.40.$dependency.parameter.other: i32
+    local %137 $inline.40.c: i32
+    local %138 $inline.40.$dependency.receiver: i32
+    local %139 $inline.40.$dependency.argument.0: i32
+    local %140 $inline.40.$dependency.parameter.other: i32
+    local %141 $inline.40.d: i32
+    local %142 $inline.40.$dependency.receiver: i32
+    local %143 $inline.40.$dependency.argument.0: i32
+    local %144 $inline.40.$dependency.parameter.other: i32
+    local %145 $inline.40.e: i32
+    local %146 $inline.40.$dependency.receiver: i32
+    local %147 $inline.40.$dependency.argument.0: i32
+    local %148 $inline.40.$dependency.parameter.other: i32
+    local %149 $inline.42.result: i32
+    local %150 $inline.42.value: i32
+    local %151 $inline.42.checked: i1
+    local %152 $inline.42.$dependency.receiver: i32
+    local %153 $inline.42.$dependency.argument.0: i32
+    local %154 $inline.42.$dependency.parameter.other: i32
+    local %155 $inline.45.result: i32
+    local %156 $inline.45.value: i32
+    local %157 $inline.45.checked: i1
+    local %158 $inline.45.$dependency.receiver: i32
+    local %159 $inline.45.$dependency.argument.0: i32
+    local %160 $inline.45.$dependency.parameter.other: i32
+    local %161 $inline.48.result: i32
+    local %162 $inline.48.value: i32
+    local %163 $inline.48.$argument.0: i32
+    local %164 $inline.48.$parameter.value: i32
+    local %165 $inline.48.$call.1: i32
+    local %166 $inline.50.value: i1
+    local %167 $inline.50.$dependency.receiver: i1
+    local %168 $inline.53.value: i1
+    local %169 $inline.53.$dependency.receiver: i1
+    local %170 $inline.56.result: i32
+    local %171 $inline.56.value: i32
+    local %172 $inline.56.$argument.0: i32
+    local %173 $inline.56.$parameter.value: i32
+    local %174 $inline.56.$call.1: i32
+    local %175 $inline.58.value: i1
+    local %176 $inline.58.$dependency.receiver: i1
+    local %177 $inline.61.result: i32
+    local %178 $inline.61.value: i32
+    local %179 $inline.61.$argument.0: i32
+    local %180 $inline.61.$parameter.value: i32
+    local %181 $inline.61.$call.1: i32
+    local %182 $inline.63.result: i32
+    local %183 $inline.63.value: i32
+    local %184 $inline.63.$argument.0: i32
+    local %185 $inline.63.$parameter.value: i32
+    local %186 $inline.63.$call.1: i32
+    local %187 $inline.65.result: i32
+    local %188 $inline.65.value: i32
+    local %189 $inline.65.$argument.0: i32
+    local %190 $inline.65.$parameter.value: i32
+    local %191 $inline.65.$call.1: i32
+  block entry
+    poll managed-void-target4 sp<managed-poll:0> live=[]
+    store integer<Int>(0x00000002) -> local0
+    store integer<Int>(0x00000002) -> local1
+    store integer<Int>(0x00000002) -> local120
+    br @inline.38.entry
+  block if.then.1
+    store integer<Int>(0x00000004) -> local5
+    store integer<Int>(0x00000004) -> local6
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (i32) -> i32 local-fn3(integer<Int>(0x00000004))
+    store t0 -> local7
+    store integer<Int>(0x00000114) -> local8
+    store integer<Int>(0x00000114) -> local9
+    t1 = integer_compare_Equal<Int> local7, integer<Int>(0x00000114) : i1
+    store t1 -> local10
+    br @if.merge.3
+  block if.merge.3
+    store local10 -> local11
+    store local11 -> local12
+    call managed-void-target0 sp<managed-call:1> live=[] sig=void0 (i1) local-fn0(local12)
+    t2 = aggregate () : {}
+    store integer<Int>(0x00000009) -> local13
+    store integer<Int>(0x00000009) -> local14
+    store integer<Int>(0x00000009) -> local113
+    br @inline.36.entry
+  block if.then.4
+    store integer<Int>(0x0000000c) -> local18
+    store false -> local19
+    store integer<Int>(0x0000000c) -> local20
+    store false -> local21
+    store integer<Int>(0x0000000c) -> local105
+    store false -> local106
+    br @inline.34.entry
+  block if.merge.6
+    store true -> local26
+    store true -> local27
+    store true -> local175
+    br @inline.58.entry
+  block if.then.7
+    store integer<Int>(0x00000008) -> local30
+    store integer<Int>(0x00000008) -> local31
+    call managed-direct-target1 sp<managed-call:3> live=[] t3 = sig=direct1 (i32) -> i1 local-fn8(integer<Int>(0x00000008))
+    store t3 -> local32
+    t4 = Not local32 : i1
+    store t4 -> local33
+    br @if.merge.9
+  block if.else.8
+    store false -> local33
+    br @if.merge.9
+  block if.merge.9
+    cbr local33 then @if.then.10 else @if.else.11
+  block if.then.10
+    store integer<Int>(0x00000009) -> local34
+    store integer<Int>(0x00000009) -> local35
+    call managed-direct-target2 sp<managed-call:4> live=[] t5 = sig=direct2 (i32) -> i1 local-fn8(integer<Int>(0x00000009))
+    store t5 -> local36
+    br @if.merge.12
+  block if.else.11
+    store false -> local36
+    br @if.merge.12
+  block if.merge.12
+    store local36 -> local37
+    store local37 -> local38
+    call managed-void-target1 sp<managed-call:5> live=[] sig=void1 (i1) local-fn0(local38)
+    t6 = aggregate () : {}
+    store integer<Int>(0x00000029) -> local39
+    store integer<Int>(0x00000029) -> local40
+    store integer<Int>(0x00000029) -> local100
+    br @inline.32.entry
+  block if.then.13
+    store integer<UInt8>(0xff) -> local51
+    store integer<UInt8>(0xff) -> local52
+    store integer<UInt8>(0xff) -> local90
+    br @inline.28.entry
+  block if.merge.15
+    store true -> local57
+    store true -> local58
+    store true -> local168
+    br @inline.53.entry
+  block if.then.16
+    store integer<Int8>(0xff) -> local64
+    store integer<Int8>(0xff) -> local65
+    store integer<Int8>(0xff) -> local82
+    br @inline.24.entry
+  block if.merge.18
+    br @if.then.19
+  block if.then.19
+    store integer<Int8>(0x01) -> local67
+    store integer<Int8>(0x01) -> local68
+    store integer<Int8>(0x01) -> local77
+    br @inline.22.entry
+  block if.merge.21
+    store true -> local71
+    store true -> local72
+    store true -> local166
+    br @inline.50.entry
+  block inline.cont.22
+    store false -> local69
+    store true -> local70
+    br @if.merge.21
+  block inline.22.entry
+    store integer<Int8>(0x01) -> local78
+    store integer<Int8>(0x00) -> local79
+    store integer<Int8>(0x00) -> local80
+    store false -> local76
+    br @inline.cont.22
+  block inline.cont.24
+    store true -> local66
+    br @if.merge.18
+  block inline.24.entry
+    store integer<Int8>(0xff) -> local83
+    store integer<Int8>(0x00) -> local84
+    store integer<Int8>(0x00) -> local85
+    store true -> local81
+    br @inline.cont.24
+  block inline.cont.26
+    store integer<Int>(0x000000ff) -> local61
+    store integer<Int>(0x000000ff) -> local62
+    store integer<Int>(0x000000ff) -> local63
+    br @if.then.16
+  block inline.26.entry
+    store integer<UInt8>(0xff) -> local88
+    store integer<Int>(0x000000ff) -> local86
+    br @inline.cont.26
+  block inline.cont.28
+    store integer<UInt8>(0x00) -> local53
+    store integer<UInt8>(0x00) -> local54
+    store integer<UInt8>(0x00) -> local55
+    store true -> local56
+    br @if.merge.15
+  block inline.28.entry
+    store integer<UInt8>(0xff) -> local91
+    store integer<UInt8>(0x01) -> local92
+    store integer<UInt8>(0x01) -> local93
+    store integer<UInt8>(0x00) -> local89
+    br @inline.cont.28
+  block inline.cont.30
+    store integer<Int8>(0x80) -> local48
+    store integer<Int8>(0x80) -> local49
+    store integer<Int8>(0x80) -> local50
+    br @if.then.13
+  block inline.30.entry
+    store integer<Int8>(0x7f) -> local96
+    store integer<Int8>(0x01) -> local97
+    store integer<Int8>(0x01) -> local98
+    store integer<Int8>(0x80) -> local94
+    br @inline.cont.30
+  block inline.cont.32
+    store local99 -> local41
+    store integer<Int>(0x0000002a) -> local42
+    store integer<Int>(0x0000002a) -> local43
+    t7 = integer_compare_Equal<Int> local41, integer<Int>(0x0000002a) : i1
+    store t7 -> local44
+    store local44 -> local45
+    call managed-void-target2 sp<managed-call:7> live=[] sig=void2 (i1) local-fn0(local45)
+    t8 = aggregate () : {}
+    store integer<Int8>(0x7f) -> local46
+    store integer<Int8>(0x7f) -> local47
+    store integer<Int8>(0x7f) -> local95
+    br @inline.30.entry
+  block inline.32.entry
+    store integer<Int>(0x00000029) -> local101
+    store integer<Int>(0x00000029) -> local102
+    store integer<Int>(0x00000029) -> local162
+    br @inline.48.entry
+  block inline.cont.34
+    store integer<Int>(0x0000000d) -> local22
+    store integer<Int>(0x0000000d) -> local23
+    store integer<Int>(0x0000000d) -> local24
+    store true -> local25
+    br @if.merge.6
+  block inline.34.entry
+    store integer<Int>(0x0000000c) -> local107
+    store false -> local108
+    store integer<Int>(0x0000000c) -> local109
+    store false -> local110
+    store integer<Int>(0x0000000c) -> local156
+    store false -> local157
+    br @inline.45.entry
+  block inline.cont.36
+    store integer<Int>(0x0000000a) -> local15
+    store integer<Int>(0x0000000a) -> local16
+    store integer<Int>(0x0000000a) -> local17
+    br @if.then.4
+  block inline.36.entry
+    store integer<Int>(0x00000009) -> local114
+    store false -> local115
+    store integer<Int>(0x00000009) -> local116
+    store false -> local117
+    store integer<Int>(0x00000009) -> local150
+    store false -> local151
+    br @inline.42.entry
+  block inline.cont.38
+    store integer<Int>(0x00000054) -> local2
+    store integer<Int>(0x00000054) -> local3
+    store integer<Int>(0x00000054) -> local4
+    br @if.then.1
+  block inline.38.entry
+    store integer<Int>(0x00000002) -> local121
+    store integer<Int>(0x00000002) -> local122
+    store integer<Int>(0x00000002) -> local125
+    br @inline.40.entry
+  block inline.cont.40
+    store integer<Int>(0x00000054) -> local123
+    store integer<Int>(0x00000054) -> local119
+    br @inline.cont.38
+  block inline.40.entry
+    store integer<Int>(0x00000002) -> local126
+    store integer<Int>(0x00000001) -> local127
+    store integer<Int>(0x00000001) -> local128
+    store integer<Int>(0x00000003) -> local129
+    store integer<Int>(0x00000003) -> local130
+    store integer<Int>(0x00000003) -> local131
+    store integer<Int>(0x00000003) -> local132
+    store integer<Int>(0x00000009) -> local133
+    store integer<Int>(0x00000009) -> local134
+    store integer<Int>(0x00000002) -> local135
+    store integer<Int>(0x00000002) -> local136
+    store integer<Int>(0x00000007) -> local137
+    store integer<Int>(0x00000007) -> local138
+    store integer<Int>(0x00000005) -> local139
+    store integer<Int>(0x00000005) -> local140
+    store integer<Int>(0x00000023) -> local141
+    store integer<Int>(0x00000023) -> local142
+    store integer<Int>(0x00000007) -> local143
+    store integer<Int>(0x00000007) -> local144
+    store integer<Int>(0x0000002a) -> local145
+    store integer<Int>(0x0000002a) -> local146
+    store integer<Int>(0x00000002) -> local147
+    store integer<Int>(0x00000002) -> local148
+    store integer<Int>(0x00000054) -> local124
+    br @inline.cont.40
+  block inline.cont.42
+    store integer<Int>(0x0000000a) -> local118
+    store integer<Int>(0x0000000a) -> local112
+    br @inline.cont.36
+  block inline.42.entry
+    br @inline.42.if.merge.2
+  block inline.42.if.merge.2
+    store integer<Int>(0x00000009) -> local152
+    store integer<Int>(0x00000001) -> local153
+    store integer<Int>(0x00000001) -> local154
+    store integer<Int>(0x0000000a) -> local149
+    br @inline.cont.42
+  block inline.cont.45
+    store integer<Int>(0x0000000d) -> local111
+    store integer<Int>(0x0000000d) -> local104
+    br @inline.cont.34
+  block inline.45.entry
+    br @inline.45.if.merge.2
+  block inline.45.if.merge.2
+    store integer<Int>(0x0000000c) -> local158
+    store integer<Int>(0x00000001) -> local159
+    store integer<Int>(0x00000001) -> local160
+    store integer<Int>(0x0000000d) -> local155
+    br @inline.cont.45
+  block inline.cont.48
+    store local161 -> local103
+    store local103 -> local99
+    br @inline.cont.32
+  block inline.48.entry
+    store integer<Int>(0x00000029) -> local163
+    store integer<Int>(0x00000029) -> local164
+    store integer<Int>(0x00000029) -> local171
+    br @inline.56.entry
+  block inline.cont.50
+    store global1 -> local73
+    store local73 -> local74
+    call managed-void-target3 sp<managed-call:8> live=[local74:ptr<managed>@0] sig=void3 (ptr<managed>) local-fn23(local74)
+    t9 = aggregate () : {}
+    ret
+  block inline.50.entry
+    store true -> local167
+    br @inline.50.if.merge.2
+  block inline.50.if.merge.2
+    br @inline.cont.50
+  block inline.cont.53
+    store integer<UInt8>(0xff) -> local59
+    store integer<UInt8>(0xff) -> local60
+    store integer<UInt8>(0xff) -> local87
+    br @inline.26.entry
+  block inline.53.entry
+    store true -> local169
+    br @inline.53.if.merge.2
+  block inline.53.if.merge.2
+    br @inline.cont.53
+  block inline.cont.56
+    store local170 -> local165
+    store local165 -> local161
+    br @inline.cont.48
+  block inline.56.entry
+    store integer<Int>(0x00000029) -> local172
+    store integer<Int>(0x00000029) -> local173
+    store integer<Int>(0x00000029) -> local178
+    br @inline.61.entry
+  block inline.cont.58
+    store integer<Int>(0x00000008) -> local28
+    store integer<Int>(0x00000008) -> local29
+    call managed-direct-target3 sp<managed-call:2> live=[] t10 = sig=direct3 (i32) -> i1 local-fn7(integer<Int>(0x00000008))
+    store t10 -> local75
+    cbr local75 then @if.then.7 else @if.else.8
+  block inline.58.entry
+    store true -> local176
+    br @inline.58.if.merge.2
+  block inline.58.if.merge.2
+    br @inline.cont.58
+  block inline.cont.61
+    store local177 -> local174
+    store local174 -> local170
+    br @inline.cont.56
+  block inline.61.entry
+    store integer<Int>(0x00000029) -> local179
+    store integer<Int>(0x00000029) -> local180
+    store integer<Int>(0x00000029) -> local183
+    br @inline.63.entry
+  block inline.cont.63
+    store local182 -> local181
+    store local181 -> local177
+    br @inline.cont.61
+  block inline.63.entry
+    store integer<Int>(0x00000029) -> local184
+    store integer<Int>(0x00000029) -> local185
+    store integer<Int>(0x00000029) -> local188
+    br @inline.65.entry
+  block inline.cont.65
+    store local187 -> local186
+    store local186 -> local182
+    br @inline.cont.63
+  block inline.65.entry
+    store integer<Int>(0x00000029) -> local189
+    store integer<Int>(0x00000029) -> local190
+    call managed-direct-target4 sp<managed-call:6> live=[] t11 = sig=direct4 (i32) -> i32 local-fn11(integer<Int>(0x00000029))
+    store t11 -> local191
+    store local191 -> local187
+    br @inline.cont.65
+  fun @scoop$1$cb$43be1945af2e9ba3587bf2ead706ac7563f8181567977803f1aaa99bf055da0f(ptr<managed>) -> void
+    local %0 $dependency.local.1: ptr<managed>
+    local %1 $dependency.local.2: ptr<managed>
+    local %2 $dependency.local.3: ptr<managed>
+    local %3 $dependency.local.4: ptr<managed>
+    local %4 $dependency.local.5: ptr<managed>
+  block entry
+    poll managed-void-target2 sp<managed-poll:0> live=[param0:ptr<managed>@0]
+    store param0 -> local0
+    call managed-direct-target0 sp<managed-call:0> live=[local0:ptr<managed>@0] t0 = sig=direct0 (ptr<managed>) -> ptr<managed> external-fn1(local0)
+    store t0 -> local1
+    store local1 -> local2
+    call managed-void-target0 sp<managed-call:1> live=[local2:ptr<managed>@0] sig=void0 (ptr<managed>) external-fn2(local2)
+    t1 = aggregate () : {}
+    store global2 -> local3
+    store local3 -> local4
+    call managed-void-target1 sp<managed-call:2> live=[local4:ptr<managed>@0] sig=void1 (ptr<managed>) external-fn2(local4)
+    t2 = aggregate () : {}
+    ret
+  fun @scoop$1$cb$d3bd523ea7c4b775508c06e622f76772db6a21fddb406c6d3fe7d1f20a2a89c1(i32, ptr<raw>, ptr<raw>) -> i32
+  block entry
+    poll managed-void-target1 sp<managed-poll:0> live=[]
+    call managed-direct-target1 sp<managed-call:0> live=[] t4 = sig=direct1 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_context_ensure_root(external-td3)
+    invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn22() normal @success unwind @failure
+    br @success
+  block success
+    raw_store param2 integer<Int>(0x00000000) align 4
+    ret integer<UInt>(0x00000000)
+  block failure
+    (t0, t1) = landingpad : (exception_record, ptr<raw>)
+    t2 = begin_catch t1 : ptr<managed>
+    call managed-direct-target0 sp<managed-call:1> live=[t2:ptr<managed>@0] t3 = sig=direct0 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(t2)
+    global_store global3, t3
+    end_catch
+    ret integer<UInt>(0x00000001)
+  td td0 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Equality);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Char)]) @scoop$1$td$0f4d8eca35177919534de9ce0291a10ee5574dac0e99777edd7eb05ecc820465 type-id=3821555638981672158 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
+  td td1 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Iterable);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Char)]) @scoop$1$td$ef6b36ca09c9933b3bea840528953a3d291a9603d801f756a28cae62bb923998 type-id=10315282307843172623 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
+  td td2 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Iterator);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Char)]) @scoop$1$td$2ae1daea8950ad158982fc142740cd4330fb486dd7dae7c2229b04b285155cfd type-id=16446202047868660179 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
+  td td3 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Equality);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=String)]) @scoop$1$td$0d8186dad7dc186993ac409f3c89912796864b66fe505b6840799771e02438d5 type-id=10328602540278925084 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
+  td td4 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=Option);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=String)]) @scoop$1$td$ae549cdc775dd9ab0e9bae5a7a2d6790f211d7978acd71210d6088d347896a35 type-id=12995891512699415417 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td5 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=Option);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Char)]) @scoop$1$td$d7f4366e65835cbfa9730a35af33f51b9ed79c85d1b97de13e951aaa6136a11d type-id=4546798213121979959 shape=BoxedValue minimum-size=32 align=8 parent=none vtable=[] itables=[]
+  layout Option size=8 align=8 enum-scan=refs[0]
+  layout Option size=16 align=8 enum-scan=none
+  layout Equality value size=16 align=8 refs=[0]
+  layout Iterable value size=16 align=8 refs=[0]
+  layout Iterator value size=16 align=8 refs=[0]
+  layout Equality value size=16 align=8 refs=[0]
+  output executable @scoop$1$cb$a59ba8328a87a3c09df1111305261ccbca23796630e0ce6dea24e3ae106f48ca

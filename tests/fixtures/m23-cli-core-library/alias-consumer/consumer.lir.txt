@@ -3,7 +3,7 @@ Module
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret param0
-  fun @scoop$1$cb$98d129858aa538f3712340894bf9e62ae3bd247aeb186600a74844e545007653(indirect<{i32, i1} size=8 align=4 scan=none>) -> sret<{i32, i1} size=8 align=4 scan=none>
+  fun @scoop$1$cb$98d129858aa538f3712340894bf9e62ae3bd247aeb186600a74844e545007653(parts<{i32, i1} [i64@0+8/4]>) -> parts<{i32, i1} [i64@0+8/4]>
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret param0

@@ -311,32 +311,32 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun thunk<LocalChoice> LocalValue.value() @fn15(this: LocalValue) -> Long
+  fun thunk<LocalChoice> LocalValue.value() @fn15(this: box<LocalChoice>) -> Long
     bb0 entry
       call $call.1: Long = @fn0 direct
         Type LocalChoice
         Unbox
-          Type LocalValue
+          Type box<LocalChoice>
           Local this
       return
         Type Long
         Local $call.1
-  fun thunk<LocalChoice> LocalValue.inherited() @fn16(this: LocalValue) -> Long
+  fun thunk<LocalChoice> LocalValue.inherited() @fn16(this: box<LocalChoice>) -> Long
     bb0 entry
       call $call.1: Long = @fn12 direct
         Type LocalValue
         Retype LocalValue
-          Type LocalValue
+          Type box<LocalChoice>
           Local this
       return
         Type Long
         Local $call.1
-  fun thunk<LocalChoice> Valued.value() @fn17(this: Valued) -> Long
+  fun thunk<LocalChoice> Valued.value() @fn17(this: box<LocalChoice>) -> Long
     bb0 entry
       call $call.1: Long = @fn0 direct
         Type LocalChoice
         Unbox
-          Type Valued
+          Type box<LocalChoice>
           Local this
       return
         Type Long

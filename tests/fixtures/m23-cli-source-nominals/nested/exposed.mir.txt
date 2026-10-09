@@ -151,17 +151,18 @@ Module
   generated_exact_type get24 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
   generated_exact_type get25 location=enum14 nominal_id=ae806aa70c5520717505eea9c83cbdb05a9ca55b887346b070365bc0415ade56 exact_id=f16b9e27267901690a7e42336239eaa98301c1931c9e1a8b43deac39b010988b
   generated_exact_type get26 location=enum20 nominal_id=5742e0733f2cb3bd4135fa60957bff475c61643194c69daeee9ebe629bfd870e exact_id=fac1d7907f0a44b9ccc3263b9f135b3a4ec5c68f1fcf51972a6b1e9925298fed
-  generated_callable gc0 function=@fn78 id=177be4c0a3f72c0622e9e2d8d14c6b99be97ae08b15bda7d8241f9c93e430d26
-  generated_callable gc1 function=@fn76 id=1f623697873bf2e1629fa2b702d437f024e972765105b5f12ef8ba7cb0d96525
-  generated_callable gc2 function=@fn71 id=2cc01ab9f6bcbcbb49560fe89955bdf5c02a2ee33899e3c04b544a8ec0135004
-  generated_callable gc3 function=@fn73 id=39b0384094c5d808cf4a58816f3f8f4f4e10dd866739dcaa194ae17449946c60
-  generated_callable gc4 function=@fn72 id=44c7a418aa53393825180c0abab756d50b8b1b47e1aacd52d6b6b02629eea22c
-  generated_callable gc5 function=@fn70 id=46826cd4a954dc5cb27abe528566dea6d50b1437a75b42b9059ee23e5de51e30
-  generated_callable gc6 function=@fn80 id=7849f8beab84def1eeac1e9e1bb71536263ef804ed874757358f1553f321a730
-  generated_callable gc7 function=@fn74 id=83285cedb9fbbad706debcc6baa6122b6050c25313ce255d9fa5a760514ffea4
-  generated_callable gc8 function=@fn77 id=d613e723ee1fca19d05f2403c280f9725cb84f7acdf1014d3e0b96e74e95368b
-  generated_callable gc9 function=@fn75 id=dd522532b6c2fa1850637bf5dd1ae27f7cf10ec53fea27c883924913907b835e
-  generated_callable gc10 function=@fn79 id=ea6e57d8721f885a281466b2bf790357b8d8a6e871ab5bbce9df8f49a07da87f
+  generated_callable gc0 function=@fn60 id=0806fa1a22aaa70f8b3efff0dbef57c75b9e132b8b88d0d32fa2531f51870c7c
+  generated_callable gc1 function=@fn79 id=177be4c0a3f72c0622e9e2d8d14c6b99be97ae08b15bda7d8241f9c93e430d26
+  generated_callable gc2 function=@fn77 id=1f623697873bf2e1629fa2b702d437f024e972765105b5f12ef8ba7cb0d96525
+  generated_callable gc3 function=@fn72 id=2cc01ab9f6bcbcbb49560fe89955bdf5c02a2ee33899e3c04b544a8ec0135004
+  generated_callable gc4 function=@fn74 id=39b0384094c5d808cf4a58816f3f8f4f4e10dd866739dcaa194ae17449946c60
+  generated_callable gc5 function=@fn73 id=44c7a418aa53393825180c0abab756d50b8b1b47e1aacd52d6b6b02629eea22c
+  generated_callable gc6 function=@fn71 id=46826cd4a954dc5cb27abe528566dea6d50b1437a75b42b9059ee23e5de51e30
+  generated_callable gc7 function=@fn81 id=7849f8beab84def1eeac1e9e1bb71536263ef804ed874757358f1553f321a730
+  generated_callable gc8 function=@fn75 id=83285cedb9fbbad706debcc6baa6122b6050c25313ce255d9fa5a760514ffea4
+  generated_callable gc9 function=@fn78 id=d613e723ee1fca19d05f2403c280f9725cb84f7acdf1014d3e0b96e74e95368b
+  generated_callable gc10 function=@fn76 id=dd522532b6c2fa1850637bf5dd1ae27f7cf10ec53fea27c883924913907b835e
+  generated_callable gc11 function=@fn80 id=ea6e57d8721f885a281466b2bf790357b8d8a6e871ab5bbce9df8f49a07da87f
   fun Base.inherited @fn0(this: Base) -> Int
     bb0 entry
       return
@@ -180,7 +181,7 @@ Module
       assign $new.1
         Type Envelope.Reader
         ClassAlloc Envelope.Reader
-      call @fn63 direct
+      call @fn64 direct
         Type Envelope.Reader
         Local $new.1
       val $receiver: Envelope.Reader
@@ -194,7 +195,7 @@ Module
       assign $new.2
         Type Envelope.Reader
         ClassAlloc Envelope.Reader
-      call @fn63 direct
+      call @fn64 direct
         Type Envelope.Reader
         Local $new.2
       call $dependency.argument.0: Int = @fn5 direct
@@ -236,7 +237,7 @@ Module
       val $parameter.first: Int
         Type Int
         Local $argument.1
-      call $equality.lhs: Envelope.Pair<String> = @fn69 direct
+      call $equality.lhs: Envelope.Pair<String> = @fn70 direct
         Type String
         Local $parameter.second
         Type Int
@@ -253,7 +254,7 @@ Module
       val $parameter.first: Int
         Type Int
         Local $argument.1
-      call $call.1: Envelope.Pair<String> = @fn69 direct
+      call $call.1: Envelope.Pair<String> = @fn70 direct
         Type String
         Local $parameter.second
         Type Int
@@ -323,7 +324,7 @@ Module
       assign $new.1
         Type Envelope
         ClassAlloc Envelope
-      call @fn61 direct
+      call @fn62 direct
         Type Envelope
         Local $new.1
       return
@@ -334,7 +335,7 @@ Module
       assign $new.1
         Type Envelope.Cache
         ClassAlloc Envelope.Cache
-      call @fn65 direct
+      call @fn66 direct
         Type Envelope.Cache
         Local $new.1
       global_assign $singleton$Cache
@@ -809,32 +810,42 @@ Module
   fun Envelope.View.$get$number @fn59(this: Envelope.View) -> Int
     bb0 entry
       trap "call to abstract method `Envelope.View.$get$number`"
-  fun init.Base.$c1 @fn60(this: Base) -> Unit
+  fun receiver<Envelope.Reader> Envelope.View.read @fn60(this: Envelope.Reader) -> Int
+    bb0 entry
+      call $call.1: Int = @fn58 direct
+        Type Envelope.View
+        Retype Envelope.View
+          Type Envelope.Reader
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun init.Base.$c1 @fn61(this: Base) -> Unit
     bb0 entry
       return
-  fun init.Envelope.$c2 @fn61(this: Envelope) -> Unit
+  fun init.Envelope.$c2 @fn62(this: Envelope) -> Unit
     bb0 entry
-      call @fn60 direct
+      call @fn61 direct
         Type Base
         Retype Base
           Type Envelope
           Local this
       return
-  fun init.Derived.$c3 @fn62(this: Derived) -> Unit
+  fun init.Derived.$c3 @fn63(this: Derived) -> Unit
     bb0 entry
-      call @fn61 direct
+      call @fn62 direct
         Type Envelope
         Retype Envelope
           Type Derived
           Local this
       return
-  fun init.Envelope.Reader.$c5 @fn63(this: Envelope.Reader) -> Unit
+  fun init.Envelope.Reader.$c5 @fn64(this: Envelope.Reader) -> Unit
     bb0 entry
       return
-  fun init.Envelope.Box.HiddenChild.$c7 @fn64(this: Envelope.Box.HiddenChild) -> Unit
+  fun init.Envelope.Box.HiddenChild.$c7 @fn65(this: Envelope.Box.HiddenChild) -> Unit
     bb0 entry
       return
-  fun init.Envelope.Cache.$c15 @fn65(this: Envelope.Cache) -> Unit
+  fun init.Envelope.Cache.$c15 @fn66(this: Envelope.Cache) -> Unit
     bb0 entry
       field_set 0
         Type Envelope.Cache
@@ -842,16 +853,16 @@ Module
         Type Int
         IntegerLiteral Int value=7 bits=0x00000007
       return
-  fun init.Envelope.Hidden.$c10 @fn66(this: Envelope.Hidden) -> Unit
+  fun init.Envelope.Hidden.$c10 @fn67(this: Envelope.Hidden) -> Unit
     bb0 entry
       return
-  fun init.Envelope.InternalChild.$c11 @fn67(this: Envelope.InternalChild) -> Unit
+  fun init.Envelope.InternalChild.$c11 @fn68(this: Envelope.InternalChild) -> Unit
     bb0 entry
       return
-  fun init.GenericOuter.ConcreteChild.$c12 @fn68(this: GenericOuter.ConcreteChild) -> Unit
+  fun init.GenericOuter.ConcreteChild.$c12 @fn69(this: GenericOuter.ConcreteChild) -> Unit
     bb0 entry
       return
-  fun ctor.Envelope.Pair.$c0 @fn69(second: String, first: Int) -> Envelope.Pair<String> <no-gc>
+  fun ctor.Envelope.Pair.$c0 @fn70(second: String, first: Int) -> Envelope.Pair<String> <no-gc>
     bb0 entry
       return
         Type Envelope.Pair<String>
@@ -860,7 +871,7 @@ Module
           Local second
           Type Int
           Local first
-  fun startCoroutine<Envelope.Hidden> @fn70(task: SuspendTask<Envelope.Hidden>, completion: Continuation<Envelope.Hidden>) -> Unit
+  fun startCoroutine<Envelope.Hidden> @fn71(task: SuspendTask<Envelope.Hidden>, completion: Continuation<Envelope.Hidden>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -941,7 +952,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Marker> @fn71(task: SuspendTask<Marker>, completion: Continuation<Marker>) -> Unit
+  fun startCoroutine<Marker> @fn72(task: SuspendTask<Marker>, completion: Continuation<Marker>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -1022,7 +1033,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Envelope.View> @fn72(task: SuspendTask<Envelope.View>, completion: Continuation<Envelope.View>) -> Unit
+  fun startCoroutine<Envelope.View> @fn73(task: SuspendTask<Envelope.View>, completion: Continuation<Envelope.View>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -1103,7 +1114,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<GenericOuter.ConcreteChild> @fn73(task: SuspendTask<GenericOuter.ConcreteChild>, completion: Continuation<GenericOuter.ConcreteChild>) -> Unit
+  fun startCoroutine<GenericOuter.ConcreteChild> @fn74(task: SuspendTask<GenericOuter.ConcreteChild>, completion: Continuation<GenericOuter.ConcreteChild>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -1184,7 +1195,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Envelope.InternalChild> @fn74(task: SuspendTask<Envelope.InternalChild>, completion: Continuation<Envelope.InternalChild>) -> Unit
+  fun startCoroutine<Envelope.InternalChild> @fn75(task: SuspendTask<Envelope.InternalChild>, completion: Continuation<Envelope.InternalChild>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -1265,7 +1276,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Envelope.Box.HiddenChild> @fn75(task: SuspendTask<Envelope.Box.HiddenChild>, completion: Continuation<Envelope.Box.HiddenChild>) -> Unit
+  fun startCoroutine<Envelope.Box.HiddenChild> @fn76(task: SuspendTask<Envelope.Box.HiddenChild>, completion: Continuation<Envelope.Box.HiddenChild>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -1346,7 +1357,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Envelope> @fn76(task: SuspendTask<Envelope>, completion: Continuation<Envelope>) -> Unit
+  fun startCoroutine<Envelope> @fn77(task: SuspendTask<Envelope>, completion: Continuation<Envelope>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -1427,7 +1438,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Envelope.Cache> @fn77(task: SuspendTask<Envelope.Cache>, completion: Continuation<Envelope.Cache>) -> Unit
+  fun startCoroutine<Envelope.Cache> @fn78(task: SuspendTask<Envelope.Cache>, completion: Continuation<Envelope.Cache>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -1508,7 +1519,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Base> @fn78(task: SuspendTask<Base>, completion: Continuation<Base>) -> Unit
+  fun startCoroutine<Base> @fn79(task: SuspendTask<Base>, completion: Continuation<Base>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -1589,7 +1600,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Derived> @fn79(task: SuspendTask<Derived>, completion: Continuation<Derived>) -> Unit
+  fun startCoroutine<Derived> @fn80(task: SuspendTask<Derived>, completion: Continuation<Derived>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -1670,7 +1681,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Envelope.Reader> @fn80(task: SuspendTask<Envelope.Reader>, completion: Continuation<Envelope.Reader>) -> Unit
+  fun startCoroutine<Envelope.Reader> @fn81(task: SuspendTask<Envelope.Reader>, completion: Continuation<Envelope.Reader>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -1773,17 +1784,17 @@ Module
   coroutine_slot cl8 CoroutineSlot<Base> value=Base
   coroutine_slot cl9 CoroutineSlot<Derived> value=Derived
   coroutine_slot cl10 CoroutineSlot<Envelope.Reader> value=Envelope.Reader
-  coroutine_start ct0 result=Envelope.Hidden function=fn70
-  coroutine_start ct1 result=Marker function=fn71
-  coroutine_start ct2 result=Envelope.View function=fn72
-  coroutine_start ct3 result=GenericOuter.ConcreteChild function=fn73
-  coroutine_start ct4 result=Envelope.InternalChild function=fn74
-  coroutine_start ct5 result=Envelope.Box.HiddenChild function=fn75
-  coroutine_start ct6 result=Envelope function=fn76
-  coroutine_start ct7 result=Envelope.Cache function=fn77
-  coroutine_start ct8 result=Base function=fn78
-  coroutine_start ct9 result=Derived function=fn79
-  coroutine_start ct10 result=Envelope.Reader function=fn80
+  coroutine_start ct0 result=Envelope.Hidden function=fn71
+  coroutine_start ct1 result=Marker function=fn72
+  coroutine_start ct2 result=Envelope.View function=fn73
+  coroutine_start ct3 result=GenericOuter.ConcreteChild function=fn74
+  coroutine_start ct4 result=Envelope.InternalChild function=fn75
+  coroutine_start ct5 result=Envelope.Box.HiddenChild function=fn76
+  coroutine_start ct6 result=Envelope function=fn77
+  coroutine_start ct7 result=Envelope.Cache function=fn78
+  coroutine_start ct8 result=Base function=fn79
+  coroutine_start ct9 result=Derived function=fn80
+  coroutine_start ct10 result=Envelope.Reader function=fn81
   coroutine_fn cf0 @fn15 source_return=Marker step=cs1 immediate
   coroutine_fn cf1 @fn19 source_return=Envelope.View step=cs2 immediate
   coroutine_fn cf2 @fn23 source_return=Base step=cs8 immediate

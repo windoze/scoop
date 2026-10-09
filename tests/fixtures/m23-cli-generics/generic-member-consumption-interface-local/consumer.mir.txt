@@ -9,6 +9,9 @@ Module
   generated_exact_type get2 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
   generated_exact_type get3 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
   generated_exact_type get4 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
+  generated_callable gc0 function=@fn9 id=47c33d6be36656253105d90096f7fe880c27d2386a93d893283151224a64b8ef
+  generated_callable gc1 function=@fn10 id=5bc08c5d96d47a0e4af32cf4bf464de53c863b65db9c3b8a993d0828f132a757
+  generated_callable gc2 function=@fn11 id=8804048197bf16d35fb81c83aa8a3b9057325ae1ac893e1729094bd63d548236
   fun result @fn0() -> Int
     bb0 entry
       val $argument.0: Int
@@ -20,7 +23,7 @@ Module
       assign $new.1
         Type LocalReader<Int>
         ClassAlloc LocalReader<Int>
-      call @fn9 direct
+      call @fn12 direct
         Type LocalReader<Int>
         Local $new.1
         Type Int
@@ -40,7 +43,7 @@ Module
       assign $new.2
         Type LocalItem<Int>
         ClassAlloc LocalItem<Int>
-      call @fn10 direct
+      call @fn13 direct
         Type LocalItem<Int>
         Local $new.2
         Type Int
@@ -123,7 +126,37 @@ Module
         FieldAccess 0
           Type LocalItem<Int>
           Local this
-  fun init.LocalReader.$c0 @fn9(this: LocalReader<Int>, value: Int) -> Unit
+  fun receiver<LocalReader> Reader.read @fn9(this: LocalReader<Int>) -> Int
+    bb0 entry
+      call $call.1: Int = @fn2 direct
+        Type Reader<Int>
+        Retype Reader<Int>
+          Type LocalReader<Int>
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun receiver<AbstractReader> Reader.read @fn10(this: AbstractReader<Int>) -> Int
+    bb0 entry
+      call $call.1: Int = @fn2 direct
+        Type Reader<Int>
+        Retype Reader<Int>
+          Type AbstractReader<Int>
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun receiver<LocalItem> Reader.read @fn11(this: LocalItem<Int>) -> Int
+    bb0 entry
+      call $call.1: Int = @fn2 direct
+        Type Reader<Int>
+        Retype Reader<Int>
+          Type LocalItem<Int>
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun init.LocalReader.$c0 @fn12(this: LocalReader<Int>, value: Int) -> Unit
     bb0 entry
       field_set 0
         Type LocalReader<Int>
@@ -131,9 +164,9 @@ Module
         Type Int
         Local value
       return
-  fun init.LocalItem.$c1 @fn10(this: LocalItem<Int>, value: Int) -> Unit
+  fun init.LocalItem.$c1 @fn13(this: LocalItem<Int>, value: Int) -> Unit
     bb0 entry
-      call @fn11 direct
+      call @fn14 direct
         Type AbstractReader<Int>
         Retype AbstractReader<Int>
           Type LocalItem<Int>
@@ -144,7 +177,7 @@ Module
         Type Int
         Local value
       return
-  fun init.AbstractReader.$c0 @fn11(this: AbstractReader<Int>) -> Unit
+  fun init.AbstractReader.$c0 @fn14(this: AbstractReader<Int>) -> Unit
     bb0 entry
       return
   instance mi0 function=@fn1 <- LocalReader.get

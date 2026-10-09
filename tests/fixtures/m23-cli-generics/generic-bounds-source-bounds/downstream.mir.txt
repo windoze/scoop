@@ -1,8 +1,8 @@
 Module
   class Later vtable=0 itables=0
-  class ForeignDerived vtable=1 itables=3
-  class PlainBase vtable=1 itables=2
-  class LocalBase vtable=2 itables=2
+  class ForeignDerived vtable=1 itables=0
+  class PlainBase vtable=1 itables=0
+  class LocalBase vtable=2 itables=0
   class HolderImpl<Int> vtable=0 itables=2
   class box<Int> vtable=0 itables=0
   interface Readable

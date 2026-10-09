@@ -60,10 +60,12 @@ Module
   generated_exact_type get10 location=enum3 nominal_id=6b990bed020ec6b574c6288a00e2d1465f1ca0bbe8acfffd711e0e7ee97ebdb3 exact_id=e7982c62b65baaaa392c1d08d7445594f3e6f8f28143b4d2ff0ef5c729350c95
   generated_exact_type get11 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
   generated_exact_type get12 location=enum7 nominal_id=2ce9c5d7c45ba82af0077d605d4e2dfae8dadbdee953b1b19525b2dd70aa657a exact_id=f4afd2b0f03cf9578551ee9712729ed532b8040750018ef575f51c520550e33a
-  generated_callable gc0 function=@fn29 id=20b8c4c2037ca788104bead4013f0d37645472ff7b0966890cb77ebc0733483d
-  generated_callable gc1 function=@fn28 id=6d9340f4ebd418e01090225b7c798aeab96b52930c8730e6de29a23afd5c634b
-  generated_callable gc2 function=@fn30 id=caf9553ff3a2d418fcae92fc5fdeaee1e95d20382230c7193dba722800ae5f54
-  generated_callable gc3 function=@fn27 id=e221ca9cb9819df6738c2f2b45c720a3adb1e21882a547caedd4ddf860f2bceb
+  generated_callable gc0 function=@fn26 id=114ad39f74f2d6f68f1b6fbe0fce3dc3aa00544ed900a57eee47afc302720812
+  generated_callable gc1 function=@fn31 id=20b8c4c2037ca788104bead4013f0d37645472ff7b0966890cb77ebc0733483d
+  generated_callable gc2 function=@fn30 id=6d9340f4ebd418e01090225b7c798aeab96b52930c8730e6de29a23afd5c634b
+  generated_callable gc3 function=@fn25 id=8f4eb6466ef4940f224c613bbe679612124f7896e98019050492676054ef9baa
+  generated_callable gc4 function=@fn32 id=caf9553ff3a2d418fcae92fc5fdeaee1e95d20382230c7193dba722800ae5f54
+  generated_callable gc5 function=@fn29 id=e221ca9cb9819df6738c2f2b45c720a3adb1e21882a547caedd4ddf860f2bceb
   fun NumberReader.read @fn0(this: NumberReader) -> Int
     bb0 entry
       call $call.1: Int = @fn1 direct
@@ -116,7 +118,7 @@ Module
       assign $new.1
         Type LocalNumberReader
         ClassAlloc LocalNumberReader
-      call @fn26 direct
+      call @fn28 direct
         Type LocalNumberReader
         Local $new.1
         Type Int
@@ -135,7 +137,7 @@ Module
       assign $new.2
         Type NumberReader
         ClassAlloc NumberReader
-      call @fn25 direct
+      call @fn27 direct
         Type NumberReader
         Local $new.2
         Type Int
@@ -253,7 +255,27 @@ Module
   fun LocalReader.read @fn24(this: LocalReader<Int>) -> Int
     bb0 entry
       trap "call to abstract method `LocalReader.read`"
-  fun init.NumberReader.$c0 @fn25(this: NumberReader, number: Int) -> Unit
+  fun receiver<NumberReader> IntReader.again @fn25(this: NumberReader) -> Int
+    bb0 entry
+      call $call.1: Int = @fn2 direct
+        Type Reader<Int>
+        Retype Reader<Int>
+          Type NumberReader
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun receiver<LocalNumberReader> LocalIntReader.again @fn26(this: LocalNumberReader) -> Int
+    bb0 entry
+      call $call.1: Int = @fn23 direct
+        Type LocalReader<Int>
+        Retype LocalReader<Int>
+          Type LocalNumberReader
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun init.NumberReader.$c0 @fn27(this: NumberReader, number: Int) -> Unit
     bb0 entry
       field_set 0
         Type NumberReader
@@ -261,7 +283,7 @@ Module
         Type Int
         Local number
       return
-  fun init.LocalNumberReader.$c1 @fn26(this: LocalNumberReader, number: Int) -> Unit
+  fun init.LocalNumberReader.$c1 @fn28(this: LocalNumberReader, number: Int) -> Unit
     bb0 entry
       field_set 0
         Type LocalNumberReader
@@ -269,7 +291,7 @@ Module
         Type Int
         Local number
       return
-  fun startCoroutine<LocalNumberReader> @fn27(task: SuspendTask<LocalNumberReader>, completion: Continuation<LocalNumberReader>) -> Unit
+  fun startCoroutine<LocalNumberReader> @fn29(task: SuspendTask<LocalNumberReader>, completion: Continuation<LocalNumberReader>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -350,7 +372,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<NumberReader> @fn28(task: SuspendTask<NumberReader>, completion: Continuation<NumberReader>) -> Unit
+  fun startCoroutine<NumberReader> @fn30(task: SuspendTask<NumberReader>, completion: Continuation<NumberReader>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -431,7 +453,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<IntReader> @fn29(task: SuspendTask<IntReader>, completion: Continuation<IntReader>) -> Unit
+  fun startCoroutine<IntReader> @fn31(task: SuspendTask<IntReader>, completion: Continuation<IntReader>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -512,7 +534,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<LocalIntReader> @fn30(task: SuspendTask<LocalIntReader>, completion: Continuation<LocalIntReader>) -> Unit
+  fun startCoroutine<LocalIntReader> @fn32(task: SuspendTask<LocalIntReader>, completion: Continuation<LocalIntReader>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -601,10 +623,10 @@ Module
   coroutine_slot cl1 CoroutineSlot<NumberReader> value=NumberReader
   coroutine_slot cl2 CoroutineSlot<IntReader> value=IntReader
   coroutine_slot cl3 CoroutineSlot<LocalIntReader> value=LocalIntReader
-  coroutine_start ct0 result=LocalNumberReader function=fn27
-  coroutine_start ct1 result=NumberReader function=fn28
-  coroutine_start ct2 result=IntReader function=fn29
-  coroutine_start ct3 result=LocalIntReader function=fn30
+  coroutine_start ct0 result=LocalNumberReader function=fn29
+  coroutine_start ct1 result=NumberReader function=fn30
+  coroutine_start ct2 result=IntReader function=fn31
+  coroutine_start ct3 result=LocalIntReader function=fn32
   coroutine_fn cf0 @fn9 source_return=IntReader step=cs2 immediate
   coroutine_fn cf1 @fn13 source_return=LocalIntReader step=cs3 immediate
   coroutine_fn cf2 @fn17 source_return=NumberReader step=cs1 immediate

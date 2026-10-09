@@ -100,7 +100,7 @@ static Resource *collect(Resource *root) {
     return root;
 }
 
-static void lifecycle(const ScoopTypeDescriptor *td) {
+static void lifecycle(const ScoopTypeDescriptor *td, bool stress) {
     (void)allocate(&no_hook_td, 15, false);
     (void)collect(NULL);
     assert(attempts[15] == 0);
@@ -115,9 +115,9 @@ static void lifecycle(const ScoopTypeDescriptor *td) {
     for (unsigned index = 0; index < 3; index++) {
         uintptr_t old = (uintptr_t)live;
         live = collect(live);
-        assert((uintptr_t)live != old);
+        assert(((uintptr_t)live != old) == stress);
         assert(live->header.gc_word == (OTHER_HEADER_BIT | GC_RELEASE_READY_BIT));
-        assert(scoop_rt_gc_debug_last_moved_count() == 1);
+        assert(scoop_rt_gc_debug_last_moved_count() == (uint64_t)stress);
         assert(attempts[1] == 0);
     }
     (void)collect(NULL);
@@ -154,7 +154,7 @@ static void roots_and_cycles(const ScoopTypeDescriptor *td, bool stress) {
     uintptr_t old_live = (uintptr_t)live;
     (void)collect(NULL);
     assert(attempts[5] == 0 && attempts[6] == 0 && attempts[7] == 1);
-    assert((uintptr_t)live != old_live);
+    assert(((uintptr_t)live != old_live) == stress);
     assert((pinned->header.gc_word & UINT64_C(7)) ==
            (OTHER_HEADER_BIT | GC_PIN_BIT | GC_RELEASE_READY_BIT));
     assert(scoop_rt_unpin(pinned) == pinned);
@@ -198,7 +198,7 @@ static void run(bool large, bool stress, bool bad_header) {
         (void)collect(NULL);
         abort();
     }
-    lifecycle(td);
+    lifecycle(td, stress);
     roots_and_cycles(td, stress);
     Resource *at_shutdown = allocate(td, 8, true);
     at_shutdown = collect(at_shutdown);

@@ -7,18 +7,17 @@ Module
     local %2 $dependency.argument.0: i32
     local %3 $dependency.parameter.value: i32
     local %4 $call.1: struct0
-    local %5 $sc.1: struct0
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
     store integer<Int>(0x0000002a) -> local0
     store local0 -> local1
-    call no-gc-indirect-target0 local5 = sig=indirect0 (sret struct0 size=4 align=4 scan=none, i32) local-fn2(local1)
-    store local5 -> local4
-    t0 = extract local4, 0 : i32
-    store t0 -> local2
+    call no-gc-direct-target0 t0 = sig=direct0 (i32) -> struct0 local-fn2(local1)
+    store t0 -> local4
+    t1 = extract local4, 0 : i32
+    store t1 -> local2
     store local2 -> local3
     call managed-void-target0 sp<managed-call:0> live=[] sig=void0 (i32) local-fn1(local3)
-    t1 = aggregate () : {}
+    t2 = aggregate () : {}
     ret
   fun @scoop$1$cb$117da55e12101d6f2e7c4cf6864ce23f553ef957b2d64a433a803835d1d10286(i32) -> void
     local %0 $dependency.local.1: i32
@@ -39,7 +38,7 @@ Module
     call managed-void-target1 sp<managed-call:2> live=[local4:ptr<managed>@0] sig=void1 (ptr<managed>) external-fn1(local4)
     t2 = aggregate () : {}
     ret
-  fun @scoop$1$cb$7828f44f11194a2fc3f6bdb44d7ce23c794538bfdfb99afa12f5f8e8957391a0(i32) -> sret<struct0 size=4 align=4 scan=none> <no-gc>
+  fun @scoop$1$cb$7828f44f11194a2fc3f6bdb44d7ce23c794538bfdfb99afa12f5f8e8957391a0(i32) -> parts<struct0 [i32@0+4/4]> <no-gc>
   block entry
     t0 = aggregate (param0) : struct0
     ret t0
@@ -62,5 +61,5 @@ Module
   td td0 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Equality);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$6fb0bdfcaef72d458561b350a56fb80e86e68f4c020173148c7fe1ec239ea687 type-id=940003777485400453 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
   td td1 a(n(c=scoop%3Asingle-file%3A0.0.0;p=;o=-;k=S;x=ForeignCallback);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$06c6b9806e08b164a23df6a3a01aaa00a72119cb04b1dc5f319864a443e10c4a type-id=7779801708743912088 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
   layout ForeignCallback size=4 align=4 refs=[]
-  layout Equality value size=8 align=8 refs=[0]
+  layout Equality value size=16 align=8 refs=[0]
   output executable @scoop$1$cb$a59ba8328a87a3c09df1111305261ccbca23796630e0ce6dea24e3ae106f48ca

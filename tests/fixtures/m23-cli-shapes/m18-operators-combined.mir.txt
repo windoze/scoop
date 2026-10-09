@@ -1365,8 +1365,10 @@ Module
         Local $receiver
         Type AsyncNumber<Payload>
         Local $parameter.other
-        Type CoroutineAdapter<OperatorTask.run>$1
-        Local $adapter.1
+        Type Continuation<AsyncNumber<Payload>>
+        Retype Continuation<AsyncNumber<Payload>>
+          Type CoroutineAdapter<OperatorTask.run>$1
+          Local $adapter.1
       branch bb14 bb15
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -1975,8 +1977,10 @@ Module
       call @fn16 interface SuspendRegistration<Int>[0]
         Type SuspendRegistration<Int>
         Local $dependency.parameter.registration
-        Type CoroutineAdapter<awaitOperator>$1
-        Local $safe_adapter.1
+        Type Continuation<Int>
+        Retype Continuation<Int>
+          Type CoroutineAdapter<awaitOperator>$1
+          Local $safe_adapter.1
       goto bb14
     bb3 coroutine.registered_success.1
       atomic_store_release kind=coroutine-adapter-state field=1
@@ -2715,8 +2719,10 @@ Module
       call $step.1: CoroutineStep<Int> = @fn5 direct
         Type OperatorGate
         Local $parameter.gate
-        Type CoroutineAdapter<AsyncNumber.plus>$1
-        Local $adapter.1
+        Type Continuation<Int>
+        Retype Continuation<Int>
+          Type CoroutineAdapter<AsyncNumber.plus>$1
+          Local $adapter.1
       branch bb7 bb8
         Type Boolean
         Binary MachineEq(EnumTag)

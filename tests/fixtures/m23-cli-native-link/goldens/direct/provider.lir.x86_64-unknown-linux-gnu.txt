@@ -1,15 +1,10 @@
 Module
-  extern ef0 add @m23_add(i32, i32) -> i32 <c exact=(Int,Int)->Int bridge=@scoop$1$br$04e1f7ce529c26782639f50ac02396b84ed8f615a494b86e25735ecdcabe2b61 gc-leaf nounwind lib=m23_math>
+  extern ef0 add @m23_add(i32, i32) -> i32 <c exact=(Int,Int)->Int direct-c=(i32,i32)->i32 gc-leaf nounwind lib=m23_math>
   fun @scoop$1$cb$9d944c514070b721dff05f4b490a2ca8811a89fc685a9376c210f14378ff606f(i32, i32) -> i32
     local %0 $call.1: i32
-    local %1 $sc.1: i32
-    local %2 $sc.2: i32
-    local %3 $sc.3: i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
-    store param0 -> local1
-    store param1 -> local2
-    call native-safe-indirect-target0 sp<native-safe:0> roots=[] local3 = sig=indirect0 (c-storage-pointer i32 size=4 align=4 scan=none, ptr<raw>, ptr<raw>) extern0(c-arg-address(local1), c-arg-address(local2))
-    store local3 -> local0
+    call native-safe-direct-target0 sp<native-safe:0> roots=[] t0 = sig=direct0 (i32, i32) -> i32 extern0(param0, param1)
+    store t0 -> local0
     ret local0
   output library

@@ -1,0 +1,87 @@
+interface Value { fun get(): Int }
+open class Base(val number: Int) : Value {
+    public override fun get(): Int = number
+}
+class First : Base(1) { public override fun get(): Int = 11 }
+class Second : Base(2) { public override fun get(): Int = 22 }
+class Holder(var value: Value)
+
+var constructorResult: Int = 0
+open class Constructing : Value {
+    init { constructorResult += 1 }
+    public override fun get(): Int = 1
+}
+class Constructed : Constructing() {
+    init { constructorResult += 10 }
+    public override fun get(): Int = 2
+}
+
+fun check(value: Boolean) { if (!value) { throw IllegalStateException() } }
+fun parameter(value: Base): Int = value.get()
+fun finalParameter(value: First): Int = (value as Base).get()
+fun create(first: Boolean): Base = if (first) { First() } else { Second() }
+fun unknownReturn(first: Boolean): Int = create(first).get()
+fun sameBranch(first: Boolean): Int {
+    val value: Value = if (first) { First() } else { First() }
+    val copied = value
+    gcCollect()
+    return copied.get()
+}
+fun differentBranch(first: Boolean): Int {
+    val value: Value = if (first) { First() } else { Second() }
+    return value.get()
+}
+fun changingLoop(count: Int): Int {
+    var value: Value = First()
+    var index = 0
+    var total = 0
+    while (index < count) {
+        total += value.get()
+        value = Second()
+        index += 1
+    }
+    return total
+}
+fun stableLoop(count: Int): Int {
+    var value: Value = First()
+    var index = 0
+    var total = 0
+    while (index < count) {
+        total += value.get()
+        value = First()
+        index += 1
+    }
+    return total
+}
+fun fail(early: Boolean) { if (early) { throw IllegalStateException() } }
+fun exceptionMerge(early: Boolean): Int {
+    var value: Value = First()
+    try {
+        fail(early)
+        value = Second()
+        fail(true)
+    } catch (error: IllegalStateException) {
+        return value.get()
+    }
+    return 0
+}
+fun mutableField(): Int {
+    val holder = Holder(First())
+    val first = holder.value.get()
+    holder.value = Second()
+    return first + holder.value.get()
+}
+fun main() {
+    check(parameter(First()) == 11 && parameter(Second()) == 22)
+    check(finalParameter(First()) == 11)
+    check(unknownReturn(true) == 11 && unknownReturn(false) == 22)
+    check(sameBranch(true) == 11 && sameBranch(false) == 11)
+    check(differentBranch(true) == 11 && differentBranch(false) == 22)
+    check(changingLoop(2) == 33 && changingLoop(3) == 55)
+    check(stableLoop(2) == 22)
+    check(exceptionMerge(true) == 11 && exceptionMerge(false) == 22)
+    check(mutableField() == 33)
+    val constructed: Constructing = Constructed()
+    check(constructorResult == 11 && constructed.get() == 2)
+    println("devirtualized locals")
+}

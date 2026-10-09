@@ -105,15 +105,13 @@ const ScoopString *scoop_rt_float_to_string(float value);
 const ScoopString *scoop_rt_double_to_string(double value);
 int64_t scoop_rt_string_byte_length(const ScoopString *value);
 int64_t scoop_rt_string_length(const ScoopString *value);
-uint32_t scoop_rt_string_character_at_byte(const ScoopString *value,
-                                           int64_t index);
+uint32_t scoop_rt_string_character_at_byte(const ScoopString *value, int64_t index);
 int8_t scoop_rt_string_byte_at(const ScoopString *value, int64_t index);
-const ScoopString *scoop_rt_string_slice_bytes(const ScoopString *value,
-                                               int64_t start, int64_t end);
+const ScoopString *scoop_rt_string_slice_bytes(const ScoopString *value, int64_t start,
+                                               int64_t end);
 const ScoopString *scoop_rt_string_from_chars(const ScoopArray *value);
 const ScoopString *scoop_rt_string_from_bytes(const ScoopArray *value);
-const ScoopString *scoop_rt_string_join_parts(const ScoopArray *storage,
-                                              int64_t part_count);
+const ScoopString *scoop_rt_string_join_parts(const ScoopArray *storage, int64_t part_count);
 bool scoop_rt_bool_equals(bool left, bool right);
 int64_t scoop_rt_long_hash(int64_t v);
 int64_t scoop_rt_ulong_hash(uint64_t v);
@@ -187,12 +185,10 @@ typedef struct ScoopNativeRegionRootFrame {
   uint64_t count;
 } ScoopNativeRegionRootFrame;
 
-void scoop_rt_push_native_roots(ScoopNativeRootFrame *frame, void ***slots,
-                                uint64_t count);
+void scoop_rt_push_native_roots(ScoopNativeRootFrame *frame, void ***slots, uint64_t count);
 void scoop_rt_pop_native_roots(ScoopNativeRootFrame *frame);
 void scoop_rt_push_native_region_roots(ScoopNativeRegionRootFrame *frame,
-                                       ScoopNativeRegionRootEntry *entries,
-                                       uint64_t count);
+                                       ScoopNativeRegionRootEntry *entries, uint64_t count);
 void scoop_rt_pop_native_region_roots(ScoopNativeRegionRootFrame *frame);
 
 /* pin / unpin (runtime spec 3.4): amortized O(1) pin and O(1) unpin, with
@@ -213,9 +209,10 @@ const void *scoop_rt_resolve_handle(uint64_t handle);
 /* Managed foreign-callback gateway (runtime spec 4.3 and 9.4). The generated
  * adapter receives the closure and registration snapshot plus C storage,
  * catches Scoop exceptions, and reports them through exception_out. */
-typedef uint64_t (*ScoopForeignCallbackAdapter)(
-    const void *closure, const void *snapshot, void *result_storage,
-    const void *const *argument_storage, void **exception_out);
+typedef uint64_t (*ScoopForeignCallbackAdapter)(const void *closure, const void *snapshot,
+                                                void *result_storage,
+                                                const void *const *argument_storage,
+                                                void **exception_out);
 
 enum {
   SCOOP_FOREIGN_CALLBACK_REUSABLE = 0,
@@ -235,18 +232,14 @@ enum {
 };
 
 void scoop_callback_runtime_init(void);
-void *scoop_runtime_callback_register(const void *closure,
-                                      ScoopForeignCallbackAdapter adapter,
-                                      const void *signature_descriptor,
-                                      uint32_t mode);
+void *scoop_runtime_callback_register(const void *closure, ScoopForeignCallbackAdapter adapter,
+                                      const void *signature_descriptor, uint32_t mode);
 void *scoop_runtime_callback_retain(void *context);
 void scoop_runtime_callback_release(void *context);
 uint32_t scoop_runtime_callback_state(void *context);
 const void *scoop_runtime_callback_failure(void *context);
-uint32_t scoop_runtime_callback_invoke(void *context,
-                                       const void *signature_descriptor,
-                                       void *result_storage,
-                                       const void *const *argument_storage);
+uint32_t scoop_runtime_callback_invoke(void *context, const void *signature_descriptor,
+                                       void *result_storage, const void *const *argument_storage);
 uint64_t scoop_runtime_callback_debug_live_count(void);
 uint64_t scoop_runtime_callback_debug_owner_count(void *context);
 uint64_t scoop_runtime_callback_debug_active_count(void *context);
@@ -276,19 +269,47 @@ typedef struct ScoopGcMetrics {
   uint64_t pause_ns;
   uint64_t maximum_pause_ns;
   uint64_t heap_committed_bytes;
+  uint64_t region_count;
+  uint64_t large_mapping_count;
+  uint64_t mapped_bytes;
+  uint64_t discard_calls;
+  uint64_t discard_failures;
+  uint64_t discarded_bytes;
+  uint64_t unmapped_bytes;
+  uint64_t current_rss_bytes;
+  uint64_t peak_rss_bytes;
+  uint64_t stop_wait_ns;
+  uint64_t root_scan_ns;
+  uint64_t remembered_scan_ns;
+  uint64_t mark_ns;
+  uint64_t plan_ns;
+  uint64_t copy_ns;
+  uint64_t update_ns;
+  uint64_t reclaim_ns;
+  uint64_t vm_return_ns;
+  uint64_t last_mark_workers;
+  uint64_t parallel_collections;
+  uint64_t worker_creation_failures;
+  uint64_t mark_reference_slots;
+  uint64_t mark_tasks;
+  uint64_t array_tasks;
+  uint64_t stolen_tasks;
+  uint64_t worker_cpu_ns[8];
+  uint64_t worker_marked_objects[8];
+  uint64_t region_mappings;
+  uint64_t empty_region_count;
+  uint64_t last_full_source_regions;
+  uint64_t last_full_target_regions;
+  uint64_t last_full_pin_blocked_regions;
 } ScoopGcMetrics;
 
 /* Diagnostic snapshot; counters never control program validity. */
 void scoop_rt_gc_debug_metrics(ScoopGcMetrics *result);
 
-/* Test hook: number of heap blocks currently live in the arena. */
+/* Test hook: number of active ordinary blocks and large mappings. */
 uint64_t scoop_rt_gc_debug_block_count(void);
 uint64_t scoop_rt_gc_debug_last_moved_count(void);
 uint64_t scoop_rt_gc_debug_allocation_size(const void *obj);
-
-/* Test hook: base address of the heap arena the blocks are carved
- * from (0 before the first allocation / gc init). */
-uintptr_t scoop_rt_gc_debug_arena_base(void);
 
 /* Test hook: number of registered global/external roots. */
 uint64_t scoop_rt_gc_debug_root_count(void);

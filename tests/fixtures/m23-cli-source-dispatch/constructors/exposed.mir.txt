@@ -129,15 +129,18 @@ Module
   generated_exact_type get21 location=enum10 nominal_id=e77d52a0759157ac483b339c2b13636acf0e9c0487cf97d2f4420e667d1b049f exact_id=f14187855fc69967fbf93368a9c96bbe6d766ce98dc0a881b31c7bc8baa81f3b
   generated_exact_type get22 location=enum11 nominal_id=07b4087664bc136f510bb8769d66ae5e3e22af71adc30fca419253858c1f6e4a exact_id=f9f288dcc9e31e69b215e1fa3fb2a93917fe9645083a542406dbb3846bf28c25
   generated_exact_type get23 location=enum13 nominal_id=4f7e914f1f7bd8b5a5929812f20db08e5c5cd1e4a7fec004e7cf84c44dfa4b0e exact_id=ff719317eda5701ebf6e9b4a9f19ab15a4724f95e277b020425cc88489993771
-  generated_callable gc0 function=@fn68 id=0d12a1e6c51347254accee37d6b91cbbec08afa03782631bdb63733d368ff66e
-  generated_callable gc1 function=@fn64 id=256ed06f6fbd9bd1910b9c19afbdcb26d28c1ec5c3df4ff007708c0d7f5e0cc5
-  generated_callable gc2 function=@fn69 id=2a4c32473cee953315e7328efc14bd51d6717dbfb36703795e5f667bdd837f66
-  generated_callable gc3 function=@fn63 id=2cc01ab9f6bcbcbb49560fe89955bdf5c02a2ee33899e3c04b544a8ec0135004
-  generated_callable gc4 function=@fn67 id=5f9636b7ec4aefb7ad9450cedd7797dfece201498e55d9f5ced1ebc59b29f639
-  generated_callable gc5 function=@fn61 id=97578dbcd0dac4c831a95dfcec0d54bebcd1fd59d2226c2c0fd27593d85be441
-  generated_callable gc6 function=@fn65 id=b6e1b75f86031195ee233965c05c82e1c57b104efd4044bf628954a233bd2d07
-  generated_callable gc7 function=@fn66 id=cea90ef30d6733c64eee0d15b1ee7d6d251cad3a288d9a4d32800b465bdc4491
-  generated_callable gc8 function=@fn62 id=ea0875363d45e13427a2b4691a35654c8cf176dd61419502b2f1d0234464dcdc
+  generated_callable gc0 function=@fn71 id=0d12a1e6c51347254accee37d6b91cbbec08afa03782631bdb63733d368ff66e
+  generated_callable gc1 function=@fn49 id=19fedbbbe418db7d40807dec46b290be7ae0c8a011a279e6dd472cd42c17e999
+  generated_callable gc2 function=@fn67 id=256ed06f6fbd9bd1910b9c19afbdcb26d28c1ec5c3df4ff007708c0d7f5e0cc5
+  generated_callable gc3 function=@fn72 id=2a4c32473cee953315e7328efc14bd51d6717dbfb36703795e5f667bdd837f66
+  generated_callable gc4 function=@fn66 id=2cc01ab9f6bcbcbb49560fe89955bdf5c02a2ee33899e3c04b544a8ec0135004
+  generated_callable gc5 function=@fn70 id=5f9636b7ec4aefb7ad9450cedd7797dfece201498e55d9f5ced1ebc59b29f639
+  generated_callable gc6 function=@fn50 id=93a7640ba9053fe3df238921407186cbb8a056600eb87979c13f556e93fc65e3
+  generated_callable gc7 function=@fn64 id=97578dbcd0dac4c831a95dfcec0d54bebcd1fd59d2226c2c0fd27593d85be441
+  generated_callable gc8 function=@fn51 id=a1c56c653e2e38c43e2328c92f3dbd9d3c0b363469bb462af3c72343e6db81f7
+  generated_callable gc9 function=@fn68 id=b6e1b75f86031195ee233965c05c82e1c57b104efd4044bf628954a233bd2d07
+  generated_callable gc10 function=@fn69 id=cea90ef30d6733c64eee0d15b1ee7d6d251cad3a288d9a4d32800b465bdc4491
+  generated_callable gc11 function=@fn65 id=ea0875363d45e13427a2b4691a35654c8cf176dd61419502b2f1d0234464dcdc
   fun Pair.equals @fn0(this: Pair, other: Pair) -> Boolean
     bb0 entry
       branch bb1 bb2
@@ -198,7 +201,7 @@ Module
       assign $new.1
         Type Factory
         ClassAlloc Factory
-      call @fn51 direct
+      call @fn54 direct
         Type Factory
         Local $new.1
         Type Boolean
@@ -211,7 +214,7 @@ Module
       assign $new.1
         Type HiddenConstructors
         ClassAlloc HiddenConstructors
-      call @fn55 direct
+      call @fn58 direct
         Type HiddenConstructors
         Local $new.1
       return
@@ -228,7 +231,7 @@ Module
       assign $new.1
         Type Factory
         ClassAlloc Factory
-      call @fn52 direct
+      call @fn55 direct
         Type Factory
         Local $new.1
         Type Long
@@ -241,7 +244,7 @@ Module
       assign $new.1
         Type Singleton
         ClassAlloc Singleton
-      call @fn56 direct
+      call @fn59 direct
         Type Singleton
         Local $new.1
       global_assign $singleton$Singleton
@@ -351,7 +354,7 @@ Module
       assign $new.1
         Type Factory.Companion
         ClassAlloc Factory.Companion
-      call @fn57 direct
+      call @fn60 direct
         Type Factory.Companion
         Local $new.1
       global_assign $singleton$Companion
@@ -461,7 +464,7 @@ Module
       assign $new.1
         Type HiddenConstructors.Companion
         ClassAlloc HiddenConstructors.Companion
-      call @fn58 direct
+      call @fn61 direct
         Type HiddenConstructors.Companion
         Local $new.1
       global_assign $singleton$Companion
@@ -679,7 +682,37 @@ Module
       return
         Type Int
         IntegerLiteral Int value=1 bits=0x00000001
-  fun init.Factory.$c0 @fn49(this: Factory, seed: Int) -> Unit
+  fun receiver<Factory> Marker.tag @fn49(this: Factory) -> Int
+    bb0 entry
+      call $call.1: Int = @fn48 direct
+        Type Marker
+        Retype Marker
+          Type Factory
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun receiver<Product> Marker.tag @fn50(this: Product) -> Int
+    bb0 entry
+      call $call.1: Int = @fn48 direct
+        Type Marker
+        Retype Marker
+          Type Product
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun receiver<Singleton> Marker.tag @fn51(this: Singleton) -> Int
+    bb0 entry
+      call $call.1: Int = @fn48 direct
+        Type Marker
+        Retype Marker
+          Type Singleton
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun init.Factory.$c0 @fn52(this: Factory, seed: Int) -> Unit
     bb0 entry
       field_set 0
         Type Factory
@@ -687,7 +720,7 @@ Module
         Type Int
         Local seed
       return
-  fun init.Factory.$c1 @fn50(this: Factory, text: String) -> Unit
+  fun init.Factory.$c1 @fn53(this: Factory, text: String) -> Unit
     bb0 entry
       val $argument.0: Int
         Type Int
@@ -695,13 +728,13 @@ Module
       val $parameter.seed: Int
         Type Int
         Local $argument.0
-      call @fn49 direct
+      call @fn52 direct
         Type Factory
         Local this
         Type Int
         Local $parameter.seed
       return
-  fun init.Factory.$c2 @fn51(this: Factory, flag: Boolean) -> Unit
+  fun init.Factory.$c2 @fn54(this: Factory, flag: Boolean) -> Unit
     bb0 entry
       val $argument.0: Int
         Type Int
@@ -709,13 +742,13 @@ Module
       val $parameter.seed: Int
         Type Int
         Local $argument.0
-      call @fn49 direct
+      call @fn52 direct
         Type Factory
         Local this
         Type Int
         Local $parameter.seed
       return
-  fun init.Factory.$c3 @fn52(this: Factory, value: Long) -> Unit
+  fun init.Factory.$c3 @fn55(this: Factory, value: Long) -> Unit
     bb0 entry
       val $argument.0: Int
         Type Int
@@ -723,13 +756,13 @@ Module
       val $parameter.seed: Int
         Type Int
         Local $argument.0
-      call @fn49 direct
+      call @fn52 direct
         Type Factory
         Local this
         Type Int
         Local $parameter.seed
       return
-  fun init.Product.$c4 @fn53(this: Product, count: Int, label: String) -> Unit
+  fun init.Product.$c4 @fn56(this: Product, count: Int, label: String) -> Unit
     bb0 entry
       val $argument.0: Int
         Type Int
@@ -737,7 +770,7 @@ Module
       val $parameter.seed: Int
         Type Int
         Local $argument.0
-      call @fn49 direct
+      call @fn52 direct
         Type Factory
         Retype Factory
           Type Product
@@ -745,7 +778,7 @@ Module
         Type Int
         Local $parameter.seed
       return
-  fun init.Defaults.$c5 @fn54(this: Defaults, value: Int) -> Unit
+  fun init.Defaults.$c5 @fn57(this: Defaults, value: Int) -> Unit
     bb0 entry
       field_set 0
         Type Defaults
@@ -753,10 +786,10 @@ Module
         Type Int
         Local value
       return
-  fun init.HiddenConstructors.$c6 @fn55(this: HiddenConstructors) -> Unit
+  fun init.HiddenConstructors.$c6 @fn58(this: HiddenConstructors) -> Unit
     bb0 entry
       return
-  fun init.Singleton.$c7 @fn56(this: Singleton) -> Unit
+  fun init.Singleton.$c7 @fn59(this: Singleton) -> Unit
     bb0 entry
       val $argument.0: Int
         Type Int
@@ -764,7 +797,7 @@ Module
       val $parameter.seed: Int
         Type Int
         Local $argument.0
-      call @fn49 direct
+      call @fn52 direct
         Type Factory
         Retype Factory
           Type Singleton
@@ -772,13 +805,13 @@ Module
         Type Int
         Local $parameter.seed
       return
-  fun init.Factory.Companion.$c8 @fn57(this: Factory.Companion) -> Unit
+  fun init.Factory.Companion.$c8 @fn60(this: Factory.Companion) -> Unit
     bb0 entry
       return
-  fun init.HiddenConstructors.Companion.$c9 @fn58(this: HiddenConstructors.Companion) -> Unit
+  fun init.HiddenConstructors.Companion.$c9 @fn61(this: HiddenConstructors.Companion) -> Unit
     bb0 entry
       return
-  fun ctor.Pair.$c0 @fn59(left: Int, right: Long) -> Pair <no-gc>
+  fun ctor.Pair.$c0 @fn62(left: Int, right: Long) -> Pair <no-gc>
     bb0 entry
       return
         Type Pair
@@ -787,7 +820,7 @@ Module
           Local left
           Type Long
           Local right
-  fun ctor.Pair.$c1 @fn60(text: String) -> Pair
+  fun ctor.Pair.$c1 @fn63(text: String) -> Pair
     bb0 entry
       val $argument.0: Int
         Type Int
@@ -801,7 +834,7 @@ Module
       val $parameter.right: Long
         Type Long
         Local $argument.1
-      call $this: Pair = @fn59 direct
+      call $this: Pair = @fn62 direct
         Type Int
         Local $parameter.left
         Type Long
@@ -809,7 +842,7 @@ Module
       return
         Type Pair
         Local $this
-  fun startCoroutine<Factory.Companion> @fn61(task: SuspendTask<Factory.Companion>, completion: Continuation<Factory.Companion>) -> Unit
+  fun startCoroutine<Factory.Companion> @fn64(task: SuspendTask<Factory.Companion>, completion: Continuation<Factory.Companion>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -890,7 +923,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Defaults> @fn62(task: SuspendTask<Defaults>, completion: Continuation<Defaults>) -> Unit
+  fun startCoroutine<Defaults> @fn65(task: SuspendTask<Defaults>, completion: Continuation<Defaults>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -971,7 +1004,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Marker> @fn63(task: SuspendTask<Marker>, completion: Continuation<Marker>) -> Unit
+  fun startCoroutine<Marker> @fn66(task: SuspendTask<Marker>, completion: Continuation<Marker>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -1052,7 +1085,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Singleton> @fn64(task: SuspendTask<Singleton>, completion: Continuation<Singleton>) -> Unit
+  fun startCoroutine<Singleton> @fn67(task: SuspendTask<Singleton>, completion: Continuation<Singleton>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -1133,7 +1166,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<HiddenConstructors> @fn65(task: SuspendTask<HiddenConstructors>, completion: Continuation<HiddenConstructors>) -> Unit
+  fun startCoroutine<HiddenConstructors> @fn68(task: SuspendTask<HiddenConstructors>, completion: Continuation<HiddenConstructors>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -1214,7 +1247,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Pair> @fn66(task: SuspendTask<Pair>, completion: Continuation<Pair>) -> Unit
+  fun startCoroutine<Pair> @fn69(task: SuspendTask<Pair>, completion: Continuation<Pair>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -1295,7 +1328,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<HiddenConstructors.Companion> @fn67(task: SuspendTask<HiddenConstructors.Companion>, completion: Continuation<HiddenConstructors.Companion>) -> Unit
+  fun startCoroutine<HiddenConstructors.Companion> @fn70(task: SuspendTask<HiddenConstructors.Companion>, completion: Continuation<HiddenConstructors.Companion>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -1376,7 +1409,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Factory> @fn68(task: SuspendTask<Factory>, completion: Continuation<Factory>) -> Unit
+  fun startCoroutine<Factory> @fn71(task: SuspendTask<Factory>, completion: Continuation<Factory>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -1457,7 +1490,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Product> @fn69(task: SuspendTask<Product>, completion: Continuation<Product>) -> Unit
+  fun startCoroutine<Product> @fn72(task: SuspendTask<Product>, completion: Continuation<Product>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -1556,15 +1589,15 @@ Module
   coroutine_slot cl6 CoroutineSlot<HiddenConstructors.Companion> value=HiddenConstructors.Companion
   coroutine_slot cl7 CoroutineSlot<Factory> value=Factory
   coroutine_slot cl8 CoroutineSlot<Product> value=Product
-  coroutine_start ct0 result=Factory.Companion function=fn61
-  coroutine_start ct1 result=Defaults function=fn62
-  coroutine_start ct2 result=Marker function=fn63
-  coroutine_start ct3 result=Singleton function=fn64
-  coroutine_start ct4 result=HiddenConstructors function=fn65
-  coroutine_start ct5 result=Pair function=fn66
-  coroutine_start ct6 result=HiddenConstructors.Companion function=fn67
-  coroutine_start ct7 result=Factory function=fn68
-  coroutine_start ct8 result=Product function=fn69
+  coroutine_start ct0 result=Factory.Companion function=fn64
+  coroutine_start ct1 result=Defaults function=fn65
+  coroutine_start ct2 result=Marker function=fn66
+  coroutine_start ct3 result=Singleton function=fn67
+  coroutine_start ct4 result=HiddenConstructors function=fn68
+  coroutine_start ct5 result=Pair function=fn69
+  coroutine_start ct6 result=HiddenConstructors.Companion function=fn70
+  coroutine_start ct7 result=Factory function=fn71
+  coroutine_start ct8 result=Product function=fn72
   coroutine_fn cf0 @fn14 source_return=Pair step=cs5 immediate
   coroutine_fn cf1 @fn18 source_return=Marker step=cs2 immediate
   coroutine_fn cf2 @fn22 source_return=Factory step=cs7 immediate

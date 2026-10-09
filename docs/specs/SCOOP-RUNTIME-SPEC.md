@@ -14,6 +14,10 @@
 
 managed reference 是对象起点的直接指针；对象可能移动。对象头固定为 16 bytes，依次包含 TypeDescriptor 指针与 GC 状态字，各占 8 bytes。null 仅用于允许空状态的内部存储，不能作为普通非空 Scoop 引用。
 
+普通 interface value 是 `{ object: managed pointer, itab: metadata pointer }`，size 16、alignment 8，offset 分别为 0、8；itab 为对象实际 TD 对应静态 exact interface 的 `ScoopItableEntryV1.slots`。class、Any、String、Array 和普通函数值仍为单字引用。空接口的合法 slot table 可以为 null，引用有效性只由 object 决定。身份比较、pin 和 handle 只使用 object；值转接口仍按既有语义装箱。
+
+转换在建立接口视图时取得目标 exact interface 的表，已知实际类型时可直接引用静态表；相同 exact interface 的复制保留两个分量。接口调用直接读取已有 itab 的 slot，隐藏 receiver 只传 object，其余参数／结果遵守完整 Scoop ABI。default、boxed value 和变型入口按实际 typed adapter 适配；普通 class 实现不为相同签名额外增加转发调用。
+
 GC 状态字的 pin bit 为 `UINT64_C(2)`（bit 1），release-ready bit 为 `UINT64_C(4)`（bit 2）；操作这些位时必须保留其他位。
 
 class 的基类对象布局是派生对象的完整前缀，包括基类尾部 padding；派生字段不得复用该 padding。构造最派生对象时只分配一次，整个构造期间对象头都指向最派生 exact type 的 TypeDescriptor，不随基类构造改变。
@@ -66,6 +70,8 @@ target profile 的 `maximum_managed_alignment` 与 `maximum_managed_object_size`
 
 tagged enum 的 managed 引用槽由各 variant 独占，inactive variant 的引用槽必须为 null；扫描无需读取 enum tag。scan 只能访问实际表示内对齐的 managed pointer 槽。
 
+接口的 value scan 只包含 offset 0；itab 不标记、不搬迁。struct、enum、数组、closure、Context、native region 和 coroutine frame 内的接口同样递归扫描这一 leaf，移动后保留原 itab。
+
 扫描程序使用 `u64` word：
 
 | 种类 | word 表示 |
@@ -101,6 +107,8 @@ scan fingerprint 为 `SHA-256(ByteSpan("scoop-scan-v1") || canonical_scan_bytes)
 
 struct、enum、tuple、数值、Ptr、FunPtr 依其静态类型按值存储。提升到 Any 或 interface 时，值存入带原 exact TypeDescriptor 的 managed box；值类型 receiver 使用独立的方法局部副本，不能取得调用方 place 或 box payload 的别名。
 
+`MaybeUninit<T>` 是与 T 等 size／alignment 的独立值类型，复用 T 的 inline scan。全零存储是合法 wrapper，managed 槽始终为 null 或有效引用；这不表示已经构造合法 T。零构造包括 padding，不使用 undef/poison，不清零对象头或 TD；包装、复制和重置使用普通值存储及写屏障。wrapper 不继承 T 的非空或 tag 不变量。
+
 语言规范 11.11 的显式 `Equality<T>.equalTo` 实现使用普通 interface TD、itable 与 callable。表项只来自实际声明或继承的 conformance；结构 operator equals 不增加接口。NoGc 值方法实现 Managed interface slot 时，itable 使用符合 slot ABI 的 Managed value/interface adapter，具体值的直接 operator 比较仍调用原实现；runtime 不按类型名、对象地址或内存字节另行判断相等。
 
 `Unit` 和其他 ZST 的 payload size 可以为 0，类型身份与 box 对象身份仍存在。`scoop_rt_box_zst(td)` 每次产生新的 box；`scoop_rt_unbox_zst(object, expected_td)` 检查 exact type。
@@ -119,9 +127,11 @@ ZST 数组不保存元素 payload，但保留 logical size、完整类型与独�
 
 ArrayList、StringBuilder 等普通库类型使用其声明的 class/value 表示，其公开行为由语言规范第 11 章规定。
 
+`MutableArray<MaybeUninit<T>>` 复用 InlineArray shape，logical size 为 capacity，元素 size／stride 为 T 的 exact size，ZST 仍为零。所有容量槽都保存合法 wrapper，完整 GC 按 capacity 扫描；ArrayList 的 elementCount 不进入 GC 协议。删除与 clear 必须清零不再使用的槽，StringBuilder 复用同一 ArrayList 扩容。
+
 ### 2.5 Option 的 niche 表示
 
-引用类型的全零机器字表示 None；Ptr/FunPtr 的内部 data/code-pointer carrier 为全零时，也只表示对应 Option 的 None。裸 reference、Ptr 与 FunPtr 保持非零不变量，Some(payload) 不与 None 碰撞。GC 扫描不能把全零追踪为有效引用；其余 Option 表示遵守语言规范 7.4。
+普通单字引用的零指针表示 None；interface 的 None 为 `{null, null}`，Some 为完整双字值，两者只按 object 分量区分。Ptr/FunPtr 的内部 data/code-pointer carrier 为全零时，也只表示对应 Option 的 None。裸 reference、Ptr 与 FunPtr 保持非零不变量，Some(payload) 不与 None 碰撞。GC 不追踪 null；`MaybeUninit<T>` 不继承 T 的 niche，其余 Option 表示遵守语言规范 7.4。
 
 ### 2.6 Closure 与函数类型
 
@@ -149,7 +159,7 @@ unit 由 `PersistentInitializationUnitId` 标识；diagnostic path 只用于显�
 
 ### 2.8 多 image 登记与启动 ABI
 
-runtime ABI contract 为 **11**，metadata ABI 为 **7**。带 prefix 的 descriptor 以 `{ u64 magic; u32 abi_version; u32 struct_size; }` 开头，`abi_version == 7`，size 与本节布局精确一致，reserved fields 为 0。公共 C 声明见 [scoop_runtime_metadata_v1.h](../../runtime/include/scoop_runtime_metadata_v1.h)。M33 实施时同步更新该头文件、producer、reader 与启动代码；旧版无参数 root gateway 与本节不兼容，即使 descriptor 大小相同也必须重建或拒绝，不能强制转换后调用。
+runtime ABI contract 为 **12**，metadata ABI 为 **8**。带 prefix 的 descriptor 以 `{ u64 magic; u32 abi_version; u32 struct_size; }` 开头，`abi_version == 8`，size 与本节布局精确一致，reserved fields 为 0。公共 C 声明见 [scoop_runtime_metadata_v1.h](../../runtime/include/scoop_runtime_metadata_v1.h)。M34 同步迁移 producer、reader、公共头、启动代码与缓存；双字接口、DirectParts、条件 poll、region cards 和 MaybeUninit backing 属于这一版本。旧 ABI 即使 descriptor 大小相同也必须重建或拒绝，不能强制转换后调用。各批次的实际实现与验证见 [M34 记录](../milestone34/PROGRESS.md)。
 
 | descriptor | magic | size（bytes） |
 | --- | --- | --- |
@@ -283,9 +293,23 @@ managed 分配返回直接对象指针，普通小对象分配摊还 O(1)，不�
 
 nursery 容量和 collection threshold 是收集触发条件，不是堆空间耗尽的证明。收集后被其他 mutator 抢先取得分配区时，分配方重新尝试补充自己的分配区；不能按固定次数的 nursery 竞争报告 OOM。需要 full collection 才能确认的分配失败，不能把加入另一轮 minor collection 等同于已完成自己的 full collection。
 
+堆由按需映射的普通 region 与独立大对象 mapping 构成；普通 region 初始策略为 16 MiB，内含 32 KiB block／128 B line，不限制总堆或单个大对象大小。先复用空闲 block／line 和保留 region，再扩容；超过旧 1 GiB 边界仍能继续分配。大对象按实际大小映射，记录原始 mapping base／length 和对齐后的范围，不遗失对齐前后页。所有 block、TLAB、forwarding 和 nursery 状态明确归属 region。
+
+分配计数为 cache-line 分隔的线程累计值，本线程以 relaxed atomic store 发布，查询以 atomic load 汇总；热路径不对多个全局统计量执行 atomic RMW。detach 在 registry 生命周期保护下并入退出线程总账；STW 汇总更新 collection 基线，当前对象数由基线和随后分配推导，minor 同时保留旧代计数。查询、基线更新和 detach 归并遵守同一锁顺序，不漏计或双计。
+
+累计对象数、nursery 对象数及两种分配字节数在 collection 后不清零。查询按 registry/world lock → heap lock 读取目录与基线；STW collector 在目录已稳定、持 heap lock 时直接汇总，不反向取得 world lock。detached 总账在移除线程前更新，主线程退出后的最终报告仍包含其分配。并发查询是逐线程、逐字段的原子快照，不承诺不同统计字段间的事务一致性；STW 与线程全部退出后的汇总精确。线程计数区域按 128-byte 边界独立对齐并分配，覆盖当前 Darwin/AArch64 的 128-byte 和 amd64 的 64-byte cache line。
+
 ### 3.2 Safepoint 与机器根
 
 managed 函数入口和循环回边，包括 continue 回边，提供 safepoint。managed references 在 LLVM ABI 中使用 address space 1；跨 safepoint 存活的引用必须由 stackmap 或显式 compiler root frame 描述。
+
+poll 正常路径内联原子读取 world phase、GC epoch／本线程 observed epoch 并条件分支，不取 world lock、不广播、不建立 runtime anchor，也不无条件物化该 poll 的显式 roots。慢路径才调用协调入口、发布 anchor 和执行 relocation；慢路径更新值与快路径原值在合流后连接。原子检查不能被提升出循环。MANAGED_PENDING 首次入口必须经有锁激活；NativeSafe 返回、callback 和 NativeBorrowed 仍遵守各自握手。
+
+编译器读取的私有 ABI 为 TLS 指针 `scoop_rt_poll_state`，指向 size 16／align 8 的 `{ atomic u32 mode @0; atomic u64 observed_gc_epoch @8; }`；padding 不参与读写。它直接引用注册线程状态中的同一组字段，attach 时设置、detach 时清空，不复制另一套线程状态。全局 `scoop_thread_world_phase` 为 atomic u32／align 4，`scoop_thread_gc_epoch` 为 atomic u64／align 8。generated poll 依次以 acquire 读取 epoch、phase、当前 mode 和 observed epoch；仅当 phase 为 RUNNING（0）、mode 为 MANAGED（1）且 epoch 一致时走快路径。其他情况调用 `scoop_rt_safepoint`，由现有线程协议处理 pending 激活、park 与 observed epoch 更新。
+
+线程状态地址在单次 managed 函数调用期间稳定，TLS 指针读取可在函数入口执行一次并复用；epoch、phase、mode 与 observed epoch 的原子读取仍在每个 poll 位置执行，不能随该地址一起提升。
+
+SSA 接口在 safepoint 后由更新的 AS1 object 与原 AS0 metadata 分量重建；内存接口只回写 object。不能把两个分量改成整数后依赖保守扫描。
 
 普通 call/poll 的 relocation root 按 2.8 的实际 stackmap 更新。invoke 的正常与异常出口使用显式 compiler roots；native transition 使用 caller root frame，二者的 statepoint gc-live 为零。引用在握手后重新读取，再传给实际 native callee；native 返回的引用在重新允许 GC 前进入有效 root。
 
@@ -311,6 +335,8 @@ immortal 对象只读且不含可移动引用。collector 对每个 root/对象�
 pin 为摊还 O(1)、unpin 为 O(1) 操作。同一对象的显式 pin 共用一项登记和非零计数；每次 pin 增加计数，每次 unpin 减少计数，计数归零才移除登记、清除固定状态。登记期间对象保活且地址稳定，多线程操作由 heap lock 串行化；collector 在同一锁保护下访问登记。对象头的 GC 私有状态字保存其登记索引，移除时交换末项并修正该对象的索引，不线性搜索 pinned 列表。索引不进入语言可见的 `PinnedPtr.raw`，也不改变对象头大小或 typed ABI。非法地址、没有对应显式 pin 的 unpin 或计数溢出属于 fatal ABI error。pin 不替代线程、root 或写屏障协议，不提供对 payload 的同步。
 
 GC handle 是 GC-free opaque 64-bit 值，引用一个当前 live slot 与 generation。slot 复用时 generation 改变；非法、stale 或已释放 handle 是 fatal ABI error。handle 保活对象但不固定地址；解析后跨 safepoint 使用时仍须 root/reload，或显式 pin。
+
+接口 pin／handle 只保存 object；返回静态接口值时以 NoGC 表查询重建对应 itab，不将 metadata 作为 root 或固定对象。
 
 语言规范 13.11 的作用域借用使用 caller 栈上的 `ScoopPinFrame { previous, object }`，按 LIFO 登记在线程状态中。push/pop 是 NoGC、nounwind 的本线程操作，不取锁、不分配；pop 必须匹配当前帧。帧不得跨线程迁移，线程 detach 时不得残留帧。进入 NativeSafe 时帧链随该线程的其他根冻结，collector 只在所有线程停稳后读取。
 
@@ -371,15 +397,31 @@ void scoop_rt_gc_write_barrier(const void *destination, size_t bytes);
 
 屏障覆盖本次写入的完整范围及其相交的 512-byte cards；零字节为 no-op。屏障有限时间、NoGC、无分配、无 park，并发标记不能丢失已记录的脏状态。
 
+每个 region／large mapping 有自己的 card storage。按地址 chunk 索引的稀疏 radix page map 覆盖目标 uintptr_t 范围，把地址映射到所属 metadata；不得在 mark／store 热路径线性遍历 region，也不保留单 arena 的预偏置 card-table 合同。新映射先完成 metadata／cards，再 release 发布索引；generated code 用 acquire 读取，内联完成普通单槽寻址和原子置脏，范围屏障逐段覆盖相交索引单元。不得跨 safepoint 缓存可回收 metadata 地址。
+
+当前 64-bit targets 以 64 KiB 为索引 chunk，使用四级、每级 12-bit 的 radix（地址位移依次为 52／40／28／16）。根 `scoop_gc_page_map` 为 4096 个原子指针，其余节点按实际地址分配；末级指向所属 region／large mapping。metadata 的 generated-code prefix 为 `{ uintptr_t base; size_t size; unsigned char *cards; }`，偏移分别为 0／8／16。索引 load 为 acquire，metadata prefix 发布后不变，card index 为 `(address - base) >> 9`，置脏为 relaxed atomic OR。映射起点及长度按 chunk 对齐，额外映射的首尾页立即解除映射；large mapping 只向 chunk 大小取整，不向普通 region 大小取整。撤销后的空 radix 节点在同一 STW 阶段回收。
+
 该要求适用于字段、数组、含引用 aggregate copy、构造、clone、Context 和 Scoop ABI native 写入。发生过可能 GC 的操作后，不能仅凭“刚分配”省略屏障；native root 或 pin 不替代 old→young 引用记录。
 
 `AtomicRef` 的初始化、store、exchange 及成功 CAS 同样写入 managed reference，必须覆盖相应引用槽的卡表；失败 CAS 没有写入，不需要写屏障。计算对象字段地址到原子访问完成，以及引用写入到写屏障完成之间不能插入 safepoint。AtomicRef 对象、expected/new 引用和读取结果跨 safepoint 时遵守普通 root/relocation 契约；collector 在 mutator 停稳后按普通引用槽扫描和回写，移动不改变 CAS 所比较的对象身份。语言内存序由原子指令实现，GC 屏障不能代替 Acquire/Release。
 
+AtomicRef<I> 的原子槽仍只保存 object；返回引用的原子操作在无 safepoint 区间内按静态 I 查询并重建 itab，CAS 不比较表地址。
+
 ### 3.7 移动与存储有效期
 
-full collection 在有可移动存活对象且目标空间足够时至少移动一个 eligible 对象。pinned 对象不移动；移动不改变语言对象身份。
+full collection 按回收收益选择低存活、无 pin 的 region 为 source，把对象集中到未选为 source 的目标 region；高存活／含 pin 区域继续原地复用 Immix line。普通 full 不强制搬迁，显式 moving stress 在目标空间足够时要求 eligible movement。pinned 对象不移动；移动不改变语言对象身份。
+
+首版普通 full 保留存活字节最多的普通 region 作为目标，其他存活量不超过 region 容量四分之一且无 pin 的非空 region 可选为 source。先使用非 source 的旧代空闲 line、空 block 和未使用 block；只有多个 source 可被腾空时才允许增加目标 region。预留完成后，新占用的空 region 数量（含已有空 region 和新映射）必须少于本批 source 数量，使含存活对象的 region 数量实际下降，避免在空闲缓存间往返复制。未取得实际集中收益或目标预留失败时保持非移动回收。该阈值是可调的收集策略，不属于产物 ABI。minor 仍以年轻 block 为晋升单位；显式 moving stress 以 eligible block 为单位验证对象搬迁，不采用普通 full 的收益筛选。
 
 原存储失效前，所有 roots、存活对象引用和相关运行时引用必须更新到新地址；不能遗留指向已回收副本的 managed reference。对象精确大小与 scan 不得从可能失效的存储猜测。移动或空间预留失败必须保留完整可达图，不能在部分更新后按未移动状态继续执行。
+
+搬迁前预留包括对齐损耗的全部目标空间，失败时缩小 source 集合或非移动回收；minor 晋升不足从完整原图转 full。source 不能又作目标。复制、forwarding 和全部精确引用更新完成后，才允许退休旧副本。
+
+普通 full 复用已有旧代 block 的空洞时，依据本轮 mark／live-line 结果先释放目标 block 中的死亡对象并移除其起点，保留原有存活对象的 mark。预留回滚只退还新激活的目标 block，不退休既有存活对象；已完成的死亡对象 release 不重复执行。复制到既有 block 的对象与原有存活对象都参与完整引用回写。
+
+无存活对象覆盖的完整 OS page 可 discard，保留 side metadata；完全空闲 region 从分配结构及地址索引撤销后 unmap。撤销仅在 STW、所有 GC worker 结束且 TLAB／缓存失效后进行，不把 free-list 回收计作 OS 归还。discard 后复用必须重新清零；跨页活对象覆盖的页不可 discard。普通策略保留一个空 region，其他 full 后释放。记录 discard 成功量、unmapped bytes 和当前／峰值 RSS，不能把建议性 discard 等同于立即 RSS 下降。
+
+首版在普通 full 结束时合并已使用 block 中不覆盖任何存活 line 的整页，通过 ThreadVmOps 调用平台 `madvise(MADV_DONTNEED)`；失败保留映射并在后续 full 重试，不影响可达图。block 激活、空洞再次分配或对象退休时才重新请求 discard，不在普通对象分配热路径增加共享计数。统计分别给出成功／失败调用数、成功建议的累计字节和解除映射的累计字节，重复建议不代表新增物理内存归还。RSS 是诊断时采样的进程当前／历史峰值，采样不可用时对应字段为零；既不作为收集正确性条件，也不与 managed mapping 字节等同。
 
 ### 3.8 GC-free release hook
 
@@ -400,6 +442,20 @@ minor collection 处理年轻代，依据完整精确根与旧代脏区追踪年
 minor 和 full 共享线程、root、pin、handle、Context、callback、冻结栈段及精确扫描契约。晋升或移动在原存储失效前更新全部相关引用；pin 暴露的地址不变。年轻区复用不能遗漏存活引用或 release hook，旧代死对象可以留到 full collection。
 
 分配压力可触发 minor 或 full；晋升空间不足时必须从完整对象图进入 full 或明确的分配失败出口。分代策略和容量不改变语言合法性、对象 ABI 或 FFI 保活义务。
+
+STW 后 coordinator 可使用内部常驻 pthread worker 并行 mark，worker 不登记为 mutator，也不执行用户代码。小 minor 可只使用 coordinator；单 worker 与多 worker 共用同一参数化 collector。对象／大对象 mark 使用原子首次置位，只有首次成功者登记存活对象和扫描任务；line_live 原子 OR，计数和存活清单按 worker 汇总。
+
+collector 持有 heap／roots 的独占阶段后，发布不可变的 region、对象起点、精确大小、pin 和稳定外部对象视图。marker 使用明确的 STW reader／原子 marker 接口，不要求各 worker 重新取得 coordinator 持有的锁。每个参与 block 在本轮取得临时统计索引，worker 私有计数按该索引归并；它不是持久对象身份，也不进入产物或 generated-code ABI。存活清单以稳定的分块存储保留对象指针，任务发布后不得由扩容使其失效。
+
+大引用数组按元素区间分任务，普通对象分批；GC-free 数组没有引用扫描任务。全局未完成任务数同时覆盖队列、正在扫描及尚在发布的子任务，子任务先计数再发布，父任务发布完子任务后才完成；队列暂时为空或窃取失败不表示终止。worker 创建失败在本轮开始前退回串行，队列分配失败走明确 runtime 失败出口，不能丢失任务。
+
+roots／remembered 扫描先由 coordinator 发布初始工作，随后参与同一任务循环。普通对象每个任务最多扫描 64 个，可以在该批次内继续处理本 worker 刚发现的后继，避免长链每个对象都经过队列；大数组每个任务最多 1024 个元素，嵌套值仍执行已有精确 scan。未扫描的剩余子工作在当前任务完成前发布。仅一个在途父任务和一个后继时无需唤醒其他 worker，最后一项完成必须唤醒终止等待者；这不改变全局未完成任务数的含义。首次成功标记但不含引用的对象仍进入存活清单与统计，无需扫描任务。活跃 block 总容量不足 4 MiB 的小堆和现有 1 MiB nursery 的 minor 默认仅使用 coordinator，其余按在线 CPU 数选择最多 4 个 worker；在线 CPU 数通过私有 ThreadVmOps 查询。`SCOOP_GC_WORKERS=1..8` 可显式选择本轮 worker 数以验证同义性和测量，worker 数包含 coordinator，属于 runtime 策略参数，不影响程序或产物合法性。
+
+mark 结束后复用首次标记的存活对象集合规划搬迁并更新每个存活副本的出站引用，不在 full 更新阶段再次用 worklist 发现可达图；roots 与稳定外部 payload 仍全部更新。minor 只处理年轻集合及 remembered set。首版复制、引用回写、release hook、reclaim 和 VM 归还均由 coordinator 执行，worker 全部结束前不移动或释放 metadata；shutdown 停止并 join worker。
+
+诊断分别记录停稳等待、roots、remembered、mark、plan、copy、reference update、reclaim 与 VM 归还的墙钟时间，以及各 marker 的线程 CPU／标记对象数、数组任务和窃取次数。mark 阶段加速与总停顿分开报告；root producer 的工作计入 roots／remembered 阶段，不把重叠时间相加成停顿。所有阶段计数在 worker 完成后由 coordinator 归并，release hook 不在 marker 上执行。
+
+region 诊断补充 managed region 映射成功的累计次数、当前可复用的空 ordinary region 数，以及上次普通 full 成功搬迁的 source／target region 数和因 pin 被排除的稀疏候选数。无搬迁或预留回滚的 source／target 数为零；minor／显式 moving stress 不覆盖上次普通 full 的策略记录。统计复用选择和预留阶段已有事实，不能为了诊断重放标记或搬迁。
 
 ## 4. Scoop ABI FFI runtime functions
 
@@ -523,17 +579,21 @@ native exception record 不能跨线程共享或跨挂起保存；可以保存�
 
 String 后备提供创建、拼接、内容比较/hash、UTF-8 长度、标量定位与切片等表示操作。定位 leaf 不抛源码异常：get 返回 Option<Char>，slice 定位返回 Option<(Long, Long)>，core 对 None 抛出 IndexOutOfBoundsException。内容与已验证边界未变化时可复用。
 
+`scoop_rt_string_get` 的 `Option<Char>` 为 16-byte GC-free 值，按 M34 Scoop 小值 ABI 直接返回两个整数分量；不能继续使用旧的 sret 入口。slice 定位的 24-byte 结果及 UTF-8 decode 的含引用结果仍使用目标的间接返回适配。
+
+JSON 浮点转换后备返回的 `Option<Float>`／`Option<Double>` 同样为 16-byte tagged 值，固定 tag 与 payload bits 使用两个整数返回分量。平台适配必须按 bits 传递 payload，不能套用 C 的混合整数／浮点 struct 返回分类。
+
 字节解码后备为语言规范 11.4 的 `fromUtf8`、`fromUtf8OrNone` 和 `fromUtf8Lossy` 提供同一套 UTF-8 规则。严格路径的结果明确区分成功 String 与首个非法子序列的零基字节偏移，并通过普通 Scoop ABI 返回；core 分别将失败转换为 CharacterCodingException 或 None，不对相同内容再做一遍独立校验。lossy 路径按 maximal subpart 消费非法输入，每段写入一个 U+FFFD，继续处理失配处的后续字节，不能遗漏合法后缀；空输入、U+0000 与合法 U+FFFD 按原内容保留。两种路径均不依赖 locale。
 
 解码和复制只读取给定长度，输入属于 managed 对象时遵守 root/pin/relocation 契约；原生指针的可读性、稳定性和生命周期由 unsafe 调用者保证。结果复制到 String 自有存储，发布前完成全部初始化。实际输出长度、临时存储与分配的溢出按既有分配失败处理，不伪装为 UTF-8 错误或 None。实现复用现有 UTF-8 后备及已验证的不变内容。
 
 严格解码后备接受非零字节指针和非负 Long 长度，返回普通 `(String?, Long)`：成功为 `(Some(string), -1L)`，失败为 `(None, byteOffset)`。该 tuple 的 storage 为 16 bytes、alignment 8，Option<String> 使用 nullable managed pointer niche，字段 offsets 为 0/8；按目标的 Scoop 间接返回 ABI 传递。core 的安全 Array 重载通过 3.4 的作用域借用调用同一后备，pointer 重载在进入后备前检查负长度；不为这些函数增加编译器异常角色。lossy 后备复用有边界的单步解码器，先计算实际输出长度，再分配和转换，整个过程保持输入稳定。
 
-Option<Char> 的 storage 为 16 bytes、alignment 8，tag offset 0、Char offset 8；Option<(Long, Long)> 为 24 bytes、alignment 8，tag offset 0、Long offsets 8/16。实际 core 的 Some/None tag 为 0/1。结果使用 Scoop 间接返回：Darwin/AArch64 经 x8；Linux/amd64 经 RDI，并在 RAX 返回同一地址。
+Option<Char> 的 storage 为 16 bytes、alignment 8，tag offset 0、Char offset 8；Option<(Long, Long)> 为 24 bytes、alignment 8，tag offset 0、Long offsets 8/16。实际 core 的 Some/None tag 为 0/1。前者按 GC-free 小值分类使用 DirectParts，后者仍间接返回：Darwin/AArch64 经 x8；Linux/amd64 经 RDI，并在 RAX 返回同一地址。native shim 依据完整 carrier 签名实现，不能假定同形 C struct 与 Scoop ABI 相同。
 
 数组后备使用显式目标 TD 分配和浅复制，保持新对象头、logical size 和 canonical padding。ZST 不复制 payload；不能从来源名称或布局猜测目标 exact type。源码 bounds check 与异常构造由 managed 代码承担，受检 helper 收到越界 index 属于内部 invariant error。
 
-`scoop_rt_string_join_parts(const ScoopArray *storage, int64_t part_count)` 消费 MutableArray<Option<String>> 的有效前缀并返回 String，使用 Managed native contract。prefix 范围有效，每项为 Some；字节总数 checked 求和。分配后从更新后的 backing 重读 String 引用，结果发布后不再修改 bytes；不调用用户 getter 或重新验证不变的 UTF-8 内容。
+`scoop_rt_string_join_parts(const ScoopArray *storage, int64_t part_count)` 消费 MutableArray<MaybeUninit<String>> 的有效前缀并返回 String，使用 Managed native contract。prefix 范围有效，每项由 ArrayList 保证为已初始化 String，元素身份为实际 wrapper application；字节总数 checked 求和。分配后从更新后的 backing 重读 String 引用，结果发布后不再修改 bytes；不管理容量、不复制中间 String 数组、不调用用户 getter 或重新验证不变的 UTF-8 内容。
 
 `scoop_rt_allocation_overflow()` 为无参数、NoGC 后备，在 Long 容量运算溢出时进入 fatal allocation failure，不分配、不回调、不引入新的源码异常。
 
@@ -585,7 +645,7 @@ completion 的成功、失败与恢复具有唯一获胜方和 release/acquire �
 
 TaskContext 属于逻辑任务，绑定以 exact static type 为 key。每个程序为已登记 key 分配 u32 slot；slot 只在本进程有效，不是持久化类型身份。
 
-try-get 无分配、NoGC、nounwind，返回当前绑定或缺失。push 可分配，成功前保留旧绑定，成功时完整提交并返回可恢复 mark。restore 为 NoGC、严格 LIFO；snapshot 无分配，保存当前绑定；fork 得到独立任务上下文，保留绑定值身份。enter/leave 为 NoGC 并恢复前一 context。
+try-get 无分配、NoGC、nounwind，返回擦除后的单字 object 或缺失。接口 binding 的 itab 由编译器按该 exact key 的静态接口在取出时重建；runtime 不把内部 binding 当作双字源码接口。push 可分配，成功前保留旧绑定，成功时完整提交并返回可恢复 mark。restore 为 NoGC、严格 LIFO；snapshot 无分配，保存当前绑定；fork 得到独立任务上下文，保留绑定值身份。enter/leave 为 NoGC 并恢复前一 context。
 
 这些操作的读取与写入具有真实内存效果，不能按 pure 常量跨绑定变更移动或合并。
 

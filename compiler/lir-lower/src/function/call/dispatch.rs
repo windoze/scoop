@@ -7,13 +7,13 @@ impl FunctionLowerer<'_> {
         receiver: lir::Value,
         effect: mir::GcEffect,
     ) -> StorageResult<LoweredCallDestination> {
-        let descriptor = self.load_at_offset(
-            receiver,
-            self.context.object_type_descriptor_offset(),
-            lir::METADATA_PTR,
-        );
         let (table, kind, slot) = match kind {
             mir::CallKind::Virtual { slot } => {
+                let descriptor = self.load_at_offset(
+                    receiver,
+                    self.context.object_type_descriptor_offset(),
+                    lir::METADATA_PTR,
+                );
                 let table = self.load_at_offset(
                     lir::Value::Temp(descriptor),
                     self.context.type_descriptor_vtable_offset(),
@@ -21,14 +21,8 @@ impl FunctionLowerer<'_> {
                 );
                 (lir::Value::Temp(table), lir::DispatchKind::Virtual, *slot)
             }
-            mir::CallKind::Interface { interface, slot } => {
-                let interface = self.td_ref(&mir::Type::Interface(*interface));
-                let table = self.emit_plain_call(
-                    LoweredCallDestination::no_gc_runtime(lir::NoGcRuntimeFunction::ITableLookup),
-                    vec![lir::METADATA_PTR, lir::METADATA_PTR],
-                    lir::METADATA_PTR,
-                    vec![lir::Value::Temp(descriptor), interface],
-                )?;
+            mir::CallKind::Interface { slot, .. } => {
+                let table = self.interface_component(receiver, 1);
                 (table, lir::DispatchKind::Interface, *slot)
             }
             _ => unreachable!("only virtual and interface calls load a dispatch table"),

@@ -12,6 +12,9 @@ pub enum DecodedExactTypeFactShapeV1 {
     Scalar,
     Pointer,
     Reference,
+    MaybeUninit {
+        value: DecodedPersistentId<PersistentExactTypeId>,
+    },
     OrdinaryStruct {
         fields: Vec<DecodedPersistentId<PersistentExactTypeId>>,
     },
@@ -38,6 +41,12 @@ impl WireDecode for DecodedExactTypeFactShapeV1 {
         let fields = d.map()?;
         let tag = d.field(0, Decoder::unsigned)?;
         Ok(match tag {
+            9 => {
+                wire::expect_fields(d, fields, 2)?;
+                Self::MaybeUninit {
+                    value: d.field(1, DecodedPersistentId::decode)?,
+                }
+            }
             1..=4 => {
                 wire::expect_fields(d, fields, 1)?;
                 match tag {
@@ -79,6 +88,11 @@ impl WireEncode for DecodedExactTypeFactShapeV1 {
             Self::Scalar => wire::tag(e, 1, 2),
             Self::Pointer => wire::tag(e, 1, 3),
             Self::Reference => wire::tag(e, 1, 4),
+            Self::MaybeUninit { value } => {
+                wire::tag(e, 2, 9)?;
+                e.field(1)?;
+                value.encode(e)
+            }
             Self::OrdinaryStruct { fields } => encode::sequence_shape(e, 5, fields),
             Self::CLayoutStruct { fields } => encode::sequence_shape(e, 6, fields),
             Self::Tuple { elements } => encode::sequence_shape(e, 7, elements),

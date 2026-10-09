@@ -216,6 +216,8 @@ pub enum LirType {
     F64,
     MachineScalar(MachineScalarKind),
     Ptr(PointerKind),
+    /// A managed object and its exact interface table: `{ AS1, metadata }`.
+    Interface,
     /// Opaque Itanium EH landing-pad record (`{ ptr, i32 }` in LLVM).
     /// It is produced by exception pads and may be consumed by `Resume`.
     ExceptionRecord,
@@ -230,43 +232,45 @@ pub enum LirType {
     Enum(EnumDefId),
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum PointerKind {
-    /// A GC-traced reference to a managed heap object.
-    Managed,
-    /// A native address that the GC must neither trace nor relocate.
-    Raw,
-    /// An executable function address.
-    Code,
-    /// An immortal runtime descriptor or dispatch-table address.
-    Metadata,
-}
-
 /// Pointer provenance admitted by a null-niche enum representation.
 ///
 /// Metadata pointers are deliberately excluded: they are immortal compiler
 /// infrastructure addresses, not source values that may inhabit `Option`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum NichePointerKind {
+pub enum NullNicheKind {
     Managed,
     Raw,
     Code,
+    Interface,
 }
 
-impl NichePointerKind {
-    /// Total projection to the corresponding general LIR pointer kind.
-    pub const fn pointer_kind(self) -> PointerKind {
+impl NullNicheKind {
+    pub const fn storage_type(self) -> LirType {
         match self {
-            Self::Managed => PointerKind::Managed,
-            Self::Raw => PointerKind::Raw,
-            Self::Code => PointerKind::Code,
+            Self::Managed => MANAGED_PTR,
+            Self::Raw => RAW_PTR,
+            Self::Code => CODE_PTR,
+            Self::Interface => LirType::Interface,
         }
     }
-}
 
-impl From<NichePointerKind> for PointerKind {
-    fn from(kind: NichePointerKind) -> Self {
-        kind.pointer_kind()
+    pub const fn layout(self, profile: LirTargetProfile) -> (u64, u64) {
+        let layout = match self {
+            Self::Managed => profile.managed_pointer_layout(),
+            Self::Raw => profile.data_pointer().layout(),
+            Self::Code => profile.code_pointer().layout(),
+            Self::Interface => return (16, 8),
+        };
+        (layout.size_bytes(), layout.alignment_bytes())
+    }
+
+    pub const fn dump(self) -> &'static str {
+        match self {
+            Self::Managed => "managed",
+            Self::Raw => "raw",
+            Self::Code => "code",
+            Self::Interface => "interface",
+        }
     }
 }
 
@@ -274,17 +278,6 @@ pub const MANAGED_PTR: LirType = LirType::Ptr(PointerKind::Managed);
 pub const RAW_PTR: LirType = LirType::Ptr(PointerKind::Raw);
 pub const CODE_PTR: LirType = LirType::Ptr(PointerKind::Code);
 pub const METADATA_PTR: LirType = LirType::Ptr(PointerKind::Metadata);
-
-impl PointerKind {
-    pub fn dump(self) -> &'static str {
-        match self {
-            Self::Managed => "managed",
-            Self::Raw => "raw",
-            Self::Code => "code",
-            Self::Metadata => "metadata",
-        }
-    }
-}
 
 impl LirType {
     pub const fn floating(kind: FloatKind) -> Self {
@@ -306,6 +299,7 @@ impl LirType {
             LirType::F64 => "f64".to_string(),
             LirType::MachineScalar(kind) => format!("machine<{}>", kind.name()),
             LirType::Ptr(kind) => format!("ptr<{}>", kind.dump()),
+            LirType::Interface => "interface{object,itab}".to_owned(),
             LirType::ExceptionRecord => "exception_record".to_string(),
             LirType::Aggregate(elements) => {
                 let inner: Vec<String> = elements.iter().map(LirType::dump).collect();

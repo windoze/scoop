@@ -122,6 +122,10 @@ impl Lowerer {
         out: &mut Vec<ValueLayoutTemplate>,
         seen: &mut HashSet<ValueLayoutTemplate>,
     ) {
+        if let Some(value) = self.maybe_uninit_value_type(ty) {
+            self.collect_value_layout_dependencies(value, relevance, out, seen);
+            return;
+        }
         match &self.types[ty] {
             Type::Tuple(elements) => {
                 for &element in elements {

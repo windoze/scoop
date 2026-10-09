@@ -7,7 +7,7 @@ Module
   class Exception vtable=0 itables=0
   class Throwable vtable=0 itables=0
   class Envelope vtable=0 itables=0
-  class Argument vtable=0 itables=1
+  class Argument vtable=0 itables=0
   class Box<Int> vtable=0 itables=0
   class Box<String> vtable=0 itables=0
   interface Bound

@@ -51,7 +51,7 @@ impl Replay<'_> {
     pub(super) fn niche_pointer_kind(
         &mut self,
         exact: PersistentExactTypeId,
-    ) -> Result<Option<lir::NichePointerKind>> {
+    ) -> Result<Option<lir::NullNicheKind>> {
         Ok(
             match self
                 .identities
@@ -61,12 +61,15 @@ impl Replay<'_> {
                 ExactTypeKey::Nominal(_) | ExactTypeKey::NominalApplication { .. } => {
                     match self.value_dependency(exact)?.representation().kind() {
                         lir::ExactRepresentationKindV1::QualifiedPointer(kind) => Some(kind),
+                        lir::ExactRepresentationKindV1::Interface => {
+                            Some(lir::NullNicheKind::Interface)
+                        }
                         _ => None,
                     }
                 }
-                ExactTypeKey::Function { .. } => Some(lir::NichePointerKind::Managed),
-                ExactTypeKey::RawPointer(_) => Some(lir::NichePointerKind::Raw),
-                ExactTypeKey::NativeFunctionPointer { .. } => Some(lir::NichePointerKind::Code),
+                ExactTypeKey::Function { .. } => Some(lir::NullNicheKind::Managed),
+                ExactTypeKey::RawPointer(_) => Some(lir::NullNicheKind::Raw),
+                ExactTypeKey::NativeFunctionPointer { .. } => Some(lir::NullNicheKind::Code),
                 ExactTypeKey::Tuple(_) => None,
             },
         )

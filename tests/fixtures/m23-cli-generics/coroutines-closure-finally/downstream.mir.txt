@@ -80,15 +80,15 @@ Module
   enum CoroutineSlot<FunctionSuspendTask<Unit>>
     Empty()
     Value(value: FunctionSuspendTask<Unit>)
-  enum CoroutineSlot<SuspendTask<Local>>
+  enum CoroutineSlot<box<FunctionSuspendTask<Local>>>
     Empty()
-    Value(value: SuspendTask<Local>)
-  enum CoroutineSlot<SuspendTask<Int>>
+    Value(value: box<FunctionSuspendTask<Local>>)
+  enum CoroutineSlot<box<FunctionSuspendTask<Int>>>
     Empty()
-    Value(value: SuspendTask<Int>)
-  enum CoroutineSlot<SuspendTask<Unit>>
+    Value(value: box<FunctionSuspendTask<Int>>)
+  enum CoroutineSlot<box<FunctionSuspendTask<Unit>>>
     Empty()
-    Value(value: SuspendTask<Unit>)
+    Value(value: box<FunctionSuspendTask<Unit>>)
   class Local vtable=0 itables=0
   class Gate<Local> vtable=0 itables=0
   class Throwable vtable=0 itables=0
@@ -223,54 +223,54 @@ Module
   generated_exact_type get15 location=closure4 nominal_id=8759792caff70ff2d32a3587080650c2eb28eee5131d121400ef5bd93d6b8073 exact_id=2a8f3af8fe48d00ede777603f7b6ffd979cf5960445f1171387b6061ec556636
   generated_exact_type get16 location=closure2 nominal_id=7e37dadb7cbbb31f3348560df0d4904e0ecabb5bb98c028b418905c1b49c51ae exact_id=2cdddcf31095c16098257af7d3b3ad3b56d48b6113237956d3a942db45501eda
   generated_exact_type get17 location=class25 nominal_id=734207d537eab3e00f2f72e30c6253a91fe7f407e3d208b585858d69898a5aab exact_id=2f9ab6b51e848e5e191cd38296594dab0927c679bbc529efb7beef2820bffbd6
-  generated_exact_type get18 location=enum28 nominal_id=142bdd873f15abbac574a0c88cf4c138c7fbf748d5e21e2bd7758a1082445878 exact_id=30632990b9c48699c42907cc6329eb4c3f81811f51a49758e7c7ebac04c45561
-  generated_exact_type get19 location=class79 nominal_id=8b7744d05c5bc467d71672d004fedc4dd991ab4a294500409bc3b229dd71821d exact_id=3158e17847feaffea70e9d95065025bb8335eb421f84bfe27892f9f42671ec07
-  generated_exact_type get20 location=class48 nominal_id=794ac7216f2aa2f899da6e1b54efe5244ab90c8d6b32adc91a62a86072072955 exact_id=33a8b1f702577690a19bc5fd14e7fb1145ba19cab819a32ad5d2ddc161b7b9ad
-  generated_exact_type get21 location=closure6 nominal_id=a07885490be7bf7a5f500b0ec83fb2ff5cf8aa0caf64cecf4b0bd6fc6b5c9d42 exact_id=3531e8b7cdf39289c68189cd8f84e5f7dd9042af0a098f8055f68a6e3cda9d08
-  generated_exact_type get22 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
-  generated_exact_type get23 location=class81 nominal_id=3b95f5edb1e6eafc64c00054fa20df7564f5b33a0c8cfd04aa2cfc38e2967064 exact_id=3be1de2da6c9443a4e0b25aa951e9b3ae3ed73c80dbf10ad6cad7b41e57b2279
-  generated_exact_type get24 location=enum17 nominal_id=5f805a543f07dd80b81a4b3fd111d006b45933c42193a9bf66c437f4496f0b2e exact_id=3d5ba44ba6b0d05078f1dc38c1d257ccdf4f5b7de82f8a6ee86716f379625c5a
-  generated_exact_type get25 location=class18 nominal_id=2d46c9bb220fbefe39c9d1e29a6611ec7bc6e5ae56b1648ee5f0f44bea118eda exact_id=3fffd277817e10802b81aa1eaa231983087c84e2f97f68e50ca3b7bfd6209975
-  generated_exact_type get26 location=class55 nominal_id=353abbb40e0c405cb18b7e713e21abe3edafbc45385fc30183e2181edf31be6a exact_id=425deaa5e9ad344d550a62d5e7e8179d8f0faf1151d85e76916f700898f53370
-  generated_exact_type get27 location=closure3 nominal_id=7e83fe1249c0990c2a6adde5c407683fe420e3c11832cf0bf2dc9cc59441371b exact_id=441c7563f750edac797486c980e555e7ba1052ae9b954a44faf0c97f05239810
-  generated_exact_type get28 location=class61 nominal_id=bdc6dc9ee1a3eb064d26b48ee68e99dde90d5b1aa36defd4e22dbdb7b0ab9841 exact_id=49e77c2d86803e4ae0d277a8e3978a9f221972c9481e1458ab62d659e11c307b
-  generated_exact_type get29 location=closure0 nominal_id=01e594bef339037fd378b10475539889bb315b7e6f8e4d97e394f801bc7563fd exact_id=4b1315bf347c81e98ac8c42cfae93906565ac7afa47aed05efa52be7403f2d73
-  generated_exact_type get30 location=class63 nominal_id=ef4210da868680ec3373d1768a8b4e43239b79d1f0d99800ed653d9bac4d4df7 exact_id=4c4b672b7b4538e49b1ebe7e6d73a614436fca269efd087b8ab25a967db0f53f
-  generated_exact_type get31 location=enum18 nominal_id=61fccfb676c842e12c0f320c72b23d980b61ff8d372e40fca74aa99ddcf7e468 exact_id=4d1c66bb0857125dd34a07a698b9700335013fa0455a91b498d03f2ddc3e8e2b
-  generated_exact_type get32 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
-  generated_exact_type get33 location=class64 nominal_id=16a698176d3abf939f05a5808f58d42e7310a9f0e2272d7849c71a69f67759b5 exact_id=56acc39b24c1a40c05b1ab0f4978e7f727b2db1b470f8bb400330b18c375d94c
-  generated_exact_type get34 location=enum27 nominal_id=774a5517cc42b227b4f3d8823a6022047c83b1e9f11584342f7a922d5191f9b6 exact_id=5bcac56db1558e3d16ccf7824131e1ffee7b61ebafadf5e137f6929a7327722c
-  generated_exact_type get35 location=enum19 nominal_id=4357d55b8bf5d1aabead9125157dd5d575ded0432ccddc0f220427dab9ffa9a3 exact_id=5c7340de38623926ccfdb93b12c0eed6abc1eaaa96883d1b66f49c582c9df926
-  generated_exact_type get36 location=enum13 nominal_id=1da6c91f8825b6f197fa2ddc3a466810d3ce5154887d943a139efc4408f22560 exact_id=5e4588f92048efeb8d5ed2b9db7d3b026c85458e7079b05657c6990aed3a1fc4
-  generated_exact_type get37 location=class52 nominal_id=34687a5a2cbe31888f8ee45e29d3f748202b298b0f4e9c732489c23f559d4627 exact_id=60531d11722dd3e75737b150cded0b02055e90286eab15551726b8e56b1bfe84
-  generated_exact_type get38 location=enum15 nominal_id=e510fe6d5351ab32bb1e15f7de507a4c86a8dd85750c5508e55ba7dc86f2d062 exact_id=64b940aa7a8e91cfea85302ca4ce6e712f478582848641bfd7fb175f3c14309f
-  generated_exact_type get39 location=class30 nominal_id=6300579df2a298b8780c30e96f285647aab8dd06afe40ff9b59a7bbbd77a6081 exact_id=653f7a026ccda79659115eefafcdbd62d5b7216d02bfcfb6a5fafce423cd1033
-  generated_exact_type get40 location=class22 nominal_id=5896636382f4bed72342ed38cb2005faf4c61c41c0cb6d7660ca74775ba7ad6a exact_id=671d1521da4e4e5ab7d6b94ed3f83efc45080d0900c1d357f8e4ea6855c3fe4f
-  generated_exact_type get41 location=class53 nominal_id=c65c57337aa7923ad05267a9c8b59ec63e3226bc4267780845e355dbfd3b5dbd exact_id=68b4f9ba329f0963467fec85a02f611c42fd25d7456ce136549fb72884985d75
-  generated_exact_type get42 location=class59 nominal_id=47d470b69aca55592fc50caa31c50b489957773aed4004651de869e60e2e5873 exact_id=734756f747ab1056edcc1c569a99e6e0464cabd818d154b99364d2130db0e40b
-  generated_exact_type get43 location=class82 nominal_id=ae913cbef858da62226769cdf77cb415367aea1988748dcf39ff4608b5f5b203 exact_id=78eb3ca7a22749f0def77ce92d3024830a61ea26f9fdde284c11d4e2a6644073
-  generated_exact_type get44 location=enum11 nominal_id=1f72b0e70e64d671b7d2d6aab192c3ed4da57d9c7d6a3387a43eec02031c499f exact_id=7947a01346aacce1104b641b7ff2830112fea2756c002e814f4679b841802773
-  generated_exact_type get45 location=class60 nominal_id=6bbd16f1cc2d8183e39994432cd778f6a3c7965794a3d3a66ceb875ad46c5b49 exact_id=795995912ff88ac9fe03bcb590feaa750ce332908afab5d9477899dc4eb3a1cd
-  generated_exact_type get46 location=class20 nominal_id=8aacaacd8fee80cff50100a23aa3da7d392e69805efd0a3ef4d42fde71a57057 exact_id=7ccbdc569de404bbb410bc4ce74b6a9855b055b1dce4dc33567687fde3a19e17
-  generated_exact_type get47 location=class72 nominal_id=2196194dbb5f6f23e523e9223c37495e3fea89e8d9cb4e4aa226f3e57299ac98 exact_id=7ce76ad56ffa69ecad739952e8977574d8434adb7ae200a7db3e8a2fd67bca71
-  generated_exact_type get48 location=class23 nominal_id=82e714eb84f6bdf8409957e680c282153037960536534c9f6447c2fcfdc3231e exact_id=85b4b105cbebf9571ab7c102687dc2e8b8a769b82a79a5d409fdfac9237566ef
-  generated_exact_type get49 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
-  generated_exact_type get50 location=class67 nominal_id=9f3d425eef764213d4b05a993d5a777f447fdc9e483cb3c2181f3bb59acf30ec exact_id=8f640c3626b378308a9cb1af65e0e58b9e1ee4cc884fb27c549cef8e22795944
-  generated_exact_type get51 location=class57 nominal_id=fc4e9f960fe03e619ef82695a410612754100daead9c04a4c14b1d43ab9f238d exact_id=907933d2e64720bdde4b848bfadf6771b969fcde1f37445e7081cd50533a4ee5
-  generated_exact_type get52 location=class56 nominal_id=afcad9c18c52c6d3290065e98be5f4012b8d0281251d5802421887e31978c8f1 exact_id=9494d8f4c9cd9d2268b2e1014d0e19768014ced2ba5173edc0dfcfe1fe2e8dfb
-  generated_exact_type get53 location=class75 nominal_id=c703f14418148b7926baa5d395c2cd7875a9400ea1415031d8d2d00c6a6b9698 exact_id=95b72997a4a433d9cc2c437756b551db89c066d7cec764626a1d971514e83852
-  generated_exact_type get54 location=class47 nominal_id=99e55442b2146f5f473475e1c12b8cb87d9273e0aaca69f09260cdbbc60f8082 exact_id=969762922a95d9395d1ffdb6624c8f02291f4b56cb5b1a12e27050d179598380
-  generated_exact_type get55 location=class37 nominal_id=8f7eb6eebde0dace2fe3a012040ceac418f796d66eebac7a6effb0141f4b9394 exact_id=983fa57befd87e4cdbf09552c1da6b32270f245a70cad90d7f5c5a9b9cbc1b6e
-  generated_exact_type get56 location=enum21 nominal_id=053daf211cb775c4525bfafca06f645feb23849e2d9b84c796c986a9ef79b0ee exact_id=98bee28084c3be6a49403225526bdf63905a735b37536c65db19aba7894282e8
-  generated_exact_type get57 location=class49 nominal_id=7fa1ca92eeb5b8f24003c765460f4a78968791c10603902d857681bbe834978a exact_id=9afb3caff32a5a666971364d5ea08589fd51a71155eec116eecbdb6b16768c40
-  generated_exact_type get58 location=closure5 nominal_id=16ba1eac5ea04fc979d8e62646a211ce6debb842d880f6d78994797023df988c exact_id=9cbb08a6ae505e6332fee5ea2da678368255dc074656a76838a26cad349b058b
-  generated_exact_type get59 location=class15 nominal_id=3480c48a6a74b5b462700901671184425f6cf6a58f8a65350265223cf86a1b57 exact_id=9de694c9ee74d0a61a34f41817acc59934f7b928d6e4593eb2b5b6d7e6932169
-  generated_exact_type get60 location=class58 nominal_id=74c69225ebd9b2870279fd38d5f5283e725776a994e3a6312f5432b2e1824fc2 exact_id=9e455c9916550c4ea093f804931bd3d324715728fb7a602444184729b60e7262
-  generated_exact_type get61 location=enum20 nominal_id=6f97882a7575cbaa7d7835995c5ecc571e871f5a8c20f78c9984c057a290d8f4 exact_id=9e683f0ed96fd36e50cb9d07175ed721f8afcf2152db26f0762dfc660bccc99d
-  generated_exact_type get62 location=class70 nominal_id=3522fbb6d77ea6b1af16654f91116edc1370533495f6b2c521642e469258fdd7 exact_id=a198fc1529cf07780101355a0e9127fae083a3f8727010855dd3c11a0c0add9e
-  generated_exact_type get63 location=class71 nominal_id=fd1032567d950d751e721be717b89a00c0f13125049d3080dbfe497cb180e1d6 exact_id=a62d9ed48ebeafe7fe902bbf13b68eae1ff91fe8eb008ada84456885e76f8a6d
-  generated_exact_type get64 location=enum12 nominal_id=1d90b9517ad16680767e5f5f346641f7fdb2b440fcc3407d6f34ee2acd38fd08 exact_id=a7b5de752f5b16397ac2dd0845c02cd2b3b0cbb363c4286d084a2bf5e77678a2
-  generated_exact_type get65 location=class84 nominal_id=792979b825b0191d077d66c7ae8888a70c1b2509787ade7844bc9234572e8d4d exact_id=aa4c10345f565c70ba42cbaa3e27d14196f4963a25071445ab81c26e8eb04230
+  generated_exact_type get18 location=class79 nominal_id=8b7744d05c5bc467d71672d004fedc4dd991ab4a294500409bc3b229dd71821d exact_id=3158e17847feaffea70e9d95065025bb8335eb421f84bfe27892f9f42671ec07
+  generated_exact_type get19 location=class48 nominal_id=794ac7216f2aa2f899da6e1b54efe5244ab90c8d6b32adc91a62a86072072955 exact_id=33a8b1f702577690a19bc5fd14e7fb1145ba19cab819a32ad5d2ddc161b7b9ad
+  generated_exact_type get20 location=closure6 nominal_id=a07885490be7bf7a5f500b0ec83fb2ff5cf8aa0caf64cecf4b0bd6fc6b5c9d42 exact_id=3531e8b7cdf39289c68189cd8f84e5f7dd9042af0a098f8055f68a6e3cda9d08
+  generated_exact_type get21 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
+  generated_exact_type get22 location=class81 nominal_id=3b95f5edb1e6eafc64c00054fa20df7564f5b33a0c8cfd04aa2cfc38e2967064 exact_id=3be1de2da6c9443a4e0b25aa951e9b3ae3ed73c80dbf10ad6cad7b41e57b2279
+  generated_exact_type get23 location=enum17 nominal_id=5f805a543f07dd80b81a4b3fd111d006b45933c42193a9bf66c437f4496f0b2e exact_id=3d5ba44ba6b0d05078f1dc38c1d257ccdf4f5b7de82f8a6ee86716f379625c5a
+  generated_exact_type get24 location=class18 nominal_id=2d46c9bb220fbefe39c9d1e29a6611ec7bc6e5ae56b1648ee5f0f44bea118eda exact_id=3fffd277817e10802b81aa1eaa231983087c84e2f97f68e50ca3b7bfd6209975
+  generated_exact_type get25 location=class55 nominal_id=353abbb40e0c405cb18b7e713e21abe3edafbc45385fc30183e2181edf31be6a exact_id=425deaa5e9ad344d550a62d5e7e8179d8f0faf1151d85e76916f700898f53370
+  generated_exact_type get26 location=closure3 nominal_id=7e83fe1249c0990c2a6adde5c407683fe420e3c11832cf0bf2dc9cc59441371b exact_id=441c7563f750edac797486c980e555e7ba1052ae9b954a44faf0c97f05239810
+  generated_exact_type get27 location=class61 nominal_id=bdc6dc9ee1a3eb064d26b48ee68e99dde90d5b1aa36defd4e22dbdb7b0ab9841 exact_id=49e77c2d86803e4ae0d277a8e3978a9f221972c9481e1458ab62d659e11c307b
+  generated_exact_type get28 location=closure0 nominal_id=01e594bef339037fd378b10475539889bb315b7e6f8e4d97e394f801bc7563fd exact_id=4b1315bf347c81e98ac8c42cfae93906565ac7afa47aed05efa52be7403f2d73
+  generated_exact_type get29 location=class63 nominal_id=ef4210da868680ec3373d1768a8b4e43239b79d1f0d99800ed653d9bac4d4df7 exact_id=4c4b672b7b4538e49b1ebe7e6d73a614436fca269efd087b8ab25a967db0f53f
+  generated_exact_type get30 location=enum18 nominal_id=61fccfb676c842e12c0f320c72b23d980b61ff8d372e40fca74aa99ddcf7e468 exact_id=4d1c66bb0857125dd34a07a698b9700335013fa0455a91b498d03f2ddc3e8e2b
+  generated_exact_type get31 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
+  generated_exact_type get32 location=class64 nominal_id=16a698176d3abf939f05a5808f58d42e7310a9f0e2272d7849c71a69f67759b5 exact_id=56acc39b24c1a40c05b1ab0f4978e7f727b2db1b470f8bb400330b18c375d94c
+  generated_exact_type get33 location=enum26 nominal_id=a507477e4219e07bd633ce103cf966816db2f7bdec84d015b84d5c3dea8bebb7 exact_id=5be206eda65106558aeb79f6f183cc69fccca1ef1791272ca159acea37c63c42
+  generated_exact_type get34 location=enum19 nominal_id=4357d55b8bf5d1aabead9125157dd5d575ded0432ccddc0f220427dab9ffa9a3 exact_id=5c7340de38623926ccfdb93b12c0eed6abc1eaaa96883d1b66f49c582c9df926
+  generated_exact_type get35 location=enum13 nominal_id=1da6c91f8825b6f197fa2ddc3a466810d3ce5154887d943a139efc4408f22560 exact_id=5e4588f92048efeb8d5ed2b9db7d3b026c85458e7079b05657c6990aed3a1fc4
+  generated_exact_type get36 location=class52 nominal_id=34687a5a2cbe31888f8ee45e29d3f748202b298b0f4e9c732489c23f559d4627 exact_id=60531d11722dd3e75737b150cded0b02055e90286eab15551726b8e56b1bfe84
+  generated_exact_type get37 location=enum15 nominal_id=e510fe6d5351ab32bb1e15f7de507a4c86a8dd85750c5508e55ba7dc86f2d062 exact_id=64b940aa7a8e91cfea85302ca4ce6e712f478582848641bfd7fb175f3c14309f
+  generated_exact_type get38 location=class30 nominal_id=6300579df2a298b8780c30e96f285647aab8dd06afe40ff9b59a7bbbd77a6081 exact_id=653f7a026ccda79659115eefafcdbd62d5b7216d02bfcfb6a5fafce423cd1033
+  generated_exact_type get39 location=class22 nominal_id=5896636382f4bed72342ed38cb2005faf4c61c41c0cb6d7660ca74775ba7ad6a exact_id=671d1521da4e4e5ab7d6b94ed3f83efc45080d0900c1d357f8e4ea6855c3fe4f
+  generated_exact_type get40 location=class53 nominal_id=c65c57337aa7923ad05267a9c8b59ec63e3226bc4267780845e355dbfd3b5dbd exact_id=68b4f9ba329f0963467fec85a02f611c42fd25d7456ce136549fb72884985d75
+  generated_exact_type get41 location=class59 nominal_id=47d470b69aca55592fc50caa31c50b489957773aed4004651de869e60e2e5873 exact_id=734756f747ab1056edcc1c569a99e6e0464cabd818d154b99364d2130db0e40b
+  generated_exact_type get42 location=class82 nominal_id=ae913cbef858da62226769cdf77cb415367aea1988748dcf39ff4608b5f5b203 exact_id=78eb3ca7a22749f0def77ce92d3024830a61ea26f9fdde284c11d4e2a6644073
+  generated_exact_type get43 location=enum11 nominal_id=1f72b0e70e64d671b7d2d6aab192c3ed4da57d9c7d6a3387a43eec02031c499f exact_id=7947a01346aacce1104b641b7ff2830112fea2756c002e814f4679b841802773
+  generated_exact_type get44 location=class60 nominal_id=6bbd16f1cc2d8183e39994432cd778f6a3c7965794a3d3a66ceb875ad46c5b49 exact_id=795995912ff88ac9fe03bcb590feaa750ce332908afab5d9477899dc4eb3a1cd
+  generated_exact_type get45 location=class20 nominal_id=8aacaacd8fee80cff50100a23aa3da7d392e69805efd0a3ef4d42fde71a57057 exact_id=7ccbdc569de404bbb410bc4ce74b6a9855b055b1dce4dc33567687fde3a19e17
+  generated_exact_type get46 location=class72 nominal_id=2196194dbb5f6f23e523e9223c37495e3fea89e8d9cb4e4aa226f3e57299ac98 exact_id=7ce76ad56ffa69ecad739952e8977574d8434adb7ae200a7db3e8a2fd67bca71
+  generated_exact_type get47 location=class23 nominal_id=82e714eb84f6bdf8409957e680c282153037960536534c9f6447c2fcfdc3231e exact_id=85b4b105cbebf9571ab7c102687dc2e8b8a769b82a79a5d409fdfac9237566ef
+  generated_exact_type get48 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
+  generated_exact_type get49 location=class67 nominal_id=9f3d425eef764213d4b05a993d5a777f447fdc9e483cb3c2181f3bb59acf30ec exact_id=8f640c3626b378308a9cb1af65e0e58b9e1ee4cc884fb27c549cef8e22795944
+  generated_exact_type get50 location=class57 nominal_id=fc4e9f960fe03e619ef82695a410612754100daead9c04a4c14b1d43ab9f238d exact_id=907933d2e64720bdde4b848bfadf6771b969fcde1f37445e7081cd50533a4ee5
+  generated_exact_type get51 location=class56 nominal_id=afcad9c18c52c6d3290065e98be5f4012b8d0281251d5802421887e31978c8f1 exact_id=9494d8f4c9cd9d2268b2e1014d0e19768014ced2ba5173edc0dfcfe1fe2e8dfb
+  generated_exact_type get52 location=class75 nominal_id=c703f14418148b7926baa5d395c2cd7875a9400ea1415031d8d2d00c6a6b9698 exact_id=95b72997a4a433d9cc2c437756b551db89c066d7cec764626a1d971514e83852
+  generated_exact_type get53 location=class47 nominal_id=99e55442b2146f5f473475e1c12b8cb87d9273e0aaca69f09260cdbbc60f8082 exact_id=969762922a95d9395d1ffdb6624c8f02291f4b56cb5b1a12e27050d179598380
+  generated_exact_type get54 location=class37 nominal_id=8f7eb6eebde0dace2fe3a012040ceac418f796d66eebac7a6effb0141f4b9394 exact_id=983fa57befd87e4cdbf09552c1da6b32270f245a70cad90d7f5c5a9b9cbc1b6e
+  generated_exact_type get55 location=enum21 nominal_id=053daf211cb775c4525bfafca06f645feb23849e2d9b84c796c986a9ef79b0ee exact_id=98bee28084c3be6a49403225526bdf63905a735b37536c65db19aba7894282e8
+  generated_exact_type get56 location=class49 nominal_id=7fa1ca92eeb5b8f24003c765460f4a78968791c10603902d857681bbe834978a exact_id=9afb3caff32a5a666971364d5ea08589fd51a71155eec116eecbdb6b16768c40
+  generated_exact_type get57 location=closure5 nominal_id=16ba1eac5ea04fc979d8e62646a211ce6debb842d880f6d78994797023df988c exact_id=9cbb08a6ae505e6332fee5ea2da678368255dc074656a76838a26cad349b058b
+  generated_exact_type get58 location=class15 nominal_id=3480c48a6a74b5b462700901671184425f6cf6a58f8a65350265223cf86a1b57 exact_id=9de694c9ee74d0a61a34f41817acc59934f7b928d6e4593eb2b5b6d7e6932169
+  generated_exact_type get59 location=class58 nominal_id=74c69225ebd9b2870279fd38d5f5283e725776a994e3a6312f5432b2e1824fc2 exact_id=9e455c9916550c4ea093f804931bd3d324715728fb7a602444184729b60e7262
+  generated_exact_type get60 location=enum20 nominal_id=6f97882a7575cbaa7d7835995c5ecc571e871f5a8c20f78c9984c057a290d8f4 exact_id=9e683f0ed96fd36e50cb9d07175ed721f8afcf2152db26f0762dfc660bccc99d
+  generated_exact_type get61 location=class70 nominal_id=3522fbb6d77ea6b1af16654f91116edc1370533495f6b2c521642e469258fdd7 exact_id=a198fc1529cf07780101355a0e9127fae083a3f8727010855dd3c11a0c0add9e
+  generated_exact_type get62 location=class71 nominal_id=fd1032567d950d751e721be717b89a00c0f13125049d3080dbfe497cb180e1d6 exact_id=a62d9ed48ebeafe7fe902bbf13b68eae1ff91fe8eb008ada84456885e76f8a6d
+  generated_exact_type get63 location=enum12 nominal_id=1d90b9517ad16680767e5f5f346641f7fdb2b440fcc3407d6f34ee2acd38fd08 exact_id=a7b5de752f5b16397ac2dd0845c02cd2b3b0cbb363c4286d084a2bf5e77678a2
+  generated_exact_type get64 location=class84 nominal_id=792979b825b0191d077d66c7ae8888a70c1b2509787ade7844bc9234572e8d4d exact_id=aa4c10345f565c70ba42cbaa3e27d14196f4963a25071445ab81c26e8eb04230
+  generated_exact_type get65 location=enum27 nominal_id=42688c41cef80dc3884b529d640f34e112e4713909b304b37c4bba3eb7c4db7c exact_id=acdd3d23f6a9c72cde218ce4589eb03e8fb1ccc507e904770d5ba41327a516e4
   generated_exact_type get66 location=class42 nominal_id=3175f9e41b19e9e23c4c5c4b79103b61c588b40e7d9aefc7b41d9630bf066b41 exact_id=ad6a6bbb857c1e460529ea0262038f1a1bbab1d98c4c2318f5bbe4b1ba28b722
   generated_exact_type get67 location=class32 nominal_id=73053f946f0abc278fb94f2db600364e6ed576c5d3c856d0fec5d80080a97f29 exact_id=b0149cf994eafc9b3037dbb7660a1f57571fad355a480b2bce5b22d572c0d8dc
   generated_exact_type get68 location=class24 nominal_id=0796032aa4796bbf99c25b38aae4534508069c5f903fc7282277c64b67f574f4 exact_id=b2d9b4260598d698149898c8eca608848ec4d585e952253df789003af3f9ef81
@@ -293,17 +293,17 @@ Module
   generated_exact_type get85 location=enum22 nominal_id=3d5494158ba24c26695a4bf429263aafd2fd88ebb52652acc0022882b3679022 exact_id=d62122b6c3aaaf4c723de73b5d4c000cbb0543745c791464c10d9af6fa4d8e51
   generated_exact_type get86 location=enum23 nominal_id=a9da1996183083fb9deaab0af6d928f0501a137966f315cc57813e1dba555e69 exact_id=d8e8b107511e97469d6de113cb7de96d3b11a548ac3b40f73e1c1d50fb11b2f0
   generated_exact_type get87 location=closure1 nominal_id=49f008c49fbbd550bf12d60d9e9918c4402e93e632edb0ad38f892e14487b856 exact_id=da0a7aef5da104aff34f9a4797e528609e51710dd7b3d0bef2a29cceb300f7fb
-  generated_exact_type get88 location=enum26 nominal_id=be0506293609baab60df35553a369eb15f37dbb8091d3af651c4440b7fffde88 exact_id=db6b92d7b8645f2031e12e3580ca98dc99e002380cab7300c28423ec9e6af3a0
-  generated_exact_type get89 location=class78 nominal_id=a80e10af83e6e3ae0884f940743df094b35ff1501612fdcb3754e8930a8cada8 exact_id=dbe3e915b6cf4b62a34f0829a69e10fb040bf773326c19ca73bc6b31a2b8bce3
-  generated_exact_type get90 location=class85 nominal_id=b4be8318dda252e6b61ddb0276b88b35491aefaac25287668a0ea9ca472cae5c exact_id=dc926eca8b9e01421ab69256279e8ceca9c948a566fd23b26d4f7e13650c44c3
-  generated_exact_type get91 location=class44 nominal_id=659270577ab04547df1dbb20894a9fa076c07eed39dae5990baf34c0c366eda9 exact_id=de29598daceb9c80a94bc1b2256590169589b551b39426d338d7324443aa6aa3
-  generated_exact_type get92 location=class38 nominal_id=8d465bb5cf205ba292900c5d10907eae8b3a53aeb44256084276cf5c56e60fe8 exact_id=e0b9edae08a6ff2cf7bd651bf12328c785ec996357ac73459ef0fd3eb7f3296a
-  generated_exact_type get93 location=class41 nominal_id=b2a25f79aebedb907d36b6ee0ddcedf2ad8fd41930b9e1f7875be285f9e8797c exact_id=e1d16488e8db2c214bd55e7b2094f57d7d74917f1639d2dbb48ecfd149079bd1
-  generated_exact_type get94 location=class28 nominal_id=779a95a18d0df114d7ddb99bbbd93edd0292330d3a75db6e86004cefa5f4da8e exact_id=e2a58b62f6cee3ca3da8daef5982f1a0cced9d3bef4d8443703b0da7002b8604
-  generated_exact_type get95 location=class19 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
-  generated_exact_type get96 location=enum8 nominal_id=9a95e28993b9d6728906f5098c11f064a96ee3bb9b5c3ad2676b06502ffb8525 exact_id=e6a5b491d0e18318782b47f0cf622d4b91a3a4d544fe3d58e2e3324c0c3e603d
-  generated_exact_type get97 location=class45 nominal_id=1787c9d7fa3bb6445e668878e34b654c9e8bf790f22884aea989c2b4a917d405 exact_id=e9eee86713ffc2d7224203041e485c50e681d13240dddd04a6f8ad4a7627c376
-  generated_exact_type get98 location=class40 nominal_id=73d8a8da2052dc4ef4ecbd1238caf101f73403d4c30476fe3ecec7fd6dd11ec7 exact_id=eb092ac3f99b6b7334c5169641436f9cd703a521b7523a2c054ca0822570be81
+  generated_exact_type get88 location=class78 nominal_id=a80e10af83e6e3ae0884f940743df094b35ff1501612fdcb3754e8930a8cada8 exact_id=dbe3e915b6cf4b62a34f0829a69e10fb040bf773326c19ca73bc6b31a2b8bce3
+  generated_exact_type get89 location=class85 nominal_id=b4be8318dda252e6b61ddb0276b88b35491aefaac25287668a0ea9ca472cae5c exact_id=dc926eca8b9e01421ab69256279e8ceca9c948a566fd23b26d4f7e13650c44c3
+  generated_exact_type get90 location=class44 nominal_id=659270577ab04547df1dbb20894a9fa076c07eed39dae5990baf34c0c366eda9 exact_id=de29598daceb9c80a94bc1b2256590169589b551b39426d338d7324443aa6aa3
+  generated_exact_type get91 location=class38 nominal_id=8d465bb5cf205ba292900c5d10907eae8b3a53aeb44256084276cf5c56e60fe8 exact_id=e0b9edae08a6ff2cf7bd651bf12328c785ec996357ac73459ef0fd3eb7f3296a
+  generated_exact_type get92 location=class41 nominal_id=b2a25f79aebedb907d36b6ee0ddcedf2ad8fd41930b9e1f7875be285f9e8797c exact_id=e1d16488e8db2c214bd55e7b2094f57d7d74917f1639d2dbb48ecfd149079bd1
+  generated_exact_type get93 location=class28 nominal_id=779a95a18d0df114d7ddb99bbbd93edd0292330d3a75db6e86004cefa5f4da8e exact_id=e2a58b62f6cee3ca3da8daef5982f1a0cced9d3bef4d8443703b0da7002b8604
+  generated_exact_type get94 location=class19 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_exact_type get95 location=enum8 nominal_id=9a95e28993b9d6728906f5098c11f064a96ee3bb9b5c3ad2676b06502ffb8525 exact_id=e6a5b491d0e18318782b47f0cf622d4b91a3a4d544fe3d58e2e3324c0c3e603d
+  generated_exact_type get96 location=class45 nominal_id=1787c9d7fa3bb6445e668878e34b654c9e8bf790f22884aea989c2b4a917d405 exact_id=e9eee86713ffc2d7224203041e485c50e681d13240dddd04a6f8ad4a7627c376
+  generated_exact_type get97 location=class40 nominal_id=73d8a8da2052dc4ef4ecbd1238caf101f73403d4c30476fe3ecec7fd6dd11ec7 exact_id=eb092ac3f99b6b7334c5169641436f9cd703a521b7523a2c054ca0822570be81
+  generated_exact_type get98 location=enum28 nominal_id=ed135c936e4a309b7dfad84ddf9dc2e4339f974c37d68ed50ed6fa7141fc67a9 exact_id=eb26c5d828e5c9159790a85fa376423924df6eba34aebe9aefd9968ab96992cc
   generated_exact_type get99 location=enum9 nominal_id=c11970ce9e4dc91eeb7add68c948d09b284552fe9710f7b7b415ca282586720b exact_id=ee8d428a247d319892f254427a97fb2e3b4033ed28347c9344ef8d4c4cbf1bcd
   generated_exact_type get100 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
   generated_exact_type get101 location=class26 nominal_id=9b4be5b30e93405513e1cdd586360cc23f00626e8630f0733cf410da88649327 exact_id=f2292f92f25898ea1dfb4080ec7acc340d9da5a4e694ded05d7fcf85dc1dd96a
@@ -4284,7 +4284,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun thunk<FunctionSuspendTask<Local>> SuspendTask.run() @fn98(this: SuspendTask<Local>, $completion: Continuation<Local>) -> CoroutineStep<Local>
+  fun thunk<FunctionSuspendTask<Local>> SuspendTask.run() @fn98(this: box<FunctionSuspendTask<Local>>, $completion: Continuation<Local>) -> CoroutineStep<Local>
     bb0 entry
       val $frame: CoroutineFrame<thunk<FunctionSuspendTask<Local>> SuspendTask.run()>
         Type CoroutineFrame<thunk<FunctionSuspendTask<Local>> SuspendTask.run()>
@@ -4307,9 +4307,9 @@ Module
       field_set 3
         Type CoroutineFrame<thunk<FunctionSuspendTask<Local>> SuspendTask.run()>
         Local $frame
-        Type CoroutineSlot<SuspendTask<Local>>
-        VariantConstruct CoroutineSlot<SuspendTask<Local>> v1
-          Type SuspendTask<Local>
+        Type CoroutineSlot<box<FunctionSuspendTask<Local>>>
+        VariantConstruct CoroutineSlot<box<FunctionSuspendTask<Local>>> v1
+          Type box<FunctionSuspendTask<Local>>
           Local this
       field_set 4
         Type CoroutineFrame<thunk<FunctionSuspendTask<Local>> SuspendTask.run()>
@@ -4329,7 +4329,7 @@ Module
       return
         Type CoroutineStep<Local>
         Local $step
-  fun thunk<FunctionSuspendTask<Int>> SuspendTask.run() @fn99(this: SuspendTask<Int>, $completion: Continuation<Int>) -> CoroutineStep<Int>
+  fun thunk<FunctionSuspendTask<Int>> SuspendTask.run() @fn99(this: box<FunctionSuspendTask<Int>>, $completion: Continuation<Int>) -> CoroutineStep<Int>
     bb0 entry
       val $frame: CoroutineFrame<thunk<FunctionSuspendTask<Int>> SuspendTask.run()>
         Type CoroutineFrame<thunk<FunctionSuspendTask<Int>> SuspendTask.run()>
@@ -4357,9 +4357,9 @@ Module
       field_set 4
         Type CoroutineFrame<thunk<FunctionSuspendTask<Int>> SuspendTask.run()>
         Local $frame
-        Type CoroutineSlot<SuspendTask<Int>>
-        VariantConstruct CoroutineSlot<SuspendTask<Int>> v1
-          Type SuspendTask<Int>
+        Type CoroutineSlot<box<FunctionSuspendTask<Int>>>
+        VariantConstruct CoroutineSlot<box<FunctionSuspendTask<Int>>> v1
+          Type box<FunctionSuspendTask<Int>>
           Local this
       field_set 5
         Type CoroutineFrame<thunk<FunctionSuspendTask<Int>> SuspendTask.run()>
@@ -4374,7 +4374,7 @@ Module
       return
         Type CoroutineStep<Int>
         Local $step
-  fun thunk<FunctionSuspendTask<Unit>> SuspendTask.run() @fn100(this: SuspendTask<Unit>, $completion: Continuation<Unit>) -> CoroutineStep<Unit>
+  fun thunk<FunctionSuspendTask<Unit>> SuspendTask.run() @fn100(this: box<FunctionSuspendTask<Unit>>, $completion: Continuation<Unit>) -> CoroutineStep<Unit>
     bb0 entry
       val $frame: CoroutineFrame<thunk<FunctionSuspendTask<Unit>> SuspendTask.run()>
         Type CoroutineFrame<thunk<FunctionSuspendTask<Unit>> SuspendTask.run()>
@@ -4397,9 +4397,9 @@ Module
       field_set 3
         Type CoroutineFrame<thunk<FunctionSuspendTask<Unit>> SuspendTask.run()>
         Local $frame
-        Type CoroutineSlot<SuspendTask<Unit>>
-        VariantConstruct CoroutineSlot<SuspendTask<Unit>> v1
-          Type SuspendTask<Unit>
+        Type CoroutineSlot<box<FunctionSuspendTask<Unit>>>
+        VariantConstruct CoroutineSlot<box<FunctionSuspendTask<Unit>>> v1
+          Type box<FunctionSuspendTask<Unit>>
           Local this
       field_set 4
         Type CoroutineFrame<thunk<FunctionSuspendTask<Unit>> SuspendTask.run()>
@@ -4767,8 +4767,10 @@ Module
         Local $dependency.local.4
         Type Counter
         Local $dependency.local.5
-        Type CoroutineAdapter<$lambda>$1
-        Local $adapter.1
+        Type Continuation<Local>
+        Retype Continuation<Local>
+          Type CoroutineAdapter<$lambda>$1
+          Local $adapter.1
       branch bb5 bb6
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -5293,8 +5295,10 @@ Module
         Local $dependency.local.4
         Type Counter
         Local $dependency.local.5
-        Type CoroutineAdapter<$lambda>$1
-        Local $adapter.1
+        Type Continuation<Int>
+        Retype Continuation<Int>
+          Type CoroutineAdapter<$lambda>$1
+          Local $adapter.1
       branch bb5 bb6
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -5819,8 +5823,10 @@ Module
         Local $dependency.local.4
         Type Counter
         Local $dependency.local.5
-        Type CoroutineAdapter<$lambda>$1
-        Local $adapter.1
+        Type Continuation<Unit>
+        Retype Continuation<Unit>
+          Type CoroutineAdapter<$lambda>$1
+          Local $adapter.1
       branch bb5 bb6
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -6342,8 +6348,10 @@ Module
       call $step.1: CoroutineStep<Unit> = @fn64 direct
         Type Gate<Unit>
         Local $dependency.local.5
-        Type CoroutineAdapter<$lambda>$1
-        Local $adapter.1
+        Type Continuation<Unit>
+        Retype Continuation<Unit>
+          Type CoroutineAdapter<$lambda>$1
+          Local $adapter.1
       branch bb48 bb49
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -6396,8 +6404,10 @@ Module
       call $step.2: CoroutineStep<Local> = @fn63 direct
         Type Gate<Local>
         Local $dependency.local.2
-        Type CoroutineAdapter<$lambda>$2
-        Local $adapter.2
+        Type Continuation<Local>
+        Retype Continuation<Local>
+          Type CoroutineAdapter<$lambda>$2
+          Local $adapter.2
       branch bb40 bb41
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -6451,8 +6461,10 @@ Module
       call $step.3: CoroutineStep<Unit> = @fn64 direct
         Type Gate<Unit>
         Local $dependency.local.5
-        Type CoroutineAdapter<$lambda>$3
-        Local $adapter.3
+        Type Continuation<Unit>
+        Retype Continuation<Unit>
+          Type CoroutineAdapter<$lambda>$3
+          Local $adapter.3
       branch bb32 bb33
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -6513,8 +6525,10 @@ Module
       call $step.4: CoroutineStep<Unit> = @fn64 direct
         Type Gate<Unit>
         Local $dependency.local.5
-        Type CoroutineAdapter<$lambda>$4
-        Local $adapter.4
+        Type Continuation<Unit>
+        Retype Continuation<Unit>
+          Type CoroutineAdapter<$lambda>$4
+          Local $adapter.4
       branch bb24 bb25
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -6575,8 +6589,10 @@ Module
       call $step.5: CoroutineStep<Unit> = @fn64 direct
         Type Gate<Unit>
         Local $dependency.local.5
-        Type CoroutineAdapter<$lambda>$5
-        Local $adapter.5
+        Type Continuation<Unit>
+        Retype Continuation<Unit>
+          Type CoroutineAdapter<$lambda>$5
+          Local $adapter.5
       branch bb16 bb17
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -8936,8 +8952,10 @@ Module
         FieldAccess 0
           Type FunctionSuspendTask<Local>
           Local this
-        Type CoroutineAdapter<run>$1
-        Local $adapter.1
+        Type Continuation<Local>
+        Retype Continuation<Local>
+          Type CoroutineAdapter<run>$1
+          Local $adapter.1
       branch bb5 bb6
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -9464,8 +9482,10 @@ Module
       call $step.1: CoroutineStep<Unit> = @fn64 direct
         Type Gate<Unit>
         Local $dependency.local.6
-        Type CoroutineAdapter<delayedFinally>$1
-        Local $adapter.1
+        Type Continuation<Unit>
+        Retype Continuation<Unit>
+          Type CoroutineAdapter<delayedFinally>$1
+          Local $adapter.1
       branch bb26 bb27
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -9519,8 +9539,10 @@ Module
       call $step.2: CoroutineStep<Local> = @fn63 direct
         Type Gate<Local>
         Local $dependency.local.4
-        Type CoroutineAdapter<delayedFinally>$2
-        Local $adapter.2
+        Type Continuation<Local>
+        Retype Continuation<Local>
+          Type CoroutineAdapter<delayedFinally>$2
+          Local $adapter.2
       branch bb18 bb19
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -9572,8 +9594,10 @@ Module
       call $step.3: CoroutineStep<Unit> = @fn64 direct
         Type Gate<Unit>
         Local $dependency.local.6
-        Type CoroutineAdapter<delayedFinally>$3
-        Local $adapter.3
+        Type Continuation<Unit>
+        Retype Continuation<Unit>
+          Type CoroutineAdapter<delayedFinally>$3
+          Local $adapter.3
       branch bb10 bb11
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -11081,8 +11105,10 @@ Module
       call $step.1: CoroutineStep<Unit> = @fn64 direct
         Type Gate<Unit>
         Local $dependency.local.5
-        Type CoroutineAdapter<$lambda>$1
-        Local $adapter.1
+        Type Continuation<Unit>
+        Retype Continuation<Unit>
+          Type CoroutineAdapter<$lambda>$1
+          Local $adapter.1
       branch bb48 bb49
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -11135,8 +11161,10 @@ Module
       call $step.2: CoroutineStep<Int> = @fn65 direct
         Type Gate<Int>
         Local $dependency.local.2
-        Type CoroutineAdapter<$lambda>$2
-        Local $adapter.2
+        Type Continuation<Int>
+        Retype Continuation<Int>
+          Type CoroutineAdapter<$lambda>$2
+          Local $adapter.2
       branch bb40 bb41
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -11190,8 +11218,10 @@ Module
       call $step.3: CoroutineStep<Unit> = @fn64 direct
         Type Gate<Unit>
         Local $dependency.local.5
-        Type CoroutineAdapter<$lambda>$3
-        Local $adapter.3
+        Type Continuation<Unit>
+        Retype Continuation<Unit>
+          Type CoroutineAdapter<$lambda>$3
+          Local $adapter.3
       branch bb32 bb33
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -11252,8 +11282,10 @@ Module
       call $step.4: CoroutineStep<Unit> = @fn64 direct
         Type Gate<Unit>
         Local $dependency.local.5
-        Type CoroutineAdapter<$lambda>$4
-        Local $adapter.4
+        Type Continuation<Unit>
+        Retype Continuation<Unit>
+          Type CoroutineAdapter<$lambda>$4
+          Local $adapter.4
       branch bb24 bb25
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -11314,8 +11346,10 @@ Module
       call $step.5: CoroutineStep<Unit> = @fn64 direct
         Type Gate<Unit>
         Local $dependency.local.5
-        Type CoroutineAdapter<$lambda>$5
-        Local $adapter.5
+        Type Continuation<Unit>
+        Retype Continuation<Unit>
+          Type CoroutineAdapter<$lambda>$5
+          Local $adapter.5
       branch bb16 bb17
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -13675,8 +13709,10 @@ Module
         FieldAccess 0
           Type FunctionSuspendTask<Int>
           Local this
-        Type CoroutineAdapter<run>$1
-        Local $adapter.1
+        Type Continuation<Int>
+        Retype Continuation<Int>
+          Type CoroutineAdapter<run>$1
+          Local $adapter.1
       branch bb5 bb6
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -14203,8 +14239,10 @@ Module
       call $step.1: CoroutineStep<Unit> = @fn64 direct
         Type Gate<Unit>
         Local $dependency.local.6
-        Type CoroutineAdapter<delayedFinally>$1
-        Local $adapter.1
+        Type Continuation<Unit>
+        Retype Continuation<Unit>
+          Type CoroutineAdapter<delayedFinally>$1
+          Local $adapter.1
       branch bb26 bb27
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -14258,8 +14296,10 @@ Module
       call $step.2: CoroutineStep<Int> = @fn65 direct
         Type Gate<Int>
         Local $dependency.local.4
-        Type CoroutineAdapter<delayedFinally>$2
-        Local $adapter.2
+        Type Continuation<Int>
+        Retype Continuation<Int>
+          Type CoroutineAdapter<delayedFinally>$2
+          Local $adapter.2
       branch bb18 bb19
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -14311,8 +14351,10 @@ Module
       call $step.3: CoroutineStep<Unit> = @fn64 direct
         Type Gate<Unit>
         Local $dependency.local.6
-        Type CoroutineAdapter<delayedFinally>$3
-        Local $adapter.3
+        Type Continuation<Unit>
+        Retype Continuation<Unit>
+          Type CoroutineAdapter<delayedFinally>$3
+          Local $adapter.3
       branch bb10 bb11
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -15820,8 +15862,10 @@ Module
       call $step.1: CoroutineStep<Unit> = @fn64 direct
         Type Gate<Unit>
         Local $dependency.local.5
-        Type CoroutineAdapter<$lambda>$1
-        Local $adapter.1
+        Type Continuation<Unit>
+        Retype Continuation<Unit>
+          Type CoroutineAdapter<$lambda>$1
+          Local $adapter.1
       branch bb48 bb49
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -15876,8 +15920,10 @@ Module
       call $step.2: CoroutineStep<Unit> = @fn64 direct
         Type Gate<Unit>
         Local $dependency.local.2
-        Type CoroutineAdapter<$lambda>$2
-        Local $adapter.2
+        Type Continuation<Unit>
+        Retype Continuation<Unit>
+          Type CoroutineAdapter<$lambda>$2
+          Local $adapter.2
       branch bb40 bb41
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -15931,8 +15977,10 @@ Module
       call $step.3: CoroutineStep<Unit> = @fn64 direct
         Type Gate<Unit>
         Local $dependency.local.5
-        Type CoroutineAdapter<$lambda>$3
-        Local $adapter.3
+        Type Continuation<Unit>
+        Retype Continuation<Unit>
+          Type CoroutineAdapter<$lambda>$3
+          Local $adapter.3
       branch bb32 bb33
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -15993,8 +16041,10 @@ Module
       call $step.4: CoroutineStep<Unit> = @fn64 direct
         Type Gate<Unit>
         Local $dependency.local.5
-        Type CoroutineAdapter<$lambda>$4
-        Local $adapter.4
+        Type Continuation<Unit>
+        Retype Continuation<Unit>
+          Type CoroutineAdapter<$lambda>$4
+          Local $adapter.4
       branch bb24 bb25
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -16055,8 +16105,10 @@ Module
       call $step.5: CoroutineStep<Unit> = @fn64 direct
         Type Gate<Unit>
         Local $dependency.local.5
-        Type CoroutineAdapter<$lambda>$5
-        Local $adapter.5
+        Type Continuation<Unit>
+        Retype Continuation<Unit>
+          Type CoroutineAdapter<$lambda>$5
+          Local $adapter.5
       branch bb16 bb17
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -18395,8 +18447,10 @@ Module
         FieldAccess 0
           Type FunctionSuspendTask<Unit>
           Local this
-        Type CoroutineAdapter<run>$1
-        Local $adapter.1
+        Type Continuation<Unit>
+        Retype Continuation<Unit>
+          Type CoroutineAdapter<run>$1
+          Local $adapter.1
       branch bb5 bb6
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -18902,8 +18956,10 @@ Module
       call $step.1: CoroutineStep<Unit> = @fn64 direct
         Type Gate<Unit>
         Local $dependency.local.6
-        Type CoroutineAdapter<delayedFinally>$1
-        Local $adapter.1
+        Type Continuation<Unit>
+        Retype Continuation<Unit>
+          Type CoroutineAdapter<delayedFinally>$1
+          Local $adapter.1
       branch bb26 bb27
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -18957,8 +19013,10 @@ Module
       call $step.2: CoroutineStep<Unit> = @fn64 direct
         Type Gate<Unit>
         Local $dependency.local.4
-        Type CoroutineAdapter<delayedFinally>$2
-        Local $adapter.2
+        Type Continuation<Unit>
+        Retype Continuation<Unit>
+          Type CoroutineAdapter<delayedFinally>$2
+          Local $adapter.2
       branch bb18 bb19
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -19003,8 +19061,10 @@ Module
       call $step.3: CoroutineStep<Unit> = @fn64 direct
         Type Gate<Unit>
         Local $dependency.local.6
-        Type CoroutineAdapter<delayedFinally>$3
-        Local $adapter.3
+        Type Continuation<Unit>
+        Retype Continuation<Unit>
+          Type CoroutineAdapter<delayedFinally>$3
+          Local $adapter.3
       branch bb10 bb11
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -20468,8 +20528,10 @@ Module
       call @fn79 interface SuspendRegistration<Local>[0]
         Type SuspendRegistration<Local>
         Local $dependency.local.4
-        Type CoroutineAdapter<await>$1
-        Local $safe_adapter.1
+        Type Continuation<Local>
+        Retype Continuation<Local>
+          Type CoroutineAdapter<await>$1
+          Local $safe_adapter.1
       goto bb14
     bb3 coroutine.registered_success.1
       atomic_store_release kind=coroutine-adapter-state field=1
@@ -21226,8 +21288,10 @@ Module
       call @fn73 interface SuspendRegistration<Unit>[0]
         Type SuspendRegistration<Unit>
         Local $dependency.local.4
-        Type CoroutineAdapter<await>$1
-        Local $safe_adapter.1
+        Type Continuation<Unit>
+        Retype Continuation<Unit>
+          Type CoroutineAdapter<await>$1
+          Local $safe_adapter.1
       goto bb14
     bb3 coroutine.registered_success.1
       atomic_store_release kind=coroutine-adapter-state field=1
@@ -21961,8 +22025,10 @@ Module
       call @fn76 interface SuspendRegistration<Int>[0]
         Type SuspendRegistration<Int>
         Local $dependency.local.4
-        Type CoroutineAdapter<await>$1
-        Local $safe_adapter.1
+        Type Continuation<Int>
+        Retype Continuation<Int>
+          Type CoroutineAdapter<await>$1
+          Local $safe_adapter.1
       goto bb14
     bb3 coroutine.registered_success.1
       atomic_store_release kind=coroutine-adapter-state field=1
@@ -22679,10 +22745,12 @@ Module
       call $step.1: CoroutineStep<Local> = @fn39 direct
         Type FunctionSuspendTask<Local>
         Unbox
-          Type SuspendTask<Local>
+          Type box<FunctionSuspendTask<Local>>
           Local this
-        Type CoroutineAdapter<thunk<FunctionSuspendTask<Local>> SuspendTask.run()>$1
-        Local $adapter.1
+        Type Continuation<Local>
+        Retype Continuation<Local>
+          Type CoroutineAdapter<thunk<FunctionSuspendTask<Local>> SuspendTask.run()>$1
+          Local $adapter.1
       branch bb5 bb6
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -22772,9 +22840,9 @@ Module
             Local $frame
     bb9 coroutine.initial
       assign this
-        Type SuspendTask<Local>
+        Type box<FunctionSuspendTask<Local>>
         EnumField v1 f0
-          Type CoroutineSlot<SuspendTask<Local>>
+          Type CoroutineSlot<box<FunctionSuspendTask<Local>>>
           FieldAccess 3
             Type CoroutineFrame<thunk<FunctionSuspendTask<Local>> SuspendTask.run()>
             Local $frame
@@ -23179,10 +23247,12 @@ Module
       call $step.1: CoroutineStep<Int> = @fn51 direct
         Type FunctionSuspendTask<Int>
         Unbox
-          Type SuspendTask<Int>
+          Type box<FunctionSuspendTask<Int>>
           Local this
-        Type CoroutineAdapter<thunk<FunctionSuspendTask<Int>> SuspendTask.run()>$1
-        Local $adapter.1
+        Type Continuation<Int>
+        Retype Continuation<Int>
+          Type CoroutineAdapter<thunk<FunctionSuspendTask<Int>> SuspendTask.run()>$1
+          Local $adapter.1
       branch bb5 bb6
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -23272,9 +23342,9 @@ Module
             Local $frame
     bb9 coroutine.initial
       assign this
-        Type SuspendTask<Int>
+        Type box<FunctionSuspendTask<Int>>
         EnumField v1 f0
-          Type CoroutineSlot<SuspendTask<Int>>
+          Type CoroutineSlot<box<FunctionSuspendTask<Int>>>
           FieldAccess 4
             Type CoroutineFrame<thunk<FunctionSuspendTask<Int>> SuspendTask.run()>
             Local $frame
@@ -23679,10 +23749,12 @@ Module
       call $step.1: CoroutineStep<Unit> = @fn60 direct
         Type FunctionSuspendTask<Unit>
         Unbox
-          Type SuspendTask<Unit>
+          Type box<FunctionSuspendTask<Unit>>
           Local this
-        Type CoroutineAdapter<thunk<FunctionSuspendTask<Unit>> SuspendTask.run()>$1
-        Local $adapter.1
+        Type Continuation<Unit>
+        Retype Continuation<Unit>
+          Type CoroutineAdapter<thunk<FunctionSuspendTask<Unit>> SuspendTask.run()>$1
+          Local $adapter.1
       branch bb5 bb6
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -23760,9 +23832,9 @@ Module
             Local $frame
     bb9 coroutine.initial
       assign this
-        Type SuspendTask<Unit>
+        Type box<FunctionSuspendTask<Unit>>
         EnumField v1 f0
-          Type CoroutineSlot<SuspendTask<Unit>>
+          Type CoroutineSlot<box<FunctionSuspendTask<Unit>>>
           FieldAccess 3
             Type CoroutineFrame<thunk<FunctionSuspendTask<Unit>> SuspendTask.run()>
             Local $frame
@@ -24158,8 +24230,10 @@ Module
       call $step.1: CoroutineStep<Local> = <closure:function_type4> closure[function_type4]
         Type suspend () -> Local
         Local $source
-        Type CoroutineAdapter<function_bridge.$Closure$lambda3.suspend () -> Any>$1
-        Local $adapter.1
+        Type Continuation<Local>
+        Retype Continuation<Local>
+          Type CoroutineAdapter<function_bridge.$Closure$lambda3.suspend () -> Any>$1
+          Local $adapter.1
       branch bb5 bb6
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -24658,8 +24732,10 @@ Module
       call $step.1: CoroutineStep<Int> = <closure:function_type6> closure[function_type6]
         Type suspend () -> Int
         Local $source
-        Type CoroutineAdapter<function_bridge.$Closure$lambda4.suspend () -> Any>$1
-        Local $adapter.1
+        Type Continuation<Int>
+        Retype Continuation<Int>
+          Type CoroutineAdapter<function_bridge.$Closure$lambda4.suspend () -> Any>$1
+          Local $adapter.1
       branch bb5 bb6
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -25158,8 +25234,10 @@ Module
       call $step.1: CoroutineStep<Unit> = <closure:function_type7> closure[function_type7]
         Type suspend () -> Unit
         Local $source
-        Type CoroutineAdapter<function_bridge.$Closure$lambda5.suspend () -> Any>$1
-        Local $adapter.1
+        Type Continuation<Unit>
+        Retype Continuation<Unit>
+          Type CoroutineAdapter<function_bridge.$Closure$lambda5.suspend () -> Any>$1
+          Local $adapter.1
       branch bb5 bb6
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -25637,8 +25715,10 @@ Module
       call $step.1: CoroutineStep<Local> = <closure:function_type4> closure[function_type4]
         Type suspend () -> Local
         Local $source
-        Type CoroutineAdapter<function_bridge.$Closure$lambda6.suspend () -> Any>$1
-        Local $adapter.1
+        Type Continuation<Local>
+        Retype Continuation<Local>
+          Type CoroutineAdapter<function_bridge.$Closure$lambda6.suspend () -> Any>$1
+          Local $adapter.1
       branch bb5 bb6
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -26137,8 +26217,10 @@ Module
       call $step.1: CoroutineStep<Int> = <closure:function_type6> closure[function_type6]
         Type suspend () -> Int
         Local $source
-        Type CoroutineAdapter<function_bridge.$Closure$lambda7.suspend () -> Any>$1
-        Local $adapter.1
+        Type Continuation<Int>
+        Retype Continuation<Int>
+          Type CoroutineAdapter<function_bridge.$Closure$lambda7.suspend () -> Any>$1
+          Local $adapter.1
       branch bb5 bb6
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -26637,8 +26719,10 @@ Module
       call $step.1: CoroutineStep<Unit> = <closure:function_type7> closure[function_type7]
         Type suspend () -> Unit
         Local $source
-        Type CoroutineAdapter<function_bridge.$Closure$lambda8.suspend () -> Any>$1
-        Local $adapter.1
+        Type Continuation<Unit>
+        Retype Continuation<Unit>
+          Type CoroutineAdapter<function_bridge.$Closure$lambda8.suspend () -> Any>$1
+          Local $adapter.1
       branch bb5 bb6
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -27111,9 +27195,9 @@ Module
   coroutine_slot cl11 CoroutineSlot<Gate<Int>> value=Gate<Int>
   coroutine_slot cl12 CoroutineSlot<Unit> value=Unit
   coroutine_slot cl13 CoroutineSlot<FunctionSuspendTask<Unit>> value=FunctionSuspendTask<Unit>
-  coroutine_slot cl14 CoroutineSlot<SuspendTask<Local>> value=SuspendTask<Local>
-  coroutine_slot cl15 CoroutineSlot<SuspendTask<Int>> value=SuspendTask<Int>
-  coroutine_slot cl16 CoroutineSlot<SuspendTask<Unit>> value=SuspendTask<Unit>
+  coroutine_slot cl14 CoroutineSlot<box<FunctionSuspendTask<Local>>> value=box<FunctionSuspendTask<Local>>
+  coroutine_slot cl15 CoroutineSlot<box<FunctionSuspendTask<Int>>> value=box<FunctionSuspendTask<Int>>
+  coroutine_slot cl16 CoroutineSlot<box<FunctionSuspendTask<Unit>>> value=box<FunctionSuspendTask<Unit>>
   coroutine_start ct0 result=Local function=fn97
   coroutine_saved cv0 class=CoroutineFrame<$lambda> field=3 slot=cl1 value=suspend () -> Local
   coroutine_saved cv1 class=CoroutineFrame<$lambda> field=4 slot=cl0 value=Local
@@ -27160,11 +27244,11 @@ Module
   coroutine_saved cv42 class=CoroutineFrame<await> field=3 slot=cl8 value=Gate<Unit>
   coroutine_saved cv43 class=CoroutineFrame<await> field=3 slot=cl11 value=Gate<Int>
   coroutine_saved cv44 class=CoroutineFrame<await> field=4 slot=cl4 value=Int
-  coroutine_saved cv45 class=CoroutineFrame<thunk<FunctionSuspendTask<Local>> SuspendTask.run()> field=3 slot=cl14 value=SuspendTask<Local>
+  coroutine_saved cv45 class=CoroutineFrame<thunk<FunctionSuspendTask<Local>> SuspendTask.run()> field=3 slot=cl14 value=box<FunctionSuspendTask<Local>>
   coroutine_saved cv46 class=CoroutineFrame<thunk<FunctionSuspendTask<Local>> SuspendTask.run()> field=4 slot=cl0 value=Local
   coroutine_saved cv47 class=CoroutineFrame<thunk<FunctionSuspendTask<Int>> SuspendTask.run()> field=3 slot=cl4 value=Int
-  coroutine_saved cv48 class=CoroutineFrame<thunk<FunctionSuspendTask<Int>> SuspendTask.run()> field=4 slot=cl15 value=SuspendTask<Int>
-  coroutine_saved cv49 class=CoroutineFrame<thunk<FunctionSuspendTask<Unit>> SuspendTask.run()> field=3 slot=cl16 value=SuspendTask<Unit>
+  coroutine_saved cv48 class=CoroutineFrame<thunk<FunctionSuspendTask<Int>> SuspendTask.run()> field=4 slot=cl15 value=box<FunctionSuspendTask<Int>>
+  coroutine_saved cv49 class=CoroutineFrame<thunk<FunctionSuspendTask<Unit>> SuspendTask.run()> field=3 slot=cl16 value=box<FunctionSuspendTask<Unit>>
   coroutine_saved cv50 class=CoroutineFrame<function_bridge.$Closure$lambda3.suspend () -> Any> field=3 slot=cl1 value=suspend () -> Local
   coroutine_saved cv51 class=CoroutineFrame<function_bridge.$Closure$lambda3.suspend () -> Any> field=4 slot=cl0 value=Local
   coroutine_saved cv52 class=CoroutineFrame<function_bridge.$Closure$lambda4.suspend () -> Any> field=3 slot=cl4 value=Int

@@ -1,0 +1,21 @@
+{
+  "argv": [
+    "/home/chenxu/repos/scoop/target/release/scoop-link",
+    "--root-slib",
+    "/home/chenxu/repos/scoop/tmp/m34/baseline-linux-gnu-release/cache/compile-v1/12858fd92d8cc5045e3f14ad20640ad0281cb94d5d6d9ebd2f3784baf77fc26a/artifact.slib",
+    "--dep-slib",
+    "/home/chenxu/repos/scoop/tmp/m34/baseline-linux-gnu-release/cache/compile-v1/fa684831ea676829d6afb3549f1e71cfdbcf57ea0673f1cb2b03c4818050f51e/artifact.slib",
+    "--runtime-objects",
+    "/home/chenxu/repos/scoop/tmp/m34/baseline-linux-gnu-release/cache/runtime-v1/f2616fc9b46cb8565635af27295d349ef16e05981d51944b8ef8175f27fd4591/index.cbor",
+    "-o",
+    "/home/chenxu/repos/scoop/tmp/m34/m10-old-abi-rejected",
+    "--target",
+    "x86_64-unknown-linux-gnu",
+    "--unwind-prefix",
+    "/home/chenxu/repos/scoop/sysroot/native/x86_64-unknown-linux-gnu/unwind"
+  ],
+  "exit": 1,
+  "stdout": "",
+  "stderr": "scoop-link: program Link input /home/chenxu/repos/scoop/tmp/m34/baseline-linux-gnu-release/cache/compile-v1/12858fd92d8cc5045e3f14ad20640ad0281cb94d5d6d9ebd2f3784baf77fc26a/artifact.slib: runtime ABI fingerprint mismatch: expected 54f8b11101c6fd80f93492fe8ccd2b2bcd0e917cf1a697273de5d8c379376586, found 8d0878fbaa8a430839c184f53feba9db6305368881034179e1bb13e5e0b8d583\n",
+  "output_exists": false
+}

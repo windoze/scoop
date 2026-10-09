@@ -1,0 +1,375 @@
+{
+  "schema": 1,
+  "complete": false,
+  "discovered": 2920,
+  "selected": 40,
+  "unselected": 2880,
+  "counts": {
+    "passed": 40
+  },
+  "variants": 80,
+  "processes": 436,
+  "stage_and_plan_goldens": 288,
+  "results": [
+    {
+      "name": "m34-allocation-accounting",
+      "status": "passed",
+      "seconds": 16.51383167001768,
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m34-allocation-threads",
+      "status": "passed",
+      "seconds": 16.849292516009882,
+      "variants": 2,
+      "processes": 12,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m34-containers-artifacts",
+      "status": "passed",
+      "seconds": 40.35559586898307,
+      "variants": 2,
+      "processes": 12,
+      "snapshots": 12,
+      "message": ""
+    },
+    {
+      "name": "m34-containers-builder",
+      "status": "passed",
+      "seconds": 41.60133574900101,
+      "variants": 2,
+      "processes": 12,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m34-containers-storage",
+      "status": "passed",
+      "seconds": 37.06183622899698,
+      "variants": 2,
+      "processes": 12,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m34-containers-updates",
+      "status": "passed",
+      "seconds": 33.76874769499409,
+      "variants": 2,
+      "processes": 12,
+      "snapshots": 12,
+      "message": ""
+    },
+    {
+      "name": "m34-devirtualization-artifacts",
+      "status": "passed",
+      "seconds": 29.628757958998904,
+      "variants": 2,
+      "processes": 12,
+      "snapshots": 12,
+      "message": ""
+    },
+    {
+      "name": "m34-devirtualization-locals",
+      "status": "passed",
+      "seconds": 14.502817371016135,
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m34-devirtualization-slots",
+      "status": "passed",
+      "seconds": 14.789428816002328,
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m34-direct-c-artifacts",
+      "status": "passed",
+      "seconds": 30.55695339399972,
+      "variants": 2,
+      "processes": 16,
+      "snapshots": 12,
+      "message": ""
+    },
+    {
+      "name": "m34-direct-c-registers",
+      "status": "passed",
+      "seconds": 14.316864136984805,
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m34-direct-c-values",
+      "status": "passed",
+      "seconds": 15.591047602996696,
+      "variants": 2,
+      "processes": 12,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m34-inlining-artifacts",
+      "status": "passed",
+      "seconds": 29.081109127990203,
+      "variants": 2,
+      "processes": 12,
+      "snapshots": 12,
+      "message": ""
+    },
+    {
+      "name": "m34-inlining-decisions",
+      "status": "passed",
+      "seconds": 14.304933145001996,
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m34-inlining-growth",
+      "status": "passed",
+      "seconds": 13.974453175003873,
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m34-inlining-release",
+      "status": "passed",
+      "seconds": 14.184372017014539,
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m34-inlining-semantics",
+      "status": "passed",
+      "seconds": 15.14313787300489,
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m34-interfaces-artifacts",
+      "status": "passed",
+      "seconds": 30.477481356996577,
+      "variants": 2,
+      "processes": 12,
+      "snapshots": 12,
+      "message": ""
+    },
+    {
+      "name": "m34-interfaces-atomics",
+      "status": "passed",
+      "seconds": 14.23775979099446,
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m34-interfaces-concurrency",
+      "status": "passed",
+      "seconds": 14.75257439300185,
+      "variants": 2,
+      "processes": 12,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m34-interfaces-coroutines",
+      "status": "passed",
+      "seconds": 17.32923166602268,
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m34-interfaces-native",
+      "status": "passed",
+      "seconds": 14.530913936003344,
+      "variants": 2,
+      "processes": 12,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m34-interfaces-values",
+      "status": "passed",
+      "seconds": 17.25436612602789,
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m34-maybe-uninit-artifacts",
+      "status": "passed",
+      "seconds": 30.58858308501658,
+      "variants": 2,
+      "processes": 12,
+      "snapshots": 12,
+      "message": ""
+    },
+    {
+      "name": "m34-maybe-uninit-callables",
+      "status": "passed",
+      "seconds": 14.756636025005719,
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m34-maybe-uninit-gc",
+      "status": "passed",
+      "seconds": 17.388096827984555,
+      "variants": 2,
+      "processes": 14,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m34-maybe-uninit-values",
+      "status": "passed",
+      "seconds": 16.85904378100531,
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m34-parallel-threads",
+      "status": "passed",
+      "seconds": 16.694491675007157,
+      "variants": 2,
+      "processes": 20,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m34-parallel-values",
+      "status": "passed",
+      "seconds": 18.028722702001687,
+      "variants": 2,
+      "processes": 18,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m34-poll-roots",
+      "status": "passed",
+      "seconds": 15.13972479099175,
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m34-poll-threads",
+      "status": "passed",
+      "seconds": 14.849347178998869,
+      "variants": 2,
+      "processes": 12,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m34-reclamation-growth",
+      "status": "passed",
+      "seconds": 17.733504094998352,
+      "variants": 2,
+      "processes": 12,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m34-reclamation-pins",
+      "status": "passed",
+      "seconds": 19.351270921994,
+      "variants": 2,
+      "processes": 12,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m34-regions-threads",
+      "status": "passed",
+      "seconds": 17.467308110004524,
+      "variants": 2,
+      "processes": 14,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m34-regions-values",
+      "status": "passed",
+      "seconds": 17.151190402015345,
+      "variants": 2,
+      "processes": 12,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m34-small-values",
+      "status": "passed",
+      "seconds": 15.223090567014879,
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m34-small-values-artifacts",
+      "status": "passed",
+      "seconds": 28.5757560430211,
+      "variants": 2,
+      "processes": 12,
+      "snapshots": 12,
+      "message": ""
+    },
+    {
+      "name": "m34-small-values-core-floating",
+      "status": "passed",
+      "seconds": 14.502995935996296,
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m34-small-values-core-string",
+      "status": "passed",
+      "seconds": 14.673815889982507,
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m34-small-values-native",
+      "status": "passed",
+      "seconds": 13.930906761990627,
+      "variants": 2,
+      "processes": 14,
+      "snapshots": 6,
+      "message": ""
+    }
+  ]
+}

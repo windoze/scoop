@@ -1,0 +1,75 @@
+struct Pair(val first: Long, val second: Int)
+struct Empty()
+struct Padded(val first: Byte, val second: Long)
+struct FloatPair(val first: Float, val second: Float)
+enum Choice { Empty, Number(Long) }
+object Counts { var value: Int = 0 }
+
+fun check(value: Boolean, marker: Int) { if (!value) { println(marker); throw IllegalStateException() } }
+fun sideEffect(): Empty { Counts.value += 1; return Empty() }
+fun companionEffect(): MaybeUninit<Int>.Companion {
+    Counts.value += 10
+    return MaybeUninit<Int>.Companion
+}
+@NoGC fun intValue(value: Int): MaybeUninit<Int> = MaybeUninit<Int>.initialized(value)
+@NoGC @Unsafe fun readInt(value: MaybeUninit<Int>): Int = value.assumeInit()
+
+fun <T> roundTrip(value: MaybeUninit<T>): MaybeUninit<T> {
+    try { gcCollect(); return value }
+    catch (error: IllegalStateException) { return value }
+}
+
+@Unsafe fun paddingAndBits() {
+    val zero = MaybeUninit<Padded>.uninit()
+    val bytes = addressOf(zero).cast<Byte>()
+    var index = 0L
+    while (index < 16L) { check(bytes.load(index) == 0.toInt8(), 25); index += 1L }
+    var source = Padded(7.toInt8(), 42L)
+    addressOf(source).cast<Byte>().store(3, 99.toInt8())
+    val copied = roundTrip(MaybeUninit<Padded>.initialized(source))
+    check(addressOf(copied).cast<Byte>().load(3) == 99.toInt8(), 24)
+    val initialized = copied.assumeInit()
+    check(addressOf(initialized).cast<Byte>().load(3) == 99.toInt8(), 23)
+    check(initialized.first == 7.toInt8() && initialized.second == 42L, 22)
+    var bits = 0xff800123U
+    val floating = addressOf(bits).cast<Float>().load()
+    val wrapped = roundTrip(MaybeUninit<Float>.initialized(floating))
+    val extracted = wrapped.assumeInit()
+    check(addressOf(extracted).cast<UInt>().load() == bits, 21)
+    val floats = roundTrip(MaybeUninit<FloatPair>.initialized(FloatPair(1.5f, -0f))).assumeInit()
+    check(floats.first == 1.5f, 20)
+    val negativeZero = floats.second
+    check(addressOf(negativeZero).cast<UInt>().load() == 0x80000000U, 19)
+}
+
+@Unsafe fun main() {
+    check(sizeOf<MaybeUninit<Int>>() == 4UL && alignOf<MaybeUninit<Int>>() == 4UL, 18)
+    check(sizeOf<MaybeUninit<Pair>>() == sizeOf<Pair>(), 17)
+    check(alignOf<MaybeUninit<Pair>>() == alignOf<Pair>(), 16)
+    check(sizeOf<MaybeUninit<Empty>>() == 0UL, 15)
+    check(sizeOf<MaybeUninit<String>>() == 8UL, 14)
+    check(sizeOf<MaybeUninit<String>?>() > sizeOf<MaybeUninit<String>>(), 13)
+    check(sizeOf<MaybeUninit<String?>>() == 8UL, 12)
+    check(readInt(intValue(37)) == 37, 11)
+    check(MaybeUninit<Int>.uninit().assumeInit() == 0, 10)
+    var first = MaybeUninit<Pair>.initialized(Pair(12L, 9))
+    val second = first
+    first = MaybeUninit<Pair>.initialized(Pair(14L, 10))
+    check(second.assumeInit().first == 12L && first.assumeInit().first == 14L, 9)
+    val nested = MaybeUninit<MaybeUninit<Pair>>.initialized(second)
+    check(roundTrip(nested).assumeInit().assumeInit().second == 9, 8)
+    val none = MaybeUninit<String?>.initialized(None)
+    check(roundTrip(none).assumeInit() == None, 7)
+    val choice = MaybeUninit<Choice>.initialized(Choice.Number(55L))
+    check(when (roundTrip(choice).assumeInit()) { Choice.Empty -> false; Choice.Number(n) -> n == 55L }, 6)
+    val empty = MaybeUninit<Empty>.initialized(sideEffect())
+    empty.assumeInit()
+    check(Counts.value == 1, 5)
+    check(companionEffect().initialized(91).assumeInit() == 91, 4)
+    check(companionEffect().uninit().assumeInit() == 0, 3)
+    check(Counts.value == 21, 2)
+    val (left, right) = MaybeUninit<(Int, Long)>.initialized((4, 8L)).assumeInit()
+    check(left == 4 && right == 8L, 1)
+    paddingAndBits()
+    println("maybe values")
+}

@@ -107,7 +107,7 @@ checks = [
   {"file" = "${work}/dump/downstream/${downstream.result.root.identity}/ast.txt", "snapshot" = "downstream.ast.txt"},
   {"file" = "${work}/dump/downstream/${downstream.result.root.identity}/hir.txt", "snapshot" = "downstream.hir.txt"},
   {"file" = "${work}/dump/downstream/${downstream.result.root.identity}/mir.txt", "snapshot" = "downstream.mir.txt"},
-  {"file" = "${work}/dump/downstream/${downstream.result.root.identity}/lir.txt", "snapshot" = "downstream.lir.txt"},
+  {"file" = "${work}/dump/downstream/${downstream.result.root.identity}/lir.txt", "snapshot" = "downstream.${target}.lir.txt"},
 ]
 
 [[steps]]

@@ -11,7 +11,7 @@ Module
   class Exception vtable=0 itables=0
   class Throwable vtable=0 itables=0
   class Ref vtable=0 itables=0
-  class Singleton vtable=0 itables=4
+  class Singleton vtable=0 itables=0
   class ClassCastException vtable=0 itables=0
   class box<Payload> vtable=0 itables=0
   class box<Choice> vtable=0 itables=0

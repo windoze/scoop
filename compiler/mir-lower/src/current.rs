@@ -25,6 +25,7 @@ pub(super) fn external_equality(
 pub fn lower_current_cone(
     output: &scoop_hir::DependencyHirOutput,
     mut selected_callables: mir::SelectedExternalMirSet,
+    optimization: MirOptimizationOptions,
 ) -> Result<mir::DependencyMirOutput, CurrentConeMirLoweringError> {
     let hir = output.output().local.module();
     if selected_callables.consumer() != hir.cone {
@@ -100,13 +101,14 @@ pub fn lower_current_cone(
             signature_types.insert(ty);
         }
     }
-    let module = lower_with_dependencies(
+    let mut module = lower_with_dependencies(
         &output.output().local,
         callables,
         dependency_mapping,
         objects,
         &signature_types.into_iter().collect::<Vec<_>>(),
     );
+    optimization::run(&mut module, &selected_callables, optimization);
     mir::DependencyMirOutput::try_new(module, selected_callables)
         .map_err(CurrentConeMirLoweringError::InvalidOutput)
 }

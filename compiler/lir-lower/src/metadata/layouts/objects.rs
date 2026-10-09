@@ -172,6 +172,7 @@ pub(crate) fn class_definition_layout(
                     unreachable!("intrinsic arrays use the typed ArrayType metadata arena")
                 }
                 mir::IntrinsicTypeRepresentation::Unit
+                | mir::IntrinsicTypeRepresentation::MaybeUninit { .. }
                 | mir::IntrinsicTypeRepresentation::Integer(_)
                 | mir::IntrinsicTypeRepresentation::Float(_)
                 | mir::IntrinsicTypeRepresentation::Char

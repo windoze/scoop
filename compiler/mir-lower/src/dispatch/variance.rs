@@ -27,7 +27,13 @@ impl Lowerer {
             );
         }
         if is_reference_mir(source) && is_reference_mir(target) {
-            return value;
+            return smir::Expr::new(
+                target.clone(),
+                smir::ExprKind::Retype {
+                    operand: Box::new(value),
+                    ty: Box::new(target.clone()),
+                },
+            );
         }
         if is_boxable(source) && is_reference_mir(target) {
             let boxed = self.boxed.get_or_create(

@@ -117,25 +117,61 @@ closure 具有完整捕获字段、类型、invoke 与扫描属性；绑定方�
 
 suspend callable 的执行 ABI 为 `(source args..., Continuation<R>) -> CoroutineStep<R>`，后者仅含 Completed(R) 与 Suspended。输出不保留源码级 suspend call；frame、continuation、恢复入口和 saved slots 均有独立身份和完整类型。跨挂起只保存已初始化的 exact payload，不保存 native block address 或 active EH record。
 
+接口 adapter 的物理 receiver 是具体对象引用；装箱 adapter 挂起时保存的 receiver 使用生成 box 的 exact type，而不伪装成源码 interface。其 `CoroutineSlot<box<T>>` 以 box 的 exact identity 区分，并与 box 一样归属 T 的定义或 application ODR group；扫描仍为一个 managed object 引用。普通 nominal 的 box slot 随已发布的 box 支持输出，纯内部 saved slot 不扩张私有 payload 的发布闭包。
+
+object 的源码 exact type 与 backing class exact type 是同一对象的两种视图，共用分发表及 receiver adapter。adapter 的 implementor 保留源码 object 身份；backing 表通过类型记录中已有的 `Object { backing }` 关系引用它，不另建 callable 或放宽为任意继承 receiver。
+
 completion 与 resume 具有唯一获胜方，并明确 payload 的 release/acquire 关系。恢复失败沿原调用点的异常／cleanup 路径传播。挂起状态使用 frame 的 TaskContext，恢复前后的切换见 2.16。
 
 MIR metadata 保存源码声明到实际 callable、constructor、accessor、generated body 的映射，exact signature、GC effect、继承、dispatch、object/init 关系及 Strong/ODR 归属。它不定义目标布局；布局由 LIR metadata 提供。
+
+mir-lower 完成 concrete CFG、dispatch、closure／adapter 与协程执行 ABI 后，由独立优化模块依次执行 receiver 实际类型传播、唯一目标去虚拟化、按调用点选择的小函数内联、局部常量／CFG 清理和再次去虚拟化；driver 显式传入优化配置。scoop-mir 保持纯数据职责，program-link 不隐藏重编译或导入普通外部正文。
+
+release 默认启用 MIR 优化，debug 保留未优化的完整 MIR；两种模式的阶段 dump 分别记录实际输出，使用相同的实体身份与 ABI。数据流在异常边合并可能抛出时的局部状态，不能只把 block 的最终状态交给 handler。实际表项或闭包 invoke／bridge 完整可用时才改写目标；外部目标使用已经选中的 callable 签名和引用。
+
+函数内类型事实为不可达、未知或唯一实际类型。最派生 allocation、已知 box／closure 和 final class 提供事实，复制和合法转换传播，合流只保留一致事实，循环求不动点；未知返回、可变字段和取址后的可变 local 保守处理。base／this initializer 不收窄实际类型，initializing receiver 的使用仍受语言规范中的构造约束；静态 open class 或本 Cone 实现数量不构成全程序闭合。去虚拟化按原 typed slot 查询实际表项，同时改变 callee、CallKind 和 receiver 适配，保留原 effect、EH、Context 与 continuation。
+
+自动内联只处理本 Cone 已有完整 concrete 正文的非递归 callable，包括本地物化的外部泛型和普通 adapter；递归 SCC、无正文的外部 Strong、native／callback／gateway 和无法完整重写的特定 EH／Context／协程控制流保留调用。内联重分配 local、value、block 和临时存储身份，连接 return／异常出口，保留实参各求值一次、独立按值 place、位置、初始化发布和清理。Managed、分配或可能抛异常本身不构成拒绝理由；不复制后端 root/frame plan，站点由后续 LIR 统一形成。
+
+首版克隆不含自身 landing pad／catch／resume 协议的普通 CFG；callee 的可能抛出操作与显式 throw 继承调用点的异常出口，caller 已有 catch／finally 可以继续承接异常。依赖函数局部异常槽的 callee 及协程执行入口保留调用。克隆产生的局部值属于 caller 的新 SyntheticValue 身份，所有形参先取得独立局部副本；常量折叠只处理可证明无副作用的布尔与整数运算，整数保留对应 MIR 运算的精确位宽与符号规则。地址可见的 local 不参与常量替换。Managed callee 的循环保留 poll 标记，NoGC callee 的循环内联到 Managed caller 后也不得新增 poll。
+
+多个内联 return 先写入独立的汇合临时值，再在 continuation 初始化原调用结果；不得把原本稳定的结果 local 改为可重复赋值的身份，破坏其后 variant test／payload projection 的关系。优化删除引用后，已选外部 callable 声明目录可以保留未使用项及其稳定索引；声明的完整签名仍保留，实际链接成员由对象中的真实引用选择，不因目录项无调用而拒绝合法 MIR。
+
+带 release 的对象构造保留同块相邻的 allocation、最外层 initializer 调用与 release-ready 发布。内联可以整体复制包含该序列的普通正文，但对应的最外层 initializer 调用本身保留，不将发布拆入缺少构造前序的 continuation；异常路径仍不发布。
 
 输出为 Library 或携带本模块非可选 entry 的 Executable，不能由 `Option<Entry>` 与独立 kind 拼成矛盾状态。entry 保留 HIR 已确定的四种形态、本层 main target 和完整签名；生成的 root gateway 明确区分成功退出码与失败状态，有参数形态包含受检 argv 构造与 main 调用的完整正常／异常路径。gateway 与相关 helper 是实际需要发射的 typed callable，不能留到 program-link 阶段生成 managed 语义。
 
 ### 2.4 LIR
 
+`ManagedPoll` 表示运行时规范 3.2 的条件 poll，携带唯一慢路径 site 与完整 live set。codegen 发射 acquire 检查和快／慢分支，只在慢分支物化该站点的 managed leaves、调用协调入口并回写 relocation；后续使用通过普通 canonical storage／SSA 合流取得快路径原值或慢路径新值。入口 pending 的 mode 检查属于同一操作，不能仅按 world phase 删除首次激活。TLS 与全局数据引用使用闭合 runtime ABI 目录中的普通数据合同。
+
 LIR 保存目标上完整的类型布局、值表示、字段 offset、alignment、scan、调用 ABI、控制流与实际定义／引用。codegen 不按名称、实参、result storage 或上下文补类型、签名、poll 或逻辑 live set。
 
 每个 pointer（包括 null）具有 Managed、Raw、Code 或 Metadata provenance；LLVM opaque pointer 不抹去这种区别。managed 使用 address space 1，其余使用 0，转换必须为明确合法的 typed operation。
+
+LLVM module 的 data layout 将 managed 地址空间声明为 non-integral pointer（生产配置为 `ni:1`）。普通复制仍按精确 storage 执行，但优化器不得从整数搬运值自行重建 managed pointer；GC leaf 从 typed pointer load 取得。分配结果、card 地址和 scoped data borrow 的显式 typed 转换继续按各自合同检查，此声明不改变目标的指针大小、对齐或原生 ABI。
 
 Scoop ABI 保留完整逻辑参数序列及 exact identity，物理分类为：
 
 | 值 | 参数 | 结果 |
 | --- | --- | --- |
 | Unit / ZST | ElidedZst，仍求值 | Unit 为 UnitVoid；其他为 ElidedZst。 |
-| scalar、managed/raw/code pointer、niche enum | Direct | Direct |
-| 非 ZST tuple、普通 struct、tagged enum | Indirect | Indirect |
+| scalar、单字 managed/raw/code pointer 及其 niche enum | Direct | Direct |
+| interface 及其 niche enum | DirectParts：object、itab | DirectParts：object、itab |
+| size ≤ 16、alignment ≤ 8 的 GC-free struct／tuple／tagged enum | 按目标分类的 DirectParts 或所需间接形式 | 同一分类的直接或间接结果 |
+| 其余非 ZST aggregate | Indirect | Indirect |
+
+DirectParts 明确保存每个 carrier 的类型、来源 offset／extent、alignment 与 provenance，以及完整返回约定。接口为 AS1 object 和 AS0 metadata，不能落入单 scalar 分支；slot 的隐藏 receiver 独立采用单字 object projection。所有 caller／callee、typed invoke、adapter、Scoop ABI extern 和跨 Cone 签名消费同一计划。
+
+LLVM 22.1 的接口结果跨 safepoint 时，沿精确 leaf 回写协议重新取得 object，再与原 metadata 重建双字值；重读必须阻止普通优化将结果重新合并为 GC 前的 aggregate SSA。首版在实际 relocation 路径使用 volatile object reload，条件 poll 仅在慢路径执行该动作，不为快路径引入无条件 root 临时存储。不能假定 RS4GC 会重写 aggregate 内部的 managed leaf。
+
+GC-free 小值按 exact layout 和 scalar leaves 复用下述目标 aggregate classifier，保留整数／浮点／混合寄存器类别；tagged enum 的固定 tag 和共享 payload 字节区域不随 variant 改变分类。每个 aggregate 作为整体分配寄存器或回退；coercion 不越过 exact storage，padding 确定，浮点按 bits 搬运。callee 按需要建立独立 place，不能把 caller storage 当成按值别名。MaybeUninit 依自身值表示分类，不继承 T 的 nonnull、tag、niche 或专门接口 ABI。
+
+LLVM 为值复制或 coercion 清零生成的 `memcpy`／`memset` 调用进入既有 target-support native requirements，tag 分别为 1／8。其机器签名分别为 `(pointer, pointer, i64) -> pointer` 与 `(pointer, i32, i64) -> pointer`，均为不抛异常的 NoGC C helper；真实目标对象的直接调用 relocation 与普通 libc 链接继续验证。它们不新增 Managed site，也不能满足或替代周围的 Managed invoke 记录。
+
+小值的参数与结果分别保存 coercion：SysV 参数展开为最多两个 INTEGER／SSE carrier，结果为单 carrier 或双 carrier 结构；参数分类在完整签名中扣除隐藏 sret 和先前参数占用的 GPR／SSE，任一寄存器类别不足时整个 aggregate 使用 byval，未使用的另一类别寄存器留给后续参数。Darwin 普通 aggregate 参数按 64-bit 字块（需要 16-byte 对齐时为 i128）传递，短结果可使用精确位宽整数；HFA 使用保留连续寄存器约束的浮点数组 carrier。HFA 必须由 1 至 4 个同精度浮点叶组成，且叶连续覆盖完整 storage；额外 padding 不算浮点成员。Darwin 的连续 carrier 由 LLVM 的 aggregate 参数规则整体放置，不能展开成彼此无关的标量参数。
+
+carrier 记录实际读取的 extent，允许其机器类型宽于 extent；读入前将 carrier 临时存储清零，只复制 extent 字节，回写亦仅复制该范围。跨 Cone canonical ABI 保存完整 carrier 序列而非仅保存 DirectParts 标签，target classifier 的版本同时进入现有 target fingerprint。产物消费者复用保存的物理计划并检查 exact storage／引用一致性，不另行通过源码重建一套参数分类。
 
 每个 indirect 实参使用调用方新建的 exact storage，callee 按值接收。物理参数为 indirect result storage（若有），随后按逻辑顺序省略 ZST 并传递其余参数。LLVM 使用对应 exact type/alignment 的 byval/sret；实际寄存器分配由目标 ABI 决定。Darwin sret 使用 x8，amd64 使用 RDI 并在 RAX 返回同一地址。
 
@@ -155,11 +191,15 @@ C ABI storage 为封闭类型结构：integer、Boolean、Float/Double、带完�
 
 nullable data/code pointer 保留对应 exact enum 与 pointer 类型，不得把同一 enum 绑定到不同 pointee/signature。CLayout 的 aligned/packed 各为 Natural、A1、A2、A4、A8 或 A16。C ABI storage 与 Scoop 值表示分别准确保存；C ABI 分类不能用 Scoop aggregate ABI 代替。
 
-在当前 Darwin/AArch64、Linux/amd64 GNU 和 musl profile 上，固定参数的 cdecl C extern 若全部参数和非 void 结果的 canonical C 表示均为 integer、Boolean、Float/Double、data pointer 或 code pointer，且未选择 `captureErrno = true`，必须使用 DirectC。条件按已有 C ABI projection 判断：包括 Char 的 UInt32 表示、PinnedPtr/GcHandle 的 UInt64 表示及合法 nullable pointer；不因源码是 struct/enum 就排除这些既有表示，也不把普通 C-layout struct 凭大小或字段数归类为标量。Unit 只映射为 void 结果。按值传递 C-layout struct 或要求 errno 捕获时，M33 使用 StorageBridge；指向 struct 的指针及参数/结果中的函数指针仍按 pointer 分类。本条仅选择 C extern 正向调用的物理路径，不扩展 callback、FunPtr 调用或 native global/TLS 入口协议。
+在当前 Darwin/AArch64、Linux/amd64 GNU 和 musl profile 上，固定参数的 cdecl C extern 未选择 `captureErrno = true` 时，合法 canonical C signature 必须使用 DirectC，包括 integer、Boolean、Float/Double、data/code pointer 和按值 C-layout struct。条件按已有 C-FFI-safe projection 判断，包括 Char、PinnedPtr／GcHandle 与合法 nullable pointer；不把普通 C-layout struct 凭大小或字段数当作标量。Unit 仅映射为 void 结果。errno 捕获继续使用 StorageBridge；本条不扩展 callback、FunPtr 或 native global/TLS 协议。
 
-DirectC 由 LIR lowering 根据 canonical C signature 与目标 C ABI 确定完整的物理参数/结果、calling convention、小整数扩展和 Boolean 表示转换，codegen 按该计划发射 LLVM 类型与 ABI 属性，目标后端分配寄存器及栈位置。参数直接消费值，结果直接产生值；不预先构造 storage bridge 专用的参数局部变量、返回缓冲区或 memcpy 往返。必要的源码值与 C 表示转换以及 C ABI 本身要求的栈传参保留。StorageBridge 保留完整 storage signature，由所选系统 C compiler 分类 aggregate 和生成桥接；不能只设置 LLVM C calling convention 就把未经分类的 struct 直接传递。
+GNU／musl 共享 SysV AMD64 eightbyte 分类，保留 INTEGER／SSE／MEMORY、整 aggregate 的寄存器耗尽回退、byval 和 sret。Darwin/AArch64 使用对应 AAPCS64／Darwin 分类，保留 HFA、普通 aggregate、栈参数和间接结果；四个 Double 的 HFA 不受 Scoop 16-byte 小值阈值限制。完整物理签名覆盖 nested layout、padding、alignment、扩展、coercion 与隐藏参数顺序。classifier 只消费已有 C projection 和完整签名，不建立运行期 libffi 或 FFI 插件；以所选目标 C compiler 产生的独立函数作互调验证。
 
-当前三个 profile 的 DirectC 参数与结果中，有符号／无符号 8-bit、16-bit 整数分别使用 signext／zeroext；Boolean 使用 LLVM i1 与 zeroext，32-bit、64-bit 整数及浮点、pointer 无整数扩展属性。TargetProfileContract 的 C ABI lowering 标识为 `ScalarDirectOrSystemCBridge`（wire tag 2），进入现有 target fingerprint 和构建缓存键。
+DirectC 由 LIR lowering 根据 canonical C signature 与目标 C ABI 确定完整的物理参数/结果、calling convention、小整数扩展和 Boolean 表示转换，codegen 按该计划发射 LLVM 类型与 ABI 属性，目标后端分配寄存器及栈位置。不构造 storage bridge 专用的参数局部变量、返回缓冲区或 memcpy 往返；目标 ABI 要求的栈传参、byval、sret 与表示转换保留。StorageBridge 保留完整 storage signature，由系统 C compiler 生成桥接；不能只设置 LLVM C calling convention 就把未经分类的 struct 直接传递。
+
+DirectC 的聚合值计划复用带 offset／extent／alignment 的 carrier 描述，并分别保存参数与结果 coercion。SysV MEMORY 参数记录 `byval` 及至少 8-byte 的参数副本对齐，隐藏 sret 使用结果的实际对齐且占用首个整数参数寄存器；寄存器不足的聚合参数整组回退。Darwin 超出寄存器 aggregate／HFA 分类的参数传递 caller 的独立副本指针，不标为 SysV `byval`，间接结果使用 sret 的 x8 约定。副本对齐与原类型的存储对齐分开保存；原始 packed storage 不因 ABI 要求而改变布局。
+
+当前三个 profile 的 DirectC 参数与结果中，有符号／无符号 8-bit、16-bit 整数分别使用 signext／zeroext；Boolean 使用 LLVM i1 与 zeroext，32-bit、64-bit 整数及浮点、pointer 无整数扩展属性。TargetProfileContract 的 C ABI lowering 记录 aggregate 分类合同，进入现有 target fingerprint 和构建缓存键；迁移时登记新 wire tag，退役的 ScalarDirectOrSystemCBridge tag 2 不复用。
 
 `captureErrno = true` 的 LIR 计划分别保存真实 C 函数结果 `R`、bridge 的 `Int32` 返回值，以及 Scoop `(R, Int)` 的 exact layout 和结果重建操作。带捕获的 bridge 继续通过原有 caller-owned C result storage 写回非 void 的 `R`，以 C `int32_t` 返回捕获的 errno；`R = Unit` 时省略原结果缓冲区，在 Scoop 侧构造零 payload 的 Unit 元素。普通不捕获的 storage bridge 保持原有返回方式。tuple 不出现在目标 C 函数原型中，也不作为 C struct 返回；必要的 C/Scoop 表示转换在已保存 errno 后完成。
 
@@ -174,6 +214,8 @@ LIR metadata 保存完整 value/instance/element layout、Scoop/C ABI、scan、T
 ### 2.5 Codegen 与对象合同
 
 codegen 的语义输入只有当前 Cone 的完整 LIR；Scoop producer 消费 LIR target/backend，generated-C producer 消费 LIR target/C toolchain。输出可以有多个对象，物理分片数量与文件名不是 Cone 或实体身份。
+
+managed 单槽写屏障按运行时规范 3.6 内联读取四级 page map 与 region prefix，再原子置脏；这段计算没有 safepoint，不保留跨 safepoint 的 region metadata。runtime ABI 数据符号 PageMap 使用 tag 32，旧单 arena CardTable 的 tag 6 退役；PageMap 的 32768-byte／8-byte 对齐数据合同和新符号进入现有 registry fingerprint。范围写屏障保持既有 NoGC 入口，由 runtime 逐映射标记完整范围。
 
 每个实际物理定义都有 typed owner、role、linkage、symbol 和精确 section range。引用使用 typed target 与真实 relocation；跨对象 external 声明不能变成可缺失的 weak reference。Strong 属于原定义 Cone，ODR 使用其稳定 member identity。
 
@@ -248,9 +290,9 @@ bridge unit 是与 producer 无关的 recipe identity；实际 atom 使用 produ
 | 位置 / namespace | section 与 major |
 | --- | --- |
 | Manifest / `org.scoop-lang.manifest` | `single-cone-production/6` |
-| HIR / `org.scoop-lang.hir` | `identity-foundation/8`、`core-bootstrap-interface/14`、`cross-cone-interface/68`、`cross-cone-type-semantics/26` |
-| MIR / `org.scoop-lang.mir` | `identity-foundation/5`、`core-bootstrap-bridge/1`、`cross-cone-param-free-bridge/2`、`cross-cone-type-bridge/17` |
-| LIR / `org.scoop-lang.lir` | `identity-foundation/8`、`cross-cone-param-free-bridge/1`、`cross-cone-link-closure/1`、`cross-cone-layout-abi/12`、`cross-cone-layout-link-closure/5`、`cone-production/11`、`link-identity-closure/15`、`link-support/1` |
+| HIR / `org.scoop-lang.hir` | `identity-foundation/8`、`core-bootstrap-interface/14`、`cross-cone-interface/69`、`cross-cone-type-semantics/27` |
+| MIR / `org.scoop-lang.mir` | `identity-foundation/6`、`core-bootstrap-bridge/1`、`cross-cone-param-free-bridge/2`、`cross-cone-type-bridge/19` |
+| LIR / `org.scoop-lang.lir` | `identity-foundation/8`、`cross-cone-param-free-bridge/3`、`cross-cone-link-closure/1`、`cross-cone-layout-abi/15`、`cross-cone-layout-link-closure/8`、`cone-production/11`、`link-identity-closure/15`、`link-support/1` |
 
 各 section 按消费用途检查 required inventory。Compile 需要完整语言与相邻 IR 合同；Link 只消费 identity、ABI、对象、native、production 和链接支持数据，不为链接展开 HIR 模板。profile fingerprint 覆盖 descriptor 的实际内容。
 
@@ -258,11 +300,11 @@ manifest 保存 canonical coordinate、ConeIdentity、kind/source form、完整 
 
 production 与 Link metadata 完整保存实际 body/type/site ID、Strong/ODR 定义、shared ABI、object/bridge unit 到 member/range 的映射、digest patch 位置、runtime registrations、image/root entry 归属、defined symbol owners、undefined requirements、native contracts 与逻辑 library requirements。所有表具有 canonical key/payload、明确排序与唯一性；不保存 producer 的绝对搜索路径。
 
-executable entry 的四种形态、main 的完整源码签名、root gateway 的实际 C ABI 与定义指纹随各层 typed entry 保留，并进入对应语义／ABI fingerprints 和承载它们的 section profile。Link 投影保留精确 main、gateway 与 failure-root 引用，使 artifact-only 链接无需源码或名称推断。M33 的 runtime ABI contract 11、metadata ABI 7 同时进入兼容检查、runtime 与启动对象的构建输入；旧 gateway 或旧产物不能按缺省 `main(): Unit` 解释，也不能与新的 runtime 混用。
+executable entry 的四种形态、main 的完整源码签名、root gateway 的实际 C ABI 与定义指纹随各层 typed entry 保留，并进入对应语义／ABI fingerprints 和承载它们的 section profile。Link 投影保留精确 main、gateway 与 failure-root 引用，使 artifact-only 链接无需源码或名称推断。M34 的 runtime ABI contract 12、metadata ABI 8 同时进入兼容检查、runtime 与启动对象的构建输入；旧 ABI 的薄接口、物理签名、poll／card 合同及产物必须重建或拒绝，不能用缺省字段或 bitcast 混用。新 ABI 的 debug／release 仍互通；各批次的实际实现与 section 版本见 [M34 记录](../milestone34/PROGRESS.md)。
 
 operator equals 的成员签名、operator 标记、已绑定调用及必要的派生正文使用既有 callable、模板与 exact-type metadata。`Equality<T>.equalTo` 的显式 conformance、接口 slot、实现和分派适配使用普通 interface metadata；两者没有隐式关联，也不保存 Equality 专用的 core protocol 或条件接口规则。
 
-`core-bootstrap-interface/14` 删除旧 Equality protocol 字段；`cross-cone-interface/68` 与 `cross-cone-type-semantics/26` 移除统一方案添加的派生比较接口槽位声明，恢复普通源码接口实现。旧版本产物必须重建，不能把旧 Equality slot 当作新接口成员或独立 operator 使用。既有结构 operator 的生成身份和单态化格式保持不变。
+自 `core-bootstrap-interface/14` 起删除旧 Equality protocol 字段；自 `cross-cone-interface/68` 与 `cross-cone-type-semantics/26` 起移除统一方案添加的派生比较接口槽位声明，恢复普通源码接口实现。旧版本产物必须重建，不能把旧 Equality slot 当作新接口成员或独立 operator 使用。既有结构 operator 的生成身份和单态化格式保持不变。M34 后续编码扩展后的当前版本为 `cross-cone-interface/69`、`cross-cone-type-semantics/27`。
 
 派生 operator 使用既有 typed 生成身份和普通单态化／ODR 规则，所需的宿主、完整签名及字段调用在各自边界确定；没有源码声明的生成 callable 不伪装成 SourceFunctionId。导入的 operator 候选来自已保存的成员或派生签名，不借用 Equality slot。artifact-only 链接只消费已闭合的实现，不重新扫描字段或选择重载；普通接口 adapter 引用实际声明或继承的实现，不因值支持结构比较而新增 itable 项。
 
@@ -282,7 +324,7 @@ C extern 的 NativeSafe/GcLeaf 模式作为声明及调用的语义字段进入�
 
 `captureErrno`、完整 Scoop 结果类型、native 返回投影及 bridge 结果适配进入对应声明、调用与 bridge 的 HIR/MIR/LIR metadata、语义/Code 指纹和缓存。编译消费方按已保存的结果适配生成 `(R, Int)`，链接消费方保留实际 bridge 及 native requirements；不按合并后的 native symbol 重新决定捕获，也不将旧的单结果 bridge 当作捕获 bridge。必需字段与 recipe key 的变化按既有 metadata/schema 兼容规则演进，旧产物不能缺字段后静默当作不捕获。
 
-HIR `cross-cone-interface/68` 的 C extern implementation 必须保存调用模式与结果适配；LIR `identity-foundation/8` 的 OutboundFunction key 必须保存结果适配。generated-C 的 OutboundWrappers 模板版本为 2。目标工具链展开 `<errno.h>` 后产生的 libc errno accessor 引用作为普通 target-support native requirement 保留：Darwin 为 `__error`，GNU/musl 为 `__errno_location`，均为无参数、返回 native pointer 的 C 函数。源码生成仍只使用 `errno` 宏，不自行生成目标 accessor 调用。
+HIR `cross-cone-interface/69` 的 C extern implementation 必须保存调用模式与结果适配；LIR `identity-foundation/8` 的 OutboundFunction key 必须保存结果适配。generated-C 的 OutboundWrappers 模板版本为 2。目标工具链展开 `<errno.h>` 后产生的 libc errno accessor 引用作为普通 target-support native requirement 保留：Darwin 为 `__error`，GNU/musl 为 `__errno_location`，均为无参数、返回 native pointer 的 C 函数。源码生成仍只使用 `errno` 宏，不自行生成目标 accessor 调用。
 
 DirectC/StorageBridge 及其完整物理调用计划进入相应 LIR metadata 与既有语义/Code 指纹和缓存投影，不加入 source native symbol 的 ABI 冲突键。DirectC 保留真实 native undefined reference、contract 与 library requirement；没有实际桥接用途时，不生成 outbound bridge recipe、物理定义或 member 要求。跨 Cone 与泛型消费按当前 target 得到同一完整计划；artifact-only 链接只消费产物记录，不重做 ABI lowering，也不为直接调用重新插入 bridge。
 
@@ -291,6 +333,8 @@ native-boundary record 保存 owner、type-parameter count、source shape 与 C 
 三层语义指纹是 Merkle 指纹：各自 canonical own-layer projection 加真实 direct/support/re-export 依赖的同层指纹。其 domains 为 `scoop-hir-semantic-v1`、`scoop-mir-semantic-v1`、`scoop-lir-semantic-v2`。LIR context 包含 identity ABI、target profile 与 target fingerprint，不含 backend optimization、member assignment、range 或 patch offset；backend 兼容性仍单独检查。
 
 HIR 语义包括名称候选、签名、默认值、const、模板和完整依赖；无法完整表达细粒度 lookup observations 时，保守计入全部相关直接依赖。普通私有非泛型正文、机器码、优化模式与对象分组进入 Code/构建缓存，不能反向改变声明或 shared ABI 身份。
+
+MIR `identity-foundation/6` 与 LIR foundation 保存实际实现的实体目录，包含优化新建的局部值；它们进入 Code 与 Link validation，不作为依赖语义贡献。MIR 的可消费语义由 bootstrap／param-free／type bridge 保存，LIR 的 shared ABI 由对应 layout／param-free section 保存。内联新增局部值不能使同一源码的 debug／release 依赖互相过期；完整 identity、格式、引用与 ABI 校验仍在各自边界执行。
 
 `MemberFingerprint = H("scoop-slib-member-content-v1", member_record)`；`LinkMemberFingerprint = H("scoop-slib-link-member-v1", member_record)`，后者只用于 LinkObject 或 Link-required blob。
 
@@ -430,6 +474,12 @@ interface 槽序按直接父接口声明序继承，再追加当前声明；相�
 
 itable 以实际 interface TD 为键，不要求跨 Cone 的全局槽编号。generic receiver 始终是完整 exact application，只沿声明中的 exact base/interface 关系分派。
 
+普通接口值保存 object 和对应 exact interface 的 itab。构造／转换时查询目标表一次，已知实际类型直接引用既有静态表，相同 exact 视图直接复制；`is`／`as` 的检查与表查询可合并，不重查同一事实。空接口以 entry 存在判断成功，不用合法 null slots 判失败。接口方法从 itab 直接取 slot，不再次查询 object TD。
+
+LIR 的 dispatch slot 显式保存单字 object receiver projection 和完整入口签名，普通接口参数／结果仍为双字。兼容 class 实现可直接作为 slot；需要完整接口 this 的 default／变型／装箱入口由已有 typed adapter 重建视图或复制 payload。去虚拟化与直接调用按实际 callee 的签名适配，不能只因都含 pointer 就混同 ABI。静态表和 adapter 继续使用正常 typed definition／reference、provider 和 ODR relocation。
+
+intrinsic class 的 adapter 同样使用该声明已经确定的物理类型与 exact identity。`String`／`Any` 的 receiver 保持本层对应的 intrinsic reference type，不为 adapter 另造普通 `Class` 别名；源级接口继承及 default body 仍按普通声明处理。
+
 值类型只有显式声明或继承的普通 interface conformance；有界泛型调用、interface 调用、装箱与 `is` / `as` 消费同一实际接口闭包。结构 operator equals 不产生 Equality conformance。显式 `Equality<T>.equalTo` 与其他接口方法使用相同的调用规则；已知 concrete value 的直接调用不因另有接口实现而强制装箱或运行期查表。
 
 按语言规范 13.2，NoGc value method 可以实现 Managed interface slot。源级实现兼容性允许这种 effect 收紧，但实际 itable entry 仍须符合 slot 的完整 Managed ABI：由普通 value/interface adapter 完成 receiver 适配，并以 NoGc 合同调用实际实现；adapter 保留自身的 Managed effect、入口 poll 与必要 roots。具体类型直接调用原 NoGc 方法不经过该 adapter。签名与产物分别记录 slot、adapter 和实现，不能用强制转换或抹去 GC effect 代替适配；不引入新的 runtime 分派机制。
@@ -452,6 +502,7 @@ intrinsic 的识别来自实际声明及其完整 name/target/shape/signature，
 | sizeOf/alignOf | 完整被查询类型，结果由目标布局产生。 |
 | integer/float operation | 完整 operand/result kind 与语言操作，不保留待决议源码调用。 |
 | atomic operation | 实际 AtomicInt/Long/Boolean/Ref application、值类型、操作种类及完整成功/失败内存序；遵守语言规范 11.14。 |
+| MaybeUninit operation | 独立 wrapper 与 payload 的完整类型，以及零构造、合法值包装或 unsafe 取值种类；遵守语言规范 11.15，不保存初始化证明或隐藏标记。 |
 | managed callback | native/managed 签名、context index、mode、原 registration 与实际 application。 |
 
 每个 intrinsic 只承担其指定语义，展开后是普通 typed 运算、内存访问或有明确 runtime 合同的操作。Const 能力只来自声明允许的操作集合，不能由同名用户函数取得。
@@ -463,6 +514,20 @@ load、store 与 CAS 分别保存对应操作的合法内存序；CAS 是完整�
 每个原子方法的 intrinsic 身份同时包含实际原子族与操作，不能把不同 owner 的源码声明合并为同一函数。HIR 在普通参数推导及默认值物化后，将实际 MemoryOrder variant 转为封闭的操作内存序；只追踪本次调用生成的实参临时值，不把源码局部变量折叠成内存序常量。HIR、默认参数／泛型模板与 MIR 使用完整的原子表达式，分别保存 receiver、所需的值实参及已确定的内存序；后续 stage 不重新解析枚举名或补全缺失的 CAS 失败序。
 
 AtomicRef 的 base、expected/new 引用与读取结果沿用 managed pointer 和 statepoint/relocation 契约。写入后的卡表屏障及无 safepoint 区间遵守运行时规范 3.6；NoGc 或普通优化不能消除必要的原子语义、同步顺序或写屏障。LLVM 22.1 与 RewriteStatepointsForGC 的具体组合按 M33-8 验证，最小 IR 与实际 GC 运行分别验收；遇到后端限制须保持语言原子性与 GC 契约调整实现，不能用普通 load/store 代替。
+
+AtomicRef<I> 的隐藏槽保持一个 AS1 object；store／CAS 投影 object，load／exchange／compareAndExchange 在 NoGC 区间内查询静态 I 的表并重建双字返回值。槽布局不扩大为接口宽度，不用两个原子访问模拟一个逻辑值。
+
+MaybeUninit 保留独立的 intrinsic nominal/application 表示，MIR／LIR 操作不提前擦除其有效值规则。layout／scan 递归复用 T，GC-free 条件随实际 payload 传播；Option 分类不继承 wrapper payload 的 niche。codegen 的 zero、wrap、assumeInit 为有类型的零化或完整复制，含引用值沿普通 roots／写屏障处理。unsafe 调用在 HIR 按既有 context 检查，不在后端增加初始化验证框架。
+
+HIR 在普通调用解析和 unsafe 检查后把三个操作归一化为有类型的 wrapper 操作；类型限定的 companion 仅用于解析，不触发 singleton 初始化。显式 receiver 表达式仍按普通规则求值。默认实参模板保存同一操作（expression tag 73，操作 tag 1／2／3），不把 wrapper 零值重写为合法 T 的常量。
+
+安全操作的方法引用在普通 closure adapter 中展开为同一 wrapper 操作，bound receiver 按引用创建规则只求值一次；不要求 intrinsic 具有独立的普通函数 body。assumeInit 的方法引用仍按普通函数类型的既有 safety 规则拒绝。
+
+LIR 的 MaybeUninit 操作写入完整类型的独立 local place；零大小结果仍保留逻辑 place。包装与取值在该 place 中完成全部字节的复制，普通 aggregate local 间的复制也保留 padding，不能经只含源码字段的 SSA 聚合丢失存储字节。临时 place 由既有局部存储及 roots 规则管理，LLVM 可在不改变这些可观察结果时消除它。
+
+该类型的源码 intrinsic 名为 `core_maybe_uninit`；三个操作分别为 `maybe_uninit_zero`、`maybe_uninit_initialized`、`maybe_uninit_assume_init`。前两者属于该泛型类型的 companion，后者是实例方法，均没有独立的 callable 类型参数。它们的源码 GC effect 为 NoGc，assumeInit 另为 Unsafe；普通 NoGC 使用点仍检查实际 wrapper／payload 是否 GC-free。源码名只在 HIR 声明边界解析，后续使用实际 nominal/application 和操作种类。nominal intrinsic wire sum 增加 tag 14，callable intrinsic sum 增加 tag 25（操作 tag 1／2／3 依次对应上述三个操作）；MIR application 与 LIR exact value layout 都保存 payload 的完整 exact identity，wrapper 的 layout constituent 没有 null niche 或 C storage 资格。
+
+上述扩展对应 HIR interface 69／type semantics 27、MIR type bridge 19、LIR layout ABI 15／layout link closure 8。MIR representation 的 tag 13 保存 payload exact type；LIR value representation 的 tag 9 保存 payload value layout 引用，由该 layout 得到 exact type、size、alignment 和 scan，不伪造源码字段。未改变编码的 section 保留原版本，旧 section 产物重建。
 
 共有 CallableSourceEffects 的 implementation 为 Scoop=1、Intrinsic=2、SourceExternScoop=3 或 SourceExternC=4；仅 Intrinsic 带完整 kind payload。ordinary/suspend、GC effect、release callability 与 implementation 的组合必须一致，不能用缺失字段或另一个表补出。
 
@@ -542,7 +607,7 @@ OdrMemberKey 为 `{1=group, 2=role, 3=typed discriminator}`，`OdrMemberId = H("
 
 ### 2.14 Runtime image 与初始化
 
-runtime metadata ABI 7、runtime ABI contract 11 的字段与启动协议由运行时规范 2.7、2.8 定义。RootEntry 的物理大小仍为 192 bytes，但 root gateway 和 run_program 的调用原型已改变；旧版 ABI 不可混用。每个 `.slib` 保存完整候选 registration 与物理归属；最终 image 表只包含选中的 producer records。
+runtime metadata ABI 8、runtime ABI contract 12 的字段与启动协议由运行时规范 2.7、2.8 定义。RootEntry 的物理大小仍为 192 bytes，旧版 ABI 不可混用。每个 `.slib` 保存完整候选 registration 与物理归属；最终 image 表只包含选中的 producer records。
 
 image、root entry、main body、root gateway、initializer、ensure、startup gateway 和 release hook 使用各自身份。根、cell、storage 和失败状态完整关联，不以可空函数指针或命名约定推断 unit kind。
 
@@ -558,7 +623,7 @@ ArrayGenerate 保存完整目标 application、元素类型、Long count 与 ord
 
 Char 为独立 nominal identity，常量和各层表示保存合法 Unicode scalar，物理布局为 GC-free u32。它不与 UInt 合并，Option、数组、装箱与 ABI 使用实际 Char 类型；不因表示相同增加整数算术或 CharRange。
 
-String 的源码索引和 length 按 Unicode scalar，byteLength 使用物理 UTF-8 byte count。定位后备的 Option 结果、间接 ABI 与异常边界见运行时规范第 6 章；List getter 仍为可抛出的普通 managed 调用。
+String 的源码索引和 length 按 Unicode scalar，byteLength 使用物理 UTF-8 byte count。定位后备的 Option 结果、实际 typed ABI 与异常边界见运行时规范第 6 章；List getter 仍为可抛出的普通 managed 调用。
 
 严格、可空和 lossy UTF-8 转换按语言规范 11.4 的实际 core 声明调用 runtime 后备。CharacterCodingException 是普通 core 异常，成功/失败结果通过完整 typed Scoop ABI 传递；不按方法短名增加编译器特判或新的异常角色。lossy 的 maximal subpart 与严格路径的 byteOffset 使用同一解码规则，生成代码不得用截断、locale 转码或忽略非法字节替代。字节借用、结果 String 与跨分配保存的 managed 输入遵守普通 roots、pin 与 relocation 合同。
 
@@ -569,9 +634,13 @@ f-string 按源码顺序保存 text/expression part 与原位置，绑定实际 
 
 普通容器布局和内部存储策略不属于编译器协议。其模板、接口调用、快照和字符串构建使用普通类型/ABI/GC 合同。
 
+ArrayList 以普通 MutableArray<MaybeUninit<T>> 实现容量存储，elementCount 与扩容、插删、清零均为 core 正文；编译器不按 ArrayList 名称提供特殊 shape、分配或 initialized-length 字段。StringBuilder 继续持有 ArrayList<String>，只把拼接后备的参数及元素描述适配为实际 wrapper 类型；沿用完整容量 scan。
+
 ### 2.16 Task-local Context
 
 Context 的语言行为见语言规范 8.3.5，运行时 key、scope、task 与 callback ABI 见运行时规范第 9 章。HIR 保存 exact key、完整绑定值类型及已选 Context 操作；泛型条件在实际 application 中替换，不按运行期对象类型猜 key。
+
+Context runtime 的擦除 binding 槽保存单字 object；compiler-owned `context-binding-ref` 使用与 Any 相同的 managed-pointer 表示及独立 generated identity，不冒充源码空接口。绑定接口时提取 object，按 exact key 取出后为静态接口重建 itab；该重建为 NoGC。用户可见的参数、结果和字段仍保存完整双字接口。
 
 Context scope 在完整 value 求值与成功 push 后才生效。真实离开 scope 的正常结果、return、break、continue 和异常都恢复 mark；挂起不退出 scope，已消费的 mark 不继续保活旧绑定。
 
@@ -631,7 +700,13 @@ debug 使用 Scoop machine O0 与 generated-C O0，release 使用 O2；两者均
 
 Linux/amd64 的 managed 调用保留固定的 outgoing argument area，使运行时规范 3.2 的 `FP = SP + N - 8` 对每个 safepoint 都成立。LLVM 22.1 后端关闭 X86 call-frame size optimization，避免按值参数被改成调用点临时 push/pop；源码参数语义、calling convention 和其余 O2 优化保持。此设置在创建任何 target machine 前由 codegen 统一初始化。
 
+LLVM 22.1 的机器基本块布局关闭 tail duplication，避免在 roots 与 site identity 定稿后复制 STATEPOINT。条件 poll 后接不返回的 Managed 调用也必须只保留一个实际调用点及一条对应 stackmap 记录；给 statepoint 添加 LLVM `noduplicate`／`convergent` 调用属性不能阻止该机器优化。此限制沿用统一的 target machine 初始化，不改变 SafepointId、返回地址或对象验证规则。
+
 普通优化可以消除已证明不可达的代码及 site，但保留实际求值、异常、Context、initialization、release-ready 与严格浮点语义。类型错误不能因优化删除代码而消失。
+
+MIR 内联按调用点代入已知实参、局部常量和可证明不可达分支后的加权成本选择：极小正文积极内联，普通小正文结合循环位置、常量／receiver 机会和累计增长选择，较大正文保留调用，除非化简后进入前两档。标量运算、字段访问、aggregate copy、分配、调用和复杂控制流具有不同成本；实参副作用始终求值一次。稳定顺序、caller 累计增长及嵌套展开限制只决定优化选择，不决定程序合法性或 ABI。实际参数由性能记录公开，不增加通用跨阶段预算或源码属性。
+
+条件 poll 在 LIR 保存慢路径 site 与完整 live set，仅实际慢路径产生 statepoint／stackmap；合流连接更新引用，NoGC 不新增 poll。内联、去虚拟化及 CFG 改写均先于最终 roots 定稿，后端不靠完整 runtime poll 调用维持普通循环的检查。
 
 依据语言规范 1.2，编译器可以假定普通非原子访问不存在数据竞争，不为竞争场景提供单字或逐字段不撕裂的保证。普通字段、数组元素、全局存储和聚合值复制无需为此改用 LLVM `unordered` 原子 load/store、增加发布屏障或限制访问的机器指令粒度；显式同步原语以及 runtime/GC 内部同步的契约仍须保持。
 

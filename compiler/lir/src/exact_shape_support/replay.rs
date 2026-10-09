@@ -7,9 +7,9 @@ use scoop_wire::WirePath;
 use super::*;
 use crate::{
     CanonicalExactDescriptorExportsV1, CanonicalExactLayoutExportsV1, ClosedShapeSupportReasonV1,
-    ConeLirFoundation, ExactRepresentationKindV1, NichePointerKind,
-    ParamFreeShapeSupportRolePartsV1, ParamFreeShapeSupportRolesV1, ShapeSupportAvailabilityV1,
-    StrongExactShapeSupportV1, StrongShapeDefinitionV1,
+    ConeLirFoundation, ExactRepresentationKindV1, NullNicheKind, ParamFreeShapeSupportRolePartsV1,
+    ParamFreeShapeSupportRolesV1, ShapeSupportAvailabilityV1, StrongExactShapeSupportV1,
+    StrongShapeDefinitionV1,
 };
 
 mod helper;
@@ -185,12 +185,14 @@ fn validate_source_representation(
             representation,
             ExactRepresentationKindV1::TaggedEnum(_) | ExactRepresentationKindV1::NicheEnum(_)
         ),
+        SourceDeclarationKind::Interface => {
+            matches!(representation, ExactRepresentationKindV1::Interface)
+        }
         SourceDeclarationKind::Class
-        | SourceDeclarationKind::Interface
         | SourceDeclarationKind::Object
         | SourceDeclarationKind::AnnotationClass => matches!(
             representation,
-            ExactRepresentationKindV1::QualifiedPointer(NichePointerKind::Managed)
+            ExactRepresentationKindV1::QualifiedPointer(NullNicheKind::Managed)
         ),
         _ => false,
     };

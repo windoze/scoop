@@ -1,0 +1,27 @@
+interface Value { fun get(): Int }
+class Node(val value: Int) : Value { public override fun get(): Int = value }
+fun check(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+fun retained(value: Value, array: Array<Node>, pair: (Value, Node),
+             optional: Value?, function: () -> Int): Int {
+    var index = 0
+    var total = 0
+    while (index < 101) {
+        index += 1
+        if (index % 17 == 0) { gcCollect() }
+        if (index % 2 == 0) { continue }
+        total += index
+    }
+    val (first, second) = pair
+    return total + value.get() + array[0L].value + first.get() + second.value +
+           optional!!.get() + function()
+}
+
+fun main() {
+    val node = Node(7)
+    val value: Value = node
+    val array = Array<Node>(1L) { index -> node }
+    val closure: () -> Int = { node.value }
+    check(retained(value, array, (value, node), Some(value), closure) == 2643)
+    println("conditional poll roots")
+}

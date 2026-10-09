@@ -79,21 +79,15 @@ impl MirCallableBridgeAuthority<'_> {
                 },
                 MirCallableLoweringRoleV1::DispatchAdjust { target },
             ) => {
-                let expected = match target {
-                    CallableDefinitionOwner::Strong(StrongCallableDefinitionOwner::Function(
-                        id,
-                    )) => CallableTemplateOwner::Function(id),
-                    CallableDefinitionOwner::Strong(
-                        StrongCallableDefinitionOwner::PropertyAccessor(id),
-                    ) => CallableTemplateOwner::Accessor(id),
-                    _ => return Err(MirCallableBridgeError::InvalidAdjustTarget),
-                };
-                if key_target.context() != CallableMaterializationContext::NoSubstitution
-                    || key_target.template() != expected
-                {
+                self.adjust_target_materialization(*key_target, target)?;
+                if lowered.receiver() != OptionalExactOwner::Present(*implementor) {
                     return Err(MirCallableBridgeError::InvalidAdjustTarget);
                 }
-                self.adjust(binding, *slot, *implementor, target)
+                let receiver = semantic
+                    .receiver()
+                    .into_option()
+                    .ok_or(MirCallableBridgeError::InvalidAdjustTarget)?;
+                self.adjust(binding, *slot, receiver, target)
             }
             (
                 GeneratedCallableKey::BoxingAdjust {
@@ -114,7 +108,11 @@ impl MirCallableBridgeAuthority<'_> {
                         self.type_export(*interface)?.representation(),
                         MirTypeRepresentationV1::Interface
                     )
-                    || lowered.receiver() != OptionalExactOwner::Present(*interface)
+                    || lowered.receiver()
+                        != OptionalExactOwner::Present(
+                            crate::InterfaceAdjustIdentity::boxed_receiver(*payload)
+                                .map_err(|_| MirCallableBridgeError::InvalidAdjustTarget)?,
+                        )
                 {
                     return Err(MirCallableBridgeError::InvalidAdjustTarget);
                 }
@@ -174,6 +172,54 @@ impl MirCallableBridgeAuthority<'_> {
             }
         }
     }
+    fn adjust_target_materialization(
+        &self,
+        source: scoop_identity::CallableMaterialization,
+        target: CallableDefinitionOwner,
+    ) -> Result<(), MirCallableBridgeError> {
+        let expected = match (source.context(), target) {
+            (
+                CallableMaterializationContext::NoSubstitution,
+                CallableDefinitionOwner::Strong(StrongCallableDefinitionOwner::Function(id)),
+            ) => CallableTemplateOwner::Function(id),
+            (
+                CallableMaterializationContext::NoSubstitution,
+                CallableDefinitionOwner::Strong(StrongCallableDefinitionOwner::PropertyAccessor(
+                    id,
+                )),
+            ) => CallableTemplateOwner::Accessor(id),
+            (
+                CallableMaterializationContext::Application(application),
+                CallableDefinitionOwner::Odr(member),
+            ) if member.role() == OdrMemberRole::CallableBody => {
+                let key = self
+                    .identities
+                    .canonical_key::<_, OdrMemberKey>(member.member())?;
+                if key.discriminator() != &OdrMemberDiscriminator::CallableApplication(application)
+                {
+                    return Err(MirCallableBridgeError::InvalidAdjustTarget);
+                }
+                let application = self
+                    .identities
+                    .canonical_key::<_, CallableApplicationKey>(application)?;
+                match application.origin() {
+                    CallableTemplateOrigin::Function(id) => CallableTemplateOwner::Function(id),
+                    CallableTemplateOrigin::GenericFunction(id) => {
+                        CallableTemplateOwner::GenericFunction(id)
+                    }
+                    CallableTemplateOrigin::Accessor(id) => CallableTemplateOwner::Accessor(id),
+                    _ => return Err(MirCallableBridgeError::InvalidAdjustTarget),
+                }
+            }
+            _ => return Err(MirCallableBridgeError::InvalidAdjustTarget),
+        };
+        if source.template() == expected {
+            Ok(())
+        } else {
+            Err(MirCallableBridgeError::InvalidAdjustTarget)
+        }
+    }
+
     fn object_initializer(
         &self,
         binding: &ParamFreeMirCallableBindingV1,

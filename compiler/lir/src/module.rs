@@ -261,7 +261,7 @@ impl ForeignCallbackFailureResult {
             return None;
         }
         let EnumRepr::Niche {
-            kind: NichePointerKind::Managed,
+            kind: NullNicheKind::Managed,
             payload_variant,
         } = &enums[some_payload.definition()].repr
         else {

@@ -18,7 +18,7 @@ checks = [
   {file = "${work}/dump/${build.result.root.identity}/ast.txt", snapshot = "program.ast.txt"},
   {file = "${work}/dump/${build.result.root.identity}/hir.txt", snapshot = "program.hir.txt"},
   {file = "${work}/dump/${build.result.root.identity}/mir.txt", snapshot = "program.mir.txt"},
-  {file = "${work}/dump/${build.result.root.identity}/lir.txt", snapshot = "program.lir.txt"},
+  {file = "${work}/dump/${build.result.root.identity}/lir.txt", snapshot = "program.${target}.lir.txt"},
 ]
 
 [[steps]]

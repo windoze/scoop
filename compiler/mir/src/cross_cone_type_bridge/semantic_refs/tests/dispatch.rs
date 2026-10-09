@@ -40,6 +40,9 @@ fn boxed_default_preserves_payload_and_both_interface_receivers() {
             MirTypeBridgeTargetV1::Type(fixture.exact(ROOT)),
             MirTypeBridgeTargetV1::Type(fixture.exact(LEFT)),
             MirTypeBridgeTargetV1::Type(fixture.exact(VALUE)),
+            MirTypeBridgeTargetV1::Type(
+                crate::InterfaceAdjustIdentity::boxed_receiver(fixture.exact(VALUE)).unwrap()
+            ),
             MirTypeBridgeTargetV1::Type(fixture.exact(UNIT)),
             MirTypeBridgeTargetV1::Callable(scoop_identity::CallableDefinitionOwner::Strong(
                 fixture.target(4)
