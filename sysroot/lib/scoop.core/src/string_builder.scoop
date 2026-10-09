@@ -16,4 +16,4 @@ public class StringBuilder public constructor() {
 }
 
 @Extern(name = "scoop_rt_string_join_parts", abi = "scoop")
-internal fun coreStringJoinParts(storage: MutableArray<String?>, partCount: Long): String
+internal fun coreStringJoinParts(storage: MutableArray<MaybeUninit<String>>, partCount: Long): String

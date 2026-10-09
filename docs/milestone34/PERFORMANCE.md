@@ -260,3 +260,29 @@ GNU allocation 的未绑核结果偏慢；补充 CPU 0 上七轮对照为墙钟 
 原始固定 worker 报告为 `m34-mark-{off,on-1,on-2,on-4,on-8,default8}-{darwin,linux-gnu}.json`，最终默认对照为 [Darwin 旧](measurements/m34-mark-default4-off-darwin.json)／[新](measurements/m34-mark-default4-on-darwin.json)、[GNU 旧](measurements/m34-mark-default4-off-linux-gnu.json)／[新](measurements/m34-mark-default4-on-linux-gnu.json)；既有 workload 使用 `m34-mark-regressions-*`。报告保留每轮 stderr、分阶段时间、worker CPU／对象数、RSS、完整构建 argv 和产物大小。`m34-mark-{off,on}-{darwin,linux-gnu}.asm` 保存标记、队列、终止、移动计划与存活集合遍历；新机器码包含 AArch64 原子置位／amd64 lock 指令，并直接遍历保留集合进行引用更新。
 
 工具仍为 Apple clang 21.0.0／GCC 15.2.0、LLVM 22.1.8／22.1.2。构建复用 core cache，first／warm 不是冷／热完整重建；旧版记录来自首次基线构建，新版来自默认四重建。最终新版首次／重复构建为 Darwin 5.171～5.685／5.202～5.562 s，GNU 5.941～6.312／5.910～6.247 s，每项仅一次观测。可执行文件增加 Darwin 1,184～17,712 bytes、GNU 每项 9,952 bytes，同 target 的根 slib 大小逐项不变。
+
+## M34-9：紧凑容器存储
+
+对照使用相同的编译器、release 配置和默认 GC，仅切换 ArrayList／StringBuilder 的 core 实现。旧版为 `9176404ba` 的 Option backing；两份 runtime 都包含原生 Option 返回 ABI 修复。每组七轮，逐轮交换旧／新顺序，计时期间没有构建、测试或清理。源码与 phase 定义见 [容器基准](../../tests/benchmarks/containers/README.md)。四份 [Darwin 旧](measurements/m34-containers-off-darwin.json)／[新](measurements/m34-containers-on-darwin.json)、[GNU 旧](measurements/m34-containers-off-linux-gnu.json)／[新](measurements/m34-containers-on-linux-gnu.json) 报告保留全部样本、实际输出、GC、CPU、RSS、构建命令和产物大小；同名 `.asm` 保存六个热点的机器码及 MIR／LIR 符号映射。构建记录是当时缓存状态下的实际耗时，不作为冷构建加速比。
+
+实测 Int backing stride 从 16 降到 4，capacity 262144 的数组分配大小从 4,194,328 降到 1,048,600 bytes；ZST 从 8 降到 0，同容量数组从 2,097,176 降到 24 bytes。引用保持 8、接口保持 16 bytes。这里删除的是容量状态的 Option tag／padding，没有增加容器专用 shape 或改变正常数组初始化。
+
+下表为整个进程墙钟中位数，单位 ms，包含程序启动；各操作的独立计时在原始 phase 数据中。
+
+| 工作负载 | Darwin，旧 → 新 | GNU，旧 → 新 |
+| --- | --- | --- |
+| Int 262144 项 | 18.929 → 17.632 | 16.906 → 13.456 |
+| interface 131072 项 | 33.658 → 34.779 | 37.825 → 37.334 |
+| ZST 262144 项 | 20.169 → 19.651 | 17.015 → 15.896 |
+| capacity 1024、有效项 1 | 12.548 → 12.358 | 9.451 → 8.767 |
+| capacity 1048576、有效项 1 | 65.718 → 64.271 | 44.578 → 42.060 |
+| StringBuilder 32768 段 | 21.540 → 22.114 | 19.343 → 18.696 |
+| JSON 8192 个 Int | 61.658 → 62.345 | 56.664 → 56.704 |
+
+Int 容量初始化在 Darwin／GNU 分别为 0.582 → 0.430／1.258 → 0.398 ms，读取并修改为 3.985 → 3.302／3.600 → 3.000 ms。clear 仍逐槽执行普通 setter，分别为 0.383 → 0.379／0.212 → 0.212 ms，没有获得同幅度加速；不能把内存缩小比例当作全部操作的吞吐比例。ZST 容量初始化从 0.485 → 0.241／0.753 → 0.120 ms，追加的实际副作用次数不变。
+
+引用和接口原先已使用 niche，因此不节省元素字节。Darwin 的接口追加（包含 Cell 分配）由 18.864 增至 20.196 ms，整个进程约慢 3.3%；GNU 整体略快。StringBuilder 和 JSON 组合没有一致的墙钟收益，Darwin 分别约慢 2.7%／1.1%，保留这些回退样本。JSON 的编码／解码分配字节分别从 6,494,168／12,870,672 降至 6,297,432／12,346,368；收集时点随分配量改变，部分阶段扫描槽数上升，报告未把它解释为更少的 GC 工作。
+
+低占用测试每进程预热一次 full 后再计五次 full。capacity 1024 和 1048576 的实际 `mark_reference_slots` 分别为 1026 和 1048578，两版完全一致。大容量 full pause 的 35 次样本中位数在 Darwin 为 8.133 → 7.918 ms，在 GNU 为 4.012 → 4.023 ms；新实现对应进程 CPU 为 10.673／7.887 ms，mark 为 0.965／1.378 ms。即使只有一个有效元素，全零空闲槽仍有按 capacity 访问的成本，当前实现没有按 size 扫描的优化。
+
+Darwin 的 executable／root `.slib` 为 8,923,112／12,307,088 → 8,939,048／12,393,038 bytes，`__text` 从 437,332 降至 433,992 bytes。GNU 对应为 6,676,112／13,447,850 → 6,682,688／13,534,934，`.text` 从 507,569 降至 504,241。机器码略减而类型／产物描述略增，两者分别记录。

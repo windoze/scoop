@@ -14,7 +14,7 @@
 | M34-6 多 region | 已完成 | 16 MiB region、独立 large mapping、稀疏地址索引、内联 cards、三 target 验收与两机性能对照。 |
 | M34-7 搬迁与归还 | 已完成 | region 选择性搬迁、旧代空洞复用、完整预留回滚、discard／unmap；三 target 验收与两机内存／性能对照。 |
 | M34-8 并行 mark | 已完成 | 原子首次标记、分块任务、全局终止、存活集合复用；三 target 回归、两机 TSan 与 1／2／4／8 worker 七轮对照完成，默认上限为 4。 |
-| M34-9 容器 | 实施中 | MaybeUninit 的类型／操作／GC 闭环及三 target 验证已完成；待迁移 ArrayList／StringBuilder。 |
+| M34-9 容器 | 已完成 | MaybeUninit 类型／操作／GC、ArrayList 紧凑 backing 与 StringBuilder 拼接边界；三 target 验证、两机容器性能对照完成。 |
 | M34-10 总验收 | 待实施 | 三 target 的功能、CLI、ABI、GC、性能与实际版本清单。 |
 
 ## 验证与磁盘使用
@@ -213,3 +213,13 @@ Darwin 清理中间对象／incremental 4,349 项、5,548,604,841 bytes；Linux 
 容器的 JSON 组合验证发现，core 的字符定位与浮点解析入口仍使用旧的 sret 适配。现在 `Option<Char>` 由公共 C 后备按两个整数分量返回；`Option<Float>`／`Option<Double>` 的平台适配直接返回 tag 与 payload bits，避免套用 C 的混合浮点 struct 返回分类。24-byte slice 结果和含引用的 UTF-8 decode 结果继续间接返回。修复对齐既有 runtime contract 12，不增加格式版本或另一套调用协议。
 
 新增 core-string／core-floating 两组 fixture，覆盖 Unicode 索引、负数／越界、slice、UTF-8 成功／失败、正常浮点值、signed zero、最小 subnormal 和解析失败；结合原有 JSON 浮点用例，三个 target 各通过 3 组、5 variants、23 processes、15 goldens。Linux LLVM frame 探针同步采用 DirectParts 字符结果，GNU、musl static／dynamic 的 O0／O2 六种组合通过，保留真实 relocation 与间接 slice 回归。容器前后性能对照的两份 runtime 同步包含这一修复，避免让旧 ABI 故障污染比较。
+
+## M34-9b：ArrayList 与 StringBuilder 迁移
+
+ArrayList 使用普通 `MutableArray<MaybeUninit<T>>` 保存容量，初始化与扩容尾部全零；有效槽按值包装，读取在索引检查后使用局部 unsafe 取值。insert／remove 移动完整 wrapper，remove／clear 清零失效槽，完整元素写入后才增加 size。StringBuilder 继续复用 ArrayList，原生拼接边界读取实际 String 前缀并在分配后重读已发布的 backing root，没有增加专用扫描形状或中间数组复制。
+
+新增 storage／builder／artifacts 三组正式 fixture，覆盖 Int、引用、双字接口、含引用值、Option、ZST，扩容／插入／删除／clear、尾部全零、old→young 跨卡写入、删除后不再保活、Unicode／重入／重复 build 与 JSON。跨 Cone 使用相反 profile，删除双方源码后仅凭产物重新链接；debug／release 均执行普通、full-moving 和 minor-stress。三个 target 的三组新增及十组既有列表／拼接回归全部通过；musl 首轮两项冷构建超时后单独补跑通过，没有放宽测试时限。
+
+五份旧公共 LIR 的 16-byte tagged 返回在 Darwin 与 x86_64 的物理 carrier 确有差异，改为 target-specific 快照，HIR／MIR 继续共用。最终关闭快照更新，在 Darwin、GNU、musl 各验证七组受影响入口，均为 10 variants、52 processes、41 goldens。原有浮点 JSON 组合的三个 target 快照同步记录新 core，实际运行通过。
+
+两机 workspace/all-targets clippy 与 C 警告检查通过。生产实现保持 ArrayList 95 行、StringBuilder 19 行、原生拼接 44 行；新增测试及基准按实际功能分文件。容器性能在固定编译器／runtime 下七轮交替对照，Int stride 16 → 4、ZST 8 → 0，引用／接口大小保持原值。大容量低占用列表仍扫描完整 capacity，部分应用组合略慢，全部样本、阶段成本、机器码与产物大小见 [性能记录](PERFORMANCE.md)。本批测量结束后再次检查两地 target，无新增可删除的中间对象；记录为 `batch9b-target-cleanup-{darwin,linux}.json`。
