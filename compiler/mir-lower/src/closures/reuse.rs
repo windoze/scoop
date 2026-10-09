@@ -4,6 +4,7 @@ use super::*;
 pub(super) enum ClosureDefinition {
     Body(hir::FunctionId),
     PrimitiveReference(scoop_hir::PrimitiveMemberIntrinsic),
+    MaybeUninitReference(hir::MaybeUninitIntrinsic),
     Reference {
         callee: mir::Callee,
         kind: mir::CallKind,

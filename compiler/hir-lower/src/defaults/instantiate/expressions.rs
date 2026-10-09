@@ -330,6 +330,9 @@ impl Lowerer {
             hir::ExprKind::Atomic(atomic) => hir::ExprKind::Atomic(Box::new(
                 atomic.map(|value| self.instantiate_default_expr(value, context)),
             )),
+            hir::ExprKind::MaybeUninit(operation) => hir::ExprKind::MaybeUninit(
+                operation.map(|value| Box::new(self.instantiate_default_expr(value, context))),
+            ),
             hir::ExprKind::Call {
                 callee,
                 binding,

@@ -1206,30 +1206,30 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun thunk<Wrapper<String>> Readable.get() @fn39(this: Readable<String>) -> String
+  fun thunk<Wrapper<String>> Readable.get() @fn39(this: box<Wrapper<String>>) -> String
     bb0 entry
       call $call.1: String = @fn9 direct
         Type Wrapper<String>
         Unbox
-          Type Readable<String>
+          Type box<Wrapper<String>>
           Local this
       return
         Type String
         Local $call.1
-  fun thunk<Wrapper<Unit>> Readable.get() @fn40(this: Readable<Unit>) -> Unit
+  fun thunk<Wrapper<Unit>> Readable.get() @fn40(this: box<Wrapper<Unit>>) -> Unit
     bb0 entry
       call @fn12 direct
         Type Wrapper<Unit>
         Unbox
-          Type Readable<Unit>
+          Type box<Wrapper<Unit>>
           Local this
       return
-  fun thunk<Wrapper<Int>> Readable.get() @fn41(this: Readable<Int>) -> Int
+  fun thunk<Wrapper<Int>> Readable.get() @fn41(this: box<Wrapper<Int>>) -> Int
     bb0 entry
       call $call.1: Int = @fn14 direct
         Type Wrapper<Int>
         Unbox
-          Type Readable<Int>
+          Type box<Wrapper<Int>>
           Local this
       return
         Type Int

@@ -187,6 +187,7 @@ enum DecodedDefaultExpressionKindV1 {
     ArrayClone(Box<DecodedDefaultExpressionV1>),
     AtomicNew(Box<DecodedDefaultExpressionV1>),
     Atomic(Box<crate::AtomicExpression<DecodedDefaultExpressionV1>>),
+    MaybeUninit(Box<crate::MaybeUninitOperation<DecodedDefaultExpressionV1>>),
     Call {
         callee: DecodedDefaultCallableRefV1,
         arguments: Vec<DecodedDefaultExpressionV1>,

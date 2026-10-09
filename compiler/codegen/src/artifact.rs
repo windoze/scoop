@@ -11,10 +11,10 @@ use std::collections::{BTreeMap, BTreeSet};
 
 mod aarch64;
 mod architecture;
-mod copy_calls;
 mod eh;
 mod elf;
 mod macho;
+mod memory_calls;
 mod x86_64;
 
 #[cfg(test)]

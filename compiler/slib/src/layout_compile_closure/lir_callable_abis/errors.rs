@@ -6,6 +6,9 @@ use scoop_wire::WireError;
 pub enum SharedLirCallableAbiValidationError {
     LocalProvider,
     LocalTarget,
+    SignatureMismatch(CallableDefinitionOwner),
+    StorageMismatch(scoop_identity::PersistentExactTypeId),
+    Read(lir::LinkDataError),
     DependencyProvider(ConeIdentity),
     DependencyTarget(ConeIdentity),
     Callable {
@@ -41,6 +44,7 @@ macro_rules! from_error {
     };
 }
 from_error!(lir::ExactCallableAbiError, Abi);
+from_error!(lir::LinkDataError, Read);
 from_error!(scoop_identity::ScoopAbiError, Signature);
 from_error!(scoop_identity::IdentityReferenceError, Identity);
 from_error!(lir::TupleStorageReplayError, Tuple);

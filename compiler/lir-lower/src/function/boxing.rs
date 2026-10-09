@@ -1,7 +1,11 @@
 use super::*;
 
 impl FunctionLowerer<'_> {
-    pub(super) fn lower_box(&mut self, operand: &mir::Expr) -> StorageResult<lir::Value> {
+    pub(super) fn lower_box(
+        &mut self,
+        operand: &mir::Expr,
+        result_type: &mir::Type,
+    ) -> StorageResult<lir::Value> {
         let value = self.lower_expr(operand)?;
         let descriptor = self.type_descriptors.for_boxed_type(&operand.ty);
         let payload = match descriptor {
@@ -22,7 +26,21 @@ impl FunctionLowerer<'_> {
             safepoint,
             live: lir::StatepointLiveSet::default(),
         });
-        Ok(lir::Value::Temp(out))
+        let object = lir::Value::Temp(out);
+        if let mir::Type::Interface(interface) = result_type {
+            let class = self
+                .module
+                .meta
+                .boxed_types
+                .iter()
+                .find(|boxed| boxed.payload() == &operand.ty)
+                .expect("a boxed expression has its materialized class")
+                .class();
+            let table = self.interface_table(object, *interface, Some(class))?;
+            Ok(self.make_aggregate(result_type, vec![object, table]))
+        } else {
+            Ok(object)
+        }
     }
 
     pub(super) fn lower_unbox(
@@ -31,6 +49,7 @@ impl FunctionLowerer<'_> {
         ty: &mir::Type,
     ) -> StorageResult<lir::Value> {
         let object = self.lower_expr(operand)?;
+        let object = self.reference_object(object, &operand.ty);
         let descriptor = self.type_descriptors.for_boxed_type(ty);
         let (result, value) = match descriptor {
             lir::BoxedValueDescriptor::ZeroSized(descriptor) => {

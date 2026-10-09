@@ -1,0 +1,1266 @@
+Module
+  global0 events: Int managed initial=encoded(Int:0x0)
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum Option<Long>
+    Some(_0: Long)
+    None()
+  enum CoroutineStep<Indexed>
+    Completed(value: Indexed)
+    Suspended()
+  enum CoroutineSlot<Indexed>
+    Empty()
+    Value(value: Indexed)
+  enum CoroutineStep<Grid>
+    Completed(value: Grid)
+    Suspended()
+  enum CoroutineSlot<Grid>
+    Empty()
+    Value(value: Grid)
+  class Indexed vtable=0 itables=0
+  class Grid vtable=0 itables=0
+  class IndexOutOfBoundsException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class ListIterator<Long> vtable=0 itables=1
+  interface List<Long> : Iterable<Long>
+  interface Iterable<Long>
+  interface Iterator<Long>
+  interface Continuation<Indexed>
+  interface SuspendTask<Indexed>
+  interface SuspendRegistration<Indexed>
+  interface Continuation<Grid>
+  interface SuspendTask<Grid>
+  interface SuspendRegistration<Grid>
+  generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
+  generated_exact_type get1 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
+  generated_exact_type get2 location=enum4 nominal_id=daa1636192ea4917e3f265dac92d170538048198606f1c3a1a17701d7b57a3de exact_id=47c5cb38266030b8f3b4574646bac38481913437979757b1c228368a7901131d
+  generated_exact_type get3 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
+  generated_exact_type get4 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
+  generated_exact_type get5 location=enum3 nominal_id=dccf146550b3829ce5c5960ca625b93e4e319e4be92f933e073a4d90fac1a018 exact_id=af517051c26d3b6f0d90c2cf678656d9aaac8b79b48974d9945ad466068e020e
+  generated_exact_type get6 location=enum5 nominal_id=484b0c2e06554bfa5b7ad358f8ec964da0ca17268aba3e6a22590c9ce067866f exact_id=cc6c05fd5996a982573cd78c67c9b035dbfd0643bbcf0ce72fdebbec22aebb05
+  generated_exact_type get7 location=enum2 nominal_id=ba9613e5e24040d63fc36db89103e0206911f91ee1dc413e6e164a9edcc7badf exact_id=d82b3ef288c91e4af8bfbe7a1bedcdf410b53a4dc6eb8be7b3e6cf7234526517
+  generated_exact_type get8 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
+  generated_callable gc0 function=@fn27 id=49e39befb05dfc7f5988c87bc9ad25a497314649ab7c71b432475597f60b49a8
+  generated_callable gc1 function=@fn28 id=6d4f6b21d8accac030f0476cf9fc5acb8d59c060b7680a59a3b2aafe07887d20
+  fun Indexed.get @fn0(this: Indexed, index: Long, delta: Int) -> Int
+    bb0 entry
+      val $dependency.receiver: Long
+        Type Long
+        Local index
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.parameter.other: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Long result=Boolean
+            Type Long
+            Local $dependency.receiver
+            Type Long
+            IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb1 if.then.1
+      assign $new.1
+        Type IndexOutOfBoundsException
+        ClassAlloc IndexOutOfBoundsException
+      call external1 direct
+        Type IndexOutOfBoundsException
+        Local $new.1
+      throw
+        Type IndexOutOfBoundsException
+        Local $new.1
+    bb2 if.merge.2
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+      val $parameter.code: Int
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+      call $call.2: Int = @fn6 direct
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Indexed
+          Local this
+      val $dependency.argument.0: Int
+        Type Int
+        Local delta
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun Indexed.set @fn1(this: Indexed, index: Long, delta: Int, value: Int) -> Unit
+    bb0 entry
+      val $dependency.receiver: Long
+        Type Long
+        Local index
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.parameter.other: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Long result=Boolean
+            Type Long
+            Local $dependency.receiver
+            Type Long
+            IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb1 if.then.1
+      assign $new.1
+        Type IndexOutOfBoundsException
+        ClassAlloc IndexOutOfBoundsException
+      call external1 direct
+        Type IndexOutOfBoundsException
+        Local $new.1
+      throw
+        Type IndexOutOfBoundsException
+        Local $new.1
+    bb2 if.merge.2
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $parameter.code: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      call $call.2: Int = @fn6 direct
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $dependency.receiver: Int
+        Type Int
+        Local value
+      val $dependency.argument.0: Int
+        Type Int
+        Local delta
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      field_set 0
+        Type Indexed
+        Local this
+        Type Int
+        IntegerBinary subtract kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      return
+  fun Indexed.value @fn2(this: Indexed) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type Indexed
+          Local this
+  fun Grid.get @fn3(this: Grid, indices: Array<Long>) -> Int
+    bb0 entry
+      val $inline.9.this: Array<Long>
+        Type Array<Long>
+        Local indices
+      goto bb10
+    bb1 if.then.1
+      val $shortCircuit.5: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb3
+    bb2 if.else.2
+      val $dependency.receiver: Array<Long>
+        Type Array<Long>
+        Local indices
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.parameter.index: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      call $dependency.receiver: Long = @fn11 direct
+        Type Array<Long>
+        Local $dependency.receiver
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=2 bits=0x0000000000000002
+      val $dependency.parameter.other: Long
+        Type Long
+        IntegerLiteral Long value=2 bits=0x0000000000000002
+      val $shortCircuit.5: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Long result=Boolean
+            Type Long
+            Local $dependency.receiver
+            Type Long
+            IntegerLiteral Long value=2 bits=0x0000000000000002
+      goto bb3
+    bb3 if.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $shortCircuit.5
+    bb4 if.then.4
+      val $shortCircuit.6: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb6
+    bb5 if.else.5
+      val $dependency.receiver: Array<Long>
+        Type Array<Long>
+        Local indices
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.parameter.index: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      call $dependency.receiver: Long = @fn11 direct
+        Type Array<Long>
+        Local $dependency.receiver
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=3 bits=0x0000000000000003
+      val $dependency.parameter.other: Long
+        Type Long
+        IntegerLiteral Long value=3 bits=0x0000000000000003
+      val $shortCircuit.6: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Long result=Boolean
+            Type Long
+            Local $dependency.receiver
+            Type Long
+            IntegerLiteral Long value=3 bits=0x0000000000000003
+      goto bb6
+    bb6 if.merge.6
+      branch bb7 bb8
+        Type Boolean
+        Local $shortCircuit.6
+    bb7 if.then.7
+      assign $new.1
+        Type IndexOutOfBoundsException
+        ClassAlloc IndexOutOfBoundsException
+      call external1 direct
+        Type IndexOutOfBoundsException
+        Local $new.1
+      throw
+        Type IndexOutOfBoundsException
+        Local $new.1
+    bb8 if.merge.8
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+      val $parameter.code: Int
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+      call $call.2: Int = @fn6 direct
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+      return
+        Type Int
+        FieldAccess 0
+          Type Grid
+          Local this
+    bb9 inline.cont.9
+      val $dependency.receiver: Long
+        Type Long
+        Local $inline.9.result
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=2 bits=0x0000000000000002
+      val $dependency.parameter.other: Long
+        Type Long
+        IntegerLiteral Long value=2 bits=0x0000000000000002
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Long result=Boolean
+            Type Long
+            Local $dependency.receiver
+            Type Long
+            IntegerLiteral Long value=2 bits=0x0000000000000002
+    bb10 inline.9.entry
+      val $inline.9.$dependency.local.1: Array<Long>
+        Type Array<Long>
+        Local $inline.9.this
+      assign $inline.9.result
+        Type Long
+        ArrayLen Array<Long>
+          Type Array<Long>
+          Local $inline.9.$dependency.local.1
+      goto bb9
+  fun Grid.set @fn4(this: Grid, indices: Array<Long>, value: Int) -> Unit
+    bb0 entry
+      val $inline.9.this: Array<Long>
+        Type Array<Long>
+        Local indices
+      goto bb10
+    bb1 if.then.1
+      val $shortCircuit.7: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb3
+    bb2 if.else.2
+      val $dependency.receiver: Array<Long>
+        Type Array<Long>
+        Local indices
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.parameter.index: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      call $dependency.receiver: Long = @fn11 direct
+        Type Array<Long>
+        Local $dependency.receiver
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=2 bits=0x0000000000000002
+      val $dependency.parameter.other: Long
+        Type Long
+        IntegerLiteral Long value=2 bits=0x0000000000000002
+      val $shortCircuit.7: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Long result=Boolean
+            Type Long
+            Local $dependency.receiver
+            Type Long
+            IntegerLiteral Long value=2 bits=0x0000000000000002
+      goto bb3
+    bb3 if.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $shortCircuit.7
+    bb4 if.then.4
+      val $shortCircuit.8: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb6
+    bb5 if.else.5
+      val $dependency.receiver: Array<Long>
+        Type Array<Long>
+        Local indices
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.parameter.index: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      call $dependency.receiver: Long = @fn11 direct
+        Type Array<Long>
+        Local $dependency.receiver
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=3 bits=0x0000000000000003
+      val $dependency.parameter.other: Long
+        Type Long
+        IntegerLiteral Long value=3 bits=0x0000000000000003
+      val $shortCircuit.8: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Long result=Boolean
+            Type Long
+            Local $dependency.receiver
+            Type Long
+            IntegerLiteral Long value=3 bits=0x0000000000000003
+      goto bb6
+    bb6 if.merge.6
+      branch bb7 bb8
+        Type Boolean
+        Local $shortCircuit.8
+    bb7 if.then.7
+      assign $new.1
+        Type IndexOutOfBoundsException
+        ClassAlloc IndexOutOfBoundsException
+      call external1 direct
+        Type IndexOutOfBoundsException
+        Local $new.1
+      throw
+        Type IndexOutOfBoundsException
+        Local $new.1
+    bb8 if.merge.8
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $parameter.code: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      call $call.2: Int = @fn6 direct
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      field_set 0
+        Type Grid
+        Local this
+        Type Int
+        Local value
+      return
+    bb9 inline.cont.9
+      val $dependency.receiver: Long
+        Type Long
+        Local $inline.9.result
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=2 bits=0x0000000000000002
+      val $dependency.parameter.other: Long
+        Type Long
+        IntegerLiteral Long value=2 bits=0x0000000000000002
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Long result=Boolean
+            Type Long
+            Local $dependency.receiver
+            Type Long
+            IntegerLiteral Long value=2 bits=0x0000000000000002
+    bb10 inline.9.entry
+      val $inline.9.$dependency.local.1: Array<Long>
+        Type Array<Long>
+        Local $inline.9.this
+      assign $inline.9.result
+        Type Long
+        ArrayLen Array<Long>
+          Type Array<Long>
+          Local $inline.9.$dependency.local.1
+      goto bb9
+  fun Grid.value @fn5(this: Grid) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type Grid
+          Local this
+  fun mark @fn6(code: Int) -> Int
+    bb0 entry
+      goto bb4
+    bb1 inline.cont.1
+      call @scoop_rt_gc_collect direct
+      return
+        Type Int
+        Local code
+    bb2 inline.1.entry
+      global_assign events
+        Type Int
+        Local $inline.1.value
+      goto bb1
+    bb3 inline.cont.3
+      val $dependency.receiver: Int
+        Type Int
+        Local $inline.3.result
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+      val $dependency.receiver: Int
+        Type Int
+        IntegerBinary multiply kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          IntegerLiteral Int value=10 bits=0x0000000a
+      val $dependency.argument.0: Int
+        Type Int
+        Local code
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $inline.1.value: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      goto bb2
+    bb4 inline.3.entry
+      assign $inline.3.result
+        Type Int
+        GlobalRead events
+      goto bb3
+  fun localUpdate @fn7() -> Int
+    bb0 entry
+      assign $new.1
+        Type Indexed
+        ClassAlloc Indexed
+      val $inline.15.this: Indexed
+        Type Indexed
+        Local $new.1
+      goto bb16
+    bb1 if.then.1
+      val $default.local.0: String
+        Type String
+        StringConst @str0
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.2
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $new.2
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.2
+    bb2 if.merge.2
+      val $receiver: Indexed
+        Type Indexed
+        Local table
+      val $inline.3.this: Indexed
+        Type Indexed
+        Local $receiver
+      goto bb4
+    bb3 inline.cont.3
+      val $call.3: Int
+        Type Int
+        Local $inline.3.result
+      return
+        Type Int
+        Local $call.3
+    bb4 inline.3.entry
+      assign $inline.3.result
+        Type Int
+        FieldAccess 0
+          Type Indexed
+          Local $inline.3.this
+      goto bb3
+    bb5 inline.cont.5
+      val $dependency.receiver: Int
+        Type Int
+        Local $inline.5.result
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3467 bits=0x00000d8b
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=3467 bits=0x00000d8b
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            IntegerLiteral Int value=3467 bits=0x00000d8b
+    bb6 inline.5.entry
+      assign $inline.5.result
+        Type Int
+        GlobalRead events
+      goto bb5
+    bb7 inline.cont.7
+      goto bb6
+    bb8 inline.7.entry
+      val $inline.7.$dependency.receiver: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $inline.7.$dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $inline.7.$dependency.parameter.other: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      goto bb9
+    bb9 inline.7.if.merge.2
+      val $inline.7.$argument.0: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $inline.7.$parameter.code: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      call $inline.7.$call.2: Int = @fn6 direct
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $inline.7.$dependency.receiver: Int
+        Type Int
+        Local $inline.7.value
+      val $inline.7.$dependency.argument.0: Int
+        Type Int
+        Local $inline.7.delta
+      val $inline.7.$dependency.parameter.other: Int
+        Type Int
+        Local $inline.7.$dependency.argument.0
+      field_set 0
+        Type Indexed
+        Local $inline.7.this
+        Type Int
+        IntegerBinary subtract kind=Int
+          Type Int
+          Local $inline.7.$dependency.receiver
+          Type Int
+          Local $inline.7.$dependency.parameter.other
+      goto bb7
+    bb10 inline.cont.10
+      val $old.2: Int
+        Type Int
+        Local $inline.10.result
+      val $dependency.receiver: Int
+        Type Int
+        Local $old.2
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $write.3: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          IntegerLiteral Int value=7 bits=0x00000007
+      val $receiver: Indexed
+        Type Indexed
+        Local $place.0
+      val $argument.0: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $argument.1: Int
+        Type Int
+        Local $write.3
+      val $parameter.index: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=6 bits=0x00000006
+      val $parameter.code: Int
+        Type Int
+        IntegerLiteral Int value=6 bits=0x00000006
+      call $parameter.delta: Int = @fn6 direct
+        Type Int
+        IntegerLiteral Int value=6 bits=0x00000006
+      val $parameter.value: Int
+        Type Int
+        Local $argument.1
+      val $inline.7.this: Indexed
+        Type Indexed
+        Local $receiver
+      val $inline.7.index: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $inline.7.delta: Int
+        Type Int
+        Local $parameter.delta
+      val $inline.7.value: Int
+        Type Int
+        Local $parameter.value
+      goto bb8
+    bb11 inline.10.entry
+      val $inline.10.$dependency.receiver: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $inline.10.$dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $inline.10.$dependency.parameter.other: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      goto bb12
+    bb12 inline.10.if.merge.2
+      val $inline.10.$argument.0: Int
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+      val $inline.10.$parameter.code: Int
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+      call $inline.10.$call.2: Int = @fn6 direct
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+      val $inline.10.$dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Indexed
+          Local $inline.10.this
+      val $inline.10.$dependency.argument.0: Int
+        Type Int
+        Local $inline.10.delta
+      val $inline.10.$dependency.parameter.other: Int
+        Type Int
+        Local $inline.10.$dependency.argument.0
+      assign $inline.10.result
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.10.$dependency.receiver
+          Type Int
+          Local $inline.10.$dependency.parameter.other
+      goto bb10
+    bb13 inline.cont.13
+      val $place.0: Indexed
+        Type Indexed
+        Local table
+      val $receiver: Indexed
+        Type Indexed
+        Local $place.0
+      val $argument.0: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $parameter.index: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $parameter.code: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      call $parameter.delta: Int = @fn6 direct
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $inline.10.this: Indexed
+        Type Indexed
+        Local $receiver
+      val $inline.10.index: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $inline.10.delta: Int
+        Type Int
+        Local $parameter.delta
+      goto bb11
+    bb14 inline.13.entry
+      global_assign events
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      goto bb13
+    bb15 inline.cont.15
+      val table: Indexed
+        Type Indexed
+        Local $new.1
+      val $inline.13.value: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      goto bb14
+    bb16 inline.15.entry
+      field_set 0
+        Type Indexed
+        Local $inline.15.this
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+      goto bb15
+  fun $get$events @fn8() -> Int <no-gc>
+    bb0 entry
+      return
+        Type Int
+        GlobalRead events
+  fun $set$events @fn9(value: Int) -> Unit <no-gc>
+    bb0 entry
+      global_assign events
+        Type Int
+        Local value
+      return
+  fun iterator @fn10(this: Array<Long>) -> Iterator<Long>
+    bb0 entry
+      val $dependency.local.1: List<Long>
+        Type List<Long>
+        Retype List<Long>
+          Type Array<Long>
+          Local this
+      val $dependency.local.2: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.local.3: Boolean
+        Type Boolean
+        BoolLiteral false
+      val $dependency.local.4: List<Long>
+        Type List<Long>
+        Local $dependency.local.1
+      val $dependency.local.5: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.local.6: Boolean
+        Type Boolean
+        BoolLiteral false
+      assign $new.1
+        Type ListIterator<Long>
+        ClassAlloc ListIterator<Long>
+      val $inline.1.this: ListIterator<Long>
+        Type ListIterator<Long>
+        Local $new.1
+      val $inline.1.source: List<Long>
+        Type List<Long>
+        Local $dependency.local.4
+      val $inline.1.index: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $inline.1.exhausted: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb2
+    bb1 inline.cont.1
+      return
+        Type Iterator<Long>
+        Retype Iterator<Long>
+          Type ListIterator<Long>
+          Local $new.1
+    bb2 inline.1.entry
+      field_set 0
+        Type ListIterator<Long>
+        Local $inline.1.this
+        Type List<Long>
+        Local $inline.1.source
+      field_set 1
+        Type ListIterator<Long>
+        Local $inline.1.this
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      field_set 2
+        Type ListIterator<Long>
+        Local $inline.1.this
+        Type Boolean
+        BoolLiteral false
+      goto bb1
+  fun get @fn11(this: Array<Long>, index: Long) -> Long
+    bb0 entry
+      val $dependency.local.2: Array<Long>
+        Type Array<Long>
+        Local this
+      val $dependency.local.3: Long
+        Type Long
+        Local index
+      val $dependency.local.4: Long
+        Type Long
+        Local $dependency.local.3
+      val $arr.1: Array<Long>
+        Type Array<Long>
+        Local $dependency.local.2
+      val $idx.2: Long
+        Type Long
+        Local $dependency.local.4
+      branch bb2 bb1
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb1 logic.rhs.1
+      assign $logic.1
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          ArrayLen Array<Long>
+            Type Array<Long>
+            Local $arr.1
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.1
+        Type Boolean
+        BoolLiteral true
+      goto bb3
+    bb3 logic.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $logic.1
+    bb4 if.then.4
+      assign $new.2
+        Type IndexOutOfBoundsException
+        ClassAlloc IndexOutOfBoundsException
+      call external1 direct
+        Type IndexOutOfBoundsException
+        Local $new.2
+      throw
+        Type IndexOutOfBoundsException
+        Local $new.2
+    bb5 if.merge.5
+      return
+        Type Long
+        ArrayGet Array<Long>
+          Type Array<Long>
+          Local $arr.1
+          Type Long
+          Local $idx.2
+  fun size @fn12(this: Array<Long>) -> Long
+    bb0 entry
+      val $dependency.local.1: Array<Long>
+        Type Array<Long>
+        Local this
+      return
+        Type Long
+        ArrayLen Array<Long>
+          Type Array<Long>
+          Local $dependency.local.1
+  fun next @fn13(this: ListIterator<Long>) -> Option<Long>
+    bb0 entry
+      branch bb1 bb2
+        Type Boolean
+        FieldAccess 2
+          Type ListIterator<Long>
+          Local this
+    bb1 if.then.1
+      return
+        Type Option<Long>
+        VariantConstruct Option<Long> v1
+    bb2 if.merge.2
+      val $dependency.local.2: Long
+        Type Long
+        FieldAccess 1
+          Type ListIterator<Long>
+          Local this
+      call $dependency.local.3: Long = @fn14 interface List<Long>[2]
+        Type List<Long>
+        FieldAccess 0
+          Type ListIterator<Long>
+          Local this
+      val $dependency.local.4: Long
+        Type Long
+        Local $dependency.local.3
+      branch bb3 bb4
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Long result=Long
+            Type Long
+            Local $dependency.local.2
+            Type Long
+            Local $dependency.local.4
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb3 if.then.3
+      field_set 2
+        Type ListIterator<Long>
+        Local this
+        Type Boolean
+        BoolLiteral true
+      return
+        Type Option<Long>
+        VariantConstruct Option<Long> v1
+    bb4 if.merge.4
+      val $dependency.local.5: List<Long>
+        Type List<Long>
+        FieldAccess 0
+          Type ListIterator<Long>
+          Local this
+      val $dependency.local.6: Long
+        Type Long
+        FieldAccess 1
+          Type ListIterator<Long>
+          Local this
+      val $dependency.local.7: Long
+        Type Long
+        Local $dependency.local.6
+      call $dependency.local.1: Long = @fn15 interface List<Long>[1]
+        Type List<Long>
+        Local $dependency.local.5
+        Type Long
+        Local $dependency.local.7
+      val $dependency.local.8: Long
+        Type Long
+        FieldAccess 1
+          Type ListIterator<Long>
+          Local this
+      val $dependency.local.9: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.local.10: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      field_set 1
+        Type ListIterator<Long>
+        Local this
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.local.8
+          Type Long
+          IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.local.11: Long
+        Type Long
+        Local $dependency.local.1
+      val $dependency.local.12: Long
+        Type Long
+        Local $dependency.local.11
+      return
+        Type Option<Long>
+        VariantConstruct Option<Long> v0
+          Type Long
+          Local $dependency.local.12
+  fun List.$get$size @fn14(this: List<Long>) -> Long
+    bb0 entry
+      trap "call to abstract method `List.$get$size`"
+  fun List.get @fn15(this: List<Long>, index: Long) -> Long
+    bb0 entry
+      trap "call to abstract method `List.get`"
+  fun Continuation.resume @fn16(this: Continuation<Indexed>, value: Indexed) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn17(this: Continuation<Indexed>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn18(this: SuspendTask<Indexed>, $completion: Continuation<Indexed>) -> CoroutineStep<Indexed>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn19(this: SuspendRegistration<Indexed>, continuation: Continuation<Indexed>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn20(this: Continuation<Grid>, value: Grid) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn21(this: Continuation<Grid>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn22(this: SuspendTask<Grid>, $completion: Continuation<Grid>) -> CoroutineStep<Grid>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn23(this: SuspendRegistration<Grid>, continuation: Continuation<Grid>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.Indexed.$c0 @fn24(this: Indexed) -> Unit
+    bb0 entry
+      field_set 0
+        Type Indexed
+        Local this
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+      return
+  fun init.Grid.$c1 @fn25(this: Grid) -> Unit
+    bb0 entry
+      field_set 0
+        Type Grid
+        Local this
+        Type Int
+        IntegerLiteral Int value=20 bits=0x00000014
+      return
+  fun init.ListIterator.$c0 @fn26(this: ListIterator<Long>, source: List<Long>, index: Long, exhausted: Boolean) -> Unit
+    bb0 entry
+      field_set 0
+        Type ListIterator<Long>
+        Local this
+        Type List<Long>
+        Local source
+      field_set 1
+        Type ListIterator<Long>
+        Local this
+        Type Long
+        Local index
+      field_set 2
+        Type ListIterator<Long>
+        Local this
+        Type Boolean
+        Local exhausted
+      return
+  fun startCoroutine<Indexed> @fn27(task: SuspendTask<Indexed>, completion: Continuation<Indexed>) -> Unit
+    bb0 context.unwind
+      landing_pad cleanup=true
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb1 context.catch_unwind
+      landing_pad cleanup=true
+      end_catch
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb2 suspended
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb3 completed unwind bb0
+      call @fn16 interface Continuation<Indexed>[0]
+        Type Continuation<Indexed>
+        Local completion
+        Type Indexed
+        EnumField v0 f0
+          Type CoroutineStep<Indexed>
+          Local $step
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb4 failed unwind bb0
+      call @fn17 interface Continuation<Indexed>[1]
+        Type Continuation<Indexed>
+        Local completion
+        Type Throwable
+        Local $exception
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb5 body_failure unwind bb1
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb4
+    bb6 run unwind bb5
+      call $step: CoroutineStep<Indexed> = @fn18 interface SuspendTask<Indexed>[0]
+        Type SuspendTask<Indexed>
+        Local task
+        Type Continuation<Indexed>
+        Local completion
+      branch bb3 bb2
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Indexed>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+    bb7 entry
+      val $child_context: internal<task-context>
+        Type internal<task-context>
+        ContextFork
+          Type internal<context-node>
+          ContextSnapshot
+      val $context_guard: internal<context-switch-guard>
+        Type internal<context-switch-guard>
+        ContextEnter
+          Type internal<task-context>
+          Local $child_context
+      goto bb6
+  fun startCoroutine<Grid> @fn28(task: SuspendTask<Grid>, completion: Continuation<Grid>) -> Unit
+    bb0 context.unwind
+      landing_pad cleanup=true
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb1 context.catch_unwind
+      landing_pad cleanup=true
+      end_catch
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb2 suspended
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb3 completed unwind bb0
+      call @fn20 interface Continuation<Grid>[0]
+        Type Continuation<Grid>
+        Local completion
+        Type Grid
+        EnumField v0 f0
+          Type CoroutineStep<Grid>
+          Local $step
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb4 failed unwind bb0
+      call @fn21 interface Continuation<Grid>[1]
+        Type Continuation<Grid>
+        Local completion
+        Type Throwable
+        Local $exception
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb5 body_failure unwind bb1
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb4
+    bb6 run unwind bb5
+      call $step: CoroutineStep<Grid> = @fn22 interface SuspendTask<Grid>[0]
+        Type SuspendTask<Grid>
+        Local task
+        Type Continuation<Grid>
+        Local completion
+      branch bb3 bb2
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Grid>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+    bb7 entry
+      val $child_context: internal<task-context>
+        Type internal<task-context>
+        ContextFork
+          Type internal<context-node>
+          ContextSnapshot
+      val $context_guard: internal<context-switch-guard>
+        Type internal<context-switch-guard>
+        ContextEnter
+          Type internal<task-context>
+          Local $child_context
+      goto bb6
+  coroutine_step cs0 CoroutineStep<Indexed> result=Indexed
+  coroutine_step cs1 CoroutineStep<Grid> result=Grid
+  coroutine_slot cl0 CoroutineSlot<Indexed> value=Indexed
+  coroutine_slot cl1 CoroutineSlot<Grid> value=Grid
+  coroutine_start ct0 result=Indexed function=fn27
+  coroutine_start ct1 result=Grid function=fn28
+  coroutine_fn cf0 @fn18 source_return=Indexed step=cs0 immediate
+  coroutine_fn cf1 @fn22 source_return=Grid step=cs1 immediate
+  instance mi0 function=@fn10 <- iterator
+  instance mi1 function=@fn11 <- get
+  instance mi2 function=@fn12 <- size
+  instance mi3 function=@fn13 <- next
+  instance mi4 function=@fn14 <- List.$get$size
+  instance mi5 function=@fn15 <- List.get
+  instance mi6 function=@fn16 <- Continuation.resume
+  instance mi7 function=@fn17 <- Continuation.resumeWithException
+  instance mi8 function=@fn18 <- SuspendTask.run
+  instance mi9 function=@fn19 <- SuspendRegistration.register
+  instance mi10 function=@fn20 <- Continuation.resume
+  instance mi11 function=@fn21 <- Continuation.resumeWithException
+  instance mi12 function=@fn22 <- SuspendTask.run
+  instance mi13 function=@fn23 <- SuspendRegistration.register
+  str @str0 "illegal state"
+  output library

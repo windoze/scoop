@@ -18,27 +18,24 @@ static size_t previous_start(const ScoopGcBlockMeta *block, size_t word) {
     }
 }
 
-void scoop_gc_scan_remembered(ScoopGcObjectRangeVisitor visitor, void *context, bool count_cards) {
-    size_t card_count = (size_t)arena_next_block * (GC_BLOCK_SIZE >> GC_CARD_SHIFT);
-    for (size_t card = 0; card < card_count; card++) {
-        if (card_table_storage[card] == 0) {
+static void scan_region(ScoopGcRegion *region, ScoopGcObjectRangeVisitor visitor, void *context,
+                        bool count_cards) {
+    size_t bytes = region->large ? region->size : (size_t)region->next_block * GC_BLOCK_SIZE;
+    for (size_t card = 0; card < (bytes >> GC_CARD_SHIFT); card++) {
+        if (region->cards[card] == 0) {
             continue;
         }
-        uintptr_t begin = arena_base + (card << GC_CARD_SHIFT);
+        uintptr_t begin = region->base + (card << GC_CARD_SHIFT);
         uintptr_t end = begin + ((uintptr_t)1 << GC_CARD_SHIFT);
-        uint32_t index = (uint32_t)((begin - arena_base) / GC_BLOCK_SIZE);
-        ScoopGcBlockMeta *block = &blocks[index];
-        if (block->state == SCOOP_BLOCK_LARGE_TAIL) {
-            index = block->owner_block;
-            block = &blocks[index];
-        }
+        size_t index = region->large ? 0 : (begin - region->base) / GC_BLOCK_SIZE;
+        ScoopGcBlockMeta *block = &region->blocks[index];
         if (!active_head(block) || block->generation != SCOOP_GC_OLD) {
             continue;
         }
         if (count_cards) {
             scoop_gc_heap_state.metrics.dirty_cards++;
         }
-        uintptr_t base = (uintptr_t)block_base(index);
+        uintptr_t base = (uintptr_t)block_base(block);
         if (block->kind == SCOOP_BLOCK_KIND_LARGE) {
             visitor((void *)(base + GC_LINE_SIZE), begin, end, context);
             continue;
@@ -55,5 +52,12 @@ void scoop_gc_scan_remembered(ScoopGcObjectRangeVisitor visitor, void *context, 
                 visitor((void *)object, begin, end, context);
             }
         }
+    }
+}
+
+void scoop_gc_scan_remembered(ScoopGcObjectRangeVisitor visitor, void *context, bool count_cards) {
+    for (ScoopGcRegion *region = scoop_gc_heap_state.regions; region != NULL;
+         region = region->next) {
+        scan_region(region, visitor, context, count_cards);
     }
 }

@@ -95,6 +95,18 @@ impl<'a> Projection<'a> {
         let exact = source.exact();
 
         match (source.representation(), ty) {
+            (Kind::MaybeUninit { value }, mir::Type::Struct(id)) => {
+                let mir::StructRepresentation::Intrinsic(
+                    mir::IntrinsicTypeRepresentation::MaybeUninit { value: actual },
+                ) = &self.module.structs[*id].representation
+                else {
+                    return Err(ExactLayoutLoweringError::SourceRepresentation(exact));
+                };
+                if *value != self.exact_of(actual)? {
+                    return Err(ExactLayoutLoweringError::SourceFields(exact));
+                }
+                Ok(())
+            }
             (representation, mir::Type::Context(storage)) => {
                 if representation == &mir::context_type_representation(*storage) {
                     Ok(())

@@ -2537,8 +2537,10 @@ Module
       call $step.1: CoroutineStep<Long> = external3 direct
         Type Gate<Long>
         Local $dependency.parameter.gate
-        Type CoroutineAdapter<LongTask.run>$1
-        Local $adapter.1
+        Type Continuation<Long>
+        Retype Continuation<Long>
+          Type CoroutineAdapter<LongTask.run>$1
+          Local $adapter.1
       branch bb5 bb6
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -3068,8 +3070,10 @@ Module
       call $step.1: CoroutineStep<Large> = @fn35 direct
         Type Gate<Large>
         Local $dependency.local.4
-        Type CoroutineAdapter<run>$1
-        Local $adapter.1
+        Type Continuation<Large>
+        Retype Continuation<Large>
+          Type CoroutineAdapter<run>$1
+          Local $adapter.1
       branch bb5 bb6
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -3633,8 +3637,10 @@ Module
       call $step.1: CoroutineStep<Payload<Node>> = @fn46 direct
         Type Gate<Payload<Node>>
         Local $dependency.local.4
-        Type CoroutineAdapter<run>$1
-        Local $adapter.1
+        Type Continuation<Payload<Node>>
+        Retype Continuation<Payload<Node>>
+          Type CoroutineAdapter<run>$1
+          Local $adapter.1
       branch bb5 bb6
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -4215,8 +4221,10 @@ Module
       call @fn61 interface SuspendRegistration<Large>[0]
         Type SuspendRegistration<Large>
         Local $dependency.local.4
-        Type CoroutineAdapter<await>$1
-        Local $safe_adapter.1
+        Type Continuation<Large>
+        Retype Continuation<Large>
+          Type CoroutineAdapter<await>$1
+          Local $safe_adapter.1
       goto bb14
     bb3 coroutine.registered_success.1
       atomic_store_release kind=coroutine-adapter-state field=1
@@ -4973,8 +4981,10 @@ Module
       call @fn68 interface SuspendRegistration<Payload<Node>>[0]
         Type SuspendRegistration<Payload<Node>>
         Local $dependency.local.4
-        Type CoroutineAdapter<await>$1
-        Local $safe_adapter.1
+        Type Continuation<Payload<Node>>
+        Retype Continuation<Payload<Node>>
+          Type CoroutineAdapter<await>$1
+          Local $safe_adapter.1
       goto bb14
     bb3 coroutine.registered_success.1
       atomic_store_release kind=coroutine-adapter-state field=1

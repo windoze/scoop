@@ -31,7 +31,7 @@ Module
     local %0 token: struct0 <logical-zst 5bf44b79690a11869516d585c1b3c244026126b0a73e6f53c399e4bdbfdae618>
     local %1 impl: ptr<managed>
     local %2 base: ptr<managed>
-    local %3 contract: ptr<managed>
+    local %3 contract: interface{object,itab}
     local %4 $dependency.receiver: ptr<managed>
     local %5 $dependency.argument.0: struct0 <logical-zst 5bf44b79690a11869516d585c1b3c244026126b0a73e6f53c399e4bdbfdae618>
     local %6 $dependency.parameter.value: struct0 <logical-zst 5bf44b79690a11869516d585c1b3c244026126b0a73e6f53c399e4bdbfdae618>
@@ -46,20 +46,20 @@ Module
     local %15 $dependency.parameter.value: struct0 <logical-zst 5bf44b79690a11869516d585c1b3c244026126b0a73e6f53c399e4bdbfdae618>
     local %16 $argument.0: i1
     local %17 $parameter.value: i1
-    local %18 $dependency.receiver: ptr<managed>
+    local %18 $dependency.receiver: interface{object,itab}
     local %19 $dependency.argument.0: struct0 <logical-zst 5bf44b79690a11869516d585c1b3c244026126b0a73e6f53c399e4bdbfdae618>
     local %20 $dependency.parameter.value: struct0 <logical-zst 5bf44b79690a11869516d585c1b3c244026126b0a73e6f53c399e4bdbfdae618>
-    local %21 $dependency.receiver: ptr<managed>
+    local %21 $dependency.receiver: interface{object,itab}
     local %22 $dependency.argument.0: struct0 <logical-zst 5bf44b79690a11869516d585c1b3c244026126b0a73e6f53c399e4bdbfdae618>
     local %23 $dependency.parameter.value: struct0 <logical-zst 5bf44b79690a11869516d585c1b3c244026126b0a73e6f53c399e4bdbfdae618>
     local %24 $shortCircuit.1: i1
     local %25 $argument.0: i1
     local %26 $parameter.value: i1
-    local %27 partial: ptr<managed>
-    local %28 $dependency.receiver: ptr<managed>
+    local %27 partial: interface{object,itab}
+    local %28 $dependency.receiver: interface{object,itab}
     local %29 $dependency.argument.0: struct0 <logical-zst 5bf44b79690a11869516d585c1b3c244026126b0a73e6f53c399e4bdbfdae618>
     local %30 $dependency.parameter.value: struct0 <logical-zst 5bf44b79690a11869516d585c1b3c244026126b0a73e6f53c399e4bdbfdae618>
-    local %31 $dependency.receiver: ptr<managed>
+    local %31 $dependency.receiver: interface{object,itab}
     local %32 $dependency.argument.0: struct0 <logical-zst 5bf44b79690a11869516d585c1b3c244026126b0a73e6f53c399e4bdbfdae618>
     local %33 $dependency.parameter.value: struct0 <logical-zst 5bf44b79690a11869516d585c1b3c244026126b0a73e6f53c399e4bdbfdae618>
     local %34 $shortCircuit.2: i1
@@ -111,25 +111,28 @@ Module
     call managed-direct-target0 sp<managed-call:0> live=[] t1 = sig=direct0 () -> ptr<managed> external-fn8()
     store t1 -> local1
     store local1 -> local2
-    store local1 -> local3
+    t2 = heap_load external-td10 +96 : ptr<metadata>
+    t3 = heap_load t2 +8 : ptr<metadata>
+    t4 = aggregate (local1, t3) : interface{object,itab}
+    store t4 -> local3
     store local2 -> local4
     store local0 -> local5
     store local5 -> local6
-    t2 = heap_load local4 +0 : ptr<metadata>
-    t3 = heap_load t2 +88 : ptr<metadata>
-    call managed-elided-zst-target0 sp<managed-call:1> live=[local2:ptr<managed>@0, local3:ptr<managed>@0, local4:ptr<managed>@0] t4 = sig=elided-zst1 (ptr<managed>, elided-zst<struct0 size=0 align=1>) -> elided-zst<struct0 size=0 align=1> dispatch[Virtual:0] t3(local4, elided-zst local6)
-    store t4 -> local54
-    call managed-direct-target1 sp<managed-call:2> live=[local2:ptr<managed>@0, local3:ptr<managed>@0] t5 = sig=direct1 (elided-zst<struct0 size=0 align=1>, elided-zst<struct0 size=0 align=1>) -> i1 external-fn20(elided-zst local54, elided-zst local0)
-    store t5 -> local55
+    t5 = heap_load local4 +0 : ptr<metadata>
+    t6 = heap_load t5 +88 : ptr<metadata>
+    call managed-elided-zst-target0 sp<managed-call:1> live=[local2:ptr<managed>@0, local3:interface{object,itab}@0, local4:ptr<managed>@0] t7 = sig=elided-zst1 (ptr<managed>, elided-zst<struct0 size=0 align=1>) -> elided-zst<struct0 size=0 align=1> dispatch[Virtual:0] t6(local4, elided-zst local6)
+    store t7 -> local54
+    call managed-direct-target1 sp<managed-call:2> live=[local2:ptr<managed>@0, local3:interface{object,itab}@0] t8 = sig=direct1 (elided-zst<struct0 size=0 align=1>, elided-zst<struct0 size=0 align=1>) -> i1 external-fn20(elided-zst local54, elided-zst local0)
+    store t8 -> local55
     cbr local55 then @if.then.1 else @if.else.2
   block if.then.1
     store local2 -> local7
     store local0 -> local8
     store local8 -> local9
-    call managed-elided-zst-target1 sp<managed-call:3> live=[local2:ptr<managed>@0, local3:ptr<managed>@0, local7:ptr<managed>@0] t6 = sig=elided-zst2 (ptr<managed>, elided-zst<struct0 size=0 align=1>) -> elided-zst<struct0 size=0 align=1> external-fn9(local7, elided-zst local9)
-    store t6 -> local56
-    call managed-direct-target2 sp<managed-call:4> live=[local2:ptr<managed>@0, local3:ptr<managed>@0] t7 = sig=direct2 (elided-zst<struct0 size=0 align=1>, elided-zst<struct0 size=0 align=1>) -> i1 external-fn20(elided-zst local56, elided-zst local0)
-    store t7 -> local10
+    call managed-elided-zst-target1 sp<managed-call:3> live=[local2:ptr<managed>@0, local3:interface{object,itab}@0, local7:ptr<managed>@0] t9 = sig=elided-zst2 (ptr<managed>, elided-zst<struct0 size=0 align=1>) -> elided-zst<struct0 size=0 align=1> external-fn9(local7, elided-zst local9)
+    store t9 -> local56
+    call managed-direct-target2 sp<managed-call:4> live=[local2:ptr<managed>@0, local3:interface{object,itab}@0] t10 = sig=direct2 (elided-zst<struct0 size=0 align=1>, elided-zst<struct0 size=0 align=1>) -> i1 external-fn20(elided-zst local56, elided-zst local0)
+    store t10 -> local10
     br @if.merge.3
   block if.else.2
     store false -> local10
@@ -137,36 +140,36 @@ Module
   block if.merge.3
     store local10 -> local11
     store local11 -> local12
-    call managed-void-target0 sp<managed-call:5> live=[local2:ptr<managed>@0, local3:ptr<managed>@0] sig=void0 (i1) local-fn0(local12)
-    t8 = aggregate () : {}
+    call managed-void-target0 sp<managed-call:5> live=[local2:ptr<managed>@0, local3:interface{object,itab}@0] sig=void0 (i1) local-fn0(local12)
+    t11 = aggregate () : {}
     store local2 -> local13
     store local0 -> local14
     store local14 -> local15
-    call managed-elided-zst-target2 sp<managed-call:6> live=[local3:ptr<managed>@0, local13:ptr<managed>@0] t9 = sig=elided-zst3 (ptr<managed>, elided-zst<struct0 size=0 align=1>) -> elided-zst<{struct0, struct0, struct0, struct0} size=0 align=1> external-fn10(local13, elided-zst local15)
-    store t9 -> local57
-    t10 = aggregate (local0, local0, local0, local0) : {struct0, struct0, struct0, struct0}
-    call managed-direct-target3 sp<managed-call:7> live=[local3:ptr<managed>@0] t11 = sig=direct3 (elided-zst<{struct0, struct0, struct0, struct0} size=0 align=1>, elided-zst<{struct0, struct0, struct0, struct0} size=0 align=1>) -> i1 local-fn2(elided-zst local57, elided-zst t10)
-    store t11 -> local16
+    call managed-elided-zst-target2 sp<managed-call:6> live=[local3:interface{object,itab}@0, local13:ptr<managed>@0] t12 = sig=elided-zst3 (ptr<managed>, elided-zst<struct0 size=0 align=1>) -> elided-zst<{struct0, struct0, struct0, struct0} size=0 align=1> external-fn10(local13, elided-zst local15)
+    store t12 -> local57
+    t13 = aggregate (local0, local0, local0, local0) : {struct0, struct0, struct0, struct0}
+    call managed-direct-target3 sp<managed-call:7> live=[local3:interface{object,itab}@0] t14 = sig=direct3 (elided-zst<{struct0, struct0, struct0, struct0} size=0 align=1>, elided-zst<{struct0, struct0, struct0, struct0} size=0 align=1>) -> i1 local-fn2(elided-zst local57, elided-zst t13)
+    store t14 -> local16
     store local16 -> local17
-    call managed-void-target1 sp<managed-call:8> live=[local3:ptr<managed>@0] sig=void1 (i1) local-fn0(local17)
-    t12 = aggregate () : {}
+    call managed-void-target1 sp<managed-call:8> live=[local3:interface{object,itab}@0] sig=void1 (i1) local-fn0(local17)
+    t15 = aggregate () : {}
     store local3 -> local18
     store local0 -> local19
     store local19 -> local20
-    t13 = heap_load local18 +0 : ptr<metadata>
-    call no-gc-direct-target0 t14 = sig=direct4 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t13, external-td5)
-    call managed-elided-zst-target3 sp<managed-call:9> live=[local3:ptr<managed>@0, local18:ptr<managed>@0] t15 = sig=elided-zst4 (ptr<managed>, elided-zst<struct0 size=0 align=1>) -> elided-zst<struct0 size=0 align=1> dispatch[Interface:0] t14(local18, elided-zst local20)
-    store t15 -> local58
-    call managed-direct-target4 sp<managed-call:10> live=[local3:ptr<managed>@0] t16 = sig=direct5 (elided-zst<struct0 size=0 align=1>, elided-zst<struct0 size=0 align=1>) -> i1 external-fn20(elided-zst local58, elided-zst local0)
-    store t16 -> local59
+    t16 = extract local18, 1 : ptr<metadata>
+    t17 = extract local18, 0 : ptr<managed>
+    call managed-elided-zst-target3 sp<managed-call:9> live=[local3:interface{object,itab}@0, t17:ptr<managed>@0] t18 = sig=elided-zst4 (ptr<managed>, elided-zst<struct0 size=0 align=1>) -> elided-zst<struct0 size=0 align=1> dispatch[Interface:0] t16(t17, elided-zst local20)
+    store t18 -> local58
+    call managed-direct-target4 sp<managed-call:10> live=[local3:interface{object,itab}@0] t19 = sig=direct4 (elided-zst<struct0 size=0 align=1>, elided-zst<struct0 size=0 align=1>) -> i1 external-fn20(elided-zst local58, elided-zst local0)
+    store t19 -> local59
     cbr local59 then @logic.rhs.4 else @logic.short.5
   block logic.rhs.4
-    t17 = heap_load local3 +0 : ptr<metadata>
-    call no-gc-direct-target1 t18 = sig=direct6 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t17, external-td5)
-    call managed-elided-zst-target4 sp<managed-call:11> live=[local3:ptr<managed>@0] t19 = sig=elided-zst5 (ptr<managed>) -> elided-zst<struct0 size=0 align=1> dispatch[Interface:2] t18(local3)
-    store t19 -> local61
-    call managed-direct-target5 sp<managed-call:12> live=[local3:ptr<managed>@0] t20 = sig=direct7 (elided-zst<struct0 size=0 align=1>, elided-zst<struct0 size=0 align=1>) -> i1 external-fn20(elided-zst local61, elided-zst local0)
-    store t20 -> local62
+    t20 = extract local3, 1 : ptr<metadata>
+    t21 = extract local3, 0 : ptr<managed>
+    call managed-elided-zst-target4 sp<managed-call:11> live=[local3:interface{object,itab}@0, t21:ptr<managed>@0] t22 = sig=elided-zst5 (ptr<managed>) -> elided-zst<struct0 size=0 align=1> dispatch[Interface:2] t20(t21)
+    store t22 -> local61
+    call managed-direct-target5 sp<managed-call:12> live=[local3:interface{object,itab}@0] t23 = sig=direct5 (elided-zst<struct0 size=0 align=1>, elided-zst<struct0 size=0 align=1>) -> i1 external-fn20(elided-zst local61, elided-zst local0)
+    store t23 -> local62
     store local62 -> local60
     br @logic.merge.6
   block logic.short.5
@@ -178,12 +181,12 @@ Module
     store local3 -> local21
     store local0 -> local22
     store local22 -> local23
-    t21 = heap_load local21 +0 : ptr<metadata>
-    call no-gc-direct-target2 t22 = sig=direct8 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t21, external-td5)
-    call managed-elided-zst-target5 sp<managed-call:13> live=[local21:ptr<managed>@0] t23 = sig=elided-zst6 (ptr<managed>, elided-zst<struct0 size=0 align=1>) -> elided-zst<struct0 size=0 align=1> dispatch[Interface:1] t22(local21, elided-zst local23)
-    store t23 -> local63
-    call managed-direct-target6 sp<managed-call:14> live=[] t24 = sig=direct9 (elided-zst<struct0 size=0 align=1>, elided-zst<struct0 size=0 align=1>) -> i1 external-fn20(elided-zst local63, elided-zst local0)
-    store t24 -> local24
+    t24 = extract local21, 1 : ptr<metadata>
+    t25 = extract local21, 0 : ptr<managed>
+    call managed-elided-zst-target5 sp<managed-call:13> live=[t25:ptr<managed>@0] t26 = sig=elided-zst6 (ptr<managed>, elided-zst<struct0 size=0 align=1>) -> elided-zst<struct0 size=0 align=1> dispatch[Interface:1] t24(t25, elided-zst local23)
+    store t26 -> local63
+    call managed-direct-target6 sp<managed-call:14> live=[] t27 = sig=direct6 (elided-zst<struct0 size=0 align=1>, elided-zst<struct0 size=0 align=1>) -> i1 external-fn20(elided-zst local63, elided-zst local0)
+    store t27 -> local24
     br @if.merge.9
   block if.else.8
     store false -> local24
@@ -192,29 +195,37 @@ Module
     store local24 -> local25
     store local25 -> local26
     call managed-void-target2 sp<managed-call:15> live=[] sig=void2 (i1) local-fn0(local26)
-    t25 = aggregate () : {}
-    call managed-direct-target7 sp<managed-call:16> live=[] t26 = sig=direct10 () -> ptr<managed> external-fn13()
-    store t26 -> local27
-    store local27 -> local28
+    t28 = aggregate () : {}
+    call managed-direct-target7 sp<managed-call:16> live=[] t29 = sig=direct7 () -> interface{object,itab} external-fn13()
+    store t29 -> local27
+    t30 = extract local27, 0 : ptr<managed>
+    t31 = heap_load t30 +0 : ptr<metadata>
+    call no-gc-direct-target0 t32 = sig=direct8 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t31, external-td5)
+    t33 = aggregate (t30, t32) : interface{object,itab}
+    store t33 -> local28
     store local0 -> local29
     store local29 -> local30
-    t27 = heap_load local28 +0 : ptr<metadata>
-    call no-gc-direct-target3 t28 = sig=direct11 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t27, external-td5)
-    call managed-elided-zst-target6 sp<managed-call:17> live=[local27:ptr<managed>@0, local28:ptr<managed>@0] t29 = sig=elided-zst7 (ptr<managed>, elided-zst<struct0 size=0 align=1>) -> elided-zst<struct0 size=0 align=1> dispatch[Interface:0] t28(local28, elided-zst local30)
-    store t29 -> local64
-    call managed-direct-target8 sp<managed-call:18> live=[local27:ptr<managed>@0] t30 = sig=direct12 (elided-zst<struct0 size=0 align=1>, elided-zst<struct0 size=0 align=1>) -> i1 external-fn20(elided-zst local64, elided-zst local0)
-    store t30 -> local65
+    t34 = extract local28, 1 : ptr<metadata>
+    t35 = extract local28, 0 : ptr<managed>
+    call managed-elided-zst-target6 sp<managed-call:17> live=[local27:interface{object,itab}@0, t35:ptr<managed>@0] t36 = sig=elided-zst7 (ptr<managed>, elided-zst<struct0 size=0 align=1>) -> elided-zst<struct0 size=0 align=1> dispatch[Interface:0] t34(t35, elided-zst local30)
+    store t36 -> local64
+    call managed-direct-target8 sp<managed-call:18> live=[local27:interface{object,itab}@0] t37 = sig=direct9 (elided-zst<struct0 size=0 align=1>, elided-zst<struct0 size=0 align=1>) -> i1 external-fn20(elided-zst local64, elided-zst local0)
+    store t37 -> local65
     cbr local65 then @if.then.10 else @if.else.11
   block if.then.10
-    store local27 -> local31
+    t38 = extract local27, 0 : ptr<managed>
+    t39 = heap_load t38 +0 : ptr<metadata>
+    call no-gc-direct-target1 t40 = sig=direct10 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t39, external-td5)
+    t41 = aggregate (t38, t40) : interface{object,itab}
+    store t41 -> local31
     store local0 -> local32
     store local32 -> local33
-    t31 = heap_load local31 +0 : ptr<metadata>
-    call no-gc-direct-target4 t32 = sig=direct13 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t31, external-td5)
-    call managed-elided-zst-target7 sp<managed-call:19> live=[local31:ptr<managed>@0] t33 = sig=elided-zst8 (ptr<managed>, elided-zst<struct0 size=0 align=1>) -> elided-zst<struct0 size=0 align=1> dispatch[Interface:1] t32(local31, elided-zst local33)
-    store t33 -> local66
-    call managed-direct-target9 sp<managed-call:20> live=[] t34 = sig=direct14 (elided-zst<struct0 size=0 align=1>, elided-zst<struct0 size=0 align=1>) -> i1 external-fn20(elided-zst local66, elided-zst local0)
-    store t34 -> local34
+    t42 = extract local31, 1 : ptr<metadata>
+    t43 = extract local31, 0 : ptr<managed>
+    call managed-elided-zst-target7 sp<managed-call:19> live=[t43:ptr<managed>@0] t44 = sig=elided-zst8 (ptr<managed>, elided-zst<struct0 size=0 align=1>) -> elided-zst<struct0 size=0 align=1> dispatch[Interface:1] t42(t43, elided-zst local33)
+    store t44 -> local66
+    call managed-direct-target9 sp<managed-call:20> live=[] t45 = sig=direct11 (elided-zst<struct0 size=0 align=1>, elided-zst<struct0 size=0 align=1>) -> i1 external-fn20(elided-zst local66, elided-zst local0)
+    store t45 -> local34
     br @if.merge.12
   block if.else.11
     store false -> local34
@@ -223,28 +234,28 @@ Module
     store local34 -> local35
     store local35 -> local36
     call managed-void-target3 sp<managed-call:21> live=[] sig=void3 (i1) local-fn0(local36)
-    t35 = aggregate () : {}
-    call managed-direct-target10 sp<managed-call:22> live=[] t36 = sig=direct15 () -> ptr<managed> external-fn14()
-    store t36 -> local37
+    t46 = aggregate () : {}
+    call managed-direct-target10 sp<managed-call:22> live=[] t47 = sig=direct12 () -> ptr<managed> external-fn14()
+    store t47 -> local37
     store local0 -> local38
     store local38 -> local39
-    t37 = heap_load local37 +0 : ptr<metadata>
-    t38 = heap_load t37 +88 : ptr<metadata>
-    call managed-elided-zst-target8 sp<managed-call:23> live=[local37:ptr<managed>@0] t39 = sig=elided-zst9 (ptr<managed>, elided-zst<struct0 size=0 align=1>) -> elided-zst<struct0 size=0 align=1> dispatch[Virtual:0] t38(local37, elided-zst local39)
-    store t39 -> local67
-    call managed-direct-target11 sp<managed-call:24> live=[] t40 = sig=direct16 (elided-zst<struct0 size=0 align=1>, elided-zst<struct0 size=0 align=1>) -> i1 external-fn20(elided-zst local67, elided-zst local0)
-    store t40 -> local68
+    t48 = heap_load local37 +0 : ptr<metadata>
+    t49 = heap_load t48 +88 : ptr<metadata>
+    call managed-elided-zst-target8 sp<managed-call:23> live=[local37:ptr<managed>@0] t50 = sig=elided-zst9 (ptr<managed>, elided-zst<struct0 size=0 align=1>) -> elided-zst<struct0 size=0 align=1> dispatch[Virtual:0] t49(local37, elided-zst local39)
+    store t50 -> local67
+    call managed-direct-target11 sp<managed-call:24> live=[] t51 = sig=direct13 (elided-zst<struct0 size=0 align=1>, elided-zst<struct0 size=0 align=1>) -> i1 external-fn20(elided-zst local67, elided-zst local0)
+    store t51 -> local68
     cbr local68 then @if.then.13 else @if.else.14
   block if.then.13
-    call managed-direct-target12 sp<managed-call:25> live=[] t41 = sig=direct17 () -> ptr<managed> external-fn14()
-    store t41 -> local40
+    call managed-direct-target12 sp<managed-call:25> live=[] t52 = sig=direct14 () -> ptr<managed> external-fn14()
+    store t52 -> local40
     store local0 -> local41
     store local41 -> local42
-    call managed-elided-zst-target9 sp<managed-call:26> live=[local40:ptr<managed>@0] t42 = sig=elided-zst10 (ptr<managed>, elided-zst<struct0 size=0 align=1>) -> elided-zst<{struct0, struct0, struct0, struct0} size=0 align=1> external-fn10(local40, elided-zst local42)
-    store t42 -> local69
-    t43 = extract local69, 1 : struct0
-    call managed-direct-target13 sp<managed-call:27> live=[] t44 = sig=direct18 (elided-zst<struct0 size=0 align=1>, elided-zst<struct0 size=0 align=1>) -> i1 external-fn20(elided-zst t43, elided-zst local0)
-    store t44 -> local43
+    call managed-elided-zst-target9 sp<managed-call:26> live=[local40:ptr<managed>@0] t53 = sig=elided-zst10 (ptr<managed>, elided-zst<struct0 size=0 align=1>) -> elided-zst<{struct0, struct0, struct0, struct0} size=0 align=1> external-fn10(local40, elided-zst local42)
+    store t53 -> local69
+    t54 = extract local69, 1 : struct0
+    call managed-direct-target13 sp<managed-call:27> live=[] t55 = sig=direct15 (elided-zst<struct0 size=0 align=1>, elided-zst<struct0 size=0 align=1>) -> i1 external-fn20(elided-zst t54, elided-zst local0)
+    store t55 -> local43
     br @if.merge.15
   block if.else.14
     store false -> local43
@@ -253,42 +264,42 @@ Module
     store local43 -> local44
     store local44 -> local45
     call managed-void-target4 sp<managed-call:28> live=[] sig=void4 (i1) local-fn0(local45)
-    t45 = aggregate () : {}
-    call managed-direct-target14 sp<managed-call:29> live=[] t46 = sig=direct19 () -> ptr<managed> external-fn16()
-    store t46 -> local46
+    t56 = aggregate () : {}
+    call managed-direct-target14 sp<managed-call:29> live=[] t57 = sig=direct16 () -> ptr<managed> external-fn16()
+    store t57 -> local46
     store local0 -> local47
     store local47 -> local48
-    t47 = heap_load local46 +0 : ptr<metadata>
-    t48 = heap_load t47 +88 : ptr<metadata>
-    call managed-elided-zst-target10 sp<managed-call:30> live=[local46:ptr<managed>@0] t49 = sig=elided-zst11 (ptr<managed>, elided-zst<struct0 size=0 align=1>) -> elided-zst<struct0 size=0 align=1> dispatch[Virtual:0] t48(local46, elided-zst local48)
-    store t49 -> local70
-    call managed-direct-target15 sp<managed-call:31> live=[] t50 = sig=direct20 (elided-zst<struct0 size=0 align=1>, elided-zst<struct0 size=0 align=1>) -> i1 external-fn20(elided-zst local70, elided-zst local0)
-    store t50 -> local49
+    t58 = heap_load local46 +0 : ptr<metadata>
+    t59 = heap_load t58 +88 : ptr<metadata>
+    call managed-elided-zst-target10 sp<managed-call:30> live=[local46:ptr<managed>@0] t60 = sig=elided-zst11 (ptr<managed>, elided-zst<struct0 size=0 align=1>) -> elided-zst<struct0 size=0 align=1> dispatch[Virtual:0] t59(local46, elided-zst local48)
+    store t60 -> local70
+    call managed-direct-target15 sp<managed-call:31> live=[] t61 = sig=direct17 (elided-zst<struct0 size=0 align=1>, elided-zst<struct0 size=0 align=1>) -> i1 external-fn20(elided-zst local70, elided-zst local0)
+    store t61 -> local49
     store local49 -> local50
     call managed-void-target5 sp<managed-call:32> live=[] sig=void5 (i1) local-fn0(local50)
-    t51 = aggregate () : {}
+    t62 = aggregate () : {}
     call managed-void-target6 sp<managed-call:33> live=[] sig=void6 () external-fn21()
-    t52 = aggregate () : {}
-    t53 = global_load global1 : ptr<managed>
-    store t53 -> local51
+    t63 = aggregate () : {}
+    t64 = global_load global1 : ptr<managed>
+    store t64 -> local51
     call managed-void-target7 sp<managed-call:34> live=[local51:ptr<managed>@0] sig=void7 (ptr<managed>, elided-zst<struct0 size=0 align=1>) external-fn17(local51, elided-zst local0)
-    t54 = aggregate () : {}
+    t65 = aggregate () : {}
     call managed-void-target8 sp<managed-call:35> live=[] sig=void8 () external-fn21()
-    t55 = aggregate () : {}
+    t66 = aggregate () : {}
     call managed-void-target9 sp<managed-call:36> live=[] sig=void9 () external-fn21()
-    t56 = aggregate () : {}
-    t57 = global_load global1 : ptr<managed>
-    call managed-elided-zst-target11 sp<managed-call:37> live=[t57:ptr<managed>@0] t58 = sig=elided-zst12 (ptr<managed>) -> elided-zst<struct0 size=0 align=1> external-fn18(t57)
-    store t58 -> local71
-    call managed-direct-target16 sp<managed-call:38> live=[] t59 = sig=direct21 (elided-zst<struct0 size=0 align=1>, elided-zst<struct0 size=0 align=1>) -> i1 external-fn20(elided-zst local71, elided-zst local0)
-    store t59 -> local72
+    t67 = aggregate () : {}
+    t68 = global_load global1 : ptr<managed>
+    call managed-elided-zst-target11 sp<managed-call:37> live=[t68:ptr<managed>@0] t69 = sig=elided-zst12 (ptr<managed>) -> elided-zst<struct0 size=0 align=1> external-fn18(t68)
+    store t69 -> local71
+    call managed-direct-target16 sp<managed-call:38> live=[] t70 = sig=direct18 (elided-zst<struct0 size=0 align=1>, elided-zst<struct0 size=0 align=1>) -> i1 external-fn20(elided-zst local71, elided-zst local0)
+    store t70 -> local72
     cbr local72 then @logic.rhs.16 else @logic.short.17
   block logic.rhs.16
-    t60 = global_load global1 : ptr<managed>
-    call managed-elided-zst-target12 sp<managed-call:39> live=[t60:ptr<managed>@0] t61 = sig=elided-zst13 (ptr<managed>) -> elided-zst<struct0 size=0 align=1> external-fn19(t60)
-    store t61 -> local74
-    call managed-direct-target17 sp<managed-call:40> live=[] t62 = sig=direct22 (elided-zst<struct0 size=0 align=1>, elided-zst<struct0 size=0 align=1>) -> i1 external-fn20(elided-zst local74, elided-zst local0)
-    store t62 -> local75
+    t71 = global_load global1 : ptr<managed>
+    call managed-elided-zst-target12 sp<managed-call:39> live=[t71:ptr<managed>@0] t72 = sig=elided-zst13 (ptr<managed>) -> elided-zst<struct0 size=0 align=1> external-fn19(t71)
+    store t72 -> local74
+    call managed-direct-target17 sp<managed-call:40> live=[] t73 = sig=direct19 (elided-zst<struct0 size=0 align=1>, elided-zst<struct0 size=0 align=1>) -> i1 external-fn20(elided-zst local74, elided-zst local0)
+    store t73 -> local75
     store local75 -> local73
     br @logic.merge.18
   block logic.short.17
@@ -298,7 +309,7 @@ Module
     store local73 -> local52
     store local52 -> local53
     call managed-void-target10 sp<managed-call:41> live=[] sig=void10 (i1) local-fn0(local53)
-    t63 = aggregate () : {}
+    t74 = aggregate () : {}
     ret
   fun @scoop$1$cb$c99427e18a3d8c8038e2ddb9d9fcc0f35d26e44576057fb9d536081b89bbd3a6(elided-zst<{struct0, struct0, struct0, struct0} size=0 align=1>, elided-zst<{struct0, struct0, struct0, struct0} size=0 align=1>) -> i1
     local %0 $call.1: i1

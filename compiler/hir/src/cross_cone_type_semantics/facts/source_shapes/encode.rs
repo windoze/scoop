@@ -7,6 +7,11 @@ impl WireEncode for ExactTypeFactShapeV1 {
             Self::Scalar => wire::tag(e, 1, 2),
             Self::Pointer => wire::tag(e, 1, 3),
             Self::Reference => wire::tag(e, 1, 4),
+            Self::MaybeUninit { value } => {
+                wire::tag(e, 2, 9)?;
+                e.field(1)?;
+                value.encode(e)
+            }
             Self::OrdinaryStruct { fields } => sequence_shape(e, 5, fields),
             Self::CLayoutStruct { fields } => sequence_shape(e, 6, fields),
             Self::Tuple { elements } => sequence_shape(e, 7, elements),

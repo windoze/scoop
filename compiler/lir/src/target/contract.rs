@@ -24,23 +24,23 @@ impl WireEncode for ByteOrder {
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum ScoopAbiClassifier {
-    ElideZeroSizedDirectScalarIndirectAggregate,
+    ScalarInterfaceAndSmallValueParts,
 }
 
 impl WireEncode for ScoopAbiClassifier {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.unsigned(1)
+        encoder.unsigned(3)
     }
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum CAbiLoweringProfile {
-    ScalarDirectOrSystemCBridge,
+    TargetClassifiedDirectOrSystemCBridge,
 }
 
 impl WireEncode for CAbiLoweringProfile {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.unsigned(2)
+        encoder.unsigned(3)
     }
 }
 
@@ -117,11 +117,11 @@ impl TargetProfileContract {
     }
 
     pub const fn scoop_abi_classifier(self) -> ScoopAbiClassifier {
-        ScoopAbiClassifier::ElideZeroSizedDirectScalarIndirectAggregate
+        ScoopAbiClassifier::ScalarInterfaceAndSmallValueParts
     }
 
     pub const fn c_abi_lowering(self) -> CAbiLoweringProfile {
-        CAbiLoweringProfile::ScalarDirectOrSystemCBridge
+        CAbiLoweringProfile::TargetClassifiedDirectOrSystemCBridge
     }
 
     pub const fn native_symbol_normalization(self) -> NativeSymbolNormalization {

@@ -14,7 +14,7 @@ mod relations;
 pub use errors::*;
 
 use relations::validate_lir_bridge_relations;
-pub(crate) use relations::{AbiExpectation, validate_local_projection};
+pub(crate) use relations::validate_local_projection;
 
 /// A semantic closure whose local strong LIR production, LIR bridge payloads,
 /// MIR/LIR projections, and terminal-provider exports are all validated.

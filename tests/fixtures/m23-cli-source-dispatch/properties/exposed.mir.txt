@@ -87,13 +87,15 @@ Module
   generated_exact_type get15 location=enum7 nominal_id=a4fb65c158c51743f5d8879d605fa82e8ae2f75a1df249f086cffaeea5535ea3 exact_id=e46c1250fb02c3743226e6709049d0911f9d52ee366c3b5ef1016d55daed88c8
   generated_exact_type get16 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
   generated_exact_type get17 location=enum6 nominal_id=f9c24bd277aef8856e6cde6e021d3ae15a7882a4d9f941da85b950d930cc478b exact_id=faa494761bc82b2432ca1d49d32461677177c65bd75cd491a9e42c9c3b4d0e10
-  generated_callable gc0 function=@fn53 id=029ea675a92256f0c196ac60b1ea6755cecc1bac83461f0740a26a553c52bd38
-  generated_callable gc1 function=@fn52 id=3daf6c6aff29afd0223cfdb7588dfce782c960965ba82f73dd5486e6261badbb
-  generated_callable gc2 function=@fn51 id=9f609fb26f40295e89c0056659f7cf6251f1270d3758ac1d9a411349610c5846
-  generated_callable gc3 function=@fn49 id=abc5eb577b136090bdd28eb06895d093eb79e8492caf5595a4ac8ce5e6b170f0
-  generated_callable gc4 function=@fn50 id=b5f360af64ef4c87ba19b2698c1d803390c77e4bc177e6b67f512aa2e579b919
-  generated_callable gc5 function=@fn48 id=b8e2039efdbb4d04033df484fd2338de8ac7b9818a09071eb179f95625cc03ce
-  generated_callable gc6 function=@fn54 id=f7e51fa38369d7f483ecad6d435517fb77e9bf0d45df7089610b76d68b1a3d21
+  generated_callable gc0 function=@fn55 id=029ea675a92256f0c196ac60b1ea6755cecc1bac83461f0740a26a553c52bd38
+  generated_callable gc1 function=@fn54 id=3daf6c6aff29afd0223cfdb7588dfce782c960965ba82f73dd5486e6261badbb
+  generated_callable gc2 function=@fn44 id=8731e55b778bd67942cd45246fa8516d09b815b6a50b9c4f7538473192a8e228
+  generated_callable gc3 function=@fn43 id=8fd92140fc8afda38a3a68eda802d82a1b2d4a09922b72438a04cd6fcd329471
+  generated_callable gc4 function=@fn53 id=9f609fb26f40295e89c0056659f7cf6251f1270d3758ac1d9a411349610c5846
+  generated_callable gc5 function=@fn51 id=abc5eb577b136090bdd28eb06895d093eb79e8492caf5595a4ac8ce5e6b170f0
+  generated_callable gc6 function=@fn52 id=b5f360af64ef4c87ba19b2698c1d803390c77e4bc177e6b67f512aa2e579b919
+  generated_callable gc7 function=@fn50 id=b8e2039efdbb4d04033df484fd2338de8ac7b9818a09071eb179f95625cc03ce
+  generated_callable gc8 function=@fn56 id=f7e51fa38369d7f483ecad6d435517fb77e9bf0d45df7089610b76d68b1a3d21
   fun Value.$get$token @fn0(this: Value) -> Int
     bb0 entry
       return
@@ -223,7 +225,7 @@ Module
       assign $new.1
         Type Store
         ClassAlloc Store
-      call @fn43 direct
+      call @fn45 direct
         Type Store
         Local $new.1
       return
@@ -234,7 +236,7 @@ Module
       assign $new.1
         Type Child
         ClassAlloc Child
-      call @fn45 direct
+      call @fn47 direct
         Type Child
         Local $new.1
       return
@@ -245,7 +247,7 @@ Module
       assign $new.1
         Type Constants
         ClassAlloc Constants
-      call @fn46 direct
+      call @fn48 direct
         Type Constants
         Local $new.1
       global_assign $singleton$Constants
@@ -427,7 +429,27 @@ Module
       return
         Type Int
         IntegerLiteral Int value=3 bits=0x00000003
-  fun init.Store.$c0 @fn43(this: Store) -> Unit
+  fun receiver<Store> View.$get$token @fn43(this: Store) -> Int
+    bb0 entry
+      call $call.1: Int = @fn42 direct
+        Type View
+        Retype View
+          Type Store
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun receiver<Child> View.$get$token @fn44(this: Child) -> Int
+    bb0 entry
+      call $call.1: Int = @fn42 direct
+        Type View
+        Retype View
+          Type Child
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun init.Store.$c0 @fn45(this: Store) -> Unit
     bb0 entry
       field_set 0
         Type Store
@@ -445,26 +467,26 @@ Module
         Type Int
         IntegerLiteral Int value=8 bits=0x00000008
       return
-  fun init.Abstract.$c1 @fn44(this: Abstract) -> Unit
+  fun init.Abstract.$c1 @fn46(this: Abstract) -> Unit
     bb0 entry
       return
-  fun init.Child.$c2 @fn45(this: Child) -> Unit
+  fun init.Child.$c2 @fn47(this: Child) -> Unit
     bb0 entry
-      call @fn43 direct
+      call @fn45 direct
         Type Store
         Retype Store
           Type Child
           Local this
       return
-  fun init.Constants.$c3 @fn46(this: Constants) -> Unit
+  fun init.Constants.$c3 @fn48(this: Constants) -> Unit
     bb0 entry
       return
-  fun ctor.Value.$c0 @fn47() -> Value <no-gc>
+  fun ctor.Value.$c0 @fn49() -> Value <no-gc>
     bb0 entry
       return
         Type Value
         StructInit Value
-  fun startCoroutine<Abstract> @fn48(task: SuspendTask<Abstract>, completion: Continuation<Abstract>) -> Unit
+  fun startCoroutine<Abstract> @fn50(task: SuspendTask<Abstract>, completion: Continuation<Abstract>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -545,7 +567,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Child> @fn49(task: SuspendTask<Child>, completion: Continuation<Child>) -> Unit
+  fun startCoroutine<Child> @fn51(task: SuspendTask<Child>, completion: Continuation<Child>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -626,7 +648,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Store> @fn50(task: SuspendTask<Store>, completion: Continuation<Store>) -> Unit
+  fun startCoroutine<Store> @fn52(task: SuspendTask<Store>, completion: Continuation<Store>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -707,7 +729,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Constants> @fn51(task: SuspendTask<Constants>, completion: Continuation<Constants>) -> Unit
+  fun startCoroutine<Constants> @fn53(task: SuspendTask<Constants>, completion: Continuation<Constants>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -788,7 +810,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<View> @fn52(task: SuspendTask<View>, completion: Continuation<View>) -> Unit
+  fun startCoroutine<View> @fn54(task: SuspendTask<View>, completion: Continuation<View>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -869,7 +891,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Value> @fn53(task: SuspendTask<Value>, completion: Continuation<Value>) -> Unit
+  fun startCoroutine<Value> @fn55(task: SuspendTask<Value>, completion: Continuation<Value>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -950,12 +972,12 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun thunk<Value> View.$get$token() @fn54(this: View) -> Int
+  fun thunk<Value> View.$get$token() @fn56(this: box<Value>) -> Int
     bb0 entry
       call $call.1: Int = @fn0 direct
         Type Value
         Unbox
-          Type View
+          Type box<Value>
           Local this
       return
         Type Int
@@ -972,12 +994,12 @@ Module
   coroutine_slot cl3 CoroutineSlot<Constants> value=Constants
   coroutine_slot cl4 CoroutineSlot<View> value=View
   coroutine_slot cl5 CoroutineSlot<Value> value=Value
-  coroutine_start ct0 result=Abstract function=fn48
-  coroutine_start ct1 result=Child function=fn49
-  coroutine_start ct2 result=Store function=fn50
-  coroutine_start ct3 result=Constants function=fn51
-  coroutine_start ct4 result=View function=fn52
-  coroutine_start ct5 result=Value function=fn53
+  coroutine_start ct0 result=Abstract function=fn50
+  coroutine_start ct1 result=Child function=fn51
+  coroutine_start ct2 result=Store function=fn52
+  coroutine_start ct3 result=Constants function=fn53
+  coroutine_start ct4 result=View function=fn54
+  coroutine_start ct5 result=Value function=fn55
   coroutine_fn cf0 @fn20 source_return=Value step=cs5 immediate
   coroutine_fn cf1 @fn24 source_return=View step=cs4 immediate
   coroutine_fn cf2 @fn28 source_return=Store step=cs2 immediate

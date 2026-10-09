@@ -230,7 +230,12 @@ impl MirDispatchSchemaAuthority<'_> {
                 let relation = match generated {
                     GeneratedCallableKey::DispatchAdjust {
                         slot, implementor, ..
-                    } => *slot == entry.slot() && *implementor == owner,
+                    } => {
+                        *slot == entry.slot()
+                            && (*implementor == owner
+                                || matches!(self.type_export(*implementor)?.representation(),
+                                    MirTypeRepresentationV1::Object { backing } if *backing == owner))
+                    }
                     GeneratedCallableKey::BoxingAdjust {
                         slot,
                         payload,
@@ -250,8 +255,17 @@ impl MirDispatchSchemaAuthority<'_> {
                 {
                     self.canonical_receiver_path(owner, receiver)?;
                 }
+                let receiver = match generated {
+                    GeneratedCallableKey::DispatchAdjust { implementor, .. } => *implementor,
+                    GeneratedCallableKey::BoxingAdjust { payload, .. } => {
+                        crate::InterfaceAdjustIdentity::boxed_receiver(*payload)
+                            .map_err(|_| invalid())?
+                    }
+                    _ => return Err(invalid()),
+                };
                 if !relation
-                    || target.lowered_signature() != entry.signature()
+                    || !same_non_receiver(target.lowered_signature(), entry.signature())
+                    || target.lowered_signature().exact().receiver().into_option() != Some(receiver)
                     || self.callable(semantic_target)?.semantic_signature()
                         != target.semantic_signature()
                 {

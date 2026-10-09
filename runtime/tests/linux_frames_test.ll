@@ -36,19 +36,17 @@ define ptr addrspace(1) @outer(ptr addrspace(1) %root) #0 gc "statepoint-example
   ret ptr addrspace(1) %r
 }
 
-%CharResult = type { i64, i32, i32 }
 %BoundsResult = type { i64, i64, i64 }
-declare void @scoop_rt_string_get(ptr sret(%CharResult) align 8, ptr, i64)
+declare { i64, i64 } @scoop_rt_string_get(ptr, i64)
 declare void @scoop_rt_string_slice_bounds(ptr sret(%BoundsResult) align 8, ptr, i64, i64)
 
 define i64 @string_results(ptr %string) #0 {
-  %char = alloca %CharResult, align 8
   %bounds = alloca %BoundsResult, align 8
-  call void @scoop_rt_string_get(ptr sret(%CharResult) align 8 %char, ptr %string, i64 1)
+  %char = call { i64, i64 } @scoop_rt_string_get(ptr %string, i64 1)
   call void @scoop_rt_string_slice_bounds(ptr sret(%BoundsResult) align 8 %bounds, ptr %string, i64 1, i64 2)
-  %tag0 = load i64, ptr %char
-  %valuep = getelementptr %CharResult, ptr %char, i32 0, i32 1
-  %value = load i32, ptr %valuep
+  %tag0 = extractvalue { i64, i64 } %char, 0
+  %bits = extractvalue { i64, i64 } %char, 1
+  %value = trunc i64 %bits to i32
   %tag1 = load i64, ptr %bounds
   %startp = getelementptr %BoundsResult, ptr %bounds, i32 0, i32 1
   %endp = getelementptr %BoundsResult, ptr %bounds, i32 0, i32 2

@@ -88,7 +88,9 @@ impl Lowerer {
             hir::NominalSourceShapeV1::Intrinsic(representation)
                 if matches!(
                     representation.family(),
-                    hir::IntrinsicTypeKind::Char | hir::IntrinsicTypeKind::Float(_)
+                    hir::IntrinsicTypeKind::Char
+                        | hir::IntrinsicTypeKind::Float(_)
+                        | hir::IntrinsicTypeKind::MaybeUninit
                 ) =>
             {
                 self.imported_struct_type(declaration, arguments)

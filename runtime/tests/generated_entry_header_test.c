@@ -46,7 +46,7 @@ void generated_entry_header_probe(void) {
     (void)scoop_rt_leave_native_safe;
     (void)scoop_rt_enter_native_borrowed;
     (void)scoop_rt_leave_native_borrowed;
-    (void)scoop_gc_card_table;
+    (void)scoop_gc_page_map;
     (void)scoop_rt_gc_add_root;
     (void)scoop_rt_gc_add_root_object;
     (void)scoop_rt_gc_remove_root_object;

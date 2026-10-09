@@ -44,11 +44,11 @@ Module
   interface SuspendTask<NarrowNumber>
   interface SuspendRegistration<NarrowNumber>
   closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn2 captures=0
-    bridge function_type1 -> @fn39 id=37fb3bce16b161a11d0b0da2da70620dc55aaf22d00367fd8a10d29031b973c3
-  closure cc1 $Closure$reference0 type=function_type2 invoke=@fn30 captures=1
-    bridge function_type3 -> @fn40 id=382a6ac06621207e6c5b49150ab59e36a31a7ce8c5a7438c0158cf92dda668f9
-  closure cc2 $Closure$reference1 type=function_type2 invoke=@fn31 captures=1
-    bridge function_type3 -> @fn41 id=31d5b8e0ee7f24908c4f74d1c8793488456fe10e5ab9b1b5fa8ffc2a5c14a20f
+    bridge function_type1 -> @fn41 id=37fb3bce16b161a11d0b0da2da70620dc55aaf22d00367fd8a10d29031b973c3
+  closure cc1 $Closure$reference0 type=function_type2 invoke=@fn32 captures=1
+    bridge function_type3 -> @fn42 id=382a6ac06621207e6c5b49150ab59e36a31a7ce8c5a7438c0158cf92dda668f9
+  closure cc2 $Closure$reference1 type=function_type2 invoke=@fn33 captures=1
+    bridge function_type3 -> @fn43 id=31d5b8e0ee7f24908c4f74d1c8793488456fe10e5ab9b1b5fa8ffc2a5c14a20f
   generated_exact_type get0 location=closure1 nominal_id=1bd2ceea1f2d150a7b84e29f2f33c5fbc48e8380963378782068285d4d78f793 exact_id=06834b9d03fa964c53eb64666565a717284b16396514df310dddd6016dd5c0b1
   generated_exact_type get1 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
   generated_exact_type get2 location=enum5 nominal_id=3ee9d5c6a522380b74dcc7a72cd24e9c063ad950684862b1f29d10f64455e0ea exact_id=1e944a7c7ba6feffdfbc251c787224695b0697690c0d6eef6224dbd55fe78de1
@@ -64,12 +64,14 @@ Module
   generated_exact_type get12 location=closure2 nominal_id=f787f12860a215d04b367e2427b45043703bda672aeb246d8224928079372ea2 exact_id=b5b91046743b1b9789f7378b6866b6a5853ac8875804951f7bc145afe19d1ebb
   generated_exact_type get13 location=class8 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
   generated_exact_type get14 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
-  generated_callable gc0 function=@fn36 id=20efea0bb83fdfe8c7155187e7054981bdf5cc8c335045143646f1500c7fb7bd
-  generated_callable gc1 function=@fn41 id=31d5b8e0ee7f24908c4f74d1c8793488456fe10e5ab9b1b5fa8ffc2a5c14a20f
-  generated_callable gc2 function=@fn39 id=37fb3bce16b161a11d0b0da2da70620dc55aaf22d00367fd8a10d29031b973c3
-  generated_callable gc3 function=@fn40 id=382a6ac06621207e6c5b49150ab59e36a31a7ce8c5a7438c0158cf92dda668f9
-  generated_callable gc4 function=@fn38 id=6f4b2fb9e49f70f87fbdc762e5c23415356f7690b73a8d61e452347495dae371
-  generated_callable gc5 function=@fn37 id=c072ab1d81f6e2151eef22ace37aa3a018d524dbcddb3b536dbe1c22a9aaf58b
+  generated_callable gc0 function=@fn31 id=0a16857ae84df509ae639f10739786bca18a37660b18e8e737aac6f41eaa2d86
+  generated_callable gc1 function=@fn38 id=20efea0bb83fdfe8c7155187e7054981bdf5cc8c335045143646f1500c7fb7bd
+  generated_callable gc2 function=@fn43 id=31d5b8e0ee7f24908c4f74d1c8793488456fe10e5ab9b1b5fa8ffc2a5c14a20f
+  generated_callable gc3 function=@fn41 id=37fb3bce16b161a11d0b0da2da70620dc55aaf22d00367fd8a10d29031b973c3
+  generated_callable gc4 function=@fn42 id=382a6ac06621207e6c5b49150ab59e36a31a7ce8c5a7438c0158cf92dda668f9
+  generated_callable gc5 function=@fn40 id=6f4b2fb9e49f70f87fbdc762e5c23415356f7690b73a8d61e452347495dae371
+  generated_callable gc6 function=@fn30 id=a2f6334c1cc10560bbe41ff7b2428f2185712dcedfeec447b36ea33cb9d61f87
+  generated_callable gc7 function=@fn39 id=c072ab1d81f6e2151eef22ace37aa3a018d524dbcddb3b536dbe1c22a9aaf58b
   fun NarrowNumber.number @fn0(this: NarrowNumber) -> Int
     bb0 entry
       return
@@ -113,7 +115,7 @@ Module
       assign $new.1
         Type Derived<Int>
         ClassAlloc Derived<Int>
-      call @fn34 direct
+      call @fn36 direct
         Type Derived<Int>
         Local $new.1
         Type Int
@@ -153,7 +155,7 @@ Module
       assign $new.2
         Type LocalNumbered
         ClassAlloc LocalNumbered
-      call @fn32 direct
+      call @fn34 direct
         Type LocalNumbered
         Local $new.2
       val $argument.0: LocalNumbered
@@ -223,7 +225,7 @@ Module
       assign $new.3
         Type NarrowNumber
         ClassAlloc NarrowNumber
-      call @fn33 direct
+      call @fn35 direct
         Type NarrowNumber
         Local $new.3
       val $argument.0: LocalNumbered
@@ -260,7 +262,7 @@ Module
       assign $new.4
         Type NarrowNumber
         ClassAlloc NarrowNumber
-      call @fn33 direct
+      call @fn35 direct
         Type NarrowNumber
         Local $new.4
       val $argument.0: LocalNumbered
@@ -300,7 +302,7 @@ Module
       assign $new.6
         Type NarrowNumber
         ClassAlloc NarrowNumber
-      call @fn33 direct
+      call @fn35 direct
         Type NarrowNumber
         Local $new.6
       val $argument.0: LocalNumbered
@@ -653,7 +655,27 @@ Module
   fun LocalNumber.number @fn29(this: LocalNumber) -> Int
     bb0 entry
       trap "call to abstract method `LocalNumber.number`"
-  fun $reference.0 @fn30($closure: () -> Int) -> Int
+  fun receiver<Box> Label.label @fn30(this: Box<Int>) -> Int
+    bb0 entry
+      call $call.1: Int = external0 direct
+        Type Label
+        Retype Label
+          Type Box<Int>
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun receiver<Derived> Label.label @fn31(this: Derived<Int>) -> Int
+    bb0 entry
+      call $call.1: Int = external0 direct
+        Type Label
+        Retype Label
+          Type Derived<Int>
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun $reference.0 @fn32($closure: () -> Int) -> Int
     bb0 entry
       call $call.1: Int = external1 virtual[0]
         Type RemoteNumber
@@ -663,7 +685,7 @@ Module
       return
         Type Int
         Local $call.1
-  fun $reference.1 @fn31($closure: () -> Int) -> Int
+  fun $reference.1 @fn33($closure: () -> Int) -> Int
     bb0 entry
       call $call.1: Int = @fn5 direct
         Type Derived<Int>
@@ -673,7 +695,7 @@ Module
       return
         Type Int
         Local $call.1
-  fun init.LocalNumbered.$c1 @fn32(this: LocalNumbered) -> Unit
+  fun init.LocalNumbered.$c1 @fn34(this: LocalNumbered) -> Unit
     bb0 entry
       call external2 direct
         Type RemoteNumber
@@ -681,15 +703,15 @@ Module
           Type LocalNumbered
           Local this
       return
-  fun init.NarrowNumber.$c2 @fn33(this: NarrowNumber) -> Unit
+  fun init.NarrowNumber.$c2 @fn35(this: NarrowNumber) -> Unit
     bb0 entry
-      call @fn32 direct
+      call @fn34 direct
         Type LocalNumbered
         Retype LocalNumbered
           Type NarrowNumber
           Local this
       return
-  fun init.Derived.$c0 @fn34(this: Derived<Int>, item: Int) -> Unit
+  fun init.Derived.$c0 @fn36(this: Derived<Int>, item: Int) -> Unit
     bb0 entry
       val $dependency.argument.0: Int
         Type Int
@@ -697,7 +719,7 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn35 direct
+      call @fn37 direct
         Type Box<Int>
         Retype Box<Int>
           Type Derived<Int>
@@ -705,7 +727,7 @@ Module
         Type Int
         Local $dependency.parameter.value
       return
-  fun init.Box.$c0 @fn35(this: Box<Int>, value: Int) -> Unit
+  fun init.Box.$c0 @fn37(this: Box<Int>, value: Int) -> Unit
     bb0 entry
       field_set 0
         Type Box<Int>
@@ -713,7 +735,7 @@ Module
         Type Int
         Local value
       return
-  fun startCoroutine<NarrowNumber> @fn36(task: SuspendTask<NarrowNumber>, completion: Continuation<NarrowNumber>) -> Unit
+  fun startCoroutine<NarrowNumber> @fn38(task: SuspendTask<NarrowNumber>, completion: Continuation<NarrowNumber>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -794,7 +816,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<LocalNumbered> @fn37(task: SuspendTask<LocalNumbered>, completion: Continuation<LocalNumbered>) -> Unit
+  fun startCoroutine<LocalNumbered> @fn39(task: SuspendTask<LocalNumbered>, completion: Continuation<LocalNumbered>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -875,7 +897,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<LocalNumber> @fn38(task: SuspendTask<LocalNumber>, completion: Continuation<LocalNumber>) -> Unit
+  fun startCoroutine<LocalNumber> @fn40(task: SuspendTask<LocalNumber>, completion: Continuation<LocalNumber>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -956,7 +978,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn39($source: (Int) -> Int, arg0: Any) -> Any
+  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn41($source: (Int) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type0> closure[function_type0]
         Type (Int) -> Int
@@ -970,7 +992,7 @@ Module
         Box
           Type Int
           Local $call.1
-  fun function_bridge.$Closure$reference0.() -> Any @fn40($source: () -> Int) -> Any
+  fun function_bridge.$Closure$reference0.() -> Any @fn42($source: () -> Int) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type2> closure[function_type2]
         Type () -> Int
@@ -980,7 +1002,7 @@ Module
         Box
           Type Int
           Local $call.1
-  fun function_bridge.$Closure$reference1.() -> Any @fn41($source: () -> Int) -> Any
+  fun function_bridge.$Closure$reference1.() -> Any @fn43($source: () -> Int) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type2> closure[function_type2]
         Type () -> Int
@@ -996,9 +1018,9 @@ Module
   coroutine_slot cl0 CoroutineSlot<NarrowNumber> value=NarrowNumber
   coroutine_slot cl1 CoroutineSlot<LocalNumbered> value=LocalNumbered
   coroutine_slot cl2 CoroutineSlot<LocalNumber> value=LocalNumber
-  coroutine_start ct0 result=NarrowNumber function=fn36
-  coroutine_start ct1 result=LocalNumbered function=fn37
-  coroutine_start ct2 result=LocalNumber function=fn38
+  coroutine_start ct0 result=NarrowNumber function=fn38
+  coroutine_start ct1 result=LocalNumbered function=fn39
+  coroutine_start ct2 result=LocalNumber function=fn40
   coroutine_fn cf0 @fn19 source_return=LocalNumber step=cs2 immediate
   coroutine_fn cf1 @fn23 source_return=LocalNumbered step=cs1 immediate
   coroutine_fn cf2 @fn27 source_return=NarrowNumber step=cs0 immediate

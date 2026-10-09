@@ -1,21 +1,21 @@
 Module
-  fun @scoop$1$cb$bdff10235eb341cbeaefc4d21bb01b201c6d7ad06bb54e5c10f6cb0d28b08c4e(ptr<managed>) -> ptr<managed>
-    local %0 $dependency.argument.0: ptr<managed>
-    local %1 $dependency.parameter.value: ptr<managed>
-    local %2 $call.1: ptr<managed>
+  fun @scoop$1$cb$bdff10235eb341cbeaefc4d21bb01b201c6d7ad06bb54e5c10f6cb0d28b08c4e(parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>) -> parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>
+    local %0 $dependency.argument.0: interface{object,itab}
+    local %1 $dependency.parameter.value: interface{object,itab}
+    local %2 $call.1: interface{object,itab}
   block entry
-    poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
+    poll managed-void-target0 sp<managed-poll:0> live=[param0:interface{object,itab}@0]
     store param0 -> local0
     store local0 -> local1
-    call managed-direct-target0 sp<managed-call:0> live=[local1:ptr<managed>@0] t0 = sig=direct0 (ptr<managed>) -> ptr<managed> external-fn0(local1)
+    call managed-direct-target0 sp<managed-call:0> live=[local1:interface{object,itab}@0] t0 = sig=direct0 (parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>) -> interface{object,itab} external-fn0(local1)
     store t0 -> local2
     ret local2
   fun @scoop$1$cb$da806464315e8eeb4385ba9c85751958d4bc1c78098ceba694e5fcd76cdb986b() -> ptr<managed>
     local %0 $dependency.argument.0: i64
     local %1 $dependency.parameter.value: i64
-    local %2 $argument.0: ptr<managed>
-    local %3 $parameter.value: ptr<managed>
-    local %4 $dependency.receiver: ptr<managed>
+    local %2 $argument.0: interface{object,itab}
+    local %3 $parameter.value: interface{object,itab}
+    local %4 $dependency.receiver: interface{object,itab}
     local %5 $dependency.parameter.extra: i64
     local %6 $dependency.argument.0: i64
     local %7 $dependency.parameter.value: i64
@@ -24,18 +24,18 @@ Module
     poll managed-void-target1 sp<managed-poll:0> live=[]
     store integer<Long>(0x0000000000000014) -> local0
     store local0 -> local1
-    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (i64) -> ptr<managed> external-fn1(local1)
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (i64) -> interface{object,itab} external-fn1(local1)
     store t0 -> local2
     store local2 -> local3
-    call managed-direct-target1 sp<managed-call:1> live=[local3:ptr<managed>@0] t1 = sig=direct1 (ptr<managed>) -> ptr<managed> local-fn0(local3)
+    call managed-direct-target1 sp<managed-call:1> live=[local3:interface{object,itab}@0] t1 = sig=direct1 (parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>) -> interface{object,itab} local-fn0(local3)
     store t1 -> local4
     store integer<Long>(0x0000000000000001) -> local5
-    t2 = heap_load local4 +0 : ptr<metadata>
-    call no-gc-direct-target0 t3 = sig=direct2 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t2, external-td5)
-    call managed-direct-target2 sp<managed-call:2> live=[local4:ptr<managed>@0] t4 = sig=direct3 (ptr<managed>, i64) -> i64 dispatch[Interface:1] t3(local4, local5)
+    t2 = extract local4, 1 : ptr<metadata>
+    t3 = extract local4, 0 : ptr<managed>
+    call managed-direct-target2 sp<managed-call:2> live=[t3:ptr<managed>@0] t4 = sig=direct2 (ptr<managed>, i64) -> i64 dispatch[Interface:1] t2(t3, local5)
     store t4 -> local6
     store local6 -> local7
-    call managed-direct-target3 sp<managed-call:3> live=[] t5 = sig=direct4 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td6, machine<byte-size>(ByteSize(24)))
+    call managed-direct-target3 sp<managed-call:3> live=[] t5 = sig=direct3 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td6, machine<byte-size>(ByteSize(24)))
     store t5 -> local8
     call managed-void-target0 sp<managed-call:4> live=[local8:ptr<managed>@0] sig=void0 (ptr<managed>, i64) external-fn3(local8, local7)
     t6 = aggregate () : {}

@@ -102,7 +102,7 @@ Module
   td td2 f(o;[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=Any)]->n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Long)) @scoop$1$td$70d9c5bc21a29f193e399e1b61765a07129cfdf31b7edc5e4957ca593b863916 type-id=9309693715880773232 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] function=ordinary(Any)->external-td5
   td td3 g(r=00000001;i=1f54653e42744e152ab50aa79ed3d7cd0dddccd2fbead26c3d73e651134631d9) @scoop$1$td$736c174e8146fe6f7ac333020537c36e26194f6330421b58704855777595eb15 type-id=12388004200154467781 shape=FixedObject minimum-size=24 align=8 parent=td2 vtable=[local-fn3] itables=[]
   td td4 g(r=00000002;i=b612decdf1a6063fe0a11de841c967c116194b6320e33569ac1b6de613820851) @scoop$1$td$419d13178dbea7b37747c215b5a28e76850d0f8da1d22036deccfc52400c1c14 type-id=4572337552972014258 shape=FixedObject minimum-size=32 align=8 parent=td1 vtable=[local-fn4] itables=[]
-  layout Equality value size=8 align=8 refs=[0]
+  layout Equality value size=16 align=8 refs=[0]
   layout $Closure$lambda0 value size=8 align=8 refs=[0]
   layout $Closure$lambda0 size=24 align=8 refs=[]
   layout $Closure$adapter$(Any) -> Long$(Long) -> Any value size=8 align=8 refs=[0]

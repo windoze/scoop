@@ -73,11 +73,12 @@ Module
   generated_exact_type get12 location=enum1 nominal_id=189857bd70d65bb1059f215f0d05d7de58a1820617bf456bb216cc77d83aefee exact_id=af4b12a0fb75f2e7d868ce25b4d88adb8c5813d60079e89f3e68e7472d603418
   generated_exact_type get13 location=enum9 nominal_id=2412b5c52c3e56004cbbb9cc4ee7222e5efcf6867c4b72b7e57fb3e5084df9cd exact_id=c2ba46d9a7411c0d807da25f19f84cccec9f115b611179bd828f30424fe780c3
   generated_exact_type get14 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
-  generated_callable gc0 function=@fn38 id=177be4c0a3f72c0622e9e2d8d14c6b99be97ae08b15bda7d8241f9c93e430d26
-  generated_callable gc1 function=@fn35 id=2240150ce641b78c6ccdcde7141ac8f52adcd0593eea145e6bdf603da8d6016f
-  generated_callable gc2 function=@fn37 id=3daf6c6aff29afd0223cfdb7588dfce782c960965ba82f73dd5486e6261badbb
-  generated_callable gc3 function=@fn34 id=80e2511125c43a9b36123fcaa92c0770cbd9305aec2b0fa396a7395fcdfb1ba8
-  generated_callable gc4 function=@fn36 id=c8847b08be0fa83939f5b61745ae289833737ed1e06422e1791b659de9ac2241
+  generated_callable gc0 function=@fn39 id=177be4c0a3f72c0622e9e2d8d14c6b99be97ae08b15bda7d8241f9c93e430d26
+  generated_callable gc1 function=@fn36 id=2240150ce641b78c6ccdcde7141ac8f52adcd0593eea145e6bdf603da8d6016f
+  generated_callable gc2 function=@fn38 id=3daf6c6aff29afd0223cfdb7588dfce782c960965ba82f73dd5486e6261badbb
+  generated_callable gc3 function=@fn35 id=80e2511125c43a9b36123fcaa92c0770cbd9305aec2b0fa396a7395fcdfb1ba8
+  generated_callable gc4 function=@fn37 id=c8847b08be0fa83939f5b61745ae289833737ed1e06422e1791b659de9ac2241
+  generated_callable gc5 function=@fn30 id=ef5ed637d12239c993f7084ef997fe203193fe748a72832be88a3189fcbbf1bd
   fun Base.observe @fn0(this: Base, value: Int) -> Int
     bb0 entry
       call @fn2 direct
@@ -111,7 +112,7 @@ Module
       assign $new.1
         Type Service
         ClassAlloc Service
-      call @fn31 direct
+      call @fn32 direct
         Type Service
         Local $new.1
       return
@@ -122,7 +123,7 @@ Module
       assign $new.1
         Type Outer
         ClassAlloc Outer
-      call @fn32 direct
+      call @fn33 direct
         Type Outer
         Local $new.1
       return
@@ -147,7 +148,7 @@ Module
       assign $new.1
         Type Cache
         ClassAlloc Cache
-      call @fn33 direct
+      call @fn34 direct
         Type Cache
         Local $new.1
       global_assign $singleton$Cache
@@ -325,7 +326,17 @@ Module
       return
         Type Int
         Local $call.1
-  fun init.Base.$c0 @fn30(this: Base) -> Unit
+  fun receiver<Service> View.$get$value @fn30(this: Service) -> Int
+    bb0 entry
+      call $call.1: Int = @fn29 direct
+        Type View
+        Retype View
+          Type Service
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun init.Base.$c0 @fn31(this: Base) -> Unit
     bb0 entry
       field_set 0
         Type Base
@@ -333,18 +344,18 @@ Module
         Type Int
         IntegerLiteral Int value=1 bits=0x00000001
       return
-  fun init.Service.$c1 @fn31(this: Service) -> Unit
+  fun init.Service.$c1 @fn32(this: Service) -> Unit
     bb0 entry
-      call @fn30 direct
+      call @fn31 direct
         Type Base
         Retype Base
           Type Service
           Local this
       return
-  fun init.Outer.$c2 @fn32(this: Outer) -> Unit
+  fun init.Outer.$c2 @fn33(this: Outer) -> Unit
     bb0 entry
       return
-  fun init.Cache.$c4 @fn33(this: Cache) -> Unit
+  fun init.Cache.$c4 @fn34(this: Cache) -> Unit
     bb0 entry
       field_set 0
         Type Cache
@@ -352,7 +363,7 @@ Module
         Type Int
         IntegerLiteral Int value=0 bits=0x00000000
       return
-  fun startCoroutine<Cache> @fn34(task: SuspendTask<Cache>, completion: Continuation<Cache>) -> Unit
+  fun startCoroutine<Cache> @fn35(task: SuspendTask<Cache>, completion: Continuation<Cache>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -433,7 +444,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Service> @fn35(task: SuspendTask<Service>, completion: Continuation<Service>) -> Unit
+  fun startCoroutine<Service> @fn36(task: SuspendTask<Service>, completion: Continuation<Service>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -514,7 +525,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Outer> @fn36(task: SuspendTask<Outer>, completion: Continuation<Outer>) -> Unit
+  fun startCoroutine<Outer> @fn37(task: SuspendTask<Outer>, completion: Continuation<Outer>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -595,7 +606,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<View> @fn37(task: SuspendTask<View>, completion: Continuation<View>) -> Unit
+  fun startCoroutine<View> @fn38(task: SuspendTask<View>, completion: Continuation<View>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -676,7 +687,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Base> @fn38(task: SuspendTask<Base>, completion: Continuation<Base>) -> Unit
+  fun startCoroutine<Base> @fn39(task: SuspendTask<Base>, completion: Continuation<Base>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -767,11 +778,11 @@ Module
   coroutine_slot cl2 CoroutineSlot<Outer> value=Outer
   coroutine_slot cl3 CoroutineSlot<View> value=View
   coroutine_slot cl4 CoroutineSlot<Base> value=Base
-  coroutine_start ct0 result=Cache function=fn34
-  coroutine_start ct1 result=Service function=fn35
-  coroutine_start ct2 result=Outer function=fn36
-  coroutine_start ct3 result=View function=fn37
-  coroutine_start ct4 result=Base function=fn38
+  coroutine_start ct0 result=Cache function=fn35
+  coroutine_start ct1 result=Service function=fn36
+  coroutine_start ct2 result=Outer function=fn37
+  coroutine_start ct3 result=View function=fn38
+  coroutine_start ct4 result=Base function=fn39
   coroutine_fn cf0 @fn10 source_return=View step=cs3 immediate
   coroutine_fn cf1 @fn14 source_return=Base step=cs4 immediate
   coroutine_fn cf2 @fn18 source_return=Service step=cs1 immediate

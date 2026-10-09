@@ -8,9 +8,9 @@ Module
   enum Option<ULong>
     Some(_0: ULong)
     None()
-  class LongRange vtable=0 itables=1
-  class UIntRange vtable=0 itables=1
-  class ULongRange vtable=0 itables=1
+  class LongRange vtable=0 itables=0
+  class UIntRange vtable=0 itables=0
+  class ULongRange vtable=0 itables=0
   interface Iterable<Long>
   interface Iterator<Long>
   interface Iterable<UInt>

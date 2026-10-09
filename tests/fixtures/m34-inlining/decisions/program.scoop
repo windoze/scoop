@@ -1,0 +1,66 @@
+fun check(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+fun medium(value: Int): Int {
+    val a = value + 1
+    val b = a * 3
+    val c = b - 2
+    val d = c * 5
+    val e = d + 7
+    return e * 2
+}
+fun cold(value: Int): Int = medium(value)
+fun hot(count: Int): Int {
+    var result = 0
+    var index = 0
+    while (index < count) {
+        result += medium(index)
+        index += 1
+    }
+    return result
+}
+fun calculate(value: Int, checked: Boolean): Int {
+    if (checked) {
+        var result = value
+        var index = 0
+        while (index < 8) {
+            result = medium(result)
+            index += 1
+        }
+        return result
+    }
+    return value + 1
+}
+fun constantPath(value: Int): Int = calculate(value, false)
+fun unknownPath(value: Int, checked: Boolean): Int = calculate(value, checked)
+
+fun even(value: Int): Boolean {
+    if (value == 0) { return true }
+    return odd(value - 1)
+}
+fun odd(value: Int): Boolean {
+    if (value == 0) { return false }
+    return even(value - 1)
+}
+fun wrap0(value: Int): Int = value + 1
+fun wrap1(value: Int): Int = wrap0(value)
+fun wrap2(value: Int): Int = wrap1(value)
+fun wrap3(value: Int): Int = wrap2(value)
+fun wrap4(value: Int): Int = wrap3(value)
+fun wrap5(value: Int): Int = wrap4(value)
+fun wrap6(value: Int): Int = wrap5(value)
+fun wrap7(value: Int): Int = wrap6(value)
+fun wrap8(value: Int): Int = wrap7(value)
+fun narrow(value: Int8): Int8 = value + 1
+fun narrowUnsigned(value: UInt8): UInt8 = value + 1U
+fun widen(value: UInt8): Int = value.toInt32()
+fun negative(value: Int8): Boolean = value < 0
+
+fun main() {
+    check(cold(2) == 84 && hot(4) == 276)
+    check(constantPath(9) == 10 && unknownPath(12, false) == 13)
+    check(even(8) && !odd(8) && odd(9))
+    check(wrap8(41) == 42)
+    check(narrow(127) == -128 && narrowUnsigned(255U) == 0U)
+    check(widen(255U) == 255 && negative(-1) && !negative(1))
+    println("inlined decisions")
+}

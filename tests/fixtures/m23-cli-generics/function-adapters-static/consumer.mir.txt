@@ -335,12 +335,12 @@ Module
         Box
           Type Ptr<Int>
           Local $call.1
-  fun thunk<Ptr<Int>> Equality.equalTo(Ptr<Int>) @fn11(this: Equality<Ptr<Int>>, other: Ptr<Int>) -> Boolean
+  fun thunk<Ptr<Int>> Equality.equalTo(Ptr<Int>) @fn11(this: box<Ptr<Int>>, other: Ptr<Int>) -> Boolean
     bb0 entry
       call $call.1: Boolean = @fn3 direct
         Type Ptr<Int>
         Unbox
-          Type Equality<Ptr<Int>>
+          Type box<Ptr<Int>>
           Local this
         Type Ptr<Int>
         Local other

@@ -100,7 +100,41 @@ fn concrete_generic_dispatch_keeps_direct_parents_and_actual_odr_bodies() {
                     };
                     bindings.insert(target, binding.clone());
                     match entry.implementation() {
-                        Implementation::InterfaceDefaultTarget { .. } => defaults += 1,
+                        Implementation::AdjustThunkTarget(_) => {
+                            let scoop_mir::MirCallableLoweringRoleV1::DispatchAdjust { target } =
+                                binding.lowering_role()
+                            else {
+                                panic!("reference dispatch adapter")
+                            };
+                            let semantic = authority.callables.get(*target).unwrap();
+                            let receiver = semantic
+                                .semantic_signature()
+                                .exact()
+                                .receiver()
+                                .into_option()
+                                .unwrap();
+                            assert!(matches!(
+                                types.get(receiver).unwrap().representation(),
+                                scoop_mir::MirTypeRepresentationV1::Interface
+                            ));
+                            if matches!(
+                                semantic.lowering_role(),
+                                scoop_mir::MirCallableLoweringRoleV1::PureVirtualTrap { .. }
+                            ) {
+                                traps += 1;
+                                let root = roots
+                                    .iter()
+                                    .find(|root| root.subject() == (*target).into())
+                                    .unwrap();
+                                let body = &input.module().functions[root.function()].body;
+                                assert!(matches!(
+                                    body.blocks[body.entry].terminator,
+                                    scoop_mir::Terminator::Trap { .. }
+                                ));
+                            } else {
+                                defaults += 1;
+                            }
+                        }
                         Implementation::AbstractObligation { .. } => {
                             traps += 1;
                             let body = &input.module().functions[root.function()].body;
@@ -134,7 +168,11 @@ fn reject_wrong_application_target(
     authority: MirCallableBridgeAuthority<'_>,
     bindings: &CanonicalMirCallableBindingsV1,
 ) {
-    let binding = &bindings.entries()[0];
+    let binding = bindings
+        .entries()
+        .iter()
+        .find(|binding| matches!(binding.origin(), MirCallableOriginV1::Application(_)))
+        .unwrap();
     let MirCallableOriginV1::Application(application) = *binding.origin() else {
         panic!("source methods keep their application origin")
     };
@@ -147,7 +185,12 @@ fn reject_wrong_application_target(
         CallableTemplateOrigin::Accessor(id) => StrongCallableDefinitionOwner::PropertyAccessor(id),
         _ => panic!("dispatch roots refer to methods or accessors"),
     };
-    for wrong_target in [strong.into(), bindings.entries()[1].implementation()] {
+    let other = bindings
+        .entries()
+        .iter()
+        .find(|other| other.implementation() != binding.implementation())
+        .unwrap();
+    for wrong_target in [strong.into(), other.implementation()] {
         assert!(matches!(
             ParamFreeMirCallableBindingV1::try_new(
                 authority,

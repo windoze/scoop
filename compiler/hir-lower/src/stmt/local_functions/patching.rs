@@ -140,6 +140,11 @@ impl LocalFunctionCallPatcher<'_> {
         let span = expr.span;
         let origin = expr.origin;
         match &mut expr.kind {
+            hir::ExprKind::MaybeUninit(operation) => {
+                if let Some(operand) = operation.operand_mut() {
+                    self.expression(operand);
+                }
+            }
             hir::ExprKind::Atomic(atomic) => {
                 for operand in atomic.operands_mut() {
                     self.expression(operand);

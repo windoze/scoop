@@ -112,6 +112,7 @@ fn parent(ty: &mir::ParamFreeMirTypeExportV1) -> mir::MirBaseClassV1 {
         | Representation::AtomicReference { .. }
         | Representation::InlineArray { .. }
         | Representation::Struct { .. }
+        | Representation::MaybeUninit { .. }
         | Representation::Enum { .. }
         | Representation::Interface
         | Representation::ObjectBacking { .. }

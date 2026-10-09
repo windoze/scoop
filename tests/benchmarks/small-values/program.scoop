@@ -1,0 +1,13 @@
+struct Pair(val first: Long, val second: Long)
+@NoGC @Extern(lib = "small_values", name = "pair_step", abi = "scoop")
+fun step(value: Pair): Pair
+
+@Unsafe fun main() {
+    var value = Pair(0L, 10L)
+    var index = 0
+    while (index < 10000000) {
+        value = step(value)
+        index += 1
+    }
+    println(value.first + value.second)
+}

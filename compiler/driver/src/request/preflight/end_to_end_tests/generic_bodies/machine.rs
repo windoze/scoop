@@ -78,7 +78,10 @@ fn actual_generic_library_emits_shared_odr_objects() {
         let selected = closure
             .project_dependency_callables_to_mir(&hir.hir)
             .unwrap();
-        let mir = hir.machine_input().lower_selected_mir(selected).unwrap();
+        let mir = hir
+            .machine_input()
+            .lower_selected_mir(selected, Default::default())
+            .unwrap();
         assert!(
             mir.strong
                 .materialization()

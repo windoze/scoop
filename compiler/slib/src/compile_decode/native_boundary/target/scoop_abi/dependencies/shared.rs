@@ -35,7 +35,11 @@ pub(super) fn collect<'a>(
             return Err(NativeBoundaryCompileError::ConflictingTypeWitness { owner });
         }
         let shape = shapes::project(nominal.source_shape(), owner, source.identities)?;
-        let record = AbiNominalDefinition::shared(shape, nominal.type_parameters().len_u32());
+        let record = AbiNominalDefinition::shared(
+            shape,
+            nominal.type_parameters().len_u32(),
+            key.declaration_kind() == scoop_identity::SourceDeclarationKind::Interface,
+        );
         if let Some(previous) = definitions.get(&owner) {
             if !previous.agrees_with_source(&record) {
                 return Err(NativeBoundaryCompileError::ConflictingTypeWitness { owner });

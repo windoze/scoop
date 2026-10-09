@@ -125,6 +125,18 @@ impl ManagedAddressSpace {
     pub(crate) fn llvm(self) -> u32 {
         u32::from(self.0)
     }
+
+    pub(crate) fn data_layout(
+        self,
+        target: &inkwell::targets::TargetData,
+    ) -> inkwell::data_layout::DataLayout {
+        let layout = format!(
+            "{}-ni:{}",
+            target.get_data_layout().as_str().to_string_lossy(),
+            self.llvm(),
+        );
+        inkwell::targets::TargetData::create(&layout).get_data_layout()
+    }
 }
 
 /// A complete, immutable LIR-to-LLVM backend projection.

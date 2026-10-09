@@ -2,8 +2,8 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use scoop_lir::{
-    CBridgeToolchainProfileV1, LirTargetProfile, RuntimeAbiContract, RuntimeAbiSymbolV1,
-    RuntimeSymbolContractRegistryV1,
+    CBridgeToolchainProfileV1, CompilerNativeContractV1, LirTargetProfile, RuntimeAbiContract,
+    RuntimeAbiSymbolV1, RuntimeSymbolContractRegistryV1,
 };
 use scoop_wire::{Digest256, domain_separated_cbor_hash, encode, sha256};
 
@@ -218,11 +218,18 @@ fn check_exports(target: LirTargetProfile, merged: &NativeObjectInfo) -> Result<
     let registry = RuntimeSymbolContractRegistryV1::current(target).map_err(error)?;
     for contract in registry.contracts() {
         let symbol = String::from_utf8(contract.object_symbol(target)).map_err(error)?;
-        let expected = match contract.symbol() {
-            RuntimeAbiSymbolV1::CoreStringTypeDescriptor => continue,
-            RuntimeAbiSymbolV1::AllocationContext => NativeSymbolKind::ThreadLocal,
-            RuntimeAbiSymbolV1::CardTable => NativeSymbolKind::Data,
-            _ => NativeSymbolKind::Function,
+        if contract.symbol() == RuntimeAbiSymbolV1::CoreStringTypeDescriptor {
+            continue;
+        }
+        let expected = match contract.symbol().machine_contract() {
+            CompilerNativeContractV1::Data {
+                thread_local: true, ..
+            } => NativeSymbolKind::ThreadLocal,
+            CompilerNativeContractV1::Data {
+                thread_local: false,
+                ..
+            } => NativeSymbolKind::Data,
+            CompilerNativeContractV1::Function { .. } => NativeSymbolKind::Function,
         };
         if !merged
             .definitions

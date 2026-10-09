@@ -393,7 +393,7 @@ impl CallTargets {
             } => {
                 assert_eq!(
                     signature.convention(),
-                    IndirectResultConvention::ScoopSret,
+                    IndirectResultConvention::Sret,
                     "native-borrowed calls cannot use a C storage result pointer"
                 );
                 ResultShape::IndirectResult {

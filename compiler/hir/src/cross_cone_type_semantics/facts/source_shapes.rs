@@ -77,6 +77,7 @@ fn validate_shape(shape: &ExactTypeFactShapeV1) -> Result<(), TypeFactShapeSourc
         ExactTypeFactShapeV1::Unit
         | ExactTypeFactShapeV1::Scalar
         | ExactTypeFactShapeV1::Pointer
+        | ExactTypeFactShapeV1::MaybeUninit { .. }
         | ExactTypeFactShapeV1::Reference => Ok(()),
         ExactTypeFactShapeV1::OrdinaryStruct { .. }
         | ExactTypeFactShapeV1::CLayoutStruct { .. } => Ok(()),

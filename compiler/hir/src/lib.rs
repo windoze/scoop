@@ -14,7 +14,7 @@ pub use scoop_identity::{
     AtomicCompareExchangeOrder, AtomicCompareExchangeResult, AtomicExpression, AtomicLoadOrder,
     AtomicMemoryOrder, AtomicOperation, AtomicRmwOperation, AtomicStorage, AtomicStoreOrder,
     AtomicValueKind, CAbiCallMode, FloatBinaryOperator, FloatConstant as HirFloatConstant,
-    FloatKind, FloatUnaryOperator,
+    FloatKind, FloatUnaryOperator, MaybeUninitOperation,
 };
 
 use la_arena::{Arena, Idx};

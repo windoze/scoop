@@ -9,7 +9,7 @@ Module
   enum Option tagged size=16 align=8 variants=(i32)@8+4 ()@8+0
   extern ef0 safeObserve @m33_observe(i32, i32) -> i32 <c exact=(Int,Int)->Int direct-c=(i32,i32)->i32 gc-leaf nounwind lib=fixture_native>
   extern ef1 leafObserve @m33_observe(i32, i32) -> i32 <c exact=(Int,Int)->Int direct-c=(i32,i32)->i32 gc-leaf nounwind mode=gc-leaf lib=fixture_native>
-  extern ef2 leafPair @m33_pair(struct0) -> struct0 <c exact=(c-struct0)->c-struct0 bridge=@scoop$1$br$85b8588d304e848c31642737e043ec351aaf893446413b4bd808aeccc560312a gc-leaf nounwind mode=gc-leaf lib=fixture_native>
+  extern ef2 leafPair @m33_pair(struct0) -> struct0 <c exact=(c-struct0)->c-struct0 direct-c=(parts<struct0 [[2xi64]@0+16/8]>)->parts<struct0 [[2xi64]@0+16/8]> gc-leaf nounwind mode=gc-leaf lib=fixture_native>
   extern ef3 leafCalls @m33_calls() -> i32 <c exact=()->Int direct-c=()->i32 gc-leaf nounwind mode=gc-leaf lib=fixture_native>
   fun @scoop$1$cb$f9a3cdff5a04d354953b5375ad333e894798e3dc2fd30d3f4ad29241b9792e9c(i32, i32) -> i32
     local %0 $call.1: i32
@@ -24,14 +24,11 @@ Module
     call native-gc-leaf-direct-target0 t0 = sig=direct0 (i32, i32) -> i32 extern1(param0, param1)
     store t0 -> local0
     ret local0
-  fun @scoop$1$cb$4802a025b776cfaa4b4d6f1276193dcff63e64f0f8cf99fc004b462585fe063a(indirect<struct0 size=16 align=8 scan=none>) -> sret<struct0 size=16 align=8 scan=none> <no-gc>
+  fun @scoop$1$cb$4802a025b776cfaa4b4d6f1276193dcff63e64f0f8cf99fc004b462585fe063a(parts<struct0 [[2xi64]@0+16/8]>) -> parts<struct0 [[2xi64]@0+16/8]> <no-gc>
     local %0 $call.1: struct0
-    local %1 $sc.1: struct0
-    local %2 $sc.2: struct0
   block entry
-    store param0 -> local1
-    call native-gc-leaf-indirect-target0 local2 = sig=indirect0 (c-storage-pointer struct0 size=16 align=8 scan=none, ptr<raw>) extern2(c-arg-address(local1))
-    store local2 -> local0
+    call native-gc-leaf-direct-target0 t0 = sig=direct0 (parts<struct0 [[2xi64]@0+16/8]>) -> struct0 extern2(param0)
+    store t0 -> local0
     ret local0
   fun @scoop$1$cb$c2e198def99294e7beb27430aa5fece42349a11ce1947c0174521f7c9499ac81() -> i32 <no-gc>
     local %0 $call.1: i32
@@ -212,12 +209,9 @@ Module
     local %96 $call.2: i32
     local %97 $catch.3: ptr<managed>
     local %98 $call.4: ptr<managed>
-    local %99 $sc.1: struct0
-    local %100 $sc.2: struct0
-    local %101 $sc.3: struct0
-    local %102 $sc.4: exception_record
-    local %103 $sc.5: ptr<raw>
-    local %104 $sc.6: ptr<managed>
+    local %99 $sc.1: exception_record
+    local %100 $sc.2: ptr<raw>
+    local %101 $sc.3: ptr<managed>
   block entry
     poll managed-void-target12 sp<managed-poll:0> live=[]
     store integer<Int>(0x0000002a) -> local0
@@ -270,25 +264,24 @@ Module
     store f64(0x3ff4000000000000) -> local30
     store local29 -> local31
     store local30 -> local32
-    call no-gc-indirect-target0 local99 = sig=indirect0 (sret struct0 size=16 align=8 scan=none, i32, f64) local-fn12(local31, local32)
-    store local99 -> local33
+    call no-gc-direct-target1 t12 = sig=direct5 (i32, f64) -> struct0 local-fn12(local31, local32)
+    store t12 -> local33
     store local33 -> local34
-    store local34 -> local100
-    call native-gc-leaf-indirect-target0 local101 = sig=indirect1 (c-storage-pointer struct0 size=16 align=8 scan=none, ptr<raw>) extern2(c-arg-address(local100))
-    store local101 -> local35
-    t12 = extract local35, 0 : i32
-    store t12 -> local36
+    call native-gc-leaf-direct-target2 t13 = sig=direct6 (parts<struct0 [[2xi64]@0+16/8]>) -> struct0 extern2(local34)
+    store t13 -> local35
+    t14 = extract local35, 0 : i32
+    store t14 -> local36
     store integer<Int>(0x00000013) -> local37
     store local37 -> local38
-    t13 = integer_compare_Equal<Int> local36, local38 : i1
-    cbr t13 then @if.then.1 else @if.else.2
+    t15 = integer_compare_Equal<Int> local36, local38 : i1
+    cbr t15 then @if.then.1 else @if.else.2
   block if.then.1
-    t14 = extract local35, 1 : f64
-    store t14 -> local39
+    t16 = extract local35, 1 : f64
+    store t16 -> local39
     store f64(0x3ffc000000000000) -> local40
     store local40 -> local41
-    t15 = float_Equal<F64> local39, local41 : i1
-    store t15 -> local42
+    t17 = float_Equal<F64> local39, local41 : i1
+    store t17 -> local42
     br @if.merge.3
   block if.else.2
     store false -> local42
@@ -297,38 +290,38 @@ Module
     store local42 -> local43
     store local43 -> local44
     call managed-void-target4 sp<managed-call:6> live=[local2:ptr<managed>@0] sig=void4 (i1) local-fn4(local44)
-    t16 = aggregate () : {}
-    call native-gc-leaf-direct-target2 t17 = sig=direct5 () -> i32 extern3()
-    store t17 -> local45
+    t18 = aggregate () : {}
+    call native-gc-leaf-direct-target3 t19 = sig=direct7 () -> i32 extern3()
+    store t19 -> local45
     store false -> local46
     br @try.body.11
   block try.unwind.4
-    (t18, t19) = landingpad : (exception_record, ptr<raw>)
-    store t18 -> local102
-    store t19 -> local103
+    (t20, t21) = landingpad : (exception_record, ptr<raw>)
+    store t20 -> local99
+    store t21 -> local100
     br @try.dispatch.5
   block try.dispatch.5
-    t20 = begin_catch local103 : ptr<managed>
-    store t20 -> local104
-    call no-gc-direct-target1 t21 = sig=direct6 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local104, external-td11)
-    cbr t21 then @try.catch.12 else @try.next.13
+    t22 = begin_catch local100 : ptr<managed>
+    store t22 -> local101
+    call no-gc-direct-target2 t23 = sig=direct8 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local101, external-td11)
+    cbr t23 then @try.catch.12 else @try.next.13
   block try.exit_pad.8
-    (t24, t25) = cleanup_pad : (exception_record, ptr<raw>)
-    store t24 -> local102
-    store t25 -> local103
+    (t26, t27) = cleanup_pad : (exception_record, ptr<raw>)
+    store t26 -> local99
+    store t27 -> local100
     br @try.exit_cleanup.9
   block try.exit_cleanup.9
     end_catch
-    resume local102
+    resume local99
   block try.end.10
     cbr local46 then @if.then.16 else @if.else.17
   block try.body.11
     store integer<Int>(0x00000001) -> local47
-    invoke managed-direct-target2 sp<managed-invoke:0> roots=[local2:normal+unwind] t26 = sig=direct7 () -> i32 local-fn6() normal @invoke.normal.1 unwind @try.unwind.4
+    invoke managed-direct-target2 sp<managed-invoke:0> roots=[local2:normal+unwind] t28 = sig=direct9 () -> i32 local-fn6() normal @invoke.normal.1 unwind @try.unwind.4
     br @invoke.normal.1
   block try.catch.12
-    call managed-direct-target3 sp<managed-call:7> live=[local2:ptr<managed>@0, local104:ptr<managed>@0] t28 = sig=direct9 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(local104)
-    store t28 -> local97
+    call managed-direct-target3 sp<managed-call:7> live=[local2:ptr<managed>@0, local101:ptr<managed>@0] t30 = sig=direct11 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(local101)
+    store t30 -> local97
     store local97 -> local51
     br @scope.14
   block try.next.13
@@ -341,12 +334,12 @@ Module
   block scope.15
     br @try.end.10
   block if.then.16
-    call native-gc-leaf-direct-target4 t29 = sig=direct10 () -> i32 extern3()
-    store t29 -> local52
+    call native-gc-leaf-direct-target5 t31 = sig=direct12 () -> i32 extern3()
+    store t31 -> local52
     store local45 -> local53
     store local53 -> local54
-    t30 = integer_compare_Equal<Int> local52, local54 : i1
-    store t30 -> local55
+    t32 = integer_compare_Equal<Int> local52, local54 : i1
+    store t32 -> local55
     br @if.merge.18
   block if.else.17
     store false -> local55
@@ -355,7 +348,7 @@ Module
     store local55 -> local56
     store local56 -> local57
     call managed-void-target5 sp<managed-call:8> live=[local2:ptr<managed>@0] sig=void6 (i1) local-fn4(local57)
-    t31 = aggregate () : {}
+    t33 = aggregate () : {}
     store integer<Int>(0x00000000) -> local58
     br @while.cond.19
   block while.cond.19
@@ -363,76 +356,76 @@ Module
     store local58 -> local59
     store integer<Int>(0x00000040) -> local60
     store local60 -> local61
-    t32 = integer_compare_to<Int> local59, local61 : i64
-    t33 = integer_compare_Less<Long> t32, integer<Long>(0x0000000000000000) : i1
-    cbr t33 then @while.body.21 else @while.exit.20
+    t34 = integer_compare_to<Int> local59, local61 : i64
+    t35 = integer_compare_Less<Long> t34, integer<Long>(0x0000000000000000) : i1
+    cbr t35 then @while.body.21 else @while.exit.20
   block while.exit.20
     store local2 -> local82
     store integer<Int>(0x00000011) -> local83
     store local82 -> local84
     store local83 -> local85
-    call managed-direct-target4 sp<managed-call:9> live=[local2:ptr<managed>@0, local84:ptr<managed>@0] t34 = sig=direct11 (ptr<managed>, i32) -> ptr<managed> local-fn9(local84, local85)
-    store t34 -> local98
-    t35 = Eq local98, local2 : i1
-    store t35 -> local86
+    call managed-direct-target4 sp<managed-call:9> live=[local2:ptr<managed>@0, local84:ptr<managed>@0] t36 = sig=direct13 (ptr<managed>, i32) -> ptr<managed> local-fn9(local84, local85)
+    store t36 -> local98
+    t37 = Eq local98, local2 : i1
+    store t37 -> local86
     store local86 -> local87
     call managed-void-target6 sp<managed-call:10> live=[local2:ptr<managed>@0] sig=void7 (i1) local-fn4(local87)
-    t36 = aggregate () : {}
+    t38 = aggregate () : {}
     call managed-void-target7 sp<managed-call:11> live=[local2:ptr<managed>@0] sig=void8 () runtime @scoop_rt_gc_collect()
-    t37 = aggregate () : {}
-    t38 = heap_load local2 +16 : i32
-    store t38 -> local88
+    t39 = aggregate () : {}
+    t40 = heap_load local2 +16 : i32
+    store t40 -> local88
     store integer<Int>(0x0000002a) -> local89
     store local89 -> local90
-    t39 = integer_compare_Equal<Int> local88, local90 : i1
-    store t39 -> local91
+    t41 = integer_compare_Equal<Int> local88, local90 : i1
+    store t41 -> local91
     store local91 -> local92
     call managed-void-target8 sp<managed-call:12> live=[] sig=void9 (i1) local-fn4(local92)
-    t40 = aggregate () : {}
+    t42 = aggregate () : {}
     store global2 -> local93
     store local93 -> local94
     call managed-void-target9 sp<managed-call:13> live=[local94:ptr<managed>@0] sig=void10 (ptr<managed>) local-fn10(local94)
-    t41 = aggregate () : {}
+    t43 = aggregate () : {}
     ret
   block while.body.21
     store integer<Int>(0x00000001) -> local64
     store local58 -> local62
     store local62 -> local63
-    call managed-direct-target5 sp<managed-call:14> live=[local2:ptr<managed>@0] t42 = sig=direct12 (i32) -> i32 local-fn5(local63)
-    store t42 -> local65
+    call managed-direct-target5 sp<managed-call:14> live=[local2:ptr<managed>@0] t44 = sig=direct14 (i32) -> i32 local-fn5(local63)
+    store t44 -> local65
     store local64 -> local66
     store local65 -> local67
-    call native-gc-leaf-direct-target5 t43 = sig=direct13 (i32, i32) -> i32 extern1(local66, local67)
-    store t43 -> local68
+    call native-gc-leaf-direct-target6 t45 = sig=direct15 (i32, i32) -> i32 extern1(local66, local67)
+    store t45 -> local68
     store local58 -> local69
     store local69 -> local70
-    t44 = integer_compare_Equal<Int> local68, local70 : i1
-    store t44 -> local71
+    t46 = integer_compare_Equal<Int> local68, local70 : i1
+    store t46 -> local71
     store local71 -> local72
     call managed-void-target10 sp<managed-call:15> live=[local2:ptr<managed>@0] sig=void11 (i1) local-fn4(local72)
-    t45 = aggregate () : {}
-    t46 = heap_load local2 +16 : i32
-    store t46 -> local73
+    t47 = aggregate () : {}
+    t48 = heap_load local2 +16 : i32
+    store t48 -> local73
     store integer<Int>(0x0000002a) -> local74
     store local74 -> local75
-    t47 = integer_compare_Equal<Int> local73, local75 : i1
-    store t47 -> local76
+    t49 = integer_compare_Equal<Int> local73, local75 : i1
+    store t49 -> local76
     store local76 -> local77
     call managed-void-target11 sp<managed-call:16> live=[local2:ptr<managed>@0] sig=void12 (i1) local-fn4(local77)
-    t48 = aggregate () : {}
+    t50 = aggregate () : {}
     store local58 -> local78
     store local78 -> local79
     store integer<Int>(0x00000001) -> local80
     store local80 -> local81
-    t49 = integer_Add<Int> local79, local81 : i32
-    store t49 -> local58
+    t51 = integer_Add<Int> local79, local81 : i32
+    store t51 -> local58
     br @while.cond.19
   block invoke.normal.1
-    store t26 -> local48
+    store t28 -> local48
     store local47 -> local49
     store local48 -> local50
-    call native-gc-leaf-direct-target3 t27 = sig=direct8 (i32, i32) -> i32 extern1(local49, local50)
-    store t27 -> local96
+    call native-gc-leaf-direct-target4 t29 = sig=direct10 (i32, i32) -> i32 extern1(local49, local50)
+    store t29 -> local96
     br @try.end.10
   block rethrow.normal.2
     unreachable
@@ -486,7 +479,7 @@ Module
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
     heap_store param0 +16 param1
     ret
-  fun @scoop$1$cb$795ee4a7d3e2c7712538fb7878ca791d8ab581fce4a2f1824a9e49d01332b8ef(i32, f64) -> sret<struct0 size=16 align=8 scan=none> <no-gc>
+  fun @scoop$1$cb$795ee4a7d3e2c7712538fb7878ca791d8ab581fce4a2f1824a9e49d01332b8ef(i32, f64) -> parts<struct0 [[2xi64]@0+16/8]> <no-gc>
   block entry
     t0 = aggregate (param0, param1) : struct0
     ret t0
@@ -530,11 +523,11 @@ Module
   layout-meta Pair c-layout(aligned=0,packed=0) fields=[0@4,8@8] interior-mutable=false
   layout Option size=8 align=8 enum-scan=refs[0]
   layout Option size=16 align=8 enum-scan=none
-  layout Equality value size=8 align=8 refs=[0]
-  layout Equality value size=8 align=8 refs=[0]
-  layout Iterable value size=8 align=8 refs=[0]
-  layout Iterator value size=8 align=8 refs=[0]
-  layout Equality value size=8 align=8 refs=[0]
+  layout Equality value size=16 align=8 refs=[0]
+  layout Equality value size=16 align=8 refs=[0]
+  layout Iterable value size=16 align=8 refs=[0]
+  layout Iterator value size=16 align=8 refs=[0]
+  layout Equality value size=16 align=8 refs=[0]
   layout Cell value size=8 align=8 refs=[0]
   layout Cell size=24 align=8 refs=[]
   output executable @scoop$1$cb$a59ba8328a87a3c09df1111305261ccbca23796630e0ce6dea24e3ae106f48ca

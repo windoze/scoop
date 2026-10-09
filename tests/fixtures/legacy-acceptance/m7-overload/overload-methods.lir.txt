@@ -101,7 +101,7 @@ Module
   td td0 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Equality);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$6fb0bdfcaef72d458561b350a56fb80e86e68f4c020173148c7fe1ec239ea687 type-id=940003777485400453 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
   td td1 n(c=scoop%3Asingle-file%3A0.0.0;p=;o=-;k=C;x=A) @scoop$1$td$5f44e23386643d005d33640c4402f1643bdbd0ba33501dda52d9ae9443eede85 type-id=17148043744345258883 shape=FixedObject minimum-size=16 align=8 parent=none vtable=[local-fn0] itables=[]
   td td2 n(c=scoop%3Asingle-file%3A0.0.0;p=;o=-;k=C;x=B) @scoop$1$td$82ddd05d40586d54e7084201921e3c5b15acbcfd50730c947bba314372f822f8 type-id=11624347681970807733 shape=FixedObject minimum-size=16 align=8 parent=td1 vtable=[local-fn2] itables=[]
-  layout Equality value size=8 align=8 refs=[0]
+  layout Equality value size=16 align=8 refs=[0]
   layout A value size=8 align=8 refs=[0]
   layout A size=16 align=8 refs=[]
   layout B value size=8 align=8 refs=[0]

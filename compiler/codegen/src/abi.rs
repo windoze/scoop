@@ -9,6 +9,34 @@ use scoop_lir::{
 
 use crate::{CodegenError, ManagedAddressSpace, basic_ty, ptr_ty};
 
+pub(crate) fn carrier_type<'ctx>(
+    context: &'ctx Context,
+    space: ManagedAddressSpace,
+    carrier: scoop_lir::AbiCarrier,
+) -> BasicTypeEnum<'ctx> {
+    use scoop_lir::{AbiArrayElement, AbiCarrier, FloatKind};
+    match carrier {
+        AbiCarrier::Integer(bits) => context
+            .custom_width_int_type(
+                std::num::NonZeroU32::new(u32::from(bits)).expect("nonzero ABI integer"),
+            )
+            .expect("validated ABI integer width")
+            .into(),
+        AbiCarrier::Float(FloatKind::F32) => context.f32_type().into(),
+        AbiCarrier::Float(FloatKind::F64) => context.f64_type().into(),
+        AbiCarrier::Pointer(kind) => crate::pointer_ty(context, space, kind).into(),
+        AbiCarrier::FloatPair => context.f32_type().vec_type(2).into(),
+        AbiCarrier::Array { element, count } => {
+            let element: BasicTypeEnum<'ctx> = match element {
+                AbiArrayElement::I64 => context.i64_type().into(),
+                AbiArrayElement::F32 => context.f32_type().into(),
+                AbiArrayElement::F64 => context.f64_type().into(),
+            };
+            element.array_type(u32::from(count)).into()
+        }
+    }
+}
+
 fn value_type<'ctx>(
     context: &'ctx Context,
     structs: &StructDefs,
@@ -23,6 +51,33 @@ fn value_type<'ctx>(
         managed_address_space,
         value.storage_type(),
     )
+}
+
+pub(crate) fn direct_type<'ctx>(
+    context: &'ctx Context,
+    structs: &StructDefs,
+    enums: &EnumDefs,
+    managed_address_space: ManagedAddressSpace,
+    value: &scoop_lir::AbiDirectValue,
+) -> Result<BasicTypeEnum<'ctx>, CodegenError> {
+    match value {
+        scoop_lir::AbiDirectValue::Scalar(value) => {
+            value_type(context, structs, enums, managed_address_space, value)
+        }
+        scoop_lir::AbiDirectValue::DirectParts(parts) if parts.parts().len() == 1 => Ok(
+            carrier_type(context, managed_address_space, parts.parts()[0].carrier()),
+        ),
+        scoop_lir::AbiDirectValue::DirectParts(parts) => Ok(context
+            .struct_type(
+                &parts
+                    .parts()
+                    .iter()
+                    .map(|part| carrier_type(context, managed_address_space, part.carrier()))
+                    .collect::<Vec<_>>(),
+                false,
+            )
+            .into()),
+    }
 }
 
 /// Translate one already-classified Scoop ABI signature into its physical
@@ -45,6 +100,9 @@ pub(crate) fn function_type<'ctx>(
                 parameter.value(),
             )
             .map(Into::into),
+            AbiPhysicalParameterOrigin::DirectArgumentPart { part, .. } => {
+                Ok(carrier_type(context, managed_address_space, part.carrier()).into())
+            }
             AbiPhysicalParameterOrigin::IndirectReturn
             | AbiPhysicalParameterOrigin::IndirectArgument { .. } => {
                 Ok(BasicMetadataTypeEnum::from(ptr_ty(context)))
@@ -54,7 +112,7 @@ pub(crate) fn function_type<'ctx>(
 
     match signature.result() {
         AbiReturn::Direct(value) => {
-            value_type(context, structs, enums, managed_address_space, value)
+            direct_type(context, structs, enums, managed_address_space, value)
                 .map(|ty| ty.fn_type(&parameters, false))
         }
         AbiReturn::UnitVoid | AbiReturn::ElidedZst(_) | AbiReturn::Indirect(_) => {
@@ -76,7 +134,8 @@ fn apply_parameter_attributes(
         let attribute_name = match parameter.origin() {
             AbiPhysicalParameterOrigin::IndirectReturn => "sret",
             AbiPhysicalParameterOrigin::IndirectArgument { .. } => "byval",
-            AbiPhysicalParameterOrigin::DirectArgument { .. } => continue,
+            AbiPhysicalParameterOrigin::DirectArgument { .. }
+            | AbiPhysicalParameterOrigin::DirectArgumentPart { .. } => continue,
         };
         let index = u32::try_from(parameter.index())
             .ok()

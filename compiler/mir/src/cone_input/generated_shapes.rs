@@ -81,7 +81,15 @@ pub(super) fn partition(module: &Module) -> Result<Partition, ConeMirInputError>
             }
             GeneratedNominalKey::BoxedValue { payload } => *payload,
             GeneratedNominalKey::CoroutineStep { result } => *result,
-            GeneratedNominalKey::CoroutineSlot { value } => *value,
+            GeneratedNominalKey::CoroutineSlot { value } => module
+                .meta
+                .generated_exact_types
+                .get_by_identity(*value)
+                .and_then(|identity| match identity.nominal_record().key() {
+                    GeneratedNominalKey::BoxedValue { payload } => Some(*payload),
+                    _ => None,
+                })
+                .unwrap_or(*value),
             GeneratedNominalKey::ClosureEnvironment { .. }
             | GeneratedNominalKey::CallableAdapterEnvironment { .. }
             | GeneratedNominalKey::ContinuationAdapterEnvironment { .. }
@@ -100,9 +108,9 @@ pub(super) fn partition(module: &Module) -> Result<Partition, ConeMirInputError>
             if let GeneratedExactTypeLocation::Class(class) = location
                 && module
                     .meta
-                    .boxing_adjusts
+                    .interface_adjusts
                     .iter()
-                    .any(|adjust| adjust.boxed() == class)
+                    .any(|adjust| adjust.class() == class)
             {
                 return Err(Error::ForeignGeneratedHelperCallable(location));
             }

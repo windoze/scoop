@@ -56,6 +56,9 @@ pub enum MirClassKindV1 {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum MirTypeRepresentationV1 {
     Intrinsic(MirParamFreeIntrinsicV1),
+    MaybeUninit {
+        value: PersistentExactTypeId,
+    },
     Struct {
         fields: Vec<MirRepresentationFieldV1>,
         c_layout: MirTypeCLayoutPolicyV1,
@@ -108,6 +111,7 @@ impl MirTypeRepresentationV1 {
             | Self::ObjectBacking { declared_fields } => declared_fields,
             Self::BoxedValue { payload } => std::slice::from_ref(payload),
             Self::Intrinsic(_)
+            | Self::MaybeUninit { .. }
             | Self::InlineArray { .. }
             | Self::AtomicReference { .. }
             | Self::Enum { .. }

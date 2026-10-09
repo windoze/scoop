@@ -85,7 +85,7 @@ stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-checks = [{"actual" = "${consumer.result.observations.child_invocations.length}", "equals" = 1}, {"file" = "${work}/dump/${consumer.result.root.identity}/ast.txt", "snapshot" = "ast.txt"}, {"file" = "${work}/dump/${consumer.result.root.identity}/hir.txt", "snapshot" = "hir.txt"}, {"file" = "${work}/dump/${consumer.result.root.identity}/mir.txt", "snapshot" = "mir.txt"}, {"file" = "${work}/dump/${consumer.result.root.identity}/lir.txt", "snapshot" = "lir.txt"}]
+checks = [{"actual" = "${consumer.result.observations.child_invocations.length}", "equals" = 1}, {"file" = "${work}/dump/${consumer.result.root.identity}/ast.txt", "snapshot" = "ast.txt"}, {"file" = "${work}/dump/${consumer.result.root.identity}/hir.txt", "snapshot" = "hir.txt"}, {"file" = "${work}/dump/${consumer.result.root.identity}/mir.txt", "snapshot" = "mir.txt"}, {"file" = "${work}/dump/${consumer.result.root.identity}/lir.txt", "snapshot" = "lir.${target}.txt"}]
 
 [[steps]]
 name = "remove_consumer_source"

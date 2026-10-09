@@ -14,6 +14,12 @@ pub(crate) enum ArgumentEvaluation {
     Lowered,
 }
 
+#[derive(Clone)]
+pub(crate) struct PlaceIndexInputs {
+    pub call_span: Span,
+    pub locals: Vec<hir::LocalId>,
+}
+
 pub(crate) struct CallableArgumentMaterialization<'a> {
     pub function: hir::FunctionId,
     pub argument_map: &'a CandidateArgumentMap,

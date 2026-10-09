@@ -17,9 +17,8 @@ pub struct SharedOrdinaryLirBridgeDependenciesV1<'a> {
     pub callables: &'a [&'a lir::CrossConeLirBridgeSectionV1],
 }
 
-/// Replays the existing ordinary bridge from HIR-joined MIR declarations and
-/// uses. Dependencies must be limited to the current artifact's reachable
-/// providers; candidate LIR records are not inputs to this projection.
+/// Joins ordinary bridges to MIR declarations and reachable providers while
+/// preserving the physical ABI classified by the defining LIR module.
 pub fn replay_shared_ordinary_lir_bridge(
     target: lir::LirTargetProfile,
     source: hir::SharedTypeMetadataV1<'_>,
@@ -27,6 +26,7 @@ pub fn replay_shared_ordinary_lir_bridge(
     local: &lir::CanonicalExactLayoutExportsV1,
     dependencies: SharedOrdinaryLirBridgeDependenciesV1<'_>,
     foundation: &lir::ConeLirFoundation,
+    actual: &lir::CrossConeLirBridgeSectionV1,
 ) -> Result<lir::CrossConeLirBridgeSectionV1, Error> {
     if mir.artifact() != foundation.producer() || source.provider != foundation.producer() {
         return Err(Error::ArtifactProvider);
@@ -34,17 +34,6 @@ pub fn replay_shared_ordinary_lir_bridge(
     let layouts = Layouts::new(local, dependencies.layouts, target, foundation.producer())?;
     let path = WirePath::root();
     let selected = selected::replay(mir, dependencies)?;
-    let mut sources = Vec::new();
-    scoop_wire::allocation::try_reserve(&mut sources, dependencies.metadata.len(), &path)?;
-    sources.extend(
-        dependencies
-            .metadata
-            .iter()
-            .copied()
-            .map(crate::AbiReplayDependency::from),
-    );
-    let types = crate::collect_abi_types(source.into(), &sources)?;
-
     let mut exports = Vec::new();
     scoop_wire::allocation::try_reserve(&mut exports, mir.exports().len(), &path)?;
     for callable in mir.exports() {
@@ -62,7 +51,14 @@ pub fn replay_shared_ordinary_lir_bridge(
             .declaration(origin)
             .ok_or(Error::CallableInterface(declaration))?;
         let gc = interface.effects().provider_entry_gc_effect();
-        let signature = types.replay(target, callable.signature(), gc)?;
+        let signature = actual
+            .export(declaration)
+            .ok_or(Error::CallableSignature(declaration))?
+            .abi_signature()
+            .clone();
+        if signature.signature() != callable.signature() || signature.gc_effect() != gc {
+            return Err(Error::CallableSignature(declaration));
+        }
         layouts::check(declaration, &signature, target, &layouts)?;
         let root = match gc {
             GcEffect::Managed => lir::ExternalCallableRootPlan::ManagedStatepoint,

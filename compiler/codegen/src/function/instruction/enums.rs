@@ -34,9 +34,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                                 self.managed_address_space,
                                 &function.temps[*out].ty,
                             )?
-                            .into_pointer_type()
-                            .const_null()
-                            .into()
+                            .const_zero()
                         }
                     }
                     EnumRepr::Tagged {
@@ -123,8 +121,16 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     // the payload-less variant, non-null ↔ the payload
                     // variant.
                     EnumRepr::Niche {
-                        payload_variant, ..
+                        kind,
+                        payload_variant,
                     } => {
+                        let operand = if *kind == scoop_lir::NullNicheKind::Interface {
+                            builder
+                                .build_extract_value(operand.into_struct_value(), 0, "niche_object")
+                                .map_err(|e| CodegenError(format!("interface niche object: {e}")))?
+                        } else {
+                            operand
+                        };
                         let operand = operand.into_pointer_value();
                         let non_null = builder
                             .build_int_compare(
@@ -188,7 +194,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                         payload_variant,
                     } if variant == payload_variant && *index == 0 => {
                         let out_ty = &function.temps[*out].ty;
-                        let expected = LirType::Ptr(kind.pointer_kind());
+                        let expected = kind.storage_type();
                         if out_ty != &expected {
                             return Err(CodegenError(format!(
                                 "enum_field @{} niche payload produces {}, expected {}",
@@ -310,8 +316,16 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 let name = format!("t{}", out.into_raw().into_u32());
                 let result: BasicValueEnum = match &def.repr {
                     EnumRepr::Niche {
-                        payload_variant, ..
+                        kind,
+                        payload_variant,
                     } => {
+                        let operand = if *kind == scoop_lir::NullNicheKind::Interface {
+                            builder
+                                .build_extract_value(operand.into_struct_value(), 0, "niche_object")
+                                .map_err(|e| CodegenError(format!("interface niche object: {e}")))?
+                        } else {
+                            operand
+                        };
                         let pointer = operand.into_pointer_value();
                         let predicate = if variant.index() == *payload_variant {
                             IntPredicate::NE

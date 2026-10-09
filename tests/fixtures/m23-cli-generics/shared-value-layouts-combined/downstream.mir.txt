@@ -1165,32 +1165,32 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun thunk<Wrapper<Later>> Readable.get() @fn33(this: Readable<Later>) -> Later
+  fun thunk<Wrapper<Later>> Readable.get() @fn33(this: box<Wrapper<Later>>) -> Later
     bb0 entry
       call $call.1: Later = @fn8 direct
         Type Wrapper<Later>
         Unbox
-          Type Readable<Later>
+          Type box<Wrapper<Later>>
           Local this
       return
         Type Later
         Local $call.1
-  fun thunk<Wrapper<Int>> Readable.get() @fn34(this: Readable<Int>) -> Int
+  fun thunk<Wrapper<Int>> Readable.get() @fn34(this: box<Wrapper<Int>>) -> Int
     bb0 entry
       call $call.1: Int = @fn11 direct
         Type Wrapper<Int>
         Unbox
-          Type Readable<Int>
+          Type box<Wrapper<Int>>
           Local this
       return
         Type Int
         Local $call.1
-  fun thunk<Wrapper<Unit>> Readable.get() @fn35(this: Readable<Unit>) -> Unit
+  fun thunk<Wrapper<Unit>> Readable.get() @fn35(this: box<Wrapper<Unit>>) -> Unit
     bb0 entry
       call @fn13 direct
         Type Wrapper<Unit>
         Unbox
-          Type Readable<Unit>
+          Type box<Wrapper<Unit>>
           Local this
       return
   fun function_bridge.$Closure$lambda0.(Any) -> Any @fn36($source: (Later) -> Int, arg0: Any) -> Any

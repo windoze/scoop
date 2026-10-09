@@ -8,7 +8,7 @@ use super::*;
 struct Variant {
     identity: CborIdentityRecord<PersistentEnumVariantId, EnumVariantIdentityKey>,
     fields: Vec<CborIdentityRecord<PersistentEnumVariantFieldId, EnumVariantFieldKey>>,
-    values: Vec<(lir::ValueLayoutConstituentV1, Option<lir::NichePointerKind>)>,
+    values: Vec<(lir::ValueLayoutConstituentV1, Option<lir::NullNicheKind>)>,
 }
 
 impl Projection<'_> {

@@ -1251,8 +1251,10 @@ Module
         Local $parameter.innerGate
         Type Gate
         Local $parameter.outerGate
-        Type CoroutineAdapter<ReturnTask.run>$1
-        Local $adapter.1
+        Type Continuation<Node>
+        Retype Continuation<Node>
+          Type CoroutineAdapter<ReturnTask.run>$1
+          Local $adapter.1
       branch bb5 bb6
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -1797,8 +1799,10 @@ Module
         Local $parameter.innerGate
         Type Gate
         Local $parameter.outerGate
-        Type CoroutineAdapter<ThrowTask.run>$1
-        Local $adapter.1
+        Type Continuation<Node>
+        Retype Continuation<Node>
+          Type CoroutineAdapter<ThrowTask.run>$1
+          Local $adapter.1
       branch bb14 bb15
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -2376,8 +2380,10 @@ Module
       call @fn17 interface SuspendRegistration<Unit>[0]
         Type SuspendRegistration<Unit>
         Local $dependency.parameter.registration
-        Type CoroutineAdapter<waitFor>$1
-        Local $safe_adapter.1
+        Type Continuation<Unit>
+        Retype Continuation<Unit>
+          Type CoroutineAdapter<waitFor>$1
+          Local $safe_adapter.1
       goto bb14
     bb3 coroutine.registered_success.1
       atomic_store_release kind=coroutine-adapter-state field=1
@@ -3122,8 +3128,10 @@ Module
       call $step.1: CoroutineStep<Unit> = @fn7 direct
         Type Gate
         Local $parameter.gate
-        Type CoroutineAdapter<returnThroughNestedCleanup>$1
-        Local $adapter.1
+        Type Continuation<Unit>
+        Retype Continuation<Unit>
+          Type CoroutineAdapter<returnThroughNestedCleanup>$1
+          Local $adapter.1
       branch bb56 bb57
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -3217,8 +3225,10 @@ Module
       call $step.2: CoroutineStep<Unit> = @fn7 direct
         Type Gate
         Local $parameter.gate
-        Type CoroutineAdapter<returnThroughNestedCleanup>$2
-        Local $adapter.2
+        Type Continuation<Unit>
+        Retype Continuation<Unit>
+          Type CoroutineAdapter<returnThroughNestedCleanup>$2
+          Local $adapter.2
       branch bb48 bb49
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -3270,8 +3280,10 @@ Module
       call $step.3: CoroutineStep<Unit> = @fn7 direct
         Type Gate
         Local $parameter.gate
-        Type CoroutineAdapter<returnThroughNestedCleanup>$3
-        Local $adapter.3
+        Type Continuation<Unit>
+        Retype Continuation<Unit>
+          Type CoroutineAdapter<returnThroughNestedCleanup>$3
+          Local $adapter.3
       branch bb40 bb41
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -3388,8 +3400,10 @@ Module
       call $step.4: CoroutineStep<Unit> = @fn7 direct
         Type Gate
         Local $parameter.gate
-        Type CoroutineAdapter<returnThroughNestedCleanup>$4
-        Local $adapter.4
+        Type Continuation<Unit>
+        Retype Continuation<Unit>
+          Type CoroutineAdapter<returnThroughNestedCleanup>$4
+          Local $adapter.4
       branch bb32 bb33
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -5265,8 +5279,10 @@ Module
       call $step.1: CoroutineStep<Unit> = @fn7 direct
         Type Gate
         Local $parameter.gate
-        Type CoroutineAdapter<throwThroughNestedCleanup>$1
-        Local $adapter.1
+        Type Continuation<Unit>
+        Retype Continuation<Unit>
+          Type CoroutineAdapter<throwThroughNestedCleanup>$1
+          Local $adapter.1
       branch bb30 bb31
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -5382,8 +5398,10 @@ Module
       call $step.2: CoroutineStep<Unit> = @fn7 direct
         Type Gate
         Local $parameter.gate
-        Type CoroutineAdapter<throwThroughNestedCleanup>$2
-        Local $adapter.2
+        Type Continuation<Unit>
+        Retype Continuation<Unit>
+          Type CoroutineAdapter<throwThroughNestedCleanup>$2
+          Local $adapter.2
       branch bb22 bb23
         Type Boolean
         Binary MachineEq(EnumTag)

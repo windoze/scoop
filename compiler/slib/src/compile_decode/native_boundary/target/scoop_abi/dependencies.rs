@@ -47,7 +47,10 @@ pub(crate) fn collect<'a>(
             insert_definition(
                 &mut definitions,
                 record.owner(),
-                AbiNominalDefinition::native(record),
+                AbiNominalDefinition::native(
+                    record,
+                    super::super::nominals::is_interface(record.owner(), source.identities)?,
+                ),
             )?;
         }
     }

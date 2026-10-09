@@ -103,7 +103,7 @@ fn virtual_calls_load_the_vtable_and_call_indirect() {
 }
 
 #[test]
-fn interface_calls_look_up_the_itable() {
+fn interface_calls_read_the_carried_itable() {
     let mut b = Builder::new();
     let iface = b.interface("Describable", &["describe", "label"]);
     // The interface method shell (signature only, never emitted).
@@ -137,20 +137,19 @@ fn interface_calls_look_up_the_itable() {
     );
     let module = lower(b.finish(main));
 
-    // `scoop_rt_itable_lookup(td, iface_td)` finds the table; the
-    // interface TD is a typed metadata reference, not an ordinary
-    // globals-arena entry.
+    // Dispatch reads the carried metadata table and projects the object
+    // receiver; it does not repeat a type-descriptor lookup.
     insta::assert_snapshot!(lir::dump(&module), @r#"
     Module
       global @scoop$1$ss$9b273ab0bbc562dd7f8e8b0487c0e98f4a7d0781b1cb5aa5b6d69c2d8a7f66b1 : ptr<managed> scan=refs[0]
       fun @scoop$1$cb$a59ba8328a87a3c09df1111305261ccbca23796630e0ce6dea24e3ae106f48ca() -> void
-        local %0 i: ptr<managed>
+        local %0 i: interface{object,itab}
         local %1 r: i32
       block entry
-        poll managed-void-target0 sp<managed-poll:0> live=[local0:ptr<managed>@0]
-        t0 = heap_load local0 +0 : ptr<metadata>
-        call no-gc-direct-target0 t1 = sig=direct0 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t0, td0)
-        call managed-direct-target0 sp<managed-call:0> live=[local0:ptr<managed>@0] t2 = sig=direct1 (ptr<managed>) -> i32 dispatch[Interface:1] t1(local0)
+        poll managed-void-target0 sp<managed-poll:0> live=[local0:interface{object,itab}@0]
+        t0 = extract local0, 1 : ptr<metadata>
+        t1 = extract local0, 0 : ptr<managed>
+        call managed-direct-target0 sp<managed-call:0> live=[t1:ptr<managed>@0] t2 = sig=direct0 (ptr<managed>) -> i32 dispatch[Interface:1] t0(t1)
         store t2 -> local1
         ret
       fun @scoop$1$cb$d3bd523ea7c4b775508c06e622f76772db6a21fddb406c6d3fe7d1f20a2a89c1(i32, ptr<raw>, ptr<raw>) -> i32
@@ -192,7 +191,7 @@ fn interface_calls_look_up_the_itable() {
       layout Boolean size=1 align=1 refs=[]
       layout task-context value size=8 align=8 refs=[0]
       layout task-context size=24 align=8 refs=[16]
-      layout Describable value size=8 align=8 refs=[0]
+      layout Describable value size=16 align=8 refs=[0]
       layout String value size=8 align=8 refs=[0]
       output executable @scoop$1$cb$a59ba8328a87a3c09df1111305261ccbca23796630e0ce6dea24e3ae106f48ca
     "#);

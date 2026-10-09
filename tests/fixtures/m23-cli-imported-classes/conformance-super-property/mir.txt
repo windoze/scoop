@@ -36,8 +36,9 @@ Module
   generated_exact_type get6 location=enum1 nominal_id=6d6b0e97e867221434529a186ecdb73436ba024cdeabf28790753c77e086612f exact_id=9d107e1f298b50151f81f506f724fca9ff126dae63cfce31392c2d98cf6e96b3
   generated_exact_type get7 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
   generated_exact_type get8 location=enum4 nominal_id=6b15e27b734e6ea391ead38c85f0d9bf134c0897b84690466607c24536699632 exact_id=f00c3c83a71deaaf5e4a91dded2c45a6939a455c8780818b706ae1c5a90819cd
-  generated_callable gc0 function=@fn14 id=1efe8b801616c710a70ea30782d2f3ee7bec0e1f76241e4dca1e4afb207f8acd
-  generated_callable gc1 function=@fn15 id=65c8b5f4289293ee33c20e1cfe1625708ac200f9622fc84645b02d69ac74d77a
+  generated_callable gc0 function=@fn15 id=1efe8b801616c710a70ea30782d2f3ee7bec0e1f76241e4dca1e4afb207f8acd
+  generated_callable gc1 function=@fn16 id=65c8b5f4289293ee33c20e1cfe1625708ac200f9622fc84645b02d69ac74d77a
+  generated_callable gc2 function=@fn13 id=6e6b7ca46b74c218f3c07fbe8aee1adc6e02de975ecf2dfa11dd8f31cde46530
   fun LocalProperty.exercise @fn0(this: LocalProperty) -> Long
     bb0 entry
       val $receiver: LocalProcedure
@@ -167,7 +168,7 @@ Module
       assign $new.1
         Type LocalProperty
         ClassAlloc LocalProperty
-      call @fn13 direct
+      call @fn14 direct
         Type LocalProperty
         Local $new.1
       val $receiver: LocalProperty
@@ -220,7 +221,15 @@ Module
         Type Long
         IntegerLiteral Long value=0 bits=0x0000000000000000
       return
-  fun init.LocalProperty.$c0 @fn13(this: LocalProperty) -> Unit
+  fun receiver<LocalProperty> LocalProcedure.clear @fn13(this: LocalProperty) -> Unit
+    bb0 entry
+      call @fn12 direct
+        Type LocalProcedure
+        Retype LocalProcedure
+          Type LocalProperty
+          Local this
+      return
+  fun init.LocalProperty.$c0 @fn14(this: LocalProperty) -> Unit
     bb0 entry
       field_set 0
         Type LocalProperty
@@ -228,7 +237,7 @@ Module
         Type Long
         IntegerLiteral Long value=1000 bits=0x00000000000003e8
       return
-  fun startCoroutine<LocalProperty> @fn14(task: SuspendTask<LocalProperty>, completion: Continuation<LocalProperty>) -> Unit
+  fun startCoroutine<LocalProperty> @fn15(task: SuspendTask<LocalProperty>, completion: Continuation<LocalProperty>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -309,7 +318,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<LocalProcedure> @fn15(task: SuspendTask<LocalProcedure>, completion: Continuation<LocalProcedure>) -> Unit
+  fun startCoroutine<LocalProcedure> @fn16(task: SuspendTask<LocalProcedure>, completion: Continuation<LocalProcedure>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -394,8 +403,8 @@ Module
   coroutine_step cs1 CoroutineStep<LocalProcedure> result=LocalProcedure
   coroutine_slot cl0 CoroutineSlot<LocalProperty> value=LocalProperty
   coroutine_slot cl1 CoroutineSlot<LocalProcedure> value=LocalProcedure
-  coroutine_start ct0 result=LocalProperty function=fn14
-  coroutine_start ct1 result=LocalProcedure function=fn15
+  coroutine_start ct0 result=LocalProperty function=fn15
+  coroutine_start ct1 result=LocalProcedure function=fn16
   coroutine_fn cf0 @fn6 source_return=LocalProcedure step=cs1 immediate
   coroutine_fn cf1 @fn10 source_return=LocalProperty step=cs0 immediate
   instance mi0 function=@fn4 <- Continuation.resume

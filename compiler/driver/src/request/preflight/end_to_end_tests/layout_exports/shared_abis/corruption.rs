@@ -106,7 +106,7 @@ pub(super) fn check(
     )
     .unwrap();
     assert!(
-        matches!(replay(input, &layouts, &[]), Err(Error::Abi(lir::ExactCallableAbiError::MissingValueLayout { exact: missing })) if missing == exact)
+        matches!(replay(input, &layouts, &[], abis), Err(Error::Abi(lir::ExactCallableAbiError::MissingValueLayout { exact: missing })) if missing == exact)
     );
 }
 

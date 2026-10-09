@@ -136,6 +136,13 @@ impl Replay<'_, '_> {
             | NominalSourceShapeV1::Object(_)
             | NominalSourceShapeV1::Interface => Ok(Shape::Reference),
             NominalSourceShapeV1::Intrinsic(representation) => match representation.family() {
+                IntrinsicTypeKind::MaybeUninit => {
+                    let fields = self.fields(
+                        [&SignatureTypeKey::Binder { depth: 0, index: 0 }].into_iter(),
+                        bindings,
+                    )?;
+                    Ok(Shape::MaybeUninit { value: fields[0] })
+                }
                 IntrinsicTypeKind::Unit => Ok(Shape::Unit),
                 IntrinsicTypeKind::Integer(_)
                 | IntrinsicTypeKind::Float(_)

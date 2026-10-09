@@ -28,7 +28,9 @@ Module
   generated_exact_type get4 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
   generated_exact_type get5 location=enum1 nominal_id=be6ee9a069092fd442bdce93ff72b48553179db925baf9b8e6c65b3d9d0f19ba exact_id=920582615f93405f3988bde35bbc4288defb55130ea020ff28e1aa62d2abb1b5
   generated_exact_type get6 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
-  generated_callable gc0 function=@fn20 id=cfeba8c089327a9e9151942b321419ac9aca156d0eb8f928fd811123e44a945c
+  generated_callable gc0 function=@fn18 id=371b7126e538dee0e433566e0ea6c4f40550b587d4ea21bb5dffe6fa27c59af4
+  generated_callable gc1 function=@fn17 id=78dc15238d1b1788ce5892b1826692eacaf4bf204fea44d2ff5f1d0d61b85190
+  generated_callable gc2 function=@fn22 id=cfeba8c089327a9e9151942b321419ac9aca156d0eb8f928fd811123e44a945c
   fun check @fn0() -> Int
     bb0 entry
       call $dependency.argument.0: Int = external0 direct
@@ -47,7 +49,7 @@ Module
       assign $new.1
         Type Later
         ClassAlloc Later
-      call @fn17 direct
+      call @fn19 direct
         Type Later
         Local $new.1
         Type Int
@@ -70,7 +72,7 @@ Module
       assign $new.2
         Type Later
         ClassAlloc Later
-      call @fn17 direct
+      call @fn19 direct
         Type Later
         Local $new.2
         Type Int
@@ -87,7 +89,7 @@ Module
       assign $new.3
         Type Later
         ClassAlloc Later
-      call @fn17 direct
+      call @fn19 direct
         Type Later
         Local $new.3
         Type Int
@@ -111,7 +113,7 @@ Module
       assign $new.1
         Type PropertyItem<Int>
         ClassAlloc PropertyItem<Int>
-      call @fn18 direct
+      call @fn20 direct
         Type PropertyItem<Int>
         Local $new.1
         Type Int
@@ -141,7 +143,7 @@ Module
       assign $new.1
         Type PropertyItem<Later>
         ClassAlloc PropertyItem<Later>
-      call @fn19 direct
+      call @fn21 direct
         Type PropertyItem<Later>
         Local $new.1
         Type Later
@@ -240,7 +242,27 @@ Module
   fun SuspendRegistration.register @fn16(this: SuspendRegistration<Later>, continuation: Continuation<Later>) -> Unit
     bb0 entry
       trap "call to abstract method `SuspendRegistration.register`"
-  fun init.Later.$c0 @fn17(this: Later, value: Int) -> Unit
+  fun receiver<PropertyItem> MutableProperty.read @fn17(this: PropertyItem<Int>) -> Int
+    bb0 entry
+      call $call.1: Int = @fn3 direct
+        Type ReadOnlyProperty<Int>
+        Retype ReadOnlyProperty<Int>
+          Type PropertyItem<Int>
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun receiver<PropertyItem> MutableProperty.read @fn18(this: PropertyItem<Later>) -> Later
+    bb0 entry
+      call $call.1: Later = @fn7 direct
+        Type ReadOnlyProperty<Later>
+        Retype ReadOnlyProperty<Later>
+          Type PropertyItem<Later>
+          Local this
+      return
+        Type Later
+        Local $call.1
+  fun init.Later.$c0 @fn19(this: Later, value: Int) -> Unit
     bb0 entry
       field_set 0
         Type Later
@@ -248,7 +270,7 @@ Module
         Type Int
         Local value
       return
-  fun init.PropertyItem.$c0 @fn18(this: PropertyItem<Int>, value: Int) -> Unit
+  fun init.PropertyItem.$c0 @fn20(this: PropertyItem<Int>, value: Int) -> Unit
     bb0 entry
       field_set 0
         Type PropertyItem<Int>
@@ -256,7 +278,7 @@ Module
         Type Int
         Local value
       return
-  fun init.PropertyItem.$c0 @fn19(this: PropertyItem<Later>, value: Later) -> Unit
+  fun init.PropertyItem.$c0 @fn21(this: PropertyItem<Later>, value: Later) -> Unit
     bb0 entry
       field_set 0
         Type PropertyItem<Later>
@@ -264,7 +286,7 @@ Module
         Type Later
         Local value
       return
-  fun startCoroutine<Later> @fn20(task: SuspendTask<Later>, completion: Continuation<Later>) -> Unit
+  fun startCoroutine<Later> @fn22(task: SuspendTask<Later>, completion: Continuation<Later>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -347,7 +369,7 @@ Module
       goto bb6
   coroutine_step cs0 CoroutineStep<Later> result=Later
   coroutine_slot cl0 CoroutineSlot<Later> value=Later
-  coroutine_start ct0 result=Later function=fn20
+  coroutine_start ct0 result=Later function=fn22
   coroutine_fn cf0 @fn15 source_return=Later step=cs0 immediate
   instance mi0 function=@fn1 <- make
   instance mi1 function=@fn2 <- make

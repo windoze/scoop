@@ -51,6 +51,7 @@ pub(in crate::validation) fn validate_expression(
         | ExprKind::TupleLiteral(_)
         | ExprKind::StructInit { .. }
         | ExprKind::StructConstruct { .. }
+        | ExprKind::MaybeUninit { .. }
         | ExprKind::Local(_)
         | ExprKind::PtrFromNonZeroULong { .. }
         | ExprKind::CharCode(_)

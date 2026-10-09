@@ -620,12 +620,12 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun thunk<Combined> Marker.$get$tag() @fn28(this: Marker) -> Int
+  fun thunk<Combined> Marker.$get$tag() @fn28(this: box<Combined>) -> Int
     bb0 entry
       call $call.1: Int = @fn20 direct
         Type Marker
         Retype Marker
-          Type Marker
+          Type box<Combined>
           Local this
       return
         Type Int

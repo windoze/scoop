@@ -1,0 +1,100 @@
+@CLayout struct Tiny3(val a: UInt8, val b: UInt8, val c: UInt8)
+@CLayout struct Mixed(val x: Double, val n: Long)
+@CLayout struct Floats(val a: Float, val b: Float, val c: Float)
+@CLayout struct Hfa4(val a: Double, val b: Double, val c: Double, val d: Double)
+@CLayout struct Big(val a: Long, val b: Long, val c: Long, val d: Long, val e: Long)
+@CLayout(packed = 1) struct Packed(val tag: UInt8, val x: Double)
+@CLayout(packed = 1) struct Nested(val tag: UInt8, val inner: Packed)
+@CLayout(aligned = 16) struct Aligned(val x: Float)
+@CLayout struct Padded(val tag: UInt8, val n: Long)
+@CLayout struct Pointers(val data: Ptr<Int>?, val function: FunPtr<(Int) -> Int>?)
+@CLayout struct Letter(val character: Char, val flag: Boolean, val number: Short)
+
+@GCLeaf @Extern(lib = "fixture_direct_c", name = "m34_float") fun fromFloat(value: UInt): Float
+@GCLeaf @Extern(lib = "fixture_direct_c", name = "m34_double") fun fromDouble(value: ULong): Double
+@GCLeaf @Extern(lib = "fixture_direct_c", name = "m34_float_bits") fun floatBits(value: Float): UInt
+@GCLeaf @Extern(lib = "fixture_direct_c", name = "m34_double_bits") fun doubleBits(value: Double): ULong
+@GCLeaf @Extern(lib = "fixture_direct_c", name = "m34_tiny") fun tiny(value: Tiny3): Tiny3
+@GCLeaf @Extern(lib = "fixture_direct_c", name = "m34_mixed") fun mixed(value: Mixed): Mixed
+@GCLeaf @Extern(lib = "fixture_direct_c", name = "m34_floats") fun floats(value: Floats): Floats
+@GCLeaf @Extern(lib = "fixture_direct_c", name = "m34_hfa") fun hfa(value: Hfa4): Hfa4
+@GCLeaf @Extern(lib = "fixture_direct_c", name = "m34_big") fun big(value: Big): Big
+@GCLeaf @Extern(lib = "fixture_direct_c", name = "m34_packed") fun packed(value: Packed): Packed
+@GCLeaf @Extern(lib = "fixture_direct_c", name = "m34_nested") fun nested(value: Nested): Nested
+@GCLeaf @Extern(lib = "fixture_direct_c", name = "m34_aligned") fun aligned(value: Aligned): Aligned
+@GCLeaf @Extern(lib = "fixture_direct_c", name = "m34_aligned_address") fun alignedAddress(value: Ptr<Aligned>)
+@GCLeaf @Extern(lib = "fixture_direct_c", name = "m34_padded") fun padded(value: Padded): Padded
+@GCLeaf @Extern(lib = "fixture_direct_c", name = "m34_extend") fun extend(value: Hfa4, a: Byte, b: UShort, c: Boolean): Short
+@GCLeaf @Extern(lib = "fixture_direct_c", name = "m34_function") fun function(): FunPtr<(Int) -> Int>
+@GCLeaf @Extern(lib = "fixture_direct_c", name = "m34_pointers") fun pointers(value: Pointers): Pointers
+@GCLeaf @Extern(lib = "fixture_direct_c", name = "m34_letter") fun letter(value: Letter): Letter
+@Extern(lib = "fixture_direct_c", name = "m34_safe")
+fun safe(value: Mixed, callback: FunPtr<(Int, Ptr<Unit>) -> Int>, context: Ptr<Unit>): Mixed
+@Extern(lib = "fixture_direct_c", name = "m34_threads")
+fun threads(value: Big, callback: FunPtr<(Int, Ptr<Unit>) -> Int>, context: Ptr<Unit>): Big
+
+class Cell(val value: Int)
+fun check(value: Boolean) { if (!value) { throw IllegalStateException() } }
+@NoGC @Unsafe fun loop(value: Mixed): Mixed {
+    var current = value
+    var index = 0
+    while (index < 100) { current = mixed(current); index += 1 }
+    return current
+}
+
+@Unsafe fun values() {
+    val small = fromFloat(0xff800123U)
+    val wide = fromDouble(0x7ff0000000000123UL)
+    val three = tiny(Tiny3(129.toUInt8(), 254.toUInt8(), 255.toUInt8()))
+    check(three.a == 129.toUInt8() && three.b == 7.toUInt8() && three.c == 255.toUInt8())
+    val source = Mixed(wide, 42L)
+    val result = loop(source)
+    check(doubleBits(result.x) == 0x7ff0000000000123UL && result.n == 942L && source.n == 42L)
+    val single = floats(Floats(small, -0f, 3.5f))
+    check(floatBits(single.a) == 0xff800123U && floatBits(single.b) == 0x80000000U && single.c == 3.5f)
+    val homogeneous = hfa(Hfa4(wide, -0.0, 3.5, 4.5))
+    check(doubleBits(homogeneous.a) == 0x7ff0000000000123UL && doubleBits(homogeneous.b) == 0x8000000000000000UL)
+    check(homogeneous.c == 3.5 && homogeneous.d == 4.5 && extend(homogeneous, (-127).toInt8(), 65000.toUInt16(), true) == (-31000).toInt16())
+    val original = Big(1L, 2L, 3L, 4L, 5L)
+    val copy = big(original)
+    check(copy.a == 91L && copy.e == 95L && original.a == 1L && original.e == 5L)
+    val compact = packed(Packed(129.toUInt8(), 1.25))
+    check(compact.tag == 7.toUInt8() && compact.x == 1.75 && sizeOf<Packed>() == 9UL)
+    val nest = nested(Nested(1.toUInt8(), Packed(2.toUInt8(), 2.25)))
+    check(nest.tag == 1.toUInt8() && nest.inner.tag == 2.toUInt8() && nest.inner.x == 3.25)
+    var high = aligned(Aligned(small))
+    alignedAddress(addressOf(high))
+    check(floatBits(high.x) == 0xff800123U && sizeOf<Aligned>() == 16UL)
+    val paddedResult = padded(Padded(3.toUInt8(), 38L))
+    check(paddedResult.tag == 3.toUInt8() && paddedResult.n == 42L)
+    check(pointers(Pointers(None, None)).data == None)
+    var number = 42
+    val pointerResult = pointers(Pointers(Some(addressOf(number)), Some(function())))
+    check(pointerResult.data!!.load() == 42)
+    check(when (pointerResult.function) { Some(_) -> true; None -> false })
+    val character = letter(Letter('界', true, (-17).toInt16()))
+    check(character.character == '界' && !character.flag && character.number == (-17).toInt16())
+}
+
+@Unsafe fun callbacks() {
+    val retained = Cell(91)
+    val callback = foreignCallback<(Int, Ptr<Unit>) -> Int>(
+        { value: Int ->
+            val live = Cell(value)
+            gcCollect()
+            @Unsafe { check(big(Big(1L, 2L, 3L, 4L, 5L)).e == 95L) }
+            check(retained.value == 91)
+            live.value + 3
+        }, 1, ForeignCallbackMode.Reusable
+    )
+    val result = safe(Mixed(1.25, 42L), callback.function, callback.context)
+    check(result.x == 1.25 && result.n == 87L && retained.value == 91)
+    val threaded = threads(Big(1L, 2L, 3L, 4L, 5L), callback.function, callback.context)
+    check(threaded.a == 1L && threaded.e == 41L && retained.value == 91)
+    check(when (foreignCallbackFailure(callback)) { Some(_) -> false; None -> true })
+    releaseForeignCallback(callback)
+}
+fun main() {
+    @Unsafe { values(); callbacks() }
+    println("direct-c-values-ok")
+}

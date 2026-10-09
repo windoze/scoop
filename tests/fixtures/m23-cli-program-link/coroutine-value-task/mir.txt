@@ -31,9 +31,12 @@ Module
   enum CoroutineSlot<Gate<Int>>
     Empty()
     Value(value: Gate<Int>)
-  enum CoroutineSlot<SuspendTask<Int>>
+  enum CoroutineSlot<box<ValueTask<Int>>>
     Empty()
-    Value(value: SuspendTask<Int>)
+    Value(value: box<ValueTask<Int>>)
+  enum CoroutineSlot<box<WaitingValueTask<Int>>>
+    Empty()
+    Value(value: box<WaitingValueTask<Int>>)
   class Completion<Int> vtable=0 itables=1
   class Throwable vtable=0 itables=0
   class Gate<Int> vtable=0 itables=0
@@ -71,8 +74,8 @@ Module
   generated_exact_type get5 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
   generated_exact_type get6 location=enum5 nominal_id=200ca996a1250f97e2a792bcea7648813a96aa63786317a870de214cd991f6c9 exact_id=52198ffd841e0e9220c3a2c931e572b9cfe8cc5b63ccf993d6499ce2b7f7f161
   generated_exact_type get7 location=class15 nominal_id=17c405797c1195429f86f8b1e8f4870e53b9dabe36b71a590091aaae58941eae exact_id=5784b57b6a2f288f35d2385ef2a3b976701755fa6ec2943b87eed07e23875db1
-  generated_exact_type get8 location=enum10 nominal_id=774a5517cc42b227b4f3d8823a6022047c83b1e9f11584342f7a922d5191f9b6 exact_id=5bcac56db1558e3d16ccf7824131e1ffee7b61ebafadf5e137f6929a7327722c
-  generated_exact_type get9 location=class17 nominal_id=b5f788606a57d28e604cf692acbc70911413b7d0ce4d863a48921b8c3956f5b6 exact_id=62be8c0658c191a30e8d8a03dafbda7dec989033a8c6b991b73ca1b0a76947fe
+  generated_exact_type get8 location=class17 nominal_id=b5f788606a57d28e604cf692acbc70911413b7d0ce4d863a48921b8c3956f5b6 exact_id=62be8c0658c191a30e8d8a03dafbda7dec989033a8c6b991b73ca1b0a76947fe
+  generated_exact_type get9 location=enum10 nominal_id=b8ea043e6a78c0ee78a7816cfe11215f69ae89a1d5da37ac47faa4b17c847559 exact_id=6ac3252a3f71b125639b684fbe9d5eb263a4a7f4ab934a71f71225e402db17aa
   generated_exact_type get10 location=class14 nominal_id=469e3f81eb5b274412c67f1c140c568c04a586ea484afd10a3c77f2c5d603b56 exact_id=7192a683eeb723c8a5e1e3647ac00c6f07bd20a403e0a38874e61f5ffa6b08f2
   generated_exact_type get11 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
   generated_exact_type get12 location=class9 nominal_id=01ad9355fe55e2d5d8c082a23bba51496d243b426d2c978f105c1929356aca97 exact_id=91b6e1bd33404792237a5da47a831b50bf6e15504f870fcffcabbf402422ce0c
@@ -88,7 +91,8 @@ Module
   generated_exact_type get22 location=class11 nominal_id=15eeaec3c95176fb97239dd7a46c2953a1680943b394a52ed0e10eaa5ead8326 exact_id=e8032fa80767d895bf595fa30a96eb75765cc82733252690069298cc6da26d37
   generated_exact_type get23 location=class13 nominal_id=e4341393d275d65d5619ecb38bcc13ea42287cfd5e6decbfa63ef1e29c9dcf0b exact_id=e88bc984d4936316f455ed7f36dd7772504facbbe5357b14352a5746b1b8f4ac
   generated_exact_type get24 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
-  generated_exact_type get25 location=class20 nominal_id=7f19725ff8aa56789b2a9932ea3ec624681f513112f07cbd2382fd02524412d1 exact_id=f7e8a27dcca0958e9a74c22d2c77173421ac4771f9adb9d0e181eb229eabedfd
+  generated_exact_type get25 location=enum11 nominal_id=6c94be8972e8719efd1eca7f2e3d96638b151c947e80c5b4ed46137231be8ad0 exact_id=f1cd3da3b554dc1e9b0bacaa263107c793670549c570d108ca2f2f0c1f95b433
+  generated_exact_type get26 location=class20 nominal_id=7f19725ff8aa56789b2a9932ea3ec624681f513112f07cbd2382fd02524412d1 exact_id=f7e8a27dcca0958e9a74c22d2c77173421ac4771f9adb9d0e181eb229eabedfd
   generated_callable gc0 function=@fn47 id=0c88643090a6bc68ebcbd5d6acabe648bf628026f64e69187e9ed5dbad894e9c
   generated_callable gc1 function=@fn41 id=1e19cff2fe7907aed3e712b820ff60d6f6c72717b5dcb0287a69d6df5231d2d9
   generated_callable gc2 function=@fn36 id=23f19dc8a57917ba62225e5ce03832eba0da61aec0b31c67d514f592624ad49c
@@ -911,7 +915,7 @@ Module
         StructInit WaitingValueTask<Int>
           Type Gate<Int>
           Local gate
-  fun thunk<ValueTask<Int>> SuspendTask.run() @fn32(this: SuspendTask<Int>, $completion: Continuation<Int>) -> CoroutineStep<Int>
+  fun thunk<ValueTask<Int>> SuspendTask.run() @fn32(this: box<ValueTask<Int>>, $completion: Continuation<Int>) -> CoroutineStep<Int>
     bb0 entry
       val $frame: CoroutineFrame<thunk<ValueTask<Int>> SuspendTask.run()>
         Type CoroutineFrame<thunk<ValueTask<Int>> SuspendTask.run()>
@@ -939,9 +943,9 @@ Module
       field_set 4
         Type CoroutineFrame<thunk<ValueTask<Int>> SuspendTask.run()>
         Local $frame
-        Type CoroutineSlot<SuspendTask<Int>>
-        VariantConstruct CoroutineSlot<SuspendTask<Int>> v1
-          Type SuspendTask<Int>
+        Type CoroutineSlot<box<ValueTask<Int>>>
+        VariantConstruct CoroutineSlot<box<ValueTask<Int>>> v1
+          Type box<ValueTask<Int>>
           Local this
       field_set 5
         Type CoroutineFrame<thunk<ValueTask<Int>> SuspendTask.run()>
@@ -956,7 +960,7 @@ Module
       return
         Type CoroutineStep<Int>
         Local $step
-  fun thunk<WaitingValueTask<Int>> SuspendTask.run() @fn33(this: SuspendTask<Int>, $completion: Continuation<Int>) -> CoroutineStep<Int>
+  fun thunk<WaitingValueTask<Int>> SuspendTask.run() @fn33(this: box<WaitingValueTask<Int>>, $completion: Continuation<Int>) -> CoroutineStep<Int>
     bb0 entry
       val $frame: CoroutineFrame<thunk<WaitingValueTask<Int>> SuspendTask.run()>
         Type CoroutineFrame<thunk<WaitingValueTask<Int>> SuspendTask.run()>
@@ -984,9 +988,9 @@ Module
       field_set 4
         Type CoroutineFrame<thunk<WaitingValueTask<Int>> SuspendTask.run()>
         Local $frame
-        Type CoroutineSlot<SuspendTask<Int>>
-        VariantConstruct CoroutineSlot<SuspendTask<Int>> v1
-          Type SuspendTask<Int>
+        Type CoroutineSlot<box<WaitingValueTask<Int>>>
+        VariantConstruct CoroutineSlot<box<WaitingValueTask<Int>>> v1
+          Type box<WaitingValueTask<Int>>
           Local this
       field_set 5
         Type CoroutineFrame<thunk<WaitingValueTask<Int>> SuspendTask.run()>
@@ -1046,8 +1050,10 @@ Module
       call $step.1: CoroutineStep<Int> = @fn20 direct
         Type Int
         Local $dependency.local.2
-        Type CoroutineAdapter<run>$1
-        Local $adapter.1
+        Type Continuation<Int>
+        Retype Continuation<Int>
+          Type CoroutineAdapter<run>$1
+          Local $adapter.1
       branch bb5 bb6
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -1552,8 +1558,10 @@ Module
       call $step.1: CoroutineStep<Int> = @fn21 direct
         Type Gate<Int>
         Local $dependency.local.2
-        Type CoroutineAdapter<run>$1
-        Local $adapter.1
+        Type Continuation<Int>
+        Retype Continuation<Int>
+          Type CoroutineAdapter<run>$1
+          Local $adapter.1
       branch bb5 bb6
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -2090,8 +2098,10 @@ Module
       call @fn26 interface SuspendRegistration<Int>[0]
         Type SuspendRegistration<Int>
         Local $dependency.local.4
-        Type CoroutineAdapter<await>$1
-        Local $safe_adapter.1
+        Type Continuation<Int>
+        Retype Continuation<Int>
+          Type CoroutineAdapter<await>$1
+          Local $safe_adapter.1
       goto bb14
     bb3 coroutine.registered_success.1
       atomic_store_release kind=coroutine-adapter-state field=1
@@ -2808,10 +2818,12 @@ Module
       call $step.1: CoroutineStep<Int> = @fn15 direct
         Type ValueTask<Int>
         Unbox
-          Type SuspendTask<Int>
+          Type box<ValueTask<Int>>
           Local this
-        Type CoroutineAdapter<thunk<ValueTask<Int>> SuspendTask.run()>$1
-        Local $adapter.1
+        Type Continuation<Int>
+        Retype Continuation<Int>
+          Type CoroutineAdapter<thunk<ValueTask<Int>> SuspendTask.run()>$1
+          Local $adapter.1
       branch bb5 bb6
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -2901,9 +2913,9 @@ Module
             Local $frame
     bb9 coroutine.initial
       assign this
-        Type SuspendTask<Int>
+        Type box<ValueTask<Int>>
         EnumField v1 f0
-          Type CoroutineSlot<SuspendTask<Int>>
+          Type CoroutineSlot<box<ValueTask<Int>>>
           FieldAccess 4
             Type CoroutineFrame<thunk<ValueTask<Int>> SuspendTask.run()>
             Local $frame
@@ -3308,10 +3320,12 @@ Module
       call $step.1: CoroutineStep<Int> = @fn16 direct
         Type WaitingValueTask<Int>
         Unbox
-          Type SuspendTask<Int>
+          Type box<WaitingValueTask<Int>>
           Local this
-        Type CoroutineAdapter<thunk<WaitingValueTask<Int>> SuspendTask.run()>$1
-        Local $adapter.1
+        Type Continuation<Int>
+        Retype Continuation<Int>
+          Type CoroutineAdapter<thunk<WaitingValueTask<Int>> SuspendTask.run()>$1
+          Local $adapter.1
       branch bb5 bb6
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -3401,9 +3415,9 @@ Module
             Local $frame
     bb9 coroutine.initial
       assign this
-        Type SuspendTask<Int>
+        Type box<WaitingValueTask<Int>>
         EnumField v1 f0
-          Type CoroutineSlot<SuspendTask<Int>>
+          Type CoroutineSlot<box<WaitingValueTask<Int>>>
           FieldAccess 4
             Type CoroutineFrame<thunk<WaitingValueTask<Int>> SuspendTask.run()>
             Local $frame
@@ -3791,7 +3805,8 @@ Module
   coroutine_slot cl2 CoroutineSlot<Throwable> value=Throwable
   coroutine_slot cl3 CoroutineSlot<WaitingValueTask<Int>> value=WaitingValueTask<Int>
   coroutine_slot cl4 CoroutineSlot<Gate<Int>> value=Gate<Int>
-  coroutine_slot cl5 CoroutineSlot<SuspendTask<Int>> value=SuspendTask<Int>
+  coroutine_slot cl5 CoroutineSlot<box<ValueTask<Int>>> value=box<ValueTask<Int>>
+  coroutine_slot cl6 CoroutineSlot<box<WaitingValueTask<Int>>> value=box<WaitingValueTask<Int>>
   coroutine_saved cv0 class=CoroutineFrame<run> field=3 slot=cl0 value=ValueTask<Int>
   coroutine_saved cv1 class=CoroutineFrame<run> field=4 slot=cl1 value=Int
   coroutine_saved cv2 class=CoroutineFrame<run> field=3 slot=cl3 value=WaitingValueTask<Int>
@@ -3799,9 +3814,9 @@ Module
   coroutine_saved cv4 class=CoroutineFrame<await> field=3 slot=cl1 value=Int
   coroutine_saved cv5 class=CoroutineFrame<await> field=4 slot=cl4 value=Gate<Int>
   coroutine_saved cv6 class=CoroutineFrame<thunk<ValueTask<Int>> SuspendTask.run()> field=3 slot=cl1 value=Int
-  coroutine_saved cv7 class=CoroutineFrame<thunk<ValueTask<Int>> SuspendTask.run()> field=4 slot=cl5 value=SuspendTask<Int>
+  coroutine_saved cv7 class=CoroutineFrame<thunk<ValueTask<Int>> SuspendTask.run()> field=4 slot=cl5 value=box<ValueTask<Int>>
   coroutine_saved cv8 class=CoroutineFrame<thunk<WaitingValueTask<Int>> SuspendTask.run()> field=3 slot=cl1 value=Int
-  coroutine_saved cv9 class=CoroutineFrame<thunk<WaitingValueTask<Int>> SuspendTask.run()> field=4 slot=cl5 value=SuspendTask<Int>
+  coroutine_saved cv9 class=CoroutineFrame<thunk<WaitingValueTask<Int>> SuspendTask.run()> field=4 slot=cl6 value=box<WaitingValueTask<Int>>
   coroutine_failure cx0 class=CoroutineFrame<run> field=5 slot=cl2 throwable=Throwable
   coroutine_failure cx1 class=CoroutineFrame<run> field=5 slot=cl2 throwable=Throwable
   coroutine_failure cx2 class=CoroutineFrame<await> field=5 slot=cl2 throwable=Throwable

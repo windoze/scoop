@@ -889,8 +889,10 @@ Module
       call $step.1: CoroutineStep<Node> = @fn5 direct
         Type Gate
         Local $parameter.gate
-        Type CoroutineAdapter<CopyTask.run>$1
-        Local $adapter.1
+        Type Continuation<Node>
+        Retype Continuation<Node>
+          Type CoroutineAdapter<CopyTask.run>$1
+          Local $adapter.1
       branch bb13 bb14
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -1197,8 +1199,10 @@ Module
       call $step.2: CoroutineStep<Node> = @fn5 direct
         Type Gate
         Local $parameter.gate
-        Type CoroutineAdapter<CopyTask.run>$2
-        Local $adapter.2
+        Type Continuation<Node>
+        Retype Continuation<Node>
+          Type CoroutineAdapter<CopyTask.run>$2
+          Local $adapter.2
       branch bb5 bb6
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -2125,8 +2129,10 @@ Module
       call @fn17 interface SuspendRegistration<Node>[0]
         Type SuspendRegistration<Node>
         Local $dependency.parameter.registration
-        Type CoroutineAdapter<awaitNode>$1
-        Local $safe_adapter.1
+        Type Continuation<Node>
+        Retype Continuation<Node>
+          Type CoroutineAdapter<awaitNode>$1
+          Local $safe_adapter.1
       goto bb14
     bb3 coroutine.registered_success.1
       atomic_store_release kind=coroutine-adapter-state field=1

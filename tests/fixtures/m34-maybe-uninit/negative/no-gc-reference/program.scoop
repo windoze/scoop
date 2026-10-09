@@ -1,0 +1,2 @@
+@NoGC fun make(): MaybeUninit<String> = MaybeUninit<String>.uninit()
+fun main() {}

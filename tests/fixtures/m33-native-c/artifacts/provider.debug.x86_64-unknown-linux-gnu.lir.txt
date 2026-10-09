@@ -1,6 +1,6 @@
 Module
   extern ef0 sum @m33_provider_sum(i32) -> i32 <c exact=(Int)->Int bridge=@scoop$1$br$af3b0de8e3572f2b50cb88a0e7db46335984f7c324410da1f55c066408b38198 capture-errno gc-leaf nounwind mode=gc-leaf>
-  fun @scoop$1$cb$b097f1e058b86053559194a2216fe28edcbb78cf6e6e91098164c1933560463e(i32) -> sret<{i32, i32} size=8 align=4 scan=none> <no-gc>
+  fun @scoop$1$cb$b097f1e058b86053559194a2216fe28edcbb78cf6e6e91098164c1933560463e(i32) -> parts<{i32, i32} [i64@0+8/4]> <no-gc>
     local %0 $call.1: {i32, i32}
     local %1 $sc.1: i32
     local %2 $sc.2: i32
@@ -10,7 +10,7 @@ Module
     t1 = aggregate (local2, t0) : {i32, i32}
     store t1 -> local0
     ret local0
-  fun @scoop$1$cb$cbd260c806fd35fd4dbbd9e194ee36b8c751c60890f88ed1ec63812baece4105(i32) -> sret<{i32, i32} size=8 align=4 scan=none>
+  fun @scoop$1$cb$cbd260c806fd35fd4dbbd9e194ee36b8c751c60890f88ed1ec63812baece4105(i32) -> parts<{i32, i32} [i64@0+8/4]>
     local %0 $argument.0: i32
     local %1 $parameter.value: i32
     local %2 $call.1: {i32, i32}

@@ -6443,82 +6443,82 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun thunk<ValueCursor<Large>> Iterator.next() @fn178(this: Iterator<Large>) -> Option<Large>
+  fun thunk<ValueCursor<Large>> Iterator.next() @fn178(this: box<ValueCursor<Large>>) -> Option<Large>
     bb0 entry
       call $call.1: Option<Large> = @fn22 direct
         Type ValueCursor<Large>
         Unbox
-          Type Iterator<Large>
+          Type box<ValueCursor<Large>>
           Local this
       return
         Type Option<Large>
         Local $call.1
-  fun thunk<EnumCursor<Large>> Iterator.next() @fn179(this: Iterator<Large>) -> Option<Large>
+  fun thunk<EnumCursor<Large>> Iterator.next() @fn179(this: box<EnumCursor<Large>>) -> Option<Large>
     bb0 entry
       call $call.1: Option<Large> = @fn23 direct
         Type EnumCursor<Large>
         Unbox
-          Type Iterator<Large>
+          Type box<EnumCursor<Large>>
           Local this
       return
         Type Option<Large>
         Local $call.1
-  fun thunk<ValueCursor<Payload<Large>>> Iterator.next() @fn180(this: Iterator<Payload<Large>>) -> Option<Payload<Large>>
+  fun thunk<ValueCursor<Payload<Large>>> Iterator.next() @fn180(this: box<ValueCursor<Payload<Large>>>) -> Option<Payload<Large>>
     bb0 entry
       call $call.1: Option<Payload<Large>> = @fn38 direct
         Type ValueCursor<Payload<Large>>
         Unbox
-          Type Iterator<Payload<Large>>
+          Type box<ValueCursor<Payload<Large>>>
           Local this
       return
         Type Option<Payload<Large>>
         Local $call.1
-  fun thunk<EnumCursor<Payload<Large>>> Iterator.next() @fn181(this: Iterator<Payload<Large>>) -> Option<Payload<Large>>
+  fun thunk<EnumCursor<Payload<Large>>> Iterator.next() @fn181(this: box<EnumCursor<Payload<Large>>>) -> Option<Payload<Large>>
     bb0 entry
       call $call.1: Option<Payload<Large>> = @fn39 direct
         Type EnumCursor<Payload<Large>>
         Unbox
-          Type Iterator<Payload<Large>>
+          Type box<EnumCursor<Payload<Large>>>
           Local this
       return
         Type Option<Payload<Large>>
         Local $call.1
-  fun thunk<ValueCursor<(Reference, Reference)>> Iterator.next() @fn182(this: Iterator<(Reference, Reference)>) -> Option<(Reference, Reference)>
+  fun thunk<ValueCursor<(Reference, Reference)>> Iterator.next() @fn182(this: box<ValueCursor<(Reference, Reference)>>) -> Option<(Reference, Reference)>
     bb0 entry
       call $call.1: Option<(Reference, Reference)> = @fn54 direct
         Type ValueCursor<(Reference, Reference)>
         Unbox
-          Type Iterator<(Reference, Reference)>
+          Type box<ValueCursor<(Reference, Reference)>>
           Local this
       return
         Type Option<(Reference, Reference)>
         Local $call.1
-  fun thunk<EnumCursor<(Reference, Reference)>> Iterator.next() @fn183(this: Iterator<(Reference, Reference)>) -> Option<(Reference, Reference)>
+  fun thunk<EnumCursor<(Reference, Reference)>> Iterator.next() @fn183(this: box<EnumCursor<(Reference, Reference)>>) -> Option<(Reference, Reference)>
     bb0 entry
       call $call.1: Option<(Reference, Reference)> = @fn55 direct
         Type EnumCursor<(Reference, Reference)>
         Unbox
-          Type Iterator<(Reference, Reference)>
+          Type box<EnumCursor<(Reference, Reference)>>
           Local this
       return
         Type Option<(Reference, Reference)>
         Local $call.1
-  fun thunk<ValueCursor<Unit>> Iterator.next() @fn184(this: Iterator<Unit>) -> Option<Unit>
+  fun thunk<ValueCursor<Unit>> Iterator.next() @fn184(this: box<ValueCursor<Unit>>) -> Option<Unit>
     bb0 entry
       call $call.1: Option<Unit> = @fn70 direct
         Type ValueCursor<Unit>
         Unbox
-          Type Iterator<Unit>
+          Type box<ValueCursor<Unit>>
           Local this
       return
         Type Option<Unit>
         Local $call.1
-  fun thunk<EnumCursor<Unit>> Iterator.next() @fn185(this: Iterator<Unit>) -> Option<Unit>
+  fun thunk<EnumCursor<Unit>> Iterator.next() @fn185(this: box<EnumCursor<Unit>>) -> Option<Unit>
     bb0 entry
       call $call.1: Option<Unit> = @fn71 direct
         Type EnumCursor<Unit>
         Unbox
-          Type Iterator<Unit>
+          Type box<EnumCursor<Unit>>
           Local this
       return
         Type Option<Unit>

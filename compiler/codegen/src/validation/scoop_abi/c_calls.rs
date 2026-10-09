@@ -35,36 +35,26 @@ pub(super) fn validate(
         ));
     }
     if let scoop_lir::CAbiCallPlan::Direct(plan) = call_plan {
-        let params_match = call.arguments().len() == plan.params.len()
-            && call.arguments().iter().zip(&plan.params).all(|(argument, expected)| {
-                matches!(argument, scoop_lir::AbiArgument::Direct(value)
-                    if value.storage_type() == &expected.ty.storage_type() && value.scan() == &RefScan::None)
-            })
-            && call.args().iter().all(|argument| matches!(argument,
-                scoop_lir::AbiCallArgument::Direct(value)
-                    if !matches!(value, Value::CArgumentStorage(_))));
-        let result_matches = match (&plan.result, call) {
-            (scoop_lir::DirectCReturn::Void, scoop_lir::TypedCallView::Void { .. }) => true,
-            (
-                scoop_lir::DirectCReturn::Value(value),
-                scoop_lir::TypedCallView::Direct { signature, .. },
-            ) => {
-                signature.result().storage_type() == &value.ty.storage_type()
-                    && signature.result().scan() == &RefScan::None
-            }
-            _ => false,
-        };
-        return if params_match && result_matches {
-            Ok(())
-        } else {
-            Err(call_error(
+        if call.args().iter().any(|argument| {
+            matches!(
+                argument,
+                scoop_lir::AbiCallArgument::Direct(Value::CArgumentStorage(_))
+            )
+        }) {
+            return Err(call_error(
                 function,
                 format!(
-                    "C extern `{}` call disagrees with its DirectC parameters or result",
+                    "C extern `{}` DirectC call cannot use bridge argument storage",
                     declaration.source_name
                 ),
-            ))
-        };
+            ));
+        }
+        return require_abi_signature(
+            function,
+            call,
+            &plan.abi_signature(),
+            &format!("C extern `{}`", declaration.source_name),
+        );
     }
 
     let capture = matches!(

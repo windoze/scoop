@@ -55,6 +55,29 @@ fn project(
         interfaces: Vec::new(),
     };
     let representation = match (ty, &local.types[source].kind) {
+        (mir::Type::Struct(id), source::TypeKind::Struct(source))
+            if matches!(
+                module.structs[*id].representation,
+                mir::StructRepresentation::Intrinsic(
+                    mir::IntrinsicTypeRepresentation::MaybeUninit { .. }
+                )
+            ) =>
+        {
+            let mir::StructRepresentation::Intrinsic(
+                mir::IntrinsicTypeRepresentation::MaybeUninit { value },
+            ) = &module.structs[*id].representation
+            else {
+                unreachable!("the matched intrinsic application retains its payload type")
+            };
+            bases.interfaces = local.structs[*source]
+                .direct_interfaces
+                .iter()
+                .map(|ty| local.exact_type_identities[*ty].id())
+                .collect();
+            Repr::MaybeUninit {
+                value: representation::fields::exact(module, value)?,
+            }
+        }
         (mir::Type::Struct(id), source::TypeKind::Struct(source)) => {
             bases.interfaces = local.structs[*source]
                 .direct_interfaces

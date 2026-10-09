@@ -6,6 +6,7 @@ pub(super) fn check(output: &DependencyHirOutput) {
     let missing = lower_current_cone(
         output,
         SelectedExternalMirSet::empty(output.output().export.cone),
+        Default::default(),
     )
     .err()
     .expect("a selected HIR dependency must retain its MIR projection");
@@ -14,7 +15,7 @@ pub(super) fn check(output: &DependencyHirOutput) {
         CurrentConeMirLoweringError::MissingDependencyMirCallable { index: 0 }
     ));
 
-    let mir = lower_current_cone(output, selected(output))
+    let mir = lower_current_cone(output, selected(output), Default::default())
         .expect("local protocols and dependency calls share MIR lowering");
     assert_eq!(mir.selected_callables().len(), 1);
     assert_eq!(mir.module().meta.external_callables.len(), 1);

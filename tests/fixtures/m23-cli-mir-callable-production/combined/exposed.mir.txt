@@ -126,15 +126,20 @@ Module
   generated_exact_type get21 location=enum12 nominal_id=8ec0ae4903fb3bb8e5668ebe380983ddb48a139a3e26c020591cde39a41b7768 exact_id=c529ad6b99a4ea9cf081527fc78ba9ff3fcecd87d5d9d46cef13ae5c411e3395
   generated_exact_type get22 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
   generated_exact_type get23 location=enum11 nominal_id=4ea6b66d7d03c79e912cbb80401be8f0da35c97cd767ca8a671b71e06a68f67f exact_id=f0ef0e76863e442384e451f1db8b948d5f7cd9dbaa89e7f1b6bba84e77442ba1
-  generated_callable gc0 function=@fn83 id=122b4d747bc6af1889b1d755e91355b9d85338d738cee6bd10673cf71ac681e7
-  generated_callable gc1 function=@fn84 id=177be4c0a3f72c0622e9e2d8d14c6b99be97ae08b15bda7d8241f9c93e430d26
-  generated_callable gc2 function=@fn81 id=1a41709e10bbdfe00155e56d3efa6352912675d03410512136103bf575755aeb
-  generated_callable gc3 function=@fn86 id=2202955bb9a994193b584d434de0559a99a7d0f9c46352cdb2fdfa487a6f8740
-  generated_callable gc4 function=@fn79 id=b12262a08352bb60115ca093bd4e6ceb537bf42bec6f947fbbbacd1b41687328
-  generated_callable gc5 function=@fn80 id=b5e0cadbd3b8d2d3fc01a41583a1c11fda1058388e99cbf5e43928cbb1070ee4
-  generated_callable gc6 function=@fn78 id=b8e2039efdbb4d04033df484fd2338de8ac7b9818a09071eb179f95625cc03ce
-  generated_callable gc7 function=@fn82 id=c548f4dbc544a4bbab409c4408b700789f603e2daec4ce22a2aa6591cbc27be0
-  generated_callable gc8 function=@fn85 id=f3fe6921817b2f88e9b25f11248dca09591589c21ebc9e7f9b80f99306358acf
+  generated_callable gc0 function=@fn88 id=122b4d747bc6af1889b1d755e91355b9d85338d738cee6bd10673cf71ac681e7
+  generated_callable gc1 function=@fn89 id=177be4c0a3f72c0622e9e2d8d14c6b99be97ae08b15bda7d8241f9c93e430d26
+  generated_callable gc2 function=@fn86 id=1a41709e10bbdfe00155e56d3efa6352912675d03410512136103bf575755aeb
+  generated_callable gc3 function=@fn91 id=2202955bb9a994193b584d434de0559a99a7d0f9c46352cdb2fdfa487a6f8740
+  generated_callable gc4 function=@fn72 id=411bbd50b0d59ed733fbc6086f54eb18c17ea57ea46042446fd25c59d4ce347a
+  generated_callable gc5 function=@fn68 id=469c42059d0c78b6e0dac0974dfd117af59a0b6df2bfe3334fbe2b574d7cc0e0
+  generated_callable gc6 function=@fn70 id=8d927705e0f3d6de4ad034e1234a5c385762978e4f7ec5dd72fbc87db4d4a6d1
+  generated_callable gc7 function=@fn69 id=97a3b7b2bc28cfc6577920c862ddb2c3d3d55261195806609ce4d0e6f001fcba
+  generated_callable gc8 function=@fn84 id=b12262a08352bb60115ca093bd4e6ceb537bf42bec6f947fbbbacd1b41687328
+  generated_callable gc9 function=@fn85 id=b5e0cadbd3b8d2d3fc01a41583a1c11fda1058388e99cbf5e43928cbb1070ee4
+  generated_callable gc10 function=@fn83 id=b8e2039efdbb4d04033df484fd2338de8ac7b9818a09071eb179f95625cc03ce
+  generated_callable gc11 function=@fn87 id=c548f4dbc544a4bbab409c4408b700789f603e2daec4ce22a2aa6591cbc27be0
+  generated_callable gc12 function=@fn71 id=f276efeb14cb413b76b35cf56c13a9a2accaac570f08113a22002e82fda7edfc
+  generated_callable gc13 function=@fn90 id=f3fe6921817b2f88e9b25f11248dca09591589c21ebc9e7f9b80f99306358acf
   fun Token.equals @fn0(this: Token, other: Token) -> Boolean
     bb0 entry
       return
@@ -147,7 +152,7 @@ Module
         Local value
   fun CompletePartial.$get$token @fn2(this: CompletePartial) -> Token
     bb0 entry
-      call $call.1: Token = @fn77 direct
+      call $call.1: Token = @fn82 direct
       return
         Type Token
         Local $call.1
@@ -239,7 +244,7 @@ Module
         Local $call.1
   fun Base.$get$abstractValue @fn8(this: Base) -> Token
     bb0 entry
-      call $call.1: Token = @fn77 direct
+      call $call.1: Token = @fn82 direct
       return
         Type Token
         Local $call.1
@@ -271,7 +276,7 @@ Module
         Local value
   fun CompleteAgain.$get$abstractValue @fn14(this: CompleteAgain) -> Token
     bb0 entry
-      call $call.1: Token = @fn77 direct
+      call $call.1: Token = @fn82 direct
       return
         Type Token
         Local $call.1
@@ -327,7 +332,7 @@ Module
       assign $new.1
         Type Impl
         ClassAlloc Impl
-      call @fn75 direct
+      call @fn80 direct
         Type Impl
         Local $new.1
       return
@@ -338,7 +343,7 @@ Module
       assign $new.1
         Type CompletePartial
         ClassAlloc CompletePartial
-      call @fn69 direct
+      call @fn74 direct
         Type CompletePartial
         Local $new.1
       return
@@ -351,7 +356,7 @@ Module
       assign $new.1
         Type CompleteAgain
         ClassAlloc CompleteAgain
-      call @fn72 direct
+      call @fn77 direct
         Type CompleteAgain
         Local $new.1
       return
@@ -364,7 +369,7 @@ Module
       assign $new.1
         Type CompleteAbstract
         ClassAlloc CompleteAbstract
-      call @fn74 direct
+      call @fn79 direct
         Type CompleteAbstract
         Local $new.1
       return
@@ -377,7 +382,7 @@ Module
       assign $new.1
         Type Registry
         ClassAlloc Registry
-      call @fn76 direct
+      call @fn81 direct
         Type Registry
         Local $new.1
       global_assign $singleton$Registry
@@ -601,88 +606,146 @@ Module
   fun Contract.$get$token @fn67(this: Contract) -> Token
     bb0 entry
       trap "call to abstract method `Contract.$get$token`"
-  fun init.Partial.$c5 @fn68(this: Partial) -> Unit
+  fun receiver<Partial> SubContract.get @fn68(this: Partial, value: Token) -> Token
+    bb0 entry
+      call $call.1: Token = @fn65 direct
+        Type Contract
+        Retype Contract
+          Type Partial
+          Local this
+        Type Token
+        Local value
+      return
+        Type Token
+        Local $call.1
+  fun receiver<Partial> SubContract.echo @fn69(this: Partial, value: Token) -> Token
+    bb0 entry
+      call $call.1: Token = @fn66 direct
+        Type Contract
+        Retype Contract
+          Type Partial
+          Local this
+        Type Token
+        Local value
+      return
+        Type Token
+        Local $call.1
+  fun receiver<Partial> SubContract.$get$token @fn70(this: Partial) -> Token
+    bb0 entry
+      call $call.1: Token = @fn67 direct
+        Type Contract
+        Retype Contract
+          Type Partial
+          Local this
+      return
+        Type Token
+        Local $call.1
+  fun receiver<CompletePartial> SubContract.echo @fn71(this: CompletePartial, value: Token) -> Token
+    bb0 entry
+      call $call.1: Token = @fn66 direct
+        Type Contract
+        Retype Contract
+          Type CompletePartial
+          Local this
+        Type Token
+        Local value
+      return
+        Type Token
+        Local $call.1
+  fun receiver<Impl> Contract.echo @fn72(this: Impl, value: Token) -> Token
+    bb0 entry
+      call $call.1: Token = @fn66 direct
+        Type Contract
+        Retype Contract
+          Type Impl
+          Local this
+        Type Token
+        Local value
+      return
+        Type Token
+        Local $call.1
+  fun init.Partial.$c5 @fn73(this: Partial) -> Unit
     bb0 entry
       return
-  fun init.CompletePartial.$c0 @fn69(this: CompletePartial) -> Unit
+  fun init.CompletePartial.$c0 @fn74(this: CompletePartial) -> Unit
     bb0 entry
-      call @fn68 direct
+      call @fn73 direct
         Type Partial
         Retype Partial
           Type CompletePartial
           Local this
       return
-  fun init.Base.$c3 @fn70(this: Base) -> Unit
+  fun init.Base.$c3 @fn75(this: Base) -> Unit
     bb0 entry
-      call $call.1: Token = @fn77 direct
+      call $call.1: Token = @fn82 direct
       field_set 0
         Type Base
         Local this
         Type Token
         Local $call.1
       return
-  fun init.Again.$c7 @fn71(this: Again) -> Unit
+  fun init.Again.$c7 @fn76(this: Again) -> Unit
     bb0 entry
-      call @fn70 direct
+      call @fn75 direct
         Type Base
         Retype Base
           Type Again
           Local this
       return
-  fun init.CompleteAgain.$c1 @fn72(this: CompleteAgain) -> Unit
+  fun init.CompleteAgain.$c1 @fn77(this: CompleteAgain) -> Unit
     bb0 entry
-      call @fn71 direct
+      call @fn76 direct
         Type Again
         Retype Again
           Type CompleteAgain
           Local this
       return
-  fun init.Abstract.$c6 @fn73(this: Abstract) -> Unit
+  fun init.Abstract.$c6 @fn78(this: Abstract) -> Unit
     bb0 entry
       return
-  fun init.CompleteAbstract.$c2 @fn74(this: CompleteAbstract) -> Unit
+  fun init.CompleteAbstract.$c2 @fn79(this: CompleteAbstract) -> Unit
     bb0 entry
-      call @fn73 direct
+      call @fn78 direct
         Type Abstract
         Retype Abstract
           Type CompleteAbstract
           Local this
       return
-  fun init.Impl.$c4 @fn75(this: Impl) -> Unit
+  fun init.Impl.$c4 @fn80(this: Impl) -> Unit
     bb0 entry
-      call @fn70 direct
+      call @fn75 direct
         Type Base
         Retype Base
           Type Impl
           Local this
-      call $call.1: Token = @fn77 direct
+      call $call.1: Token = @fn82 direct
       field_set 1
         Type Impl
         Local this
         Type Token
         Local $call.1
       return
-  fun init.Registry.$c8 @fn76(this: Registry) -> Unit
+  fun init.Registry.$c8 @fn81(this: Registry) -> Unit
     bb0 entry
-      call $call.1: Token = @fn77 direct
+      call $call.1: Token = @fn82 direct
       field_set 0
         Type Registry
         Local this
         Type Token
         Local $call.1
-      call $call.2: Token = @fn77 direct
+      call $call.2: Token = @fn82 direct
       field_set 1
         Type Registry
         Local this
         Type Token
         Local $call.2
       return
-  fun ctor.Token.$c0 @fn77() -> Token <no-gc>
+  fun ctor.Token.$c0 @fn82() -> Token <no-gc>
     bb0 entry
       return
         Type Token
         StructInit Token
-  fun startCoroutine<Abstract> @fn78(task: SuspendTask<Abstract>, completion: Continuation<Abstract>) -> Unit
+  fun startCoroutine<Abstract> @fn83(task: SuspendTask<Abstract>, completion: Continuation<Abstract>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -763,7 +826,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Again> @fn79(task: SuspendTask<Again>, completion: Continuation<Again>) -> Unit
+  fun startCoroutine<Again> @fn84(task: SuspendTask<Again>, completion: Continuation<Again>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -844,7 +907,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<SubContract> @fn80(task: SuspendTask<SubContract>, completion: Continuation<SubContract>) -> Unit
+  fun startCoroutine<SubContract> @fn85(task: SuspendTask<SubContract>, completion: Continuation<SubContract>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -925,7 +988,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Registry> @fn81(task: SuspendTask<Registry>, completion: Continuation<Registry>) -> Unit
+  fun startCoroutine<Registry> @fn86(task: SuspendTask<Registry>, completion: Continuation<Registry>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -1006,7 +1069,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Contract> @fn82(task: SuspendTask<Contract>, completion: Continuation<Contract>) -> Unit
+  fun startCoroutine<Contract> @fn87(task: SuspendTask<Contract>, completion: Continuation<Contract>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -1087,7 +1150,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Token> @fn83(task: SuspendTask<Token>, completion: Continuation<Token>) -> Unit
+  fun startCoroutine<Token> @fn88(task: SuspendTask<Token>, completion: Continuation<Token>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -1168,7 +1231,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Base> @fn84(task: SuspendTask<Base>, completion: Continuation<Base>) -> Unit
+  fun startCoroutine<Base> @fn89(task: SuspendTask<Base>, completion: Continuation<Base>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -1249,7 +1312,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Impl> @fn85(task: SuspendTask<Impl>, completion: Continuation<Impl>) -> Unit
+  fun startCoroutine<Impl> @fn90(task: SuspendTask<Impl>, completion: Continuation<Impl>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -1330,7 +1393,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Partial> @fn86(task: SuspendTask<Partial>, completion: Continuation<Partial>) -> Unit
+  fun startCoroutine<Partial> @fn91(task: SuspendTask<Partial>, completion: Continuation<Partial>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -1429,15 +1492,15 @@ Module
   coroutine_slot cl6 CoroutineSlot<Base> value=Base
   coroutine_slot cl7 CoroutineSlot<Impl> value=Impl
   coroutine_slot cl8 CoroutineSlot<Partial> value=Partial
-  coroutine_start ct0 result=Abstract function=fn78
-  coroutine_start ct1 result=Again function=fn79
-  coroutine_start ct2 result=SubContract function=fn80
-  coroutine_start ct3 result=Registry function=fn81
-  coroutine_start ct4 result=Contract function=fn82
-  coroutine_start ct5 result=Token function=fn83
-  coroutine_start ct6 result=Base function=fn84
-  coroutine_start ct7 result=Impl function=fn85
-  coroutine_start ct8 result=Partial function=fn86
+  coroutine_start ct0 result=Abstract function=fn83
+  coroutine_start ct1 result=Again function=fn84
+  coroutine_start ct2 result=SubContract function=fn85
+  coroutine_start ct3 result=Registry function=fn86
+  coroutine_start ct4 result=Contract function=fn87
+  coroutine_start ct5 result=Token function=fn88
+  coroutine_start ct6 result=Base function=fn89
+  coroutine_start ct7 result=Impl function=fn90
+  coroutine_start ct8 result=Partial function=fn91
   coroutine_fn cf0 @fn31 source_return=Token step=cs5 immediate
   coroutine_fn cf1 @fn35 source_return=Contract step=cs4 immediate
   coroutine_fn cf2 @fn39 source_return=SubContract step=cs2 immediate

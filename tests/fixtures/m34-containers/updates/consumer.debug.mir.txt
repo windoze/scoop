@@ -1,0 +1,5399 @@
+Module
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum Option<MaybeUninit<Int>>
+    Some(_0: MaybeUninit<Int>)
+    None()
+  enum Option<Int>
+    Some(_0: Int)
+    None()
+  enum Option<MaybeUninit<Long>>
+    Some(_0: MaybeUninit<Long>)
+    None()
+  enum Option<Long>
+    Some(_0: Long)
+    None()
+  enum Option<Char>
+    Some(_0: Char)
+    None()
+  class UpdateFailure vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class ArrayList<Int> vtable=0 itables=3
+  class ArrayList<Long> vtable=0 itables=3
+  class IllegalStateException vtable=0 itables=0
+  class Indexed vtable=0 itables=0
+  class Grid vtable=0 itables=0
+  class ListIterator<MaybeUninit<Int>> vtable=0 itables=1
+  class IndexOutOfBoundsException vtable=0 itables=0
+  class ListIterator<Int> vtable=0 itables=1
+  class ListIterator<MaybeUninit<Long>> vtable=0 itables=1
+  class ListIterator<Long> vtable=0 itables=1
+  class IllegalArgumentException vtable=0 itables=0
+  class box<Long> vtable=0 itables=0
+  class box<MaybeUninit<Long>> vtable=0 itables=0
+  class box<MaybeUninit<Int>> vtable=0 itables=0
+  interface List<MaybeUninit<Int>> : Iterable<MaybeUninit<Int>>
+  interface Iterable<MaybeUninit<Int>>
+  interface Iterator<MaybeUninit<Int>>
+  interface MutableList<Int> : List<Int>
+  interface List<Int> : Iterable<Int>
+  interface Iterable<Int>
+  interface Iterator<Int>
+  interface List<MaybeUninit<Long>> : Iterable<MaybeUninit<Long>>
+  interface Iterable<MaybeUninit<Long>>
+  interface Iterator<MaybeUninit<Long>>
+  interface MutableList<Long> : List<Long>
+  interface List<Long> : Iterable<Long>
+  interface Iterable<Long>
+  interface Iterator<Long>
+  interface ToString
+  interface Hash
+  interface Equality<Char>
+  interface Iterable<Char>
+  interface Iterator<Char>
+  interface Equality<String>
+  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn47 captures=2
+    bridge function_type1 -> @fn62 id=2b7ee52b19f2ca341b60b3751a3e4ff674bbd5fb44aa3f1d4e08f2a10eee18b3
+  closure cc1 $Closure$lambda1 type=function_type2 invoke=@fn52 captures=2
+    bridge function_type1 -> @fn63 id=2a3e0d5c4780746f6f0dcad212b1f6a5fdc6debdd106f2453121ebdb58203942
+  closure cc2 $Closure$lambda2 type=function_type0 invoke=@fn53 captures=0
+    bridge function_type1 -> @fn64 id=6dd24f49a0fa4d37b2a6a16f5f7618edc870ac566d0b0064a4d91303999131f5
+  closure cc3 $Closure$lambda3 type=function_type2 invoke=@fn54 captures=0
+    bridge function_type1 -> @fn65 id=9979f90834f8b840b10e116dd85dc9444b7f74ad0d3cac0aaba1eb4c99c29b23
+  generated_exact_type get0 location=closure2 nominal_id=ba5a72523e930e25c12e9c8971675433755a8d170a3eece43194c05c8fb3931e exact_id=07ea8ca2af143d901945f331c4f465c8799bd24db46e9d7c7211fe1860fe3fce
+  generated_exact_type get1 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
+  generated_exact_type get2 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
+  generated_exact_type get3 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
+  generated_exact_type get4 location=closure0 nominal_id=3b91d8042419be006cb53d6f6fec9fab9b1dc9db713955027405951909db448b exact_id=6b65b8dd36821f6b0c51f21629fffbca63a60999c567afeccde18d32b5599551
+  generated_exact_type get5 location=class19 nominal_id=2ccf3af472f973e7227a488741da7cd9e3639296badad3b00a29224dd93db566 exact_id=83f946c0a8becb1da98ab74a3ac84f3f76af3aee0349adc10b4f8f1bfb02ee98
+  generated_exact_type get6 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
+  generated_exact_type get7 location=class18 nominal_id=f86a2f00340c8b713ded71e3f2491c0b873ab872254c7fff3013ff640155d76d exact_id=b84fd4e0509c1fd4c3e3e5fc42bee5682a6a66918e38f75071760859b10ce3a5
+  generated_exact_type get8 location=closure3 nominal_id=e533699c29e4e898bf0fe5864a59efa21a923755ad88332ed868225f1429f714 exact_id=efb669e5cfece4924fdca957722fd66ca955113a920bfdfcf4fe9ad1fecdeb94
+  generated_exact_type get9 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
+  generated_exact_type get10 location=class17 nominal_id=1019845dbac8b40486c7a8317715dddb4016698da08e810513dc12e31dd8b68f exact_id=f4ac53b66a5aaca260a9f537cf582a82b69042d884a570f92ccc8e738ababceb
+  generated_exact_type get11 location=closure1 nominal_id=301db059cc2eb0200629ac20a4dab8417cef9a246a206712cbc041d8b5e1de03 exact_id=fad4733bc8578b9a3917c235ce174b8f3d208a143b73b1b1a71cf5dd5dda2112
+  generated_callable gc0 function=@fn63 id=2a3e0d5c4780746f6f0dcad212b1f6a5fdc6debdd106f2453121ebdb58203942
+  generated_callable gc1 function=@fn62 id=2b7ee52b19f2ca341b60b3751a3e4ff674bbd5fb44aa3f1d4e08f2a10eee18b3
+  generated_callable gc2 function=@fn64 id=6dd24f49a0fa4d37b2a6a16f5f7618edc870ac566d0b0064a4d91303999131f5
+  generated_callable gc3 function=@fn65 id=9979f90834f8b840b10e116dd85dc9444b7f74ad0d3cac0aaba1eb4c99c29b23
+  fun updateLists @fn0() -> Unit
+    bb0 entry
+      val $dependency.parameter.initialCapacity: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      assign $new.1
+        Type ArrayList<Int>
+        ClassAlloc ArrayList<Int>
+      call @fn56 direct
+        Type ArrayList<Int>
+        Local $new.1
+        Type Long
+        Local $dependency.parameter.initialCapacity
+      val values: ArrayList<Int>
+        Type ArrayList<Int>
+        Local $new.1
+      val $dependency.receiver: ArrayList<Int>
+        Type ArrayList<Int>
+        Local values
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn15 direct
+        Type ArrayList<Int>
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.receiver: ArrayList<Int>
+        Type ArrayList<Int>
+        Local values
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=20 bits=0x00000014
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn15 direct
+        Type ArrayList<Int>
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.parameter.initialCapacity: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      assign $new.2
+        Type ArrayList<Long>
+        ClassAlloc ArrayList<Long>
+      call @fn57 direct
+        Type ArrayList<Long>
+        Local $new.2
+        Type Long
+        Local $dependency.parameter.initialCapacity
+      val indices: ArrayList<Long>
+        Type ArrayList<Long>
+        Local $new.2
+      val $dependency.receiver: ArrayList<Long>
+        Type ArrayList<Long>
+        Local indices
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      call @fn26 direct
+        Type ArrayList<Long>
+        Local $dependency.receiver
+        Type Long
+        Local $dependency.parameter.value
+      val view: MutableList<Int>
+        Type MutableList<Int>
+        Retype MutableList<Int>
+          Type ArrayList<Int>
+          Local values
+      val $place.0: MutableList<Int>
+        Type MutableList<Int>
+        Local view
+      val $dependency.receiver: List<Int>
+        Type List<Int>
+        Retype List<Int>
+          Type MutableList<Int>
+          Local $place.0
+      val $place.1: ArrayList<Long>
+        Type ArrayList<Long>
+        Local indices
+      val $dependency.receiver: ArrayList<Long>
+        Type ArrayList<Long>
+        Local $place.1
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.parameter.index: Long
+        Type Long
+        Local $dependency.argument.0
+      call $old.3: Long = @fn23 direct
+        Type ArrayList<Long>
+        Local $dependency.receiver
+        Type Long
+        Local $dependency.parameter.index
+      val $dependency.receiver: Long
+        Type Long
+        Local $old.3
+      val $new.4: Long
+        Type Long
+        IntegerUnary increment kind=Long
+          Type Long
+          Local $dependency.receiver
+      val $write.5: Long
+        Type Long
+        Local $new.4
+      val $dependency.receiver: ArrayList<Long>
+        Type ArrayList<Long>
+        Local $place.1
+      val $dependency.argument.0: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.argument.1: Long
+        Type Long
+        Local $write.5
+      val $dependency.parameter.index: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.1
+      call @fn25 direct
+        Type ArrayList<Long>
+        Local $dependency.receiver
+        Type Long
+        Local $dependency.parameter.index
+        Type Long
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Long
+        Type Long
+        Local $old.3
+      val $dependency.parameter.index: Long
+        Type Long
+        Local $dependency.argument.0
+      call $old.8: Int = @fn30 interface List<Int>[1]
+        Type List<Int>
+        Local $dependency.receiver
+        Type Long
+        Local $dependency.parameter.index
+      val $dependency.receiver: Int
+        Type Int
+        Local $old.8
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $write.9: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $dependency.receiver: MutableList<Int>
+        Type MutableList<Int>
+        Local $place.0
+      val $dependency.argument.0: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.argument.1: Int
+        Type Int
+        Local $write.9
+      val $dependency.parameter.index: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.1
+      call @fn31 interface MutableList<Int>[3]
+        Type MutableList<Int>
+        Local $dependency.receiver
+        Type Long
+        Local $dependency.parameter.index
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.receiver: ArrayList<Long>
+        Type ArrayList<Long>
+        Local indices
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.parameter.index: Long
+        Type Long
+        Local $dependency.argument.0
+      call $dependency.receiver: Long = @fn23 direct
+        Type ArrayList<Long>
+        Local $dependency.receiver
+        Type Long
+        Local $dependency.parameter.index
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+    bb1 if.then.1
+      val $dependency.receiver: ArrayList<Int>
+        Type ArrayList<Int>
+        Local values
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.parameter.index: Long
+        Type Long
+        Local $dependency.argument.0
+      call $dependency.receiver: Int = @fn12 direct
+        Type ArrayList<Int>
+        Local $dependency.receiver
+        Type Long
+        Local $dependency.parameter.index
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=13 bits=0x0000000d
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.11: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      goto bb3
+    bb2 if.else.2
+      val $shortCircuit.11: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 if.merge.3
+      val $argument.0: Boolean
+        Type Boolean
+        Local $shortCircuit.11
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn1 direct
+        Type Boolean
+        Local $parameter.value
+      val $place.12: MutableList<Int>
+        Type MutableList<Int>
+        Local view
+      val $dependency.receiver: List<Int>
+        Type List<Int>
+        Retype List<Int>
+          Type MutableList<Int>
+          Local $place.12
+      val $dependency.receiver: ArrayList<Long>
+        Type ArrayList<Long>
+        Local indices
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.parameter.index: Long
+        Type Long
+        Local $dependency.argument.0
+      call $dependency.argument.0: Long = @fn23 direct
+        Type ArrayList<Long>
+        Local $dependency.receiver
+        Type Long
+        Local $dependency.parameter.index
+      val $dependency.parameter.index: Long
+        Type Long
+        Local $dependency.argument.0
+      call $old.14: Int = @fn30 interface List<Int>[1]
+        Type List<Int>
+        Local $dependency.receiver
+        Type Long
+        Local $dependency.parameter.index
+      val $dependency.receiver: Int
+        Type Int
+        Local $old.14
+      val $new.15: Int
+        Type Int
+        IntegerUnary increment kind=Int
+          Type Int
+          Local $dependency.receiver
+      val $write.16: Int
+        Type Int
+        Local $new.15
+      val $dependency.receiver: MutableList<Int>
+        Type MutableList<Int>
+        Local $place.12
+      val $dependency.argument.0: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.argument.1: Int
+        Type Int
+        Local $write.16
+      val $dependency.parameter.index: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.1
+      call @fn31 interface MutableList<Int>[3]
+        Type MutableList<Int>
+        Local $dependency.receiver
+        Type Long
+        Local $dependency.parameter.index
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.receiver: Int
+        Type Int
+        Local $old.14
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=20 bits=0x00000014
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn1 direct
+        Type Boolean
+        Local $parameter.value
+      val $place.18: ArrayList<Int>
+        Type ArrayList<Int>
+        Local values
+      val $dependency.receiver: ArrayList<Int>
+        Type ArrayList<Int>
+        Local $place.18
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.parameter.index: Long
+        Type Long
+        Local $dependency.argument.0
+      call $old.20: Int = @fn12 direct
+        Type ArrayList<Int>
+        Local $dependency.receiver
+        Type Long
+        Local $dependency.parameter.index
+      val $dependency.receiver: Int
+        Type Int
+        Local $old.20
+      val $new.21: Int
+        Type Int
+        IntegerUnary increment kind=Int
+          Type Int
+          Local $dependency.receiver
+      val $write.22: Int
+        Type Int
+        Local $new.21
+      val $dependency.receiver: ArrayList<Int>
+        Type ArrayList<Int>
+        Local $place.18
+      val $dependency.argument.0: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.argument.1: Int
+        Type Int
+        Local $write.22
+      val $dependency.parameter.index: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.1
+      call @fn14 direct
+        Type ArrayList<Int>
+        Local $dependency.receiver
+        Type Long
+        Local $dependency.parameter.index
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.receiver: Int
+        Type Int
+        Local $new.21
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=14 bits=0x0000000e
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb4 bb5
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+    bb4 if.then.4
+      val $dependency.receiver: ArrayList<Int>
+        Type ArrayList<Int>
+        Local values
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.parameter.index: Long
+        Type Long
+        Local $dependency.argument.0
+      call $dependency.receiver: Int = @fn12 direct
+        Type ArrayList<Int>
+        Local $dependency.receiver
+        Type Long
+        Local $dependency.parameter.index
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=21 bits=0x00000015
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.24: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      goto bb6
+    bb5 if.else.5
+      val $shortCircuit.24: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb6
+    bb6 if.merge.6
+      val $argument.0: Boolean
+        Type Boolean
+        Local $shortCircuit.24
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn1 direct
+        Type Boolean
+        Local $parameter.value
+      val index: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $place.25: ArrayList<Int>
+        Type ArrayList<Int>
+        Local values
+      val $dependency.receiver: ArrayList<Int>
+        Type ArrayList<Int>
+        Local $place.25
+      val $dependency.argument.0: Long
+        Type Long
+        Local index
+      val $dependency.parameter.index: Long
+        Type Long
+        Local $dependency.argument.0
+      call $old.27: Int = @fn12 direct
+        Type ArrayList<Int>
+        Local $dependency.receiver
+        Type Long
+        Local $dependency.parameter.index
+      val $dependency.receiver: Int
+        Type Int
+        Local $old.27
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $write.28: Int
+        Type Int
+        IntegerBinary multiply kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $dependency.receiver: ArrayList<Int>
+        Type ArrayList<Int>
+        Local $place.25
+      val $dependency.argument.0: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.argument.1: Int
+        Type Int
+        Local $write.28
+      val $dependency.parameter.index: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.1
+      call @fn14 direct
+        Type ArrayList<Int>
+        Local $dependency.receiver
+        Type Long
+        Local $dependency.parameter.index
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.receiver: ArrayList<Int>
+        Type ArrayList<Int>
+        Local values
+      val $dependency.argument.0: Long
+        Type Long
+        Local index
+      val $dependency.parameter.index: Long
+        Type Long
+        Local $dependency.argument.0
+      call $dependency.receiver: Int = @fn12 direct
+        Type ArrayList<Int>
+        Local $dependency.receiver
+        Type Long
+        Local $dependency.parameter.index
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn1 direct
+        Type Boolean
+        Local $parameter.value
+      return
+  fun check @fn1(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.receiver: Boolean
+        Type Boolean
+        Local value
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+    bb1 if.then.1
+      val $default.local.0: String
+        Type String
+        StringConst @str0
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.1
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external1 direct
+        Type IllegalStateException
+        Local $new.1
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.1
+    bb2 if.merge.2
+      return
+  fun tableReceiver @fn2(table: Indexed) -> Indexed
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.code: Int
+        Type Int
+        Local $dependency.argument.0
+      call $call.1: Int = external2 direct
+        Type Int
+        Local $dependency.parameter.code
+      return
+        Type Indexed
+        Local table
+  fun index @fn3() -> Long
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.parameter.code: Int
+        Type Int
+        Local $dependency.argument.0
+      call $call.1: Int = external2 direct
+        Type Int
+        Local $dependency.parameter.code
+      return
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+  fun right @fn4() -> Int
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=5 bits=0x00000005
+      val $dependency.parameter.code: Int
+        Type Int
+        Local $dependency.argument.0
+      call $call.1: Int = external2 direct
+        Type Int
+        Local $dependency.parameter.code
+      return
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+  fun gridIndex @fn5(value: Int) -> Long
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        Local value
+      val $dependency.parameter.code: Int
+        Type Int
+        Local $dependency.argument.0
+      call $call.1: Int = external2 direct
+        Type Int
+        Local $dependency.parameter.code
+      val $dependency.receiver: Int
+        Type Int
+        Local value
+      return
+        Type Long
+        IntegerConversion Int -> Long
+          Type Int
+          Local $dependency.receiver
+  fun fail @fn6() -> Int
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=5 bits=0x00000005
+      val $dependency.parameter.code: Int
+        Type Int
+        Local $dependency.argument.0
+      call $call.1: Int = external2 direct
+        Type Int
+        Local $dependency.parameter.code
+      assign $new.2
+        Type UpdateFailure
+        ClassAlloc UpdateFailure
+      call @fn55 direct
+        Type UpdateFailure
+        Local $new.2
+      throw
+        Type UpdateFailure
+        Local $new.2
+  fun main @fn7() -> Unit
+    bb0 entry
+      call $dependency.receiver: Int = external3 direct
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=14 bits=0x0000000e
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn1 direct
+        Type Boolean
+        Local $parameter.value
+      assign $new.1
+        Type Indexed
+        ClassAlloc Indexed
+      call external4 direct
+        Type Indexed
+        Local $new.1
+      val table: Indexed
+        Type Indexed
+        Local $new.1
+      call external5 direct
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $argument.0: Indexed
+        Type Indexed
+        Local table
+      val $parameter.table: Indexed
+        Type Indexed
+        Local $argument.0
+      call $place.30: Indexed = @fn2 direct
+        Type Indexed
+        Local $parameter.table
+      val $dependency.receiver: Indexed
+        Type Indexed
+        Local $place.30
+      call $dependency.argument.0: Long = @fn3 direct
+      val $dependency.parameter.index: Long
+        Type Long
+        Local $dependency.argument.0
+      val $default.local.2: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $default.local.3: Int
+        Type Int
+        Local $default.local.2
+      call $dependency.parameter.delta: Int = external2 direct
+        Type Int
+        Local $default.local.3
+      call $old.32: Int = external6 direct
+        Type Indexed
+        Local $dependency.receiver
+        Type Long
+        Local $dependency.parameter.index
+        Type Int
+        Local $dependency.parameter.delta
+      val $dependency.receiver: Int
+        Type Int
+        Local $old.32
+      call $dependency.argument.0: Int = @fn4 direct
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $write.33: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $dependency.receiver: Indexed
+        Type Indexed
+        Local $place.30
+      val $dependency.argument.0: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.argument.1: Int
+        Type Int
+        Local $write.33
+      val $dependency.parameter.index: Long
+        Type Long
+        Local $dependency.argument.0
+      val $default.local.2: Int
+        Type Int
+        IntegerLiteral Int value=6 bits=0x00000006
+      val $default.local.3: Int
+        Type Int
+        Local $default.local.2
+      call $dependency.parameter.delta: Int = external2 direct
+        Type Int
+        Local $default.local.3
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.1
+      call external7 direct
+        Type Indexed
+        Local $dependency.receiver
+        Type Long
+        Local $dependency.parameter.index
+        Type Int
+        Local $dependency.parameter.delta
+        Type Int
+        Local $dependency.parameter.value
+      call $dependency.receiver: Int = external8 direct
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1234567 bits=0x0012d687
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+    bb1 if.then.1
+      val $dependency.receiver: Indexed
+        Type Indexed
+        Local table
+      call $dependency.receiver: Int = external9 direct
+        Type Indexed
+        Local $dependency.receiver
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=14 bits=0x0000000e
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.35: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      goto bb3
+    bb2 if.else.2
+      val $shortCircuit.35: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 if.merge.3
+      val $argument.0: Boolean
+        Type Boolean
+        Local $shortCircuit.35
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn1 direct
+        Type Boolean
+        Local $parameter.value
+      call external5 direct
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $place.36: Indexed
+        Type Indexed
+        Local table
+      val $dependency.receiver: Indexed
+        Type Indexed
+        Local $place.36
+      call $dependency.argument.0: Long = @fn3 direct
+      val $dependency.parameter.index: Long
+        Type Long
+        Local $dependency.argument.0
+      val $default.local.2: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $default.local.3: Int
+        Type Int
+        Local $default.local.2
+      call $dependency.parameter.delta: Int = external2 direct
+        Type Int
+        Local $default.local.3
+      call $old.38: Int = external6 direct
+        Type Indexed
+        Local $dependency.receiver
+        Type Long
+        Local $dependency.parameter.index
+        Type Int
+        Local $dependency.parameter.delta
+      val $dependency.receiver: Int
+        Type Int
+        Local $old.38
+      val $new.39: Int
+        Type Int
+        IntegerUnary increment kind=Int
+          Type Int
+          Local $dependency.receiver
+      val $write.40: Int
+        Type Int
+        Local $new.39
+      val $dependency.receiver: Indexed
+        Type Indexed
+        Local $place.36
+      val $dependency.argument.0: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.argument.1: Int
+        Type Int
+        Local $write.40
+      val $dependency.parameter.index: Long
+        Type Long
+        Local $dependency.argument.0
+      val $default.local.2: Int
+        Type Int
+        IntegerLiteral Int value=6 bits=0x00000006
+      val $default.local.3: Int
+        Type Int
+        Local $default.local.2
+      call $dependency.parameter.delta: Int = external2 direct
+        Type Int
+        Local $default.local.3
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.1
+      call external7 direct
+        Type Indexed
+        Local $dependency.receiver
+        Type Long
+        Local $dependency.parameter.index
+        Type Int
+        Local $dependency.parameter.delta
+        Type Int
+        Local $dependency.parameter.value
+      val old: Int
+        Type Int
+        Local $old.38
+      call $dependency.receiver: Int = external8 direct
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=23467 bits=0x00005bab
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb4 bb5
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+    bb4 if.then.4
+      val $dependency.receiver: Int
+        Type Int
+        Local old
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=17 bits=0x00000011
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.42: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      goto bb6
+    bb5 if.else.5
+      val $shortCircuit.42: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb6
+    bb6 if.merge.6
+      branch bb7 bb8
+        Type Boolean
+        Local $shortCircuit.42
+    bb7 if.then.7
+      val $dependency.receiver: Indexed
+        Type Indexed
+        Local table
+      call $dependency.receiver: Int = external9 direct
+        Type Indexed
+        Local $dependency.receiver
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=12 bits=0x0000000c
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.43: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      goto bb9
+    bb8 if.else.8
+      val $shortCircuit.43: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb9
+    bb9 if.merge.9
+      val $argument.0: Boolean
+        Type Boolean
+        Local $shortCircuit.43
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn1 direct
+        Type Boolean
+        Local $parameter.value
+      call external5 direct
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $place.44: Indexed
+        Type Indexed
+        Local table
+      val $dependency.receiver: Indexed
+        Type Indexed
+        Local $place.44
+      call $dependency.argument.0: Long = @fn3 direct
+      val $dependency.parameter.index: Long
+        Type Long
+        Local $dependency.argument.0
+      val $default.local.2: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $default.local.3: Int
+        Type Int
+        Local $default.local.2
+      call $dependency.parameter.delta: Int = external2 direct
+        Type Int
+        Local $default.local.3
+      call $old.46: Int = external6 direct
+        Type Indexed
+        Local $dependency.receiver
+        Type Long
+        Local $dependency.parameter.index
+        Type Int
+        Local $dependency.parameter.delta
+      val $dependency.receiver: Int
+        Type Int
+        Local $old.46
+      val $new.47: Int
+        Type Int
+        IntegerUnary increment kind=Int
+          Type Int
+          Local $dependency.receiver
+      val $write.48: Int
+        Type Int
+        Local $new.47
+      val $dependency.receiver: Indexed
+        Type Indexed
+        Local $place.44
+      val $dependency.argument.0: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.argument.1: Int
+        Type Int
+        Local $write.48
+      val $dependency.parameter.index: Long
+        Type Long
+        Local $dependency.argument.0
+      val $default.local.2: Int
+        Type Int
+        IntegerLiteral Int value=6 bits=0x00000006
+      val $default.local.3: Int
+        Type Int
+        Local $default.local.2
+      call $dependency.parameter.delta: Int = external2 direct
+        Type Int
+        Local $default.local.3
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.1
+      call external7 direct
+        Type Indexed
+        Local $dependency.receiver
+        Type Long
+        Local $dependency.parameter.index
+        Type Int
+        Local $dependency.parameter.delta
+        Type Int
+        Local $dependency.parameter.value
+      val updated: Int
+        Type Int
+        Local $new.47
+      call $dependency.receiver: Int = external8 direct
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=23467 bits=0x00005bab
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb10 bb11
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+    bb10 if.then.10
+      val $dependency.receiver: Int
+        Type Int
+        Local updated
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=16 bits=0x00000010
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.50: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      goto bb12
+    bb11 if.else.11
+      val $shortCircuit.50: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb12
+    bb12 if.merge.12
+      branch bb13 bb14
+        Type Boolean
+        Local $shortCircuit.50
+    bb13 if.then.13
+      val $dependency.receiver: Indexed
+        Type Indexed
+        Local table
+      call $dependency.receiver: Int = external9 direct
+        Type Indexed
+        Local $dependency.receiver
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.51: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      goto bb15
+    bb14 if.else.14
+      val $shortCircuit.51: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb15
+    bb15 if.merge.15
+      val $argument.0: Boolean
+        Type Boolean
+        Local $shortCircuit.51
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn1 direct
+        Type Boolean
+        Local $parameter.value
+      call external5 direct
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      var caught: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb23
+    bb16 try.unwind.16
+      landing_pad cleanup=false
+      goto bb17
+    bb17 try.dispatch.17
+      begin_catch
+      branch bb24 bb25
+        Type Boolean
+        IsInstance UpdateFailure
+          Type Any
+          CaughtException
+    bb18 try.handler_pad.18
+      landing_pad cleanup=true
+      goto bb19
+    bb19 try.handler_cleanup.19
+      end_catch
+      resume
+    bb20 try.exit_pad.20
+      landing_pad cleanup=true
+      goto bb21
+    bb21 try.exit_cleanup.21
+      end_catch
+      resume
+    bb22 try.end.22
+      branch bb28 bb29
+        Type Boolean
+        Local caught
+    bb23 try.body.23 unwind bb16
+      val $place.52: Indexed
+        Type Indexed
+        Local table
+      val $dependency.receiver: Indexed
+        Type Indexed
+        Local $place.52
+      call $dependency.argument.0: Long = @fn3 direct
+      val $dependency.parameter.index: Long
+        Type Long
+        Local $dependency.argument.0
+      val $default.local.2: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $default.local.3: Int
+        Type Int
+        Local $default.local.2
+      call $dependency.parameter.delta: Int = external2 direct
+        Type Int
+        Local $default.local.3
+      call $old.54: Int = external6 direct
+        Type Indexed
+        Local $dependency.receiver
+        Type Long
+        Local $dependency.parameter.index
+        Type Int
+        Local $dependency.parameter.delta
+      val $dependency.receiver: Int
+        Type Int
+        Local $old.54
+      call $dependency.argument.0: Int = @fn6 direct
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $write.55: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $dependency.receiver: Indexed
+        Type Indexed
+        Local $place.52
+      val $dependency.argument.0: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.argument.1: Int
+        Type Int
+        Local $write.55
+      val $dependency.parameter.index: Long
+        Type Long
+        Local $dependency.argument.0
+      val $default.local.2: Int
+        Type Int
+        IntegerLiteral Int value=6 bits=0x00000006
+      val $default.local.3: Int
+        Type Int
+        Local $default.local.2
+      call $dependency.parameter.delta: Int = external2 direct
+        Type Int
+        Local $default.local.3
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.1
+      call external7 direct
+        Type Indexed
+        Local $dependency.receiver
+        Type Long
+        Local $dependency.parameter.index
+        Type Int
+        Local $dependency.parameter.delta
+        Type Int
+        Local $dependency.parameter.value
+      goto bb22
+    bb24 try.catch.24
+      call $catch.2: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val failure: UpdateFailure
+        Type UpdateFailure
+        Retype UpdateFailure
+          Type Any
+          Local $catch.2
+      goto bb26
+    bb25 try.next.25
+      rethrow unwind bb20
+    bb26 scope.26 unwind bb18
+      assign caught
+        Type Boolean
+        BoolLiteral true
+      end_catch
+      goto bb27
+    bb27 scope.27
+      goto bb22
+    bb28 if.then.28
+      call $dependency.receiver: Int = external8 direct
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2345 bits=0x00000929
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.57: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      goto bb30
+    bb29 if.else.29
+      val $shortCircuit.57: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb30
+    bb30 if.merge.30
+      branch bb31 bb32
+        Type Boolean
+        Local $shortCircuit.57
+    bb31 if.then.31
+      val $dependency.receiver: Indexed
+        Type Indexed
+        Local table
+      call $dependency.receiver: Int = external9 direct
+        Type Indexed
+        Local $dependency.receiver
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.58: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      goto bb33
+    bb32 if.else.32
+      val $shortCircuit.58: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb33
+    bb33 if.merge.33
+      val $argument.0: Boolean
+        Type Boolean
+        Local $shortCircuit.58
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn1 direct
+        Type Boolean
+        Local $parameter.value
+      assign $new.3
+        Type Grid
+        ClassAlloc Grid
+      call external10 direct
+        Type Grid
+        Local $new.3
+      val grid: Grid
+        Type Grid
+        Local $new.3
+      call external5 direct
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $place.59: Grid
+        Type Grid
+        Local grid
+      val $dependency.receiver: Grid
+        Type Grid
+        Local $place.59
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $dependency.argument.0: Long = @fn5 direct
+        Type Int
+        Local $parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $dependency.argument.1: Long = @fn5 direct
+        Type Int
+        Local $parameter.value
+      val $dependency.parameter.indices: Array<Long>
+        Type Array<Long>
+        ArrayAssembly Array<Long>
+          Element
+            Type Long
+            Local $dependency.argument.0
+          Element
+            Type Long
+            Local $dependency.argument.1
+      call $old.62: Int = external11 direct
+        Type Grid
+        Local $dependency.receiver
+        Type Array<Long>
+        Local $dependency.parameter.indices
+      val $dependency.receiver: Int
+        Type Int
+        Local $old.62
+      call $dependency.argument.0: Int = @fn4 direct
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $write.63: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $dependency.receiver: Grid
+        Type Grid
+        Local $place.59
+      val $dependency.argument.0: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.argument.1: Long
+        Type Long
+        Local $dependency.argument.1
+      val $dependency.argument.2: Int
+        Type Int
+        Local $write.63
+      val $dependency.parameter.indices: Array<Long>
+        Type Array<Long>
+        ArrayAssembly Array<Long>
+          Element
+            Type Long
+            Local $dependency.argument.0
+          Element
+            Type Long
+            Local $dependency.argument.1
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.2
+      call external12 direct
+        Type Grid
+        Local $dependency.receiver
+        Type Array<Long>
+        Local $dependency.parameter.indices
+        Type Int
+        Local $dependency.parameter.value
+      call $dependency.receiver: Int = external8 direct
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=23457 bits=0x00005ba1
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb34 bb35
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+    bb34 if.then.34
+      val $dependency.receiver: Grid
+        Type Grid
+        Local grid
+      call $dependency.receiver: Int = external13 direct
+        Type Grid
+        Local $dependency.receiver
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=27 bits=0x0000001b
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.65: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      goto bb36
+    bb35 if.else.35
+      val $shortCircuit.65: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb36
+    bb36 if.merge.36
+      val $argument.0: Boolean
+        Type Boolean
+        Local $shortCircuit.65
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn1 direct
+        Type Boolean
+        Local $parameter.value
+      call @fn0 direct
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str1
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn35 direct
+        Type String
+        Local $dependency.parameter.value
+      return
+  fun iterator @fn8(this: MutableArray<MaybeUninit<Int>>) -> Iterator<MaybeUninit<Int>>
+    bb0 entry
+      val $dependency.local.1: List<MaybeUninit<Int>>
+        Type List<MaybeUninit<Int>>
+        Retype List<MaybeUninit<Int>>
+          Type MutableArray<MaybeUninit<Int>>
+          Local this
+      val $dependency.local.2: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.local.3: Boolean
+        Type Boolean
+        BoolLiteral false
+      val $dependency.local.4: List<MaybeUninit<Int>>
+        Type List<MaybeUninit<Int>>
+        Local $dependency.local.1
+      val $dependency.local.5: Long
+        Type Long
+        Local $dependency.local.2
+      val $dependency.local.6: Boolean
+        Type Boolean
+        Local $dependency.local.3
+      assign $new.1
+        Type ListIterator<MaybeUninit<Int>>
+        ClassAlloc ListIterator<MaybeUninit<Int>>
+      call @fn58 direct
+        Type ListIterator<MaybeUninit<Int>>
+        Local $new.1
+        Type List<MaybeUninit<Int>>
+        Local $dependency.local.4
+        Type Long
+        Local $dependency.local.5
+        Type Boolean
+        Local $dependency.local.6
+      return
+        Type Iterator<MaybeUninit<Int>>
+        Retype Iterator<MaybeUninit<Int>>
+          Type ListIterator<MaybeUninit<Int>>
+          Local $new.1
+  fun get @fn9(this: MutableArray<MaybeUninit<Int>>, index: Long) -> MaybeUninit<Int>
+    bb0 entry
+      val $dependency.local.2: MutableArray<MaybeUninit<Int>>
+        Type MutableArray<MaybeUninit<Int>>
+        Local this
+      val $dependency.local.3: Long
+        Type Long
+        Local index
+      val $dependency.local.4: Long
+        Type Long
+        Local $dependency.local.3
+      val $arr.1: MutableArray<MaybeUninit<Int>>
+        Type MutableArray<MaybeUninit<Int>>
+        Local $dependency.local.2
+      val $idx.2: Long
+        Type Long
+        Local $dependency.local.4
+      branch bb2 bb1
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb1 logic.rhs.1
+      assign $logic.1
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          ArrayLen MutableArray<MaybeUninit<Int>>
+            Type MutableArray<MaybeUninit<Int>>
+            Local $arr.1
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.1
+        Type Boolean
+        BoolLiteral true
+      goto bb3
+    bb3 logic.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $logic.1
+    bb4 if.then.4
+      assign $new.2
+        Type IndexOutOfBoundsException
+        ClassAlloc IndexOutOfBoundsException
+      call external14 direct
+        Type IndexOutOfBoundsException
+        Local $new.2
+      throw
+        Type IndexOutOfBoundsException
+        Local $new.2
+    bb5 if.merge.5
+      return
+        Type MaybeUninit<Int>
+        ArrayGet MutableArray<MaybeUninit<Int>>
+          Type MutableArray<MaybeUninit<Int>>
+          Local $arr.1
+          Type Long
+          Local $idx.2
+  fun size @fn10(this: MutableArray<MaybeUninit<Int>>) -> Long
+    bb0 entry
+      val $dependency.local.1: MutableArray<MaybeUninit<Int>>
+        Type MutableArray<MaybeUninit<Int>>
+        Local this
+      return
+        Type Long
+        ArrayLen MutableArray<MaybeUninit<Int>>
+          Type MutableArray<MaybeUninit<Int>>
+          Local $dependency.local.1
+  fun iterator @fn11(this: ArrayList<Int>) -> Iterator<Int>
+    bb0 entry
+      val $dependency.local.1: List<Int>
+        Type List<Int>
+        Retype List<Int>
+          Type ArrayList<Int>
+          Local this
+      val $dependency.local.2: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.local.3: Boolean
+        Type Boolean
+        BoolLiteral false
+      val $dependency.local.4: List<Int>
+        Type List<Int>
+        Local $dependency.local.1
+      val $dependency.local.5: Long
+        Type Long
+        Local $dependency.local.2
+      val $dependency.local.6: Boolean
+        Type Boolean
+        Local $dependency.local.3
+      assign $new.1
+        Type ListIterator<Int>
+        ClassAlloc ListIterator<Int>
+      call @fn59 direct
+        Type ListIterator<Int>
+        Local $new.1
+        Type List<Int>
+        Local $dependency.local.4
+        Type Long
+        Local $dependency.local.5
+        Type Boolean
+        Local $dependency.local.6
+      return
+        Type Iterator<Int>
+        Retype Iterator<Int>
+          Type ListIterator<Int>
+          Local $new.1
+  fun get @fn12(this: ArrayList<Int>, index: Long) -> Int
+    bb0 entry
+      val $dependency.local.2: ArrayList<Int>
+        Type ArrayList<Int>
+        Local this
+      val $dependency.local.3: Long
+        Type Long
+        Local index
+      val $dependency.local.4: Long
+        Type Long
+        Local $dependency.local.3
+      call @fn38 direct
+        Type ArrayList<Int>
+        Local $dependency.local.2
+        Type Long
+        Local $dependency.local.4
+      val $dependency.local.5: MutableArray<MaybeUninit<Int>>
+        Type MutableArray<MaybeUninit<Int>>
+        FieldAccess 0
+          Type ArrayList<Int>
+          Local this
+      val $dependency.local.6: Long
+        Type Long
+        Local index
+      val $dependency.local.7: Long
+        Type Long
+        Local $dependency.local.6
+      call $dependency.local.8: MaybeUninit<Int> = @fn9 direct
+        Type MutableArray<MaybeUninit<Int>>
+        Local $dependency.local.5
+        Type Long
+        Local $dependency.local.7
+      return
+        Type Int
+        MaybeUninit.AssumeInit MaybeUninit
+          Type MaybeUninit<Int>
+          Local $dependency.local.8
+  fun size @fn13(this: ArrayList<Int>) -> Long
+    bb0 entry
+      return
+        Type Long
+        FieldAccess 1
+          Type ArrayList<Int>
+          Local this
+  fun set @fn14(this: ArrayList<Int>, index: Long, value: Int) -> Unit
+    bb0 entry
+      val $dependency.local.3: ArrayList<Int>
+        Type ArrayList<Int>
+        Local this
+      val $dependency.local.4: Long
+        Type Long
+        Local index
+      val $dependency.local.5: Long
+        Type Long
+        Local $dependency.local.4
+      call @fn38 direct
+        Type ArrayList<Int>
+        Local $dependency.local.3
+        Type Long
+        Local $dependency.local.5
+      val $dependency.local.8: MutableArray<MaybeUninit<Int>>
+        Type MutableArray<MaybeUninit<Int>>
+        FieldAccess 0
+          Type ArrayList<Int>
+          Local this
+      val $dependency.local.9: Long
+        Type Long
+        Local index
+      val $dependency.local.6: Int
+        Type Int
+        Local value
+      val $dependency.local.7: Int
+        Type Int
+        Local $dependency.local.6
+      val $dependency.local.10: MaybeUninit<Int>
+        Type MaybeUninit<Int>
+        MaybeUninit.Initialized MaybeUninit
+          Type Int
+          Local $dependency.local.7
+      val $dependency.local.11: Long
+        Type Long
+        Local $dependency.local.9
+      val $dependency.local.12: MaybeUninit<Int>
+        Type MaybeUninit<Int>
+        Local $dependency.local.10
+      val $arr.1: MutableArray<MaybeUninit<Int>>
+        Type MutableArray<MaybeUninit<Int>>
+        Local $dependency.local.8
+      val $idx.2: Long
+        Type Long
+        Local $dependency.local.11
+      val $value.3: MaybeUninit<Int>
+        Type MaybeUninit<Int>
+        Local $dependency.local.12
+      branch bb2 bb1
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb1 logic.rhs.1
+      assign $logic.1
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          ArrayLen MutableArray<MaybeUninit<Int>>
+            Type MutableArray<MaybeUninit<Int>>
+            Local $arr.1
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.1
+        Type Boolean
+        BoolLiteral true
+      goto bb3
+    bb3 logic.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $logic.1
+    bb4 if.then.4
+      assign $new.2
+        Type IndexOutOfBoundsException
+        ClassAlloc IndexOutOfBoundsException
+      call external14 direct
+        Type IndexOutOfBoundsException
+        Local $new.2
+      throw
+        Type IndexOutOfBoundsException
+        Local $new.2
+    bb5 if.merge.5
+      array_set MutableArray<MaybeUninit<Int>>
+        Type MutableArray<MaybeUninit<Int>>
+        Local $arr.1
+        Type Long
+        Local $idx.2
+        Type MaybeUninit<Int>
+        Local $value.3
+      return
+  fun add @fn15(this: ArrayList<Int>, value: Int) -> Unit
+    bb0 entry
+      val $dependency.local.2: ArrayList<Int>
+        Type ArrayList<Int>
+        Local this
+      call @fn39 direct
+        Type ArrayList<Int>
+        Local $dependency.local.2
+      val $dependency.local.5: MutableArray<MaybeUninit<Int>>
+        Type MutableArray<MaybeUninit<Int>>
+        FieldAccess 0
+          Type ArrayList<Int>
+          Local this
+      val $dependency.local.6: Long
+        Type Long
+        FieldAccess 1
+          Type ArrayList<Int>
+          Local this
+      val $dependency.local.3: Int
+        Type Int
+        Local value
+      val $dependency.local.4: Int
+        Type Int
+        Local $dependency.local.3
+      val $dependency.local.7: MaybeUninit<Int>
+        Type MaybeUninit<Int>
+        MaybeUninit.Initialized MaybeUninit
+          Type Int
+          Local $dependency.local.4
+      val $dependency.local.8: Long
+        Type Long
+        Local $dependency.local.6
+      val $dependency.local.9: MaybeUninit<Int>
+        Type MaybeUninit<Int>
+        Local $dependency.local.7
+      val $arr.1: MutableArray<MaybeUninit<Int>>
+        Type MutableArray<MaybeUninit<Int>>
+        Local $dependency.local.5
+      val $idx.2: Long
+        Type Long
+        Local $dependency.local.8
+      val $value.3: MaybeUninit<Int>
+        Type MaybeUninit<Int>
+        Local $dependency.local.9
+      branch bb2 bb1
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb1 logic.rhs.1
+      assign $logic.1
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          ArrayLen MutableArray<MaybeUninit<Int>>
+            Type MutableArray<MaybeUninit<Int>>
+            Local $arr.1
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.1
+        Type Boolean
+        BoolLiteral true
+      goto bb3
+    bb3 logic.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $logic.1
+    bb4 if.then.4
+      assign $new.2
+        Type IndexOutOfBoundsException
+        ClassAlloc IndexOutOfBoundsException
+      call external14 direct
+        Type IndexOutOfBoundsException
+        Local $new.2
+      throw
+        Type IndexOutOfBoundsException
+        Local $new.2
+    bb5 if.merge.5
+      array_set MutableArray<MaybeUninit<Int>>
+        Type MutableArray<MaybeUninit<Int>>
+        Local $arr.1
+        Type Long
+        Local $idx.2
+        Type MaybeUninit<Int>
+        Local $value.3
+      val $dependency.local.10: Long
+        Type Long
+        FieldAccess 1
+          Type ArrayList<Int>
+          Local this
+      val $dependency.local.11: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.local.12: Long
+        Type Long
+        Local $dependency.local.11
+      field_set 1
+        Type ArrayList<Int>
+        Local this
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.local.10
+          Type Long
+          Local $dependency.local.12
+      return
+  fun add @fn16(this: ArrayList<Int>, index: Long, value: Int) -> Unit
+    bb0 entry
+      val $dependency.local.4: Long
+        Type Long
+        Local index
+      val $dependency.local.5: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.local.6: Long
+        Type Long
+        Local $dependency.local.5
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Long result=Long
+            Type Long
+            Local $dependency.local.4
+            Type Long
+            Local $dependency.local.6
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb1 if.then.1
+      val $dependency.local.10: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb3
+    bb2 if.else.2
+      val $dependency.local.7: Long
+        Type Long
+        Local index
+      val $dependency.local.8: Long
+        Type Long
+        FieldAccess 1
+          Type ArrayList<Int>
+          Local this
+      val $dependency.local.9: Long
+        Type Long
+        Local $dependency.local.8
+      val $dependency.local.10: Boolean
+        Type Boolean
+        IntegerCompare greater-than operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Long result=Long
+            Type Long
+            Local $dependency.local.7
+            Type Long
+            Local $dependency.local.9
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+      goto bb3
+    bb3 if.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $dependency.local.10
+    bb4 if.then.4
+      assign $new.1
+        Type IndexOutOfBoundsException
+        ClassAlloc IndexOutOfBoundsException
+      call external14 direct
+        Type IndexOutOfBoundsException
+        Local $new.1
+      throw
+        Type IndexOutOfBoundsException
+        Local $new.1
+    bb5 if.merge.5
+      val $dependency.local.11: ArrayList<Int>
+        Type ArrayList<Int>
+        Local this
+      call @fn39 direct
+        Type ArrayList<Int>
+        Local $dependency.local.11
+      var $dependency.local.3: Long
+        Type Long
+        FieldAccess 1
+          Type ArrayList<Int>
+          Local this
+      goto bb6
+    bb6 while.cond.6 <loop-header-poll>
+      val $dependency.local.12: Long
+        Type Long
+        Local $dependency.local.3
+      val $dependency.local.13: Long
+        Type Long
+        Local index
+      val $dependency.local.14: Long
+        Type Long
+        Local $dependency.local.13
+      branch bb8 bb7
+        Type Boolean
+        IntegerCompare greater-than operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Long result=Long
+            Type Long
+            Local $dependency.local.12
+            Type Long
+            Local $dependency.local.14
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb7 while.exit.7
+      val $dependency.local.31: MutableArray<MaybeUninit<Int>>
+        Type MutableArray<MaybeUninit<Int>>
+        FieldAccess 0
+          Type ArrayList<Int>
+          Local this
+      val $dependency.local.32: Long
+        Type Long
+        Local index
+      val $dependency.local.29: Int
+        Type Int
+        Local value
+      val $dependency.local.30: Int
+        Type Int
+        Local $dependency.local.29
+      val $dependency.local.33: MaybeUninit<Int>
+        Type MaybeUninit<Int>
+        MaybeUninit.Initialized MaybeUninit
+          Type Int
+          Local $dependency.local.30
+      val $dependency.local.34: Long
+        Type Long
+        Local $dependency.local.32
+      val $dependency.local.35: MaybeUninit<Int>
+        Type MaybeUninit<Int>
+        Local $dependency.local.33
+      val $arr.4: MutableArray<MaybeUninit<Int>>
+        Type MutableArray<MaybeUninit<Int>>
+        Local $dependency.local.31
+      val $idx.5: Long
+        Type Long
+        Local $dependency.local.34
+      val $value.6: MaybeUninit<Int>
+        Type MaybeUninit<Int>
+        Local $dependency.local.35
+      branch bb15 bb14
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $idx.5
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb8 while.body.8
+      val $dependency.local.21: MutableArray<MaybeUninit<Int>>
+        Type MutableArray<MaybeUninit<Int>>
+        FieldAccess 0
+          Type ArrayList<Int>
+          Local this
+      val $dependency.local.22: Long
+        Type Long
+        Local $dependency.local.3
+      val $dependency.local.18: MutableArray<MaybeUninit<Int>>
+        Type MutableArray<MaybeUninit<Int>>
+        FieldAccess 0
+          Type ArrayList<Int>
+          Local this
+      val $dependency.local.15: Long
+        Type Long
+        Local $dependency.local.3
+      val $dependency.local.16: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.local.17: Long
+        Type Long
+        Local $dependency.local.16
+      val $dependency.local.19: Long
+        Type Long
+        IntegerBinary subtract kind=Long
+          Type Long
+          Local $dependency.local.15
+          Type Long
+          Local $dependency.local.17
+      val $dependency.local.20: Long
+        Type Long
+        Local $dependency.local.19
+      call $dependency.local.23: MaybeUninit<Int> = @fn9 direct
+        Type MutableArray<MaybeUninit<Int>>
+        Local $dependency.local.18
+        Type Long
+        Local $dependency.local.20
+      val $dependency.local.24: Long
+        Type Long
+        Local $dependency.local.22
+      val $dependency.local.25: MaybeUninit<Int>
+        Type MaybeUninit<Int>
+        Local $dependency.local.23
+      val $arr.1: MutableArray<MaybeUninit<Int>>
+        Type MutableArray<MaybeUninit<Int>>
+        Local $dependency.local.21
+      val $idx.2: Long
+        Type Long
+        Local $dependency.local.24
+      val $value.3: MaybeUninit<Int>
+        Type MaybeUninit<Int>
+        Local $dependency.local.25
+      branch bb10 bb9
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb9 logic.rhs.9
+      assign $logic.2
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          ArrayLen MutableArray<MaybeUninit<Int>>
+            Type MutableArray<MaybeUninit<Int>>
+            Local $arr.1
+      goto bb11
+    bb10 logic.short.10
+      assign $logic.2
+        Type Boolean
+        BoolLiteral true
+      goto bb11
+    bb11 logic.merge.11
+      branch bb12 bb13
+        Type Boolean
+        Local $logic.2
+    bb12 if.then.12
+      assign $new.3
+        Type IndexOutOfBoundsException
+        ClassAlloc IndexOutOfBoundsException
+      call external14 direct
+        Type IndexOutOfBoundsException
+        Local $new.3
+      throw
+        Type IndexOutOfBoundsException
+        Local $new.3
+    bb13 if.merge.13
+      array_set MutableArray<MaybeUninit<Int>>
+        Type MutableArray<MaybeUninit<Int>>
+        Local $arr.1
+        Type Long
+        Local $idx.2
+        Type MaybeUninit<Int>
+        Local $value.3
+      val $dependency.local.26: Long
+        Type Long
+        Local $dependency.local.3
+      val $dependency.local.27: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.local.28: Long
+        Type Long
+        Local $dependency.local.27
+      assign $dependency.local.3
+        Type Long
+        IntegerBinary subtract kind=Long
+          Type Long
+          Local $dependency.local.26
+          Type Long
+          Local $dependency.local.28
+      goto bb6
+    bb14 logic.rhs.14
+      assign $logic.4
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          Local $idx.5
+          Type Long
+          ArrayLen MutableArray<MaybeUninit<Int>>
+            Type MutableArray<MaybeUninit<Int>>
+            Local $arr.4
+      goto bb16
+    bb15 logic.short.15
+      assign $logic.4
+        Type Boolean
+        BoolLiteral true
+      goto bb16
+    bb16 logic.merge.16
+      branch bb17 bb18
+        Type Boolean
+        Local $logic.4
+    bb17 if.then.17
+      assign $new.5
+        Type IndexOutOfBoundsException
+        ClassAlloc IndexOutOfBoundsException
+      call external14 direct
+        Type IndexOutOfBoundsException
+        Local $new.5
+      throw
+        Type IndexOutOfBoundsException
+        Local $new.5
+    bb18 if.merge.18
+      array_set MutableArray<MaybeUninit<Int>>
+        Type MutableArray<MaybeUninit<Int>>
+        Local $arr.4
+        Type Long
+        Local $idx.5
+        Type MaybeUninit<Int>
+        Local $value.6
+      val $dependency.local.36: Long
+        Type Long
+        FieldAccess 1
+          Type ArrayList<Int>
+          Local this
+      val $dependency.local.37: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.local.38: Long
+        Type Long
+        Local $dependency.local.37
+      field_set 1
+        Type ArrayList<Int>
+        Local this
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.local.36
+          Type Long
+          Local $dependency.local.38
+      return
+  fun removeAt @fn17(this: ArrayList<Int>, index: Long) -> Int
+    bb0 entry
+      val $dependency.local.5: ArrayList<Int>
+        Type ArrayList<Int>
+        Local this
+      val $dependency.local.6: Long
+        Type Long
+        Local index
+      val $dependency.local.7: Long
+        Type Long
+        Local $dependency.local.6
+      call @fn38 direct
+        Type ArrayList<Int>
+        Local $dependency.local.5
+        Type Long
+        Local $dependency.local.7
+      val $dependency.local.8: MutableArray<MaybeUninit<Int>>
+        Type MutableArray<MaybeUninit<Int>>
+        FieldAccess 0
+          Type ArrayList<Int>
+          Local this
+      val $dependency.local.9: Long
+        Type Long
+        Local index
+      val $dependency.local.10: Long
+        Type Long
+        Local $dependency.local.9
+      call $dependency.local.11: MaybeUninit<Int> = @fn9 direct
+        Type MutableArray<MaybeUninit<Int>>
+        Local $dependency.local.8
+        Type Long
+        Local $dependency.local.10
+      val $dependency.local.2: Int
+        Type Int
+        MaybeUninit.AssumeInit MaybeUninit
+          Type MaybeUninit<Int>
+          Local $dependency.local.11
+      val $dependency.local.12: Long
+        Type Long
+        FieldAccess 1
+          Type ArrayList<Int>
+          Local this
+      val $dependency.local.13: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.local.14: Long
+        Type Long
+        Local $dependency.local.13
+      val $dependency.local.3: Long
+        Type Long
+        IntegerBinary subtract kind=Long
+          Type Long
+          Local $dependency.local.12
+          Type Long
+          Local $dependency.local.14
+      var $dependency.local.4: Long
+        Type Long
+        Local index
+      goto bb1
+    bb1 while.cond.1 <loop-header-poll>
+      val $dependency.local.15: Long
+        Type Long
+        Local $dependency.local.4
+      val $dependency.local.16: Long
+        Type Long
+        Local $dependency.local.3
+      val $dependency.local.17: Long
+        Type Long
+        Local $dependency.local.16
+      branch bb3 bb2
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Long result=Long
+            Type Long
+            Local $dependency.local.15
+            Type Long
+            Local $dependency.local.17
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb2 while.exit.2
+      val $dependency.local.32: MutableArray<MaybeUninit<Int>>
+        Type MutableArray<MaybeUninit<Int>>
+        FieldAccess 0
+          Type ArrayList<Int>
+          Local this
+      val $dependency.local.33: Long
+        Type Long
+        Local $dependency.local.3
+      val $dependency.local.34: MaybeUninit<Int>
+        Type MaybeUninit<Int>
+        MaybeUninit.Uninit MaybeUninit
+      val $dependency.local.35: Long
+        Type Long
+        Local $dependency.local.33
+      val $dependency.local.36: MaybeUninit<Int>
+        Type MaybeUninit<Int>
+        Local $dependency.local.34
+      val $arr.4: MutableArray<MaybeUninit<Int>>
+        Type MutableArray<MaybeUninit<Int>>
+        Local $dependency.local.32
+      val $idx.5: Long
+        Type Long
+        Local $dependency.local.35
+      val $value.6: MaybeUninit<Int>
+        Type MaybeUninit<Int>
+        Local $dependency.local.36
+      branch bb10 bb9
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $idx.5
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb3 while.body.3
+      val $dependency.local.24: MutableArray<MaybeUninit<Int>>
+        Type MutableArray<MaybeUninit<Int>>
+        FieldAccess 0
+          Type ArrayList<Int>
+          Local this
+      val $dependency.local.25: Long
+        Type Long
+        Local $dependency.local.4
+      val $dependency.local.21: MutableArray<MaybeUninit<Int>>
+        Type MutableArray<MaybeUninit<Int>>
+        FieldAccess 0
+          Type ArrayList<Int>
+          Local this
+      val $dependency.local.18: Long
+        Type Long
+        Local $dependency.local.4
+      val $dependency.local.19: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.local.20: Long
+        Type Long
+        Local $dependency.local.19
+      val $dependency.local.22: Long
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.local.18
+          Type Long
+          Local $dependency.local.20
+      val $dependency.local.23: Long
+        Type Long
+        Local $dependency.local.22
+      call $dependency.local.26: MaybeUninit<Int> = @fn9 direct
+        Type MutableArray<MaybeUninit<Int>>
+        Local $dependency.local.21
+        Type Long
+        Local $dependency.local.23
+      val $dependency.local.27: Long
+        Type Long
+        Local $dependency.local.25
+      val $dependency.local.28: MaybeUninit<Int>
+        Type MaybeUninit<Int>
+        Local $dependency.local.26
+      val $arr.1: MutableArray<MaybeUninit<Int>>
+        Type MutableArray<MaybeUninit<Int>>
+        Local $dependency.local.24
+      val $idx.2: Long
+        Type Long
+        Local $dependency.local.27
+      val $value.3: MaybeUninit<Int>
+        Type MaybeUninit<Int>
+        Local $dependency.local.28
+      branch bb5 bb4
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb4 logic.rhs.4
+      assign $logic.1
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          ArrayLen MutableArray<MaybeUninit<Int>>
+            Type MutableArray<MaybeUninit<Int>>
+            Local $arr.1
+      goto bb6
+    bb5 logic.short.5
+      assign $logic.1
+        Type Boolean
+        BoolLiteral true
+      goto bb6
+    bb6 logic.merge.6
+      branch bb7 bb8
+        Type Boolean
+        Local $logic.1
+    bb7 if.then.7
+      assign $new.2
+        Type IndexOutOfBoundsException
+        ClassAlloc IndexOutOfBoundsException
+      call external14 direct
+        Type IndexOutOfBoundsException
+        Local $new.2
+      throw
+        Type IndexOutOfBoundsException
+        Local $new.2
+    bb8 if.merge.8
+      array_set MutableArray<MaybeUninit<Int>>
+        Type MutableArray<MaybeUninit<Int>>
+        Local $arr.1
+        Type Long
+        Local $idx.2
+        Type MaybeUninit<Int>
+        Local $value.3
+      val $dependency.local.29: Long
+        Type Long
+        Local $dependency.local.4
+      val $dependency.local.30: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.local.31: Long
+        Type Long
+        Local $dependency.local.30
+      assign $dependency.local.4
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.local.29
+          Type Long
+          Local $dependency.local.31
+      goto bb1
+    bb9 logic.rhs.9
+      assign $logic.3
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          Local $idx.5
+          Type Long
+          ArrayLen MutableArray<MaybeUninit<Int>>
+            Type MutableArray<MaybeUninit<Int>>
+            Local $arr.4
+      goto bb11
+    bb10 logic.short.10
+      assign $logic.3
+        Type Boolean
+        BoolLiteral true
+      goto bb11
+    bb11 logic.merge.11
+      branch bb12 bb13
+        Type Boolean
+        Local $logic.3
+    bb12 if.then.12
+      assign $new.4
+        Type IndexOutOfBoundsException
+        ClassAlloc IndexOutOfBoundsException
+      call external14 direct
+        Type IndexOutOfBoundsException
+        Local $new.4
+      throw
+        Type IndexOutOfBoundsException
+        Local $new.4
+    bb13 if.merge.13
+      array_set MutableArray<MaybeUninit<Int>>
+        Type MutableArray<MaybeUninit<Int>>
+        Local $arr.4
+        Type Long
+        Local $idx.5
+        Type MaybeUninit<Int>
+        Local $value.6
+      field_set 1
+        Type ArrayList<Int>
+        Local this
+        Type Long
+        Local $dependency.local.3
+      return
+        Type Int
+        Local $dependency.local.2
+  fun clear @fn18(this: ArrayList<Int>) -> Unit
+    bb0 entry
+      var $dependency.local.1: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      goto bb1
+    bb1 while.cond.1 <loop-header-poll>
+      val $dependency.local.2: Long
+        Type Long
+        Local $dependency.local.1
+      val $dependency.local.3: Long
+        Type Long
+        FieldAccess 1
+          Type ArrayList<Int>
+          Local this
+      val $dependency.local.4: Long
+        Type Long
+        Local $dependency.local.3
+      branch bb3 bb2
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Long result=Long
+            Type Long
+            Local $dependency.local.2
+            Type Long
+            Local $dependency.local.4
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb2 while.exit.2
+      field_set 1
+        Type ArrayList<Int>
+        Local this
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      return
+    bb3 while.body.3
+      val $dependency.local.5: MutableArray<MaybeUninit<Int>>
+        Type MutableArray<MaybeUninit<Int>>
+        FieldAccess 0
+          Type ArrayList<Int>
+          Local this
+      val $dependency.local.6: Long
+        Type Long
+        Local $dependency.local.1
+      val $dependency.local.7: MaybeUninit<Int>
+        Type MaybeUninit<Int>
+        MaybeUninit.Uninit MaybeUninit
+      val $dependency.local.8: Long
+        Type Long
+        Local $dependency.local.6
+      val $dependency.local.9: MaybeUninit<Int>
+        Type MaybeUninit<Int>
+        Local $dependency.local.7
+      val $arr.1: MutableArray<MaybeUninit<Int>>
+        Type MutableArray<MaybeUninit<Int>>
+        Local $dependency.local.5
+      val $idx.2: Long
+        Type Long
+        Local $dependency.local.8
+      val $value.3: MaybeUninit<Int>
+        Type MaybeUninit<Int>
+        Local $dependency.local.9
+      branch bb5 bb4
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb4 logic.rhs.4
+      assign $logic.1
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          ArrayLen MutableArray<MaybeUninit<Int>>
+            Type MutableArray<MaybeUninit<Int>>
+            Local $arr.1
+      goto bb6
+    bb5 logic.short.5
+      assign $logic.1
+        Type Boolean
+        BoolLiteral true
+      goto bb6
+    bb6 logic.merge.6
+      branch bb7 bb8
+        Type Boolean
+        Local $logic.1
+    bb7 if.then.7
+      assign $new.2
+        Type IndexOutOfBoundsException
+        ClassAlloc IndexOutOfBoundsException
+      call external14 direct
+        Type IndexOutOfBoundsException
+        Local $new.2
+      throw
+        Type IndexOutOfBoundsException
+        Local $new.2
+    bb8 if.merge.8
+      array_set MutableArray<MaybeUninit<Int>>
+        Type MutableArray<MaybeUninit<Int>>
+        Local $arr.1
+        Type Long
+        Local $idx.2
+        Type MaybeUninit<Int>
+        Local $value.3
+      val $dependency.local.10: Long
+        Type Long
+        Local $dependency.local.1
+      val $dependency.local.11: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.local.12: Long
+        Type Long
+        Local $dependency.local.11
+      assign $dependency.local.1
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.local.10
+          Type Long
+          Local $dependency.local.12
+      goto bb1
+  fun iterator @fn19(this: MutableArray<MaybeUninit<Long>>) -> Iterator<MaybeUninit<Long>>
+    bb0 entry
+      val $dependency.local.1: List<MaybeUninit<Long>>
+        Type List<MaybeUninit<Long>>
+        Retype List<MaybeUninit<Long>>
+          Type MutableArray<MaybeUninit<Long>>
+          Local this
+      val $dependency.local.2: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.local.3: Boolean
+        Type Boolean
+        BoolLiteral false
+      val $dependency.local.4: List<MaybeUninit<Long>>
+        Type List<MaybeUninit<Long>>
+        Local $dependency.local.1
+      val $dependency.local.5: Long
+        Type Long
+        Local $dependency.local.2
+      val $dependency.local.6: Boolean
+        Type Boolean
+        Local $dependency.local.3
+      assign $new.1
+        Type ListIterator<MaybeUninit<Long>>
+        ClassAlloc ListIterator<MaybeUninit<Long>>
+      call @fn60 direct
+        Type ListIterator<MaybeUninit<Long>>
+        Local $new.1
+        Type List<MaybeUninit<Long>>
+        Local $dependency.local.4
+        Type Long
+        Local $dependency.local.5
+        Type Boolean
+        Local $dependency.local.6
+      return
+        Type Iterator<MaybeUninit<Long>>
+        Retype Iterator<MaybeUninit<Long>>
+          Type ListIterator<MaybeUninit<Long>>
+          Local $new.1
+  fun get @fn20(this: MutableArray<MaybeUninit<Long>>, index: Long) -> MaybeUninit<Long>
+    bb0 entry
+      val $dependency.local.2: MutableArray<MaybeUninit<Long>>
+        Type MutableArray<MaybeUninit<Long>>
+        Local this
+      val $dependency.local.3: Long
+        Type Long
+        Local index
+      val $dependency.local.4: Long
+        Type Long
+        Local $dependency.local.3
+      val $arr.1: MutableArray<MaybeUninit<Long>>
+        Type MutableArray<MaybeUninit<Long>>
+        Local $dependency.local.2
+      val $idx.2: Long
+        Type Long
+        Local $dependency.local.4
+      branch bb2 bb1
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb1 logic.rhs.1
+      assign $logic.1
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          ArrayLen MutableArray<MaybeUninit<Long>>
+            Type MutableArray<MaybeUninit<Long>>
+            Local $arr.1
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.1
+        Type Boolean
+        BoolLiteral true
+      goto bb3
+    bb3 logic.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $logic.1
+    bb4 if.then.4
+      assign $new.2
+        Type IndexOutOfBoundsException
+        ClassAlloc IndexOutOfBoundsException
+      call external14 direct
+        Type IndexOutOfBoundsException
+        Local $new.2
+      throw
+        Type IndexOutOfBoundsException
+        Local $new.2
+    bb5 if.merge.5
+      return
+        Type MaybeUninit<Long>
+        ArrayGet MutableArray<MaybeUninit<Long>>
+          Type MutableArray<MaybeUninit<Long>>
+          Local $arr.1
+          Type Long
+          Local $idx.2
+  fun size @fn21(this: MutableArray<MaybeUninit<Long>>) -> Long
+    bb0 entry
+      val $dependency.local.1: MutableArray<MaybeUninit<Long>>
+        Type MutableArray<MaybeUninit<Long>>
+        Local this
+      return
+        Type Long
+        ArrayLen MutableArray<MaybeUninit<Long>>
+          Type MutableArray<MaybeUninit<Long>>
+          Local $dependency.local.1
+  fun iterator @fn22(this: ArrayList<Long>) -> Iterator<Long>
+    bb0 entry
+      val $dependency.local.1: List<Long>
+        Type List<Long>
+        Retype List<Long>
+          Type ArrayList<Long>
+          Local this
+      val $dependency.local.2: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.local.3: Boolean
+        Type Boolean
+        BoolLiteral false
+      val $dependency.local.4: List<Long>
+        Type List<Long>
+        Local $dependency.local.1
+      val $dependency.local.5: Long
+        Type Long
+        Local $dependency.local.2
+      val $dependency.local.6: Boolean
+        Type Boolean
+        Local $dependency.local.3
+      assign $new.1
+        Type ListIterator<Long>
+        ClassAlloc ListIterator<Long>
+      call @fn61 direct
+        Type ListIterator<Long>
+        Local $new.1
+        Type List<Long>
+        Local $dependency.local.4
+        Type Long
+        Local $dependency.local.5
+        Type Boolean
+        Local $dependency.local.6
+      return
+        Type Iterator<Long>
+        Retype Iterator<Long>
+          Type ListIterator<Long>
+          Local $new.1
+  fun get @fn23(this: ArrayList<Long>, index: Long) -> Long
+    bb0 entry
+      val $dependency.local.2: ArrayList<Long>
+        Type ArrayList<Long>
+        Local this
+      val $dependency.local.3: Long
+        Type Long
+        Local index
+      val $dependency.local.4: Long
+        Type Long
+        Local $dependency.local.3
+      call @fn42 direct
+        Type ArrayList<Long>
+        Local $dependency.local.2
+        Type Long
+        Local $dependency.local.4
+      val $dependency.local.5: MutableArray<MaybeUninit<Long>>
+        Type MutableArray<MaybeUninit<Long>>
+        FieldAccess 0
+          Type ArrayList<Long>
+          Local this
+      val $dependency.local.6: Long
+        Type Long
+        Local index
+      val $dependency.local.7: Long
+        Type Long
+        Local $dependency.local.6
+      call $dependency.local.8: MaybeUninit<Long> = @fn20 direct
+        Type MutableArray<MaybeUninit<Long>>
+        Local $dependency.local.5
+        Type Long
+        Local $dependency.local.7
+      return
+        Type Long
+        MaybeUninit.AssumeInit MaybeUninit
+          Type MaybeUninit<Long>
+          Local $dependency.local.8
+  fun size @fn24(this: ArrayList<Long>) -> Long
+    bb0 entry
+      return
+        Type Long
+        FieldAccess 1
+          Type ArrayList<Long>
+          Local this
+  fun set @fn25(this: ArrayList<Long>, index: Long, value: Long) -> Unit
+    bb0 entry
+      val $dependency.local.3: ArrayList<Long>
+        Type ArrayList<Long>
+        Local this
+      val $dependency.local.4: Long
+        Type Long
+        Local index
+      val $dependency.local.5: Long
+        Type Long
+        Local $dependency.local.4
+      call @fn42 direct
+        Type ArrayList<Long>
+        Local $dependency.local.3
+        Type Long
+        Local $dependency.local.5
+      val $dependency.local.8: MutableArray<MaybeUninit<Long>>
+        Type MutableArray<MaybeUninit<Long>>
+        FieldAccess 0
+          Type ArrayList<Long>
+          Local this
+      val $dependency.local.9: Long
+        Type Long
+        Local index
+      val $dependency.local.6: Long
+        Type Long
+        Local value
+      val $dependency.local.7: Long
+        Type Long
+        Local $dependency.local.6
+      val $dependency.local.10: MaybeUninit<Long>
+        Type MaybeUninit<Long>
+        MaybeUninit.Initialized MaybeUninit
+          Type Long
+          Local $dependency.local.7
+      val $dependency.local.11: Long
+        Type Long
+        Local $dependency.local.9
+      val $dependency.local.12: MaybeUninit<Long>
+        Type MaybeUninit<Long>
+        Local $dependency.local.10
+      val $arr.1: MutableArray<MaybeUninit<Long>>
+        Type MutableArray<MaybeUninit<Long>>
+        Local $dependency.local.8
+      val $idx.2: Long
+        Type Long
+        Local $dependency.local.11
+      val $value.3: MaybeUninit<Long>
+        Type MaybeUninit<Long>
+        Local $dependency.local.12
+      branch bb2 bb1
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb1 logic.rhs.1
+      assign $logic.1
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          ArrayLen MutableArray<MaybeUninit<Long>>
+            Type MutableArray<MaybeUninit<Long>>
+            Local $arr.1
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.1
+        Type Boolean
+        BoolLiteral true
+      goto bb3
+    bb3 logic.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $logic.1
+    bb4 if.then.4
+      assign $new.2
+        Type IndexOutOfBoundsException
+        ClassAlloc IndexOutOfBoundsException
+      call external14 direct
+        Type IndexOutOfBoundsException
+        Local $new.2
+      throw
+        Type IndexOutOfBoundsException
+        Local $new.2
+    bb5 if.merge.5
+      array_set MutableArray<MaybeUninit<Long>>
+        Type MutableArray<MaybeUninit<Long>>
+        Local $arr.1
+        Type Long
+        Local $idx.2
+        Type MaybeUninit<Long>
+        Local $value.3
+      return
+  fun add @fn26(this: ArrayList<Long>, value: Long) -> Unit
+    bb0 entry
+      val $dependency.local.2: ArrayList<Long>
+        Type ArrayList<Long>
+        Local this
+      call @fn43 direct
+        Type ArrayList<Long>
+        Local $dependency.local.2
+      val $dependency.local.5: MutableArray<MaybeUninit<Long>>
+        Type MutableArray<MaybeUninit<Long>>
+        FieldAccess 0
+          Type ArrayList<Long>
+          Local this
+      val $dependency.local.6: Long
+        Type Long
+        FieldAccess 1
+          Type ArrayList<Long>
+          Local this
+      val $dependency.local.3: Long
+        Type Long
+        Local value
+      val $dependency.local.4: Long
+        Type Long
+        Local $dependency.local.3
+      val $dependency.local.7: MaybeUninit<Long>
+        Type MaybeUninit<Long>
+        MaybeUninit.Initialized MaybeUninit
+          Type Long
+          Local $dependency.local.4
+      val $dependency.local.8: Long
+        Type Long
+        Local $dependency.local.6
+      val $dependency.local.9: MaybeUninit<Long>
+        Type MaybeUninit<Long>
+        Local $dependency.local.7
+      val $arr.1: MutableArray<MaybeUninit<Long>>
+        Type MutableArray<MaybeUninit<Long>>
+        Local $dependency.local.5
+      val $idx.2: Long
+        Type Long
+        Local $dependency.local.8
+      val $value.3: MaybeUninit<Long>
+        Type MaybeUninit<Long>
+        Local $dependency.local.9
+      branch bb2 bb1
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb1 logic.rhs.1
+      assign $logic.1
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          ArrayLen MutableArray<MaybeUninit<Long>>
+            Type MutableArray<MaybeUninit<Long>>
+            Local $arr.1
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.1
+        Type Boolean
+        BoolLiteral true
+      goto bb3
+    bb3 logic.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $logic.1
+    bb4 if.then.4
+      assign $new.2
+        Type IndexOutOfBoundsException
+        ClassAlloc IndexOutOfBoundsException
+      call external14 direct
+        Type IndexOutOfBoundsException
+        Local $new.2
+      throw
+        Type IndexOutOfBoundsException
+        Local $new.2
+    bb5 if.merge.5
+      array_set MutableArray<MaybeUninit<Long>>
+        Type MutableArray<MaybeUninit<Long>>
+        Local $arr.1
+        Type Long
+        Local $idx.2
+        Type MaybeUninit<Long>
+        Local $value.3
+      val $dependency.local.10: Long
+        Type Long
+        FieldAccess 1
+          Type ArrayList<Long>
+          Local this
+      val $dependency.local.11: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.local.12: Long
+        Type Long
+        Local $dependency.local.11
+      field_set 1
+        Type ArrayList<Long>
+        Local this
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.local.10
+          Type Long
+          Local $dependency.local.12
+      return
+  fun add @fn27(this: ArrayList<Long>, index: Long, value: Long) -> Unit
+    bb0 entry
+      val $dependency.local.4: Long
+        Type Long
+        Local index
+      val $dependency.local.5: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.local.6: Long
+        Type Long
+        Local $dependency.local.5
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Long result=Long
+            Type Long
+            Local $dependency.local.4
+            Type Long
+            Local $dependency.local.6
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb1 if.then.1
+      val $dependency.local.10: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb3
+    bb2 if.else.2
+      val $dependency.local.7: Long
+        Type Long
+        Local index
+      val $dependency.local.8: Long
+        Type Long
+        FieldAccess 1
+          Type ArrayList<Long>
+          Local this
+      val $dependency.local.9: Long
+        Type Long
+        Local $dependency.local.8
+      val $dependency.local.10: Boolean
+        Type Boolean
+        IntegerCompare greater-than operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Long result=Long
+            Type Long
+            Local $dependency.local.7
+            Type Long
+            Local $dependency.local.9
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+      goto bb3
+    bb3 if.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $dependency.local.10
+    bb4 if.then.4
+      assign $new.1
+        Type IndexOutOfBoundsException
+        ClassAlloc IndexOutOfBoundsException
+      call external14 direct
+        Type IndexOutOfBoundsException
+        Local $new.1
+      throw
+        Type IndexOutOfBoundsException
+        Local $new.1
+    bb5 if.merge.5
+      val $dependency.local.11: ArrayList<Long>
+        Type ArrayList<Long>
+        Local this
+      call @fn43 direct
+        Type ArrayList<Long>
+        Local $dependency.local.11
+      var $dependency.local.3: Long
+        Type Long
+        FieldAccess 1
+          Type ArrayList<Long>
+          Local this
+      goto bb6
+    bb6 while.cond.6 <loop-header-poll>
+      val $dependency.local.12: Long
+        Type Long
+        Local $dependency.local.3
+      val $dependency.local.13: Long
+        Type Long
+        Local index
+      val $dependency.local.14: Long
+        Type Long
+        Local $dependency.local.13
+      branch bb8 bb7
+        Type Boolean
+        IntegerCompare greater-than operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Long result=Long
+            Type Long
+            Local $dependency.local.12
+            Type Long
+            Local $dependency.local.14
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb7 while.exit.7
+      val $dependency.local.31: MutableArray<MaybeUninit<Long>>
+        Type MutableArray<MaybeUninit<Long>>
+        FieldAccess 0
+          Type ArrayList<Long>
+          Local this
+      val $dependency.local.32: Long
+        Type Long
+        Local index
+      val $dependency.local.29: Long
+        Type Long
+        Local value
+      val $dependency.local.30: Long
+        Type Long
+        Local $dependency.local.29
+      val $dependency.local.33: MaybeUninit<Long>
+        Type MaybeUninit<Long>
+        MaybeUninit.Initialized MaybeUninit
+          Type Long
+          Local $dependency.local.30
+      val $dependency.local.34: Long
+        Type Long
+        Local $dependency.local.32
+      val $dependency.local.35: MaybeUninit<Long>
+        Type MaybeUninit<Long>
+        Local $dependency.local.33
+      val $arr.4: MutableArray<MaybeUninit<Long>>
+        Type MutableArray<MaybeUninit<Long>>
+        Local $dependency.local.31
+      val $idx.5: Long
+        Type Long
+        Local $dependency.local.34
+      val $value.6: MaybeUninit<Long>
+        Type MaybeUninit<Long>
+        Local $dependency.local.35
+      branch bb15 bb14
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $idx.5
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb8 while.body.8
+      val $dependency.local.21: MutableArray<MaybeUninit<Long>>
+        Type MutableArray<MaybeUninit<Long>>
+        FieldAccess 0
+          Type ArrayList<Long>
+          Local this
+      val $dependency.local.22: Long
+        Type Long
+        Local $dependency.local.3
+      val $dependency.local.18: MutableArray<MaybeUninit<Long>>
+        Type MutableArray<MaybeUninit<Long>>
+        FieldAccess 0
+          Type ArrayList<Long>
+          Local this
+      val $dependency.local.15: Long
+        Type Long
+        Local $dependency.local.3
+      val $dependency.local.16: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.local.17: Long
+        Type Long
+        Local $dependency.local.16
+      val $dependency.local.19: Long
+        Type Long
+        IntegerBinary subtract kind=Long
+          Type Long
+          Local $dependency.local.15
+          Type Long
+          Local $dependency.local.17
+      val $dependency.local.20: Long
+        Type Long
+        Local $dependency.local.19
+      call $dependency.local.23: MaybeUninit<Long> = @fn20 direct
+        Type MutableArray<MaybeUninit<Long>>
+        Local $dependency.local.18
+        Type Long
+        Local $dependency.local.20
+      val $dependency.local.24: Long
+        Type Long
+        Local $dependency.local.22
+      val $dependency.local.25: MaybeUninit<Long>
+        Type MaybeUninit<Long>
+        Local $dependency.local.23
+      val $arr.1: MutableArray<MaybeUninit<Long>>
+        Type MutableArray<MaybeUninit<Long>>
+        Local $dependency.local.21
+      val $idx.2: Long
+        Type Long
+        Local $dependency.local.24
+      val $value.3: MaybeUninit<Long>
+        Type MaybeUninit<Long>
+        Local $dependency.local.25
+      branch bb10 bb9
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb9 logic.rhs.9
+      assign $logic.2
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          ArrayLen MutableArray<MaybeUninit<Long>>
+            Type MutableArray<MaybeUninit<Long>>
+            Local $arr.1
+      goto bb11
+    bb10 logic.short.10
+      assign $logic.2
+        Type Boolean
+        BoolLiteral true
+      goto bb11
+    bb11 logic.merge.11
+      branch bb12 bb13
+        Type Boolean
+        Local $logic.2
+    bb12 if.then.12
+      assign $new.3
+        Type IndexOutOfBoundsException
+        ClassAlloc IndexOutOfBoundsException
+      call external14 direct
+        Type IndexOutOfBoundsException
+        Local $new.3
+      throw
+        Type IndexOutOfBoundsException
+        Local $new.3
+    bb13 if.merge.13
+      array_set MutableArray<MaybeUninit<Long>>
+        Type MutableArray<MaybeUninit<Long>>
+        Local $arr.1
+        Type Long
+        Local $idx.2
+        Type MaybeUninit<Long>
+        Local $value.3
+      val $dependency.local.26: Long
+        Type Long
+        Local $dependency.local.3
+      val $dependency.local.27: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.local.28: Long
+        Type Long
+        Local $dependency.local.27
+      assign $dependency.local.3
+        Type Long
+        IntegerBinary subtract kind=Long
+          Type Long
+          Local $dependency.local.26
+          Type Long
+          Local $dependency.local.28
+      goto bb6
+    bb14 logic.rhs.14
+      assign $logic.4
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          Local $idx.5
+          Type Long
+          ArrayLen MutableArray<MaybeUninit<Long>>
+            Type MutableArray<MaybeUninit<Long>>
+            Local $arr.4
+      goto bb16
+    bb15 logic.short.15
+      assign $logic.4
+        Type Boolean
+        BoolLiteral true
+      goto bb16
+    bb16 logic.merge.16
+      branch bb17 bb18
+        Type Boolean
+        Local $logic.4
+    bb17 if.then.17
+      assign $new.5
+        Type IndexOutOfBoundsException
+        ClassAlloc IndexOutOfBoundsException
+      call external14 direct
+        Type IndexOutOfBoundsException
+        Local $new.5
+      throw
+        Type IndexOutOfBoundsException
+        Local $new.5
+    bb18 if.merge.18
+      array_set MutableArray<MaybeUninit<Long>>
+        Type MutableArray<MaybeUninit<Long>>
+        Local $arr.4
+        Type Long
+        Local $idx.5
+        Type MaybeUninit<Long>
+        Local $value.6
+      val $dependency.local.36: Long
+        Type Long
+        FieldAccess 1
+          Type ArrayList<Long>
+          Local this
+      val $dependency.local.37: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.local.38: Long
+        Type Long
+        Local $dependency.local.37
+      field_set 1
+        Type ArrayList<Long>
+        Local this
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.local.36
+          Type Long
+          Local $dependency.local.38
+      return
+  fun removeAt @fn28(this: ArrayList<Long>, index: Long) -> Long
+    bb0 entry
+      val $dependency.local.5: ArrayList<Long>
+        Type ArrayList<Long>
+        Local this
+      val $dependency.local.6: Long
+        Type Long
+        Local index
+      val $dependency.local.7: Long
+        Type Long
+        Local $dependency.local.6
+      call @fn42 direct
+        Type ArrayList<Long>
+        Local $dependency.local.5
+        Type Long
+        Local $dependency.local.7
+      val $dependency.local.8: MutableArray<MaybeUninit<Long>>
+        Type MutableArray<MaybeUninit<Long>>
+        FieldAccess 0
+          Type ArrayList<Long>
+          Local this
+      val $dependency.local.9: Long
+        Type Long
+        Local index
+      val $dependency.local.10: Long
+        Type Long
+        Local $dependency.local.9
+      call $dependency.local.11: MaybeUninit<Long> = @fn20 direct
+        Type MutableArray<MaybeUninit<Long>>
+        Local $dependency.local.8
+        Type Long
+        Local $dependency.local.10
+      val $dependency.local.2: Long
+        Type Long
+        MaybeUninit.AssumeInit MaybeUninit
+          Type MaybeUninit<Long>
+          Local $dependency.local.11
+      val $dependency.local.12: Long
+        Type Long
+        FieldAccess 1
+          Type ArrayList<Long>
+          Local this
+      val $dependency.local.13: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.local.14: Long
+        Type Long
+        Local $dependency.local.13
+      val $dependency.local.3: Long
+        Type Long
+        IntegerBinary subtract kind=Long
+          Type Long
+          Local $dependency.local.12
+          Type Long
+          Local $dependency.local.14
+      var $dependency.local.4: Long
+        Type Long
+        Local index
+      goto bb1
+    bb1 while.cond.1 <loop-header-poll>
+      val $dependency.local.15: Long
+        Type Long
+        Local $dependency.local.4
+      val $dependency.local.16: Long
+        Type Long
+        Local $dependency.local.3
+      val $dependency.local.17: Long
+        Type Long
+        Local $dependency.local.16
+      branch bb3 bb2
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Long result=Long
+            Type Long
+            Local $dependency.local.15
+            Type Long
+            Local $dependency.local.17
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb2 while.exit.2
+      val $dependency.local.32: MutableArray<MaybeUninit<Long>>
+        Type MutableArray<MaybeUninit<Long>>
+        FieldAccess 0
+          Type ArrayList<Long>
+          Local this
+      val $dependency.local.33: Long
+        Type Long
+        Local $dependency.local.3
+      val $dependency.local.34: MaybeUninit<Long>
+        Type MaybeUninit<Long>
+        MaybeUninit.Uninit MaybeUninit
+      val $dependency.local.35: Long
+        Type Long
+        Local $dependency.local.33
+      val $dependency.local.36: MaybeUninit<Long>
+        Type MaybeUninit<Long>
+        Local $dependency.local.34
+      val $arr.4: MutableArray<MaybeUninit<Long>>
+        Type MutableArray<MaybeUninit<Long>>
+        Local $dependency.local.32
+      val $idx.5: Long
+        Type Long
+        Local $dependency.local.35
+      val $value.6: MaybeUninit<Long>
+        Type MaybeUninit<Long>
+        Local $dependency.local.36
+      branch bb10 bb9
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $idx.5
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb3 while.body.3
+      val $dependency.local.24: MutableArray<MaybeUninit<Long>>
+        Type MutableArray<MaybeUninit<Long>>
+        FieldAccess 0
+          Type ArrayList<Long>
+          Local this
+      val $dependency.local.25: Long
+        Type Long
+        Local $dependency.local.4
+      val $dependency.local.21: MutableArray<MaybeUninit<Long>>
+        Type MutableArray<MaybeUninit<Long>>
+        FieldAccess 0
+          Type ArrayList<Long>
+          Local this
+      val $dependency.local.18: Long
+        Type Long
+        Local $dependency.local.4
+      val $dependency.local.19: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.local.20: Long
+        Type Long
+        Local $dependency.local.19
+      val $dependency.local.22: Long
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.local.18
+          Type Long
+          Local $dependency.local.20
+      val $dependency.local.23: Long
+        Type Long
+        Local $dependency.local.22
+      call $dependency.local.26: MaybeUninit<Long> = @fn20 direct
+        Type MutableArray<MaybeUninit<Long>>
+        Local $dependency.local.21
+        Type Long
+        Local $dependency.local.23
+      val $dependency.local.27: Long
+        Type Long
+        Local $dependency.local.25
+      val $dependency.local.28: MaybeUninit<Long>
+        Type MaybeUninit<Long>
+        Local $dependency.local.26
+      val $arr.1: MutableArray<MaybeUninit<Long>>
+        Type MutableArray<MaybeUninit<Long>>
+        Local $dependency.local.24
+      val $idx.2: Long
+        Type Long
+        Local $dependency.local.27
+      val $value.3: MaybeUninit<Long>
+        Type MaybeUninit<Long>
+        Local $dependency.local.28
+      branch bb5 bb4
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb4 logic.rhs.4
+      assign $logic.1
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          ArrayLen MutableArray<MaybeUninit<Long>>
+            Type MutableArray<MaybeUninit<Long>>
+            Local $arr.1
+      goto bb6
+    bb5 logic.short.5
+      assign $logic.1
+        Type Boolean
+        BoolLiteral true
+      goto bb6
+    bb6 logic.merge.6
+      branch bb7 bb8
+        Type Boolean
+        Local $logic.1
+    bb7 if.then.7
+      assign $new.2
+        Type IndexOutOfBoundsException
+        ClassAlloc IndexOutOfBoundsException
+      call external14 direct
+        Type IndexOutOfBoundsException
+        Local $new.2
+      throw
+        Type IndexOutOfBoundsException
+        Local $new.2
+    bb8 if.merge.8
+      array_set MutableArray<MaybeUninit<Long>>
+        Type MutableArray<MaybeUninit<Long>>
+        Local $arr.1
+        Type Long
+        Local $idx.2
+        Type MaybeUninit<Long>
+        Local $value.3
+      val $dependency.local.29: Long
+        Type Long
+        Local $dependency.local.4
+      val $dependency.local.30: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.local.31: Long
+        Type Long
+        Local $dependency.local.30
+      assign $dependency.local.4
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.local.29
+          Type Long
+          Local $dependency.local.31
+      goto bb1
+    bb9 logic.rhs.9
+      assign $logic.3
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          Local $idx.5
+          Type Long
+          ArrayLen MutableArray<MaybeUninit<Long>>
+            Type MutableArray<MaybeUninit<Long>>
+            Local $arr.4
+      goto bb11
+    bb10 logic.short.10
+      assign $logic.3
+        Type Boolean
+        BoolLiteral true
+      goto bb11
+    bb11 logic.merge.11
+      branch bb12 bb13
+        Type Boolean
+        Local $logic.3
+    bb12 if.then.12
+      assign $new.4
+        Type IndexOutOfBoundsException
+        ClassAlloc IndexOutOfBoundsException
+      call external14 direct
+        Type IndexOutOfBoundsException
+        Local $new.4
+      throw
+        Type IndexOutOfBoundsException
+        Local $new.4
+    bb13 if.merge.13
+      array_set MutableArray<MaybeUninit<Long>>
+        Type MutableArray<MaybeUninit<Long>>
+        Local $arr.4
+        Type Long
+        Local $idx.5
+        Type MaybeUninit<Long>
+        Local $value.6
+      field_set 1
+        Type ArrayList<Long>
+        Local this
+        Type Long
+        Local $dependency.local.3
+      return
+        Type Long
+        Local $dependency.local.2
+  fun clear @fn29(this: ArrayList<Long>) -> Unit
+    bb0 entry
+      var $dependency.local.1: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      goto bb1
+    bb1 while.cond.1 <loop-header-poll>
+      val $dependency.local.2: Long
+        Type Long
+        Local $dependency.local.1
+      val $dependency.local.3: Long
+        Type Long
+        FieldAccess 1
+          Type ArrayList<Long>
+          Local this
+      val $dependency.local.4: Long
+        Type Long
+        Local $dependency.local.3
+      branch bb3 bb2
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Long result=Long
+            Type Long
+            Local $dependency.local.2
+            Type Long
+            Local $dependency.local.4
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb2 while.exit.2
+      field_set 1
+        Type ArrayList<Long>
+        Local this
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      return
+    bb3 while.body.3
+      val $dependency.local.5: MutableArray<MaybeUninit<Long>>
+        Type MutableArray<MaybeUninit<Long>>
+        FieldAccess 0
+          Type ArrayList<Long>
+          Local this
+      val $dependency.local.6: Long
+        Type Long
+        Local $dependency.local.1
+      val $dependency.local.7: MaybeUninit<Long>
+        Type MaybeUninit<Long>
+        MaybeUninit.Uninit MaybeUninit
+      val $dependency.local.8: Long
+        Type Long
+        Local $dependency.local.6
+      val $dependency.local.9: MaybeUninit<Long>
+        Type MaybeUninit<Long>
+        Local $dependency.local.7
+      val $arr.1: MutableArray<MaybeUninit<Long>>
+        Type MutableArray<MaybeUninit<Long>>
+        Local $dependency.local.5
+      val $idx.2: Long
+        Type Long
+        Local $dependency.local.8
+      val $value.3: MaybeUninit<Long>
+        Type MaybeUninit<Long>
+        Local $dependency.local.9
+      branch bb5 bb4
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb4 logic.rhs.4
+      assign $logic.1
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          ArrayLen MutableArray<MaybeUninit<Long>>
+            Type MutableArray<MaybeUninit<Long>>
+            Local $arr.1
+      goto bb6
+    bb5 logic.short.5
+      assign $logic.1
+        Type Boolean
+        BoolLiteral true
+      goto bb6
+    bb6 logic.merge.6
+      branch bb7 bb8
+        Type Boolean
+        Local $logic.1
+    bb7 if.then.7
+      assign $new.2
+        Type IndexOutOfBoundsException
+        ClassAlloc IndexOutOfBoundsException
+      call external14 direct
+        Type IndexOutOfBoundsException
+        Local $new.2
+      throw
+        Type IndexOutOfBoundsException
+        Local $new.2
+    bb8 if.merge.8
+      array_set MutableArray<MaybeUninit<Long>>
+        Type MutableArray<MaybeUninit<Long>>
+        Local $arr.1
+        Type Long
+        Local $idx.2
+        Type MaybeUninit<Long>
+        Local $value.3
+      val $dependency.local.10: Long
+        Type Long
+        Local $dependency.local.1
+      val $dependency.local.11: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.local.12: Long
+        Type Long
+        Local $dependency.local.11
+      assign $dependency.local.1
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.local.10
+          Type Long
+          Local $dependency.local.12
+      goto bb1
+  fun List.get @fn30(this: List<Int>, index: Long) -> Int
+    bb0 entry
+      trap "call to abstract method `List.get`"
+  fun MutableList.set @fn31(this: MutableList<Int>, index: Long, value: Int) -> Unit
+    bb0 entry
+      trap "call to abstract method `MutableList.set`"
+  fun iterator @fn32(this: Array<Long>) -> Iterator<Long>
+    bb0 entry
+      val $dependency.local.1: List<Long>
+        Type List<Long>
+        Retype List<Long>
+          Type Array<Long>
+          Local this
+      val $dependency.local.2: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.local.3: Boolean
+        Type Boolean
+        BoolLiteral false
+      val $dependency.local.4: List<Long>
+        Type List<Long>
+        Local $dependency.local.1
+      val $dependency.local.5: Long
+        Type Long
+        Local $dependency.local.2
+      val $dependency.local.6: Boolean
+        Type Boolean
+        Local $dependency.local.3
+      assign $new.1
+        Type ListIterator<Long>
+        ClassAlloc ListIterator<Long>
+      call @fn61 direct
+        Type ListIterator<Long>
+        Local $new.1
+        Type List<Long>
+        Local $dependency.local.4
+        Type Long
+        Local $dependency.local.5
+        Type Boolean
+        Local $dependency.local.6
+      return
+        Type Iterator<Long>
+        Retype Iterator<Long>
+          Type ListIterator<Long>
+          Local $new.1
+  fun get @fn33(this: Array<Long>, index: Long) -> Long
+    bb0 entry
+      val $dependency.local.2: Array<Long>
+        Type Array<Long>
+        Local this
+      val $dependency.local.3: Long
+        Type Long
+        Local index
+      val $dependency.local.4: Long
+        Type Long
+        Local $dependency.local.3
+      val $arr.1: Array<Long>
+        Type Array<Long>
+        Local $dependency.local.2
+      val $idx.2: Long
+        Type Long
+        Local $dependency.local.4
+      branch bb2 bb1
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb1 logic.rhs.1
+      assign $logic.1
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          ArrayLen Array<Long>
+            Type Array<Long>
+            Local $arr.1
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.1
+        Type Boolean
+        BoolLiteral true
+      goto bb3
+    bb3 logic.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $logic.1
+    bb4 if.then.4
+      assign $new.2
+        Type IndexOutOfBoundsException
+        ClassAlloc IndexOutOfBoundsException
+      call external14 direct
+        Type IndexOutOfBoundsException
+        Local $new.2
+      throw
+        Type IndexOutOfBoundsException
+        Local $new.2
+    bb5 if.merge.5
+      return
+        Type Long
+        ArrayGet Array<Long>
+          Type Array<Long>
+          Local $arr.1
+          Type Long
+          Local $idx.2
+  fun size @fn34(this: Array<Long>) -> Long
+    bb0 entry
+      val $dependency.local.1: Array<Long>
+        Type Array<Long>
+        Local this
+      return
+        Type Long
+        ArrayLen Array<Long>
+          Type Array<Long>
+          Local $dependency.local.1
+  fun println @fn35(value: String) -> Unit
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local value
+      call $dependency.local.2: String = external15 direct
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external16 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str2
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external16 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun next @fn36(this: ListIterator<MaybeUninit<Int>>) -> Option<MaybeUninit<Int>>
+    bb0 entry
+      branch bb1 bb2
+        Type Boolean
+        FieldAccess 2
+          Type ListIterator<MaybeUninit<Int>>
+          Local this
+    bb1 if.then.1
+      return
+        Type Option<MaybeUninit<Int>>
+        VariantConstruct Option<MaybeUninit<Int>> v1
+    bb2 if.merge.2
+      val $dependency.local.2: Long
+        Type Long
+        FieldAccess 1
+          Type ListIterator<MaybeUninit<Int>>
+          Local this
+      call $dependency.local.3: Long = @fn44 interface List<MaybeUninit<Int>>[2]
+        Type List<MaybeUninit<Int>>
+        FieldAccess 0
+          Type ListIterator<MaybeUninit<Int>>
+          Local this
+      val $dependency.local.4: Long
+        Type Long
+        Local $dependency.local.3
+      branch bb3 bb4
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Long result=Long
+            Type Long
+            Local $dependency.local.2
+            Type Long
+            Local $dependency.local.4
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb3 if.then.3
+      field_set 2
+        Type ListIterator<MaybeUninit<Int>>
+        Local this
+        Type Boolean
+        BoolLiteral true
+      return
+        Type Option<MaybeUninit<Int>>
+        VariantConstruct Option<MaybeUninit<Int>> v1
+    bb4 if.merge.4
+      val $dependency.local.5: List<MaybeUninit<Int>>
+        Type List<MaybeUninit<Int>>
+        FieldAccess 0
+          Type ListIterator<MaybeUninit<Int>>
+          Local this
+      val $dependency.local.6: Long
+        Type Long
+        FieldAccess 1
+          Type ListIterator<MaybeUninit<Int>>
+          Local this
+      val $dependency.local.7: Long
+        Type Long
+        Local $dependency.local.6
+      call $dependency.local.1: MaybeUninit<Int> = @fn45 interface List<MaybeUninit<Int>>[1]
+        Type List<MaybeUninit<Int>>
+        Local $dependency.local.5
+        Type Long
+        Local $dependency.local.7
+      val $dependency.local.8: Long
+        Type Long
+        FieldAccess 1
+          Type ListIterator<MaybeUninit<Int>>
+          Local this
+      val $dependency.local.9: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.local.10: Long
+        Type Long
+        Local $dependency.local.9
+      field_set 1
+        Type ListIterator<MaybeUninit<Int>>
+        Local this
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.local.8
+          Type Long
+          Local $dependency.local.10
+      val $dependency.local.11: MaybeUninit<Int>
+        Type MaybeUninit<Int>
+        Local $dependency.local.1
+      val $dependency.local.12: MaybeUninit<Int>
+        Type MaybeUninit<Int>
+        Local $dependency.local.11
+      return
+        Type Option<MaybeUninit<Int>>
+        VariantConstruct Option<MaybeUninit<Int>> v0
+          Type MaybeUninit<Int>
+          Local $dependency.local.12
+  fun next @fn37(this: ListIterator<Int>) -> Option<Int>
+    bb0 entry
+      branch bb1 bb2
+        Type Boolean
+        FieldAccess 2
+          Type ListIterator<Int>
+          Local this
+    bb1 if.then.1
+      return
+        Type Option<Int>
+        VariantConstruct Option<Int> v1
+    bb2 if.merge.2
+      val $dependency.local.2: Long
+        Type Long
+        FieldAccess 1
+          Type ListIterator<Int>
+          Local this
+      call $dependency.local.3: Long = @fn46 interface List<Int>[2]
+        Type List<Int>
+        FieldAccess 0
+          Type ListIterator<Int>
+          Local this
+      val $dependency.local.4: Long
+        Type Long
+        Local $dependency.local.3
+      branch bb3 bb4
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Long result=Long
+            Type Long
+            Local $dependency.local.2
+            Type Long
+            Local $dependency.local.4
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb3 if.then.3
+      field_set 2
+        Type ListIterator<Int>
+        Local this
+        Type Boolean
+        BoolLiteral true
+      return
+        Type Option<Int>
+        VariantConstruct Option<Int> v1
+    bb4 if.merge.4
+      val $dependency.local.5: List<Int>
+        Type List<Int>
+        FieldAccess 0
+          Type ListIterator<Int>
+          Local this
+      val $dependency.local.6: Long
+        Type Long
+        FieldAccess 1
+          Type ListIterator<Int>
+          Local this
+      val $dependency.local.7: Long
+        Type Long
+        Local $dependency.local.6
+      call $dependency.local.1: Int = @fn30 interface List<Int>[1]
+        Type List<Int>
+        Local $dependency.local.5
+        Type Long
+        Local $dependency.local.7
+      val $dependency.local.8: Long
+        Type Long
+        FieldAccess 1
+          Type ListIterator<Int>
+          Local this
+      val $dependency.local.9: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.local.10: Long
+        Type Long
+        Local $dependency.local.9
+      field_set 1
+        Type ListIterator<Int>
+        Local this
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.local.8
+          Type Long
+          Local $dependency.local.10
+      val $dependency.local.11: Int
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.12: Int
+        Type Int
+        Local $dependency.local.11
+      return
+        Type Option<Int>
+        VariantConstruct Option<Int> v0
+          Type Int
+          Local $dependency.local.12
+  fun checkIndex @fn38(this: ArrayList<Int>, index: Long) -> Unit
+    bb0 entry
+      val $dependency.local.2: Long
+        Type Long
+        Local index
+      val $dependency.local.3: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.local.4: Long
+        Type Long
+        Local $dependency.local.3
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Long result=Long
+            Type Long
+            Local $dependency.local.2
+            Type Long
+            Local $dependency.local.4
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb1 if.then.1
+      val $dependency.local.8: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb3
+    bb2 if.else.2
+      val $dependency.local.5: Long
+        Type Long
+        Local index
+      val $dependency.local.6: Long
+        Type Long
+        FieldAccess 1
+          Type ArrayList<Int>
+          Local this
+      val $dependency.local.7: Long
+        Type Long
+        Local $dependency.local.6
+      val $dependency.local.8: Boolean
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Long result=Long
+            Type Long
+            Local $dependency.local.5
+            Type Long
+            Local $dependency.local.7
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+      goto bb3
+    bb3 if.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $dependency.local.8
+    bb4 if.then.4
+      assign $new.1
+        Type IndexOutOfBoundsException
+        ClassAlloc IndexOutOfBoundsException
+      call external14 direct
+        Type IndexOutOfBoundsException
+        Local $new.1
+      throw
+        Type IndexOutOfBoundsException
+        Local $new.1
+    bb5 if.merge.5
+      return
+  fun ensureRoom @fn39(this: ArrayList<Int>) -> Unit
+    bb0 entry
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          FieldAccess 1
+            Type ArrayList<Int>
+            Local this
+          Type Long
+          IntegerLiteral Long value=9223372036854775807 bits=0x7fffffffffffffff
+    bb1 if.then.1
+      call external17 direct
+      goto bb2
+    bb2 if.merge.2
+      val $dependency.local.7: Long
+        Type Long
+        FieldAccess 1
+          Type ArrayList<Int>
+          Local this
+      val $dependency.local.8: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.local.9: Long
+        Type Long
+        Local $dependency.local.8
+      val $dependency.local.1: Long
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.local.7
+          Type Long
+          Local $dependency.local.9
+      call $dependency.local.2: Long = @fn10 direct
+        Type MutableArray<MaybeUninit<Int>>
+        FieldAccess 0
+          Type ArrayList<Int>
+          Local this
+      val $dependency.local.10: Long
+        Type Long
+        Local $dependency.local.1
+      val $dependency.local.11: Long
+        Type Long
+        Local $dependency.local.2
+      val $dependency.local.12: Long
+        Type Long
+        Local $dependency.local.11
+      branch bb3 bb4
+        Type Boolean
+        IntegerCompare less-than-or-equal operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Long result=Long
+            Type Long
+            Local $dependency.local.10
+            Type Long
+            Local $dependency.local.12
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb3 if.then.3
+      return
+    bb4 if.merge.4
+      branch bb5 bb6
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          Local $dependency.local.2
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb5 if.then.5
+      assign $dependency.local.20
+        Type Long
+        IntegerLiteral Long value=8 bits=0x0000000000000008
+      goto bb7
+    bb6 if.else.6
+      val $dependency.local.13: Long
+        Type Long
+        Local $dependency.local.2
+      val $dependency.local.14: Long
+        Type Long
+        IntegerLiteral Long value=4611686018427387903 bits=0x3fffffffffffffff
+      val $dependency.local.15: Long
+        Type Long
+        Local $dependency.local.14
+      branch bb8 bb9
+        Type Boolean
+        IntegerCompare greater-than operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Long result=Long
+            Type Long
+            Local $dependency.local.13
+            Type Long
+            Local $dependency.local.15
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb7 if.merge.7
+      val $dependency.local.3: Long
+        Type Long
+        Local $dependency.local.20
+      val $dependency.local.4: MutableArray<MaybeUninit<Int>>
+        Type MutableArray<MaybeUninit<Int>>
+        FieldAccess 0
+          Type ArrayList<Int>
+          Local this
+      val $dependency.local.5: Long
+        Type Long
+        FieldAccess 1
+          Type ArrayList<Int>
+          Local this
+      val $dependency.local.21: Long
+        Type Long
+        Local $dependency.local.3
+      val $dependency.local.22: (Long) -> MaybeUninit<Int>
+        Type (Long) -> MaybeUninit<Int>
+        ClosureAlloc cc0 $Closure$lambda0
+          CaptureInit field=0
+            Type Long
+            Local $dependency.local.5
+          CaptureInit field=1
+            Type MutableArray<MaybeUninit<Int>>
+            Local $dependency.local.4
+      val $dependency.local.23: Long
+        Type Long
+        Local $dependency.local.21
+      val $dependency.local.24: (Long) -> MaybeUninit<Int>
+        Type (Long) -> MaybeUninit<Int>
+        Local $dependency.local.22
+      val $array_size.1: Long
+        Type Long
+        Local $dependency.local.23
+      val $array_init.2: (Long) -> MaybeUninit<Int>
+        Type (Long) -> MaybeUninit<Int>
+        Local $dependency.local.24
+      branch bb11 bb12
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $array_size.1
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb8 if.then.8
+      assign $dependency.local.19
+        Type Long
+        Local $dependency.local.1
+      goto bb10
+    bb9 if.else.9
+      val $dependency.local.16: Long
+        Type Long
+        Local $dependency.local.2
+      val $dependency.local.17: Long
+        Type Long
+        IntegerLiteral Long value=2 bits=0x0000000000000002
+      val $dependency.local.18: Long
+        Type Long
+        Local $dependency.local.17
+      assign $dependency.local.19
+        Type Long
+        IntegerBinary multiply kind=Long
+          Type Long
+          Local $dependency.local.16
+          Type Long
+          Local $dependency.local.18
+      goto bb10
+    bb10 if.merge.10
+      assign $dependency.local.20
+        Type Long
+        Local $dependency.local.19
+      goto bb7
+    bb11 if.then.11
+      assign $new.1
+        Type IllegalArgumentException
+        ClassAlloc IllegalArgumentException
+      call external18 direct
+        Type IllegalArgumentException
+        Local $new.1
+      throw
+        Type IllegalArgumentException
+        Local $new.1
+    bb12 if.merge.12
+      val $array.3: MutableArray<MaybeUninit<Int>>
+        Type MutableArray<MaybeUninit<Int>>
+        ArrayAllocate MutableArray<MaybeUninit<Int>>
+          Type Long
+          Local $array_size.1
+      var $array_index.4: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      goto bb13
+    bb13 while.cond.13 <loop-header-poll>
+      branch bb15 bb14
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $array_index.4
+          Type Long
+          Local $array_size.1
+    bb14 while.exit.14
+      val $dependency.local.6: MutableArray<MaybeUninit<Int>>
+        Type MutableArray<MaybeUninit<Int>>
+        Local $array.3
+      field_set 0
+        Type ArrayList<Int>
+        Local this
+        Type MutableArray<MaybeUninit<Int>>
+        Local $dependency.local.6
+      return
+    bb15 while.body.15
+      call $array_value.5: MaybeUninit<Int> = <closure:function_type0> closure[function_type0]
+        Type (Long) -> MaybeUninit<Int>
+        Local $array_init.2
+        Type Long
+        Local $array_index.4
+      array_set MutableArray<MaybeUninit<Int>>
+        Type MutableArray<MaybeUninit<Int>>
+        Local $array.3
+        Type Long
+        Local $array_index.4
+        Type MaybeUninit<Int>
+        Local $array_value.5
+      assign $array_index.4
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $array_index.4
+          Type Long
+          IntegerLiteral Long value=1 bits=0x0000000000000001
+      goto bb13
+  fun next @fn40(this: ListIterator<MaybeUninit<Long>>) -> Option<MaybeUninit<Long>>
+    bb0 entry
+      branch bb1 bb2
+        Type Boolean
+        FieldAccess 2
+          Type ListIterator<MaybeUninit<Long>>
+          Local this
+    bb1 if.then.1
+      return
+        Type Option<MaybeUninit<Long>>
+        VariantConstruct Option<MaybeUninit<Long>> v1
+    bb2 if.merge.2
+      val $dependency.local.2: Long
+        Type Long
+        FieldAccess 1
+          Type ListIterator<MaybeUninit<Long>>
+          Local this
+      call $dependency.local.3: Long = @fn48 interface List<MaybeUninit<Long>>[2]
+        Type List<MaybeUninit<Long>>
+        FieldAccess 0
+          Type ListIterator<MaybeUninit<Long>>
+          Local this
+      val $dependency.local.4: Long
+        Type Long
+        Local $dependency.local.3
+      branch bb3 bb4
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Long result=Long
+            Type Long
+            Local $dependency.local.2
+            Type Long
+            Local $dependency.local.4
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb3 if.then.3
+      field_set 2
+        Type ListIterator<MaybeUninit<Long>>
+        Local this
+        Type Boolean
+        BoolLiteral true
+      return
+        Type Option<MaybeUninit<Long>>
+        VariantConstruct Option<MaybeUninit<Long>> v1
+    bb4 if.merge.4
+      val $dependency.local.5: List<MaybeUninit<Long>>
+        Type List<MaybeUninit<Long>>
+        FieldAccess 0
+          Type ListIterator<MaybeUninit<Long>>
+          Local this
+      val $dependency.local.6: Long
+        Type Long
+        FieldAccess 1
+          Type ListIterator<MaybeUninit<Long>>
+          Local this
+      val $dependency.local.7: Long
+        Type Long
+        Local $dependency.local.6
+      call $dependency.local.1: MaybeUninit<Long> = @fn49 interface List<MaybeUninit<Long>>[1]
+        Type List<MaybeUninit<Long>>
+        Local $dependency.local.5
+        Type Long
+        Local $dependency.local.7
+      val $dependency.local.8: Long
+        Type Long
+        FieldAccess 1
+          Type ListIterator<MaybeUninit<Long>>
+          Local this
+      val $dependency.local.9: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.local.10: Long
+        Type Long
+        Local $dependency.local.9
+      field_set 1
+        Type ListIterator<MaybeUninit<Long>>
+        Local this
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.local.8
+          Type Long
+          Local $dependency.local.10
+      val $dependency.local.11: MaybeUninit<Long>
+        Type MaybeUninit<Long>
+        Local $dependency.local.1
+      val $dependency.local.12: MaybeUninit<Long>
+        Type MaybeUninit<Long>
+        Local $dependency.local.11
+      return
+        Type Option<MaybeUninit<Long>>
+        VariantConstruct Option<MaybeUninit<Long>> v0
+          Type MaybeUninit<Long>
+          Local $dependency.local.12
+  fun next @fn41(this: ListIterator<Long>) -> Option<Long>
+    bb0 entry
+      branch bb1 bb2
+        Type Boolean
+        FieldAccess 2
+          Type ListIterator<Long>
+          Local this
+    bb1 if.then.1
+      return
+        Type Option<Long>
+        VariantConstruct Option<Long> v1
+    bb2 if.merge.2
+      val $dependency.local.2: Long
+        Type Long
+        FieldAccess 1
+          Type ListIterator<Long>
+          Local this
+      call $dependency.local.3: Long = @fn50 interface List<Long>[2]
+        Type List<Long>
+        FieldAccess 0
+          Type ListIterator<Long>
+          Local this
+      val $dependency.local.4: Long
+        Type Long
+        Local $dependency.local.3
+      branch bb3 bb4
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Long result=Long
+            Type Long
+            Local $dependency.local.2
+            Type Long
+            Local $dependency.local.4
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb3 if.then.3
+      field_set 2
+        Type ListIterator<Long>
+        Local this
+        Type Boolean
+        BoolLiteral true
+      return
+        Type Option<Long>
+        VariantConstruct Option<Long> v1
+    bb4 if.merge.4
+      val $dependency.local.5: List<Long>
+        Type List<Long>
+        FieldAccess 0
+          Type ListIterator<Long>
+          Local this
+      val $dependency.local.6: Long
+        Type Long
+        FieldAccess 1
+          Type ListIterator<Long>
+          Local this
+      val $dependency.local.7: Long
+        Type Long
+        Local $dependency.local.6
+      call $dependency.local.1: Long = @fn51 interface List<Long>[1]
+        Type List<Long>
+        Local $dependency.local.5
+        Type Long
+        Local $dependency.local.7
+      val $dependency.local.8: Long
+        Type Long
+        FieldAccess 1
+          Type ListIterator<Long>
+          Local this
+      val $dependency.local.9: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.local.10: Long
+        Type Long
+        Local $dependency.local.9
+      field_set 1
+        Type ListIterator<Long>
+        Local this
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.local.8
+          Type Long
+          Local $dependency.local.10
+      val $dependency.local.11: Long
+        Type Long
+        Local $dependency.local.1
+      val $dependency.local.12: Long
+        Type Long
+        Local $dependency.local.11
+      return
+        Type Option<Long>
+        VariantConstruct Option<Long> v0
+          Type Long
+          Local $dependency.local.12
+  fun checkIndex @fn42(this: ArrayList<Long>, index: Long) -> Unit
+    bb0 entry
+      val $dependency.local.2: Long
+        Type Long
+        Local index
+      val $dependency.local.3: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.local.4: Long
+        Type Long
+        Local $dependency.local.3
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Long result=Long
+            Type Long
+            Local $dependency.local.2
+            Type Long
+            Local $dependency.local.4
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb1 if.then.1
+      val $dependency.local.8: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb3
+    bb2 if.else.2
+      val $dependency.local.5: Long
+        Type Long
+        Local index
+      val $dependency.local.6: Long
+        Type Long
+        FieldAccess 1
+          Type ArrayList<Long>
+          Local this
+      val $dependency.local.7: Long
+        Type Long
+        Local $dependency.local.6
+      val $dependency.local.8: Boolean
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Long result=Long
+            Type Long
+            Local $dependency.local.5
+            Type Long
+            Local $dependency.local.7
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+      goto bb3
+    bb3 if.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $dependency.local.8
+    bb4 if.then.4
+      assign $new.1
+        Type IndexOutOfBoundsException
+        ClassAlloc IndexOutOfBoundsException
+      call external14 direct
+        Type IndexOutOfBoundsException
+        Local $new.1
+      throw
+        Type IndexOutOfBoundsException
+        Local $new.1
+    bb5 if.merge.5
+      return
+  fun ensureRoom @fn43(this: ArrayList<Long>) -> Unit
+    bb0 entry
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          FieldAccess 1
+            Type ArrayList<Long>
+            Local this
+          Type Long
+          IntegerLiteral Long value=9223372036854775807 bits=0x7fffffffffffffff
+    bb1 if.then.1
+      call external17 direct
+      goto bb2
+    bb2 if.merge.2
+      val $dependency.local.7: Long
+        Type Long
+        FieldAccess 1
+          Type ArrayList<Long>
+          Local this
+      val $dependency.local.8: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.local.9: Long
+        Type Long
+        Local $dependency.local.8
+      val $dependency.local.1: Long
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.local.7
+          Type Long
+          Local $dependency.local.9
+      call $dependency.local.2: Long = @fn21 direct
+        Type MutableArray<MaybeUninit<Long>>
+        FieldAccess 0
+          Type ArrayList<Long>
+          Local this
+      val $dependency.local.10: Long
+        Type Long
+        Local $dependency.local.1
+      val $dependency.local.11: Long
+        Type Long
+        Local $dependency.local.2
+      val $dependency.local.12: Long
+        Type Long
+        Local $dependency.local.11
+      branch bb3 bb4
+        Type Boolean
+        IntegerCompare less-than-or-equal operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Long result=Long
+            Type Long
+            Local $dependency.local.10
+            Type Long
+            Local $dependency.local.12
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb3 if.then.3
+      return
+    bb4 if.merge.4
+      branch bb5 bb6
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          Local $dependency.local.2
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb5 if.then.5
+      assign $dependency.local.20
+        Type Long
+        IntegerLiteral Long value=8 bits=0x0000000000000008
+      goto bb7
+    bb6 if.else.6
+      val $dependency.local.13: Long
+        Type Long
+        Local $dependency.local.2
+      val $dependency.local.14: Long
+        Type Long
+        IntegerLiteral Long value=4611686018427387903 bits=0x3fffffffffffffff
+      val $dependency.local.15: Long
+        Type Long
+        Local $dependency.local.14
+      branch bb8 bb9
+        Type Boolean
+        IntegerCompare greater-than operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Long result=Long
+            Type Long
+            Local $dependency.local.13
+            Type Long
+            Local $dependency.local.15
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb7 if.merge.7
+      val $dependency.local.3: Long
+        Type Long
+        Local $dependency.local.20
+      val $dependency.local.4: MutableArray<MaybeUninit<Long>>
+        Type MutableArray<MaybeUninit<Long>>
+        FieldAccess 0
+          Type ArrayList<Long>
+          Local this
+      val $dependency.local.5: Long
+        Type Long
+        FieldAccess 1
+          Type ArrayList<Long>
+          Local this
+      val $dependency.local.21: Long
+        Type Long
+        Local $dependency.local.3
+      val $dependency.local.22: (Long) -> MaybeUninit<Long>
+        Type (Long) -> MaybeUninit<Long>
+        ClosureAlloc cc1 $Closure$lambda1
+          CaptureInit field=1
+            Type Long
+            Local $dependency.local.5
+          CaptureInit field=0
+            Type MutableArray<MaybeUninit<Long>>
+            Local $dependency.local.4
+      val $dependency.local.23: Long
+        Type Long
+        Local $dependency.local.21
+      val $dependency.local.24: (Long) -> MaybeUninit<Long>
+        Type (Long) -> MaybeUninit<Long>
+        Local $dependency.local.22
+      val $array_size.1: Long
+        Type Long
+        Local $dependency.local.23
+      val $array_init.2: (Long) -> MaybeUninit<Long>
+        Type (Long) -> MaybeUninit<Long>
+        Local $dependency.local.24
+      branch bb11 bb12
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $array_size.1
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb8 if.then.8
+      assign $dependency.local.19
+        Type Long
+        Local $dependency.local.1
+      goto bb10
+    bb9 if.else.9
+      val $dependency.local.16: Long
+        Type Long
+        Local $dependency.local.2
+      val $dependency.local.17: Long
+        Type Long
+        IntegerLiteral Long value=2 bits=0x0000000000000002
+      val $dependency.local.18: Long
+        Type Long
+        Local $dependency.local.17
+      assign $dependency.local.19
+        Type Long
+        IntegerBinary multiply kind=Long
+          Type Long
+          Local $dependency.local.16
+          Type Long
+          Local $dependency.local.18
+      goto bb10
+    bb10 if.merge.10
+      assign $dependency.local.20
+        Type Long
+        Local $dependency.local.19
+      goto bb7
+    bb11 if.then.11
+      assign $new.1
+        Type IllegalArgumentException
+        ClassAlloc IllegalArgumentException
+      call external18 direct
+        Type IllegalArgumentException
+        Local $new.1
+      throw
+        Type IllegalArgumentException
+        Local $new.1
+    bb12 if.merge.12
+      val $array.3: MutableArray<MaybeUninit<Long>>
+        Type MutableArray<MaybeUninit<Long>>
+        ArrayAllocate MutableArray<MaybeUninit<Long>>
+          Type Long
+          Local $array_size.1
+      var $array_index.4: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      goto bb13
+    bb13 while.cond.13 <loop-header-poll>
+      branch bb15 bb14
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $array_index.4
+          Type Long
+          Local $array_size.1
+    bb14 while.exit.14
+      val $dependency.local.6: MutableArray<MaybeUninit<Long>>
+        Type MutableArray<MaybeUninit<Long>>
+        Local $array.3
+      field_set 0
+        Type ArrayList<Long>
+        Local this
+        Type MutableArray<MaybeUninit<Long>>
+        Local $dependency.local.6
+      return
+    bb15 while.body.15
+      call $array_value.5: MaybeUninit<Long> = <closure:function_type2> closure[function_type2]
+        Type (Long) -> MaybeUninit<Long>
+        Local $array_init.2
+        Type Long
+        Local $array_index.4
+      array_set MutableArray<MaybeUninit<Long>>
+        Type MutableArray<MaybeUninit<Long>>
+        Local $array.3
+        Type Long
+        Local $array_index.4
+        Type MaybeUninit<Long>
+        Local $array_value.5
+      assign $array_index.4
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $array_index.4
+          Type Long
+          IntegerLiteral Long value=1 bits=0x0000000000000001
+      goto bb13
+  fun List.$get$size @fn44(this: List<MaybeUninit<Int>>) -> Long
+    bb0 entry
+      trap "call to abstract method `List.$get$size`"
+  fun List.get @fn45(this: List<MaybeUninit<Int>>, index: Long) -> MaybeUninit<Int>
+    bb0 entry
+      trap "call to abstract method `List.get`"
+  fun List.$get$size @fn46(this: List<Int>) -> Long
+    bb0 entry
+      trap "call to abstract method `List.$get$size`"
+  fun $lambda @fn47($argument.0: (Long) -> MaybeUninit<Int>, $argument.1: Long) -> MaybeUninit<Int>
+    bb0 entry
+      val $dependency.local.1: Long
+        Type Long
+        Local $argument.1
+      val $dependency.local.2: Long
+        Type Long
+        ClosureCapture cc0 0
+          Type (Long) -> MaybeUninit<Int>
+          Local $argument.0
+      val $dependency.local.3: Long
+        Type Long
+        Local $dependency.local.2
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Long result=Long
+            Type Long
+            Local $dependency.local.1
+            Type Long
+            Local $dependency.local.3
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb1 if.then.1
+      val $dependency.local.4: MutableArray<MaybeUninit<Int>>
+        Type MutableArray<MaybeUninit<Int>>
+        ClosureCapture cc0 1
+          Type (Long) -> MaybeUninit<Int>
+          Local $argument.0
+      val $dependency.local.5: Long
+        Type Long
+        Local $argument.1
+      val $dependency.local.6: Long
+        Type Long
+        Local $dependency.local.5
+      call $call.1: MaybeUninit<Int> = @fn9 direct
+        Type MutableArray<MaybeUninit<Int>>
+        Local $dependency.local.4
+        Type Long
+        Local $dependency.local.6
+      assign $dependency.local.7
+        Type MaybeUninit<Int>
+        Local $call.1
+      goto bb3
+    bb2 if.else.2
+      assign $dependency.local.7
+        Type MaybeUninit<Int>
+        MaybeUninit.Uninit MaybeUninit
+      goto bb3
+    bb3 if.merge.3
+      return
+        Type MaybeUninit<Int>
+        Local $dependency.local.7
+  fun List.$get$size @fn48(this: List<MaybeUninit<Long>>) -> Long
+    bb0 entry
+      trap "call to abstract method `List.$get$size`"
+  fun List.get @fn49(this: List<MaybeUninit<Long>>, index: Long) -> MaybeUninit<Long>
+    bb0 entry
+      trap "call to abstract method `List.get`"
+  fun List.$get$size @fn50(this: List<Long>) -> Long
+    bb0 entry
+      trap "call to abstract method `List.$get$size`"
+  fun List.get @fn51(this: List<Long>, index: Long) -> Long
+    bb0 entry
+      trap "call to abstract method `List.get`"
+  fun $lambda @fn52($argument.0: (Long) -> MaybeUninit<Long>, $argument.1: Long) -> MaybeUninit<Long>
+    bb0 entry
+      val $dependency.local.1: Long
+        Type Long
+        Local $argument.1
+      val $dependency.local.2: Long
+        Type Long
+        ClosureCapture cc1 1
+          Type (Long) -> MaybeUninit<Long>
+          Local $argument.0
+      val $dependency.local.3: Long
+        Type Long
+        Local $dependency.local.2
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Long result=Long
+            Type Long
+            Local $dependency.local.1
+            Type Long
+            Local $dependency.local.3
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb1 if.then.1
+      val $dependency.local.4: MutableArray<MaybeUninit<Long>>
+        Type MutableArray<MaybeUninit<Long>>
+        ClosureCapture cc1 0
+          Type (Long) -> MaybeUninit<Long>
+          Local $argument.0
+      val $dependency.local.5: Long
+        Type Long
+        Local $argument.1
+      val $dependency.local.6: Long
+        Type Long
+        Local $dependency.local.5
+      call $call.1: MaybeUninit<Long> = @fn20 direct
+        Type MutableArray<MaybeUninit<Long>>
+        Local $dependency.local.4
+        Type Long
+        Local $dependency.local.6
+      assign $dependency.local.7
+        Type MaybeUninit<Long>
+        Local $call.1
+      goto bb3
+    bb2 if.else.2
+      assign $dependency.local.7
+        Type MaybeUninit<Long>
+        MaybeUninit.Uninit MaybeUninit
+      goto bb3
+    bb3 if.merge.3
+      return
+        Type MaybeUninit<Long>
+        Local $dependency.local.7
+  fun $lambda @fn53($argument.0: (Long) -> MaybeUninit<Int>, $argument.1: Long) -> MaybeUninit<Int>
+    bb0 entry
+      return
+        Type MaybeUninit<Int>
+        MaybeUninit.Uninit MaybeUninit
+  fun $lambda @fn54($argument.0: (Long) -> MaybeUninit<Long>, $argument.1: Long) -> MaybeUninit<Long>
+    bb0 entry
+      return
+        Type MaybeUninit<Long>
+        MaybeUninit.Uninit MaybeUninit
+  fun init.UpdateFailure.$c0 @fn55(this: UpdateFailure) -> Unit
+    bb0 entry
+      val $dependency.argument.0: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v1
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        Local $dependency.argument.0
+      call external0 direct
+        Type Exception
+        Retype Exception
+          Type UpdateFailure
+          Local this
+        Type Option<String>
+        Local $dependency.parameter.message
+      return
+  fun init.ArrayList.$c0 @fn56(this: ArrayList<Int>, initialCapacity: Long) -> Unit
+    bb0 entry
+      val $dependency.constructor.local.0: Long
+        Type Long
+        Local initialCapacity
+      val $dependency.constructor.local.1: (Long) -> MaybeUninit<Int>
+        Type (Long) -> MaybeUninit<Int>
+        ClosureAlloc cc2 $Closure$lambda2
+      val $dependency.constructor.local.2: Long
+        Type Long
+        Local $dependency.constructor.local.0
+      val $dependency.constructor.local.3: (Long) -> MaybeUninit<Int>
+        Type (Long) -> MaybeUninit<Int>
+        Local $dependency.constructor.local.1
+      val $array_size.1: Long
+        Type Long
+        Local $dependency.constructor.local.2
+      val $array_init.2: (Long) -> MaybeUninit<Int>
+        Type (Long) -> MaybeUninit<Int>
+        Local $dependency.constructor.local.3
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $array_size.1
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb1 if.then.1
+      assign $new.1
+        Type IllegalArgumentException
+        ClassAlloc IllegalArgumentException
+      call external18 direct
+        Type IllegalArgumentException
+        Local $new.1
+      throw
+        Type IllegalArgumentException
+        Local $new.1
+    bb2 if.merge.2
+      val $array.3: MutableArray<MaybeUninit<Int>>
+        Type MutableArray<MaybeUninit<Int>>
+        ArrayAllocate MutableArray<MaybeUninit<Int>>
+          Type Long
+          Local $array_size.1
+      var $array_index.4: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      goto bb3
+    bb3 while.cond.3 <loop-header-poll>
+      branch bb5 bb4
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $array_index.4
+          Type Long
+          Local $array_size.1
+    bb4 while.exit.4
+      field_set 0
+        Type ArrayList<Int>
+        Local this
+        Type MutableArray<MaybeUninit<Int>>
+        Local $array.3
+      field_set 1
+        Type ArrayList<Int>
+        Local this
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      return
+    bb5 while.body.5
+      call $array_value.5: MaybeUninit<Int> = <closure:function_type0> closure[function_type0]
+        Type (Long) -> MaybeUninit<Int>
+        Local $array_init.2
+        Type Long
+        Local $array_index.4
+      array_set MutableArray<MaybeUninit<Int>>
+        Type MutableArray<MaybeUninit<Int>>
+        Local $array.3
+        Type Long
+        Local $array_index.4
+        Type MaybeUninit<Int>
+        Local $array_value.5
+      assign $array_index.4
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $array_index.4
+          Type Long
+          IntegerLiteral Long value=1 bits=0x0000000000000001
+      goto bb3
+  fun init.ArrayList.$c0 @fn57(this: ArrayList<Long>, initialCapacity: Long) -> Unit
+    bb0 entry
+      val $dependency.constructor.local.0: Long
+        Type Long
+        Local initialCapacity
+      val $dependency.constructor.local.1: (Long) -> MaybeUninit<Long>
+        Type (Long) -> MaybeUninit<Long>
+        ClosureAlloc cc3 $Closure$lambda3
+      val $dependency.constructor.local.2: Long
+        Type Long
+        Local $dependency.constructor.local.0
+      val $dependency.constructor.local.3: (Long) -> MaybeUninit<Long>
+        Type (Long) -> MaybeUninit<Long>
+        Local $dependency.constructor.local.1
+      val $array_size.1: Long
+        Type Long
+        Local $dependency.constructor.local.2
+      val $array_init.2: (Long) -> MaybeUninit<Long>
+        Type (Long) -> MaybeUninit<Long>
+        Local $dependency.constructor.local.3
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $array_size.1
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb1 if.then.1
+      assign $new.1
+        Type IllegalArgumentException
+        ClassAlloc IllegalArgumentException
+      call external18 direct
+        Type IllegalArgumentException
+        Local $new.1
+      throw
+        Type IllegalArgumentException
+        Local $new.1
+    bb2 if.merge.2
+      val $array.3: MutableArray<MaybeUninit<Long>>
+        Type MutableArray<MaybeUninit<Long>>
+        ArrayAllocate MutableArray<MaybeUninit<Long>>
+          Type Long
+          Local $array_size.1
+      var $array_index.4: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      goto bb3
+    bb3 while.cond.3 <loop-header-poll>
+      branch bb5 bb4
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $array_index.4
+          Type Long
+          Local $array_size.1
+    bb4 while.exit.4
+      field_set 0
+        Type ArrayList<Long>
+        Local this
+        Type MutableArray<MaybeUninit<Long>>
+        Local $array.3
+      field_set 1
+        Type ArrayList<Long>
+        Local this
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      return
+    bb5 while.body.5
+      call $array_value.5: MaybeUninit<Long> = <closure:function_type2> closure[function_type2]
+        Type (Long) -> MaybeUninit<Long>
+        Local $array_init.2
+        Type Long
+        Local $array_index.4
+      array_set MutableArray<MaybeUninit<Long>>
+        Type MutableArray<MaybeUninit<Long>>
+        Local $array.3
+        Type Long
+        Local $array_index.4
+        Type MaybeUninit<Long>
+        Local $array_value.5
+      assign $array_index.4
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $array_index.4
+          Type Long
+          IntegerLiteral Long value=1 bits=0x0000000000000001
+      goto bb3
+  fun init.ListIterator.$c1 @fn58(this: ListIterator<MaybeUninit<Int>>, source: List<MaybeUninit<Int>>, index: Long, exhausted: Boolean) -> Unit
+    bb0 entry
+      field_set 0
+        Type ListIterator<MaybeUninit<Int>>
+        Local this
+        Type List<MaybeUninit<Int>>
+        Local source
+      field_set 1
+        Type ListIterator<MaybeUninit<Int>>
+        Local this
+        Type Long
+        Local index
+      field_set 2
+        Type ListIterator<MaybeUninit<Int>>
+        Local this
+        Type Boolean
+        Local exhausted
+      return
+  fun init.ListIterator.$c1 @fn59(this: ListIterator<Int>, source: List<Int>, index: Long, exhausted: Boolean) -> Unit
+    bb0 entry
+      field_set 0
+        Type ListIterator<Int>
+        Local this
+        Type List<Int>
+        Local source
+      field_set 1
+        Type ListIterator<Int>
+        Local this
+        Type Long
+        Local index
+      field_set 2
+        Type ListIterator<Int>
+        Local this
+        Type Boolean
+        Local exhausted
+      return
+  fun init.ListIterator.$c1 @fn60(this: ListIterator<MaybeUninit<Long>>, source: List<MaybeUninit<Long>>, index: Long, exhausted: Boolean) -> Unit
+    bb0 entry
+      field_set 0
+        Type ListIterator<MaybeUninit<Long>>
+        Local this
+        Type List<MaybeUninit<Long>>
+        Local source
+      field_set 1
+        Type ListIterator<MaybeUninit<Long>>
+        Local this
+        Type Long
+        Local index
+      field_set 2
+        Type ListIterator<MaybeUninit<Long>>
+        Local this
+        Type Boolean
+        Local exhausted
+      return
+  fun init.ListIterator.$c1 @fn61(this: ListIterator<Long>, source: List<Long>, index: Long, exhausted: Boolean) -> Unit
+    bb0 entry
+      field_set 0
+        Type ListIterator<Long>
+        Local this
+        Type List<Long>
+        Local source
+      field_set 1
+        Type ListIterator<Long>
+        Local this
+        Type Long
+        Local index
+      field_set 2
+        Type ListIterator<Long>
+        Local this
+        Type Boolean
+        Local exhausted
+      return
+  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn62($source: (Long) -> MaybeUninit<Int>, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: MaybeUninit<Int> = <closure:function_type0> closure[function_type0]
+        Type (Long) -> MaybeUninit<Int>
+        Local $source
+        Type Long
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type MaybeUninit<Int>
+          Local $call.1
+  fun function_bridge.$Closure$lambda1.(Any) -> Any @fn63($source: (Long) -> MaybeUninit<Long>, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: MaybeUninit<Long> = <closure:function_type2> closure[function_type2]
+        Type (Long) -> MaybeUninit<Long>
+        Local $source
+        Type Long
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type MaybeUninit<Long>
+          Local $call.1
+  fun function_bridge.$Closure$lambda2.(Any) -> Any @fn64($source: (Long) -> MaybeUninit<Int>, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: MaybeUninit<Int> = <closure:function_type0> closure[function_type0]
+        Type (Long) -> MaybeUninit<Int>
+        Local $source
+        Type Long
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type MaybeUninit<Int>
+          Local $call.1
+  fun function_bridge.$Closure$lambda3.(Any) -> Any @fn65($source: (Long) -> MaybeUninit<Long>, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: MaybeUninit<Long> = <closure:function_type2> closure[function_type2]
+        Type (Long) -> MaybeUninit<Long>
+        Local $source
+        Type Long
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type MaybeUninit<Long>
+          Local $call.1
+  instance mi0 function=@fn8 <- iterator
+  instance mi1 function=@fn9 <- get
+  instance mi2 function=@fn10 <- size
+  instance mi3 function=@fn11 <- iterator
+  instance mi4 function=@fn12 <- get
+  instance mi5 function=@fn13 <- size
+  instance mi6 function=@fn14 <- set
+  instance mi7 function=@fn15 <- add
+  instance mi8 function=@fn16 <- add
+  instance mi9 function=@fn17 <- removeAt
+  instance mi10 function=@fn18 <- clear
+  instance mi11 function=@fn19 <- iterator
+  instance mi12 function=@fn20 <- get
+  instance mi13 function=@fn21 <- size
+  instance mi14 function=@fn22 <- iterator
+  instance mi15 function=@fn23 <- get
+  instance mi16 function=@fn24 <- size
+  instance mi17 function=@fn25 <- set
+  instance mi18 function=@fn26 <- add
+  instance mi19 function=@fn27 <- add
+  instance mi20 function=@fn28 <- removeAt
+  instance mi21 function=@fn29 <- clear
+  instance mi22 function=@fn30 <- List.get
+  instance mi23 function=@fn31 <- MutableList.set
+  instance mi24 function=@fn32 <- iterator
+  instance mi25 function=@fn33 <- get
+  instance mi26 function=@fn34 <- size
+  instance mi27 function=@fn35 <- println
+  instance mi28 function=@fn36 <- next
+  instance mi29 function=@fn37 <- next
+  instance mi30 function=@fn38 <- checkIndex
+  instance mi31 function=@fn39 <- ensureRoom
+  instance mi32 function=@fn40 <- next
+  instance mi33 function=@fn41 <- next
+  instance mi34 function=@fn42 <- checkIndex
+  instance mi35 function=@fn43 <- ensureRoom
+  instance mi36 function=@fn44 <- List.$get$size
+  instance mi37 function=@fn45 <- List.get
+  instance mi38 function=@fn46 <- List.$get$size
+  instance mi39 function=@fn47 <- $lambda
+  instance mi40 function=@fn48 <- List.$get$size
+  instance mi41 function=@fn49 <- List.get
+  instance mi42 function=@fn50 <- List.$get$size
+  instance mi43 function=@fn51 <- List.get
+  instance mi44 function=@fn52 <- $lambda
+  instance mi45 function=@fn53 <- $lambda
+  instance mi46 function=@fn54 <- $lambda
+  str @str0 "illegal state"
+  str @str1 "index updates"
+  str @str2 "\n"
+  output executable @fn7

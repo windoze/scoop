@@ -58,7 +58,7 @@ fn check_mixed_calls(provider: ConeIdentity) {
 }
 
 #[test]
-fn output_rejects_an_unreferenced_entry_from_either_selection() {
+fn unused_selected_declarations_keep_their_stable_external_indices() {
     let fixture = Fixture::new();
     for index in 0..2 {
         let (mut module, dependencies) = fixture.mixed();
@@ -66,13 +66,13 @@ fn output_rejects_an_unreferenced_entry_from_either_selection() {
         function.body.blocks[function.body.entry]
             .statements
             .remove(index);
-        let error = match DependencyMirOutput::try_new(module, dependencies) {
-            Err(DependencyMirOutputError::ExternalCallables(error)) => error,
-            _ => panic!("the output must reject the unreferenced external use"),
-        };
-        assert!(matches!(error,
-            ConeMirInputError::UnreferencedExternalCallable { index: found }
-            if found == index as u32));
+        let output = DependencyMirOutput::try_new(module, dependencies).unwrap();
+        let input = seal(output).unwrap();
+        let roots = input.materialization().external_callable_roots();
+        assert_eq!(roots.len(), 2);
+        for (index, root) in roots.iter().enumerate() {
+            assert_eq!(root.callable().into_raw().into_u32() as usize, index);
+        }
     }
 }
 

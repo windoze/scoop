@@ -218,6 +218,7 @@ pub enum DefaultExpressionKindV1 {
     ArrayClone(Box<DefaultExpressionV1>),
     AtomicNew(Box<DefaultExpressionV1>),
     Atomic(Box<crate::AtomicExpression<DefaultExpressionV1>>),
+    MaybeUninit(Box<crate::MaybeUninitOperation<DefaultExpressionV1>>),
     Call {
         callee: DefaultCallableRefV1,
         arguments: Vec<DefaultExpressionV1>,
@@ -523,6 +524,7 @@ fn validate_kind(kind: &DefaultExpressionKindV1) -> Result<(), DefaultExpression
         | DefaultExpressionKindV1::ArrayClone(_)
         | DefaultExpressionKindV1::AtomicNew(_)
         | DefaultExpressionKindV1::Atomic(_)
+        | DefaultExpressionKindV1::MaybeUninit(_)
         | DefaultExpressionKindV1::PrimitiveBinary { .. }
         | DefaultExpressionKindV1::PrimitiveUnary { .. }
         | DefaultExpressionKindV1::IntegerOperation { .. }

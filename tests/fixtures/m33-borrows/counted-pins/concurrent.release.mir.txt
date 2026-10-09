@@ -1,0 +1,1064 @@
+Module
+  extern ef0 runMany @m13_run_many(FunPtr<(Int, Ptr<Unit>) -> Int>, Ptr<Unit>, Int, Int) -> Int <abi=c no-gc lib=fixture_native>
+  foreign_callback_family fcf0 callback=ForeignCallback<(Int, Ptr<Unit>) -> Int> state=ForeignCallbackState failure=Option<Throwable>
+  foreign_callback_bridge fcb0 family=fcf0 native=function_type0 managed=function_type2 context=1 mode=ForeignCallbackMode.Reusable adapter=@fn15
+  struct ForeignCallback<(Int, Ptr<Unit>) -> Int> (function: FunPtr<(Int, Ptr<Unit>) -> Int>, context: Ptr<Unit>)
+  struct PinnedPtr<Cell> (raw: ULong) <c-abi uint64-field>
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum Option<Char>
+    Some(_0: Char)
+    None()
+  enum ForeignCallbackMode
+    Reusable()
+    OneShot()
+  enum ForeignCallbackState
+    Registered()
+    Active()
+    Completed()
+    Failed()
+  enum Option<Throwable>
+    Some(_0: Throwable)
+    None()
+  enum CoroutineStep<Cell>
+    Completed(value: Cell)
+    Suspended()
+  enum CoroutineSlot<Cell>
+    Empty()
+    Value(value: Cell)
+  class Cell vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class box<Int> vtable=0 itables=0
+  interface Equality<Ptr<Unit>>
+  interface ToString
+  interface Hash
+  interface Equality<Char>
+  interface Iterable<Char>
+  interface Iterator<Char>
+  interface Equality<String>
+  interface Continuation<Cell>
+  interface SuspendTask<Cell>
+  interface SuspendRegistration<Cell>
+  closure cc0 $Closure$lambda0 type=function_type2 invoke=@fn5 captures=1
+    bridge function_type3 -> @fn17 id=0d15cd9a99d0a0b9482991a66e6f7bbbcfbf33af55bccffb75d4d8dc91056a7a
+  generated_exact_type get0 location=enum6 nominal_id=31b107c279ea6ba5f6907a679f8cafd7beb066fda1794257319a7c52faa3e440 exact_id=0d83c5e2b7457c02a269d896588d08dd46debc22439064efd8e2731675e90b37
+  generated_exact_type get1 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
+  generated_exact_type get2 location=closure0 nominal_id=2fcc5dceba1f09c36d231287088079138d2c04817531ae31cc6d2cc1c02b5c0b exact_id=2302a5386d95a61953db931e029826819dc2e78ed627925872f2aaa8f36b4d72
+  generated_exact_type get3 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
+  generated_exact_type get4 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
+  generated_exact_type get5 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
+  generated_exact_type get6 location=enum5 nominal_id=56c670da7300e7853cafb9e2561dbb122e8160713b35d9700560a4459df8d1e3 exact_id=af5ce0d57a08d3a483316fe7b633be884e55334ae0b0511c0dbb2033231e374f
+  generated_exact_type get7 location=class4 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_exact_type get8 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
+  generated_callable gc0 function=@fn17 id=0d15cd9a99d0a0b9482991a66e6f7bbbcfbf33af55bccffb75d4d8dc91056a7a
+  generated_callable gc1 function=@fn16 id=504dd258f2ff1f12576abec3b9ffec50a9424028b2472a1c0c201e7c334be4f8
+  generated_callable gc2 function=@fn15 id=fc8cfa5a18dd07a29b7f325cd1027a57a7533b5ce7218dd8041d9ff846a98dc4
+  fun equalTo @fn0(this: Ptr<Unit>, other: Ptr<Unit>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<Unit>
+        Type Ptr<Unit>
+        Local this
+      val $dependency.local.3: Ptr<Unit>
+        Type Ptr<Unit>
+        Local other
+      val $dependency.local.4: Ptr<Unit>
+        Type Ptr<Unit>
+        Local $dependency.local.3
+      val $inline.1.this: Ptr<Unit>
+        Type Ptr<Unit>
+        Local $dependency.local.2
+      val $inline.1.other: Ptr<Unit>
+        Type Ptr<Unit>
+        Local $dependency.local.4
+      goto bb2
+    bb1 inline.cont.1
+      val $call.1: Boolean
+        Type Boolean
+        Local $inline.1.result
+      return
+        Type Boolean
+        Local $call.1
+    bb2 inline.1.entry
+      val $inline.1.$dependency.local.2: Ptr<Unit>
+        Type Ptr<Unit>
+        Local $inline.1.this
+      val $inline.1.$dependency.local.4: ULong
+        Type ULong
+        PtrToULong
+          Type Ptr<Unit>
+          Local $inline.1.$dependency.local.2
+      val $inline.1.$dependency.local.3: Ptr<Unit>
+        Type Ptr<Unit>
+        Local $inline.1.other
+      assign $inline.1.result
+        Type Boolean
+        IntegerCompare equal operands=ULong result=Boolean
+          Type ULong
+          Local $inline.1.$dependency.local.4
+          Type ULong
+          PtrToULong
+            Type Ptr<Unit>
+            Local $inline.1.$dependency.local.3
+      goto bb1
+  fun runMany @fn1(arg0: FunPtr<(Int, Ptr<Unit>) -> Int>, arg1: Ptr<Unit>, arg2: Int, arg3: Int) -> Int
+    bb0 entry
+      call $call.1: Int = extern0 @m13_run_many direct
+        Type FunPtr<(Int, Ptr<Unit>) -> Int>
+        Local arg0
+        Type Ptr<Unit>
+        Local arg1
+        Type Int
+        Local arg2
+        Type Int
+        Local arg3
+      return
+        Type Int
+        Local $call.1
+  fun expect @fn2(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.receiver: Boolean
+        Type Boolean
+        Local value
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+    bb1 if.then.1
+      val $default.local.0: String
+        Type String
+        StringConst @str0
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.1
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $new.1
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.1
+    bb2 if.merge.2
+      return
+  fun main @fn3() -> Unit
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=7331 bits=0x00001ca3
+      val $parameter.value: Int
+        Type Int
+        IntegerLiteral Int value=7331 bits=0x00001ca3
+      assign $new.1
+        Type Cell
+        ClassAlloc Cell
+      val $inline.7.this: Cell
+        Type Cell
+        Local $new.1
+      val $inline.7.value: Int
+        Type Int
+        IntegerLiteral Int value=7331 bits=0x00001ca3
+      goto bb8
+    bb1 pattern.pass.1
+      assign $result.1
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb2 pattern.else.2
+      val $pattern.subject.3: Option<Throwable>
+        Type Option<Throwable>
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Option<Throwable> v1
+          Type Option<Throwable>
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      val $argument.0: Boolean
+        Type Boolean
+        Local $result.1
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn2 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: ForeignCallback<(Int, Ptr<Unit>) -> Int>
+        Type ForeignCallback<(Int, Ptr<Unit>) -> Int>
+        Local callback
+      val $dependency.parameter.callback: ForeignCallback<(Int, Ptr<Unit>) -> Int>
+        Type ForeignCallback<(Int, Ptr<Unit>) -> Int>
+        Local $dependency.argument.0
+      Type Unit
+      ForeignCallbackRelease family0
+        Type ForeignCallback<(Int, Ptr<Unit>) -> Int>
+        Local $dependency.parameter.callback
+      call @scoop_rt_gc_collect direct
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Cell
+          Local shared
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=7331 bits=0x00001ca3
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=7331 bits=0x00001ca3
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          IntegerLiteral Int value=7331 bits=0x00001ca3
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn2 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str1
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type String
+        Local $dependency.parameter.value
+      return
+    bb4 pattern.pass.4
+      assign $result.1
+        Type Boolean
+        BoolLiteral true
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      goto bb3
+    bb7 inline.cont.7
+      val shared: Cell
+        Type Cell
+        Local $new.1
+      val $dependency.argument.0: (Int) -> Int
+        Type (Int) -> Int
+        ClosureAlloc cc0 $Closure$lambda0
+          CaptureInit field=0
+            Type Cell
+            Local shared
+      val $dependency.argument.1: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.argument.2: ForeignCallbackMode
+        Type ForeignCallbackMode
+        VariantConstruct ForeignCallbackMode v0
+      val $dependency.parameter.callback: (Int) -> Int
+        Type (Int) -> Int
+        Local $dependency.argument.0
+      val $dependency.parameter.contextIndex: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.parameter.mode: ForeignCallbackMode
+        Type ForeignCallbackMode
+        Local $dependency.argument.2
+      val callback: ForeignCallback<(Int, Ptr<Unit>) -> Int>
+        Type ForeignCallback<(Int, Ptr<Unit>) -> Int>
+        ForeignCallbackRegister fcb0 family=fcf0
+          Type (Int) -> Int
+          Local $dependency.parameter.callback
+      val $argument.0: FunPtr<(Int, Ptr<Unit>) -> Int>
+        Type FunPtr<(Int, Ptr<Unit>) -> Int>
+        FieldAccess 0
+          Type ForeignCallback<(Int, Ptr<Unit>) -> Int>
+          Local callback
+      val $argument.1: Ptr<Unit>
+        Type Ptr<Unit>
+        FieldAccess 1
+          Type ForeignCallback<(Int, Ptr<Unit>) -> Int>
+          Local callback
+      val $argument.2: Int
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+      val $argument.3: Int
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+      val $parameter.callback: FunPtr<(Int, Ptr<Unit>) -> Int>
+        Type FunPtr<(Int, Ptr<Unit>) -> Int>
+        Local $argument.0
+      val $parameter.context: Ptr<Unit>
+        Type Ptr<Unit>
+        Local $argument.1
+      val $parameter.base: Int
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+      val $parameter.count: Int
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+      call $dependency.receiver: Int = extern0 @m13_run_many direct
+        Type FunPtr<(Int, Ptr<Unit>) -> Int>
+        Local $parameter.callback
+        Type Ptr<Unit>
+        Local $parameter.context
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=46 bits=0x0000002e
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=46 bits=0x0000002e
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          IntegerLiteral Int value=46 bits=0x0000002e
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn2 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: ForeignCallback<(Int, Ptr<Unit>) -> Int>
+        Type ForeignCallback<(Int, Ptr<Unit>) -> Int>
+        Local callback
+      val $dependency.parameter.callback: ForeignCallback<(Int, Ptr<Unit>) -> Int>
+        Type ForeignCallback<(Int, Ptr<Unit>) -> Int>
+        Local $dependency.argument.0
+      val $when.1: Option<Throwable>
+        Type Option<Throwable>
+        ForeignCallbackFailure family0
+          Type ForeignCallback<(Int, Ptr<Unit>) -> Int>
+          Local $dependency.parameter.callback
+      val $pattern.subject.2: Option<Throwable>
+        Type Option<Throwable>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Option<Throwable> v0
+          Type Option<Throwable>
+          Local $pattern.subject.2
+    bb8 inline.7.entry
+      field_set 0
+        Type Cell
+        Local $inline.7.this
+        Type Int
+        IntegerLiteral Int value=7331 bits=0x00001ca3
+      goto bb7
+  fun equals @fn4(this: Ptr<Unit>, other: Ptr<Unit>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<Unit>
+        Type Ptr<Unit>
+        Local this
+      val $dependency.local.4: ULong
+        Type ULong
+        PtrToULong
+          Type Ptr<Unit>
+          Local $dependency.local.2
+      val $dependency.local.3: Ptr<Unit>
+        Type Ptr<Unit>
+        Local other
+      return
+        Type Boolean
+        IntegerCompare equal operands=ULong result=Boolean
+          Type ULong
+          Local $dependency.local.4
+          Type ULong
+          PtrToULong
+            Type Ptr<Unit>
+            Local $dependency.local.3
+  fun $lambda.0 @fn5($closure: (Int) -> Int, value: Int) -> Int
+    bb0 entry
+      var round: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      goto bb1
+    bb1 while.cond.1 <loop-header-poll>
+      val $dependency.receiver: Int
+        Type Int
+        Local round
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=16 bits=0x00000010
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=16 bits=0x00000010
+      branch bb3 bb2
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Int result=Long
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            IntegerLiteral Int value=16 bits=0x00000010
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb2 while.exit.2
+      return
+        Type Int
+        Local value
+    bb3 while.body.3
+      val $dependency.argument.0: Cell
+        Type Cell
+        ClosureCapture cc0 0
+          Type (Int) -> Int
+          Local $closure
+      val $dependency.parameter.v: Cell
+        Type Cell
+        Local $dependency.argument.0
+      val $inline.14.v: Cell
+        Type Cell
+        Local $dependency.parameter.v
+      goto bb15
+    bb4 inline.cont.4
+      val $call.3: Cell
+        Type Cell
+        Local $inline.4.result
+      val $argument.0: Boolean
+        Type Boolean
+        Binary RefEq
+          Type Cell
+          Local $call.3
+          Type Cell
+          ClosureCapture cc0 0
+            Type (Int) -> Int
+            Local $closure
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn2 direct
+        Type Boolean
+        Local $parameter.value
+      val $old.0: Int
+        Type Int
+        Local round
+      val $dependency.receiver: Int
+        Type Int
+        Local $old.0
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      assign round
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          IntegerLiteral Int value=1 bits=0x00000001
+      goto bb1
+    bb5 inline.4.entry
+      val $inline.4.$dependency.local.1: ULong
+        Type ULong
+        FieldAccess 0
+          Type PinnedPtr<Cell>
+          Local $inline.4.p
+      val $inline.4.$dependency.local.2: ULong
+        Type ULong
+        Local $inline.4.$dependency.local.1
+      call $inline.4.$call.1: Cell = @scoop_rt_unpin direct
+        Type ULong
+        Local $inline.4.$dependency.local.2
+      assign $inline.4.result
+        Type Cell
+        Local $inline.4.$call.1
+      goto bb4
+    bb6 inline.cont.6
+      val $call.2: Cell
+        Type Cell
+        Local $inline.6.result
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Cell
+          Local $call.2
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=7331 bits=0x00001ca3
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=7331 bits=0x00001ca3
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          IntegerLiteral Int value=7331 bits=0x00001ca3
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn2 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: PinnedPtr<Cell>
+        Type PinnedPtr<Cell>
+        Local second
+      val $dependency.parameter.p: PinnedPtr<Cell>
+        Type PinnedPtr<Cell>
+        Local $dependency.argument.0
+      val $inline.4.p: PinnedPtr<Cell>
+        Type PinnedPtr<Cell>
+        Local $dependency.parameter.p
+      goto bb5
+    bb7 inline.6.entry
+      val $inline.6.$dependency.local.1: ULong
+        Type ULong
+        FieldAccess 0
+          Type PinnedPtr<Cell>
+          Local $inline.6.p
+      val $inline.6.$dependency.local.2: ULong
+        Type ULong
+        Local $inline.6.$dependency.local.1
+      call $inline.6.$call.1: Cell = @scoop_rt_unpin direct
+        Type ULong
+        Local $inline.6.$dependency.local.2
+      assign $inline.6.result
+        Type Cell
+        Local $inline.6.$call.1
+      goto bb6
+    bb8 inline.cont.8
+      val third: PinnedPtr<Cell>
+        Type PinnedPtr<Cell>
+        Local $inline.8.result
+      val $dependency.receiver: ULong
+        Type ULong
+        FieldAccess 0
+          Type PinnedPtr<Cell>
+          Local third
+      val $dependency.argument.0: ULong
+        Type ULong
+        FieldAccess 0
+          Type PinnedPtr<Cell>
+          Local second
+      val $dependency.parameter.other: ULong
+        Type ULong
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=ULong result=Boolean
+          Type ULong
+          Local $dependency.receiver
+          Type ULong
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn2 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: PinnedPtr<Cell>
+        Type PinnedPtr<Cell>
+        Local third
+      val $dependency.parameter.p: PinnedPtr<Cell>
+        Type PinnedPtr<Cell>
+        Local $dependency.argument.0
+      val $inline.6.p: PinnedPtr<Cell>
+        Type PinnedPtr<Cell>
+        Local $dependency.parameter.p
+      goto bb7
+    bb9 inline.8.entry
+      val $inline.8.$dependency.local.1: Cell
+        Type Cell
+        Local $inline.8.v
+      val $inline.8.$dependency.local.2: Cell
+        Type Cell
+        Local $inline.8.$dependency.local.1
+      call $inline.8.$dependency.local.3: ULong = @scoop_rt_pin direct
+        Type Cell
+        Local $inline.8.$dependency.local.2
+      val $inline.8.$dependency.local.4: ULong
+        Type ULong
+        Local $inline.8.$dependency.local.3
+      val $inline.20.raw: ULong
+        Type ULong
+        Local $inline.8.$dependency.local.4
+      goto bb21
+    bb10 inline.cont.10
+      val $call.1: Cell
+        Type Cell
+        Local $inline.10.result
+      val $argument.0: Boolean
+        Type Boolean
+        Binary RefEq
+          Type Cell
+          Local $call.1
+          Type Cell
+          ClosureCapture cc0 0
+            Type (Int) -> Int
+            Local $closure
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn2 direct
+        Type Boolean
+        Local $parameter.value
+      call @scoop_rt_gc_collect direct
+      val $dependency.argument.0: Cell
+        Type Cell
+        ClosureCapture cc0 0
+          Type (Int) -> Int
+          Local $closure
+      val $dependency.parameter.v: Cell
+        Type Cell
+        Local $dependency.argument.0
+      val $inline.8.v: Cell
+        Type Cell
+        Local $dependency.parameter.v
+      goto bb9
+    bb11 inline.10.entry
+      val $inline.10.$dependency.local.1: ULong
+        Type ULong
+        FieldAccess 0
+          Type PinnedPtr<Cell>
+          Local $inline.10.p
+      val $inline.10.$dependency.local.2: ULong
+        Type ULong
+        Local $inline.10.$dependency.local.1
+      call $inline.10.$call.1: Cell = @scoop_rt_unpin direct
+        Type ULong
+        Local $inline.10.$dependency.local.2
+      assign $inline.10.result
+        Type Cell
+        Local $inline.10.$call.1
+      goto bb10
+    bb12 inline.cont.12
+      val second: PinnedPtr<Cell>
+        Type PinnedPtr<Cell>
+        Local $inline.12.result
+      val $dependency.receiver: ULong
+        Type ULong
+        FieldAccess 0
+          Type PinnedPtr<Cell>
+          Local first
+      val $dependency.argument.0: ULong
+        Type ULong
+        FieldAccess 0
+          Type PinnedPtr<Cell>
+          Local second
+      val $dependency.parameter.other: ULong
+        Type ULong
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=ULong result=Boolean
+          Type ULong
+          Local $dependency.receiver
+          Type ULong
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn2 direct
+        Type Boolean
+        Local $parameter.value
+      call @scoop_rt_gc_collect direct
+      val $dependency.argument.0: PinnedPtr<Cell>
+        Type PinnedPtr<Cell>
+        Local first
+      val $dependency.parameter.p: PinnedPtr<Cell>
+        Type PinnedPtr<Cell>
+        Local $dependency.argument.0
+      val $inline.10.p: PinnedPtr<Cell>
+        Type PinnedPtr<Cell>
+        Local $dependency.parameter.p
+      goto bb11
+    bb13 inline.12.entry
+      val $inline.12.$dependency.local.1: Cell
+        Type Cell
+        Local $inline.12.v
+      val $inline.12.$dependency.local.2: Cell
+        Type Cell
+        Local $inline.12.$dependency.local.1
+      call $inline.12.$dependency.local.3: ULong = @scoop_rt_pin direct
+        Type Cell
+        Local $inline.12.$dependency.local.2
+      val $inline.12.$dependency.local.4: ULong
+        Type ULong
+        Local $inline.12.$dependency.local.3
+      val $inline.18.raw: ULong
+        Type ULong
+        Local $inline.12.$dependency.local.4
+      goto bb19
+    bb14 inline.cont.14
+      val first: PinnedPtr<Cell>
+        Type PinnedPtr<Cell>
+        Local $inline.14.result
+      val $dependency.argument.0: Cell
+        Type Cell
+        ClosureCapture cc0 0
+          Type (Int) -> Int
+          Local $closure
+      val $dependency.parameter.v: Cell
+        Type Cell
+        Local $dependency.argument.0
+      val $inline.12.v: Cell
+        Type Cell
+        Local $dependency.parameter.v
+      goto bb13
+    bb15 inline.14.entry
+      val $inline.14.$dependency.local.1: Cell
+        Type Cell
+        Local $inline.14.v
+      val $inline.14.$dependency.local.2: Cell
+        Type Cell
+        Local $inline.14.$dependency.local.1
+      call $inline.14.$dependency.local.3: ULong = @scoop_rt_pin direct
+        Type Cell
+        Local $inline.14.$dependency.local.2
+      val $inline.14.$dependency.local.4: ULong
+        Type ULong
+        Local $inline.14.$dependency.local.3
+      val $inline.16.raw: ULong
+        Type ULong
+        Local $inline.14.$dependency.local.4
+      goto bb17
+    bb16 inline.cont.16
+      val $inline.14.$call.1: PinnedPtr<Cell>
+        Type PinnedPtr<Cell>
+        Local $inline.16.result
+      assign $inline.14.result
+        Type PinnedPtr<Cell>
+        Local $inline.14.$call.1
+      goto bb14
+    bb17 inline.16.entry
+      assign $inline.16.result
+        Type PinnedPtr<Cell>
+        StructInit PinnedPtr<Cell>
+          Type ULong
+          Local $inline.16.raw
+      goto bb16
+    bb18 inline.cont.18
+      val $inline.12.$call.1: PinnedPtr<Cell>
+        Type PinnedPtr<Cell>
+        Local $inline.18.result
+      assign $inline.12.result
+        Type PinnedPtr<Cell>
+        Local $inline.12.$call.1
+      goto bb12
+    bb19 inline.18.entry
+      assign $inline.18.result
+        Type PinnedPtr<Cell>
+        StructInit PinnedPtr<Cell>
+          Type ULong
+          Local $inline.18.raw
+      goto bb18
+    bb20 inline.cont.20
+      val $inline.8.$call.1: PinnedPtr<Cell>
+        Type PinnedPtr<Cell>
+        Local $inline.20.result
+      assign $inline.8.result
+        Type PinnedPtr<Cell>
+        Local $inline.8.$call.1
+      goto bb8
+    bb21 inline.20.entry
+      assign $inline.20.result
+        Type PinnedPtr<Cell>
+        StructInit PinnedPtr<Cell>
+          Type ULong
+          Local $inline.20.raw
+      goto bb20
+  fun println @fn6(value: String) -> Unit
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local value
+      call $dependency.local.2: String = external1 direct
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external2 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str2
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external2 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun pin @fn7(v: Cell) -> PinnedPtr<Cell>
+    bb0 entry
+      val $dependency.local.1: Cell
+        Type Cell
+        Local v
+      val $dependency.local.2: Cell
+        Type Cell
+        Local $dependency.local.1
+      call $dependency.local.3: ULong = @scoop_rt_pin direct
+        Type Cell
+        Local $dependency.local.2
+      val $dependency.local.4: ULong
+        Type ULong
+        Local $dependency.local.3
+      val $inline.1.raw: ULong
+        Type ULong
+        Local $dependency.local.4
+      goto bb2
+    bb1 inline.cont.1
+      val $call.1: PinnedPtr<Cell>
+        Type PinnedPtr<Cell>
+        Local $inline.1.result
+      return
+        Type PinnedPtr<Cell>
+        Local $call.1
+    bb2 inline.1.entry
+      assign $inline.1.result
+        Type PinnedPtr<Cell>
+        StructInit PinnedPtr<Cell>
+          Type ULong
+          Local $inline.1.raw
+      goto bb1
+  fun unpin @fn8(p: PinnedPtr<Cell>) -> Cell
+    bb0 entry
+      val $dependency.local.1: ULong
+        Type ULong
+        FieldAccess 0
+          Type PinnedPtr<Cell>
+          Local p
+      val $dependency.local.2: ULong
+        Type ULong
+        Local $dependency.local.1
+      call $call.1: Cell = @scoop_rt_unpin direct
+        Type ULong
+        Local $dependency.local.2
+      return
+        Type Cell
+        Local $call.1
+  fun Continuation.resume @fn9(this: Continuation<Cell>, value: Cell) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn10(this: Continuation<Cell>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn11(this: SuspendTask<Cell>, $completion: Continuation<Cell>) -> CoroutineStep<Cell>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn12(this: SuspendRegistration<Cell>, continuation: Continuation<Cell>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.Cell.$c0 @fn13(this: Cell, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Cell
+        Local this
+        Type Int
+        Local value
+      return
+  fun ctor.PinnedPtr.$c0 @fn14(raw: ULong) -> PinnedPtr<Cell> <no-gc>
+    bb0 entry
+      return
+        Type PinnedPtr<Cell>
+        StructInit PinnedPtr<Cell>
+          Type ULong
+          Local raw
+  fun foreign callback adapter 0 @fn15($closure: (Int) -> Int, $snapshot: internal<context-node>, $result: Ptr<Int>, $arguments: Ptr<Ptr<Unit>>, $exception: Ptr<Throwable>) -> machine<foreign-callback-status>
+    bb0 context.unwind
+      landing_pad cleanup=true
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb1 context.catch_unwind
+      landing_pad cleanup=true
+      end_catch
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb2 callback.failure unwind bb1
+      landing_pad cleanup=false
+      begin_catch
+      call $caught: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      Type Unit
+      PtrStore Throwable
+        Type Ptr<Throwable>
+        Local $exception
+        Type Throwable
+        Local $caught
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+        Type machine<foreign-callback-status>
+        MachineScalarLiteral ForeignCallbackStatus(Threw)
+    bb3 callback.invoke unwind bb2
+      call $value: Int = <closure:function_type2> closure[function_type2]
+        Type (Int) -> Int
+        Local $closure
+        Type Int
+        PtrLoad Int
+          Type Ptr<Int>
+          PtrCast Int
+            Type Ptr<Unit>
+            PtrLoad Ptr<Unit>
+              Type Ptr<Ptr<Unit>>
+              Local $arguments
+              Type machine<pointer-element-offset>
+              MachineScalarLiteral PointerElementOffset(0)
+      Type Unit
+      PtrStore Int
+        Type Ptr<Int>
+        Local $result
+        Type Int
+        Local $value
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+        Type machine<foreign-callback-status>
+        MachineScalarLiteral ForeignCallbackStatus(Returned)
+    bb4 entry
+      val $child_context: internal<task-context>
+        Type internal<task-context>
+        ContextFork
+          Type internal<context-node>
+          Local $snapshot
+      val $context_guard: internal<context-switch-guard>
+        Type internal<context-switch-guard>
+        ContextEnter
+          Type internal<task-context>
+          Local $child_context
+      goto bb3
+  fun startCoroutine<Cell> @fn16(task: SuspendTask<Cell>, completion: Continuation<Cell>) -> Unit
+    bb0 context.unwind
+      landing_pad cleanup=true
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb1 context.catch_unwind
+      landing_pad cleanup=true
+      end_catch
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb2 suspended
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb3 completed unwind bb0
+      call @fn9 interface Continuation<Cell>[0]
+        Type Continuation<Cell>
+        Local completion
+        Type Cell
+        EnumField v0 f0
+          Type CoroutineStep<Cell>
+          Local $step
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb4 failed unwind bb0
+      call @fn10 interface Continuation<Cell>[1]
+        Type Continuation<Cell>
+        Local completion
+        Type Throwable
+        Local $exception
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb5 body_failure unwind bb1
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb4
+    bb6 run unwind bb5
+      call $step: CoroutineStep<Cell> = @fn11 interface SuspendTask<Cell>[0]
+        Type SuspendTask<Cell>
+        Local task
+        Type Continuation<Cell>
+        Local completion
+      branch bb3 bb2
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Cell>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+    bb7 entry
+      val $child_context: internal<task-context>
+        Type internal<task-context>
+        ContextFork
+          Type internal<context-node>
+          ContextSnapshot
+      val $context_guard: internal<context-switch-guard>
+        Type internal<context-switch-guard>
+        ContextEnter
+          Type internal<task-context>
+          Local $child_context
+      goto bb6
+  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn17($source: (Int) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type2> closure[function_type2]
+        Type (Int) -> Int
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  coroutine_step cs0 CoroutineStep<Cell> result=Cell
+  coroutine_slot cl0 CoroutineSlot<Cell> value=Cell
+  coroutine_start ct0 result=Cell function=fn16
+  coroutine_fn cf0 @fn11 source_return=Cell step=cs0 immediate
+  instance mi0 function=@fn0 <- equalTo
+  instance mi1 function=@fn4 <- equals
+  instance mi2 function=@fn6 <- println
+  instance mi3 function=@fn7 <- pin
+  instance mi4 function=@fn8 <- unpin
+  instance mi5 function=@fn9 <- Continuation.resume
+  instance mi6 function=@fn10 <- Continuation.resumeWithException
+  instance mi7 function=@fn11 <- SuspendTask.run
+  instance mi8 function=@fn12 <- SuspendRegistration.register
+  str @str0 "illegal state"
+  str @str1 "counted-pins-concurrent-ok"
+  str @str2 "\n"
+  output executable @fn3

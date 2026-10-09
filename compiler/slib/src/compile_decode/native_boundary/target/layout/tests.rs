@@ -125,10 +125,10 @@ fn recomputes_packed_and_overaligned_c_struct_layout() {
     let definitions = HashMap::from([
         (
             definition.owner(),
-            AbiNominalDefinition::native(&definition),
+            AbiNominalDefinition::native(&definition, false),
         ),
-        (u8.owner(), AbiNominalDefinition::native(&u8)),
-        (u64.owner(), AbiNominalDefinition::native(&u64)),
+        (u8.owner(), AbiNominalDefinition::native(&u8, false)),
+        (u64.owner(), AbiNominalDefinition::native(&u64, false)),
     ]);
 
     let mut normalizer = NativeBoundaryNormalizer::new(

@@ -30,7 +30,6 @@ Module
     local %26 $new.4: ptr<managed>
     local %27 $new.5: ptr<managed>
     local %28 $new.6: ptr<managed>
-    local %29 $sc.1: struct0
   block entry
     poll managed-void-target6 sp<managed-poll:0> live=[]
     store true -> local0
@@ -53,33 +52,33 @@ Module
     store true -> local9
     store local8 -> local10
     store local9 -> local11
-    call managed-indirect-target0 sp<managed-call:4> live=[] local29 = sig=indirect0 (sret struct0 size=4 align=4 scan=none, i32, i1) local-fn14(local10, local11)
-    store local29 -> local12
+    call managed-direct-target2 sp<managed-call:4> live=[] t4 = sig=direct2 (i32, i1) -> struct0 local-fn14(local10, local11)
+    store t4 -> local12
     store integer<Int>(0x00000001) -> local13
     store local13 -> local14
-    call managed-direct-target2 sp<managed-call:5> live=[] t4 = sig=direct2 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td4, machine<byte-size>(ByteSize(24)))
-    store t4 -> local25
+    call managed-direct-target3 sp<managed-call:5> live=[] t5 = sig=direct3 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td4, machine<byte-size>(ByteSize(24)))
+    store t5 -> local25
     call managed-void-target2 sp<managed-call:6> live=[local25:ptr<managed>@0] sig=void2 (ptr<managed>, i32) local-fn10(local25, local14)
-    t5 = aggregate () : {}
+    t6 = aggregate () : {}
     store local25 -> local15
     store integer<Int>(0x00000001) -> local16
     store local16 -> local17
-    call managed-direct-target3 sp<managed-call:7> live=[] t6 = sig=direct3 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td6, machine<byte-size>(ByteSize(24)))
-    store t6 -> local26
+    call managed-direct-target4 sp<managed-call:7> live=[] t7 = sig=direct4 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td6, machine<byte-size>(ByteSize(24)))
+    store t7 -> local26
     call managed-void-target3 sp<managed-call:8> live=[local26:ptr<managed>@0] sig=void3 (ptr<managed>, i32) local-fn11(local26, local17)
-    t7 = aggregate () : {}
+    t8 = aggregate () : {}
     store local26 -> local18
     store integer<Int>(0x00000001) -> local19
     store local19 -> local20
-    call managed-direct-target4 sp<managed-call:9> live=[] t8 = sig=direct4 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td5, machine<byte-size>(ByteSize(24)))
-    store t8 -> local27
+    call managed-direct-target5 sp<managed-call:9> live=[] t9 = sig=direct5 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td5, machine<byte-size>(ByteSize(24)))
+    store t9 -> local27
     call managed-void-target4 sp<managed-call:10> live=[local27:ptr<managed>@0] sig=void4 (ptr<managed>, i32) local-fn5(local27, local20)
-    t9 = aggregate () : {}
+    t10 = aggregate () : {}
     store local27 -> local21
-    call managed-direct-target5 sp<managed-call:11> live=[] t10 = sig=direct5 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td1, machine<byte-size>(ByteSize(16)))
-    store t10 -> local28
+    call managed-direct-target6 sp<managed-call:11> live=[] t11 = sig=direct6 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td1, machine<byte-size>(ByteSize(16)))
+    store t11 -> local28
     call managed-void-target5 sp<managed-call:12> live=[local28:ptr<managed>@0] sig=void5 (ptr<managed>) local-fn6(local28)
-    t11 = aggregate () : {}
+    t12 = aggregate () : {}
     store local28 -> local22
     ret
   fun @scoop$1$cb$e5b91c83397835ff4a549d2010458b0dac7d3b401e0c4cfd9e3b887678dfd763() -> i32
@@ -99,17 +98,16 @@ Module
     call managed-void-target0 sp<managed-call:1> live=[local2:ptr<managed>@0] sig=void0 (ptr<managed>, i32) local-fn13(local2, local1)
     t1 = aggregate () : {}
     ret local2
-  fun @scoop$1$cb$beb6ed4df273ebef00730893bdb06a2674e56a8bc154b01ea755cbcc7f9fea90(i32) -> sret<struct0 size=4 align=4 scan=none>
+  fun @scoop$1$cb$beb6ed4df273ebef00730893bdb06a2674e56a8bc154b01ea755cbcc7f9fea90(i32) -> parts<struct0 [i32@0+4/4]>
     local %0 $argument.0: i32
     local %1 $parameter.value: i32
     local %2 $call.1: struct0
-    local %3 $sc.1: struct0
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     store param0 -> local0
     store local0 -> local1
-    call no-gc-indirect-target0 local3 = sig=indirect0 (sret struct0 size=4 align=4 scan=none, i32) local-fn15(local1)
-    store local3 -> local2
+    call no-gc-direct-target0 t0 = sig=direct0 (i32) -> struct0 local-fn15(local1)
+    store t0 -> local2
     ret local2
   fun @scoop$1$cb$817eaf722f1037bbc7b68bcf254053f6e00a75cdb364ba75b1906fea12246a84(i32) -> ptr<managed>
     local %0 $argument.0: i32
@@ -196,27 +194,25 @@ Module
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
     heap_store param0 +16 param1
     ret
-  fun @scoop$1$cb$526240e96372b7c73e26208d0874919e3ac642289c2bfaa6624b76b8e47d92aa(i32, i1) -> sret<struct0 size=4 align=4 scan=none>
+  fun @scoop$1$cb$526240e96372b7c73e26208d0874919e3ac642289c2bfaa6624b76b8e47d92aa(i32, i1) -> parts<struct0 [i32@0+4/4]>
     local %0 $argument.0: i32
     local %1 $parameter.value: i32
     local %2 $this: struct0
     local %3 $argument.0: i32
     local %4 $parameter.value: i32
     local %5 $call.1: struct0
-    local %6 $sc.1: struct0
-    local %7 $sc.2: struct0
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     store param0 -> local0
     store local0 -> local1
-    call no-gc-indirect-target0 local6 = sig=indirect0 (sret struct0 size=4 align=4 scan=none, i32) local-fn15(local1)
-    store local6 -> local2
+    call no-gc-direct-target0 t0 = sig=direct0 (i32) -> struct0 local-fn15(local1)
+    store t0 -> local2
     store param0 -> local3
     store local3 -> local4
-    call managed-indirect-target0 sp<managed-call:0> live=[] local7 = sig=indirect1 (sret struct0 size=4 align=4 scan=none, i32) local-fn3(local4)
-    store local7 -> local5
+    call managed-direct-target0 sp<managed-call:0> live=[] t1 = sig=direct1 (i32) -> struct0 local-fn3(local4)
+    store t1 -> local5
     ret local2
-  fun @scoop$1$cb$121e7d42d2cd149d4626ea26f95a1c2eb099d123b64506844dcd23b8d1755a9b(i32) -> sret<struct0 size=4 align=4 scan=none> <no-gc>
+  fun @scoop$1$cb$121e7d42d2cd149d4626ea26f95a1c2eb099d123b64506844dcd23b8d1755a9b(i32) -> parts<struct0 [i32@0+4/4]> <no-gc>
   block entry
     t0 = aggregate (param0) : struct0
     ret t0

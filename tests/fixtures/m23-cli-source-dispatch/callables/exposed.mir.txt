@@ -78,11 +78,14 @@ Module
   generated_exact_type get13 location=enum9 nominal_id=ce1ca9db5dea3d86bf5928b27f4717e4edee69daca504bc4311271482e53c441 exact_id=b463756b3eb4016556003b4b7d513603dbb1be6fc8225e4d737c9ddcca8ee338
   generated_exact_type get14 location=enum7 nominal_id=2412b5c52c3e56004cbbb9cc4ee7222e5efcf6867c4b72b7e57fb3e5084df9cd exact_id=c2ba46d9a7411c0d807da25f19f84cccec9f115b611179bd828f30424fe780c3
   generated_exact_type get15 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
-  generated_callable gc0 function=@fn48 id=177be4c0a3f72c0622e9e2d8d14c6b99be97ae08b15bda7d8241f9c93e430d26
-  generated_callable gc1 function=@fn45 id=64a64fb034670a7783db79362e3445c0ce3f18a4b654e59c0816b86aaba87f15
-  generated_callable gc2 function=@fn46 id=abc5eb577b136090bdd28eb06895d093eb79e8492caf5595a4ac8ce5e6b170f0
-  generated_callable gc3 function=@fn47 id=c548f4dbc544a4bbab409c4408b700789f603e2daec4ce22a2aa6591cbc27be0
-  generated_callable gc4 function=@fn49 id=c76a27ac38c965a5edb5d8c537ac86937a46984108f41b188e7f2a5a3fb5e04e
+  generated_callable gc0 function=@fn42 id=0f40e4b42768052372e858862a04e9e1083e2152129cad22a09a2d9def6aea3a
+  generated_callable gc1 function=@fn51 id=177be4c0a3f72c0622e9e2d8d14c6b99be97ae08b15bda7d8241f9c93e430d26
+  generated_callable gc2 function=@fn41 id=47a0d758ec9bd283ecf4cfbef2d3cd8e2f4a3a300fd7d8e4f071b6e118ac7607
+  generated_callable gc3 function=@fn48 id=64a64fb034670a7783db79362e3445c0ce3f18a4b654e59c0816b86aaba87f15
+  generated_callable gc4 function=@fn43 id=707869651fd51941d930db81ce4079de85a383f06365683c37d46aa189c33c05
+  generated_callable gc5 function=@fn49 id=abc5eb577b136090bdd28eb06895d093eb79e8492caf5595a4ac8ce5e6b170f0
+  generated_callable gc6 function=@fn50 id=c548f4dbc544a4bbab409c4408b700789f603e2daec4ce22a2aa6591cbc27be0
+  generated_callable gc7 function=@fn52 id=c76a27ac38c965a5edb5d8c537ac86937a46984108f41b188e7f2a5a3fb5e04e
   fun Immediate.waitFor @fn0(this: Immediate, value: Int, $completion: Continuation<Long>) -> CoroutineStep<Long>
     bb0 entry
       return
@@ -149,7 +152,7 @@ Module
       assign $new.1
         Type Base
         ClassAlloc Base
-      call @fn42 direct
+      call @fn45 direct
         Type Base
         Local $new.1
       return
@@ -160,7 +163,7 @@ Module
       assign $new.1
         Type Child
         ClassAlloc Child
-      call @fn43 direct
+      call @fn46 direct
         Type Child
         Local $new.1
       return
@@ -171,7 +174,7 @@ Module
       assign $new.1
         Type User
         ClassAlloc User
-      call @fn44 direct
+      call @fn47 direct
         Type User
         Local $new.1
       return
@@ -182,7 +185,7 @@ Module
       assign $new.1
         Type Immediate
         ClassAlloc Immediate
-      call @fn41 direct
+      call @fn44 direct
         Type Immediate
         Local $new.1
       return
@@ -285,24 +288,60 @@ Module
   fun Await.waitFor @fn40(this: Await, value: Int, $completion: Continuation<Long>) -> CoroutineStep<Long>
     bb0 entry
       trap "call to abstract method `Await.waitFor`"
-  fun init.Immediate.$c0 @fn41(this: Immediate) -> Unit
+  fun receiver<User> Contract.raw @fn41(this: User, value: Long) -> Long
+    bb0 entry
+      call $call.1: Long = @fn37 direct
+        Type Contract
+        Retype Contract
+          Type User
+          Local this
+        Type Long
+        Local value
+      return
+        Type Long
+        Local $call.1
+  fun receiver<User> Contract.joined @fn42(this: User, other: Int) -> Int
+    bb0 entry
+      call $call.1: Int = @fn38 direct
+        Type Contract
+        Retype Contract
+          Type User
+          Local this
+        Type Int
+        Local other
+      return
+        Type Int
+        Local $call.1
+  fun receiver<User> Contract.contains @fn43(this: User, value: Int) -> Boolean
+    bb0 entry
+      call $call.1: Boolean = @fn39 direct
+        Type Contract
+        Retype Contract
+          Type User
+          Local this
+        Type Int
+        Local value
+      return
+        Type Boolean
+        Local $call.1
+  fun init.Immediate.$c0 @fn44(this: Immediate) -> Unit
     bb0 entry
       return
-  fun init.Base.$c1 @fn42(this: Base) -> Unit
+  fun init.Base.$c1 @fn45(this: Base) -> Unit
     bb0 entry
       return
-  fun init.Child.$c2 @fn43(this: Child) -> Unit
+  fun init.Child.$c2 @fn46(this: Child) -> Unit
     bb0 entry
-      call @fn42 direct
+      call @fn45 direct
         Type Base
         Retype Base
           Type Child
           Local this
       return
-  fun init.User.$c3 @fn44(this: User) -> Unit
+  fun init.User.$c3 @fn47(this: User) -> Unit
     bb0 entry
       return
-  fun startCoroutine<Await> @fn45(task: SuspendTask<Await>, completion: Continuation<Await>) -> Unit
+  fun startCoroutine<Await> @fn48(task: SuspendTask<Await>, completion: Continuation<Await>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -383,7 +422,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Child> @fn46(task: SuspendTask<Child>, completion: Continuation<Child>) -> Unit
+  fun startCoroutine<Child> @fn49(task: SuspendTask<Child>, completion: Continuation<Child>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -464,7 +503,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Contract> @fn47(task: SuspendTask<Contract>, completion: Continuation<Contract>) -> Unit
+  fun startCoroutine<Contract> @fn50(task: SuspendTask<Contract>, completion: Continuation<Contract>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -545,7 +584,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Base> @fn48(task: SuspendTask<Base>, completion: Continuation<Base>) -> Unit
+  fun startCoroutine<Base> @fn51(task: SuspendTask<Base>, completion: Continuation<Base>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -626,7 +665,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<User> @fn49(task: SuspendTask<User>, completion: Continuation<User>) -> Unit
+  fun startCoroutine<User> @fn52(task: SuspendTask<User>, completion: Continuation<User>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -718,11 +757,11 @@ Module
   coroutine_slot cl2 CoroutineSlot<Contract> value=Contract
   coroutine_slot cl3 CoroutineSlot<Base> value=Base
   coroutine_slot cl4 CoroutineSlot<User> value=User
-  coroutine_start ct0 result=Await function=fn45
-  coroutine_start ct1 result=Child function=fn46
-  coroutine_start ct2 result=Contract function=fn47
-  coroutine_start ct3 result=Base function=fn48
-  coroutine_start ct4 result=User function=fn49
+  coroutine_start ct0 result=Await function=fn48
+  coroutine_start ct1 result=Child function=fn49
+  coroutine_start ct2 result=Contract function=fn50
+  coroutine_start ct3 result=Base function=fn51
+  coroutine_start ct4 result=User function=fn52
   coroutine_fn cf0 @fn0 source_return=Long step=cs5 immediate
   coroutine_fn cf1 @fn14 source_return=Long step=cs5 immediate
   coroutine_fn cf2 @fn18 source_return=Contract step=cs2 immediate

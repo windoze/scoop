@@ -7,6 +7,7 @@ impl MirTypeBridgeSemanticReferencesV1 {
     ) -> Result<Self, MirTypeBridgeReferenceError> {
         let mut collector = Collector::new(graph);
         if let MirTypeRepresentationV1::InlineArray { element }
+        | MirTypeRepresentationV1::MaybeUninit { value: element }
         | MirTypeRepresentationV1::AtomicReference { value: element } = record.representation()
         {
             collector.exact(*element)?;

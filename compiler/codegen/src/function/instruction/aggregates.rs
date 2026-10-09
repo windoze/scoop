@@ -24,6 +24,9 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 let lir_ty = &function.temps[*out].ty;
                 let expected_elements = match lir_ty {
                     LirType::Aggregate(elements) => elements.clone(),
+                    ty if self.is_interface_storage(ty) => {
+                        vec![scoop_lir::MANAGED_PTR, scoop_lir::METADATA_PTR]
+                    }
                     LirType::Struct(id) => (0..self.structs[*id].field_count())
                         .map(|index| {
                             self.structs[*id]
@@ -135,6 +138,11 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 let aggregate_ty = function.value_ty(self.globals_arena, *aggregate);
                 let expected = match &aggregate_ty {
                     LirType::Aggregate(elements) => elements.get(*index as usize).cloned(),
+                    ty if self.is_interface_storage(ty) => {
+                        [scoop_lir::MANAGED_PTR, scoop_lir::METADATA_PTR]
+                            .get(*index as usize)
+                            .cloned()
+                    }
                     LirType::Struct(id) => self.structs[*id].field_storage_type(*index as usize),
                     _ => None,
                 }

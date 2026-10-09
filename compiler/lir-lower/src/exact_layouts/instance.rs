@@ -87,6 +87,7 @@ impl Projection<'_> {
                 | Intrinsic::Boolean,
             )
             | Kind::Struct { .. }
+            | Kind::MaybeUninit { .. }
             | Kind::Enum { .. }
             | Kind::CoroutineStep { .. }
             | Kind::CoroutineSlot { .. } => {

@@ -209,6 +209,16 @@ pub(super) fn dump_metadata(module: &Module, out: &mut String) {
                     layout.name, layout.size, layout.align, params, result
                 ));
             }
+            LayoutKind::Intrinsic(IntrinsicTypeRepresentation::MaybeUninit { value, scan }) => {
+                out.push_str(&format!(
+                    "  layout {} size={} align={} intrinsic=maybe-uninit<{}> scan={}\n",
+                    layout.name,
+                    layout.size,
+                    layout.align,
+                    value.dump(),
+                    scan.dump()
+                ));
+            }
         }
         if let Some(c_layout) = layout.c_layout {
             let fields = layout

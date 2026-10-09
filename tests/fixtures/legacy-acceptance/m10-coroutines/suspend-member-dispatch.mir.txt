@@ -1063,8 +1063,10 @@ Module
       call $step.1: CoroutineStep<Int> = @fn11 direct
         Type Gate
         Local $parameter.gate
-        Type CoroutineAdapter<StructWorker.work>$1
-        Local $adapter.1
+        Type Continuation<Int>
+        Retype Continuation<Int>
+          Type CoroutineAdapter<StructWorker.work>$1
+          Local $adapter.1
       branch bb5 bb6
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -1584,8 +1586,10 @@ Module
       call $step.1: CoroutineStep<Int> = @fn11 direct
         Type Gate
         Local $parameter.gate
-        Type CoroutineAdapter<EnumWorker.work>$1
-        Local $adapter.1
+        Type Continuation<Int>
+        Retype Continuation<Int>
+          Type CoroutineAdapter<EnumWorker.work>$1
+          Local $adapter.1
       branch bb8 bb9
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -2097,8 +2101,10 @@ Module
       call $step.1: CoroutineStep<Int> = @fn11 direct
         Type Gate
         Local $parameter.gate
-        Type CoroutineAdapter<DirectWorker.work>$1
-        Local $adapter.1
+        Type Continuation<Int>
+        Retype Continuation<Int>
+          Type CoroutineAdapter<DirectWorker.work>$1
+          Local $adapter.1
       branch bb5 bb6
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -2603,8 +2609,10 @@ Module
       call $step.1: CoroutineStep<Int> = @fn11 direct
         Type Gate
         Local $parameter.gate
-        Type CoroutineAdapter<VirtualWorkerImpl.work>$1
-        Local $adapter.1
+        Type Continuation<Int>
+        Retype Continuation<Int>
+          Type CoroutineAdapter<VirtualWorkerImpl.work>$1
+          Local $adapter.1
       branch bb5 bb6
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -3109,8 +3117,10 @@ Module
       call $step.1: CoroutineStep<Int> = @fn11 direct
         Type Gate
         Local $parameter.gate
-        Type CoroutineAdapter<AsyncWorkerImpl.work>$1
-        Local $adapter.1
+        Type Continuation<Int>
+        Retype Continuation<Int>
+          Type CoroutineAdapter<AsyncWorkerImpl.work>$1
+          Local $adapter.1
       branch bb5 bb6
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -3619,8 +3629,10 @@ Module
       call $step.1: CoroutineStep<Int> = @fn4 direct
         Type DirectWorker
         Local $receiver
-        Type CoroutineAdapter<DispatchTask.run>$1
-        Local $adapter.1
+        Type Continuation<Int>
+        Retype Continuation<Int>
+          Type CoroutineAdapter<DispatchTask.run>$1
+          Local $adapter.1
       branch bb37 bb38
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -3871,8 +3883,10 @@ Module
       call $step.5: CoroutineStep<Int> = @fn2 direct
         Type EnumWorker
         Local $receiver
-        Type CoroutineAdapter<DispatchTask.run>$5
-        Local $adapter.5
+        Type Continuation<Int>
+        Retype Continuation<Int>
+          Type CoroutineAdapter<DispatchTask.run>$5
+          Local $adapter.5
       branch bb5 bb6
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -4065,8 +4079,10 @@ Module
       call $step.4: CoroutineStep<Int> = @fn1 direct
         Type StructWorker
         Local $receiver
-        Type CoroutineAdapter<DispatchTask.run>$4
-        Local $adapter.4
+        Type Continuation<Int>
+        Retype Continuation<Int>
+          Type CoroutineAdapter<DispatchTask.run>$4
+          Local $adapter.4
       branch bb13 bb14
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -4238,8 +4254,10 @@ Module
       call $step.3: CoroutineStep<Int> = @fn19 interface AsyncWorker[0]
         Type AsyncWorker
         Local $receiver
-        Type CoroutineAdapter<DispatchTask.run>$3
-        Local $adapter.3
+        Type Continuation<Int>
+        Retype Continuation<Int>
+          Type CoroutineAdapter<DispatchTask.run>$3
+          Local $adapter.3
       branch bb21 bb22
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -4390,8 +4408,10 @@ Module
       call $step.2: CoroutineStep<Int> = @fn5 virtual[0]
         Type VirtualWorker
         Local $receiver
-        Type CoroutineAdapter<DispatchTask.run>$2
-        Local $adapter.2
+        Type Continuation<Int>
+        Retype Continuation<Int>
+          Type CoroutineAdapter<DispatchTask.run>$2
+          Local $adapter.2
       branch bb29 bb30
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -6352,8 +6372,10 @@ Module
       call @fn18 interface SuspendRegistration<Int>[0]
         Type SuspendRegistration<Int>
         Local $dependency.parameter.registration
-        Type CoroutineAdapter<waitFor>$1
-        Local $safe_adapter.1
+        Type Continuation<Int>
+        Retype Continuation<Int>
+          Type CoroutineAdapter<waitFor>$1
+          Local $safe_adapter.1
       goto bb14
     bb3 coroutine.registered_success.1
       atomic_store_release kind=coroutine-adapter-state field=1

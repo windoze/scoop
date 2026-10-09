@@ -34,7 +34,7 @@ fn mixed_abi_module() -> Module {
             .locals
             .alloc(test_local("elided_argument", zst.clone()));
         for (_, call_signature) in function.call_targets.indirect_result_signatures.iter_mut() {
-            *call_signature = IndirectResultCallSignature::scoop_sret(
+            *call_signature = IndirectResultCallSignature::sret(
                 signature.arguments().to_vec(),
                 aggregate_value(),
                 scoop_lir::CallingConvention::Cdecl,

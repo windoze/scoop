@@ -88,7 +88,7 @@ checks = []
 
 [[steps]]
 name = "truncate"
-files = [{"truncate" = {"path" = "${work}/artifacts/root.slib", "size" = 154841}}]
+files = [{"truncate" = {"path" = "${work}/artifacts/root.slib", "size" = 158557}}]
 checks = []
 
 [[steps]]

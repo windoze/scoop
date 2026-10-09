@@ -81,11 +81,9 @@ Module
     local %36 $uw.2: ptr<managed>
     local %37 $new.1: ptr<managed>
     local %38 $catch.2: ptr<managed>
-    local %39 $sc.1: enum1
-    local %40 $sc.2: enum1
-    local %41 $sc.3: exception_record
-    local %42 $sc.4: ptr<raw>
-    local %43 $sc.5: ptr<managed>
+    local %39 $sc.1: exception_record
+    local %40 $sc.2: ptr<raw>
+    local %41 $sc.3: ptr<managed>
   block entry
     poll managed-void-target5 sp<managed-poll:0> live=[]
     call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td9, machine<byte-size>(ByteSize(24)))
@@ -125,9 +123,7 @@ Module
     store local21 -> local22
     t10 = foreign_callback_State family0 local22 : enum1
     t11 = enum_wrap e1 v3 () : enum1
-    store t10 -> local39
-    store t11 -> local40
-    call managed-direct-target1 sp<managed-call:2> live=[] t12 = sig=direct3 (indirect<enum1 size=8 align=8 scan=none>, indirect<enum1 size=8 align=8 scan=none>) -> i1 external-fn6(indirect local39, indirect local40)
+    call managed-direct-target1 sp<managed-call:2> live=[] t12 = sig=direct3 (parts<enum1 [i64@0+8/8]>, parts<enum1 [i64@0+8/8]>) -> i1 external-fn6(t10, t11)
     store t12 -> local23
     store local23 -> local24
     call managed-void-target1 sp<managed-call:3> live=[] sig=void1 (i1) local-fn7(local24)
@@ -159,18 +155,18 @@ Module
     br @try.body.11
   block try.unwind.4
     (t21, t22) = landingpad : (exception_record, ptr<raw>)
-    store t21 -> local41
-    store t22 -> local42
+    store t21 -> local39
+    store t22 -> local40
     br @try.dispatch.5
   block try.dispatch.5
-    t23 = begin_catch local42 : ptr<managed>
-    store t23 -> local43
-    call no-gc-direct-target1 t24 = sig=direct6 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local43, td7)
+    t23 = begin_catch local40 : ptr<managed>
+    store t23 -> local41
+    call no-gc-direct-target1 t24 = sig=direct6 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local41, td7)
     cbr t24 then @try.catch.12 else @try.next.13
   block try.handler_pad.6
     (t25, t26) = cleanup_pad : (exception_record, ptr<raw>)
-    store t25 -> local41
-    store t26 -> local42
+    store t25 -> local39
+    store t26 -> local40
     br @try.handler_cleanup.7
   block try.handler_cleanup.7
     end_catch
@@ -178,22 +174,22 @@ Module
     store local33 -> local34
     foreign_callback_Release family0 local34
     t27 = aggregate () : {}
-    resume local41
+    resume local39
   block try.exit_pad.8
     (t28, t29) = cleanup_pad : (exception_record, ptr<raw>)
-    store t28 -> local41
-    store t29 -> local42
+    store t28 -> local39
+    store t29 -> local40
     br @try.exit_cleanup.9
   block try.exit_cleanup.9
     end_catch
-    resume local41
+    resume local39
   block try.end.10
     ret
   block try.body.11
     invoke no-gc-void-target0 sig=void4 (ptr<managed>) runtime @scoop_rt_throw(local27) normal @throw.normal.1 unwind @try.unwind.4
     br @throw.normal.1
   block try.catch.12
-    call managed-direct-target3 sp<managed-call:7> live=[local43:ptr<managed>@0] t30 = sig=direct7 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(local43)
+    call managed-direct-target3 sp<managed-call:7> live=[local41:ptr<managed>@0] t30 = sig=direct7 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(local41)
     store t30 -> local38
     store local38 -> local30
     br @scope.14
@@ -415,13 +411,13 @@ Module
   layout Option size=8 align=8 enum-scan=refs[0]
   layout Option size=16 align=8 enum-scan=none
   layout Option size=8 align=8 enum-scan=refs[0]
-  layout Equality value size=8 align=8 refs=[0]
-  layout Equality value size=8 align=8 refs=[0]
-  layout Equality value size=8 align=8 refs=[0]
-  layout Equality value size=8 align=8 refs=[0]
-  layout Iterable value size=8 align=8 refs=[0]
-  layout Iterator value size=8 align=8 refs=[0]
-  layout Equality value size=8 align=8 refs=[0]
+  layout Equality value size=16 align=8 refs=[0]
+  layout Equality value size=16 align=8 refs=[0]
+  layout Equality value size=16 align=8 refs=[0]
+  layout Equality value size=16 align=8 refs=[0]
+  layout Iterable value size=16 align=8 refs=[0]
+  layout Iterator value size=16 align=8 refs=[0]
+  layout Equality value size=16 align=8 refs=[0]
   layout CallbackError value size=8 align=8 refs=[0]
   layout CallbackError size=32 align=8 refs=[16, 24]
   layout $Closure$lambda0 value size=8 align=8 refs=[0]

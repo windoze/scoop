@@ -1,0 +1,97 @@
+Module
+  global @scoop$1$bs$53ddd5946da8e3af13ad29950f499477a924ad04430d9dd3b7bb52c36323fbc9 = c"call to abstract method `Readable.get`"
+  fun @scoop$1$cb$f0c71a0435da99d814577ae9e40e28350860be77e04a38da7cdef6e417c4998a() -> i32
+    local %0 $dependency.argument.0: i32
+    local %1 $dependency.parameter.value: i32
+    local %2 reader: interface{object,itab}
+    local %3 $dependency.receiver: interface{object,itab}
+    local %4 $call.1: struct0
+    local %5 $call.2: i32
+    local %6 $box.1: struct0
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store integer<Int>(0x0000002a) -> local0
+    store local0 -> local1
+    call no-gc-direct-target0 t0 = sig=direct0 (i32) -> struct0 local-fn4(local1)
+    store t0 -> local4
+    store local4 -> local6
+    t1 = box_value td2, local6 scan=none sp<managed-call:0> live=[]
+    t2 = heap_load td2 +96 : ptr<metadata>
+    t3 = heap_load t2 +24 : ptr<metadata>
+    t4 = aggregate (t1, t3) : interface{object,itab}
+    store t4 -> local2
+    store local2 -> local3
+    t5 = extract local3, 1 : ptr<metadata>
+    t6 = extract local3, 0 : ptr<managed>
+    call managed-direct-target0 sp<managed-call:1> live=[t6:ptr<managed>@0] t7 = sig=direct1 (ptr<managed>) -> i32 dispatch[Interface:1] t5(t6)
+    store t7 -> local5
+    ret local5
+  fun @scoop$1$cb$94d315bea5e3b4f17deecbe3209a3260d6cd98ab16e8cc024c3a72f101653848(parts<struct0 [i64@0+4/4]>) -> i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    t0 = extract param0, 0 : i32
+    ret t0
+  fun @scoop$1$cb$f689110114a220a7c02887b89e3069f255631b792187a6134996a5bfef0077db(parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>) -> i32
+    local %0 $dependency.local.1: interface{object,itab}
+    local %1 $call.1: i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[param0:interface{object,itab}@0]
+    store param0 -> local0
+    t0 = extract local0, 0 : ptr<managed>
+    t1 = heap_load t0 +0 : ptr<metadata>
+    call no-gc-direct-target0 t2 = sig=direct0 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t1, td1)
+    t3 = aggregate (t0, t2) : interface{object,itab}
+    t4 = extract t3, 1 : ptr<metadata>
+    t5 = extract t3, 0 : ptr<managed>
+    call managed-direct-target0 sp<managed-call:0> live=[t5:ptr<managed>@0] t6 = sig=direct1 (ptr<managed>) -> i32 dispatch[Interface:0] t4(t5)
+    store t6 -> local1
+    ret local1
+  fun @scoop$1$cb$21215df63ffedb32ce72e4c15b66d5d5a0f14f45203aa2b8d98c98b9a06a780e(parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>) -> i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    br @unwrap.trap.1
+  block unwrap.trap.1
+    call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global0)
+    unreachable
+  fun @scoop$1$cb$a4ecc768e34afd2103d7fc915923b141acb95a9635d9a3623e1a6d7a04d365ec(i32) -> parts<struct0 [i32@0+4/4]> <no-gc>
+  block entry
+    t0 = aggregate (param0) : struct0
+    ret t0
+  fun @scoop$1$cb$6e625c4f7e0614e8688ac3d5689c7d86279441252060e7f9e3aa9546c595a7d0(ptr<managed>) -> i32
+    local %0 $call.1: i32
+    local %1 $box.1: struct0
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
+    unbox_value td2, param0 -> local1
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (parts<struct0 [i64@0+4/4]>) -> i32 local-fn1(local1)
+    store t0 -> local0
+    ret local0
+  fun @scoop$1$cb$442def218b957ab6ca86a619208222e0882b9ef1338354d8bef1ce54f6fc4929(ptr<managed>) -> i32
+    local %0 $call.1: i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
+    t0 = heap_load td2 +96 : ptr<metadata>
+    t1 = heap_load t0 +24 : ptr<metadata>
+    t2 = aggregate (param0, t1) : interface{object,itab}
+    call managed-direct-target0 sp<managed-call:0> live=[t2:interface{object,itab}@0] t3 = sig=direct0 (parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>) -> i32 local-fn2(t2)
+    store t3 -> local0
+    ret local0
+  fun @scoop$1$cb$8c77b4c1a4cbf363d31f6876cd2c851771fd58251eaa1dc902d2a209f55a3749(ptr<managed>) -> i32
+    local %0 $call.1: i32
+    local %1 $box.1: struct0
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
+    unbox_value td2, param0 -> local1
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (parts<struct0 [i64@0+4/4]>) -> i32 local-fn1(local1)
+    store t0 -> local0
+    ret local0
+  td td0 a(n(c=dev.example%3Ageneric-member-provider%3A0.1.0;p=templates.members;o=-;k=I;x=Reader);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$ef1aac982d1306032f787b215d9688feab6a4f539dbd5c7c97e87895bde4e301 type-id=3756201689791390063 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[td1]
+  td td1 a(n(c=dev.example%3Ageneric-member-provider%3A0.1.0;p=templates.members;o=-;k=I;x=Readable);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$af1fd73a64b8e86c1f3646b0d22b11518a0c5cb3f82cb3e0795ba00e615b8db5 type-id=9852135666512990804 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
+  td td2 g(r=00000006;i=a14e651dda784ab9dc47bfe2811cca6e2e474f5f62fa114446eb8f0324b32cf5) @scoop$1$td$f51b93b042db4f7ec78a2810c2daa7cf912d10087e8624b3785c130112bfe8b7 type-id=14631864770417303097 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[td1:[local-fn7], td0:[local-fn5, local-fn6]]
+  td td3 a(n(c=dev.example%3Ageneric-member-provider%3A0.1.0;p=templates.members;o=-;k=S;x=InterfaceCell);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$8c06ac6278df9a7d8da26eecc7ac088a8b4c9e722f0d1fb3ad7b28eb7a1cc292 type-id=18097604083374211417 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  layout InterfaceCell size=4 align=4 refs=[]
+  layout Reader value size=16 align=8 refs=[0]
+  layout Readable value size=16 align=8 refs=[0]
+  layout box<InterfaceCell<Int>> value size=8 align=8 refs=[0]
+  layout box<InterfaceCell<Int>> size=24 align=8 refs=[]
+  output library

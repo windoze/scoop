@@ -26,16 +26,8 @@ impl FunctionLowerer<'_> {
             NativeCallDestination::C(lir::CCallDestination::extern_function(function), *call_mode);
         match call_plan {
             lir::CAbiCallPlan::Direct(signature) => {
-                let parameters = signature
-                    .params
-                    .iter()
-                    .map(|value| value.ty.storage_type())
-                    .collect();
-                let result_type = match &signature.result {
-                    lir::DirectCReturn::Void => lir::LirType::Void,
-                    lir::DirectCReturn::Value(value) => value.ty.storage_type(),
-                };
-                let result = self.emit_native_call(destination, parameters, result_type, args)?;
+                let signature = signature.abi_signature();
+                let result = self.emit_native_call_with_signature(destination, &signature, args)?;
                 Ok(self.restore_c_value(result_ty, result))
             }
             lir::CAbiCallPlan::StorageBridge { .. } => {

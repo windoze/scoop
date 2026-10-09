@@ -73,6 +73,7 @@ impl<'input> LirLayoutsValidatedCrossConeLayoutClosure<'input> {
                     callables.push(dependency.lir_cross_cone_bridge());
                     metadata.push(dependency.prepared.shared_metadata());
                 }
+                let ordinary = ordinary.validate(parts.identities, parts.lir_foundation)?;
                 let expected = replay_shared_ordinary_lir_bridge(
                     target.target(),
                     scoop_hir::SharedTypeMetadataV1 {
@@ -89,8 +90,11 @@ impl<'input> LirLayoutsValidatedCrossConeLayoutClosure<'input> {
                         callables: &callables,
                     },
                     parts.lir_foundation,
+                    &ordinary,
                 )?;
-                let ordinary = ordinary.validate_against(expected)?;
+                if ordinary != expected {
+                    return Err(lir::CrossConeLirBridgeValidationError::SectionMismatch.into());
+                }
                 scoop_wire::allocation::try_reserve(&mut complete, 1, &path)?;
                 Ok(OrdinaryLirBridgeValidatedCrossConeLayoutSections {
                     prepared,

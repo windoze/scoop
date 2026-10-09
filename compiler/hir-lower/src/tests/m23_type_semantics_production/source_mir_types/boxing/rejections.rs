@@ -49,16 +49,18 @@ pub(super) fn check(
     )
     .unwrap();
     assert!(matches!(
-        CanonicalMirCallableBindingsV1::from_boxing_adjusts(input, types, graph, lookup, &changed),
+        CanonicalMirCallableBindingsV1::from_interface_adjusts(
+            input, types, graph, lookup, &changed
+        ),
         Err(Error::TargetMismatch(_))
     ));
     let empty = CanonicalMirCallableBindingsV1::try_new(Vec::new()).unwrap();
     assert!(matches!(
-        CanonicalMirCallableBindingsV1::from_boxing_adjusts(input, types, graph, types, &empty),
+        CanonicalMirCallableBindingsV1::from_interface_adjusts(input, types, graph, types, &empty),
         Err(Error::MissingTargetBinding(_))
     ));
     assert!(matches!(
-        CanonicalMirCallableBindingsV1::from_boxing_adjusts(
+        CanonicalMirCallableBindingsV1::from_interface_adjusts(
             input,
             types,
             graph,
@@ -70,6 +72,6 @@ pub(super) fn check(
         ))
     ));
 
-    CanonicalMirCallableBindingsV1::from_boxing_adjusts(input, types, graph, lookup, source)
+    CanonicalMirCallableBindingsV1::from_interface_adjusts(input, types, graph, lookup, source)
         .unwrap();
 }

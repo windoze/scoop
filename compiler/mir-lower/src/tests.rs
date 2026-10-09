@@ -15,6 +15,7 @@ mod harness_gc;
 mod harness_metadata;
 mod harness_nominals;
 mod operators;
+mod optimization;
 mod overloads;
 mod reference_types;
 mod singletons;

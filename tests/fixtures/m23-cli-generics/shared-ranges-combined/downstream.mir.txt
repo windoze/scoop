@@ -12,7 +12,7 @@ Module
     Empty()
     Value(value: Later)
   class Later vtable=0 itables=0
-  class IntRange vtable=0 itables=1
+  class IntRange vtable=0 itables=0
   class IllegalStateException vtable=0 itables=0
   class Exception vtable=0 itables=0
   class Throwable vtable=0 itables=0

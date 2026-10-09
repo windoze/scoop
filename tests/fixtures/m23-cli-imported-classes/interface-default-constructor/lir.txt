@@ -2,8 +2,8 @@ Module
   fun @scoop$1$cb$51e43a707c895abd8b7b61cfde2035b238826dc871cff684e67c33626986bb5b() -> ptr<managed>
     local %0 $default.local.0: i64
     local %1 $default.local.1: i64
-    local %2 $dependency.parameter.value: ptr<managed>
-    local %3 $dependency.receiver: ptr<managed>
+    local %2 $dependency.parameter.value: interface{object,itab}
+    local %3 $dependency.receiver: interface{object,itab}
     local %4 $dependency.argument.0: i64
     local %5 $dependency.parameter.value: i64
     local %6 $new.1: ptr<managed>
@@ -16,17 +16,20 @@ Module
     store t0 -> local6
     call managed-void-target0 sp<managed-call:1> live=[local6:ptr<managed>@0] sig=void0 (ptr<managed>, i64) external-fn2(local6, local1)
     t1 = aggregate () : {}
-    store local6 -> local2
-    call managed-direct-target1 sp<managed-call:2> live=[local2:ptr<managed>@0] t2 = sig=direct1 (ptr<managed>) -> ptr<managed> external-fn3(local2)
-    store t2 -> local3
-    t3 = heap_load local3 +0 : ptr<metadata>
-    call no-gc-direct-target0 t4 = sig=direct2 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t3, external-td5)
-    call managed-direct-target2 sp<managed-call:3> live=[local3:ptr<managed>@0] t5 = sig=direct3 (ptr<managed>) -> i64 dispatch[Interface:0] t4(local3)
-    store t5 -> local4
+    t2 = heap_load external-td6 +96 : ptr<metadata>
+    t3 = heap_load t2 +8 : ptr<metadata>
+    t4 = aggregate (local6, t3) : interface{object,itab}
+    store t4 -> local2
+    call managed-direct-target1 sp<managed-call:2> live=[local2:interface{object,itab}@0] t5 = sig=direct1 (parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>) -> interface{object,itab} external-fn3(local2)
+    store t5 -> local3
+    t6 = extract local3, 1 : ptr<metadata>
+    t7 = extract local3, 0 : ptr<managed>
+    call managed-direct-target2 sp<managed-call:3> live=[t7:ptr<managed>@0] t8 = sig=direct2 (ptr<managed>) -> i64 dispatch[Interface:0] t6(t7)
+    store t8 -> local4
     store local4 -> local5
-    call managed-direct-target3 sp<managed-call:4> live=[] t6 = sig=direct4 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td7, machine<byte-size>(ByteSize(24)))
-    store t6 -> local7
+    call managed-direct-target3 sp<managed-call:4> live=[] t9 = sig=direct3 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td7, machine<byte-size>(ByteSize(24)))
+    store t9 -> local7
     call managed-void-target1 sp<managed-call:5> live=[local7:ptr<managed>@0] sig=void1 (ptr<managed>, i64) external-fn5(local7, local5)
-    t7 = aggregate () : {}
+    t10 = aggregate () : {}
     ret local7
   output library

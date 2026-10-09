@@ -198,25 +198,30 @@ Module
   generated_exact_type get34 location=enum23 nominal_id=2be3629ff4a6666ec0e8dcd98a7a2d952f10383e3b762b71ada232727167585a exact_id=e923f2f75497b07f2f5dfdf1b3ea970cf78a12c3764402242d7f84c6fb7544ec
   generated_exact_type get35 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
   generated_exact_type get36 location=enum10 nominal_id=a06c8e7db4e1d61f89c7bea2b6e3bd06affd17737eab4e37fbbebeee7eaadb59 exact_id=f5bb96a38cd6138c32fcbac2737c955bd59e4f5d778a3f5f505f17e5fc49cc15
-  generated_callable gc0 function=@fn102 id=17f0086f9d778bcc88534c78bd4cb7c40ba5ba38ae3a3ab56b78731f80909892
-  generated_callable gc1 function=@fn95 id=275ac234d6a52ae0d901db78fdd95e53dbead95596d41e5009a704578dc78c70
-  generated_callable gc2 function=@fn107 id=4a1198eb747c79bccf8d8363d49336116f9619e1a5bdd7237670f6eda46a310a
-  generated_callable gc3 function=@fn92 id=52715e9e21931e92ab130e3cf100648a887ad115bc8c3ed5b95dcd0d849d211e
-  generated_callable gc4 function=@fn96 id=52d4a0b682b1ad6bc479df1170cba90252d421869365878936d10b7e0f8ba692
-  generated_callable gc5 function=@fn99 id=624bf8c565466b183d8b5f008bcb087e911a594ed54f9aeb7319a0b1e05e4b3c
-  generated_callable gc6 function=@fn104 id=6dafe93a66522aa0528f93e709fc54f3eea2eaacd48cc7df2473bf55513d894b
-  generated_callable gc7 function=@fn93 id=70c43eb801174b711a39315a474cd6847af55f154277d6284fa3959caed6af2d
-  generated_callable gc8 function=@fn105 id=8cc84c2c814c861f23a4133085cdc18f63a2198c165e368db73eed465a309aa3
-  generated_callable gc9 function=@fn97 id=8d228d52c9ac10a5af92446bc0890d15ce6cb2906c0f1449c51e1c4ed5b1fe0f
-  generated_callable gc10 function=@fn91 id=a8a0ec8139debceb3c8bc71c61bb83cd5c8ae46c1da7a87a7483431f1eaf040e
-  generated_callable gc11 function=@fn106 id=c04f64c5463d8179b0462090dff0bd347b3a8442c14376b88830a93f2717c55a
-  generated_callable gc12 function=@fn108 id=d88c16d24383fa8ad6ba72c993772bc1c28298765549cb72ca32c43ec2b35dee
-  generated_callable gc13 function=@fn94 id=d93fd93b118579e8f745636cc1423dea31ea9dbb63abb6bd46edad65f829a669
-  generated_callable gc14 function=@fn109 id=deba370f990cd00684cfa8d1780a977079c5174e438993f0413b855244dac05b
-  generated_callable gc15 function=@fn103 id=ebc3889f8e388f8d3787ae1415dd6bd7871f6ccbcf81e7f557cc1df1c12a3948
-  generated_callable gc16 function=@fn101 id=f1067c3a7c8164c5b00a1582e5f30e2e513ca61194959c2262933a377c40de66
-  generated_callable gc17 function=@fn100 id=f9e2a3cb4b9ee97cc763dfde465fe7354e5368d0c5940ba887fba1495a8614e8
-  generated_callable gc18 function=@fn98 id=fe3265bb457f5dc0eba4ecbe9bedf94a5934975caddd8c9a11cf26a77c0de51e
+  generated_callable gc0 function=@fn82 id=0c40c7fe6d21e8deb5d308917a2e79ee0f1df7a36e809975bc4b952dda39c02c
+  generated_callable gc1 function=@fn107 id=17f0086f9d778bcc88534c78bd4cb7c40ba5ba38ae3a3ab56b78731f80909892
+  generated_callable gc2 function=@fn86 id=2488844fc609b4f71e2612c2bda6305a11fd5cec794261cf3d189a652655995b
+  generated_callable gc3 function=@fn100 id=275ac234d6a52ae0d901db78fdd95e53dbead95596d41e5009a704578dc78c70
+  generated_callable gc4 function=@fn84 id=2d4b6cf8c45a12da113eaece6e12852fe889edad6ef472975c5d0f2882cd79ae
+  generated_callable gc5 function=@fn112 id=4a1198eb747c79bccf8d8363d49336116f9619e1a5bdd7237670f6eda46a310a
+  generated_callable gc6 function=@fn97 id=52715e9e21931e92ab130e3cf100648a887ad115bc8c3ed5b95dcd0d849d211e
+  generated_callable gc7 function=@fn101 id=52d4a0b682b1ad6bc479df1170cba90252d421869365878936d10b7e0f8ba692
+  generated_callable gc8 function=@fn104 id=624bf8c565466b183d8b5f008bcb087e911a594ed54f9aeb7319a0b1e05e4b3c
+  generated_callable gc9 function=@fn109 id=6dafe93a66522aa0528f93e709fc54f3eea2eaacd48cc7df2473bf55513d894b
+  generated_callable gc10 function=@fn98 id=70c43eb801174b711a39315a474cd6847af55f154277d6284fa3959caed6af2d
+  generated_callable gc11 function=@fn110 id=8cc84c2c814c861f23a4133085cdc18f63a2198c165e368db73eed465a309aa3
+  generated_callable gc12 function=@fn102 id=8d228d52c9ac10a5af92446bc0890d15ce6cb2906c0f1449c51e1c4ed5b1fe0f
+  generated_callable gc13 function=@fn83 id=97dc6a5db146792bb738ec275fdde8582f12cdc872d43811a7a9840ade7e8f93
+  generated_callable gc14 function=@fn96 id=a8a0ec8139debceb3c8bc71c61bb83cd5c8ae46c1da7a87a7483431f1eaf040e
+  generated_callable gc15 function=@fn111 id=c04f64c5463d8179b0462090dff0bd347b3a8442c14376b88830a93f2717c55a
+  generated_callable gc16 function=@fn85 id=ccd189ad669165d4fc74e1ea8ee08289ac67ccf6f086da4d9f49cab12dbc3174
+  generated_callable gc17 function=@fn113 id=d88c16d24383fa8ad6ba72c993772bc1c28298765549cb72ca32c43ec2b35dee
+  generated_callable gc18 function=@fn99 id=d93fd93b118579e8f745636cc1423dea31ea9dbb63abb6bd46edad65f829a669
+  generated_callable gc19 function=@fn114 id=deba370f990cd00684cfa8d1780a977079c5174e438993f0413b855244dac05b
+  generated_callable gc20 function=@fn108 id=ebc3889f8e388f8d3787ae1415dd6bd7871f6ccbcf81e7f557cc1df1c12a3948
+  generated_callable gc21 function=@fn106 id=f1067c3a7c8164c5b00a1582e5f30e2e513ca61194959c2262933a377c40de66
+  generated_callable gc22 function=@fn105 id=f9e2a3cb4b9ee97cc763dfde465fe7354e5368d0c5940ba887fba1495a8614e8
+  generated_callable gc23 function=@fn103 id=fe3265bb457f5dc0eba4ecbe9bedf94a5934975caddd8c9a11cf26a77c0de51e
   fun Value.evaluate @fn0(this: Value) -> Int
     bb0 entry
       return
@@ -312,7 +317,7 @@ Module
       assign $new.1
         Type Singleton
         ClassAlloc Singleton
-      call @fn85 direct
+      call @fn90 direct
         Type Singleton
         Local $new.1
       global_assign $singleton$Singleton
@@ -631,56 +636,106 @@ Module
   fun MutableSpecific.$set$size @fn81(this: MutableSpecific, value: Int) -> Unit
     bb0 entry
       return
-  fun init.Pending.$c0 @fn82(this: Pending) -> Unit
+  fun receiver<Pending> Obligation.$get$value @fn82(this: Pending) -> Int
+    bb0 entry
+      call $call.1: Int = @fn75 direct
+        Type Root
+        Retype Root
+          Type Pending
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun receiver<Pending> Obligation.evaluate @fn83(this: Pending) -> Int
+    bb0 entry
+      call $call.1: Int = @fn77 direct
+        Type Obligation
+        Retype Obligation
+          Type Pending
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun receiver<Pending> Refined.evaluate @fn84(this: Pending) -> Int
+    bb0 entry
+      call $call.1: Int = @fn77 direct
+        Type Obligation
+        Retype Obligation
+          Type Pending
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun receiver<Pending> Root.evaluate @fn85(this: Pending) -> Int
+    bb0 entry
+      call $call.1: Int = @fn77 direct
+        Type Obligation
+        Retype Obligation
+          Type Pending
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun receiver<Complete> Obligation.$get$value @fn86(this: Complete) -> Int
+    bb0 entry
+      call $call.1: Int = @fn75 direct
+        Type Root
+        Retype Root
+          Type Complete
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun init.Pending.$c0 @fn87(this: Pending) -> Unit
     bb0 entry
       return
-  fun init.Complete.$c1 @fn83(this: Complete) -> Unit
+  fun init.Complete.$c1 @fn88(this: Complete) -> Unit
     bb0 entry
-      call @fn82 direct
+      call @fn87 direct
         Type Pending
         Retype Pending
           Type Complete
           Local this
       return
-  fun init.Winner.$c2 @fn84(this: Winner) -> Unit
+  fun init.Winner.$c2 @fn89(this: Winner) -> Unit
     bb0 entry
       return
-  fun init.Singleton.$c7 @fn85(this: Singleton) -> Unit
+  fun init.Singleton.$c7 @fn90(this: Singleton) -> Unit
     bb0 entry
-      call @fn84 direct
+      call @fn89 direct
         Type Winner
         Retype Winner
           Type Singleton
           Local this
       return
-  fun init.Virtual.$c3 @fn86(this: Virtual) -> Unit
+  fun init.Virtual.$c3 @fn91(this: Virtual) -> Unit
     bb0 entry
       return
-  fun init.Reabstract.$c4 @fn87(this: Reabstract) -> Unit
+  fun init.Reabstract.$c4 @fn92(this: Reabstract) -> Unit
     bb0 entry
-      call @fn86 direct
+      call @fn91 direct
         Type Virtual
         Retype Virtual
           Type Reabstract
           Local this
       return
-  fun init.Final.$c5 @fn88(this: Final) -> Unit
+  fun init.Final.$c5 @fn93(this: Final) -> Unit
     bb0 entry
-      call @fn87 direct
+      call @fn92 direct
         Type Reabstract
         Retype Reabstract
           Type Final
           Local this
       return
-  fun init.MutableWinner.$c6 @fn89(this: MutableWinner) -> Unit
+  fun init.MutableWinner.$c6 @fn94(this: MutableWinner) -> Unit
     bb0 entry
       return
-  fun ctor.Value.$c0 @fn90() -> Value <no-gc>
+  fun ctor.Value.$c0 @fn95() -> Value <no-gc>
     bb0 entry
       return
         Type Value
         StructInit Value
-  fun startCoroutine<Root> @fn91(task: SuspendTask<Root>, completion: Continuation<Root>) -> Unit
+  fun startCoroutine<Root> @fn96(task: SuspendTask<Root>, completion: Continuation<Root>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -761,7 +816,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<MutableSpecific> @fn92(task: SuspendTask<MutableSpecific>, completion: Continuation<MutableSpecific>) -> Unit
+  fun startCoroutine<MutableSpecific> @fn97(task: SuspendTask<MutableSpecific>, completion: Continuation<MutableSpecific>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -842,7 +897,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Pending> @fn93(task: SuspendTask<Pending>, completion: Continuation<Pending>) -> Unit
+  fun startCoroutine<Pending> @fn98(task: SuspendTask<Pending>, completion: Continuation<Pending>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -923,7 +978,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Refined> @fn94(task: SuspendTask<Refined>, completion: Continuation<Refined>) -> Unit
+  fun startCoroutine<Refined> @fn99(task: SuspendTask<Refined>, completion: Continuation<Refined>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -1004,7 +1059,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Reabstract> @fn95(task: SuspendTask<Reabstract>, completion: Continuation<Reabstract>) -> Unit
+  fun startCoroutine<Reabstract> @fn100(task: SuspendTask<Reabstract>, completion: Continuation<Reabstract>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -1085,7 +1140,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<MutableWinner> @fn96(task: SuspendTask<MutableWinner>, completion: Continuation<MutableWinner>) -> Unit
+  fun startCoroutine<MutableWinner> @fn101(task: SuspendTask<MutableWinner>, completion: Continuation<MutableWinner>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -1166,7 +1221,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Virtual> @fn97(task: SuspendTask<Virtual>, completion: Continuation<Virtual>) -> Unit
+  fun startCoroutine<Virtual> @fn102(task: SuspendTask<Virtual>, completion: Continuation<Virtual>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -1247,7 +1302,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Singleton> @fn98(task: SuspendTask<Singleton>, completion: Continuation<Singleton>) -> Unit
+  fun startCoroutine<Singleton> @fn103(task: SuspendTask<Singleton>, completion: Continuation<Singleton>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -1328,7 +1383,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Choice> @fn99(task: SuspendTask<Choice>, completion: Continuation<Choice>) -> Unit
+  fun startCoroutine<Choice> @fn104(task: SuspendTask<Choice>, completion: Continuation<Choice>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -1409,7 +1464,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Value> @fn100(task: SuspendTask<Value>, completion: Continuation<Value>) -> Unit
+  fun startCoroutine<Value> @fn105(task: SuspendTask<Value>, completion: Continuation<Value>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -1490,7 +1545,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Winner> @fn101(task: SuspendTask<Winner>, completion: Continuation<Winner>) -> Unit
+  fun startCoroutine<Winner> @fn106(task: SuspendTask<Winner>, completion: Continuation<Winner>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -1571,7 +1626,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Obligation> @fn102(task: SuspendTask<Obligation>, completion: Continuation<Obligation>) -> Unit
+  fun startCoroutine<Obligation> @fn107(task: SuspendTask<Obligation>, completion: Continuation<Obligation>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -1652,7 +1707,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Complete> @fn103(task: SuspendTask<Complete>, completion: Continuation<Complete>) -> Unit
+  fun startCoroutine<Complete> @fn108(task: SuspendTask<Complete>, completion: Continuation<Complete>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -1733,7 +1788,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<MutableRoot> @fn104(task: SuspendTask<MutableRoot>, completion: Continuation<MutableRoot>) -> Unit
+  fun startCoroutine<MutableRoot> @fn109(task: SuspendTask<MutableRoot>, completion: Continuation<MutableRoot>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -1814,7 +1869,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Final> @fn105(task: SuspendTask<Final>, completion: Continuation<Final>) -> Unit
+  fun startCoroutine<Final> @fn110(task: SuspendTask<Final>, completion: Continuation<Final>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -1895,42 +1950,42 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun thunk<Choice> Root.evaluate() @fn106(this: Root) -> Int
+  fun thunk<Choice> Root.evaluate() @fn111(this: box<Choice>) -> Int
     bb0 entry
       call $call.1: Int = @fn2 direct
         Type Choice
         Unbox
-          Type Root
+          Type box<Choice>
           Local this
       return
         Type Int
         Local $call.1
-  fun thunk<Choice> Root.$get$value() @fn107(this: Root) -> Int
+  fun thunk<Choice> Root.$get$value() @fn112(this: box<Choice>) -> Int
     bb0 entry
       call $call.1: Int = @fn75 direct
         Type Root
         Retype Root
-          Type Root
+          Type box<Choice>
           Local this
       return
         Type Int
         Local $call.1
-  fun thunk<Value> Root.evaluate() @fn108(this: Root) -> Int
+  fun thunk<Value> Root.evaluate() @fn113(this: box<Value>) -> Int
     bb0 entry
       call $call.1: Int = @fn0 direct
         Type Value
         Unbox
-          Type Root
+          Type box<Value>
           Local this
       return
         Type Int
         Local $call.1
-  fun thunk<Value> Root.$get$value() @fn109(this: Root) -> Int
+  fun thunk<Value> Root.$get$value() @fn114(this: box<Value>) -> Int
     bb0 entry
       call $call.1: Int = @fn75 direct
         Type Root
         Retype Root
-          Type Root
+          Type box<Value>
           Local this
       return
         Type Int
@@ -1965,21 +2020,21 @@ Module
   coroutine_slot cl12 CoroutineSlot<Complete> value=Complete
   coroutine_slot cl13 CoroutineSlot<MutableRoot> value=MutableRoot
   coroutine_slot cl14 CoroutineSlot<Final> value=Final
-  coroutine_start ct0 result=Root function=fn91
-  coroutine_start ct1 result=MutableSpecific function=fn92
-  coroutine_start ct2 result=Pending function=fn93
-  coroutine_start ct3 result=Refined function=fn94
-  coroutine_start ct4 result=Reabstract function=fn95
-  coroutine_start ct5 result=MutableWinner function=fn96
-  coroutine_start ct6 result=Virtual function=fn97
-  coroutine_start ct7 result=Singleton function=fn98
-  coroutine_start ct8 result=Choice function=fn99
-  coroutine_start ct9 result=Value function=fn100
-  coroutine_start ct10 result=Winner function=fn101
-  coroutine_start ct11 result=Obligation function=fn102
-  coroutine_start ct12 result=Complete function=fn103
-  coroutine_start ct13 result=MutableRoot function=fn104
-  coroutine_start ct14 result=Final function=fn105
+  coroutine_start ct0 result=Root function=fn96
+  coroutine_start ct1 result=MutableSpecific function=fn97
+  coroutine_start ct2 result=Pending function=fn98
+  coroutine_start ct3 result=Refined function=fn99
+  coroutine_start ct4 result=Reabstract function=fn100
+  coroutine_start ct5 result=MutableWinner function=fn101
+  coroutine_start ct6 result=Virtual function=fn102
+  coroutine_start ct7 result=Singleton function=fn103
+  coroutine_start ct8 result=Choice function=fn104
+  coroutine_start ct9 result=Value function=fn105
+  coroutine_start ct10 result=Winner function=fn106
+  coroutine_start ct11 result=Obligation function=fn107
+  coroutine_start ct12 result=Complete function=fn108
+  coroutine_start ct13 result=MutableRoot function=fn109
+  coroutine_start ct14 result=Final function=fn110
   coroutine_fn cf0 @fn16 source_return=Value step=cs9 immediate
   coroutine_fn cf1 @fn20 source_return=Root step=cs0 immediate
   coroutine_fn cf2 @fn24 source_return=Choice step=cs8 immediate

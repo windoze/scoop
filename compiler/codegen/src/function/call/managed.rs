@@ -6,7 +6,9 @@ mod validation;
 impl<'ctx> FnEmitter<'_, 'ctx> {
     fn physical_call_arguments(
         &self,
+        destination: scoop_lir::CallDestination,
         arguments: &[scoop_lir::AbiCallArgument],
+        signature: &scoop_lir::ScoopAbiSignature,
         result: &TypedCallResult<'_>,
         live: Option<&MaterializedStatepointLive<'ctx>>,
     ) -> Result<Vec<BasicValueEnum<'ctx>>, CodegenError> {
@@ -16,14 +18,34 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         if let TypedCallResult::Indirect { storage, .. } = result {
             values.push(self.local_pointer(*storage)?.into());
         }
-        for argument in arguments {
+        for (index, (argument, convention)) in
+            arguments.iter().zip(signature.arguments()).enumerate()
+        {
             match *argument {
                 scoop_lir::AbiCallArgument::ElidedZst(_) => {}
-                scoop_lir::AbiCallArgument::Direct(value) => {
-                    values.push(self.typed_call_argument_value(value, live)?);
+                scoop_lir::AbiCallArgument::Direct(logical) => {
+                    let value = self.typed_call_argument_value(logical, live)?;
+                    if let scoop_lir::AbiArgument::Direct(scoop_lir::AbiDirectValue::DirectParts(
+                        parts,
+                    )) = convention
+                    {
+                        let mut physical = self.outgoing_parts(parts, value)?;
+                        if parts.coercion() == scoop_lir::AbiCoercion::interface()
+                            && let Some(object) =
+                                live.and_then(|live| live.interface_object(logical))
+                        {
+                            physical[0] = object.into();
+                        }
+                        values.extend(physical);
+                    } else {
+                        values.push(value);
+                    }
                 }
                 scoop_lir::AbiCallArgument::Indirect(storage) => {
-                    values.push(self.local_pointer(storage.local())?.into());
+                    values.push(
+                        self.c_indirect_argument_pointer(destination, index, storage.local())?
+                            .into(),
+                    );
                 }
             }
         }
@@ -153,8 +175,6 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             self.managed_address_space,
             &signature,
         )?;
-        let mut call_args =
-            self.physical_call_arguments(call.args(), &result, managed_live.as_ref())?;
 
         let native = match &protocol {
             CallProtocol::NativeSafe { roots, .. } => {
@@ -228,15 +248,19 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             None
         };
 
-        if native.is_some() {
-            // Entering either native transition may park this thread. The
-            // collector then updates the published canonical storage, while
-            // any SSA arguments evaluated before the transition retain their
-            // old addresses. Rebuild the physical call arguments after the
-            // handshake so direct refs and managed leaves inside aggregates
-            // are loaded from the relocated caller-root storage.
-            call_args = self.physical_call_arguments(call.args(), &result, None)?;
-        }
+        // A native handshake may relocate the published roots. Materialize
+        // arguments afterwards, and coerce each GC-free aggregate only once.
+        let call_args = self.physical_call_arguments(
+            destination,
+            call.args(),
+            &signature,
+            &result,
+            if native.is_some() {
+                None
+            } else {
+                managed_live.as_ref()
+            },
+        )?;
 
         let apply_scoop_abi_attributes = match destination {
             scoop_lir::CallDestination::Local(_)
@@ -303,7 +327,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             self.apply_nounwind(call);
             self.apply_c_abi_attributes(destination, |location, attribute| {
                 call.add_attribute(location, attribute)
-            });
+            })?;
             call.add_attribute(
                 AttributeLoc::Function,
                 self.context.create_string_attribute("gc-leaf-function", ""),
@@ -363,7 +387,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             self.apply_call_protocol(call, destination, &protocol);
             self.apply_c_abi_attributes(destination, |location, attribute| {
                 call.add_attribute(location, attribute)
-            });
+            })?;
             match &result {
                 TypedCallResult::Direct { .. } => match call.try_as_basic_value() {
                     ValueKind::Basic(value) => Some(value),
@@ -378,6 +402,13 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 | TypedCallResult::ElidedZst { .. }
                 | TypedCallResult::Indirect { .. } => None,
             }
+        };
+
+        let direct_value = match (&result, direct_value) {
+            (TypedCallResult::Direct { value: plan, .. }, Some(value)) => {
+                Some(self.decode_direct_result(plan, value)?)
+            }
+            (_, value) => value,
         };
 
         if let (Some(live), CallProtocol::Managed { safepoint, .. }) = (managed_live, &protocol) {

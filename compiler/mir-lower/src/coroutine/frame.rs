@@ -107,13 +107,7 @@ pub(super) fn construct(
     let mut frame_slots = HashMap::new();
     for local in saved.iter() {
         let value_ty = locals[*local].ty.clone();
-        let (slot_id, slot_ty) = lowerer.coroutines.slot_for(
-            &lowerer.source_exact_types,
-            &value_ty,
-            &lowerer.structs,
-            &mut lowerer.enums,
-            &mut lowerer.shell,
-        );
+        let (slot_id, slot_ty) = lowerer.coroutine_slot_for(&value_ty);
         let field = frame_fields.len() as u32;
         frame_fields.push(mir::Field {
             name: format!("local${}", locals[*local].name),
@@ -129,13 +123,7 @@ pub(super) fn construct(
             ),
         );
     }
-    let (failure_slot_id, failure_slot_ty) = lowerer.coroutines.slot_for(
-        &lowerer.source_exact_types,
-        &throwable_ty,
-        &lowerer.structs,
-        &mut lowerer.enums,
-        &mut lowerer.shell,
-    );
+    let (failure_slot_id, failure_slot_ty) = lowerer.coroutine_slot_for(&throwable_ty);
     let failure_slot = FrameSlot::new(
         frame_fields.len() as u32,
         failure_slot_id,

@@ -86,7 +86,8 @@ impl FunctionLowerer<'_> {
             self.structs,
             self.enums,
         )? {
-            lir::AbiReturn::Direct(result) | lir::AbiReturn::Indirect(result) => result,
+            lir::AbiReturn::Direct(result) => result.value().clone(),
+            lir::AbiReturn::Indirect(result) => result,
             lir::AbiReturn::UnitVoid | lir::AbiReturn::ElidedZst(_) => {
                 unreachable!("C storage bridge result must have non-zero storage")
             }

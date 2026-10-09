@@ -16,7 +16,7 @@ use crate::dependency_reachability::transitive_positions;
 mod errors;
 mod replay;
 pub use errors::{CrossConeLayoutLirCallableAbisError, SharedLirCallableAbiValidationError};
-pub use replay::replay_shared_mir_callable_abis;
+pub use replay::validate_shared_mir_callable_abis;
 
 /// Layouts and callable ABIs agree with shared MIR. Remaining semantic,
 /// selected-use, registration and object joins are not implied by this state.
@@ -71,15 +71,20 @@ impl<'input> OrdinaryLirBridgeValidatedCrossConeLayoutClosure<'input> {
                         .iter()
                         .map(|&position| complete[position].layouts()),
                 );
-                let expected = replay_shared_mir_callable_abis(
+                let layout = layout.read_callables(
+                    target.target(),
+                    parts.lir_foundation,
+                    parts.identities,
+                )?;
+                validate_shared_mir_callable_abis(
                     target.target(),
                     mir.callables(),
                     layout.layouts(),
                     &dependencies,
                     parts.lir_foundation,
                     parts.identities,
+                    layout.callables(),
                 )?;
-                let layout = layout.validate_callables(&expected)?;
                 scoop_wire::allocation::try_reserve(&mut complete, 1, &WirePath::root())?;
                 Ok(LirCallableAbisValidatedCrossConeLayoutSections {
                     prepared,

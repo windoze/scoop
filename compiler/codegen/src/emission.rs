@@ -66,7 +66,7 @@ fn emit_llvm_module_with_surface<'ctx, R>(
     let builder = context.create_builder();
     let target_data = machine.get_target_data();
     llvm.set_triple(&machine.get_triple());
-    llvm.set_data_layout(&target_data.get_data_layout());
+    llvm.set_data_layout(&managed_address_space.data_layout(&target_data));
 
     let ptr_ty = context.ptr_type(AddressSpace::default());
     let i8_ty = context.i8_type();

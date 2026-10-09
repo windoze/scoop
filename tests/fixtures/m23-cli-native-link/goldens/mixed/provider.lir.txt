@@ -289,7 +289,7 @@ Module
     ret integer<UInt>(0x00000001)
   td td0 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Equality);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$6fb0bdfcaef72d458561b350a56fb80e86e68f4c020173148c7fe1ec239ea687 type-id=940003777485400453 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
   td td1 n(c=dev.programlink%3Amixed-provider%3A0.1.0;p=nativelink.mixed;o=-;k=O;x=Delayed) @scoop$1$td$ce99d7dab3245d8058c7758c0ae8ee43807b72e91f984eac8109cf6de7fc3b12 type-id=7780430540238904511 shape=FixedObject minimum-size=24 align=8 parent=none vtable=[] itables=[]
-  layout Equality value size=8 align=8 refs=[0]
+  layout Equality value size=16 align=8 refs=[0]
   layout Delayed value size=8 align=8 refs=[0]
   layout Delayed size=24 align=8 refs=[]
   output library

@@ -61,8 +61,6 @@ Module
     local %27 $dependency.parameter.value: i32
     local %28 $dependency.argument.0: i32
     local %29 $dependency.parameter.value: i32
-    local %30 $sc.1: enum1
-    local %31 $sc.2: enum1
   block entry
     poll managed-void-target6 sp<managed-poll:0> live=[]
     store integer<Int>(0x0000002a) -> local0
@@ -98,9 +96,7 @@ Module
     store local16 -> local17
     t10 = foreign_callback_State family0 local17 : enum1
     t11 = enum_wrap e1 v0 () : enum1
-    store t10 -> local30
-    store t11 -> local31
-    call managed-direct-target2 sp<managed-call:4> live=[] t12 = sig=direct3 (indirect<enum1 size=8 align=8 scan=none>, indirect<enum1 size=8 align=8 scan=none>) -> i1 external-fn7(indirect local30, indirect local31)
+    call managed-direct-target2 sp<managed-call:4> live=[] t12 = sig=direct3 (parts<enum1 [i64@0+8/8]>, parts<enum1 [i64@0+8/8]>) -> i1 external-fn7(t10, t11)
     store t12 -> local18
     store local18 -> local19
     call managed-void-target2 sp<managed-call:5> live=[] sig=void2 (i1) local-fn6(local19)
@@ -356,9 +352,9 @@ Module
   layout ForeignCallback size=16 align=8 refs=[]
   layout Option size=8 align=8 enum-scan=refs[0]
   layout Option size=8 align=8 enum-scan=refs[0]
-  layout Equality value size=8 align=8 refs=[0]
-  layout Equality value size=8 align=8 refs=[0]
-  layout Equality value size=8 align=8 refs=[0]
+  layout Equality value size=16 align=8 refs=[0]
+  layout Equality value size=16 align=8 refs=[0]
+  layout Equality value size=16 align=8 refs=[0]
   layout $Closure$lambda0 value size=8 align=8 refs=[0]
   layout $Closure$lambda0 size=24 align=8 refs=[]
   output executable @scoop$1$cb$d747f9a895be9491e13763145eed771d6afabb15dce8189e378e3e541e8360e7

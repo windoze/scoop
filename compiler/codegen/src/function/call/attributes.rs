@@ -1,48 +1,6 @@
 use super::*;
 
 impl<'ctx> FnEmitter<'_, 'ctx> {
-    pub(in crate::function) fn apply_c_abi_attributes(
-        &self,
-        destination: scoop_lir::CallDestination,
-        mut apply: impl FnMut(AttributeLoc, Attribute),
-    ) {
-        let scoop_lir::CallDestination::Extern(id) = destination else {
-            return;
-        };
-        let ExternFunctionKind::C {
-            call_plan: scoop_lir::CAbiCallPlan::Direct(signature),
-            ..
-        } = &self.extern_functions[id].kind
-        else {
-            return;
-        };
-        let mut extend = |location, extension| {
-            let name = match extension {
-                scoop_lir::CIntegerExtension::None => return,
-                scoop_lir::CIntegerExtension::Sign => "signext",
-                scoop_lir::CIntegerExtension::Zero => "zeroext",
-            };
-            apply(
-                location,
-                self.context
-                    .create_enum_attribute(Attribute::get_named_enum_kind_id(name), 0),
-            );
-        };
-        for (index, parameter) in signature.params.iter().enumerate() {
-            extend(AttributeLoc::Param(index as u32), parameter.extension);
-        }
-        if let scoop_lir::DirectCReturn::Value(result) = &signature.result {
-            extend(AttributeLoc::Return, result.extension);
-        }
-        // A source extern always calls its selected native symbol, including
-        // names that LLVM would otherwise recognize as library builtins.
-        apply(
-            AttributeLoc::Function,
-            self.context
-                .create_enum_attribute(Attribute::get_named_enum_kind_id("nobuiltin"), 0),
-        );
-    }
-
     pub(in crate::function) fn apply_call_protocol(
         &self,
         call: inkwell::values::CallSiteValue<'ctx>,

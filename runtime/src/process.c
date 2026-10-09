@@ -9,7 +9,7 @@ static void prepare_termination(void) {
     if (state == NULL) {
         return;
     }
-    ScoopThreadMode mode = atomic_load_explicit(&state->mode, memory_order_acquire);
+    ScoopThreadMode mode = atomic_load_explicit(&state->poll.mode, memory_order_acquire);
     if (mode == SCOOP_THREAD_NATIVE_SAFE) {
         return;
     }
@@ -19,7 +19,7 @@ static void prepare_termination(void) {
     }
     /* This path never uses managed locals again. Keep published roots, pins,
      * and outer frozen segments alive until _exit ends every thread. */
-    atomic_store_explicit(&state->mode, SCOOP_THREAD_NATIVE_SAFE, memory_order_seq_cst);
+    atomic_store_explicit(&state->poll.mode, SCOOP_THREAD_NATIVE_SAFE, memory_order_seq_cst);
 }
 
 static _Noreturn void terminate_process(int32_t code) {

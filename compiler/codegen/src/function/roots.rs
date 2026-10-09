@@ -177,6 +177,14 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                         .value
                         .into()
                 }
+                _ if self.is_interface_storage(&item.ty) => self.interface_with_object(
+                    storage,
+                    leaves
+                        .last()
+                        .expect("an interface has one managed leaf")
+                        .value
+                        .into(),
+                )?,
                 _ => self
                     .builder
                     .build_load(
@@ -257,6 +265,19 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                         .argument_location(logical_index)
                         .expect("an existing ABI argument has a location");
                     match (argument, location) {
+                        (
+                            scoop_lir::AbiArgument::Direct(scoop_lir::AbiDirectValue::DirectParts(
+                                parts,
+                            )),
+                            scoop_lir::AbiArgumentLocation::Parts { first, .. },
+                        ) => {
+                            let initial = self.incoming_direct_parts(parts, first)?;
+                            let pointer = self.entry_alloca(ty, "managed_root_storage")?;
+                            self.builder.build_store(pointer, initial).map_err(|e| {
+                                CodegenError(format!("initialize interface root: {e}"))
+                            })?;
+                            RootStorage { pointer, ty }
+                        }
                         (
                             scoop_lir::AbiArgument::Direct(_),
                             scoop_lir::AbiArgumentLocation::Parameter(physical_index),

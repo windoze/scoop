@@ -37,7 +37,7 @@ checks = [
   {file = "${work}/dump-local/${local.result.root.identity}/ast.txt", snapshot = "local.ast.txt"},
   {file = "${work}/dump-local/${local.result.root.identity}/hir.txt", snapshot = "local.hir.txt"},
   {file = "${work}/dump-local/${local.result.root.identity}/mir.txt", snapshot = "local.mir.txt"},
-  {file = "${work}/dump-local/${local.result.root.identity}/lir.txt", snapshot = "local.lir.txt"},
+  {file = "${work}/dump-local/${local.result.root.identity}/lir.txt", snapshot = "local.${target}.lir.txt"},
 ]
 
 [[steps]]
@@ -59,7 +59,7 @@ checks = [
   {file = "${work}/dump-direct/${direct.result.root.identity}/ast.txt", snapshot = "direct.ast.txt"},
   {file = "${work}/dump-direct/${direct.result.root.identity}/hir.txt", snapshot = "direct.hir.txt"},
   {file = "${work}/dump-direct/${direct.result.root.identity}/mir.txt", snapshot = "direct.mir.txt"},
-  {file = "${work}/dump-direct/${direct.result.root.identity}/lir.txt", snapshot = "direct.lir.txt"},
+  {file = "${work}/dump-direct/${direct.result.root.identity}/lir.txt", snapshot = "direct.${target}.lir.txt"},
 ]
 
 [[steps]]
@@ -81,7 +81,7 @@ checks = [
   {file = "${work}/dump-reexport/${reexport.result.root.identity}/ast.txt", snapshot = "reexport.ast.txt"},
   {file = "${work}/dump-reexport/${reexport.result.root.identity}/hir.txt", snapshot = "reexport.hir.txt"},
   {file = "${work}/dump-reexport/${reexport.result.root.identity}/mir.txt", snapshot = "reexport.mir.txt"},
-  {file = "${work}/dump-reexport/${reexport.result.root.identity}/lir.txt", snapshot = "reexport.lir.txt"},
+  {file = "${work}/dump-reexport/${reexport.result.root.identity}/lir.txt", snapshot = "reexport.${target}.lir.txt"},
 ]
 
 [[steps]]

@@ -93,6 +93,21 @@ pub struct CoroutineSlotIdentity {
 }
 
 impl CoroutineSlotIdentity {
+    /// A suspended value adapter saves its concrete box, owned with the payload.
+    pub fn boxed_value(
+        payload: &ExactTypeRecord,
+        nominal_group: Option<&OdrGroupRecord>,
+    ) -> Result<Self, CoroutineShapeIdentityError> {
+        let boxed = generated_type(GeneratedNominalKey::BoxedValue {
+            payload: payload.id(),
+        })?;
+        let value = CborIdentityRecord::from_key(ExactTypeKey::Nominal(boxed.id()))
+            .expect("a generated box has a nonzero exact nominal identity");
+        let mut identity = Self::new(&value, None)?;
+        identity.root = root(payload, nominal_group, identity.generated_type.id())?;
+        Ok(identity)
+    }
+
     /// Context marks are compiler values, specialized in the existing exact ODR group.
     pub fn context_mark(
         core: scoop_identity::ConeIdentity,

@@ -28,36 +28,33 @@ Module
     local %9 $dependency.argument.0: i32
     local %10 $dependency.parameter.number: i32
     local %11 nested: struct2
-    local %12 $sc.1: struct0
-    local %13 $sc.2: struct1
-    local %14 $sc.3: struct2
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     store integer<Int>(0x00000028) -> local0
     store local0 -> local1
-    call no-gc-indirect-target0 local12 = sig=indirect0 (sret struct0 size=4 align=4 scan=none, i32) external-fn0(local1)
-    store local12 -> local2
+    call no-gc-direct-target0 t0 = sig=direct0 (i32) -> struct0 external-fn0(local1)
+    store t0 -> local2
     store integer<Int>(0x00000002) -> local3
     store local3 -> local4
-    call no-gc-indirect-target1 local13 = sig=indirect1 (sret struct1 size=4 align=4 scan=none, i32) local-fn3(local4)
-    store local13 -> local5
-    t0 = extract local2, 0 : i32
-    store t0 -> local6
-    t1 = extract local5, 0 : i32
-    store t1 -> local7
+    call no-gc-direct-target1 t1 = sig=direct1 (i32) -> struct1 local-fn3(local4)
+    store t1 -> local5
+    t2 = extract local2, 0 : i32
+    store t2 -> local6
+    t3 = extract local5, 0 : i32
+    store t3 -> local7
     store local7 -> local8
-    t2 = integer_Add<Int> local6, local8 : i32
-    store t2 -> local9
+    t4 = integer_Add<Int> local6, local8 : i32
+    store t4 -> local9
     store local9 -> local10
-    call no-gc-indirect-target2 local14 = sig=indirect2 (sret struct2 size=4 align=4 scan=none, i32) external-fn1(local10)
-    store local14 -> local11
-    t3 = extract local11, 0 : i32
-    ret t3
+    call no-gc-direct-target2 t5 = sig=direct2 (i32) -> struct2 external-fn1(local10)
+    store t5 -> local11
+    t6 = extract local11, 0 : i32
+    ret t6
   fun @scoop$1$cb$3912be0703104ebdaeff004c016e5b3adf29028c1f6cd57d1bbc2f0f6b6d2ba4(ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret
-  fun @scoop$1$cb$8318f4aebb9c38873983a7ecdcecf1cdfb406b615fd5193615aaab92a672482a(i32) -> sret<struct1 size=4 align=4 scan=none> <no-gc>
+  fun @scoop$1$cb$8318f4aebb9c38873983a7ecdcecf1cdfb406b615fd5193615aaab92a672482a(i32) -> parts<struct1 [i32@0+4/4]> <no-gc>
   block entry
     t0 = aggregate (param0) : struct1
     ret t0

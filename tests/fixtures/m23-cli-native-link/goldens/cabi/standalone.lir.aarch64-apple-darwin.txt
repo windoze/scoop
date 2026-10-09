@@ -3,16 +3,13 @@ Module
   global @scoop$1$io$5b150b9a087b1c8a15caa55cfa092ea3d8ea7a2adeaff2ea753d789ac919417a = "\n"
   global @scoop$1$ss$642f5510084e42f3706d93bb6608a36e96d43e9743ad997abbc04fd07a39403c : ptr<managed> scan=refs[0]
   c-struct struct0 Packed fields=[Boolean@0/1,Int@1/1]
-  extern ef0 transform @m23_packed(struct0) -> struct0 <c exact=(c-struct0)->c-struct0 bridge=@scoop$1$br$3c9d2abdfdfed09e06ee123a03824333db41a9149d49a8f9cc3a0b80cac26541 gc-leaf nounwind lib=m23_cabi>
-  fun @scoop$1$cb$06e9f5e05597ae4819f28f61490c5c9b64ac4f393045ccea5094bf230c111abb(indirect<struct0 size=8 align=8 scan=none>) -> sret<struct0 size=8 align=8 scan=none>
+  extern ef0 transform @m23_packed(struct0) -> struct0 <c exact=(c-struct0)->c-struct0 direct-c=(parts<struct0 [i64@0+8/8]>)->parts<struct0 [i64@0+8/8]> gc-leaf nounwind lib=m23_cabi>
+  fun @scoop$1$cb$06e9f5e05597ae4819f28f61490c5c9b64ac4f393045ccea5094bf230c111abb(parts<struct0 [i64@0+8/8]>) -> parts<struct0 [i64@0+8/8]>
     local %0 $call.1: struct0
-    local %1 $sc.1: struct0
-    local %2 $sc.2: struct0
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
-    store param0 -> local1
-    call native-safe-indirect-target0 sp<native-safe:0> roots=[] local2 = sig=indirect0 (c-storage-pointer struct0 size=8 align=8 scan=none, ptr<raw>) extern0(c-arg-address(local1))
-    store local2 -> local0
+    call native-safe-direct-target0 sp<native-safe:0> roots=[] t0 = sig=direct0 (parts<struct0 [i64@0+8/8]>) -> struct0 extern0(param0)
+    store t0 -> local0
     ret local0
   fun @scoop$1$cb$4175775072d52c29590a469b2936b03a26ede0d0be78923bb99d97ef3f8eb064() -> void
     local %0 $argument.0: i1
@@ -26,31 +23,27 @@ Module
     local %8 $dependency.parameter.value: i1
     local %9 $dependency.argument.0: i32
     local %10 $dependency.parameter.value: i32
-    local %11 $sc.1: struct0
-    local %12 $sc.2: struct0
-    local %13 $sc.3: struct0
   block entry
     poll managed-void-target2 sp<managed-poll:0> live=[]
     store true -> local0
     store integer<Int>(0x00000029) -> local1
     store local0 -> local2
     store local1 -> local3
-    call no-gc-indirect-target0 local11 = sig=indirect0 (sret struct0 size=8 align=8 scan=none, i1, i32) local-fn4(local2, local3)
-    store local11 -> local4
+    call no-gc-direct-target0 t0 = sig=direct0 (i1, i32) -> struct0 local-fn4(local2, local3)
+    store t0 -> local4
     store local4 -> local5
-    store local5 -> local12
-    call native-safe-indirect-target0 sp<native-safe:0> roots=[] local13 = sig=indirect1 (c-storage-pointer struct0 size=8 align=8 scan=none, ptr<raw>) extern0(c-arg-address(local12))
-    store local13 -> local6
-    t0 = extract local6, 0 : i1
-    store t0 -> local7
+    call native-safe-direct-target0 sp<native-safe:0> roots=[] t1 = sig=direct1 (parts<struct0 [i64@0+8/8]>) -> struct0 extern0(local5)
+    store t1 -> local6
+    t2 = extract local6, 0 : i1
+    store t2 -> local7
     store local7 -> local8
     call managed-void-target0 sp<managed-call:0> live=[] sig=void0 (i1) local-fn2(local8)
-    t1 = aggregate () : {}
-    t2 = extract local6, 1 : i32
-    store t2 -> local9
+    t3 = aggregate () : {}
+    t4 = extract local6, 1 : i32
+    store t4 -> local9
     store local9 -> local10
     call managed-void-target1 sp<managed-call:1> live=[] sig=void1 (i32) local-fn3(local10)
-    t3 = aggregate () : {}
+    t5 = aggregate () : {}
     ret
   fun @scoop$1$cb$b0c2bbaec5d3e971bdbf6b7be42ee32b5cd27aa28cd91cd80288f41a25f3b6cf(i1) -> void
     local %0 $dependency.local.1: i1
@@ -90,7 +83,7 @@ Module
     call managed-void-target1 sp<managed-call:2> live=[local4:ptr<managed>@0] sig=void1 (ptr<managed>) external-fn2(local4)
     t2 = aggregate () : {}
     ret
-  fun @scoop$1$cb$ddc6e4101e13a837a806b9a0989cce52254fdeb1ed1660cc0b9f8e8188fc6e3f(i1, i32) -> sret<struct0 size=8 align=8 scan=none> <no-gc>
+  fun @scoop$1$cb$ddc6e4101e13a837a806b9a0989cce52254fdeb1ed1660cc0b9f8e8188fc6e3f(i1, i32) -> parts<struct0 [i64@0+8/8]> <no-gc>
   block entry
     t0 = aggregate (param0, param1) : struct0
     ret t0
@@ -117,6 +110,6 @@ Module
   layout-meta Packed c-layout(aligned=8,packed=1) fields=[0@1,1@1] interior-mutable=false
   layout Packed size=8 align=8 refs=[]
   layout-meta Packed c-layout(aligned=8,packed=1) fields=[0@1,1@1] interior-mutable=false
-  layout Equality value size=8 align=8 refs=[0]
-  layout Equality value size=8 align=8 refs=[0]
+  layout Equality value size=16 align=8 refs=[0]
+  layout Equality value size=16 align=8 refs=[0]
   output executable @scoop$1$cb$4175775072d52c29590a469b2936b03a26ede0d0be78923bb99d97ef3f8eb064

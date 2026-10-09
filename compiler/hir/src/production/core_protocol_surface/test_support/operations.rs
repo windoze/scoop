@@ -19,7 +19,7 @@ pub(super) fn fixture_operation_owner(
     fundamental: &CoreFundamentalTypeProtocolV1,
 ) -> Option<DefinitionOwnerAtom> {
     match kind {
-        IntrinsicFunctionKind::Atomic(_) => {
+        IntrinsicFunctionKind::Atomic(_) | IntrinsicFunctionKind::MaybeUninit(_) => {
             unreachable!("the bootstrap fixture does not define ordinary atomic classes")
         }
         IntrinsicFunctionKind::Float(kind) => {

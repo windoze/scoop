@@ -4,7 +4,7 @@ use std::num::NonZeroU64;
 use scoop_wire::{Encoder, WireEncode};
 
 use super::{ExactCallableSignature, GcEffect};
-use crate::PersistentExactTypeId;
+use crate::{AbiCoercion, PersistentExactTypeId};
 
 mod decode;
 
@@ -13,80 +13,15 @@ pub use decode::{
     DecodedScoopAbiArgument, DecodedScoopAbiReturn, ScoopAbiResolutionError,
 };
 
-#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub enum ScoopAbiValueShape {
-    Scalar,
-    Aggregate,
-}
-
-impl WireEncode for ScoopAbiValueShape {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.unsigned(match self {
-            Self::Scalar => 1,
-            Self::Aggregate => 2,
-        })
-    }
-}
-
-#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct CanonicalScoopStorage {
-    exact_type: PersistentExactTypeId,
-    byte_size: u64,
-    alignment: NonZeroU64,
-    shape: ScoopAbiValueShape,
-}
-
-impl CanonicalScoopStorage {
-    pub const fn new(
-        exact_type: PersistentExactTypeId,
-        byte_size: u64,
-        alignment: NonZeroU64,
-        shape: ScoopAbiValueShape,
-    ) -> Self {
-        Self {
-            exact_type,
-            byte_size,
-            alignment,
-            shape,
-        }
-    }
-
-    pub const fn exact_type(self) -> PersistentExactTypeId {
-        self.exact_type
-    }
-
-    pub const fn byte_size(self) -> u64 {
-        self.byte_size
-    }
-
-    pub const fn alignment(self) -> NonZeroU64 {
-        self.alignment
-    }
-
-    pub const fn shape(self) -> ScoopAbiValueShape {
-        self.shape
-    }
-}
-
-impl WireEncode for CanonicalScoopStorage {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(4)?;
-        encoder.field(1)?;
-        self.exact_type.encode(encoder)?;
-        encoder.field(2)?;
-        encoder.unsigned(self.byte_size)?;
-        encoder.field(3)?;
-        encoder.unsigned(self.alignment.get())?;
-        encoder.field(4)?;
-        self.shape.encode(encoder)
-    }
-}
+mod storage;
+pub use storage::{CanonicalScoopStorage, ScoopAbiValueShape};
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum ScoopAbiArgument {
     ElidedZst(CanonicalScoopStorage),
     Direct(CanonicalScoopStorage),
     Indirect(CanonicalScoopStorage),
+    DirectParts(CanonicalScoopStorage, AbiCoercion),
 }
 
 impl ScoopAbiArgument {
@@ -100,6 +35,14 @@ impl ScoopAbiArgument {
         Ok(Self::Direct(storage))
     }
 
+    pub fn direct_parts(
+        storage: CanonicalScoopStorage,
+        coercion: AbiCoercion,
+    ) -> Result<Self, ScoopAbiError> {
+        require_direct_parts(storage, coercion)?;
+        Ok(Self::DirectParts(storage, coercion))
+    }
+
     pub fn indirect(storage: CanonicalScoopStorage) -> Result<Self, ScoopAbiError> {
         require_nonzero_shape(storage, ScoopAbiValueShape::Aggregate)?;
         Ok(Self::Indirect(storage))
@@ -107,7 +50,10 @@ impl ScoopAbiArgument {
 
     pub const fn storage(self) -> CanonicalScoopStorage {
         match self {
-            Self::ElidedZst(storage) | Self::Direct(storage) | Self::Indirect(storage) => storage,
+            Self::ElidedZst(storage)
+            | Self::Direct(storage)
+            | Self::Indirect(storage)
+            | Self::DirectParts(storage, _) => storage,
         }
     }
 }
@@ -118,6 +64,9 @@ impl WireEncode for ScoopAbiArgument {
             Self::ElidedZst(storage) => (1, storage),
             Self::Direct(storage) => (2, storage),
             Self::Indirect(storage) => (3, storage),
+            Self::DirectParts(storage, coercion) => {
+                return encode_parts(encoder, 4, storage, coercion);
+            }
         };
         encode_value_sum(encoder, tag, storage)
     }
@@ -129,6 +78,7 @@ pub enum ScoopAbiReturn {
     ElidedZst(CanonicalScoopStorage),
     Direct(CanonicalScoopStorage),
     Indirect(CanonicalScoopStorage),
+    DirectParts(CanonicalScoopStorage, AbiCoercion),
 }
 
 impl ScoopAbiReturn {
@@ -146,17 +96,26 @@ impl ScoopAbiReturn {
         Ok(Self::Direct(storage))
     }
 
+    pub fn direct_parts(
+        storage: CanonicalScoopStorage,
+        coercion: AbiCoercion,
+    ) -> Result<Self, ScoopAbiError> {
+        require_direct_parts(storage, coercion)?;
+        Ok(Self::DirectParts(storage, coercion))
+    }
+
     pub fn indirect(storage: CanonicalScoopStorage) -> Result<Self, ScoopAbiError> {
         require_nonzero_shape(storage, ScoopAbiValueShape::Aggregate)?;
         Ok(Self::Indirect(storage))
     }
 
-    fn storage(self) -> Option<CanonicalScoopStorage> {
+    pub fn storage(self) -> Option<CanonicalScoopStorage> {
         match self {
             Self::UnitVoid => None,
-            Self::ElidedZst(storage) | Self::Direct(storage) | Self::Indirect(storage) => {
-                Some(storage)
-            }
+            Self::ElidedZst(storage)
+            | Self::Direct(storage)
+            | Self::Indirect(storage)
+            | Self::DirectParts(storage, _) => Some(storage),
         }
     }
 }
@@ -168,6 +127,7 @@ impl WireEncode for ScoopAbiReturn {
             Self::ElidedZst(storage) => encode_value_sum(encoder, 2, storage),
             Self::Direct(storage) => encode_value_sum(encoder, 3, storage),
             Self::Indirect(storage) => encode_value_sum(encoder, 4, storage),
+            Self::DirectParts(storage, coercion) => encode_parts(encoder, 5, storage, coercion),
         }
     }
 }
@@ -325,3 +285,44 @@ fn encode_value_sum(
 
 #[cfg(test)]
 mod tests;
+
+fn require_direct_parts(
+    storage: CanonicalScoopStorage,
+    coercion: AbiCoercion,
+) -> Result<(), ScoopAbiError> {
+    coercion
+        .validate_storage(storage.byte_size(), storage.alignment().get())
+        .map_err(|_| ScoopAbiError::PassingShapeMismatch)?;
+    let valid = match storage.shape() {
+        ScoopAbiValueShape::Interface => {
+            storage.byte_size() == 16
+                && storage.alignment().get() == 8
+                && coercion == AbiCoercion::interface()
+        }
+        ScoopAbiValueShape::Aggregate => {
+            storage.byte_size() <= 16
+                && storage.alignment().get() <= 8
+                && !coercion.has_managed_pointer()
+        }
+        ScoopAbiValueShape::Scalar => false,
+    };
+    if valid {
+        Ok(())
+    } else {
+        Err(ScoopAbiError::PassingShapeMismatch)
+    }
+}
+
+fn encode_parts(
+    e: &mut Encoder,
+    tag: u64,
+    storage: &CanonicalScoopStorage,
+    coercion: &AbiCoercion,
+) -> Result<(), scoop_wire::cbor::EncodeError> {
+    e.map(3)?;
+    encode_tag(e, tag)?;
+    e.field(1)?;
+    storage.encode(e)?;
+    e.field(2)?;
+    coercion.encode(e)
+}

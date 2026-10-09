@@ -32,13 +32,21 @@ pub(crate) fn canonical_scoop_signature(
                     value.layout().alignment(),
                 ))
             }
-            lir::AbiArgument::Direct(value) => identity::ScoopAbiArgument::direct(scoop_storage(
-                enums,
-                exact_type,
-                value.storage_type(),
-                value.layout().size().get(),
-                value.layout().alignment(),
-            )),
+            lir::AbiArgument::Direct(value) => {
+                let storage = scoop_storage(
+                    enums,
+                    exact_type,
+                    value.storage_type(),
+                    value.layout().size().get(),
+                    value.layout().alignment(),
+                );
+                match value {
+                    lir::AbiDirectValue::Scalar(_) => identity::ScoopAbiArgument::direct(storage),
+                    lir::AbiDirectValue::DirectParts(parts) => {
+                        identity::ScoopAbiArgument::direct_parts(storage, parts.coercion())
+                    }
+                }
+            }
             lir::AbiArgument::Indirect(value) => {
                 identity::ScoopAbiArgument::indirect(scoop_storage(
                     enums,
@@ -63,14 +71,22 @@ pub(crate) fn canonical_scoop_signature(
             value.layout().alignment(),
         ))
         .expect("LIR Scoop ABI passing agrees with canonical storage shape"),
-        lir::AbiReturn::Direct(value) => identity::ScoopAbiReturn::direct(scoop_storage(
-            enums,
-            result_exact,
-            value.storage_type(),
-            value.layout().size().get(),
-            value.layout().alignment(),
-        ))
-        .expect("LIR Scoop ABI passing agrees with canonical storage shape"),
+        lir::AbiReturn::Direct(value) => {
+            let storage = scoop_storage(
+                enums,
+                result_exact,
+                value.storage_type(),
+                value.layout().size().get(),
+                value.layout().alignment(),
+            );
+            match value {
+                lir::AbiDirectValue::Scalar(_) => identity::ScoopAbiReturn::direct(storage),
+                lir::AbiDirectValue::DirectParts(parts) => {
+                    identity::ScoopAbiReturn::direct_parts(storage, parts.coercion())
+                }
+            }
+            .expect("complete physical return plan matches canonical storage")
+        }
         lir::AbiReturn::Indirect(value) => identity::ScoopAbiReturn::indirect(scoop_storage(
             enums,
             result_exact,
@@ -108,6 +124,7 @@ fn scoop_storage(
         match shape {
             lir::ScoopAbiValueShape::Scalar => identity::ScoopAbiValueShape::Scalar,
             lir::ScoopAbiValueShape::Aggregate => identity::ScoopAbiValueShape::Aggregate,
+            lir::ScoopAbiValueShape::Interface => identity::ScoopAbiValueShape::Interface,
         },
     )
 }

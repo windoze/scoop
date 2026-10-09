@@ -151,12 +151,12 @@ Module
       return
         Type SeedReader
         StructInit SeedReader
-  fun thunk<SeedReader> DomainSeed.choose(Int, Int) @fn5(this: DomainSeed<Int>, seed: Int, value: Int) -> Int
+  fun thunk<SeedReader> DomainSeed.choose(Int, Int) @fn5(this: box<SeedReader>, seed: Int, value: Int) -> Int
     bb0 entry
       call $call.1: Int = @fn0 direct
         Type SeedReader
         Unbox
-          Type DomainSeed<Int>
+          Type box<SeedReader>
           Local this
         Type Int
         Local seed

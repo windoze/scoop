@@ -1,7 +1,7 @@
 #include "internal.h"
 
 void scoop_thread_park_current_locked(ScoopThreadState *state) {
-    ScoopThreadMode from = atomic_load_explicit(&state->mode, memory_order_acquire);
+    ScoopThreadMode from = atomic_load_explicit(&state->poll.mode, memory_order_acquire);
     if (from != SCOOP_THREAD_MANAGED && from != SCOOP_THREAD_MANAGED_PENDING &&
         from != SCOOP_THREAD_NATIVE_BORROWED) {
         scoop_thread_fatal("only managed or native-borrowed threads may park");
@@ -22,8 +22,8 @@ void scoop_thread_park_current_locked(ScoopThreadState *state) {
     while (atomic_load_explicit(&scoop_thread_world_phase, memory_order_acquire) !=
            SCOOP_WORLD_RUNNING) {
         uint64_t epoch = atomic_load_explicit(&scoop_thread_gc_epoch, memory_order_acquire);
-        atomic_store_explicit(&state->observed_gc_epoch, epoch, memory_order_release);
-        atomic_store_explicit(&state->mode, SCOOP_THREAD_PARKED, memory_order_release);
+        atomic_store_explicit(&state->poll.observed_gc_epoch, epoch, memory_order_release);
+        atomic_store_explicit(&state->poll.mode, SCOOP_THREAD_PARKED, memory_order_release);
         scoop_thread_world_broadcast();
         /* Wait once rather than hiding phase changes in
          * scoop_thread_wait_for_running_world: a new collector may win the
@@ -32,10 +32,10 @@ void scoop_thread_park_current_locked(ScoopThreadState *state) {
         scoop_thread_world_wait();
     }
 
-    atomic_store_explicit(&state->observed_gc_epoch,
+    atomic_store_explicit(&state->poll.observed_gc_epoch,
                           atomic_load_explicit(&scoop_thread_gc_epoch, memory_order_acquire),
                           memory_order_release);
-    atomic_store_explicit(&state->mode, from, memory_order_release);
+    atomic_store_explicit(&state->poll.mode, from, memory_order_release);
 }
 
 void scoop_thread_poll(void) {
@@ -47,7 +47,7 @@ void scoop_thread_poll(void) {
     uint64_t epoch = atomic_load_explicit(&scoop_thread_gc_epoch, memory_order_acquire);
     if (atomic_load_explicit(&scoop_thread_world_phase, memory_order_acquire) ==
             SCOOP_WORLD_RUNNING &&
-        atomic_load_explicit(&state->observed_gc_epoch, memory_order_acquire) == epoch) {
+        atomic_load_explicit(&state->poll.observed_gc_epoch, memory_order_acquire) == epoch) {
         return;
     }
 
@@ -56,7 +56,7 @@ void scoop_thread_poll(void) {
         SCOOP_WORLD_RUNNING) {
         scoop_thread_park_current_locked(state);
     } else {
-        atomic_store_explicit(&state->observed_gc_epoch,
+        atomic_store_explicit(&state->poll.observed_gc_epoch,
                               atomic_load_explicit(&scoop_thread_gc_epoch, memory_order_acquire),
                               memory_order_release);
     }
@@ -65,7 +65,7 @@ void scoop_thread_poll(void) {
 
 void scoop_thread_native_borrowed_entry(void) {
     ScoopThreadState *state = scoop_thread_current_required();
-    ScoopThreadMode mode = atomic_load_explicit(&state->mode, memory_order_acquire);
+    ScoopThreadMode mode = atomic_load_explicit(&state->poll.mode, memory_order_acquire);
     if (mode != SCOOP_THREAD_NATIVE_BORROWED) {
         scoop_thread_fatal("native-borrowed runtime entry from an invalid mode");
     }
@@ -112,7 +112,7 @@ void scoop_thread_push_managed_anchor(ScoopManagedAnchor *anchor, uintptr_t retu
 void scoop_thread_push_safepoint_anchor(ScoopManagedAnchor *anchor, uintptr_t return_pc,
                                         uintptr_t stack_pointer, uintptr_t frame_pointer) {
     ScoopThreadState *state = scoop_thread_current_required();
-    if (atomic_load_explicit(&state->mode, memory_order_acquire) != SCOOP_THREAD_MANAGED_PENDING) {
+    if (atomic_load_explicit(&state->poll.mode, memory_order_acquire) != SCOOP_THREAD_MANAGED_PENDING) {
         scoop_thread_push_managed_anchor(anchor, return_pc, stack_pointer, frame_pointer);
         return;
     }
@@ -123,9 +123,9 @@ void scoop_thread_push_safepoint_anchor(ScoopManagedAnchor *anchor, uintptr_t re
         SCOOP_WORLD_RUNNING) {
         scoop_thread_park_current_locked(state);
     }
-    atomic_store_explicit(&state->mode, SCOOP_THREAD_MANAGED, memory_order_release);
+    atomic_store_explicit(&state->poll.mode, SCOOP_THREAD_MANAGED, memory_order_release);
     scoop_thread_push_managed_anchor(anchor, return_pc, stack_pointer, frame_pointer);
-    atomic_store_explicit(&state->observed_gc_epoch,
+    atomic_store_explicit(&state->poll.observed_gc_epoch,
                           atomic_load_explicit(&scoop_thread_gc_epoch, memory_order_acquire),
                           memory_order_release);
     scoop_thread_registry_unlock();
@@ -150,7 +150,7 @@ static bool all_collection_targets_quiescent(ScoopThreadState *collector, uint64
         if (state == collector) {
             continue;
         }
-        ScoopThreadMode mode = atomic_load_explicit(&state->mode, memory_order_seq_cst);
+        ScoopThreadMode mode = atomic_load_explicit(&state->poll.mode, memory_order_seq_cst);
         if (mode == SCOOP_THREAD_NATIVE_SAFE) {
             native_safe++;
             continue;
@@ -159,7 +159,7 @@ static bool all_collection_targets_quiescent(ScoopThreadState *collector, uint64
             continue;
         }
         if (mode == SCOOP_THREAD_PARKED &&
-            atomic_load_explicit(&state->observed_gc_epoch, memory_order_acquire) == epoch) {
+            atomic_load_explicit(&state->poll.observed_gc_epoch, memory_order_acquire) == epoch) {
             parked++;
             continue;
         }
@@ -176,7 +176,7 @@ static bool all_collection_targets_quiescent(ScoopThreadState *collector, uint64
 
 bool scoop_thread_begin_collection(void) {
     ScoopThreadState *state = scoop_thread_current_required();
-    ScoopThreadMode requester_mode = atomic_load_explicit(&state->mode, memory_order_acquire);
+    ScoopThreadMode requester_mode = atomic_load_explicit(&state->poll.mode, memory_order_acquire);
     if ((requester_mode != SCOOP_THREAD_MANAGED &&
          requester_mode != SCOOP_THREAD_NATIVE_BORROWED) ||
         (requester_mode == SCOOP_THREAD_MANAGED && state->managed_depth == 0)) {
@@ -202,8 +202,8 @@ bool scoop_thread_begin_collection(void) {
     atomic_store_explicit(&scoop_thread_world_phase, SCOOP_WORLD_STOPPING, memory_order_seq_cst);
     SCOOP_THREAD_TEST_POINT(SCOOP_TEST_COLLECTOR_STOPPING);
     state->parked_from = requester_mode;
-    atomic_store_explicit(&state->observed_gc_epoch, epoch, memory_order_release);
-    atomic_store_explicit(&state->mode, SCOOP_THREAD_COLLECTOR, memory_order_release);
+    atomic_store_explicit(&state->poll.observed_gc_epoch, epoch, memory_order_release);
+    atomic_store_explicit(&state->poll.mode, SCOOP_THREAD_COLLECTOR, memory_order_release);
     scoop_thread_world_broadcast();
 
     uint64_t parked_count = 0;
@@ -224,7 +224,7 @@ bool scoop_thread_begin_collection(void) {
 
 void scoop_thread_end_collection(void) {
     ScoopThreadState *state = scoop_thread_current_required();
-    if (atomic_load_explicit(&state->mode, memory_order_acquire) != SCOOP_THREAD_COLLECTOR) {
+    if (atomic_load_explicit(&state->poll.mode, memory_order_acquire) != SCOOP_THREAD_COLLECTOR) {
         scoop_thread_fatal("collection ended by a non-collector thread");
     }
 
@@ -235,7 +235,7 @@ void scoop_thread_end_collection(void) {
         scoop_thread_fatal("collection ended outside the collecting phase");
     }
     ScoopThreadMode requester_mode = state->parked_from;
-    atomic_store_explicit(&state->mode, requester_mode, memory_order_release);
+    atomic_store_explicit(&state->poll.mode, requester_mode, memory_order_release);
     SCOOP_THREAD_TEST_POINT(SCOOP_TEST_COLLECTOR_RESUMING);
     atomic_store_explicit(&scoop_thread_world_phase, SCOOP_WORLD_RUNNING, memory_order_release);
     scoop_thread_world_broadcast();
@@ -244,7 +244,7 @@ void scoop_thread_end_collection(void) {
 
 ScoopThreadState *scoop_thread_collection_registry_head(void) {
     ScoopThreadState *state = scoop_thread_current_required();
-    if (atomic_load_explicit(&state->mode, memory_order_acquire) != SCOOP_THREAD_COLLECTOR ||
+    if (atomic_load_explicit(&state->poll.mode, memory_order_acquire) != SCOOP_THREAD_COLLECTOR ||
         atomic_load_explicit(&scoop_thread_world_phase, memory_order_acquire) !=
             SCOOP_WORLD_COLLECTING) {
         scoop_thread_fatal("thread registry enumerated outside STW collection");

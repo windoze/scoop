@@ -1,6 +1,6 @@
 # C FFI 调用基准
 
-`program.scoop` 使用真实的 foreign-thread callback 执行 Scoop 循环；`runner.c` 提供相同的直接 C 循环。九种路径为 C scalar、NativeSafe DirectC、GCLeaf DirectC、C aggregate、NativeSafe StorageBridge、GCLeaf StorageBridge，以及 C／NativeSafe／GCLeaf 的 errno 捕获。每次调用的返回值都进入校验和，native callee 在独立的 `leaf.o` 中，禁止 LTO、内联和 builtin 替换。C/Scoop caller 都使用 O2，Scoop 循环保留正常回边 safepoint poll。
+`program.scoop` 使用真实的 foreign-thread callback 执行 Scoop 循环；`runner.c` 提供相同的直接 C 循环。九种路径为 C scalar、NativeSafe DirectC、GCLeaf DirectC、C aggregate、NativeSafe aggregate、GCLeaf aggregate，以及 C／NativeSafe／GCLeaf 的 errno 捕获。M33 的 aggregate 使用 StorageBridge，M34-5b 使用目标分类的 DirectC；报表以 safe-pair／leaf-pair 命名，实际实现由所测编译器版本确定。每次调用的返回值都进入校验和，native callee 在独立的 `leaf.o` 中，禁止 LTO、内联和 builtin 替换。C/Scoop caller 都使用 O2，Scoop 循环保留正常回边 safepoint poll。
 
 无 GC 测量使用 production runtime，各线程执行 2,000,000 次调用，按轮交替九条路径，保存三次样本和中位数。计时包含一次 callback attach/detach 及线程启停收尾；每线程只进入一次 Scoop callback。多线程结果为总墙钟时间除以总调用数，表示聚合吞吐，不能作为单线程调用延迟。errno 三条路径均调用相同的 bench_scalar，在调用前清零、返回后立即读取 errno，并把结果和 errno 一并计入校验和；callee 保持 errno 为零。
 
@@ -55,3 +55,14 @@ python3 tests/benchmarks/ffi/measure.py \
 ```
 
 先完成构建和功能测试，再运行计时，期间不要在被测机器上并行编译、清理目录或执行其他基准。结果归档到 `docs/milestone33/measurements/`。aggregate 或 errno bridge 的成本单独报告，不能归为 GCLeaf 状态切换。
+
+M34 DirectC 对照复用同一份源码和 native archive，只替换成前后两个配套编译器。可以只测 aggregate 的 C／NativeSafe／GCLeaf 三条路径，在 1、4 线程下各保留七轮；生产 runtime 不需要启用测试观测点。`--gc-stats` 同时保存每次运行的分配与 GC 计数，原有 C 计时区间不变：
+
+```sh
+python3 tests/benchmarks/ffi/measure.py \
+  --binary tmp/m34/direct-c-after/program --pair-only \
+  --runs 7 --threads 1 --threads 4 --gc-stats \
+  --output tmp/m34/direct-c-after/report.json
+```
+
+M34 结果、构建参数及机器码归档到 `docs/milestone34/measurements/`。对照复用现有 core 缓存时，将首次构建记为 first build，不能称为冷构建。

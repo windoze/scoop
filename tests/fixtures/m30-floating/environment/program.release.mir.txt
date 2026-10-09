@@ -1,0 +1,652 @@
+Module
+  extern ef0 environmentReady @environment_ready() -> Int <abi=c no-gc lib=fixture_native>
+  extern ef1 singleSeed @single_seed(Int) -> Float <abi=c no-gc lib=fixture_native>
+  extern ef2 doubleSeed @double_seed(Int) -> Double <abi=c no-gc lib=fixture_native>
+  extern ef3 runForeign @run_foreign(FunPtr<(Float, Double, Ptr<Unit>) -> Double>, Ptr<Unit>) -> Double <abi=c no-gc lib=fixture_native>
+  foreign_callback_family fcf0 callback=ForeignCallback<(Float, Double, Ptr<Unit>) -> Double> state=ForeignCallbackState failure=Option<Throwable>
+  foreign_callback_bridge fcb0 family=fcf0 native=function_type0 managed=function_type2 context=2 mode=ForeignCallbackMode.Reusable adapter=@fn10
+  struct ForeignCallback<(Float, Double, Ptr<Unit>) -> Double> (function: FunPtr<(Float, Double, Ptr<Unit>) -> Double>, context: Ptr<Unit>)
+  enum ForeignCallbackMode
+    Reusable()
+    OneShot()
+  enum ForeignCallbackState
+    Registered()
+    Active()
+    Completed()
+    Failed()
+  enum Option<Throwable>
+    Some(_0: Throwable)
+    None()
+  class Throwable vtable=0 itables=0
+  class box<Float> vtable=0 itables=0
+  class box<Double> vtable=0 itables=0
+  interface ToString
+  interface Equality<Float>
+  interface Equality<Double>
+  interface Equality<Ptr<Unit>>
+  interface Hash
+  interface Equality<Boolean>
+  closure cc0 $Closure$lambda0 type=function_type2 invoke=@fn9 captures=1
+    bridge function_type3 -> @fn11 id=0bbcd9e90e5a76d4cd476b320cadddc6b0bc6dbe50b1f2f7a6d31dbf8ca03a67
+  generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
+  generated_exact_type get1 location=closure0 nominal_id=2fcc5dceba1f09c36d231287088079138d2c04817531ae31cc6d2cc1c02b5c0b exact_id=2302a5386d95a61953db931e029826819dc2e78ed627925872f2aaa8f36b4d72
+  generated_exact_type get2 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
+  generated_exact_type get3 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
+  generated_exact_type get4 location=class1 nominal_id=eaca4dc37715ad1f78cf6cd36c21e55a2a2d824cd1a7a77eaabc6c57eee021f7 exact_id=5dc4260661c5a026586bfdc89df330646e485f6d2d290bb39a2f365c840cf8ea
+  generated_exact_type get5 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
+  generated_exact_type get6 location=class2 nominal_id=ec9721475a70afdbd6b4f9133318fbcb3ffbc6a9988090d068d7000e5ff54e94 exact_id=e638df6f9e8c6a840aa29927372221a41f2ca63154c39dd998c45459b2938e46
+  generated_exact_type get7 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
+  generated_callable gc0 function=@fn11 id=0bbcd9e90e5a76d4cd476b320cadddc6b0bc6dbe50b1f2f7a6d31dbf8ca03a67
+  generated_callable gc1 function=@fn10 id=964664f2879d6d3b066ca242284f8736317d60b8e850d80d79a960eea8216d4f
+  fun equalTo @fn0(this: Ptr<Unit>, other: Ptr<Unit>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<Unit>
+        Type Ptr<Unit>
+        Local this
+      val $dependency.local.3: Ptr<Unit>
+        Type Ptr<Unit>
+        Local other
+      val $dependency.local.4: Ptr<Unit>
+        Type Ptr<Unit>
+        Local $dependency.local.3
+      val $inline.1.this: Ptr<Unit>
+        Type Ptr<Unit>
+        Local $dependency.local.2
+      val $inline.1.other: Ptr<Unit>
+        Type Ptr<Unit>
+        Local $dependency.local.4
+      goto bb2
+    bb1 inline.cont.1
+      val $call.1: Boolean
+        Type Boolean
+        Local $inline.1.result
+      return
+        Type Boolean
+        Local $call.1
+    bb2 inline.1.entry
+      val $inline.1.$dependency.local.2: Ptr<Unit>
+        Type Ptr<Unit>
+        Local $inline.1.this
+      val $inline.1.$dependency.local.4: ULong
+        Type ULong
+        PtrToULong
+          Type Ptr<Unit>
+          Local $inline.1.$dependency.local.2
+      val $inline.1.$dependency.local.3: Ptr<Unit>
+        Type Ptr<Unit>
+        Local $inline.1.other
+      assign $inline.1.result
+        Type Boolean
+        IntegerCompare equal operands=ULong result=Boolean
+          Type ULong
+          Local $inline.1.$dependency.local.4
+          Type ULong
+          PtrToULong
+            Type Ptr<Unit>
+            Local $inline.1.$dependency.local.3
+      goto bb1
+  fun environmentReady @fn1() -> Int
+    bb0 entry
+      call $call.1: Int = extern0 @environment_ready direct
+      return
+        Type Int
+        Local $call.1
+  fun singleSeed @fn2(arg0: Int) -> Float
+    bb0 entry
+      call $call.1: Float = extern1 @single_seed direct
+        Type Int
+        Local arg0
+      return
+        Type Float
+        Local $call.1
+  fun doubleSeed @fn3(arg0: Int) -> Double
+    bb0 entry
+      call $call.1: Double = extern2 @double_seed direct
+        Type Int
+        Local arg0
+      return
+        Type Double
+        Local $call.1
+  fun runForeign @fn4(arg0: FunPtr<(Float, Double, Ptr<Unit>) -> Double>, arg1: Ptr<Unit>) -> Double
+    bb0 entry
+      call $call.1: Double = extern3 @run_foreign direct
+        Type FunPtr<(Float, Double, Ptr<Unit>) -> Double>
+        Local arg0
+        Type Ptr<Unit>
+        Local arg1
+      return
+        Type Double
+        Local $call.1
+  fun validate @fn5(single: Float, wide: Double) -> Double
+    bb0 entry
+      var result: Double
+        Type Double
+        FloatLiteral f64(0x0000000000000000)
+      call $dependency.receiver: Int = extern0 @environment_ready direct
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          IntegerLiteral Int value=1 bits=0x00000001
+    bb1 if.then.1
+      val $dependency.receiver: Float
+        Type Float
+        Local single
+      val $dependency.argument.0: Float
+        Type Float
+        FloatLiteral f32(0x3f800000)
+      val $dependency.parameter.other: Float
+        Type Float
+        Local $dependency.argument.0
+      val $dependency.receiver: Float
+        Type Float
+        FloatBinary F32 Add
+          Type Float
+          Local $dependency.receiver
+          Type Float
+          Local $dependency.parameter.other
+      val $dependency.argument.0: Float
+        Type Float
+        Local single
+      val $dependency.parameter.other: Float
+        Type Float
+        Local $dependency.argument.0
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        FloatBinary F32 Equal
+          Type Float
+          Local $dependency.receiver
+          Type Float
+          Local $dependency.parameter.other
+      goto bb3
+    bb2 if.else.2
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 if.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $shortCircuit.0
+    bb4 if.then.4
+      val $dependency.receiver: Double
+        Type Double
+        Local wide
+      val $dependency.argument.0: Double
+        Type Double
+        FloatLiteral f64(0x3ff0000000000000)
+      val $dependency.parameter.other: Double
+        Type Double
+        Local $dependency.argument.0
+      val $dependency.receiver: Double
+        Type Double
+        FloatBinary F64 Add
+          Type Double
+          Local $dependency.receiver
+          Type Double
+          Local $dependency.parameter.other
+      val $dependency.argument.0: Double
+        Type Double
+        Local wide
+      val $dependency.parameter.other: Double
+        Type Double
+        Local $dependency.argument.0
+      val $shortCircuit.1: Boolean
+        Type Boolean
+        FloatBinary F64 Equal
+          Type Double
+          Local $dependency.receiver
+          Type Double
+          Local $dependency.parameter.other
+      goto bb6
+    bb5 if.else.5
+      val $shortCircuit.1: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb6
+    bb6 if.merge.6
+      branch bb7 bb8
+        Type Boolean
+        Local $shortCircuit.1
+    bb7 if.then.7
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.kind: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      call $dependency.receiver: Float = extern1 @single_seed direct
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.argument.0: Float
+        Type Float
+        FloatLiteral f32(0x40000000)
+      val $dependency.parameter.other: Float
+        Type Float
+        Local $dependency.argument.0
+      val $shortCircuit.2: Boolean
+        Type Boolean
+        FloatBinary F32 Greater
+          Type Float
+          FloatBinary F32 Divide
+            Type Float
+            Local $dependency.receiver
+            Type Float
+            Local $dependency.parameter.other
+          Type Float
+          FloatLiteral f32(0x00000000)
+      goto bb9
+    bb8 if.else.8
+      val $shortCircuit.2: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb9
+    bb9 if.merge.9
+      branch bb10 bb11
+        Type Boolean
+        Local $shortCircuit.2
+    bb10 if.then.10
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.kind: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      call $dependency.receiver: Double = extern2 @double_seed direct
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.argument.0: Double
+        Type Double
+        FloatLiteral f64(0x4000000000000000)
+      val $dependency.parameter.other: Double
+        Type Double
+        Local $dependency.argument.0
+      val $shortCircuit.3: Boolean
+        Type Boolean
+        FloatBinary F64 Greater
+          Type Double
+          FloatBinary F64 Divide
+            Type Double
+            Local $dependency.receiver
+            Type Double
+            Local $dependency.parameter.other
+          Type Double
+          FloatLiteral f64(0x0000000000000000)
+      goto bb12
+    bb11 if.else.11
+      val $shortCircuit.3: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb12
+    bb12 if.merge.12
+      branch bb13 bb14
+        Type Boolean
+        Local $shortCircuit.3
+    bb13 if.then.13
+      assign result
+        Type Double
+        Local wide
+      goto bb14
+    bb14 if.merge.14
+      return
+        Type Double
+        Local result
+  fun main @fn6() -> Unit
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $parameter.kind: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      call $argument.0: Float = extern1 @single_seed direct
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $parameter.kind: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      call $argument.1: Double = extern2 @double_seed direct
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $parameter.single: Float
+        Type Float
+        Local $argument.0
+      val $parameter.wide: Double
+        Type Double
+        Local $argument.1
+      call $dependency.receiver: Double = @fn5 direct
+        Type Float
+        Local $parameter.single
+        Type Double
+        Local $parameter.wide
+      val $dependency.argument.0: Double
+        Type Double
+        FloatLiteral f64(0x4340000000000000)
+      val $dependency.parameter.other: Double
+        Type Double
+        Local $dependency.argument.0
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        FloatBinary F64 Equal
+          Type Double
+          Local $dependency.receiver
+          Type Double
+          Local $dependency.parameter.other
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn8 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $dependency.receiver: String
+        Type String
+        StringConst @str0
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str1
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call marker: String = @scoop_rt_string_concat direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      val $dependency.argument.0: (Float, Double) -> Double
+        Type (Float, Double) -> Double
+        ClosureAlloc cc0 $Closure$lambda0
+          CaptureInit field=0
+            Type String
+            Local marker
+      val $dependency.argument.1: Long
+        Type Long
+        IntegerLiteral Long value=2 bits=0x0000000000000002
+      val $dependency.argument.2: ForeignCallbackMode
+        Type ForeignCallbackMode
+        VariantConstruct ForeignCallbackMode v0
+      val $dependency.parameter.callback: (Float, Double) -> Double
+        Type (Float, Double) -> Double
+        Local $dependency.argument.0
+      val $dependency.parameter.contextIndex: Long
+        Type Long
+        IntegerLiteral Long value=2 bits=0x0000000000000002
+      val $dependency.parameter.mode: ForeignCallbackMode
+        Type ForeignCallbackMode
+        Local $dependency.argument.2
+      val callback: ForeignCallback<(Float, Double, Ptr<Unit>) -> Double>
+        Type ForeignCallback<(Float, Double, Ptr<Unit>) -> Double>
+        ForeignCallbackRegister fcb0 family=fcf0
+          Type (Float, Double) -> Double
+          Local $dependency.parameter.callback
+      val $argument.0: FunPtr<(Float, Double, Ptr<Unit>) -> Double>
+        Type FunPtr<(Float, Double, Ptr<Unit>) -> Double>
+        FieldAccess 0
+          Type ForeignCallback<(Float, Double, Ptr<Unit>) -> Double>
+          Local callback
+      val $argument.1: Ptr<Unit>
+        Type Ptr<Unit>
+        FieldAccess 1
+          Type ForeignCallback<(Float, Double, Ptr<Unit>) -> Double>
+          Local callback
+      val $parameter.callback: FunPtr<(Float, Double, Ptr<Unit>) -> Double>
+        Type FunPtr<(Float, Double, Ptr<Unit>) -> Double>
+        Local $argument.0
+      val $parameter.context: Ptr<Unit>
+        Type Ptr<Unit>
+        Local $argument.1
+      call $dependency.receiver: Double = extern3 @run_foreign direct
+        Type FunPtr<(Float, Double, Ptr<Unit>) -> Double>
+        Local $parameter.callback
+        Type Ptr<Unit>
+        Local $parameter.context
+      val $dependency.argument.0: Double
+        Type Double
+        FloatLiteral f64(0x4340000000000000)
+      val $dependency.parameter.other: Double
+        Type Double
+        Local $dependency.argument.0
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        FloatBinary F64 Equal
+          Type Double
+          Local $dependency.receiver
+          Type Double
+          Local $dependency.parameter.other
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn8 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $dependency.argument.0: ForeignCallback<(Float, Double, Ptr<Unit>) -> Double>
+        Type ForeignCallback<(Float, Double, Ptr<Unit>) -> Double>
+        Local callback
+      val $dependency.parameter.callback: ForeignCallback<(Float, Double, Ptr<Unit>) -> Double>
+        Type ForeignCallback<(Float, Double, Ptr<Unit>) -> Double>
+        Local $dependency.argument.0
+      Type Unit
+      ForeignCallbackRelease family0
+        Type ForeignCallback<(Float, Double, Ptr<Unit>) -> Double>
+        Local $dependency.parameter.callback
+      return
+  fun equals @fn7(this: Ptr<Unit>, other: Ptr<Unit>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<Unit>
+        Type Ptr<Unit>
+        Local this
+      val $dependency.local.4: ULong
+        Type ULong
+        PtrToULong
+          Type Ptr<Unit>
+          Local $dependency.local.2
+      val $dependency.local.3: Ptr<Unit>
+        Type Ptr<Unit>
+        Local other
+      return
+        Type Boolean
+        IntegerCompare equal operands=ULong result=Boolean
+          Type ULong
+          Local $dependency.local.4
+          Type ULong
+          PtrToULong
+            Type Ptr<Unit>
+            Local $dependency.local.3
+  fun println @fn8(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.local.1: Boolean
+        Type Boolean
+        Local value
+      call $dependency.local.2: String = external1 direct
+        Type Boolean
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external2 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str2
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external2 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun $lambda.0 @fn9($closure: (Float, Double) -> Double, single: Float, wide: Double) -> Double
+    bb0 entry
+      call @scoop_rt_gc_collect direct
+      val $dependency.receiver: String
+        Type String
+        ClosureCapture cc0 0
+          Type (Float, Double) -> Double
+          Local $closure
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str3
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $call.1: Boolean = external0 direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      branch bb1 bb2
+        Type Boolean
+        Local $call.1
+    bb1 if.then.1
+      val $argument.0: Float
+        Type Float
+        Local single
+      val $argument.1: Double
+        Type Double
+        Local wide
+      val $parameter.single: Float
+        Type Float
+        Local $argument.0
+      val $parameter.wide: Double
+        Type Double
+        Local $argument.1
+      call $call.2: Double = @fn5 direct
+        Type Float
+        Local $parameter.single
+        Type Double
+        Local $parameter.wide
+      assign $result.4
+        Type Double
+        Local $call.2
+      goto bb3
+    bb2 if.else.2
+      assign $result.4
+        Type Double
+        FloatLiteral f64(0x0000000000000000)
+      goto bb3
+    bb3 if.merge.3
+      return
+        Type Double
+        Local $result.4
+  fun foreign callback adapter 0 @fn10($closure: (Float, Double) -> Double, $snapshot: internal<context-node>, $result: Ptr<Double>, $arguments: Ptr<Ptr<Unit>>, $exception: Ptr<Throwable>) -> machine<foreign-callback-status>
+    bb0 context.unwind
+      landing_pad cleanup=true
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb1 context.catch_unwind
+      landing_pad cleanup=true
+      end_catch
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb2 callback.failure unwind bb1
+      landing_pad cleanup=false
+      begin_catch
+      call $caught: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      Type Unit
+      PtrStore Throwable
+        Type Ptr<Throwable>
+        Local $exception
+        Type Throwable
+        Local $caught
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+        Type machine<foreign-callback-status>
+        MachineScalarLiteral ForeignCallbackStatus(Threw)
+    bb3 callback.invoke unwind bb2
+      call $value: Double = <closure:function_type2> closure[function_type2]
+        Type (Float, Double) -> Double
+        Local $closure
+        Type Float
+        PtrLoad Float
+          Type Ptr<Float>
+          PtrCast Float
+            Type Ptr<Unit>
+            PtrLoad Ptr<Unit>
+              Type Ptr<Ptr<Unit>>
+              Local $arguments
+              Type machine<pointer-element-offset>
+              MachineScalarLiteral PointerElementOffset(0)
+        Type Double
+        PtrLoad Double
+          Type Ptr<Double>
+          PtrCast Double
+            Type Ptr<Unit>
+            PtrLoad Ptr<Unit>
+              Type Ptr<Ptr<Unit>>
+              Local $arguments
+              Type machine<pointer-element-offset>
+              MachineScalarLiteral PointerElementOffset(1)
+      Type Unit
+      PtrStore Double
+        Type Ptr<Double>
+        Local $result
+        Type Double
+        Local $value
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+        Type machine<foreign-callback-status>
+        MachineScalarLiteral ForeignCallbackStatus(Returned)
+    bb4 entry
+      val $child_context: internal<task-context>
+        Type internal<task-context>
+        ContextFork
+          Type internal<context-node>
+          Local $snapshot
+      val $context_guard: internal<context-switch-guard>
+        Type internal<context-switch-guard>
+        ContextEnter
+          Type internal<task-context>
+          Local $child_context
+      goto bb3
+  fun function_bridge.$Closure$lambda0.(Any, Any) -> Any @fn11($source: (Float, Double) -> Double, arg0: Any, arg1: Any) -> Any
+    bb0 entry
+      call $call.1: Double = <closure:function_type2> closure[function_type2]
+        Type (Float, Double) -> Double
+        Local $source
+        Type Float
+        Unbox
+          Type Any
+          Local arg0
+        Type Double
+        Unbox
+          Type Any
+          Local arg1
+      return
+        Type Any
+        Box
+          Type Double
+          Local $call.1
+  instance mi0 function=@fn0 <- equalTo
+  instance mi1 function=@fn7 <- equals
+  instance mi2 function=@fn8 <- println
+  str @str0 "floating-"
+  str @str1 "thread"
+  str @str2 "\n"
+  str @str3 "floating-thread"
+  output executable @fn6

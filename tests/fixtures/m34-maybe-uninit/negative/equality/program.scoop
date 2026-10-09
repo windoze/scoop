@@ -1,0 +1,5 @@
+fun main() {
+    val a = MaybeUninit<Int>.initialized(1)
+    val b = MaybeUninit<Int>.initialized(2)
+    println(a == b)
+}

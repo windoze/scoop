@@ -43,16 +43,11 @@ impl WireEncode for CallableAbiProjection<'_> {
                     e.field(1)?;
                     self.zst(value, e)?;
                 }
-                AbiArgument::Direct(value) | AbiArgument::Indirect(value) => {
-                    tagged(
-                        e,
-                        if matches!(argument, AbiArgument::Direct(_)) {
-                            2
-                        } else {
-                            3
-                        },
-                        1,
-                    )?;
+                AbiArgument::Direct(value) => {
+                    self.direct(value, 2, 4, e)?;
+                }
+                AbiArgument::Indirect(value) => {
+                    tagged(e, 3, 1)?;
                     e.field(1)?;
                     self.value(value, e)?;
                 }
@@ -66,16 +61,9 @@ impl WireEncode for CallableAbiProjection<'_> {
                 e.field(1)?;
                 self.zst(value, e)
             }
-            AbiReturn::Direct(value) | AbiReturn::Indirect(value) => {
-                tagged(
-                    e,
-                    if matches!(signature.result(), AbiReturn::Direct(_)) {
-                        3
-                    } else {
-                        4
-                    },
-                    1,
-                )?;
+            AbiReturn::Direct(value) => self.direct(value, 3, 5, e),
+            AbiReturn::Indirect(value) => {
+                tagged(e, 4, 1)?;
                 e.field(1)?;
                 self.value(value, e)
             }
@@ -84,6 +72,29 @@ impl WireEncode for CallableAbiProjection<'_> {
 }
 
 impl CallableAbiProjection<'_> {
+    fn direct(
+        &self,
+        value: &AbiDirectValue,
+        scalar_tag: u64,
+        parts_tag: u64,
+        e: &mut Encoder,
+    ) -> Result {
+        match value {
+            AbiDirectValue::Scalar(value) => {
+                tagged(e, scalar_tag, 1)?;
+                e.field(1)?;
+                self.value(value, e)
+            }
+            AbiDirectValue::DirectParts(parts) => {
+                tagged(e, parts_tag, 2)?;
+                e.field(1)?;
+                self.value(parts.value(), e)?;
+                e.field(2)?;
+                parts.coercion().encode(e)
+            }
+        }
+    }
+
     fn zst(&self, value: &AbiZst, e: &mut Encoder) -> Result {
         tagged(e, 1, 2)?;
         e.field(1)?;

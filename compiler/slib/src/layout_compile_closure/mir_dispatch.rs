@@ -4,7 +4,6 @@ use scoop_hir as hir;
 use scoop_identity::{
     CallableDefinitionOwner, DispatchDeclarationOwner, GeneratedCallableKey,
     PersistentDispatchSlotId, PersistentExactTypeId, PersistentGeneratedCallableId,
-    StrongCallableDefinitionOwner,
 };
 use scoop_mir as mir;
 use scoop_wire::WirePath;

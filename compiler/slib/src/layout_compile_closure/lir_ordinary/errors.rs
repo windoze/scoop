@@ -5,6 +5,7 @@ use scoop_wire::WireError;
 #[derive(Debug)]
 pub enum SharedOrdinaryLirBridgeValidationError {
     ArtifactProvider,
+    CallableSignature(DependencyCallableDeclarationId),
     CallableInterface(DependencyCallableDeclarationId),
     SourceAbi(Box<crate::NativeBoundaryCompileError>),
     LayoutSignature {

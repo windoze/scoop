@@ -81,15 +81,27 @@ impl RuntimeAbiSymbolV1 {
                 thread_local: false,
                 mutable: false,
             },
-            Self::AllocationContext => CompilerNativeContractV1::Data {
+            Self::AllocationContext | Self::PollState => CompilerNativeContractV1::Data {
                 byte_size: 8,
                 alignment: 8,
                 thread_local: true,
                 mutable: true,
             },
-            Self::CardTable => CompilerNativeContractV1::Data {
+            Self::GcEpoch => CompilerNativeContractV1::Data {
                 byte_size: 8,
                 alignment: 8,
+                thread_local: false,
+                mutable: true,
+            },
+            Self::PageMap => CompilerNativeContractV1::Data {
+                byte_size: 32768,
+                alignment: 8,
+                thread_local: false,
+                mutable: true,
+            },
+            Self::WorldPhase => CompilerNativeContractV1::Data {
+                byte_size: 4,
+                alignment: 4,
                 thread_local: false,
                 mutable: true,
             },
@@ -132,6 +144,7 @@ impl crate::CBridgeTargetSupportV1 {
         use CompilerNativeValueV1::{Float as F, Integer as I, Pointer as P};
         match self {
             Self::Memcpy => leaf(&[P, P, I(64)], P),
+            Self::Memset => leaf(&[P, I(32), I(64)], P),
             Self::TlvBootstrap | Self::TlsGetAddr => leaf(&[P], P),
             Self::Fmodf => leaf(&[F(F32), F(F32)], F(F32)),
             Self::Fmod => leaf(&[F(F64), F(F64)], F(F64)),

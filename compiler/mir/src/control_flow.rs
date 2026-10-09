@@ -2,11 +2,13 @@ use super::*;
 
 mod calls;
 mod visit;
+mod visit_mut;
 
 pub use calls::*;
 pub use visit::*;
+pub use visit_mut::*;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Function {
     /// Whether this body participates in managed GC instrumentation.
     pub gc_effect: GcEffect,
@@ -52,7 +54,7 @@ pub enum GcEffect {
     NoGc,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Param {
     pub name: String,
     pub ty: Type,
@@ -60,7 +62,7 @@ pub struct Param {
     pub local: LocalId,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Body {
     pub locals: Arena<Local>,
     pub blocks: Arena<BasicBlock>,
@@ -192,7 +194,7 @@ impl Body {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct BasicBlock {
     pub name: String,
     pub statements: Vec<Statement>,
@@ -202,13 +204,13 @@ pub struct BasicBlock {
     pub unwind: Option<BlockId>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Statement {
     pub kind: StatementKind,
     pub span: SourceSpan,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum StatementKind {
     Expr(Expr),
     Call(CallEffect),
@@ -252,7 +254,7 @@ pub enum StatementKind {
     Eh(EhStatement),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum CallEffect {
     /// A call whose source result type is `Unit`.
     Unit(Call),
@@ -261,7 +263,7 @@ pub enum CallEffect {
     Value { destination: LocalId, call: Call },
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum EhStatement {
     /// Capture the active native exception into function-local EH slots.
     LandingPad {
@@ -272,7 +274,7 @@ pub enum EhStatement {
     EndCatch,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Terminator {
     Goto(BlockId),
     Branch {
@@ -650,6 +652,10 @@ impl std::error::Error for MirVariantExprError {}
 
 #[derive(Debug, Clone)]
 pub enum ExprKind {
+    MaybeUninit {
+        wrapper: StructId,
+        operation: MaybeUninitOperation<Box<Expr>>,
+    },
     Context(ContextOperation<Expr>),
     DataBorrow(DataBorrowOperation<Expr>),
     StringConst(StringConstId),

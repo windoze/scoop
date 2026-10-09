@@ -162,32 +162,32 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun thunk<LocalReader> ChildReader.parent() @fn8(this: ChildReader) -> Long
+  fun thunk<LocalReader> ChildReader.parent() @fn8(this: box<LocalReader>) -> Long
     bb0 entry
       call $call.1: Long = external0 direct
         Type ParentReader
         Retype ParentReader
-          Type ChildReader
+          Type box<LocalReader>
           Local this
       return
         Type Long
         Local $call.1
-  fun thunk<LocalReader> ChildReader.child() @fn9(this: ChildReader) -> Long
+  fun thunk<LocalReader> ChildReader.child() @fn9(this: box<LocalReader>) -> Long
     bb0 entry
       call $call.1: Long = external1 direct
         Type ChildReader
         Retype ChildReader
-          Type ChildReader
+          Type box<LocalReader>
           Local this
       return
         Type Long
         Local $call.1
-  fun thunk<LocalReader> ParentReader.parent() @fn10(this: ParentReader) -> Long
+  fun thunk<LocalReader> ParentReader.parent() @fn10(this: box<LocalReader>) -> Long
     bb0 entry
       call $call.1: Long = external0 direct
         Type ParentReader
         Retype ParentReader
-          Type ParentReader
+          Type box<LocalReader>
           Local this
       return
         Type Long

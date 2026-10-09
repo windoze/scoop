@@ -109,6 +109,11 @@ impl ReferenceCollector<'_> {
         let origin = expression.origin.definition();
         self.type_reference(expression.ty, origin);
         match &expression.kind {
+            hir::ExprKind::MaybeUninit(operation) => {
+                if let Some(operand) = operation.operand() {
+                    self.expression(operand);
+                }
+            }
             hir::ExprKind::Atomic(atomic) => {
                 for operand in atomic.operands() {
                     self.expression(operand);

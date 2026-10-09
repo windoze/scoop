@@ -26,24 +26,24 @@ Module
   interface Continuation<Later>
   interface SuspendTask<Later>
   interface SuspendRegistration<Later>
-  closure cc0 $Closure$reference0 type=function_type0 invoke=@fn47 captures=0
-    bridge function_type1 -> @fn64 id=c7ca484eddc71c0bbb1b76703e8441038672f7e7e180110a543951d7ca5f0f97
-  closure cc1 $Closure$reference1 type=function_type2 invoke=@fn48 captures=0
-    bridge function_type1 -> @fn65 id=fc65b282825a7777bbd61d67429e4919a22ae47c428a4ecd9e9460eb0e7233f4
-  closure cc2 $Closure$reference2 type=function_type3 invoke=@fn49 captures=0
-    bridge function_type1 -> @fn66 id=e563eafcc6dccf088b24cbd0a58c85d12776de3485f282a98dd534c35aa34b9d
-  closure cc3 $Closure$reference3 type=function_type4 invoke=@fn50 captures=1
-    bridge function_type1 -> @fn67 id=ad1cbb1b36bd378b64be83c71ee30b08728ae81acad3fb7a2604563f20473ef0
-  closure cc4 $Closure$reference4 type=function_type5 invoke=@fn51 captures=1
-    bridge function_type6 -> @fn68 id=89f84c6941bd27eca13cb54599c852cd95ce5f1275bcf18ed65cea5d42f6be7f
-  closure cc5 $Closure$reference5 type=function_type7 invoke=@fn52 captures=1
-    bridge function_type1 -> @fn69 id=73e00d3af504780d7f79b3190010c0cf43ab13956bcf667f550f1897846096a7
-  closure cc6 $Closure$reference6 type=function_type8 invoke=@fn53 captures=1
-    bridge function_type6 -> @fn70 id=b6a530537918f2dd46114989ec8ba6157d76283dc223556ac39b964d91d16303
-  closure cc7 $Closure$reference7 type=function_type9 invoke=@fn54 captures=1
-    bridge function_type1 -> @fn71 id=1233667fbea016c0c877c855085f5bcd69c10a009e9d4a01ae801f574551f9fb
-  closure cc8 $Closure$reference8 type=function_type10 invoke=@fn55 captures=1
-    bridge function_type6 -> @fn72 id=aa13a66ba3b06ee79c2804bbe5bc5c3b255b8542c5a17571758d5e6c8d5abdfa
+  closure cc0 $Closure$reference0 type=function_type0 invoke=@fn53 captures=0
+    bridge function_type1 -> @fn70 id=c7ca484eddc71c0bbb1b76703e8441038672f7e7e180110a543951d7ca5f0f97
+  closure cc1 $Closure$reference1 type=function_type2 invoke=@fn54 captures=0
+    bridge function_type1 -> @fn71 id=fc65b282825a7777bbd61d67429e4919a22ae47c428a4ecd9e9460eb0e7233f4
+  closure cc2 $Closure$reference2 type=function_type3 invoke=@fn55 captures=0
+    bridge function_type1 -> @fn72 id=e563eafcc6dccf088b24cbd0a58c85d12776de3485f282a98dd534c35aa34b9d
+  closure cc3 $Closure$reference3 type=function_type4 invoke=@fn56 captures=1
+    bridge function_type1 -> @fn73 id=ad1cbb1b36bd378b64be83c71ee30b08728ae81acad3fb7a2604563f20473ef0
+  closure cc4 $Closure$reference4 type=function_type5 invoke=@fn57 captures=1
+    bridge function_type6 -> @fn74 id=89f84c6941bd27eca13cb54599c852cd95ce5f1275bcf18ed65cea5d42f6be7f
+  closure cc5 $Closure$reference5 type=function_type7 invoke=@fn58 captures=1
+    bridge function_type1 -> @fn75 id=73e00d3af504780d7f79b3190010c0cf43ab13956bcf667f550f1897846096a7
+  closure cc6 $Closure$reference6 type=function_type8 invoke=@fn59 captures=1
+    bridge function_type6 -> @fn76 id=b6a530537918f2dd46114989ec8ba6157d76283dc223556ac39b964d91d16303
+  closure cc7 $Closure$reference7 type=function_type9 invoke=@fn60 captures=1
+    bridge function_type1 -> @fn77 id=1233667fbea016c0c877c855085f5bcd69c10a009e9d4a01ae801f574551f9fb
+  closure cc8 $Closure$reference8 type=function_type10 invoke=@fn61 captures=1
+    bridge function_type6 -> @fn78 id=aa13a66ba3b06ee79c2804bbe5bc5c3b255b8542c5a17571758d5e6c8d5abdfa
   generated_exact_type get0 location=enum2 nominal_id=28a62ec28cc392e5f3329d6b0f8fd0e7d452c8ca63fe51b66d6c19cca54a0eb5 exact_id=0ad45305ceed30c3525c1873665ba0d34fcdcd46c3df14ac9aae2cae8f45a44b
   generated_exact_type get1 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
   generated_exact_type get2 location=closure2 nominal_id=a298cb2a88a50f2342cfe5f56cb9235bffe62d88fb31cee5981aa7b6d48472ef exact_id=191600924cea1e2237fe3f3b552db7859e30737afb287bf3ce4c16452791f9c1
@@ -62,16 +62,22 @@ Module
   generated_exact_type get15 location=class11 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
   generated_exact_type get16 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
   generated_exact_type get17 location=closure7 nominal_id=791c40eb237aa3fb1c824c25f6e0943002a49e7bdc21e7a50aa67f3e887aa5b9 exact_id=f9013aef83f0627fec53b6b4758f4abb7371ea5aa19b1fb952435627523d36f5
-  generated_callable gc0 function=@fn71 id=1233667fbea016c0c877c855085f5bcd69c10a009e9d4a01ae801f574551f9fb
-  generated_callable gc1 function=@fn63 id=53abf4722fcceabd3b777f1e045a288f35046609abd5f52073e014356d2eefa3
-  generated_callable gc2 function=@fn69 id=73e00d3af504780d7f79b3190010c0cf43ab13956bcf667f550f1897846096a7
-  generated_callable gc3 function=@fn68 id=89f84c6941bd27eca13cb54599c852cd95ce5f1275bcf18ed65cea5d42f6be7f
-  generated_callable gc4 function=@fn72 id=aa13a66ba3b06ee79c2804bbe5bc5c3b255b8542c5a17571758d5e6c8d5abdfa
-  generated_callable gc5 function=@fn67 id=ad1cbb1b36bd378b64be83c71ee30b08728ae81acad3fb7a2604563f20473ef0
-  generated_callable gc6 function=@fn70 id=b6a530537918f2dd46114989ec8ba6157d76283dc223556ac39b964d91d16303
-  generated_callable gc7 function=@fn64 id=c7ca484eddc71c0bbb1b76703e8441038672f7e7e180110a543951d7ca5f0f97
-  generated_callable gc8 function=@fn66 id=e563eafcc6dccf088b24cbd0a58c85d12776de3485f282a98dd534c35aa34b9d
-  generated_callable gc9 function=@fn65 id=fc65b282825a7777bbd61d67429e4919a22ae47c428a4ecd9e9460eb0e7233f4
+  generated_callable gc0 function=@fn49 id=0318fda87368994d733e09e06c0f46f36140faec7c17d3a663e18792f4ac1365
+  generated_callable gc1 function=@fn77 id=1233667fbea016c0c877c855085f5bcd69c10a009e9d4a01ae801f574551f9fb
+  generated_callable gc2 function=@fn52 id=191504f75d4706fee3fe52dc4fd315e278703f74d178d52724f2a41ecb93d32a
+  generated_callable gc3 function=@fn69 id=53abf4722fcceabd3b777f1e045a288f35046609abd5f52073e014356d2eefa3
+  generated_callable gc4 function=@fn50 id=6a5a23725ce24113f732b9576f053abbaf1038941b6f9d644bcd9248bb1c2068
+  generated_callable gc5 function=@fn75 id=73e00d3af504780d7f79b3190010c0cf43ab13956bcf667f550f1897846096a7
+  generated_callable gc6 function=@fn74 id=89f84c6941bd27eca13cb54599c852cd95ce5f1275bcf18ed65cea5d42f6be7f
+  generated_callable gc7 function=@fn78 id=aa13a66ba3b06ee79c2804bbe5bc5c3b255b8542c5a17571758d5e6c8d5abdfa
+  generated_callable gc8 function=@fn73 id=ad1cbb1b36bd378b64be83c71ee30b08728ae81acad3fb7a2604563f20473ef0
+  generated_callable gc9 function=@fn76 id=b6a530537918f2dd46114989ec8ba6157d76283dc223556ac39b964d91d16303
+  generated_callable gc10 function=@fn48 id=bf402d2ff428710feffc9b8cbad30092422347007936193b16ff07334fc7a935
+  generated_callable gc11 function=@fn70 id=c7ca484eddc71c0bbb1b76703e8441038672f7e7e180110a543951d7ca5f0f97
+  generated_callable gc12 function=@fn72 id=e563eafcc6dccf088b24cbd0a58c85d12776de3485f282a98dd534c35aa34b9d
+  generated_callable gc13 function=@fn51 id=e83b83d974620fcfaf9a1243ebb14560b4b3ae555a77a5a1e1f1cebafe2cf75c
+  generated_callable gc14 function=@fn47 id=fbc0f84b9e8ac7bf324b9fd6de7ad2a619f96002a8c76f2f32ec456289eaa341
+  generated_callable gc15 function=@fn71 id=fc65b282825a7777bbd61d67429e4919a22ae47c428a4ecd9e9460eb0e7233f4
   fun readLater @fn0(value: Later) -> Int
     bb0 entry
       return
@@ -98,7 +104,7 @@ Module
       assign $new.1
         Type Later
         ClassAlloc Later
-      call @fn56 direct
+      call @fn62 direct
         Type Later
         Local $new.1
         Type Int
@@ -226,7 +232,7 @@ Module
       assign $new.2
         Type Later
         ClassAlloc Later
-      call @fn56 direct
+      call @fn62 direct
         Type Later
         Local $new.2
         Type Int
@@ -279,7 +285,7 @@ Module
       assign $new.1
         Type ReaderBox<Later>
         ClassAlloc ReaderBox<Later>
-      call @fn57 direct
+      call @fn63 direct
         Type ReaderBox<Later>
         Local $new.1
         Type Later
@@ -371,7 +377,7 @@ Module
       assign $new.1
         Type ReaderBox<Int>
         ClassAlloc ReaderBox<Int>
-      call @fn58 direct
+      call @fn64 direct
         Type ReaderBox<Int>
         Local $new.1
         Type Int
@@ -463,7 +469,7 @@ Module
       assign $new.1
         Type ReaderBox<Unit>
         ClassAlloc ReaderBox<Unit>
-      call @fn59 direct
+      call @fn65 direct
         Type ReaderBox<Unit>
         Local $new.1
         Type Unit
@@ -775,7 +781,63 @@ Module
   fun SuspendRegistration.register @fn46(this: SuspendRegistration<Later>, continuation: Continuation<Later>) -> Unit
     bb0 entry
       trap "call to abstract method `SuspendRegistration.register`"
-  fun $reference.0 @fn47($closure: (Later) -> Int, arg0: Later) -> Int
+  fun receiver<BaseReader> MutableReader.again @fn47(this: BaseReader<Later>) -> Later
+    bb0 entry
+      call $call.1: Later = @fn12 direct
+        Type MutableReader<Later>
+        Retype MutableReader<Later>
+          Type BaseReader<Later>
+          Local this
+      return
+        Type Later
+        Local $call.1
+  fun receiver<BaseReader> MutableReader.again @fn48(this: BaseReader<Int>) -> Int
+    bb0 entry
+      call $call.1: Int = @fn24 direct
+        Type MutableReader<Int>
+        Retype MutableReader<Int>
+          Type BaseReader<Int>
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun receiver<BaseReader> MutableReader.again @fn49(this: BaseReader<Unit>) -> Unit
+    bb0 entry
+      call @fn36 direct
+        Type MutableReader<Unit>
+        Retype MutableReader<Unit>
+          Type BaseReader<Unit>
+          Local this
+      return
+  fun receiver<ReaderBox> MutableReader.again @fn50(this: ReaderBox<Later>) -> Later
+    bb0 entry
+      call $call.1: Later = @fn12 direct
+        Type MutableReader<Later>
+        Retype MutableReader<Later>
+          Type ReaderBox<Later>
+          Local this
+      return
+        Type Later
+        Local $call.1
+  fun receiver<ReaderBox> MutableReader.again @fn51(this: ReaderBox<Int>) -> Int
+    bb0 entry
+      call $call.1: Int = @fn24 direct
+        Type MutableReader<Int>
+        Retype MutableReader<Int>
+          Type ReaderBox<Int>
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun receiver<ReaderBox> MutableReader.again @fn52(this: ReaderBox<Unit>) -> Unit
+    bb0 entry
+      call @fn36 direct
+        Type MutableReader<Unit>
+        Retype MutableReader<Unit>
+          Type ReaderBox<Unit>
+          Local this
+      return
+  fun $reference.0 @fn53($closure: (Later) -> Int, arg0: Later) -> Int
     bb0 entry
       call $call.1: Int = @fn0 direct
         Type Later
@@ -783,7 +845,7 @@ Module
       return
         Type Int
         Local $call.1
-  fun $reference.1 @fn48($closure: (Int) -> Int, arg0: Int) -> Int
+  fun $reference.1 @fn54($closure: (Int) -> Int, arg0: Int) -> Int
     bb0 entry
       call $call.1: Int = @fn1 direct
         Type Int
@@ -791,7 +853,7 @@ Module
       return
         Type Int
         Local $call.1
-  fun $reference.2 @fn49($closure: (Unit) -> Int, arg0: Unit) -> Int
+  fun $reference.2 @fn55($closure: (Unit) -> Int, arg0: Unit) -> Int
     bb0 entry
       call $call.1: Int = @fn2 direct
         Type Unit
@@ -799,7 +861,7 @@ Module
       return
         Type Int
         Local $call.1
-  fun $reference.3 @fn50($closure: (Later) -> Unit, arg0: Later) -> Unit
+  fun $reference.3 @fn56($closure: (Later) -> Unit, arg0: Later) -> Unit
     bb0 entry
       call @fn16 interface MutableReader<Later>[0]
         Type MutableReader<Later>
@@ -809,7 +871,7 @@ Module
         Type Later
         Local arg0
       return
-  fun $reference.4 @fn51($closure: () -> Later) -> Later
+  fun $reference.4 @fn57($closure: () -> Later) -> Later
     bb0 entry
       call $call.1: Later = @fn17 interface MutableReader<Later>[1]
         Type MutableReader<Later>
@@ -819,7 +881,7 @@ Module
       return
         Type Later
         Local $call.1
-  fun $reference.5 @fn52($closure: (Int) -> Unit, arg0: Int) -> Unit
+  fun $reference.5 @fn58($closure: (Int) -> Unit, arg0: Int) -> Unit
     bb0 entry
       call @fn28 interface MutableReader<Int>[0]
         Type MutableReader<Int>
@@ -829,7 +891,7 @@ Module
         Type Int
         Local arg0
       return
-  fun $reference.6 @fn53($closure: () -> Int) -> Int
+  fun $reference.6 @fn59($closure: () -> Int) -> Int
     bb0 entry
       call $call.1: Int = @fn29 interface MutableReader<Int>[1]
         Type MutableReader<Int>
@@ -839,7 +901,7 @@ Module
       return
         Type Int
         Local $call.1
-  fun $reference.7 @fn54($closure: (Unit) -> Unit, arg0: Unit) -> Unit
+  fun $reference.7 @fn60($closure: (Unit) -> Unit, arg0: Unit) -> Unit
     bb0 entry
       call @fn40 interface MutableReader<Unit>[0]
         Type MutableReader<Unit>
@@ -849,7 +911,7 @@ Module
         Type Unit
         Local arg0
       return
-  fun $reference.8 @fn55($closure: () -> Unit) -> Unit
+  fun $reference.8 @fn61($closure: () -> Unit) -> Unit
     bb0 entry
       call @fn41 interface MutableReader<Unit>[1]
         Type MutableReader<Unit>
@@ -857,7 +919,7 @@ Module
           Type () -> Unit
           Local $closure
       return
-  fun init.Later.$c0 @fn56(this: Later, number: Int) -> Unit
+  fun init.Later.$c0 @fn62(this: Later, number: Int) -> Unit
     bb0 entry
       field_set 0
         Type Later
@@ -865,9 +927,9 @@ Module
         Type Int
         Local number
       return
-  fun init.ReaderBox.$c0 @fn57(this: ReaderBox<Later>, item: Later) -> Unit
+  fun init.ReaderBox.$c0 @fn63(this: ReaderBox<Later>, item: Later) -> Unit
     bb0 entry
-      call @fn60 direct
+      call @fn66 direct
         Type BaseReader<Later>
         Retype BaseReader<Later>
           Type ReaderBox<Later>
@@ -878,9 +940,9 @@ Module
         Type Later
         Local item
       return
-  fun init.ReaderBox.$c0 @fn58(this: ReaderBox<Int>, item: Int) -> Unit
+  fun init.ReaderBox.$c0 @fn64(this: ReaderBox<Int>, item: Int) -> Unit
     bb0 entry
-      call @fn61 direct
+      call @fn67 direct
         Type BaseReader<Int>
         Retype BaseReader<Int>
           Type ReaderBox<Int>
@@ -891,9 +953,9 @@ Module
         Type Int
         Local item
       return
-  fun init.ReaderBox.$c0 @fn59(this: ReaderBox<Unit>, item: Unit) -> Unit
+  fun init.ReaderBox.$c0 @fn65(this: ReaderBox<Unit>, item: Unit) -> Unit
     bb0 entry
-      call @fn62 direct
+      call @fn68 direct
         Type BaseReader<Unit>
         Retype BaseReader<Unit>
           Type ReaderBox<Unit>
@@ -904,16 +966,16 @@ Module
         Type Unit
         Local item
       return
-  fun init.BaseReader.$c1 @fn60(this: BaseReader<Later>) -> Unit
+  fun init.BaseReader.$c1 @fn66(this: BaseReader<Later>) -> Unit
     bb0 entry
       return
-  fun init.BaseReader.$c1 @fn61(this: BaseReader<Int>) -> Unit
+  fun init.BaseReader.$c1 @fn67(this: BaseReader<Int>) -> Unit
     bb0 entry
       return
-  fun init.BaseReader.$c1 @fn62(this: BaseReader<Unit>) -> Unit
+  fun init.BaseReader.$c1 @fn68(this: BaseReader<Unit>) -> Unit
     bb0 entry
       return
-  fun startCoroutine<Later> @fn63(task: SuspendTask<Later>, completion: Continuation<Later>) -> Unit
+  fun startCoroutine<Later> @fn69(task: SuspendTask<Later>, completion: Continuation<Later>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -994,7 +1056,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun function_bridge.$Closure$reference0.(Any) -> Any @fn64($source: (Later) -> Int, arg0: Any) -> Any
+  fun function_bridge.$Closure$reference0.(Any) -> Any @fn70($source: (Later) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type0> closure[function_type0]
         Type (Later) -> Int
@@ -1008,7 +1070,7 @@ Module
         Box
           Type Int
           Local $call.1
-  fun function_bridge.$Closure$reference1.(Any) -> Any @fn65($source: (Int) -> Int, arg0: Any) -> Any
+  fun function_bridge.$Closure$reference1.(Any) -> Any @fn71($source: (Int) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type2> closure[function_type2]
         Type (Int) -> Int
@@ -1022,7 +1084,7 @@ Module
         Box
           Type Int
           Local $call.1
-  fun function_bridge.$Closure$reference2.(Any) -> Any @fn66($source: (Unit) -> Int, arg0: Any) -> Any
+  fun function_bridge.$Closure$reference2.(Any) -> Any @fn72($source: (Unit) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type3> closure[function_type3]
         Type (Unit) -> Int
@@ -1036,7 +1098,7 @@ Module
         Box
           Type Int
           Local $call.1
-  fun function_bridge.$Closure$reference3.(Any) -> Any @fn67($source: (Later) -> Unit, arg0: Any) -> Any
+  fun function_bridge.$Closure$reference3.(Any) -> Any @fn73($source: (Later) -> Unit, arg0: Any) -> Any
     bb0 entry
       call <closure:function_type4> closure[function_type4]
         Type (Later) -> Unit
@@ -1050,7 +1112,7 @@ Module
         Box
           Type Unit
           UnitLiteral
-  fun function_bridge.$Closure$reference4.() -> Any @fn68($source: () -> Later) -> Any
+  fun function_bridge.$Closure$reference4.() -> Any @fn74($source: () -> Later) -> Any
     bb0 entry
       call $call.1: Later = <closure:function_type5> closure[function_type5]
         Type () -> Later
@@ -1060,7 +1122,7 @@ Module
         Retype Any
           Type Later
           Local $call.1
-  fun function_bridge.$Closure$reference5.(Any) -> Any @fn69($source: (Int) -> Unit, arg0: Any) -> Any
+  fun function_bridge.$Closure$reference5.(Any) -> Any @fn75($source: (Int) -> Unit, arg0: Any) -> Any
     bb0 entry
       call <closure:function_type7> closure[function_type7]
         Type (Int) -> Unit
@@ -1074,7 +1136,7 @@ Module
         Box
           Type Unit
           UnitLiteral
-  fun function_bridge.$Closure$reference6.() -> Any @fn70($source: () -> Int) -> Any
+  fun function_bridge.$Closure$reference6.() -> Any @fn76($source: () -> Int) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type8> closure[function_type8]
         Type () -> Int
@@ -1084,7 +1146,7 @@ Module
         Box
           Type Int
           Local $call.1
-  fun function_bridge.$Closure$reference7.(Any) -> Any @fn71($source: (Unit) -> Unit, arg0: Any) -> Any
+  fun function_bridge.$Closure$reference7.(Any) -> Any @fn77($source: (Unit) -> Unit, arg0: Any) -> Any
     bb0 entry
       call <closure:function_type9> closure[function_type9]
         Type (Unit) -> Unit
@@ -1098,7 +1160,7 @@ Module
         Box
           Type Unit
           UnitLiteral
-  fun function_bridge.$Closure$reference8.() -> Any @fn72($source: () -> Unit) -> Any
+  fun function_bridge.$Closure$reference8.() -> Any @fn78($source: () -> Unit) -> Any
     bb0 entry
       call <closure:function_type10> closure[function_type10]
         Type () -> Unit
@@ -1110,7 +1172,7 @@ Module
           UnitLiteral
   coroutine_step cs0 CoroutineStep<Later> result=Later
   coroutine_slot cl0 CoroutineSlot<Later> value=Later
-  coroutine_start ct0 result=Later function=fn63
+  coroutine_start ct0 result=Later function=fn69
   coroutine_fn cf0 @fn45 source_return=Later step=cs0 immediate
   instance mi0 function=@fn4 <- exercise
   instance mi1 function=@fn5 <- exercise

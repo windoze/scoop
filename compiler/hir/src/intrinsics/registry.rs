@@ -7,6 +7,10 @@ use super::*;
 /// nominal declaration contract emitted as typed HIR.
 pub const INTRINSIC_TYPE_REGISTRY: &[IntrinsicTypeSpec] = &[
     IntrinsicTypeSpec {
+        name: "core_maybe_uninit",
+        kind: IntrinsicTypeKind::MaybeUninit,
+    },
+    IntrinsicTypeSpec {
         name: "core_atomic_int",
         kind: IntrinsicTypeKind::Atomic(AtomicValueKind::Int),
     },
@@ -133,6 +137,27 @@ pub fn intrinsic_type_spec(name: &str) -> Option<&'static IntrinsicTypeSpec> {
 /// live with hir-lower; this table is the single source of truth for
 /// valid names, expansion stage, and backend kind.
 pub const INTRINSIC_REGISTRY: &[IntrinsicSpec] = &[
+    IntrinsicSpec {
+        name: "maybe_uninit_zero",
+        stage: IntrinsicStage::Hir,
+        kind: IntrinsicFunctionKind::MaybeUninit(MaybeUninitIntrinsic::Uninit),
+        target: IntrinsicTarget::Member,
+        effects: IntrinsicEffects::NO_GC,
+    },
+    IntrinsicSpec {
+        name: "maybe_uninit_initialized",
+        stage: IntrinsicStage::Hir,
+        kind: IntrinsicFunctionKind::MaybeUninit(MaybeUninitIntrinsic::Initialized),
+        target: IntrinsicTarget::Member,
+        effects: IntrinsicEffects::NO_GC,
+    },
+    IntrinsicSpec {
+        name: "maybe_uninit_assume_init",
+        stage: IntrinsicStage::Hir,
+        kind: IntrinsicFunctionKind::MaybeUninit(MaybeUninitIntrinsic::AssumeInit),
+        target: IntrinsicTarget::Member,
+        effects: IntrinsicEffects::NO_GC_UNSAFE,
+    },
     IntrinsicSpec {
         name: "char_code",
         stage: IntrinsicStage::Hir,

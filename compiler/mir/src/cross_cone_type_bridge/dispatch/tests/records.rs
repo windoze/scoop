@@ -253,7 +253,18 @@ fn inherited_interface_contracts_and_boxed_entries_use_current_table_receiver() 
             .callables
             .get(entry.implementation().target())
             .unwrap();
-        assert_eq!(target.lowered_signature(), contract.signature());
+        assert_eq!(
+            target.lowered_signature().exact().receiver().into_option(),
+            Some(crate::InterfaceAdjustIdentity::boxed_receiver(fixture.exact(VALUE)).unwrap())
+        );
+        assert_eq!(
+            target.lowered_signature().exact().parameters(),
+            contract.signature().exact().parameters()
+        );
+        assert_eq!(
+            target.lowered_signature().exact().result(),
+            contract.signature().exact().result()
+        );
         assert_eq!(
             target.semantic_signature().exact().receiver().into_option(),
             Some(fixture.exact(if entry.slot() == fixture.slots[1].id() {

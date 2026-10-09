@@ -3,17 +3,15 @@ Module
     local %0 $dependency.argument.0: {i32, i1}
     local %1 $dependency.parameter.value: {i32, i1}
     local %2 $call.1: i32
-    local %3 $sc.1: {i32, i1}
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     t0 = aggregate (integer<Int>(0x00000001), true) : {i32, i1}
     store t0 -> local0
     store local0 -> local1
-    store local1 -> local3
-    call managed-direct-target0 sp<managed-call:0> live=[] t1 = sig=direct0 (indirect<{i32, i1} size=8 align=4 scan=none>) -> i32 local-fn1(indirect local3)
+    call managed-direct-target0 sp<managed-call:0> live=[] t1 = sig=direct0 (parts<{i32, i1} [i64@0+8/4]>) -> i32 local-fn1(local1)
     store t1 -> local2
     ret local2
-  fun @scoop$1$cb$5e38e9921ef588761055fa3d418b7e966b2dbd3fbdbef0bed675af4c4be3511d(indirect<{i32, i1} size=8 align=4 scan=none>) -> i32
+  fun @scoop$1$cb$5e38e9921ef588761055fa3d418b7e966b2dbd3fbdbef0bed675af4c4be3511d(parts<{i32, i1} [i64@0+8/4]>) -> i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret integer<Int>(0x00000002)

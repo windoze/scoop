@@ -7,29 +7,32 @@ pub(super) fn actual(
     source: &CanonicalMirCallableBindingsV1,
     bindings: &CanonicalMirCallableBindingsV1,
 ) {
-    for adjust in &input.module().meta.boxing_adjusts {
-        let GeneratedCallableKey::BoxingAdjust { payload, .. } =
-            adjust.identity().callable_record().key()
-        else {
-            panic!("boxing key")
+    for adjust in &input.module().meta.interface_adjusts {
+        let (owner, reference) = match adjust.identity().callable_record().key() {
+            GeneratedCallableKey::BoxingAdjust { payload, .. } => (*payload, false),
+            GeneratedCallableKey::DispatchAdjust { implementor, .. } => (*implementor, true),
+            _ => panic!("interface receiver adapter key"),
         };
         let id = StrongCallableDefinitionOwner::GeneratedCallable(
             adjust.identity().callable_record().id(),
         );
-        if types.get(*payload).is_none() {
+        if types.get(owner).is_none() {
             assert!(bindings.get(id).is_none());
             continue;
         }
         let binding = bindings.get(id).unwrap();
-        let scoop_mir::MirCallableLoweringRoleV1::BoxingAdjust { target } = binding.lowering_role()
-        else {
-            panic!("boxing role")
+        let target = match binding.lowering_role() {
+            scoop_mir::MirCallableLoweringRoleV1::BoxingAdjust { target } if !reference => target,
+            scoop_mir::MirCallableLoweringRoleV1::DispatchAdjust { target } if reference => target,
+            _ => panic!("interface receiver adapter role"),
         };
         let root = input
             .materialization()
             .callable_roots()
             .iter()
-            .find(|root| scoop_mir::BoxingAdjustTarget::Local(root.function()) == adjust.target())
+            .find(|root| {
+                scoop_mir::InterfaceAdjustTarget::Local(root.function()) == adjust.target()
+            })
             .unwrap();
         assert_eq!(
             root.subject(),
@@ -52,7 +55,7 @@ pub(super) fn actual(
         assert_eq!(calls.len(), 1);
         assert!(matches!(calls[0].target.kind, scoop_mir::CallKind::Direct));
         assert!(
-            matches!(calls[0].target.callee, scoop_mir::Callee::User(actual) if scoop_mir::BoxingAdjustTarget::Local(actual) == adjust.target())
+            matches!(calls[0].target.callee, scoop_mir::Callee::User(actual) if scoop_mir::InterfaceAdjustTarget::Local(actual) == adjust.target())
         );
         assert_eq!(
             binding.semantic_signature(),
@@ -78,7 +81,7 @@ pub(super) fn actual(
                         )))
         );
         assert!(
-            matches!(input.module().classes[adjust.boxed()].itables.iter().find(|table| table.interface == adjust.interface()).unwrap().slots[adjust.slot() as usize], scoop_mir::TableSlot::Function(function) if function == adjust.function())
+            matches!(input.module().classes[adjust.class()].itables.iter().find(|table| table.interface == adjust.interface()).unwrap().slots[adjust.slot() as usize], scoop_mir::TableSlot::Function(function) if function == adjust.function())
         );
     }
 }
@@ -91,7 +94,8 @@ pub(super) fn selection(
 ) {
     let mut payloads = BTreeSet::new();
     let mut targets = BTreeSet::new();
-    for adjust in &input.module().meta.boxing_adjusts {
+    let mut boxing_count = 0;
+    for adjust in &input.module().meta.interface_adjusts {
         let id = StrongCallableDefinitionOwner::GeneratedCallable(
             adjust.identity().callable_record().id(),
         );
@@ -101,10 +105,11 @@ pub(super) fn selection(
         let GeneratedCallableKey::BoxingAdjust { payload, .. } =
             adjust.identity().callable_record().key()
         else {
-            panic!("boxing key")
+            continue;
         };
+        boxing_count += 1;
         payloads.insert(*payload);
-        let scoop_mir::BoxingAdjustTarget::Local(target) = adjust.target() else {
+        let scoop_mir::InterfaceAdjustTarget::Local(target) = adjust.target() else {
             panic!("local source target")
         };
         targets.insert(input.module().functions[target].name.as_str());
@@ -119,11 +124,11 @@ pub(super) fn selection(
     }
     let owners = source_dispatch::owners(output);
     if case == "standalone" {
-        assert_eq!(bindings.entries().len(), 2);
+        assert_eq!(boxing_count, 2);
         assert_eq!(payloads, BTreeSet::from([owners["Token"]]));
-        assert!(input.module().meta.boxing_adjusts.len() > bindings.entries().len());
+        assert!(input.module().meta.interface_adjusts.len() > bindings.entries().len());
     } else {
-        assert_eq!(bindings.entries().len(), 24);
+        assert_eq!(boxing_count, 24);
         assert_eq!(
             payloads,
             BTreeSet::from([owners["Choice"], owners["Payload"]])

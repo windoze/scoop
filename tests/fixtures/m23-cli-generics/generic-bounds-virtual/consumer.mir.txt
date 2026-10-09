@@ -1,7 +1,7 @@
 Module
   struct GenericValue<Int> (payload: Int, number: Int)
-  class PlainBase vtable=1 itables=2
-  class PlainDerived vtable=1 itables=2
+  class PlainBase vtable=1 itables=0
+  class PlainDerived vtable=1 itables=0
   class box<Int> vtable=0 itables=0
   interface Readable
   interface Marker

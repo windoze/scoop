@@ -117,7 +117,7 @@ pub(super) fn validate_generated_callable_metadata(
             point.identity().failure().signature_record().subject(),
         )?;
     }
-    for adjust in &module.meta.boxing_adjusts {
+    for adjust in &module.meta.interface_adjusts {
         expect(
             module,
             &mut expected,

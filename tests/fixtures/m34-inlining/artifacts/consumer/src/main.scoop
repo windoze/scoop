@@ -1,0 +1,13 @@
+import inlining.provider.Item
+import inlining.provider.generic
+import inlining.provider.ordinary
+
+fun check(value: Boolean) { if (!value) { throw IllegalStateException() } }
+fun locallyInstantiated(value: Item): Int = generic(value)
+fun externalBody(value: Int): Int = ordinary(value)
+fun main() {
+    val item = Item(40)
+    gcCollect()
+    check(locallyInstantiated(item) == 41 && externalBody(40) == 42)
+    println("inlined artifacts")
+}

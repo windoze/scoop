@@ -59,7 +59,7 @@ fn with_intrinsic(
     .unwrap();
     let definitions = HashMap::from([(
         definition.owner(),
-        AbiNominalDefinition::native(&definition),
+        AbiNominalDefinition::native(&definition, false),
     )]);
     let callable_applications = HashMap::new();
     let initialization_units = HashMap::new();
@@ -192,7 +192,7 @@ fn a_fixed_core_scalar_identity_needs_its_actual_representation_witness() {
         HashMap::new(),
         HashMap::from([(
             definition.owner(),
-            AbiNominalDefinition::native(&definition),
+            AbiNominalDefinition::native(&definition, false),
         )]),
     ] {
         let mut normalizer = NativeBoundaryNormalizer::new(

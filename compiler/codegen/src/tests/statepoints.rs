@@ -12,6 +12,10 @@ fn llvm_lowering_consumes_the_profile_managed_address_space() {
     llvm.verify().expect("valid LLVM module");
     let ir = llvm.print_to_string().to_string();
     assert!(
+        ir.lines()
+            .any(|line| line.starts_with("target datalayout") && line.contains("ni:7"))
+    );
+    assert!(
         ir.contains("ptr addrspace(7)"),
         "supplied managed address space is absent:\n{ir}"
     );

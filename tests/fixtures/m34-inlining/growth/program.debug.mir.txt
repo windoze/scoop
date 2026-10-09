@@ -1,0 +1,951 @@
+Module
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum Option<Char>
+    Some(_0: Char)
+    None()
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  interface ToString
+  interface Hash
+  interface Equality<Char>
+  interface Iterable<Char>
+  interface Iterator<Char>
+  interface Equality<String>
+  generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
+  generated_exact_type get1 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
+  generated_exact_type get2 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
+  generated_exact_type get3 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
+  generated_exact_type get4 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
+  fun check @fn0(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.receiver: Boolean
+        Type Boolean
+        Local value
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+    bb1 if.then.1
+      val $default.local.0: String
+        Type String
+        StringConst @str0
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.1
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $new.1
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.1
+    bb2 if.merge.2
+      return
+  fun step @fn1(value: Int) -> Int
+    bb0 entry
+      val $dependency.receiver: Int
+        Type Int
+        Local value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val first: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $dependency.receiver: Int
+        Type Int
+        Local first
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val second: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $dependency.receiver: Int
+        Type Int
+        Local second
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun expanded @fn2(input: Int) -> Int
+    bb0 entry
+      var value: Int
+        Type Int
+        Local input
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.1: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      assign value
+        Type Int
+        Local $call.1
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.2: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      assign value
+        Type Int
+        Local $call.2
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.3: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      assign value
+        Type Int
+        Local $call.3
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.4: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      assign value
+        Type Int
+        Local $call.4
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.5: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      assign value
+        Type Int
+        Local $call.5
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.6: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      assign value
+        Type Int
+        Local $call.6
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.7: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      assign value
+        Type Int
+        Local $call.7
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.8: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      assign value
+        Type Int
+        Local $call.8
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.9: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      assign value
+        Type Int
+        Local $call.9
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.10: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      assign value
+        Type Int
+        Local $call.10
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.11: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      assign value
+        Type Int
+        Local $call.11
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.12: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      assign value
+        Type Int
+        Local $call.12
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.13: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      assign value
+        Type Int
+        Local $call.13
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.14: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      assign value
+        Type Int
+        Local $call.14
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.15: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      assign value
+        Type Int
+        Local $call.15
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.16: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      assign value
+        Type Int
+        Local $call.16
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.17: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      assign value
+        Type Int
+        Local $call.17
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.18: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      assign value
+        Type Int
+        Local $call.18
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.19: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      assign value
+        Type Int
+        Local $call.19
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.20: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      assign value
+        Type Int
+        Local $call.20
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.21: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      assign value
+        Type Int
+        Local $call.21
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.22: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      assign value
+        Type Int
+        Local $call.22
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.23: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      assign value
+        Type Int
+        Local $call.23
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.24: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      assign value
+        Type Int
+        Local $call.24
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.25: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      assign value
+        Type Int
+        Local $call.25
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.26: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      assign value
+        Type Int
+        Local $call.26
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.27: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      assign value
+        Type Int
+        Local $call.27
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.28: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      assign value
+        Type Int
+        Local $call.28
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.29: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      assign value
+        Type Int
+        Local $call.29
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.30: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      assign value
+        Type Int
+        Local $call.30
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.31: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      assign value
+        Type Int
+        Local $call.31
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.32: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      assign value
+        Type Int
+        Local $call.32
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.33: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      assign value
+        Type Int
+        Local $call.33
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.34: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      assign value
+        Type Int
+        Local $call.34
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.35: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      assign value
+        Type Int
+        Local $call.35
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.36: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      assign value
+        Type Int
+        Local $call.36
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.37: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      assign value
+        Type Int
+        Local $call.37
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.38: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      assign value
+        Type Int
+        Local $call.38
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.39: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      assign value
+        Type Int
+        Local $call.39
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.40: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      assign value
+        Type Int
+        Local $call.40
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.41: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      assign value
+        Type Int
+        Local $call.41
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.42: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      assign value
+        Type Int
+        Local $call.42
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.43: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      assign value
+        Type Int
+        Local $call.43
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.44: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      assign value
+        Type Int
+        Local $call.44
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.45: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      assign value
+        Type Int
+        Local $call.45
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.46: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      assign value
+        Type Int
+        Local $call.46
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.47: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      assign value
+        Type Int
+        Local $call.47
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.48: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      assign value
+        Type Int
+        Local $call.48
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.49: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      assign value
+        Type Int
+        Local $call.49
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.50: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      assign value
+        Type Int
+        Local $call.50
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.51: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      assign value
+        Type Int
+        Local $call.51
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.52: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      assign value
+        Type Int
+        Local $call.52
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.53: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      assign value
+        Type Int
+        Local $call.53
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.54: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      assign value
+        Type Int
+        Local $call.54
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.55: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      assign value
+        Type Int
+        Local $call.55
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.56: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      assign value
+        Type Int
+        Local $call.56
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.57: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      assign value
+        Type Int
+        Local $call.57
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.58: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      assign value
+        Type Int
+        Local $call.58
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.59: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      assign value
+        Type Int
+        Local $call.59
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.60: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      assign value
+        Type Int
+        Local $call.60
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.61: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      assign value
+        Type Int
+        Local $call.61
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.62: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      assign value
+        Type Int
+        Local $call.62
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.63: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      assign value
+        Type Int
+        Local $call.63
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.64: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      assign value
+        Type Int
+        Local $call.64
+      return
+        Type Int
+        Local value
+  fun main @fn3() -> Unit
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+      val $parameter.input: Int
+        Type Int
+        Local $argument.0
+      call $dependency.receiver: Int = @fn2 direct
+        Type Int
+        Local $parameter.input
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=394 bits=0x0000018a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str1
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn4 direct
+        Type String
+        Local $dependency.parameter.value
+      return
+  fun println @fn4(value: String) -> Unit
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local value
+      call $dependency.local.2: String = external1 direct
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external2 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str2
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external2 direct
+        Type String
+        Local $dependency.local.5
+      return
+  instance mi0 function=@fn4 <- println
+  str @str0 "illegal state"
+  str @str1 "inlined growth"
+  str @str2 "\n"
+  output executable @fn3

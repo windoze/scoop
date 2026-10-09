@@ -17,16 +17,16 @@ pub(super) fn gateway(
         let pointer =
             AbiValue::new(RAW_PTR, AbiNonZeroLayout::new(8, 8).unwrap(), RefScan::None).unwrap();
         vec![
-            AbiArgument::Direct(result.clone()),
-            AbiArgument::Direct(pointer.clone()),
-            AbiArgument::Direct(pointer),
+            AbiArgument::Direct(result.clone().into()),
+            AbiArgument::Direct(pointer.clone().into()),
+            AbiArgument::Direct(pointer.into()),
         ]
     } else {
         Vec::new()
     };
     function.signature = ScoopAbiSignature::new(
         parameters,
-        AbiReturn::Direct(result.clone()),
+        AbiReturn::Direct(result.clone().into()),
         CallingConvention::Cdecl,
     );
     let entry = function.entry;
@@ -131,7 +131,7 @@ pub(super) fn gateway(
         )
         .unwrap();
         let signature = targets.direct_signatures.alloc(DirectCallSignature::new(
-            vec![AbiArgument::Direct(reference.clone())],
+            vec![AbiArgument::Direct(reference.clone().into())],
             reference,
             CallingConvention::Cdecl,
         ));
@@ -187,7 +187,7 @@ pub(super) fn gateway(
     )
     .unwrap();
     let signature = targets.direct_signatures.alloc(DirectCallSignature::new(
-        vec![AbiArgument::Direct(metadata)],
+        vec![AbiArgument::Direct(metadata.into())],
         reference,
         CallingConvention::Cdecl,
     ));

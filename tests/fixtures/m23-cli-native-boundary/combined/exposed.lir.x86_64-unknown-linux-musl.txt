@@ -2,7 +2,7 @@ Module
   global @scoop$1$io$a4937e6da7fdccaa455cf45386325ec45eb54b206dcfddc0a9fc39685f54e65d = "payload"
   c-struct struct1 Packed fields=[Int8@0/1,Boolean@1/1]
   enum Choice tagged size=24 align=8 variants=(struct1)@8+8 (ptr<managed>)@16+8:refs ()@8+0
-  extern ef0 verifyFinished @verify_finished() -> void <c exact=()->void bridge=@scoop$1$br$11a823f9c4344b7d127a46f1988d40bb1c86649e6fc912464e3a66cb0d75eee1 gc-leaf nounwind lib=m23_native_boundary>
+  extern ef0 verifyFinished @verify_finished() -> void <c exact=()->void direct-c=()->void gc-leaf nounwind lib=m23_native_boundary>
   extern ef1 nativeMixed @native_mixed(indirect<struct0 size=24 align=8 scan=refs[16]>, i8, i16, i32, i64, i8, i16, i32, i64) -> void <scoop managed nounwind lib=m23_native_boundary>
   fun @scoop$1$cb$331f1699dd256700b333c5b7770b5b66c9862008fab79667f910c551243e5ac1() -> void
   block entry
@@ -79,31 +79,30 @@ Module
     local %65 $parameter.u16: i16
     local %66 $parameter.u32: i32
     local %67 $parameter.u64: i64
-    local %68 $sc.1: struct1
-    local %69 $sc.2: enum0
+    local %68 $sc.1: enum0
+    local %69 $sc.2: struct0
     local %70 $sc.3: struct0
-    local %71 $sc.4: struct0
-    local %72 $sc.5: enum0
+    local %71 $sc.4: enum0
+    local %72 $sc.5: struct0
     local %73 $sc.6: struct0
-    local %74 $sc.7: struct0
-    local %75 $sc.8: enum0
+    local %74 $sc.7: enum0
+    local %75 $sc.8: struct0
     local %76 $sc.9: struct0
-    local %77 $sc.10: struct0
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     store integer<Int8>(0x07) -> local0
     store true -> local1
     store local0 -> local2
     store local1 -> local3
-    call no-gc-indirect-target0 local68 = sig=indirect0 (sret struct1 size=8 align=8 scan=none, i8, i1) local-fn3(local2, local3)
-    store local68 -> local4
+    call no-gc-direct-target0 t0 = sig=direct0 (i8, i1) -> struct1 local-fn3(local2, local3)
+    store t0 -> local4
     store local4 -> local5
-    t0 = enum_wrap e0 v0 (local5) : enum0
-    store t0 -> local6
+    t1 = enum_wrap e0 v0 (local5) : enum0
+    store t1 -> local6
     store local6 -> local7
-    store local7 -> local69
-    call no-gc-indirect-target1 local70 = sig=indirect1 (sret struct0 size=24 align=8 scan=refs[16], indirect<enum0 size=24 align=8 scan=refs[16]>) local-fn4(indirect local69)
-    store local70 -> local8
+    store local7 -> local68
+    call no-gc-indirect-target0 local69 = sig=indirect0 (sret struct0 size=24 align=8 scan=refs[16], indirect<enum0 size=24 align=8 scan=refs[16]>) local-fn4(indirect local68)
+    store local69 -> local8
     store integer<Int8>(0xf9) -> local9
     store integer<Int16>(0xfed4) -> local10
     store integer<Int>(0xfffe1dc0) -> local11
@@ -121,17 +120,17 @@ Module
     store local14 -> local23
     store local15 -> local24
     store local16 -> local25
-    store local17 -> local71
-    call native-borrowed-void-target0 sp<native-borrowed:0> roots=[local71:refs[16]] sig=void0 (indirect<struct0 size=24 align=8 scan=refs[16]>, i8, i16, i32, i64, i8, i16, i32, i64) extern1(indirect local71, local18, local19, local20, local21, local22, local23, local24, local25)
-    t1 = aggregate () : {}
+    store local17 -> local70
+    call native-borrowed-void-target0 sp<native-borrowed:0> roots=[local70:refs[16]] sig=void0 (indirect<struct0 size=24 align=8 scan=refs[16]>, i8, i16, i32, i64, i8, i16, i32, i64) extern1(indirect local70, local18, local19, local20, local21, local22, local23, local24, local25)
+    t2 = aggregate () : {}
     store global0 -> local26
     store local26 -> local27
-    t2 = enum_wrap e0 v1 (local27) : enum0
-    store t2 -> local28
+    t3 = enum_wrap e0 v1 (local27) : enum0
+    store t3 -> local28
     store local28 -> local29
-    store local29 -> local72
-    call no-gc-indirect-target2 local73 = sig=indirect2 (sret struct0 size=24 align=8 scan=refs[16], indirect<enum0 size=24 align=8 scan=refs[16]>) local-fn4(indirect local72)
-    store local73 -> local30
+    store local29 -> local71
+    call no-gc-indirect-target1 local72 = sig=indirect1 (sret struct0 size=24 align=8 scan=refs[16], indirect<enum0 size=24 align=8 scan=refs[16]>) local-fn4(indirect local71)
+    store local72 -> local30
     store integer<Int8>(0xf9) -> local31
     store integer<Int16>(0xfed4) -> local32
     store integer<Int>(0xfffe1dc0) -> local33
@@ -149,15 +148,15 @@ Module
     store local36 -> local45
     store local37 -> local46
     store local38 -> local47
-    store local39 -> local74
-    call native-borrowed-void-target1 sp<native-borrowed:1> roots=[local74:refs[16]] sig=void1 (indirect<struct0 size=24 align=8 scan=refs[16]>, i8, i16, i32, i64, i8, i16, i32, i64) extern1(indirect local74, local40, local41, local42, local43, local44, local45, local46, local47)
-    t3 = aggregate () : {}
-    t4 = enum_wrap e0 v2 () : enum0
-    store t4 -> local48
+    store local39 -> local73
+    call native-borrowed-void-target1 sp<native-borrowed:1> roots=[local73:refs[16]] sig=void1 (indirect<struct0 size=24 align=8 scan=refs[16]>, i8, i16, i32, i64, i8, i16, i32, i64) extern1(indirect local73, local40, local41, local42, local43, local44, local45, local46, local47)
+    t4 = aggregate () : {}
+    t5 = enum_wrap e0 v2 () : enum0
+    store t5 -> local48
     store local48 -> local49
-    store local49 -> local75
-    call no-gc-indirect-target3 local76 = sig=indirect3 (sret struct0 size=24 align=8 scan=refs[16], indirect<enum0 size=24 align=8 scan=refs[16]>) local-fn4(indirect local75)
-    store local76 -> local50
+    store local49 -> local74
+    call no-gc-indirect-target2 local75 = sig=indirect2 (sret struct0 size=24 align=8 scan=refs[16], indirect<enum0 size=24 align=8 scan=refs[16]>) local-fn4(indirect local74)
+    store local75 -> local50
     store integer<Int8>(0xf9) -> local51
     store integer<Int16>(0xfed4) -> local52
     store integer<Int>(0xfffe1dc0) -> local53
@@ -175,11 +174,11 @@ Module
     store local56 -> local65
     store local57 -> local66
     store local58 -> local67
-    store local59 -> local77
-    call native-borrowed-void-target2 sp<native-borrowed:2> roots=[local77:refs[16]] sig=void2 (indirect<struct0 size=24 align=8 scan=refs[16]>, i8, i16, i32, i64, i8, i16, i32, i64) extern1(indirect local77, local60, local61, local62, local63, local64, local65, local66, local67)
-    t5 = aggregate () : {}
-    call native-safe-void-target0 sp<native-safe:0> roots=[] sig=void3 () extern0()
+    store local59 -> local76
+    call native-borrowed-void-target2 sp<native-borrowed:2> roots=[local76:refs[16]] sig=void2 (indirect<struct0 size=24 align=8 scan=refs[16]>, i8, i16, i32, i64, i8, i16, i32, i64) extern1(indirect local76, local60, local61, local62, local63, local64, local65, local66, local67)
     t6 = aggregate () : {}
+    call native-safe-void-target0 sp<native-safe:0> roots=[] sig=void3 () extern0()
+    t7 = aggregate () : {}
     ret
   fun @scoop$1$cb$e3270b657ad1713b554f2d87359a7779ac9358e0c2b923ed5bea1461d74daf38(indirect<struct0 size=24 align=8 scan=refs[16]>, i8, i16, i32, i64, i8, i16, i32, i64) -> void
     local %0 $sc.1: struct0
@@ -189,7 +188,7 @@ Module
     call native-borrowed-void-target0 sp<native-borrowed:0> roots=[local0:refs[16]] sig=void0 (indirect<struct0 size=24 align=8 scan=refs[16]>, i8, i16, i32, i64, i8, i16, i32, i64) extern1(indirect local0, param1, param2, param3, param4, param5, param6, param7, param8)
     t0 = aggregate () : {}
     ret
-  fun @scoop$1$cb$1a652c005ca59f15f66874cd060b265bbd02815f73e74296db8dab895d53566a(i8, i1) -> sret<struct1 size=8 align=8 scan=none> <no-gc>
+  fun @scoop$1$cb$1a652c005ca59f15f66874cd060b265bbd02815f73e74296db8dab895d53566a(i8, i1) -> parts<struct1 [i64@0+8/8]> <no-gc>
   block entry
     t0 = aggregate (param0, param1) : struct1
     ret t0
@@ -197,7 +196,7 @@ Module
   block entry
     t0 = aggregate (param0) : struct0
     ret t0
-  fun @scoop$1$cb$2a144a79e92b53b617bbadf0ffa4e1707313f43f42d7e1ca7eba0004897db579(i64) -> sret<struct2 size=8 align=8 scan=none> <no-gc>
+  fun @scoop$1$cb$2a144a79e92b53b617bbadf0ffa4e1707313f43f42d7e1ca7eba0004897db579(i64) -> parts<struct2 [i64@0+8/8]> <no-gc>
   block entry
     t0 = aggregate (param0) : struct2
     ret t0

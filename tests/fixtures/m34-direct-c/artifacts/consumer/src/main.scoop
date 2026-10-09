@@ -1,0 +1,34 @@
+import m34.direct.Hfa4
+import m34.direct.Wrap
+import m34.direct.Big
+import m34.direct.Transform
+import m34.direct.Worker
+import m34.direct.leaf
+import m34.direct.safe
+import m34.direct.word
+import m34.direct.nested
+import m34.direct.large
+import m34.direct.retained
+import m34.direct.wrapped
+
+class Cell(val value: Int)
+fun check(value: Boolean) { if (!value) { throw IllegalStateException() } }
+fun dispatch(worker: Transform, value: Hfa4): Hfa4 = worker.apply(value)
+fun main() {
+    val cell = Cell(91)
+    val source = Hfa4(1.25, 2.25, 3.25, 4.25)
+    @Unsafe {
+        check(leaf(source).d == 4.75 && safe(source).d == 4.75)
+        check(word(Wrap(37L)).value == 42L)
+        val value = nested(Wrap(source)).value
+        check(value.a == 1.25 && value.b == 2.25 && value.c == 3.75 && value.d == 4.25)
+        val big = large(retained(Big(1L, 2L, 3L, 4L, 5L)))
+        check(big.a == 1L && big.e == 10L && cell.value == 91)
+    }
+    val worker: Transform = Worker()
+    check(dispatch(worker, source).d == 4.75)
+    val callback: (Hfa4) -> Hfa4 = ::wrapped
+    try { check(callback(retained(source)).d == 4.75) }
+    finally { check(cell.value == 91) }
+    println("direct-c-artifacts-ok")
+}

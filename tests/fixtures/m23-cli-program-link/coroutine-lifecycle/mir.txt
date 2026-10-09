@@ -37,9 +37,9 @@ Module
   enum CoroutineSlot<(Continuation<Int>) -> Unit>
     Empty()
     Value(value: (Continuation<Int>) -> Unit)
-  enum CoroutineSlot<SuspendTask<Int>>
+  enum CoroutineSlot<box<FunctionSuspendTask<Int>>>
     Empty()
-    Value(value: SuspendTask<Int>)
+    Value(value: box<FunctionSuspendTask<Int>>)
   class Completion<Int> vtable=0 itables=1
   class Throwable vtable=0 itables=0
   class Gate<Int> vtable=0 itables=0
@@ -151,25 +151,25 @@ Module
   generated_exact_type get22 location=class15 nominal_id=72ef9bb24fde3162b410c3cd5edca30946ab7ca7af3527c7213d99a99d376355 exact_id=5686e5d940c0819538e1cc6b4492ee4bb676483d94a39df36169b208e1b830fb
   generated_exact_type get23 location=class35 nominal_id=17c405797c1195429f86f8b1e8f4870e53b9dabe36b71a590091aaae58941eae exact_id=5784b57b6a2f288f35d2385ef2a3b976701755fa6ec2943b87eed07e23875db1
   generated_exact_type get24 location=closure7 nominal_id=15c9368525be0866ab32a087e75510ae316c4fd6a141a8bd2b138e4390611cf6 exact_id=5b38a7f664ff7382bbb52a7d03f84f27e89fb854a417b23824c3bdda7d0a95ff
-  generated_exact_type get25 location=enum12 nominal_id=774a5517cc42b227b4f3d8823a6022047c83b1e9f11584342f7a922d5191f9b6 exact_id=5bcac56db1558e3d16ccf7824131e1ffee7b61ebafadf5e137f6929a7327722c
-  generated_exact_type get26 location=class49 nominal_id=466adf8a01ca38c9fc8ad915a5947ad68f3289f355f5f21e9887ccb7d5142f1e exact_id=5bfb637368c6a7561ac56c1248e39d47a464d6414524ecaa4fa1bcdd015dd76d
-  generated_exact_type get27 location=enum7 nominal_id=e510fe6d5351ab32bb1e15f7de507a4c86a8dd85750c5508e55ba7dc86f2d062 exact_id=64b940aa7a8e91cfea85302ca4ce6e712f478582848641bfd7fb175f3c14309f
-  generated_exact_type get28 location=closure9 nominal_id=eb946059bb74e1542e6186834c3316bd5b575d80d82cefce219cb4e68c26fc50 exact_id=6c3a49f3f2f8e4b29de5f3e83b9c51a0d4327f024f6ae51df37bf748396a29b2
-  generated_exact_type get29 location=class27 nominal_id=45bc64ec9a54d6ff4e70f1e1e1849251547d4df242f21bb97dbe19e35c9332e7 exact_id=6c68b6413dc1274e0f1678687f6ebb04d728f23cd7af3c6b35adaea6fe1c3a0f
-  generated_exact_type get30 location=class24 nominal_id=47154f69366981230f97f106619b951fc9e5b5eb3b235c3c68aec1e24c8fa3de exact_id=778850925d1d2da2210588af8d9635dc13f09f23a85714acdea594de539792c5
-  generated_exact_type get31 location=class13 nominal_id=1cbb4588969927eeb7676a003537999b683c9e7223958b018a35410ec55d91a3 exact_id=7806e5fe0bec9cf16f99575f1bca6b34be046a7397a8b9d96dbc96f0a677651b
-  generated_exact_type get32 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
-  generated_exact_type get33 location=class52 nominal_id=d984a49d2bd9ebeaf5332dc1eb4c889a129d7fa26469c2360beb99c99be14016 exact_id=93b851fcb5db7bd911303af11ebf6fb1a95811dd5a206068a76da2f94dfb57b6
-  generated_exact_type get34 location=class37 nominal_id=1e6d714a67eb316ef4bb989d91311ce6c2de6137b8dbb6af70fa567066d787b4 exact_id=94abf235d8d18972daa0eb69eab6157e976565ff7ae0c2ee4652cad426c0e5af
-  generated_exact_type get35 location=class44 nominal_id=11c8465f848142dfb66b5d00852c6980902ed1043237796886fbc3c4e8e52bad exact_id=94cfb7fa4dc66ae0b1d6afd40e2cab6b3d2e5e5cec9604ec3273298366a6d58f
-  generated_exact_type get36 location=class23 nominal_id=2446d3571d4a525c1a582f6d005bd583c3cc34e3b6e964954a2ecc2728e628b4 exact_id=9cb187505a566b179a8a71e9bed29d026fc7e9c4e3b351a1336a3cfcec886b96
-  generated_exact_type get37 location=class39 nominal_id=3522fbb6d77ea6b1af16654f91116edc1370533495f6b2c521642e469258fdd7 exact_id=a198fc1529cf07780101355a0e9127fae083a3f8727010855dd3c11a0c0add9e
-  generated_exact_type get38 location=class40 nominal_id=fd1032567d950d751e721be717b89a00c0f13125049d3080dbfe497cb180e1d6 exact_id=a62d9ed48ebeafe7fe902bbf13b68eae1ff91fe8eb008ada84456885e76f8a6d
-  generated_exact_type get39 location=class17 nominal_id=5b774e9b14662668c990eacbb0577b9e656aa3d4e4a98b46821295d51bccc886 exact_id=a647c21609d211052b85a53a765692d533f8bbbef7bd6621e7b5a877dcd3cbbc
-  generated_exact_type get40 location=enum5 nominal_id=1d90b9517ad16680767e5f5f346641f7fdb2b440fcc3407d6f34ee2acd38fd08 exact_id=a7b5de752f5b16397ac2dd0845c02cd2b3b0cbb363c4286d084a2bf5e77678a2
-  generated_exact_type get41 location=closure10 nominal_id=4ae6236fc1464b640f8a3c70e94b71b1092faf375b5cfd916c946022bdf1175a exact_id=a8e3c5c2a450352d165a40ea3999dc47f28ffe137e616a4a308b3e1d3bdcec9e
-  generated_exact_type get42 location=class11 nominal_id=62a993dce936682e79ab355f6e6ea4202397f6af06ce673bcdda6161f93f1f76 exact_id=aa99731c731bdafb843843d70deba1b6273a7ba608074157cc4cc37885f9a79f
-  generated_exact_type get43 location=closure3 nominal_id=8622f4b85ed1e195b3a15a76f84899086c0385a3da66d09cd06f250ef212757e exact_id=ac4c9b76288907e486e51799b398147301de90719664261779fc52a326952c1a
+  generated_exact_type get25 location=class49 nominal_id=466adf8a01ca38c9fc8ad915a5947ad68f3289f355f5f21e9887ccb7d5142f1e exact_id=5bfb637368c6a7561ac56c1248e39d47a464d6414524ecaa4fa1bcdd015dd76d
+  generated_exact_type get26 location=enum7 nominal_id=e510fe6d5351ab32bb1e15f7de507a4c86a8dd85750c5508e55ba7dc86f2d062 exact_id=64b940aa7a8e91cfea85302ca4ce6e712f478582848641bfd7fb175f3c14309f
+  generated_exact_type get27 location=closure9 nominal_id=eb946059bb74e1542e6186834c3316bd5b575d80d82cefce219cb4e68c26fc50 exact_id=6c3a49f3f2f8e4b29de5f3e83b9c51a0d4327f024f6ae51df37bf748396a29b2
+  generated_exact_type get28 location=class27 nominal_id=45bc64ec9a54d6ff4e70f1e1e1849251547d4df242f21bb97dbe19e35c9332e7 exact_id=6c68b6413dc1274e0f1678687f6ebb04d728f23cd7af3c6b35adaea6fe1c3a0f
+  generated_exact_type get29 location=class24 nominal_id=47154f69366981230f97f106619b951fc9e5b5eb3b235c3c68aec1e24c8fa3de exact_id=778850925d1d2da2210588af8d9635dc13f09f23a85714acdea594de539792c5
+  generated_exact_type get30 location=class13 nominal_id=1cbb4588969927eeb7676a003537999b683c9e7223958b018a35410ec55d91a3 exact_id=7806e5fe0bec9cf16f99575f1bca6b34be046a7397a8b9d96dbc96f0a677651b
+  generated_exact_type get31 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
+  generated_exact_type get32 location=class52 nominal_id=d984a49d2bd9ebeaf5332dc1eb4c889a129d7fa26469c2360beb99c99be14016 exact_id=93b851fcb5db7bd911303af11ebf6fb1a95811dd5a206068a76da2f94dfb57b6
+  generated_exact_type get33 location=class37 nominal_id=1e6d714a67eb316ef4bb989d91311ce6c2de6137b8dbb6af70fa567066d787b4 exact_id=94abf235d8d18972daa0eb69eab6157e976565ff7ae0c2ee4652cad426c0e5af
+  generated_exact_type get34 location=class44 nominal_id=11c8465f848142dfb66b5d00852c6980902ed1043237796886fbc3c4e8e52bad exact_id=94cfb7fa4dc66ae0b1d6afd40e2cab6b3d2e5e5cec9604ec3273298366a6d58f
+  generated_exact_type get35 location=class23 nominal_id=2446d3571d4a525c1a582f6d005bd583c3cc34e3b6e964954a2ecc2728e628b4 exact_id=9cb187505a566b179a8a71e9bed29d026fc7e9c4e3b351a1336a3cfcec886b96
+  generated_exact_type get36 location=class39 nominal_id=3522fbb6d77ea6b1af16654f91116edc1370533495f6b2c521642e469258fdd7 exact_id=a198fc1529cf07780101355a0e9127fae083a3f8727010855dd3c11a0c0add9e
+  generated_exact_type get37 location=class40 nominal_id=fd1032567d950d751e721be717b89a00c0f13125049d3080dbfe497cb180e1d6 exact_id=a62d9ed48ebeafe7fe902bbf13b68eae1ff91fe8eb008ada84456885e76f8a6d
+  generated_exact_type get38 location=class17 nominal_id=5b774e9b14662668c990eacbb0577b9e656aa3d4e4a98b46821295d51bccc886 exact_id=a647c21609d211052b85a53a765692d533f8bbbef7bd6621e7b5a877dcd3cbbc
+  generated_exact_type get39 location=enum5 nominal_id=1d90b9517ad16680767e5f5f346641f7fdb2b440fcc3407d6f34ee2acd38fd08 exact_id=a7b5de752f5b16397ac2dd0845c02cd2b3b0cbb363c4286d084a2bf5e77678a2
+  generated_exact_type get40 location=closure10 nominal_id=4ae6236fc1464b640f8a3c70e94b71b1092faf375b5cfd916c946022bdf1175a exact_id=a8e3c5c2a450352d165a40ea3999dc47f28ffe137e616a4a308b3e1d3bdcec9e
+  generated_exact_type get41 location=class11 nominal_id=62a993dce936682e79ab355f6e6ea4202397f6af06ce673bcdda6161f93f1f76 exact_id=aa99731c731bdafb843843d70deba1b6273a7ba608074157cc4cc37885f9a79f
+  generated_exact_type get42 location=closure3 nominal_id=8622f4b85ed1e195b3a15a76f84899086c0385a3da66d09cd06f250ef212757e exact_id=ac4c9b76288907e486e51799b398147301de90719664261779fc52a326952c1a
+  generated_exact_type get43 location=enum12 nominal_id=42688c41cef80dc3884b529d640f34e112e4713909b304b37c4bba3eb7c4db7c exact_id=acdd3d23f6a9c72cde218ce4589eb03e8fb1ccc507e904770d5ba41327a516e4
   generated_exact_type get44 location=class29 nominal_id=644529cfd7ac42e11c5daba4b695678a57f96146602099a1c1066c93a8e407da exact_id=adce019004bdd6510efd5401f807938d075ec0d7f3b7884ba5af0e14b4f91250
   generated_exact_type get45 location=class8 nominal_id=e60fd64364bafd46a94121f0fcdf1cebf44400a86d96ca260989b788a6066068 exact_id=b06d726dacb7756c009bea467de25bd511489ded7e75eae2b426ddbc38bb0112
   generated_exact_type get46 location=closure1 nominal_id=a069110dc462750be5321a6947dde1f958dcf9df1ce644bf37e98ad97dfc490b exact_id=b4c89a60bb2f2549768421b841b678eab880b6bf6850b8d0ed628fc915688671
@@ -2194,7 +2194,7 @@ Module
         StructInit FunctionSuspendRegistration<Int>
           Type (Continuation<Int>) -> Unit
           Local registration
-  fun thunk<FunctionSuspendTask<Int>> SuspendTask.run() @fn52(this: SuspendTask<Int>, $completion: Continuation<Int>) -> CoroutineStep<Int>
+  fun thunk<FunctionSuspendTask<Int>> SuspendTask.run() @fn52(this: box<FunctionSuspendTask<Int>>, $completion: Continuation<Int>) -> CoroutineStep<Int>
     bb0 entry
       val $frame: CoroutineFrame<thunk<FunctionSuspendTask<Int>> SuspendTask.run()>
         Type CoroutineFrame<thunk<FunctionSuspendTask<Int>> SuspendTask.run()>
@@ -2222,9 +2222,9 @@ Module
       field_set 4
         Type CoroutineFrame<thunk<FunctionSuspendTask<Int>> SuspendTask.run()>
         Local $frame
-        Type CoroutineSlot<SuspendTask<Int>>
-        VariantConstruct CoroutineSlot<SuspendTask<Int>> v1
-          Type SuspendTask<Int>
+        Type CoroutineSlot<box<FunctionSuspendTask<Int>>>
+        VariantConstruct CoroutineSlot<box<FunctionSuspendTask<Int>>> v1
+          Type box<FunctionSuspendTask<Int>>
           Local this
       field_set 5
         Type CoroutineFrame<thunk<FunctionSuspendTask<Int>> SuspendTask.run()>
@@ -2239,12 +2239,12 @@ Module
       return
         Type CoroutineStep<Int>
         Local $step
-  fun thunk<FunctionSuspendRegistration<Int>> SuspendRegistration.register(Continuation<Int>) @fn53(this: SuspendRegistration<Int>, continuation: Continuation<Int>) -> Unit
+  fun thunk<FunctionSuspendRegistration<Int>> SuspendRegistration.register(Continuation<Int>) @fn53(this: box<FunctionSuspendRegistration<Int>>, continuation: Continuation<Int>) -> Unit
     bb0 entry
       call @fn38 direct
         Type FunctionSuspendRegistration<Int>
         Unbox
-          Type SuspendRegistration<Int>
+          Type box<FunctionSuspendRegistration<Int>>
           Local this
         Type Continuation<Int>
         Local continuation
@@ -2634,8 +2634,10 @@ Module
       call $step.1: CoroutineStep<Int> = @fn23 direct
         Type Int
         Local $dependency.parameter.value
-        Type CoroutineAdapter<$lambda.0>$1
-        Local $adapter.1
+        Type Continuation<Int>
+        Retype Continuation<Int>
+          Type CoroutineAdapter<$lambda.0>$1
+          Local $adapter.1
       branch bb5 bb6
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -3130,8 +3132,10 @@ Module
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(Waiting)
       call $step.1: CoroutineStep<Int> = @fn25 direct
-        Type CoroutineAdapter<$lambda.1>$1
-        Local $adapter.1
+        Type Continuation<Int>
+        Retype Continuation<Int>
+          Type CoroutineAdapter<$lambda.1>$1
+          Local $adapter.1
       branch bb5 bb6
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -3626,8 +3630,10 @@ Module
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(Waiting)
       call $step.1: CoroutineStep<Int> = @fn26 direct
-        Type CoroutineAdapter<$lambda.2>$1
-        Local $adapter.1
+        Type Continuation<Int>
+        Retype Continuation<Int>
+          Type CoroutineAdapter<$lambda.2>$1
+          Local $adapter.1
       branch bb5 bb6
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -4132,8 +4138,10 @@ Module
       call $step.1: CoroutineStep<Int> = @fn27 direct
         Type Int
         Local $dependency.parameter.value
-        Type CoroutineAdapter<$lambda.3>$1
-        Local $adapter.1
+        Type Continuation<Int>
+        Retype Continuation<Int>
+          Type CoroutineAdapter<$lambda.3>$1
+          Local $adapter.1
       branch bb5 bb6
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -4638,8 +4646,10 @@ Module
       call $step.1: CoroutineStep<Int> = @fn28 direct
         Type Int
         Local $dependency.parameter.value
-        Type CoroutineAdapter<$lambda.4>$1
-        Local $adapter.1
+        Type Continuation<Int>
+        Retype Continuation<Int>
+          Type CoroutineAdapter<$lambda.4>$1
+          Local $adapter.1
       branch bb5 bb6
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -5144,8 +5154,10 @@ Module
       call $step.1: CoroutineStep<Int> = @fn29 direct
         Type Gate<Int>
         Local $dependency.parameter.gate
-        Type CoroutineAdapter<$lambda.5>$1
-        Local $adapter.1
+        Type Continuation<Int>
+        Retype Continuation<Int>
+          Type CoroutineAdapter<$lambda.5>$1
+          Local $adapter.1
       branch bb5 bb6
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -5651,8 +5663,10 @@ Module
       call $step.1: CoroutineStep<Int> = @fn32 direct
         Type (Continuation<Int>) -> Unit
         Local $dependency.local.2
-        Type CoroutineAdapter<synchronous>$1
-        Local $adapter.1
+        Type Continuation<Int>
+        Retype Continuation<Int>
+          Type CoroutineAdapter<synchronous>$1
+          Local $adapter.1
       branch bb5 bb6
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -6151,8 +6165,10 @@ Module
         FieldAccess 0
           Type FunctionSuspendTask<Int>
           Local this
-        Type CoroutineAdapter<run>$1
-        Local $adapter.1
+        Type Continuation<Int>
+        Retype Continuation<Int>
+          Type CoroutineAdapter<run>$1
+          Local $adapter.1
       branch bb5 bb6
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -6655,8 +6671,10 @@ Module
       call $step.1: CoroutineStep<Int> = @fn32 direct
         Type (Continuation<Int>) -> Unit
         Local $dependency.local.1
-        Type CoroutineAdapter<synchronousFailure>$1
-        Local $adapter.1
+        Type Continuation<Int>
+        Retype Continuation<Int>
+          Type CoroutineAdapter<synchronousFailure>$1
+          Local $adapter.1
       branch bb5 bb6
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -7152,8 +7170,10 @@ Module
       call $step.1: CoroutineStep<Int> = @fn32 direct
         Type (Continuation<Int>) -> Unit
         Local $dependency.local.1
-        Type CoroutineAdapter<registrationFailure>$1
-        Local $adapter.1
+        Type Continuation<Int>
+        Retype Continuation<Int>
+          Type CoroutineAdapter<registrationFailure>$1
+          Local $adapter.1
       branch bb5 bb6
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -7652,8 +7672,10 @@ Module
       call $step.1: CoroutineStep<Int> = @fn32 direct
         Type (Continuation<Int>) -> Unit
         Local $dependency.local.2
-        Type CoroutineAdapter<resumedThenThrows>$1
-        Local $adapter.1
+        Type Continuation<Int>
+        Retype Continuation<Int>
+          Type CoroutineAdapter<resumedThenThrows>$1
+          Local $adapter.1
       branch bb5 bb6
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -8159,8 +8181,10 @@ Module
       call $step.1: CoroutineStep<Int> = @fn32 direct
         Type (Continuation<Int>) -> Unit
         Local $dependency.local.2
-        Type CoroutineAdapter<resumedTwice>$1
-        Local $adapter.1
+        Type Continuation<Int>
+        Retype Continuation<Int>
+          Type CoroutineAdapter<resumedTwice>$1
+          Local $adapter.1
       branch bb5 bb6
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -8697,8 +8721,10 @@ Module
       call @fn42 interface SuspendRegistration<Int>[0]
         Type SuspendRegistration<Int>
         Local $dependency.local.4
-        Type CoroutineAdapter<await>$1
-        Local $safe_adapter.1
+        Type Continuation<Int>
+        Retype Continuation<Int>
+          Type CoroutineAdapter<await>$1
+          Local $safe_adapter.1
       goto bb14
     bb3 coroutine.registered_success.1
       atomic_store_release kind=coroutine-adapter-state field=1
@@ -9450,8 +9476,10 @@ Module
       call @fn42 interface SuspendRegistration<Int>[0]
         Type SuspendRegistration<Int>
         Local $dependency.local.4
-        Type CoroutineAdapter<suspendCoroutine>$1
-        Local $safe_adapter.1
+        Type Continuation<Int>
+        Retype Continuation<Int>
+          Type CoroutineAdapter<suspendCoroutine>$1
+          Local $safe_adapter.1
       goto bb14
     bb3 coroutine.registered_success.1
       atomic_store_release kind=coroutine-adapter-state field=1
@@ -10168,10 +10196,12 @@ Module
       call $step.1: CoroutineStep<Int> = @fn24 direct
         Type FunctionSuspendTask<Int>
         Unbox
-          Type SuspendTask<Int>
+          Type box<FunctionSuspendTask<Int>>
           Local this
-        Type CoroutineAdapter<thunk<FunctionSuspendTask<Int>> SuspendTask.run()>$1
-        Local $adapter.1
+        Type Continuation<Int>
+        Retype Continuation<Int>
+          Type CoroutineAdapter<thunk<FunctionSuspendTask<Int>> SuspendTask.run()>$1
+          Local $adapter.1
       branch bb5 bb6
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -10261,9 +10291,9 @@ Module
             Local $frame
     bb9 coroutine.initial
       assign this
-        Type SuspendTask<Int>
+        Type box<FunctionSuspendTask<Int>>
         EnumField v1 f0
-          Type CoroutineSlot<SuspendTask<Int>>
+          Type CoroutineSlot<box<FunctionSuspendTask<Int>>>
           FieldAccess 4
             Type CoroutineFrame<thunk<FunctionSuspendTask<Int>> SuspendTask.run()>
             Local $frame
@@ -10668,8 +10698,10 @@ Module
       call $step.1: CoroutineStep<Int> = <closure:function_type2> closure[function_type2]
         Type suspend () -> Int
         Local $source
-        Type CoroutineAdapter<function_bridge.$Closure$lambda1.suspend () -> Any>$1
-        Local $adapter.1
+        Type Continuation<Int>
+        Retype Continuation<Int>
+          Type CoroutineAdapter<function_bridge.$Closure$lambda1.suspend () -> Any>$1
+          Local $adapter.1
       branch bb5 bb6
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -11168,8 +11200,10 @@ Module
       call $step.1: CoroutineStep<Int> = <closure:function_type2> closure[function_type2]
         Type suspend () -> Int
         Local $source
-        Type CoroutineAdapter<function_bridge.$Closure$lambda2.suspend () -> Any>$1
-        Local $adapter.1
+        Type Continuation<Int>
+        Retype Continuation<Int>
+          Type CoroutineAdapter<function_bridge.$Closure$lambda2.suspend () -> Any>$1
+          Local $adapter.1
       branch bb5 bb6
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -11668,8 +11702,10 @@ Module
       call $step.1: CoroutineStep<Int> = <closure:function_type2> closure[function_type2]
         Type suspend () -> Int
         Local $source
-        Type CoroutineAdapter<function_bridge.$Closure$lambda3.suspend () -> Any>$1
-        Local $adapter.1
+        Type Continuation<Int>
+        Retype Continuation<Int>
+          Type CoroutineAdapter<function_bridge.$Closure$lambda3.suspend () -> Any>$1
+          Local $adapter.1
       branch bb5 bb6
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -12168,8 +12204,10 @@ Module
       call $step.1: CoroutineStep<Int> = <closure:function_type2> closure[function_type2]
         Type suspend () -> Int
         Local $source
-        Type CoroutineAdapter<function_bridge.$Closure$lambda4.suspend () -> Any>$1
-        Local $adapter.1
+        Type Continuation<Int>
+        Retype Continuation<Int>
+          Type CoroutineAdapter<function_bridge.$Closure$lambda4.suspend () -> Any>$1
+          Local $adapter.1
       branch bb5 bb6
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -12668,8 +12706,10 @@ Module
       call $step.1: CoroutineStep<Int> = <closure:function_type2> closure[function_type2]
         Type suspend () -> Int
         Local $source
-        Type CoroutineAdapter<function_bridge.$Closure$lambda5.suspend () -> Any>$1
-        Local $adapter.1
+        Type Continuation<Int>
+        Retype Continuation<Int>
+          Type CoroutineAdapter<function_bridge.$Closure$lambda5.suspend () -> Any>$1
+          Local $adapter.1
       branch bb5 bb6
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -13168,8 +13208,10 @@ Module
       call $step.1: CoroutineStep<Int> = <closure:function_type2> closure[function_type2]
         Type suspend () -> Int
         Local $source
-        Type CoroutineAdapter<function_bridge.$Closure$lambda6.suspend () -> Any>$1
-        Local $adapter.1
+        Type Continuation<Int>
+        Retype Continuation<Int>
+          Type CoroutineAdapter<function_bridge.$Closure$lambda6.suspend () -> Any>$1
+          Local $adapter.1
       branch bb5 bb6
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -13653,7 +13695,7 @@ Module
   coroutine_slot cl3 CoroutineSlot<FunctionSuspendTask<Int>> value=FunctionSuspendTask<Int>
   coroutine_slot cl4 CoroutineSlot<Gate<Int>> value=Gate<Int>
   coroutine_slot cl5 CoroutineSlot<(Continuation<Int>) -> Unit> value=(Continuation<Int>) -> Unit
-  coroutine_slot cl6 CoroutineSlot<SuspendTask<Int>> value=SuspendTask<Int>
+  coroutine_slot cl6 CoroutineSlot<box<FunctionSuspendTask<Int>>> value=box<FunctionSuspendTask<Int>>
   coroutine_saved cv0 class=CoroutineFrame<$lambda.0> field=3 slot=cl0 value=Int
   coroutine_saved cv1 class=CoroutineFrame<$lambda.0> field=4 slot=cl1 value=suspend () -> Int
   coroutine_saved cv2 class=CoroutineFrame<$lambda.1> field=3 slot=cl1 value=suspend () -> Int
@@ -13681,7 +13723,7 @@ Module
   coroutine_saved cv24 class=CoroutineFrame<suspendCoroutine> field=3 slot=cl0 value=Int
   coroutine_saved cv25 class=CoroutineFrame<suspendCoroutine> field=4 slot=cl5 value=(Continuation<Int>) -> Unit
   coroutine_saved cv26 class=CoroutineFrame<thunk<FunctionSuspendTask<Int>> SuspendTask.run()> field=3 slot=cl0 value=Int
-  coroutine_saved cv27 class=CoroutineFrame<thunk<FunctionSuspendTask<Int>> SuspendTask.run()> field=4 slot=cl6 value=SuspendTask<Int>
+  coroutine_saved cv27 class=CoroutineFrame<thunk<FunctionSuspendTask<Int>> SuspendTask.run()> field=4 slot=cl6 value=box<FunctionSuspendTask<Int>>
   coroutine_saved cv28 class=CoroutineFrame<function_bridge.$Closure$lambda1.suspend () -> Any> field=3 slot=cl0 value=Int
   coroutine_saved cv29 class=CoroutineFrame<function_bridge.$Closure$lambda1.suspend () -> Any> field=4 slot=cl1 value=suspend () -> Int
   coroutine_saved cv30 class=CoroutineFrame<function_bridge.$Closure$lambda2.suspend () -> Any> field=3 slot=cl0 value=Int

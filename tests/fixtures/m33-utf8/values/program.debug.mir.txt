@@ -1,0 +1,1614 @@
+Module
+  global0 $singleton$36fca7330da37e2fa2117814d03512ea0533e38e6846f2e1b64162ba4b97dddc: Companion imported provider=5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d storage=52e0a0ad5c4e1cfaed0d1aa9a805e7fe939044ddabbc5b12c91807affb5d1745
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum Option<UInt8>
+    Some(_0: UInt8)
+    None()
+  enum Option<Decoder>
+    Some(_0: Decoder)
+    None()
+  enum Option<Char>
+    Some(_0: Char)
+    None()
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class Companion vtable=0 itables=0
+  class CharacterCodingException vtable=0 itables=0
+  class ListIterator<UInt8> vtable=0 itables=1
+  class IndexOutOfBoundsException vtable=0 itables=0
+  interface List<UInt8> : Iterable<UInt8>
+  interface Iterable<UInt8>
+  interface Iterator<UInt8>
+  interface Decodable<String>
+  interface Decoder
+  interface KeyedDecodingContainer
+  interface List<String> : Iterable<String>
+  interface Iterable<String>
+  interface Iterator<String>
+  interface UnkeyedDecodingContainer
+  interface SingleValueDecodingContainer
+  interface ToString
+  interface Equality<Float>
+  interface Equality<Double>
+  interface Encodable<String>
+  interface Encoder
+  interface KeyedEncodingContainer
+  interface UnkeyedEncodingContainer
+  interface SingleValueEncodingContainer
+  interface Hash
+  interface Equality<Char>
+  interface Iterable<Char>
+  interface Iterator<Char>
+  interface Equality<String>
+  generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
+  generated_exact_type get1 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
+  generated_exact_type get2 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
+  generated_exact_type get3 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
+  generated_exact_type get4 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
+  fun expect @fn0(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.receiver: Boolean
+        Type Boolean
+        Local value
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+    bb1 if.then.1
+      val $default.local.0: String
+        Type String
+        StringConst @str0
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.1
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $new.1
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.1
+    bb2 if.merge.2
+      return
+  fun valid @fn1(bytes: Array<UInt8>, text: String, scalars: Long) -> Unit
+    bb0 entry
+      call external13 direct
+      val $dependency.receiver: Companion
+        Type Companion
+        GlobalRead $singleton$36fca7330da37e2fa2117814d03512ea0533e38e6846f2e1b64162ba4b97dddc
+      val $dependency.argument.0: Array<UInt8>
+        Type Array<UInt8>
+        Local bytes
+      val $dependency.parameter.bytes: Array<UInt8>
+        Type Array<UInt8>
+        Local $dependency.argument.0
+      call strict: String = external3 direct
+        Type Companion
+        Local $dependency.receiver
+        Type Array<UInt8>
+        Local $dependency.parameter.bytes
+      call external13 direct
+      val $dependency.receiver: Companion
+        Type Companion
+        GlobalRead $singleton$36fca7330da37e2fa2117814d03512ea0533e38e6846f2e1b64162ba4b97dddc
+      val $dependency.argument.0: Array<UInt8>
+        Type Array<UInt8>
+        Local bytes
+      val $dependency.parameter.bytes: Array<UInt8>
+        Type Array<UInt8>
+        Local $dependency.argument.0
+      call optional: Option<String> = external4 direct
+        Type Companion
+        Local $dependency.receiver
+        Type Array<UInt8>
+        Local $dependency.parameter.bytes
+      call external13 direct
+      val $dependency.receiver: Companion
+        Type Companion
+        GlobalRead $singleton$36fca7330da37e2fa2117814d03512ea0533e38e6846f2e1b64162ba4b97dddc
+      val $dependency.argument.0: Array<UInt8>
+        Type Array<UInt8>
+        Local bytes
+      val $dependency.parameter.bytes: Array<UInt8>
+        Type Array<UInt8>
+        Local $dependency.argument.0
+      call replaced: String = external5 direct
+        Type Companion
+        Local $dependency.receiver
+        Type Array<UInt8>
+        Local $dependency.parameter.bytes
+      call @scoop_rt_gc_collect direct
+      val $dependency.receiver: String
+        Type String
+        Local strict
+      val $dependency.argument.0: String
+        Type String
+        Local text
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $call.1: Boolean = external6 direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      branch bb1 bb2
+        Type Boolean
+        Local $call.1
+    bb1 if.then.1
+      val $equality.lhs: Option<String>
+        Type Option<String>
+        Local optional
+      val $dependency.argument.0: String
+        Type String
+        Local text
+      val $dependency.parameter._1: String
+        Type String
+        Local $dependency.argument.0
+      call $shortCircuit.0: Boolean = @fn7 direct
+        Type Option<String>
+        Local $equality.lhs
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $dependency.parameter._1
+      goto bb3
+    bb2 if.else.2
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 if.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $shortCircuit.0
+    bb4 if.then.4
+      val $dependency.receiver: String
+        Type String
+        Local replaced
+      val $dependency.argument.0: String
+        Type String
+        Local text
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $shortCircuit.1: Boolean = external6 direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      goto bb6
+    bb5 if.else.5
+      val $shortCircuit.1: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb6
+    bb6 if.merge.6
+      val $argument.0: Boolean
+        Type Boolean
+        Local $shortCircuit.1
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      call $dependency.receiver: Long = external7 direct
+        Type String
+        Local strict
+      val $dependency.argument.0: Long
+        Type Long
+        Local scalars
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      branch bb7 bb8
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+    bb7 if.then.7
+      call $dependency.receiver: Long = external8 direct
+        Type String
+        Local strict
+      call $dependency.argument.0: Long = @fn6 direct
+        Type Array<UInt8>
+        Local bytes
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $shortCircuit.2: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      goto bb9
+    bb8 if.else.8
+      val $shortCircuit.2: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb9
+    bb9 if.merge.9
+      val $argument.0: Boolean
+        Type Boolean
+        Local $shortCircuit.2
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      call $dependency.receiver: Long = external8 direct
+        Type String
+        Local replaced
+      call $dependency.argument.0: Long = @fn6 direct
+        Type Array<UInt8>
+        Local bytes
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      return
+  fun invalid @fn2(bytes: Array<UInt8>, offset: Long, text: String) -> Unit
+    bb0 entry
+      var caught: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb8
+    bb1 try.unwind.1
+      landing_pad cleanup=false
+      goto bb2
+    bb2 try.dispatch.2
+      begin_catch
+      branch bb9 bb10
+        Type Boolean
+        IsInstance CharacterCodingException
+          Type Any
+          CaughtException
+    bb3 try.handler_pad.3
+      landing_pad cleanup=true
+      goto bb4
+    bb4 try.handler_cleanup.4
+      end_catch
+      resume
+    bb5 try.exit_pad.5
+      landing_pad cleanup=true
+      goto bb6
+    bb6 try.exit_cleanup.6
+      end_catch
+      resume
+    bb7 try.end.7
+      branch bb13 bb14
+        Type Boolean
+        Local caught
+    bb8 try.body.8 unwind bb1
+      call external13 direct
+      val $dependency.receiver: Companion
+        Type Companion
+        GlobalRead $singleton$36fca7330da37e2fa2117814d03512ea0533e38e6846f2e1b64162ba4b97dddc
+      val $dependency.argument.0: Array<UInt8>
+        Type Array<UInt8>
+        Local bytes
+      val $dependency.parameter.bytes: Array<UInt8>
+        Type Array<UInt8>
+        Local $dependency.argument.0
+      call unexpected: String = external3 direct
+        Type Companion
+        Local $dependency.receiver
+        Type Array<UInt8>
+        Local $dependency.parameter.bytes
+      call $dependency.receiver: Long = external8 direct
+        Type String
+        Local unexpected
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Long result=Long
+            Type Long
+            Local $dependency.receiver
+            Type Long
+            Local $dependency.parameter.other
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      goto bb7
+    bb9 try.catch.9
+      call $catch.1: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val error: CharacterCodingException
+        Type CharacterCodingException
+        Retype CharacterCodingException
+          Type Any
+          Local $catch.1
+      goto bb11
+    bb10 try.next.10
+      rethrow unwind bb5
+    bb11 scope.11 unwind bb3
+      call @scoop_rt_gc_collect direct
+      call $dependency.receiver: Long = external9 direct
+        Type CharacterCodingException
+        Local error
+      val $dependency.argument.0: Long
+        Type Long
+        Local offset
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      assign caught
+        Type Boolean
+        BoolLiteral true
+      end_catch
+      goto bb12
+    bb12 scope.12
+      goto bb7
+    bb13 if.then.13
+      call external13 direct
+      val $dependency.receiver: Companion
+        Type Companion
+        GlobalRead $singleton$36fca7330da37e2fa2117814d03512ea0533e38e6846f2e1b64162ba4b97dddc
+      val $dependency.argument.0: Array<UInt8>
+        Type Array<UInt8>
+        Local bytes
+      val $dependency.parameter.bytes: Array<UInt8>
+        Type Array<UInt8>
+        Local $dependency.argument.0
+      call $call.2: Option<String> = external4 direct
+        Type Companion
+        Local $dependency.receiver
+        Type Array<UInt8>
+        Local $dependency.parameter.bytes
+      call $shortCircuit.3: Boolean = @fn7 direct
+        Type Option<String>
+        Local $call.2
+        Type Option<String>
+        VariantConstruct Option<String> v1
+      goto bb15
+    bb14 if.else.14
+      val $shortCircuit.3: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb15
+    bb15 if.merge.15
+      val $argument.0: Boolean
+        Type Boolean
+        Local $shortCircuit.3
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      call external13 direct
+      val $dependency.receiver: Companion
+        Type Companion
+        GlobalRead $singleton$36fca7330da37e2fa2117814d03512ea0533e38e6846f2e1b64162ba4b97dddc
+      val $dependency.argument.0: Array<UInt8>
+        Type Array<UInt8>
+        Local bytes
+      val $dependency.parameter.bytes: Array<UInt8>
+        Type Array<UInt8>
+        Local $dependency.argument.0
+      call replaced: String = external5 direct
+        Type Companion
+        Local $dependency.receiver
+        Type Array<UInt8>
+        Local $dependency.parameter.bytes
+      call @scoop_rt_gc_collect direct
+      val $dependency.receiver: String
+        Type String
+        Local replaced
+      val $dependency.argument.0: String
+        Type String
+        Local text
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $call.3: Boolean = external6 direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      branch bb16 bb17
+        Type Boolean
+        Local $call.3
+    bb16 if.then.16
+      call $dependency.receiver: Long = external8 direct
+        Type String
+        Local replaced
+      call $dependency.argument.0: Long = external8 direct
+        Type String
+        Local text
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $shortCircuit.4: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      goto bb18
+    bb17 if.else.17
+      val $shortCircuit.4: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb18
+    bb18 if.merge.18
+      val $argument.0: Boolean
+        Type Boolean
+        Local $shortCircuit.4
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      return
+  fun main @fn3() -> Unit
+    bb0 entry
+      val $argument.0: Array<UInt8>
+        Type Array<UInt8>
+        ArrayLiteral Array<UInt8>
+      val $argument.1: String
+        Type String
+        StringConst @str1
+      val $argument.2: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $parameter.bytes: Array<UInt8>
+        Type Array<UInt8>
+        Local $argument.0
+      val $parameter.text: String
+        Type String
+        Local $argument.1
+      val $parameter.scalars: Long
+        Type Long
+        Local $argument.2
+      call @fn1 direct
+        Type Array<UInt8>
+        Local $parameter.bytes
+        Type String
+        Local $parameter.text
+        Type Long
+        Local $parameter.scalars
+      val $argument.0: Array<UInt8>
+        Type Array<UInt8>
+        ArrayLiteral Array<UInt8>
+          Type UInt8
+          IntegerLiteral UInt8 value=65 bits=0x41
+          Type UInt8
+          IntegerLiteral UInt8 value=0 bits=0x00
+          Type UInt8
+          IntegerLiteral UInt8 value=66 bits=0x42
+      val $argument.1: String
+        Type String
+        StringConst @str2
+      val $argument.2: Long
+        Type Long
+        IntegerLiteral Long value=3 bits=0x0000000000000003
+      val $parameter.bytes: Array<UInt8>
+        Type Array<UInt8>
+        Local $argument.0
+      val $parameter.text: String
+        Type String
+        Local $argument.1
+      val $parameter.scalars: Long
+        Type Long
+        Local $argument.2
+      call @fn1 direct
+        Type Array<UInt8>
+        Local $parameter.bytes
+        Type String
+        Local $parameter.text
+        Type Long
+        Local $parameter.scalars
+      val $argument.0: Array<UInt8>
+        Type Array<UInt8>
+        ArrayLiteral Array<UInt8>
+          Type UInt8
+          IntegerLiteral UInt8 value=194 bits=0xc2
+          Type UInt8
+          IntegerLiteral UInt8 value=128 bits=0x80
+          Type UInt8
+          IntegerLiteral UInt8 value=223 bits=0xdf
+          Type UInt8
+          IntegerLiteral UInt8 value=191 bits=0xbf
+      val $argument.1: String
+        Type String
+        StringConst @str3
+      val $argument.2: Long
+        Type Long
+        IntegerLiteral Long value=2 bits=0x0000000000000002
+      val $parameter.bytes: Array<UInt8>
+        Type Array<UInt8>
+        Local $argument.0
+      val $parameter.text: String
+        Type String
+        Local $argument.1
+      val $parameter.scalars: Long
+        Type Long
+        Local $argument.2
+      call @fn1 direct
+        Type Array<UInt8>
+        Local $parameter.bytes
+        Type String
+        Local $parameter.text
+        Type Long
+        Local $parameter.scalars
+      val $argument.0: Array<UInt8>
+        Type Array<UInt8>
+        ArrayLiteral Array<UInt8>
+          Type UInt8
+          IntegerLiteral UInt8 value=224 bits=0xe0
+          Type UInt8
+          IntegerLiteral UInt8 value=160 bits=0xa0
+          Type UInt8
+          IntegerLiteral UInt8 value=128 bits=0x80
+          Type UInt8
+          IntegerLiteral UInt8 value=237 bits=0xed
+          Type UInt8
+          IntegerLiteral UInt8 value=159 bits=0x9f
+          Type UInt8
+          IntegerLiteral UInt8 value=191 bits=0xbf
+          Type UInt8
+          IntegerLiteral UInt8 value=238 bits=0xee
+          Type UInt8
+          IntegerLiteral UInt8 value=128 bits=0x80
+          Type UInt8
+          IntegerLiteral UInt8 value=128 bits=0x80
+      val $argument.1: String
+        Type String
+        StringConst @str4
+      val $argument.2: Long
+        Type Long
+        IntegerLiteral Long value=3 bits=0x0000000000000003
+      val $parameter.bytes: Array<UInt8>
+        Type Array<UInt8>
+        Local $argument.0
+      val $parameter.text: String
+        Type String
+        Local $argument.1
+      val $parameter.scalars: Long
+        Type Long
+        Local $argument.2
+      call @fn1 direct
+        Type Array<UInt8>
+        Local $parameter.bytes
+        Type String
+        Local $parameter.text
+        Type Long
+        Local $parameter.scalars
+      val $argument.0: Array<UInt8>
+        Type Array<UInt8>
+        ArrayLiteral Array<UInt8>
+          Type UInt8
+          IntegerLiteral UInt8 value=240 bits=0xf0
+          Type UInt8
+          IntegerLiteral UInt8 value=144 bits=0x90
+          Type UInt8
+          IntegerLiteral UInt8 value=128 bits=0x80
+          Type UInt8
+          IntegerLiteral UInt8 value=128 bits=0x80
+          Type UInt8
+          IntegerLiteral UInt8 value=244 bits=0xf4
+          Type UInt8
+          IntegerLiteral UInt8 value=143 bits=0x8f
+          Type UInt8
+          IntegerLiteral UInt8 value=191 bits=0xbf
+          Type UInt8
+          IntegerLiteral UInt8 value=191 bits=0xbf
+      val $argument.1: String
+        Type String
+        StringConst @str5
+      val $argument.2: Long
+        Type Long
+        IntegerLiteral Long value=2 bits=0x0000000000000002
+      val $parameter.bytes: Array<UInt8>
+        Type Array<UInt8>
+        Local $argument.0
+      val $parameter.text: String
+        Type String
+        Local $argument.1
+      val $parameter.scalars: Long
+        Type Long
+        Local $argument.2
+      call @fn1 direct
+        Type Array<UInt8>
+        Local $parameter.bytes
+        Type String
+        Local $parameter.text
+        Type Long
+        Local $parameter.scalars
+      val $argument.0: Array<UInt8>
+        Type Array<UInt8>
+        ArrayLiteral Array<UInt8>
+          Type UInt8
+          IntegerLiteral UInt8 value=239 bits=0xef
+          Type UInt8
+          IntegerLiteral UInt8 value=191 bits=0xbf
+          Type UInt8
+          IntegerLiteral UInt8 value=189 bits=0xbd
+          Type UInt8
+          IntegerLiteral UInt8 value=101 bits=0x65
+          Type UInt8
+          IntegerLiteral UInt8 value=204 bits=0xcc
+          Type UInt8
+          IntegerLiteral UInt8 value=129 bits=0x81
+      val $argument.1: String
+        Type String
+        StringConst @str6
+      val $argument.2: Long
+        Type Long
+        IntegerLiteral Long value=3 bits=0x0000000000000003
+      val $parameter.bytes: Array<UInt8>
+        Type Array<UInt8>
+        Local $argument.0
+      val $parameter.text: String
+        Type String
+        Local $argument.1
+      val $parameter.scalars: Long
+        Type Long
+        Local $argument.2
+      call @fn1 direct
+        Type Array<UInt8>
+        Local $parameter.bytes
+        Type String
+        Local $parameter.text
+        Type Long
+        Local $parameter.scalars
+      call external13 direct
+      val $dependency.receiver: Companion
+        Type Companion
+        GlobalRead $singleton$36fca7330da37e2fa2117814d03512ea0533e38e6846f2e1b64162ba4b97dddc
+      val $dependency.argument.0: Array<UInt8>
+        Type Array<UInt8>
+        ArrayLiteral Array<UInt8>
+          Type UInt8
+          IntegerLiteral UInt8 value=101 bits=0x65
+          Type UInt8
+          IntegerLiteral UInt8 value=204 bits=0xcc
+          Type UInt8
+          IntegerLiteral UInt8 value=129 bits=0x81
+      val $dependency.parameter.bytes: Array<UInt8>
+        Type Array<UInt8>
+        Local $dependency.argument.0
+      call $dependency.receiver: String = external3 direct
+        Type Companion
+        Local $dependency.receiver
+        Type Array<UInt8>
+        Local $dependency.parameter.bytes
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str7
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $call.1: Boolean = external6 direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      val $argument.0: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $call.1
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      val $argument.0: Array<UInt8>
+        Type Array<UInt8>
+        ArrayLiteral Array<UInt8>
+          Type UInt8
+          IntegerLiteral UInt8 value=65 bits=0x41
+          Type UInt8
+          IntegerLiteral UInt8 value=128 bits=0x80
+          Type UInt8
+          IntegerLiteral UInt8 value=66 bits=0x42
+      val $argument.1: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $argument.2: String
+        Type String
+        StringConst @str8
+      val $parameter.bytes: Array<UInt8>
+        Type Array<UInt8>
+        Local $argument.0
+      val $parameter.offset: Long
+        Type Long
+        Local $argument.1
+      val $parameter.text: String
+        Type String
+        Local $argument.2
+      call @fn2 direct
+        Type Array<UInt8>
+        Local $parameter.bytes
+        Type Long
+        Local $parameter.offset
+        Type String
+        Local $parameter.text
+      val $argument.0: Array<UInt8>
+        Type Array<UInt8>
+        ArrayLiteral Array<UInt8>
+          Type UInt8
+          IntegerLiteral UInt8 value=128 bits=0x80
+          Type UInt8
+          IntegerLiteral UInt8 value=128 bits=0x80
+      val $argument.1: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $argument.2: String
+        Type String
+        StringConst @str9
+      val $parameter.bytes: Array<UInt8>
+        Type Array<UInt8>
+        Local $argument.0
+      val $parameter.offset: Long
+        Type Long
+        Local $argument.1
+      val $parameter.text: String
+        Type String
+        Local $argument.2
+      call @fn2 direct
+        Type Array<UInt8>
+        Local $parameter.bytes
+        Type Long
+        Local $parameter.offset
+        Type String
+        Local $parameter.text
+      val $argument.0: Array<UInt8>
+        Type Array<UInt8>
+        ArrayLiteral Array<UInt8>
+          Type UInt8
+          IntegerLiteral UInt8 value=192 bits=0xc0
+          Type UInt8
+          IntegerLiteral UInt8 value=175 bits=0xaf
+      val $argument.1: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $argument.2: String
+        Type String
+        StringConst @str10
+      val $parameter.bytes: Array<UInt8>
+        Type Array<UInt8>
+        Local $argument.0
+      val $parameter.offset: Long
+        Type Long
+        Local $argument.1
+      val $parameter.text: String
+        Type String
+        Local $argument.2
+      call @fn2 direct
+        Type Array<UInt8>
+        Local $parameter.bytes
+        Type Long
+        Local $parameter.offset
+        Type String
+        Local $parameter.text
+      val $argument.0: Array<UInt8>
+        Type Array<UInt8>
+        ArrayLiteral Array<UInt8>
+          Type UInt8
+          IntegerLiteral UInt8 value=224 bits=0xe0
+          Type UInt8
+          IntegerLiteral UInt8 value=159 bits=0x9f
+          Type UInt8
+          IntegerLiteral UInt8 value=191 bits=0xbf
+      val $argument.1: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $argument.2: String
+        Type String
+        StringConst @str11
+      val $parameter.bytes: Array<UInt8>
+        Type Array<UInt8>
+        Local $argument.0
+      val $parameter.offset: Long
+        Type Long
+        Local $argument.1
+      val $parameter.text: String
+        Type String
+        Local $argument.2
+      call @fn2 direct
+        Type Array<UInt8>
+        Local $parameter.bytes
+        Type Long
+        Local $parameter.offset
+        Type String
+        Local $parameter.text
+      val $argument.0: Array<UInt8>
+        Type Array<UInt8>
+        ArrayLiteral Array<UInt8>
+          Type UInt8
+          IntegerLiteral UInt8 value=237 bits=0xed
+          Type UInt8
+          IntegerLiteral UInt8 value=160 bits=0xa0
+          Type UInt8
+          IntegerLiteral UInt8 value=128 bits=0x80
+      val $argument.1: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $argument.2: String
+        Type String
+        StringConst @str12
+      val $parameter.bytes: Array<UInt8>
+        Type Array<UInt8>
+        Local $argument.0
+      val $parameter.offset: Long
+        Type Long
+        Local $argument.1
+      val $parameter.text: String
+        Type String
+        Local $argument.2
+      call @fn2 direct
+        Type Array<UInt8>
+        Local $parameter.bytes
+        Type Long
+        Local $parameter.offset
+        Type String
+        Local $parameter.text
+      val $argument.0: Array<UInt8>
+        Type Array<UInt8>
+        ArrayLiteral Array<UInt8>
+          Type UInt8
+          IntegerLiteral UInt8 value=240 bits=0xf0
+          Type UInt8
+          IntegerLiteral UInt8 value=143 bits=0x8f
+          Type UInt8
+          IntegerLiteral UInt8 value=191 bits=0xbf
+          Type UInt8
+          IntegerLiteral UInt8 value=191 bits=0xbf
+      val $argument.1: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $argument.2: String
+        Type String
+        StringConst @str13
+      val $parameter.bytes: Array<UInt8>
+        Type Array<UInt8>
+        Local $argument.0
+      val $parameter.offset: Long
+        Type Long
+        Local $argument.1
+      val $parameter.text: String
+        Type String
+        Local $argument.2
+      call @fn2 direct
+        Type Array<UInt8>
+        Local $parameter.bytes
+        Type Long
+        Local $parameter.offset
+        Type String
+        Local $parameter.text
+      val $argument.0: Array<UInt8>
+        Type Array<UInt8>
+        ArrayLiteral Array<UInt8>
+          Type UInt8
+          IntegerLiteral UInt8 value=244 bits=0xf4
+          Type UInt8
+          IntegerLiteral UInt8 value=144 bits=0x90
+          Type UInt8
+          IntegerLiteral UInt8 value=128 bits=0x80
+          Type UInt8
+          IntegerLiteral UInt8 value=128 bits=0x80
+      val $argument.1: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $argument.2: String
+        Type String
+        StringConst @str14
+      val $parameter.bytes: Array<UInt8>
+        Type Array<UInt8>
+        Local $argument.0
+      val $parameter.offset: Long
+        Type Long
+        Local $argument.1
+      val $parameter.text: String
+        Type String
+        Local $argument.2
+      call @fn2 direct
+        Type Array<UInt8>
+        Local $parameter.bytes
+        Type Long
+        Local $parameter.offset
+        Type String
+        Local $parameter.text
+      val $argument.0: Array<UInt8>
+        Type Array<UInt8>
+        ArrayLiteral Array<UInt8>
+          Type UInt8
+          IntegerLiteral UInt8 value=245 bits=0xf5
+          Type UInt8
+          IntegerLiteral UInt8 value=128 bits=0x80
+          Type UInt8
+          IntegerLiteral UInt8 value=128 bits=0x80
+          Type UInt8
+          IntegerLiteral UInt8 value=128 bits=0x80
+      val $argument.1: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $argument.2: String
+        Type String
+        StringConst @str15
+      val $parameter.bytes: Array<UInt8>
+        Type Array<UInt8>
+        Local $argument.0
+      val $parameter.offset: Long
+        Type Long
+        Local $argument.1
+      val $parameter.text: String
+        Type String
+        Local $argument.2
+      call @fn2 direct
+        Type Array<UInt8>
+        Local $parameter.bytes
+        Type Long
+        Local $parameter.offset
+        Type String
+        Local $parameter.text
+      val $argument.0: Array<UInt8>
+        Type Array<UInt8>
+        ArrayLiteral Array<UInt8>
+          Type UInt8
+          IntegerLiteral UInt8 value=255 bits=0xff
+          Type UInt8
+          IntegerLiteral UInt8 value=65 bits=0x41
+      val $argument.1: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $argument.2: String
+        Type String
+        StringConst @str16
+      val $parameter.bytes: Array<UInt8>
+        Type Array<UInt8>
+        Local $argument.0
+      val $parameter.offset: Long
+        Type Long
+        Local $argument.1
+      val $parameter.text: String
+        Type String
+        Local $argument.2
+      call @fn2 direct
+        Type Array<UInt8>
+        Local $parameter.bytes
+        Type Long
+        Local $parameter.offset
+        Type String
+        Local $parameter.text
+      val $argument.0: Array<UInt8>
+        Type Array<UInt8>
+        ArrayLiteral Array<UInt8>
+          Type UInt8
+          IntegerLiteral UInt8 value=194 bits=0xc2
+      val $argument.1: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $argument.2: String
+        Type String
+        StringConst @str17
+      val $parameter.bytes: Array<UInt8>
+        Type Array<UInt8>
+        Local $argument.0
+      val $parameter.offset: Long
+        Type Long
+        Local $argument.1
+      val $parameter.text: String
+        Type String
+        Local $argument.2
+      call @fn2 direct
+        Type Array<UInt8>
+        Local $parameter.bytes
+        Type Long
+        Local $parameter.offset
+        Type String
+        Local $parameter.text
+      val $argument.0: Array<UInt8>
+        Type Array<UInt8>
+        ArrayLiteral Array<UInt8>
+          Type UInt8
+          IntegerLiteral UInt8 value=225 bits=0xe1
+          Type UInt8
+          IntegerLiteral UInt8 value=128 bits=0x80
+      val $argument.1: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $argument.2: String
+        Type String
+        StringConst @str18
+      val $parameter.bytes: Array<UInt8>
+        Type Array<UInt8>
+        Local $argument.0
+      val $parameter.offset: Long
+        Type Long
+        Local $argument.1
+      val $parameter.text: String
+        Type String
+        Local $argument.2
+      call @fn2 direct
+        Type Array<UInt8>
+        Local $parameter.bytes
+        Type Long
+        Local $parameter.offset
+        Type String
+        Local $parameter.text
+      val $argument.0: Array<UInt8>
+        Type Array<UInt8>
+        ArrayLiteral Array<UInt8>
+          Type UInt8
+          IntegerLiteral UInt8 value=240 bits=0xf0
+          Type UInt8
+          IntegerLiteral UInt8 value=144 bits=0x90
+          Type UInt8
+          IntegerLiteral UInt8 value=128 bits=0x80
+      val $argument.1: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $argument.2: String
+        Type String
+        StringConst @str19
+      val $parameter.bytes: Array<UInt8>
+        Type Array<UInt8>
+        Local $argument.0
+      val $parameter.offset: Long
+        Type Long
+        Local $argument.1
+      val $parameter.text: String
+        Type String
+        Local $argument.2
+      call @fn2 direct
+        Type Array<UInt8>
+        Local $parameter.bytes
+        Type Long
+        Local $parameter.offset
+        Type String
+        Local $parameter.text
+      val $argument.0: Array<UInt8>
+        Type Array<UInt8>
+        ArrayLiteral Array<UInt8>
+          Type UInt8
+          IntegerLiteral UInt8 value=225 bits=0xe1
+          Type UInt8
+          IntegerLiteral UInt8 value=128 bits=0x80
+          Type UInt8
+          IntegerLiteral UInt8 value=65 bits=0x41
+      val $argument.1: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $argument.2: String
+        Type String
+        StringConst @str20
+      val $parameter.bytes: Array<UInt8>
+        Type Array<UInt8>
+        Local $argument.0
+      val $parameter.offset: Long
+        Type Long
+        Local $argument.1
+      val $parameter.text: String
+        Type String
+        Local $argument.2
+      call @fn2 direct
+        Type Array<UInt8>
+        Local $parameter.bytes
+        Type Long
+        Local $parameter.offset
+        Type String
+        Local $parameter.text
+      val $argument.0: Array<UInt8>
+        Type Array<UInt8>
+        ArrayLiteral Array<UInt8>
+          Type UInt8
+          IntegerLiteral UInt8 value=241 bits=0xf1
+          Type UInt8
+          IntegerLiteral UInt8 value=128 bits=0x80
+          Type UInt8
+          IntegerLiteral UInt8 value=128 bits=0x80
+          Type UInt8
+          IntegerLiteral UInt8 value=65 bits=0x41
+      val $argument.1: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $argument.2: String
+        Type String
+        StringConst @str21
+      val $parameter.bytes: Array<UInt8>
+        Type Array<UInt8>
+        Local $argument.0
+      val $parameter.offset: Long
+        Type Long
+        Local $argument.1
+      val $parameter.text: String
+        Type String
+        Local $argument.2
+      call @fn2 direct
+        Type Array<UInt8>
+        Local $parameter.bytes
+        Type Long
+        Local $parameter.offset
+        Type String
+        Local $parameter.text
+      val $argument.0: Array<UInt8>
+        Type Array<UInt8>
+        ArrayLiteral Array<UInt8>
+          Type UInt8
+          IntegerLiteral UInt8 value=194 bits=0xc2
+          Type UInt8
+          IntegerLiteral UInt8 value=162 bits=0xa2
+          Type UInt8
+          IntegerLiteral UInt8 value=0 bits=0x00
+          Type UInt8
+          IntegerLiteral UInt8 value=225 bits=0xe1
+          Type UInt8
+          IntegerLiteral UInt8 value=128 bits=0x80
+          Type UInt8
+          IntegerLiteral UInt8 value=65 bits=0x41
+          Type UInt8
+          IntegerLiteral UInt8 value=239 bits=0xef
+          Type UInt8
+          IntegerLiteral UInt8 value=191 bits=0xbf
+          Type UInt8
+          IntegerLiteral UInt8 value=189 bits=0xbd
+      val $argument.1: Long
+        Type Long
+        IntegerLiteral Long value=3 bits=0x0000000000000003
+      val $argument.2: String
+        Type String
+        StringConst @str22
+      val $parameter.bytes: Array<UInt8>
+        Type Array<UInt8>
+        Local $argument.0
+      val $parameter.offset: Long
+        Type Long
+        Local $argument.1
+      val $parameter.text: String
+        Type String
+        Local $argument.2
+      call @fn2 direct
+        Type Array<UInt8>
+        Local $parameter.bytes
+        Type Long
+        Local $parameter.offset
+        Type String
+        Local $parameter.text
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str23
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn8 direct
+        Type String
+        Local $dependency.parameter.value
+      return
+  fun iterator @fn4(this: Array<UInt8>) -> Iterator<UInt8>
+    bb0 entry
+      val $dependency.local.1: List<UInt8>
+        Type List<UInt8>
+        Retype List<UInt8>
+          Type Array<UInt8>
+          Local this
+      val $dependency.local.2: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.local.3: Boolean
+        Type Boolean
+        BoolLiteral false
+      val $dependency.local.4: List<UInt8>
+        Type List<UInt8>
+        Local $dependency.local.1
+      val $dependency.local.5: Long
+        Type Long
+        Local $dependency.local.2
+      val $dependency.local.6: Boolean
+        Type Boolean
+        Local $dependency.local.3
+      assign $new.1
+        Type ListIterator<UInt8>
+        ClassAlloc ListIterator<UInt8>
+      call @fn12 direct
+        Type ListIterator<UInt8>
+        Local $new.1
+        Type List<UInt8>
+        Local $dependency.local.4
+        Type Long
+        Local $dependency.local.5
+        Type Boolean
+        Local $dependency.local.6
+      return
+        Type Iterator<UInt8>
+        Retype Iterator<UInt8>
+          Type ListIterator<UInt8>
+          Local $new.1
+  fun get @fn5(this: Array<UInt8>, index: Long) -> UInt8
+    bb0 entry
+      val $dependency.local.2: Array<UInt8>
+        Type Array<UInt8>
+        Local this
+      val $dependency.local.3: Long
+        Type Long
+        Local index
+      val $dependency.local.4: Long
+        Type Long
+        Local $dependency.local.3
+      val $arr.1: Array<UInt8>
+        Type Array<UInt8>
+        Local $dependency.local.2
+      val $idx.2: Long
+        Type Long
+        Local $dependency.local.4
+      branch bb2 bb1
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb1 logic.rhs.1
+      assign $logic.1
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          ArrayLen Array<UInt8>
+            Type Array<UInt8>
+            Local $arr.1
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.1
+        Type Boolean
+        BoolLiteral true
+      goto bb3
+    bb3 logic.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $logic.1
+    bb4 if.then.4
+      assign $new.2
+        Type IndexOutOfBoundsException
+        ClassAlloc IndexOutOfBoundsException
+      call external12 direct
+        Type IndexOutOfBoundsException
+        Local $new.2
+      throw
+        Type IndexOutOfBoundsException
+        Local $new.2
+    bb5 if.merge.5
+      return
+        Type UInt8
+        ArrayGet Array<UInt8>
+          Type Array<UInt8>
+          Local $arr.1
+          Type Long
+          Local $idx.2
+  fun size @fn6(this: Array<UInt8>) -> Long
+    bb0 entry
+      val $dependency.local.1: Array<UInt8>
+        Type Array<UInt8>
+        Local this
+      return
+        Type Long
+        ArrayLen Array<UInt8>
+          Type Array<UInt8>
+          Local $dependency.local.1
+  fun $derived.equals.0 @fn7(this: Option<String>, other: Option<String>) -> Boolean
+    bb0 entry
+      val $when.1: Option<String>
+        Type Option<String>
+        Local this
+      val $pattern.subject.2: Option<String>
+        Type Option<String>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Option<String> v0
+          Type Option<String>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val $left.0.0: String
+        Type String
+        VariantPayloadProject Option<String> v0 f0
+          Type Option<String>
+          Local $pattern.subject.2
+      val $when.3: Option<String>
+        Type Option<String>
+        Local other
+      val $pattern.subject.4: Option<String>
+        Type Option<String>
+        Local $when.3
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Option<String> v0
+          Type Option<String>
+          Local $pattern.subject.4
+    bb2 pattern.else.2
+      val $pattern.subject.5: Option<String>
+        Type Option<String>
+        Local $when.1
+      branch bb7 bb8
+        Type Boolean
+        VariantTest Option<String> v1
+          Type Option<String>
+          Local $pattern.subject.5
+    bb3 pattern.merge.3
+      unreachable
+    bb4 pattern.pass.4
+      val $right.0.0: String
+        Type String
+        VariantPayloadProject Option<String> v0 f0
+          Type Option<String>
+          Local $pattern.subject.4
+      call $call.1: Boolean = external6 direct
+        Type String
+        Local $left.0.0
+        Type String
+        Local $right.0.0
+      return
+        Type Boolean
+        Local $call.1
+    bb5 pattern.else.5
+      return
+        Type Boolean
+        BoolLiteral false
+    bb6 pattern.merge.6
+      unreachable
+    bb7 pattern.pass.7
+      val $when.6: Option<String>
+        Type Option<String>
+        Local other
+      val $pattern.subject.7: Option<String>
+        Type Option<String>
+        Local $when.6
+      branch bb10 bb11
+        Type Boolean
+        VariantTest Option<String> v1
+          Type Option<String>
+          Local $pattern.subject.7
+    bb8 pattern.else.8
+      unreachable
+    bb9 pattern.merge.9
+      unreachable
+    bb10 pattern.pass.10
+      return
+        Type Boolean
+        BoolLiteral true
+    bb11 pattern.else.11
+      return
+        Type Boolean
+        BoolLiteral false
+    bb12 pattern.merge.12
+      unreachable
+  fun println @fn8(value: String) -> Unit
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local value
+      call $dependency.local.2: String = external10 direct
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external11 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str24
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external11 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun next @fn9(this: ListIterator<UInt8>) -> Option<UInt8>
+    bb0 entry
+      branch bb1 bb2
+        Type Boolean
+        FieldAccess 2
+          Type ListIterator<UInt8>
+          Local this
+    bb1 if.then.1
+      return
+        Type Option<UInt8>
+        VariantConstruct Option<UInt8> v1
+    bb2 if.merge.2
+      val $dependency.local.2: Long
+        Type Long
+        FieldAccess 1
+          Type ListIterator<UInt8>
+          Local this
+      call $dependency.local.3: Long = @fn10 interface List<UInt8>[2]
+        Type List<UInt8>
+        FieldAccess 0
+          Type ListIterator<UInt8>
+          Local this
+      val $dependency.local.4: Long
+        Type Long
+        Local $dependency.local.3
+      branch bb3 bb4
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Long result=Long
+            Type Long
+            Local $dependency.local.2
+            Type Long
+            Local $dependency.local.4
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb3 if.then.3
+      field_set 2
+        Type ListIterator<UInt8>
+        Local this
+        Type Boolean
+        BoolLiteral true
+      return
+        Type Option<UInt8>
+        VariantConstruct Option<UInt8> v1
+    bb4 if.merge.4
+      val $dependency.local.5: List<UInt8>
+        Type List<UInt8>
+        FieldAccess 0
+          Type ListIterator<UInt8>
+          Local this
+      val $dependency.local.6: Long
+        Type Long
+        FieldAccess 1
+          Type ListIterator<UInt8>
+          Local this
+      val $dependency.local.7: Long
+        Type Long
+        Local $dependency.local.6
+      call $dependency.local.1: UInt8 = @fn11 interface List<UInt8>[1]
+        Type List<UInt8>
+        Local $dependency.local.5
+        Type Long
+        Local $dependency.local.7
+      val $dependency.local.8: Long
+        Type Long
+        FieldAccess 1
+          Type ListIterator<UInt8>
+          Local this
+      val $dependency.local.9: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.local.10: Long
+        Type Long
+        Local $dependency.local.9
+      field_set 1
+        Type ListIterator<UInt8>
+        Local this
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.local.8
+          Type Long
+          Local $dependency.local.10
+      val $dependency.local.11: UInt8
+        Type UInt8
+        Local $dependency.local.1
+      val $dependency.local.12: UInt8
+        Type UInt8
+        Local $dependency.local.11
+      return
+        Type Option<UInt8>
+        VariantConstruct Option<UInt8> v0
+          Type UInt8
+          Local $dependency.local.12
+  fun List.$get$size @fn10(this: List<UInt8>) -> Long
+    bb0 entry
+      trap "call to abstract method `List.$get$size`"
+  fun List.get @fn11(this: List<UInt8>, index: Long) -> UInt8
+    bb0 entry
+      trap "call to abstract method `List.get`"
+  fun init.ListIterator.$c0 @fn12(this: ListIterator<UInt8>, source: List<UInt8>, index: Long, exhausted: Boolean) -> Unit
+    bb0 entry
+      field_set 0
+        Type ListIterator<UInt8>
+        Local this
+        Type List<UInt8>
+        Local source
+      field_set 1
+        Type ListIterator<UInt8>
+        Local this
+        Type Long
+        Local index
+      field_set 2
+        Type ListIterator<UInt8>
+        Local this
+        Type Boolean
+        Local exhausted
+      return
+  instance mi0 function=@fn4 <- iterator
+  instance mi1 function=@fn5 <- get
+  instance mi2 function=@fn6 <- size
+  instance mi3 function=@fn8 <- println
+  instance mi4 function=@fn9 <- next
+  instance mi5 function=@fn10 <- List.$get$size
+  instance mi6 function=@fn11 <- List.get
+  str @str0 "illegal state"
+  str @str1 ""
+  str @str2 "A\0B"
+  str @str3 "\u{80}߿"
+  str @str4 "ࠀ\u{d7ff}\u{e000}"
+  str @str5 "𐀀\u{10ffff}"
+  str @str6 "�e\u{301}"
+  str @str7 "é"
+  str @str8 "A�B"
+  str @str9 "��"
+  str @str10 "��"
+  str @str11 "���"
+  str @str12 "���"
+  str @str13 "����"
+  str @str14 "����"
+  str @str15 "����"
+  str @str16 "�A"
+  str @str17 "�"
+  str @str18 "�"
+  str @str19 "�"
+  str @str20 "�A"
+  str @str21 "�A"
+  str @str22 "¢\0�A�"
+  str @str23 "utf8-values-ok"
+  str @str24 "\n"
+  output executable @fn3

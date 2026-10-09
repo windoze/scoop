@@ -139,6 +139,19 @@ pub(super) fn validate_enum_metadata(module: &Module) -> Result<(), MirValidatio
                 .generated_exact_types
                 .get(GeneratedExactTypeLocation::Context(*storage))
                 .map(|identity| identity.exact_record().id()),
+            Type::Class(class)
+                if module
+                    .meta
+                    .boxed_types
+                    .iter()
+                    .any(|boxed| boxed.class() == *class) =>
+            {
+                module
+                    .meta
+                    .generated_exact_types
+                    .get(GeneratedExactTypeLocation::Class(*class))
+                    .map(|identity| identity.exact_record().id())
+            }
             value => source_exact_type(module, value),
         };
         if !slot_values.insert(exact) || value_exact != Some(exact) {

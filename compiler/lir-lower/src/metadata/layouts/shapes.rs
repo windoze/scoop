@@ -40,6 +40,12 @@ pub(crate) fn struct_shape(
     } = &definition.representation
     else {
         return Ok(match definition.representation {
+            mir::StructRepresentation::Intrinsic(
+                mir::IntrinsicTypeRepresentation::MaybeUninit { ref value },
+            ) => {
+                let (size, align) = size_align(context, module, enum_shape, value)?;
+                (Vec::new(), size, align)
+            }
             mir::StructRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::Unit) => {
                 (Vec::new(), 0, 1)
             }
@@ -130,6 +136,7 @@ pub(crate) fn size_align(
             )
         }
         mir::Type::Unit => (0, 1),
+        mir::Type::Interface(_) => (16, 8),
         mir::Type::Integer(kind) => {
             let layout = context.integer_layout(integer_kind(*kind));
             (layout.size, layout.align)
@@ -142,11 +149,7 @@ pub(crate) fn size_align(
             let layout = context.scalar_layout(lir::BackendScalarKind::I1);
             (layout.size, layout.align)
         }
-        mir::Type::String
-        | mir::Type::Class(_)
-        | mir::Type::Interface(_)
-        | mir::Type::Function(_)
-        | mir::Type::Any => {
+        mir::Type::String | mir::Type::Class(_) | mir::Type::Function(_) | mir::Type::Any => {
             let layout = context.pointer_layout(lir::PointerKind::Managed);
             (layout.size, layout.align)
         }

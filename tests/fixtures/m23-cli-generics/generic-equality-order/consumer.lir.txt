@@ -565,7 +565,7 @@ Module
   td td4 a(n(c=dev.example%3Ageneric-member-provider%3A0.1.0;p=templates.equality;o=-;k=S;x=Wide);[a(n(c=dev.example%3Ageneric-member-provider%3A0.1.0;p=templates.equality;o=-;k=C;x=Tracked);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)])]) @scoop$1$td$e8170818bf27dcc22e2098b26a754ef6e7328688ec8dcbc9d231167d9c361cdc type-id=4994349925054041549 shape=BoxedValue minimum-size=40 align=8 parent=none vtable=[] itables=[]
   layout Wide size=24 align=8 refs=[0, 8, 16]
   layout Choice size=32 align=8 enum-scan=refs[8, 16, 24]
-  layout EqualTo value size=8 align=8 refs=[0]
+  layout EqualTo value size=16 align=8 refs=[0]
   layout Trace value size=8 align=8 refs=[0]
   layout Trace size=24 align=8 refs=[]
   layout Tracked value size=8 align=8 refs=[0]

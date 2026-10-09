@@ -1,0 +1,23 @@
+class Derived : Base(11)
+class EchoUser : Echo<Value>
+class Local : Value { public override fun get(): Int = 13 }
+fun check(value: Boolean) { if (!value) { throw IllegalStateException() } }
+fun main() {
+    val first: Value = Derived()
+    val second = make(22)
+    check(first.doubled() == 22)
+    check(keep(second).get() == 22)
+    check(EchoUser().echo(first) === first)
+    val local: Value = Local()
+    check(local.doubled() == 26)
+    check(generic(Local()) == 26)
+    val boxed: Value = Small(9)
+    check(copy(boxed).doubled() == 18)
+    val optional: Value? = Some(second)
+    check(copy(optional)!!.get() == 22)
+    val singleton: Value = Singleton
+    gcCollect()
+    check(keep(local) === local)
+    check(keep(singleton).doubled() == 38 && singleton === Singleton)
+    println("interface artifacts")
+}

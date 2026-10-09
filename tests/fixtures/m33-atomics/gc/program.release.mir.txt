@@ -1,0 +1,3251 @@
+Module
+  extern ef0 address @m33_atomic_address(GcHandle<Any>) -> ULong <abi=c no-gc lib=m33_atomic_gc>
+  extern ef1 minorCount @m33_atomic_minor_count() -> Long <abi=c no-gc lib=m33_atomic_gc>
+  extern ef2 movingStress @m33_atomic_moving() -> Boolean <abi=c no-gc lib=m33_atomic_gc>
+  struct GcHandle<Any> (raw: ULong) <c-abi uint64-field>
+  struct Snapshot (serial: Int, payload: Payload)
+  struct PinnedPtr<Payload> (raw: ULong) <c-abi uint64-field>
+  struct PinnedPtr<AtomicRef<Payload>> (raw: ULong) <c-abi uint64-field>
+  enum Packet
+    Empty()
+    Data(_1: Int, _2: Payload)
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum Option<Char>
+    Some(_0: Char)
+    None()
+  enum MemoryOrder
+    Relaxed()
+    Acquire()
+    Release()
+    AcqRel()
+    SeqCst()
+  enum CoroutineStep<Packet>
+    Completed(value: Packet)
+    Suspended()
+  enum CoroutineSlot<Packet>
+    Empty()
+    Value(value: Packet)
+  enum CoroutineStep<Payload>
+    Completed(value: Payload)
+    Suspended()
+  enum CoroutineSlot<Payload>
+    Empty()
+    Value(value: Payload)
+  enum CoroutineStep<Snapshot>
+    Completed(value: Snapshot)
+    Suspended()
+  enum CoroutineSlot<Snapshot>
+    Empty()
+    Value(value: Snapshot)
+  class Payload vtable=0 itables=0
+  class Atomic<Snapshot> vtable=0 itables=0
+  class Atomic<Packet> vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class box<Packet> vtable=0 itables=0
+  class box<Snapshot> vtable=0 itables=0
+  interface ToString
+  interface Hash
+  interface Equality<Char>
+  interface Iterable<Char>
+  interface Iterator<Char>
+  interface Equality<String>
+  interface Continuation<Snapshot>
+  interface SuspendTask<Snapshot>
+  interface SuspendRegistration<Snapshot>
+  interface Continuation<Payload>
+  interface SuspendTask<Payload>
+  interface SuspendRegistration<Payload>
+  interface Continuation<Packet>
+  interface SuspendTask<Packet>
+  interface SuspendRegistration<Packet>
+  generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
+  generated_exact_type get1 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
+  generated_exact_type get2 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
+  generated_exact_type get3 location=enum6 nominal_id=c0833d5db8369816d9fce225d2748baa9c75f4359b7d74672a94e73f67a62cdf exact_id=684421f38c870121f0e0ca3ff5e8ea10af2b49ed3383a0cc2def36d5df19c42e
+  generated_exact_type get4 location=enum9 nominal_id=78c6ca529f34c26f6b51040b69753fbeb7801eb5f591d6be9edea23b152d9f54 exact_id=6a9425639ff82ff29cdc2f43d5ed1f2aca55629840390c45b205a1ca2356ee6d
+  generated_exact_type get5 location=class8 nominal_id=7095ea944fe87e654ddd5c7850d9ae579f49b29759e89f223d3296f3bfe60fac exact_id=7aea6b443e6d689cbc0012da1c4781aa5c61f4d7c58007911f31ae1a9cac4434
+  generated_exact_type get6 location=enum4 nominal_id=664a0d4281af72e57190fddca93531ffbdb3744218bcf31d8e5250997a570604 exact_id=819d59dacc92e8938c414017b32b9e8a181b7a56a6dec26db3e72e6959613aa6
+  generated_exact_type get7 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
+  generated_exact_type get8 location=enum8 nominal_id=c447f23d2fe27e6fa0ae70a5b25cf65422817b7f9231b4dfb22ab6728371f22b exact_id=88852aa7196a993613baffa97fa0eaaa73a11c721e07e773ac21e592d06095bc
+  generated_exact_type get9 location=class9 nominal_id=d23783d9006548d404952e3a1e81b0cdfff51ce8ecfa5d90242f6f92c820ae47 exact_id=a51525a94db64f12a0e897df3e09deb8baa93bbdf5e11f61195f9a627cd5034b
+  generated_exact_type get10 location=enum5 nominal_id=83fdbbfb3c69c9b4e7895ea766f7bcb86a92bb523654689ee41a178b3e3ac6b7 exact_id=d5891d9377c211ada5df671bbc4c5d92443c214a5d9d235d8e1cf216585fefb6
+  generated_exact_type get11 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
+  generated_exact_type get12 location=enum7 nominal_id=dacfcc301ff711c316b31684be52441b59074e49ee9f78016fedb72d191f3ac7 exact_id=f98643a7a298d21a8d4de17b762f0cf2e5c8f494818745dd4b36678b2dd4fa9c
+  generated_callable gc0 function=@fn50 id=38cbc22b4eee5a0d97a6db5fc6259d96976ad9b77eedce39772c2e9b3f7c2a20
+  generated_callable gc1 function=@fn48 id=86e48b61efb24edfecd995f6e9ab67446f294de0cddc6d85d8ecd0fc78bddfb8
+  generated_callable gc2 function=@fn49 id=997e4b5d8d761ab1b80a7354759d0e641f99724b5a73e316978728f7c0fa13b7
+  fun storeYoung @fn0(cell: AtomicRef<Payload>) -> Unit
+    bb0 entry
+      val $dependency.receiver: AtomicRef<Payload>
+        Type AtomicRef<Payload>
+        Local cell
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=11 bits=0x0000000b
+      val $parameter.value: Int
+        Type Int
+        IntegerLiteral Int value=11 bits=0x0000000b
+      assign $new.1
+        Type Payload
+        ClassAlloc Payload
+      val $inline.1.this: Payload
+        Type Payload
+        Local $new.1
+      val $inline.1.value: Int
+        Type Int
+        IntegerLiteral Int value=11 bits=0x0000000b
+      goto bb2
+    bb1 inline.cont.1
+      val $dependency.argument.0: Payload
+        Type Payload
+        Local $new.1
+      val $dependency.parameter.value: Payload
+        Type Payload
+        Local $dependency.argument.0
+      val $dependency.parameter.order: MemoryOrder
+        Type MemoryOrder
+        VariantConstruct MemoryOrder v4
+      Type Unit
+      AtomicStore SeqCst Reference
+        Type AtomicRef<Payload>
+        Local $dependency.receiver
+        Type Payload
+        Local $dependency.parameter.value
+      return
+    bb2 inline.1.entry
+      field_set 0
+        Type Payload
+        Local $inline.1.this
+        Type Int
+        IntegerLiteral Int value=11 bits=0x0000000b
+      goto bb1
+  fun exchangeYoung @fn1(cell: AtomicRef<Payload>) -> Unit
+    bb0 entry
+      val $dependency.receiver: AtomicRef<Payload>
+        Type AtomicRef<Payload>
+        Local cell
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=22 bits=0x00000016
+      val $parameter.value: Int
+        Type Int
+        IntegerLiteral Int value=22 bits=0x00000016
+      assign $new.1
+        Type Payload
+        ClassAlloc Payload
+      val $inline.1.this: Payload
+        Type Payload
+        Local $new.1
+      val $inline.1.value: Int
+        Type Int
+        IntegerLiteral Int value=22 bits=0x00000016
+      goto bb2
+    bb1 inline.cont.1
+      val $dependency.argument.0: Payload
+        Type Payload
+        Local $new.1
+      val $dependency.parameter.value: Payload
+        Type Payload
+        Local $dependency.argument.0
+      val $dependency.parameter.order: MemoryOrder
+        Type MemoryOrder
+        VariantConstruct MemoryOrder v4
+      Type Payload
+      AtomicRmw Exchange SeqCst Reference
+        Type AtomicRef<Payload>
+        Local $dependency.receiver
+        Type Payload
+        Local $dependency.parameter.value
+      return
+    bb2 inline.1.entry
+      field_set 0
+        Type Payload
+        Local $inline.1.this
+        Type Int
+        IntegerLiteral Int value=22 bits=0x00000016
+      goto bb1
+  fun casYoung @fn2(cell: AtomicRef<Payload>) -> Boolean
+    bb0 entry
+      val $dependency.receiver: AtomicRef<Payload>
+        Type AtomicRef<Payload>
+        Local cell
+      val $dependency.parameter.order: MemoryOrder
+        Type MemoryOrder
+        VariantConstruct MemoryOrder v4
+      val old: Payload
+        Type Payload
+        AtomicLoad SeqCst Reference
+          Type AtomicRef<Payload>
+          Local $dependency.receiver
+      val $dependency.receiver: AtomicRef<Payload>
+        Type AtomicRef<Payload>
+        Local cell
+      val $dependency.argument.0: Payload
+        Type Payload
+        Local old
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=33 bits=0x00000021
+      val $parameter.value: Int
+        Type Int
+        IntegerLiteral Int value=33 bits=0x00000021
+      assign $new.1
+        Type Payload
+        ClassAlloc Payload
+      val $inline.1.this: Payload
+        Type Payload
+        Local $new.1
+      val $inline.1.value: Int
+        Type Int
+        IntegerLiteral Int value=33 bits=0x00000021
+      goto bb2
+    bb1 inline.cont.1
+      val $dependency.argument.1: Payload
+        Type Payload
+        Local $new.1
+      val $dependency.parameter.expected: Payload
+        Type Payload
+        Local $dependency.argument.0
+      val $dependency.parameter.value: Payload
+        Type Payload
+        Local $dependency.argument.1
+      val $dependency.parameter.successOrder: MemoryOrder
+        Type MemoryOrder
+        VariantConstruct MemoryOrder v4
+      val $dependency.parameter.failureOrder: MemoryOrder
+        Type MemoryOrder
+        VariantConstruct MemoryOrder v4
+      return
+        Type Boolean
+        AtomicCmpXchg SeqCst Success Reference
+          Type AtomicRef<Payload>
+          Local $dependency.receiver
+          Type Payload
+          Local $dependency.parameter.expected
+          Type Payload
+          Local $dependency.parameter.value
+    bb2 inline.1.entry
+      field_set 0
+        Type Payload
+        Local $inline.1.this
+        Type Int
+        IntegerLiteral Int value=33 bits=0x00000021
+      goto bb1
+  fun failedYoung @fn3(cell: AtomicRef<Payload>) -> Boolean
+    bb0 entry
+      val $dependency.receiver: AtomicRef<Payload>
+        Type AtomicRef<Payload>
+        Local cell
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=99 bits=0x00000063
+      val $parameter.value: Int
+        Type Int
+        IntegerLiteral Int value=99 bits=0x00000063
+      assign $new.1
+        Type Payload
+        ClassAlloc Payload
+      val $inline.3.this: Payload
+        Type Payload
+        Local $new.1
+      val $inline.3.value: Int
+        Type Int
+        IntegerLiteral Int value=99 bits=0x00000063
+      goto bb4
+    bb1 inline.cont.1
+      val $dependency.argument.1: Payload
+        Type Payload
+        Local $new.2
+      val $dependency.parameter.expected: Payload
+        Type Payload
+        Local $dependency.argument.0
+      val $dependency.parameter.value: Payload
+        Type Payload
+        Local $dependency.argument.1
+      val $dependency.parameter.successOrder: MemoryOrder
+        Type MemoryOrder
+        VariantConstruct MemoryOrder v4
+      val $dependency.parameter.failureOrder: MemoryOrder
+        Type MemoryOrder
+        VariantConstruct MemoryOrder v4
+      return
+        Type Boolean
+        AtomicCmpXchg SeqCst Success Reference
+          Type AtomicRef<Payload>
+          Local $dependency.receiver
+          Type Payload
+          Local $dependency.parameter.expected
+          Type Payload
+          Local $dependency.parameter.value
+    bb2 inline.1.entry
+      field_set 0
+        Type Payload
+        Local $inline.1.this
+        Type Int
+        IntegerLiteral Int value=44 bits=0x0000002c
+      goto bb1
+    bb3 inline.cont.3
+      val $dependency.argument.0: Payload
+        Type Payload
+        Local $new.1
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=44 bits=0x0000002c
+      val $parameter.value: Int
+        Type Int
+        IntegerLiteral Int value=44 bits=0x0000002c
+      assign $new.2
+        Type Payload
+        ClassAlloc Payload
+      val $inline.1.this: Payload
+        Type Payload
+        Local $new.2
+      val $inline.1.value: Int
+        Type Int
+        IntegerLiteral Int value=44 bits=0x0000002c
+      goto bb2
+    bb4 inline.3.entry
+      field_set 0
+        Type Payload
+        Local $inline.3.this
+        Type Int
+        IntegerLiteral Int value=99 bits=0x00000063
+      goto bb3
+  fun storeSnapshot @fn4(cell: Atomic<Snapshot>) -> Unit
+    bb0 entry
+      val $dependency.receiver: Atomic<Snapshot>
+        Type Atomic<Snapshot>
+        Local cell
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=5 bits=0x00000005
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=55 bits=0x00000037
+      val $parameter.value: Int
+        Type Int
+        IntegerLiteral Int value=55 bits=0x00000037
+      assign $new.1
+        Type Payload
+        ClassAlloc Payload
+      val $inline.3.this: Payload
+        Type Payload
+        Local $new.1
+      val $inline.3.value: Int
+        Type Int
+        IntegerLiteral Int value=55 bits=0x00000037
+      goto bb4
+    bb1 inline.cont.1
+      val $dependency.argument.0: Snapshot
+        Type Snapshot
+        Local $inline.1.result
+      val $dependency.parameter.value: Snapshot
+        Type Snapshot
+        Local $dependency.argument.0
+      call @fn18 direct
+        Type Atomic<Snapshot>
+        Local $dependency.receiver
+        Type Snapshot
+        Local $dependency.parameter.value
+      return
+    bb2 inline.1.entry
+      assign $inline.1.result
+        Type Snapshot
+        StructInit Snapshot
+          Type Int
+          IntegerLiteral Int value=5 bits=0x00000005
+          Type Payload
+          Local $inline.1.payload
+      goto bb1
+    bb3 inline.cont.3
+      val $argument.1: Payload
+        Type Payload
+        Local $new.1
+      val $parameter.serial: Int
+        Type Int
+        IntegerLiteral Int value=5 bits=0x00000005
+      val $parameter.payload: Payload
+        Type Payload
+        Local $argument.1
+      val $inline.1.serial: Int
+        Type Int
+        IntegerLiteral Int value=5 bits=0x00000005
+      val $inline.1.payload: Payload
+        Type Payload
+        Local $parameter.payload
+      goto bb2
+    bb4 inline.3.entry
+      field_set 0
+        Type Payload
+        Local $inline.3.this
+        Type Int
+        IntegerLiteral Int value=55 bits=0x00000037
+      goto bb3
+  fun exchangePacket @fn5(cell: Atomic<Packet>) -> Unit
+    bb0 entry
+      val $dependency.receiver: Atomic<Packet>
+        Type Atomic<Packet>
+        Local cell
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=6 bits=0x00000006
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=66 bits=0x00000042
+      val $parameter.value: Int
+        Type Int
+        IntegerLiteral Int value=66 bits=0x00000042
+      assign $new.1
+        Type Payload
+        ClassAlloc Payload
+      val $inline.1.this: Payload
+        Type Payload
+        Local $new.1
+      val $inline.1.value: Int
+        Type Int
+        IntegerLiteral Int value=66 bits=0x00000042
+      goto bb2
+    bb1 inline.cont.1
+      val $argument.1: Payload
+        Type Payload
+        Local $new.1
+      val $parameter._1: Int
+        Type Int
+        IntegerLiteral Int value=6 bits=0x00000006
+      val $parameter._2: Payload
+        Type Payload
+        Local $argument.1
+      val $dependency.argument.0: Packet
+        Type Packet
+        VariantConstruct Packet v1
+          Type Int
+          IntegerLiteral Int value=6 bits=0x00000006
+          Type Payload
+          Local $parameter._2
+      val $dependency.parameter.value: Packet
+        Type Packet
+        Local $dependency.argument.0
+      call $call.2: Packet = @fn19 direct
+        Type Atomic<Packet>
+        Local $dependency.receiver
+        Type Packet
+        Local $dependency.parameter.value
+      return
+    bb2 inline.1.entry
+      field_set 0
+        Type Payload
+        Local $inline.1.this
+        Type Int
+        IntegerLiteral Int value=66 bits=0x00000042
+      goto bb1
+  fun writeBarriers @fn6() -> Unit
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $parameter.value: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      assign $new.1
+        Type Payload
+        ClassAlloc Payload
+      val $inline.21.this: Payload
+        Type Payload
+        Local $new.1
+      val $inline.21.value: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      goto bb22
+    bb1 if.then.1
+      val $dependency.receiver: Atomic<Snapshot>
+        Type Atomic<Snapshot>
+        Local snapshot
+      call $call.6: Snapshot = @fn20 direct
+        Type Atomic<Snapshot>
+        Local $dependency.receiver
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Payload
+          FieldAccess 1
+            Type Snapshot
+            Local $call.6
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=55 bits=0x00000037
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=55 bits=0x00000037
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          IntegerLiteral Int value=55 bits=0x00000037
+      goto bb3
+    bb2 if.else.2
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 if.merge.3
+      val $argument.0: Boolean
+        Type Boolean
+        Local $shortCircuit.0
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn10 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.receiver: Atomic<Packet>
+        Type Atomic<Packet>
+        Local packet
+      call $when.1: Packet = @fn21 direct
+        Type Atomic<Packet>
+        Local $dependency.receiver
+      val $pattern.subject.2: Packet
+        Type Packet
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Packet v0
+          Type Packet
+          Local $pattern.subject.2
+    bb4 pattern.pass.4
+      val $default.local.0: String
+        Type String
+        StringConst @str0
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.7
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $new.7
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.7
+    bb5 pattern.else.5
+      val $pattern.subject.3: Packet
+        Type Packet
+        Local $when.1
+      branch bb7 bb8
+        Type Boolean
+        VariantTest Packet v1
+          Type Packet
+          Local $pattern.subject.3
+    bb6 pattern.merge.6
+      return
+    bb7 pattern.pass.7
+      val number: Int
+        Type Int
+        VariantPayloadProject Packet v1 f0
+          Type Packet
+          Local $pattern.subject.3
+      val payload: Payload
+        Type Payload
+        VariantPayloadProject Packet v1 f1
+          Type Packet
+          Local $pattern.subject.3
+      val $dependency.receiver: Int
+        Type Int
+        Local number
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=6 bits=0x00000006
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=6 bits=0x00000006
+      branch bb10 bb11
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          IntegerLiteral Int value=6 bits=0x00000006
+    bb8 pattern.else.8
+      unreachable
+    bb9 pattern.merge.9
+      goto bb6
+    bb10 if.then.10
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Payload
+          Local payload
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=66 bits=0x00000042
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=66 bits=0x00000042
+      val $shortCircuit.1: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          IntegerLiteral Int value=66 bits=0x00000042
+      goto bb12
+    bb11 if.else.11
+      val $shortCircuit.1: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb12
+    bb12 if.merge.12
+      val $argument.0: Boolean
+        Type Boolean
+        Local $shortCircuit.1
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn10 direct
+        Type Boolean
+        Local $parameter.value
+      goto bb9
+    bb13 inline.cont.13
+      val packet: Atomic<Packet>
+        Type Atomic<Packet>
+        Local $new.4
+      call @scoop_rt_gc_collect direct
+      val $argument.0: AtomicRef<Payload>
+        Type AtomicRef<Payload>
+        Local cell
+      val $parameter.cell: AtomicRef<Payload>
+        Type AtomicRef<Payload>
+        Local $argument.0
+      call @fn0 direct
+        Type AtomicRef<Payload>
+        Local $parameter.cell
+      call @fn11 direct
+      val $dependency.receiver: AtomicRef<Payload>
+        Type AtomicRef<Payload>
+        Local cell
+      val $dependency.parameter.order: MemoryOrder
+        Type MemoryOrder
+        VariantConstruct MemoryOrder v4
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Payload
+          AtomicLoad SeqCst Reference
+            Type AtomicRef<Payload>
+            Local $dependency.receiver
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=11 bits=0x0000000b
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=11 bits=0x0000000b
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          IntegerLiteral Int value=11 bits=0x0000000b
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn10 direct
+        Type Boolean
+        Local $parameter.value
+      val $argument.0: AtomicRef<Payload>
+        Type AtomicRef<Payload>
+        Local cell
+      val $parameter.cell: AtomicRef<Payload>
+        Type AtomicRef<Payload>
+        Local $argument.0
+      call @fn1 direct
+        Type AtomicRef<Payload>
+        Local $parameter.cell
+      call @fn11 direct
+      val $dependency.receiver: AtomicRef<Payload>
+        Type AtomicRef<Payload>
+        Local cell
+      val $dependency.parameter.order: MemoryOrder
+        Type MemoryOrder
+        VariantConstruct MemoryOrder v4
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Payload
+          AtomicLoad SeqCst Reference
+            Type AtomicRef<Payload>
+            Local $dependency.receiver
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=22 bits=0x00000016
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=22 bits=0x00000016
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          IntegerLiteral Int value=22 bits=0x00000016
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn10 direct
+        Type Boolean
+        Local $parameter.value
+      val $argument.0: AtomicRef<Payload>
+        Type AtomicRef<Payload>
+        Local cell
+      val $parameter.cell: AtomicRef<Payload>
+        Type AtomicRef<Payload>
+        Local $argument.0
+      call $argument.0: Boolean = @fn2 direct
+        Type AtomicRef<Payload>
+        Local $parameter.cell
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn10 direct
+        Type Boolean
+        Local $parameter.value
+      call @fn11 direct
+      val $dependency.receiver: AtomicRef<Payload>
+        Type AtomicRef<Payload>
+        Local cell
+      val $dependency.parameter.order: MemoryOrder
+        Type MemoryOrder
+        VariantConstruct MemoryOrder v4
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Payload
+          AtomicLoad SeqCst Reference
+            Type AtomicRef<Payload>
+            Local $dependency.receiver
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=33 bits=0x00000021
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=33 bits=0x00000021
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          IntegerLiteral Int value=33 bits=0x00000021
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn10 direct
+        Type Boolean
+        Local $parameter.value
+      val $argument.0: AtomicRef<Payload>
+        Type AtomicRef<Payload>
+        Local cell
+      val $parameter.cell: AtomicRef<Payload>
+        Type AtomicRef<Payload>
+        Local $argument.0
+      call $dependency.receiver: Boolean = @fn3 direct
+        Type AtomicRef<Payload>
+        Local $parameter.cell
+      val $argument.0: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn10 direct
+        Type Boolean
+        Local $parameter.value
+      call @fn11 direct
+      val $dependency.receiver: AtomicRef<Payload>
+        Type AtomicRef<Payload>
+        Local cell
+      val $dependency.parameter.order: MemoryOrder
+        Type MemoryOrder
+        VariantConstruct MemoryOrder v4
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Payload
+          AtomicLoad SeqCst Reference
+            Type AtomicRef<Payload>
+            Local $dependency.receiver
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=33 bits=0x00000021
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=33 bits=0x00000021
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          IntegerLiteral Int value=33 bits=0x00000021
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn10 direct
+        Type Boolean
+        Local $parameter.value
+      val $argument.0: Atomic<Snapshot>
+        Type Atomic<Snapshot>
+        Local snapshot
+      val $parameter.cell: Atomic<Snapshot>
+        Type Atomic<Snapshot>
+        Local $argument.0
+      call @fn4 direct
+        Type Atomic<Snapshot>
+        Local $parameter.cell
+      val $argument.0: Atomic<Packet>
+        Type Atomic<Packet>
+        Local packet
+      val $parameter.cell: Atomic<Packet>
+        Type Atomic<Packet>
+        Local $argument.0
+      call @fn5 direct
+        Type Atomic<Packet>
+        Local $parameter.cell
+      call @fn11 direct
+      val $dependency.receiver: Atomic<Snapshot>
+        Type Atomic<Snapshot>
+        Local snapshot
+      call $call.5: Snapshot = @fn20 direct
+        Type Atomic<Snapshot>
+        Local $dependency.receiver
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Snapshot
+          Local $call.5
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=5 bits=0x00000005
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=5 bits=0x00000005
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          IntegerLiteral Int value=5 bits=0x00000005
+    bb14 inline.13.entry
+      val $inline.13.$dependency.constructor.local.0: Boolean
+        Type Boolean
+        BoolLiteral false
+      val $inline.13.$dependency.constructor.local.1: Boolean
+        Type Boolean
+        BoolLiteral false
+      field_set 0
+        Type Atomic<Packet>
+        Local $inline.13.this
+        Type AtomicBoolean
+        AtomicNew AtomicBoolean
+          Type Boolean
+          BoolLiteral false
+      field_set 1
+        Type Atomic<Packet>
+        Local $inline.13.this
+        Type Packet
+        Local $inline.13.initial
+      goto bb13
+    bb15 inline.cont.15
+      val snapshot: Atomic<Snapshot>
+        Type Atomic<Snapshot>
+        Local $new.3
+      val $dependency.argument.0: Packet
+        Type Packet
+        VariantConstruct Packet v0
+      val $dependency.parameter.initial: Packet
+        Type Packet
+        Local $dependency.argument.0
+      assign $new.4
+        Type Atomic<Packet>
+        ClassAlloc Atomic<Packet>
+      val $inline.13.this: Atomic<Packet>
+        Type Atomic<Packet>
+        Local $new.4
+      val $inline.13.initial: Packet
+        Type Packet
+        Local $dependency.parameter.initial
+      goto bb14
+    bb16 inline.15.entry
+      val $inline.15.$dependency.constructor.local.0: Boolean
+        Type Boolean
+        BoolLiteral false
+      val $inline.15.$dependency.constructor.local.1: Boolean
+        Type Boolean
+        BoolLiteral false
+      field_set 0
+        Type Atomic<Snapshot>
+        Local $inline.15.this
+        Type AtomicBoolean
+        AtomicNew AtomicBoolean
+          Type Boolean
+          BoolLiteral false
+      field_set 1
+        Type Atomic<Snapshot>
+        Local $inline.15.this
+        Type Snapshot
+        Local $inline.15.initial
+      goto bb15
+    bb17 inline.cont.17
+      val $dependency.argument.0: Snapshot
+        Type Snapshot
+        Local $inline.17.result
+      val $dependency.parameter.initial: Snapshot
+        Type Snapshot
+        Local $dependency.argument.0
+      assign $new.3
+        Type Atomic<Snapshot>
+        ClassAlloc Atomic<Snapshot>
+      val $inline.15.this: Atomic<Snapshot>
+        Type Atomic<Snapshot>
+        Local $new.3
+      val $inline.15.initial: Snapshot
+        Type Snapshot
+        Local $dependency.parameter.initial
+      goto bb16
+    bb18 inline.17.entry
+      assign $inline.17.result
+        Type Snapshot
+        StructInit Snapshot
+          Type Int
+          IntegerLiteral Int value=0 bits=0x00000000
+          Type Payload
+          Local $inline.17.payload
+      goto bb17
+    bb19 inline.cont.19
+      val $argument.1: Payload
+        Type Payload
+        Local $new.2
+      val $parameter.serial: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $parameter.payload: Payload
+        Type Payload
+        Local $argument.1
+      val $inline.17.serial: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $inline.17.payload: Payload
+        Type Payload
+        Local $parameter.payload
+      goto bb18
+    bb20 inline.19.entry
+      field_set 0
+        Type Payload
+        Local $inline.19.this
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      goto bb19
+    bb21 inline.cont.21
+      val $argument.0: Payload
+        Type Payload
+        Local $new.1
+      val $parameter.initial: Payload
+        Type Payload
+        Local $argument.0
+      val cell: AtomicRef<Payload>
+        Type AtomicRef<Payload>
+        AtomicNew AtomicRef<Payload>
+          Type Payload
+          Local $parameter.initial
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $parameter.value: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      assign $new.2
+        Type Payload
+        ClassAlloc Payload
+      val $inline.19.this: Payload
+        Type Payload
+        Local $new.2
+      val $inline.19.value: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      goto bb20
+    bb22 inline.21.entry
+      field_set 0
+        Type Payload
+        Local $inline.21.this
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      goto bb21
+  fun address @fn7(arg0: GcHandle<Any>) -> ULong
+    bb0 entry
+      call $call.1: ULong = extern0 @m33_atomic_address direct
+        Type GcHandle<Any>
+        Local arg0
+      return
+        Type ULong
+        Local $call.1
+  fun minorCount @fn8() -> Long
+    bb0 entry
+      call $call.1: Long = extern1 @m33_atomic_minor_count direct
+      return
+        Type Long
+        Local $call.1
+  fun movingStress @fn9() -> Boolean
+    bb0 entry
+      call $call.1: Boolean = extern2 @m33_atomic_moving direct
+      return
+        Type Boolean
+        Local $call.1
+  fun check @fn10(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.receiver: Boolean
+        Type Boolean
+        Local value
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+    bb1 if.then.1
+      val $default.local.0: String
+        Type String
+        StringConst @str1
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.1
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $new.1
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.1
+    bb2 if.merge.2
+      return
+  fun minorCollection @fn11() -> Unit
+    bb0 entry
+      call $call.1: Boolean = extern2 @m33_atomic_moving direct
+      branch bb1 bb2
+        Type Boolean
+        Local $call.1
+    bb1 if.then.1
+      call @scoop_rt_gc_collect direct
+      return
+    bb2 if.merge.2
+      call before: Long = extern1 @m33_atomic_minor_count direct
+      goto bb3
+    bb3 while.cond.3 <loop-header-poll>
+      call $dependency.receiver: Long = extern1 @m33_atomic_minor_count direct
+      val $dependency.argument.0: Long
+        Type Long
+        Local before
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      branch bb5 bb4
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+    bb4 while.exit.4
+      return
+    bb5 while.body.5
+      var index: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      goto bb6
+    bb6 while.cond.6 <loop-header-poll>
+      val $dependency.receiver: Int
+        Type Int
+        Local index
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=256 bits=0x00000100
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=256 bits=0x00000100
+      branch bb8 bb7
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Int result=Long
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            IntegerLiteral Int value=256 bits=0x00000100
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb7 while.exit.7
+      goto bb3
+    bb8 while.body.8
+      val $argument.0: Int
+        Type Int
+        Local index
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.2
+        Type Payload
+        ClassAlloc Payload
+      val $inline.9.this: Payload
+        Type Payload
+        Local $new.2
+      val $inline.9.value: Int
+        Type Int
+        Local $parameter.value
+      goto bb10
+    bb9 inline.cont.9
+      val churn: Payload
+        Type Payload
+        Local $new.2
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Payload
+          Local churn
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      assign index
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          IntegerLiteral Int value=1 bits=0x00000001
+      goto bb6
+    bb10 inline.9.entry
+      field_set 0
+        Type Payload
+        Local $inline.9.this
+        Type Int
+        Local $inline.9.value
+      goto bb9
+  fun main @fn12() -> Unit
+    bb0 entry
+      call @fn13 direct
+      call @fn17 direct
+      call @fn6 direct
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str2
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn22 direct
+        Type String
+        Local $dependency.parameter.value
+      return
+  fun independentMovement @fn13() -> Unit
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $parameter.value: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      assign $new.1
+        Type Payload
+        ClassAlloc Payload
+      val $inline.21.this: Payload
+        Type Payload
+        Local $new.1
+      val $inline.21.value: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      goto bb22
+    bb1 if.then.1
+      val $argument.0: GcHandle<Any>
+        Type GcHandle<Any>
+        Local cellHandle
+      val $parameter.handle: GcHandle<Any>
+        Type GcHandle<Any>
+        Local $argument.0
+      call $dependency.receiver: ULong = extern0 @m33_atomic_address direct
+        Type GcHandle<Any>
+        Local $parameter.handle
+      val $dependency.argument.0: ULong
+        Type ULong
+        Local beforeCell
+      val $dependency.parameter.other: ULong
+        Type ULong
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=ULong result=Boolean
+            Type ULong
+            Local $dependency.receiver
+            Type ULong
+            Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn10 direct
+        Type Boolean
+        Local $parameter.value
+      goto bb2
+    bb2 if.merge.2
+      val $argument.0: GcHandle<Any>
+        Type GcHandle<Any>
+        Local valueHandle
+      val $parameter.handle: GcHandle<Any>
+        Type GcHandle<Any>
+        Local $argument.0
+      call $dependency.receiver: ULong = extern0 @m33_atomic_address direct
+        Type GcHandle<Any>
+        Local $parameter.handle
+      val $dependency.argument.0: ULong
+        Type ULong
+        Local beforeValue
+      val $dependency.parameter.other: ULong
+        Type ULong
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=ULong result=Boolean
+          Type ULong
+          Local $dependency.receiver
+          Type ULong
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn10 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.receiver: AtomicRef<Payload>
+        Type AtomicRef<Payload>
+        Local cell
+      val $dependency.parameter.order: MemoryOrder
+        Type MemoryOrder
+        VariantConstruct MemoryOrder v4
+      val $dependency.argument.0: PinnedPtr<Payload>
+        Type PinnedPtr<Payload>
+        Local pinnedValue
+      val $dependency.parameter.p: PinnedPtr<Payload>
+        Type PinnedPtr<Payload>
+        Local $dependency.argument.0
+      val $inline.13.p: PinnedPtr<Payload>
+        Type PinnedPtr<Payload>
+        Local $dependency.parameter.p
+      goto bb14
+    bb3 if.then.3
+      val $argument.0: GcHandle<Any>
+        Type GcHandle<Any>
+        Local valueHandle
+      val $parameter.handle: GcHandle<Any>
+        Type GcHandle<Any>
+        Local $argument.0
+      call $dependency.receiver: ULong = extern0 @m33_atomic_address direct
+        Type GcHandle<Any>
+        Local $parameter.handle
+      val $dependency.argument.0: ULong
+        Type ULong
+        Local movingValue
+      val $dependency.parameter.other: ULong
+        Type ULong
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=ULong result=Boolean
+            Type ULong
+            Local $dependency.receiver
+            Type ULong
+            Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn10 direct
+        Type Boolean
+        Local $parameter.value
+      goto bb4
+    bb4 if.merge.4
+      val $dependency.argument.0: PinnedPtr<AtomicRef<Payload>>
+        Type PinnedPtr<AtomicRef<Payload>>
+        Local pinnedCell
+      val $dependency.parameter.p: PinnedPtr<AtomicRef<Payload>>
+        Type PinnedPtr<AtomicRef<Payload>>
+        Local $dependency.argument.0
+      val $inline.9.p: PinnedPtr<AtomicRef<Payload>>
+        Type PinnedPtr<AtomicRef<Payload>>
+        Local $dependency.parameter.p
+      goto bb10
+    bb5 inline.cont.5
+      val $call.4: Any
+        Type Any
+        Local $inline.5.result
+      return
+    bb6 inline.5.entry
+      val $inline.5.$dependency.local.1: ULong
+        Type ULong
+        FieldAccess 0
+          Type GcHandle<Any>
+          Local $inline.5.h
+      val $inline.5.$dependency.local.2: ULong
+        Type ULong
+        Local $inline.5.$dependency.local.1
+      call $inline.5.$call.1: Any = @scoop_rt_release_handle direct
+        Type ULong
+        Local $inline.5.$dependency.local.2
+      assign $inline.5.result
+        Type Any
+        Local $inline.5.$call.1
+      goto bb5
+    bb7 inline.cont.7
+      val $call.3: Any
+        Type Any
+        Local $inline.7.result
+      val $dependency.argument.0: GcHandle<Any>
+        Type GcHandle<Any>
+        Local cellHandle
+      val $dependency.parameter.h: GcHandle<Any>
+        Type GcHandle<Any>
+        Local $dependency.argument.0
+      val $inline.5.h: GcHandle<Any>
+        Type GcHandle<Any>
+        Local $dependency.parameter.h
+      goto bb6
+    bb8 inline.7.entry
+      val $inline.7.$dependency.local.1: ULong
+        Type ULong
+        FieldAccess 0
+          Type GcHandle<Any>
+          Local $inline.7.h
+      val $inline.7.$dependency.local.2: ULong
+        Type ULong
+        Local $inline.7.$dependency.local.1
+      call $inline.7.$call.1: Any = @scoop_rt_release_handle direct
+        Type ULong
+        Local $inline.7.$dependency.local.2
+      assign $inline.7.result
+        Type Any
+        Local $inline.7.$call.1
+      goto bb7
+    bb9 inline.cont.9
+      val $dependency.receiver: AtomicRef<Payload>
+        Type AtomicRef<Payload>
+        Local $inline.9.result
+      val $dependency.parameter.order: MemoryOrder
+        Type MemoryOrder
+        VariantConstruct MemoryOrder v4
+      val $argument.0: Boolean
+        Type Boolean
+        Binary RefEq
+          Type Payload
+          AtomicLoad SeqCst Reference
+            Type AtomicRef<Payload>
+            Local $dependency.receiver
+          Type Payload
+          Local value
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn10 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.receiver: AtomicRef<Payload>
+        Type AtomicRef<Payload>
+        Local cell
+      val $dependency.parameter.order: MemoryOrder
+        Type MemoryOrder
+        VariantConstruct MemoryOrder v4
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Payload
+          AtomicLoad SeqCst Reference
+            Type AtomicRef<Payload>
+            Local $dependency.receiver
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          IntegerLiteral Int value=7 bits=0x00000007
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn10 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: GcHandle<Any>
+        Type GcHandle<Any>
+        Local valueHandle
+      val $dependency.parameter.h: GcHandle<Any>
+        Type GcHandle<Any>
+        Local $dependency.argument.0
+      val $inline.7.h: GcHandle<Any>
+        Type GcHandle<Any>
+        Local $dependency.parameter.h
+      goto bb8
+    bb10 inline.9.entry
+      val $inline.9.$dependency.local.1: ULong
+        Type ULong
+        FieldAccess 0
+          Type PinnedPtr<AtomicRef<Payload>>
+          Local $inline.9.p
+      val $inline.9.$dependency.local.2: ULong
+        Type ULong
+        Local $inline.9.$dependency.local.1
+      call $inline.9.$call.1: AtomicRef<Payload> = @scoop_rt_unpin direct
+        Type ULong
+        Local $inline.9.$dependency.local.2
+      assign $inline.9.result
+        Type AtomicRef<Payload>
+        Local $inline.9.$call.1
+      goto bb9
+    bb11 inline.cont.11
+      val pinnedCell: PinnedPtr<AtomicRef<Payload>>
+        Type PinnedPtr<AtomicRef<Payload>>
+        Local $inline.11.result
+      val $argument.0: GcHandle<Any>
+        Type GcHandle<Any>
+        Local cellHandle
+      val $parameter.handle: GcHandle<Any>
+        Type GcHandle<Any>
+        Local $argument.0
+      call stableCell: ULong = extern0 @m33_atomic_address direct
+        Type GcHandle<Any>
+        Local $parameter.handle
+      val $argument.0: GcHandle<Any>
+        Type GcHandle<Any>
+        Local valueHandle
+      val $parameter.handle: GcHandle<Any>
+        Type GcHandle<Any>
+        Local $argument.0
+      call movingValue: ULong = extern0 @m33_atomic_address direct
+        Type GcHandle<Any>
+        Local $parameter.handle
+      call @scoop_rt_gc_collect direct
+      val $argument.0: GcHandle<Any>
+        Type GcHandle<Any>
+        Local cellHandle
+      val $parameter.handle: GcHandle<Any>
+        Type GcHandle<Any>
+        Local $argument.0
+      call $dependency.receiver: ULong = extern0 @m33_atomic_address direct
+        Type GcHandle<Any>
+        Local $parameter.handle
+      val $dependency.argument.0: ULong
+        Type ULong
+        Local stableCell
+      val $dependency.parameter.other: ULong
+        Type ULong
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=ULong result=Boolean
+          Type ULong
+          Local $dependency.receiver
+          Type ULong
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn10 direct
+        Type Boolean
+        Local $parameter.value
+      branch bb3 bb4
+        Type Boolean
+        Local move
+    bb12 inline.11.entry
+      val $inline.11.$dependency.local.1: AtomicRef<Payload>
+        Type AtomicRef<Payload>
+        Local $inline.11.v
+      val $inline.11.$dependency.local.2: AtomicRef<Payload>
+        Type AtomicRef<Payload>
+        Local $inline.11.$dependency.local.1
+      call $inline.11.$dependency.local.3: ULong = @scoop_rt_pin direct
+        Type AtomicRef<Payload>
+        Local $inline.11.$dependency.local.2
+      val $inline.11.$dependency.local.4: ULong
+        Type ULong
+        Local $inline.11.$dependency.local.3
+      val $inline.29.raw: ULong
+        Type ULong
+        Local $inline.11.$dependency.local.4
+      goto bb30
+    bb13 inline.cont.13
+      val $call.2: Payload
+        Type Payload
+        Local $inline.13.result
+      val $argument.0: Boolean
+        Type Boolean
+        Binary RefEq
+          Type Payload
+          AtomicLoad SeqCst Reference
+            Type AtomicRef<Payload>
+            Local $dependency.receiver
+          Type Payload
+          Local $call.2
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn10 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: AtomicRef<Payload>
+        Type AtomicRef<Payload>
+        Local cell
+      val $dependency.parameter.v: AtomicRef<Payload>
+        Type AtomicRef<Payload>
+        Local $dependency.argument.0
+      val $inline.11.v: AtomicRef<Payload>
+        Type AtomicRef<Payload>
+        Local $dependency.parameter.v
+      goto bb12
+    bb14 inline.13.entry
+      val $inline.13.$dependency.local.1: ULong
+        Type ULong
+        FieldAccess 0
+          Type PinnedPtr<Payload>
+          Local $inline.13.p
+      val $inline.13.$dependency.local.2: ULong
+        Type ULong
+        Local $inline.13.$dependency.local.1
+      call $inline.13.$call.1: Payload = @scoop_rt_unpin direct
+        Type ULong
+        Local $inline.13.$dependency.local.2
+      assign $inline.13.result
+        Type Payload
+        Local $inline.13.$call.1
+      goto bb13
+    bb15 inline.cont.15
+      val pinnedValue: PinnedPtr<Payload>
+        Type PinnedPtr<Payload>
+        Local $inline.15.result
+      val $argument.0: GcHandle<Any>
+        Type GcHandle<Any>
+        Local cellHandle
+      val $parameter.handle: GcHandle<Any>
+        Type GcHandle<Any>
+        Local $argument.0
+      call beforeCell: ULong = extern0 @m33_atomic_address direct
+        Type GcHandle<Any>
+        Local $parameter.handle
+      val $argument.0: GcHandle<Any>
+        Type GcHandle<Any>
+        Local valueHandle
+      val $parameter.handle: GcHandle<Any>
+        Type GcHandle<Any>
+        Local $argument.0
+      call beforeValue: ULong = extern0 @m33_atomic_address direct
+        Type GcHandle<Any>
+        Local $parameter.handle
+      call @scoop_rt_gc_collect direct
+      branch bb1 bb2
+        Type Boolean
+        Local move
+    bb16 inline.15.entry
+      val $inline.15.$dependency.local.1: Payload
+        Type Payload
+        Local $inline.15.v
+      val $inline.15.$dependency.local.2: Payload
+        Type Payload
+        Local $inline.15.$dependency.local.1
+      call $inline.15.$dependency.local.3: ULong = @scoop_rt_pin direct
+        Type Payload
+        Local $inline.15.$dependency.local.2
+      val $inline.15.$dependency.local.4: ULong
+        Type ULong
+        Local $inline.15.$dependency.local.3
+      val $inline.27.raw: ULong
+        Type ULong
+        Local $inline.15.$dependency.local.4
+      goto bb28
+    bb17 inline.cont.17
+      val cellHandle: GcHandle<Any>
+        Type GcHandle<Any>
+        Local $inline.17.result
+      val $dependency.argument.0: Payload
+        Type Payload
+        Local value
+      val $dependency.parameter.v: Payload
+        Type Payload
+        Local $dependency.argument.0
+      val $inline.15.v: Payload
+        Type Payload
+        Local $dependency.parameter.v
+      goto bb16
+    bb18 inline.17.entry
+      val $inline.17.$dependency.local.1: Any
+        Type Any
+        Local $inline.17.v
+      val $inline.17.$dependency.local.2: Any
+        Type Any
+        Local $inline.17.$dependency.local.1
+      call $inline.17.$dependency.local.3: ULong = @scoop_rt_get_handle direct
+        Type Any
+        Local $inline.17.$dependency.local.2
+      val $inline.17.$dependency.local.4: ULong
+        Type ULong
+        Local $inline.17.$dependency.local.3
+      val $inline.25.raw: ULong
+        Type ULong
+        Local $inline.17.$dependency.local.4
+      goto bb26
+    bb19 inline.cont.19
+      val valueHandle: GcHandle<Any>
+        Type GcHandle<Any>
+        Local $inline.19.result
+      val $dependency.argument.0: Any
+        Type Any
+        Retype Any
+          Type AtomicRef<Payload>
+          Local cell
+      val $dependency.parameter.v: Any
+        Type Any
+        Local $dependency.argument.0
+      val $inline.17.v: Any
+        Type Any
+        Local $dependency.parameter.v
+      goto bb18
+    bb20 inline.19.entry
+      val $inline.19.$dependency.local.1: Any
+        Type Any
+        Local $inline.19.v
+      val $inline.19.$dependency.local.2: Any
+        Type Any
+        Local $inline.19.$dependency.local.1
+      call $inline.19.$dependency.local.3: ULong = @scoop_rt_get_handle direct
+        Type Any
+        Local $inline.19.$dependency.local.2
+      val $inline.19.$dependency.local.4: ULong
+        Type ULong
+        Local $inline.19.$dependency.local.3
+      val $inline.23.raw: ULong
+        Type ULong
+        Local $inline.19.$dependency.local.4
+      goto bb24
+    bb21 inline.cont.21
+      val value: Payload
+        Type Payload
+        Local $new.1
+      val $argument.0: Payload
+        Type Payload
+        Local value
+      val $parameter.initial: Payload
+        Type Payload
+        Local $argument.0
+      val cell: AtomicRef<Payload>
+        Type AtomicRef<Payload>
+        AtomicNew AtomicRef<Payload>
+          Type Payload
+          Local $parameter.initial
+      call move: Boolean = extern2 @m33_atomic_moving direct
+      val $dependency.argument.0: Any
+        Type Any
+        Retype Any
+          Type Payload
+          Local value
+      val $dependency.parameter.v: Any
+        Type Any
+        Local $dependency.argument.0
+      val $inline.19.v: Any
+        Type Any
+        Local $dependency.parameter.v
+      goto bb20
+    bb22 inline.21.entry
+      field_set 0
+        Type Payload
+        Local $inline.21.this
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      goto bb21
+    bb23 inline.cont.23
+      val $inline.19.$call.1: GcHandle<Any>
+        Type GcHandle<Any>
+        Local $inline.23.result
+      assign $inline.19.result
+        Type GcHandle<Any>
+        Local $inline.19.$call.1
+      goto bb19
+    bb24 inline.23.entry
+      assign $inline.23.result
+        Type GcHandle<Any>
+        StructInit GcHandle<Any>
+          Type ULong
+          Local $inline.23.raw
+      goto bb23
+    bb25 inline.cont.25
+      val $inline.17.$call.1: GcHandle<Any>
+        Type GcHandle<Any>
+        Local $inline.25.result
+      assign $inline.17.result
+        Type GcHandle<Any>
+        Local $inline.17.$call.1
+      goto bb17
+    bb26 inline.25.entry
+      assign $inline.25.result
+        Type GcHandle<Any>
+        StructInit GcHandle<Any>
+          Type ULong
+          Local $inline.25.raw
+      goto bb25
+    bb27 inline.cont.27
+      val $inline.15.$call.1: PinnedPtr<Payload>
+        Type PinnedPtr<Payload>
+        Local $inline.27.result
+      assign $inline.15.result
+        Type PinnedPtr<Payload>
+        Local $inline.15.$call.1
+      goto bb15
+    bb28 inline.27.entry
+      assign $inline.27.result
+        Type PinnedPtr<Payload>
+        StructInit PinnedPtr<Payload>
+          Type ULong
+          Local $inline.27.raw
+      goto bb27
+    bb29 inline.cont.29
+      val $inline.11.$call.1: PinnedPtr<AtomicRef<Payload>>
+        Type PinnedPtr<AtomicRef<Payload>>
+        Local $inline.29.result
+      assign $inline.11.result
+        Type PinnedPtr<AtomicRef<Payload>>
+        Local $inline.11.$call.1
+      goto bb11
+    bb30 inline.29.entry
+      assign $inline.29.result
+        Type PinnedPtr<AtomicRef<Payload>>
+        StructInit PinnedPtr<AtomicRef<Payload>>
+          Type ULong
+          Local $inline.29.raw
+      goto bb29
+  fun collectedExpected @fn14(cell: AtomicRef<Payload>) -> Payload
+    bb0 entry
+      val $dependency.receiver: AtomicRef<Payload>
+        Type AtomicRef<Payload>
+        Local cell
+      val $dependency.parameter.order: MemoryOrder
+        Type MemoryOrder
+        VariantConstruct MemoryOrder v4
+      val value: Payload
+        Type Payload
+        AtomicLoad SeqCst Reference
+          Type AtomicRef<Payload>
+          Local $dependency.receiver
+      call @scoop_rt_gc_collect direct
+      return
+        Type Payload
+        Local value
+  fun collectedReplacement @fn15(value: Int) -> Payload
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.1
+        Type Payload
+        ClassAlloc Payload
+      val $inline.1.this: Payload
+        Type Payload
+        Local $new.1
+      val $inline.1.value: Int
+        Type Int
+        Local $parameter.value
+      goto bb2
+    bb1 inline.cont.1
+      val result: Payload
+        Type Payload
+        Local $new.1
+      call @scoop_rt_gc_collect direct
+      return
+        Type Payload
+        Local result
+    bb2 inline.1.entry
+      field_set 0
+        Type Payload
+        Local $inline.1.this
+        Type Int
+        Local $inline.1.value
+      goto bb1
+  fun exchangedResult @fn16() -> Payload
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=11 bits=0x0000000b
+      val $parameter.value: Int
+        Type Int
+        IntegerLiteral Int value=11 bits=0x0000000b
+      assign $new.1
+        Type Payload
+        ClassAlloc Payload
+      val $inline.1.this: Payload
+        Type Payload
+        Local $new.1
+      val $inline.1.value: Int
+        Type Int
+        IntegerLiteral Int value=11 bits=0x0000000b
+      goto bb2
+    bb1 inline.cont.1
+      val $argument.0: Payload
+        Type Payload
+        Local $new.1
+      val $parameter.initial: Payload
+        Type Payload
+        Local $argument.0
+      val cell: AtomicRef<Payload>
+        Type AtomicRef<Payload>
+        AtomicNew AtomicRef<Payload>
+          Type Payload
+          Local $parameter.initial
+      val $dependency.receiver: AtomicRef<Payload>
+        Type AtomicRef<Payload>
+        Local cell
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=12 bits=0x0000000c
+      val $parameter.value: Int
+        Type Int
+        IntegerLiteral Int value=12 bits=0x0000000c
+      call $dependency.argument.0: Payload = @fn15 direct
+        Type Int
+        IntegerLiteral Int value=12 bits=0x0000000c
+      val $dependency.parameter.value: Payload
+        Type Payload
+        Local $dependency.argument.0
+      val $dependency.parameter.order: MemoryOrder
+        Type MemoryOrder
+        VariantConstruct MemoryOrder v4
+      return
+        Type Payload
+        AtomicRmw Exchange SeqCst Reference
+          Type AtomicRef<Payload>
+          Local $dependency.receiver
+          Type Payload
+          Local $dependency.parameter.value
+    bb2 inline.1.entry
+      field_set 0
+        Type Payload
+        Local $inline.1.this
+        Type Int
+        IntegerLiteral Int value=11 bits=0x0000000b
+      goto bb1
+  fun operationRoots @fn17() -> Unit
+    bb0 entry
+      call old: Payload = @fn16 direct
+      call @scoop_rt_gc_collect direct
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Payload
+          Local old
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=11 bits=0x0000000b
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=11 bits=0x0000000b
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          IntegerLiteral Int value=11 bits=0x0000000b
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn10 direct
+        Type Boolean
+        Local $parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $parameter.value: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      assign $new.1
+        Type Payload
+        ClassAlloc Payload
+      val $inline.9.this: Payload
+        Type Payload
+        Local $new.1
+      val $inline.9.value: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      goto bb10
+    bb1 if.then.1
+      val $dependency.receiver: AtomicRef<Payload>
+        Type AtomicRef<Payload>
+        Local cell
+      val $dependency.parameter.order: MemoryOrder
+        Type MemoryOrder
+        VariantConstruct MemoryOrder v4
+      val $shortCircuit.2: Boolean
+        Type Boolean
+        Binary RefEq
+          Type Payload
+          AtomicLoad SeqCst Reference
+            Type AtomicRef<Payload>
+            Local $dependency.receiver
+          Type Payload
+          Local observed
+      goto bb3
+    bb2 if.else.2
+      val $shortCircuit.2: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 if.merge.3
+      val $argument.0: Boolean
+        Type Boolean
+        Local $shortCircuit.2
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn10 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.receiver: AtomicRef<Payload>
+        Type AtomicRef<Payload>
+        Local cell
+      val $argument.0: AtomicRef<Payload>
+        Type AtomicRef<Payload>
+        Local cell
+      val $parameter.cell: AtomicRef<Payload>
+        Type AtomicRef<Payload>
+        Local $argument.0
+      call $dependency.argument.0: Payload = @fn14 direct
+        Type AtomicRef<Payload>
+        Local $parameter.cell
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=6 bits=0x00000006
+      val $parameter.value: Int
+        Type Int
+        IntegerLiteral Int value=6 bits=0x00000006
+      call $dependency.argument.1: Payload = @fn15 direct
+        Type Int
+        IntegerLiteral Int value=6 bits=0x00000006
+      val $dependency.parameter.expected: Payload
+        Type Payload
+        Local $dependency.argument.0
+      val $dependency.parameter.value: Payload
+        Type Payload
+        Local $dependency.argument.1
+      val $dependency.parameter.successOrder: MemoryOrder
+        Type MemoryOrder
+        VariantConstruct MemoryOrder v4
+      val $dependency.parameter.failureOrder: MemoryOrder
+        Type MemoryOrder
+        VariantConstruct MemoryOrder v4
+      val replaced: Payload
+        Type Payload
+        AtomicCmpXchg SeqCst ObservedValue Reference
+          Type AtomicRef<Payload>
+          Local $dependency.receiver
+          Type Payload
+          Local $dependency.parameter.expected
+          Type Payload
+          Local $dependency.parameter.value
+      val $dependency.receiver: AtomicRef<Payload>
+        Type AtomicRef<Payload>
+        Local cell
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $parameter.value: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      call $dependency.argument.0: Payload = @fn15 direct
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $dependency.parameter.value: Payload
+        Type Payload
+        Local $dependency.argument.0
+      val $dependency.parameter.order: MemoryOrder
+        Type MemoryOrder
+        VariantConstruct MemoryOrder v4
+      Type Unit
+      AtomicStore SeqCst Reference
+        Type AtomicRef<Payload>
+        Local $dependency.receiver
+        Type Payload
+        Local $dependency.parameter.value
+      call @scoop_rt_gc_collect direct
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Payload
+          Local replaced
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+      branch bb4 bb5
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          IntegerLiteral Int value=4 bits=0x00000004
+    bb4 if.then.4
+      val $dependency.receiver: AtomicRef<Payload>
+        Type AtomicRef<Payload>
+        Local cell
+      val $dependency.parameter.order: MemoryOrder
+        Type MemoryOrder
+        VariantConstruct MemoryOrder v4
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Payload
+          AtomicLoad SeqCst Reference
+            Type AtomicRef<Payload>
+            Local $dependency.receiver
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $shortCircuit.3: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          IntegerLiteral Int value=7 bits=0x00000007
+      goto bb6
+    bb5 if.else.5
+      val $shortCircuit.3: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb6
+    bb6 if.merge.6
+      val $argument.0: Boolean
+        Type Boolean
+        Local $shortCircuit.3
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn10 direct
+        Type Boolean
+        Local $parameter.value
+      return
+    bb7 inline.cont.7
+      val $dependency.argument.0: Payload
+        Type Payload
+        Local $new.2
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=5 bits=0x00000005
+      val $parameter.value: Int
+        Type Int
+        IntegerLiteral Int value=5 bits=0x00000005
+      call $dependency.argument.1: Payload = @fn15 direct
+        Type Int
+        IntegerLiteral Int value=5 bits=0x00000005
+      val $dependency.parameter.expected: Payload
+        Type Payload
+        Local $dependency.argument.0
+      val $dependency.parameter.value: Payload
+        Type Payload
+        Local $dependency.argument.1
+      val $dependency.parameter.successOrder: MemoryOrder
+        Type MemoryOrder
+        VariantConstruct MemoryOrder v4
+      val $dependency.parameter.failureOrder: MemoryOrder
+        Type MemoryOrder
+        VariantConstruct MemoryOrder v4
+      val observed: Payload
+        Type Payload
+        AtomicCmpXchg SeqCst ObservedValue Reference
+          Type AtomicRef<Payload>
+          Local $dependency.receiver
+          Type Payload
+          Local $dependency.parameter.expected
+          Type Payload
+          Local $dependency.parameter.value
+      call @scoop_rt_gc_collect direct
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Payload
+          Local observed
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          IntegerLiteral Int value=4 bits=0x00000004
+    bb8 inline.7.entry
+      field_set 0
+        Type Payload
+        Local $inline.7.this
+        Type Int
+        IntegerLiteral Int value=99 bits=0x00000063
+      goto bb7
+    bb9 inline.cont.9
+      val $argument.0: Payload
+        Type Payload
+        Local $new.1
+      val $parameter.initial: Payload
+        Type Payload
+        Local $argument.0
+      val cell: AtomicRef<Payload>
+        Type AtomicRef<Payload>
+        AtomicNew AtomicRef<Payload>
+          Type Payload
+          Local $parameter.initial
+      val $dependency.receiver: AtomicRef<Payload>
+        Type AtomicRef<Payload>
+        Local cell
+      val $argument.0: AtomicRef<Payload>
+        Type AtomicRef<Payload>
+        Local cell
+      val $parameter.cell: AtomicRef<Payload>
+        Type AtomicRef<Payload>
+        Local $argument.0
+      call $dependency.argument.0: Payload = @fn14 direct
+        Type AtomicRef<Payload>
+        Local $parameter.cell
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+      val $parameter.value: Int
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+      call $dependency.argument.1: Payload = @fn15 direct
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+      val $dependency.parameter.expected: Payload
+        Type Payload
+        Local $dependency.argument.0
+      val $dependency.parameter.value: Payload
+        Type Payload
+        Local $dependency.argument.1
+      val $dependency.parameter.successOrder: MemoryOrder
+        Type MemoryOrder
+        VariantConstruct MemoryOrder v4
+      val $dependency.parameter.failureOrder: MemoryOrder
+        Type MemoryOrder
+        VariantConstruct MemoryOrder v4
+      val $argument.0: Boolean
+        Type Boolean
+        AtomicCmpXchg SeqCst Success Reference
+          Type AtomicRef<Payload>
+          Local $dependency.receiver
+          Type Payload
+          Local $dependency.parameter.expected
+          Type Payload
+          Local $dependency.parameter.value
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn10 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.receiver: AtomicRef<Payload>
+        Type AtomicRef<Payload>
+        Local cell
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=99 bits=0x00000063
+      val $parameter.value: Int
+        Type Int
+        IntegerLiteral Int value=99 bits=0x00000063
+      assign $new.2
+        Type Payload
+        ClassAlloc Payload
+      val $inline.7.this: Payload
+        Type Payload
+        Local $new.2
+      val $inline.7.value: Int
+        Type Int
+        IntegerLiteral Int value=99 bits=0x00000063
+      goto bb8
+    bb10 inline.9.entry
+      field_set 0
+        Type Payload
+        Local $inline.9.this
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      goto bb9
+  fun store @fn18(this: Atomic<Snapshot>, value: Snapshot) -> Unit
+    bb0 entry
+      var $dependency.local.2: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      goto bb1
+    bb1 while.cond.1 <loop-header-poll>
+      val $dependency.local.3: AtomicBoolean
+        Type AtomicBoolean
+        FieldAccess 0
+          Type Atomic<Snapshot>
+          Local this
+      val $dependency.local.4: Boolean
+        Type Boolean
+        BoolLiteral false
+      val $dependency.local.5: Boolean
+        Type Boolean
+        BoolLiteral true
+      val $dependency.local.6: MemoryOrder
+        Type MemoryOrder
+        VariantConstruct MemoryOrder v1
+      val $dependency.local.7: MemoryOrder
+        Type MemoryOrder
+        VariantConstruct MemoryOrder v0
+      val $dependency.local.8: Boolean
+        Type Boolean
+        BoolLiteral false
+      val $dependency.local.9: Boolean
+        Type Boolean
+        BoolLiteral true
+      val $dependency.local.10: MemoryOrder
+        Type MemoryOrder
+        Local $dependency.local.6
+      val $dependency.local.11: MemoryOrder
+        Type MemoryOrder
+        Local $dependency.local.7
+      val $dependency.local.12: Boolean
+        Type Boolean
+        AtomicCmpXchg AcquireRelaxed Success Boolean
+          Type AtomicBoolean
+          Local $dependency.local.3
+          Type Boolean
+          BoolLiteral false
+          Type Boolean
+          BoolLiteral true
+      branch bb3 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.local.12
+    bb2 while.exit.2
+      field_set 1
+        Type Atomic<Snapshot>
+        Local this
+        Type Snapshot
+        Local value
+      val $dependency.local.16: AtomicBoolean
+        Type AtomicBoolean
+        FieldAccess 0
+          Type Atomic<Snapshot>
+          Local this
+      val $dependency.local.17: Boolean
+        Type Boolean
+        BoolLiteral false
+      val $dependency.local.18: MemoryOrder
+        Type MemoryOrder
+        VariantConstruct MemoryOrder v2
+      val $dependency.local.19: Boolean
+        Type Boolean
+        BoolLiteral false
+      val $dependency.local.20: MemoryOrder
+        Type MemoryOrder
+        Local $dependency.local.18
+      Type Unit
+      AtomicStore Release Boolean
+        Type AtomicBoolean
+        Local $dependency.local.16
+        Type Boolean
+        BoolLiteral false
+      return
+    bb3 while.body.3
+      val $dependency.local.13: Int
+        Type Int
+        Local $dependency.local.2
+      val $dependency.local.14: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.local.15: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      assign $dependency.local.2
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.13
+          Type Int
+          IntegerLiteral Int value=1 bits=0x00000001
+      branch bb4 bb5
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.local.2
+          Type Int
+          IntegerLiteral Int value=64 bits=0x00000040
+    bb4 if.then.4
+      call $call.1: Int = external1 direct
+      assign $dependency.local.2
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      goto bb5
+    bb5 if.merge.5
+      goto bb1
+  fun exchange @fn19(this: Atomic<Packet>, value: Packet) -> Packet
+    bb0 entry
+      var $dependency.local.2: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      goto bb1
+    bb1 while.cond.1 <loop-header-poll>
+      val $dependency.local.4: AtomicBoolean
+        Type AtomicBoolean
+        FieldAccess 0
+          Type Atomic<Packet>
+          Local this
+      val $dependency.local.5: Boolean
+        Type Boolean
+        BoolLiteral false
+      val $dependency.local.6: Boolean
+        Type Boolean
+        BoolLiteral true
+      val $dependency.local.7: MemoryOrder
+        Type MemoryOrder
+        VariantConstruct MemoryOrder v1
+      val $dependency.local.8: MemoryOrder
+        Type MemoryOrder
+        VariantConstruct MemoryOrder v0
+      val $dependency.local.9: Boolean
+        Type Boolean
+        BoolLiteral false
+      val $dependency.local.10: Boolean
+        Type Boolean
+        BoolLiteral true
+      val $dependency.local.11: MemoryOrder
+        Type MemoryOrder
+        Local $dependency.local.7
+      val $dependency.local.12: MemoryOrder
+        Type MemoryOrder
+        Local $dependency.local.8
+      val $dependency.local.13: Boolean
+        Type Boolean
+        AtomicCmpXchg AcquireRelaxed Success Boolean
+          Type AtomicBoolean
+          Local $dependency.local.4
+          Type Boolean
+          BoolLiteral false
+          Type Boolean
+          BoolLiteral true
+      branch bb3 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.local.13
+    bb2 while.exit.2
+      val $dependency.local.3: Packet
+        Type Packet
+        FieldAccess 1
+          Type Atomic<Packet>
+          Local this
+      field_set 1
+        Type Atomic<Packet>
+        Local this
+        Type Packet
+        Local value
+      val $dependency.local.17: AtomicBoolean
+        Type AtomicBoolean
+        FieldAccess 0
+          Type Atomic<Packet>
+          Local this
+      val $dependency.local.18: Boolean
+        Type Boolean
+        BoolLiteral false
+      val $dependency.local.19: MemoryOrder
+        Type MemoryOrder
+        VariantConstruct MemoryOrder v2
+      val $dependency.local.20: Boolean
+        Type Boolean
+        BoolLiteral false
+      val $dependency.local.21: MemoryOrder
+        Type MemoryOrder
+        Local $dependency.local.19
+      Type Unit
+      AtomicStore Release Boolean
+        Type AtomicBoolean
+        Local $dependency.local.17
+        Type Boolean
+        BoolLiteral false
+      return
+        Type Packet
+        Local $dependency.local.3
+    bb3 while.body.3
+      val $dependency.local.14: Int
+        Type Int
+        Local $dependency.local.2
+      val $dependency.local.15: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.local.16: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      assign $dependency.local.2
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.14
+          Type Int
+          IntegerLiteral Int value=1 bits=0x00000001
+      branch bb4 bb5
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.local.2
+          Type Int
+          IntegerLiteral Int value=64 bits=0x00000040
+    bb4 if.then.4
+      call $call.1: Int = external1 direct
+      assign $dependency.local.2
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      goto bb5
+    bb5 if.merge.5
+      goto bb1
+  fun load @fn20(this: Atomic<Snapshot>) -> Snapshot
+    bb0 entry
+      var $dependency.local.1: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      goto bb1
+    bb1 while.cond.1 <loop-header-poll>
+      val $dependency.local.3: AtomicBoolean
+        Type AtomicBoolean
+        FieldAccess 0
+          Type Atomic<Snapshot>
+          Local this
+      val $dependency.local.4: Boolean
+        Type Boolean
+        BoolLiteral false
+      val $dependency.local.5: Boolean
+        Type Boolean
+        BoolLiteral true
+      val $dependency.local.6: MemoryOrder
+        Type MemoryOrder
+        VariantConstruct MemoryOrder v1
+      val $dependency.local.7: MemoryOrder
+        Type MemoryOrder
+        VariantConstruct MemoryOrder v0
+      val $dependency.local.8: Boolean
+        Type Boolean
+        BoolLiteral false
+      val $dependency.local.9: Boolean
+        Type Boolean
+        BoolLiteral true
+      val $dependency.local.10: MemoryOrder
+        Type MemoryOrder
+        Local $dependency.local.6
+      val $dependency.local.11: MemoryOrder
+        Type MemoryOrder
+        Local $dependency.local.7
+      val $dependency.local.12: Boolean
+        Type Boolean
+        AtomicCmpXchg AcquireRelaxed Success Boolean
+          Type AtomicBoolean
+          Local $dependency.local.3
+          Type Boolean
+          BoolLiteral false
+          Type Boolean
+          BoolLiteral true
+      branch bb3 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.local.12
+    bb2 while.exit.2
+      val $dependency.local.2: Snapshot
+        Type Snapshot
+        FieldAccess 1
+          Type Atomic<Snapshot>
+          Local this
+      val $dependency.local.16: AtomicBoolean
+        Type AtomicBoolean
+        FieldAccess 0
+          Type Atomic<Snapshot>
+          Local this
+      val $dependency.local.17: Boolean
+        Type Boolean
+        BoolLiteral false
+      val $dependency.local.18: MemoryOrder
+        Type MemoryOrder
+        VariantConstruct MemoryOrder v2
+      val $dependency.local.19: Boolean
+        Type Boolean
+        BoolLiteral false
+      val $dependency.local.20: MemoryOrder
+        Type MemoryOrder
+        Local $dependency.local.18
+      Type Unit
+      AtomicStore Release Boolean
+        Type AtomicBoolean
+        Local $dependency.local.16
+        Type Boolean
+        BoolLiteral false
+      return
+        Type Snapshot
+        Local $dependency.local.2
+    bb3 while.body.3
+      val $dependency.local.13: Int
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.14: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.local.15: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      assign $dependency.local.1
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.13
+          Type Int
+          IntegerLiteral Int value=1 bits=0x00000001
+      branch bb4 bb5
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.local.1
+          Type Int
+          IntegerLiteral Int value=64 bits=0x00000040
+    bb4 if.then.4
+      call $call.1: Int = external1 direct
+      assign $dependency.local.1
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      goto bb5
+    bb5 if.merge.5
+      goto bb1
+  fun load @fn21(this: Atomic<Packet>) -> Packet
+    bb0 entry
+      var $dependency.local.1: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      goto bb1
+    bb1 while.cond.1 <loop-header-poll>
+      val $dependency.local.3: AtomicBoolean
+        Type AtomicBoolean
+        FieldAccess 0
+          Type Atomic<Packet>
+          Local this
+      val $dependency.local.4: Boolean
+        Type Boolean
+        BoolLiteral false
+      val $dependency.local.5: Boolean
+        Type Boolean
+        BoolLiteral true
+      val $dependency.local.6: MemoryOrder
+        Type MemoryOrder
+        VariantConstruct MemoryOrder v1
+      val $dependency.local.7: MemoryOrder
+        Type MemoryOrder
+        VariantConstruct MemoryOrder v0
+      val $dependency.local.8: Boolean
+        Type Boolean
+        BoolLiteral false
+      val $dependency.local.9: Boolean
+        Type Boolean
+        BoolLiteral true
+      val $dependency.local.10: MemoryOrder
+        Type MemoryOrder
+        Local $dependency.local.6
+      val $dependency.local.11: MemoryOrder
+        Type MemoryOrder
+        Local $dependency.local.7
+      val $dependency.local.12: Boolean
+        Type Boolean
+        AtomicCmpXchg AcquireRelaxed Success Boolean
+          Type AtomicBoolean
+          Local $dependency.local.3
+          Type Boolean
+          BoolLiteral false
+          Type Boolean
+          BoolLiteral true
+      branch bb3 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.local.12
+    bb2 while.exit.2
+      val $dependency.local.2: Packet
+        Type Packet
+        FieldAccess 1
+          Type Atomic<Packet>
+          Local this
+      val $dependency.local.16: AtomicBoolean
+        Type AtomicBoolean
+        FieldAccess 0
+          Type Atomic<Packet>
+          Local this
+      val $dependency.local.17: Boolean
+        Type Boolean
+        BoolLiteral false
+      val $dependency.local.18: MemoryOrder
+        Type MemoryOrder
+        VariantConstruct MemoryOrder v2
+      val $dependency.local.19: Boolean
+        Type Boolean
+        BoolLiteral false
+      val $dependency.local.20: MemoryOrder
+        Type MemoryOrder
+        Local $dependency.local.18
+      Type Unit
+      AtomicStore Release Boolean
+        Type AtomicBoolean
+        Local $dependency.local.16
+        Type Boolean
+        BoolLiteral false
+      return
+        Type Packet
+        Local $dependency.local.2
+    bb3 while.body.3
+      val $dependency.local.13: Int
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.14: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.local.15: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      assign $dependency.local.1
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.13
+          Type Int
+          IntegerLiteral Int value=1 bits=0x00000001
+      branch bb4 bb5
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.local.1
+          Type Int
+          IntegerLiteral Int value=64 bits=0x00000040
+    bb4 if.then.4
+      call $call.1: Int = external1 direct
+      assign $dependency.local.1
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      goto bb5
+    bb5 if.merge.5
+      goto bb1
+  fun println @fn22(value: String) -> Unit
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local value
+      call $dependency.local.2: String = external2 direct
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external3 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str3
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external3 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun getGcHandle @fn23(v: Any) -> GcHandle<Any>
+    bb0 entry
+      val $dependency.local.1: Any
+        Type Any
+        Local v
+      val $dependency.local.2: Any
+        Type Any
+        Local $dependency.local.1
+      call $dependency.local.3: ULong = @scoop_rt_get_handle direct
+        Type Any
+        Local $dependency.local.2
+      val $dependency.local.4: ULong
+        Type ULong
+        Local $dependency.local.3
+      val $inline.1.raw: ULong
+        Type ULong
+        Local $dependency.local.4
+      goto bb2
+    bb1 inline.cont.1
+      val $call.1: GcHandle<Any>
+        Type GcHandle<Any>
+        Local $inline.1.result
+      return
+        Type GcHandle<Any>
+        Local $call.1
+    bb2 inline.1.entry
+      assign $inline.1.result
+        Type GcHandle<Any>
+        StructInit GcHandle<Any>
+          Type ULong
+          Local $inline.1.raw
+      goto bb1
+  fun pin @fn24(v: Payload) -> PinnedPtr<Payload>
+    bb0 entry
+      val $dependency.local.1: Payload
+        Type Payload
+        Local v
+      val $dependency.local.2: Payload
+        Type Payload
+        Local $dependency.local.1
+      call $dependency.local.3: ULong = @scoop_rt_pin direct
+        Type Payload
+        Local $dependency.local.2
+      val $dependency.local.4: ULong
+        Type ULong
+        Local $dependency.local.3
+      val $inline.1.raw: ULong
+        Type ULong
+        Local $dependency.local.4
+      goto bb2
+    bb1 inline.cont.1
+      val $call.1: PinnedPtr<Payload>
+        Type PinnedPtr<Payload>
+        Local $inline.1.result
+      return
+        Type PinnedPtr<Payload>
+        Local $call.1
+    bb2 inline.1.entry
+      assign $inline.1.result
+        Type PinnedPtr<Payload>
+        StructInit PinnedPtr<Payload>
+          Type ULong
+          Local $inline.1.raw
+      goto bb1
+  fun unpin @fn25(p: PinnedPtr<Payload>) -> Payload
+    bb0 entry
+      val $dependency.local.1: ULong
+        Type ULong
+        FieldAccess 0
+          Type PinnedPtr<Payload>
+          Local p
+      val $dependency.local.2: ULong
+        Type ULong
+        Local $dependency.local.1
+      call $call.1: Payload = @scoop_rt_unpin direct
+        Type ULong
+        Local $dependency.local.2
+      return
+        Type Payload
+        Local $call.1
+  fun pin @fn26(v: AtomicRef<Payload>) -> PinnedPtr<AtomicRef<Payload>>
+    bb0 entry
+      val $dependency.local.1: AtomicRef<Payload>
+        Type AtomicRef<Payload>
+        Local v
+      val $dependency.local.2: AtomicRef<Payload>
+        Type AtomicRef<Payload>
+        Local $dependency.local.1
+      call $dependency.local.3: ULong = @scoop_rt_pin direct
+        Type AtomicRef<Payload>
+        Local $dependency.local.2
+      val $dependency.local.4: ULong
+        Type ULong
+        Local $dependency.local.3
+      val $inline.1.raw: ULong
+        Type ULong
+        Local $dependency.local.4
+      goto bb2
+    bb1 inline.cont.1
+      val $call.1: PinnedPtr<AtomicRef<Payload>>
+        Type PinnedPtr<AtomicRef<Payload>>
+        Local $inline.1.result
+      return
+        Type PinnedPtr<AtomicRef<Payload>>
+        Local $call.1
+    bb2 inline.1.entry
+      assign $inline.1.result
+        Type PinnedPtr<AtomicRef<Payload>>
+        StructInit PinnedPtr<AtomicRef<Payload>>
+          Type ULong
+          Local $inline.1.raw
+      goto bb1
+  fun unpin @fn27(p: PinnedPtr<AtomicRef<Payload>>) -> AtomicRef<Payload>
+    bb0 entry
+      val $dependency.local.1: ULong
+        Type ULong
+        FieldAccess 0
+          Type PinnedPtr<AtomicRef<Payload>>
+          Local p
+      val $dependency.local.2: ULong
+        Type ULong
+        Local $dependency.local.1
+      call $call.1: AtomicRef<Payload> = @scoop_rt_unpin direct
+        Type ULong
+        Local $dependency.local.2
+      return
+        Type AtomicRef<Payload>
+        Local $call.1
+  fun releaseGcHandle @fn28(h: GcHandle<Any>) -> Any
+    bb0 entry
+      val $dependency.local.1: ULong
+        Type ULong
+        FieldAccess 0
+          Type GcHandle<Any>
+          Local h
+      val $dependency.local.2: ULong
+        Type ULong
+        Local $dependency.local.1
+      call $call.1: Any = @scoop_rt_release_handle direct
+        Type ULong
+        Local $dependency.local.2
+      return
+        Type Any
+        Local $call.1
+  fun Continuation.resume @fn29(this: Continuation<Snapshot>, value: Snapshot) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn30(this: Continuation<Snapshot>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn31(this: SuspendTask<Snapshot>, $completion: Continuation<Snapshot>) -> CoroutineStep<Snapshot>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn32(this: SuspendRegistration<Snapshot>, continuation: Continuation<Snapshot>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn33(this: Continuation<Payload>, value: Payload) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn34(this: Continuation<Payload>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn35(this: SuspendTask<Payload>, $completion: Continuation<Payload>) -> CoroutineStep<Payload>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn36(this: SuspendRegistration<Payload>, continuation: Continuation<Payload>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn37(this: Continuation<Packet>, value: Packet) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn38(this: Continuation<Packet>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn39(this: SuspendTask<Packet>, $completion: Continuation<Packet>) -> CoroutineStep<Packet>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn40(this: SuspendRegistration<Packet>, continuation: Continuation<Packet>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.Payload.$c0 @fn41(this: Payload, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Payload
+        Local this
+        Type Int
+        Local value
+      return
+  fun init.Atomic.$c0 @fn42(this: Atomic<Snapshot>, initial: Snapshot) -> Unit
+    bb0 entry
+      val $dependency.constructor.local.0: Boolean
+        Type Boolean
+        BoolLiteral false
+      val $dependency.constructor.local.1: Boolean
+        Type Boolean
+        BoolLiteral false
+      field_set 0
+        Type Atomic<Snapshot>
+        Local this
+        Type AtomicBoolean
+        AtomicNew AtomicBoolean
+          Type Boolean
+          BoolLiteral false
+      field_set 1
+        Type Atomic<Snapshot>
+        Local this
+        Type Snapshot
+        Local initial
+      return
+  fun init.Atomic.$c0 @fn43(this: Atomic<Packet>, initial: Packet) -> Unit
+    bb0 entry
+      val $dependency.constructor.local.0: Boolean
+        Type Boolean
+        BoolLiteral false
+      val $dependency.constructor.local.1: Boolean
+        Type Boolean
+        BoolLiteral false
+      field_set 0
+        Type Atomic<Packet>
+        Local this
+        Type AtomicBoolean
+        AtomicNew AtomicBoolean
+          Type Boolean
+          BoolLiteral false
+      field_set 1
+        Type Atomic<Packet>
+        Local this
+        Type Packet
+        Local initial
+      return
+  fun ctor.Snapshot.$c0 @fn44(serial: Int, payload: Payload) -> Snapshot <no-gc>
+    bb0 entry
+      return
+        Type Snapshot
+        StructInit Snapshot
+          Type Int
+          Local serial
+          Type Payload
+          Local payload
+  fun ctor.GcHandle.$c1 @fn45(raw: ULong) -> GcHandle<Any> <no-gc>
+    bb0 entry
+      return
+        Type GcHandle<Any>
+        StructInit GcHandle<Any>
+          Type ULong
+          Local raw
+  fun ctor.PinnedPtr.$c2 @fn46(raw: ULong) -> PinnedPtr<Payload> <no-gc>
+    bb0 entry
+      return
+        Type PinnedPtr<Payload>
+        StructInit PinnedPtr<Payload>
+          Type ULong
+          Local raw
+  fun ctor.PinnedPtr.$c2 @fn47(raw: ULong) -> PinnedPtr<AtomicRef<Payload>> <no-gc>
+    bb0 entry
+      return
+        Type PinnedPtr<AtomicRef<Payload>>
+        StructInit PinnedPtr<AtomicRef<Payload>>
+          Type ULong
+          Local raw
+  fun startCoroutine<Packet> @fn48(task: SuspendTask<Packet>, completion: Continuation<Packet>) -> Unit
+    bb0 context.unwind
+      landing_pad cleanup=true
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb1 context.catch_unwind
+      landing_pad cleanup=true
+      end_catch
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb2 suspended
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb3 completed unwind bb0
+      call @fn37 interface Continuation<Packet>[0]
+        Type Continuation<Packet>
+        Local completion
+        Type Packet
+        EnumField v0 f0
+          Type CoroutineStep<Packet>
+          Local $step
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb4 failed unwind bb0
+      call @fn38 interface Continuation<Packet>[1]
+        Type Continuation<Packet>
+        Local completion
+        Type Throwable
+        Local $exception
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb5 body_failure unwind bb1
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb4
+    bb6 run unwind bb5
+      call $step: CoroutineStep<Packet> = @fn39 interface SuspendTask<Packet>[0]
+        Type SuspendTask<Packet>
+        Local task
+        Type Continuation<Packet>
+        Local completion
+      branch bb3 bb2
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Packet>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+    bb7 entry
+      val $child_context: internal<task-context>
+        Type internal<task-context>
+        ContextFork
+          Type internal<context-node>
+          ContextSnapshot
+      val $context_guard: internal<context-switch-guard>
+        Type internal<context-switch-guard>
+        ContextEnter
+          Type internal<task-context>
+          Local $child_context
+      goto bb6
+  fun startCoroutine<Payload> @fn49(task: SuspendTask<Payload>, completion: Continuation<Payload>) -> Unit
+    bb0 context.unwind
+      landing_pad cleanup=true
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb1 context.catch_unwind
+      landing_pad cleanup=true
+      end_catch
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb2 suspended
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb3 completed unwind bb0
+      call @fn33 interface Continuation<Payload>[0]
+        Type Continuation<Payload>
+        Local completion
+        Type Payload
+        EnumField v0 f0
+          Type CoroutineStep<Payload>
+          Local $step
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb4 failed unwind bb0
+      call @fn34 interface Continuation<Payload>[1]
+        Type Continuation<Payload>
+        Local completion
+        Type Throwable
+        Local $exception
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb5 body_failure unwind bb1
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb4
+    bb6 run unwind bb5
+      call $step: CoroutineStep<Payload> = @fn35 interface SuspendTask<Payload>[0]
+        Type SuspendTask<Payload>
+        Local task
+        Type Continuation<Payload>
+        Local completion
+      branch bb3 bb2
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Payload>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+    bb7 entry
+      val $child_context: internal<task-context>
+        Type internal<task-context>
+        ContextFork
+          Type internal<context-node>
+          ContextSnapshot
+      val $context_guard: internal<context-switch-guard>
+        Type internal<context-switch-guard>
+        ContextEnter
+          Type internal<task-context>
+          Local $child_context
+      goto bb6
+  fun startCoroutine<Snapshot> @fn50(task: SuspendTask<Snapshot>, completion: Continuation<Snapshot>) -> Unit
+    bb0 context.unwind
+      landing_pad cleanup=true
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb1 context.catch_unwind
+      landing_pad cleanup=true
+      end_catch
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb2 suspended
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb3 completed unwind bb0
+      call @fn29 interface Continuation<Snapshot>[0]
+        Type Continuation<Snapshot>
+        Local completion
+        Type Snapshot
+        EnumField v0 f0
+          Type CoroutineStep<Snapshot>
+          Local $step
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb4 failed unwind bb0
+      call @fn30 interface Continuation<Snapshot>[1]
+        Type Continuation<Snapshot>
+        Local completion
+        Type Throwable
+        Local $exception
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb5 body_failure unwind bb1
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb4
+    bb6 run unwind bb5
+      call $step: CoroutineStep<Snapshot> = @fn31 interface SuspendTask<Snapshot>[0]
+        Type SuspendTask<Snapshot>
+        Local task
+        Type Continuation<Snapshot>
+        Local completion
+      branch bb3 bb2
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Snapshot>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+    bb7 entry
+      val $child_context: internal<task-context>
+        Type internal<task-context>
+        ContextFork
+          Type internal<context-node>
+          ContextSnapshot
+      val $context_guard: internal<context-switch-guard>
+        Type internal<context-switch-guard>
+        ContextEnter
+          Type internal<task-context>
+          Local $child_context
+      goto bb6
+  coroutine_step cs0 CoroutineStep<Packet> result=Packet
+  coroutine_step cs1 CoroutineStep<Payload> result=Payload
+  coroutine_step cs2 CoroutineStep<Snapshot> result=Snapshot
+  coroutine_slot cl0 CoroutineSlot<Packet> value=Packet
+  coroutine_slot cl1 CoroutineSlot<Payload> value=Payload
+  coroutine_slot cl2 CoroutineSlot<Snapshot> value=Snapshot
+  coroutine_start ct0 result=Packet function=fn48
+  coroutine_start ct1 result=Payload function=fn49
+  coroutine_start ct2 result=Snapshot function=fn50
+  coroutine_fn cf0 @fn31 source_return=Snapshot step=cs2 immediate
+  coroutine_fn cf1 @fn35 source_return=Payload step=cs1 immediate
+  coroutine_fn cf2 @fn39 source_return=Packet step=cs0 immediate
+  instance mi0 function=@fn18 <- store
+  instance mi1 function=@fn19 <- exchange
+  instance mi2 function=@fn20 <- load
+  instance mi3 function=@fn21 <- load
+  instance mi4 function=@fn22 <- println
+  instance mi5 function=@fn23 <- getGcHandle
+  instance mi6 function=@fn24 <- pin
+  instance mi7 function=@fn25 <- unpin
+  instance mi8 function=@fn26 <- pin
+  instance mi9 function=@fn27 <- unpin
+  instance mi10 function=@fn28 <- releaseGcHandle
+  instance mi11 function=@fn29 <- Continuation.resume
+  instance mi12 function=@fn30 <- Continuation.resumeWithException
+  instance mi13 function=@fn31 <- SuspendTask.run
+  instance mi14 function=@fn32 <- SuspendRegistration.register
+  instance mi15 function=@fn33 <- Continuation.resume
+  instance mi16 function=@fn34 <- Continuation.resumeWithException
+  instance mi17 function=@fn35 <- SuspendTask.run
+  instance mi18 function=@fn36 <- SuspendRegistration.register
+  instance mi19 function=@fn37 <- Continuation.resume
+  instance mi20 function=@fn38 <- Continuation.resumeWithException
+  instance mi21 function=@fn39 <- SuspendTask.run
+  instance mi22 function=@fn40 <- SuspendRegistration.register
+  str @str0 "illegal state"
+  str @str1 "illegal state"
+  str @str2 "atomic gc"
+  str @str3 "\n"
+  output executable @fn12

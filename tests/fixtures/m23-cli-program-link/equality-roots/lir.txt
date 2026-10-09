@@ -220,7 +220,7 @@ Module
   td td2 g(r=00000001;i=18e7792baa5d0e360d8f8402a85c4ebc23793cbf5c33a6f14acad1a1c765938e) @scoop$1$td$12102ceaa8f704b1f4e7a642be4950cc4cabb6d9240ab82bcdf4bc718bcef6a5 type-id=425726343466993319 shape=FixedObject minimum-size=72 align=8 parent=td1 vtable=[local-fn4] itables=[]
   td td3 a(n(c=dev.programlink%3Aeq-provider%3A0.1.0;p=exactEquality;o=-;k=S;x=Slot);[t([n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=String),n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)])]) @scoop$1$td$ddf6d0fe5ce665533b042adcf417e040d9f74ffc08d997b439958a0f075954c5 type-id=16488877627682502689 shape=BoxedValue minimum-size=32 align=8 parent=none vtable=[] itables=[]
   layout Slot size=16 align=8 refs=[0]
-  layout Equality value size=8 align=8 refs=[0]
+  layout Equality value size=16 align=8 refs=[0]
   layout $Closure$lambda0 value size=8 align=8 refs=[0]
   layout $Closure$lambda0 size=72 align=8 refs=[24, 32, 48, 56]
   output executable @scoop$1$cb$7358e4971bd7bf01df823b3207413511a24d3cf632fc2fb380d2d57bfc902c53

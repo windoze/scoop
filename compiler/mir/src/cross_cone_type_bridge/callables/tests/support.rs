@@ -10,6 +10,7 @@ pub(super) struct Fixture {
     pub foundation: crate::OdrFreeMirFoundation,
     pub types: CanonicalParamFreeMirTypeExportsV1,
     pub value: PersistentExactTypeId,
+    pub boxed: PersistentExactTypeId,
     pub class: PersistentExactTypeId,
     pub interface: PersistentExactTypeId,
     pub unit: PersistentExactTypeId,
@@ -93,9 +94,9 @@ impl Fixture {
         .unwrap();
         let adjust = CborIdentityRecord::from_key(GeneratedCallableKey::DispatchAdjust {
             slot: slot.id(),
-            implementor: exact(value.id()),
+            implementor: exact(class.id()),
             target: CallableMaterialization::new(
-                CallableTemplateOwner::Function(method.id()),
+                CallableTemplateOwner::Function(abstract_method.id()),
                 CallableMaterializationContext::NoSubstitution,
             ),
         })
@@ -143,6 +144,9 @@ impl Fixture {
         let interface = exact(interface.id());
         let unit = exact(unit.id());
         let boolean = exact(boolean.id());
+        let boxed =
+            CborIdentityRecord::from_key(GeneratedNominalKey::BoxedValue { payload: value })
+                .unwrap();
         let signatures = vec![
             (
                 StrongCallableDefinitionOwner::GeneratedCallable(equality.id()),
@@ -174,11 +178,11 @@ impl Fixture {
             ),
             (
                 StrongCallableDefinitionOwner::GeneratedCallable(adjust.id()),
-                sig(Some(interface), vec![], unit),
+                sig(Some(class), vec![], unit),
             ),
             (
                 StrongCallableDefinitionOwner::GeneratedCallable(boxing.id()),
-                sig(Some(interface), vec![], unit),
+                sig(Some(exact(boxed.id())), vec![], unit),
             ),
             (
                 StrongCallableDefinitionOwner::GeneratedCallable(ensure.id()),
@@ -190,6 +194,13 @@ impl Fixture {
             ),
         ];
         let mut mir = crate::CanonicalMirFoundation::empty();
+        let payload_field = CborIdentityRecord::from_key(
+            scoop_identity::FieldIdentityKey::box_payload(boxed.key()).unwrap(),
+        )
+        .unwrap();
+        mir.set_fields(vec![payload_field.clone()]).unwrap();
+        mir.set_generated_types(vec![boxed.clone()]).unwrap();
+        mir.set_exact_types(vec![exact_record(boxed.id())]).unwrap();
         mir.set_generated_callables(vec![
             adjust.clone(),
             boxing.clone(),
@@ -294,12 +305,33 @@ impl Fixture {
             )
             .unwrap(),
         );
+        records.push(
+            ParamFreeMirTypeExportV1::try_new(
+                authority,
+                exact(boxed.id()),
+                MirTypeOriginV1::GeneratedNominal {
+                    nominal: boxed.id(),
+                    role: boxed.key().clone(),
+                },
+                facts(MirValueKindV1::Reference),
+                MirTypeRepresentationV1::BoxedValue {
+                    payload: MirRepresentationFieldV1 {
+                        field: payload_field.id(),
+                        value,
+                    },
+                },
+                no_bases(),
+            )
+            .unwrap(),
+        );
         let types = CanonicalParamFreeMirTypeExportsV1::try_new(records).unwrap();
+        let boxed = exact(boxed.id());
         Self {
             graph,
             foundation,
             types,
             value,
+            boxed,
             class,
             interface,
             unit,

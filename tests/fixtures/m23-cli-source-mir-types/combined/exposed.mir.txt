@@ -91,13 +91,15 @@ Module
   generated_exact_type get16 location=enum10 nominal_id=2412b5c52c3e56004cbbb9cc4ee7222e5efcf6867c4b72b7e57fb3e5084df9cd exact_id=c2ba46d9a7411c0d807da25f19f84cccec9f115b611179bd828f30424fe780c3
   generated_exact_type get17 location=enum8 nominal_id=349a1e42596e5b4b951c9017511d68221236a0fe8c63d32278f4c851f1f9320a exact_id=ea82ba66b91f02c5bc9fe0e2e1730aa8e7a05c181ef340476f56f316bb910931
   generated_exact_type get18 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
-  generated_callable gc0 function=@fn42 id=177be4c0a3f72c0622e9e2d8d14c6b99be97ae08b15bda7d8241f9c93e430d26
-  generated_callable gc1 function=@fn41 id=256ed06f6fbd9bd1910b9c19afbdcb26d28c1ec5c3df4ff007708c0d7f5e0cc5
-  generated_callable gc2 function=@fn40 id=2cc01ab9f6bcbcbb49560fe89955bdf5c02a2ee33899e3c04b544a8ec0135004
-  generated_callable gc3 function=@fn39 id=abc5eb577b136090bdd28eb06895d093eb79e8492caf5595a4ac8ce5e6b170f0
-  generated_callable gc4 function=@fn38 id=b8aca6015e72ead41a9bb2081dce6cfc5f12bb4d3ecd91b7a043876f325e107a
-  generated_callable gc5 function=@fn43 id=f826edffa5993bf65614b472e83059d5f3254a94cc7f3e4ba380dfdadc3ce6cf
-  generated_callable gc6 function=@fn44 id=faac60e7a58950575f2c07b4af5f521d048ea4c8d0560eafc8e9962566c9a361
+  generated_callable gc0 function=@fn35 id=10ae1575e48fcd06530ad82f872310c41908cccb4edb0f394db345e141d2e2b5
+  generated_callable gc1 function=@fn44 id=177be4c0a3f72c0622e9e2d8d14c6b99be97ae08b15bda7d8241f9c93e430d26
+  generated_callable gc2 function=@fn43 id=256ed06f6fbd9bd1910b9c19afbdcb26d28c1ec5c3df4ff007708c0d7f5e0cc5
+  generated_callable gc3 function=@fn42 id=2cc01ab9f6bcbcbb49560fe89955bdf5c02a2ee33899e3c04b544a8ec0135004
+  generated_callable gc4 function=@fn34 id=7468897f981f8499819d92d8daa5df3934d2c22b6ad4d03ba60838f97df4239f
+  generated_callable gc5 function=@fn41 id=abc5eb577b136090bdd28eb06895d093eb79e8492caf5595a4ac8ce5e6b170f0
+  generated_callable gc6 function=@fn40 id=b8aca6015e72ead41a9bb2081dce6cfc5f12bb4d3ecd91b7a043876f325e107a
+  generated_callable gc7 function=@fn45 id=f826edffa5993bf65614b472e83059d5f3254a94cc7f3e4ba380dfdadc3ce6cf
+  generated_callable gc8 function=@fn46 id=faac60e7a58950575f2c07b4af5f521d048ea4c8d0560eafc8e9962566c9a361
   fun Label.equals @fn0(this: Label, other: Label) -> Boolean
     bb0 entry
       call $call.1: Boolean = external0 direct
@@ -230,7 +232,7 @@ Module
       assign $new.1
         Type Child
         ClassAlloc Child
-      call @fn35 direct
+      call @fn37 direct
         Type Child
         Local $new.1
         Type String
@@ -269,7 +271,7 @@ Module
       assign $new.1
         Type Singleton
         ClassAlloc Singleton
-      call @fn36 direct
+      call @fn38 direct
         Type Singleton
         Local $new.1
       global_assign $singleton$Singleton
@@ -451,7 +453,27 @@ Module
       return
         Type Int
         IntegerLiteral Int value=7 bits=0x00000007
-  fun init.Base.$c0 @fn34(this: Base, inherited: Int) -> Unit
+  fun receiver<Child> Marker.mark @fn34(this: Child) -> Int
+    bb0 entry
+      call $call.1: Int = @fn33 direct
+        Type Marker
+        Retype Marker
+          Type Child
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun receiver<Singleton> Marker.mark @fn35(this: Singleton) -> Int
+    bb0 entry
+      call $call.1: Int = @fn33 direct
+        Type Marker
+        Retype Marker
+          Type Singleton
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun init.Base.$c0 @fn36(this: Base, inherited: Int) -> Unit
     bb0 entry
       field_set 0
         Type Base
@@ -459,7 +481,7 @@ Module
         Type Int
         Local inherited
       return
-  fun init.Child.$c1 @fn35(this: Child, own: String, number: Int) -> Unit
+  fun init.Child.$c1 @fn37(this: Child, own: String, number: Int) -> Unit
     bb0 entry
       val $argument.0: Int
         Type Int
@@ -467,7 +489,7 @@ Module
       val $parameter.inherited: Int
         Type Int
         Local $argument.0
-      call @fn34 direct
+      call @fn36 direct
         Type Base
         Retype Base
           Type Child
@@ -485,7 +507,7 @@ Module
         Type Int
         Local number
       return
-  fun init.Singleton.$c2 @fn36(this: Singleton) -> Unit
+  fun init.Singleton.$c2 @fn38(this: Singleton) -> Unit
     bb0 entry
       val $argument.0: Int
         Type Int
@@ -493,7 +515,7 @@ Module
       val $parameter.inherited: Int
         Type Int
         Local $argument.0
-      call @fn34 direct
+      call @fn36 direct
         Type Base
         Retype Base
           Type Singleton
@@ -511,14 +533,14 @@ Module
         Type Int
         IntegerLiteral Int value=3 bits=0x00000003
       return
-  fun ctor.Label.$c0 @fn37(text: String) -> Label <no-gc>
+  fun ctor.Label.$c0 @fn39(text: String) -> Label <no-gc>
     bb0 entry
       return
         Type Label
         StructInit Label
           Type String
           Local text
-  fun startCoroutine<Label> @fn38(task: SuspendTask<Label>, completion: Continuation<Label>) -> Unit
+  fun startCoroutine<Label> @fn40(task: SuspendTask<Label>, completion: Continuation<Label>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -599,7 +621,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Child> @fn39(task: SuspendTask<Child>, completion: Continuation<Child>) -> Unit
+  fun startCoroutine<Child> @fn41(task: SuspendTask<Child>, completion: Continuation<Child>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -680,7 +702,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Marker> @fn40(task: SuspendTask<Marker>, completion: Continuation<Marker>) -> Unit
+  fun startCoroutine<Marker> @fn42(task: SuspendTask<Marker>, completion: Continuation<Marker>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -761,7 +783,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Singleton> @fn41(task: SuspendTask<Singleton>, completion: Continuation<Singleton>) -> Unit
+  fun startCoroutine<Singleton> @fn43(task: SuspendTask<Singleton>, completion: Continuation<Singleton>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -842,7 +864,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Base> @fn42(task: SuspendTask<Base>, completion: Continuation<Base>) -> Unit
+  fun startCoroutine<Base> @fn44(task: SuspendTask<Base>, completion: Continuation<Base>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -923,7 +945,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Choice> @fn43(task: SuspendTask<Choice>, completion: Continuation<Choice>) -> Unit
+  fun startCoroutine<Choice> @fn45(task: SuspendTask<Choice>, completion: Continuation<Choice>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -1004,12 +1026,12 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun thunk<Label> Marker.mark() @fn44(this: Marker) -> Int
+  fun thunk<Label> Marker.mark() @fn46(this: box<Label>) -> Int
     bb0 entry
       call $call.1: Int = @fn33 direct
         Type Marker
         Retype Marker
-          Type Marker
+          Type box<Label>
           Local this
       return
         Type Int
@@ -1026,12 +1048,12 @@ Module
   coroutine_slot cl3 CoroutineSlot<Singleton> value=Singleton
   coroutine_slot cl4 CoroutineSlot<Base> value=Base
   coroutine_slot cl5 CoroutineSlot<Choice> value=Choice
-  coroutine_start ct0 result=Label function=fn38
-  coroutine_start ct1 result=Child function=fn39
-  coroutine_start ct2 result=Marker function=fn40
-  coroutine_start ct3 result=Singleton function=fn41
-  coroutine_start ct4 result=Base function=fn42
-  coroutine_start ct5 result=Choice function=fn43
+  coroutine_start ct0 result=Label function=fn40
+  coroutine_start ct1 result=Child function=fn41
+  coroutine_start ct2 result=Marker function=fn42
+  coroutine_start ct3 result=Singleton function=fn43
+  coroutine_start ct4 result=Base function=fn44
+  coroutine_start ct5 result=Choice function=fn45
   coroutine_fn cf0 @fn11 source_return=Label step=cs0 immediate
   coroutine_fn cf1 @fn15 source_return=Marker step=cs2 immediate
   coroutine_fn cf2 @fn19 source_return=Choice step=cs5 immediate

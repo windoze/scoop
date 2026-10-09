@@ -74,9 +74,7 @@ Module
     local %40 $call.2: struct2
     local %41 $call.3: struct3
     local %42 $sc.1: struct0
-    local %43 $sc.2: struct1
-    local %44 $sc.3: struct2
-    local %45 $sc.4: struct3
+    local %43 $sc.2: struct2
   block entry
     poll managed-void-target4 sp<managed-poll:0> live=[]
     store integer<Int>(0x00000011) -> local0
@@ -109,25 +107,25 @@ Module
     t4 = aggregate () : {}
     store integer<Int>(0x00000013) -> local14
     store local14 -> local15
-    call no-gc-indirect-target1 local43 = sig=indirect1 (sret struct1 size=4 align=4 scan=none, i32) local-fn2(local15)
-    store local43 -> local39
-    t5 = extract local39, 0 : i32
-    store t5 -> local16
+    call no-gc-direct-target0 t5 = sig=direct0 (i32) -> struct1 local-fn2(local15)
+    store t5 -> local39
+    t6 = extract local39, 0 : i32
+    store t6 -> local16
     store integer<Int>(0x00000013) -> local17
     store local17 -> local18
-    t6 = integer_compare_Equal<Int> local16, local18 : i1
-    cbr t6 then @if.then.4 else @if.else.5
+    t7 = integer_compare_Equal<Int> local16, local18 : i1
+    cbr t7 then @if.then.4 else @if.else.5
   block if.then.4
     store global1 -> local19
     store local19 -> local20
-    call no-gc-indirect-target2 local44 = sig=indirect2 (sret struct2 size=8 align=8 scan=refs[0], ptr<managed>) local-fn3(local20)
-    store local44 -> local40
-    t7 = extract local40, 0 : ptr<managed>
-    store t7 -> local21
+    call no-gc-indirect-target1 local43 = sig=indirect1 (sret struct2 size=8 align=8 scan=refs[0], ptr<managed>) local-fn3(local20)
+    store local43 -> local40
+    t8 = extract local40, 0 : ptr<managed>
+    store t8 -> local21
     store global2 -> local22
     store local22 -> local23
-    call managed-direct-target0 sp<managed-call:1> live=[local21:ptr<managed>@0, local23:ptr<managed>@0] t8 = sig=direct0 (ptr<managed>, ptr<managed>) -> i1 external-fn2(local21, local23)
-    store t8 -> local24
+    call managed-direct-target0 sp<managed-call:1> live=[local21:ptr<managed>@0, local23:ptr<managed>@0] t9 = sig=direct1 (ptr<managed>, ptr<managed>) -> i1 external-fn2(local21, local23)
+    store t9 -> local24
     br @if.merge.6
   block if.else.5
     store false -> local24
@@ -136,28 +134,28 @@ Module
     store local24 -> local25
     store local25 -> local26
     call managed-void-target1 sp<managed-call:2> live=[] sig=void1 (i1) local-fn0(local26)
-    t9 = aggregate () : {}
+    t10 = aggregate () : {}
     store integer<Int>(0x00000017) -> local27
     store local27 -> local28
-    call no-gc-indirect-target3 local45 = sig=indirect3 (sret struct3 size=4 align=4 scan=none, i32) external-fn3(local28)
-    store local45 -> local41
-    t10 = extract local41, 0 : i32
-    store t10 -> local29
+    call no-gc-direct-target1 t11 = sig=direct2 (i32) -> struct3 external-fn3(local28)
+    store t11 -> local41
+    t12 = extract local41, 0 : i32
+    store t12 -> local29
     store integer<Int>(0x00000017) -> local30
     store local30 -> local31
-    t11 = integer_compare_Equal<Int> local29, local31 : i1
-    cbr t11 then @if.then.7 else @if.else.8
+    t13 = integer_compare_Equal<Int> local29, local31 : i1
+    cbr t13 then @if.then.7 else @if.else.8
   block if.then.7
     call managed-void-target2 sp<managed-call:3> live=[] sig=void2 () external-fn5()
-    t12 = aggregate () : {}
-    t13 = global_load global3 : ptr<managed>
-    store t13 -> local32
-    call managed-direct-target1 sp<managed-call:4> live=[local32:ptr<managed>@0] t14 = sig=direct1 (ptr<managed>) -> i32 external-fn4(local32)
-    store t14 -> local33
+    t14 = aggregate () : {}
+    t15 = global_load global3 : ptr<managed>
+    store t15 -> local32
+    call managed-direct-target1 sp<managed-call:4> live=[local32:ptr<managed>@0] t16 = sig=direct3 (ptr<managed>) -> i32 external-fn4(local32)
+    store t16 -> local33
     store integer<Int>(0x00000005) -> local34
     store local34 -> local35
-    t15 = integer_compare_Equal<Int> local33, local35 : i1
-    store t15 -> local36
+    t17 = integer_compare_Equal<Int> local33, local35 : i1
+    store t17 -> local36
     br @if.merge.9
   block if.else.8
     store false -> local36
@@ -166,9 +164,9 @@ Module
     store local36 -> local37
     store local37 -> local38
     call managed-void-target3 sp<managed-call:5> live=[] sig=void3 (i1) local-fn0(local38)
-    t16 = aggregate () : {}
+    t18 = aggregate () : {}
     ret
-  fun @scoop$1$cb$627171862eba55548c68d477eea86c98b4d7811a9393c4ae37afc4f71a6d9b08(i32) -> sret<struct1 size=4 align=4 scan=none> <no-gc>
+  fun @scoop$1$cb$627171862eba55548c68d477eea86c98b4d7811a9393c4ae37afc4f71a6d9b08(i32) -> parts<struct1 [i32@0+4/4]> <no-gc>
   block entry
     t0 = aggregate (param0) : struct1
     ret t0

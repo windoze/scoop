@@ -1,0 +1,407 @@
+Module
+  extern ef0 exitCode @exit_code() -> Int <abi=c no-gc lib=fixture_native>
+  extern ef1 registerExitHandler @register_exit_handler() -> Unit <abi=c no-gc lib=fixture_native>
+  extern ef2 unexpectedRelease @unexpected_release() -> Unit <abi=c no-gc lib=fixture_native>
+  struct GcHandle<Resource> (raw: ULong) <c-abi uint64-field>
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<Resource>
+    Completed(value: Resource)
+    Suspended()
+  enum CoroutineSlot<Resource>
+    Empty()
+    Value(value: Resource)
+  class Resource vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  interface ToString
+  interface Hash
+  interface Equality<Int>
+  interface Continuation<Resource>
+  interface SuspendTask<Resource>
+  interface SuspendRegistration<Resource>
+  generated_exact_type get0 location=enum1 nominal_id=1baf3681574ddd768781e3befadd0ffa2ca191076bc335187eca21592afd448d exact_id=009fc1ff7cfcf7deff7ad768a71aa62c0ef740eb71e6ca57e2e39182d0319ca9
+  generated_exact_type get1 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
+  generated_exact_type get2 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
+  generated_exact_type get3 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
+  generated_exact_type get4 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
+  generated_exact_type get5 location=enum2 nominal_id=9f157b5c91e74d75df0f13c6c243d44c96da4651b25a1abb645769fe946e6a6f exact_id=94c417aed8317150e6ef79724bc22908eb361446dbe7ba8738b7580706c146b7
+  generated_exact_type get6 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
+  generated_callable gc0 function=@fn14 id=8c2a4d7acc896d512749e2034eb50aafd62a562e1f99541b38ca49adcf92d5e3
+  fun unexpectedRelease @fn0() -> Unit
+    bb0 entry
+      call extern2 @unexpected_release direct
+      return
+  fun exitCode @fn1() -> Int
+    bb0 entry
+      call $call.1: Int = extern0 @exit_code direct
+      return
+        Type Int
+        Local $call.1
+  fun registerExitHandler @fn2() -> Unit
+    bb0 entry
+      call extern1 @register_exit_handler direct
+      return
+  fun stop @fn3(code: Int) -> Nothing
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        Local code
+      val $dependency.parameter.code: Int
+        Type Int
+        Local $dependency.argument.0
+      call $call.1: Nothing = external0 direct
+        Type Int
+        Local $dependency.parameter.code
+      unreachable
+  fun main @fn4() -> Unit
+    bb0 entry
+      call extern1 @register_exit_handler direct
+      assign $new.1
+        Type Resource
+        ClassAlloc Resource
+      call @fn12 direct
+        Type Resource
+        Local $new.1
+      publish_release_ready Resource
+        Type Resource
+        Local $new.1
+      val $dependency.argument.0: Resource
+        Type Resource
+        Local $new.1
+      val $dependency.parameter.v: Resource
+        Type Resource
+        Local $dependency.argument.0
+      val $inline.12.v: Resource
+        Type Resource
+        Local $dependency.parameter.v
+      goto bb13
+    bb1 try.unwind.1
+      landing_pad cleanup=false
+      goto bb2
+    bb2 try.dispatch.2
+      begin_catch
+      goto bb7
+    bb3 try.exit_pad.3
+      landing_pad cleanup=true
+      goto bb4
+    bb4 try.exit_cleanup.4
+      end_catch
+      resume
+    bb5 try.end.5
+      unreachable
+    bb6 try.body.6 unwind bb1
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str0
+      val $dependency.parameter.message: String
+        Type String
+        Local $dependency.argument.0
+      call external1 direct
+        Type String
+        Local $dependency.parameter.message
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str1
+      val $dependency.parameter.message: String
+        Type String
+        Local $dependency.argument.0
+      call external2 direct
+        Type String
+        Local $dependency.parameter.message
+      call $argument.0: Int = extern0 @exit_code direct
+      val $parameter.code: Int
+        Type Int
+        Local $argument.0
+      val $inline.10.code: Int
+        Type Int
+        Local $parameter.code
+      goto bb11
+    bb7 scope.7 unwind bb3
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str2
+      val $dependency.parameter.message: String
+        Type String
+        Local $dependency.argument.0
+      call external2 direct
+        Type String
+        Local $dependency.parameter.message
+      val $dependency.argument.0: GcHandle<Resource>
+        Type GcHandle<Resource>
+        Local handle
+      val $dependency.parameter.h: GcHandle<Resource>
+        Type GcHandle<Resource>
+        Local $dependency.argument.0
+      val $inline.8.h: GcHandle<Resource>
+        Type GcHandle<Resource>
+        Local $dependency.parameter.h
+      goto bb9
+    bb8 inline.cont.8 unwind bb3
+      val resource: Resource
+        Type Resource
+        Local $inline.8.result
+      rethrow unwind bb3
+    bb9 inline.8.entry unwind bb3
+      val $inline.8.$dependency.local.1: ULong
+        Type ULong
+        FieldAccess 0
+          Type GcHandle<Resource>
+          Local $inline.8.h
+      val $inline.8.$dependency.local.2: ULong
+        Type ULong
+        Local $inline.8.$dependency.local.1
+      call $inline.8.$call.1: Resource = @scoop_rt_release_handle direct
+        Type ULong
+        Local $inline.8.$dependency.local.2
+      assign $inline.8.result
+        Type Resource
+        Local $inline.8.$call.1
+      goto bb8
+    bb10 inline.cont.10
+      unreachable
+    bb11 inline.10.entry unwind bb1
+      val $inline.10.$dependency.argument.0: Int
+        Type Int
+        Local $inline.10.code
+      val $inline.10.$dependency.parameter.code: Int
+        Type Int
+        Local $inline.10.$dependency.argument.0
+      call $inline.10.$call.1: Nothing = external0 direct
+        Type Int
+        Local $inline.10.$dependency.parameter.code
+      unreachable
+    bb12 inline.cont.12
+      val handle: GcHandle<Resource>
+        Type GcHandle<Resource>
+        Local $inline.12.result
+      goto bb6
+    bb13 inline.12.entry
+      val $inline.12.$dependency.local.1: Resource
+        Type Resource
+        Local $inline.12.v
+      val $inline.12.$dependency.local.2: Resource
+        Type Resource
+        Local $inline.12.$dependency.local.1
+      call $inline.12.$dependency.local.3: ULong = @scoop_rt_get_handle direct
+        Type Resource
+        Local $inline.12.$dependency.local.2
+      val $inline.12.$dependency.local.4: ULong
+        Type ULong
+        Local $inline.12.$dependency.local.3
+      val $inline.14.raw: ULong
+        Type ULong
+        Local $inline.12.$dependency.local.4
+      goto bb15
+    bb14 inline.cont.14
+      val $inline.12.$call.1: GcHandle<Resource>
+        Type GcHandle<Resource>
+        Local $inline.14.result
+      assign $inline.12.result
+        Type GcHandle<Resource>
+        Local $inline.12.$call.1
+      goto bb12
+    bb15 inline.14.entry
+      assign $inline.14.result
+        Type GcHandle<Resource>
+        StructInit GcHandle<Resource>
+          Type ULong
+          Local $inline.14.raw
+      goto bb14
+  fun getGcHandle @fn5(v: Resource) -> GcHandle<Resource>
+    bb0 entry
+      val $dependency.local.1: Resource
+        Type Resource
+        Local v
+      val $dependency.local.2: Resource
+        Type Resource
+        Local $dependency.local.1
+      call $dependency.local.3: ULong = @scoop_rt_get_handle direct
+        Type Resource
+        Local $dependency.local.2
+      val $dependency.local.4: ULong
+        Type ULong
+        Local $dependency.local.3
+      val $inline.1.raw: ULong
+        Type ULong
+        Local $dependency.local.4
+      goto bb2
+    bb1 inline.cont.1
+      val $call.1: GcHandle<Resource>
+        Type GcHandle<Resource>
+        Local $inline.1.result
+      return
+        Type GcHandle<Resource>
+        Local $call.1
+    bb2 inline.1.entry
+      assign $inline.1.result
+        Type GcHandle<Resource>
+        StructInit GcHandle<Resource>
+          Type ULong
+          Local $inline.1.raw
+      goto bb1
+  fun println @fn6(value: Int) -> Unit
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      call $dependency.local.2: String = external3 direct
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external1 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str3
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external1 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun releaseGcHandle @fn7(h: GcHandle<Resource>) -> Resource
+    bb0 entry
+      val $dependency.local.1: ULong
+        Type ULong
+        FieldAccess 0
+          Type GcHandle<Resource>
+          Local h
+      val $dependency.local.2: ULong
+        Type ULong
+        Local $dependency.local.1
+      call $call.1: Resource = @scoop_rt_release_handle direct
+        Type ULong
+        Local $dependency.local.2
+      return
+        Type Resource
+        Local $call.1
+  fun Continuation.resume @fn8(this: Continuation<Resource>, value: Resource) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn9(this: Continuation<Resource>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn10(this: SuspendTask<Resource>, $completion: Continuation<Resource>) -> CoroutineStep<Resource>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn11(this: SuspendRegistration<Resource>, continuation: Continuation<Resource>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.Resource.$c0 @fn12(this: Resource) -> Unit
+    bb0 entry
+      return
+  fun ctor.GcHandle.$c0 @fn13(raw: ULong) -> GcHandle<Resource> <no-gc>
+    bb0 entry
+      return
+        Type GcHandle<Resource>
+        StructInit GcHandle<Resource>
+          Type ULong
+          Local raw
+  fun startCoroutine<Resource> @fn14(task: SuspendTask<Resource>, completion: Continuation<Resource>) -> Unit
+    bb0 context.unwind
+      landing_pad cleanup=true
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb1 context.catch_unwind
+      landing_pad cleanup=true
+      end_catch
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb2 suspended
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb3 completed unwind bb0
+      call @fn8 interface Continuation<Resource>[0]
+        Type Continuation<Resource>
+        Local completion
+        Type Resource
+        EnumField v0 f0
+          Type CoroutineStep<Resource>
+          Local $step
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb4 failed unwind bb0
+      call @fn9 interface Continuation<Resource>[1]
+        Type Continuation<Resource>
+        Local completion
+        Type Throwable
+        Local $exception
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb5 body_failure unwind bb1
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb4
+    bb6 run unwind bb5
+      call $step: CoroutineStep<Resource> = @fn10 interface SuspendTask<Resource>[0]
+        Type SuspendTask<Resource>
+        Local task
+        Type Continuation<Resource>
+        Local completion
+      branch bb3 bb2
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Resource>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+    bb7 entry
+      val $child_context: internal<task-context>
+        Type internal<task-context>
+        ContextFork
+          Type internal<context-node>
+          ContextSnapshot
+      val $context_guard: internal<context-switch-guard>
+        Type internal<context-switch-guard>
+        ContextEnter
+          Type internal<task-context>
+          Local $child_context
+      goto bb6
+  release_hook rh0 Resource <no-gc>
+    bb0 entry
+      call extern2 @unexpected_release direct
+      return
+  coroutine_step cs0 CoroutineStep<Resource> result=Resource
+  coroutine_slot cl0 CoroutineSlot<Resource> value=Resource
+  coroutine_start ct0 result=Resource function=fn14
+  coroutine_fn cf0 @fn10 source_return=Resource step=cs0 immediate
+  instance mi0 function=@fn5 <- getGcHandle
+  instance mi1 function=@fn6 <- println
+  instance mi2 function=@fn7 <- releaseGcHandle
+  instance mi3 function=@fn8 <- Continuation.resume
+  instance mi4 function=@fn9 <- Continuation.resumeWithException
+  instance mi5 function=@fn10 <- SuspendTask.run
+  instance mi6 function=@fn11 <- SuspendRegistration.register
+  str @str0 "stdout-buffer"
+  str @str1 "stderr-buffer"
+  str @str2 "finally-bad"
+  str @str3 "\n"
+  output executable @fn4

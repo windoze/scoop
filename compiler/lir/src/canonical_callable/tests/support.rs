@@ -12,11 +12,11 @@ pub(super) fn scalar(shuffled: bool) -> Module {
     let mut function = function(
         "canonicalArithmetic",
         vec![
-            AbiArgument::Direct(value(LirType::I64, 8, RefScan::None)),
-            AbiArgument::Direct(value(LirType::I64, 8, RefScan::None)),
-            AbiArgument::Direct(value(LirType::I1, 1, RefScan::None)),
+            AbiArgument::Direct(value(LirType::I64, 8, RefScan::None).into()),
+            AbiArgument::Direct(value(LirType::I64, 8, RefScan::None).into()),
+            AbiArgument::Direct(value(LirType::I1, 1, RefScan::None).into()),
         ],
-        AbiReturn::Direct(value(LirType::I64, 8, RefScan::None)),
+        AbiReturn::Direct(value(LirType::I64, 8, RefScan::None).into()),
     );
     let slots = locals(
         &mut function,
@@ -133,10 +133,10 @@ pub(super) fn roots(shuffled: bool) -> Module {
     let mut function = function(
         "canonicalRoots",
         vec![
-            AbiArgument::Direct(pointer.clone()),
-            AbiArgument::Direct(pointer.clone()),
+            AbiArgument::Direct(pointer.clone().into()),
+            AbiArgument::Direct(pointer.clone().into()),
         ],
-        AbiReturn::Direct(value(LirType::I1, 1, RefScan::None)),
+        AbiReturn::Direct(value(LirType::I1, 1, RefScan::None).into()),
     );
     function.gc_effect = GcEffect::Managed;
     let slots = locals(&mut function, shuffled, pointer);

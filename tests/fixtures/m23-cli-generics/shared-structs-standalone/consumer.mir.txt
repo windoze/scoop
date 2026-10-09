@@ -763,86 +763,86 @@ Module
           Local value
           Type Option<Int>
           Local optional
-  fun thunk<RemoteCell<String>> Reader.get() @fn22(this: Reader<String>) -> String
+  fun thunk<RemoteCell<String>> Reader.get() @fn22(this: box<RemoteCell<String>>) -> String
     bb0 entry
       call $call.1: String = @fn7 direct
         Type RemoteCell<String>
         Unbox
-          Type Reader<String>
+          Type box<RemoteCell<String>>
           Local this
       return
         Type String
         Local $call.1
-  fun thunk<RemoteCell<String>> Reader.read() @fn23(this: Reader<String>) -> String
+  fun thunk<RemoteCell<String>> Reader.read() @fn23(this: box<RemoteCell<String>>) -> String
     bb0 entry
       call $call.1: String = @fn8 direct
         Type Reader<String>
         Retype Reader<String>
-          Type Reader<String>
+          Type box<RemoteCell<String>>
           Local this
       return
         Type String
         Local $call.1
-  fun thunk<RemoteCell<String>> Readable.get() @fn24(this: Readable<String>) -> String
+  fun thunk<RemoteCell<String>> Readable.get() @fn24(this: box<RemoteCell<String>>) -> String
     bb0 entry
       call $call.1: String = @fn7 direct
         Type RemoteCell<String>
         Unbox
-          Type Readable<String>
+          Type box<RemoteCell<String>>
           Local this
       return
         Type String
         Local $call.1
-  fun thunk<RemoteCell<Unit>> Reader.get() @fn25(this: Reader<Unit>) -> Unit
+  fun thunk<RemoteCell<Unit>> Reader.get() @fn25(this: box<RemoteCell<Unit>>) -> Unit
     bb0 entry
       call @fn10 direct
         Type RemoteCell<Unit>
         Unbox
-          Type Reader<Unit>
+          Type box<RemoteCell<Unit>>
           Local this
       return
-  fun thunk<RemoteCell<Unit>> Reader.read() @fn26(this: Reader<Unit>) -> Unit
+  fun thunk<RemoteCell<Unit>> Reader.read() @fn26(this: box<RemoteCell<Unit>>) -> Unit
     bb0 entry
       call @fn11 direct
         Type Reader<Unit>
         Retype Reader<Unit>
-          Type Reader<Unit>
+          Type box<RemoteCell<Unit>>
           Local this
       return
-  fun thunk<RemoteCell<Unit>> Readable.get() @fn27(this: Readable<Unit>) -> Unit
+  fun thunk<RemoteCell<Unit>> Readable.get() @fn27(this: box<RemoteCell<Unit>>) -> Unit
     bb0 entry
       call @fn10 direct
         Type RemoteCell<Unit>
         Unbox
-          Type Readable<Unit>
+          Type box<RemoteCell<Unit>>
           Local this
       return
-  fun thunk<RemoteCell<Int>> Reader.get() @fn28(this: Reader<Int>) -> Int
+  fun thunk<RemoteCell<Int>> Reader.get() @fn28(this: box<RemoteCell<Int>>) -> Int
     bb0 entry
       call $call.1: Int = @fn13 direct
         Type RemoteCell<Int>
         Unbox
-          Type Reader<Int>
+          Type box<RemoteCell<Int>>
           Local this
       return
         Type Int
         Local $call.1
-  fun thunk<RemoteCell<Int>> Reader.read() @fn29(this: Reader<Int>) -> Int
+  fun thunk<RemoteCell<Int>> Reader.read() @fn29(this: box<RemoteCell<Int>>) -> Int
     bb0 entry
       call $call.1: Int = @fn14 direct
         Type Reader<Int>
         Retype Reader<Int>
-          Type Reader<Int>
+          Type box<RemoteCell<Int>>
           Local this
       return
         Type Int
         Local $call.1
-  fun thunk<RemoteCell<Int>> Readable.get() @fn30(this: Readable<Int>) -> Int
+  fun thunk<RemoteCell<Int>> Readable.get() @fn30(this: box<RemoteCell<Int>>) -> Int
     bb0 entry
       call $call.1: Int = @fn13 direct
         Type RemoteCell<Int>
         Unbox
-          Type Readable<Int>
+          Type box<RemoteCell<Int>>
           Local this
       return
         Type Int

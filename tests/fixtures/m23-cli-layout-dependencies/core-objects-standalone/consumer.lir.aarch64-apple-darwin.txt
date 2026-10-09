@@ -3,7 +3,7 @@ Module
   global @scoop$1$ss$f5371933706d7ef1fdfd588fd9e80057aeafe0587c325d0a1f76f27b2f892579 : ptr<managed> scan=refs[0]
   init0 top-level:localValue storage=@scoop$1$ss$0eb04c832f9c26433230e60fcb804ecad301ff880de882ea116182f225dd0003 failure=@scoop$1$ss$f5371933706d7ef1fdfd588fd9e80057aeafe0587c325d0a1f76f27b2f892579 initializer=@scoop$1$cb$ddacf44a794888d78389bc252c73f4f5c943461bc588ddbaa3307028669a7cce ensure=@scoop$1$cb$4844ac66bf5930290cf530d2f67f4d4a0db539c771d642b84a02a2e8a2c753e0 deps=[]
   extern ef0 nativeIdentity @scoop_test_identity(i32) -> i32 <c exact=(Int)->Int bridge=@scoop$1$br$2a0d2d3a8213ebda0db4e61d47282dfbce04f8737bdd74b452a3c24ee3267fdc capture-errno gc-leaf nounwind>
-  fun @scoop$1$cb$e7ddec721004c06d9f400369a22556e8f4e03077569c25df1fbc675f24bfd799(i32) -> sret<{i32, i32} size=8 align=4 scan=none>
+  fun @scoop$1$cb$e7ddec721004c06d9f400369a22556e8f4e03077569c25df1fbc675f24bfd799(i32) -> parts<{i32, i32} [i64@0+8/4]>
     local %0 $call.1: {i32, i32}
     local %1 $sc.1: i32
     local %2 $sc.2: i32

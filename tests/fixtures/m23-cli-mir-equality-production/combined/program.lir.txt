@@ -89,13 +89,9 @@ Module
     local %58 $ub.2: struct5
     local %59 $call.1: struct1 <logical-zst 471b2f7efdab643802b6866656229c715f2c3a9d6c450b9fbf2c4dab4270678d>
     local %60 $new.2: ptr<managed>
-    local %61 $sc.1: enum1
-    local %62 $sc.2: enum1
-    local %63 $sc.3: enum1
-    local %64 $sc.4: enum1
-    local %65 $sc.5: struct5
-    local %66 $box.6: struct5
-    local %67 $box.7: struct5
+    local %61 $sc.1: struct5
+    local %62 $box.2: struct5
+    local %63 $box.3: struct5
   block entry
     poll managed-void-target8 sp<managed-poll:0> live=[]
     call no-gc-elided-zst-target0 t0 = sig=elided-zst0 () -> elided-zst<struct0 size=0 align=1> external-fn1()
@@ -130,9 +126,7 @@ Module
     store t9 -> local17
     store local16 -> local18
     store local17 -> local19
-    store local18 -> local61
-    store local19 -> local62
-    call managed-direct-target1 sp<managed-call:2> live=[] t10 = sig=direct1 (indirect<enum1 size=8 align=8 scan=none>, indirect<enum1 size=8 align=8 scan=none>) -> i1 external-fn3(indirect local61, indirect local62)
+    call managed-direct-target1 sp<managed-call:2> live=[] t10 = sig=direct1 (parts<enum1 [i64@0+8/8]>, parts<enum1 [i64@0+8/8]>) -> i1 external-fn3(local18, local19)
     store t10 -> local20
     store local20 -> local21
     call managed-void-target1 sp<managed-call:3> live=[] sig=void1 (i1) local-fn0(local21)
@@ -145,9 +139,7 @@ Module
     store t13 -> local25
     store local24 -> local26
     store local25 -> local27
-    store local26 -> local63
-    store local27 -> local64
-    call managed-direct-target2 sp<managed-call:4> live=[] t14 = sig=direct2 (indirect<enum1 size=8 align=8 scan=none>, indirect<enum1 size=8 align=8 scan=none>) -> i1 external-fn3(indirect local63, indirect local64)
+    call managed-direct-target2 sp<managed-call:4> live=[] t14 = sig=direct2 (parts<enum1 [i64@0+8/8]>, parts<enum1 [i64@0+8/8]>) -> i1 external-fn3(local26, local27)
     store t14 -> local28
     t15 = Not local28 : i1
     store t15 -> local29
@@ -194,10 +186,10 @@ Module
     store local51 -> local52
     call managed-void-target5 sp<managed-call:11> live=[] sig=void5 (i1) local-fn0(local52)
     t31 = aggregate () : {}
-    call managed-indirect-target0 sp<managed-call:12> live=[] local65 = sig=indirect0 (sret struct5 size=8 align=8 scan=refs[0]) external-fn10()
-    store local65 -> local53
-    store local53 -> local66
-    t32 = box_value external-td5, local66 scan=refs[0] sp<managed-call:13> live=[local53:struct5@0, local66:struct5@0]
+    call managed-indirect-target0 sp<managed-call:12> live=[] local61 = sig=indirect0 (sret struct5 size=8 align=8 scan=refs[0]) external-fn10()
+    store local61 -> local53
+    store local53 -> local62
+    t32 = box_value external-td5, local62 scan=refs[0] sp<managed-call:13> live=[local53:struct5@0, local62:struct5@0]
     store t32 -> local54
     store local54 -> local57
     call no-gc-direct-target0 t33 = sig=direct6 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local57, external-td5)
@@ -211,8 +203,8 @@ Module
     throw local60
     unreachable
   block if.merge.2
-    unbox_value external-td5, local57 -> local67
-    store local67 -> local58
+    unbox_value external-td5, local57 -> local63
+    store local63 -> local58
     t37 = extract local58, 0 : ptr<managed>
     t38 = extract local53, 0 : ptr<managed>
     t39 = Eq t37, t38 : i1

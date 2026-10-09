@@ -128,12 +128,8 @@ pub(crate) fn unit() -> ExactValueLayoutV1 {
 
 pub(crate) fn managed() -> ExactValueLayoutV1 {
     let bound = Bound::value(exact(&source("Object", SourceNominalKind::Class, 0)));
-    ExactValueLayoutV1::qualified_pointer(
-        bound.identity,
-        NichePointerKind::Managed,
-        &bound.foundation,
-    )
-    .unwrap()
+    ExactValueLayoutV1::qualified_pointer(bound.identity, NullNicheKind::Managed, &bound.foundation)
+        .unwrap()
 }
 
 pub(crate) fn field(

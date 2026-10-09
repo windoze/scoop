@@ -47,13 +47,13 @@ Module
   interface Iterable<Int>
   interface Iterator<Int>
   closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn7 captures=0
-    bridge function_type1 -> @fn86 id=76b03227a37d26921171b8fb12af5498b14fb32d4651f5e56a284e1544f55569
+    bridge function_type1 -> @fn102 id=76b03227a37d26921171b8fb12af5498b14fb32d4651f5e56a284e1544f55569
   closure cc1 $Closure$lambda1 type=function_type2 invoke=@fn9 captures=0
-    bridge function_type1 -> @fn87 id=9142e8d43a51d979bbfe92f52ecbaa7d4e8d355ea0535b28d77e41790c2c1db3
+    bridge function_type1 -> @fn103 id=9142e8d43a51d979bbfe92f52ecbaa7d4e8d355ea0535b28d77e41790c2c1db3
   closure cc2 $Closure$lambda2 type=function_type3 invoke=@fn11 captures=0
-    bridge function_type1 -> @fn88 id=5d51871fafd5c64242c7a1c2dbf53a8aca67a506857d756b4c8a7858b3dbd216
+    bridge function_type1 -> @fn104 id=5d51871fafd5c64242c7a1c2dbf53a8aca67a506857d756b4c8a7858b3dbd216
   closure cc3 $Closure$lambda3 type=function_type4 invoke=@fn13 captures=0
-    bridge function_type1 -> @fn89 id=08c0edae44486066a67f83c8d2b533347ab52d2236f085efc9c06beb46c2b393
+    bridge function_type1 -> @fn105 id=08c0edae44486066a67f83c8d2b533347ab52d2236f085efc9c06beb46c2b393
   generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
   generated_exact_type get1 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
   generated_exact_type get2 location=closure3 nominal_id=16cb6fc3df0c36279d8c0220835ed2de7487b30769b07bf59a5390d03ef1477e exact_id=3d55cecbd7484338cd2568b1d68f910f3f40a7964355d356fbcdf4999195b274
@@ -66,10 +66,26 @@ Module
   generated_exact_type get9 location=closure1 nominal_id=c4239f4c51fd4310c3a91c3597fed62f283a3aed7e44649b4ca28c87deef80d1 exact_id=d0f94f9f560b59ae6ad615c27cae482156cb8128cffed4f4e74d15b1c0e133ca
   generated_exact_type get10 location=class19 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
   generated_exact_type get11 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
-  generated_callable gc0 function=@fn89 id=08c0edae44486066a67f83c8d2b533347ab52d2236f085efc9c06beb46c2b393
-  generated_callable gc1 function=@fn88 id=5d51871fafd5c64242c7a1c2dbf53a8aca67a506857d756b4c8a7858b3dbd216
-  generated_callable gc2 function=@fn86 id=76b03227a37d26921171b8fb12af5498b14fb32d4651f5e56a284e1544f55569
-  generated_callable gc3 function=@fn87 id=9142e8d43a51d979bbfe92f52ecbaa7d4e8d355ea0535b28d77e41790c2c1db3
+  generated_callable gc0 function=@fn77 id=07ef5677052c65713f6e882075a3f9d70dd3d47c38525a3f3b283fe25a67ed1a
+  generated_callable gc1 function=@fn105 id=08c0edae44486066a67f83c8d2b533347ab52d2236f085efc9c06beb46c2b393
+  generated_callable gc2 function=@fn79 id=0b0f8af7983ec95f5d482e313d4be7ea822cdf78d123abbbc08b04dc76e2fff6
+  generated_callable gc3 function=@fn89 id=1d086d6fbdfaec165c353c3592d1088b383189e9926c24b055926a8ba2d2f780
+  generated_callable gc4 function=@fn84 id=255d2a40da2ee54a4b368513aa264a97ce47c7a221541f9a3e58b2b6433417f5
+  generated_callable gc5 function=@fn85 id=2b080f0c021d5057d67ab537dd30a00fc401fea6a34e5878a263e91a7cf34913
+  generated_callable gc6 function=@fn87 id=44fa281e214133acf6405ec538e2bf09d45e3d353f87c277593d912ba662ad6b
+  generated_callable gc7 function=@fn83 id=593973e0cb307d46ad159b96c9857d82f7bd4e853981fdde2f5013d5407c7f97
+  generated_callable gc8 function=@fn104 id=5d51871fafd5c64242c7a1c2dbf53a8aca67a506857d756b4c8a7858b3dbd216
+  generated_callable gc9 function=@fn86 id=73b69094506d1f0c55af0143d2c1c80f63b70a77b2702841d332ac0b283f1808
+  generated_callable gc10 function=@fn102 id=76b03227a37d26921171b8fb12af5498b14fb32d4651f5e56a284e1544f55569
+  generated_callable gc11 function=@fn103 id=9142e8d43a51d979bbfe92f52ecbaa7d4e8d355ea0535b28d77e41790c2c1db3
+  generated_callable gc12 function=@fn81 id=b966ae13f1fd383efd1c662141cfacb4ec4a99fc1875f1eb932c5ed0930a8c9e
+  generated_callable gc13 function=@fn90 id=bb9f51b85bb214c1b409285bb82321807300ebe68a494b4a4dc211a25944cee6
+  generated_callable gc14 function=@fn91 id=c706e55770068a2e023616ebad10cdf8013eb05aa8ad4f7cf7ec4d3ba722d320
+  generated_callable gc15 function=@fn80 id=c7fd450182d60a0b5db77c286b6b0e639eee74b64965d84f241994964f7365d3
+  generated_callable gc16 function=@fn78 id=d1a56c9190245f417beaa4934780474ee8c361c5ca1de866ad10f51974c032c2
+  generated_callable gc17 function=@fn82 id=d6d2e906b92fca6501549e38cbb4695e70df46cc850df25d8ef203520b5c98a9
+  generated_callable gc18 function=@fn92 id=e7e9d5f1add52008665a59a3117ea2b7fa1af5435da5f1b626712ee1eba3392a
+  generated_callable gc19 function=@fn88 id=f72245b0d4b2382c5995f3ab637fbb623eee2848bd5d7ebb6e1b68f9e67536f6
   fun result @fn0() -> Int
     bb0 entry
       val $dependency.argument.0: Int
@@ -81,7 +97,7 @@ Module
       assign $new.1
         Type Remote<Int>
         ClassAlloc Remote<Int>
-      call @fn77 direct
+      call @fn93 direct
         Type Remote<Int>
         Local $new.1
         Type Int
@@ -210,7 +226,7 @@ Module
       val $dependency.parameter.second: Unit
         Type Unit
         Local $dependency.argument.1
-      call $argument.0: Pair<Int, Unit> = @fn85 direct
+      call $argument.0: Pair<Int, Unit> = @fn101 direct
         Type Int
         Local $dependency.parameter.first
         Type Unit
@@ -1334,7 +1350,7 @@ Module
       assign $new.1
         Type ListIterator<String>
         ClassAlloc ListIterator<String>
-      call @fn78 direct
+      call @fn94 direct
         Type ListIterator<String>
         Local $new.1
         Type List<String>
@@ -1445,7 +1461,7 @@ Module
       assign $new.1
         Type ListIterator<String>
         ClassAlloc ListIterator<String>
-      call @fn78 direct
+      call @fn94 direct
         Type ListIterator<String>
         Local $new.1
         Type List<String>
@@ -1542,7 +1558,7 @@ Module
       assign $new.1
         Type Remote<String>
         ClassAlloc Remote<String>
-      call @fn79 direct
+      call @fn95 direct
         Type Remote<String>
         Local $new.1
         Type String
@@ -1600,7 +1616,7 @@ Module
       assign $new.1
         Type ListIterator<Unit>
         ClassAlloc ListIterator<Unit>
-      call @fn80 direct
+      call @fn96 direct
         Type ListIterator<Unit>
         Local $new.1
         Type List<Unit>
@@ -1711,7 +1727,7 @@ Module
       assign $new.1
         Type ListIterator<Unit>
         ClassAlloc ListIterator<Unit>
-      call @fn80 direct
+      call @fn96 direct
         Type ListIterator<Unit>
         Local $new.1
         Type List<Unit>
@@ -1808,7 +1824,7 @@ Module
       assign $new.1
         Type Remote<Unit>
         ClassAlloc Remote<Unit>
-      call @fn81 direct
+      call @fn97 direct
         Type Remote<Unit>
         Local $new.1
         Type Unit
@@ -1866,7 +1882,7 @@ Module
       assign $new.1
         Type ListIterator<Pair<Int, Unit>>
         ClassAlloc ListIterator<Pair<Int, Unit>>
-      call @fn82 direct
+      call @fn98 direct
         Type ListIterator<Pair<Int, Unit>>
         Local $new.1
         Type List<Pair<Int, Unit>>
@@ -1977,7 +1993,7 @@ Module
       assign $new.1
         Type ListIterator<Pair<Int, Unit>>
         ClassAlloc ListIterator<Pair<Int, Unit>>
-      call @fn82 direct
+      call @fn98 direct
         Type ListIterator<Pair<Int, Unit>>
         Local $new.1
         Type List<Pair<Int, Unit>>
@@ -2074,7 +2090,7 @@ Module
       assign $new.1
         Type Remote<Pair<Int, Unit>>
         ClassAlloc Remote<Pair<Int, Unit>>
-      call @fn83 direct
+      call @fn99 direct
         Type Remote<Pair<Int, Unit>>
         Local $new.1
         Type Pair<Int, Unit>
@@ -2132,7 +2148,7 @@ Module
       assign $new.1
         Type ListIterator<Int>
         ClassAlloc ListIterator<Int>
-      call @fn84 direct
+      call @fn100 direct
         Type ListIterator<Int>
         Local $new.1
         Type List<Int>
@@ -2243,7 +2259,7 @@ Module
       assign $new.1
         Type ListIterator<Int>
         ClassAlloc ListIterator<Int>
-      call @fn84 direct
+      call @fn100 direct
         Type ListIterator<Int>
         Local $new.1
         Type List<Int>
@@ -2340,7 +2356,7 @@ Module
       assign $new.1
         Type Remote<Int>
         ClassAlloc Remote<Int>
-      call @fn77 direct
+      call @fn93 direct
         Type Remote<Int>
         Local $new.1
         Type Int
@@ -2792,7 +2808,195 @@ Module
   fun List.get @fn76(this: List<Int>, index: Long) -> Int
     bb0 entry
       trap "call to abstract method `List.get`"
-  fun init.Remote.$c0 @fn77(this: Remote<Int>, second: Int) -> Unit
+  fun receiver<Remote> Swap.peer @fn77(this: Remote<Int>, other: View<Unit, Int>) -> View<Unit, Int>
+    bb0 entry
+      call $call.1: View<Unit, Int> = @fn1 direct
+        Type View<Unit, Int>
+        Retype View<Unit, Int>
+          Type Remote<Int>
+          Local this
+        Type View<Unit, Int>
+        Local other
+      return
+        Type View<Unit, Int>
+        Local $call.1
+  fun receiver<Remote> Swap.choose @fn78(this: Remote<Int>, next: Int) -> Int
+    bb0 entry
+      call $call.1: Int = @fn4 direct
+        Type Swap<Int, Unit>
+        Retype Swap<Int, Unit>
+          Type Remote<Int>
+          Local this
+        Type Int
+        Local next
+      return
+        Type Int
+        Local $call.1
+  fun receiver<Remote> Swap.same @fn79(this: Remote<Int>, other: Swap<Int, Unit>) -> Swap<Int, Unit>
+    bb0 entry
+      call $call.1: Swap<Int, Unit> = @fn5 direct
+        Type Swap<Int, Unit>
+        Retype Swap<Int, Unit>
+          Type Remote<Int>
+          Local this
+        Type Swap<Int, Unit>
+        Local other
+      return
+        Type Swap<Int, Unit>
+        Local $call.1
+  fun receiver<Remote> View.choose @fn80(this: Remote<Int>, next: Int) -> Int
+    bb0 entry
+      call $call.1: Int = @fn4 direct
+        Type Swap<Int, Unit>
+        Retype Swap<Int, Unit>
+          Type Remote<Int>
+          Local this
+        Type Int
+        Local next
+      return
+        Type Int
+        Local $call.1
+  fun receiver<Remote> Swap.peer @fn81(this: Remote<String>, other: View<Unit, String>) -> View<Unit, String>
+    bb0 entry
+      call $call.1: View<Unit, String> = @fn26 direct
+        Type View<Unit, String>
+        Retype View<Unit, String>
+          Type Remote<String>
+          Local this
+        Type View<Unit, String>
+        Local other
+      return
+        Type View<Unit, String>
+        Local $call.1
+  fun receiver<Remote> Swap.choose @fn82(this: Remote<String>, next: String) -> String
+    bb0 entry
+      call $call.1: String = @fn25 direct
+        Type Swap<String, Unit>
+        Retype Swap<String, Unit>
+          Type Remote<String>
+          Local this
+        Type String
+        Local next
+      return
+        Type String
+        Local $call.1
+  fun receiver<Remote> Swap.same @fn83(this: Remote<String>, other: Swap<String, Unit>) -> Swap<String, Unit>
+    bb0 entry
+      call $call.1: Swap<String, Unit> = @fn22 direct
+        Type Swap<String, Unit>
+        Retype Swap<String, Unit>
+          Type Remote<String>
+          Local this
+        Type Swap<String, Unit>
+        Local other
+      return
+        Type Swap<String, Unit>
+        Local $call.1
+  fun receiver<Remote> View.choose @fn84(this: Remote<String>, next: String) -> String
+    bb0 entry
+      call $call.1: String = @fn25 direct
+        Type Swap<String, Unit>
+        Retype Swap<String, Unit>
+          Type Remote<String>
+          Local this
+        Type String
+        Local next
+      return
+        Type String
+        Local $call.1
+  fun receiver<Remote> Swap.peer @fn85(this: Remote<Unit>, other: View<Unit, Unit>) -> View<Unit, Unit>
+    bb0 entry
+      call $call.1: View<Unit, Unit> = @fn38 direct
+        Type View<Unit, Unit>
+        Retype View<Unit, Unit>
+          Type Remote<Unit>
+          Local this
+        Type View<Unit, Unit>
+        Local other
+      return
+        Type View<Unit, Unit>
+        Local $call.1
+  fun receiver<Remote> Swap.choose @fn86(this: Remote<Unit>, next: Unit) -> Unit
+    bb0 entry
+      call @fn37 direct
+        Type Swap<Unit, Unit>
+        Retype Swap<Unit, Unit>
+          Type Remote<Unit>
+          Local this
+        Type Unit
+        Local next
+      return
+  fun receiver<Remote> Swap.same @fn87(this: Remote<Unit>, other: Swap<Unit, Unit>) -> Swap<Unit, Unit>
+    bb0 entry
+      call $call.1: Swap<Unit, Unit> = @fn34 direct
+        Type Swap<Unit, Unit>
+        Retype Swap<Unit, Unit>
+          Type Remote<Unit>
+          Local this
+        Type Swap<Unit, Unit>
+        Local other
+      return
+        Type Swap<Unit, Unit>
+        Local $call.1
+  fun receiver<Remote> View.choose @fn88(this: Remote<Unit>, next: Unit) -> Unit
+    bb0 entry
+      call @fn37 direct
+        Type Swap<Unit, Unit>
+        Retype Swap<Unit, Unit>
+          Type Remote<Unit>
+          Local this
+        Type Unit
+        Local next
+      return
+  fun receiver<Remote> Swap.peer @fn89(this: Remote<Pair<Int, Unit>>, other: View<Unit, Pair<Int, Unit>>) -> View<Unit, Pair<Int, Unit>>
+    bb0 entry
+      call $call.1: View<Unit, Pair<Int, Unit>> = @fn50 direct
+        Type View<Unit, Pair<Int, Unit>>
+        Retype View<Unit, Pair<Int, Unit>>
+          Type Remote<Pair<Int, Unit>>
+          Local this
+        Type View<Unit, Pair<Int, Unit>>
+        Local other
+      return
+        Type View<Unit, Pair<Int, Unit>>
+        Local $call.1
+  fun receiver<Remote> Swap.choose @fn90(this: Remote<Pair<Int, Unit>>, next: Pair<Int, Unit>) -> Pair<Int, Unit>
+    bb0 entry
+      call $call.1: Pair<Int, Unit> = @fn49 direct
+        Type Swap<Pair<Int, Unit>, Unit>
+        Retype Swap<Pair<Int, Unit>, Unit>
+          Type Remote<Pair<Int, Unit>>
+          Local this
+        Type Pair<Int, Unit>
+        Local next
+      return
+        Type Pair<Int, Unit>
+        Local $call.1
+  fun receiver<Remote> Swap.same @fn91(this: Remote<Pair<Int, Unit>>, other: Swap<Pair<Int, Unit>, Unit>) -> Swap<Pair<Int, Unit>, Unit>
+    bb0 entry
+      call $call.1: Swap<Pair<Int, Unit>, Unit> = @fn46 direct
+        Type Swap<Pair<Int, Unit>, Unit>
+        Retype Swap<Pair<Int, Unit>, Unit>
+          Type Remote<Pair<Int, Unit>>
+          Local this
+        Type Swap<Pair<Int, Unit>, Unit>
+        Local other
+      return
+        Type Swap<Pair<Int, Unit>, Unit>
+        Local $call.1
+  fun receiver<Remote> View.choose @fn92(this: Remote<Pair<Int, Unit>>, next: Pair<Int, Unit>) -> Pair<Int, Unit>
+    bb0 entry
+      call $call.1: Pair<Int, Unit> = @fn49 direct
+        Type Swap<Pair<Int, Unit>, Unit>
+        Retype Swap<Pair<Int, Unit>, Unit>
+          Type Remote<Pair<Int, Unit>>
+          Local this
+        Type Pair<Int, Unit>
+        Local next
+      return
+        Type Pair<Int, Unit>
+        Local $call.1
+  fun init.Remote.$c0 @fn93(this: Remote<Int>, second: Int) -> Unit
     bb0 entry
       field_set 0
         Type Remote<Int>
@@ -2800,7 +3004,7 @@ Module
         Type Int
         Local second
       return
-  fun init.ListIterator.$c2 @fn78(this: ListIterator<String>, source: List<String>, index: Long, exhausted: Boolean) -> Unit
+  fun init.ListIterator.$c2 @fn94(this: ListIterator<String>, source: List<String>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
         Type ListIterator<String>
@@ -2818,7 +3022,7 @@ Module
         Type Boolean
         Local exhausted
       return
-  fun init.Remote.$c0 @fn79(this: Remote<String>, second: String) -> Unit
+  fun init.Remote.$c0 @fn95(this: Remote<String>, second: String) -> Unit
     bb0 entry
       field_set 0
         Type Remote<String>
@@ -2826,7 +3030,7 @@ Module
         Type String
         Local second
       return
-  fun init.ListIterator.$c2 @fn80(this: ListIterator<Unit>, source: List<Unit>, index: Long, exhausted: Boolean) -> Unit
+  fun init.ListIterator.$c2 @fn96(this: ListIterator<Unit>, source: List<Unit>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
         Type ListIterator<Unit>
@@ -2844,7 +3048,7 @@ Module
         Type Boolean
         Local exhausted
       return
-  fun init.Remote.$c0 @fn81(this: Remote<Unit>, second: Unit) -> Unit
+  fun init.Remote.$c0 @fn97(this: Remote<Unit>, second: Unit) -> Unit
     bb0 entry
       field_set 0
         Type Remote<Unit>
@@ -2852,7 +3056,7 @@ Module
         Type Unit
         Local second
       return
-  fun init.ListIterator.$c2 @fn82(this: ListIterator<Pair<Int, Unit>>, source: List<Pair<Int, Unit>>, index: Long, exhausted: Boolean) -> Unit
+  fun init.ListIterator.$c2 @fn98(this: ListIterator<Pair<Int, Unit>>, source: List<Pair<Int, Unit>>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
         Type ListIterator<Pair<Int, Unit>>
@@ -2870,7 +3074,7 @@ Module
         Type Boolean
         Local exhausted
       return
-  fun init.Remote.$c0 @fn83(this: Remote<Pair<Int, Unit>>, second: Pair<Int, Unit>) -> Unit
+  fun init.Remote.$c0 @fn99(this: Remote<Pair<Int, Unit>>, second: Pair<Int, Unit>) -> Unit
     bb0 entry
       field_set 0
         Type Remote<Pair<Int, Unit>>
@@ -2878,7 +3082,7 @@ Module
         Type Pair<Int, Unit>
         Local second
       return
-  fun init.ListIterator.$c2 @fn84(this: ListIterator<Int>, source: List<Int>, index: Long, exhausted: Boolean) -> Unit
+  fun init.ListIterator.$c2 @fn100(this: ListIterator<Int>, source: List<Int>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
         Type ListIterator<Int>
@@ -2896,7 +3100,7 @@ Module
         Type Boolean
         Local exhausted
       return
-  fun ctor.Pair.$c1 @fn85(first: Int, second: Unit) -> Pair<Int, Unit> <no-gc>
+  fun ctor.Pair.$c1 @fn101(first: Int, second: Unit) -> Pair<Int, Unit> <no-gc>
     bb0 entry
       return
         Type Pair<Int, Unit>
@@ -2905,7 +3109,7 @@ Module
           Local first
           Type Unit
           Local second
-  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn86($source: (String) -> Int, arg0: Any) -> Any
+  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn102($source: (String) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type0> closure[function_type0]
         Type (String) -> Int
@@ -2919,7 +3123,7 @@ Module
         Box
           Type Int
           Local $call.1
-  fun function_bridge.$Closure$lambda1.(Any) -> Any @fn87($source: (Unit) -> Int, arg0: Any) -> Any
+  fun function_bridge.$Closure$lambda1.(Any) -> Any @fn103($source: (Unit) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type2> closure[function_type2]
         Type (Unit) -> Int
@@ -2933,7 +3137,7 @@ Module
         Box
           Type Int
           Local $call.1
-  fun function_bridge.$Closure$lambda2.(Any) -> Any @fn88($source: (Pair<Int, Unit>) -> Int, arg0: Any) -> Any
+  fun function_bridge.$Closure$lambda2.(Any) -> Any @fn104($source: (Pair<Int, Unit>) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type3> closure[function_type3]
         Type (Pair<Int, Unit>) -> Int
@@ -2947,7 +3151,7 @@ Module
         Box
           Type Int
           Local $call.1
-  fun function_bridge.$Closure$lambda3.(Any) -> Any @fn89($source: (Int) -> Int, arg0: Any) -> Any
+  fun function_bridge.$Closure$lambda3.(Any) -> Any @fn105($source: (Int) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type4> closure[function_type4]
         Type (Int) -> Int

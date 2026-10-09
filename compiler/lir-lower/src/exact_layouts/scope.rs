@@ -24,6 +24,7 @@ impl Projection<'_> {
             .filter_map(|record| match record.representation() {
                 mir::MirTypeRepresentationV1::BoxedValue { payload } => Some(payload.value),
                 mir::MirTypeRepresentationV1::InlineArray { element } => Some(*element),
+                mir::MirTypeRepresentationV1::MaybeUninit { value } => Some(*value),
                 _ => None,
             })
             .collect();

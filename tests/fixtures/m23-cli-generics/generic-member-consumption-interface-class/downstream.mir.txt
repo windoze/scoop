@@ -26,7 +26,9 @@ Module
   generated_exact_type get4 location=enum2 nominal_id=204b6a83d4df8cbf522a8adc5ab300182fca48a1b48eeff4081486ce886185f1 exact_id=88b79520351fcf32eb286bc9daf5b4ada457f572ebbe595387c93c4c3bfa8b11
   generated_exact_type get5 location=enum1 nominal_id=bb40a4196cc70118de2aae00dce73580c7fb19b607e68b056a4f7be15aa8351c exact_id=cfb573f4f001220f1dc5ed510706f395f04944bdeeb1307c29068efc501c94d9
   generated_exact_type get6 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
-  generated_callable gc0 function=@fn14 id=b3cfd97aebda83665a83656dd7394075bb160e0b71e70ab3c776969dd10c3270
+  generated_callable gc0 function=@fn16 id=b3cfd97aebda83665a83656dd7394075bb160e0b71e70ab3c776969dd10c3270
+  generated_callable gc1 function=@fn12 id=d4747a82e2195d424f92f9f328e76de22719dc64e488434ce706ff5176606cfc
+  generated_callable gc2 function=@fn11 id=f9b16614aea534083fe44f01a36b4f5e18964c4663106818266a85c3d33624a7
   fun check @fn0() -> Int
     bb0 entry
       call $argument.0: Int = external0 direct
@@ -36,7 +38,7 @@ Module
       assign $new.1
         Type Later
         ClassAlloc Later
-      call @fn11 direct
+      call @fn13 direct
         Type Later
         Local $new.1
         Type Int
@@ -59,7 +61,7 @@ Module
       assign $new.2
         Type Later
         ClassAlloc Later
-      call @fn11 direct
+      call @fn13 direct
         Type Later
         Local $new.2
         Type Int
@@ -76,7 +78,7 @@ Module
       assign $new.3
         Type Later
         ClassAlloc Later
-      call @fn11 direct
+      call @fn13 direct
         Type Later
         Local $new.3
         Type Int
@@ -100,7 +102,7 @@ Module
       assign $new.1
         Type InterfaceItem<Later>
         ClassAlloc InterfaceItem<Later>
-      call @fn12 direct
+      call @fn14 direct
         Type InterfaceItem<Later>
         Local $new.1
         Type Later
@@ -167,7 +169,27 @@ Module
   fun SuspendRegistration.register @fn10(this: SuspendRegistration<Later>, continuation: Continuation<Later>) -> Unit
     bb0 entry
       trap "call to abstract method `SuspendRegistration.register`"
-  fun init.Later.$c0 @fn11(this: Later, value: Int) -> Unit
+  fun receiver<AbstractReader> Reader.read @fn11(this: AbstractReader<Later>) -> Later
+    bb0 entry
+      call $call.1: Later = @fn3 direct
+        Type Reader<Later>
+        Retype Reader<Later>
+          Type AbstractReader<Later>
+          Local this
+      return
+        Type Later
+        Local $call.1
+  fun receiver<InterfaceItem> Reader.read @fn12(this: InterfaceItem<Later>) -> Later
+    bb0 entry
+      call $call.1: Later = @fn3 direct
+        Type Reader<Later>
+        Retype Reader<Later>
+          Type InterfaceItem<Later>
+          Local this
+      return
+        Type Later
+        Local $call.1
+  fun init.Later.$c0 @fn13(this: Later, value: Int) -> Unit
     bb0 entry
       field_set 0
         Type Later
@@ -175,9 +197,9 @@ Module
         Type Int
         Local value
       return
-  fun init.InterfaceItem.$c0 @fn12(this: InterfaceItem<Later>, value: Later) -> Unit
+  fun init.InterfaceItem.$c0 @fn14(this: InterfaceItem<Later>, value: Later) -> Unit
     bb0 entry
-      call @fn13 direct
+      call @fn15 direct
         Type AbstractReader<Later>
         Retype AbstractReader<Later>
           Type InterfaceItem<Later>
@@ -188,10 +210,10 @@ Module
         Type Later
         Local value
       return
-  fun init.AbstractReader.$c1 @fn13(this: AbstractReader<Later>) -> Unit
+  fun init.AbstractReader.$c1 @fn15(this: AbstractReader<Later>) -> Unit
     bb0 entry
       return
-  fun startCoroutine<Later> @fn14(task: SuspendTask<Later>, completion: Continuation<Later>) -> Unit
+  fun startCoroutine<Later> @fn16(task: SuspendTask<Later>, completion: Continuation<Later>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -274,7 +296,7 @@ Module
       goto bb6
   coroutine_step cs0 CoroutineStep<Later> result=Later
   coroutine_slot cl0 CoroutineSlot<Later> value=Later
-  coroutine_start ct0 result=Later function=fn14
+  coroutine_start ct0 result=Later function=fn16
   coroutine_fn cf0 @fn9 source_return=Later step=cs0 immediate
   instance mi0 function=@fn1 <- make
   instance mi1 function=@fn2 <- AbstractReader.get

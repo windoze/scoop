@@ -870,6 +870,7 @@ pub(crate) struct Lowerer {
     pub(crate) instantiations: Arena<hir::ResolvedGenericFunction>,
     /// Counter for hidden `$opt.N` / `$res.N` desugaring temporaries.
     pub(crate) hidden_count: u32,
+    pub(crate) place_index_inputs: Option<argument_materialization::PlaceIndexInputs>,
     /// Fatal semantic diagnostics. Candidate transactions use this vector's
     /// length as their error baseline; warnings must remain separate.
     pub(crate) diagnostics: Vec<Diagnostic>,

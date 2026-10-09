@@ -21,9 +21,9 @@ impl FunctionLowerer<'_> {
     pub(super) fn pointer_storage(
         &mut self,
         pointee: &mir::Type,
-    ) -> StorageResult<lir::AbiArgument> {
+    ) -> StorageResult<abi::ValueStorage> {
         let storage = self.value_type(pointee);
-        abi::classify_argument(self.context, storage, self.structs, self.enums)
+        abi::classify_storage(self.context, storage, self.structs, self.enums)
     }
 
     pub(in crate::function) fn logical_zst_value(
@@ -46,8 +46,8 @@ impl FunctionLowerer<'_> {
         subtract: bool,
     ) -> StorageResult<lir::Value> {
         match self.pointer_storage(pointee)? {
-            lir::AbiArgument::ElidedZst(_) => Ok(pointer),
-            lir::AbiArgument::Direct(pointee) | lir::AbiArgument::Indirect(pointee) => {
+            abi::ValueStorage::ZeroSized(_) => Ok(pointer),
+            abi::ValueStorage::NonZero(pointee) => {
                 let out = self.new_temp(lir::RAW_PTR);
                 self.push(lir::Instruction::PtrOffset {
                     out,

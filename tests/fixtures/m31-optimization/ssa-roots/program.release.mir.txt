@@ -1,0 +1,622 @@
+Module
+  struct Pair (first: Item, second: Item)
+  enum Option<String>
+    Some(_0: String)
+    None()
+  class Item vtable=0 itables=0
+  class MissingContextException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class ArithmeticException vtable=0 itables=0
+  class box<Long> vtable=0 itables=0
+  interface ToString
+  interface Hash
+  interface Equality<Long>
+  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn5 captures=1
+    bridge function_type1 -> @fn10 id=927ca56ec5e444e1fd1a8d211392008009d0164498cc6bc837588e641975795b
+  generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
+  generated_exact_type get1 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
+  generated_exact_type get2 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
+  generated_exact_type get3 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
+  generated_exact_type get4 location=closure0 nominal_id=39e3dd91c6fe9838de3ba5fc17f1e44693cba28f66034cdaaa0b98e6151b5637 exact_id=b8a63c1db1b5e4e4139f6c1ba8ee69937ee51b45005b57294c22da808d3884dc
+  generated_exact_type get5 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
+  generated_exact_type get6 location=class6 nominal_id=1019845dbac8b40486c7a8317715dddb4016698da08e810513dc12e31dd8b68f exact_id=f4ac53b66a5aaca260a9f537cf582a82b69042d884a570f92ccc8e738ababceb
+  generated_callable gc0 function=@fn10 id=927ca56ec5e444e1fd1a8d211392008009d0164498cc6bc837588e641975795b
+  fun contextValue @fn0() -> Long
+    bb0 entry
+      val $context_binding.1: internal<context-binding-ref>
+        Type internal<context-binding-ref>
+        ContextTryGet 3487d46d59bafa8adf9694e9b9bfb3c3e35a30e495b590a9c2b7c548fdee92c6
+      branch bb1 bb2
+        Type Boolean
+        ContextIsPresent
+          Type internal<context-binding-ref>
+          Local $context_binding.1
+    bb1 if.then.1
+      goto bb3
+    bb2 if.else.2
+      assign $new.1
+        Type MissingContextException
+        ClassAlloc MissingContextException
+      call external4 direct
+        Type MissingContextException
+        Local $new.1
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          StringConst @str0
+      throw
+        Type MissingContextException
+        Local $new.1
+    bb3 if.merge.3
+      val request: Item
+        Type Item
+        ContextUnwrapBinding
+          Type internal<context-binding-ref>
+          Local $context_binding.1
+      call @scoop_rt_gc_collect direct
+      return
+        Type Long
+        FieldAccess 0
+          Type Item
+          Local request
+  fun shared @fn1(item: Item) -> Long
+    bb0 entry
+      val $argument.0: Item
+        Type Item
+        Local item
+      val $argument.1: Item
+        Type Item
+        Local item
+      val $parameter.first: Item
+        Type Item
+        Local $argument.0
+      val $parameter.second: Item
+        Type Item
+        Local $argument.1
+      val $inline.3.first: Item
+        Type Item
+        Local $parameter.first
+      val $inline.3.second: Item
+        Type Item
+        Local $parameter.second
+      goto bb4
+    bb1 inline.cont.1
+      val $dependency.receiver: Long
+        Type Long
+        Local $inline.1.result
+      val $dependency.argument.0: Long
+        Type Long
+        FieldAccess 0
+          Type Item
+          FieldAccess 1
+            Type Pair
+            Local pair
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      return
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+    bb2 inline.1.entry
+      call @scoop_rt_gc_collect direct
+      assign $inline.1.result
+        Type Long
+        FieldAccess 0
+          Type Item
+          FieldAccess 1
+            Type Pair
+            ClosureCapture cc0 0
+              Type () -> Long
+              Local $inline.1.$closure
+      goto bb1
+    bb3 inline.cont.3
+      val pair: Pair
+        Type Pair
+        Local $inline.3.result
+      val captured: () -> Long
+        Type () -> Long
+        ClosureAlloc cc0 $Closure$lambda0
+          CaptureInit field=0
+            Type Pair
+            Local pair
+      call @scoop_rt_gc_collect direct
+      val $dependency.receiver: Long
+        Type Long
+        FieldAccess 0
+          Type Item
+          FieldAccess 0
+            Type Pair
+            Local pair
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.parameter.other: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      field_set 0
+        Type Item
+        FieldAccess 0
+          Type Pair
+          Local pair
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $inline.1.$closure: () -> Long
+        Type () -> Long
+        Local captured
+      goto bb2
+    bb4 inline.3.entry
+      assign $inline.3.result
+        Type Pair
+        StructInit Pair
+          Type Item
+          Local $inline.3.first
+          Type Item
+          Local $inline.3.second
+      goto bb3
+  fun unreachableCalls @fn2(seed: Long) -> Long
+    bb0 entry
+      val $dependency.receiver: Long
+        Type Long
+        Local seed
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=3 bits=0x0000000000000003
+      val $dependency.parameter.other: Long
+        Type Long
+        IntegerLiteral Long value=3 bits=0x0000000000000003
+      val first: Long
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          IntegerLiteral Long value=3 bits=0x0000000000000003
+      val $dependency.receiver: Long
+        Type Long
+        Local seed
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=3 bits=0x0000000000000003
+      val $dependency.parameter.other: Long
+        Type Long
+        IntegerLiteral Long value=3 bits=0x0000000000000003
+      val second: Long
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          IntegerLiteral Long value=3 bits=0x0000000000000003
+      val $dependency.receiver: Long
+        Type Long
+        Local first
+      val $dependency.argument.0: Long
+        Type Long
+        Local second
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+    bb1 if.then.1
+      return
+        Type Long
+        IntegerLiteral Long value=42 bits=0x000000000000002a
+    bb2 if.merge.2
+      goto bb10
+    bb3 try.unwind.3
+      landing_pad cleanup=false
+      goto bb4
+    bb4 try.dispatch.4
+      begin_catch
+      branch bb11 bb12
+        Type Boolean
+        IsInstance IllegalStateException
+          Type Any
+          CaughtException
+    bb5 try.handler_pad.5
+      landing_pad cleanup=true
+      goto bb6
+    bb6 try.handler_cleanup.6
+      end_catch
+      resume
+    bb7 try.exit_pad.7
+      landing_pad cleanup=true
+      goto bb8
+    bb8 try.exit_cleanup.8
+      end_catch
+      resume
+    bb9 try.end.9
+      unreachable
+    bb10 try.body.10 unwind bb3
+      call @scoop_rt_gc_collect direct
+      val $default.local.0: String
+        Type String
+        StringConst @str1
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.1
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $new.1
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw unwind bb3
+        Type IllegalStateException
+        Local $new.1
+    bb11 try.catch.11
+      call $catch.2: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val failure: IllegalStateException
+        Type IllegalStateException
+        Retype IllegalStateException
+          Type Any
+          Local $catch.2
+      goto bb13
+    bb12 try.next.12
+      rethrow unwind bb7
+    bb13 scope.13 unwind bb5
+      call @scoop_rt_gc_collect direct
+      val $return.3: Long
+        Type Long
+        IntegerLiteral Long value=-1 bits=0xffffffffffffffff
+      end_catch
+      goto bb14
+    bb14 scope.14
+      return
+        Type Long
+        IntegerLiteral Long value=-1 bits=0xffffffffffffffff
+  fun exceptional @fn3(item: Item) -> Long
+    bb0 entry
+      val $argument.0: Item
+        Type Item
+        Local item
+      val $argument.1: Item
+        Type Item
+        Local item
+      val $parameter.first: Item
+        Type Item
+        Local $argument.0
+      val $parameter.second: Item
+        Type Item
+        Local $argument.1
+      val $inline.15.first: Item
+        Type Item
+        Local $parameter.first
+      val $inline.15.second: Item
+        Type Item
+        Local $parameter.second
+      goto bb16
+    bb1 try.unwind.1
+      landing_pad cleanup=false
+      goto bb2
+    bb2 try.dispatch.2
+      begin_catch
+      branch bb9 bb10
+        Type Boolean
+        IsInstance ArithmeticException
+          Type Any
+          CaughtException
+    bb3 try.handler_pad.3
+      landing_pad cleanup=true
+      goto bb4
+    bb4 try.handler_cleanup.4
+      end_catch
+      call @scoop_rt_gc_collect direct
+      resume
+    bb5 try.exit_pad.5
+      landing_pad cleanup=true
+      goto bb6
+    bb6 try.exit_cleanup.6
+      end_catch
+      resume
+    bb7 try.end.7
+      return
+        Type Long
+        FieldAccess 0
+          Type Item
+          FieldAccess 1
+            Type Pair
+            Local pair
+    bb8 try.body.8 unwind bb1
+      call @scoop_rt_gc_collect direct
+      assign $new.1
+        Type ArithmeticException
+        ClassAlloc ArithmeticException
+      call external1 direct
+        Type ArithmeticException
+        Local $new.1
+      throw unwind bb1
+        Type ArithmeticException
+        Local $new.1
+    bb9 try.catch.9
+      call $catch.2: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val failure: ArithmeticException
+        Type ArithmeticException
+        Retype ArithmeticException
+          Type Any
+          Local $catch.2
+      goto bb11
+    bb10 try.next.10 unwind bb5
+      call @scoop_rt_gc_collect direct
+      rethrow unwind bb5
+    bb11 scope.11 unwind bb3
+      val $argument.0: Item
+        Type Item
+        FieldAccess 1
+          Type Pair
+          Local pair
+      val $parameter.value: Item
+        Type Item
+        Local $argument.0
+      val $inline.13.value: Item
+        Type Item
+        Local $parameter.value
+      goto bb14
+    bb12 scope.12
+      call @scoop_rt_gc_collect direct
+      goto bb7
+    bb13 inline.cont.13 unwind bb3
+      val $call.3: Item
+        Type Item
+        Local $inline.13.result
+      val $dependency.receiver: Long
+        Type Long
+        FieldAccess 0
+          Type Item
+          Local $call.3
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.parameter.other: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      field_set 0
+        Type Item
+        FieldAccess 0
+          Type Pair
+          Local pair
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          IntegerLiteral Long value=1 bits=0x0000000000000001
+      end_catch
+      goto bb12
+    bb14 inline.13.entry unwind bb3
+      call @scoop_rt_gc_collect direct
+      assign $inline.13.result
+        Type Item
+        Local $inline.13.value
+      goto bb13
+    bb15 inline.cont.15
+      val pair: Pair
+        Type Pair
+        Local $inline.15.result
+      goto bb8
+    bb16 inline.15.entry
+      assign $inline.15.result
+        Type Pair
+        StructInit Pair
+          Type Item
+          Local $inline.15.first
+          Type Item
+          Local $inline.15.second
+      goto bb15
+  fun main @fn4() -> Unit
+    bb0 entry
+      val $argument.0: Long
+        Type Long
+        IntegerLiteral Long value=20 bits=0x0000000000000014
+      val $parameter.value: Long
+        Type Long
+        IntegerLiteral Long value=20 bits=0x0000000000000014
+      assign $new.1
+        Type Item
+        ClassAlloc Item
+      val $inline.9.this: Item
+        Type Item
+        Local $new.1
+      val $inline.9.value: Long
+        Type Long
+        IntegerLiteral Long value=20 bits=0x0000000000000014
+      goto bb10
+    bb1 try.unwind.1
+      landing_pad cleanup=false
+      goto bb2
+    bb2 try.dispatch.2
+      begin_catch
+      goto bb8
+    bb3 try.exit_pad.3
+      landing_pad cleanup=true
+      goto bb4
+    bb4 try.exit_cleanup.4
+      end_catch
+      resume
+    bb5 try.end.5
+      val $argument.0: Item
+        Type Item
+        Local item
+      val $parameter.item: Item
+        Type Item
+        Local $argument.0
+      call $dependency.argument.0: Long = @fn3 direct
+        Type Item
+        Local $parameter.item
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      call @fn7 direct
+        Type Long
+        Local $dependency.parameter.value
+      return
+    bb6 try.body.6 unwind bb1
+      call $dependency.argument.0: Long = @fn0 direct
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      call @fn7 direct
+        Type Long
+        Local $dependency.parameter.value
+      goto bb7
+    bb7 scope.7
+      Type Unit
+      ContextRestore
+        Type internal<context-mark>
+        Local $context_mark.1
+      goto bb5
+    bb8 scope.8 unwind bb3
+      Type Unit
+      ContextRestore
+        Type internal<context-mark>
+        Local $context_mark.1
+      rethrow unwind bb3
+    bb9 inline.cont.9
+      val item: Item
+        Type Item
+        Local $new.1
+      val $argument.0: Item
+        Type Item
+        Local item
+      val $parameter.item: Item
+        Type Item
+        Local $argument.0
+      call $dependency.argument.0: Long = @fn1 direct
+        Type Item
+        Local $parameter.item
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      call @fn7 direct
+        Type Long
+        Local $dependency.parameter.value
+      val $argument.0: Long
+        Type Long
+        IntegerLiteral Long value=9223372036854775807 bits=0x7fffffffffffffff
+      val $parameter.seed: Long
+        Type Long
+        IntegerLiteral Long value=9223372036854775807 bits=0x7fffffffffffffff
+      call $dependency.argument.0: Long = @fn2 direct
+        Type Long
+        IntegerLiteral Long value=9223372036854775807 bits=0x7fffffffffffffff
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      call @fn7 direct
+        Type Long
+        Local $dependency.parameter.value
+      val $context_mark.1: internal<context-mark>
+        Type internal<context-mark>
+        ContextPush 3487d46d59bafa8adf9694e9b9bfb3c3e35a30e495b590a9c2b7c548fdee92c6
+          Type Item
+          Local item
+      goto bb6
+    bb10 inline.9.entry
+      field_set 0
+        Type Item
+        Local $inline.9.this
+        Type Long
+        IntegerLiteral Long value=20 bits=0x0000000000000014
+      goto bb9
+  fun $lambda.0 @fn5($closure: () -> Long) -> Long
+    bb0 entry
+      call @scoop_rt_gc_collect direct
+      return
+        Type Long
+        FieldAccess 0
+          Type Item
+          FieldAccess 1
+            Type Pair
+            ClosureCapture cc0 0
+              Type () -> Long
+              Local $closure
+  fun keep @fn6(value: Item) -> Item
+    bb0 entry
+      call @scoop_rt_gc_collect direct
+      return
+        Type Item
+        Local value
+  fun println @fn7(value: Long) -> Unit
+    bb0 entry
+      val $dependency.local.1: Long
+        Type Long
+        Local value
+      call $dependency.local.2: String = external2 direct
+        Type Long
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external3 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str2
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external3 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun init.Item.$c0 @fn8(this: Item, value: Long) -> Unit
+    bb0 entry
+      field_set 0
+        Type Item
+        Local this
+        Type Long
+        Local value
+      return
+  fun ctor.Pair.$c0 @fn9(first: Item, second: Item) -> Pair <no-gc>
+    bb0 entry
+      return
+        Type Pair
+        StructInit Pair
+          Type Item
+          Local first
+          Type Item
+          Local second
+  fun function_bridge.$Closure$lambda0.() -> Any @fn10($source: () -> Long) -> Any
+    bb0 entry
+      call $call.1: Long = <closure:function_type0> closure[function_type0]
+        Type () -> Long
+        Local $source
+      return
+        Type Any
+        Box
+          Type Long
+          Local $call.1
+  instance mi0 function=@fn6 <- keep
+  instance mi1 function=@fn7 <- println
+  str @str0 "missing context contextValue.request: Item"
+  str @str1 "illegal state"
+  str @str2 "\n"
+  output executable @fn4

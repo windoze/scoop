@@ -1,0 +1,54 @@
+@Extern(lib = "m34_reclamation", name = "m34_region_stress") fun stressMode(): Boolean
+@Extern(lib = "m34_reclamation", name = "m34_region_count") fun regionCount(): ULong
+@Extern(lib = "m34_reclamation", name = "m34_reclamation_unmapped") fun unmappedBytes(): ULong
+
+interface Value { fun get(): Long }
+class Node(val value: Long, var next: Node?) : Value {
+    public override fun get(): Long = value
+}
+fun check(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+@Unsafe fun grow(count: Long, stress: Boolean): MutableArray<Value> {
+    val all = MutableArray<Node>(count) { index -> Node(index, None) }
+    gcCollect()
+    if (!stress) { check(regionCount() >= 4uL) }
+    return MutableArray<Value>(64L) { index -> all[index * count / 64L] }
+}
+
+@Unsafe fun exercise(count: Long, stress: Boolean) {
+    val unmapped = unmappedBytes()
+    val values = grow(count, stress)
+    val first = values[0L] as Node
+    val last = values[63L] as Node
+    val firstPin = pin(first)
+    val lastPin = pin(last)
+    first.next = Some(last)
+    val copied = values.toArray()
+    val cell = AtomicRef<Value>(values[32L])
+    val closure: () -> Long = { cell.load().get() }
+    val pair = (copied[1L], copied[2L])
+    gcCollect()
+    if (!stress) {
+        check(regionCount() <= 4uL && unmappedBytes() > unmapped)
+    }
+    cell.store(Node(count + 5L, None))
+    first.next = Some(Node(count + 7L, Some(last)))
+    gcCollect()
+    check(closure() == count + 5L)
+    check(first.next!!.value == count + 7L && first.next!!.next!! === last)
+    check(copied[0L] === values[0L] && copied[63L] === values[63L])
+    val (left, right) = pair
+    check(left.get() + right.get() == 3L * count / 64L)
+    check(unpin(firstPin) === first && unpin(lastPin) === last)
+}
+
+@Unsafe fun main() {
+    val stress = stressMode()
+    val count = if (stress) { 64L } else { 1800000L }
+    exercise(count, stress)
+    gcCollect()
+    exercise(count, stress)
+    gcCollect()
+    if (!stress) { check(regionCount() <= 2uL) }
+    println("pinned reclamation")
+}

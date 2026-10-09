@@ -127,7 +127,7 @@ fn validate_enum_wrap(
         EnumRepr::Niche {
             kind,
             payload_variant,
-        } if variant.index() == *payload_variant => vec![LirType::Ptr(kind.pointer_kind())],
+        } if variant.index() == *payload_variant => vec![kind.storage_type()],
         EnumRepr::Niche { .. } => Vec::new(),
         EnumRepr::Tagged { variants, .. } => variants[variant.index() as usize]
             .fields

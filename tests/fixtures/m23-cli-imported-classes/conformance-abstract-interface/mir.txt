@@ -48,9 +48,11 @@ Module
   generated_exact_type get8 location=enum2 nominal_id=dc71fc46a870982b41486ebb7598576ce7f08b35a47e5a1dd3ff2767312437f1 exact_id=bbd41e9ae13c53b816df63623f3d3ee2e22ab1ea6e6037c7306c009f2d0a8397
   generated_exact_type get9 location=enum4 nominal_id=080fbfebbc72bef8f0c5ab387c43c435ca3a4ee1ef9482fc734090b8e193b95c exact_id=d0edf34414e584c32e878d4ad38d906ba3f4d4eea3b97f0d122b47cdbbfcb4be
   generated_exact_type get10 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
-  generated_callable gc0 function=@fn18 id=0a30fab24655fbaf052d744f4590efe8f06debcdb22dcbae8f61e37b9a1056d4
-  generated_callable gc1 function=@fn20 id=9cae106b9488af0bd2bb517882e497316d98d26e31c3ffcddbb84e8aaf720e98
-  generated_callable gc2 function=@fn19 id=a5c084604be596e6657cb02c2c6081c1905816f0b882c3011d08ba4bb56760f1
+  generated_callable gc0 function=@fn20 id=0a30fab24655fbaf052d744f4590efe8f06debcdb22dcbae8f61e37b9a1056d4
+  generated_callable gc1 function=@fn16 id=1eaab374d6991709e335c81008877ef7a83fb30994d76aa1c32478dd13a0bd3d
+  generated_callable gc2 function=@fn17 id=746d78e530553d91bf6802c003fab61de4f5f449acf8b081690088ed33b196ba
+  generated_callable gc3 function=@fn22 id=9cae106b9488af0bd2bb517882e497316d98d26e31c3ffcddbb84e8aaf720e98
+  generated_callable gc4 function=@fn21 id=a5c084604be596e6657cb02c2c6081c1905816f0b882c3011d08ba4bb56760f1
   fun LocalReader.choose @fn0(this: LocalReader) -> Long
     bb0 entry
       return
@@ -61,7 +63,7 @@ Module
       assign $new.1
         Type LocalReader
         ClassAlloc LocalReader
-      call @fn17 direct
+      call @fn19 direct
         Type LocalReader
         Local $new.1
       return
@@ -130,18 +132,38 @@ Module
   fun LocalChoice.choose @fn15(this: LocalChoice) -> Long
     bb0 entry
       trap "call to abstract method `LocalChoice.choose`"
-  fun init.LocalBase.$c0 @fn16(this: LocalBase) -> Unit
+  fun receiver<LocalBase> LocalChoice.choose @fn16(this: LocalBase) -> Long
+    bb0 entry
+      call $call.1: Long = @fn15 direct
+        Type LocalChoice
+        Retype LocalChoice
+          Type LocalBase
+          Local this
+      return
+        Type Long
+        Local $call.1
+  fun receiver<LocalBase> FirstChoice.choose @fn17(this: LocalBase) -> Long
+    bb0 entry
+      call $call.1: Long = @fn15 direct
+        Type LocalChoice
+        Retype LocalChoice
+          Type LocalBase
+          Local this
+      return
+        Type Long
+        Local $call.1
+  fun init.LocalBase.$c0 @fn18(this: LocalBase) -> Unit
     bb0 entry
       return
-  fun init.LocalReader.$c1 @fn17(this: LocalReader) -> Unit
+  fun init.LocalReader.$c1 @fn19(this: LocalReader) -> Unit
     bb0 entry
-      call @fn16 direct
+      call @fn18 direct
         Type LocalBase
         Retype LocalBase
           Type LocalReader
           Local this
       return
-  fun startCoroutine<LocalBase> @fn18(task: SuspendTask<LocalBase>, completion: Continuation<LocalBase>) -> Unit
+  fun startCoroutine<LocalBase> @fn20(task: SuspendTask<LocalBase>, completion: Continuation<LocalBase>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -222,7 +244,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<LocalReader> @fn19(task: SuspendTask<LocalReader>, completion: Continuation<LocalReader>) -> Unit
+  fun startCoroutine<LocalReader> @fn21(task: SuspendTask<LocalReader>, completion: Continuation<LocalReader>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -303,7 +325,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<LocalChoice> @fn20(task: SuspendTask<LocalChoice>, completion: Continuation<LocalChoice>) -> Unit
+  fun startCoroutine<LocalChoice> @fn22(task: SuspendTask<LocalChoice>, completion: Continuation<LocalChoice>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -390,9 +412,9 @@ Module
   coroutine_slot cl0 CoroutineSlot<LocalBase> value=LocalBase
   coroutine_slot cl1 CoroutineSlot<LocalReader> value=LocalReader
   coroutine_slot cl2 CoroutineSlot<LocalChoice> value=LocalChoice
-  coroutine_start ct0 result=LocalBase function=fn18
-  coroutine_start ct1 result=LocalReader function=fn19
-  coroutine_start ct2 result=LocalChoice function=fn20
+  coroutine_start ct0 result=LocalBase function=fn20
+  coroutine_start ct1 result=LocalReader function=fn21
+  coroutine_start ct2 result=LocalChoice function=fn22
   coroutine_fn cf0 @fn5 source_return=LocalChoice step=cs2 immediate
   coroutine_fn cf1 @fn9 source_return=LocalBase step=cs0 immediate
   coroutine_fn cf2 @fn13 source_return=LocalReader step=cs1 immediate

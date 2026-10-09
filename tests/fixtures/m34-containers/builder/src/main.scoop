@@ -1,0 +1,46 @@
+import scoop.json.Json
+
+fun check(value: Boolean, marker: Int) {
+    if (!value) { println(marker); throw IllegalStateException() }
+}
+
+class Reentrant(val builder: StringBuilder) : ToString {
+    var calls: Int = 0
+    public override fun toString(): String {
+        calls += 1
+        builder.add("inner")
+        gcCollect()
+        return "outer"
+    }
+}
+
+fun main() {
+    val builder = StringBuilder()
+    check(builder.build() == "", 1)
+    builder.add("雪🙂")
+    val first = builder.build()
+    val value = Reentrant(builder)
+    builder.add(value)
+    check(first == "雪🙂" && builder.build() == "雪🙂innerouter" && value.calls == 1, 2)
+    var index = 0
+    while (index < 257) { builder.add(index); index += 1 }
+    gcCollect()
+    val text = builder.build()
+    check(text.length == 673L, 3)
+    check(builder.build() == text && first == "雪🙂", 4)
+    val list = ArrayList<Int?>()
+    list.add(None)
+    list.add(Some(7))
+    val encoder = ArrayList<Int?>.encoder(Option<Int>.encoder(Int.Companion))
+    val decoder = ArrayList<Int?>.decoder(Option<Int>.decoder(Int.Companion))
+    val json = Json.encode(list, encoder)
+    check(json == "[{\"None\":{}},{\"Some\":[7]}]", 5)
+    val decoded = Json.decode(json, decoder)
+    decoded.removeAt(0L)
+    decoded.add(None)
+    gcCollect()
+    check(decoded[0L] == Some(7) && decoded[1L] == None, 6)
+    decoded.clear()
+    check(Json.encode(decoded, encoder) == "[]", 7)
+    println("compact builder")
+}

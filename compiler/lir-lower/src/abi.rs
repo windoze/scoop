@@ -3,38 +3,28 @@ use scoop_mir as mir;
 
 use crate::{LoweringContext, StorageResult, lir_type, safepoints};
 
-enum ClassifiedAbiValue {
+mod leaves;
+pub(crate) use leaves::{aggregate_layout, scalar_carrier};
+
+pub(crate) enum ValueStorage {
     ZeroSized(lir::AbiZst),
-    Direct(lir::AbiValue),
-    Indirect(lir::AbiValue),
+    NonZero(lir::AbiValue),
 }
 
-fn classify_value(
+pub(crate) fn classify_storage(
     context: &LoweringContext,
     ty: lir::LirType,
     structs: &lir::StructDefs,
     enums: &lir::EnumDefs,
-) -> StorageResult<ClassifiedAbiValue> {
+) -> StorageResult<ValueStorage> {
     let (size, alignment) = safepoints::lir_size_align(context, &ty, structs, enums)?;
     let scan = safepoints::root_scan(context, &ty, structs, enums, 0)?;
     if size == 0 {
         let layout = lir::AbiZeroSizedLayout::new(alignment)?;
-        let value = lir::AbiZst::new(ty, layout)?;
-        return Ok(ClassifiedAbiValue::ZeroSized(value));
+        return Ok(ValueStorage::ZeroSized(lir::AbiZst::new(ty, layout)?));
     }
-
     let layout = lir::AbiNonZeroLayout::new(size, alignment)?;
-    let value = lir::AbiValue::new(ty, layout, scan)?;
-    Ok(
-        match lir::classify_non_zero_scoop_abi_value(
-            context.target_profile(),
-            enums,
-            value.storage_type(),
-        )? {
-            lir::ScoopAbiPassing::Direct => ClassifiedAbiValue::Direct(value),
-            lir::ScoopAbiPassing::Indirect => ClassifiedAbiValue::Indirect(value),
-        },
-    )
+    Ok(ValueStorage::NonZero(lir::AbiValue::new(ty, layout, scan)?))
 }
 
 pub(crate) fn classify_argument(
@@ -43,10 +33,41 @@ pub(crate) fn classify_argument(
     structs: &lir::StructDefs,
     enums: &lir::EnumDefs,
 ) -> StorageResult<lir::AbiArgument> {
-    Ok(match classify_value(context, ty, structs, enums)? {
-        ClassifiedAbiValue::ZeroSized(value) => lir::AbiArgument::ElidedZst(value),
-        ClassifiedAbiValue::Direct(value) => lir::AbiArgument::Direct(value),
-        ClassifiedAbiValue::Indirect(value) => lir::AbiArgument::Indirect(value),
+    classify_value(context, ty, structs, enums, lir::AbiValuePosition::Argument)
+}
+
+fn classify_value(
+    context: &LoweringContext,
+    ty: lir::LirType,
+    structs: &lir::StructDefs,
+    enums: &lir::EnumDefs,
+    position: lir::AbiValuePosition,
+) -> StorageResult<lir::AbiArgument> {
+    Ok(match classify_storage(context, ty, structs, enums)? {
+        ValueStorage::ZeroSized(value) => lir::AbiArgument::ElidedZst(value),
+        ValueStorage::NonZero(value) => {
+            match lir::scoop_abi_value_shape(enums, value.storage_type())? {
+                lir::ScoopAbiValueShape::Scalar => lir::AbiArgument::Direct(value.into()),
+                lir::ScoopAbiValueShape::Interface => lir::AbiArgument::Direct(
+                    lir::AbiDirectValue::DirectParts(lir::AbiDirectParts::interface(value)?),
+                ),
+                lir::ScoopAbiValueShape::Aggregate => {
+                    if value.layout().size().get() <= 16
+                        && value.layout().alignment().get() <= 8
+                        && value.scan() == &lir::RefScan::None
+                        && let Some(coercion) =
+                            aggregate_layout(context, value.storage_type(), structs, enums)?
+                                .coercion(context.target_profile(), position)
+                    {
+                        lir::AbiArgument::Direct(lir::AbiDirectValue::DirectParts(
+                            lir::AbiDirectParts::new(value, coercion)?,
+                        ))
+                    } else {
+                        lir::AbiArgument::Indirect(value)
+                    }
+                }
+            }
+        }
     })
 }
 
@@ -59,11 +80,13 @@ pub(crate) fn classify_return(
     let Some(ty) = ty else {
         return Ok(lir::AbiReturn::UnitVoid);
     };
-    Ok(match classify_value(context, ty, structs, enums)? {
-        ClassifiedAbiValue::ZeroSized(value) => lir::AbiReturn::ElidedZst(value),
-        ClassifiedAbiValue::Direct(value) => lir::AbiReturn::Direct(value),
-        ClassifiedAbiValue::Indirect(value) => lir::AbiReturn::Indirect(value),
-    })
+    Ok(
+        match classify_value(context, ty, structs, enums, lir::AbiValuePosition::Result)? {
+            lir::AbiArgument::ElidedZst(value) => lir::AbiReturn::ElidedZst(value),
+            lir::AbiArgument::Direct(value) => lir::AbiReturn::Direct(value),
+            lir::AbiArgument::Indirect(value) => lir::AbiReturn::Indirect(value),
+        },
+    )
 }
 
 pub(crate) fn classify_signature(
@@ -73,12 +96,35 @@ pub(crate) fn classify_signature(
     structs: &lir::StructDefs,
     enums: &lir::EnumDefs,
 ) -> StorageResult<lir::ScoopAbiSignature> {
+    let mut arguments = parameter_types
+        .into_iter()
+        .map(|ty| classify_argument(context, ty, structs, enums))
+        .collect::<StorageResult<Vec<_>>>()?;
+    let result = classify_return(context, result_type, structs, enums)?;
+    if context.target_profile().id() != lir::TargetProfileId::DarwinAarch64 {
+        let mut registers = lir::AbiArgumentRegisters::sysv(result.is_indirect());
+        for argument in &mut arguments {
+            match argument {
+                lir::AbiArgument::Direct(lir::AbiDirectValue::Scalar(value)) => registers.scalar(
+                    leaves::scalar_carrier(value.storage_type(), enums)
+                        .expect("scalar ABI values have scalar carriers"),
+                ),
+                lir::AbiArgument::Direct(lir::AbiDirectValue::DirectParts(parts)) => {
+                    if parts.coercion() == lir::AbiCoercion::interface() {
+                        for part in parts.parts() {
+                            registers.scalar(part.carrier());
+                        }
+                    } else if !registers.aggregate(parts.coercion()) {
+                        *argument = lir::AbiArgument::Indirect(parts.value().clone());
+                    }
+                }
+                lir::AbiArgument::ElidedZst(_) | lir::AbiArgument::Indirect(_) => {}
+            }
+        }
+    }
     Ok(lir::ScoopAbiSignature::new(
-        parameter_types
-            .into_iter()
-            .map(|ty| classify_argument(context, ty, structs, enums))
-            .collect::<StorageResult<Vec<_>>>()?,
-        classify_return(context, result_type, structs, enums)?,
+        arguments,
+        result,
         lir::CallingConvention::Cdecl,
     ))
 }
@@ -98,22 +144,4 @@ pub(crate) fn classify_mir_signature<'a>(
         structs,
         enums,
     )
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn target_profile_keeps_shape_out_of_size_thresholds() {
-        let profile = lir::LirTargetProfile::DARWIN_AARCH64;
-        assert_eq!(
-            profile.classify_scoop_abi_value(lir::ScoopAbiValueShape::Scalar),
-            lir::ScoopAbiPassing::Direct
-        );
-        assert_eq!(
-            profile.classify_scoop_abi_value(lir::ScoopAbiValueShape::Aggregate),
-            lir::ScoopAbiPassing::Indirect
-        );
-    }
 }

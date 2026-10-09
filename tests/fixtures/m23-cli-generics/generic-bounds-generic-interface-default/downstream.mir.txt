@@ -414,42 +414,42 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun thunk<StoredHolder<Later>> DefaultHolder.stored() @fn17(this: DefaultHolder<Later>) -> Later
+  fun thunk<StoredHolder<Later>> DefaultHolder.stored() @fn17(this: box<StoredHolder<Later>>) -> Later
     bb0 entry
       call $call.1: Later = @fn2 direct
         Type StoredHolder<Later>
         Unbox
-          Type DefaultHolder<Later>
+          Type box<StoredHolder<Later>>
           Local this
       return
         Type Later
         Local $call.1
-  fun thunk<StoredHolder<Later>> DefaultHolder.get() @fn18(this: DefaultHolder<Later>) -> Later
+  fun thunk<StoredHolder<Later>> DefaultHolder.get() @fn18(this: box<StoredHolder<Later>>) -> Later
     bb0 entry
       call $call.1: Later = @fn3 direct
         Type DefaultHolder<Later>
         Retype DefaultHolder<Later>
-          Type DefaultHolder<Later>
+          Type box<StoredHolder<Later>>
           Local this
       return
         Type Later
         Local $call.1
-  fun thunk<StoredHolder<Later>> ChildHolder.get() @fn19(this: ChildHolder<Later>) -> Later
+  fun thunk<StoredHolder<Later>> ChildHolder.get() @fn19(this: box<StoredHolder<Later>>) -> Later
     bb0 entry
       call $call.1: Later = @fn3 direct
         Type DefaultHolder<Later>
         Retype DefaultHolder<Later>
-          Type ChildHolder<Later>
+          Type box<StoredHolder<Later>>
           Local this
       return
         Type Later
         Local $call.1
-  fun thunk<StoredHolder<Later>> Holder.get() @fn20(this: Holder<Later>) -> Later
+  fun thunk<StoredHolder<Later>> Holder.get() @fn20(this: box<StoredHolder<Later>>) -> Later
     bb0 entry
       call $call.1: Later = @fn3 direct
         Type DefaultHolder<Later>
         Retype DefaultHolder<Later>
-          Type Holder<Later>
+          Type box<StoredHolder<Later>>
           Local this
       return
         Type Later

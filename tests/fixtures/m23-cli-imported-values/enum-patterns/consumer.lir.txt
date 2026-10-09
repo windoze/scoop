@@ -133,7 +133,7 @@ Module
     unreachable
   block pattern.merge.6
     br @pattern.merge.3
-  fun @scoop$1$cb$d83f782811a1fee74719dd6b78d02b5ef123d40054514c207d1ffcc71b2fa270(indirect<enum2 size=8 align=8 scan=none>) -> i64 <no-gc>
+  fun @scoop$1$cb$d83f782811a1fee74719dd6b78d02b5ef123d40054514c207d1ffcc71b2fa270(parts<enum2 [i64@0+8/8]>) -> i64 <no-gc>
     local %0 $result.3: i64
     local %1 $when.1: enum2
     local %2 $pattern.subject.2: enum2
@@ -207,8 +207,6 @@ Module
     local %41 $sc.6: enum1
     local %42 $sc.7: enum0
     local %43 $sc.8: enum0
-    local %44 $sc.9: enum2
-    local %45 $sc.10: enum2
   block entry
     store integer<Long>(0x0000000000000011) -> local0
     store integer<Long>(0xffffffffffffffe3) -> local1
@@ -255,29 +253,28 @@ Module
     store local23 -> local24
     t6 = integer_Add<Long> local22, local24 : i64
     store t6 -> local27
-    call no-gc-indirect-target4 local44 = sig=indirect4 (sret enum2 size=8 align=8 scan=none) external-fn3()
-    store local44 -> local25
+    call no-gc-direct-target3 t7 = sig=direct3 () -> enum2 external-fn3()
+    store t7 -> local25
     store local25 -> local26
-    store local26 -> local45
-    call no-gc-direct-target3 t7 = sig=direct3 (indirect<enum2 size=8 align=8 scan=none>) -> i64 local-fn3(indirect local45)
-    store t7 -> local28
+    call no-gc-direct-target4 t8 = sig=direct4 (parts<enum2 [i64@0+8/8]>) -> i64 local-fn3(local26)
+    store t8 -> local28
     store local28 -> local29
-    t8 = integer_Add<Long> local27, local29 : i64
-    store t8 -> local30
+    t9 = integer_Add<Long> local27, local29 : i64
+    store t9 -> local30
     store integer<Long>(0x0000000000000001) -> local31
     store local31 -> local32
-    t9 = integer_Subtract<Long> local30, local32 : i64
-    ret t9
+    t10 = integer_Subtract<Long> local30, local32 : i64
+    ret t10
   block pattern.pass.4
-    t10 = variant_payload_project e0 v1 f0 local35 : i64
-    store t10 -> local15
-    t11 = variant_payload_project e0 v1 f2 local35 : i64
-    store t11 -> local16
+    t11 = variant_payload_project e0 v1 f0 local35 : i64
+    store t11 -> local15
+    t12 = variant_payload_project e0 v1 f2 local35 : i64
+    store t12 -> local16
     store local15 -> local17
     store local16 -> local18
     store local18 -> local19
-    t12 = integer_Add<Long> local17, local19 : i64
-    store t12 -> local20
+    t13 = integer_Add<Long> local17, local19 : i64
+    store t13 -> local20
     br @pattern.merge.6
   block pattern.else.5
     unreachable

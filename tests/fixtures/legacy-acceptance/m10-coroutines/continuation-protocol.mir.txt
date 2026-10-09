@@ -1228,8 +1228,10 @@ Module
       call @fn20 interface SuspendRegistration<Int>[0]
         Type SuspendRegistration<Int>
         Local $dependency.parameter.registration
-        Type CoroutineAdapter<WaitingTask.run>$1
-        Local $safe_adapter.1
+        Type Continuation<Int>
+        Retype Continuation<Int>
+          Type CoroutineAdapter<WaitingTask.run>$1
+          Local $safe_adapter.1
       goto bb14
     bb3 coroutine.registered_success.1
       atomic_store_release kind=coroutine-adapter-state field=1
@@ -2028,8 +2030,10 @@ Module
       call @fn20 interface SuspendRegistration<Int>[0]
         Type SuspendRegistration<Int>
         Local $dependency.parameter.registration
-        Type CoroutineAdapter<ResumeThenThrowTask.run>$1
-        Local $safe_adapter.1
+        Type Continuation<Int>
+        Retype Continuation<Int>
+          Type CoroutineAdapter<ResumeThenThrowTask.run>$1
+          Local $safe_adapter.1
       goto bb23
     bb12 coroutine.registered_success.1 unwind bb1
       atomic_store_release kind=coroutine-adapter-state field=1
@@ -2838,8 +2842,10 @@ Module
       call @fn20 interface SuspendRegistration<Int>[0]
         Type SuspendRegistration<Int>
         Local $dependency.parameter.registration
-        Type CoroutineAdapter<SaveThenThrowTask.run>$1
-        Local $safe_adapter.1
+        Type Continuation<Int>
+        Retype Continuation<Int>
+          Type CoroutineAdapter<SaveThenThrowTask.run>$1
+          Local $safe_adapter.1
       goto bb23
     bb12 coroutine.registered_success.1 unwind bb1
       atomic_store_release kind=coroutine-adapter-state field=1
@@ -3638,8 +3644,10 @@ Module
       call @fn20 interface SuspendRegistration<Int>[0]
         Type SuspendRegistration<Int>
         Local $dependency.parameter.registration
-        Type CoroutineAdapter<SynchronousFailureTask.run>$1
-        Local $safe_adapter.1
+        Type Continuation<Int>
+        Retype Continuation<Int>
+          Type CoroutineAdapter<SynchronousFailureTask.run>$1
+          Local $safe_adapter.1
       goto bb23
     bb12 coroutine.registered_success.1 unwind bb1
       atomic_store_release kind=coroutine-adapter-state field=1

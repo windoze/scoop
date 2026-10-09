@@ -62,12 +62,12 @@ Module
         VariantConstruct InterfaceTag<Int> v1
           Type Int
           Local $dependency.local.2
-  fun thunk<InterfaceTag<Int>> Chooser.choose(Int) @fn3(this: Chooser<Int>, value: Int) -> Int
+  fun thunk<InterfaceTag<Int>> Chooser.choose(Int) @fn3(this: box<InterfaceTag<Int>>, value: Int) -> Int
     bb0 entry
       call $call.1: Int = @fn1 direct
         Type Chooser<Int>
         Retype Chooser<Int>
-          Type Chooser<Int>
+          Type box<InterfaceTag<Int>>
           Local this
         Type Int
         Local value

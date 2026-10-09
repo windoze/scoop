@@ -198,6 +198,7 @@ impl WireEncode for IndexedDefaultExpressionKindV1<'_> {
             Self::ArrayClone(operand) => encode_one(encoder, 43, operand.as_ref()),
             Self::AtomicNew(operand) => encode_one(encoder, 71, operand.as_ref()),
             Self::Atomic(atomic) => encode_one(encoder, 72, atomic.as_ref()),
+            Self::MaybeUninit(operation) => encode_one(encoder, 73, operation.as_ref()),
             Self::Call {
                 callee,
                 arguments,

@@ -1,0 +1,454 @@
+Module
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum Option<Char>
+    Some(_0: Char)
+    None()
+  class Empty vtable=0 itables=0
+  class Owner vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class Generic<Int> vtable=0 itables=0
+  class ArithmeticException vtable=0 itables=0
+  interface ToString
+  interface Hash
+  interface Equality<Char>
+  interface Iterable<Char>
+  interface Iterator<Char>
+  interface Equality<String>
+  generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
+  generated_exact_type get1 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
+  generated_exact_type get2 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
+  generated_exact_type get3 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
+  generated_exact_type get4 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
+  fun check @fn0(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.receiver: Boolean
+        Type Boolean
+        Local value
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+    bb1 if.then.1
+      val $default.local.0: String
+        Type String
+        StringConst @str0
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.1
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external1 direct
+        Type IllegalStateException
+        Local $new.1
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.1
+    bb2 if.merge.2
+      return
+  fun empty @fn1() -> Empty
+    bb0 entry
+      assign $new.1
+        Type Empty
+        ClassAlloc Empty
+      call @fn6 direct
+        Type Empty
+        Local $new.1
+      publish_release_ready Empty
+        Type Empty
+        Local $new.1
+      return
+        Type Empty
+        Local $new.1
+  fun owner @fn2(code: Int) -> Owner
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        Local code
+      val $parameter.code: Int
+        Type Int
+        Local $argument.0
+      assign $new.1
+        Type Owner
+        ClassAlloc Owner
+      call @fn7 direct
+        Type Owner
+        Local $new.1
+        Type Int
+        Local $parameter.code
+      publish_release_ready Owner
+        Type Owner
+        Local $new.1
+      return
+        Type Owner
+        Local $new.1
+  fun generic @fn3(value: Int) -> Generic<Int>
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.1
+        Type Generic<Int>
+        ClassAlloc Generic<Int>
+      call @fn8 direct
+        Type Generic<Int>
+        Local $new.1
+        Type Int
+        Local $parameter.value
+      publish_release_ready Generic
+        Type Generic<Int>
+        Local $new.1
+      return
+        Type Generic<Int>
+        Local $new.1
+  fun main @fn4() -> Unit
+    bb0 entry
+      call first: Empty = @fn1 direct
+      assign $new.1
+        Type Empty
+        ClassAlloc Empty
+      call @fn6 direct
+        Type Empty
+        Local $new.1
+      publish_release_ready Empty
+        Type Empty
+        Local $new.1
+      val second: Empty
+        Type Empty
+        Local $new.1
+      val $argument.0: Boolean
+        Type Boolean
+        Binary RefNe
+          Type Empty
+          Local first
+          Type Empty
+          Local second
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $parameter.code: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      call a: Owner = @fn2 direct
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=73 bits=0x00000049
+      val $parameter.value: Int
+        Type Int
+        IntegerLiteral Int value=73 bits=0x00000049
+      call b: Generic<Int> = @fn3 direct
+        Type Int
+        IntegerLiteral Int value=73 bits=0x00000049
+      call @scoop_rt_gc_collect direct
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Owner
+          Local a
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          IntegerLiteral Int value=42 bits=0x0000002a
+    bb1 if.then.1
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Generic<Int>
+          Local b
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=73 bits=0x00000049
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=73 bits=0x00000049
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          IntegerLiteral Int value=73 bits=0x00000049
+      goto bb3
+    bb2 if.else.2
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 if.merge.3
+      val $argument.0: Boolean
+        Type Boolean
+        Local $shortCircuit.0
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      var caught: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb11
+    bb4 try.unwind.4
+      landing_pad cleanup=false
+      goto bb5
+    bb5 try.dispatch.5
+      begin_catch
+      branch bb13 bb14
+        Type Boolean
+        IsInstance ArithmeticException
+          Type Any
+          CaughtException
+    bb6 try.handler_pad.6
+      landing_pad cleanup=true
+      goto bb7
+    bb7 try.handler_cleanup.7
+      end_catch
+      call @scoop_rt_gc_collect direct
+      resume
+    bb8 try.exit_pad.8
+      landing_pad cleanup=true
+      goto bb9
+    bb9 try.exit_cleanup.9
+      end_catch
+      resume
+    bb10 try.end.10
+      branch bb17 bb18
+        Type Boolean
+        Local caught
+    bb11 try.body.11 unwind bb4
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=-1 bits=0xffffffff
+      val $parameter.code: Int
+        Type Int
+        IntegerLiteral Int value=-1 bits=0xffffffff
+      call $call.2: Owner = @fn2 direct
+        Type Int
+        IntegerLiteral Int value=-1 bits=0xffffffff
+      goto bb12
+    bb12 scope.12
+      call @scoop_rt_gc_collect direct
+      goto bb10
+    bb13 try.catch.13
+      call $catch.3: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val error: ArithmeticException
+        Type ArithmeticException
+        Retype ArithmeticException
+          Type Any
+          Local $catch.3
+      goto bb15
+    bb14 try.next.14 unwind bb8
+      call @scoop_rt_gc_collect direct
+      rethrow unwind bb8
+    bb15 scope.15 unwind bb6
+      assign caught
+        Type Boolean
+        BoolLiteral true
+      end_catch
+      goto bb16
+    bb16 scope.16
+      call @scoop_rt_gc_collect direct
+      goto bb10
+    bb17 if.then.17
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Owner
+          Local a
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $shortCircuit.1: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          IntegerLiteral Int value=42 bits=0x0000002a
+      goto bb19
+    bb18 if.else.18
+      val $shortCircuit.1: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb19
+    bb19 if.merge.19
+      branch bb20 bb21
+        Type Boolean
+        Local $shortCircuit.1
+    bb20 if.then.20
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Generic<Int>
+          Local b
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=73 bits=0x00000049
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=73 bits=0x00000049
+      val $shortCircuit.2: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          IntegerLiteral Int value=73 bits=0x00000049
+      goto bb22
+    bb21 if.else.21
+      val $shortCircuit.2: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb22
+    bb22 if.merge.22
+      val $argument.0: Boolean
+        Type Boolean
+        Local $shortCircuit.2
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str1
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type String
+        Local $dependency.parameter.value
+      return
+  fun println @fn5(value: String) -> Unit
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local value
+      call $dependency.local.2: String = external2 direct
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external3 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str2
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external3 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun init.Empty.$c0 @fn6(this: Empty) -> Unit
+    bb0 entry
+      return
+  fun init.Owner.$c1 @fn7(this: Owner, code: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Owner
+        Local this
+        Type Int
+        Local code
+      call @scoop_rt_gc_collect direct
+      val $dependency.receiver: Int
+        Type Int
+        Local code
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Int result=Long
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            IntegerLiteral Int value=0 bits=0x00000000
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb1 if.then.1
+      assign $new.1
+        Type ArithmeticException
+        ClassAlloc ArithmeticException
+      call external0 direct
+        Type ArithmeticException
+        Local $new.1
+      throw
+        Type ArithmeticException
+        Local $new.1
+    bb2 if.merge.2
+      return
+  fun init.Generic.$c2 @fn8(this: Generic<Int>, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Generic<Int>
+        Local this
+        Type Int
+        Local value
+      return
+  release_hook rh0 Empty <no-gc>
+    bb0 entry
+      return
+  release_hook rh1 Owner <no-gc>
+    bb0 entry
+      val copied: Int
+        Type Int
+        ReleaseFieldLoad Owner.field0
+      return
+  release_hook rh2 Generic <no-gc>
+    bb0 entry
+      val copied: Int
+        Type Int
+        ReleaseFieldLoad Generic.field0
+      return
+  instance mi0 function=@fn5 <- println
+  str @str0 "illegal state"
+  str @str1 "inlined release"
+  str @str2 "\n"
+  output executable @fn4

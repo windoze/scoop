@@ -20,7 +20,7 @@ Module
   class Base vtable=0 itables=0
   class Abstract<Int> vtable=1 itables=0
   class Abstract<String> vtable=1 itables=0
-  class Singleton vtable=0 itables=1
+  class Singleton vtable=0 itables=0
   class Defaults vtable=0 itables=0
   class Concrete<Int> vtable=1 itables=0
   class Concrete<String> vtable=1 itables=0

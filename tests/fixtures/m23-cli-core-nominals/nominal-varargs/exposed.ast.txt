@@ -1,18 +1,19 @@
 SourceFile
   RootPackage
   public class ArrayList<T>(initialCapacity: Long = <expr>), MutableList<T>
-    private var storage: MutableArray<T?> = <expr>
-      Call MutableArray<T?>
+    private var storage: MutableArray<MaybeUninit<T>> = <expr>
+      Call MutableArray<MaybeUninit<T>>
         Var initialCapacity
         Lambda 0 suspend=false
           param _: _
-          Var None
+          MethodCall uninit
+            TypeQualifier MaybeUninit<T>
     private var elementCount: Long = <expr>
       IntLiteral 0L
     public open override val size: Long <computed>
       get()
         Var elementCount
-    internal val backing: MutableArray<T?> <computed>
+    internal val backing: MutableArray<MaybeUninit<T>> <computed>
       get()
         Var storage
     private fun checkIndex
@@ -1015,6 +1016,14 @@ SourceFile
             Var index
 SourceFile
   RootPackage
+    @Intrinsic("core_maybe_uninit")
+  public struct MaybeUninit<T> <representation omitted>
+    public fun assumeInit
+    public companion object
+      public fun uninit
+      public fun initialized
+SourceFile
+  RootPackage
   public class Variadic<T>(vararg values: T)
     public fun observe
     private fun collect
@@ -1184,7 +1193,7 @@ SourceFile
     public fun add
     public fun build
     @Extern(name = "scoop_rt_string_join_parts", abi = "scoop")
-  internal fun coreStringJoinParts(storage: MutableArray<String?>, partCount: Long): String
+  internal fun coreStringJoinParts(storage: MutableArray<MaybeUninit<String>>, partCount: Long): String
 SourceFile
   RootPackage
   internal class StringIterator(val text: String), Iterator<Char>

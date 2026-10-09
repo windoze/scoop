@@ -132,7 +132,8 @@ fn relocation_preserves_preprocessed_bytes_and_object_content() {
             std::fs::read(object).unwrap(),
         ));
     }
-    assert_eq!(results[0], results[1]);
+    assert_eq!(results[0].0, results[1].0, "preprocessed inputs differ");
+    assert_eq!(results[0].1, results[1].1, "native objects differ");
 }
 
 #[test]

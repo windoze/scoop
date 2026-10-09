@@ -15,8 +15,7 @@ pub use commit::{
 };
 mod native_boundary;
 pub(crate) use native_boundary::{
-    AbiReplayDependency, NativeBoundaryFoundationView, collect_abi_types,
-    replay_canonical_scoop_abi, validate_native_boundary_parts,
+    AbiReplayDependency, NativeBoundaryFoundationView, validate_native_boundary_parts,
     validate_shared_native_boundary_parts,
 };
 pub use native_boundary::{NativeBoundaryCompileError, NativeBoundaryTargetError};

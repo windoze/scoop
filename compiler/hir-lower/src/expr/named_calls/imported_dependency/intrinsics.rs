@@ -11,6 +11,9 @@ impl Lowerer {
         sink: &[hir::Statement],
     ) -> Option<hir::Expr> {
         match operation {
+            ImportedIntrinsicCall::MaybeUninit(kind) => {
+                Some(self.normalize_maybe_uninit(kind, receiver, arguments, result_type, span))
+            }
             ImportedIntrinsicCall::Atomic(kind) => self.normalize_atomic_method(
                 kind,
                 receiver.expect("an atomic member has a receiver"),

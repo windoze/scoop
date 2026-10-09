@@ -190,11 +190,11 @@ static void wait_for_unit(ScoopThreadState *thread,
                           const ScoopInitializationUnitDescriptorV1 *unit) {
     thread->initialization_wait = unit;
     thread->parked_from = SCOOP_THREAD_MANAGED;
-    atomic_store_explicit(&thread->mode, SCOOP_THREAD_PARKED, memory_order_release);
+    atomic_store_explicit(&thread->poll.mode, SCOOP_THREAD_PARKED, memory_order_release);
     for (;;) {
         uint64_t epoch =
             atomic_load_explicit(&scoop_thread_gc_epoch, memory_order_acquire);
-        atomic_store_explicit(&thread->observed_gc_epoch, epoch, memory_order_release);
+        atomic_store_explicit(&thread->poll.observed_gc_epoch, epoch, memory_order_release);
         scoop_thread_world_broadcast();
         if (unit->cell->state != SCOOP_INIT_INITIALIZING &&
             atomic_load_explicit(&scoop_thread_world_phase, memory_order_acquire) ==
@@ -204,7 +204,7 @@ static void wait_for_unit(ScoopThreadState *thread,
         scoop_thread_world_wait();
     }
     thread->initialization_wait = NULL;
-    atomic_store_explicit(&thread->mode, SCOOP_THREAD_MANAGED, memory_order_release);
+    atomic_store_explicit(&thread->poll.mode, SCOOP_THREAD_MANAGED, memory_order_release);
 }
 
 static uint64_t init_enter(const ScoopInitializationUnitDescriptorV1 *unit) {

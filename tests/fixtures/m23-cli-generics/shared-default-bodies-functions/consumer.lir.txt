@@ -453,7 +453,7 @@ Module
   td td9 g(r=00000001;i=223ef67774bedf3d720a3b70ee21e79b1a04bcdc9b54f2f2fcc717c5838b0f08) @scoop$1$td$618580a48b78d68fda8266da632f7d49b0fb919935f54a246743a110830f0f3b type-id=9373469966639424202 shape=FixedObject minimum-size=24 align=8 parent=td2 vtable=[local-fn23] itables=[]
   td td10 g(r=00000001;i=f8d262d1e5f5cdd30147eff1f680c388ffd07555b812a07d3496ed86f6e7b313) @scoop$1$td$5163344ddcf04fb34d9de4649728f115af58e80a31cb60d7a810a4a93102c18f type-id=6543312034663416896 shape=FixedObject minimum-size=24 align=8 parent=td2 vtable=[local-fn24] itables=[]
   td td11 g(r=00000002;i=24d08473fbb9571896ab2473967f615f373d3ee1d060aab7da76b0ed562ae850) @scoop$1$td$87ed4e222e68ada1db33ba5284ff6ea5f1cf0a9511ed62173be5e152f109dfbf type-id=7022590274008992376 shape=FixedObject minimum-size=32 align=8 parent=td2 vtable=[local-fn25] itables=[]
-  layout Equality value size=8 align=8 refs=[0]
+  layout Equality value size=16 align=8 refs=[0]
   layout $Closure$lambda0 value size=8 align=8 refs=[0]
   layout $Closure$lambda0 size=32 align=8 refs=[]
   layout $Closure$lambda2 value size=8 align=8 refs=[0]

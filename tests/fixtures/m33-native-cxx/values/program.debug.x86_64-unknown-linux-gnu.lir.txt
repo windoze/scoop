@@ -24,7 +24,7 @@ Module
     call native-gc-leaf-direct-target0 t0 = sig=direct0 () -> i32 extern1()
     store t0 -> local0
     ret local0
-  fun @scoop$1$cb$1e20ac5e73c4edab4bdd77e685b84f66abe4b58b6836243505d993d3325777a6() -> sret<{i32, i32} size=8 align=4 scan=none>
+  fun @scoop$1$cb$1e20ac5e73c4edab4bdd77e685b84f66abe4b58b6836243505d993d3325777a6() -> parts<{i32, i32} [i64@0+8/4]>
     local %0 $call.1: {i32, i32}
     local %1 $sc.1: i32
   block entry

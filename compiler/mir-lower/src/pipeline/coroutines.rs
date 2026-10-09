@@ -41,13 +41,7 @@ impl Lowerer {
                 &mut self.enums,
                 &mut self.shell,
             );
-            self.coroutines.slot_for(
-                &self.source_exact_types,
-                &value,
-                &self.structs,
-                &mut self.enums,
-                &mut self.shell,
-            );
+            self.coroutine_slot_for(&value);
             let protocol = self.coroutine_protocol(module, &value);
             self.coroutines.start_helper(
                 &self.source_exact_types,

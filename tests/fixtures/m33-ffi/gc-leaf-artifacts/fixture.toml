@@ -59,8 +59,8 @@ stderr = ""
 json = "stderr"
 diagnostics = []
 checks = [
-  {file = "${work}/dump/${consumer.result.root.identity}/hir.txt", snapshot = "consumer.hir.txt"},
-  {file = "${work}/dump/${consumer.result.root.identity}/mir.txt", snapshot = "consumer.mir.txt"},
+  {file = "${work}/dump/${consumer.result.root.identity}/hir.txt", snapshot = "consumer.${profile}.hir.txt"},
+  {file = "${work}/dump/${consumer.result.root.identity}/mir.txt", snapshot = "consumer.${profile}.mir.txt"},
   {file = "${work}/dump/${consumer.result.root.identity}/lir.txt", snapshot = "consumer.${profile}.${target}.lir.txt"},
 ]
 

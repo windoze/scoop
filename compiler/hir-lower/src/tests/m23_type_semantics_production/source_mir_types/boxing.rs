@@ -56,7 +56,7 @@ fn actual_boxing_callables_cover_value_members_defaults_and_diamonds() {
             let actual = complete_type_exports(output, input, hir, graph);
             let index = MirTypeBridgeTypeIndexV1::try_new(&[&actual, &unit, &boolean]).unwrap();
             let source = sources(output, hir, input, graph, types, &index);
-            let bindings = CanonicalMirCallableBindingsV1::from_boxing_adjusts(
+            let bindings = CanonicalMirCallableBindingsV1::from_interface_adjusts(
                 input, types, graph, &index, &source,
             )
             .unwrap();
@@ -79,7 +79,7 @@ fn actual_boxing_callables_cover_value_members_defaults_and_diamonds() {
                 let actual = complete_type_exports(output, input, hir, graph);
                 let index = MirTypeBridgeTypeIndexV1::try_new(&[&actual, &unit, &boolean]).unwrap();
                 let source = sources(output, hir, input, graph, types, &index);
-                let bindings = CanonicalMirCallableBindingsV1::from_boxing_adjusts(
+                let bindings = CanonicalMirCallableBindingsV1::from_interface_adjusts(
                     input, types, graph, &index, &source,
                 )
                 .unwrap();
@@ -105,7 +105,7 @@ fn actual_boxing_callables_require_target_bindings_and_types() {
         |_, input, _, graph, types| {
             let empty = CanonicalMirCallableBindingsV1::try_new(Vec::new()).unwrap();
             assert!(
-                CanonicalMirCallableBindingsV1::from_boxing_adjusts(
+                CanonicalMirCallableBindingsV1::from_interface_adjusts(
                     input, types, graph, types, &empty
                 )
                 .unwrap()

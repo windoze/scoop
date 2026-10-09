@@ -5,7 +5,7 @@ use scoop_identity::{PersistentEnumVariantFieldId, PersistentEnumVariantId, Pers
 use super::*;
 use crate::{
     ArrayElementStorageV1, ClassStorageLayoutV1, EnumStorageGeometryV1, FieldStorageV1,
-    IntegerKind, NichePointerKind, NonZeroPow2, PlacedFieldStorageV1, StrongShapeDefinitionRefV1,
+    IntegerKind, NonZeroPow2, NullNicheKind, PlacedFieldStorageV1, StrongShapeDefinitionRefV1,
     TupleStorageLayoutV1, TypeInstanceShapeV1, ValueLayoutConstituentV1,
 };
 
@@ -167,7 +167,9 @@ pub struct ExactRepresentationLayoutV1(pub(super) ValueRepresentation);
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(super) enum ValueRepresentation {
     Scalar(ScalarRepresentationKindV1),
-    QualifiedPointer(NichePointerKind),
+    QualifiedPointer(NullNicheKind),
+    Interface,
+    MaybeUninit(ValueLayoutConstituentV1),
     Struct(StructRepresentationLayoutV1),
     Tuple(TupleStorageLayoutV1),
     TaggedEnum(TaggedEnumRepresentationLayoutV1),
@@ -178,7 +180,9 @@ pub(super) enum ValueRepresentation {
 #[derive(Clone, Copy, Debug)]
 pub enum ExactRepresentationKindV1<'a> {
     Scalar(ScalarRepresentationKindV1),
-    QualifiedPointer(NichePointerKind),
+    QualifiedPointer(NullNicheKind),
+    Interface,
+    MaybeUninit(&'a ValueLayoutConstituentV1),
     Struct(&'a StructRepresentationLayoutV1),
     Tuple(&'a TupleStorageLayoutV1),
     TaggedEnum(&'a TaggedEnumRepresentationLayoutV1),
@@ -192,6 +196,10 @@ impl ExactRepresentationLayoutV1 {
             ValueRepresentation::Scalar(kind) => ExactRepresentationKindV1::Scalar(*kind),
             ValueRepresentation::QualifiedPointer(kind) => {
                 ExactRepresentationKindV1::QualifiedPointer(*kind)
+            }
+            ValueRepresentation::Interface => ExactRepresentationKindV1::Interface,
+            ValueRepresentation::MaybeUninit(value) => {
+                ExactRepresentationKindV1::MaybeUninit(value)
             }
             ValueRepresentation::Struct(value) => ExactRepresentationKindV1::Struct(value),
             ValueRepresentation::Tuple(value) => ExactRepresentationKindV1::Tuple(value),
@@ -278,12 +286,12 @@ impl TaggedEnumRepresentationLayoutV1 {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct NicheEnumRepresentationLayoutV1 {
-    pub(super) pointer_kind: NichePointerKind,
+    pub(super) pointer_kind: NullNicheKind,
     pub(super) variants: Vec<EnumVariantLayoutV1>,
     pub(super) payload_variant: PersistentEnumVariantId,
 }
 impl NicheEnumRepresentationLayoutV1 {
-    pub const fn pointer_kind(&self) -> NichePointerKind {
+    pub const fn pointer_kind(&self) -> NullNicheKind {
         self.pointer_kind
     }
     pub fn variants(&self) -> &[EnumVariantLayoutV1] {

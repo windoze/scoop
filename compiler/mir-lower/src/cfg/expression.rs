@@ -5,6 +5,25 @@ impl<'a> CfgLowerer<'a> {
     /// calls in source evaluation order as explicit effect statements.
     pub(super) fn lower_expr(&mut self, expr: &smir::Expr, span: Span) -> Option<mir::Expr> {
         let kind = match &expr.kind {
+            smir::ExprKind::MaybeUninit { wrapper, operation } => {
+                let operation = match operation {
+                    mir::MaybeUninitOperation::Uninit => mir::MaybeUninitOperation::Uninit,
+                    mir::MaybeUninitOperation::Initialized(value) => {
+                        mir::MaybeUninitOperation::Initialized(Box::new(
+                            self.lower_expr(value, span)?,
+                        ))
+                    }
+                    mir::MaybeUninitOperation::AssumeInit(value) => {
+                        mir::MaybeUninitOperation::AssumeInit(Box::new(
+                            self.lower_expr(value, span)?,
+                        ))
+                    }
+                };
+                mir::ExprKind::MaybeUninit {
+                    wrapper: *wrapper,
+                    operation,
+                }
+            }
             smir::ExprKind::DataBorrow(operation) => {
                 mir::ExprKind::DataBorrow(mir::DataBorrowOperation {
                     kind: operation.kind,

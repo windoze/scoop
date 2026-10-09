@@ -95,15 +95,18 @@ Module
     t0 = heap_load param0 +16 : i32
     ret t0
   fun @scoop$1$cb$18f92fb583ed632bb5d6b7749e4b44a55b03065f980447efd841af33a5a4b996(ptr<managed>) -> i32
-    local %0 $argument.0: ptr<managed>
-    local %1 $parameter.source: ptr<managed>
+    local %0 $argument.0: interface{object,itab}
+    local %1 $parameter.source: interface{object,itab}
     local %2 $call.1: i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
-    store param0 -> local0
+    t0 = heap_load td8 +96 : ptr<metadata>
+    t1 = heap_load t0 +40 : ptr<metadata>
+    t2 = aggregate (param0, t1) : interface{object,itab}
+    store t2 -> local0
     store local0 -> local1
-    call managed-direct-target0 sp<managed-call:0> live=[local1:ptr<managed>@0] t0 = sig=direct0 (ptr<managed>) -> i32 local-fn10(local1)
-    store t0 -> local2
+    call managed-direct-target0 sp<managed-call:0> live=[local1:interface{object,itab}@0] t3 = sig=direct0 (parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>) -> i32 local-fn10(local1)
+    store t3 -> local2
     ret local2
   fun @scoop$1$cb$b5b947dada31dfb2adec74dbbfdc1b14a804792fdb524460c9a0a73631b1791e(ptr<managed>) -> i32
     local %0 $dependency.local.1: ptr<managed>
@@ -128,18 +131,18 @@ Module
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
     t0 = heap_load param0 +16 : i32
     ret t0
-  fun @scoop$1$cb$dc0662b3ace7482ca250e640019086c33749161c1bd50d1424ff66b784cbf8bf(ptr<managed>) -> i32
-    local %0 $receiver: ptr<managed>
+  fun @scoop$1$cb$dc0662b3ace7482ca250e640019086c33749161c1bd50d1424ff66b784cbf8bf(parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>) -> i32
+    local %0 $receiver: interface{object,itab}
     local %1 $call.1: i32
   block entry
-    poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
+    poll managed-void-target0 sp<managed-poll:0> live=[param0:interface{object,itab}@0]
     store param0 -> local0
-    t0 = heap_load local0 +0 : ptr<metadata>
-    call no-gc-direct-target0 t1 = sig=direct0 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t0, td2)
-    call managed-direct-target0 sp<managed-call:0> live=[local0:ptr<managed>@0] t2 = sig=direct1 (ptr<managed>) -> i32 dispatch[Interface:0] t1(local0)
+    t0 = extract local0, 1 : ptr<metadata>
+    t1 = extract local0, 0 : ptr<managed>
+    call managed-direct-target0 sp<managed-call:0> live=[t1:ptr<managed>@0] t2 = sig=direct0 (ptr<managed>) -> i32 dispatch[Interface:0] t0(t1)
     store t2 -> local1
     ret local1
-  fun @scoop$1$cb$7842e3aab2a326c8f11f5b3ae23f97350519299a64df6b44e8f8220b835949c8(ptr<managed>) -> i32
+  fun @scoop$1$cb$7842e3aab2a326c8f11f5b3ae23f97350519299a64df6b44e8f8220b835949c8(parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>) -> i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     br @unwrap.trap.1
@@ -186,14 +189,14 @@ Module
   td td10 a(n(c=dev.example%3Ageneric-member-interfaces%3A0.1.0;p=consumer.sharedbounds;o=-;k=C;x=Bridge);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$9cfaf5c5a96fed75f6e20ea4a86299081ab76f09b0bcfddb8e3471df471aa05d type-id=4472040548388492611 shape=FixedObject minimum-size=24 align=8 parent=none vtable=[] itables=[td5:[local-fn5], td4:[local-fn5], td7:[local-fn5], td6:[local-fn5]]
   td td11 f(o;[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]->n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)) @scoop$1$td$23935e22ada5206ddbde55e993e7c8ab4bb4428a0f9a361c61c6565ee1902d69 type-id=15845947979171618166 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] function=ordinary(external-td4)->external-td4
   td td12 g(r=00000001;i=723ff8c9260d894d523c06b723173370f0c9c33feb568fb7f386de1d3a13c6b2) @scoop$1$td$86d892e7b7135f6a5b2cd901fdcb1c1512b9afa26499be5b964eb2a7d1cd6ea5 type-id=12129567350428817306 shape=FixedObject minimum-size=24 align=8 parent=td11 vtable=[local-fn15] itables=[]
-  layout Both value size=8 align=8 refs=[0]
-  layout Left value size=8 align=8 refs=[0]
-  layout LocalReader value size=8 align=8 refs=[0]
-  layout Right value size=8 align=8 refs=[0]
-  layout BothReader value size=8 align=8 refs=[0]
-  layout LeftReader value size=8 align=8 refs=[0]
-  layout Reader value size=8 align=8 refs=[0]
-  layout RightReader value size=8 align=8 refs=[0]
+  layout Both value size=16 align=8 refs=[0]
+  layout Left value size=16 align=8 refs=[0]
+  layout LocalReader value size=16 align=8 refs=[0]
+  layout Right value size=16 align=8 refs=[0]
+  layout BothReader value size=16 align=8 refs=[0]
+  layout LeftReader value size=16 align=8 refs=[0]
+  layout Reader value size=16 align=8 refs=[0]
+  layout RightReader value size=16 align=8 refs=[0]
   layout LocalHolder value size=8 align=8 refs=[0]
   layout LocalHolder size=24 align=8 refs=[]
   layout Holder value size=8 align=8 refs=[0]

@@ -53,14 +53,15 @@ fn nominal_fields(encoder: &mut Encoder, fields: &[crate::PlacedFieldStorageV1])
     Ok(())
 }
 
-fn pointer(encoder: &mut Encoder, kind: crate::NichePointerKind) -> EncodeResult {
-    use crate::NichePointerKind::*;
+fn pointer(encoder: &mut Encoder, kind: crate::NullNicheKind) -> EncodeResult {
+    use crate::NullNicheKind::*;
     sum(
         encoder,
         match kind {
             Managed => 1,
             Raw => 2,
             Code => 3,
+            Interface => 4,
         },
         0,
     )

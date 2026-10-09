@@ -8,8 +8,8 @@ pub(super) fn expected_operation_owner(
 ) -> Option<DefinitionOwnerAtom> {
     let fundamental = surface.fundamental_types.entries();
     match kind {
-        IntrinsicFunctionKind::Atomic(_) => {
-            unreachable!("atomic members use their ordinary nominal owner")
+        IntrinsicFunctionKind::Atomic(_) | IntrinsicFunctionKind::MaybeUninit(_) => {
+            unreachable!("these intrinsics use their ordinary nominal owner")
         }
         IntrinsicFunctionKind::Float(kind) => {
             let index = match kind.owner() {

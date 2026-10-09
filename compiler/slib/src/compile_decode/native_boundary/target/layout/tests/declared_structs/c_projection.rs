@@ -23,9 +23,9 @@ fn explicit_uint64_field_projection_keeps_scoop_aggregate_and_c_scalar_distinct(
                 assert!(matches!(normalizer.c_storage(fixture.exact).unwrap(),
                     CanonicalCStorageType::Integer { exact_type, signedness: scoop_identity::Signedness::Unsigned, bit_width: scoop_identity::IntegerBitWidth::Bits64 }
                         if exact_type == fixture.exact));
-                assert!(matches!(normalizer.scoop_argument(fixture.exact).unwrap(), ScoopAbiArgument::Indirect(storage)
+                assert!(matches!(normalizer.scoop_storage(fixture.exact).unwrap(), storage
                     if storage.shape() == ScoopAbiValueShape::Aggregate && storage.byte_size() == 8));
-                assert!(matches!(normalizer.scoop_return(fixture.exact).unwrap(), ScoopAbiReturn::Indirect(storage)
+                assert!(matches!(normalizer.scoop_storage(fixture.exact).unwrap(), storage
                     if storage.shape() == ScoopAbiValueShape::Aggregate && storage.byte_size() == 8));
             });
         }

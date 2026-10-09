@@ -44,12 +44,26 @@ impl Lowerer {
         sink: &[hir::Statement],
     ) -> Option<hir::Expr> {
         let ty = resolved.return_ty;
+        let function = resolved.function();
+        self.check_call_effects(hir::Callable::Function(function), span);
+        if let hir::FunctionKind::Intrinsic(hir::IntrinsicFunction {
+            kind: hir::IntrinsicFunctionKind::MaybeUninit(kind),
+            ..
+        }) = self.functions[function].kind
+            && (kind == hir::MaybeUninitIntrinsic::AssumeInit || resolved.receiver.is_none())
+        {
+            return Some(self.normalize_maybe_uninit(
+                kind,
+                resolved.receiver,
+                resolved.args,
+                ty,
+                span,
+            ));
+        }
         let receiver = resolved
             .receiver
             .clone()
             .expect("an instance call returns its materialized receiver");
-        let function = resolved.function();
-        self.check_call_effects(hir::Callable::Function(function), span);
         if let hir::FunctionKind::Intrinsic(intrinsic) = self.functions[function].kind
             && let hir::IntrinsicFunctionKind::Atomic(kind) = intrinsic.kind
         {

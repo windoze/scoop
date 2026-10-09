@@ -18,11 +18,13 @@
 #define GC_REGULAR_MAX (GC_BLOCK_SIZE - GC_LINE_SIZE)
 #define GC_INITIAL_THRESHOLD ((size_t)16 << 20)
 #define GC_NURSERY_CAPACITY ((size_t)1 << 20)
-#define GC_ARENA_SIZE ((size_t)1 << 30)
-#define GC_BLOCK_COUNT (GC_ARENA_SIZE / GC_BLOCK_SIZE)
-#define GC_ARENA_HINT ((uintptr_t)0x100000000)
+#define GC_REGION_SIZE ((size_t)16 << 20)
+#define GC_REGION_BLOCKS (GC_REGION_SIZE / GC_BLOCK_SIZE)
+#define GC_CHUNK_SHIFT 16
+#define GC_CHUNK_SIZE ((size_t)1 << GC_CHUNK_SHIFT)
+#define GC_RADIX_BITS 12
+#define GC_RADIX_ENTRIES ((size_t)1 << GC_RADIX_BITS)
 #define GC_CARD_SHIFT 9
-#define GC_CARD_TABLE_SIZE ((size_t)4 << 20)
 #define GC_PIN_BIT UINT64_C(2)
 #define GC_RELEASE_READY_BIT UINT64_C(4)
 #define GC_POISON_BYTE ((unsigned char)0xA5)
@@ -34,7 +36,6 @@ typedef enum ScoopGcBlockState {
     SCOOP_BLOCK_EVACUATION_SOURCE,
     SCOOP_BLOCK_EVACUATION_TARGET,
     SCOOP_BLOCK_PINNED_PARTIAL,
-    SCOOP_BLOCK_LARGE_TAIL,
     SCOOP_BLOCK_QUARANTINED,
 } ScoopGcBlockState;
 
@@ -49,12 +50,15 @@ typedef enum ScoopGcGeneration {
     SCOOP_GC_OLD,
 } ScoopGcGeneration;
 
+typedef struct ScoopGcRegion ScoopGcRegion;
+
 typedef struct ScoopGcBlockMeta {
+    ScoopGcRegion *region;
+    struct ScoopGcBlockMeta *next_free;
+    uint16_t index;
     ScoopGcBlockState state;
     ScoopGcBlockKind kind;
     ScoopGcGeneration generation;
-    uint32_t span_blocks;
-    uint32_t owner_block;
     uint64_t *starts;
     uint64_t *marks;
     uint64_t *pins;
@@ -66,50 +70,63 @@ typedef struct ScoopGcBlockMeta {
     size_t exact_size;
     size_t live_bytes;
     size_t movable_live_bytes;
+    size_t mark_index;
     void *large_forwarding;
     bool large_published;
     bool large_marked;
     bool large_pinned;
     bool large_scanned;
+    bool discard_pending;
 } ScoopGcBlockMeta;
 
-typedef struct ScoopGcFreeSpan {
-    struct ScoopGcFreeSpan *next;
-    uint32_t first_block;
-    uint32_t block_count;
-} ScoopGcFreeSpan;
+struct ScoopGcRegion {
+    /* Immutable generated-code prefix, published through the page map. */
+    uintptr_t base;
+    size_t size;
+    unsigned char *cards;
+    ScoopGcRegion *next;
+    ScoopGcBlockMeta *blocks;
+    uint16_t next_block;
+    bool large;
+    /* Ordinary full-collection planning state, outside the generated-code prefix. */
+    bool evacuation_source;
+    bool evacuation_destination;
+    size_t collection_live_bytes;
+};
+
+_Static_assert(sizeof(uintptr_t) == 8 && GC_CHUNK_SHIFT + 4 * GC_RADIX_BITS == 64,
+               "page map must cover every target address bit");
+_Static_assert(offsetof(ScoopGcRegion, base) == 0 && offsetof(ScoopGcRegion, size) == 8 &&
+                   offsetof(ScoopGcRegion, cards) == 16,
+               "generated region metadata prefix drifted");
 
 typedef struct ScoopGcFreeRun {
     struct ScoopGcFreeRun *next;
-    uint32_t block_index;
+    ScoopGcBlockMeta *block;
     uint16_t first_line;
     uint16_t line_count;
 } ScoopGcFreeRun;
 
 typedef struct ScoopGcHeapState {
     pthread_mutex_t lock;
-    uintptr_t arena_base;
-    char *arena_end;
-    uint32_t arena_next_block;
-    ScoopGcBlockMeta *blocks;
-    ScoopGcFreeSpan *free_spans;
+    ScoopGcRegion *regions;
+    ScoopGcRegion *allocation_region;
+    ScoopGcBlockMeta *free_blocks;
     ScoopGcFreeRun *free_runs;
-    unsigned char *card_table_storage;
     size_t committed_bytes;
     size_t collection_threshold;
     uint64_t active_block_heads;
-    _Atomic(uint64_t) live_objects;
+    uint64_t collected_live_objects;
+    uint64_t allocation_objects_at_collection;
+    uint64_t nursery_objects_at_collection;
     _Atomic(uint64_t) last_moved_objects;
-    bool arena_ready;
+    bool ready;
     bool stress_move;
     bool stress_minor;
     bool full_only;
     bool print_metrics;
     bool collection_active;
     size_t nursery_bytes;
-    _Atomic(uint64_t) nursery_objects;
-    _Atomic(uint64_t) allocated_bytes;
-    _Atomic(uint64_t) nursery_allocated_bytes;
     ScoopGcMetrics metrics;
     uint64_t copied_bytes;
     uint64_t minor_pause_ns;
@@ -117,7 +134,7 @@ typedef struct ScoopGcHeapState {
     uint64_t pause_buckets[8];
     char *old_cursor;
     char *old_limit;
-    uint32_t evacuation_block;
+    ScoopGcBlockMeta *evacuation_block;
     char *evacuation_cursor;
     char *evacuation_limit;
     uint64_t moved_objects;
@@ -127,19 +144,11 @@ extern ScoopGcHeapState scoop_gc_heap_state;
 
 /* Short aliases are confined to the private heap implementation modules. */
 #define heap_lock (scoop_gc_heap_state.lock)
-#define arena_base (scoop_gc_heap_state.arena_base)
-#define arena_end (scoop_gc_heap_state.arena_end)
-#define arena_next_block (scoop_gc_heap_state.arena_next_block)
-#define blocks (scoop_gc_heap_state.blocks)
-#define free_spans (scoop_gc_heap_state.free_spans)
 #define free_runs (scoop_gc_heap_state.free_runs)
-#define card_table_storage (scoop_gc_heap_state.card_table_storage)
 #define committed_bytes (scoop_gc_heap_state.committed_bytes)
 #define collection_threshold (scoop_gc_heap_state.collection_threshold)
 #define active_block_heads (scoop_gc_heap_state.active_block_heads)
-#define live_objects (scoop_gc_heap_state.live_objects)
 #define last_moved_objects (scoop_gc_heap_state.last_moved_objects)
-#define arena_ready (scoop_gc_heap_state.arena_ready)
 #define stress_move (scoop_gc_heap_state.stress_move)
 #define collection_active (scoop_gc_heap_state.collection_active)
 #define evacuation_block (scoop_gc_heap_state.evacuation_block)
@@ -152,10 +161,9 @@ extern ScoopGcHeapState scoop_gc_heap_state;
 #define unlock_heap scoop_heap_unlock
 #define block_base scoop_heap_block_base
 #define active_head scoop_heap_active_head
-#define require_arena scoop_heap_require_arena
+#define require_heap scoop_heap_require_ready
 #define free_run_nodes scoop_heap_free_run_nodes
-#define free_span_insert scoop_heap_free_span_insert
-#define pointer_block_index scoop_heap_pointer_block_index
+#define pointer_block scoop_heap_pointer_block
 #define bit_test scoop_heap_bit_test
 #define bit_set scoop_heap_bit_set
 #define bit_clear scoop_heap_bit_clear
@@ -170,28 +178,43 @@ extern ScoopGcHeapState scoop_gc_heap_state;
 _Noreturn void scoop_heap_fatal(const char *message);
 void scoop_heap_lock(void);
 void scoop_heap_unlock(void);
-void *scoop_heap_block_base(uint32_t index);
+void *scoop_heap_block_base(const ScoopGcBlockMeta *block);
+size_t scoop_heap_block_bytes(const ScoopGcBlockMeta *block);
 bool scoop_heap_active_head(const ScoopGcBlockMeta *block);
-void scoop_heap_require_arena(void);
+void scoop_heap_require_ready(void);
 void scoop_heap_free_run_nodes(void);
-void scoop_heap_free_span_insert(uint32_t first_block,
-                                 uint32_t block_count);
-bool scoop_heap_pointer_block_index(const void *pointer, uint32_t *index);
+ScoopGcBlockMeta *scoop_heap_first_block(void);
+ScoopGcBlockMeta *scoop_heap_next_block(const ScoopGcBlockMeta *block);
+ScoopGcBlockMeta *scoop_heap_pointer_block(const void *pointer);
 bool scoop_heap_bit_test(const uint64_t *bits, size_t index);
 void scoop_heap_bit_set(uint64_t *bits, size_t index);
 void scoop_heap_bit_clear(uint64_t *bits, size_t index);
-uint32_t scoop_heap_activate_small_block(ScoopGcBlockState state);
-uint32_t scoop_heap_activate_large_block(size_t exact_size,
-                                         ScoopGcBlockState state);
-bool scoop_heap_object_meta(const void *object, uint32_t *block_index,
-                            size_t *word_index);
-void scoop_heap_record_small_object(uint32_t block_index, void *object,
-                                    size_t exact_size, bool marked);
-void scoop_heap_publish_large_object(uint32_t block_index, bool marked);
-void scoop_heap_release_block(uint32_t index);
+ScoopGcBlockMeta *scoop_heap_activate_small_block(ScoopGcBlockState state, bool allow_growth);
+ScoopGcBlockMeta *scoop_heap_activate_large_block(size_t exact_size, ScoopGcBlockState state);
+bool scoop_heap_object_meta(const void *object, ScoopGcBlockMeta **block, size_t *word_index);
+void scoop_heap_record_small_object(ScoopGcBlockMeta *block, void *object, size_t exact_size,
+                                    bool marked);
+void scoop_heap_publish_large_object(ScoopGcBlockMeta *block, bool marked);
+void scoop_heap_release_block(ScoopGcBlockMeta *block);
+void scoop_heap_quarantine_block(ScoopGcBlockMeta *block);
 void *scoop_heap_bump(char **cursor, char *limit, size_t size, size_t alignment);
-bool scoop_heap_take_free_run(size_t size, char **cursor, char **limit);
+ScoopGcBlockMeta *scoop_heap_take_free_run(size_t size, char **cursor, char **limit);
 bool scoop_heap_object_pinned(const ScoopGcBlockMeta *block, size_t word);
 bool scoop_heap_object_marked(const ScoopGcBlockMeta *block, size_t word);
+bool scoop_heap_block_has_pins(const ScoopGcBlockMeta *block);
+size_t scoop_heap_select_evacuation_sources(bool minor);
+void scoop_heap_prepare_evacuation_targets(void);
+void scoop_heap_finish_block(ScoopGcBlockMeta *block, bool stress);
+
+/* Mapping mutation requires the heap lock; removal additionally requires STW. */
+size_t scoop_heap_large_mapping_size(size_t exact_size);
+ScoopGcRegion *scoop_heap_region_create(size_t size, bool large);
+void scoop_heap_region_destroy(ScoopGcRegion *region);
+bool scoop_heap_region_empty(const ScoopGcRegion *region);
+void scoop_heap_reclaim_regions(bool full);
+ScoopGcRegion *scoop_heap_region_for_address(uintptr_t address);
+void scoop_heap_page_map_publish(ScoopGcRegion *region);
+void scoop_heap_page_map_remove(const ScoopGcRegion *region);
+void scoop_heap_page_map_prune(void);
 
 #endif /* SCOOP_GC_HEAP_INTERNAL_H */

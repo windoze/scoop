@@ -34,6 +34,12 @@ fn wire_preserves_all_four_dispatch_implementation_branches() {
             let mut entry = fixture.identity_input();
             entry.position = ExactDispatchPositionV1::from_u32(index as u32);
             entry.slot = named_dispatch_slot(&format!("branch{index}"));
+            if matches!(
+                implementation,
+                ExactDispatchImplementationV1::AdjustThunkTarget(_)
+            ) {
+                entry.slot_receiver_layout = Some(&fixture.owner);
+            }
             entry.implementation = implementation;
             entry
         })

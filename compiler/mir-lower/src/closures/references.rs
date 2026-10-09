@@ -9,6 +9,7 @@ impl Lowerer {
         for (id, reference) in module.callable_references.iter() {
             let function_type = self.lower_function_type_id(module, reference.function_type);
             let callable = reference.target.callee();
+            let maybe_intrinsic = maybe_uninit::reference_intrinsic(module, callable);
             let receiver = match &reference.target {
                 hir::CallableReferenceTarget::BoundMember { receiver, .. }
                 | hir::CallableReferenceTarget::BoundExtension { receiver, .. }
@@ -18,7 +19,9 @@ impl Lowerer {
                 hir::CallableReferenceTarget::Named(_)
                 | hir::CallableReferenceTarget::Local { .. } => None,
             };
-            let target = callable.map(|callee| self.lower_reference_callee(module, callee));
+            let target = callable
+                .filter(|_| maybe_intrinsic.is_none())
+                .map(|callee| self.lower_reference_callee(module, callee));
             let call_kind = match &reference.target {
                 hir::CallableReferenceTarget::BoundMember { receiver, .. } => self
                     .bound_reference_call_kind(
@@ -96,9 +99,10 @@ impl Lowerer {
             )
             .expect("LocalConcrete callable-reference fields have persistent identities");
             let capture_fields = order_closure_fields(&identity, semantic_fields);
-            let definition = match reference.target {
-                hir::CallableReferenceTarget::BoundIntrinsic { intrinsic, .. } => {
-                    ClosureDefinition::PrimitiveReference(intrinsic)
+            let definition = match (maybe_intrinsic, &reference.target) {
+                (Some(kind), _) => ClosureDefinition::MaybeUninitReference(kind),
+                (None, hir::CallableReferenceTarget::BoundIntrinsic { intrinsic, .. }) => {
+                    ClosureDefinition::PrimitiveReference(*intrinsic)
                 }
                 _ => ClosureDefinition::Reference {
                     callee: target.expect("an ordinary reference has a callable target"),
@@ -244,6 +248,11 @@ impl Lowerer {
                         })
                         .collect::<Vec<_>>();
                     (call, statements)
+                } else if let Some(kind) = maybe_intrinsic {
+                    (
+                        maybe_uninit::reference_value(kind, args, signature.return_type.clone()),
+                        Vec::new(),
+                    )
                 } else {
                     (
                         smir::Expr::new(

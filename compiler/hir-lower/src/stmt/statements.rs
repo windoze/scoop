@@ -42,6 +42,7 @@ impl Lowerer {
                         | hir::ExprKind::DirectSuperMethodCall { .. }
                         | hir::ExprKind::CallableCall { .. }
                         | hir::ExprKind::Atomic(_)
+                        | hir::ExprKind::MaybeUninit(_)
                         | hir::ExprKind::PtrStore { .. }
                         | hir::ExprKind::ForeignCallbackRegister { .. }
                         | hir::ExprKind::ForeignCallbackOperation { .. }

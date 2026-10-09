@@ -65,7 +65,7 @@ pub fn lower_type_bridge_exports(
     let direct_tables = with_local(input.ordinary, dependencies.direct_callables)?;
     let source_index = mir::MirTypeBridgeCallableIndexV1::try_new(&source_tables, &direct_tables)
         .map_err(Error::Lookup)?;
-    let boxing = mir::CanonicalMirCallableBindingsV1::from_boxing_adjusts(
+    let boxing = mir::CanonicalMirCallableBindingsV1::from_interface_adjusts(
         input.mir,
         &types,
         input.identities,

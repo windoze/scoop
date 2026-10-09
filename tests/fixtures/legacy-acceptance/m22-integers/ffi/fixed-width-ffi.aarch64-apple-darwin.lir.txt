@@ -33,7 +33,7 @@ Module
   extern ef5 roundU16 @round_u16(i16) -> i16 <c exact=(UInt16)->UInt16 direct-c=(i16 zeroext)->i16 zeroext gc-leaf nounwind lib=fixture_native>
   extern ef6 roundU32 @round_u32(i32) -> i32 <c exact=(UInt)->UInt direct-c=(i32)->i32 gc-leaf nounwind lib=fixture_native>
   extern ef7 roundU64 @round_u64(i64) -> i64 <c exact=(ULong)->ULong direct-c=(i64)->i64 gc-leaf nounwind lib=fixture_native>
-  extern ef8 transformWidths @transform_widths(struct0) -> struct0 <c exact=(c-struct0)->c-struct0 bridge=@scoop$1$br$389fe757ca62a7f2ec772687b37b352ab684d456169d4c9c5d07af3e37ce4908 gc-leaf nounwind lib=fixture_native>
+  extern ef8 transformWidths @transform_widths(struct0) -> struct0 <c exact=(c-struct0)->c-struct0 direct-c=(copy-ptr<struct0>)->sret<struct0> gc-leaf nounwind lib=fixture_native>
   extern ef9 verifyWrittenGlobals @verify_written_globals() -> i8 <c exact=()->UInt8 direct-c=()->i8 zeroext gc-leaf nounwind lib=fixture_native>
   extern ef10 verifyWrittenTls @verify_written_tls() -> i8 <c exact=()->UInt8 direct-c=()->i8 zeroext gc-leaf nounwind lib=fixture_native>
   extern ef11 applyU16 @apply_u16(i16, ptr<code>) -> i16 <c exact=(UInt16,code-ptr<(UInt16)->UInt16,direct>)->UInt16 direct-c=(i16 zeroext,ptr<code>)->i16 zeroext gc-leaf nounwind lib=fixture_native>
@@ -103,7 +103,7 @@ Module
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     store param0 -> local1
-    call native-safe-indirect-target0 sp<native-safe:0> roots=[] local2 = sig=indirect0 (c-storage-pointer struct0 size=32 align=8 scan=none, ptr<raw>) extern8(c-arg-address(local1))
+    call native-safe-indirect-target0 sp<native-safe:0> roots=[] local2 = sig=indirect0 (sret struct0 size=32 align=8 scan=none, indirect<struct0 size=32 align=8 scan=none>) extern8(indirect local1)
     store local2 -> local0
     ret local0
   fun @scoop$1$cb$31c1160feb6ea85f1c7faec6ab9bb5e31f944d375378f4264f92fc895462c8af() -> i8
@@ -578,7 +578,7 @@ Module
     store local145 -> local126
     store local126 -> local127
     store local127 -> local146
-    call native-safe-indirect-target0 sp<native-safe:60> roots=[] local147 = sig=indirect1 (c-storage-pointer struct0 size=32 align=8 scan=none, ptr<raw>) extern8(c-arg-address(local146))
+    call native-safe-indirect-target0 sp<native-safe:60> roots=[] local147 = sig=indirect1 (sret struct0 size=32 align=8 scan=none, indirect<struct0 size=32 align=8 scan=none>) extern8(indirect local146)
     store local147 -> local128
     t90 = extract local128, 0 : i8
     store t90 -> local129
@@ -827,12 +827,12 @@ Module
   layout-meta FixedWidths c-layout(aligned=0,packed=0) fields=[0@1,2@2,4@4,8@8,16@1,18@2,20@4,24@8] interior-mutable=false
   layout FixedWidths size=32 align=8 refs=[]
   layout-meta FixedWidths c-layout(aligned=0,packed=0) fields=[0@1,2@2,4@4,8@8,16@1,18@2,20@4,24@8] interior-mutable=false
-  layout Equality value size=8 align=8 refs=[0]
-  layout Equality value size=8 align=8 refs=[0]
-  layout Equality value size=8 align=8 refs=[0]
-  layout Equality value size=8 align=8 refs=[0]
-  layout Equality value size=8 align=8 refs=[0]
-  layout Equality value size=8 align=8 refs=[0]
-  layout Equality value size=8 align=8 refs=[0]
-  layout Equality value size=8 align=8 refs=[0]
+  layout Equality value size=16 align=8 refs=[0]
+  layout Equality value size=16 align=8 refs=[0]
+  layout Equality value size=16 align=8 refs=[0]
+  layout Equality value size=16 align=8 refs=[0]
+  layout Equality value size=16 align=8 refs=[0]
+  layout Equality value size=16 align=8 refs=[0]
+  layout Equality value size=16 align=8 refs=[0]
+  layout Equality value size=16 align=8 refs=[0]
   output executable @scoop$1$cb$a59ba8328a87a3c09df1111305261ccbca23796630e0ce6dea24e3ae106f48ca

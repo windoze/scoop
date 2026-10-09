@@ -27,7 +27,7 @@ checks = [
   {"file" = "${work}/dump/core/${core.result.root.identity}/ast.txt", "snapshot" = "core.ast.txt"},
   {"file" = "${work}/dump/core/${core.result.root.identity}/hir.txt", "snapshot" = "core.hir.txt"},
   {"file" = "${work}/dump/core/${core.result.root.identity}/mir.txt", "snapshot" = "core.mir.txt"},
-  {"file" = "${work}/dump/core/${core.result.root.identity}/lir.txt", "snapshot" = "core.lir.txt"},
+  {"file" = "${work}/dump/core/${core.result.root.identity}/lir.txt", "snapshot" = "core.${target}.lir.txt"},
 ]
 
 [[steps]]

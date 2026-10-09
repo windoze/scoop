@@ -246,32 +246,32 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun thunk<InterfaceCell<Later>> Reader.get() @fn12(this: Reader<Later>) -> Later
+  fun thunk<InterfaceCell<Later>> Reader.get() @fn12(this: box<InterfaceCell<Later>>) -> Later
     bb0 entry
       call $call.1: Later = @fn2 direct
         Type InterfaceCell<Later>
         Unbox
-          Type Reader<Later>
+          Type box<InterfaceCell<Later>>
           Local this
       return
         Type Later
         Local $call.1
-  fun thunk<InterfaceCell<Later>> Reader.read() @fn13(this: Reader<Later>) -> Later
+  fun thunk<InterfaceCell<Later>> Reader.read() @fn13(this: box<InterfaceCell<Later>>) -> Later
     bb0 entry
       call $call.1: Later = @fn3 direct
         Type Reader<Later>
         Retype Reader<Later>
-          Type Reader<Later>
+          Type box<InterfaceCell<Later>>
           Local this
       return
         Type Later
         Local $call.1
-  fun thunk<InterfaceCell<Later>> Readable.get() @fn14(this: Readable<Later>) -> Later
+  fun thunk<InterfaceCell<Later>> Readable.get() @fn14(this: box<InterfaceCell<Later>>) -> Later
     bb0 entry
       call $call.1: Later = @fn2 direct
         Type InterfaceCell<Later>
         Unbox
-          Type Readable<Later>
+          Type box<InterfaceCell<Later>>
           Local this
       return
         Type Later

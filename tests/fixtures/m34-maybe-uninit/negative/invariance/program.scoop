@@ -1,0 +1,5 @@
+open class Parent
+class Child : Parent()
+fun main() {
+    val value: MaybeUninit<Parent> = MaybeUninit<Child>.initialized(Child())
+}

@@ -104,15 +104,16 @@ fn default_target(replay: &Replay<'_>) {
                 .entries()
                 .iter()
                 .map(|entry| {
-                    if let Implementation::InterfaceDefaultTarget { target, receiver } =
-                        entry.implementation()
-                    {
+                    if let Implementation::AdjustThunkTarget(target) = entry.implementation() {
                         count += 1;
                         mir::MirDispatchEntryV1::new(
                             entry.slot(),
                             entry.position(),
                             entry.signature().clone(),
-                            Implementation::DirectStrongTarget { target, receiver },
+                            Implementation::DirectStrongTarget {
+                                target,
+                                receiver: Receiver::ReferenceDispatch,
+                            },
                         )
                     } else {
                         entry.clone()
@@ -123,22 +124,38 @@ fn default_target(replay: &Replay<'_>) {
         })
         .collect();
     assert!(count > 0);
-    let changed = mir::ParamFreeMirDispatchSchemaV1::try_new(
-        replay.authority(),
-        owner,
-        record.slots().clone(),
-        tables,
-    )
-    .unwrap();
-    component(
-        replay.reject(replay.replace(changed)),
-        Component::Implementation,
+    // A default method now needs an object-to-interface receiver adapter.
+    assert!(
+        mir::ParamFreeMirDispatchSchemaV1::try_new(
+            replay.authority(),
+            owner,
+            record.slots().clone(),
+            tables,
+        )
+        .is_err()
     );
 }
 
 fn boxing_target(replay: &Replay<'_>) {
     let owner = replay.owner("SharedDispatchValue");
-    let original = replay.section.callables().entries().iter().find(|binding| matches!(binding.origin(), mir::MirCallableOriginV1::Generated { role: GeneratedCallableKey::BoxingAdjust { payload, .. }, .. } if *payload == owner) && binding.semantic_signature().exact().receiver().into_option() == Some(owner) && binding.semantic_signature().exact().parameters().len() == 1).unwrap();
+    let original = replay
+        .section
+        .callables()
+        .entries()
+        .iter()
+        .find(|binding| {
+            matches!(binding.origin(), mir::MirCallableOriginV1::Generated {
+                role: GeneratedCallableKey::BoxingAdjust { payload, .. }, ..
+            } if *payload == owner)
+                && binding
+                    .semantic_signature()
+                    .exact()
+                    .receiver()
+                    .into_option()
+                    == Some(owner)
+                && binding.semantic_signature().exact().parameters().len() == 1
+        })
+        .unwrap();
     let spare = replay
         .ordinary
         .exports()

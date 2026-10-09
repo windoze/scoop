@@ -7,7 +7,7 @@ Module
   class IllegalStateException vtable=0 itables=0
   class Exception vtable=0 itables=0
   class Throwable vtable=0 itables=0
-  class Impl vtable=2 itables=1
+  class Impl vtable=2 itables=0
   class Base vtable=2 itables=0
   class Abstract vtable=1 itables=0
   class Registry vtable=0 itables=0

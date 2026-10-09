@@ -1,0 +1,793 @@
+Module
+  struct Mixed (number: Double, tag: Long)
+  struct Floats (first: Float, second: Float, third: Float)
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<Mixed>
+    Completed(value: Mixed)
+    Suspended()
+  enum CoroutineSlot<Mixed>
+    Empty()
+    Value(value: Mixed)
+  enum CoroutineStep<Transform>
+    Completed(value: Transform)
+    Suspended()
+  enum CoroutineSlot<Transform>
+    Empty()
+    Value(value: Transform)
+  enum CoroutineStep<Floats>
+    Completed(value: Floats)
+    Suspended()
+  enum CoroutineSlot<Floats>
+    Empty()
+    Value(value: Floats)
+  enum CoroutineStep<Worker>
+    Completed(value: Worker)
+    Suspended()
+  enum CoroutineSlot<Worker>
+    Empty()
+    Value(value: Worker)
+  class Worker vtable=0 itables=1
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class box<Mixed> vtable=0 itables=0
+  class box<Floats> vtable=0 itables=0
+  interface ToString
+  interface Equality<Double>
+  interface Equality<Float>
+  interface Transform
+  interface Continuation<Mixed>
+  interface SuspendTask<Mixed>
+  interface SuspendRegistration<Mixed>
+  interface Continuation<Floats>
+  interface SuspendTask<Floats>
+  interface SuspendRegistration<Floats>
+  interface Continuation<Transform>
+  interface SuspendTask<Transform>
+  interface SuspendRegistration<Transform>
+  interface Continuation<Worker>
+  interface SuspendTask<Worker>
+  interface SuspendRegistration<Worker>
+  generated_exact_type get0 location=enum5 nominal_id=512832405adea4c6414f117cf029e9517a924d02f3e446ae5130e5500cea65fd exact_id=024e2dc4be18b1946873c4794b197a60d9e57618c307566cdb9fd3bc45e12dee
+  generated_exact_type get1 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
+  generated_exact_type get2 location=enum3 nominal_id=704f55c5830cfcd999f9209409771237ae68c39ad23817eabd3164dffc4d7a2e exact_id=143a2cc2e1207dc2f92b39c6670cd9928ad837c8797dcda0fd521331a2c1d052
+  generated_exact_type get3 location=enum8 nominal_id=88c1f328d1d3b312c8afb34054ced88d9c366be70a67e8ed7a6a2dfd30b6cb34 exact_id=246aafcdd554859c5d99e6a35c46bedd8cc372f44cb463f7234de4639deb9f4a
+  generated_exact_type get4 location=enum7 nominal_id=5194253e6e257b48eca5405f224f8acb36496eb21343120e3d5bd14cee5e1c2e exact_id=26cd87aab290ad2269b05670d7c10bdc3fcacf9defd4b82896cce41cf882cd9c
+  generated_exact_type get5 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
+  generated_exact_type get6 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
+  generated_exact_type get7 location=enum1 nominal_id=bcbd2ca22272a833b1a51e370eeaa3190beb4e7a53e91d8a00f0f5cb9d8d961b exact_id=53e67680d21aa6af63ccc5ff1a0068de39cc6e7f8b4b0ffee7c78096a618d368
+  generated_exact_type get8 location=enum2 nominal_id=1ac46b1612e8741802a2d91266a1c7af7353f0df08317a3881966fed9dbbd534 exact_id=812d32c064007b96960a7e08a33064b0e7c3d73d553cbb6447f8c10e6c00060b
+  generated_exact_type get9 location=enum4 nominal_id=5582e19467121c6b934d11a5fb97d48332f1d392f4eba31d802078fc40eae3f0 exact_id=826589190864cc2cb2d514a05adf64240aa5383237a09c55a69198741cdf30f4
+  generated_exact_type get10 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
+  generated_exact_type get11 location=class4 nominal_id=313e92ead9865ae82d0a24917db346affb2816785bd78be7dcbff0d79e67510e exact_id=db1e0df87b9a0e2430aa29e6b6fb9b0fb3bc0d868ea27f94f80486a49c878cd9
+  generated_exact_type get12 location=enum6 nominal_id=7b0ef308583fc7496cca7f94c03a379631ace5d1b0034221530c331bc95e74f2 exact_id=dd1742dd9d3614dae9dcff5fdda21eec6cb0b3d5350996c5dc87b7596c9e0115
+  generated_exact_type get13 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
+  generated_exact_type get14 location=class5 nominal_id=04c28b449586859dbf00a776fed60f418271535322cdd863ca2c78f4a0f6dd59 exact_id=f2b85e41743dd69a2799bb050676763ff5361ca819e8e644f40308e25298a823
+  generated_callable gc0 function=@fn29 id=5bceda7c7319fa6cb185c191a3238b40337d1a7cfb4efa347557feba3e840b43
+  generated_callable gc1 function=@fn26 id=7c483860adfd76204aecb47198a6a65ad0eef77d765aa822355bf5ef7e41a1d0
+  generated_callable gc2 function=@fn28 id=8e224778589ee4e65b3fc40da92d38bef088cdfe06a45460fb594cdb075b6ee4
+  generated_callable gc3 function=@fn27 id=ab577d83404f8da8b24e6e619bc91da66b34b125869533987bf50b29937a8339
+  fun Mixed.equals @fn0(this: Mixed, other: Mixed) -> Boolean
+    bb0 entry
+      branch bb1 bb2
+        Type Boolean
+        FloatBinary F64 Equal
+          Type Double
+          FieldAccess 0
+            Type Mixed
+            Local this
+          Type Double
+          FieldAccess 0
+            Type Mixed
+            Local other
+    bb1 logic.rhs.1
+      assign $logic.1
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          FieldAccess 1
+            Type Mixed
+            Local this
+          Type Long
+          FieldAccess 1
+            Type Mixed
+            Local other
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.1
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 logic.merge.3
+      return
+        Type Boolean
+        Local $logic.1
+  fun Floats.equals @fn1(this: Floats, other: Floats) -> Boolean
+    bb0 entry
+      branch bb1 bb2
+        Type Boolean
+        FloatBinary F32 Equal
+          Type Float
+          FieldAccess 0
+            Type Floats
+            Local this
+          Type Float
+          FieldAccess 0
+            Type Floats
+            Local other
+    bb1 logic.rhs.1
+      assign $logic.1
+        Type Boolean
+        FloatBinary F32 Equal
+          Type Float
+          FieldAccess 1
+            Type Floats
+            Local this
+          Type Float
+          FieldAccess 1
+            Type Floats
+            Local other
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.1
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 logic.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $logic.1
+    bb4 logic.rhs.4
+      assign $logic.2
+        Type Boolean
+        FloatBinary F32 Equal
+          Type Float
+          FieldAccess 2
+            Type Floats
+            Local this
+          Type Float
+          FieldAccess 2
+            Type Floats
+            Local other
+      goto bb6
+    bb5 logic.short.5
+      assign $logic.2
+        Type Boolean
+        BoolLiteral false
+      goto bb6
+    bb6 logic.merge.6
+      return
+        Type Boolean
+        Local $logic.2
+  fun Worker.apply @fn2(this: Worker, value: Mixed) -> Mixed
+    bb0 entry
+      val $argument.0: Double
+        Type Double
+        FieldAccess 0
+          Type Mixed
+          Local value
+      val $dependency.receiver: Long
+        Type Long
+        FieldAccess 1
+          Type Mixed
+          Local value
+      val $dependency.argument.0: Long
+        Type Long
+        FieldAccess 0
+          Type Worker
+          Local this
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $argument.1: Long
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      val $parameter.number: Double
+        Type Double
+        Local $argument.0
+      val $parameter.tag: Long
+        Type Long
+        Local $argument.1
+      call $call.1: Mixed = @fn24 direct
+        Type Double
+        Local $parameter.number
+        Type Long
+        Local $parameter.tag
+      return
+        Type Mixed
+        Local $call.1
+  fun identity @fn3(value: Mixed) -> Mixed
+    bb0 entry
+      call @scoop_rt_gc_collect direct
+      return
+        Type Mixed
+        Local value
+  fun floats @fn4(value: Floats) -> Floats
+    bb0 entry
+      return
+        Type Floats
+        Local value
+  fun registers @fn5(a: Long, b: Long, c: Long, d: Long, e: Long, f: Long, value: Mixed, tail: Double) -> Mixed
+    bb0 entry
+      val $dependency.receiver: Long
+        Type Long
+        Local a
+      val $dependency.argument.0: Long
+        Type Long
+        Local b
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.receiver: Long
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      val $dependency.argument.0: Long
+        Type Long
+        Local c
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.receiver: Long
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      val $dependency.argument.0: Long
+        Type Long
+        Local d
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.receiver: Long
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      val $dependency.argument.0: Long
+        Type Long
+        Local e
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.receiver: Long
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      val $dependency.argument.0: Long
+        Type Long
+        Local f
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.receiver: Long
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=21 bits=0x0000000000000015
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Long result=Boolean
+            Type Long
+            Local $dependency.receiver
+            Type Long
+            Local $dependency.parameter.other
+    bb1 if.then.1
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb3
+    bb2 if.else.2
+      val $dependency.receiver: Double
+        Type Double
+        Local tail
+      val $dependency.argument.0: Double
+        Type Double
+        FloatLiteral f64(0x4004000000000000)
+      val $dependency.parameter.other: Double
+        Type Double
+        Local $dependency.argument.0
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          FloatBinary F64 Equal
+            Type Double
+            Local $dependency.receiver
+            Type Double
+            Local $dependency.parameter.other
+      goto bb3
+    bb3 if.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $shortCircuit.0
+    bb4 if.then.4
+      val $default.local.0: String
+        Type String
+        StringConst @str0
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.1
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $new.1
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.1
+    bb5 if.merge.5
+      return
+        Type Mixed
+        Local value
+  fun Continuation.resume @fn6(this: Continuation<Mixed>, value: Mixed) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn7(this: Continuation<Mixed>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn8(this: SuspendTask<Mixed>, $completion: Continuation<Mixed>) -> CoroutineStep<Mixed>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn9(this: SuspendRegistration<Mixed>, continuation: Continuation<Mixed>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn10(this: Continuation<Floats>, value: Floats) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn11(this: Continuation<Floats>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn12(this: SuspendTask<Floats>, $completion: Continuation<Floats>) -> CoroutineStep<Floats>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn13(this: SuspendRegistration<Floats>, continuation: Continuation<Floats>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn14(this: Continuation<Transform>, value: Transform) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn15(this: Continuation<Transform>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn16(this: SuspendTask<Transform>, $completion: Continuation<Transform>) -> CoroutineStep<Transform>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn17(this: SuspendRegistration<Transform>, continuation: Continuation<Transform>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn18(this: Continuation<Worker>, value: Worker) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn19(this: Continuation<Worker>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn20(this: SuspendTask<Worker>, $completion: Continuation<Worker>) -> CoroutineStep<Worker>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn21(this: SuspendRegistration<Worker>, continuation: Continuation<Worker>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Transform.apply @fn22(this: Transform, value: Mixed) -> Mixed
+    bb0 entry
+      trap "call to abstract method `Transform.apply`"
+  fun init.Worker.$c0 @fn23(this: Worker, delta: Long) -> Unit
+    bb0 entry
+      field_set 0
+        Type Worker
+        Local this
+        Type Long
+        Local delta
+      return
+  fun ctor.Mixed.$c0 @fn24(number: Double, tag: Long) -> Mixed <no-gc>
+    bb0 entry
+      return
+        Type Mixed
+        StructInit Mixed
+          Type Double
+          Local number
+          Type Long
+          Local tag
+  fun ctor.Floats.$c1 @fn25(first: Float, second: Float, third: Float) -> Floats <no-gc>
+    bb0 entry
+      return
+        Type Floats
+        StructInit Floats
+          Type Float
+          Local first
+          Type Float
+          Local second
+          Type Float
+          Local third
+  fun startCoroutine<Mixed> @fn26(task: SuspendTask<Mixed>, completion: Continuation<Mixed>) -> Unit
+    bb0 context.unwind
+      landing_pad cleanup=true
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb1 context.catch_unwind
+      landing_pad cleanup=true
+      end_catch
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb2 suspended
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb3 completed unwind bb0
+      call @fn6 interface Continuation<Mixed>[0]
+        Type Continuation<Mixed>
+        Local completion
+        Type Mixed
+        EnumField v0 f0
+          Type CoroutineStep<Mixed>
+          Local $step
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb4 failed unwind bb0
+      call @fn7 interface Continuation<Mixed>[1]
+        Type Continuation<Mixed>
+        Local completion
+        Type Throwable
+        Local $exception
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb5 body_failure unwind bb1
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb4
+    bb6 run unwind bb5
+      call $step: CoroutineStep<Mixed> = @fn8 interface SuspendTask<Mixed>[0]
+        Type SuspendTask<Mixed>
+        Local task
+        Type Continuation<Mixed>
+        Local completion
+      branch bb3 bb2
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Mixed>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+    bb7 entry
+      val $child_context: internal<task-context>
+        Type internal<task-context>
+        ContextFork
+          Type internal<context-node>
+          ContextSnapshot
+      val $context_guard: internal<context-switch-guard>
+        Type internal<context-switch-guard>
+        ContextEnter
+          Type internal<task-context>
+          Local $child_context
+      goto bb6
+  fun startCoroutine<Transform> @fn27(task: SuspendTask<Transform>, completion: Continuation<Transform>) -> Unit
+    bb0 context.unwind
+      landing_pad cleanup=true
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb1 context.catch_unwind
+      landing_pad cleanup=true
+      end_catch
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb2 suspended
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb3 completed unwind bb0
+      call @fn14 interface Continuation<Transform>[0]
+        Type Continuation<Transform>
+        Local completion
+        Type Transform
+        EnumField v0 f0
+          Type CoroutineStep<Transform>
+          Local $step
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb4 failed unwind bb0
+      call @fn15 interface Continuation<Transform>[1]
+        Type Continuation<Transform>
+        Local completion
+        Type Throwable
+        Local $exception
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb5 body_failure unwind bb1
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb4
+    bb6 run unwind bb5
+      call $step: CoroutineStep<Transform> = @fn16 interface SuspendTask<Transform>[0]
+        Type SuspendTask<Transform>
+        Local task
+        Type Continuation<Transform>
+        Local completion
+      branch bb3 bb2
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Transform>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+    bb7 entry
+      val $child_context: internal<task-context>
+        Type internal<task-context>
+        ContextFork
+          Type internal<context-node>
+          ContextSnapshot
+      val $context_guard: internal<context-switch-guard>
+        Type internal<context-switch-guard>
+        ContextEnter
+          Type internal<task-context>
+          Local $child_context
+      goto bb6
+  fun startCoroutine<Floats> @fn28(task: SuspendTask<Floats>, completion: Continuation<Floats>) -> Unit
+    bb0 context.unwind
+      landing_pad cleanup=true
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb1 context.catch_unwind
+      landing_pad cleanup=true
+      end_catch
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb2 suspended
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb3 completed unwind bb0
+      call @fn10 interface Continuation<Floats>[0]
+        Type Continuation<Floats>
+        Local completion
+        Type Floats
+        EnumField v0 f0
+          Type CoroutineStep<Floats>
+          Local $step
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb4 failed unwind bb0
+      call @fn11 interface Continuation<Floats>[1]
+        Type Continuation<Floats>
+        Local completion
+        Type Throwable
+        Local $exception
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb5 body_failure unwind bb1
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb4
+    bb6 run unwind bb5
+      call $step: CoroutineStep<Floats> = @fn12 interface SuspendTask<Floats>[0]
+        Type SuspendTask<Floats>
+        Local task
+        Type Continuation<Floats>
+        Local completion
+      branch bb3 bb2
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Floats>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+    bb7 entry
+      val $child_context: internal<task-context>
+        Type internal<task-context>
+        ContextFork
+          Type internal<context-node>
+          ContextSnapshot
+      val $context_guard: internal<context-switch-guard>
+        Type internal<context-switch-guard>
+        ContextEnter
+          Type internal<task-context>
+          Local $child_context
+      goto bb6
+  fun startCoroutine<Worker> @fn29(task: SuspendTask<Worker>, completion: Continuation<Worker>) -> Unit
+    bb0 context.unwind
+      landing_pad cleanup=true
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb1 context.catch_unwind
+      landing_pad cleanup=true
+      end_catch
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb2 suspended
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb3 completed unwind bb0
+      call @fn18 interface Continuation<Worker>[0]
+        Type Continuation<Worker>
+        Local completion
+        Type Worker
+        EnumField v0 f0
+          Type CoroutineStep<Worker>
+          Local $step
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb4 failed unwind bb0
+      call @fn19 interface Continuation<Worker>[1]
+        Type Continuation<Worker>
+        Local completion
+        Type Throwable
+        Local $exception
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb5 body_failure unwind bb1
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb4
+    bb6 run unwind bb5
+      call $step: CoroutineStep<Worker> = @fn20 interface SuspendTask<Worker>[0]
+        Type SuspendTask<Worker>
+        Local task
+        Type Continuation<Worker>
+        Local completion
+      branch bb3 bb2
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Worker>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+    bb7 entry
+      val $child_context: internal<task-context>
+        Type internal<task-context>
+        ContextFork
+          Type internal<context-node>
+          ContextSnapshot
+      val $context_guard: internal<context-switch-guard>
+        Type internal<context-switch-guard>
+        ContextEnter
+          Type internal<task-context>
+          Local $child_context
+      goto bb6
+  coroutine_step cs0 CoroutineStep<Mixed> result=Mixed
+  coroutine_step cs1 CoroutineStep<Transform> result=Transform
+  coroutine_step cs2 CoroutineStep<Floats> result=Floats
+  coroutine_step cs3 CoroutineStep<Worker> result=Worker
+  coroutine_slot cl0 CoroutineSlot<Mixed> value=Mixed
+  coroutine_slot cl1 CoroutineSlot<Transform> value=Transform
+  coroutine_slot cl2 CoroutineSlot<Floats> value=Floats
+  coroutine_slot cl3 CoroutineSlot<Worker> value=Worker
+  coroutine_start ct0 result=Mixed function=fn26
+  coroutine_start ct1 result=Transform function=fn27
+  coroutine_start ct2 result=Floats function=fn28
+  coroutine_start ct3 result=Worker function=fn29
+  coroutine_fn cf0 @fn8 source_return=Mixed step=cs0 immediate
+  coroutine_fn cf1 @fn12 source_return=Floats step=cs2 immediate
+  coroutine_fn cf2 @fn16 source_return=Transform step=cs1 immediate
+  coroutine_fn cf3 @fn20 source_return=Worker step=cs3 immediate
+  instance mi0 function=@fn6 <- Continuation.resume
+  instance mi1 function=@fn7 <- Continuation.resumeWithException
+  instance mi2 function=@fn8 <- SuspendTask.run
+  instance mi3 function=@fn9 <- SuspendRegistration.register
+  instance mi4 function=@fn10 <- Continuation.resume
+  instance mi5 function=@fn11 <- Continuation.resumeWithException
+  instance mi6 function=@fn12 <- SuspendTask.run
+  instance mi7 function=@fn13 <- SuspendRegistration.register
+  instance mi8 function=@fn14 <- Continuation.resume
+  instance mi9 function=@fn15 <- Continuation.resumeWithException
+  instance mi10 function=@fn16 <- SuspendTask.run
+  instance mi11 function=@fn17 <- SuspendRegistration.register
+  instance mi12 function=@fn18 <- Continuation.resume
+  instance mi13 function=@fn19 <- Continuation.resumeWithException
+  instance mi14 function=@fn20 <- SuspendTask.run
+  instance mi15 function=@fn21 <- SuspendRegistration.register
+  str @str0 "illegal state"
+  output library

@@ -1,0 +1,1386 @@
+Module
+  extern ef0 leafS8 @m33_s8(Int8) -> Int8 <abi=c gc-leaf no-gc lib=fixture_native>
+  extern ef1 safeS8 @m33_s8(Int8) -> Int8 <abi=c no-gc lib=fixture_native>
+  extern ef2 leafU8 @m33_u8(UInt8) -> UInt8 <abi=c gc-leaf no-gc lib=fixture_native>
+  extern ef3 safeU8 @m33_u8(UInt8) -> UInt8 <abi=c no-gc lib=fixture_native>
+  extern ef4 leafS16 @m33_s16(Int16) -> Int16 <abi=c gc-leaf no-gc lib=fixture_native>
+  extern ef5 safeS16 @m33_s16(Int16) -> Int16 <abi=c no-gc lib=fixture_native>
+  extern ef6 leafU16 @m33_u16(UInt16) -> UInt16 <abi=c gc-leaf no-gc lib=fixture_native>
+  extern ef7 safeU16 @m33_u16(UInt16) -> UInt16 <abi=c no-gc lib=fixture_native>
+  extern ef8 leafS32 @m33_s32(Int) -> Int <abi=c gc-leaf no-gc lib=fixture_native>
+  extern ef9 safeS32 @m33_s32(Int) -> Int <abi=c no-gc lib=fixture_native>
+  extern ef10 leafU32 @m33_u32(UInt) -> UInt <abi=c gc-leaf no-gc lib=fixture_native>
+  extern ef11 safeU32 @m33_u32(UInt) -> UInt <abi=c no-gc lib=fixture_native>
+  extern ef12 leafS64 @m33_s64(Long) -> Long <abi=c gc-leaf no-gc lib=fixture_native>
+  extern ef13 safeS64 @m33_s64(Long) -> Long <abi=c no-gc lib=fixture_native>
+  extern ef14 leafU64 @m33_u64(ULong) -> ULong <abi=c gc-leaf no-gc lib=fixture_native>
+  extern ef15 safeU64 @m33_u64(ULong) -> ULong <abi=c no-gc lib=fixture_native>
+  extern ef16 leafBoolean @m33_boolean(Boolean) -> Boolean <abi=c gc-leaf no-gc lib=fixture_native>
+  extern ef17 safeBoolean @m33_boolean(Boolean) -> Boolean <abi=c no-gc lib=fixture_native>
+  extern ef18 leafFloat @m33_float(Float) -> Float <abi=c gc-leaf no-gc lib=fixture_native>
+  extern ef19 safeFloat @m33_float(Float) -> Float <abi=c no-gc lib=fixture_native>
+  extern ef20 leafDouble @m33_double(Double) -> Double <abi=c gc-leaf no-gc lib=fixture_native>
+  extern ef21 safeDouble @m33_double(Double) -> Double <abi=c no-gc lib=fixture_native>
+  extern ef22 selectedAbs @abs(Int) -> Int <abi=c gc-leaf no-gc lib=fixture_native>
+  extern ef23 mixed @m33_mixed(Long, Double, Long, Double, Long, Double, Long, Double, Long, Double, Long, Double, Long, Double, Long, Double, Long, Double, Long, Double, Int8, Boolean, UInt16) -> Double <abi=c gc-leaf no-gc lib=fixture_native>
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum Option<Char>
+    Some(_0: Char)
+    None()
+  class Cell vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  interface ToString
+  interface Equality<Float>
+  interface Equality<Double>
+  interface Hash
+  interface Equality<Char>
+  interface Iterable<Char>
+  interface Iterator<Char>
+  interface Equality<String>
+  generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
+  generated_exact_type get1 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
+  generated_exact_type get2 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
+  generated_exact_type get3 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
+  generated_exact_type get4 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
+  fun leafS8 @fn0(arg0: Int8) -> Int8 <no-gc>
+    bb0 entry
+      call $call.1: Int8 = extern0 @m33_s8 direct
+        Type Int8
+        Local arg0
+      return
+        Type Int8
+        Local $call.1
+  fun safeS8 @fn1(arg0: Int8) -> Int8
+    bb0 entry
+      call $call.1: Int8 = extern1 @m33_s8 direct
+        Type Int8
+        Local arg0
+      return
+        Type Int8
+        Local $call.1
+  fun leafU8 @fn2(arg0: UInt8) -> UInt8 <no-gc>
+    bb0 entry
+      call $call.1: UInt8 = extern2 @m33_u8 direct
+        Type UInt8
+        Local arg0
+      return
+        Type UInt8
+        Local $call.1
+  fun safeU8 @fn3(arg0: UInt8) -> UInt8
+    bb0 entry
+      call $call.1: UInt8 = extern3 @m33_u8 direct
+        Type UInt8
+        Local arg0
+      return
+        Type UInt8
+        Local $call.1
+  fun leafS16 @fn4(arg0: Int16) -> Int16 <no-gc>
+    bb0 entry
+      call $call.1: Int16 = extern4 @m33_s16 direct
+        Type Int16
+        Local arg0
+      return
+        Type Int16
+        Local $call.1
+  fun safeS16 @fn5(arg0: Int16) -> Int16
+    bb0 entry
+      call $call.1: Int16 = extern5 @m33_s16 direct
+        Type Int16
+        Local arg0
+      return
+        Type Int16
+        Local $call.1
+  fun leafU16 @fn6(arg0: UInt16) -> UInt16 <no-gc>
+    bb0 entry
+      call $call.1: UInt16 = extern6 @m33_u16 direct
+        Type UInt16
+        Local arg0
+      return
+        Type UInt16
+        Local $call.1
+  fun safeU16 @fn7(arg0: UInt16) -> UInt16
+    bb0 entry
+      call $call.1: UInt16 = extern7 @m33_u16 direct
+        Type UInt16
+        Local arg0
+      return
+        Type UInt16
+        Local $call.1
+  fun leafS32 @fn8(arg0: Int) -> Int <no-gc>
+    bb0 entry
+      call $call.1: Int = extern8 @m33_s32 direct
+        Type Int
+        Local arg0
+      return
+        Type Int
+        Local $call.1
+  fun safeS32 @fn9(arg0: Int) -> Int
+    bb0 entry
+      call $call.1: Int = extern9 @m33_s32 direct
+        Type Int
+        Local arg0
+      return
+        Type Int
+        Local $call.1
+  fun leafU32 @fn10(arg0: UInt) -> UInt <no-gc>
+    bb0 entry
+      call $call.1: UInt = extern10 @m33_u32 direct
+        Type UInt
+        Local arg0
+      return
+        Type UInt
+        Local $call.1
+  fun safeU32 @fn11(arg0: UInt) -> UInt
+    bb0 entry
+      call $call.1: UInt = extern11 @m33_u32 direct
+        Type UInt
+        Local arg0
+      return
+        Type UInt
+        Local $call.1
+  fun leafS64 @fn12(arg0: Long) -> Long <no-gc>
+    bb0 entry
+      call $call.1: Long = extern12 @m33_s64 direct
+        Type Long
+        Local arg0
+      return
+        Type Long
+        Local $call.1
+  fun safeS64 @fn13(arg0: Long) -> Long
+    bb0 entry
+      call $call.1: Long = extern13 @m33_s64 direct
+        Type Long
+        Local arg0
+      return
+        Type Long
+        Local $call.1
+  fun leafU64 @fn14(arg0: ULong) -> ULong <no-gc>
+    bb0 entry
+      call $call.1: ULong = extern14 @m33_u64 direct
+        Type ULong
+        Local arg0
+      return
+        Type ULong
+        Local $call.1
+  fun safeU64 @fn15(arg0: ULong) -> ULong
+    bb0 entry
+      call $call.1: ULong = extern15 @m33_u64 direct
+        Type ULong
+        Local arg0
+      return
+        Type ULong
+        Local $call.1
+  fun leafBoolean @fn16(arg0: Boolean) -> Boolean <no-gc>
+    bb0 entry
+      call $call.1: Boolean = extern16 @m33_boolean direct
+        Type Boolean
+        Local arg0
+      return
+        Type Boolean
+        Local $call.1
+  fun safeBoolean @fn17(arg0: Boolean) -> Boolean
+    bb0 entry
+      call $call.1: Boolean = extern17 @m33_boolean direct
+        Type Boolean
+        Local arg0
+      return
+        Type Boolean
+        Local $call.1
+  fun leafFloat @fn18(arg0: Float) -> Float <no-gc>
+    bb0 entry
+      call $call.1: Float = extern18 @m33_float direct
+        Type Float
+        Local arg0
+      return
+        Type Float
+        Local $call.1
+  fun safeFloat @fn19(arg0: Float) -> Float
+    bb0 entry
+      call $call.1: Float = extern19 @m33_float direct
+        Type Float
+        Local arg0
+      return
+        Type Float
+        Local $call.1
+  fun leafDouble @fn20(arg0: Double) -> Double <no-gc>
+    bb0 entry
+      call $call.1: Double = extern20 @m33_double direct
+        Type Double
+        Local arg0
+      return
+        Type Double
+        Local $call.1
+  fun safeDouble @fn21(arg0: Double) -> Double
+    bb0 entry
+      call $call.1: Double = extern21 @m33_double direct
+        Type Double
+        Local arg0
+      return
+        Type Double
+        Local $call.1
+  fun selectedAbs @fn22(arg0: Int) -> Int <no-gc>
+    bb0 entry
+      call $call.1: Int = extern22 @abs direct
+        Type Int
+        Local arg0
+      return
+        Type Int
+        Local $call.1
+  fun mixed @fn23(arg0: Long, arg1: Double, arg2: Long, arg3: Double, arg4: Long, arg5: Double, arg6: Long, arg7: Double, arg8: Long, arg9: Double, arg10: Long, arg11: Double, arg12: Long, arg13: Double, arg14: Long, arg15: Double, arg16: Long, arg17: Double, arg18: Long, arg19: Double, arg20: Int8, arg21: Boolean, arg22: UInt16) -> Double <no-gc>
+    bb0 entry
+      call $call.1: Double = extern23 @m33_mixed direct
+        Type Long
+        Local arg0
+        Type Double
+        Local arg1
+        Type Long
+        Local arg2
+        Type Double
+        Local arg3
+        Type Long
+        Local arg4
+        Type Double
+        Local arg5
+        Type Long
+        Local arg6
+        Type Double
+        Local arg7
+        Type Long
+        Local arg8
+        Type Double
+        Local arg9
+        Type Long
+        Local arg10
+        Type Double
+        Local arg11
+        Type Long
+        Local arg12
+        Type Double
+        Local arg13
+        Type Long
+        Local arg14
+        Type Double
+        Local arg15
+        Type Long
+        Local arg16
+        Type Double
+        Local arg17
+        Type Long
+        Local arg18
+        Type Double
+        Local arg19
+        Type Int8
+        Local arg20
+        Type Boolean
+        Local arg21
+        Type UInt16
+        Local arg22
+      return
+        Type Double
+        Local $call.1
+  fun expect @fn24(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.receiver: Boolean
+        Type Boolean
+        Local value
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+    bb1 if.then.1
+      val $default.local.0: String
+        Type String
+        StringConst @str0
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.1
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $new.1
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.1
+    bb2 if.merge.2
+      return
+  fun main @fn25() -> Unit
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=73 bits=0x00000049
+      val $parameter.value: Int
+        Type Int
+        IntegerLiteral Int value=73 bits=0x00000049
+      assign $new.1
+        Type Cell
+        ClassAlloc Cell
+      val $inline.13.this: Cell
+        Type Cell
+        Local $new.1
+      val $inline.13.value: Int
+        Type Int
+        IntegerLiteral Int value=73 bits=0x00000049
+      goto bb14
+    bb1 if.then.1
+      val $argument.0: Boolean
+        Type Boolean
+        BoolLiteral true
+      val $parameter.value: Boolean
+        Type Boolean
+        BoolLiteral true
+      call $dependency.receiver: Boolean = extern16 @m33_boolean direct
+        Type Boolean
+        BoolLiteral true
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+      goto bb3
+    bb2 if.else.2
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 if.merge.3
+      val $argument.0: Boolean
+        Type Boolean
+        Local $shortCircuit.0
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn24 direct
+        Type Boolean
+        Local $parameter.value
+      val $argument.0: Boolean
+        Type Boolean
+        BoolLiteral false
+      val $parameter.value: Boolean
+        Type Boolean
+        BoolLiteral false
+      call $call.3: Boolean = extern17 @m33_boolean direct
+        Type Boolean
+        BoolLiteral false
+      branch bb4 bb5
+        Type Boolean
+        Local $call.3
+    bb4 if.then.4
+      val $argument.0: Boolean
+        Type Boolean
+        BoolLiteral true
+      val $parameter.value: Boolean
+        Type Boolean
+        BoolLiteral true
+      call $dependency.receiver: Boolean = extern17 @m33_boolean direct
+        Type Boolean
+        BoolLiteral true
+      val $shortCircuit.1: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+      goto bb6
+    bb5 if.else.5
+      val $shortCircuit.1: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb6
+    bb6 if.merge.6
+      val $argument.0: Boolean
+        Type Boolean
+        Local $shortCircuit.1
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn24 direct
+        Type Boolean
+        Local $parameter.value
+      val $argument.0: Float
+        Type Float
+        FloatLiteral f32(0x3fa00000)
+      val $parameter.value: Float
+        Type Float
+        Local $argument.0
+      call $dependency.receiver: Float = extern18 @m33_float direct
+        Type Float
+        Local $parameter.value
+      val $dependency.argument.0: Float
+        Type Float
+        FloatLiteral f32(0xc0300000)
+      val $dependency.parameter.other: Float
+        Type Float
+        Local $dependency.argument.0
+      branch bb7 bb8
+        Type Boolean
+        FloatBinary F32 Equal
+          Type Float
+          Local $dependency.receiver
+          Type Float
+          Local $dependency.parameter.other
+    bb7 if.then.7
+      val $argument.0: Float
+        Type Float
+        FloatLiteral f32(0x3fa00000)
+      val $parameter.value: Float
+        Type Float
+        Local $argument.0
+      call $dependency.receiver: Float = extern19 @m33_float direct
+        Type Float
+        Local $parameter.value
+      val $dependency.argument.0: Float
+        Type Float
+        FloatLiteral f32(0xc0300000)
+      val $dependency.parameter.other: Float
+        Type Float
+        Local $dependency.argument.0
+      val $shortCircuit.2: Boolean
+        Type Boolean
+        FloatBinary F32 Equal
+          Type Float
+          Local $dependency.receiver
+          Type Float
+          Local $dependency.parameter.other
+      goto bb9
+    bb8 if.else.8
+      val $shortCircuit.2: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb9
+    bb9 if.merge.9
+      val $argument.0: Boolean
+        Type Boolean
+        Local $shortCircuit.2
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn24 direct
+        Type Boolean
+        Local $parameter.value
+      val $argument.0: Double
+        Type Double
+        FloatLiteral f64(0x3fe0000000000000)
+      val $parameter.value: Double
+        Type Double
+        Local $argument.0
+      call $dependency.receiver: Double = extern20 @m33_double direct
+        Type Double
+        Local $parameter.value
+      val $dependency.argument.0: Double
+        Type Double
+        FloatLiteral f64(0xc05ed00000000000)
+      val $dependency.parameter.other: Double
+        Type Double
+        Local $dependency.argument.0
+      branch bb10 bb11
+        Type Boolean
+        FloatBinary F64 Equal
+          Type Double
+          Local $dependency.receiver
+          Type Double
+          Local $dependency.parameter.other
+    bb10 if.then.10
+      val $argument.0: Double
+        Type Double
+        FloatLiteral f64(0x3fe0000000000000)
+      val $parameter.value: Double
+        Type Double
+        Local $argument.0
+      call $dependency.receiver: Double = extern21 @m33_double direct
+        Type Double
+        Local $parameter.value
+      val $dependency.argument.0: Double
+        Type Double
+        FloatLiteral f64(0xc05ed00000000000)
+      val $dependency.parameter.other: Double
+        Type Double
+        Local $dependency.argument.0
+      val $shortCircuit.3: Boolean
+        Type Boolean
+        FloatBinary F64 Equal
+          Type Double
+          Local $dependency.receiver
+          Type Double
+          Local $dependency.parameter.other
+      goto bb12
+    bb11 if.else.11
+      val $shortCircuit.3: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb12
+    bb12 if.merge.12
+      val $argument.0: Boolean
+        Type Boolean
+        Local $shortCircuit.3
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn24 direct
+        Type Boolean
+        Local $parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=-7 bits=0xfffffff9
+      val $parameter.value: Int
+        Type Int
+        IntegerLiteral Int value=-7 bits=0xfffffff9
+      call $dependency.receiver: Int = extern22 @abs direct
+        Type Int
+        IntegerLiteral Int value=-7 bits=0xfffffff9
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          IntegerLiteral Int value=3 bits=0x00000003
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn24 direct
+        Type Boolean
+        Local $parameter.value
+      val $argument.0: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $argument.1: Double
+        Type Double
+        FloatLiteral f64(0x3fe0000000000000)
+      val $argument.2: Long
+        Type Long
+        IntegerLiteral Long value=2 bits=0x0000000000000002
+      val $argument.3: Double
+        Type Double
+        FloatLiteral f64(0x3ff8000000000000)
+      val $argument.4: Long
+        Type Long
+        IntegerLiteral Long value=3 bits=0x0000000000000003
+      val $argument.5: Double
+        Type Double
+        FloatLiteral f64(0x4004000000000000)
+      val $argument.6: Long
+        Type Long
+        IntegerLiteral Long value=4 bits=0x0000000000000004
+      val $argument.7: Double
+        Type Double
+        FloatLiteral f64(0x400c000000000000)
+      val $argument.8: Long
+        Type Long
+        IntegerLiteral Long value=5 bits=0x0000000000000005
+      val $argument.9: Double
+        Type Double
+        FloatLiteral f64(0x4012000000000000)
+      val $argument.10: Long
+        Type Long
+        IntegerLiteral Long value=6 bits=0x0000000000000006
+      val $argument.11: Double
+        Type Double
+        FloatLiteral f64(0x4016000000000000)
+      val $argument.12: Long
+        Type Long
+        IntegerLiteral Long value=7 bits=0x0000000000000007
+      val $argument.13: Double
+        Type Double
+        FloatLiteral f64(0x401a000000000000)
+      val $argument.14: Long
+        Type Long
+        IntegerLiteral Long value=8 bits=0x0000000000000008
+      val $argument.15: Double
+        Type Double
+        FloatLiteral f64(0x401e000000000000)
+      val $argument.16: Long
+        Type Long
+        IntegerLiteral Long value=9 bits=0x0000000000000009
+      val $argument.17: Double
+        Type Double
+        FloatLiteral f64(0x4021000000000000)
+      val $argument.18: Long
+        Type Long
+        IntegerLiteral Long value=10 bits=0x000000000000000a
+      val $argument.19: Double
+        Type Double
+        FloatLiteral f64(0x4023000000000000)
+      val $dependency.receiver: Int
+        Type Int
+        IntegerLiteral Int value=-101 bits=0xffffff9b
+      val $argument.20: Int8
+        Type Int8
+        IntegerLiteral Int8 value=-101 bits=0x9b
+      val $argument.21: Boolean
+        Type Boolean
+        BoolLiteral true
+      val $dependency.receiver: Int
+        Type Int
+        IntegerLiteral Int value=60000 bits=0x0000ea60
+      val $argument.22: UInt16
+        Type UInt16
+        IntegerLiteral UInt16 value=60000 bits=0xea60
+      val $parameter.a0: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $parameter.b0: Double
+        Type Double
+        Local $argument.1
+      val $parameter.a1: Long
+        Type Long
+        IntegerLiteral Long value=2 bits=0x0000000000000002
+      val $parameter.b1: Double
+        Type Double
+        Local $argument.3
+      val $parameter.a2: Long
+        Type Long
+        IntegerLiteral Long value=3 bits=0x0000000000000003
+      val $parameter.b2: Double
+        Type Double
+        Local $argument.5
+      val $parameter.a3: Long
+        Type Long
+        IntegerLiteral Long value=4 bits=0x0000000000000004
+      val $parameter.b3: Double
+        Type Double
+        Local $argument.7
+      val $parameter.a4: Long
+        Type Long
+        IntegerLiteral Long value=5 bits=0x0000000000000005
+      val $parameter.b4: Double
+        Type Double
+        Local $argument.9
+      val $parameter.a5: Long
+        Type Long
+        IntegerLiteral Long value=6 bits=0x0000000000000006
+      val $parameter.b5: Double
+        Type Double
+        Local $argument.11
+      val $parameter.a6: Long
+        Type Long
+        IntegerLiteral Long value=7 bits=0x0000000000000007
+      val $parameter.b6: Double
+        Type Double
+        Local $argument.13
+      val $parameter.a7: Long
+        Type Long
+        IntegerLiteral Long value=8 bits=0x0000000000000008
+      val $parameter.b7: Double
+        Type Double
+        Local $argument.15
+      val $parameter.a8: Long
+        Type Long
+        IntegerLiteral Long value=9 bits=0x0000000000000009
+      val $parameter.b8: Double
+        Type Double
+        Local $argument.17
+      val $parameter.a9: Long
+        Type Long
+        IntegerLiteral Long value=10 bits=0x000000000000000a
+      val $parameter.b9: Double
+        Type Double
+        Local $argument.19
+      val $parameter.tag: Int8
+        Type Int8
+        IntegerLiteral Int8 value=-101 bits=0x9b
+      val $parameter.flag: Boolean
+        Type Boolean
+        BoolLiteral true
+      val $parameter.tail: UInt16
+        Type UInt16
+        IntegerLiteral UInt16 value=60000 bits=0xea60
+      call $dependency.receiver: Double = extern23 @m33_mixed direct
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+        Type Double
+        Local $parameter.b0
+        Type Long
+        IntegerLiteral Long value=2 bits=0x0000000000000002
+        Type Double
+        Local $parameter.b1
+        Type Long
+        IntegerLiteral Long value=3 bits=0x0000000000000003
+        Type Double
+        Local $parameter.b2
+        Type Long
+        IntegerLiteral Long value=4 bits=0x0000000000000004
+        Type Double
+        Local $parameter.b3
+        Type Long
+        IntegerLiteral Long value=5 bits=0x0000000000000005
+        Type Double
+        Local $parameter.b4
+        Type Long
+        IntegerLiteral Long value=6 bits=0x0000000000000006
+        Type Double
+        Local $parameter.b5
+        Type Long
+        IntegerLiteral Long value=7 bits=0x0000000000000007
+        Type Double
+        Local $parameter.b6
+        Type Long
+        IntegerLiteral Long value=8 bits=0x0000000000000008
+        Type Double
+        Local $parameter.b7
+        Type Long
+        IntegerLiteral Long value=9 bits=0x0000000000000009
+        Type Double
+        Local $parameter.b8
+        Type Long
+        IntegerLiteral Long value=10 bits=0x000000000000000a
+        Type Double
+        Local $parameter.b9
+        Type Int8
+        IntegerLiteral Int8 value=-101 bits=0x9b
+        Type Boolean
+        BoolLiteral true
+        Type UInt16
+        IntegerLiteral UInt16 value=60000 bits=0xea60
+      val $dependency.argument.0: Double
+        Type Double
+        FloatLiteral f64(0x40ed9d1000000000)
+      val $dependency.parameter.other: Double
+        Type Double
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        FloatBinary F64 Equal
+          Type Double
+          Local $dependency.receiver
+          Type Double
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn24 direct
+        Type Boolean
+        Local $parameter.value
+      call @scoop_rt_gc_collect direct
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Cell
+          Local cell
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=73 bits=0x00000049
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=73 bits=0x00000049
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          IntegerLiteral Int value=73 bits=0x00000049
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn24 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str1
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn26 direct
+        Type String
+        Local $dependency.parameter.value
+      return
+    bb13 inline.cont.13
+      val cell: Cell
+        Type Cell
+        Local $new.1
+      val $dependency.receiver: Int
+        Type Int
+        IntegerLiteral Int value=-101 bits=0xffffff9b
+      val $argument.0: Int8
+        Type Int8
+        IntegerLiteral Int8 value=-101 bits=0x9b
+      val $parameter.value: Int8
+        Type Int8
+        IntegerLiteral Int8 value=-101 bits=0x9b
+      call $equality.lhs: Int8 = extern0 @m33_s8 direct
+        Type Int8
+        IntegerLiteral Int8 value=-101 bits=0x9b
+      val $dependency.receiver: Int
+        Type Int
+        IntegerLiteral Int value=-117 bits=0xffffff8b
+      val $dependency.receiver: Int8
+        Type Int8
+        Local $equality.lhs
+      val $dependency.argument.0: Int8
+        Type Int8
+        IntegerLiteral Int8 value=-117 bits=0x8b
+      val $dependency.parameter.other: Int8
+        Type Int8
+        IntegerLiteral Int8 value=-117 bits=0x8b
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int8 result=Boolean
+          Type Int8
+          Local $dependency.receiver
+          Type Int8
+          IntegerLiteral Int8 value=-117 bits=0x8b
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn24 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.receiver: Int
+        Type Int
+        IntegerLiteral Int value=-101 bits=0xffffff9b
+      val $argument.0: Int8
+        Type Int8
+        IntegerLiteral Int8 value=-101 bits=0x9b
+      val $parameter.value: Int8
+        Type Int8
+        IntegerLiteral Int8 value=-101 bits=0x9b
+      call $equality.lhs: Int8 = extern1 @m33_s8 direct
+        Type Int8
+        IntegerLiteral Int8 value=-101 bits=0x9b
+      val $dependency.receiver: Int
+        Type Int
+        IntegerLiteral Int value=-117 bits=0xffffff8b
+      val $dependency.receiver: Int8
+        Type Int8
+        Local $equality.lhs
+      val $dependency.argument.0: Int8
+        Type Int8
+        IntegerLiteral Int8 value=-117 bits=0x8b
+      val $dependency.parameter.other: Int8
+        Type Int8
+        IntegerLiteral Int8 value=-117 bits=0x8b
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int8 result=Boolean
+          Type Int8
+          Local $dependency.receiver
+          Type Int8
+          IntegerLiteral Int8 value=-117 bits=0x8b
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn24 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.receiver: Int
+        Type Int
+        IntegerLiteral Int value=201 bits=0x000000c9
+      val $argument.0: UInt8
+        Type UInt8
+        IntegerLiteral UInt8 value=201 bits=0xc9
+      val $parameter.value: UInt8
+        Type UInt8
+        IntegerLiteral UInt8 value=201 bits=0xc9
+      call $equality.lhs: UInt8 = extern2 @m33_u8 direct
+        Type UInt8
+        IntegerLiteral UInt8 value=201 bits=0xc9
+      val $dependency.receiver: Int
+        Type Int
+        IntegerLiteral Int value=239 bits=0x000000ef
+      val $dependency.receiver: UInt8
+        Type UInt8
+        Local $equality.lhs
+      val $dependency.argument.0: UInt8
+        Type UInt8
+        IntegerLiteral UInt8 value=239 bits=0xef
+      val $dependency.parameter.other: UInt8
+        Type UInt8
+        IntegerLiteral UInt8 value=239 bits=0xef
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=UInt8 result=Boolean
+          Type UInt8
+          Local $dependency.receiver
+          Type UInt8
+          IntegerLiteral UInt8 value=239 bits=0xef
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn24 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.receiver: Int
+        Type Int
+        IntegerLiteral Int value=201 bits=0x000000c9
+      val $argument.0: UInt8
+        Type UInt8
+        IntegerLiteral UInt8 value=201 bits=0xc9
+      val $parameter.value: UInt8
+        Type UInt8
+        IntegerLiteral UInt8 value=201 bits=0xc9
+      call $equality.lhs: UInt8 = extern3 @m33_u8 direct
+        Type UInt8
+        IntegerLiteral UInt8 value=201 bits=0xc9
+      val $dependency.receiver: Int
+        Type Int
+        IntegerLiteral Int value=239 bits=0x000000ef
+      val $dependency.receiver: UInt8
+        Type UInt8
+        Local $equality.lhs
+      val $dependency.argument.0: UInt8
+        Type UInt8
+        IntegerLiteral UInt8 value=239 bits=0xef
+      val $dependency.parameter.other: UInt8
+        Type UInt8
+        IntegerLiteral UInt8 value=239 bits=0xef
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=UInt8 result=Boolean
+          Type UInt8
+          Local $dependency.receiver
+          Type UInt8
+          IntegerLiteral UInt8 value=239 bits=0xef
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn24 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.receiver: Int
+        Type Int
+        IntegerLiteral Int value=-30001 bits=0xffff8acf
+      val $argument.0: Int16
+        Type Int16
+        IntegerLiteral Int16 value=-30001 bits=0x8acf
+      val $parameter.value: Int16
+        Type Int16
+        IntegerLiteral Int16 value=-30001 bits=0x8acf
+      call $equality.lhs: Int16 = extern4 @m33_s16 direct
+        Type Int16
+        IntegerLiteral Int16 value=-30001 bits=0x8acf
+      val $dependency.receiver: Int
+        Type Int
+        IntegerLiteral Int value=-32001 bits=0xffff82ff
+      val $dependency.receiver: Int16
+        Type Int16
+        Local $equality.lhs
+      val $dependency.argument.0: Int16
+        Type Int16
+        IntegerLiteral Int16 value=-32001 bits=0x82ff
+      val $dependency.parameter.other: Int16
+        Type Int16
+        IntegerLiteral Int16 value=-32001 bits=0x82ff
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int16 result=Boolean
+          Type Int16
+          Local $dependency.receiver
+          Type Int16
+          IntegerLiteral Int16 value=-32001 bits=0x82ff
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn24 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.receiver: Int
+        Type Int
+        IntegerLiteral Int value=-30001 bits=0xffff8acf
+      val $argument.0: Int16
+        Type Int16
+        IntegerLiteral Int16 value=-30001 bits=0x8acf
+      val $parameter.value: Int16
+        Type Int16
+        IntegerLiteral Int16 value=-30001 bits=0x8acf
+      call $equality.lhs: Int16 = extern5 @m33_s16 direct
+        Type Int16
+        IntegerLiteral Int16 value=-30001 bits=0x8acf
+      val $dependency.receiver: Int
+        Type Int
+        IntegerLiteral Int value=-32001 bits=0xffff82ff
+      val $dependency.receiver: Int16
+        Type Int16
+        Local $equality.lhs
+      val $dependency.argument.0: Int16
+        Type Int16
+        IntegerLiteral Int16 value=-32001 bits=0x82ff
+      val $dependency.parameter.other: Int16
+        Type Int16
+        IntegerLiteral Int16 value=-32001 bits=0x82ff
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int16 result=Boolean
+          Type Int16
+          Local $dependency.receiver
+          Type Int16
+          IntegerLiteral Int16 value=-32001 bits=0x82ff
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn24 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.receiver: Int
+        Type Int
+        IntegerLiteral Int value=50001 bits=0x0000c351
+      val $argument.0: UInt16
+        Type UInt16
+        IntegerLiteral UInt16 value=50001 bits=0xc351
+      val $parameter.value: UInt16
+        Type UInt16
+        IntegerLiteral UInt16 value=50001 bits=0xc351
+      call $equality.lhs: UInt16 = extern6 @m33_u16 direct
+        Type UInt16
+        IntegerLiteral UInt16 value=50001 bits=0xc351
+      val $dependency.receiver: Int
+        Type Int
+        IntegerLiteral Int value=65521 bits=0x0000fff1
+      val $dependency.receiver: UInt16
+        Type UInt16
+        Local $equality.lhs
+      val $dependency.argument.0: UInt16
+        Type UInt16
+        IntegerLiteral UInt16 value=65521 bits=0xfff1
+      val $dependency.parameter.other: UInt16
+        Type UInt16
+        IntegerLiteral UInt16 value=65521 bits=0xfff1
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=UInt16 result=Boolean
+          Type UInt16
+          Local $dependency.receiver
+          Type UInt16
+          IntegerLiteral UInt16 value=65521 bits=0xfff1
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn24 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.receiver: Int
+        Type Int
+        IntegerLiteral Int value=50001 bits=0x0000c351
+      val $argument.0: UInt16
+        Type UInt16
+        IntegerLiteral UInt16 value=50001 bits=0xc351
+      val $parameter.value: UInt16
+        Type UInt16
+        IntegerLiteral UInt16 value=50001 bits=0xc351
+      call $equality.lhs: UInt16 = extern7 @m33_u16 direct
+        Type UInt16
+        IntegerLiteral UInt16 value=50001 bits=0xc351
+      val $dependency.receiver: Int
+        Type Int
+        IntegerLiteral Int value=65521 bits=0x0000fff1
+      val $dependency.receiver: UInt16
+        Type UInt16
+        Local $equality.lhs
+      val $dependency.argument.0: UInt16
+        Type UInt16
+        IntegerLiteral UInt16 value=65521 bits=0xfff1
+      val $dependency.parameter.other: UInt16
+        Type UInt16
+        IntegerLiteral UInt16 value=65521 bits=0xfff1
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=UInt16 result=Boolean
+          Type UInt16
+          Local $dependency.receiver
+          Type UInt16
+          IntegerLiteral UInt16 value=65521 bits=0xfff1
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn24 direct
+        Type Boolean
+        Local $parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=-123456789 bits=0xf8a432eb
+      val $parameter.value: Int
+        Type Int
+        IntegerLiteral Int value=-123456789 bits=0xf8a432eb
+      call $dependency.receiver: Int = extern8 @m33_s32 direct
+        Type Int
+        IntegerLiteral Int value=-123456789 bits=0xf8a432eb
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=-2147483647 bits=0x80000001
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=-2147483647 bits=0x80000001
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          IntegerLiteral Int value=-2147483647 bits=0x80000001
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn24 direct
+        Type Boolean
+        Local $parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=-123456789 bits=0xf8a432eb
+      val $parameter.value: Int
+        Type Int
+        IntegerLiteral Int value=-123456789 bits=0xf8a432eb
+      call $dependency.receiver: Int = extern9 @m33_s32 direct
+        Type Int
+        IntegerLiteral Int value=-123456789 bits=0xf8a432eb
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=-2147483647 bits=0x80000001
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=-2147483647 bits=0x80000001
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          IntegerLiteral Int value=-2147483647 bits=0x80000001
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn24 direct
+        Type Boolean
+        Local $parameter.value
+      val $argument.0: UInt
+        Type UInt
+        IntegerLiteral UInt value=4275878552 bits=0xfedcba98
+      val $parameter.value: UInt
+        Type UInt
+        IntegerLiteral UInt value=4275878552 bits=0xfedcba98
+      call $dependency.receiver: UInt = extern10 @m33_u32 direct
+        Type UInt
+        IntegerLiteral UInt value=4275878552 bits=0xfedcba98
+      val $dependency.argument.0: UInt
+        Type UInt
+        IntegerLiteral UInt value=4294967294 bits=0xfffffffe
+      val $dependency.parameter.other: UInt
+        Type UInt
+        IntegerLiteral UInt value=4294967294 bits=0xfffffffe
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=UInt result=Boolean
+          Type UInt
+          Local $dependency.receiver
+          Type UInt
+          IntegerLiteral UInt value=4294967294 bits=0xfffffffe
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn24 direct
+        Type Boolean
+        Local $parameter.value
+      val $argument.0: UInt
+        Type UInt
+        IntegerLiteral UInt value=4275878552 bits=0xfedcba98
+      val $parameter.value: UInt
+        Type UInt
+        IntegerLiteral UInt value=4275878552 bits=0xfedcba98
+      call $dependency.receiver: UInt = extern11 @m33_u32 direct
+        Type UInt
+        IntegerLiteral UInt value=4275878552 bits=0xfedcba98
+      val $dependency.argument.0: UInt
+        Type UInt
+        IntegerLiteral UInt value=4294967294 bits=0xfffffffe
+      val $dependency.parameter.other: UInt
+        Type UInt
+        IntegerLiteral UInt value=4294967294 bits=0xfffffffe
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=UInt result=Boolean
+          Type UInt
+          Local $dependency.receiver
+          Type UInt
+          IntegerLiteral UInt value=4294967294 bits=0xfffffffe
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn24 direct
+        Type Boolean
+        Local $parameter.value
+      val $argument.0: Long
+        Type Long
+        IntegerLiteral Long value=-98765432101234567 bits=0xfea11d5cdf849879
+      val $parameter.value: Long
+        Type Long
+        IntegerLiteral Long value=-98765432101234567 bits=0xfea11d5cdf849879
+      call $dependency.receiver: Long = extern12 @m33_s64 direct
+        Type Long
+        IntegerLiteral Long value=-98765432101234567 bits=0xfea11d5cdf849879
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=-9223372036854775805 bits=0x8000000000000003
+      val $dependency.parameter.other: Long
+        Type Long
+        IntegerLiteral Long value=-9223372036854775805 bits=0x8000000000000003
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          IntegerLiteral Long value=-9223372036854775805 bits=0x8000000000000003
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn24 direct
+        Type Boolean
+        Local $parameter.value
+      val $argument.0: Long
+        Type Long
+        IntegerLiteral Long value=-98765432101234567 bits=0xfea11d5cdf849879
+      val $parameter.value: Long
+        Type Long
+        IntegerLiteral Long value=-98765432101234567 bits=0xfea11d5cdf849879
+      call $dependency.receiver: Long = extern13 @m33_s64 direct
+        Type Long
+        IntegerLiteral Long value=-98765432101234567 bits=0xfea11d5cdf849879
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=-9223372036854775805 bits=0x8000000000000003
+      val $dependency.parameter.other: Long
+        Type Long
+        IntegerLiteral Long value=-9223372036854775805 bits=0x8000000000000003
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          IntegerLiteral Long value=-9223372036854775805 bits=0x8000000000000003
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn24 direct
+        Type Boolean
+        Local $parameter.value
+      val $argument.0: ULong
+        Type ULong
+        IntegerLiteral ULong value=18364758544493064720 bits=0xfedcba9876543210
+      val $parameter.value: ULong
+        Type ULong
+        IntegerLiteral ULong value=18364758544493064720 bits=0xfedcba9876543210
+      call $dependency.receiver: ULong = extern14 @m33_u64 direct
+        Type ULong
+        IntegerLiteral ULong value=18364758544493064720 bits=0xfedcba9876543210
+      val $dependency.argument.0: ULong
+        Type ULong
+        IntegerLiteral ULong value=18446744073709551601 bits=0xfffffffffffffff1
+      val $dependency.parameter.other: ULong
+        Type ULong
+        IntegerLiteral ULong value=18446744073709551601 bits=0xfffffffffffffff1
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=ULong result=Boolean
+          Type ULong
+          Local $dependency.receiver
+          Type ULong
+          IntegerLiteral ULong value=18446744073709551601 bits=0xfffffffffffffff1
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn24 direct
+        Type Boolean
+        Local $parameter.value
+      val $argument.0: ULong
+        Type ULong
+        IntegerLiteral ULong value=18364758544493064720 bits=0xfedcba9876543210
+      val $parameter.value: ULong
+        Type ULong
+        IntegerLiteral ULong value=18364758544493064720 bits=0xfedcba9876543210
+      call $dependency.receiver: ULong = extern15 @m33_u64 direct
+        Type ULong
+        IntegerLiteral ULong value=18364758544493064720 bits=0xfedcba9876543210
+      val $dependency.argument.0: ULong
+        Type ULong
+        IntegerLiteral ULong value=18446744073709551601 bits=0xfffffffffffffff1
+      val $dependency.parameter.other: ULong
+        Type ULong
+        IntegerLiteral ULong value=18446744073709551601 bits=0xfffffffffffffff1
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=ULong result=Boolean
+          Type ULong
+          Local $dependency.receiver
+          Type ULong
+          IntegerLiteral ULong value=18446744073709551601 bits=0xfffffffffffffff1
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn24 direct
+        Type Boolean
+        Local $parameter.value
+      val $argument.0: Boolean
+        Type Boolean
+        BoolLiteral false
+      val $parameter.value: Boolean
+        Type Boolean
+        BoolLiteral false
+      call $call.2: Boolean = extern16 @m33_boolean direct
+        Type Boolean
+        BoolLiteral false
+      branch bb1 bb2
+        Type Boolean
+        Local $call.2
+    bb14 inline.13.entry
+      field_set 0
+        Type Cell
+        Local $inline.13.this
+        Type Int
+        IntegerLiteral Int value=73 bits=0x00000049
+      goto bb13
+  fun println @fn26(value: String) -> Unit
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local value
+      call $dependency.local.2: String = external1 direct
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external2 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str2
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external2 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun init.Cell.$c0 @fn27(this: Cell, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Cell
+        Local this
+        Type Int
+        Local value
+      return
+  instance mi0 function=@fn26 <- println
+  str @str0 "illegal state"
+  str @str1 "direct-c-scalars-ok"
+  str @str2 "\n"
+  output executable @fn25

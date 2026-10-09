@@ -1,0 +1,2380 @@
+Module
+  extern ef0 recordRelease @counted_pin_release(Int) -> Unit <abi=c gc-leaf no-gc lib=fixture_native>
+  extern ef1 released @counted_pin_released() -> Int <abi=c gc-leaf no-gc lib=fixture_native>
+  struct Pins<Cell> (first: PinnedPtr<Cell>, second: PinnedPtr<Cell>)
+  struct PinnedPtr<Cell> (raw: ULong) <c-abi uint64-field>
+  struct GcHandle<Cell> (raw: ULong) <c-abi uint64-field>
+  struct Pins<MutableArray<UInt8>> (first: PinnedPtr<MutableArray<UInt8>>, second: PinnedPtr<MutableArray<UInt8>>)
+  struct PinnedPtr<MutableArray<UInt8>> (raw: ULong) <c-abi uint64-field>
+  struct PinnedPtr<Owner> (raw: ULong) <c-abi uint64-field>
+  struct Pins<Owner> (first: PinnedPtr<Owner>, second: PinnedPtr<Owner>)
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum Option<UInt8>
+    Some(_0: UInt8)
+    None()
+  enum Option<Char>
+    Some(_0: Char)
+    None()
+  enum CoroutineStep<Cell>
+    Completed(value: Cell)
+    Suspended()
+  enum CoroutineSlot<Cell>
+    Empty()
+    Value(value: Cell)
+  enum CoroutineStep<Owner>
+    Completed(value: Owner)
+    Suspended()
+  enum CoroutineSlot<Owner>
+    Empty()
+    Value(value: Owner)
+  enum CoroutineStep<Child>
+    Completed(value: Child)
+    Suspended()
+  enum CoroutineSlot<Child>
+    Empty()
+    Value(value: Child)
+  class Child vtable=0 itables=0
+  class Cell vtable=0 itables=0
+  class Owner vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class IllegalArgumentException vtable=0 itables=0
+  class IndexOutOfBoundsException vtable=0 itables=0
+  class ListIterator<UInt8> vtable=0 itables=1
+  class box<Long> vtable=0 itables=0
+  class box<UInt8> vtable=0 itables=0
+  interface List<UInt8> : Iterable<UInt8>
+  interface Iterable<UInt8>
+  interface Iterator<UInt8>
+  interface ToString
+  interface Hash
+  interface Equality<Char>
+  interface Iterable<Char>
+  interface Iterator<Char>
+  interface Equality<String>
+  interface Continuation<Child>
+  interface SuspendTask<Child>
+  interface SuspendRegistration<Child>
+  interface Continuation<Cell>
+  interface SuspendTask<Cell>
+  interface SuspendRegistration<Cell>
+  interface Continuation<Owner>
+  interface SuspendTask<Owner>
+  interface SuspendRegistration<Owner>
+  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn16 captures=0
+    bridge function_type1 -> @fn53 id=af282ae7ddfdbec8a5c5e60877c38a977ffd79518bad199991471576aaf7dc67
+  generated_exact_type get0 location=enum4 nominal_id=31b107c279ea6ba5f6907a679f8cafd7beb066fda1794257319a7c52faa3e440 exact_id=0d83c5e2b7457c02a269d896588d08dd46debc22439064efd8e2731675e90b37
+  generated_exact_type get1 location=enum6 nominal_id=636fb7b02ab0275c4f11bd2dd6cf18c53505fe3d83094f3bdb3e8d2455d8f669 exact_id=0f7db6bbfa06da84263b91d751f0015753a48f7fbf4b229e62a7e372d514968f
+  generated_exact_type get2 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
+  generated_exact_type get3 location=closure0 nominal_id=4c7f9fcc072b97fd737495d13daaf3a66ee52dd32950e43a596bcf34fb8544e5 exact_id=12637054a056ac90c60f63f6cb0945e200f5eca0f8f9008900de56cf65fb960a
+  generated_exact_type get4 location=enum5 nominal_id=e3fcc6339f446990622ab420241a08888c5ebcbaeca827671a60fe5cb9c59678 exact_id=24c1fec57c132b1a8a4f97021173fa4c8f83be79e73a1f80f31751cd1b3e00a8
+  generated_exact_type get5 location=enum8 nominal_id=468b5742e899b10ed13f207afd717ef192b49c5ffff7080787f7fd7c7d56fbae exact_id=2f36903aab46f67378093d1807d4c00aa3c8914dc48b36bdf47dea5474f11857
+  generated_exact_type get6 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
+  generated_exact_type get7 location=enum7 nominal_id=03904f1e0d23f8abded4c25297b80cca8b6e887db36c9467c35a9215f7928889 exact_id=46b83200f46c0b649a0e21aa7a760abea8c4f0c5e62e256d12460963c974ddcf
+  generated_exact_type get8 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
+  generated_exact_type get9 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
+  generated_exact_type get10 location=enum3 nominal_id=56c670da7300e7853cafb9e2561dbb122e8160713b35d9700560a4459df8d1e3 exact_id=af5ce0d57a08d3a483316fe7b633be884e55334ae0b0511c0dbb2033231e374f
+  generated_exact_type get11 location=class11 nominal_id=ea29b4b462ff68321554b9a22923fb4511a95fbd8a9db3ae48d8e354df33f1dd exact_id=bb6274a8ad942aaa9e497e7cf9cedec226cd43a70f4602c59619ea3af8ce965e
+  generated_exact_type get12 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
+  generated_exact_type get13 location=class10 nominal_id=1019845dbac8b40486c7a8317715dddb4016698da08e810513dc12e31dd8b68f exact_id=f4ac53b66a5aaca260a9f537cf582a82b69042d884a570f92ccc8e738ababceb
+  generated_callable gc0 function=@fn51 id=0ac891f884b78581df36b3d6345879a16e60dff9fe812077024eddd4b09a1886
+  generated_callable gc1 function=@fn52 id=4786c723dfaf0770fc987a257cee03949bee04493e51c5eabed219d2db43aafd
+  generated_callable gc2 function=@fn50 id=504dd258f2ff1f12576abec3b9ffec50a9424028b2472a1c0c201e7c334be4f8
+  generated_callable gc3 function=@fn53 id=af282ae7ddfdbec8a5c5e60877c38a977ffd79518bad199991471576aaf7dc67
+  fun recordRelease @fn0(arg0: Int) -> Unit <no-gc>
+    bb0 entry
+      call extern0 @counted_pin_release direct
+        Type Int
+        Local arg0
+      return
+  fun released @fn1() -> Int <no-gc>
+    bb0 entry
+      call $call.1: Int = extern1 @counted_pin_released direct
+      return
+        Type Int
+        Local $call.1
+  fun expect @fn2(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.receiver: Boolean
+        Type Boolean
+        Local value
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+    bb1 if.then.1
+      val $default.local.0: String
+        Type String
+        StringConst @str0
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.1
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $new.1
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.1
+    bb2 if.merge.2
+      return
+  fun references @fn3() -> Unit
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=73 bits=0x00000049
+      val $parameter.value: Int
+        Type Int
+        IntegerLiteral Int value=73 bits=0x00000049
+      assign $new.1
+        Type Child
+        ClassAlloc Child
+      val $inline.15.this: Child
+        Type Child
+        Local $new.1
+      val $inline.15.value: Int
+        Type Int
+        IntegerLiteral Int value=73 bits=0x00000049
+      goto bb16
+    bb1 inline.cont.1
+      val $call.4: Cell
+        Type Cell
+        Local $inline.1.result
+      val $argument.0: Boolean
+        Type Boolean
+        Binary RefEq
+          Type Cell
+          Local last
+          Type Cell
+          Local $call.4
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn2 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Child
+          FieldAccess 0
+            Type Cell
+            Local last
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=73 bits=0x00000049
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=73 bits=0x00000049
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          IntegerLiteral Int value=73 bits=0x00000049
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn2 direct
+        Type Boolean
+        Local $parameter.value
+      return
+    bb2 inline.1.entry
+      val $inline.1.$dependency.local.1: ULong
+        Type ULong
+        FieldAccess 0
+          Type GcHandle<Cell>
+          Local $inline.1.h
+      val $inline.1.$dependency.local.2: ULong
+        Type ULong
+        Local $inline.1.$dependency.local.1
+      call $inline.1.$call.1: Cell = @scoop_rt_release_handle direct
+        Type ULong
+        Local $inline.1.$dependency.local.2
+      assign $inline.1.result
+        Type Cell
+        Local $inline.1.$call.1
+      goto bb1
+    bb3 inline.cont.3
+      val last: Cell
+        Type Cell
+        Local $inline.3.result
+      val $dependency.argument.0: GcHandle<Cell>
+        Type GcHandle<Cell>
+        Local handle
+      val $dependency.parameter.h: GcHandle<Cell>
+        Type GcHandle<Cell>
+        Local $dependency.argument.0
+      val $inline.1.h: GcHandle<Cell>
+        Type GcHandle<Cell>
+        Local $dependency.parameter.h
+      goto bb2
+    bb4 inline.3.entry
+      val $inline.3.$dependency.local.1: ULong
+        Type ULong
+        FieldAccess 0
+          Type PinnedPtr<Cell>
+          Local $inline.3.p
+      val $inline.3.$dependency.local.2: ULong
+        Type ULong
+        Local $inline.3.$dependency.local.1
+      call $inline.3.$call.1: Cell = @scoop_rt_unpin direct
+        Type ULong
+        Local $inline.3.$dependency.local.2
+      assign $inline.3.result
+        Type Cell
+        Local $inline.3.$call.1
+      goto bb3
+    bb5 inline.cont.5
+      val $call.3: Cell
+        Type Cell
+        Local $inline.5.result
+      val $argument.0: Boolean
+        Type Boolean
+        Binary RefEq
+          Type Cell
+          Local $call.3
+          Type Cell
+          Local first
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn2 direct
+        Type Boolean
+        Local $parameter.value
+      call @scoop_rt_gc_collect direct
+      val $dependency.argument.0: PinnedPtr<Cell>
+        Type PinnedPtr<Cell>
+        FieldAccess 1
+          Type Pins<Cell>
+          Local held
+      val $dependency.parameter.p: PinnedPtr<Cell>
+        Type PinnedPtr<Cell>
+        Local $dependency.argument.0
+      val $inline.3.p: PinnedPtr<Cell>
+        Type PinnedPtr<Cell>
+        Local $dependency.parameter.p
+      goto bb4
+    bb6 inline.5.entry
+      val $inline.5.$dependency.local.1: ULong
+        Type ULong
+        FieldAccess 0
+          Type PinnedPtr<Cell>
+          Local $inline.5.p
+      val $inline.5.$dependency.local.2: ULong
+        Type ULong
+        Local $inline.5.$dependency.local.1
+      call $inline.5.$call.1: Cell = @scoop_rt_unpin direct
+        Type ULong
+        Local $inline.5.$dependency.local.2
+      assign $inline.5.result
+        Type Cell
+        Local $inline.5.$call.1
+      goto bb5
+    bb7 inline.cont.7
+      val third: PinnedPtr<Cell>
+        Type PinnedPtr<Cell>
+        Local $inline.7.result
+      val $dependency.receiver: ULong
+        Type ULong
+        FieldAccess 0
+          Type PinnedPtr<Cell>
+          Local third
+      val $dependency.argument.0: ULong
+        Type ULong
+        FieldAccess 0
+          Type PinnedPtr<Cell>
+          FieldAccess 1
+            Type Pins<Cell>
+            Local held
+      val $dependency.parameter.other: ULong
+        Type ULong
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=ULong result=Boolean
+          Type ULong
+          Local $dependency.receiver
+          Type ULong
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn2 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: PinnedPtr<Cell>
+        Type PinnedPtr<Cell>
+        Local third
+      val $dependency.parameter.p: PinnedPtr<Cell>
+        Type PinnedPtr<Cell>
+        Local $dependency.argument.0
+      val $inline.5.p: PinnedPtr<Cell>
+        Type PinnedPtr<Cell>
+        Local $dependency.parameter.p
+      goto bb6
+    bb8 inline.7.entry
+      val $inline.7.$dependency.local.1: Cell
+        Type Cell
+        Local $inline.7.v
+      val $inline.7.$dependency.local.2: Cell
+        Type Cell
+        Local $inline.7.$dependency.local.1
+      call $inline.7.$dependency.local.3: ULong = @scoop_rt_pin direct
+        Type Cell
+        Local $inline.7.$dependency.local.2
+      val $inline.7.$dependency.local.4: ULong
+        Type ULong
+        Local $inline.7.$dependency.local.3
+      val $inline.19.raw: ULong
+        Type ULong
+        Local $inline.7.$dependency.local.4
+      goto bb20
+    bb9 inline.cont.9
+      val handle: GcHandle<Cell>
+        Type GcHandle<Cell>
+        Local $inline.9.result
+      call @scoop_rt_gc_collect direct
+      val $dependency.argument.0: Cell
+        Type Cell
+        Local first
+      val $dependency.parameter.v: Cell
+        Type Cell
+        Local $dependency.argument.0
+      val $inline.7.v: Cell
+        Type Cell
+        Local $dependency.parameter.v
+      goto bb8
+    bb10 inline.9.entry
+      val $inline.9.$dependency.local.1: Cell
+        Type Cell
+        Local $inline.9.v
+      val $inline.9.$dependency.local.2: Cell
+        Type Cell
+        Local $inline.9.$dependency.local.1
+      call $inline.9.$dependency.local.3: ULong = @scoop_rt_get_handle direct
+        Type Cell
+        Local $inline.9.$dependency.local.2
+      val $inline.9.$dependency.local.4: ULong
+        Type ULong
+        Local $inline.9.$dependency.local.3
+      val $inline.17.raw: ULong
+        Type ULong
+        Local $inline.9.$dependency.local.4
+      goto bb18
+    bb11 inline.cont.11
+      val first: Cell
+        Type Cell
+        Local $inline.11.result
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Child
+          FieldAccess 0
+            Type Cell
+            Local first
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=73 bits=0x00000049
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=73 bits=0x00000049
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          IntegerLiteral Int value=73 bits=0x00000049
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn2 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: Cell
+        Type Cell
+        Local first
+      val $dependency.parameter.v: Cell
+        Type Cell
+        Local $dependency.argument.0
+      val $inline.9.v: Cell
+        Type Cell
+        Local $dependency.parameter.v
+      goto bb10
+    bb12 inline.11.entry
+      val $inline.11.$dependency.local.1: ULong
+        Type ULong
+        FieldAccess 0
+          Type PinnedPtr<Cell>
+          Local $inline.11.p
+      val $inline.11.$dependency.local.2: ULong
+        Type ULong
+        Local $inline.11.$dependency.local.1
+      call $inline.11.$call.1: Cell = @scoop_rt_unpin direct
+        Type ULong
+        Local $inline.11.$dependency.local.2
+      assign $inline.11.result
+        Type Cell
+        Local $inline.11.$call.1
+      goto bb11
+    bb13 inline.cont.13
+      val $argument.0: Cell
+        Type Cell
+        Local $new.2
+      val $parameter.value: Cell
+        Type Cell
+        Local $argument.0
+      call held: Pins<Cell> = @fn8 direct
+        Type Cell
+        Local $parameter.value
+      val $dependency.receiver: ULong
+        Type ULong
+        FieldAccess 0
+          Type PinnedPtr<Cell>
+          FieldAccess 0
+            Type Pins<Cell>
+            Local held
+      val $dependency.argument.0: ULong
+        Type ULong
+        FieldAccess 0
+          Type PinnedPtr<Cell>
+          FieldAccess 1
+            Type Pins<Cell>
+            Local held
+      val $dependency.parameter.other: ULong
+        Type ULong
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=ULong result=Boolean
+          Type ULong
+          Local $dependency.receiver
+          Type ULong
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn2 direct
+        Type Boolean
+        Local $parameter.value
+      call @scoop_rt_gc_collect direct
+      val $dependency.argument.0: PinnedPtr<Cell>
+        Type PinnedPtr<Cell>
+        FieldAccess 0
+          Type Pins<Cell>
+          Local held
+      val $dependency.parameter.p: PinnedPtr<Cell>
+        Type PinnedPtr<Cell>
+        Local $dependency.argument.0
+      val $inline.11.p: PinnedPtr<Cell>
+        Type PinnedPtr<Cell>
+        Local $dependency.parameter.p
+      goto bb12
+    bb14 inline.13.entry
+      field_set 0
+        Type Cell
+        Local $inline.13.this
+        Type Child
+        Local $inline.13.child
+      goto bb13
+    bb15 inline.cont.15
+      val $argument.0: Child
+        Type Child
+        Local $new.1
+      val $parameter.child: Child
+        Type Child
+        Local $argument.0
+      assign $new.2
+        Type Cell
+        ClassAlloc Cell
+      val $inline.13.this: Cell
+        Type Cell
+        Local $new.2
+      val $inline.13.child: Child
+        Type Child
+        Local $parameter.child
+      goto bb14
+    bb16 inline.15.entry
+      field_set 0
+        Type Child
+        Local $inline.15.this
+        Type Int
+        IntegerLiteral Int value=73 bits=0x00000049
+      goto bb15
+    bb17 inline.cont.17
+      val $inline.9.$call.1: GcHandle<Cell>
+        Type GcHandle<Cell>
+        Local $inline.17.result
+      assign $inline.9.result
+        Type GcHandle<Cell>
+        Local $inline.9.$call.1
+      goto bb9
+    bb18 inline.17.entry
+      assign $inline.17.result
+        Type GcHandle<Cell>
+        StructInit GcHandle<Cell>
+          Type ULong
+          Local $inline.17.raw
+      goto bb17
+    bb19 inline.cont.19
+      val $inline.7.$call.1: PinnedPtr<Cell>
+        Type PinnedPtr<Cell>
+        Local $inline.19.result
+      assign $inline.7.result
+        Type PinnedPtr<Cell>
+        Local $inline.7.$call.1
+      goto bb7
+    bb20 inline.19.entry
+      assign $inline.19.result
+        Type PinnedPtr<Cell>
+        StructInit PinnedPtr<Cell>
+          Type ULong
+          Local $inline.19.raw
+      goto bb19
+  fun arrays @fn4() -> Unit
+    bb0 entry
+      val $argument.0: Long
+        Type Long
+        IntegerLiteral Long value=257 bits=0x0000000000000101
+      val $argument.1: (Long) -> UInt8
+        Type (Long) -> UInt8
+        ClosureAlloc cc0 $Closure$lambda0
+      val $parameter.size: Long
+        Type Long
+        IntegerLiteral Long value=257 bits=0x0000000000000101
+      val $parameter.init: (Long) -> UInt8
+        Type (Long) -> UInt8
+        Local $argument.1
+      val $array_size.1: Long
+        Type Long
+        IntegerLiteral Long value=257 bits=0x0000000000000101
+      val $array_init.2: (Long) -> UInt8
+        Type (Long) -> UInt8
+        Local $parameter.init
+      goto bb2
+    bb1 if.then.1
+      unreachable
+    bb2 if.merge.2
+      val $array.3: MutableArray<UInt8>
+        Type MutableArray<UInt8>
+        ArrayAllocate MutableArray<UInt8>
+          Type Long
+          IntegerLiteral Long value=257 bits=0x0000000000000101
+      var $array_index.4: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      goto bb3
+    bb3 while.cond.3 <loop-header-poll>
+      branch bb5 bb4
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $array_index.4
+          Type Long
+          IntegerLiteral Long value=257 bits=0x0000000000000101
+    bb4 while.exit.4
+      val $argument.0: MutableArray<UInt8>
+        Type MutableArray<UInt8>
+        Local $array.3
+      val $parameter.value: MutableArray<UInt8>
+        Type MutableArray<UInt8>
+        Local $argument.0
+      call held: Pins<MutableArray<UInt8>> = @fn17 direct
+        Type MutableArray<UInt8>
+        Local $parameter.value
+      call @scoop_rt_gc_collect direct
+      val $dependency.argument.0: PinnedPtr<MutableArray<UInt8>>
+        Type PinnedPtr<MutableArray<UInt8>>
+        FieldAccess 0
+          Type Pins<MutableArray<UInt8>>
+          Local held
+      val $dependency.parameter.p: PinnedPtr<MutableArray<UInt8>>
+        Type PinnedPtr<MutableArray<UInt8>>
+        Local $dependency.argument.0
+      val $inline.21.p: PinnedPtr<MutableArray<UInt8>>
+        Type PinnedPtr<MutableArray<UInt8>>
+        Local $dependency.parameter.p
+      goto bb22
+    bb5 while.body.5
+      val $inline.19.$closure: (Long) -> UInt8
+        Type (Long) -> UInt8
+        Local $array_init.2
+      val $inline.19.index: Long
+        Type Long
+        Local $array_index.4
+      goto bb20
+    bb6 logic.rhs.6
+      assign $logic.2
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          IntegerLiteral Long value=11 bits=0x000000000000000b
+          Type Long
+          ArrayLen MutableArray<UInt8>
+            Type MutableArray<UInt8>
+            Local $arr.6
+      goto bb8
+    bb7 logic.short.7
+      unreachable
+    bb8 logic.merge.8
+      branch bb9 bb10
+        Type Boolean
+        Local $logic.2
+    bb9 if.then.9
+      assign $new.3
+        Type IndexOutOfBoundsException
+        ClassAlloc IndexOutOfBoundsException
+      call external4 direct
+        Type IndexOutOfBoundsException
+        Local $new.3
+      throw
+        Type IndexOutOfBoundsException
+        Local $new.3
+    bb10 if.merge.10
+      array_set MutableArray<UInt8>
+        Type MutableArray<UInt8>
+        Local $arr.6
+        Type Long
+        IntegerLiteral Long value=11 bits=0x000000000000000b
+        Type UInt8
+        IntegerLiteral UInt8 value=91 bits=0x5b
+      call @scoop_rt_gc_collect direct
+      val $dependency.argument.0: PinnedPtr<MutableArray<UInt8>>
+        Type PinnedPtr<MutableArray<UInt8>>
+        FieldAccess 1
+          Type Pins<MutableArray<UInt8>>
+          Local held
+      val $dependency.parameter.p: PinnedPtr<MutableArray<UInt8>>
+        Type PinnedPtr<MutableArray<UInt8>>
+        Local $dependency.argument.0
+      val $inline.17.p: PinnedPtr<MutableArray<UInt8>>
+        Type PinnedPtr<MutableArray<UInt8>>
+        Local $dependency.parameter.p
+      goto bb18
+    bb11 if.then.11
+      val $dependency.receiver: MutableArray<UInt8>
+        Type MutableArray<UInt8>
+        Local second
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=11 bits=0x000000000000000b
+      val $dependency.parameter.index: Long
+        Type Long
+        IntegerLiteral Long value=11 bits=0x000000000000000b
+      call $dependency.receiver: UInt8 = @fn14 direct
+        Type MutableArray<UInt8>
+        Local $dependency.receiver
+        Type Long
+        IntegerLiteral Long value=11 bits=0x000000000000000b
+      val $dependency.argument.0: UInt8
+        Type UInt8
+        IntegerLiteral UInt8 value=91 bits=0x5b
+      val $dependency.parameter.other: UInt8
+        Type UInt8
+        IntegerLiteral UInt8 value=91 bits=0x5b
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=UInt8 result=Boolean
+          Type UInt8
+          Local $dependency.receiver
+          Type UInt8
+          IntegerLiteral UInt8 value=91 bits=0x5b
+      goto bb13
+    bb12 if.else.12
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb13
+    bb13 if.merge.13
+      branch bb14 bb15
+        Type Boolean
+        Local $shortCircuit.0
+    bb14 if.then.14
+      val $dependency.receiver: MutableArray<UInt8>
+        Type MutableArray<UInt8>
+        Local second
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=256 bits=0x0000000000000100
+      val $dependency.parameter.index: Long
+        Type Long
+        IntegerLiteral Long value=256 bits=0x0000000000000100
+      call $dependency.receiver: UInt8 = @fn14 direct
+        Type MutableArray<UInt8>
+        Local $dependency.receiver
+        Type Long
+        IntegerLiteral Long value=256 bits=0x0000000000000100
+      val $dependency.argument.0: UInt8
+        Type UInt8
+        IntegerLiteral UInt8 value=0 bits=0x00
+      val $dependency.parameter.other: UInt8
+        Type UInt8
+        IntegerLiteral UInt8 value=0 bits=0x00
+      val $shortCircuit.1: Boolean
+        Type Boolean
+        IntegerCompare equal operands=UInt8 result=Boolean
+          Type UInt8
+          Local $dependency.receiver
+          Type UInt8
+          IntegerLiteral UInt8 value=0 bits=0x00
+      goto bb16
+    bb15 if.else.15
+      val $shortCircuit.1: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb16
+    bb16 if.merge.16
+      val $argument.0: Boolean
+        Type Boolean
+        Local $shortCircuit.1
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn2 direct
+        Type Boolean
+        Local $parameter.value
+      return
+    bb17 inline.cont.17
+      val second: MutableArray<UInt8>
+        Type MutableArray<UInt8>
+        Local $inline.17.result
+      branch bb11 bb12
+        Type Boolean
+        Binary RefEq
+          Type MutableArray<UInt8>
+          Local second
+          Type MutableArray<UInt8>
+          Local first
+    bb18 inline.17.entry
+      val $inline.17.$dependency.local.1: ULong
+        Type ULong
+        FieldAccess 0
+          Type PinnedPtr<MutableArray<UInt8>>
+          Local $inline.17.p
+      val $inline.17.$dependency.local.2: ULong
+        Type ULong
+        Local $inline.17.$dependency.local.1
+      call $inline.17.$call.1: MutableArray<UInt8> = @scoop_rt_unpin direct
+        Type ULong
+        Local $inline.17.$dependency.local.2
+      assign $inline.17.result
+        Type MutableArray<UInt8>
+        Local $inline.17.$call.1
+      goto bb17
+    bb19 inline.cont.19
+      val $array_value.5: UInt8
+        Type UInt8
+        Local $inline.19.result
+      array_set MutableArray<UInt8>
+        Type MutableArray<UInt8>
+        Local $array.3
+        Type Long
+        Local $array_index.4
+        Type UInt8
+        Local $array_value.5
+      assign $array_index.4
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $array_index.4
+          Type Long
+          IntegerLiteral Long value=1 bits=0x0000000000000001
+      goto bb3
+    bb20 inline.19.entry
+      val $inline.19.$dependency.receiver: Long
+        Type Long
+        Local $inline.19.index
+      assign $inline.19.result
+        Type UInt8
+        IntegerConversion Long -> UInt8
+          Type Long
+          Local $inline.19.$dependency.receiver
+      goto bb19
+    bb21 inline.cont.21
+      val first: MutableArray<UInt8>
+        Type MutableArray<UInt8>
+        Local $inline.21.result
+      val $dependency.receiver: MutableArray<UInt8>
+        Type MutableArray<UInt8>
+        Local first
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=11 bits=0x000000000000000b
+      val $dependency.argument.1: UInt8
+        Type UInt8
+        IntegerLiteral UInt8 value=91 bits=0x5b
+      val $dependency.parameter.index: Long
+        Type Long
+        IntegerLiteral Long value=11 bits=0x000000000000000b
+      val $dependency.parameter.value: UInt8
+        Type UInt8
+        IntegerLiteral UInt8 value=91 bits=0x5b
+      val $arr.6: MutableArray<UInt8>
+        Type MutableArray<UInt8>
+        Local $dependency.receiver
+      val $idx.7: Long
+        Type Long
+        IntegerLiteral Long value=11 bits=0x000000000000000b
+      val $value.8: UInt8
+        Type UInt8
+        IntegerLiteral UInt8 value=91 bits=0x5b
+      goto bb6
+    bb22 inline.21.entry
+      val $inline.21.$dependency.local.1: ULong
+        Type ULong
+        FieldAccess 0
+          Type PinnedPtr<MutableArray<UInt8>>
+          Local $inline.21.p
+      val $inline.21.$dependency.local.2: ULong
+        Type ULong
+        Local $inline.21.$dependency.local.1
+      call $inline.21.$call.1: MutableArray<UInt8> = @scoop_rt_unpin direct
+        Type ULong
+        Local $inline.21.$dependency.local.2
+      assign $inline.21.result
+        Type MutableArray<UInt8>
+        Local $inline.21.$call.1
+      goto bb21
+  fun releaseOne @fn5(value: PinnedPtr<Owner>) -> Unit
+    bb0 entry
+      val $dependency.argument.0: PinnedPtr<Owner>
+        Type PinnedPtr<Owner>
+        Local value
+      val $dependency.parameter.p: PinnedPtr<Owner>
+        Type PinnedPtr<Owner>
+        Local $dependency.argument.0
+      val $inline.1.p: PinnedPtr<Owner>
+        Type PinnedPtr<Owner>
+        Local $dependency.parameter.p
+      goto bb2
+    bb1 inline.cont.1
+      val $call.1: Owner
+        Type Owner
+        Local $inline.1.result
+      return
+    bb2 inline.1.entry
+      val $inline.1.$dependency.local.1: ULong
+        Type ULong
+        FieldAccess 0
+          Type PinnedPtr<Owner>
+          Local $inline.1.p
+      val $inline.1.$dependency.local.2: ULong
+        Type ULong
+        Local $inline.1.$dependency.local.1
+      call $inline.1.$call.1: Owner = @scoop_rt_unpin direct
+        Type ULong
+        Local $inline.1.$dependency.local.2
+      assign $inline.1.result
+        Type Owner
+        Local $inline.1.$call.1
+      goto bb1
+  fun releaseCounts @fn6() -> Unit
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $parameter.value: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      assign $new.1
+        Type Owner
+        ClassAlloc Owner
+      call @fn41 direct
+        Type Owner
+        Local $new.1
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      publish_release_ready Owner
+        Type Owner
+        Local $new.1
+      val $argument.0: Owner
+        Type Owner
+        Local $new.1
+      val $parameter.value: Owner
+        Type Owner
+        Local $argument.0
+      call held: Pins<Owner> = @fn20 direct
+        Type Owner
+        Local $parameter.value
+      call @scoop_rt_gc_collect direct
+      call $dependency.receiver: Int = extern1 @counted_pin_released direct
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          IntegerLiteral Int value=0 bits=0x00000000
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn2 direct
+        Type Boolean
+        Local $parameter.value
+      val $argument.0: PinnedPtr<Owner>
+        Type PinnedPtr<Owner>
+        FieldAccess 0
+          Type Pins<Owner>
+          Local held
+      val $parameter.value: PinnedPtr<Owner>
+        Type PinnedPtr<Owner>
+        Local $argument.0
+      val $inline.3.value: PinnedPtr<Owner>
+        Type PinnedPtr<Owner>
+        Local $parameter.value
+      goto bb4
+    bb1 inline.cont.1
+      call @scoop_rt_gc_collect direct
+      call $dependency.receiver: Int = extern1 @counted_pin_released direct
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          IntegerLiteral Int value=7 bits=0x00000007
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn2 direct
+        Type Boolean
+        Local $parameter.value
+      call @scoop_rt_gc_collect direct
+      call $dependency.receiver: Int = extern1 @counted_pin_released direct
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          IntegerLiteral Int value=7 bits=0x00000007
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn2 direct
+        Type Boolean
+        Local $parameter.value
+      return
+    bb2 inline.1.entry
+      val $inline.1.$dependency.argument.0: PinnedPtr<Owner>
+        Type PinnedPtr<Owner>
+        Local $inline.1.value
+      val $inline.1.$dependency.parameter.p: PinnedPtr<Owner>
+        Type PinnedPtr<Owner>
+        Local $inline.1.$dependency.argument.0
+      val $inline.7.p: PinnedPtr<Owner>
+        Type PinnedPtr<Owner>
+        Local $inline.1.$dependency.parameter.p
+      goto bb8
+    bb3 inline.cont.3
+      call @scoop_rt_gc_collect direct
+      call $dependency.receiver: Int = extern1 @counted_pin_released direct
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          IntegerLiteral Int value=0 bits=0x00000000
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn2 direct
+        Type Boolean
+        Local $parameter.value
+      val $argument.0: PinnedPtr<Owner>
+        Type PinnedPtr<Owner>
+        FieldAccess 1
+          Type Pins<Owner>
+          Local held
+      val $parameter.value: PinnedPtr<Owner>
+        Type PinnedPtr<Owner>
+        Local $argument.0
+      val $inline.1.value: PinnedPtr<Owner>
+        Type PinnedPtr<Owner>
+        Local $parameter.value
+      goto bb2
+    bb4 inline.3.entry
+      val $inline.3.$dependency.argument.0: PinnedPtr<Owner>
+        Type PinnedPtr<Owner>
+        Local $inline.3.value
+      val $inline.3.$dependency.parameter.p: PinnedPtr<Owner>
+        Type PinnedPtr<Owner>
+        Local $inline.3.$dependency.argument.0
+      val $inline.5.p: PinnedPtr<Owner>
+        Type PinnedPtr<Owner>
+        Local $inline.3.$dependency.parameter.p
+      goto bb6
+    bb5 inline.cont.5
+      val $inline.3.$call.1: Owner
+        Type Owner
+        Local $inline.5.result
+      goto bb3
+    bb6 inline.5.entry
+      val $inline.5.$dependency.local.1: ULong
+        Type ULong
+        FieldAccess 0
+          Type PinnedPtr<Owner>
+          Local $inline.5.p
+      val $inline.5.$dependency.local.2: ULong
+        Type ULong
+        Local $inline.5.$dependency.local.1
+      call $inline.5.$call.1: Owner = @scoop_rt_unpin direct
+        Type ULong
+        Local $inline.5.$dependency.local.2
+      assign $inline.5.result
+        Type Owner
+        Local $inline.5.$call.1
+      goto bb5
+    bb7 inline.cont.7
+      val $inline.1.$call.1: Owner
+        Type Owner
+        Local $inline.7.result
+      goto bb1
+    bb8 inline.7.entry
+      val $inline.7.$dependency.local.1: ULong
+        Type ULong
+        FieldAccess 0
+          Type PinnedPtr<Owner>
+          Local $inline.7.p
+      val $inline.7.$dependency.local.2: ULong
+        Type ULong
+        Local $inline.7.$dependency.local.1
+      call $inline.7.$call.1: Owner = @scoop_rt_unpin direct
+        Type ULong
+        Local $inline.7.$dependency.local.2
+      assign $inline.7.result
+        Type Owner
+        Local $inline.7.$call.1
+      goto bb7
+  fun main @fn7() -> Unit
+    bb0 entry
+      call @fn3 direct
+      call @fn4 direct
+      call @fn6 direct
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str1
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn21 direct
+        Type String
+        Local $dependency.parameter.value
+      return
+  fun twice @fn8(value: Cell) -> Pins<Cell>
+    bb0 entry
+      val $dependency.argument.0: Cell
+        Type Cell
+        Local value
+      val $dependency.parameter.v: Cell
+        Type Cell
+        Local $dependency.argument.0
+      val $inline.5.v: Cell
+        Type Cell
+        Local $dependency.parameter.v
+      goto bb6
+    bb1 inline.cont.1
+      val $call.1: Pins<Cell>
+        Type Pins<Cell>
+        Local $inline.1.result
+      return
+        Type Pins<Cell>
+        Local $call.1
+    bb2 inline.1.entry
+      assign $inline.1.result
+        Type Pins<Cell>
+        StructInit Pins<Cell>
+          Type PinnedPtr<Cell>
+          Local $inline.1.first
+          Type PinnedPtr<Cell>
+          Local $inline.1.second
+      goto bb1
+    bb3 inline.cont.3
+      val $argument.1: PinnedPtr<Cell>
+        Type PinnedPtr<Cell>
+        Local $inline.3.result
+      val $parameter.first: PinnedPtr<Cell>
+        Type PinnedPtr<Cell>
+        Local $argument.0
+      val $parameter.second: PinnedPtr<Cell>
+        Type PinnedPtr<Cell>
+        Local $argument.1
+      val $inline.1.first: PinnedPtr<Cell>
+        Type PinnedPtr<Cell>
+        Local $parameter.first
+      val $inline.1.second: PinnedPtr<Cell>
+        Type PinnedPtr<Cell>
+        Local $parameter.second
+      goto bb2
+    bb4 inline.3.entry
+      val $inline.3.$dependency.local.1: Cell
+        Type Cell
+        Local $inline.3.v
+      val $inline.3.$dependency.local.2: Cell
+        Type Cell
+        Local $inline.3.$dependency.local.1
+      call $inline.3.$dependency.local.3: ULong = @scoop_rt_pin direct
+        Type Cell
+        Local $inline.3.$dependency.local.2
+      val $inline.3.$dependency.local.4: ULong
+        Type ULong
+        Local $inline.3.$dependency.local.3
+      val $inline.9.raw: ULong
+        Type ULong
+        Local $inline.3.$dependency.local.4
+      goto bb10
+    bb5 inline.cont.5
+      val $argument.0: PinnedPtr<Cell>
+        Type PinnedPtr<Cell>
+        Local $inline.5.result
+      val $dependency.argument.0: Cell
+        Type Cell
+        Local value
+      val $dependency.parameter.v: Cell
+        Type Cell
+        Local $dependency.argument.0
+      val $inline.3.v: Cell
+        Type Cell
+        Local $dependency.parameter.v
+      goto bb4
+    bb6 inline.5.entry
+      val $inline.5.$dependency.local.1: Cell
+        Type Cell
+        Local $inline.5.v
+      val $inline.5.$dependency.local.2: Cell
+        Type Cell
+        Local $inline.5.$dependency.local.1
+      call $inline.5.$dependency.local.3: ULong = @scoop_rt_pin direct
+        Type Cell
+        Local $inline.5.$dependency.local.2
+      val $inline.5.$dependency.local.4: ULong
+        Type ULong
+        Local $inline.5.$dependency.local.3
+      val $inline.7.raw: ULong
+        Type ULong
+        Local $inline.5.$dependency.local.4
+      goto bb8
+    bb7 inline.cont.7
+      val $inline.5.$call.1: PinnedPtr<Cell>
+        Type PinnedPtr<Cell>
+        Local $inline.7.result
+      assign $inline.5.result
+        Type PinnedPtr<Cell>
+        Local $inline.5.$call.1
+      goto bb5
+    bb8 inline.7.entry
+      assign $inline.7.result
+        Type PinnedPtr<Cell>
+        StructInit PinnedPtr<Cell>
+          Type ULong
+          Local $inline.7.raw
+      goto bb7
+    bb9 inline.cont.9
+      val $inline.3.$call.1: PinnedPtr<Cell>
+        Type PinnedPtr<Cell>
+        Local $inline.9.result
+      assign $inline.3.result
+        Type PinnedPtr<Cell>
+        Local $inline.3.$call.1
+      goto bb3
+    bb10 inline.9.entry
+      assign $inline.9.result
+        Type PinnedPtr<Cell>
+        StructInit PinnedPtr<Cell>
+          Type ULong
+          Local $inline.9.raw
+      goto bb9
+  fun unpin @fn9(p: PinnedPtr<Cell>) -> Cell
+    bb0 entry
+      val $dependency.local.1: ULong
+        Type ULong
+        FieldAccess 0
+          Type PinnedPtr<Cell>
+          Local p
+      val $dependency.local.2: ULong
+        Type ULong
+        Local $dependency.local.1
+      call $call.1: Cell = @scoop_rt_unpin direct
+        Type ULong
+        Local $dependency.local.2
+      return
+        Type Cell
+        Local $call.1
+  fun getGcHandle @fn10(v: Cell) -> GcHandle<Cell>
+    bb0 entry
+      val $dependency.local.1: Cell
+        Type Cell
+        Local v
+      val $dependency.local.2: Cell
+        Type Cell
+        Local $dependency.local.1
+      call $dependency.local.3: ULong = @scoop_rt_get_handle direct
+        Type Cell
+        Local $dependency.local.2
+      val $dependency.local.4: ULong
+        Type ULong
+        Local $dependency.local.3
+      val $inline.1.raw: ULong
+        Type ULong
+        Local $dependency.local.4
+      goto bb2
+    bb1 inline.cont.1
+      val $call.1: GcHandle<Cell>
+        Type GcHandle<Cell>
+        Local $inline.1.result
+      return
+        Type GcHandle<Cell>
+        Local $call.1
+    bb2 inline.1.entry
+      assign $inline.1.result
+        Type GcHandle<Cell>
+        StructInit GcHandle<Cell>
+          Type ULong
+          Local $inline.1.raw
+      goto bb1
+  fun pin @fn11(v: Cell) -> PinnedPtr<Cell>
+    bb0 entry
+      val $dependency.local.1: Cell
+        Type Cell
+        Local v
+      val $dependency.local.2: Cell
+        Type Cell
+        Local $dependency.local.1
+      call $dependency.local.3: ULong = @scoop_rt_pin direct
+        Type Cell
+        Local $dependency.local.2
+      val $dependency.local.4: ULong
+        Type ULong
+        Local $dependency.local.3
+      val $inline.1.raw: ULong
+        Type ULong
+        Local $dependency.local.4
+      goto bb2
+    bb1 inline.cont.1
+      val $call.1: PinnedPtr<Cell>
+        Type PinnedPtr<Cell>
+        Local $inline.1.result
+      return
+        Type PinnedPtr<Cell>
+        Local $call.1
+    bb2 inline.1.entry
+      assign $inline.1.result
+        Type PinnedPtr<Cell>
+        StructInit PinnedPtr<Cell>
+          Type ULong
+          Local $inline.1.raw
+      goto bb1
+  fun releaseGcHandle @fn12(h: GcHandle<Cell>) -> Cell
+    bb0 entry
+      val $dependency.local.1: ULong
+        Type ULong
+        FieldAccess 0
+          Type GcHandle<Cell>
+          Local h
+      val $dependency.local.2: ULong
+        Type ULong
+        Local $dependency.local.1
+      call $call.1: Cell = @scoop_rt_release_handle direct
+        Type ULong
+        Local $dependency.local.2
+      return
+        Type Cell
+        Local $call.1
+  fun iterator @fn13(this: MutableArray<UInt8>) -> Iterator<UInt8>
+    bb0 entry
+      val $dependency.local.1: List<UInt8>
+        Type List<UInt8>
+        Retype List<UInt8>
+          Type MutableArray<UInt8>
+          Local this
+      val $dependency.local.2: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.local.3: Boolean
+        Type Boolean
+        BoolLiteral false
+      val $dependency.local.4: List<UInt8>
+        Type List<UInt8>
+        Local $dependency.local.1
+      val $dependency.local.5: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.local.6: Boolean
+        Type Boolean
+        BoolLiteral false
+      assign $new.1
+        Type ListIterator<UInt8>
+        ClassAlloc ListIterator<UInt8>
+      val $inline.1.this: ListIterator<UInt8>
+        Type ListIterator<UInt8>
+        Local $new.1
+      val $inline.1.source: List<UInt8>
+        Type List<UInt8>
+        Local $dependency.local.4
+      val $inline.1.index: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $inline.1.exhausted: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb2
+    bb1 inline.cont.1
+      return
+        Type Iterator<UInt8>
+        Retype Iterator<UInt8>
+          Type ListIterator<UInt8>
+          Local $new.1
+    bb2 inline.1.entry
+      field_set 0
+        Type ListIterator<UInt8>
+        Local $inline.1.this
+        Type List<UInt8>
+        Local $inline.1.source
+      field_set 1
+        Type ListIterator<UInt8>
+        Local $inline.1.this
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      field_set 2
+        Type ListIterator<UInt8>
+        Local $inline.1.this
+        Type Boolean
+        BoolLiteral false
+      goto bb1
+  fun get @fn14(this: MutableArray<UInt8>, index: Long) -> UInt8
+    bb0 entry
+      val $dependency.local.2: MutableArray<UInt8>
+        Type MutableArray<UInt8>
+        Local this
+      val $dependency.local.3: Long
+        Type Long
+        Local index
+      val $dependency.local.4: Long
+        Type Long
+        Local $dependency.local.3
+      val $arr.1: MutableArray<UInt8>
+        Type MutableArray<UInt8>
+        Local $dependency.local.2
+      val $idx.2: Long
+        Type Long
+        Local $dependency.local.4
+      branch bb2 bb1
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb1 logic.rhs.1
+      assign $logic.1
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          ArrayLen MutableArray<UInt8>
+            Type MutableArray<UInt8>
+            Local $arr.1
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.1
+        Type Boolean
+        BoolLiteral true
+      goto bb3
+    bb3 logic.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $logic.1
+    bb4 if.then.4
+      assign $new.2
+        Type IndexOutOfBoundsException
+        ClassAlloc IndexOutOfBoundsException
+      call external4 direct
+        Type IndexOutOfBoundsException
+        Local $new.2
+      throw
+        Type IndexOutOfBoundsException
+        Local $new.2
+    bb5 if.merge.5
+      return
+        Type UInt8
+        ArrayGet MutableArray<UInt8>
+          Type MutableArray<UInt8>
+          Local $arr.1
+          Type Long
+          Local $idx.2
+  fun size @fn15(this: MutableArray<UInt8>) -> Long
+    bb0 entry
+      val $dependency.local.1: MutableArray<UInt8>
+        Type MutableArray<UInt8>
+        Local this
+      return
+        Type Long
+        ArrayLen MutableArray<UInt8>
+          Type MutableArray<UInt8>
+          Local $dependency.local.1
+  fun $lambda.0 @fn16($closure: (Long) -> UInt8, index: Long) -> UInt8
+    bb0 entry
+      val $dependency.receiver: Long
+        Type Long
+        Local index
+      return
+        Type UInt8
+        IntegerConversion Long -> UInt8
+          Type Long
+          Local $dependency.receiver
+  fun twice @fn17(value: MutableArray<UInt8>) -> Pins<MutableArray<UInt8>>
+    bb0 entry
+      val $dependency.argument.0: MutableArray<UInt8>
+        Type MutableArray<UInt8>
+        Local value
+      val $dependency.parameter.v: MutableArray<UInt8>
+        Type MutableArray<UInt8>
+        Local $dependency.argument.0
+      val $inline.5.v: MutableArray<UInt8>
+        Type MutableArray<UInt8>
+        Local $dependency.parameter.v
+      goto bb6
+    bb1 inline.cont.1
+      val $call.1: Pins<MutableArray<UInt8>>
+        Type Pins<MutableArray<UInt8>>
+        Local $inline.1.result
+      return
+        Type Pins<MutableArray<UInt8>>
+        Local $call.1
+    bb2 inline.1.entry
+      assign $inline.1.result
+        Type Pins<MutableArray<UInt8>>
+        StructInit Pins<MutableArray<UInt8>>
+          Type PinnedPtr<MutableArray<UInt8>>
+          Local $inline.1.first
+          Type PinnedPtr<MutableArray<UInt8>>
+          Local $inline.1.second
+      goto bb1
+    bb3 inline.cont.3
+      val $argument.1: PinnedPtr<MutableArray<UInt8>>
+        Type PinnedPtr<MutableArray<UInt8>>
+        Local $inline.3.result
+      val $parameter.first: PinnedPtr<MutableArray<UInt8>>
+        Type PinnedPtr<MutableArray<UInt8>>
+        Local $argument.0
+      val $parameter.second: PinnedPtr<MutableArray<UInt8>>
+        Type PinnedPtr<MutableArray<UInt8>>
+        Local $argument.1
+      val $inline.1.first: PinnedPtr<MutableArray<UInt8>>
+        Type PinnedPtr<MutableArray<UInt8>>
+        Local $parameter.first
+      val $inline.1.second: PinnedPtr<MutableArray<UInt8>>
+        Type PinnedPtr<MutableArray<UInt8>>
+        Local $parameter.second
+      goto bb2
+    bb4 inline.3.entry
+      val $inline.3.$dependency.local.1: MutableArray<UInt8>
+        Type MutableArray<UInt8>
+        Local $inline.3.v
+      val $inline.3.$dependency.local.2: MutableArray<UInt8>
+        Type MutableArray<UInt8>
+        Local $inline.3.$dependency.local.1
+      call $inline.3.$dependency.local.3: ULong = @scoop_rt_pin direct
+        Type MutableArray<UInt8>
+        Local $inline.3.$dependency.local.2
+      val $inline.3.$dependency.local.4: ULong
+        Type ULong
+        Local $inline.3.$dependency.local.3
+      val $inline.9.raw: ULong
+        Type ULong
+        Local $inline.3.$dependency.local.4
+      goto bb10
+    bb5 inline.cont.5
+      val $argument.0: PinnedPtr<MutableArray<UInt8>>
+        Type PinnedPtr<MutableArray<UInt8>>
+        Local $inline.5.result
+      val $dependency.argument.0: MutableArray<UInt8>
+        Type MutableArray<UInt8>
+        Local value
+      val $dependency.parameter.v: MutableArray<UInt8>
+        Type MutableArray<UInt8>
+        Local $dependency.argument.0
+      val $inline.3.v: MutableArray<UInt8>
+        Type MutableArray<UInt8>
+        Local $dependency.parameter.v
+      goto bb4
+    bb6 inline.5.entry
+      val $inline.5.$dependency.local.1: MutableArray<UInt8>
+        Type MutableArray<UInt8>
+        Local $inline.5.v
+      val $inline.5.$dependency.local.2: MutableArray<UInt8>
+        Type MutableArray<UInt8>
+        Local $inline.5.$dependency.local.1
+      call $inline.5.$dependency.local.3: ULong = @scoop_rt_pin direct
+        Type MutableArray<UInt8>
+        Local $inline.5.$dependency.local.2
+      val $inline.5.$dependency.local.4: ULong
+        Type ULong
+        Local $inline.5.$dependency.local.3
+      val $inline.7.raw: ULong
+        Type ULong
+        Local $inline.5.$dependency.local.4
+      goto bb8
+    bb7 inline.cont.7
+      val $inline.5.$call.1: PinnedPtr<MutableArray<UInt8>>
+        Type PinnedPtr<MutableArray<UInt8>>
+        Local $inline.7.result
+      assign $inline.5.result
+        Type PinnedPtr<MutableArray<UInt8>>
+        Local $inline.5.$call.1
+      goto bb5
+    bb8 inline.7.entry
+      assign $inline.7.result
+        Type PinnedPtr<MutableArray<UInt8>>
+        StructInit PinnedPtr<MutableArray<UInt8>>
+          Type ULong
+          Local $inline.7.raw
+      goto bb7
+    bb9 inline.cont.9
+      val $inline.3.$call.1: PinnedPtr<MutableArray<UInt8>>
+        Type PinnedPtr<MutableArray<UInt8>>
+        Local $inline.9.result
+      assign $inline.3.result
+        Type PinnedPtr<MutableArray<UInt8>>
+        Local $inline.3.$call.1
+      goto bb3
+    bb10 inline.9.entry
+      assign $inline.9.result
+        Type PinnedPtr<MutableArray<UInt8>>
+        StructInit PinnedPtr<MutableArray<UInt8>>
+          Type ULong
+          Local $inline.9.raw
+      goto bb9
+  fun unpin @fn18(p: PinnedPtr<MutableArray<UInt8>>) -> MutableArray<UInt8>
+    bb0 entry
+      val $dependency.local.1: ULong
+        Type ULong
+        FieldAccess 0
+          Type PinnedPtr<MutableArray<UInt8>>
+          Local p
+      val $dependency.local.2: ULong
+        Type ULong
+        Local $dependency.local.1
+      call $call.1: MutableArray<UInt8> = @scoop_rt_unpin direct
+        Type ULong
+        Local $dependency.local.2
+      return
+        Type MutableArray<UInt8>
+        Local $call.1
+  fun unpin @fn19(p: PinnedPtr<Owner>) -> Owner
+    bb0 entry
+      val $dependency.local.1: ULong
+        Type ULong
+        FieldAccess 0
+          Type PinnedPtr<Owner>
+          Local p
+      val $dependency.local.2: ULong
+        Type ULong
+        Local $dependency.local.1
+      call $call.1: Owner = @scoop_rt_unpin direct
+        Type ULong
+        Local $dependency.local.2
+      return
+        Type Owner
+        Local $call.1
+  fun twice @fn20(value: Owner) -> Pins<Owner>
+    bb0 entry
+      val $dependency.argument.0: Owner
+        Type Owner
+        Local value
+      val $dependency.parameter.v: Owner
+        Type Owner
+        Local $dependency.argument.0
+      val $inline.5.v: Owner
+        Type Owner
+        Local $dependency.parameter.v
+      goto bb6
+    bb1 inline.cont.1
+      val $call.1: Pins<Owner>
+        Type Pins<Owner>
+        Local $inline.1.result
+      return
+        Type Pins<Owner>
+        Local $call.1
+    bb2 inline.1.entry
+      assign $inline.1.result
+        Type Pins<Owner>
+        StructInit Pins<Owner>
+          Type PinnedPtr<Owner>
+          Local $inline.1.first
+          Type PinnedPtr<Owner>
+          Local $inline.1.second
+      goto bb1
+    bb3 inline.cont.3
+      val $argument.1: PinnedPtr<Owner>
+        Type PinnedPtr<Owner>
+        Local $inline.3.result
+      val $parameter.first: PinnedPtr<Owner>
+        Type PinnedPtr<Owner>
+        Local $argument.0
+      val $parameter.second: PinnedPtr<Owner>
+        Type PinnedPtr<Owner>
+        Local $argument.1
+      val $inline.1.first: PinnedPtr<Owner>
+        Type PinnedPtr<Owner>
+        Local $parameter.first
+      val $inline.1.second: PinnedPtr<Owner>
+        Type PinnedPtr<Owner>
+        Local $parameter.second
+      goto bb2
+    bb4 inline.3.entry
+      val $inline.3.$dependency.local.1: Owner
+        Type Owner
+        Local $inline.3.v
+      val $inline.3.$dependency.local.2: Owner
+        Type Owner
+        Local $inline.3.$dependency.local.1
+      call $inline.3.$dependency.local.3: ULong = @scoop_rt_pin direct
+        Type Owner
+        Local $inline.3.$dependency.local.2
+      val $inline.3.$dependency.local.4: ULong
+        Type ULong
+        Local $inline.3.$dependency.local.3
+      val $inline.9.raw: ULong
+        Type ULong
+        Local $inline.3.$dependency.local.4
+      goto bb10
+    bb5 inline.cont.5
+      val $argument.0: PinnedPtr<Owner>
+        Type PinnedPtr<Owner>
+        Local $inline.5.result
+      val $dependency.argument.0: Owner
+        Type Owner
+        Local value
+      val $dependency.parameter.v: Owner
+        Type Owner
+        Local $dependency.argument.0
+      val $inline.3.v: Owner
+        Type Owner
+        Local $dependency.parameter.v
+      goto bb4
+    bb6 inline.5.entry
+      val $inline.5.$dependency.local.1: Owner
+        Type Owner
+        Local $inline.5.v
+      val $inline.5.$dependency.local.2: Owner
+        Type Owner
+        Local $inline.5.$dependency.local.1
+      call $inline.5.$dependency.local.3: ULong = @scoop_rt_pin direct
+        Type Owner
+        Local $inline.5.$dependency.local.2
+      val $inline.5.$dependency.local.4: ULong
+        Type ULong
+        Local $inline.5.$dependency.local.3
+      val $inline.7.raw: ULong
+        Type ULong
+        Local $inline.5.$dependency.local.4
+      goto bb8
+    bb7 inline.cont.7
+      val $inline.5.$call.1: PinnedPtr<Owner>
+        Type PinnedPtr<Owner>
+        Local $inline.7.result
+      assign $inline.5.result
+        Type PinnedPtr<Owner>
+        Local $inline.5.$call.1
+      goto bb5
+    bb8 inline.7.entry
+      assign $inline.7.result
+        Type PinnedPtr<Owner>
+        StructInit PinnedPtr<Owner>
+          Type ULong
+          Local $inline.7.raw
+      goto bb7
+    bb9 inline.cont.9
+      val $inline.3.$call.1: PinnedPtr<Owner>
+        Type PinnedPtr<Owner>
+        Local $inline.9.result
+      assign $inline.3.result
+        Type PinnedPtr<Owner>
+        Local $inline.3.$call.1
+      goto bb3
+    bb10 inline.9.entry
+      assign $inline.9.result
+        Type PinnedPtr<Owner>
+        StructInit PinnedPtr<Owner>
+          Type ULong
+          Local $inline.9.raw
+      goto bb9
+  fun println @fn21(value: String) -> Unit
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local value
+      call $dependency.local.2: String = external1 direct
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external2 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str2
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external2 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun next @fn22(this: ListIterator<UInt8>) -> Option<UInt8>
+    bb0 entry
+      branch bb1 bb2
+        Type Boolean
+        FieldAccess 2
+          Type ListIterator<UInt8>
+          Local this
+    bb1 if.then.1
+      return
+        Type Option<UInt8>
+        VariantConstruct Option<UInt8> v1
+    bb2 if.merge.2
+      val $dependency.local.2: Long
+        Type Long
+        FieldAccess 1
+          Type ListIterator<UInt8>
+          Local this
+      call $dependency.local.3: Long = @fn25 interface List<UInt8>[2]
+        Type List<UInt8>
+        FieldAccess 0
+          Type ListIterator<UInt8>
+          Local this
+      val $dependency.local.4: Long
+        Type Long
+        Local $dependency.local.3
+      branch bb3 bb4
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Long result=Long
+            Type Long
+            Local $dependency.local.2
+            Type Long
+            Local $dependency.local.4
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb3 if.then.3
+      field_set 2
+        Type ListIterator<UInt8>
+        Local this
+        Type Boolean
+        BoolLiteral true
+      return
+        Type Option<UInt8>
+        VariantConstruct Option<UInt8> v1
+    bb4 if.merge.4
+      val $dependency.local.5: List<UInt8>
+        Type List<UInt8>
+        FieldAccess 0
+          Type ListIterator<UInt8>
+          Local this
+      val $dependency.local.6: Long
+        Type Long
+        FieldAccess 1
+          Type ListIterator<UInt8>
+          Local this
+      val $dependency.local.7: Long
+        Type Long
+        Local $dependency.local.6
+      call $dependency.local.1: UInt8 = @fn26 interface List<UInt8>[1]
+        Type List<UInt8>
+        Local $dependency.local.5
+        Type Long
+        Local $dependency.local.7
+      val $dependency.local.8: Long
+        Type Long
+        FieldAccess 1
+          Type ListIterator<UInt8>
+          Local this
+      val $dependency.local.9: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.local.10: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      field_set 1
+        Type ListIterator<UInt8>
+        Local this
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.local.8
+          Type Long
+          IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.local.11: UInt8
+        Type UInt8
+        Local $dependency.local.1
+      val $dependency.local.12: UInt8
+        Type UInt8
+        Local $dependency.local.11
+      return
+        Type Option<UInt8>
+        VariantConstruct Option<UInt8> v0
+          Type UInt8
+          Local $dependency.local.12
+  fun pin @fn23(v: MutableArray<UInt8>) -> PinnedPtr<MutableArray<UInt8>>
+    bb0 entry
+      val $dependency.local.1: MutableArray<UInt8>
+        Type MutableArray<UInt8>
+        Local v
+      val $dependency.local.2: MutableArray<UInt8>
+        Type MutableArray<UInt8>
+        Local $dependency.local.1
+      call $dependency.local.3: ULong = @scoop_rt_pin direct
+        Type MutableArray<UInt8>
+        Local $dependency.local.2
+      val $dependency.local.4: ULong
+        Type ULong
+        Local $dependency.local.3
+      val $inline.1.raw: ULong
+        Type ULong
+        Local $dependency.local.4
+      goto bb2
+    bb1 inline.cont.1
+      val $call.1: PinnedPtr<MutableArray<UInt8>>
+        Type PinnedPtr<MutableArray<UInt8>>
+        Local $inline.1.result
+      return
+        Type PinnedPtr<MutableArray<UInt8>>
+        Local $call.1
+    bb2 inline.1.entry
+      assign $inline.1.result
+        Type PinnedPtr<MutableArray<UInt8>>
+        StructInit PinnedPtr<MutableArray<UInt8>>
+          Type ULong
+          Local $inline.1.raw
+      goto bb1
+  fun pin @fn24(v: Owner) -> PinnedPtr<Owner>
+    bb0 entry
+      val $dependency.local.1: Owner
+        Type Owner
+        Local v
+      val $dependency.local.2: Owner
+        Type Owner
+        Local $dependency.local.1
+      call $dependency.local.3: ULong = @scoop_rt_pin direct
+        Type Owner
+        Local $dependency.local.2
+      val $dependency.local.4: ULong
+        Type ULong
+        Local $dependency.local.3
+      val $inline.1.raw: ULong
+        Type ULong
+        Local $dependency.local.4
+      goto bb2
+    bb1 inline.cont.1
+      val $call.1: PinnedPtr<Owner>
+        Type PinnedPtr<Owner>
+        Local $inline.1.result
+      return
+        Type PinnedPtr<Owner>
+        Local $call.1
+    bb2 inline.1.entry
+      assign $inline.1.result
+        Type PinnedPtr<Owner>
+        StructInit PinnedPtr<Owner>
+          Type ULong
+          Local $inline.1.raw
+      goto bb1
+  fun List.$get$size @fn25(this: List<UInt8>) -> Long
+    bb0 entry
+      trap "call to abstract method `List.$get$size`"
+  fun List.get @fn26(this: List<UInt8>, index: Long) -> UInt8
+    bb0 entry
+      trap "call to abstract method `List.get`"
+  fun Continuation.resume @fn27(this: Continuation<Child>, value: Child) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn28(this: Continuation<Child>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn29(this: SuspendTask<Child>, $completion: Continuation<Child>) -> CoroutineStep<Child>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn30(this: SuspendRegistration<Child>, continuation: Continuation<Child>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn31(this: Continuation<Cell>, value: Cell) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn32(this: Continuation<Cell>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn33(this: SuspendTask<Cell>, $completion: Continuation<Cell>) -> CoroutineStep<Cell>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn34(this: SuspendRegistration<Cell>, continuation: Continuation<Cell>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn35(this: Continuation<Owner>, value: Owner) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn36(this: Continuation<Owner>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn37(this: SuspendTask<Owner>, $completion: Continuation<Owner>) -> CoroutineStep<Owner>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn38(this: SuspendRegistration<Owner>, continuation: Continuation<Owner>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.Child.$c0 @fn39(this: Child, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Child
+        Local this
+        Type Int
+        Local value
+      return
+  fun init.Cell.$c1 @fn40(this: Cell, child: Child) -> Unit
+    bb0 entry
+      field_set 0
+        Type Cell
+        Local this
+        Type Child
+        Local child
+      return
+  fun init.Owner.$c2 @fn41(this: Owner, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Owner
+        Local this
+        Type Int
+        Local value
+      return
+  fun init.ListIterator.$c2 @fn42(this: ListIterator<UInt8>, source: List<UInt8>, index: Long, exhausted: Boolean) -> Unit
+    bb0 entry
+      field_set 0
+        Type ListIterator<UInt8>
+        Local this
+        Type List<UInt8>
+        Local source
+      field_set 1
+        Type ListIterator<UInt8>
+        Local this
+        Type Long
+        Local index
+      field_set 2
+        Type ListIterator<UInt8>
+        Local this
+        Type Boolean
+        Local exhausted
+      return
+  fun ctor.Pins.$c0 @fn43(first: PinnedPtr<Cell>, second: PinnedPtr<Cell>) -> Pins<Cell> <no-gc>
+    bb0 entry
+      return
+        Type Pins<Cell>
+        StructInit Pins<Cell>
+          Type PinnedPtr<Cell>
+          Local first
+          Type PinnedPtr<Cell>
+          Local second
+  fun ctor.GcHandle.$c1 @fn44(raw: ULong) -> GcHandle<Cell> <no-gc>
+    bb0 entry
+      return
+        Type GcHandle<Cell>
+        StructInit GcHandle<Cell>
+          Type ULong
+          Local raw
+  fun ctor.PinnedPtr.$c0 @fn45(raw: ULong) -> PinnedPtr<Cell> <no-gc>
+    bb0 entry
+      return
+        Type PinnedPtr<Cell>
+        StructInit PinnedPtr<Cell>
+          Type ULong
+          Local raw
+  fun ctor.Pins.$c0 @fn46(first: PinnedPtr<MutableArray<UInt8>>, second: PinnedPtr<MutableArray<UInt8>>) -> Pins<MutableArray<UInt8>> <no-gc>
+    bb0 entry
+      return
+        Type Pins<MutableArray<UInt8>>
+        StructInit Pins<MutableArray<UInt8>>
+          Type PinnedPtr<MutableArray<UInt8>>
+          Local first
+          Type PinnedPtr<MutableArray<UInt8>>
+          Local second
+  fun ctor.Pins.$c0 @fn47(first: PinnedPtr<Owner>, second: PinnedPtr<Owner>) -> Pins<Owner> <no-gc>
+    bb0 entry
+      return
+        Type Pins<Owner>
+        StructInit Pins<Owner>
+          Type PinnedPtr<Owner>
+          Local first
+          Type PinnedPtr<Owner>
+          Local second
+  fun ctor.PinnedPtr.$c0 @fn48(raw: ULong) -> PinnedPtr<MutableArray<UInt8>> <no-gc>
+    bb0 entry
+      return
+        Type PinnedPtr<MutableArray<UInt8>>
+        StructInit PinnedPtr<MutableArray<UInt8>>
+          Type ULong
+          Local raw
+  fun ctor.PinnedPtr.$c0 @fn49(raw: ULong) -> PinnedPtr<Owner> <no-gc>
+    bb0 entry
+      return
+        Type PinnedPtr<Owner>
+        StructInit PinnedPtr<Owner>
+          Type ULong
+          Local raw
+  fun startCoroutine<Cell> @fn50(task: SuspendTask<Cell>, completion: Continuation<Cell>) -> Unit
+    bb0 context.unwind
+      landing_pad cleanup=true
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb1 context.catch_unwind
+      landing_pad cleanup=true
+      end_catch
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb2 suspended
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb3 completed unwind bb0
+      call @fn31 interface Continuation<Cell>[0]
+        Type Continuation<Cell>
+        Local completion
+        Type Cell
+        EnumField v0 f0
+          Type CoroutineStep<Cell>
+          Local $step
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb4 failed unwind bb0
+      call @fn32 interface Continuation<Cell>[1]
+        Type Continuation<Cell>
+        Local completion
+        Type Throwable
+        Local $exception
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb5 body_failure unwind bb1
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb4
+    bb6 run unwind bb5
+      call $step: CoroutineStep<Cell> = @fn33 interface SuspendTask<Cell>[0]
+        Type SuspendTask<Cell>
+        Local task
+        Type Continuation<Cell>
+        Local completion
+      branch bb3 bb2
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Cell>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+    bb7 entry
+      val $child_context: internal<task-context>
+        Type internal<task-context>
+        ContextFork
+          Type internal<context-node>
+          ContextSnapshot
+      val $context_guard: internal<context-switch-guard>
+        Type internal<context-switch-guard>
+        ContextEnter
+          Type internal<task-context>
+          Local $child_context
+      goto bb6
+  fun startCoroutine<Owner> @fn51(task: SuspendTask<Owner>, completion: Continuation<Owner>) -> Unit
+    bb0 context.unwind
+      landing_pad cleanup=true
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb1 context.catch_unwind
+      landing_pad cleanup=true
+      end_catch
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb2 suspended
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb3 completed unwind bb0
+      call @fn35 interface Continuation<Owner>[0]
+        Type Continuation<Owner>
+        Local completion
+        Type Owner
+        EnumField v0 f0
+          Type CoroutineStep<Owner>
+          Local $step
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb4 failed unwind bb0
+      call @fn36 interface Continuation<Owner>[1]
+        Type Continuation<Owner>
+        Local completion
+        Type Throwable
+        Local $exception
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb5 body_failure unwind bb1
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb4
+    bb6 run unwind bb5
+      call $step: CoroutineStep<Owner> = @fn37 interface SuspendTask<Owner>[0]
+        Type SuspendTask<Owner>
+        Local task
+        Type Continuation<Owner>
+        Local completion
+      branch bb3 bb2
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Owner>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+    bb7 entry
+      val $child_context: internal<task-context>
+        Type internal<task-context>
+        ContextFork
+          Type internal<context-node>
+          ContextSnapshot
+      val $context_guard: internal<context-switch-guard>
+        Type internal<context-switch-guard>
+        ContextEnter
+          Type internal<task-context>
+          Local $child_context
+      goto bb6
+  fun startCoroutine<Child> @fn52(task: SuspendTask<Child>, completion: Continuation<Child>) -> Unit
+    bb0 context.unwind
+      landing_pad cleanup=true
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb1 context.catch_unwind
+      landing_pad cleanup=true
+      end_catch
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb2 suspended
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb3 completed unwind bb0
+      call @fn27 interface Continuation<Child>[0]
+        Type Continuation<Child>
+        Local completion
+        Type Child
+        EnumField v0 f0
+          Type CoroutineStep<Child>
+          Local $step
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb4 failed unwind bb0
+      call @fn28 interface Continuation<Child>[1]
+        Type Continuation<Child>
+        Local completion
+        Type Throwable
+        Local $exception
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb5 body_failure unwind bb1
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb4
+    bb6 run unwind bb5
+      call $step: CoroutineStep<Child> = @fn29 interface SuspendTask<Child>[0]
+        Type SuspendTask<Child>
+        Local task
+        Type Continuation<Child>
+        Local completion
+      branch bb3 bb2
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Child>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+    bb7 entry
+      val $child_context: internal<task-context>
+        Type internal<task-context>
+        ContextFork
+          Type internal<context-node>
+          ContextSnapshot
+      val $context_guard: internal<context-switch-guard>
+        Type internal<context-switch-guard>
+        ContextEnter
+          Type internal<task-context>
+          Local $child_context
+      goto bb6
+  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn53($source: (Long) -> UInt8, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: UInt8 = <closure:function_type0> closure[function_type0]
+        Type (Long) -> UInt8
+        Local $source
+        Type Long
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type UInt8
+          Local $call.1
+  release_hook rh0 Owner <no-gc>
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        ReleaseFieldLoad Owner.field0
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call extern0 @counted_pin_release direct
+        Type Int
+        Local $parameter.value
+      return
+  coroutine_step cs0 CoroutineStep<Cell> result=Cell
+  coroutine_step cs1 CoroutineStep<Owner> result=Owner
+  coroutine_step cs2 CoroutineStep<Child> result=Child
+  coroutine_slot cl0 CoroutineSlot<Cell> value=Cell
+  coroutine_slot cl1 CoroutineSlot<Owner> value=Owner
+  coroutine_slot cl2 CoroutineSlot<Child> value=Child
+  coroutine_start ct0 result=Cell function=fn50
+  coroutine_start ct1 result=Owner function=fn51
+  coroutine_start ct2 result=Child function=fn52
+  coroutine_fn cf0 @fn29 source_return=Child step=cs2 immediate
+  coroutine_fn cf1 @fn33 source_return=Cell step=cs0 immediate
+  coroutine_fn cf2 @fn37 source_return=Owner step=cs1 immediate
+  instance mi0 function=@fn8 <- twice
+  instance mi1 function=@fn9 <- unpin
+  instance mi2 function=@fn10 <- getGcHandle
+  instance mi3 function=@fn11 <- pin
+  instance mi4 function=@fn12 <- releaseGcHandle
+  instance mi5 function=@fn13 <- iterator
+  instance mi6 function=@fn14 <- get
+  instance mi7 function=@fn15 <- size
+  instance mi8 function=@fn17 <- twice
+  instance mi9 function=@fn18 <- unpin
+  instance mi10 function=@fn19 <- unpin
+  instance mi11 function=@fn20 <- twice
+  instance mi12 function=@fn21 <- println
+  instance mi13 function=@fn22 <- next
+  instance mi14 function=@fn23 <- pin
+  instance mi15 function=@fn24 <- pin
+  instance mi16 function=@fn25 <- List.$get$size
+  instance mi17 function=@fn26 <- List.get
+  instance mi18 function=@fn27 <- Continuation.resume
+  instance mi19 function=@fn28 <- Continuation.resumeWithException
+  instance mi20 function=@fn29 <- SuspendTask.run
+  instance mi21 function=@fn30 <- SuspendRegistration.register
+  instance mi22 function=@fn31 <- Continuation.resume
+  instance mi23 function=@fn32 <- Continuation.resumeWithException
+  instance mi24 function=@fn33 <- SuspendTask.run
+  instance mi25 function=@fn34 <- SuspendRegistration.register
+  instance mi26 function=@fn35 <- Continuation.resume
+  instance mi27 function=@fn36 <- Continuation.resumeWithException
+  instance mi28 function=@fn37 <- SuspendTask.run
+  instance mi29 function=@fn38 <- SuspendRegistration.register
+  str @str0 "illegal state"
+  str @str1 "counted-pins-ok"
+  str @str2 "\n"
+  output executable @fn7

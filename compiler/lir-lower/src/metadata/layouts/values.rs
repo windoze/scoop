@@ -9,6 +9,23 @@ pub(crate) fn struct_layout(
 ) -> StorageResult<lir::Layout> {
     if let mir::StructRepresentation::Intrinsic(representation) = &definition.representation {
         let (size, align, representation) = match representation {
+            mir::IntrinsicTypeRepresentation::MaybeUninit { value } => {
+                let enum_shape =
+                    |id: mir::EnumId| Ok(repr_shape(context, &enums[enum_def_id(id)].repr));
+                let (size, align) = size_align(context, module, &enum_shape, value)?;
+                return Ok(lir::Layout {
+                    identity,
+                    name: definition.name.clone(),
+                    size,
+                    align,
+                    fields: Vec::new(),
+                    c_layout: None,
+                    interior_mutable: false,
+                    kind: lir::LayoutKind::Plain {
+                        scan: ref_scan(context, module, enums, value, 0)?,
+                    },
+                });
+            }
             mir::IntrinsicTypeRepresentation::Unit => {
                 (0, 1, lir::IntrinsicTypeRepresentation::Unit)
             }

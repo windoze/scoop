@@ -754,8 +754,10 @@ Module
       call $step.1: CoroutineStep<Int> = @fn7 direct
         Type IntGate
         Local $parameter.gate
-        Type CoroutineAdapter<MultipleTask.run>$1
-        Local $adapter.1
+        Type Continuation<Int>
+        Retype Continuation<Int>
+          Type CoroutineAdapter<MultipleTask.run>$1
+          Local $adapter.1
       branch bb24 bb25
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -955,8 +957,10 @@ Module
       call $step.3: CoroutineStep<Boolean> = @fn8 direct
         Type BooleanGate
         Local $parameter.gate
-        Type CoroutineAdapter<MultipleTask.run>$3
-        Local $adapter.3
+        Type Continuation<Boolean>
+        Retype Continuation<Boolean>
+          Type CoroutineAdapter<MultipleTask.run>$3
+          Local $adapter.3
       branch bb8 bb9
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -1110,8 +1114,10 @@ Module
       call $step.2: CoroutineStep<Int> = @fn7 direct
         Type IntGate
         Local $parameter.gate
-        Type CoroutineAdapter<MultipleTask.run>$2
-        Local $adapter.2
+        Type Continuation<Int>
+        Retype Continuation<Int>
+          Type CoroutineAdapter<MultipleTask.run>$2
+          Local $adapter.2
       branch bb16 bb17
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -2364,8 +2370,10 @@ Module
       call @fn16 interface SuspendRegistration<Int>[0]
         Type SuspendRegistration<Int>
         Local $dependency.parameter.registration
-        Type CoroutineAdapter<waitForInt>$1
-        Local $safe_adapter.1
+        Type Continuation<Int>
+        Retype Continuation<Int>
+          Type CoroutineAdapter<waitForInt>$1
+          Local $safe_adapter.1
       goto bb14
     bb3 coroutine.registered_success.1
       atomic_store_release kind=coroutine-adapter-state field=1
@@ -3122,8 +3130,10 @@ Module
       call @fn19 interface SuspendRegistration<Boolean>[0]
         Type SuspendRegistration<Boolean>
         Local $dependency.parameter.registration
-        Type CoroutineAdapter<waitForBoolean>$1
-        Local $safe_adapter.1
+        Type Continuation<Boolean>
+        Retype Continuation<Boolean>
+          Type CoroutineAdapter<waitForBoolean>$1
+          Local $safe_adapter.1
       goto bb14
     bb3 coroutine.registered_success.1
       atomic_store_release kind=coroutine-adapter-state field=1

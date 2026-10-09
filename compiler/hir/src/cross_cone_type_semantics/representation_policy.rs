@@ -165,6 +165,7 @@ impl WireEncode for NominalIntrinsicRepresentationV1 {
             IntrinsicTypeKind::FunPtr => wire::tag(encoder, 1, 7),
             IntrinsicTypeKind::Any => wire::tag(encoder, 1, 11),
             IntrinsicTypeKind::Nothing => wire::tag(encoder, 1, 12),
+            IntrinsicTypeKind::MaybeUninit => wire::tag(encoder, 1, 14),
         }
     }
 }
@@ -188,7 +189,7 @@ impl WireDecode for NominalIntrinsicRepresentationV1 {
                 wire::expect_fields(decoder, fields, 2)?;
                 IntrinsicTypeKind::Float(decoder.field(1, crate::FloatKind::decode)?)
             }
-            2..=9 | 11 | 12 => {
+            2..=9 | 11 | 12 | 14 => {
                 wire::expect_fields(decoder, fields, 1)?;
                 match tag {
                     9 => IntrinsicTypeKind::Unit,
@@ -201,6 +202,7 @@ impl WireDecode for NominalIntrinsicRepresentationV1 {
                     7 => IntrinsicTypeKind::FunPtr,
                     11 => IntrinsicTypeKind::Any,
                     12 => IntrinsicTypeKind::Nothing,
+                    14 => IntrinsicTypeKind::MaybeUninit,
                     _ => return Err(wire::error(decoder, WireErrorKind::UnknownTag { tag })),
                 }
             }

@@ -29,9 +29,9 @@ json = "stderr"
 diagnostics = []
 checks = [
   {actual = "${build.result.dependencies.length}", equals = 4},
-  {file = "${work}/dump/${build.result.root.identity}/hir.txt", snapshot = "root.hir.txt"},
-  {file = "${work}/dump/${build.result.root.identity}/mir.txt", snapshot = "root.mir.txt"},
-  {file = "${work}/dump/${build.result.root.identity}/lir.txt", snapshot = "root.${target}.lir.txt"},
+  {file = "${work}/dump/${build.result.root.identity}/hir.txt", snapshot = "root.${profile}.hir.txt"},
+  {file = "${work}/dump/${build.result.root.identity}/mir.txt", snapshot = "root.${profile}.mir.txt"},
+  {file = "${work}/dump/${build.result.root.identity}/lir.txt", snapshot = "root.${profile}.${target}.lir.txt"},
 ]
 
 [[steps]]

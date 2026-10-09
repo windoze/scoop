@@ -117,6 +117,7 @@ fn intrinsic_queries_follow_all_actual_typed_references_across_reachable_provide
                     .validate_array_type(generic(provider.owner))
                     .unwrap(),
                 actual @ (IntrinsicTypeKind::MutableArray
+                | IntrinsicTypeKind::MaybeUninit
                 | IntrinsicTypeKind::Atomic(scoop_hir::AtomicValueKind::Reference)
                 | IntrinsicTypeKind::Ptr
                 | IntrinsicTypeKind::FunPtr) => {

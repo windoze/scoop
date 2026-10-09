@@ -76,6 +76,7 @@ impl Concretizer<'_> {
                         concrete::TypeKind::Integer(*kind)
                     }
                     concrete::IntrinsicTypeRepresentation::Char
+                    | concrete::IntrinsicTypeRepresentation::MaybeUninit { .. }
                     | concrete::IntrinsicTypeRepresentation::Float(_) => {
                         concrete::TypeKind::Struct(id)
                     }
@@ -89,7 +90,13 @@ impl Concretizer<'_> {
                     }
                     _ => unreachable!("the registry fixes intrinsic struct representations"),
                 };
-                (kind, true)
+                let gc_free = match application {
+                    concrete::IntrinsicTypeRepresentation::MaybeUninit { value } => {
+                        self.types[*value].gc_free
+                    }
+                    _ => true,
+                };
+                (kind, gc_free)
             }
         };
         let ty = self.intern_type(kind, gc_free);

@@ -1,0 +1,23 @@
+fun check(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+fun badIndex(text: String, index: Long) {
+    try { text[index] }
+    catch (error: IndexOutOfBoundsException) { return }
+    throw IllegalStateException()
+}
+
+fun main() {
+    val text = "A" + "雪🙂"
+    check(text[0L] == 'A' && text[1L] == '雪' && text[2L] == '🙂')
+    badIndex(text, -1L)
+    badIndex(text, 3L)
+    badIndex("", 0L)
+    check(text.slice(1L, 3L) == "雪🙂")
+    val bytes: Array<UInt8> = [65u, 0xe9u, 0x9bu, 0xaau]
+    val decoded = String.fromUtf8(bytes)
+    gcCollect()
+    check(decoded[1L] == '雪')
+    val invalid: Array<UInt8> = [0xffu]
+    check(String.fromUtf8OrNone(invalid) == None)
+    println("core string ABI")
+}

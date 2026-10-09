@@ -23,7 +23,13 @@ pub(super) fn assemble(
     let dependencies = closure.layout_dependencies().collect::<Vec<_>>();
     let mir = hir
         .machine_input()
-        .lower_selected_mir(selected)
+        .lower_selected_mir(
+            selected,
+            match request.optimization() {
+                lir::OptimizationMode::Debug => scoop_mir_lower::MirOptimizationOptions::default(),
+                lir::OptimizationMode::Release => scoop_mir_lower::MirOptimizationOptions::RELEASE,
+            },
+        )
         .map_err(CurrentConeProductionFailure::Mir)?;
     dump.extend(capture_stage_dump(
         request.emit(),

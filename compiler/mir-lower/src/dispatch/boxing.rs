@@ -34,7 +34,7 @@ impl Lowerer {
             let mut identities = Vec::new();
             for index in method_indices {
                 let (thunk, target, identity) =
-                    self.build_thunk(module, &payload, &payload_name, iface, index);
+                    self.build_thunk(module, class_id, &payload, &payload_name, iface, index);
                 slots.push(mir::TableSlot::Function(thunk));
                 identities.push((index, thunk, target, identity));
             }
@@ -43,8 +43,8 @@ impl Lowerer {
                 slots,
             });
             for (slot, function, target, identity) in identities {
-                self.boxing_adjusts.push(mir::BoxingAdjust::new(
-                    mir::BoxingAdjustLocation::new(
+                self.interface_adjusts.push(mir::InterfaceAdjust::new(
+                    mir::InterfaceAdjustLocation::new(
                         class_id,
                         iface,
                         u32::try_from(slot).expect("interface method indices fit in u32"),
@@ -68,14 +68,15 @@ impl Lowerer {
     pub(crate) fn build_thunk(
         &mut self,
         module: &hir::Module,
+        boxed_class: mir::ClassId,
         payload: &mir::Type,
         payload_name: &str,
         iface: mir::InterfaceId,
         method_index: usize,
     ) -> (
         mir::FunctionId,
-        mir::BoxingAdjustTarget,
-        mir::BoxingAdjustIdentity,
+        mir::InterfaceAdjustTarget,
+        mir::InterfaceAdjustIdentity,
     ) {
         let (hir_iface, _) = self.interfaces.source(iface);
         let signature = &module.interfaces[hir_iface].methods[method_index];
@@ -87,12 +88,12 @@ impl Lowerer {
         let mut locals = Arena::new();
         let this = locals.alloc(mir::Local {
             name: "this".to_string(),
-            ty: mir::Type::Interface(iface),
+            ty: mir::Type::Class(boxed_class),
             mutable: false,
         });
         let mut params = vec![mir::Param {
             name: "this".to_string(),
-            ty: mir::Type::Interface(iface),
+            ty: mir::Type::Class(boxed_class),
             local: this,
         }];
         let mut args = Vec::new();
@@ -156,7 +157,7 @@ impl Lowerer {
                 u32::try_from(method_index).expect("interface method indices fit in u32"),
             ),
         );
-        let identity = mir::BoxingAdjustIdentity::new(
+        let identity = mir::InterfaceAdjustIdentity::new(
             payload_source.identity_record(),
             payload_source.nominal_specialization(),
             slot,
@@ -238,7 +239,7 @@ impl Lowerer {
                 payload.clone(),
                 smir::ExprKind::Unbox(Box::new(smir::Expr::local(
                     this,
-                    mir::Type::Interface(iface),
+                    mir::Type::Class(boxed_class),
                 ))),
             )
         } else {
@@ -249,7 +250,7 @@ impl Lowerer {
             smir::Expr::new(
                 receiver_ty.clone(),
                 smir::ExprKind::Retype {
-                    operand: Box::new(smir::Expr::local(this, mir::Type::Interface(iface))),
+                    operand: Box::new(smir::Expr::local(this, mir::Type::Class(boxed_class))),
                     ty: Box::new(receiver_ty),
                 },
             )
@@ -372,8 +373,8 @@ impl Lowerer {
         (
             id,
             match callee {
-                mir::Callee::User(function) => mir::BoxingAdjustTarget::Local(function),
-                mir::Callee::External(callable) => mir::BoxingAdjustTarget::External(callable),
+                mir::Callee::User(function) => mir::InterfaceAdjustTarget::Local(function),
+                mir::Callee::External(callable) => mir::InterfaceAdjustTarget::External(callable),
                 _ => unreachable!("boxing adjust targets are ordinary Scoop callables"),
             },
             identity,

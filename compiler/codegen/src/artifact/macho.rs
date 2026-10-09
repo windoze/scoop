@@ -189,7 +189,7 @@ fn extract_profile_sections(file: &object::File<'_>) -> Result<ProfileSections, 
             text = Some(TextSection {
                 address: section.address(),
                 bytes: contents.to_vec(),
-                non_unwinding_calls: super::copy_calls::non_unwinding_calls(
+                non_unwinding_calls: super::memory_calls::non_unwinding_calls(
                     file,
                     &file
                         .section_by_index(section.index())

@@ -1,0 +1,47 @@
+@Extern(lib = "m34_interface_threads", name = "m13_run_many")
+fun workers(function: FunPtr<(Int, Ptr<Unit>) -> Int>, context: Ptr<Unit>, base: Int, count: Int): Int
+@Extern(lib = "m34_interface_threads", name = "m13_callback_barrier")
+fun barrier()
+
+interface Value { fun number(): Int }
+class First(val value: Int) : Value { public override fun number(): Int = value }
+class Second(val padding: String, val value: Int) : Value {
+    public override fun number(): Int = value
+}
+fun check(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+@Unsafe fun main() {
+    val initial: Value = First(1)
+    val cell = AtomicRef(initial)
+    gcCollect()
+    val action: (Int) -> Int = { worker ->
+        @Unsafe { barrier() }
+        var index = 0
+        while (index < 16) {
+            val number = worker * 16 + index + 1
+            val next: Value = if (index % 2 == 0) {
+                First(number)
+            } else {
+                Second("different layout", number)
+            }
+            cell.store(next, MemoryOrder.Release)
+            val observed = cell.load(MemoryOrder.Acquire)
+            if (index % 8 == 0) { gcCollect() }
+            check(observed.number() >= 1 && observed.number() <= 64)
+            cell.compareAndSet(observed, next)
+            check(cell.exchange(next).number() >= 1)
+            index += 1
+        }
+        index
+    }
+    val callback = foreignCallback<(Int, Ptr<Unit>) -> Int>(action, 1, ForeignCallbackMode.Reusable)
+    try {
+        check(workers(callback.function, callback.context, 0, 4) == 64)
+        check(when (foreignCallbackFailure(callback)) { None -> true; Some(_) -> false })
+    } finally {
+        releaseForeignCallback(callback)
+    }
+    gcCollect()
+    check(cell.load().number() >= 1)
+    println("interface concurrency")
+}

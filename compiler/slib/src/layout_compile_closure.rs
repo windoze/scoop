@@ -48,7 +48,7 @@ pub use hir::CrossConeLayoutClosureHirResolutionError;
 pub use lir_callable_abis::{
     CrossConeLayoutLirCallableAbisError, LirCallableAbisValidatedCrossConeLayoutClosure,
     LirCallableAbisValidatedCrossConeLayoutSections, SharedLirCallableAbiValidationError,
-    replay_shared_mir_callable_abis,
+    validate_shared_mir_callable_abis,
 };
 pub use lir_dependencies::{
     CrossConeLayoutLirDependenciesError, LirDependencyGraphReplayedCrossConeLayoutClosure,

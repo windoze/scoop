@@ -5,9 +5,18 @@
 
 #include "gc_internal.h"
 #include "heap_internal.h"
+#include "../platform/platform.h"
+#include "../thread/internal.h"
 
 uint64_t scoop_rt_gc_stats(void) {
-    return atomic_load_explicit(&live_objects, memory_order_acquire);
+    scoop_thread_registry_lock();
+    lock_heap();
+    ScoopAllocationTotals allocations = scoop_thread_allocation_totals_locked();
+    uint64_t count = scoop_gc_heap_state.collected_live_objects + allocations.objects -
+                     scoop_gc_heap_state.allocation_objects_at_collection;
+    unlock_heap();
+    scoop_thread_registry_unlock();
+    return count;
 }
 
 uint64_t scoop_rt_gc_debug_last_moved_count(void) {
@@ -20,8 +29,6 @@ uint64_t scoop_rt_gc_debug_block_count(void) {
     unlock_heap();
     return count;
 }
-
-uintptr_t scoop_rt_gc_debug_arena_base(void) { return arena_base; }
 
 bool scoop_rt_gc_debug_is_allocated(const void *object) {
     lock_heap();
@@ -38,18 +45,28 @@ uint64_t scoop_rt_gc_debug_allocation_size(const void *object) {
 }
 
 static void metrics_locked(ScoopGcMetrics *result) {
+    ScoopAllocationTotals allocations = scoop_thread_allocation_totals_locked();
     *result = scoop_gc_heap_state.metrics;
-    result->allocated_bytes =
-        atomic_load_explicit(&scoop_gc_heap_state.allocated_bytes, memory_order_relaxed);
-    result->nursery_allocated_bytes =
-        atomic_load_explicit(&scoop_gc_heap_state.nursery_allocated_bytes, memory_order_relaxed);
+    result->allocated_bytes = allocations.bytes;
+    result->nursery_allocated_bytes = allocations.nursery_bytes;
     result->heap_committed_bytes = committed_bytes;
+    for (ScoopGcRegion *region = scoop_gc_heap_state.regions; region != NULL;
+         region = region->next) {
+        result->region_count += !region->large;
+        result->large_mapping_count += region->large;
+        result->mapped_bytes += region->size;
+        result->empty_region_count += !region->large && scoop_heap_region_empty(region);
+    }
+    scoop_platform_bundle()->thread_vm->resident_memory(&result->current_rss_bytes,
+                                                        &result->peak_rss_bytes);
 }
 
 void scoop_rt_gc_debug_metrics(ScoopGcMetrics *result) {
+    scoop_thread_registry_lock();
     lock_heap();
     metrics_locked(result);
     unlock_heap();
+    scoop_thread_registry_unlock();
 }
 
 void scoop_gc_report_metrics(void) {
@@ -58,6 +75,7 @@ void scoop_gc_report_metrics(void) {
     }
     ScoopGcMetrics result;
     uint64_t buckets[8];
+    scoop_thread_registry_lock();
     lock_heap();
     metrics_locked(&result);
     uint64_t copied = scoop_gc_heap_state.copied_bytes;
@@ -65,22 +83,55 @@ void scoop_gc_report_metrics(void) {
     uint64_t full_pause = scoop_gc_heap_state.full_pause_ns;
     memcpy(buckets, scoop_gc_heap_state.pause_buckets, sizeof buckets);
     unlock_heap();
+    scoop_thread_registry_unlock();
+    fprintf(
+        stderr,
+        "{\"scoop_gc\":1,\"minor_collections\":%" PRIu64 ",\"full_collections\":%" PRIu64
+        ",\"promotion_fallbacks\":%" PRIu64 ",\"allocated_bytes\":%" PRIu64
+        ",\"nursery_allocated_bytes\":%" PRIu64 ",\"promoted_bytes\":%" PRIu64
+        ",\"copied_bytes\":%" PRIu64 ",\"dirty_cards\":%" PRIu64 ",\"old_reference_slots\":%" PRIu64
+        ",\"root_slots\":%" PRIu64 ",\"traced_objects\":%" PRIu64 ",\"pause_ns\":%" PRIu64
+        ",\"maximum_pause_ns\":%" PRIu64 ",\"committed_bytes\":%" PRIu64
+        ",\"minor_pause_ns\":%" PRIu64 ",\"full_pause_ns\":%" PRIu64 ",\"region_count\":%" PRIu64
+        ",\"large_mapping_count\":%" PRIu64 ",\"mapped_bytes\":%" PRIu64
+        ",\"discard_calls\":%" PRIu64 ",\"discard_failures\":%" PRIu64
+        ",\"discarded_bytes\":%" PRIu64 ",\"unmapped_bytes\":%" PRIu64
+        ",\"current_rss_bytes\":%" PRIu64 ",\"peak_rss_bytes\":%" PRIu64
+        ",\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null]"
+        ",\"pause_buckets\":[%" PRIu64 ",%" PRIu64 ",%" PRIu64 ",%" PRIu64 ",%" PRIu64 ",%" PRIu64
+        ",%" PRIu64 ",%" PRIu64 "]",
+        result.minor_collections, result.full_collections, result.promotion_fallbacks,
+        result.allocated_bytes, result.nursery_allocated_bytes, result.promoted_bytes, copied,
+        result.dirty_cards, result.old_reference_slots, result.root_slots, result.traced_objects,
+        result.pause_ns, result.maximum_pause_ns, result.heap_committed_bytes, minor_pause,
+        full_pause, result.region_count, result.large_mapping_count, result.mapped_bytes,
+        result.discard_calls, result.discard_failures, result.discarded_bytes,
+        result.unmapped_bytes, result.current_rss_bytes, result.peak_rss_bytes, buckets[0],
+        buckets[1], buckets[2], buckets[3], buckets[4], buckets[5], buckets[6], buckets[7]);
+    fprintf(
+        stderr,
+        ",\"stop_wait_ns\":%" PRIu64 ",\"root_scan_ns\":%" PRIu64 ",\"remembered_scan_ns\":%" PRIu64
+        ",\"mark_ns\":%" PRIu64 ",\"plan_ns\":%" PRIu64 ",\"copy_ns\":%" PRIu64
+        ",\"update_ns\":%" PRIu64 ",\"reclaim_ns\":%" PRIu64 ",\"vm_return_ns\":%" PRIu64
+        ",\"last_mark_workers\":%" PRIu64 ",\"parallel_collections\":%" PRIu64
+        ",\"worker_creation_failures\":%" PRIu64 ",\"mark_reference_slots\":%" PRIu64
+        ",\"mark_tasks\":%" PRIu64 ",\"array_tasks\":%" PRIu64 ",\"stolen_tasks\":%" PRIu64,
+        result.stop_wait_ns, result.root_scan_ns, result.remembered_scan_ns, result.mark_ns,
+        result.plan_ns, result.copy_ns, result.update_ns, result.reclaim_ns, result.vm_return_ns,
+        result.last_mark_workers, result.parallel_collections, result.worker_creation_failures,
+        result.mark_reference_slots, result.mark_tasks, result.array_tasks, result.stolen_tasks);
+    fputs(",\"worker_cpu_ns\":[", stderr);
+    for (size_t index = 0; index < 8; index++) {
+        fprintf(stderr, "%s%" PRIu64, index == 0 ? "" : ",", result.worker_cpu_ns[index]);
+    }
+    fputs("],\"worker_marked_objects\":[", stderr);
+    for (size_t index = 0; index < 8; index++) {
+        fprintf(stderr, "%s%" PRIu64, index == 0 ? "" : ",", result.worker_marked_objects[index]);
+    }
     fprintf(stderr,
-            "{\"scoop_gc\":1,\"minor_collections\":%" PRIu64 ",\"full_collections\":%" PRIu64
-            ",\"promotion_fallbacks\":%" PRIu64 ",\"allocated_bytes\":%" PRIu64
-            ",\"nursery_allocated_bytes\":%" PRIu64 ",\"promoted_bytes\":%" PRIu64
-            ",\"copied_bytes\":%" PRIu64 ",\"dirty_cards\":%" PRIu64
-            ",\"old_reference_slots\":%" PRIu64 ",\"root_slots\":%" PRIu64
-            ",\"traced_objects\":%" PRIu64 ",\"pause_ns\":%" PRIu64 ",\"maximum_pause_ns\":%" PRIu64
-            ",\"committed_bytes\":%" PRIu64 ",\"minor_pause_ns\":%" PRIu64
-            ",\"full_pause_ns\":%" PRIu64
-            ",\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null]"
-            ",\"pause_buckets\":[%" PRIu64 ",%" PRIu64 ",%" PRIu64 ",%" PRIu64 ",%" PRIu64
-            ",%" PRIu64 ",%" PRIu64 ",%" PRIu64 "]}\n",
-            result.minor_collections, result.full_collections, result.promotion_fallbacks,
-            result.allocated_bytes, result.nursery_allocated_bytes, result.promoted_bytes, copied,
-            result.dirty_cards, result.old_reference_slots, result.root_slots,
-            result.traced_objects, result.pause_ns, result.maximum_pause_ns,
-            result.heap_committed_bytes, minor_pause, full_pause, buckets[0], buckets[1],
-            buckets[2], buckets[3], buckets[4], buckets[5], buckets[6], buckets[7]);
+            "],\"region_mappings\":%" PRIu64 ",\"empty_region_count\":%" PRIu64
+            ",\"last_full_source_regions\":%" PRIu64 ",\"last_full_target_regions\":%" PRIu64
+            ",\"last_full_pin_blocked_regions\":%" PRIu64 "}\n",
+            result.region_mappings, result.empty_region_count, result.last_full_source_regions,
+            result.last_full_target_regions, result.last_full_pin_blocked_regions);
 }

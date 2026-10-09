@@ -1258,8 +1258,10 @@ Module
       call $step.1: CoroutineStep<Int> = @fn9 direct
         Type Gate
         Local $parameter.gate
-        Type CoroutineAdapter<CatchTask.run>$1
-        Local $adapter.1
+        Type Continuation<Int>
+        Retype Continuation<Int>
+          Type CoroutineAdapter<CatchTask.run>$1
+          Local $adapter.1
       branch bb14 bb15
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -1791,8 +1793,10 @@ Module
       call $step.1: CoroutineStep<Int> = @fn9 direct
         Type Gate
         Local $parameter.gate
-        Type CoroutineAdapter<ReturnFinallyTask.run>$1
-        Local $adapter.1
+        Type Continuation<Int>
+        Retype Continuation<Int>
+          Type CoroutineAdapter<ReturnFinallyTask.run>$1
+          Local $adapter.1
       branch bb18 bb19
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -1846,8 +1850,10 @@ Module
       call $step.2: CoroutineStep<Int> = @fn9 direct
         Type Gate
         Local $parameter.gate
-        Type CoroutineAdapter<ReturnFinallyTask.run>$2
-        Local $adapter.2
+        Type Continuation<Int>
+        Retype Continuation<Int>
+          Type CoroutineAdapter<ReturnFinallyTask.run>$2
+          Local $adapter.2
       branch bb10 bb11
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -2852,8 +2858,10 @@ Module
       call $step.1: CoroutineStep<Int> = @fn10 direct
         Type Gate
         Local $parameter.gate
-        Type CoroutineAdapter<ThrowFinallyTask.run>$1
-        Local $adapter.1
+        Type Continuation<Int>
+        Retype Continuation<Int>
+          Type CoroutineAdapter<ThrowFinallyTask.run>$1
+          Local $adapter.1
       branch bb14 bb15
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -3392,8 +3400,10 @@ Module
       call $step.1: CoroutineStep<Int> = @fn9 direct
         Type Gate
         Local $parameter.gate
-        Type CoroutineAdapter<OverrideReturnFinallyTask.run>$1
-        Local $adapter.1
+        Type Continuation<Int>
+        Retype Continuation<Int>
+          Type CoroutineAdapter<OverrideReturnFinallyTask.run>$1
+          Local $adapter.1
       branch bb18 bb19
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -3447,8 +3457,10 @@ Module
       call $step.2: CoroutineStep<Int> = @fn9 direct
         Type Gate
         Local $parameter.gate
-        Type CoroutineAdapter<OverrideReturnFinallyTask.run>$2
-        Local $adapter.2
+        Type Continuation<Int>
+        Retype Continuation<Int>
+          Type CoroutineAdapter<OverrideReturnFinallyTask.run>$2
+          Local $adapter.2
       branch bb10 bb11
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -4455,8 +4467,10 @@ Module
       call $step.1: CoroutineStep<Int> = @fn11 direct
         Type Gate
         Local $parameter.gate
-        Type CoroutineAdapter<OverrideThrowFinallyTask.run>$1
-        Local $adapter.1
+        Type Continuation<Int>
+        Retype Continuation<Int>
+          Type CoroutineAdapter<OverrideThrowFinallyTask.run>$1
+          Local $adapter.1
       branch bb14 bb15
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -5013,8 +5027,10 @@ Module
       call @fn19 interface SuspendRegistration<Int>[0]
         Type SuspendRegistration<Int>
         Local $dependency.parameter.registration
-        Type CoroutineAdapter<waitFor>$1
-        Local $safe_adapter.1
+        Type Continuation<Int>
+        Retype Continuation<Int>
+          Type CoroutineAdapter<waitFor>$1
+          Local $safe_adapter.1
       goto bb14
     bb3 coroutine.registered_success.1
       atomic_store_release kind=coroutine-adapter-state field=1
@@ -5754,8 +5770,10 @@ Module
       call $step.1: CoroutineStep<Int> = @fn9 direct
         Type Gate
         Local $parameter.gate
-        Type CoroutineAdapter<failAfterCleanup>$1
-        Local $adapter.1
+        Type Continuation<Int>
+        Retype Continuation<Int>
+          Type CoroutineAdapter<failAfterCleanup>$1
+          Local $adapter.1
       branch bb9 bb10
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -6305,8 +6323,10 @@ Module
       call $step.1: CoroutineStep<Int> = @fn9 direct
         Type Gate
         Local $parameter.gate
-        Type CoroutineAdapter<returnThenThrow>$1
-        Local $adapter.1
+        Type Continuation<Int>
+        Retype Continuation<Int>
+          Type CoroutineAdapter<returnThenThrow>$1
+          Local $adapter.1
       branch bb18 bb19
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -6358,8 +6378,10 @@ Module
       call $step.2: CoroutineStep<Int> = @fn9 direct
         Type Gate
         Local $parameter.gate
-        Type CoroutineAdapter<returnThenThrow>$2
-        Local $adapter.2
+        Type Continuation<Int>
+        Retype Continuation<Int>
+          Type CoroutineAdapter<returnThenThrow>$2
+          Local $adapter.2
       branch bb10 bb11
         Type Boolean
         Binary MachineEq(EnumTag)

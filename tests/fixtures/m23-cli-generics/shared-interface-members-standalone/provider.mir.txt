@@ -23,7 +23,8 @@ Module
   generated_exact_type get4 location=enum1 nominal_id=e9abd83b9302dfb84c0943f67fcd81830077bdbccfc8c510cd3be95550c2f94a exact_id=731dab28bcdfa72e3eb94f4ca669cacdc2c05c8f461e8e771cbe7bb5a8c42972
   generated_exact_type get5 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
   generated_exact_type get6 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
-  generated_callable gc0 function=@fn9 id=80b7f0de0b7a49d9a709552eea72ad4e3d53471e09b155b650dd43a6b5f29f49
+  generated_callable gc0 function=@fn10 id=80b7f0de0b7a49d9a709552eea72ad4e3d53471e09b155b650dd43a6b5f29f49
+  generated_callable gc1 function=@fn8 id=e35bd53a0b6d1ea4d5d078a9795dc5580b72c65b9a9454131e34403729cc4b91
   fun NumberReader.read @fn0(this: NumberReader) -> Int
     bb0 entry
       return
@@ -60,10 +61,20 @@ Module
   fun Reader.read @fn7(this: Reader<Int>) -> Int
     bb0 entry
       trap "call to abstract method `Reader.read`"
-  fun init.NumberReader.$c0 @fn8(this: NumberReader) -> Unit
+  fun receiver<NumberReader> Reader.again @fn8(this: NumberReader) -> Int
+    bb0 entry
+      call $call.1: Int = @fn6 direct
+        Type Reader<Int>
+        Retype Reader<Int>
+          Type NumberReader
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun init.NumberReader.$c0 @fn9(this: NumberReader) -> Unit
     bb0 entry
       return
-  fun startCoroutine<NumberReader> @fn9(task: SuspendTask<NumberReader>, completion: Continuation<NumberReader>) -> Unit
+  fun startCoroutine<NumberReader> @fn10(task: SuspendTask<NumberReader>, completion: Continuation<NumberReader>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -146,7 +157,7 @@ Module
       goto bb6
   coroutine_step cs0 CoroutineStep<NumberReader> result=NumberReader
   coroutine_slot cl0 CoroutineSlot<NumberReader> value=NumberReader
-  coroutine_start ct0 result=NumberReader function=fn9
+  coroutine_start ct0 result=NumberReader function=fn10
   coroutine_fn cf0 @fn4 source_return=NumberReader step=cs0 immediate
   instance mi0 function=@fn2 <- Continuation.resume
   instance mi1 function=@fn3 <- Continuation.resumeWithException

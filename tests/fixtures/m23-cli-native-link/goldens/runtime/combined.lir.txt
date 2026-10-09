@@ -79,34 +79,28 @@ Module
     local %9 $dependency.local.11: struct2
     local %10 $dependency.local.12: struct2
     local %11 $call.1: ptr<managed>
-    local %12 $sc.1: struct1
-    local %13 $sc.2: struct1
-    local %14 $sc.3: struct2
-    local %15 $sc.4: struct2
   block entry
     poll managed-void-target2 sp<managed-poll:0> live=[param1:ptr<managed>@0]
     store param1 -> local3
     store local3 -> local4
-    call managed-indirect-target0 sp<managed-call:0> live=[local4:ptr<managed>@0] local12 = sig=indirect0 (sret struct1 size=8 align=8 scan=none, ptr<managed>) local-fn3(local4)
-    store local12 -> local0
+    call managed-direct-target0 sp<managed-call:0> live=[local4:ptr<managed>@0] t0 = sig=direct0 (ptr<managed>) -> struct1 local-fn3(local4)
+    store t0 -> local0
     call managed-void-target0 sp<managed-call:1> live=[] sig=void0 () runtime @scoop_rt_gc_collect()
-    t0 = aggregate () : {}
+    t1 = aggregate () : {}
     store local0 -> local5
     store local5 -> local6
-    store local6 -> local13
-    call managed-direct-target0 sp<managed-call:2> live=[] t1 = sig=direct0 (indirect<struct1 size=8 align=8 scan=none>) -> ptr<managed> local-fn4(indirect local13)
-    store t1 -> local1
+    call managed-direct-target1 sp<managed-call:2> live=[] t2 = sig=direct1 (parts<struct1 [i64@0+8/8]>) -> ptr<managed> local-fn4(local6)
+    store t2 -> local1
     store local1 -> local7
     store local7 -> local8
-    call managed-indirect-target1 sp<managed-call:3> live=[local8:ptr<managed>@0] local14 = sig=indirect1 (sret struct2 size=8 align=8 scan=none, ptr<managed>) local-fn5(local8)
-    store local14 -> local2
+    call managed-direct-target2 sp<managed-call:3> live=[local8:ptr<managed>@0] t3 = sig=direct2 (ptr<managed>) -> struct2 local-fn5(local8)
+    store t3 -> local2
     call managed-void-target1 sp<managed-call:4> live=[] sig=void1 () runtime @scoop_rt_gc_collect()
-    t2 = aggregate () : {}
+    t4 = aggregate () : {}
     store local2 -> local9
     store local9 -> local10
-    store local10 -> local15
-    call managed-direct-target1 sp<managed-call:5> live=[] t3 = sig=direct1 (indirect<struct2 size=8 align=8 scan=none>) -> ptr<managed> local-fn6(indirect local15)
-    store t3 -> local11
+    call managed-direct-target3 sp<managed-call:5> live=[] t5 = sig=direct3 (parts<struct2 [i64@0+8/8]>) -> ptr<managed> local-fn6(local10)
+    store t5 -> local11
     ret local11
   fun @scoop$1$cb$43be1945af2e9ba3587bf2ead706ac7563f8181567977803f1aaa99bf055da0f(ptr<managed>) -> void
     local %0 $dependency.local.1: ptr<managed>
@@ -127,13 +121,12 @@ Module
     call managed-void-target1 sp<managed-call:2> live=[local4:ptr<managed>@0] sig=void1 (ptr<managed>) external-fn1(local4)
     t2 = aggregate () : {}
     ret
-  fun @scoop$1$cb$c314348551afb6837bf25bbd7702d3bad13ff8072c496c8e608252df0d13f8ab(ptr<managed>) -> sret<struct1 size=8 align=8 scan=none>
+  fun @scoop$1$cb$c314348551afb6837bf25bbd7702d3bad13ff8072c496c8e608252df0d13f8ab(ptr<managed>) -> parts<struct1 [i64@0+8/8]>
     local %0 $dependency.local.1: ptr<managed>
     local %1 $dependency.local.2: ptr<managed>
     local %2 $dependency.local.3: i64
     local %3 $dependency.local.4: i64
     local %4 $call.1: struct1
-    local %5 $sc.1: struct1
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
     store param0 -> local0
@@ -141,10 +134,10 @@ Module
     call no-gc-direct-target0 t0 = sig=direct0 (ptr<managed>) -> i64 runtime @scoop_rt_get_handle(local1)
     store t0 -> local2
     store local2 -> local3
-    call no-gc-indirect-target0 local5 = sig=indirect0 (sret struct1 size=8 align=8 scan=none, i64) local-fn8(local3)
-    store local5 -> local4
+    call no-gc-direct-target1 t1 = sig=direct1 (i64) -> struct1 local-fn8(local3)
+    store t1 -> local4
     ret local4
-  fun @scoop$1$cb$412c4d65775c173bf7a7c85daddf4b68f9192748887c59654d6d617e344b9e02(indirect<struct1 size=8 align=8 scan=none>) -> ptr<managed>
+  fun @scoop$1$cb$412c4d65775c173bf7a7c85daddf4b68f9192748887c59654d6d617e344b9e02(parts<struct1 [i64@0+8/8]>) -> ptr<managed>
     local %0 $dependency.local.1: i64
     local %1 $dependency.local.2: i64
     local %2 $call.1: ptr<managed>
@@ -156,13 +149,12 @@ Module
     call no-gc-direct-target0 t1 = sig=direct0 (i64) -> ptr<managed> runtime @scoop_rt_release_handle(local1)
     store t1 -> local2
     ret local2
-  fun @scoop$1$cb$5d80ada7da19dc262657df9f2ec145298c409ccf42d1f5d7abf9047c40a47e37(ptr<managed>) -> sret<struct2 size=8 align=8 scan=none>
+  fun @scoop$1$cb$5d80ada7da19dc262657df9f2ec145298c409ccf42d1f5d7abf9047c40a47e37(ptr<managed>) -> parts<struct2 [i64@0+8/8]>
     local %0 $dependency.local.1: ptr<managed>
     local %1 $dependency.local.2: ptr<managed>
     local %2 $dependency.local.3: i64
     local %3 $dependency.local.4: i64
     local %4 $call.1: struct2
-    local %5 $sc.1: struct2
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
     store param0 -> local0
@@ -170,10 +162,10 @@ Module
     call no-gc-direct-target0 t0 = sig=direct0 (ptr<managed>) -> i64 runtime @scoop_rt_pin(local1)
     store t0 -> local2
     store local2 -> local3
-    call no-gc-indirect-target0 local5 = sig=indirect0 (sret struct2 size=8 align=8 scan=none, i64) local-fn9(local3)
-    store local5 -> local4
+    call no-gc-direct-target1 t1 = sig=direct1 (i64) -> struct2 local-fn9(local3)
+    store t1 -> local4
     ret local4
-  fun @scoop$1$cb$99291d5cb1529a0753eddde165119d83d4b412bd08aa6750030ee2ab05f521c9(indirect<struct2 size=8 align=8 scan=none>) -> ptr<managed>
+  fun @scoop$1$cb$99291d5cb1529a0753eddde165119d83d4b412bd08aa6750030ee2ab05f521c9(parts<struct2 [i64@0+8/8]>) -> ptr<managed>
     local %0 $dependency.local.1: i64
     local %1 $dependency.local.2: i64
     local %2 $call.1: ptr<managed>
@@ -189,11 +181,11 @@ Module
   block entry
     t0 = aggregate (param0) : struct0
     ret t0
-  fun @scoop$1$cb$e4343064ff6520c989fd65aa982ac7355e357552549547dc8d91458a7169be85(i64) -> sret<struct1 size=8 align=8 scan=none> <no-gc>
+  fun @scoop$1$cb$e4343064ff6520c989fd65aa982ac7355e357552549547dc8d91458a7169be85(i64) -> parts<struct1 [i64@0+8/8]> <no-gc>
   block entry
     t0 = aggregate (param0) : struct1
     ret t0
-  fun @scoop$1$cb$c28ffbf45874e869c8a74a08d1c305563122f5def858ab428d18c6cc4c110d6a(i64) -> sret<struct2 size=8 align=8 scan=none> <no-gc>
+  fun @scoop$1$cb$c28ffbf45874e869c8a74a08d1c305563122f5def858ab428d18c6cc4c110d6a(i64) -> parts<struct2 [i64@0+8/8]> <no-gc>
   block entry
     t0 = aggregate (param0) : struct2
     ret t0
@@ -225,8 +217,8 @@ Module
   layout GcHandle size=8 align=8 refs=[]
   layout PinnedPtr size=8 align=8 refs=[]
   layout Option size=16 align=8 enum-scan=none
-  layout Equality value size=8 align=8 refs=[0]
-  layout Iterable value size=8 align=8 refs=[0]
-  layout Iterator value size=8 align=8 refs=[0]
-  layout Equality value size=8 align=8 refs=[0]
+  layout Equality value size=16 align=8 refs=[0]
+  layout Iterable value size=16 align=8 refs=[0]
+  layout Iterator value size=16 align=8 refs=[0]
+  layout Equality value size=16 align=8 refs=[0]
   output executable @scoop$1$cb$68a7e80b906667e5efbd357c3c0cc03db3f2445420428ac519d81cf0a1396686

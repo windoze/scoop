@@ -96,6 +96,9 @@ impl Lowerer {
         span: ast::Span,
         stack: &mut Vec<hir::TypeId>,
     ) -> Result<hir::Expr, String> {
+        if self.maybe_uninit_value_type(ty).is_some() {
+            return self.resolve_derived_field_member_equality(lhs, rhs, path, span);
+        }
         match self.types[ty].clone() {
             Type::Unit | Type::Tuple(_) => {
                 let (_, application) =

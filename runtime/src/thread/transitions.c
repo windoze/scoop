@@ -2,7 +2,7 @@
 
 static void enter_managed(const void *managed_stack_boundary, ScoopThreadMode mode) {
     ScoopThreadState *state = scoop_thread_current_required();
-    if (atomic_load_explicit(&state->mode, memory_order_acquire) != SCOOP_THREAD_NATIVE_SAFE ||
+    if (atomic_load_explicit(&state->poll.mode, memory_order_acquire) != SCOOP_THREAD_NATIVE_SAFE ||
         state->managed_depth != 0) {
         scoop_thread_fatal("invalid managed entry transition");
     }
@@ -12,10 +12,10 @@ static void enter_managed(const void *managed_stack_boundary, ScoopThreadMode mo
     scoop_thread_ensure_stack_range(state, boundary, boundary);
     state->managed_depth = 1;
     state->managed_stack_boundary = managed_stack_boundary;
-    atomic_store_explicit(&state->observed_gc_epoch,
+    atomic_store_explicit(&state->poll.observed_gc_epoch,
                           atomic_load_explicit(&scoop_thread_gc_epoch, memory_order_acquire),
                           memory_order_release);
-    atomic_store_explicit(&state->mode, mode, memory_order_release);
+    atomic_store_explicit(&state->poll.mode, mode, memory_order_release);
     scoop_thread_registry_unlock();
 }
 
@@ -37,10 +37,10 @@ void scoop_thread_leave_managed(void) {
     state->managed_stack_boundary = NULL;
     state->allocation.cursor = NULL;
     state->allocation.limit = NULL;
-    atomic_store_explicit(&state->observed_gc_epoch,
+    atomic_store_explicit(&state->poll.observed_gc_epoch,
                           atomic_load_explicit(&scoop_thread_gc_epoch, memory_order_acquire),
                           memory_order_release);
-    atomic_store_explicit(&state->mode, SCOOP_THREAD_NATIVE_SAFE, memory_order_release);
+    atomic_store_explicit(&state->poll.mode, SCOOP_THREAD_NATIVE_SAFE, memory_order_release);
     scoop_thread_world_broadcast();
     scoop_thread_registry_unlock();
 }
@@ -48,7 +48,7 @@ void scoop_thread_leave_managed(void) {
 void scoop_thread_enter_callback(ScoopCallbackThreadEntry *entry,
                                  const void *managed_stack_boundary) {
     ScoopThreadState *state = scoop_thread_current_required();
-    ScoopThreadMode previous = atomic_load_explicit(&state->mode, memory_order_acquire);
+    ScoopThreadMode previous = atomic_load_explicit(&state->poll.mode, memory_order_acquire);
     if (entry == NULL || entry->active ||
         (previous != SCOOP_THREAD_NATIVE_SAFE && previous != SCOOP_THREAD_NATIVE_BORROWED)) {
         scoop_thread_fatal("invalid managed callback entry transition");
@@ -62,7 +62,7 @@ void scoop_thread_enter_callback(ScoopCallbackThreadEntry *entry,
                SCOOP_WORLD_RUNNING) {
         scoop_thread_park_current_locked(state);
     }
-    if (atomic_load_explicit(&state->mode, memory_order_acquire) != previous) {
+    if (atomic_load_explicit(&state->poll.mode, memory_order_acquire) != previous) {
         scoop_thread_registry_unlock();
         scoop_thread_fatal("native mode changed during managed callback entry");
     }
@@ -74,10 +74,10 @@ void scoop_thread_enter_callback(ScoopCallbackThreadEntry *entry,
     state->callback_depth++;
     state->managed_depth++;
     state->managed_stack_boundary = managed_stack_boundary;
-    atomic_store_explicit(&state->observed_gc_epoch,
+    atomic_store_explicit(&state->poll.observed_gc_epoch,
                           atomic_load_explicit(&scoop_thread_gc_epoch, memory_order_acquire),
                           memory_order_release);
-    atomic_store_explicit(&state->mode, SCOOP_THREAD_MANAGED, memory_order_release);
+    atomic_store_explicit(&state->poll.mode, SCOOP_THREAD_MANAGED, memory_order_release);
     scoop_thread_registry_unlock();
 }
 
@@ -96,10 +96,10 @@ void scoop_thread_leave_callback(ScoopCallbackThreadEntry *entry) {
     state->callback_depth--;
     state->managed_depth = entry->previous_managed_depth;
     state->managed_stack_boundary = entry->previous_managed_stack_boundary;
-    atomic_store_explicit(&state->observed_gc_epoch,
+    atomic_store_explicit(&state->poll.observed_gc_epoch,
                           atomic_load_explicit(&scoop_thread_gc_epoch, memory_order_acquire),
                           memory_order_release);
-    atomic_store_explicit(&state->mode, entry->previous_mode, memory_order_release);
+    atomic_store_explicit(&state->poll.mode, entry->previous_mode, memory_order_release);
     entry->active = false;
     if (entry->previous_mode == SCOOP_THREAD_NATIVE_BORROWED &&
         atomic_load_explicit(&scoop_thread_world_phase, memory_order_acquire) !=
@@ -155,10 +155,10 @@ static void enter_native(ScoopThreadTransition *transition, uintptr_t managed_st
     state->current_transition = transition;
     state->managed_stack_boundary = NULL;
     state->managed_depth--;
-    atomic_store_explicit(&state->observed_gc_epoch,
+    atomic_store_explicit(&state->poll.observed_gc_epoch,
                           atomic_load_explicit(&scoop_thread_gc_epoch, memory_order_acquire),
                           memory_order_release);
-    atomic_store_explicit(&state->mode, native_mode, memory_order_seq_cst);
+    atomic_store_explicit(&state->poll.mode, native_mode, memory_order_seq_cst);
     if (native_mode == SCOOP_THREAD_NATIVE_SAFE) {
         SCOOP_THREAD_TEST_POINT(SCOOP_TEST_NATIVE_SAFE_PUBLISHED);
         return;
@@ -176,7 +176,7 @@ static void return_from_native_safe(ScoopThreadState *state) {
     for (;;) {
         /* Together with STOPPING -> mode in the collector, these two SC
          * operations prevent both sides from proceeding on an old state. */
-        atomic_store_explicit(&state->mode, SCOOP_THREAD_NATIVE_SAFE_RETURNING,
+        atomic_store_explicit(&state->poll.mode, SCOOP_THREAD_NATIVE_SAFE_RETURNING,
                               memory_order_seq_cst);
         SCOOP_THREAD_TEST_POINT(SCOOP_TEST_NATIVE_RETURNING_PUBLISHED);
         if (atomic_load_explicit(&scoop_thread_world_phase, memory_order_seq_cst) ==
@@ -184,7 +184,7 @@ static void return_from_native_safe(ScoopThreadState *state) {
             SCOOP_THREAD_TEST_POINT(SCOOP_TEST_NATIVE_RUNNING_OBSERVED);
             return;
         }
-        atomic_store_explicit(&state->mode, SCOOP_THREAD_NATIVE_SAFE, memory_order_seq_cst);
+        atomic_store_explicit(&state->poll.mode, SCOOP_THREAD_NATIVE_SAFE, memory_order_seq_cst);
         SCOOP_THREAD_TEST_POINT(SCOOP_TEST_NATIVE_RETURNING_BLOCKED);
         scoop_thread_registry_lock();
         scoop_thread_wait_for_running_world();
@@ -195,7 +195,7 @@ static void return_from_native_safe(ScoopThreadState *state) {
 static void leave_native(ScoopThreadTransition *transition, ScoopThreadMode expected_mode) {
     ScoopThreadState *state = scoop_thread_current_required();
     if (transition == NULL || state->current_transition != transition ||
-        atomic_load_explicit(&state->mode, memory_order_acquire) != expected_mode ||
+        atomic_load_explicit(&state->poll.mode, memory_order_acquire) != expected_mode ||
         transition->native_mode != (uint32_t)expected_mode ||
         transition->previous_mode != (uint32_t)SCOOP_THREAD_MANAGED) {
         scoop_thread_fatal("native transitions must be left in LIFO order");
@@ -212,10 +212,10 @@ static void leave_native(ScoopThreadTransition *transition, ScoopThreadMode expe
     state->current_transition = transition->previous;
     state->managed_stack_boundary = (const char *)(uintptr_t)transition->managed_stack_high;
     state->managed_depth++;
-    atomic_store_explicit(&state->observed_gc_epoch,
+    atomic_store_explicit(&state->poll.observed_gc_epoch,
                           atomic_load_explicit(&scoop_thread_gc_epoch, memory_order_acquire),
                           memory_order_release);
-    atomic_store_explicit(&state->mode, SCOOP_THREAD_MANAGED, memory_order_release);
+    atomic_store_explicit(&state->poll.mode, SCOOP_THREAD_MANAGED, memory_order_release);
     transition->previous = NULL;
     transition->caller_roots = NULL;
     transition->managed_return_pc = 0;

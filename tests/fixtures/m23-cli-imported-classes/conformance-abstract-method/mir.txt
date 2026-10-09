@@ -36,8 +36,10 @@ Module
   generated_exact_type get6 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
   generated_exact_type get7 location=enum2 nominal_id=cc8165785d5e61912b0a786696b68af0c53f9f18811e11d66d376c8c47a496f7 exact_id=e7688cd22d20b69ac74007bdf2ac7eb3d383d7ad0dfa35c3a363fd31141e2e0d
   generated_exact_type get8 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
-  generated_callable gc0 function=@fn15 id=27d111ef199b3411038578f0e215648c3b775aca4ca01218f8bfd7043983a141
-  generated_callable gc1 function=@fn14 id=d2b957217348ec5cfc53bc5d7055748f1a6bf8b131dd03ebfecd6f0eeaec4af9
+  generated_callable gc0 function=@fn13 id=00ffc039bc2c766c0aa44d00bae08d8627b28d61dec0ccab619430db28822bea
+  generated_callable gc1 function=@fn17 id=27d111ef199b3411038578f0e215648c3b775aca4ca01218f8bfd7043983a141
+  generated_callable gc2 function=@fn12 id=7e2cb65bab9e096ad595ea8ea763c2f6efc6342157416676de097bf93a27e293
+  generated_callable gc3 function=@fn16 id=d2b957217348ec5cfc53bc5d7055748f1a6bf8b131dd03ebfecd6f0eeaec4af9
   fun LocalBase.read @fn0(this: LocalBase) -> Long
     bb0 entry
       trap "call to abstract method `LocalBase.read`"
@@ -51,7 +53,7 @@ Module
       assign $new.1
         Type LocalReader
         ClassAlloc LocalReader
-      call @fn13 direct
+      call @fn15 direct
         Type LocalReader
         Local $new.1
       return
@@ -119,18 +121,42 @@ Module
   fun SuspendRegistration.register @fn11(this: SuspendRegistration<LocalReader>, continuation: Continuation<LocalReader>) -> Unit
     bb0 entry
       trap "call to abstract method `SuspendRegistration.register`"
-  fun init.LocalBase.$c0 @fn12(this: LocalBase) -> Unit
+  fun receiver<LocalBase> Readable.answer @fn12(this: LocalBase, extra: Long) -> Long
+    bb0 entry
+      call $call.1: Long = external0 direct
+        Type Readable
+        Retype Readable
+          Type LocalBase
+          Local this
+        Type Long
+        Local extra
+      return
+        Type Long
+        Local $call.1
+  fun receiver<LocalReader> Readable.answer @fn13(this: LocalReader, extra: Long) -> Long
+    bb0 entry
+      call $call.1: Long = external0 direct
+        Type Readable
+        Retype Readable
+          Type LocalReader
+          Local this
+        Type Long
+        Local extra
+      return
+        Type Long
+        Local $call.1
+  fun init.LocalBase.$c0 @fn14(this: LocalBase) -> Unit
     bb0 entry
       return
-  fun init.LocalReader.$c1 @fn13(this: LocalReader) -> Unit
+  fun init.LocalReader.$c1 @fn15(this: LocalReader) -> Unit
     bb0 entry
-      call @fn12 direct
+      call @fn14 direct
         Type LocalBase
         Retype LocalBase
           Type LocalReader
           Local this
       return
-  fun startCoroutine<LocalReader> @fn14(task: SuspendTask<LocalReader>, completion: Continuation<LocalReader>) -> Unit
+  fun startCoroutine<LocalReader> @fn16(task: SuspendTask<LocalReader>, completion: Continuation<LocalReader>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -211,7 +237,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<LocalBase> @fn15(task: SuspendTask<LocalBase>, completion: Continuation<LocalBase>) -> Unit
+  fun startCoroutine<LocalBase> @fn17(task: SuspendTask<LocalBase>, completion: Continuation<LocalBase>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -296,8 +322,8 @@ Module
   coroutine_step cs1 CoroutineStep<LocalBase> result=LocalBase
   coroutine_slot cl0 CoroutineSlot<LocalReader> value=LocalReader
   coroutine_slot cl1 CoroutineSlot<LocalBase> value=LocalBase
-  coroutine_start ct0 result=LocalReader function=fn14
-  coroutine_start ct1 result=LocalBase function=fn15
+  coroutine_start ct0 result=LocalReader function=fn16
+  coroutine_start ct1 result=LocalBase function=fn17
   coroutine_fn cf0 @fn6 source_return=LocalBase step=cs1 immediate
   coroutine_fn cf1 @fn10 source_return=LocalReader step=cs0 immediate
   instance mi0 function=@fn4 <- Continuation.resume

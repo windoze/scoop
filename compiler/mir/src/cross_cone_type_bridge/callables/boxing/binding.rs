@@ -7,7 +7,7 @@ pub(super) fn project(
     types: &dyn MirTypeBridgeTypeLookupV1,
     source: &dyn MirTypeBridgeCallableLookupV1,
     roots: &BTreeMap<FunctionId, CallableSignatureSubject>,
-    adjust: &BoxingAdjust,
+    adjust: &InterfaceAdjust,
 ) -> Result<ParamFreeMirCallableBindingV1, Error> {
     let callable = adjust.identity().callable_record().id();
     let implementation = adjust.identity().signature_record().subject();
@@ -15,7 +15,7 @@ pub(super) fn project(
         return Err(Error::MissingRoot(adjust.function()));
     }
     let (target, target_signature, target_effect) = match adjust.target() {
-        crate::BoxingAdjustTarget::Local(function) => {
+        crate::InterfaceAdjustTarget::Local(function) => {
             let owner = *roots.get(&function).ok_or(Error::MissingRoot(function))?;
             let target = CallableDefinitionOwner::try_from(owner).map_err(Error::InvalidTarget)?;
             let signature = input
@@ -31,7 +31,7 @@ pub(super) fn project(
                 input.module().functions[function].gc_effect,
             )
         }
-        crate::BoxingAdjustTarget::External(callable) => {
+        crate::InterfaceAdjustTarget::External(callable) => {
             let root = input
                 .materialization()
                 .external_callable_roots()
@@ -50,7 +50,9 @@ pub(super) fn project(
         .ok_or(Error::MissingTargetBinding(target))?;
     if !matches!(
         source.lowering_role(),
-        MirCallableLoweringRoleV1::Ordinary | MirCallableLoweringRoleV1::Accessor
+        MirCallableLoweringRoleV1::Ordinary
+            | MirCallableLoweringRoleV1::Accessor
+            | MirCallableLoweringRoleV1::PureVirtualTrap { .. }
     ) {
         return Err(Error::TargetMismatch(target));
     }
@@ -82,6 +84,14 @@ pub(super) fn project(
             lowered.clone(),
             input.module().functions[adjust.function()].gc_effect,
         ),
-        MirCallableLoweringRoleV1::BoxingAdjust { target },
+        match adjust.identity().callable_record().key() {
+            GeneratedCallableKey::BoxingAdjust { .. } => {
+                MirCallableLoweringRoleV1::BoxingAdjust { target }
+            }
+            GeneratedCallableKey::DispatchAdjust { .. } => {
+                MirCallableLoweringRoleV1::DispatchAdjust { target }
+            }
+            _ => return Err(Error::InvalidAdjust(adjust.function())),
+        },
     )?)
 }

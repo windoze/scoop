@@ -269,7 +269,7 @@ Module
   td td0 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Equality);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$6fb0bdfcaef72d458561b350a56fb80e86e68f4c020173148c7fe1ec239ea687 type-id=940003777485400453 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
   td td1 n(c=scoop%3Asingle-file%3A0.0.0;p=;o=-;k=O;x=Left) @scoop$1$td$e7e075486bf2bcb6b9e36610f8de3db2f16f5028e308c278bbd0c86fba29e602 type-id=9660262099633312131 shape=FixedObject minimum-size=24 align=8 parent=none vtable=[] itables=[]
   td td2 n(c=scoop%3Asingle-file%3A0.0.0;p=;o=-;k=O;x=Right) @scoop$1$td$a74cd5800e7634cafb8a7b2f9c7aa7096c94c46f8d8e1c93dac71437b92f5b7e type-id=16112648166410842811 shape=FixedObject minimum-size=24 align=8 parent=none vtable=[] itables=[]
-  layout Equality value size=8 align=8 refs=[0]
+  layout Equality value size=16 align=8 refs=[0]
   layout Left value size=8 align=8 refs=[0]
   layout Left size=24 align=8 refs=[]
   layout Right value size=8 align=8 refs=[0]

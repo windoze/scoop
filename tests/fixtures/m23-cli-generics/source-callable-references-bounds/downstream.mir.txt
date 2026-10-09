@@ -13,7 +13,7 @@ Module
   class LocalChooser<Later> vtable=0 itables=1
   class Child<Later> vtable=0 itables=0
   class Box<Later> vtable=0 itables=0
-  class Reader vtable=0 itables=1
+  class Reader vtable=0 itables=0
   class LocalChooser<Int> vtable=0 itables=1
   class Child<Int> vtable=0 itables=0
   class Box<Int> vtable=0 itables=0

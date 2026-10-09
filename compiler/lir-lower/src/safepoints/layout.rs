@@ -8,6 +8,7 @@ pub(crate) fn lir_size_align(
 ) -> StorageResult<(u64, u64)> {
     let (size, alignment) = match ty {
         lir::LirType::Void => (0, 1),
+        lir::LirType::Interface => (16, 8),
         lir::LirType::F32
         | lir::LirType::F64
         | lir::LirType::I1

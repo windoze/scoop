@@ -9,7 +9,7 @@ int main(void) {
         (uint32_t)sizeof(ScoopImageDescriptorV1),
     };
 
-    if (prefix.magic != UINT64_C(0x53434f4f50494d47) || prefix.abi_version != 7 ||
+    if (prefix.magic != UINT64_C(0x53434f4f50494d47) || prefix.abi_version != 8 ||
         prefix.struct_size != 240) {
         return 2;
     }

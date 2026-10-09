@@ -1,0 +1,27 @@
+@Extern(lib = "m34_container_bench", name = "m34_container_kind") fun benchKind(): Int
+@Extern(lib = "m34_container_bench", name = "m34_container_count") fun benchCount(): Long
+@Extern(lib = "m34_container_bench", name = "m34_container_begin") fun beginPhase(): Unit
+@Extern(lib = "m34_container_bench", name = "m34_container_end") fun endPhase(phase: Int): Unit
+@Extern(lib = "m34_container_bench", name = "m34_container_layout", abi = "scoop")
+fun reportLayout(value: Any): Unit
+
+fun check(value: Boolean) { if (!value) { throw IllegalStateException() } }
+interface Read { fun value(): Int }
+class Cell(val number: Int) : Read { override fun value(): Int = number }
+struct Empty()
+object Counts { var value: Long = 0L }
+fun emptyValue(): Empty { Counts.value += 1L; return Empty() }
+
+@Unsafe fun main() {
+    val count = benchCount()
+    val kind = benchKind()
+    val result = when (kind) {
+        0 -> scalarList(count)
+        1 -> interfaceList(count)
+        2 -> zeroSizeList(count)
+        3 -> lowOccupancy(count)
+        4 -> buildStrings(count)
+        else -> jsonRoundTrip(count)
+    }
+    println(result)
+}

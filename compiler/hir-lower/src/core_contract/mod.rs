@@ -20,6 +20,7 @@ mod floating;
 mod gc_control;
 mod intrinsics;
 mod iteration;
+mod maybe_uninit;
 mod operators;
 mod option;
 mod pointers;

@@ -199,7 +199,7 @@ fn no_gc_functions_carry_neither_gc_strategy_nor_safepoint_polls() {
 #[test]
 fn scalar_stores_do_not_mark_cards() {
     let ir = ir_of(&barrier_module());
-    assert!(!ir.contains("@scoop_gc_card_table"));
+    assert!(!ir.contains("@scoop_gc_page_map"));
     assert!(!ir.contains("@scoop_rt_gc_write_barrier"));
 }
 
@@ -213,16 +213,21 @@ fn reference_store_marks_its_card() {
     };
     *value = Value::Param(1);
     let ir = ir_of(&module);
-    // The card table is a pointer variable: load the (pre-biased)
-    // base, then GEP by the card index.
     assert!(
-        ir.contains("@scoop_gc_card_table = external global ptr"),
-        "card table pointer global missing:\n{ir}"
+        ir.contains("@scoop_gc_page_map = external global [4096 x ptr]"),
+        "sparse page map root missing:\n{ir}"
     );
-    assert!(
-        ir.contains("load ptr, ptr @scoop_gc_card_table"),
-        "card table base load missing:\n{ir}"
+    assert_eq!(
+        ir.matches("load atomic ptr").count(),
+        4,
+        "four radix levels:\n{ir}"
     );
+    for shift in [52, 40, 28, 16] {
+        assert!(
+            ir.contains(&format!(", {shift}")),
+            "missing address level {shift}:\n{ir}"
+        );
+    }
     assert!(ir.contains("lshr i64"), "card index shift missing:\n{ir}");
     // Only the reference store marks a card; the integer array store does not.
     let marks = ir.matches(" = atomicrmw or ptr ").count();

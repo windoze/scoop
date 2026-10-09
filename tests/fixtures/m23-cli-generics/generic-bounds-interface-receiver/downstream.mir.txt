@@ -11,8 +11,8 @@ Module
     Empty()
     Value(value: Later)
   class Later vtable=0 itables=0
-  class PlainDerived vtable=1 itables=2
-  class PlainBase vtable=1 itables=2
+  class PlainDerived vtable=1 itables=0
+  class PlainBase vtable=1 itables=0
   class IllegalStateException vtable=0 itables=0
   class Exception vtable=0 itables=0
   class Throwable vtable=0 itables=0
