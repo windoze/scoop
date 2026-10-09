@@ -159,7 +159,7 @@ unit 由 `PersistentInitializationUnitId` 标识；diagnostic path 只用于显�
 
 ### 2.8 多 image 登记与启动 ABI
 
-runtime ABI contract 为 **12**，metadata ABI 为 **8**。带 prefix 的 descriptor 以 `{ u64 magic; u32 abi_version; u32 struct_size; }` 开头，`abi_version == 8`，size 与本节布局精确一致，reserved fields 为 0。公共 C 声明见 [scoop_runtime_metadata_v1.h](../../runtime/include/scoop_runtime_metadata_v1.h)。M34 同步迁移 producer、reader、公共头、启动代码与缓存；双字接口、DirectParts、条件 poll、region cards 和 MaybeUninit backing 属于这一版本。旧 ABI 即使 descriptor 大小相同也必须重建或拒绝，不能强制转换后调用。实施中的批次状态见 [M34 记录](../milestone34/PROGRESS.md)。
+runtime ABI contract 为 **12**，metadata ABI 为 **8**。带 prefix 的 descriptor 以 `{ u64 magic; u32 abi_version; u32 struct_size; }` 开头，`abi_version == 8`，size 与本节布局精确一致，reserved fields 为 0。公共 C 声明见 [scoop_runtime_metadata_v1.h](../../runtime/include/scoop_runtime_metadata_v1.h)。M34 同步迁移 producer、reader、公共头、启动代码与缓存；双字接口、DirectParts、条件 poll、region cards 和 MaybeUninit backing 属于这一版本。旧 ABI 即使 descriptor 大小相同也必须重建或拒绝，不能强制转换后调用。各批次的实际实现与验证见 [M34 记录](../milestone34/PROGRESS.md)。
 
 | descriptor | magic | size（bytes） |
 | --- | --- | --- |
