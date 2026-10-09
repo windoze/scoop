@@ -255,3 +255,15 @@ Linux 的跨 Cone nominal 签名和完整 core 产物测试暴露了小值 coerc
 新增跨 Cone 接口基准，将已知／未知 receiver、循环前转换一次／每轮转换四种模式分开；纯计算 GC 响应基准复用已有 callback runner 和线程观测点，工作线程执行普通 Managed 整数循环。两台主机的 M33／M34 版本均已构建，Darwin 的 MIR／LIR 与机器码映射已提取；Linux 七轮交替测量完成，独立 checksum、整数和与 GC histogram 检查全部通过。Darwin 计时等待该机完整 CLI 验收结束。
 
 实际使用的构建、测量与结构提取脚本保存在 [最终对照基准](../../tests/benchmarks/m34/README.md)，分别为 185／143／59 行；新 C 辅助代码 39 行，通过格式和严格警告检查，Python 通过指定版本 ruff。完整样本与解释随总验收归档。Linux 此时再次检查 target，没有新增可删除的 rcgu 对象或 incremental 目录，未删除有效工具和基线。
+
+## M34-10e：复制值中的 managed pointer provenance
+
+Linux 的 release 接口协程用例在 unbox 后复制含引用 struct，再以 byval 参数调用挂起适配器。LLVM 将复制降为整数 load／store，随后把 GC leaf 的 pointer load 合并为未授权的 `inttoptr`，触发既有 provenance 校验。最小 LLVM 复现确认是缺少 managed 地址空间的 non-integral 声明；module 现在从已有目标 data layout 派生 `ni:1`，保持原指针大小、对齐与原生 ABI，也不放宽显式转换检查。
+
+新增 22 行 LLVM／61 行 Rust 回归在三个 target 的 debug／release 下执行优化、RS4GC、Scoop 根验证、LLVM safepoint verifier 和真实对象生成，保留一个正确 relocation root，禁止优化器引入整数重建。两机 workspace/all-targets clippy 和 362 项 codegen 测试通过。原接口协程正式 fixture 已在 Darwin／GNU 完成普通、full-moving、minor-stress 的 debug／release 运行；Darwin 关闭快照更新复验通过。临时 LLVM 诊断输出已从生产代码移除。
+
+## M34-10f：intrinsic class 的 default receiver
+
+完整 CLI 初跑发现六组修改 core 后再从产物继承成员的用例失败：String 的接口 default adapter 使用了普通 `Class` 类型，而其 source exact registry 正确保存的是 intrinsic `String`。adapter 的参数、局部变量、receiver 表达式和 MIR 检查现在统一使用类声明已有的 `physical_type`，同时覆盖 Any；没有增加别名、名称回退或重复身份登记。
+
+两机 20 项 MIR 引用类型回归通过。六组 core 重建／消费用例及上一批的接口协程在 Darwin、GNU 均完成验收，各为 8 variants、60 processes、22 goldens；包括源码删除后的链接与 moving GC，以及原有 NoGC／错误实参诊断。Darwin 对这七组关闭快照更新再验一次通过。生产修改限于已有 receiver lowering 和相应结构验证。

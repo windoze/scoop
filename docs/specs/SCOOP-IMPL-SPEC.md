@@ -149,6 +149,8 @@ LIR 保存目标上完整的类型布局、值表示、字段 offset、alignment
 
 每个 pointer（包括 null）具有 Managed、Raw、Code 或 Metadata provenance；LLVM opaque pointer 不抹去这种区别。managed 使用 address space 1，其余使用 0，转换必须为明确合法的 typed operation。
 
+LLVM module 的 data layout 将 managed 地址空间声明为 non-integral pointer（生产配置为 `ni:1`）。普通复制仍按精确 storage 执行，但优化器不得从整数搬运值自行重建 managed pointer；GC leaf 从 typed pointer load 取得。分配结果、card 地址和 scoped data borrow 的显式 typed 转换继续按各自合同检查，此声明不改变目标的指针大小、对齐或原生 ABI。
+
 Scoop ABI 保留完整逻辑参数序列及 exact identity，物理分类为：
 
 | 值 | 参数 | 结果 |
@@ -475,6 +477,8 @@ itable 以实际 interface TD 为键，不要求跨 Cone 的全局槽编号。ge
 普通接口值保存 object 和对应 exact interface 的 itab。构造／转换时查询目标表一次，已知实际类型直接引用既有静态表，相同 exact 视图直接复制；`is`／`as` 的检查与表查询可合并，不重查同一事实。空接口以 entry 存在判断成功，不用合法 null slots 判失败。接口方法从 itab 直接取 slot，不再次查询 object TD。
 
 LIR 的 dispatch slot 显式保存单字 object receiver projection 和完整入口签名，普通接口参数／结果仍为双字。兼容 class 实现可直接作为 slot；需要完整接口 this 的 default／变型／装箱入口由已有 typed adapter 重建视图或复制 payload。去虚拟化与直接调用按实际 callee 的签名适配，不能只因都含 pointer 就混同 ABI。静态表和 adapter 继续使用正常 typed definition／reference、provider 和 ODR relocation。
+
+intrinsic class 的 adapter 同样使用该声明已经确定的物理类型与 exact identity。`String`／`Any` 的 receiver 保持本层对应的 intrinsic reference type，不为 adapter 另造普通 `Class` 别名；源级接口继承及 default body 仍按普通声明处理。
 
 值类型只有显式声明或继承的普通 interface conformance；有界泛型调用、interface 调用、装箱与 `is` / `as` 消费同一实际接口闭包。结构 operator equals 不产生 Equality conformance。显式 `Equality<T>.equalTo` 与其他接口方法使用相同的调用规则；已知 concrete value 的直接调用不因另有接口实现而强制装箱或运行期查表。
 
