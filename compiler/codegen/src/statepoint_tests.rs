@@ -23,6 +23,8 @@ mod interface_parts;
 mod no_gc;
 #[path = "statepoint_tests/optimized.rs"]
 mod optimized;
+#[path = "statepoint_tests/terminal_poll.rs"]
+mod terminal_poll;
 
 fn verify_rewritten(
     module: &Module<'_>,

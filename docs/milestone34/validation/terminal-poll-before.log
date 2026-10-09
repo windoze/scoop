@@ -1,0 +1,19 @@
+   Compiling scoop-codegen v0.0.0 (/Volumes/Data/home/chenxu/repos/scoop/compiler/codegen)
+    Finished `release` profile [optimized] target(s) in 10.70s
+     Running unittests src/lib.rs (target/release/deps/scoop_codegen-e8c02273ab7a8a35)
+
+running 1 test
+
+thread 'statepoint::tests::terminal_poll::terminal_call_after_conditional_poll_keeps_one_machine_site' (83979937) panicked at compiler/codegen/src/statepoint/../statepoint_tests/terminal_poll.rs:60:41:
+LinuxX86_64Gnu/Release: LLVM stackmap repeats SafepointId 8
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test statepoint::tests::terminal_poll::terminal_call_after_conditional_poll_keeps_one_machine_site ... FAILED
+
+failures:
+
+failures:
+    statepoint::tests::terminal_poll::terminal_call_after_conditional_poll_keeps_one_machine_site
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 362 filtered out; finished in 0.01s
+
+error: test failed, to rerun pass `-p scoop-codegen --lib`

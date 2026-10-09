@@ -300,11 +300,11 @@ manifest 保存 canonical coordinate、ConeIdentity、kind/source form、完整 
 
 production 与 Link metadata 完整保存实际 body/type/site ID、Strong/ODR 定义、shared ABI、object/bridge unit 到 member/range 的映射、digest patch 位置、runtime registrations、image/root entry 归属、defined symbol owners、undefined requirements、native contracts 与逻辑 library requirements。所有表具有 canonical key/payload、明确排序与唯一性；不保存 producer 的绝对搜索路径。
 
-executable entry 的四种形态、main 的完整源码签名、root gateway 的实际 C ABI 与定义指纹随各层 typed entry 保留，并进入对应语义／ABI fingerprints 和承载它们的 section profile。Link 投影保留精确 main、gateway 与 failure-root 引用，使 artifact-only 链接无需源码或名称推断。M34 的 runtime ABI contract 12、metadata ABI 8 同时进入兼容检查、runtime 与启动对象的构建输入；旧 ABI 的薄接口、物理签名、poll／card 合同及产物必须重建或拒绝，不能用缺省字段或 bitcast 混用。新 ABI 的 debug／release 仍互通；实施中的批次和实际 section 版本见 [M34 记录](../milestone34/PROGRESS.md)。
+executable entry 的四种形态、main 的完整源码签名、root gateway 的实际 C ABI 与定义指纹随各层 typed entry 保留，并进入对应语义／ABI fingerprints 和承载它们的 section profile。Link 投影保留精确 main、gateway 与 failure-root 引用，使 artifact-only 链接无需源码或名称推断。M34 的 runtime ABI contract 12、metadata ABI 8 同时进入兼容检查、runtime 与启动对象的构建输入；旧 ABI 的薄接口、物理签名、poll／card 合同及产物必须重建或拒绝，不能用缺省字段或 bitcast 混用。新 ABI 的 debug／release 仍互通；各批次的实际实现与 section 版本见 [M34 记录](../milestone34/PROGRESS.md)。
 
 operator equals 的成员签名、operator 标记、已绑定调用及必要的派生正文使用既有 callable、模板与 exact-type metadata。`Equality<T>.equalTo` 的显式 conformance、接口 slot、实现和分派适配使用普通 interface metadata；两者没有隐式关联，也不保存 Equality 专用的 core protocol 或条件接口规则。
 
-`core-bootstrap-interface/14` 删除旧 Equality protocol 字段；`cross-cone-interface/68` 与 `cross-cone-type-semantics/26` 移除统一方案添加的派生比较接口槽位声明，恢复普通源码接口实现。旧版本产物必须重建，不能把旧 Equality slot 当作新接口成员或独立 operator 使用。既有结构 operator 的生成身份和单态化格式保持不变。
+自 `core-bootstrap-interface/14` 起删除旧 Equality protocol 字段；自 `cross-cone-interface/68` 与 `cross-cone-type-semantics/26` 起移除统一方案添加的派生比较接口槽位声明，恢复普通源码接口实现。旧版本产物必须重建，不能把旧 Equality slot 当作新接口成员或独立 operator 使用。既有结构 operator 的生成身份和单态化格式保持不变。M34 后续编码扩展后的当前版本为 `cross-cone-interface/69`、`cross-cone-type-semantics/27`。
 
 派生 operator 使用既有 typed 生成身份和普通单态化／ODR 规则，所需的宿主、完整签名及字段调用在各自边界确定；没有源码声明的生成 callable 不伪装成 SourceFunctionId。导入的 operator 候选来自已保存的成员或派生签名，不借用 Equality slot。artifact-only 链接只消费已闭合的实现，不重新扫描字段或选择重载；普通接口 adapter 引用实际声明或继承的实现，不因值支持结构比较而新增 itable 项。
 
@@ -699,6 +699,8 @@ metadata 的相等、去重与 hash 比较 raw bits，包括 signed zero 与 NaN
 debug 使用 Scoop machine O0 与 generated-C O0，release 使用 O2；两者均完成正确代码生成所需的 SSA/GC 转换。runtime build 配置独立，默认 O2。优化模式不改变源码语义、persistent entity identity、shared state 或对外 ABI，兼容的不同优化产物可以共同链接。
 
 Linux/amd64 的 managed 调用保留固定的 outgoing argument area，使运行时规范 3.2 的 `FP = SP + N - 8` 对每个 safepoint 都成立。LLVM 22.1 后端关闭 X86 call-frame size optimization，避免按值参数被改成调用点临时 push/pop；源码参数语义、calling convention 和其余 O2 优化保持。此设置在创建任何 target machine 前由 codegen 统一初始化。
+
+LLVM 22.1 的机器基本块布局关闭 tail duplication，避免在 roots 与 site identity 定稿后复制 STATEPOINT。条件 poll 后接不返回的 Managed 调用也必须只保留一个实际调用点及一条对应 stackmap 记录；给 statepoint 添加 LLVM `noduplicate`／`convergent` 调用属性不能阻止该机器优化。此限制沿用统一的 target machine 初始化，不改变 SafepointId、返回地址或对象验证规则。
 
 普通优化可以消除已证明不可达的代码及 site，但保留实际求值、异常、Context、initialization、release-ready 与严格浮点语义。类型错误不能因优化删除代码而消失。
 
