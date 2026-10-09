@@ -303,9 +303,12 @@ impl CfgLowerer<'_> {
     }
 }
 
+mod calls;
 mod control;
 mod expression;
+mod operands;
 mod patterns;
+mod short_circuit;
 mod transfers;
 
 fn synthetic_span() -> Span {

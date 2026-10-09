@@ -99,6 +99,8 @@ C-FFI-safe、Scoop ABI、GC-free 与 release-safe 是不同合同。C 参数不�
 
 MIR 只接收 LocalConcreteHir 和实际选用的依赖 MIR metadata，不接受 ExportHir 模板或执行泛型推断。每个 expression 具有本层 exact type；GC-free、ZST、字段和 variant 身份完整保留，synthetic 类型在产生时也完整定义。
 
+调用与短路控制流从表达式提取为 CFG 时，必须先完成并保存此前操作数的取值，再执行后续操作数的调用或分支。没有显式调用的表达式仍可能读取可变字段、全局、指针或原子存储，或执行分配；不能因此延后其求值。聚合元素、调用实参和其他多操作数节点共享这一顺序规则，提前终止的操作数保留此前副作用并阻止后续求值。
+
 errno 捕获调用保留 HIR 已确定的结果适配和 native 合同，表达式的结果仍为完整的 Scoop tuple。后续解构、存储或跨 suspend 保存使用普通值规则；不引入 last-error 读取节点、线程槽位或额外的 managed error 对象。
 
 MIR 控制流显式表示普通边、异常边、循环目标和 cleanup。Return、Break、Continue 只执行真正退出的 scope 清理；Throw/Rethrow 保持异常路径；finally 的覆盖规则和挂起不退出作用域的规则遵守语言规范。variant payload 只在同一值、同一 variant 的有效分支内读取。
