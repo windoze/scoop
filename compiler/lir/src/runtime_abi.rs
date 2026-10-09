@@ -23,6 +23,10 @@ const INITIAL_SCHEMA: u64 = 1;
 /// One Immix block minus its reserved first line; shared by generated TLAB code.
 pub const REGULAR_MANAGED_OBJECT_MAX_SIZE: u64 = 32768 - 128;
 
+/// Runtime-private poll words; the C layout is asserted in generated_entries.h.
+pub const POLL_WORLD_RUNNING: u64 = 0;
+pub const POLL_THREAD_MANAGED: u64 = 1;
+
 mod machine;
 pub use machine::{CompilerNativeContractV1, CompilerNativeValueV1};
 
@@ -86,6 +90,9 @@ pub enum RuntimeAbiSymbolV1 {
     CoreStringTypeDescriptor,
     ArrayClone,
     AllocationContext,
+    PollState,
+    WorldPhase,
+    GcEpoch,
     CardTable,
     WriteBarrier,
     FinishTlabAllocation,
@@ -112,7 +119,10 @@ pub enum RuntimeAbiSymbolV1 {
 }
 
 impl RuntimeAbiSymbolV1 {
-    pub const ALL: [Self; 62] = [
+    pub const ALL: [Self; 65] = [
+        Self::PollState,
+        Self::WorldPhase,
+        Self::GcEpoch,
         Self::PushPinFrame,
         Self::PopPinFrame,
         Self::LirCall(RuntimeFunction::Managed(
@@ -306,6 +316,9 @@ impl RuntimeAbiSymbolV1 {
             Self::CoreStringTypeDescriptor => "scoop_td_String",
             Self::ArrayClone => "scoop_rt_array_clone",
             Self::AllocationContext => "scoop_rt_allocation_context",
+            Self::PollState => "scoop_rt_poll_state",
+            Self::WorldPhase => "scoop_thread_world_phase",
+            Self::GcEpoch => "scoop_thread_gc_epoch",
             Self::CardTable => "scoop_gc_card_table",
             Self::WriteBarrier => "scoop_rt_gc_write_barrier",
             Self::FinishTlabAllocation => "scoop_runtime_finish_tlab_alloc",
@@ -362,6 +375,9 @@ impl RuntimeAbiSymbolV1 {
             Self::WriteBarrier => 26,
             Self::PushPinFrame => 27,
             Self::PopPinFrame => 28,
+            Self::PollState => 29,
+            Self::WorldPhase => 30,
+            Self::GcEpoch => 31,
         }
     }
 }

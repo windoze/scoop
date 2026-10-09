@@ -2,6 +2,7 @@
 #define SCOOP_RT_GENERATED_ENTRIES_H
 
 #include <stddef.h>
+#include <stdatomic.h>
 #include <stdint.h>
 
 #include "scoop_rt.h"
@@ -17,6 +18,22 @@ typedef struct ScoopAllocationContext {
 } ScoopAllocationContext;
 
 extern _Thread_local ScoopAllocationContext *scoop_rt_allocation_context;
+
+/* One view of the registered thread's actual mode and acknowledged epoch. */
+typedef struct ScoopPollState {
+    _Atomic(uint32_t) mode;
+    _Atomic(uint64_t) observed_gc_epoch;
+} ScoopPollState;
+
+_Static_assert(sizeof(ScoopPollState) == 16 && _Alignof(ScoopPollState) == 8,
+               "generated poll state layout drifted");
+_Static_assert(offsetof(ScoopPollState, mode) == 0 &&
+                   offsetof(ScoopPollState, observed_gc_epoch) == 8,
+               "generated poll state offsets drifted");
+
+extern _Thread_local ScoopPollState *scoop_rt_poll_state;
+extern _Atomic(uint32_t) scoop_thread_world_phase;
+extern _Atomic(uint64_t) scoop_thread_gc_epoch;
 
 void scoop_runtime_finish_tlab_alloc(void *object, const ScoopTypeDescriptor *td, size_t size);
 

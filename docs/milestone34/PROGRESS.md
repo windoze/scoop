@@ -9,7 +9,7 @@
 | M34-1 规范与基线 | 已完成 | 三份规范先行修订；两地 M33 基线、混合 AS1／metadata 返回及目标 C ABI 实验完成，详见下文。 |
 | M34-2 双字接口 | 已完成 | 表示、slot receiver、niche、GC、AtomicRef、native、closure／coroutine、跨 Cone；三 target 的六组 CLI fixture 通过。 |
 | M34-3 MIR 优化 | 已完成 | 实际类型传播、去虚拟化、三档调用点内联、常量化简及累计增长控制；三 target 的 13 组 CLI、两机开关性能对照完成。 |
-| M34-4 poll 与分配 | 待实施 | 条件 poll、pending 激活、线程局部统计及汇总。 |
+| M34-4 poll 与分配 | 进行中 | 条件 poll／pending 激活及三 target 验收完成；下一批迁移线程局部统计及汇总。 |
 | M34-5 小值与 DirectC | 待实施 | DirectParts 与两套目标 C aggregate ABI。 |
 | M34-6 多 region | 待实施 | 稀疏地址索引、扩容、large mapping、cards。 |
 | M34-7 搬迁与归还 | 待实施 | source／target 规划、完整回写、discard／unmap。 |
@@ -85,3 +85,15 @@ MIR `identity-foundation` 升至 6，其实际局部值目录进入 Code／LinkV
 三个 target 的四组新 fixture 与九组接口／去虚拟化回归全部通过，每个 target 为 26 variants、124 processes、96 stage goldens。本机最终关闭 snapshot 更新重新验收；Linux 复核保留输出与按 profile 分开的 96 份快照逐字一致，两地 64 份 HIR／MIR 文件的 SHA-256 相同。两机内联开关分别运行七次并保留机器码、代码大小、构建时间及全部样本；本机中位数比值为 1.073，Linux GNU 为 1.023，限制见性能记录。
 
 本机本批清理 target 6,382 项、8,215,828,137 bytes；Linux 清理 224 项、1,219,044,107 bytes。保留有效库、CLI、测试程序，并在两地保存 M34-3b 的配套工具和源码用于下一批对照。清理记录位于两地 `tmp/m34/batch3b-target-cleanup.json`。
+
+## M34-4a：条件 poll
+
+现有 LIR ManagedPoll 保留逻辑位置、唯一 site 和完整 live set，codegen 为它发射快／慢分支。快路径分别 acquire 读取 epoch、world phase、真实线程 mode 和 observed epoch；只有 RUNNING／MANAGED／epoch 一致时继续。MANAGED_PENDING 必须进入既有有锁激活路径，NativeSafe 返回和 callback 握手保持原职责。线程状态只保留一份；私有 TLS 指针指向其中的 poll 字段，attach 设置、detach 清空。
+
+根物化、runtime poll call、relocation 回写均在慢分支发射，后续使用沿现有 canonical storage 合流。线程地址在函数调用期间稳定，因此 TLS 指针只在入口读取一次，四次原子检查仍逐 poll 执行。runtime ABI 目录新增 PollState／WorldPhase／GcEpoch 数据符号（tags 29～31）；TLS relocation 与 runtime 导出检查直接使用既有机器合同的数据种类，移除原先仅识别两个数据符号的硬编码。
+
+新增 roots 与 threads 两组 CLI fixture，覆盖 interface、array、tuple、niche Option、closure、continue 回边，以及三个纯计算线程等待另一线程执行四轮 GC。两台主机的 moving-GC 发射／改写 10 项和 runtime 收集器／线程 21 项回归通过；多 poll 结构测试验证一份 TLS 读取、各自的 acquire 检查与慢路径根。符号 relocation 三项和 GNU／musl runtime 完整导出检查通过。
+
+三个 target 均完成两组新用例及接口并发、协程、artifact-only、内联语义组合验收，每个 target 为 12 variants、60 processes、42 stage goldens，包含 debug／release 与普通／full-moving／minor-stress。最终运行关闭 snapshot 更新；八份新 HIR／MIR 跨主机逐字一致。poll 发射与新增结构测试分别为 165／89 行。
+
+整数循环的两机七次开关对照及机器码已记录在性能报告：正常循环不再每轮调用协调入口或解析 TLS，原子检查保留；入口栈和机器码增量如实记录。两地保存 `tmp/m34/poll-tools` 与 `poll-source` 供分配统计对照。本机清理 target 5,622 项、6,273,385,579 bytes；Linux 清理 4,362 项、4,987,043,809 bytes，记录为两地 `tmp/m34/batch4a-target-cleanup.json`。

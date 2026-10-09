@@ -20,6 +20,8 @@ typedef enum ScoopThreadMode {
     SCOOP_THREAD_NATIVE_SAFE_RETURNING,
 } ScoopThreadMode;
 
+_Static_assert(SCOOP_THREAD_MANAGED == 1, "generated poll managed mode drifted");
+
 _Static_assert((int)SCOOP_THREAD_NATIVE_SAFE == (int)SCOOP_THREAD_DEBUG_NATIVE_SAFE,
                "public native-safe debug value drifted");
 _Static_assert((int)SCOOP_THREAD_MANAGED == (int)SCOOP_THREAD_DEBUG_MANAGED,
@@ -48,8 +50,7 @@ typedef struct ScoopThreadState {
     pthread_t os_thread;
     const char *stack_low;
     const char *stack_high;
-    _Atomic(ScoopThreadMode) mode;
-    _Atomic(uint64_t) observed_gc_epoch;
+    ScoopPollState poll;
     const char *managed_stack_boundary;
     ScoopManagedAnchor *managed_anchor;
     ScoopThreadMode parked_from;

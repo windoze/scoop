@@ -63,6 +63,8 @@ struct FnEmitter<'a, 'ctx> {
     compiler_unwind_blocks: HashSet<scoop_lir::BlockId>,
     compiler_invoke_index: u32,
     allocation_index: u32,
+    /// The attached thread address stays stable throughout this invocation.
+    cached_poll_state: Option<PointerValue<'ctx>>,
     /// Checked array-size failures share one block per callable-owned message.
     array_size_trap_blocks: HashMap<scoop_lir::GlobalId, inkwell::basic_block::BasicBlock<'ctx>>,
 }
@@ -312,6 +314,7 @@ pub(super) fn emit_function<'ctx>(
         compiler_unwind_blocks,
         compiler_invoke_index: 0,
         allocation_index: 0,
+        cached_poll_state: None,
         array_size_trap_blocks: HashMap::new(),
     };
 

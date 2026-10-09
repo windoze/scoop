@@ -597,7 +597,7 @@ pub(super) fn test_safepoints(
     test_safepoints_for_owner(callable_body(owner_symbol).id(), blocks, entry)
 }
 
-fn test_safepoints_for_owner(
+pub(super) fn test_safepoints_for_owner(
     owner: scoop_identity::PersistentCallableBodyId,
     blocks: &Arena<BasicBlock>,
     entry: scoop_lir::BlockId,

@@ -1,0 +1,1064 @@
+Module
+  extern ef0 workers @m13_run_many(FunPtr<(Int, Ptr<Unit>) -> Int>, Ptr<Unit>, Int, Int) -> Int <abi=c no-gc lib=m34_poll_threads>
+  foreign_callback_family fcf0 callback=ForeignCallback<(Int, Ptr<Unit>) -> Int> state=ForeignCallbackState failure=Option<Throwable>
+  foreign_callback_bridge fcb0 family=fcf0 native=function_type0 managed=function_type2 context=1 mode=ForeignCallbackMode.Reusable adapter=@fn15
+  struct ForeignCallback<(Int, Ptr<Unit>) -> Int> (function: FunPtr<(Int, Ptr<Unit>) -> Int>, context: Ptr<Unit>)
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum Option<Char>
+    Some(_0: Char)
+    None()
+  enum Option<Value>
+    Some(_0: Value)
+    None()
+  enum MemoryOrder
+    Relaxed()
+    Acquire()
+    Release()
+    AcqRel()
+    SeqCst()
+  enum ForeignCallbackMode
+    Reusable()
+    OneShot()
+  enum ForeignCallbackState
+    Registered()
+    Active()
+    Completed()
+    Failed()
+  enum Option<Throwable>
+    Some(_0: Throwable)
+    None()
+  enum CoroutineStep<Value>
+    Completed(value: Value)
+    Suspended()
+  enum CoroutineSlot<Value>
+    Empty()
+    Value(value: Value)
+  class Node vtable=0 itables=1
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class UnwrapException vtable=0 itables=0
+  class box<Int> vtable=0 itables=0
+  interface Equality<Ptr<Unit>>
+  interface Value
+  interface ToString
+  interface Hash
+  interface Equality<Char>
+  interface Iterable<Char>
+  interface Iterator<Char>
+  interface Equality<String>
+  interface Continuation<Value>
+  interface SuspendTask<Value>
+  interface SuspendRegistration<Value>
+  closure cc0 $Closure$lambda0 type=function_type2 invoke=@fn7 captures=2
+    bridge function_type3 -> @fn17 id=0d15cd9a99d0a0b9482991a66e6f7bbbcfbf33af55bccffb75d4d8dc91056a7a
+  generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
+  generated_exact_type get1 location=closure0 nominal_id=2fcc5dceba1f09c36d231287088079138d2c04817531ae31cc6d2cc1c02b5c0b exact_id=2302a5386d95a61953db931e029826819dc2e78ed627925872f2aaa8f36b4d72
+  generated_exact_type get2 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
+  generated_exact_type get3 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
+  generated_exact_type get4 location=enum7 nominal_id=ead222e3ca89ee5caec4aed8eaee7ecc21f3520974c56c48c9c62137037d4a5d exact_id=7f061923f2b8e5c28ba73c0a57b9ffb2f461801662d4b507d728408f778e450e
+  generated_exact_type get5 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
+  generated_exact_type get6 location=enum8 nominal_id=761137569bd654c44630db343d13aab64f98718994463137b63929856a3d2bd6 exact_id=ab1467854119314f0edcf32880bae1164c1260e41af7c0081450631f3b155f05
+  generated_exact_type get7 location=class7 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_exact_type get8 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
+  generated_callable gc0 function=@fn17 id=0d15cd9a99d0a0b9482991a66e6f7bbbcfbf33af55bccffb75d4d8dc91056a7a
+  generated_callable gc1 function=@fn16 id=5ddd7ee68487e6be003ea078ea7e4b54d2653439db6c0e046da3b12d9be4dd41
+  generated_callable gc2 function=@fn15 id=fc8cfa5a18dd07a29b7f325cd1027a57a7533b5ce7218dd8041d9ff846a98dc4
+  fun equalTo @fn0(this: Ptr<Unit>, other: Ptr<Unit>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<Unit>
+        Type Ptr<Unit>
+        Local this
+      val $dependency.local.3: Ptr<Unit>
+        Type Ptr<Unit>
+        Local other
+      val $dependency.local.4: Ptr<Unit>
+        Type Ptr<Unit>
+        Local $dependency.local.3
+      call $call.1: Boolean = @fn6 direct
+        Type Ptr<Unit>
+        Local $dependency.local.2
+        Type Ptr<Unit>
+        Local $dependency.local.4
+      return
+        Type Boolean
+        Local $call.1
+  fun Node.get @fn1(this: Node) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type Node
+          Local this
+  fun workers @fn2(arg0: FunPtr<(Int, Ptr<Unit>) -> Int>, arg1: Ptr<Unit>, arg2: Int, arg3: Int) -> Int
+    bb0 entry
+      call $call.1: Int = extern0 @m13_run_many direct
+        Type FunPtr<(Int, Ptr<Unit>) -> Int>
+        Local arg0
+        Type Ptr<Unit>
+        Local arg1
+        Type Int
+        Local arg2
+        Type Int
+        Local arg3
+      return
+        Type Int
+        Local $call.1
+  fun check @fn3(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.receiver: Boolean
+        Type Boolean
+        Local value
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+    bb1 if.then.1
+      val $default.local.0: String
+        Type String
+        StringConst @str0
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.1
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $new.1
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.1
+    bb2 if.merge.2
+      return
+  fun wait @fn4(started: AtomicInt, done: AtomicBoolean, value: Value, pair: (Node, Value), optional: Option<Value>) -> Int
+    bb0 entry
+      val $binding.subject.0: (Node, Value)
+        Type (Node, Value)
+        Local pair
+      val $binding.projection.1: Node
+        Type Node
+        FieldAccess 0
+          Type (Node, Value)
+          Local $binding.subject.0
+      val first: Node
+        Type Node
+        Local $binding.projection.1
+      val $binding.projection.2: Value
+        Type Value
+        FieldAccess 1
+          Type (Node, Value)
+          Local $binding.subject.0
+      val second: Value
+        Type Value
+        Local $binding.projection.2
+      val $dependency.receiver: AtomicInt
+        Type AtomicInt
+        Local started
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.argument.1: MemoryOrder
+        Type MemoryOrder
+        VariantConstruct MemoryOrder v2
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.parameter.order: MemoryOrder
+        Type MemoryOrder
+        Local $dependency.argument.1
+      Type Int
+      AtomicRmw Add Release Int
+        Type AtomicInt
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.value
+      goto bb1
+    bb1 while.cond.1 <loop-header-poll>
+      val $dependency.receiver: AtomicBoolean
+        Type AtomicBoolean
+        Local done
+      val $dependency.argument.0: MemoryOrder
+        Type MemoryOrder
+        VariantConstruct MemoryOrder v1
+      val $dependency.parameter.order: MemoryOrder
+        Type MemoryOrder
+        Local $dependency.argument.0
+      val $dependency.receiver: Boolean
+        Type Boolean
+        AtomicLoad Acquire Boolean
+          Type AtomicBoolean
+          Local $dependency.receiver
+      branch bb3 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+    bb2 while.exit.2
+      val $opt.1: Option<Value>
+        Type Option<Value>
+        Local optional
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Option<Value> v0
+          Type Option<Value>
+          Local $opt.1
+    bb3 while.body.3
+      goto bb1
+    bb4 if.then.4
+      val $uw.2: Value
+        Type Value
+        VariantPayloadProject Option<Value> v0 f0
+          Type Option<Value>
+          Local $opt.1
+      goto bb6
+    bb5 if.else.5
+      assign $new.1
+        Type UnwrapException
+        ClassAlloc UnwrapException
+      call external3 direct
+        Type UnwrapException
+        Local $new.1
+      throw
+        Type UnwrapException
+        Local $new.1
+    bb6 if.merge.6
+      branch bb7 bb8
+        Type Boolean
+        Binary RefEq
+          Type Node
+          Local first
+          Type Value
+          Local second
+    bb7 logic.rhs.7
+      assign $logic.2
+        Type Boolean
+        Binary RefEq
+          Type Value
+          Local second
+          Type Value
+          Local value
+      goto bb9
+    bb8 logic.short.8
+      assign $logic.2
+        Type Boolean
+        BoolLiteral false
+      goto bb9
+    bb9 logic.merge.9
+      branch bb10 bb11
+        Type Boolean
+        Local $logic.2
+    bb10 logic.rhs.10
+      assign $logic.3
+        Type Boolean
+        Binary RefEq
+          Type Value
+          Local $uw.2
+          Type Value
+          Local value
+      goto bb12
+    bb11 logic.short.11
+      assign $logic.3
+        Type Boolean
+        BoolLiteral false
+      goto bb12
+    bb12 logic.merge.12
+      val $argument.0: Boolean
+        Type Boolean
+        Local $logic.3
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn3 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Node
+          Local first
+      val $receiver: Value
+        Type Value
+        Local second
+      call $dependency.argument.0: Int = @fn13 interface Value[0]
+        Type Value
+        Local $receiver
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.receiver: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $receiver: Value
+        Type Value
+        Local value
+      call $dependency.argument.0: Int = @fn13 interface Value[0]
+        Type Value
+        Local $receiver
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.receiver: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $opt.3: Option<Value>
+        Type Option<Value>
+        Local optional
+      branch bb13 bb14
+        Type Boolean
+        VariantTest Option<Value> v0
+          Type Option<Value>
+          Local $opt.3
+    bb13 if.then.13
+      val $uw.4: Value
+        Type Value
+        VariantPayloadProject Option<Value> v0 f0
+          Type Option<Value>
+          Local $opt.3
+      goto bb15
+    bb14 if.else.14
+      assign $new.4
+        Type UnwrapException
+        ClassAlloc UnwrapException
+      call external3 direct
+        Type UnwrapException
+        Local $new.4
+      throw
+        Type UnwrapException
+        Local $new.4
+    bb15 if.merge.15
+      val $receiver: Value
+        Type Value
+        Local $uw.4
+      call $dependency.argument.0: Int = @fn13 interface Value[0]
+        Type Value
+        Local $receiver
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun main @fn5() -> Unit
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $parameter.initial: Int
+        Type Int
+        Local $argument.0
+      val started: AtomicInt
+        Type AtomicInt
+        AtomicNew AtomicInt
+          Type Int
+          Local $parameter.initial
+      val $argument.0: Boolean
+        Type Boolean
+        BoolLiteral false
+      val $parameter.initial: Boolean
+        Type Boolean
+        Local $argument.0
+      val done: AtomicBoolean
+        Type AtomicBoolean
+        AtomicNew AtomicBoolean
+          Type Boolean
+          Local $parameter.initial
+      val action: (Int) -> Int
+        Type (Int) -> Int
+        ClosureAlloc cc0 $Closure$lambda0
+          CaptureInit field=1
+            Type AtomicInt
+            Local started
+          CaptureInit field=0
+            Type AtomicBoolean
+            Local done
+      val $dependency.argument.0: (Int) -> Int
+        Type (Int) -> Int
+        Local action
+      val $dependency.argument.1: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.argument.2: ForeignCallbackMode
+        Type ForeignCallbackMode
+        VariantConstruct ForeignCallbackMode v0
+      val $dependency.parameter.callback: (Int) -> Int
+        Type (Int) -> Int
+        Local $dependency.argument.0
+      val $dependency.parameter.contextIndex: Long
+        Type Long
+        Local $dependency.argument.1
+      val $dependency.parameter.mode: ForeignCallbackMode
+        Type ForeignCallbackMode
+        Local $dependency.argument.2
+      val callback: ForeignCallback<(Int, Ptr<Unit>) -> Int>
+        Type ForeignCallback<(Int, Ptr<Unit>) -> Int>
+        ForeignCallbackRegister fcb0 family=fcf0
+          Type (Int) -> Int
+          Local $dependency.parameter.callback
+      goto bb6
+    bb1 try.unwind.1
+      landing_pad cleanup=false
+      goto bb2
+    bb2 try.dispatch.2
+      begin_catch
+      goto bb14
+    bb3 try.exit_pad.3
+      landing_pad cleanup=true
+      goto bb4
+    bb4 try.exit_cleanup.4
+      end_catch
+      resume
+    bb5 try.end.5
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str1
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn8 direct
+        Type String
+        Local $dependency.parameter.value
+      return
+    bb6 try.body.6 unwind bb1
+      val $argument.0: FunPtr<(Int, Ptr<Unit>) -> Int>
+        Type FunPtr<(Int, Ptr<Unit>) -> Int>
+        FieldAccess 0
+          Type ForeignCallback<(Int, Ptr<Unit>) -> Int>
+          Local callback
+      val $argument.1: Ptr<Unit>
+        Type Ptr<Unit>
+        FieldAccess 1
+          Type ForeignCallback<(Int, Ptr<Unit>) -> Int>
+          Local callback
+      val $argument.2: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $argument.3: Int
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+      val $parameter.function: FunPtr<(Int, Ptr<Unit>) -> Int>
+        Type FunPtr<(Int, Ptr<Unit>) -> Int>
+        Local $argument.0
+      val $parameter.context: Ptr<Unit>
+        Type Ptr<Unit>
+        Local $argument.1
+      val $parameter.base: Int
+        Type Int
+        Local $argument.2
+      val $parameter.count: Int
+        Type Int
+        Local $argument.3
+      call $dependency.receiver: Int = extern0 @m13_run_many direct
+        Type FunPtr<(Int, Ptr<Unit>) -> Int>
+        Local $parameter.function
+        Type Ptr<Unit>
+        Local $parameter.context
+        Type Int
+        Local $parameter.base
+        Type Int
+        Local $parameter.count
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=264 bits=0x00000108
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn3 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: ForeignCallback<(Int, Ptr<Unit>) -> Int>
+        Type ForeignCallback<(Int, Ptr<Unit>) -> Int>
+        Local callback
+      val $dependency.parameter.callback: ForeignCallback<(Int, Ptr<Unit>) -> Int>
+        Type ForeignCallback<(Int, Ptr<Unit>) -> Int>
+        Local $dependency.argument.0
+      val $when.1: Option<Throwable>
+        Type Option<Throwable>
+        ForeignCallbackFailure family0
+          Type ForeignCallback<(Int, Ptr<Unit>) -> Int>
+          Local $dependency.parameter.callback
+      val $pattern.subject.2: Option<Throwable>
+        Type Option<Throwable>
+        Local $when.1
+      branch bb7 bb8
+        Type Boolean
+        VariantTest Option<Throwable> v1
+          Type Option<Throwable>
+          Local $pattern.subject.2
+    bb7 pattern.pass.7 unwind bb1
+      assign $result.5
+        Type Boolean
+        BoolLiteral true
+      goto bb9
+    bb8 pattern.else.8 unwind bb1
+      val $pattern.subject.3: Option<Throwable>
+        Type Option<Throwable>
+        Local $when.1
+      branch bb10 bb11
+        Type Boolean
+        VariantTest Option<Throwable> v0
+          Type Option<Throwable>
+          Local $pattern.subject.3
+    bb9 pattern.merge.9 unwind bb1
+      val $argument.0: Boolean
+        Type Boolean
+        Local $result.5
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn3 direct
+        Type Boolean
+        Local $parameter.value
+      goto bb13
+    bb10 pattern.pass.10 unwind bb1
+      assign $result.5
+        Type Boolean
+        BoolLiteral false
+      goto bb12
+    bb11 pattern.else.11 unwind bb1
+      unreachable
+    bb12 pattern.merge.12 unwind bb1
+      goto bb9
+    bb13 scope.13
+      val $dependency.argument.0: ForeignCallback<(Int, Ptr<Unit>) -> Int>
+        Type ForeignCallback<(Int, Ptr<Unit>) -> Int>
+        Local callback
+      val $dependency.parameter.callback: ForeignCallback<(Int, Ptr<Unit>) -> Int>
+        Type ForeignCallback<(Int, Ptr<Unit>) -> Int>
+        Local $dependency.argument.0
+      Type Unit
+      ForeignCallbackRelease family0
+        Type ForeignCallback<(Int, Ptr<Unit>) -> Int>
+        Local $dependency.parameter.callback
+      goto bb5
+    bb14 scope.14 unwind bb3
+      val $dependency.argument.0: ForeignCallback<(Int, Ptr<Unit>) -> Int>
+        Type ForeignCallback<(Int, Ptr<Unit>) -> Int>
+        Local callback
+      val $dependency.parameter.callback: ForeignCallback<(Int, Ptr<Unit>) -> Int>
+        Type ForeignCallback<(Int, Ptr<Unit>) -> Int>
+        Local $dependency.argument.0
+      Type Unit
+      ForeignCallbackRelease family0
+        Type ForeignCallback<(Int, Ptr<Unit>) -> Int>
+        Local $dependency.parameter.callback
+      rethrow unwind bb3
+  fun equals @fn6(this: Ptr<Unit>, other: Ptr<Unit>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<Unit>
+        Type Ptr<Unit>
+        Local this
+      val $dependency.local.4: ULong
+        Type ULong
+        PtrToULong
+          Type Ptr<Unit>
+          Local $dependency.local.2
+      val $dependency.local.3: Ptr<Unit>
+        Type Ptr<Unit>
+        Local other
+      return
+        Type Boolean
+        IntegerCompare equal operands=ULong result=Boolean
+          Type ULong
+          Local $dependency.local.4
+          Type ULong
+          PtrToULong
+            Type Ptr<Unit>
+            Local $dependency.local.3
+  fun $lambda.0 @fn7($closure: (Int) -> Int, worker: Int) -> Int
+    bb0 entry
+      val $dependency.receiver: Int
+        Type Int
+        Local worker
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+    bb1 if.then.1
+      goto bb4
+    bb2 if.else.2
+      val $dependency.receiver: Int
+        Type Int
+        Local worker
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=20 bits=0x00000014
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.1
+        Type Node
+        ClassAlloc Node
+      call @fn14 direct
+        Type Node
+        Local $new.1
+        Type Int
+        Local $parameter.value
+      val node: Node
+        Type Node
+        Local $new.1
+      val value: Value
+        Type Value
+        Retype Value
+          Type Node
+          Local node
+      val $argument.0: AtomicInt
+        Type AtomicInt
+        ClosureCapture cc0 1
+          Type (Int) -> Int
+          Local $closure
+      val $argument.1: AtomicBoolean
+        Type AtomicBoolean
+        ClosureCapture cc0 0
+          Type (Int) -> Int
+          Local $closure
+      val $argument.2: Value
+        Type Value
+        Local value
+      val $argument.3: (Node, Value)
+        Type (Node, Value)
+        TupleLiteral
+          Type Node
+          Local node
+          Type Value
+          Local value
+      val $dependency.argument.0: Value
+        Type Value
+        Local value
+      val $dependency.parameter._1: Value
+        Type Value
+        Local $dependency.argument.0
+      val $argument.4: Option<Value>
+        Type Option<Value>
+        VariantConstruct Option<Value> v0
+          Type Value
+          Local $dependency.parameter._1
+      val $parameter.started: AtomicInt
+        Type AtomicInt
+        Local $argument.0
+      val $parameter.done: AtomicBoolean
+        Type AtomicBoolean
+        Local $argument.1
+      val $parameter.value: Value
+        Type Value
+        Local $argument.2
+      val $parameter.pair: (Node, Value)
+        Type (Node, Value)
+        Local $argument.3
+      val $parameter.optional: Option<Value>
+        Type Option<Value>
+        Local $argument.4
+      call $call.2: Int = @fn4 direct
+        Type AtomicInt
+        Local $parameter.started
+        Type AtomicBoolean
+        Local $parameter.done
+        Type Value
+        Local $parameter.value
+        Type (Node, Value)
+        Local $parameter.pair
+        Type Option<Value>
+        Local $parameter.optional
+      assign $result.4
+        Type Int
+        Local $call.2
+      goto bb3
+    bb3 if.merge.3
+      return
+        Type Int
+        Local $result.4
+    bb4 while.cond.4 <loop-header-poll>
+      val $dependency.receiver: AtomicInt
+        Type AtomicInt
+        ClosureCapture cc0 1
+          Type (Int) -> Int
+          Local $closure
+      val $dependency.argument.0: MemoryOrder
+        Type MemoryOrder
+        VariantConstruct MemoryOrder v1
+      val $dependency.parameter.order: MemoryOrder
+        Type MemoryOrder
+        Local $dependency.argument.0
+      val $dependency.receiver: Int
+        Type Int
+        AtomicLoad Acquire Int
+          Type AtomicInt
+          Local $dependency.receiver
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb6 bb5
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Int result=Long
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb5 while.exit.5
+      var round: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      goto bb7
+    bb6 while.body.6
+      goto bb4
+    bb7 while.cond.7 <loop-header-poll>
+      val $dependency.receiver: Int
+        Type Int
+        Local round
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb9 bb8
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Int result=Long
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb8 while.exit.8
+      val $dependency.receiver: AtomicBoolean
+        Type AtomicBoolean
+        ClosureCapture cc0 0
+          Type (Int) -> Int
+          Local $closure
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        BoolLiteral true
+      val $dependency.argument.1: MemoryOrder
+        Type MemoryOrder
+        VariantConstruct MemoryOrder v2
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      val $dependency.parameter.order: MemoryOrder
+        Type MemoryOrder
+        Local $dependency.argument.1
+      Type Unit
+      AtomicStore Release Boolean
+        Type AtomicBoolean
+        Local $dependency.receiver
+        Type Boolean
+        Local $dependency.parameter.value
+      assign $result.4
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      goto bb3
+    bb9 while.body.9
+      call @scoop_rt_gc_collect direct
+      val $old.3: Int
+        Type Int
+        Local round
+      val $dependency.receiver: Int
+        Type Int
+        Local $old.3
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      assign round
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      goto bb7
+  fun println @fn8(value: String) -> Unit
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local value
+      call $dependency.local.2: String = external1 direct
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external2 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str2
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external2 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun Continuation.resume @fn9(this: Continuation<Value>, value: Value) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn10(this: Continuation<Value>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn11(this: SuspendTask<Value>, $completion: Continuation<Value>) -> CoroutineStep<Value>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn12(this: SuspendRegistration<Value>, continuation: Continuation<Value>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Value.get @fn13(this: Value) -> Int
+    bb0 entry
+      trap "call to abstract method `Value.get`"
+  fun init.Node.$c0 @fn14(this: Node, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Node
+        Local this
+        Type Int
+        Local value
+      return
+  fun foreign callback adapter 0 @fn15($closure: (Int) -> Int, $snapshot: internal<context-node>, $result: Ptr<Int>, $arguments: Ptr<Ptr<Unit>>, $exception: Ptr<Throwable>) -> machine<foreign-callback-status>
+    bb0 context.unwind
+      landing_pad cleanup=true
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb1 context.catch_unwind
+      landing_pad cleanup=true
+      end_catch
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb2 callback.failure unwind bb1
+      landing_pad cleanup=false
+      begin_catch
+      call $caught: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      Type Unit
+      PtrStore Throwable
+        Type Ptr<Throwable>
+        Local $exception
+        Type Throwable
+        Local $caught
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+        Type machine<foreign-callback-status>
+        MachineScalarLiteral ForeignCallbackStatus(Threw)
+    bb3 callback.invoke unwind bb2
+      call $value: Int = <closure:function_type2> closure[function_type2]
+        Type (Int) -> Int
+        Local $closure
+        Type Int
+        PtrLoad Int
+          Type Ptr<Int>
+          PtrCast Int
+            Type Ptr<Unit>
+            PtrLoad Ptr<Unit>
+              Type Ptr<Ptr<Unit>>
+              Local $arguments
+              Type machine<pointer-element-offset>
+              MachineScalarLiteral PointerElementOffset(0)
+      Type Unit
+      PtrStore Int
+        Type Ptr<Int>
+        Local $result
+        Type Int
+        Local $value
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+        Type machine<foreign-callback-status>
+        MachineScalarLiteral ForeignCallbackStatus(Returned)
+    bb4 entry
+      val $child_context: internal<task-context>
+        Type internal<task-context>
+        ContextFork
+          Type internal<context-node>
+          Local $snapshot
+      val $context_guard: internal<context-switch-guard>
+        Type internal<context-switch-guard>
+        ContextEnter
+          Type internal<task-context>
+          Local $child_context
+      goto bb3
+  fun startCoroutine<Value> @fn16(task: SuspendTask<Value>, completion: Continuation<Value>) -> Unit
+    bb0 context.unwind
+      landing_pad cleanup=true
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb1 context.catch_unwind
+      landing_pad cleanup=true
+      end_catch
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb2 suspended
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb3 completed unwind bb0
+      call @fn9 interface Continuation<Value>[0]
+        Type Continuation<Value>
+        Local completion
+        Type Value
+        EnumField v0 f0
+          Type CoroutineStep<Value>
+          Local $step
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb4 failed unwind bb0
+      call @fn10 interface Continuation<Value>[1]
+        Type Continuation<Value>
+        Local completion
+        Type Throwable
+        Local $exception
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb5 body_failure unwind bb1
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb4
+    bb6 run unwind bb5
+      call $step: CoroutineStep<Value> = @fn11 interface SuspendTask<Value>[0]
+        Type SuspendTask<Value>
+        Local task
+        Type Continuation<Value>
+        Local completion
+      branch bb3 bb2
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Value>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+    bb7 entry
+      val $child_context: internal<task-context>
+        Type internal<task-context>
+        ContextFork
+          Type internal<context-node>
+          ContextSnapshot
+      val $context_guard: internal<context-switch-guard>
+        Type internal<context-switch-guard>
+        ContextEnter
+          Type internal<task-context>
+          Local $child_context
+      goto bb6
+  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn17($source: (Int) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type2> closure[function_type2]
+        Type (Int) -> Int
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  coroutine_step cs0 CoroutineStep<Value> result=Value
+  coroutine_slot cl0 CoroutineSlot<Value> value=Value
+  coroutine_start ct0 result=Value function=fn16
+  coroutine_fn cf0 @fn11 source_return=Value step=cs0 immediate
+  instance mi0 function=@fn0 <- equalTo
+  instance mi1 function=@fn6 <- equals
+  instance mi2 function=@fn8 <- println
+  instance mi3 function=@fn9 <- Continuation.resume
+  instance mi4 function=@fn10 <- Continuation.resumeWithException
+  instance mi5 function=@fn11 <- SuspendTask.run
+  instance mi6 function=@fn12 <- SuspendRegistration.register
+  str @str0 "illegal state"
+  str @str1 "conditional poll threads"
+  str @str2 "\n"
+  output executable @fn5

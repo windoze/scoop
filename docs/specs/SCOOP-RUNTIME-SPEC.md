@@ -303,6 +303,10 @@ managed 函数入口和循环回边，包括 continue 回边，提供 safepoint�
 
 poll 正常路径内联原子读取 world phase、GC epoch／本线程 observed epoch 并条件分支，不取 world lock、不广播、不建立 runtime anchor，也不无条件物化该 poll 的显式 roots。慢路径才调用协调入口、发布 anchor 和执行 relocation；慢路径更新值与快路径原值在合流后连接。原子检查不能被提升出循环。MANAGED_PENDING 首次入口必须经有锁激活；NativeSafe 返回、callback 和 NativeBorrowed 仍遵守各自握手。
 
+编译器读取的私有 ABI 为 TLS 指针 `scoop_rt_poll_state`，指向 size 16／align 8 的 `{ atomic u32 mode @0; atomic u64 observed_gc_epoch @8; }`；padding 不参与读写。它直接引用注册线程状态中的同一组字段，attach 时设置、detach 时清空，不复制另一套线程状态。全局 `scoop_thread_world_phase` 为 atomic u32／align 4，`scoop_thread_gc_epoch` 为 atomic u64／align 8。generated poll 依次以 acquire 读取 epoch、phase、当前 mode 和 observed epoch；仅当 phase 为 RUNNING（0）、mode 为 MANAGED（1）且 epoch 一致时走快路径。其他情况调用 `scoop_rt_safepoint`，由现有线程协议处理 pending 激活、park 与 observed epoch 更新。
+
+线程状态地址在单次 managed 函数调用期间稳定，TLS 指针读取可在函数入口执行一次并复用；epoch、phase、mode 与 observed epoch 的原子读取仍在每个 poll 位置执行，不能随该地址一起提升。
+
 SSA 接口在 safepoint 后由更新的 AS1 object 与原 AS0 metadata 分量重建；内存接口只回写 object。不能把两个分量改成整数后依赖保守扫描。
 
 普通 call/poll 的 relocation root 按 2.8 的实际 stackmap 更新。invoke 的正常与异常出口使用显式 compiler roots；native transition 使用 caller root frame，二者的 statepoint gc-live 为零。引用在握手后重新读取，再传给实际 native callee；native 返回的引用在重新允许 GC 前进入有效 root。

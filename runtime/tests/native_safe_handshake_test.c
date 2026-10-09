@@ -83,7 +83,7 @@ void scoop_thread_test_point(ScoopThreadTestPoint point) {
         if (point == SCOOP_TEST_COLLECTOR_STOPPED) {
             reach(&probe->collector_stage, 1);
             await(&probe->collector_gate, 1);
-            assert(atomic_load(&probe->target->mode) == SCOOP_THREAD_NATIVE_SAFE_RETURNING);
+            assert(atomic_load(&probe->target->poll.mode) == SCOOP_THREAD_NATIVE_SAFE_RETURNING);
         } else if (point == SCOOP_TEST_COLLECTOR_RESUMING) {
             reach(&probe->collector_stage, 2);
             await(&probe->collector_gate, 2);
@@ -177,7 +177,7 @@ static void run_scenario(Scenario scenario) {
         reach(&probe.target_gate, 3);
     } else if (scenario == RETURN_BEFORE_STOP) {
         assert(atomic_load(&scoop_thread_world_phase) == SCOOP_WORLD_STOPPING);
-        assert(atomic_load(&probe.target->mode) == SCOOP_THREAD_NATIVE_SAFE_RETURNING);
+        assert(atomic_load(&probe.target->poll.mode) == SCOOP_THREAD_NATIVE_SAFE_RETURNING);
         reach(&probe.target_gate, 2);
         reach(&probe.collector_gate, 1);
     } else {

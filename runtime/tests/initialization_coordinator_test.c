@@ -125,7 +125,7 @@ static void wait_for_edge(WorkerPlan *plan, TestUnit *unit) {
         scoop_thread_registry_lock();
         bool waiting = state != NULL &&
                        state->initialization_wait == &unit->descriptor &&
-                       atomic_load_explicit(&state->mode, memory_order_acquire) ==
+                       atomic_load_explicit(&state->poll.mode, memory_order_acquire) ==
                            SCOOP_THREAD_PARKED;
         scoop_thread_registry_unlock();
         if (waiting) {

@@ -24,13 +24,13 @@ typedef enum ScoopWorldPhase {
     SCOOP_WORLD_COLLECTING,
 } ScoopWorldPhase;
 
+_Static_assert(SCOOP_WORLD_RUNNING == 0, "generated poll running phase drifted");
+
 extern pthread_mutex_t scoop_thread_world_lock;
 extern pthread_cond_t scoop_thread_world_changed;
 extern ScoopThreadState *scoop_thread_registry;
 extern uint64_t scoop_thread_registry_count;
 extern ScoopRuntimeLifecycle scoop_thread_runtime_lifecycle;
-extern _Atomic(ScoopWorldPhase) scoop_thread_world_phase;
-extern _Atomic(uint64_t) scoop_thread_gc_epoch;
 extern _Atomic(uint64_t) scoop_thread_last_gc_parked_count;
 extern _Atomic(uint64_t) scoop_thread_last_gc_native_safe_count;
 extern _Thread_local ScoopThreadState *scoop_thread_tls;

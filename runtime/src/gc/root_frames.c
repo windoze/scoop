@@ -8,7 +8,7 @@
 void scoop_rt_push_native_roots(ScoopNativeRootFrame *frame, void ***slots,
                                 uint64_t count) {
     ScoopThreadState *thread = scoop_thread_current_required();
-    ScoopThreadMode mode = atomic_load_explicit(&thread->mode, memory_order_acquire);
+    ScoopThreadMode mode = atomic_load_explicit(&thread->poll.mode, memory_order_acquire);
     if (mode == SCOOP_THREAD_MANAGED)
         scoop_thread_require_managed();
     if (mode != SCOOP_THREAD_MANAGED && mode != SCOOP_THREAD_NATIVE_BORROWED) {
@@ -37,7 +37,7 @@ void scoop_rt_push_native_roots(ScoopNativeRootFrame *frame, void ***slots,
 
 void scoop_rt_pop_native_roots(ScoopNativeRootFrame *frame) {
     ScoopThreadState *thread = scoop_thread_current_required();
-    ScoopThreadMode mode = atomic_load_explicit(&thread->mode, memory_order_acquire);
+    ScoopThreadMode mode = atomic_load_explicit(&thread->poll.mode, memory_order_acquire);
     if (mode == SCOOP_THREAD_MANAGED)
         scoop_thread_require_managed();
     if (mode != SCOOP_THREAD_MANAGED && mode != SCOOP_THREAD_NATIVE_BORROWED) {
@@ -57,7 +57,7 @@ void scoop_rt_push_native_region_roots(ScoopNativeRegionRootFrame *frame,
                                        ScoopNativeRegionRootEntry *entries,
                                        uint64_t count) {
     ScoopThreadState *thread = scoop_thread_current_required();
-    ScoopThreadMode mode = atomic_load_explicit(&thread->mode, memory_order_acquire);
+    ScoopThreadMode mode = atomic_load_explicit(&thread->poll.mode, memory_order_acquire);
     if (mode == SCOOP_THREAD_MANAGED)
         scoop_thread_require_managed();
     if (mode != SCOOP_THREAD_MANAGED && mode != SCOOP_THREAD_NATIVE_BORROWED) {
@@ -86,7 +86,7 @@ void scoop_rt_push_native_region_roots(ScoopNativeRegionRootFrame *frame,
 
 void scoop_rt_pop_native_region_roots(ScoopNativeRegionRootFrame *frame) {
     ScoopThreadState *thread = scoop_thread_current_required();
-    ScoopThreadMode mode = atomic_load_explicit(&thread->mode, memory_order_acquire);
+    ScoopThreadMode mode = atomic_load_explicit(&thread->poll.mode, memory_order_acquire);
     if (mode == SCOOP_THREAD_MANAGED)
         scoop_thread_require_managed();
     if (mode != SCOOP_THREAD_MANAGED && mode != SCOOP_THREAD_NATIVE_BORROWED) {

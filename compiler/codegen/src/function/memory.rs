@@ -3,6 +3,7 @@ use super::*;
 mod allocation;
 mod arrays;
 mod barrier;
+mod poll;
 
 impl<'ctx> FnEmitter<'_, 'ctx> {
     /// Get or declare a runtime function with the given signature.
@@ -179,41 +180,6 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 AtomicOrdering::Monotonic,
             )
             .map_err(error)?;
-        Ok(())
-    }
-
-    /// Emit one explicit LIR poll. Its typed target, unique id and liveness
-    /// plan were fixed by lir-lower; codegen does not inspect the CFG.
-    pub(super) fn safepoint_poll(
-        &mut self,
-        site: &scoop_lir::ManagedPollSite,
-    ) -> Result<(), CodegenError> {
-        let target = self.function.call_targets.managed_targets.void[site.target].destination;
-        if target
-            != scoop_lir::ManagedCallDestination::runtime(
-                scoop_lir::ManagedRuntimeFunction::Safepoint,
-            )
-        {
-            return Err(CodegenError(format!(
-                "managed poll @{} has a non-safepoint target",
-                self.function.symbol()
-            )));
-        }
-        let safepoint = self.safepoint_id(site.safepoint);
-        let live = self.materialize_statepoint_live(&site.live, safepoint)?;
-        let poll = self.runtime_fn(
-            scoop_lir::RuntimeFunction::Managed(scoop_lir::ManagedRuntimeFunction::Safepoint)
-                .symbol(),
-            self.context.void_type().fn_type(&[], false),
-        );
-        let call = self.builder.build_call(poll, &[], "").map_err(|e| {
-            CodegenError(format!(
-                "safepoint poll @{symbol}: {e}",
-                symbol = self.function.symbol()
-            ))
-        })?;
-        self.apply_safepoint_id(call, safepoint);
-        self.restore_statepoint_live(live, safepoint)?;
         Ok(())
     }
 

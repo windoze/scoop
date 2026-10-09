@@ -57,3 +57,25 @@ Linux 追加 `--build-arg=--target --build-arg=x86_64-unknown-linux-gnu` 与实�
 实际成本模型按正文求和：direct call 6、动态调用 10、分配 12、Context／原子操作 6、aggregate 构造 4、字段／数组／指针读取 2、其他标量操作 1，local／literal 0；赋值和参数副本另计 1 及值复制成本，分支 2、异常出口 8。极小阈值为 12；普通阈值为 20，循环加 16、已证明的常量化简加 12、实际 receiver 后续派发机会加 8、小值复制机会加 4，最高 48。caller 累计额度为原成本的一半加 96、最多 384，每次展开至少消耗 1；嵌套链最多 6。
 
 这些参数结合正式决策 fixture 保持初值：冷／热调用分别保留／展开，常量化简后较大的 helper 可以展开；连续 64 次小调用仍保留 26 次，递归 SCC 不展开。当前证据包含正确性、两个 target 的代码大小和 spill 观察及一组运行对照；未声称得到通用最优阈值。后续 M34 总验收继续观察组合程序。
+
+## M34-4a：条件 poll
+
+使用原有 [`primitive.scoop`](../../tests/benchmarks/primitive.scoop)，一千万次 managed 整数循环，输出 `79999971`。对照组为 `444d2bd52`（M34-3b）的完整 runtime poll；两组均启用相同的 MIR 优化和 LLVM release 优化。开启组仅在 poll 慢分支调用 runtime；稳定的线程状态指针在函数入口读取一次，每个 poll 保留四次 acquire 状态读取。每组七次串行运行，单独的 core cache，无单独 warmup；运行时间包含进程启动。
+
+| 主机 | 完整 poll ms | 条件 poll ms | 中位数比值（完整／条件） | main 机器码 bytes | main 栈使用 bytes |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Darwin／M3 Ultra | 134.987 | 17.203 | 7.847 | 108 → 236 | 48 → 80 |
+| Linux GNU／NUC12 | 123.986 | 18.756 | 6.611 | 116 → 228 | 40 → 56 |
+
+两目标的循环正常路径没有 call 或 spill；slow 分支仍保留 safepoint call。Darwin 入口执行一次 TLV 解析，循环保留四条 `ldar`；GNU 入口解析 TLS，循环用符合 x86 acquire 合同的普通 `mov` 读取四个原子位置。两组都有正常 ABI 的 callee-saved 保存；条件 poll 增加了活跃地址寄存器和代码，不能把该优化描述成零栈开销。原始机器码：[Darwin 完整](measurements/m34-poll-off-darwin.asm)、[条件](measurements/m34-poll-on-darwin.asm)，[GNU 完整](measurements/m34-poll-off-linux-gnu.asm)、[条件](measurements/m34-poll-on-linux-gnu.asm)。
+
+| 主机／配置 | 冷构建 s | 热构建 s | 可执行文件 bytes | 根 slib bytes |
+| --- | ---: | ---: | ---: | ---: |
+| Darwin／完整 | 49.637 | 4.852 | 5,978,280 | 204,946 |
+| Darwin／条件 | 48.536 | 4.958 | 6,028,120 | 208,620 |
+| GNU／完整 | 86.277 | 5.801 | 4,456,992 | 219,336 |
+| GNU／条件 | 87.896 | 6.052 | 4,510,280 | 223,318 |
+
+全部样本：[Darwin 完整](measurements/m34-poll-off-darwin.json)、[条件](measurements/m34-poll-on-darwin.json)，[GNU 完整](measurements/m34-poll-off-linux-gnu.json)、[条件](measurements/m34-poll-on-linux-gnu.json)。Darwin 首次启动分别为 603.59／501.37 ms，完整保留在七次样本中；其余样本范围分别为 132.17～136.00／16.41～17.41 ms。GNU 完整组为 122.94～128.58 ms，条件组为 13.30～20.29 ms，后者有明显波动，表内不选择最快样本。每组构建只测量一次，不解释为稳定的编译速度变化。
+
+两组均分配 104 bytes，未发生 minor／full collection，因此本对照只衡量无请求 poll 的成本。慢路径停顿、移动根和 pending 激活由正式 fixture 与 runtime 线程回归验证，不从本程序的零 GC 结果推断。最初保留每轮 TLV 解析的 Darwin 实现在同样七次测量中为 22.30 ms；根据机器码改为仅复用线程地址后，重新执行结构测试和三个 target 的组合验收，再得到上表的最终结果。
