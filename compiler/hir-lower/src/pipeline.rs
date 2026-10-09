@@ -409,6 +409,7 @@ impl Lowerer {
             next_binding_id: 0,
             instantiations: Arena::new(),
             hidden_count: 0,
+            place_index_inputs: None,
             diagnostics: Vec::new(),
             warnings: Vec::new(),
         }

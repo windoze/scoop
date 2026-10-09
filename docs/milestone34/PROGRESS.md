@@ -15,7 +15,7 @@
 | M34-7 搬迁与归还 | 已完成 | region 选择性搬迁、旧代空洞复用、完整预留回滚、discard／unmap；三 target 验收与两机内存／性能对照。 |
 | M34-8 并行 mark | 已完成 | 原子首次标记、分块任务、全局终止、存活集合复用；三 target 回归、两机 TSan 与 1／2／4／8 worker 七轮对照完成，默认上限为 4。 |
 | M34-9 容器 | 已完成 | MaybeUninit 类型／操作／GC、ArrayList 紧凑 backing 与 StringBuilder 拼接边界；三 target 验证、两机容器性能对照完成。 |
-| M34-10 总验收 | 待实施 | 三 target 的功能、CLI、ABI、GC、性能与实际版本清单。 |
+| M34-10 总验收 | 实施中 | 功能批次已交付；正在汇总工作区／正式 CLI 回归、性能与实际版本清单。 |
 
 ## 验证与磁盘使用
 
@@ -223,3 +223,9 @@ ArrayList 使用普通 `MutableArray<MaybeUninit<T>>` 保存容量，初始化�
 五份旧公共 LIR 的 16-byte tagged 返回在 Darwin 与 x86_64 的物理 carrier 确有差异，改为 target-specific 快照，HIR／MIR 继续共用。最终关闭快照更新，在 Darwin、GNU、musl 各验证七组受影响入口，均为 10 variants、52 processes、41 goldens。原有浮点 JSON 组合的三个 target 快照同步记录新 core，实际运行通过。
 
 两机 workspace/all-targets clippy 与 C 警告检查通过。生产实现保持 ArrayList 95 行、StringBuilder 19 行、原生拼接 44 行；新增测试及基准按实际功能分文件。容器性能在固定编译器／runtime 下七轮交替对照，Int stride 16 → 4、ZST 8 → 0，引用／接口大小保持原值。大容量低占用列表仍扫描完整 capacity，部分应用组合略慢，全部样本、阶段成本、机器码与产物大小见 [性能记录](PERFORMANCE.md)。本批测量结束后再次检查两地 target，无新增可删除的中间对象；记录为 `batch9b-target-cleanup-{darwin,linux}.json`。
+
+## M34-9c：索引更新复用真实实参
+
+容器基准暴露一个迁移前已经存在的问题：复合赋值按 `$argument.N` 名字回查索引临时值，依赖调用使用另一命名，getter 缺省表达式中的嵌套调用也会覆盖查找结果。现在在选中 getter 的实参物化完成后保存实际 typed local，写回 set 时复用这些原始显式索引；内层 place 和候选探测沿既有上下文保存／恢复，不改变 HIR 或产物格式。索引 lowering 拆为 60 行模块，原 places 文件减少 56 行。
+
+新增跨 Cone updates fixture 在旧编译器上复现了 Long 索引误取 Int 的错误；修复后检查本地／依赖 getter 默认参数、set 自身默认参数、vararg、多索引、MutableList／ArrayList、嵌套 prefix／postfix、异常与 GC 的单次求值顺序。三个 target 的该用例和五组旧运算符回归均通过，各为 8 variants、21 processes、24 goldens；新用例再关闭更新严格执行，各为 2 variants、12 processes、12 goldens。两机运算符 HIR 单测与 workspace/all-targets clippy 通过。旧两份 LIR 按实际 carrier 差异分 target，公共 HIR／MIR 保持跨主机一致。

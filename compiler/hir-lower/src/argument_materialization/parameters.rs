@@ -100,6 +100,20 @@ impl Lowerer {
                 evaluation,
             ));
         }
+        // Defaults can contain further calls. Publish the outer source inputs
+        // only after all parameters are complete, including in candidate probes.
+        if let Some(place) = &mut self.place_index_inputs
+            && place.call_span == call_span
+            && matches!(evaluation, ArgumentEvaluation::Source)
+        {
+            place.locals = source_args
+                .iter()
+                .map(|argument| match argument.kind {
+                    hir::ExprKind::Local(local) => local,
+                    _ => unreachable!("source arguments have been materialized as locals"),
+                })
+                .collect();
+        }
         Some((receiver, values))
     }
 

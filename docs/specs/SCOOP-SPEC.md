@@ -1131,7 +1131,7 @@ operator调用只考虑function-like operator目标，不能再通过property-li
 3. 二者都可应用时报歧义，不能擅自偏好其中一个；二者都不可应用时报完整候选失败；
 4. 整个语句的结果为`Unit`。
 
-下标 place 的读写分别通过同一静态 receiver 的 `get` 与 `set` operator；receiver、全部 index 和右操作数均只求值一次。
+下标 place 的读写分别通过同一静态 receiver 的 `get` 与 `set` operator；receiver、全部 index 和右操作数均只求值一次。写回复用原先显式 index 的值，`get` 的缺省参数与 `vararg` 组装结果不替代这些 index；`set` 按自己的声明完成参数映射与缺省求值。这些规则对本地和依赖声明相同。
 
 #### 9.3.4 property-like `invoke`与候选分区
 

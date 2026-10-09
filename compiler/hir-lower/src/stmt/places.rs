@@ -3,6 +3,7 @@ use crate::expr::{CallSite, RequiredCallableModifiers};
 use crate::expr::{QualifiedInterfaceProperty, QualifiedInterfacePropertyTarget};
 
 mod imported_properties;
+mod indices;
 mod names;
 
 pub(super) struct ResolvedPlacePlan {
@@ -234,43 +235,7 @@ impl Lowerer {
                 receiver,
                 indices,
                 span,
-            } => {
-                let receiver = self.lower_expr(receiver, sink, None)?;
-                let receiver = self.materialize_place_expr(receiver, "place", *span, sink);
-                let arguments = indices
-                    .iter()
-                    .cloned()
-                    .map(ast::CallArgument::positional)
-                    .collect::<Vec<_>>();
-                let read = self.lower_named_call_on_receiver(
-                    receiver.clone(),
-                    &ast::Ident {
-                        text: "get".to_string(),
-                        span: *span,
-                    },
-                    CallSite {
-                        type_args: &[],
-                        args: &arguments,
-                        span: *span,
-                    },
-                    sink,
-                    None,
-                    RequiredCallableModifiers {
-                        operator: Some(hir::OperatorKind::Get),
-                        infix: false,
-                        ..Default::default()
-                    },
-                )?;
-                let index_arguments = self.materialized_source_arguments(indices.len(), *span);
-                Some(ResolvedPlacePlan {
-                    ty: read.ty,
-                    read,
-                    write: WriteCapability::OperatorSet {
-                        receiver,
-                        index_arguments,
-                    },
-                })
-            }
+            } => self.resolve_index_place(receiver, indices, *span, sink),
             ast::PlaceExpr::QualifiedInterfaceSuperProperty {
                 qualifier,
                 name,
@@ -299,27 +264,6 @@ impl Lowerer {
                 })
             }
         }
-    }
-
-    fn materialized_source_arguments(
-        &mut self,
-        count: usize,
-        span: Span,
-    ) -> Vec<ast::CallArgument> {
-        let locals = (0..count)
-            .map(|index| {
-                let name = format!("$argument.{index}");
-                self.locals
-                    .iter()
-                    .filter_map(|(local, declaration)| (declaration.name == name).then_some(local))
-                    .next_back()
-                    .expect("a committed source call materializes every explicit input")
-            })
-            .collect::<Vec<_>>();
-        locals
-            .into_iter()
-            .map(|local| self.local_source_argument(local, span))
-            .collect()
     }
 
     fn local_source_argument(&mut self, local: hir::LocalId, span: Span) -> ast::CallArgument {

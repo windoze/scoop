@@ -23,7 +23,7 @@ checks = [
   {file = "${work}/dump/${build.result.root.identity}/ast.txt", snapshot = "m18-operators-combined.ast.txt"},
   {file = "${work}/dump/${build.result.root.identity}/hir.txt", snapshot = "m18-operators-combined.hir.txt"},
   {file = "${work}/dump/${build.result.root.identity}/mir.txt", snapshot = "m18-operators-combined.mir.txt"},
-  {file = "${work}/dump/${build.result.root.identity}/lir.txt", snapshot = "m18-operators-combined.lir.txt"},
+  {file = "${work}/dump/${build.result.root.identity}/lir.txt", snapshot = "m18-operators-combined.${target}.lir.txt"},
 ]
 
 [[steps]]
