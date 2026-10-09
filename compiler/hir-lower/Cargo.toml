@@ -6,6 +6,7 @@ rust-version.workspace = true
 [dependencies]
 rustc_apfloat.workspace = true
 la-arena.workspace = true
+imbl.workspace = true
 scoop-ast.workspace = true
 scoop-hir.workspace = true
 scoop-identity.workspace = true

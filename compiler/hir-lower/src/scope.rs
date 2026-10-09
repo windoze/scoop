@@ -11,7 +11,7 @@ use scoop_hir::{LocalFunctionId, LocalId};
 /// the same name.
 #[derive(Clone)]
 pub(crate) struct Scopes {
-    stack: Vec<HashMap<String, LocalId>>,
+    stack: Vec<imbl::HashMap<String, LocalId>>,
 }
 
 /// Lexical candidate layers for block-local named functions. Each block is a
@@ -20,7 +20,7 @@ pub(crate) struct Scopes {
 /// before its declaration.
 #[derive(Clone)]
 pub(crate) struct LocalFunctionScopes {
-    stack: Vec<HashMap<String, Vec<LocalFunctionId>>>,
+    stack: Vec<imbl::HashMap<String, Vec<LocalFunctionId>>>,
 }
 
 impl LocalFunctionScopes {
@@ -29,7 +29,7 @@ impl LocalFunctionScopes {
     }
 
     pub(crate) fn push(&mut self) {
-        self.stack.push(HashMap::new());
+        self.stack.push(imbl::HashMap::new());
     }
 
     pub(crate) fn pop(&mut self) {
@@ -70,7 +70,7 @@ impl Scopes {
     }
 
     pub(crate) fn push(&mut self) {
-        self.stack.push(HashMap::new());
+        self.stack.push(imbl::HashMap::new());
     }
 
     pub(crate) fn pop(&mut self) {

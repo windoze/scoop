@@ -13,7 +13,7 @@ pub(crate) fn build(
     hir::HirInitializationUnitIdentities::from_declarations(
         &lowerer.initialization_units,
         &lowerer.initialization_failure_roots,
-        &lowerer.functions,
+        lowerer.functions.as_arena(),
         &lowerer.globals,
         &lowerer.objects,
         &lowerer.companion_relations,

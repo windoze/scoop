@@ -36,7 +36,7 @@ pub(crate) fn build(
             interfaces: &lowerer.interfaces,
             objects: &lowerer.objects,
             singleton_values: &lowerer.singleton_values,
-            functions: &lowerer.functions,
+            functions: lowerer.functions.as_arena(),
             properties: &lowerer.properties,
             type_aliases: &lowerer.type_aliases,
             nominal_identities: nominals,

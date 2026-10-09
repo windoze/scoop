@@ -281,7 +281,7 @@ impl Lowerer {
                 });
             }
             abi_params.extend(params);
-            let body_locals = std::mem::take(&mut self.locals);
+            let body_locals = std::mem::take(&mut self.locals).into_arena();
             Some((statements, captures, abi_params, body_locals))
         };
         self.lowering_default_template = outer_default_template;

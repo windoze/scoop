@@ -23,7 +23,7 @@ pub(crate) fn build(
         classes: &lowerer.classes,
         interfaces: &lowerer.interfaces,
         objects: &lowerer.objects,
-        functions: &lowerer.functions,
+        functions: lowerer.functions.as_arena(),
         struct_constructors: &lowerer.struct_constructors,
         class_constructors: &lowerer.class_constructors,
         properties: &lowerer.properties,

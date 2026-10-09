@@ -31,7 +31,7 @@ impl Lowerer {
         let statements = self.lower_block(&block.body);
         self.pop_safety_context();
         self.pop_suspension_context();
-        let locals = std::mem::replace(&mut self.locals, outer_locals);
+        let locals = std::mem::replace(&mut self.locals, outer_locals).into_arena();
         self.current_release = None;
         self.current_owner = outer_owner;
         self.current_this = outer_this;

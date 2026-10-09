@@ -231,7 +231,7 @@ impl Lowerer {
                 access,
                 genericity: hir::FunctionGenericity::Plain,
                 kind: hir::FunctionKind::User(hir::Body {
-                    locals: std::mem::take(&mut self.locals),
+                    locals: std::mem::take(&mut self.locals).into_arena(),
                     statements,
                 }),
                 method: None,
