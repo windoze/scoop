@@ -57,7 +57,10 @@ static void compact_round(bool pin_region) {
     assert(!pin_region || pinned_region != 0);
     nursery_collect(false);
     ScoopGcMetrics after = nursery_metrics();
+    assert(after.last_mark_workers >= 1 && after.last_mark_workers <= 4);
     assert(after.region_count <= (pin_region ? 3 : 2));
+    assert(after.last_full_source_regions != 0 && after.last_full_target_regions != 0);
+    assert(after.last_full_pin_blocked_regions == (pin_region ? 1 : 0));
     assert(after.unmapped_bytes >= before.unmapped_bytes + GC_REGION_SIZE);
     assert(released == released_before + PAIR_COUNT - 1);
     size_t moved = 0;
@@ -72,6 +75,9 @@ static void compact_round(bool pin_region) {
         moved += source;
     }
     assert(moved != 0 && scoop_rt_gc_debug_last_moved_count() == moved);
+    // Reuse the pool across a single-worker minor and the next ordinary full.
+    nursery_collect(true);
+    assert(nursery_metrics().last_mark_workers == 1);
     nursery_collect(false);
     assert(scoop_rt_gc_debug_last_moved_count() == 0);
     assert(released == released_before + PAIR_COUNT - 1);
@@ -84,15 +90,20 @@ static void compact_round(bool pin_region) {
     assert(scoop_rt_gc_stats() == 0);
     assert(nursery_metrics().region_count == 1);
     assert(nursery_metrics().mapped_bytes == GC_REGION_SIZE);
+    assert(nursery_metrics().empty_region_count == 1);
 }
 
 int main(void) {
+    assert(unsetenv("SCOOP_GC_WORKERS") == 0);
     const ScoopTypeDescriptor *types[] = {&nursery_node_td, &wide_td};
     uintptr_t boundary = 0;
     scoop_thread_runtime_init();
     scoop_test_image_init(types, 2, NULL, 0, NULL, 0);
     scoop_thread_attach_main();
     scoop_thread_enter_managed(&boundary);
+    // Create background workers lazily after a completed serial collection.
+    nursery_collect(false);
+    assert(nursery_metrics().last_mark_workers == 1);
     compact_round(false);
     compact_round(true);
     scoop_thread_leave_managed();

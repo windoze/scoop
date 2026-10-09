@@ -9,6 +9,9 @@ mod nursery;
 #[path = "runtime_collector_tests/regions.rs"]
 mod regions;
 
+#[path = "runtime_collector_tests/parallel.rs"]
+mod parallel;
+
 #[path = "runtime_collector_tests/pins.rs"]
 mod pins;
 
@@ -88,6 +91,11 @@ fn compile_and_run_with_flags(
         "runtime/src/value_scan.c",
         "runtime/src/gc/allocation.c",
         "runtime/src/gc/collector.c",
+        "runtime/src/gc/mark.c",
+        "runtime/src/gc/mark_objects.c",
+        "runtime/src/gc/mark_queue.c",
+        "runtime/src/gc/mark_pool.c",
+        "runtime/src/gc/time.c",
         "runtime/src/gc/collector_roots.c",
         "runtime/src/gc/scan.c",
         "runtime/src/gc/remembered.c",
@@ -142,6 +150,7 @@ fn compile_and_run_with_flags(
         .env_remove("SCOOP_GC_STRESS_MINOR")
         .env_remove("SCOOP_GC_STATS")
         .env_remove("SCOOP_GC_FULL_ONLY")
+        .env_remove("SCOOP_GC_WORKERS")
         .output()
         .expect("run fake-platform moving collector test");
     std::fs::remove_file(&binary).ok();
@@ -341,6 +350,11 @@ fn generic_runtime_has_no_target_specific_vm_dependency() {
     let generic_sources = [
         "runtime/src/gc/allocation.c",
         "runtime/src/gc/collector.c",
+        "runtime/src/gc/mark.c",
+        "runtime/src/gc/mark_objects.c",
+        "runtime/src/gc/mark_queue.c",
+        "runtime/src/gc/mark_pool.c",
+        "runtime/src/gc/time.c",
         "runtime/src/gc/collector_roots.c",
         "runtime/src/gc/scan.c",
         "runtime/src/gc/remembered.c",

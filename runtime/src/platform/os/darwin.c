@@ -38,6 +38,11 @@ static size_t darwin_page_size(void) {
     return size > 0 ? (size_t)size : 0;
 }
 
+static size_t darwin_processor_count(void) {
+    long count = sysconf(_SC_NPROCESSORS_ONLN);
+    return count > 0 ? (size_t)count : 1;
+}
+
 static bool darwin_reserve_read_write(uintptr_t preferred_address, size_t size, void **mapping,
                                       ScoopPlatformError *error) {
     if (size == 0 || mapping == NULL || error == NULL) {
@@ -106,6 +111,7 @@ const ScoopThreadVmOps scoop_darwin_thread_vm_ops = {
     .stack_bounds = darwin_stack_bounds,
     .reserve_read_write = darwin_reserve_read_write,
     .page_size = darwin_page_size,
+    .processor_count = darwin_processor_count,
     .protect_none = darwin_protect_none,
     .release_mapping = darwin_release_mapping,
     .discard_pages = darwin_discard_pages,

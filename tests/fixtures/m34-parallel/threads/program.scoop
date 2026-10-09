@@ -1,0 +1,54 @@
+@Extern(lib = "m34_parallel", name = "m34_region_stress") fun stressMode(): Boolean
+@Extern(lib = "m34_parallel", name = "m34_parallel_begin") fun beginMark(): Unit
+@Extern(lib = "m34_parallel", name = "m34_parallel_check") fun markedOnce(): Boolean
+@Extern(lib = "m34_parallel", name = "m13_run_many")
+fun workers(function: FunPtr<(Int, Ptr<Unit>) -> Int>, context: Ptr<Unit>, base: Int, count: Int): Int
+
+interface Value { fun get(): Long }
+class Node(val value: Long, var next: Node?) : Value {
+    public override fun get(): Long = value
+}
+fun check(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+fun worker(seed: Int, count: Long, captured: Value): Int {
+    val values = MutableArray<Value>(count) { index -> Node(index + seed.toInt64(), None) }
+    var index = 0L
+    while (index < count) {
+        val node = values[index] as Node
+        node.next = Some(values[(index + 1L) % count] as Node)
+        index += 1L
+    }
+    val copied = values.toArray()
+    gcCollect()
+    index = 0L
+    while (index < count) {
+        check(copied[index].get() == index + seed.toInt64())
+        check((copied[index] as Node).next!! === values[(index + 1L) % count])
+        index += 1L
+    }
+    check(captured.get() == 71L)
+    return count.toInt32() + seed
+}
+
+@Unsafe fun main() {
+    val count = if (stressMode()) { 32L } else { 16384L }
+    val captured: Value = Node(71L, None)
+    val sentinels = MutableArray<Value>(count) { index -> captured }
+    val pinned = pin(captured)
+    val action: (Int) -> Int = { seed -> worker(seed, count, captured) }
+    val callback = foreignCallback<(Int, Ptr<Unit>) -> Int>(action, 1, ForeignCallbackMode.Reusable)
+    try {
+        var round = 0
+        while (round < 2) {
+            check(workers(callback.function, callback.context, 1, 4) == count.toInt32() * 4 + 10)
+            check(when (foreignCallbackFailure(callback)) { None -> true; Some(_) -> false })
+            beginMark()
+            gcCollect()
+            check(markedOnce())
+            check(sentinels[0L].get() == 71L && sentinels[count - 1L] === captured)
+            round += 1
+        }
+    } finally { releaseForeignCallback(callback) }
+    check(unpin(pinned) === captured)
+    println("parallel frozen roots")
+}

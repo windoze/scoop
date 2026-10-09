@@ -1,0 +1,81 @@
+@Extern(lib = "m34_mark", name = "m34_mark_kind") fun graphKind(): Int
+@Extern(lib = "m34_mark", name = "m34_mark_count") fun graphCount(): Long
+@Extern(lib = "m34_mark", name = "m34_mark_rounds") fun graphRounds(): Int
+@Extern(lib = "m34_mark", name = "m34_mark_begin") fun beginMark(): Unit
+@Extern(lib = "m34_mark", name = "m34_mark_end") fun endMark(round: Int): Unit
+
+class Node(val value: Long, var left: Node?, var right: Node?)
+
+@Unsafe fun collectRounds() {
+    val count = graphRounds()
+    var round = 0
+    while (round < count) {
+        beginMark()
+        gcCollect()
+        endMark(round)
+        round += 1
+    }
+}
+
+fun makeWide(count: Long): Node {
+    val nodes = MutableArray<Node>(count) { index -> Node(index, None, None) }
+    var index = 0L
+    while (index < count) {
+        if (2L * index + 1L < count) { nodes[index].left = Some(nodes[2L * index + 1L]) }
+        if (2L * index + 2L < count) { nodes[index].right = Some(nodes[2L * index + 2L]) }
+        index += 1L
+    }
+    return nodes[0L]
+}
+
+fun sumTree(node: Node?): Long = when (node) {
+    None -> 0L
+    Some(value) -> value.value + sumTree(value.left) + sumTree(value.right)
+}
+
+@Unsafe fun wide(count: Long): Long {
+    val root = makeWide(count)
+    collectRounds()
+    return sumTree(Some(root))
+}
+
+@Unsafe fun array(count: Long): Long {
+    val shared = Node(-1L, None, None)
+    shared.left = Some(shared)
+    val values = MutableArray<Node>(count) { index -> Node(index, Some(shared), Some(shared)) }
+    collectRounds()
+    var result = 0L
+    var index = 0L
+    while (index < count) {
+        result += values[index].value
+        if (values[index].left!!.left!! !== shared) { throw IllegalStateException() }
+        index += 1L
+    }
+    return result
+}
+
+@Unsafe fun chain(count: Long): Long {
+    var head: Node? = None
+    var index = 0L
+    while (index < count) {
+        head = Some(Node(index, head, None))
+        index += 1L
+    }
+    collectRounds()
+    var result = 0L
+    while (when (head) { None -> false; Some(_) -> true }) {
+        result += head!!.value
+        head = head!!.left
+    }
+    return result
+}
+
+@Unsafe fun main() {
+    val count = graphCount()
+    val kind = graphKind()
+    val checksum = if (kind == 0) { wide(count) } else {
+        if (kind == 1) { array(count) } else { chain(count) }
+    }
+    if (checksum != count * (count - 1L) / 2L) { throw IllegalStateException() }
+    println(checksum)
+}

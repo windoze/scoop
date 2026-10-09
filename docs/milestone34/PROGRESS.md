@@ -13,7 +13,7 @@
 | M34-5 小值与 DirectC | 已完成 | 小值 DirectParts、正向 C aggregate DirectC、三 target ABI／GC／artifact-only 验收与两机性能对照。 |
 | M34-6 多 region | 已完成 | 16 MiB region、独立 large mapping、稀疏地址索引、内联 cards、三 target 验收与两机性能对照。 |
 | M34-7 搬迁与归还 | 已完成 | region 选择性搬迁、旧代空洞复用、完整预留回滚、discard／unmap；三 target 验收与两机内存／性能对照。 |
-| M34-8 并行 mark | 待实施 | 首次标记、分块任务、全局终止、存活集合复用。 |
+| M34-8 并行 mark | 已完成 | 原子首次标记、分块任务、全局终止、存活集合复用；三 target 回归、两机 TSan 与 1／2／4／8 worker 七轮对照完成，默认上限为 4。 |
 | M34-9 容器 | 待实施 | MaybeUninit 与 ArrayList／StringBuilder。 |
 | M34-10 总验收 | 待实施 | 三 target 的功能、CLI、ABI、GC、性能与实际版本清单。 |
 
@@ -175,3 +175,21 @@ full 按完整 OS 页检查 live-line 覆盖，Darwin／Linux 使用 `madvise(MA
 五个 workload 各七轮、每轮交替 M34-6／M34-7 的性能结果与机器码已经归档。初版清扫拆分产生每个死亡对象一次的额外函数调用，修复为内联后重新测量，并保留全部修复前样本。无 pin 的稀疏图映射从 64 MiB 降至 32 MiB，GNU 当前 RSS 约从 95 MiB 降至 40 MiB、Darwin 从 96 MiB 降至 65 MiB；吞吐、峰值 RSS 和剩余成本如实记录于性能文档。两机保存 `reclamation-tools`／`reclamation-source`，修复前源码另存为 `reclamation-pre-inline-source`。
 
 本批清理 target：Darwin 删除 72 项、151,091,917 bytes，Linux 删除 144 项、156,877,294 bytes；有效库、CLI、测试程序和缓存保留。记录为两机 `tmp/m34/batch7-target-cleanup.json`。
+
+## M34-8：并行标记与存活集合复用
+
+STW 后发布不可变 heap／roots 视图，内部 pthread marker 不登记为 mutator。small mark 位与 large mark 状态采用原子首次置位，只有赢家登记对象；line-live 原子 OR，block 统计在 worker 私有数组中累积，结束后归并。存活清单按 1024 个指针分块，发布后地址稳定。普通任务扫描最多 64 个对象，大引用数组按最多 1024 个元素拆分，GC-free 数组不生成扫描任务。全局 pending 包含队列、在途任务与子任务发布；父任务必须先发布全部剩余子任务再完成，不能用一次窃取失败判定结束。
+
+coordinator 与后台线程运行同一任务循环；线程懒创建，失败时停止并 join 已建线程，后续收集使用同一实现的单 worker 路径，正常 shutdown 全部 join。默认 minor 和活跃 block 不足 4 MiB 的 full 使用一个 worker，其余按 CPU 数选择最多四个，显式 `SCOOP_GC_WORKERS=1..8` 保留。线程池覆盖先串行、首次并行、再次 minor 和后续 full 的切换。
+
+mark 产生的唯一存活集合直接用于移动计划和每个当前副本的引用更新，删除原 full 更新阶段的第二次可达图发现。复制、引用回写、release hook、reclaim 和 VM 归还仍由 coordinator 完成。新增停稳等待、roots、remembered、mark、plan、copy、update、reclaim、VM 归还阶段计时，以及各 worker CPU／标记对象数、数组任务、窃取、region mapping 与 source／target／pin 阻塞指标；它们不进入产物身份或程序合法性规则。
+
+新增两项 C 测试，一次编译分别运行 1／2／4／8 worker，覆盖共享子图、环、GC-free 与复合值数组、pin／搬迁、old→young、长链、全部回收及 coordinator 上恰好一次的 release；另一项在测试链接边界令第三次 pthread_create 失败，验证已建线程 join、完整串行回退且不重试，没有生产故障钩子。两机 29 项 collector 测试通过。两机 TSan 覆盖四种显式 worker 配置和默认线程池切换，未报告数据竞争；fake stack fixture 使用 `-fno-inline` 保持其合成 frame 边界，不放松真实栈范围校验。
+
+新增 values／threads 两组正式 CLI，组合双字接口、含引用 tuple／struct 数组、复制、AtomicRef、closure、pin、四个 native pthread callback 和冻结的 NativeSafe roots。debug／release 在 1／2／4／8 worker 下执行，并补 moving／minor stress。Darwin、GNU、musl 最终严格验收各通过 14 组、29 variants、144 processes、72 goldens；默认上限收敛为四后，仅补默认路径的 threads／pins 各两组，每 target 4 variants、26 processes、12 goldens。既有固定 worker 的正确性与性能样本无需因默认参数改变重跑。
+
+两机 workspace/all-targets clippy、C 警告检查通过。实现拆为 mark／objects／pool／queue 四个 C 模块，分别为 140／171／168／78 行，collector 为 210 行。新测试共享 fixture 为 156 行，两个测试为 87／38 行。没有新增通用配额、授权、重复语义校验或第二套 collector。
+
+两机完成三种 131071-node 图的 1／2／4／8 worker 七轮对照，每进程五次 full；另对最终默认四 worker 补七轮 baseline 对照，以及三个既有 workload 的回归测量。初版长链逐对象队列与广播开销已修正为批内继续扫描后继，并保留修复前诊断样本。完整样本、阶段结果、CPU、RSS、构建与机器码见 [性能记录](PERFORMANCE.md)。两机保存 `marker-tools`／`marker-source`，初始默认八 worker 的源码和 binary 另存，供后续容器批次做精确对照。
+
+本批清理 target：Darwin 删除 148 项、337,525,691 bytes，Linux 删除 76 项、190,134,062 bytes；保留有效库、CLI、测试程序和缓存。记录为 `tmp/m34/batch8-target-cleanup-{darwin,linux}.json`。

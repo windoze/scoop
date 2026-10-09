@@ -25,7 +25,11 @@ runtime-owned exception ABI:
   `collector_roots.c` visits their shared root sources, `scan.c` restricts exact
   descriptor scans to full objects or card ranges, and `remembered.c` finds
   old objects intersecting dirty cards;
-- `src/gc/statistics.c` exposes allocation, promotion, scanning and pause counters;
+- `src/gc/mark.c` retains the first-marked live set for relocation; `mark_objects.c`
+  owns atomic marking and batched scans, `mark_queue.c` owns task publication and
+  stealing, and `mark_pool.c` coordinates persistent internal marker threads;
+- `src/gc/statistics.c` exposes allocation, promotion, scanning, collector phase
+  times and per-worker CPU counters;
 - `src/gc/roots.c` owns process/image roots, `root_frames.c` owns native
   root frames, `handles.c` owns handles and pins, while `stackmap.c` and
   `stack_roots.c` own LLVM stack-map consumption;
@@ -96,9 +100,25 @@ process current/peak RSS. Advice success is not a promise of immediate RSS chang
 M34 implementation and measurement status is tracked in
 `docs/milestone34/PROGRESS.md`.
 
+Marking runs after all mutators stop. Minor collection and heaps with less than
+4 MiB of active blocks use the coordinator alone; larger full collections use
+up to four workers including the coordinator, bounded by online CPU count.
+`SCOOP_GC_WORKERS=1..8` overrides that policy for comparisons. Internal workers
+are created lazily, remain outside the mutator registry, and are joined at
+shutdown. Thread creation failure joins workers already created and selects the
+same single-worker collector for subsequent collections. Ordinary tasks scan up
+to 64 objects, and reference arrays are split into ranges of up to 1024 elements.
+Global outstanding work includes active tasks and child publication; an empty
+queue does not end marking. Copying, reference updates, release hooks and memory
+reclamation remain on the coordinator. The retained live set avoids a second
+reachability traversal during full reference updates.
+
 `SCOOP_GC_STATS=1` writes one JSON metrics record to stderr on normal program
 exit. Pause times measure the collector phase inside STW, after threads have
-parked. The counters are diagnostic and do not impose program limits.
+parked. Stop-wait time is separate; roots, remembered sets, marking, planning,
+copying, reference updates, reclamation and VM returns have separate counters.
+Worker CPU and marked-object counts are reported separately from wall time.
+The counters are diagnostic and do not impose program limits.
 
 Static TypeDescriptor layouts and scan graphs are checked by the compiler or
 artifact reader. Normal runtime operations retain dynamic bounds, count,

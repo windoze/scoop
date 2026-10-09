@@ -278,6 +278,29 @@ typedef struct ScoopGcMetrics {
   uint64_t unmapped_bytes;
   uint64_t current_rss_bytes;
   uint64_t peak_rss_bytes;
+  uint64_t stop_wait_ns;
+  uint64_t root_scan_ns;
+  uint64_t remembered_scan_ns;
+  uint64_t mark_ns;
+  uint64_t plan_ns;
+  uint64_t copy_ns;
+  uint64_t update_ns;
+  uint64_t reclaim_ns;
+  uint64_t vm_return_ns;
+  uint64_t last_mark_workers;
+  uint64_t parallel_collections;
+  uint64_t worker_creation_failures;
+  uint64_t mark_reference_slots;
+  uint64_t mark_tasks;
+  uint64_t array_tasks;
+  uint64_t stolen_tasks;
+  uint64_t worker_cpu_ns[8];
+  uint64_t worker_marked_objects[8];
+  uint64_t region_mappings;
+  uint64_t empty_region_count;
+  uint64_t last_full_source_regions;
+  uint64_t last_full_target_regions;
+  uint64_t last_full_pin_blocked_regions;
 } ScoopGcMetrics;
 
 /* Diagnostic snapshot; counters never control program validity. */

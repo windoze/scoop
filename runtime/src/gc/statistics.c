@@ -55,6 +55,7 @@ static void metrics_locked(ScoopGcMetrics *result) {
         result->region_count += !region->large;
         result->large_mapping_count += region->large;
         result->mapped_bytes += region->size;
+        result->empty_region_count += !region->large && scoop_heap_region_empty(region);
     }
     scoop_platform_bundle()->thread_vm->resident_memory(&result->current_rss_bytes,
                                                         &result->peak_rss_bytes);
@@ -98,7 +99,7 @@ void scoop_gc_report_metrics(void) {
         ",\"current_rss_bytes\":%" PRIu64 ",\"peak_rss_bytes\":%" PRIu64
         ",\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null]"
         ",\"pause_buckets\":[%" PRIu64 ",%" PRIu64 ",%" PRIu64 ",%" PRIu64 ",%" PRIu64 ",%" PRIu64
-        ",%" PRIu64 ",%" PRIu64 "]}\n",
+        ",%" PRIu64 ",%" PRIu64 "]",
         result.minor_collections, result.full_collections, result.promotion_fallbacks,
         result.allocated_bytes, result.nursery_allocated_bytes, result.promoted_bytes, copied,
         result.dirty_cards, result.old_reference_slots, result.root_slots, result.traced_objects,
@@ -107,4 +108,30 @@ void scoop_gc_report_metrics(void) {
         result.discard_calls, result.discard_failures, result.discarded_bytes,
         result.unmapped_bytes, result.current_rss_bytes, result.peak_rss_bytes, buckets[0],
         buckets[1], buckets[2], buckets[3], buckets[4], buckets[5], buckets[6], buckets[7]);
+    fprintf(
+        stderr,
+        ",\"stop_wait_ns\":%" PRIu64 ",\"root_scan_ns\":%" PRIu64 ",\"remembered_scan_ns\":%" PRIu64
+        ",\"mark_ns\":%" PRIu64 ",\"plan_ns\":%" PRIu64 ",\"copy_ns\":%" PRIu64
+        ",\"update_ns\":%" PRIu64 ",\"reclaim_ns\":%" PRIu64 ",\"vm_return_ns\":%" PRIu64
+        ",\"last_mark_workers\":%" PRIu64 ",\"parallel_collections\":%" PRIu64
+        ",\"worker_creation_failures\":%" PRIu64 ",\"mark_reference_slots\":%" PRIu64
+        ",\"mark_tasks\":%" PRIu64 ",\"array_tasks\":%" PRIu64 ",\"stolen_tasks\":%" PRIu64,
+        result.stop_wait_ns, result.root_scan_ns, result.remembered_scan_ns, result.mark_ns,
+        result.plan_ns, result.copy_ns, result.update_ns, result.reclaim_ns, result.vm_return_ns,
+        result.last_mark_workers, result.parallel_collections, result.worker_creation_failures,
+        result.mark_reference_slots, result.mark_tasks, result.array_tasks, result.stolen_tasks);
+    fputs(",\"worker_cpu_ns\":[", stderr);
+    for (size_t index = 0; index < 8; index++) {
+        fprintf(stderr, "%s%" PRIu64, index == 0 ? "" : ",", result.worker_cpu_ns[index]);
+    }
+    fputs("],\"worker_marked_objects\":[", stderr);
+    for (size_t index = 0; index < 8; index++) {
+        fprintf(stderr, "%s%" PRIu64, index == 0 ? "" : ",", result.worker_marked_objects[index]);
+    }
+    fprintf(stderr,
+            "],\"region_mappings\":%" PRIu64 ",\"empty_region_count\":%" PRIu64
+            ",\"last_full_source_regions\":%" PRIu64 ",\"last_full_target_regions\":%" PRIu64
+            ",\"last_full_pin_blocked_regions\":%" PRIu64 "}\n",
+            result.region_mappings, result.empty_region_count, result.last_full_source_regions,
+            result.last_full_target_regions, result.last_full_pin_blocked_regions);
 }

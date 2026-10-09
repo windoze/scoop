@@ -43,6 +43,11 @@ static size_t linux_page_size(void) {
     return size > 0 ? (size_t)size : 0;
 }
 
+static size_t linux_processor_count(void) {
+    long count = sysconf(_SC_NPROCESSORS_ONLN);
+    return count > 0 ? (size_t)count : 1;
+}
+
 static bool linux_reserve_read_write(uintptr_t preferred_address, size_t size, void **mapping,
                                      ScoopPlatformError *error) {
     if (size == 0 || mapping == NULL || error == NULL) {
@@ -113,6 +118,7 @@ const ScoopThreadVmOps scoop_linux_thread_vm_ops = {
     .stack_bounds = linux_stack_bounds,
     .reserve_read_write = linux_reserve_read_write,
     .page_size = linux_page_size,
+    .processor_count = linux_processor_count,
     .protect_none = linux_protect_none,
     .release_mapping = linux_release_mapping,
     .discard_pages = linux_discard_pages,

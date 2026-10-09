@@ -70,6 +70,7 @@ typedef struct ScoopGcBlockMeta {
     size_t exact_size;
     size_t live_bytes;
     size_t movable_live_bytes;
+    size_t mark_index;
     void *large_forwarding;
     bool large_published;
     bool large_marked;
@@ -209,6 +210,7 @@ void scoop_heap_finish_block(ScoopGcBlockMeta *block, bool stress);
 size_t scoop_heap_large_mapping_size(size_t exact_size);
 ScoopGcRegion *scoop_heap_region_create(size_t size, bool large);
 void scoop_heap_region_destroy(ScoopGcRegion *region);
+bool scoop_heap_region_empty(const ScoopGcRegion *region);
 void scoop_heap_reclaim_regions(bool full);
 ScoopGcRegion *scoop_heap_region_for_address(uintptr_t address);
 void scoop_heap_page_map_publish(ScoopGcRegion *region);

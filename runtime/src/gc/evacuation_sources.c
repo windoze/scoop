@@ -28,6 +28,8 @@ static void select_block(ScoopGcBlockMeta *source) {
 static size_t select_regions(void) {
     ScoopGcRegion *destination = NULL;
     size_t destination_live = 0, count = 0;
+    size_t pin_blocked = 0;
+    bool destination_pin_blocked = false;
     for (ScoopGcRegion *region = scoop_gc_heap_state.regions; region != NULL;
          region = region->next) {
         if (region->large) {
@@ -42,9 +44,12 @@ static size_t select_regions(void) {
                 pinned |= scoop_heap_block_has_pins(block);
             }
         }
+        bool blocked = live != 0 && live <= GC_REGION_SIZE / 4 && pinned;
+        pin_blocked += blocked;
         if (live > destination_live) {
             destination_live = live;
             destination = region;
+            destination_pin_blocked = blocked;
         }
         region->evacuation_source = live != 0 && live <= GC_REGION_SIZE / 4 && !pinned;
         region->collection_live_bytes = live;
@@ -54,6 +59,8 @@ static size_t select_regions(void) {
         destination->evacuation_source = false;
         count--;
     }
+    scoop_gc_heap_state.metrics.last_full_pin_blocked_regions =
+        pin_blocked - destination_pin_blocked;
     return count;
 }
 

@@ -445,9 +445,17 @@ minor 和 full 共享线程、root、pin、handle、Context、callback、冻结�
 
 STW 后 coordinator 可使用内部常驻 pthread worker 并行 mark，worker 不登记为 mutator，也不执行用户代码。小 minor 可只使用 coordinator；单 worker 与多 worker 共用同一参数化 collector。对象／大对象 mark 使用原子首次置位，只有首次成功者登记存活对象和扫描任务；line_live 原子 OR，计数和存活清单按 worker 汇总。
 
+collector 持有 heap／roots 的独占阶段后，发布不可变的 region、对象起点、精确大小、pin 和稳定外部对象视图。marker 使用明确的 STW reader／原子 marker 接口，不要求各 worker 重新取得 coordinator 持有的锁。每个参与 block 在本轮取得临时统计索引，worker 私有计数按该索引归并；它不是持久对象身份，也不进入产物或 generated-code ABI。存活清单以稳定的分块存储保留对象指针，任务发布后不得由扩容使其失效。
+
 大引用数组按元素区间分任务，普通对象分批；GC-free 数组没有引用扫描任务。全局未完成任务数同时覆盖队列、正在扫描及尚在发布的子任务，子任务先计数再发布，父任务发布完子任务后才完成；队列暂时为空或窃取失败不表示终止。worker 创建失败在本轮开始前退回串行，队列分配失败走明确 runtime 失败出口，不能丢失任务。
 
+roots／remembered 扫描先由 coordinator 发布初始工作，随后参与同一任务循环。普通对象每个任务最多扫描 64 个，可以在该批次内继续处理本 worker 刚发现的后继，避免长链每个对象都经过队列；大数组每个任务最多 1024 个元素，嵌套值仍执行已有精确 scan。未扫描的剩余子工作在当前任务完成前发布。仅一个在途父任务和一个后继时无需唤醒其他 worker，最后一项完成必须唤醒终止等待者；这不改变全局未完成任务数的含义。首次成功标记但不含引用的对象仍进入存活清单与统计，无需扫描任务。活跃 block 总容量不足 4 MiB 的小堆和现有 1 MiB nursery 的 minor 默认仅使用 coordinator，其余按在线 CPU 数选择最多 4 个 worker；在线 CPU 数通过私有 ThreadVmOps 查询。`SCOOP_GC_WORKERS=1..8` 可显式选择本轮 worker 数以验证同义性和测量，worker 数包含 coordinator，属于 runtime 策略参数，不影响程序或产物合法性。
+
 mark 结束后复用首次标记的存活对象集合规划搬迁并更新每个存活副本的出站引用，不在 full 更新阶段再次用 worklist 发现可达图；roots 与稳定外部 payload 仍全部更新。minor 只处理年轻集合及 remembered set。首版复制、引用回写、release hook、reclaim 和 VM 归还均由 coordinator 执行，worker 全部结束前不移动或释放 metadata；shutdown 停止并 join worker。
+
+诊断分别记录停稳等待、roots、remembered、mark、plan、copy、reference update、reclaim 与 VM 归还的墙钟时间，以及各 marker 的线程 CPU／标记对象数、数组任务和窃取次数。mark 阶段加速与总停顿分开报告；root producer 的工作计入 roots／remembered 阶段，不把重叠时间相加成停顿。所有阶段计数在 worker 完成后由 coordinator 归并，release hook 不在 marker 上执行。
+
+region 诊断补充 managed region 映射成功的累计次数、当前可复用的空 ordinary region 数，以及上次普通 full 成功搬迁的 source／target region 数和因 pin 被排除的稀疏候选数。无搬迁或预留回滚的 source／target 数为零；minor／显式 moving stress 不覆盖上次普通 full 的策略记录。统计复用选择和预留阶段已有事实，不能为了诊断重放标记或搬迁。
 
 ## 4. Scoop ABI FFI runtime functions
 

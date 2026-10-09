@@ -35,7 +35,9 @@ void scoop_gc_heap_finish_collection_locked(uint64_t object_count, bool minor) {
     evacuation_block = NULL;
     evacuation_cursor = NULL;
     evacuation_limit = NULL;
+    uint64_t vm_started = scoop_gc_monotonic_ns();
     scoop_heap_reclaim_regions(!minor && !stress_move);
+    scoop_gc_heap_state.metrics.vm_return_ns += scoop_gc_monotonic_ns() - vm_started;
     for (ScoopGcRegion *region = scoop_gc_heap_state.regions; region != NULL;
          region = region->next) {
         memset(region->cards, 0, region->size >> GC_CARD_SHIFT);

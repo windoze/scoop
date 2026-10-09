@@ -14,6 +14,15 @@ typedef struct PlannedMove {
     ScoopGcBlockMeta *target_block;
 } PlannedMove;
 
+typedef struct MovingPlan {
+    PlannedMove *moves;
+    size_t count;
+    size_t capacity;
+    bool reuse_runs;
+    bool allow_growth;
+    bool reserved;
+} MovingPlan;
+
 static void *reserve_target(size_t size, size_t alignment, ScoopGcBlockMeta **block,
                             bool reuse_runs, bool allow_growth) {
     if (size > GC_REGULAR_MAX) {
@@ -63,28 +72,40 @@ static void rollback_reservations(void) {
     evacuation_cursor = evacuation_limit = NULL;
 }
 
-static bool append_move(PlannedMove **moves, size_t *count, size_t *capacity,
-                        ScoopGcBlockMeta *block, size_t word, bool reuse_runs, bool allow_growth) {
-    if (*count == *capacity) {
-        size_t next = *capacity == 0 ? 256 : *capacity * 2;
-        PlannedMove *grown = realloc(*moves, next * sizeof *grown);
+static void append_move(void *object, void *context) {
+    MovingPlan *plan = context;
+    if (!plan->reserved) {
+        return;
+    }
+    ScoopGcBlockMeta *block = pointer_block(object);
+    size_t word = ((uintptr_t)object - (uintptr_t)block_base(block)) / sizeof(uint64_t);
+    if (block->state != SCOOP_BLOCK_EVACUATION_SOURCE || object_pinned(block, word)) {
+        return;
+    }
+    if (plan->count == plan->capacity) {
+        size_t next = plan->capacity == 0 ? 256 : plan->capacity * 2;
+        if (next < plan->capacity || next > SIZE_MAX / sizeof *plan->moves) {
+            heap_fatal("evacuation plan size overflow");
+        }
+        PlannedMove *grown = realloc(plan->moves, next * sizeof *grown);
         if (grown == NULL) {
             heap_fatal("out of memory planning evacuation");
         }
-        *moves = grown;
-        *capacity = next;
+        plan->moves = grown;
+        plan->capacity = next;
     }
-    void *source = (char *)block_base(block) + word * sizeof(uint64_t);
-    size_t size = scoop_gc_object_size_locked(source);
-    const ScoopTypeDescriptor *td = ((ScoopObjectHeader *)source)->td;
+    size_t size = block->kind == SCOOP_BLOCK_KIND_LARGE
+                      ? block->exact_size
+                      : (size_t)block->size_units[word] * sizeof(uint64_t);
+    const ScoopTypeDescriptor *td = ((ScoopObjectHeader *)object)->td;
     ScoopGcBlockMeta *target;
     void *destination = reserve_target(size, (size_t)td->instance_shape.instance_alignment, &target,
-                                       reuse_runs, allow_growth);
+                                       plan->reuse_runs, plan->allow_growth);
     if (destination == NULL) {
-        return false;
+        plan->reserved = false;
+        return;
     }
-    (*moves)[(*count)++] = (PlannedMove){source, destination, size, word, block, target};
-    return true;
+    plan->moves[plan->count++] = (PlannedMove){object, destination, size, word, block, target};
 }
 
 bool scoop_gc_heap_plan_moving_locked(bool minor) {
@@ -93,56 +114,48 @@ bool scoop_gc_heap_plan_moving_locked(bool minor) {
     }
     size_t source_regions = scoop_heap_select_evacuation_sources(minor);
     bool ordinary_full = !minor && !stress_move;
+    if (ordinary_full) {
+        scoop_gc_heap_state.metrics.last_full_source_regions = 0;
+        scoop_gc_heap_state.metrics.last_full_target_regions = 0;
+    }
     if (ordinary_full && source_regions == 0) {
         return true;
     }
     if (ordinary_full) {
         scoop_heap_prepare_evacuation_targets();
     }
-    bool allow_growth = !ordinary_full || source_regions > 1;
-    PlannedMove *moves = NULL;
-    size_t count = 0, capacity = 0;
-    bool reserved = true;
-    for (ScoopGcBlockMeta *block = scoop_heap_first_block(); reserved && block != NULL;
-         block = scoop_heap_next_block(block)) {
-        if (block->state != SCOOP_BLOCK_EVACUATION_SOURCE) {
-            continue;
-        }
-        if (block->kind == SCOOP_BLOCK_KIND_LARGE) {
-            reserved = append_move(&moves, &count, &capacity, block,
-                                   GC_LINE_SIZE / sizeof(uint64_t), ordinary_full, allow_growth);
-            continue;
-        }
-        for (size_t word = GC_LINE_SIZE / sizeof(uint64_t); reserved && word < GC_WORDS_PER_BLOCK;
-             word++) {
-            if (bit_test(block->starts, word) && bit_test(block->marks, word) &&
-                !bit_test(block->pins, word)) {
-                reserved = append_move(&moves, &count, &capacity, block, word, ordinary_full,
-                                       allow_growth);
-            }
-        }
-    }
+    MovingPlan plan = {.reuse_runs = ordinary_full,
+                       .allow_growth = !ordinary_full || source_regions > 1,
+                       .reserved = true};
+    scoop_gc_mark_visit_live(append_move, &plan);
+    size_t target_regions = 0;
     if (ordinary_full) {
         size_t occupied_destinations = 0;
-        for (size_t index = 0; index < count; index++) {
-            ScoopGcRegion *region = moves[index].target_block->region;
-            if (region->collection_live_bytes == 0 && !region->evacuation_destination) {
+        for (size_t index = 0; index < plan.count; index++) {
+            ScoopGcRegion *region = plan.moves[index].target_block->region;
+            if (!region->evacuation_destination) {
                 region->evacuation_destination = true;
-                occupied_destinations++;
+                target_regions++;
+                occupied_destinations += region->collection_live_bytes == 0;
             }
         }
-        reserved &= occupied_destinations < source_regions;
+        plan.reserved &= occupied_destinations < source_regions;
     }
-    if (!reserved) {
-        free(moves);
+    if (!plan.reserved) {
+        free(plan.moves);
         rollback_reservations();
         if (stress_move) {
             heap_fatal("stress heap exhausted during evacuation reservation");
         }
         return false;
     }
-    for (size_t index = 0; index < count; index++) {
-        PlannedMove *move = &moves[index];
+    if (ordinary_full) {
+        scoop_gc_heap_state.metrics.last_full_source_regions = source_regions;
+        scoop_gc_heap_state.metrics.last_full_target_regions = target_regions;
+    }
+    uint64_t copy_started = scoop_gc_monotonic_ns();
+    for (size_t index = 0; index < plan.count; index++) {
+        PlannedMove *move = &plan.moves[index];
         memcpy(move->destination, move->source, move->size);
         scoop_gc_heap_state.copied_bytes += move->size;
         ScoopGcBlockMeta *source = move->source_block;
@@ -155,6 +168,7 @@ bool scoop_gc_heap_plan_moving_locked(bool minor) {
         }
         moved_objects++;
     }
-    free(moves);
+    scoop_gc_heap_state.metrics.copy_ns += scoop_gc_monotonic_ns() - copy_started;
+    free(plan.moves);
     return true;
 }

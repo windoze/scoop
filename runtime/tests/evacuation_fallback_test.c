@@ -64,6 +64,8 @@ int main(void) {
     nursery_collect(false);
     assert(released == 1 && scoop_rt_gc_stats() == GC_REGION_BLOCKS + 1);
     assert(scoop_rt_gc_debug_last_moved_count() == 0);
+    assert(nursery_metrics().last_full_source_regions == 0);
+    assert(nursery_metrics().last_full_target_regions == 0);
     assert((uintptr_t)objects[GC_REGION_BLOCKS] == first);
     assert((uintptr_t)objects[GC_REGION_BLOCKS + 1] == second);
     for (size_t index = 0; index < GC_REGION_BLOCKS + 2; index++) {

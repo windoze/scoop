@@ -79,6 +79,7 @@ typedef struct ScoopThreadVmOps {
     bool (*reserve_read_write)(uintptr_t preferred_address, size_t size, void **mapping,
                                ScoopPlatformError *error);
     size_t (*page_size)(void);
+    size_t (*processor_count)(void);
     bool (*protect_none)(void *base, size_t size, ScoopPlatformError *error);
     bool (*release_mapping)(void *base, size_t size, ScoopPlatformError *error);
     bool (*discard_pages)(void *base, size_t size, ScoopPlatformError *error);

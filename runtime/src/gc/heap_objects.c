@@ -11,6 +11,7 @@ static size_t object_word_index(ScoopGcBlockMeta *block, const void *object) {
     return (size_t)(offset / sizeof(uint64_t));
 }
 
+/* Read-only under the heap lock, or the coordinator's immutable STW mark view. */
 bool object_meta(const void *object, ScoopGcBlockMeta **result, size_t *word_index) {
     uintptr_t address = (uintptr_t)object;
     if ((address & (sizeof(void *) - 1)) != 0) {
@@ -149,7 +150,7 @@ bool scoop_gc_is_young_object_locked(const void *object) {
     return block != NULL && block->generation == SCOOP_GC_YOUNG;
 }
 
-void scoop_gc_heap_begin_collection_locked(bool minor) {
+size_t scoop_gc_heap_begin_collection_locked(bool minor) {
     require_heap();
     if (collection_active) {
         heap_fatal("nested heap collection");
@@ -163,6 +164,7 @@ void scoop_gc_heap_begin_collection_locked(bool minor) {
     evacuation_cursor = NULL;
     evacuation_limit = NULL;
     moved_objects = 0;
+    size_t mark_blocks = 0;
     for (ScoopGcBlockMeta *block = scoop_heap_first_block(); block != NULL;
          block = scoop_heap_next_block(block)) {
         if (!active_head(block) || (minor && block->generation == SCOOP_GC_OLD)) {
@@ -174,6 +176,7 @@ void scoop_gc_heap_begin_collection_locked(bool minor) {
         }
         block->live_bytes = 0;
         block->movable_live_bytes = 0;
+        block->mark_index = mark_blocks++;
         block->large_forwarding = NULL;
         block->large_marked = false;
         block->large_scanned = false;
@@ -186,36 +189,5 @@ void scoop_gc_heap_begin_collection_locked(bool minor) {
         }
     }
     collection_active = true;
-}
-
-bool scoop_gc_mark_object_locked(const void *object) {
-    if (!collection_active) {
-        heap_fatal("object marked outside collection");
-    }
-    ScoopGcBlockMeta *block;
-    size_t word_index;
-    if (!object_meta(object, &block, &word_index)) {
-        heap_fatal("mark requested for a non-object address");
-    }
-    if (object_marked(block, word_index)) {
-        return false;
-    }
-    size_t size = scoop_gc_object_size_locked(object);
-    bool pinned = object_pinned(block, word_index);
-    if (block->kind == SCOOP_BLOCK_KIND_LARGE) {
-        block->large_marked = true;
-    } else {
-        bit_set(block->marks, word_index);
-        uintptr_t base = (uintptr_t)block_base(block);
-        uintptr_t first = (uintptr_t)object - base;
-        uintptr_t last = first + size - 1;
-        for (size_t line = first / GC_LINE_SIZE; line <= last / GC_LINE_SIZE; line++) {
-            bit_set(block->line_live, line);
-        }
-    }
-    block->live_bytes += size;
-    if (!pinned) {
-        block->movable_live_bytes += size;
-    }
-    return true;
+    return mark_blocks;
 }

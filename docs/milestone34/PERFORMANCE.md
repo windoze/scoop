@@ -209,3 +209,54 @@ allocation／旧图／高存活图／两种增长图分别分配 4,160,112／9,0
 最终全部 stdout／stderr、GC／六阶段内存数据、构建 argv 和工具版本保存在 [Darwin 旧](measurements/m34-reclamation-off-darwin.json)／[新](measurements/m34-reclamation-on-darwin.json)、[GNU 旧](measurements/m34-reclamation-off-linux-gnu.json)／[新](measurements/m34-reclamation-on-linux-gnu.json)，同名 `.asm` 保存主入口和收集／归还路径。Darwin 新 binary 首次执行仍有高值，allocation／旧图／高存活图／churn 分别达到 502.256／381.513／404.079／2128.514 ms；全部保留，pins 复用已运行的 churn binary。工具沿用 Apple clang 21.0.0／GCC 15.2.0、LLVM 22.1.8／22.1.2。
 
 所有构建复用 core cache，旧版构建记录来自首次对照，新版记录来自内联修复后的重建；均非冷构建。Darwin 首次范围为 5.045～6.247 s、重复为 4.924～5.468 s，GNU 分别为 5.991～6.395 s、5.964～6.259 s，每项只有一次构建观测，不推断编译速度。最终可执行文件增加 Darwin 544～16,944 bytes、GNU 688～4,784 bytes，根 slib 在同 target 两版间逐项相同。
+
+## M34-8：并行 mark 与存活集合
+
+对照为 `66abed0c8`（M34-7）。新增 [mark-graphs](../../tests/benchmarks/parallel/mark-graphs.scoop) 与 [阶段观测入口](../../tests/benchmarks/parallel/mark-phase.c)：wide 为完整二叉树，array 为含共享环节点的大引用数组，chain 为单后继长链。每种图 131071 个主节点，每进程主动 full 五次，输出均为 `8589737985`。每种 worker 数七轮，每轮固定依次执行旧版、新版 1／2／4／8 worker 与当时默认八 worker；同宿主计时不与编译、其他测试或 target 清理并发。每个样本核对完整输出、每轮 live／trace 对象数和 GC histogram，并确认各 worker 首次标记数之和等于存活数。
+
+下表 mark／pause／CPU 为 35 次 explicit full 的中位数，单位 ms；CPU 是该次所有 marker 线程 CPU 之和，不是墙钟。worker 数包含 coordinator。旧版没有分阶段计时，不能把缺失的 mark 值视为零。
+
+| 主机／图 | mark，1 worker | 2 worker | 4 worker | 8 worker | pause，1 → 4 → 8 | CPU，1 → 4 → 8 |
+| --- | ---: | ---: | ---: | ---: | --- | --- |
+| Darwin／wide | 4.091 | 2.170 | 1.244 | 1.380 | 9.155 → 6.327 → 6.480 | 4.090 → 4.865 → 9.582 |
+| Darwin／array | 5.635 | 2.970 | 1.705 | 1.617 | 13.938 → 10.045 → 10.053 | 5.634 → 6.680 → 11.613 |
+| Darwin／chain | 3.950 | 3.948 | 3.990 | 4.011 | 8.972 → 9.045 → 9.146 | 3.949 → 3.989 → 4.075 |
+| GNU／wide | 4.003 | 2.235 | 1.478 | 1.003 | 11.147 → 8.908 → 8.261 | 4.001 → 5.402 → 6.243 |
+| GNU／array | 6.657 | 3.466 | 1.956 | 1.474 | 19.771 → 15.032 → 14.381 | 6.655 → 7.395 → 9.632 |
+| GNU／chain | 4.157 | 4.313 | 4.317 | 4.452 | 11.540 → 11.720 → 11.996 | 4.155 → 4.243 → 4.527 |
+
+四 worker 相对同实现的一 worker，wide／array 的 mark 加速为 Darwin 3.29／3.31 倍、GNU 2.71／3.40 倍；总 pause 只加速 1.45／1.39、1.25／1.32 倍。四 worker 下 reference update 中位数分别为 Darwin 4.048／7.300 ms、GNU 6.110／11.699 ms，仍是串行阶段。array 每次产生 128 个区间任务；CPU 与对象分布确认宽图和数组由多个线程实际参与。chain 没有可利用的图并行性，多数轮由 coordinator 完成全部标记，不能据此声称多核加速。
+
+初版 16383-node、三次 full 的单轮定位样本曾出现 chain 的八 worker mark 中位数 17.826 ms，而一 worker 为 0.828 ms。原因是每个后继重新排队并广播；改为在一个最多 64 对象的任务内继续扫描尚未发布的后继，仅存在一个后继时不广播，最后完成仍唤醒等待者。同规模定位复测为 0.544／0.596 ms。这些诊断保留在 `m34-mark-pre-batch-*` 和 `m34-mark-batched-*`，它们不是七轮性能结论，未混入上表。
+
+Darwin 八 worker 没有明显改善总 pause，线程 CPU 接近翻倍；GNU 八 worker 的 wide／array 总 pause 比四 worker再缩短约 7%／4%，但 CPU 增加。因此最终默认上限为四，minor 和活跃 block 不足 4 MiB 的 full 仍为一；显式 1..8 保留。上述固定 worker 样本来自默认上限为八时的同一算法，显式设置覆盖默认策略，故无需重跑。默认八的原始结果单独保留为 `m34-mark-default8-*`。
+
+对最终默认四的 binary 另外执行七轮旧／新交替测量，下表墙钟为七个完整进程的中位数，pause 为其中 35 次 explicit full 中位数，单位 ms。长链相对 M34-7 的改善主要来自存活集合复用和标记实现变化，不能归于并行。
+
+| 主机／图 | 墙钟，M34-7 → M34-8 默认 | explicit full pause，旧 → 新 | 新 mark |
+| --- | --- | --- | ---: |
+| Darwin／wide | 92.695 → 62.054 | 11.782 → 6.529 | 1.262 |
+| Darwin／array | 148.634 → 89.945 | 21.938 → 11.002 | 1.778 |
+| Darwin／chain | 96.105 → 74.539 | 12.673 → 9.404 | 4.052 |
+| GNU／wide | 118.447 → 77.747 | 14.871 → 8.594 | 1.488 |
+| GNU／array | 192.419 → 113.460 | 28.671 → 14.470 | 2.192 |
+| GNU／chain | 116.809 → 91.605 | 15.124 → 11.596 | 4.312 |
+
+两版 wide／chain 的 managed 映射均为 16 MiB，array 为 17.0625 MiB。末轮当前 RSS 中位数（旧 → 新）为 Darwin wide 16.359 → 17.547 MiB、array 17.359 → 18.547 MiB；GNU 分别为 14.680 → 14.828、16.676 → 15.816 MiB。Darwin wide 峰值从 17.344 增为 18.484 MiB，GNU wide 为 17.852 → 17.852 MiB。存活清单在 update 后释放，线程池／队列保留；这些 RSS 样本不证明 OS 已归还全部临时分配，也不宣称峰值下降。
+
+复用的三个 workload 同样七轮旧／新交替，各样本 stdout、分配字节、minor／full 次数、trace 对象数一致。下表为进程墙钟与整个进程累计 GC pause 的中位数，单位 ms；这些程序默认 minor 单 worker，并不全部触发并行 full。
+
+| 主机／工作负载 | 墙钟，旧 → 默认四 | 累计 GC pause，旧 → 默认四 |
+| --- | --- | --- |
+| Darwin／allocation | 11.022 → 10.817 | 0.581 → 0.586 |
+| Darwin／old-graph-large | 37.951 → 34.590 | 21.738 → 18.012 |
+| Darwin／survivors | 58.851 → 44.883 | 44.185 → 29.767 |
+| GNU／allocation | 8.548 → 11.800 | 0.941 → 1.106 |
+| GNU／old-graph-large | 46.168 → 38.312 | 31.624 → 23.328 |
+| GNU／survivors | 76.840 → 56.440 | 63.592 → 43.102 |
+
+GNU allocation 的未绑核结果偏慢；补充 CPU 0 上七轮对照为墙钟 8.489 → 8.243 ms、GC pause 0.945 → 0.722 ms，方向相反。固定 CPU 诊断完整保存于 `m34-mark-regressions-default4-cpu0-*`，不替换主表，也不足以断言稳定收益或稳定回退。Darwin 新 binary 首次 wide 墙钟为 537.185 ms，后续 61.763～67.557 ms；全部样本保留，未删除首次运行高值。
+
+原始固定 worker 报告为 `m34-mark-{off,on-1,on-2,on-4,on-8,default8}-{darwin,linux-gnu}.json`，最终默认对照为 [Darwin 旧](measurements/m34-mark-default4-off-darwin.json)／[新](measurements/m34-mark-default4-on-darwin.json)、[GNU 旧](measurements/m34-mark-default4-off-linux-gnu.json)／[新](measurements/m34-mark-default4-on-linux-gnu.json)；既有 workload 使用 `m34-mark-regressions-*`。报告保留每轮 stderr、分阶段时间、worker CPU／对象数、RSS、完整构建 argv 和产物大小。`m34-mark-{off,on}-{darwin,linux-gnu}.asm` 保存标记、队列、终止、移动计划与存活集合遍历；新机器码包含 AArch64 原子置位／amd64 lock 指令，并直接遍历保留集合进行引用更新。
+
+工具仍为 Apple clang 21.0.0／GCC 15.2.0、LLVM 22.1.8／22.1.2。构建复用 core cache，first／warm 不是冷／热完整重建；旧版记录来自首次基线构建，新版来自默认四重建。最终新版首次／重复构建为 Darwin 5.171～5.685／5.202～5.562 s，GNU 5.941～6.312／5.910～6.247 s，每项仅一次观测。可执行文件增加 Darwin 1,184～17,712 bytes、GNU 每项 9,952 bytes，同 target 的根 slib 大小逐项不变。

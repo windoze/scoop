@@ -2,7 +2,7 @@
 #include "heap_internal.h"
 #include "../platform/platform.h"
 
-static bool empty_region(const ScoopGcRegion *region) {
+bool scoop_heap_region_empty(const ScoopGcRegion *region) {
     for (size_t index = 0; index < region->next_block; index++) {
         ScoopGcBlockState state = region->blocks[index].state;
         if (state != SCOOP_BLOCK_FREE && state != SCOOP_BLOCK_NEVER_USED) {
@@ -84,7 +84,7 @@ void scoop_heap_reclaim_regions(bool full) {
     while (*link != NULL) {
         ScoopGcRegion *region = *link;
         bool empty = region->large ? region->blocks[0].state == SCOOP_BLOCK_FREE
-                                   : full && empty_region(region);
+                                   : full && scoop_heap_region_empty(region);
         bool release = empty && (region->large || retained != NULL);
         if (release) {
             *link = region->next;

@@ -32,9 +32,8 @@ void scoop_gc_heap_unlock(void);
 bool scoop_gc_is_object_start_locked(const void *object);
 size_t scoop_gc_object_size_locked(const void *object);
 bool scoop_gc_update_pin_locked(const void *object, bool pinned);
-bool scoop_gc_mark_object_locked(const void *object);
 bool scoop_gc_is_young_object_locked(const void *object);
-void scoop_gc_heap_begin_collection_locked(bool minor);
+size_t scoop_gc_heap_begin_collection_locked(bool minor);
 bool scoop_gc_heap_plan_moving_locked(bool minor);
 void scoop_gc_heap_verify_stress_moved_locked(void);
 void *scoop_gc_forward_object_locked(void *object);
@@ -53,6 +52,8 @@ void scoop_gc_roots_unlock(void);
 _Noreturn void scoop_gc_roots_fatal(const char *message);
 bool scoop_gc_is_immortal_object_locked(const void *object);
 bool scoop_gc_is_external_object_locked(const void *object);
+/* Read-only during mark while the coordinator owns the stable heap/root view. */
+bool scoop_gc_stw_is_stable_object(const void *object);
 bool scoop_gc_is_published_object(const void *object);
 void scoop_gc_visit_handles_locked(ScoopGcRootVisitor visitor);
 void scoop_gc_set_pin_frames_locked(bool pinned_now);
@@ -72,6 +73,17 @@ void scoop_gc_visit_managed_segment(const struct ScoopThreadState *thread, uintp
 bool scoop_gc_collect_internal(void);
 void scoop_gc_collect_minor_internal(void);
 void scoop_gc_report_metrics(void);
+
+/* One parameterized marker, with a retained live set until reference update ends. */
+void scoop_gc_mark_begin(bool minor, size_t block_count);
+void scoop_gc_mark_roots(void);
+void scoop_gc_mark_remembered(void);
+uint64_t scoop_gc_mark_finish(bool minor);
+void scoop_gc_mark_visit_live(ScoopGcHeapObjectVisitor visitor, void *context);
+void scoop_gc_mark_dispose(void);
+void scoop_gc_mark_shutdown(void);
+uint64_t scoop_gc_monotonic_ns(void);
+uint64_t scoop_gc_thread_cpu_ns(void);
 
 /* Shared exact scans. Partial heap scans use a half-open card range. */
 void scoop_gc_scan_roots(ScoopGcRootVisitor visitor);
