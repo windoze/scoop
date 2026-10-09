@@ -46,10 +46,11 @@ pub(super) fn validate_interface_adjust_metadata(
                 "the physical itable slot or target is invalid for the adjust",
             );
         }
+        let receiver_type = module.classes[adjust.class()].physical_type(adjust.class());
         if module.functions[adjust.function()]
             .params
             .first()
-            .is_none_or(|receiver| receiver.ty != Type::Class(adjust.class()))
+            .is_none_or(|receiver| receiver.ty != receiver_type)
         {
             return invalid_adjust(
                 location,
@@ -136,7 +137,7 @@ pub(super) fn validate_interface_adjust_metadata(
                 let owner = module
                     .meta
                     .source_exact_types
-                    .get(&Type::Class(adjust.class()))
+                    .get(&receiver_type)
                     .ok_or_else(|| {
                         adjust_error(
                             location,

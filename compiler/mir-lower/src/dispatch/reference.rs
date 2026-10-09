@@ -26,6 +26,7 @@ impl Lowerer {
             };
         }
         let class = self.class_map[&owner];
+        let receiver_type = self.classes[class].physical_type(class);
         let iface = self.interfaces.mir_id(interface);
         let method = &module.interfaces[interface].methods[position.into_raw() as usize];
         let lowered = self.interfaces.defs[iface].methods[position.into_raw() as usize].clone();
@@ -64,18 +65,18 @@ impl Lowerer {
         let mut locals = Arena::new();
         let this = locals.alloc(mir::Local {
             name: "this".into(),
-            ty: mir::Type::Class(class),
+            ty: receiver_type.clone(),
             mutable: false,
         });
         let mut params = vec![mir::Param {
             name: "this".into(),
-            ty: mir::Type::Class(class),
+            ty: receiver_type.clone(),
             local: this,
         }];
         let mut args = vec![smir::Expr::new(
             target.parameters[0].clone(),
             smir::ExprKind::Retype {
-                operand: Box::new(smir::Expr::local(this, mir::Type::Class(class))),
+                operand: Box::new(smir::Expr::local(this, receiver_type)),
                 ty: Box::new(target.parameters[0].clone()),
             },
         )];
