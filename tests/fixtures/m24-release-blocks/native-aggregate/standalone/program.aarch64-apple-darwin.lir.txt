@@ -2,8 +2,8 @@ Module
   global @scoop$1$io$c3559d122df9d4496f5ad898e0dfdef297034b68f0defd79b7ffaeaf05946fcc = "\n"
   global @scoop$1$ss$9b273ab0bbc562dd7f8e8b0487c0e98f4a7d0781b1cb5aa5b6d69c2d8a7f66b1 : ptr<managed> scan=refs[0]
   c-struct struct0 Wide fields=[Long@0/8,Long@8/8,Long@16/8]
-  extern ef0 rotate @m24_release_rotate(struct0) -> struct0 <c exact=(c-struct0)->c-struct0 bridge=@scoop$1$br$7a5556fbd996ff189f506c836294b870f02dd4c3cf67d5328dce8365a594222b gc-leaf nounwind lib=m24_release>
-  extern ef1 record @m24_release_wide(struct0) -> void <c exact=(c-struct0)->void bridge=@scoop$1$br$e77155d0594b5c4175c452045c8fecc8b4644d1f51590699543cbb4a7430340d gc-leaf nounwind lib=m24_release>
+  extern ef0 rotate @m24_release_rotate(struct0) -> struct0 <c exact=(c-struct0)->c-struct0 direct-c=(copy-ptr<struct0>)->sret<struct0> gc-leaf nounwind lib=m24_release>
+  extern ef1 record @m24_release_wide(struct0) -> void <c exact=(c-struct0)->void direct-c=(copy-ptr<struct0>)->void gc-leaf nounwind lib=m24_release>
   extern ef2 count @m24_release_wide_count() -> i64 <c exact=()->Long direct-c=()->i64 gc-leaf nounwind lib=m24_release>
   fun @scoop$1$cb$5c908166855202d9dacfc4f8a027ee5bab5f4c32fed9571e0638fca65b5ad301(indirect<struct0 size=24 align=8 scan=none>) -> sret<struct0 size=24 align=8 scan=none>
     local %0 $call.1: struct0
@@ -12,7 +12,7 @@ Module
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     store param0 -> local1
-    call native-safe-indirect-target0 sp<native-safe:0> roots=[] local2 = sig=indirect0 (c-storage-pointer struct0 size=24 align=8 scan=none, ptr<raw>) extern0(c-arg-address(local1))
+    call native-safe-indirect-target0 sp<native-safe:0> roots=[] local2 = sig=indirect0 (sret struct0 size=24 align=8 scan=none, indirect<struct0 size=24 align=8 scan=none>) extern0(indirect local1)
     store local2 -> local0
     ret local0
   fun @scoop$1$cb$9b7425e49c7f00e6d7e9a4ad9b7ae2f47b25709abe83901ec37941cb3a233797(indirect<struct0 size=24 align=8 scan=none>) -> void
@@ -20,7 +20,7 @@ Module
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     store param0 -> local0
-    call native-safe-void-target0 sp<native-safe:0> roots=[] sig=void0 (ptr<raw>) extern1(c-arg-address(local0))
+    call native-safe-void-target0 sp<native-safe:0> roots=[] sig=void0 (indirect<struct0 size=24 align=8 scan=none>) extern1(indirect local0)
     t0 = aggregate () : {}
     ret
   fun @scoop$1$cb$d2f46ee3040a47a20bd6c0d5b1b5a9f13a85027c2301192a9ddb2597f879f4a6() -> i64
@@ -60,7 +60,7 @@ Module
     store local13 -> local6
     store local6 -> local7
     store local7 -> local14
-    call native-safe-indirect-target0 sp<native-safe:0> roots=[] local15 = sig=indirect1 (c-storage-pointer struct0 size=24 align=8 scan=none, ptr<raw>) extern0(c-arg-address(local14))
+    call native-safe-indirect-target0 sp<native-safe:0> roots=[] local15 = sig=indirect1 (sret struct0 size=24 align=8 scan=none, indirect<struct0 size=24 align=8 scan=none>) extern0(indirect local14)
     store local15 -> local8
     store local8 -> local9
     store local9 -> local10
@@ -148,11 +148,11 @@ Module
     store local0 -> local1
     store local1 -> local2
     store local2 -> local5
-    call release-native-leaf-indirect-target0 local6 = sig=indirect0 (c-storage-pointer struct0 size=24 align=8 scan=none, ptr<raw>) extern0(c-arg-address(local5))
+    call release-native-leaf-indirect-target0 local6 = sig=indirect0 (sret struct0 size=24 align=8 scan=none, indirect<struct0 size=24 align=8 scan=none>) extern0(indirect local5)
     store local6 -> local3
     store local3 -> local4
     store local4 -> local7
-    call release-native-leaf-void-target0 sig=void0 (ptr<raw>) extern1(c-arg-address(local7))
+    call release-native-leaf-void-target0 sig=void0 (indirect<struct0 size=24 align=8 scan=none>) extern1(indirect local7)
     t1 = aggregate () : {}
     ret
   td td0 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Equality);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Long)]) @scoop$1$td$a029704dbc1ea0fb62b31835a65fe61da1e837f77ca3df0677c1ccbfeb2fde68 type-id=5074273259029904722 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
@@ -162,7 +162,7 @@ Module
   layout-meta Wide c-layout(aligned=0,packed=0) fields=[0@8,8@8,16@8] interior-mutable=false
   layout Wide size=24 align=8 refs=[]
   layout-meta Wide c-layout(aligned=0,packed=0) fields=[0@8,8@8,16@8] interior-mutable=false
-  layout Equality value size=8 align=8 refs=[0]
+  layout Equality value size=16 align=8 refs=[0]
   layout Owner value size=8 align=8 refs=[0]
   layout Owner size=40 align=8 refs=[]
   output executable @scoop$1$cb$a59ba8328a87a3c09df1111305261ccbca23796630e0ce6dea24e3ae106f48ca

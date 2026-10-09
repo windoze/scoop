@@ -159,16 +159,6 @@ Module
     local %125 $call.2: ptr<managed>
     local %126 $call.3: enum1
     local %127 $call.4: enum1
-    local %128 $sc.1: enum1
-    local %129 $sc.2: enum1
-    local %130 $sc.3: enum1
-    local %131 $sc.4: enum1
-    local %132 $sc.5: enum1
-    local %133 $sc.6: enum1
-    local %134 $sc.7: enum1
-    local %135 $sc.8: enum1
-    local %136 $sc.9: enum1
-    local %137 $sc.10: enum1
   block entry
     poll managed-void-target16 sp<managed-poll:0> live=[]
     call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 () -> ptr<managed> external-fn1()
@@ -346,35 +336,27 @@ Module
     store t42 -> local113
     store local113 -> local114
     store local114 -> local115
-    store local114 -> local128
-    store local115 -> local129
-    call managed-indirect-target0 sp<managed-call:29> live=[local0:ptr<managed>@0, local112:ptr<managed>@0] local130 = sig=indirect0 (sret enum1 size=8 align=8 scan=none, ptr<managed>, indirect<enum1 size=8 align=8 scan=none>, indirect<enum1 size=8 align=8 scan=none>) external-fn15(local112, indirect local128, indirect local129)
-    store local130 -> local126
-    t43 = enum_wrap e1 v0 () : enum1
-    store local126 -> local131
-    store t43 -> local132
-    call managed-direct-target15 sp<managed-call:30> live=[local0:ptr<managed>@0] t44 = sig=direct15 (indirect<enum1 size=8 align=8 scan=none>, indirect<enum1 size=8 align=8 scan=none>) -> i1 external-fn16(indirect local131, indirect local132)
-    store t44 -> local116
+    call managed-direct-target15 sp<managed-call:29> live=[local0:ptr<managed>@0, local112:ptr<managed>@0] t43 = sig=direct15 (ptr<managed>, parts<enum1 [i64@0+8/8]>, parts<enum1 [i64@0+8/8]>) -> enum1 external-fn15(local112, local114, local115)
+    store t43 -> local126
+    t44 = enum_wrap e1 v0 () : enum1
+    call managed-direct-target16 sp<managed-call:30> live=[local0:ptr<managed>@0] t45 = sig=direct16 (parts<enum1 [i64@0+8/8]>, parts<enum1 [i64@0+8/8]>) -> i1 external-fn16(local126, t44)
+    store t45 -> local116
     store local116 -> local117
     call managed-void-target14 sp<managed-call:31> live=[local0:ptr<managed>@0] sig=void14 (i1) local-fn0(local117)
-    t45 = aggregate () : {}
+    t46 = aggregate () : {}
     store local0 -> local118
-    t46 = enum_wrap e1 v2 () : enum1
-    store t46 -> local119
+    t47 = enum_wrap e1 v2 () : enum1
+    store t47 -> local119
     store local119 -> local120
     store local120 -> local121
-    store local120 -> local133
-    store local121 -> local134
-    call managed-indirect-target1 sp<managed-call:32> live=[local118:ptr<managed>@0] local135 = sig=indirect1 (sret enum1 size=8 align=8 scan=none, ptr<managed>, indirect<enum1 size=8 align=8 scan=none>, indirect<enum1 size=8 align=8 scan=none>) external-fn15(local118, indirect local133, indirect local134)
-    store local135 -> local127
-    t47 = enum_wrap e1 v2 () : enum1
-    store local127 -> local136
-    store t47 -> local137
-    call managed-direct-target16 sp<managed-call:33> live=[] t48 = sig=direct16 (indirect<enum1 size=8 align=8 scan=none>, indirect<enum1 size=8 align=8 scan=none>) -> i1 external-fn16(indirect local136, indirect local137)
-    store t48 -> local122
+    call managed-direct-target17 sp<managed-call:32> live=[local118:ptr<managed>@0] t48 = sig=direct17 (ptr<managed>, parts<enum1 [i64@0+8/8]>, parts<enum1 [i64@0+8/8]>) -> enum1 external-fn15(local118, local120, local121)
+    store t48 -> local127
+    t49 = enum_wrap e1 v2 () : enum1
+    call managed-direct-target18 sp<managed-call:33> live=[] t50 = sig=direct18 (parts<enum1 [i64@0+8/8]>, parts<enum1 [i64@0+8/8]>) -> i1 external-fn16(local127, t49)
+    store t50 -> local122
     store local122 -> local123
     call managed-void-target15 sp<managed-call:34> live=[] sig=void15 (i1) local-fn0(local123)
-    t49 = aggregate () : {}
+    t51 = aggregate () : {}
     ret
   fun @scoop$1$cb$f8da311adb5c5511acc0695ec3b17fd856fe459e77c1c8117ae20cbe58c0125e(elided-zst<{} size=0 align=1>, elided-zst<{} size=0 align=1>) -> i1
   block entry

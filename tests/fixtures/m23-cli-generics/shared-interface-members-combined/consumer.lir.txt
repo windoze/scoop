@@ -8,7 +8,7 @@ Module
     local %4 $dependency.receiver: i32
     local %5 $dependency.argument.0: i32
     local %6 $dependency.parameter.other: i32
-    local %7 $dependency.receiver: ptr<managed>
+    local %7 $dependency.receiver: interface{object,itab}
     local %8 $dependency.receiver: i32
     local %9 $dependency.argument.0: i32
     local %10 $dependency.parameter.other: i32
@@ -34,15 +34,18 @@ Module
     t3 = integer_compare_Equal<Int> local4, local6 : i1
     cbr t3 then @if.then.1 else @if.else.2
   block if.then.1
-    store local0 -> local7
-    t4 = heap_load local7 +0 : ptr<metadata>
-    call no-gc-direct-target0 t5 = sig=direct2 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t4, td0)
-    call managed-direct-target2 sp<managed-call:3> live=[local0:ptr<managed>@0, local7:ptr<managed>@0] t6 = sig=direct3 (ptr<managed>) -> i32 dispatch[Interface:1] t5(local7)
-    store t6 -> local8
+    t4 = heap_load external-td5 +96 : ptr<metadata>
+    t5 = heap_load t4 +8 : ptr<metadata>
+    t6 = aggregate (local0, t5) : interface{object,itab}
+    store t6 -> local7
+    t7 = extract local7, 1 : ptr<metadata>
+    t8 = extract local7, 0 : ptr<managed>
+    call managed-direct-target2 sp<managed-call:3> live=[local0:ptr<managed>@0, t8:ptr<managed>@0] t9 = sig=direct2 (ptr<managed>) -> i32 dispatch[Interface:1] t7(t8)
+    store t9 -> local8
     store integer<Int>(0x0000002a) -> local9
     store local9 -> local10
-    t7 = integer_compare_Equal<Int> local8, local10 : i1
-    store t7 -> local11
+    t10 = integer_compare_Equal<Int> local8, local10 : i1
+    store t10 -> local11
     br @if.merge.3
   block if.else.2
     store false -> local11
@@ -51,8 +54,8 @@ Module
     cbr local11 then @if.then.4 else @if.else.5
   block if.then.4
     store local0 -> local12
-    call managed-direct-target3 sp<managed-call:4> live=[local12:ptr<managed>@0] t8 = sig=direct4 (ptr<managed>) -> i32 external-fn0(local12)
-    store t8 -> local15
+    call managed-direct-target3 sp<managed-call:4> live=[local12:ptr<managed>@0] t11 = sig=direct3 (ptr<managed>) -> i32 external-fn0(local12)
+    store t11 -> local15
     store local15 -> local13
     br @if.merge.6
   block if.else.5
@@ -60,18 +63,18 @@ Module
     br @if.merge.6
   block if.merge.6
     ret local13
-  fun @scoop$1$cb$8d75999131d131be8715594d586852a449fee2f3b1229f4b9fda914312134647(ptr<managed>) -> i32
-    local %0 $dependency.local.1: ptr<managed>
+  fun @scoop$1$cb$8d75999131d131be8715594d586852a449fee2f3b1229f4b9fda914312134647(parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>) -> i32
+    local %0 $dependency.local.1: interface{object,itab}
     local %1 $call.1: i32
   block entry
-    poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
+    poll managed-void-target0 sp<managed-poll:0> live=[param0:interface{object,itab}@0]
     store param0 -> local0
-    t0 = heap_load local0 +0 : ptr<metadata>
-    call no-gc-direct-target0 t1 = sig=direct0 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t0, td0)
-    call managed-direct-target0 sp<managed-call:0> live=[local0:ptr<managed>@0] t2 = sig=direct1 (ptr<managed>) -> i32 dispatch[Interface:0] t1(local0)
+    t0 = extract local0, 1 : ptr<metadata>
+    t1 = extract local0, 0 : ptr<managed>
+    call managed-direct-target0 sp<managed-call:0> live=[t1:ptr<managed>@0] t2 = sig=direct0 (ptr<managed>) -> i32 dispatch[Interface:0] t0(t1)
     store t2 -> local1
     ret local1
-  fun @scoop$1$cb$61630f1a2a4ebf0b875cce2ae0291262dc168ff44796429ac8ea18fc7fe5ae77(ptr<managed>) -> i32
+  fun @scoop$1$cb$61630f1a2a4ebf0b875cce2ae0291262dc168ff44796429ac8ea18fc7fe5ae77(parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>) -> i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     br @unwrap.trap.1
@@ -79,5 +82,5 @@ Module
     call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global0)
     unreachable
   td td0 a(n(c=dev.example%3Ageneric-member-provider%3A0.1.0;p=dependency.readers;o=-;k=I;x=Reader);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$09f5eb9040f751e972a1dee9e46c16afc2de1c5aa3d0656dfb8005090d4a9034 type-id=8715952522854779585 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
-  layout Reader value size=8 align=8 refs=[0]
+  layout Reader value size=16 align=8 refs=[0]
   output library

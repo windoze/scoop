@@ -2565,12 +2565,12 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun thunk<NameToken> Named.name() @fn85(this: Named) -> String
+  fun thunk<NameToken> Named.name() @fn85(this: box<NameToken>) -> String
     bb0 entry
       call $call.1: String = @fn0 direct
         Type NameToken
         Unbox
-          Type Named
+          Type box<NameToken>
           Local this
       return
         Type String
@@ -2675,8 +2675,10 @@ Module
       call $step.1: CoroutineStep<Int> = @fn13 direct
         Type Gate
         Local $parameter.gate
-        Type CoroutineAdapter<CombinedTask.run>$1
-        Local $adapter.1
+        Type Continuation<Int>
+        Retype Continuation<Int>
+          Type CoroutineAdapter<CombinedTask.run>$1
+          Local $adapter.1
       branch bb16 bb17
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -3338,8 +3340,10 @@ Module
       call @fn46 interface SuspendRegistration<Int>[0]
         Type SuspendRegistration<Int>
         Local $dependency.parameter.registration
-        Type CoroutineAdapter<awaitSignal>$1
-        Local $safe_adapter.1
+        Type Continuation<Int>
+        Retype Continuation<Int>
+          Type CoroutineAdapter<awaitSignal>$1
+          Local $safe_adapter.1
       goto bb14
     bb3 coroutine.registered_success.1
       atomic_store_release kind=coroutine-adapter-state field=1

@@ -231,12 +231,12 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun thunk<LocalDefaults> CompoundParameters.answer(Token, Counter, Long) @fn9(this: CompoundParameters, marker: Token, input: Counter, extra: Long) -> WideValue
+  fun thunk<LocalDefaults> CompoundParameters.answer(Token, Counter, Long) @fn9(this: box<LocalDefaults>, marker: Token, input: Counter, extra: Long) -> WideValue
     bb0 entry
       call $call.1: WideValue = @fn0 direct
         Type LocalDefaults
         Unbox
-          Type CompoundParameters
+          Type box<LocalDefaults>
           Local this
         Type Token
         Local marker

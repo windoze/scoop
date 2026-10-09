@@ -1,0 +1,19 @@
+Module
+  fun @scoop$1$cb$8b7961f41deb2451cf50863e2db18da128e2e5789298d49bc4f6e1beeb3e1c27() -> i1
+    local %0 $dependency.argument.0: i1
+    local %1 $dependency.parameter.enabled: i1
+    local %2 $dependency.argument.0: struct0
+    local %3 $dependency.parameter.value: struct0
+    local %4 $call.1: struct0
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store true -> local0
+    store local0 -> local1
+    call no-gc-direct-target0 t0 = sig=direct0 (i1) -> struct0 external-fn0(local1)
+    store t0 -> local2
+    store local2 -> local3
+    call managed-direct-target0 sp<managed-call:0> live=[] t1 = sig=direct1 (parts<struct0 [i8@0+1/1]>) -> struct0 external-fn1(local3)
+    store t1 -> local4
+    t2 = extract local4, 0 : i1
+    ret t2
+  output library

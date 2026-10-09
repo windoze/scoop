@@ -280,46 +280,46 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun thunk<Hidden> Contract.apply(Token) @fn20(this: Contract, value: Token) -> Token
+  fun thunk<Hidden> Contract.apply(Token) @fn20(this: box<Hidden>, value: Token) -> Token
     bb0 entry
       call $call.1: Token = @fn3 direct
         Type Hidden
         Unbox
-          Type Contract
+          Type box<Hidden>
           Local this
         Type Token
         Local value
       return
         Type Token
         Local $call.1
-  fun thunk<Hidden> Contract.$get$token() @fn21(this: Contract) -> Token
+  fun thunk<Hidden> Contract.$get$token() @fn21(this: box<Hidden>) -> Token
     bb0 entry
       call $call.1: Token = @fn4 direct
         Type Hidden
         Unbox
-          Type Contract
+          Type box<Hidden>
           Local this
       return
         Type Token
         Local $call.1
-  fun thunk<Token> Contract.apply(Token) @fn22(this: Contract, value: Token) -> Token
+  fun thunk<Token> Contract.apply(Token) @fn22(this: box<Token>, value: Token) -> Token
     bb0 entry
       call $call.1: Token = @fn0 direct
         Type Token
         Unbox
-          Type Contract
+          Type box<Token>
           Local this
         Type Token
         Local value
       return
         Type Token
         Local $call.1
-  fun thunk<Token> Contract.$get$token() @fn23(this: Contract) -> Token
+  fun thunk<Token> Contract.$get$token() @fn23(this: box<Token>) -> Token
     bb0 entry
       call $call.1: Token = @fn1 direct
         Type Token
         Unbox
-          Type Contract
+          Type box<Token>
           Local this
       return
         Type Token

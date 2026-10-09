@@ -504,92 +504,92 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun thunk<LocalValue> LocalReader.parent() @fn25(this: LocalReader) -> Long
+  fun thunk<LocalValue> LocalReader.parent() @fn25(this: box<LocalValue>) -> Long
     bb0 entry
       call $call.1: Long = external0 direct
         Type ParentReader
         Retype ParentReader
-          Type LocalReader
+          Type box<LocalValue>
           Local this
       return
         Type Long
         Local $call.1
-  fun thunk<LocalValue> LocalReader.child() @fn26(this: LocalReader) -> Long
+  fun thunk<LocalValue> LocalReader.child() @fn26(this: box<LocalValue>) -> Long
     bb0 entry
       call $call.1: Long = @fn19 direct
         Type LocalReader
         Retype LocalReader
-          Type LocalReader
+          Type box<LocalValue>
           Local this
       return
         Type Long
         Local $call.1
-  fun thunk<LocalValue> LocalLeft.parent() @fn27(this: LocalLeft) -> Long
+  fun thunk<LocalValue> LocalLeft.parent() @fn27(this: box<LocalValue>) -> Long
     bb0 entry
       call $call.1: Long = external0 direct
         Type ParentReader
         Retype ParentReader
-          Type LocalLeft
+          Type box<LocalValue>
           Local this
       return
         Type Long
         Local $call.1
-  fun thunk<LocalValue> LocalLeft.child() @fn28(this: LocalLeft) -> Long
+  fun thunk<LocalValue> LocalLeft.child() @fn28(this: box<LocalValue>) -> Long
     bb0 entry
       call $call.1: Long = @fn19 direct
         Type LocalReader
         Retype LocalReader
-          Type LocalLeft
+          Type box<LocalValue>
           Local this
       return
         Type Long
         Local $call.1
-  fun thunk<LocalValue> ChildReader.parent() @fn29(this: ChildReader) -> Long
+  fun thunk<LocalValue> ChildReader.parent() @fn29(this: box<LocalValue>) -> Long
     bb0 entry
       call $call.1: Long = external0 direct
         Type ParentReader
         Retype ParentReader
-          Type ChildReader
+          Type box<LocalValue>
           Local this
       return
         Type Long
         Local $call.1
-  fun thunk<LocalValue> ChildReader.child() @fn30(this: ChildReader) -> Long
+  fun thunk<LocalValue> ChildReader.child() @fn30(this: box<LocalValue>) -> Long
     bb0 entry
       call $call.1: Long = @fn19 direct
         Type LocalReader
         Retype LocalReader
-          Type ChildReader
+          Type box<LocalValue>
           Local this
       return
         Type Long
         Local $call.1
-  fun thunk<LocalValue> ParentReader.parent() @fn31(this: ParentReader) -> Long
+  fun thunk<LocalValue> ParentReader.parent() @fn31(this: box<LocalValue>) -> Long
     bb0 entry
       call $call.1: Long = external0 direct
         Type ParentReader
         Retype ParentReader
-          Type ParentReader
+          Type box<LocalValue>
           Local this
       return
         Type Long
         Local $call.1
-  fun thunk<LocalValue> LocalRight.parent() @fn32(this: LocalRight) -> Long
+  fun thunk<LocalValue> LocalRight.parent() @fn32(this: box<LocalValue>) -> Long
     bb0 entry
       call $call.1: Long = external0 direct
         Type ParentReader
         Retype ParentReader
-          Type LocalRight
+          Type box<LocalValue>
           Local this
       return
         Type Long
         Local $call.1
-  fun thunk<LocalValue> LocalRight.child() @fn33(this: LocalRight) -> Long
+  fun thunk<LocalValue> LocalRight.child() @fn33(this: box<LocalValue>) -> Long
     bb0 entry
       call $call.1: Long = @fn19 direct
         Type LocalReader
         Retype LocalReader
-          Type LocalRight
+          Type box<LocalValue>
           Local this
       return
         Type Long

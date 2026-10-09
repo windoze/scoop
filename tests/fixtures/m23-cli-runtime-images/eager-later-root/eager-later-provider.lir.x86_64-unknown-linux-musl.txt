@@ -2,25 +2,21 @@ Module
   global @scoop$1$ss$facf72fcace9ee21fae9da3a5a28bfaa6541242dca45ba4a970501d3291f678f : i64 scan=none
   global @scoop$1$ss$a498afb56d9c7d5c9de404cf3925c0a0ac2bf5db6dd7dec62c17ce2a4eb67409 : ptr<managed> scan=refs[0]
   init0 top-level:later storage=@scoop$1$ss$facf72fcace9ee21fae9da3a5a28bfaa6541242dca45ba4a970501d3291f678f failure=@scoop$1$ss$a498afb56d9c7d5c9de404cf3925c0a0ac2bf5db6dd7dec62c17ce2a4eb67409 initializer=@scoop$1$cb$131dba5f883b294d99bbbab3e6d4f35153182db9e283f7d7efa08bb091faedf8 ensure=@scoop$1$cb$3fa7cc5adff7e61671b406de24f227f4f0b97cde8fce06cad342ab839768dbc1 deps=[]
-  extern ef0 trace @m23_trace(i64) -> void <c exact=(Long)->void bridge=@scoop$1$br$a78dba48a6ceb09a1faeb8ad263a019feab2260351de06b4b8406f1b9a8b6aa1 gc-leaf nounwind lib=m23_runtime_images>
+  extern ef0 trace @m23_trace(i64) -> void <c exact=(Long)->void direct-c=(i64)->void gc-leaf nounwind lib=m23_runtime_images>
   fun @scoop$1$cb$4cd460f7bea8759496fb544d0c4f5f05252d442acebcca70cc0cba903970e224(i64) -> void
-    local %0 $sc.1: i64
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
-    store param0 -> local0
-    call native-safe-void-target0 sp<native-safe:0> roots=[] sig=void0 (ptr<raw>) extern0(c-arg-address(local0))
+    call native-safe-void-target0 sp<native-safe:0> roots=[] sig=void0 (i64) extern0(param0)
     t0 = aggregate () : {}
     ret
   fun @scoop$1$cb$119c4a2cc99ca28fe71c8206a72d3f2a51ec22a9da931fb77f27aeb728245578() -> i64
     local %0 $argument.0: i64
     local %1 $parameter.value: i64
-    local %2 $sc.1: i64
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     store integer<Long>(0x0000000000000063) -> local0
     store local0 -> local1
-    store local1 -> local2
-    call native-safe-void-target0 sp<native-safe:0> roots=[] sig=void0 (ptr<raw>) extern0(c-arg-address(local2))
+    call native-safe-void-target0 sp<native-safe:0> roots=[] sig=void0 (i64) extern0(local1)
     t0 = aggregate () : {}
     ret integer<Long>(0x0000000000000063)
   fun @scoop$1$cb$131dba5f883b294d99bbbab3e6d4f35153182db9e283f7d7efa08bb091faedf8() -> void

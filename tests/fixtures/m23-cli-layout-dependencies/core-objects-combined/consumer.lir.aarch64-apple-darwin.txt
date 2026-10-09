@@ -22,7 +22,7 @@ Module
   init6 top-level:localImageWrite storage=@scoop$1$ss$b8acec208b7dbfb7355ca90c21ec0c3ce81804ccf8916be477d3f1e38f98c59f failure=@scoop$1$ss$cc34dd4be7f3d5fcd0f4cefbe40d7de5b1ae9233a7d24a97f55144608c6f9aa0 initializer=@scoop$1$cb$a053c6bae6746b786422f262ea16090d5728e28373eb0a4f15474cccff4597ab ensure=@scoop$1$cb$2334f33182a0020ea1180457854fda796e0ee256e9a7a78eb594841146d19045 deps=[]
   extern ef0 nativeIdentity @scoop_test_identity(i32) -> i32 <c exact=(Int)->Int bridge=@scoop$1$br$2a0d2d3a8213ebda0db4e61d47282dfbce04f8737bdd74b452a3c24ee3267fdc capture-errno gc-leaf nounwind>
   extern ef1 nativeOther @scoop_test_other(i32) -> i32 <c exact=(Int)->Int direct-c=(i32)->i32 gc-leaf nounwind>
-  fun @scoop$1$cb$e7ddec721004c06d9f400369a22556e8f4e03077569c25df1fbc675f24bfd799(i32) -> sret<{i32, i32} size=8 align=4 scan=none>
+  fun @scoop$1$cb$e7ddec721004c06d9f400369a22556e8f4e03077569c25df1fbc675f24bfd799(i32) -> parts<{i32, i32} [i64@0+8/4]>
     local %0 $call.1: {i32, i32}
     local %1 $sc.1: i32
     local %2 $sc.2: i32

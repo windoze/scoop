@@ -239,22 +239,22 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun thunk<PropertyCell<Later>> ReadOnlyProperty.value() @fn12(this: ReadOnlyProperty<Later>) -> Later
+  fun thunk<PropertyCell<Later>> ReadOnlyProperty.value() @fn12(this: box<PropertyCell<Later>>) -> Later
     bb0 entry
       call $call.1: Later = @fn2 direct
         Type PropertyCell<Later>
         Unbox
-          Type ReadOnlyProperty<Later>
+          Type box<PropertyCell<Later>>
           Local this
       return
         Type Later
         Local $call.1
-  fun thunk<PropertyCell<Later>> ReadOnlyProperty.read() @fn13(this: ReadOnlyProperty<Later>) -> Later
+  fun thunk<PropertyCell<Later>> ReadOnlyProperty.read() @fn13(this: box<PropertyCell<Later>>) -> Later
     bb0 entry
       call $call.1: Later = @fn3 direct
         Type ReadOnlyProperty<Later>
         Retype ReadOnlyProperty<Later>
-          Type ReadOnlyProperty<Later>
+          Type box<PropertyCell<Later>>
           Local this
       return
         Type Later

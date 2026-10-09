@@ -71,5 +71,5 @@ Module
     store t1 -> local3
     ret local3
   td td0 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Equality);[r(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Long))]) @scoop$1$td$6786b084643aa78b4ed8e6f33f8b81b10b7df0435640e0d599b950491bf615bb type-id=9657049773529793327 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
-  layout Equality value size=8 align=8 refs=[0]
+  layout Equality value size=16 align=8 refs=[0]
   output library

@@ -28,8 +28,6 @@ Module
     local %22 $dependency.argument.0: i64
     local %23 $dependency.parameter.other: i64
     local %24 $sc.1: enum0
-    local %25 $sc.2: enum1
-    local %26 $sc.3: enum2
   block entry
     call no-gc-direct-target0 t0 = sig=direct0 () -> i64 external-fn0()
     store t0 -> local7
@@ -54,8 +52,7 @@ Module
     store t5 -> local14
     t6 = enum_wrap e1 v1 () : enum1
     store t6 -> local13
-    store local13 -> local25
-    call no-gc-direct-target2 t7 = sig=direct2 (indirect<enum1 size=8 align=8 scan=none>) -> i64 external-fn3(indirect local25)
+    call no-gc-direct-target2 t7 = sig=direct2 (parts<enum1 [i64@0+8/8]>) -> i64 external-fn3(local13)
     store t7 -> local15
     store local15 -> local16
     t8 = integer_Add<Long> local14, local16 : i64
@@ -66,8 +63,7 @@ Module
     store t9 -> local21
     t10 = enum_wrap e2 v0 () : enum2
     store t10 -> local20
-    store local20 -> local26
-    call no-gc-direct-target3 t11 = sig=direct3 (indirect<enum2 size=8 align=8 scan=none>) -> i64 external-fn4(indirect local26)
+    call no-gc-direct-target3 t11 = sig=direct3 (parts<enum2 [i64@0+8/8]>) -> i64 external-fn4(local20)
     store t11 -> local22
     store local22 -> local23
     t12 = integer_Add<Long> local21, local23 : i64

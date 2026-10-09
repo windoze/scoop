@@ -23,8 +23,8 @@ Module
     call native-safe-direct-target0 sp<native-safe:0> roots=[] t0 = sig=direct0 () -> i32 extern0()
     store t0 -> local0
     store integer<Int>(0x0000002a) -> local1
-    store local1 -> local2
-    t1 = integer_compare_Equal<Int> local0, local2 : i1
+    store integer<Int>(0x0000002a) -> local2
+    t1 = integer_compare_Equal<Int> local0, integer<Int>(0x0000002a) : i1
     t2 = Not t1 : i1
     cbr t2 then @if.then.1 else @if.merge.2
   block if.then.1

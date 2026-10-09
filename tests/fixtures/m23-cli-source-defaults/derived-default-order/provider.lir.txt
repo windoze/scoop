@@ -4,7 +4,7 @@ Module
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret true
-  fun @scoop$1$cb$d3dec72cfb5b4712bbee92812e014baf7c07b01b25ea5e3b3aabf422b467154d(indirect<enum0 size=8 align=8 scan=none>, indirect<enum0 size=8 align=8 scan=none>) -> i1
+  fun @scoop$1$cb$d3dec72cfb5b4712bbee92812e014baf7c07b01b25ea5e3b3aabf422b467154d(parts<enum0 [i64@0+8/8]>, parts<enum0 [i64@0+8/8]>) -> i1
     local %0 $when.1: enum0
     local %1 $pattern.subject.2: enum0
     local %2 $when.3: enum0
@@ -46,7 +46,7 @@ Module
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret param2
-  fun @scoop$1$cb$7dd01a3d28b0310f49ffb38e1666b253b5baff712f2b00faf94c52829ddcffc1(indirect<enum0 size=8 align=8 scan=none>, indirect<enum0 size=8 align=8 scan=none>, i1) -> i1
+  fun @scoop$1$cb$7dd01a3d28b0310f49ffb38e1666b253b5baff712f2b00faf94c52829ddcffc1(parts<enum0 [i64@0+8/8]>, parts<enum0 [i64@0+8/8]>, i1) -> i1
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret param2
@@ -68,10 +68,6 @@ Module
     local %14 $new.3: ptr<managed>
     local %15 $call.4: i1
     local %16 $call.5: i1
-    local %17 $sc.1: enum0
-    local %18 $sc.2: enum0
-    local %19 $sc.3: enum0
-    local %20 $sc.4: enum0
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
     call no-gc-elided-zst-target0 t0 = sig=elided-zst0 () -> elided-zst<struct0 size=0 align=1> local-fn6()
@@ -91,13 +87,9 @@ Module
     store t6 -> local3
     store local2 -> local4
     store local3 -> local5
-    store local4 -> local17
-    store local5 -> local18
-    call managed-direct-target2 sp<managed-call:3> live=[] t7 = sig=direct2 (indirect<enum0 size=8 align=8 scan=none>, indirect<enum0 size=8 align=8 scan=none>) -> i1 local-fn1(indirect local17, indirect local18)
+    call managed-direct-target2 sp<managed-call:3> live=[] t7 = sig=direct2 (parts<enum0 [i64@0+8/8]>, parts<enum0 [i64@0+8/8]>) -> i1 local-fn1(local4, local5)
     store t7 -> local6
-    store local4 -> local19
-    store local5 -> local20
-    call managed-direct-target3 sp<managed-call:4> live=[] t8 = sig=direct3 (indirect<enum0 size=8 align=8 scan=none>, indirect<enum0 size=8 align=8 scan=none>, i1) -> i1 local-fn3(indirect local19, indirect local20, local6)
+    call managed-direct-target3 sp<managed-call:4> live=[] t8 = sig=direct3 (parts<enum0 [i64@0+8/8]>, parts<enum0 [i64@0+8/8]>, i1) -> i1 local-fn3(local4, local5, local6)
     store t8 -> local15
     call no-gc-elided-zst-target2 t9 = sig=elided-zst2 () -> elided-zst<struct0 size=0 align=1> local-fn6()
     store t9 -> local7

@@ -6,6 +6,7 @@ Module
   generated_exact_type get2 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
   generated_exact_type get3 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
   generated_exact_type get4 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
+  generated_callable gc0 function=@fn5 id=d90e4e16f8a10185e9e9e9078ed4d6aca6ebe9a3d99a9d391c6fb57b996f3490
   fun NumberReader.read @fn0(this: NumberReader) -> Int
     bb0 entry
       return
@@ -21,7 +22,7 @@ Module
       assign $new.1
         Type NumberReader
         ClassAlloc NumberReader
-      call @fn5 direct
+      call @fn6 direct
         Type NumberReader
         Local $new.1
       val reader: NumberReader
@@ -120,7 +121,17 @@ Module
   fun Reader.read @fn4(this: Reader<Int>) -> Int
     bb0 entry
       trap "call to abstract method `Reader.read`"
-  fun init.NumberReader.$c0 @fn5(this: NumberReader) -> Unit
+  fun receiver<NumberReader> Reader.again @fn5(this: NumberReader) -> Int
+    bb0 entry
+      call $call.1: Int = @fn3 direct
+        Type Reader<Int>
+        Retype Reader<Int>
+          Type NumberReader
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun init.NumberReader.$c0 @fn6(this: NumberReader) -> Unit
     bb0 entry
       return
   instance mi0 function=@fn3 <- Reader.again

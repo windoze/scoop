@@ -8,12 +8,14 @@ Module
   generated_exact_type get2 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
   generated_exact_type get3 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
   generated_exact_type get4 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
+  generated_callable gc0 function=@fn4 id=9456111126a077a6312f305d6d78a10431b8a00d4591195a42014b51396b7474
+  generated_callable gc1 function=@fn5 id=fc9cee9e3dd6f1dfb920708d2bcc637b77351f619edf885e24177046bdb711f1
   fun result @fn0() -> Int
     bb0 entry
       assign $new.1
         Type InterfaceChooser<Int>
         ClassAlloc InterfaceChooser<Int>
-      call @fn4 direct
+      call @fn6 direct
         Type InterfaceChooser<Int>
         Local $new.1
       val chooser: Chooser<Int>
@@ -51,15 +53,39 @@ Module
       return
         Type Int
         Local value
-  fun init.InterfaceChooser.$c0 @fn4(this: InterfaceChooser<Int>) -> Unit
+  fun receiver<AbstractChooser> RequiredChooser.choose @fn4(this: AbstractChooser<Int>, value: Int) -> Int
     bb0 entry
-      call @fn5 direct
+      call $call.1: Int = @fn1 direct
+        Type RequiredChooser<Int>
+        Retype RequiredChooser<Int>
+          Type AbstractChooser<Int>
+          Local this
+        Type Int
+        Local value
+      return
+        Type Int
+        Local $call.1
+  fun receiver<AbstractChooser> Chooser.choose @fn5(this: AbstractChooser<Int>, value: Int) -> Int
+    bb0 entry
+      call $call.1: Int = @fn1 direct
+        Type RequiredChooser<Int>
+        Retype RequiredChooser<Int>
+          Type AbstractChooser<Int>
+          Local this
+        Type Int
+        Local value
+      return
+        Type Int
+        Local $call.1
+  fun init.InterfaceChooser.$c0 @fn6(this: InterfaceChooser<Int>) -> Unit
+    bb0 entry
+      call @fn7 direct
         Type AbstractChooser<Int>
         Retype AbstractChooser<Int>
           Type InterfaceChooser<Int>
           Local this
       return
-  fun init.AbstractChooser.$c1 @fn5(this: AbstractChooser<Int>) -> Unit
+  fun init.AbstractChooser.$c1 @fn7(this: AbstractChooser<Int>) -> Unit
     bb0 entry
       return
   instance mi0 function=@fn1 <- RequiredChooser.choose

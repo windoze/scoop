@@ -5,14 +5,32 @@ Module
     local %1 $dependency.local.3: ptr<raw>
     local %2 $dependency.local.4: ptr<raw>
     local %3 $call.1: i1
+    local %4 $inline.1.result: i1
+    local %5 $inline.1.this: ptr<raw>
+    local %6 $inline.1.other: ptr<raw>
+    local %7 $inline.1.$dependency.local.2: ptr<raw>
+    local %8 $inline.1.$dependency.local.3: ptr<raw>
+    local %9 $inline.1.$dependency.local.4: i64
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     store param0 -> local0
     store param1 -> local1
     store local1 -> local2
-    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (ptr<raw>, ptr<raw>) -> i1 local-fn3(local0, local2)
-    store t0 -> local3
+    store local0 -> local5
+    store local2 -> local6
+    br @inline.1.entry
+  block inline.cont.1
+    store local4 -> local3
     ret local3
+  block inline.1.entry
+    store local5 -> local7
+    t0 = ptr_to_ulong local7 : i64
+    store t0 -> local9
+    store local6 -> local8
+    t1 = ptr_to_ulong local8 : i64
+    t2 = integer_compare_Equal<ULong> local9, t1 : i1
+    store t2 -> local4
+    br @inline.cont.1
   fun @scoop$1$cb$4f58897b74e6a7feb2f6f078e12b96f3c881e92b4b7632e3851906701d179b70(ptr<raw>, i64) -> i64 <no-gc>
     local %0 $call.1: i64
   block entry
@@ -128,13 +146,49 @@ Module
     unreachable
   fun @scoop$1$cb$c6ff6fff12558942b04aa8638596a11373786e2ae5c2ac887637da85d6605425(ptr<managed>, ptr<raw>) -> i1
     local %0 $call.1: i1
-    local %1 $box.1: ptr<raw>
+    local %1 $inline.1.result: i1
+    local %2 $inline.1.this: ptr<raw>
+    local %3 $inline.1.other: ptr<raw>
+    local %4 $inline.1.$dependency.local.2: ptr<raw>
+    local %5 $inline.1.$dependency.local.3: ptr<raw>
+    local %6 $inline.1.$dependency.local.4: ptr<raw>
+    local %7 $inline.1.$call.1: i1
+    local %8 $inline.3.result: i1
+    local %9 $inline.3.this: ptr<raw>
+    local %10 $inline.3.other: ptr<raw>
+    local %11 $inline.3.$dependency.local.2: ptr<raw>
+    local %12 $inline.3.$dependency.local.3: ptr<raw>
+    local %13 $inline.3.$dependency.local.4: i64
+    local %14 $box.1: ptr<raw>
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
-    unbox_value td1, param0 -> local1
-    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (ptr<raw>, ptr<raw>) -> i1 local-fn0(local1, param1)
-    store t0 -> local0
+    unbox_value td1, param0 -> local14
+    store local14 -> local2
+    store param1 -> local3
+    br @inline.1.entry
+  block inline.cont.1
+    store local1 -> local0
     ret local0
+  block inline.1.entry
+    store local2 -> local4
+    store local3 -> local5
+    store local5 -> local6
+    store local4 -> local9
+    store local6 -> local10
+    br @inline.3.entry
+  block inline.cont.3
+    store local8 -> local7
+    store local7 -> local1
+    br @inline.cont.1
+  block inline.3.entry
+    store local9 -> local11
+    t0 = ptr_to_ulong local11 : i64
+    store t0 -> local13
+    store local10 -> local12
+    t1 = ptr_to_ulong local12 : i64
+    t2 = integer_compare_Equal<ULong> local13, t1 : i1
+    store t2 -> local8
+    br @inline.cont.3
   fun @scoop$1$cb$d3dc6b4ea0ed74f0501181668d440450b83ff1d89b3bc5afe7a9dc2e73041e35(ptr<managed>, ptr<managed>, ptr<managed>) -> ptr<managed>
     local %0 $call.1: i64
     local %1 $box.1: ptr<raw>
@@ -153,7 +207,7 @@ Module
   td td1 g(r=00000006;i=e4ec7d6b35190924acf349c23aa85b835331b1cde257b59a1cf209a4f577efb6) @scoop$1$td$acbd9a5050cdf37dd5a6fad9850d5d4669abd0b71fdf840928443f44fe027453 type-id=4995921351475284515 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[td0:[local-fn6]]
   td td2 f(o;[r(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=UInt8)),n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Long)]->n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Long)) @scoop$1$td$4f5e6b7e3982407f7b017a61f57158d2f57fb19c0ceb680bab1ce4b9bef9ac39 type-id=18236249324230198300 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] function=ordinary(td1, external-td5)->external-td5
   td td3 g(r=00000001;i=23368405167fc728cb5ca14e9b54728335e5261caf57695effa17b0afa8e0252) @scoop$1$td$db6a5b1c021aed2b683b4b59db4a1345ed6aab95571b0407b7eef329d484c142 type-id=84097283446746512 shape=FixedObject minimum-size=24 align=8 parent=td2 vtable=[local-fn7] itables=[]
-  layout Equality value size=8 align=8 refs=[0]
+  layout Equality value size=16 align=8 refs=[0]
   layout box<Ptr<UInt8>> value size=8 align=8 refs=[0]
   layout box<Ptr<UInt8>> size=24 align=8 refs=[]
   layout $Closure$anonymous0 value size=8 align=8 refs=[0]

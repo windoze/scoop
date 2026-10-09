@@ -196,22 +196,22 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun thunk<LocalReader> Readable.read() @fn9(this: Readable) -> Long
+  fun thunk<LocalReader> Readable.read() @fn9(this: box<LocalReader>) -> Long
     bb0 entry
       call $call.1: Long = @fn0 direct
         Type LocalReader
         Unbox
-          Type Readable
+          Type box<LocalReader>
           Local this
       return
         Type Long
         Local $call.1
-  fun thunk<LocalReader> Readable.answer(Long) @fn10(this: Readable, extra: Long) -> Long
+  fun thunk<LocalReader> Readable.answer(Long) @fn10(this: box<LocalReader>, extra: Long) -> Long
     bb0 entry
       call $call.1: Long = external0 direct
         Type Readable
         Retype Readable
-          Type Readable
+          Type box<LocalReader>
           Local this
         Type Long
         Local extra

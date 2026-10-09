@@ -1,8 +1,8 @@
 Module
   fun @scoop$1$cb$4fc92215240dcb9b51aa12b5542c5907718b21041e84886805727925a24efce9() -> ptr<managed>
     local %0 value: i64
-    local %1 $dependency.parameter.value: ptr<managed>
-    local %2 $dependency.receiver: ptr<managed>
+    local %1 $dependency.parameter.value: interface{object,itab}
+    local %2 $dependency.receiver: interface{object,itab}
     local %3 $dependency.receiver: i64
     local %4 $equality.lhs: i64
     local %5 $dependency.receiver: i64
@@ -18,20 +18,23 @@ Module
     store integer<Long>(0x0000000000000015) -> local0
     store integer<Int>(0x00000015) -> local12
     t0 = box_value external-td4, local12 scan=none sp<managed-call:0> live=[]
-    store t0 -> local1
-    call managed-direct-target0 sp<managed-call:1> live=[local1:ptr<managed>@0] t1 = sig=direct0 (ptr<managed>) -> ptr<managed> external-fn0(local1)
-    store t1 -> local2
-    t2 = heap_load local2 +0 : ptr<metadata>
-    call no-gc-direct-target0 t3 = sig=direct1 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t2, external-td6)
-    call managed-direct-target1 sp<managed-call:2> live=[local2:ptr<managed>@0] t4 = sig=direct2 (ptr<managed>) -> i64 dispatch[Interface:0] t3(local2)
-    store t4 -> local4
+    t1 = heap_load external-td4 +96 : ptr<metadata>
+    t2 = heap_load t1 +8 : ptr<metadata>
+    t3 = aggregate (t0, t2) : interface{object,itab}
+    store t3 -> local1
+    call managed-direct-target0 sp<managed-call:1> live=[local1:interface{object,itab}@0] t4 = sig=direct0 (parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>) -> interface{object,itab} external-fn0(local1)
+    store t4 -> local2
+    t5 = extract local2, 1 : ptr<metadata>
+    t6 = extract local2, 0 : ptr<managed>
+    call managed-direct-target1 sp<managed-call:2> live=[t6:ptr<managed>@0] t7 = sig=direct1 (ptr<managed>) -> i64 dispatch[Interface:0] t5(t6)
+    store t7 -> local4
     store local0 -> local3
     store local4 -> local5
-    call managed-direct-target2 sp<managed-call:3> live=[] t5 = sig=direct3 (i64) -> i64 external-fn2(local3)
-    store t5 -> local6
+    call managed-direct-target2 sp<managed-call:3> live=[] t8 = sig=direct2 (i64) -> i64 external-fn2(local3)
+    store t8 -> local6
     store local6 -> local7
-    t6 = integer_compare_Equal<Long> local5, local7 : i1
-    cbr t6 then @if.then.1 else @if.else.2
+    t9 = integer_compare_Equal<Long> local5, local7 : i1
+    cbr t9 then @if.then.1 else @if.else.2
   block if.then.1
     store integer<Long>(0x0000000000000015) -> local8
     br @if.merge.3
@@ -41,11 +44,11 @@ Module
   block if.merge.3
     store local8 -> local9
     store local9 -> local10
-    call managed-direct-target3 sp<managed-call:4> live=[] t7 = sig=direct4 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td8, machine<byte-size>(ByteSize(24)))
-    store t7 -> local11
+    call managed-direct-target3 sp<managed-call:4> live=[] t10 = sig=direct3 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td8, machine<byte-size>(ByteSize(24)))
+    store t10 -> local11
     call managed-void-target0 sp<managed-call:5> live=[local11:ptr<managed>@0] sig=void0 (ptr<managed>, i64) external-fn3(local11, local10)
-    t8 = aggregate () : {}
+    t11 = aggregate () : {}
     ret local11
   td td0 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Equality);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$6fb0bdfcaef72d458561b350a56fb80e86e68f4c020173148c7fe1ec239ea687 type-id=940003777485400453 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
-  layout Equality value size=8 align=8 refs=[0]
+  layout Equality value size=16 align=8 refs=[0]
   output library

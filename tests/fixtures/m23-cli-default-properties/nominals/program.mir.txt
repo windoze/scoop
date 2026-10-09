@@ -10,10 +10,10 @@ Module
   class Exception vtable=0 itables=0
   class Throwable vtable=0 itables=0
   class Reader<Int> vtable=0 itables=2
-  class Store vtable=0 itables=1
-  class Child vtable=2 itables=2
-  class Base vtable=2 itables=2
-  class Singleton vtable=0 itables=1
+  class Store vtable=0 itables=0
+  class Child vtable=2 itables=0
+  class Base vtable=2 itables=0
+  class Singleton vtable=0 itables=0
   class box<Packet<String>> vtable=0 itables=1
   class box<Choice<Int>> vtable=0 itables=1
   interface Rich<Int> : Reading<Int>
@@ -27,12 +27,15 @@ Module
   generated_exact_type get4 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
   generated_exact_type get5 location=class8 nominal_id=b9374b42127122d6be1e14468d329212b841656318e21b9bc6a66c079d1ab478 exact_id=ba3f1927759d41cdeda4983c93a604fa26021e507233afe82a532c15025b6803
   generated_exact_type get6 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
-  generated_callable gc0 function=@fn17 id=493df291e07e40743cd6383570e324347234c900752afb384f4e2ef2a8959b14
-  generated_callable gc1 function=@fn15 id=508712be1be47de9f7091b592a174ee1a328f12a07e55c98871bb86b01bc14fc
-  generated_callable gc2 function=@fn18 id=7d6ca6f096981570bd5b17bcca1695964437720f26a8206d9976188fa1f1cb6b
-  generated_callable gc3 function=@fn14 id=8d2c5dcef15007e845ea1f1002f71e85c8c7dc3cbf110ffaf7682f51bd7e72cd
-  generated_callable gc4 function=@fn16 id=bf61b5db5686c52d6ee17519ad4eacf1d608ad9647f5c016bb2dc24c6b2e59ed
-  generated_callable gc5 function=@fn19 id=d8d47d0051c006c0ba047fcd83a355af373f5bb75808cfc273c65d05e91076a8
+  generated_callable gc0 function=@fn12 id=117b9fb582155807c7a4a59a72b8c89a28350b98463f5112075550c4b958ce0d
+  generated_callable gc1 function=@fn20 id=493df291e07e40743cd6383570e324347234c900752afb384f4e2ef2a8959b14
+  generated_callable gc2 function=@fn18 id=508712be1be47de9f7091b592a174ee1a328f12a07e55c98871bb86b01bc14fc
+  generated_callable gc3 function=@fn13 id=58d3202386351c154af0ffb5ac1f4f6200199be0fe0fda70a5ba8cadb221eac7
+  generated_callable gc4 function=@fn21 id=7d6ca6f096981570bd5b17bcca1695964437720f26a8206d9976188fa1f1cb6b
+  generated_callable gc5 function=@fn17 id=8d2c5dcef15007e845ea1f1002f71e85c8c7dc3cbf110ffaf7682f51bd7e72cd
+  generated_callable gc6 function=@fn19 id=bf61b5db5686c52d6ee17519ad4eacf1d608ad9647f5c016bb2dc24c6b2e59ed
+  generated_callable gc7 function=@fn22 id=d8d47d0051c006c0ba047fcd83a355af373f5bb75808cfc273c65d05e91076a8
+  generated_callable gc8 function=@fn14 id=f4da20c67f55e28b6355dadb95d67ae0496f0331a8ea6701eb64c7ee80d1a5d3
   fun check @fn0(value: Boolean) -> Unit
     bb0 entry
       val $dependency.receiver: Boolean
@@ -86,7 +89,7 @@ Module
       assign $new.1
         Type Reader<Int>
         ClassAlloc Reader<Int>
-      call @fn12 direct
+      call @fn15 direct
         Type Reader<Int>
         Local $new.1
         Type Int
@@ -185,7 +188,7 @@ Module
       val $dependency.parameter.stored: String
         Type String
         Local $dependency.argument.0
-      call $call.2: Packet<String> = @fn13 direct
+      call $call.2: Packet<String> = @fn16 direct
         Type String
         Local $dependency.parameter.stored
       call $dependency.receiver: String = @fn8 interface Reading<String>[1]
@@ -486,7 +489,37 @@ Module
   fun Reading.$get$item @fn11(this: Reading<String>) -> String
     bb0 entry
       trap "call to abstract method `Reading.$get$item`"
-  fun init.Reader.$c0 @fn12(this: Reader<Int>, stored: Int) -> Unit
+  fun receiver<Reader> Rich.fallback @fn12(this: Reader<Int>) -> Int
+    bb0 entry
+      call $call.1: Int = @fn3 direct
+        Type Reading<Int>
+        Retype Reading<Int>
+          Type Reader<Int>
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun receiver<Reader> Rich.size @fn13(this: Reader<Int>) -> Int
+    bb0 entry
+      call $call.1: Int = @fn4 direct
+        Type Rich<Int>
+        Retype Rich<Int>
+          Type Reader<Int>
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun receiver<Reader> Reading.size @fn14(this: Reader<Int>) -> Int
+    bb0 entry
+      call $call.1: Int = @fn4 direct
+        Type Rich<Int>
+        Retype Rich<Int>
+          Type Reader<Int>
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun init.Reader.$c0 @fn15(this: Reader<Int>, stored: Int) -> Unit
     bb0 entry
       field_set 0
         Type Reader<Int>
@@ -494,69 +527,69 @@ Module
         Type Int
         Local stored
       return
-  fun ctor.Packet.$c1 @fn13(stored: String) -> Packet<String> <no-gc>
+  fun ctor.Packet.$c1 @fn16(stored: String) -> Packet<String> <no-gc>
     bb0 entry
       return
         Type Packet<String>
         StructInit Packet<String>
           Type String
           Local stored
-  fun thunk<Packet<String>> Reading.item() @fn14(this: Reading<String>) -> String
+  fun thunk<Packet<String>> Reading.item() @fn17(this: box<Packet<String>>) -> String
     bb0 entry
       call $call.1: String = @fn7 direct
         Type Packet<String>
         Unbox
-          Type Reading<String>
+          Type box<Packet<String>>
           Local this
       return
         Type String
         Local $call.1
-  fun thunk<Packet<String>> Reading.fallback() @fn15(this: Reading<String>) -> String
+  fun thunk<Packet<String>> Reading.fallback() @fn18(this: box<Packet<String>>) -> String
     bb0 entry
       call $call.1: String = @fn8 direct
         Type Reading<String>
         Retype Reading<String>
-          Type Reading<String>
+          Type box<Packet<String>>
           Local this
       return
         Type String
         Local $call.1
-  fun thunk<Packet<String>> Reading.size() @fn16(this: Reading<String>) -> Int
+  fun thunk<Packet<String>> Reading.size() @fn19(this: box<Packet<String>>) -> Int
     bb0 entry
       call $call.1: Int = @fn9 direct
         Type Reading<String>
         Retype Reading<String>
-          Type Reading<String>
+          Type box<Packet<String>>
           Local this
       return
         Type Int
         Local $call.1
-  fun thunk<Choice<Int>> Reading.item() @fn17(this: Reading<Int>) -> Int
+  fun thunk<Choice<Int>> Reading.item() @fn20(this: box<Choice<Int>>) -> Int
     bb0 entry
       call $call.1: Int = @fn5 direct
         Type Choice<Int>
         Unbox
-          Type Reading<Int>
+          Type box<Choice<Int>>
           Local this
       return
         Type Int
         Local $call.1
-  fun thunk<Choice<Int>> Reading.fallback() @fn18(this: Reading<Int>) -> Int
+  fun thunk<Choice<Int>> Reading.fallback() @fn21(this: box<Choice<Int>>) -> Int
     bb0 entry
       call $call.1: Int = @fn3 direct
         Type Reading<Int>
         Retype Reading<Int>
-          Type Reading<Int>
+          Type box<Choice<Int>>
           Local this
       return
         Type Int
         Local $call.1
-  fun thunk<Choice<Int>> Reading.size() @fn19(this: Reading<Int>) -> Int
+  fun thunk<Choice<Int>> Reading.size() @fn22(this: box<Choice<Int>>) -> Int
     bb0 entry
       call $call.1: Int = @fn6 direct
         Type Reading<Int>
         Retype Reading<Int>
-          Type Reading<Int>
+          Type box<Choice<Int>>
           Local this
       return
         Type Int

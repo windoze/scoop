@@ -79,7 +79,7 @@ checks = [
   {"file" = "${work}/dump/exposed/${exposed.result.root.identity}/ast.txt", "snapshot" = "exposed.ast.txt"},
   {"file" = "${work}/dump/exposed/${exposed.result.root.identity}/hir.txt", "snapshot" = "exposed.hir.txt"},
   {"file" = "${work}/dump/exposed/${exposed.result.root.identity}/mir.txt", "snapshot" = "exposed.mir.txt"},
-  {"file" = "${work}/dump/exposed/${exposed.result.root.identity}/lir.txt", "snapshot" = "exposed.lir.txt"},
+  {"file" = "${work}/dump/exposed/${exposed.result.root.identity}/lir.txt", "snapshot" = "exposed.${target}.lir.txt"},
 ]
 
 [[steps]]

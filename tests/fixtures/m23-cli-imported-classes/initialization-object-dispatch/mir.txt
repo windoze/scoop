@@ -1,6 +1,6 @@
 Module
   global0 $singleton$ccd267f7ca1ab72d1a1bfd6f86b388103042a21b5d5d8bdd1c2c047213a4dbe5: SharedReader imported provider=c23abc776c4a14a818e646e381968285132367b1c1b82ec69ae67b8ef5c2718a storage=d290468017d933350e437305fbceb884bb974d02b96ffb69f6da670c2f002718
-  class SharedReader vtable=0 itables=1
+  class SharedReader vtable=0 itables=0
   class Counter vtable=0 itables=0
   interface Readable
   generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d

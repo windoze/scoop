@@ -7,214 +7,196 @@ Module
   global @scoop$1$bs$afbe03a651d77e94ff640a7eed4413fd337c016727dd456a857403ad16e3e4ca = c"call to abstract method `SuspendTask.run`"
   global @scoop$1$bs$83061ec665bfbdcbc0c86fad844b0c6158826955b17edf422e62a5f9e98c0f51 = c"call to abstract method `SuspendRegistration.register`"
   native_global0 globalOpaque @m22_global_opaque : ptr<raw> c=data-ptr<opaque-void,direct> mutable(get=ng-get0,set=ng-set0,address=ng-address0)
-  native_global1 globalCell @m22_global_cell : ptr<raw> c=data-ptr<c-struct0,direct> mutable(get=ng-get1,set=ng-set1,address=ng-address1)
+  native_global1 globalCell @m22_global_cell : ptr<raw> c=data-ptr<c-struct1,direct> mutable(get=ng-get1,set=ng-set1,address=ng-address1)
   native_global2 globalOptionalOpaque @m22_global_optional_opaque : enum0 c=data-ptr<opaque-void,nullable=enum0<opaque-void>> mutable(get=ng-get2,set=ng-set2,address=ng-address2)
-  native_global3 globalOptionalCell @m22_global_optional_cell : enum1 c=data-ptr<c-struct0,nullable=enum1<c-struct0>> mutable(get=ng-get3,set=ng-set3,address=ng-address3)
+  native_global3 globalOptionalCell @m22_global_optional_cell : enum1 c=data-ptr<c-struct1,nullable=enum1<c-struct1>> mutable(get=ng-get3,set=ng-set3,address=ng-address3)
   native_global4 globalCallback @m22_global_callback : ptr<code> c=code-ptr<(Int)->Int,direct> mutable(get=ng-get4,set=ng-set4,address=ng-address4)
   native_global5 globalOptionalCallback @m22_global_optional_callback : enum2 c=code-ptr<(Int)->Int,nullable=enum2<(Int)->Int>> mutable(get=ng-get5,set=ng-set5,address=ng-address5)
-  c-struct struct0 NativeCell fields=[Int@0/4]
-  c-struct struct1 PointerBundle fields=[data-ptr<opaque-void,direct>@0/8,data-ptr<c-struct0,direct>@8/8,data-ptr<opaque-void,nullable=enum0<opaque-void>>@16/8,data-ptr<c-struct0,nullable=enum1<c-struct0>>@24/8,code-ptr<(Int)->Int,direct>@32/8,code-ptr<(Int)->Int,nullable=enum2<(Int)->Int>>@40/8]
+  c-struct struct1 NativeCell fields=[Int@0/4]
+  c-struct struct3 PointerBundle fields=[data-ptr<opaque-void,direct>@0/8,data-ptr<c-struct1,direct>@8/8,data-ptr<opaque-void,nullable=enum0<opaque-void>>@16/8,data-ptr<c-struct1,nullable=enum1<c-struct1>>@24/8,code-ptr<(Int)->Int,direct>@32/8,code-ptr<(Int)->Int,nullable=enum2<(Int)->Int>>@40/8]
   enum Option niche(kind=raw,payload_variant=0)
   enum Option niche(kind=raw,payload_variant=0)
   enum Option niche(kind=code,payload_variant=0)
   enum Option niche(kind=managed,payload_variant=0)
-  enum CoroutineStep<NativeCell> tagged size=16 align=8 variants=(struct0)@8+4 ()@8+0
-  enum CoroutineSlot<NativeCell> tagged size=16 align=8 variants=()@8+0 (struct0)@8+4
-  extern ef0 malloc @malloc(i64) -> ptr<raw> <c exact=(ULong)->data-ptr<opaque-void,direct> bridge=@scoop$1$br$f173e239fdf8fab86de5d4878493c99e9570c6d2a4adcbbbbca53718291ec63d gc-leaf nounwind>
-  extern ef1 free @free(ptr<raw>) -> void <c exact=(data-ptr<opaque-void,direct>)->void bridge=@scoop$1$br$99ce6c15ae6dc60ebb9aa3ebb2bf9cc4fa5a8f9bf738aaba84f88239c05a8c5e gc-leaf nounwind>
-  extern ef2 roundOpaque @m22_round_opaque(ptr<raw>) -> ptr<raw> <c exact=(data-ptr<opaque-void,direct>)->data-ptr<opaque-void,direct> bridge=@scoop$1$br$511b84745aa8a60a76cd1fc30734c5d239c88c42857c7992e65d9af47d36c69a gc-leaf nounwind lib=fixture_native>
-  extern ef3 roundCell @m22_round_cell(ptr<raw>) -> ptr<raw> <c exact=(data-ptr<c-struct0,direct>)->data-ptr<c-struct0,direct> bridge=@scoop$1$br$9bcc80d02f800ab30eff3f8c152fb3ed1fdb69bb0c2347200a3b4b6f24249636 gc-leaf nounwind lib=fixture_native>
-  extern ef4 roundOptionalOpaque @m22_round_optional_opaque(enum0) -> enum0 <c exact=(data-ptr<opaque-void,nullable=enum0<opaque-void>>)->data-ptr<opaque-void,nullable=enum0<opaque-void>> bridge=@scoop$1$br$5d8fffcd4aabe24a96fcab9eb61b3fef720f84e2eb81f1eaed4e46f672784e5d gc-leaf nounwind lib=fixture_native>
-  extern ef5 roundOptionalCell @m22_round_optional_cell(enum1) -> enum1 <c exact=(data-ptr<c-struct0,nullable=enum1<c-struct0>>)->data-ptr<c-struct0,nullable=enum1<c-struct0>> bridge=@scoop$1$br$c21774ab1064f6098227f3d09ff3009a3fbc44f98c63b3d82854cf76c7df34e6 gc-leaf nounwind lib=fixture_native>
-  extern ef6 roundCallback @m22_round_callback(ptr<code>) -> ptr<code> <c exact=(code-ptr<(Int)->Int,direct>)->code-ptr<(Int)->Int,direct> bridge=@scoop$1$br$c056f51fb78e9f96aaec75df1c4632296910eed92ad754f446ab522fc6fe3dea gc-leaf nounwind lib=fixture_native>
-  extern ef7 roundOptionalCallback @m22_round_optional_callback(enum2) -> enum2 <c exact=(code-ptr<(Int)->Int,nullable=enum2<(Int)->Int>>)->code-ptr<(Int)->Int,nullable=enum2<(Int)->Int>> bridge=@scoop$1$br$8835c79dca6549f3d1286134434a52dd70ae7a1830345ebc4885937360f5ffd3 gc-leaf nounwind lib=fixture_native>
-  extern ef8 nullOpaque @m22_null_opaque() -> enum0 <c exact=()->data-ptr<opaque-void,nullable=enum0<opaque-void>> bridge=@scoop$1$br$3f418f66f92ecf546669b6c0e754f1011697ab5a0df3d232fabf89b8b54724af gc-leaf nounwind lib=fixture_native>
-  extern ef9 nullCell @m22_null_cell() -> enum1 <c exact=()->data-ptr<c-struct0,nullable=enum1<c-struct0>> bridge=@scoop$1$br$7746b1bec2c86bf8108b630bbee67c157768d4599e8f4133938b68ac7565d490 gc-leaf nounwind lib=fixture_native>
-  extern ef10 nativeCallback @m22_native_callback() -> ptr<code> <c exact=()->code-ptr<(Int)->Int,direct> bridge=@scoop$1$br$178a0253509f94c80d4a5957456ffd520e7a92cdc310be07759c8b1b19a7b9b6 gc-leaf nounwind lib=fixture_native>
-  extern ef11 nativeOptionalCallback @m22_native_optional_callback() -> enum2 <c exact=()->code-ptr<(Int)->Int,nullable=enum2<(Int)->Int>> bridge=@scoop$1$br$e78bf9fc589b390d48f2e4a9b8d65a33c2c071904b8fd041fee4f2dc509ad395 gc-leaf nounwind lib=fixture_native>
-  extern ef12 nullCallback @m22_null_callback() -> enum2 <c exact=()->code-ptr<(Int)->Int,nullable=enum2<(Int)->Int>> bridge=@scoop$1$br$fa47dd1cdd1c6cf103982c0614a05a13f5d47aa1ab607e8f92b5cfbdd841d392 gc-leaf nounwind lib=fixture_native>
-  extern ef13 applyCallback @m22_apply_callback(i32, ptr<code>) -> i32 <c exact=(Int,code-ptr<(Int)->Int,direct>)->Int bridge=@scoop$1$br$efb7e6ac5a7976e8cbf5fe1d5582ad2b6fd648abe25d04afc2c7e34028e7add7 gc-leaf nounwind lib=fixture_native>
-  extern ef14 roundBundle @m22_round_bundle(struct1) -> struct1 <c exact=(c-struct1)->c-struct1 bridge=@scoop$1$br$97df45835f117aa629bb2736f5a458a52ea79f9647fa195b7662a2eb724d2a95 gc-leaf nounwind lib=fixture_native>
-  extern ef15 makeSomeBundle @m22_make_some_bundle(ptr<raw>, ptr<raw>) -> struct1 <c exact=(data-ptr<opaque-void,direct>,data-ptr<c-struct0,direct>)->c-struct1 bridge=@scoop$1$br$d9fe22aedc1104bd54bc2bf22cdaf2711fef85f016ef391a8d918ad770c40cb8 gc-leaf nounwind lib=fixture_native>
-  extern ef16 makeNoneBundle @m22_make_none_bundle(ptr<raw>, ptr<raw>) -> struct1 <c exact=(data-ptr<opaque-void,direct>,data-ptr<c-struct0,direct>)->c-struct1 bridge=@scoop$1$br$1cd9deec45dad1b58f89f99b2ba66fd8dffe50c5d6140552f62a74956fdc371e gc-leaf nounwind lib=fixture_native>
-  extern ef17 readOpaque @m22_read_opaque(ptr<raw>) -> i32 <c exact=(data-ptr<opaque-void,direct>)->Int bridge=@scoop$1$br$93aeced977e06c25f0d8059a006a2deb9c27de035c9c7f4d3723e3c74b65fc93 gc-leaf nounwind lib=fixture_native>
-  extern ef18 prepareGlobals @m22_prepare_globals() -> void <c exact=()->void bridge=@scoop$1$br$38db13f73ddcba9121a678ed6f80fb2412c483e34f139ec20fdef2e30e8df5e3 gc-leaf nounwind lib=fixture_native>
-  extern ef19 cleanupGlobals @m22_cleanup_globals() -> void <c exact=()->void bridge=@scoop$1$br$f0d7d4e4928e626d0a47f1e5ea5e30b0c4206e02f5566ad5a35b9efa3f4f10dd gc-leaf nounwind lib=fixture_native>
-  extern ef20 globalsMatch @m22_globals_match(ptr<raw>, ptr<raw>, enum0, enum1, ptr<code>, enum2) -> i1 <c exact=(data-ptr<opaque-void,direct>,data-ptr<c-struct0,direct>,data-ptr<opaque-void,nullable=enum0<opaque-void>>,data-ptr<c-struct0,nullable=enum1<c-struct0>>,code-ptr<(Int)->Int,direct>,code-ptr<(Int)->Int,nullable=enum2<(Int)->Int>>)->Boolean bridge=@scoop$1$br$28fba18b273086daf7b85fec3f79266a95e37b1c6d51ef0c42ed52645a2058d1 gc-leaf nounwind lib=fixture_native>
+  enum CoroutineStep<NativeCell> tagged size=16 align=8 variants=(struct1)@8+4 ()@8+0
+  enum CoroutineSlot<NativeCell> tagged size=16 align=8 variants=()@8+0 (struct1)@8+4
+  extern ef0 malloc @malloc(i64) -> ptr<raw> <c exact=(ULong)->data-ptr<opaque-void,direct> direct-c=(i64)->ptr<raw> gc-leaf nounwind>
+  extern ef1 free @free(ptr<raw>) -> void <c exact=(data-ptr<opaque-void,direct>)->void direct-c=(ptr<raw>)->void gc-leaf nounwind>
+  extern ef2 roundOpaque @m22_round_opaque(ptr<raw>) -> ptr<raw> <c exact=(data-ptr<opaque-void,direct>)->data-ptr<opaque-void,direct> direct-c=(ptr<raw>)->ptr<raw> gc-leaf nounwind lib=fixture_native>
+  extern ef3 roundCell @m22_round_cell(ptr<raw>) -> ptr<raw> <c exact=(data-ptr<c-struct1,direct>)->data-ptr<c-struct1,direct> direct-c=(ptr<raw>)->ptr<raw> gc-leaf nounwind lib=fixture_native>
+  extern ef4 roundOptionalOpaque @m22_round_optional_opaque(enum0) -> enum0 <c exact=(data-ptr<opaque-void,nullable=enum0<opaque-void>>)->data-ptr<opaque-void,nullable=enum0<opaque-void>> direct-c=(enum0)->enum0 gc-leaf nounwind lib=fixture_native>
+  extern ef5 roundOptionalCell @m22_round_optional_cell(enum1) -> enum1 <c exact=(data-ptr<c-struct1,nullable=enum1<c-struct1>>)->data-ptr<c-struct1,nullable=enum1<c-struct1>> direct-c=(enum1)->enum1 gc-leaf nounwind lib=fixture_native>
+  extern ef6 roundCallback @m22_round_callback(ptr<code>) -> ptr<code> <c exact=(code-ptr<(Int)->Int,direct>)->code-ptr<(Int)->Int,direct> direct-c=(ptr<code>)->ptr<code> gc-leaf nounwind lib=fixture_native>
+  extern ef7 roundOptionalCallback @m22_round_optional_callback(enum2) -> enum2 <c exact=(code-ptr<(Int)->Int,nullable=enum2<(Int)->Int>>)->code-ptr<(Int)->Int,nullable=enum2<(Int)->Int>> direct-c=(enum2)->enum2 gc-leaf nounwind lib=fixture_native>
+  extern ef8 nullOpaque @m22_null_opaque() -> enum0 <c exact=()->data-ptr<opaque-void,nullable=enum0<opaque-void>> direct-c=()->enum0 gc-leaf nounwind lib=fixture_native>
+  extern ef9 nullCell @m22_null_cell() -> enum1 <c exact=()->data-ptr<c-struct1,nullable=enum1<c-struct1>> direct-c=()->enum1 gc-leaf nounwind lib=fixture_native>
+  extern ef10 nativeCallback @m22_native_callback() -> ptr<code> <c exact=()->code-ptr<(Int)->Int,direct> direct-c=()->ptr<code> gc-leaf nounwind lib=fixture_native>
+  extern ef11 nativeOptionalCallback @m22_native_optional_callback() -> enum2 <c exact=()->code-ptr<(Int)->Int,nullable=enum2<(Int)->Int>> direct-c=()->enum2 gc-leaf nounwind lib=fixture_native>
+  extern ef12 nullCallback @m22_null_callback() -> enum2 <c exact=()->code-ptr<(Int)->Int,nullable=enum2<(Int)->Int>> direct-c=()->enum2 gc-leaf nounwind lib=fixture_native>
+  extern ef13 applyCallback @m22_apply_callback(i32, ptr<code>) -> i32 <c exact=(Int,code-ptr<(Int)->Int,direct>)->Int direct-c=(i32,ptr<code>)->i32 gc-leaf nounwind lib=fixture_native>
+  extern ef14 roundBundle @m22_round_bundle(struct3) -> struct3 <c exact=(c-struct3)->c-struct3 direct-c=(byval/8<struct3>)->sret<struct3> gc-leaf nounwind lib=fixture_native>
+  extern ef15 makeSomeBundle @m22_make_some_bundle(ptr<raw>, ptr<raw>) -> struct3 <c exact=(data-ptr<opaque-void,direct>,data-ptr<c-struct1,direct>)->c-struct3 direct-c=(ptr<raw>,ptr<raw>)->sret<struct3> gc-leaf nounwind lib=fixture_native>
+  extern ef16 makeNoneBundle @m22_make_none_bundle(ptr<raw>, ptr<raw>) -> struct3 <c exact=(data-ptr<opaque-void,direct>,data-ptr<c-struct1,direct>)->c-struct3 direct-c=(ptr<raw>,ptr<raw>)->sret<struct3> gc-leaf nounwind lib=fixture_native>
+  extern ef17 readOpaque @m22_read_opaque(ptr<raw>) -> i32 <c exact=(data-ptr<opaque-void,direct>)->Int direct-c=(ptr<raw>)->i32 gc-leaf nounwind lib=fixture_native>
+  extern ef18 prepareGlobals @m22_prepare_globals() -> void <c exact=()->void direct-c=()->void gc-leaf nounwind lib=fixture_native>
+  extern ef19 cleanupGlobals @m22_cleanup_globals() -> void <c exact=()->void direct-c=()->void gc-leaf nounwind lib=fixture_native>
+  extern ef20 globalsMatch @m22_globals_match(ptr<raw>, ptr<raw>, enum0, enum1, ptr<code>, enum2) -> i1 <c exact=(data-ptr<opaque-void,direct>,data-ptr<c-struct1,direct>,data-ptr<opaque-void,nullable=enum0<opaque-void>>,data-ptr<c-struct1,nullable=enum1<c-struct1>>,code-ptr<(Int)->Int,direct>,code-ptr<(Int)->Int,nullable=enum2<(Int)->Int>>)->Boolean direct-c=(ptr<raw>,ptr<raw>,enum0,enum1,ptr<code>,enum2)->i1 zeroext gc-leaf nounwind lib=fixture_native>
   callback cb0 scoopIncrement @scoop$1$cb$c72a2b4d0bb430a71a00658d3a55e4cf3e8691870602b0405a10f451e893c082 -> @scoop$1$br$d1d7c33fababbe3747e547defd3a13c8be55df974b78840813066a68b634a732 c=(Int)->Int
-  fun @scoop$1$cb$172b7f001688c27ead432256c9af4793b6be404b04e55445baeb3d860cd44489(i64) -> ptr<raw>
-    local %0 $call.1: ptr<raw>
-    local %1 $sc.1: i64
-    local %2 $sc.2: ptr<raw>
-  block entry
-    poll managed-void-target0 sp<managed-poll:0> live=[]
-    store param0 -> local1
-    call native-safe-indirect-target0 sp<native-safe:0> roots=[] local2 = sig=indirect0 (c-storage-pointer ptr<raw> size=8 align=8 scan=none, ptr<raw>) extern0(c-arg-address(local1))
-    store local2 -> local0
-    ret local0
-  fun @scoop$1$cb$c5594ce75ee977ee6f9ec59e11ec616037beccb4b2caa3494a5788257354c598(ptr<raw>) -> void
-    local %0 $sc.1: ptr<raw>
+  fun @scoop$1$cb$022f21caf03f9642af596e65e367bee0ae4916887a5f372c77f2fd57af77ec5f(ptr<raw>, ptr<raw>) -> i1
+    local %0 $dependency.local.2: ptr<raw>
+    local %1 $dependency.local.3: ptr<raw>
+    local %2 $dependency.local.4: ptr<raw>
+    local %3 $call.1: i1
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     store param0 -> local0
-    call native-safe-void-target0 sp<native-safe:0> roots=[] sig=void0 (ptr<raw>) extern1(c-arg-address(local0))
+    store param1 -> local1
+    store local1 -> local2
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (ptr<raw>, ptr<raw>) -> i1 local-fn31(local0, local2)
+    store t0 -> local3
+    ret local3
+  fun @scoop$1$cb$d64bc803ded75d896c6e3fac1f9e4488ce8a532090e62e2dba0f27eba310f6d2(ptr<raw>, ptr<raw>) -> i1
+    local %0 $dependency.local.2: ptr<raw>
+    local %1 $dependency.local.3: ptr<raw>
+    local %2 $dependency.local.4: ptr<raw>
+    local %3 $call.1: i1
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store param0 -> local0
+    store param1 -> local1
+    store local1 -> local2
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (ptr<raw>, ptr<raw>) -> i1 local-fn32(local0, local2)
+    store t0 -> local3
+    ret local3
+  fun @scoop$1$cb$172b7f001688c27ead432256c9af4793b6be404b04e55445baeb3d860cd44489(i64) -> ptr<raw>
+    local %0 $call.1: ptr<raw>
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    call native-safe-direct-target0 sp<native-safe:0> roots=[] t0 = sig=direct0 (i64) -> ptr<raw> extern0(param0)
+    store t0 -> local0
+    ret local0
+  fun @scoop$1$cb$c5594ce75ee977ee6f9ec59e11ec616037beccb4b2caa3494a5788257354c598(ptr<raw>) -> void
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    call native-safe-void-target0 sp<native-safe:0> roots=[] sig=void0 (ptr<raw>) extern1(param0)
     t0 = aggregate () : {}
     ret
   fun @scoop$1$cb$5885661832849d043b0728474585a5bdbda8282f333be544c429e09f542e8f5e(ptr<raw>) -> ptr<raw>
     local %0 $call.1: ptr<raw>
-    local %1 $sc.1: ptr<raw>
-    local %2 $sc.2: ptr<raw>
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
-    store param0 -> local1
-    call native-safe-indirect-target0 sp<native-safe:0> roots=[] local2 = sig=indirect0 (c-storage-pointer ptr<raw> size=8 align=8 scan=none, ptr<raw>) extern2(c-arg-address(local1))
-    store local2 -> local0
+    call native-safe-direct-target0 sp<native-safe:0> roots=[] t0 = sig=direct0 (ptr<raw>) -> ptr<raw> extern2(param0)
+    store t0 -> local0
     ret local0
   fun @scoop$1$cb$e2029c0bb8bd4595a7d0e294b2ade715a1d86e4e27fc92a3878a4a89ab7cca74(ptr<raw>) -> ptr<raw>
     local %0 $call.1: ptr<raw>
-    local %1 $sc.1: ptr<raw>
-    local %2 $sc.2: ptr<raw>
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
-    store param0 -> local1
-    call native-safe-indirect-target0 sp<native-safe:0> roots=[] local2 = sig=indirect0 (c-storage-pointer ptr<raw> size=8 align=8 scan=none, ptr<raw>) extern3(c-arg-address(local1))
-    store local2 -> local0
+    call native-safe-direct-target0 sp<native-safe:0> roots=[] t0 = sig=direct0 (ptr<raw>) -> ptr<raw> extern3(param0)
+    store t0 -> local0
     ret local0
   fun @scoop$1$cb$c0f6cd0b1c36796985ecec81f0fbd72e0ed6ab9ba925b1c3f9e4f7a5968e85e9(enum0) -> enum0
     local %0 $call.1: enum0
-    local %1 $sc.1: enum0
-    local %2 $sc.2: enum0
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
-    store param0 -> local1
-    call native-safe-indirect-target0 sp<native-safe:0> roots=[] local2 = sig=indirect0 (c-storage-pointer enum0 size=8 align=8 scan=none, ptr<raw>) extern4(c-arg-address(local1))
-    store local2 -> local0
+    call native-safe-direct-target0 sp<native-safe:0> roots=[] t0 = sig=direct0 (enum0) -> enum0 extern4(param0)
+    store t0 -> local0
     ret local0
   fun @scoop$1$cb$bb86ea486b617a0b5304fe0f3112c5296167a6f013ceb2afc28dbc7ec2becf2e(enum1) -> enum1
     local %0 $call.1: enum1
-    local %1 $sc.1: enum1
-    local %2 $sc.2: enum1
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
-    store param0 -> local1
-    call native-safe-indirect-target0 sp<native-safe:0> roots=[] local2 = sig=indirect0 (c-storage-pointer enum1 size=8 align=8 scan=none, ptr<raw>) extern5(c-arg-address(local1))
-    store local2 -> local0
+    call native-safe-direct-target0 sp<native-safe:0> roots=[] t0 = sig=direct0 (enum1) -> enum1 extern5(param0)
+    store t0 -> local0
     ret local0
   fun @scoop$1$cb$22d65628433df7f613363894bc92bde5fe111126ad45dffe2a6c1594d9cace24(ptr<code>) -> ptr<code>
     local %0 $call.1: ptr<code>
-    local %1 $sc.1: ptr<code>
-    local %2 $sc.2: ptr<code>
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
-    store param0 -> local1
-    call native-safe-indirect-target0 sp<native-safe:0> roots=[] local2 = sig=indirect0 (c-storage-pointer ptr<code> size=8 align=8 scan=none, ptr<raw>) extern6(c-arg-address(local1))
-    store local2 -> local0
+    call native-safe-direct-target0 sp<native-safe:0> roots=[] t0 = sig=direct0 (ptr<code>) -> ptr<code> extern6(param0)
+    store t0 -> local0
     ret local0
   fun @scoop$1$cb$7daeff2e1ee8712ee4f88b4a1aee8e78eb535cfe4fc1070ade129f1ba08a5a48(enum2) -> enum2
     local %0 $call.1: enum2
-    local %1 $sc.1: enum2
-    local %2 $sc.2: enum2
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
-    store param0 -> local1
-    call native-safe-indirect-target0 sp<native-safe:0> roots=[] local2 = sig=indirect0 (c-storage-pointer enum2 size=8 align=8 scan=none, ptr<raw>) extern7(c-arg-address(local1))
-    store local2 -> local0
+    call native-safe-direct-target0 sp<native-safe:0> roots=[] t0 = sig=direct0 (enum2) -> enum2 extern7(param0)
+    store t0 -> local0
     ret local0
   fun @scoop$1$cb$7c297e95f26d38f6cd250824f3a99c2df242a3bcfd39a899adf7b1caac86bc62() -> enum0
     local %0 $call.1: enum0
-    local %1 $sc.1: enum0
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
-    call native-safe-indirect-target0 sp<native-safe:0> roots=[] local1 = sig=indirect0 (c-storage-pointer enum0 size=8 align=8 scan=none) extern8()
-    store local1 -> local0
+    call native-safe-direct-target0 sp<native-safe:0> roots=[] t0 = sig=direct0 () -> enum0 extern8()
+    store t0 -> local0
     ret local0
   fun @scoop$1$cb$7b04b459a9d5fd8f3196f4f6ac3310db1711ba05150e604aea57ea4764afb299() -> enum1
     local %0 $call.1: enum1
-    local %1 $sc.1: enum1
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
-    call native-safe-indirect-target0 sp<native-safe:0> roots=[] local1 = sig=indirect0 (c-storage-pointer enum1 size=8 align=8 scan=none) extern9()
-    store local1 -> local0
+    call native-safe-direct-target0 sp<native-safe:0> roots=[] t0 = sig=direct0 () -> enum1 extern9()
+    store t0 -> local0
     ret local0
   fun @scoop$1$cb$1bad7e004d6dcb46f74d5e88c7e88b9bbcae26d2d24c26c5748685d24585681f() -> ptr<code>
     local %0 $call.1: ptr<code>
-    local %1 $sc.1: ptr<code>
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
-    call native-safe-indirect-target0 sp<native-safe:0> roots=[] local1 = sig=indirect0 (c-storage-pointer ptr<code> size=8 align=8 scan=none) extern10()
-    store local1 -> local0
+    call native-safe-direct-target0 sp<native-safe:0> roots=[] t0 = sig=direct0 () -> ptr<code> extern10()
+    store t0 -> local0
     ret local0
   fun @scoop$1$cb$ec194eca48bca4b0a8d6b33798a48704cbf21f896e05ffbcfb3140c62e48431d() -> enum2
     local %0 $call.1: enum2
-    local %1 $sc.1: enum2
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
-    call native-safe-indirect-target0 sp<native-safe:0> roots=[] local1 = sig=indirect0 (c-storage-pointer enum2 size=8 align=8 scan=none) extern11()
-    store local1 -> local0
+    call native-safe-direct-target0 sp<native-safe:0> roots=[] t0 = sig=direct0 () -> enum2 extern11()
+    store t0 -> local0
     ret local0
   fun @scoop$1$cb$8d00468dda3553becf2a10dda1db911e5c544fbd8f821109cabb3e1b3c882d83() -> enum2
     local %0 $call.1: enum2
-    local %1 $sc.1: enum2
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
-    call native-safe-indirect-target0 sp<native-safe:0> roots=[] local1 = sig=indirect0 (c-storage-pointer enum2 size=8 align=8 scan=none) extern12()
-    store local1 -> local0
+    call native-safe-direct-target0 sp<native-safe:0> roots=[] t0 = sig=direct0 () -> enum2 extern12()
+    store t0 -> local0
     ret local0
   fun @scoop$1$cb$28367a67ebbfce53e270668de004a8df8d79e588b7952920415d8a1a93a69c9d(i32, ptr<code>) -> i32
     local %0 $call.1: i32
-    local %1 $sc.1: i32
-    local %2 $sc.2: ptr<code>
-    local %3 $sc.3: i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
-    store param0 -> local1
-    store param1 -> local2
-    call native-safe-indirect-target0 sp<native-safe:0> roots=[] local3 = sig=indirect0 (c-storage-pointer i32 size=4 align=4 scan=none, ptr<raw>, ptr<raw>) extern13(c-arg-address(local1), c-arg-address(local2))
-    store local3 -> local0
+    call native-safe-direct-target0 sp<native-safe:0> roots=[] t0 = sig=direct0 (i32, ptr<code>) -> i32 extern13(param0, param1)
+    store t0 -> local0
     ret local0
-  fun @scoop$1$cb$184c9178c5ee7bcc7773ed44e8a8203bc29ea68eb373e8bded95e75c885309e4(indirect<struct1 size=48 align=8 scan=none>) -> sret<struct1 size=48 align=8 scan=none>
-    local %0 $call.1: struct1
-    local %1 $sc.1: struct1
-    local %2 $sc.2: struct1
+  fun @scoop$1$cb$184c9178c5ee7bcc7773ed44e8a8203bc29ea68eb373e8bded95e75c885309e4(indirect<struct3 size=48 align=8 scan=none>) -> sret<struct3 size=48 align=8 scan=none>
+    local %0 $call.1: struct3
+    local %1 $sc.1: struct3
+    local %2 $sc.2: struct3
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     store param0 -> local1
-    call native-safe-indirect-target0 sp<native-safe:0> roots=[] local2 = sig=indirect0 (c-storage-pointer struct1 size=48 align=8 scan=none, ptr<raw>) extern14(c-arg-address(local1))
+    call native-safe-indirect-target0 sp<native-safe:0> roots=[] local2 = sig=indirect0 (sret struct3 size=48 align=8 scan=none, indirect<struct3 size=48 align=8 scan=none>) extern14(indirect local1)
     store local2 -> local0
     ret local0
-  fun @scoop$1$cb$932a2d79792c73bad5680e397d768a01bc44c1ab1d1d0bdffe8bbe91026b09c7(ptr<raw>, ptr<raw>) -> sret<struct1 size=48 align=8 scan=none>
-    local %0 $call.1: struct1
-    local %1 $sc.1: ptr<raw>
-    local %2 $sc.2: ptr<raw>
-    local %3 $sc.3: struct1
+  fun @scoop$1$cb$932a2d79792c73bad5680e397d768a01bc44c1ab1d1d0bdffe8bbe91026b09c7(ptr<raw>, ptr<raw>) -> sret<struct3 size=48 align=8 scan=none>
+    local %0 $call.1: struct3
+    local %1 $sc.1: struct3
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
-    store param0 -> local1
-    store param1 -> local2
-    call native-safe-indirect-target0 sp<native-safe:0> roots=[] local3 = sig=indirect0 (c-storage-pointer struct1 size=48 align=8 scan=none, ptr<raw>, ptr<raw>) extern15(c-arg-address(local1), c-arg-address(local2))
-    store local3 -> local0
+    call native-safe-indirect-target0 sp<native-safe:0> roots=[] local1 = sig=indirect0 (sret struct3 size=48 align=8 scan=none, ptr<raw>, ptr<raw>) extern15(param0, param1)
+    store local1 -> local0
     ret local0
-  fun @scoop$1$cb$e2769dc66872e49e1936aa84c1034e37cb4ea89d39d9baff869a5fa0cd161cb0(ptr<raw>, ptr<raw>) -> sret<struct1 size=48 align=8 scan=none>
-    local %0 $call.1: struct1
-    local %1 $sc.1: ptr<raw>
-    local %2 $sc.2: ptr<raw>
-    local %3 $sc.3: struct1
+  fun @scoop$1$cb$e2769dc66872e49e1936aa84c1034e37cb4ea89d39d9baff869a5fa0cd161cb0(ptr<raw>, ptr<raw>) -> sret<struct3 size=48 align=8 scan=none>
+    local %0 $call.1: struct3
+    local %1 $sc.1: struct3
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
-    store param0 -> local1
-    store param1 -> local2
-    call native-safe-indirect-target0 sp<native-safe:0> roots=[] local3 = sig=indirect0 (c-storage-pointer struct1 size=48 align=8 scan=none, ptr<raw>, ptr<raw>) extern16(c-arg-address(local1), c-arg-address(local2))
-    store local3 -> local0
+    call native-safe-indirect-target0 sp<native-safe:0> roots=[] local1 = sig=indirect0 (sret struct3 size=48 align=8 scan=none, ptr<raw>, ptr<raw>) extern16(param0, param1)
+    store local1 -> local0
     ret local0
   fun @scoop$1$cb$49fb5bddd169d2f40f13551fad2c49b5e9ff69e59aad59655f819c08156611e2(ptr<raw>) -> i32
     local %0 $call.1: i32
-    local %1 $sc.1: ptr<raw>
-    local %2 $sc.2: i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
-    store param0 -> local1
-    call native-safe-indirect-target0 sp<native-safe:0> roots=[] local2 = sig=indirect0 (c-storage-pointer i32 size=4 align=4 scan=none, ptr<raw>) extern17(c-arg-address(local1))
-    store local2 -> local0
+    call native-safe-direct-target0 sp<native-safe:0> roots=[] t0 = sig=direct0 (ptr<raw>) -> i32 extern17(param0)
+    store t0 -> local0
     ret local0
   fun @scoop$1$cb$a2fb8feaa928500dc0db4f586d74b7fa48e13053152c6b84722f88d1a5debe81() -> void
   block entry
@@ -230,23 +212,10 @@ Module
     ret
   fun @scoop$1$cb$120d9bd965600cb1f566cf05b52fa0ba6129a7cea6872699ee446a906854af5c(ptr<raw>, ptr<raw>, enum0, enum1, ptr<code>, enum2) -> i1
     local %0 $call.1: i1
-    local %1 $sc.1: ptr<raw>
-    local %2 $sc.2: ptr<raw>
-    local %3 $sc.3: enum0
-    local %4 $sc.4: enum1
-    local %5 $sc.5: ptr<code>
-    local %6 $sc.6: enum2
-    local %7 $sc.7: i1
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
-    store param0 -> local1
-    store param1 -> local2
-    store param2 -> local3
-    store param3 -> local4
-    store param4 -> local5
-    store param5 -> local6
-    call native-safe-indirect-target0 sp<native-safe:0> roots=[] local7 = sig=indirect0 (c-storage-pointer i1 size=1 align=1 scan=none, ptr<raw>, ptr<raw>, ptr<raw>, ptr<raw>, ptr<raw>, ptr<raw>) extern20(c-arg-address(local1), c-arg-address(local2), c-arg-address(local3), c-arg-address(local4), c-arg-address(local5), c-arg-address(local6))
-    store local7 -> local0
+    call native-safe-direct-target0 sp<native-safe:0> roots=[] t0 = sig=direct0 (ptr<raw>, ptr<raw>, enum0, enum1, ptr<code>, enum2) -> i1 extern20(param0, param1, param2, param3, param4, param5)
+    store t0 -> local0
     ret local0
   fun @scoop$1$cb$643ed6c97929f404ea6cfcb63b27bea352160a4b5c03f89db397baa97e8e63e6(i32) -> i32 <no-gc>
     local %0 $dependency.receiver: i32
@@ -419,9 +388,6 @@ Module
     local %7 $pattern.subject.2: enum2
     local %8 $pattern.subject.3: enum2
     local %9 $call.1: i32
-    local %10 $sc.1: i32
-    local %11 $sc.2: ptr<code>
-    local %12 $sc.3: i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     store param0 -> local6
@@ -435,16 +401,14 @@ Module
     store local0 -> local2
     store local1 -> local3
     store local2 -> local4
-    store local3 -> local10
-    store local4 -> local11
-    call native-safe-indirect-target0 sp<native-safe:0> roots=[] local12 = sig=indirect0 (c-storage-pointer i32 size=4 align=4 scan=none, ptr<raw>, ptr<raw>) extern13(c-arg-address(local10), c-arg-address(local11))
-    store local12 -> local9
+    call native-safe-direct-target0 sp<native-safe:0> roots=[] t2 = sig=direct0 (i32, ptr<code>) -> i32 extern13(local3, local4)
+    store t2 -> local9
     store local9 -> local5
     br @pattern.merge.3
   block pattern.else.2
     store local6 -> local8
-    t2 = variant_test e2 v1 local8 : i1
-    cbr t2 then @pattern.pass.4 else @pattern.else.5
+    t3 = variant_test e2 v1 local8 : i1
+    cbr t3 then @pattern.pass.4 else @pattern.else.5
   block pattern.merge.3
     ret local5
   block pattern.pass.4
@@ -499,8 +463,8 @@ Module
     local %11 $argument.0: i32
     local %12 $parameter.value: i32
     local %13 $dependency.receiver: ptr<raw>
-    local %14 $dependency.argument.0: struct0
-    local %15 $dependency.parameter.value: struct0
+    local %14 $dependency.argument.0: struct1
+    local %15 $dependency.parameter.value: struct1
     local %16 scoopCallback: ptr<code>
     local %17 $dependency.receiver: ptr<raw>
     local %18 $dependency.receiver: i64
@@ -632,7 +596,7 @@ Module
     local %144 $argument.1: ptr<raw>
     local %145 $parameter.opaque: ptr<raw>
     local %146 $parameter.cell: ptr<raw>
-    local %147 someBundle: struct1
+    local %147 someBundle: struct3
     local %148 $dependency.receiver: ptr<raw>
     local %149 $dependency.receiver: ptr<raw>
     local %150 $equality.lhs: i64
@@ -672,7 +636,7 @@ Module
     local %184 $argument.1: ptr<raw>
     local %185 $parameter.opaque: ptr<raw>
     local %186 $parameter.cell: ptr<raw>
-    local %187 noneBundle: struct1
+    local %187 noneBundle: struct3
     local %188 $argument.0: enum0
     local %189 $parameter.actual: enum0
     local %190 $dependency.argument.0: i1
@@ -703,9 +667,9 @@ Module
     local %215 $parameter.optionalCell: enum1
     local %216 $parameter.callback: ptr<code>
     local %217 $parameter.optionalCallback: enum2
-    local %218 $argument.0: struct1
-    local %219 $parameter.bundle: struct1
-    local %220 returnedBundle: struct1
+    local %218 $argument.0: struct3
+    local %219 $parameter.bundle: struct3
+    local %220 returnedBundle: struct3
     local %221 $dependency.receiver: ptr<raw>
     local %222 $dependency.receiver: ptr<raw>
     local %223 $equality.lhs: i64
@@ -917,921 +881,836 @@ Module
     local %429 $new.2: ptr<managed>
     local %430 $new.3: ptr<managed>
     local %431 $new.4: ptr<managed>
-    local %432 $sc.1: i64
-    local %433 $sc.2: ptr<raw>
-    local %434 $sc.3: i64
-    local %435 $sc.4: ptr<raw>
-    local %436 $sc.5: struct0
-    local %437 $sc.6: ptr<raw>
-    local %438 $sc.7: ptr<raw>
-    local %439 $sc.8: ptr<raw>
-    local %440 $sc.9: ptr<raw>
-    local %441 $sc.10: ptr<raw>
-    local %442 $sc.11: ptr<raw>
-    local %443 $sc.12: enum0
-    local %444 $sc.13: enum0
-    local %445 $sc.14: enum1
-    local %446 $sc.15: enum1
-    local %447 $sc.16: enum0
-    local %448 $sc.17: enum0
-    local %449 $sc.18: enum1
-    local %450 $sc.19: enum1
-    local %451 $sc.20: enum0
-    local %452 $sc.21: enum1
-    local %453 $sc.22: ptr<code>
-    local %454 $sc.23: i32
-    local %455 $sc.24: ptr<code>
-    local %456 $sc.25: i32
-    local %457 $sc.26: ptr<code>
-    local %458 $sc.27: ptr<code>
-    local %459 $sc.28: i32
-    local %460 $sc.29: ptr<code>
-    local %461 $sc.30: i32
-    local %462 $sc.31: ptr<code>
-    local %463 $sc.32: ptr<code>
-    local %464 $sc.33: i32
-    local %465 $sc.34: ptr<code>
-    local %466 $sc.35: i32
-    local %467 $sc.36: enum2
-    local %468 $sc.37: enum2
-    local %469 $sc.38: enum2
-    local %470 $sc.39: enum2
-    local %471 $sc.40: enum2
-    local %472 $sc.41: enum2
-    local %473 $sc.42: ptr<raw>
-    local %474 $sc.43: ptr<raw>
-    local %475 $sc.44: struct1
-    local %476 $sc.45: i32
-    local %477 $sc.46: ptr<code>
-    local %478 $sc.47: i32
-    local %479 $sc.48: ptr<raw>
-    local %480 $sc.49: ptr<raw>
-    local %481 $sc.50: struct1
-    local %482 $sc.51: struct1
-    local %483 $sc.52: struct1
-    local %484 $sc.53: struct1
-    local %485 $sc.54: i32
-    local %486 $sc.55: ptr<code>
-    local %487 $sc.56: i32
-    local %488 $sc.57: ptr<raw>
-    local %489 $sc.58: i32
-    local %490 $sc.59: ptr<raw>
-    local %491 $sc.60: i32
-    local %492 $sc.61: i32
-    local %493 $sc.62: ptr<code>
-    local %494 $sc.63: i32
-    local %495 $sc.64: ptr<raw>
-    local %496 $sc.65: ptr<raw>
-    local %497 $sc.66: enum0
-    local %498 $sc.67: enum1
-    local %499 $sc.68: ptr<code>
-    local %500 $sc.69: enum2
-    local %501 $sc.70: i1
-    local %502 $sc.71: i32
-    local %503 $sc.72: ptr<code>
-    local %504 $sc.73: i32
-    local %505 $sc.74: ptr<raw>
-    local %506 $sc.75: ptr<raw>
-    local %507 $sc.76: enum0
-    local %508 $sc.77: enum1
-    local %509 $sc.78: ptr<code>
-    local %510 $sc.79: enum2
-    local %511 $sc.80: i1
-    local %512 $sc.81: ptr<raw>
-    local %513 $sc.82: ptr<raw>
+    local %432 $sc.1: struct3
+    local %433 $sc.2: struct3
+    local %434 $sc.3: struct3
+    local %435 $sc.4: struct3
+    local %436 $sc.5: struct3
   block entry
     poll managed-void-target61 sp<managed-poll:0> live=[]
     store integer<ULong>(0x0000000000000004) -> local0
     store local0 -> local1
-    store local1 -> local432
-    call native-safe-indirect-target0 sp<native-safe:0> roots=[] local433 = sig=indirect0 (c-storage-pointer ptr<raw> size=8 align=8 scan=none, ptr<raw>) extern0(c-arg-address(local432))
-    store local433 -> local2
+    call native-safe-direct-target0 sp<native-safe:0> roots=[] t0 = sig=direct0 (i64) -> ptr<raw> extern0(local1)
+    store t0 -> local2
     store local2 -> local3
     store local3 -> local4
     store integer<Int>(0x00000065) -> local5
     store local5 -> local6
     raw_store local4 local6 align 4
-    t0 = aggregate () : {}
+    t1 = aggregate () : {}
     store integer<ULong>(0x0000000000000004) -> local7
     store local7 -> local8
-    store local8 -> local434
-    call native-safe-indirect-target1 sp<native-safe:1> roots=[] local435 = sig=indirect1 (c-storage-pointer ptr<raw> size=8 align=8 scan=none, ptr<raw>) extern0(c-arg-address(local434))
-    store local435 -> local9
+    call native-safe-direct-target1 sp<native-safe:1> roots=[] t2 = sig=direct1 (i64) -> ptr<raw> extern0(local8)
+    store t2 -> local9
     store local9 -> local10
     store local10 -> local13
     store integer<Int>(0x000000ca) -> local11
     store local11 -> local12
-    call no-gc-indirect-target0 local436 = sig=indirect2 (sret struct0 size=4 align=4 scan=none, i32) local-fn35(local12)
-    store local436 -> local14
+    call no-gc-direct-target0 t3 = sig=direct2 (i32) -> struct1 local-fn41(local12)
+    store t3 -> local14
     store local14 -> local15
     raw_store local13 local15 align 4
-    t1 = aggregate () : {}
-    t2 = function_address @scoop$1$br$d1d7c33fababbe3747e547defd3a13c8be55df974b78840813066a68b634a732 : ptr
-    store t2 -> local16
+    t4 = aggregate () : {}
+    t5 = function_address @scoop$1$br$d1d7c33fababbe3747e547defd3a13c8be55df974b78840813066a68b634a732 : ptr
+    store t5 -> local16
     store local2 -> local17
-    t3 = ptr_to_ulong local17 : i64
-    store t3 -> local18
+    t6 = ptr_to_ulong local17 : i64
+    store t6 -> local18
     store integer<ULong>(0x0000000000000000) -> local19
     store local19 -> local20
-    t4 = integer_compare_Equal<ULong> local18, local20 : i1
-    t5 = Not t4 : i1
-    store t5 -> local21
+    t7 = integer_compare_Equal<ULong> local18, local20 : i1
+    t8 = Not t7 : i1
+    store t8 -> local21
     store local21 -> local22
-    call managed-void-target0 sp<managed-call:0> live=[] sig=void0 (i1) local-fn29(local22)
-    t6 = aggregate () : {}
+    call managed-void-target0 sp<managed-call:0> live=[] sig=void0 (i1) local-fn34(local22)
+    t9 = aggregate () : {}
     store local10 -> local23
-    t7 = ptr_to_ulong local23 : i64
-    store t7 -> local24
+    t10 = ptr_to_ulong local23 : i64
+    store t10 -> local24
     store integer<ULong>(0x0000000000000000) -> local25
     store local25 -> local26
-    t8 = integer_compare_Equal<ULong> local24, local26 : i1
-    t9 = Not t8 : i1
-    store t9 -> local27
+    t11 = integer_compare_Equal<ULong> local24, local26 : i1
+    t12 = Not t11 : i1
+    store t12 -> local27
     store local27 -> local28
-    call managed-void-target1 sp<managed-call:1> live=[] sig=void1 (i1) local-fn29(local28)
-    t10 = aggregate () : {}
+    call managed-void-target1 sp<managed-call:1> live=[] sig=void1 (i1) local-fn34(local28)
+    t13 = aggregate () : {}
     store local2 -> local29
     store local29 -> local30
-    store local30 -> local437
-    call native-safe-indirect-target2 sp<native-safe:2> roots=[] local438 = sig=indirect3 (c-storage-pointer ptr<raw> size=8 align=8 scan=none, ptr<raw>) extern2(c-arg-address(local437))
-    store local438 -> local31
-    t11 = ptr_to_ulong local31 : i64
-    store t11 -> local33
+    call native-safe-direct-target2 sp<native-safe:2> roots=[] t14 = sig=direct3 (ptr<raw>) -> ptr<raw> extern2(local30)
+    store t14 -> local31
+    t15 = ptr_to_ulong local31 : i64
+    store t15 -> local33
     store local2 -> local32
     store local33 -> local34
-    t12 = ptr_to_ulong local32 : i64
-    store t12 -> local35
+    t16 = ptr_to_ulong local32 : i64
+    store t16 -> local35
     store local35 -> local36
-    t13 = integer_compare_Equal<ULong> local34, local36 : i1
-    store t13 -> local37
+    t17 = integer_compare_Equal<ULong> local34, local36 : i1
+    store t17 -> local37
     store local37 -> local38
-    call managed-void-target2 sp<managed-call:2> live=[] sig=void2 (i1) local-fn29(local38)
-    t14 = aggregate () : {}
+    call managed-void-target2 sp<managed-call:2> live=[] sig=void2 (i1) local-fn34(local38)
+    t18 = aggregate () : {}
     store local10 -> local39
     store local39 -> local40
-    store local40 -> local439
-    call native-safe-indirect-target3 sp<native-safe:3> roots=[] local440 = sig=indirect4 (c-storage-pointer ptr<raw> size=8 align=8 scan=none, ptr<raw>) extern3(c-arg-address(local439))
-    store local440 -> local41
-    t15 = ptr_to_ulong local41 : i64
-    store t15 -> local43
+    call native-safe-direct-target3 sp<native-safe:3> roots=[] t19 = sig=direct4 (ptr<raw>) -> ptr<raw> extern3(local40)
+    store t19 -> local41
+    t20 = ptr_to_ulong local41 : i64
+    store t20 -> local43
     store local10 -> local42
     store local43 -> local44
-    t16 = ptr_to_ulong local42 : i64
-    store t16 -> local45
+    t21 = ptr_to_ulong local42 : i64
+    store t21 -> local45
     store local45 -> local46
-    t17 = integer_compare_Equal<ULong> local44, local46 : i1
-    store t17 -> local47
+    t22 = integer_compare_Equal<ULong> local44, local46 : i1
+    store t22 -> local47
     store local47 -> local48
-    call managed-void-target3 sp<managed-call:3> live=[] sig=void3 (i1) local-fn29(local48)
-    t18 = aggregate () : {}
+    call managed-void-target3 sp<managed-call:3> live=[] sig=void3 (i1) local-fn34(local48)
+    t23 = aggregate () : {}
     store local10 -> local49
     store local49 -> local50
-    store local50 -> local441
-    call native-safe-indirect-target4 sp<native-safe:4> roots=[] local442 = sig=indirect5 (c-storage-pointer ptr<raw> size=8 align=8 scan=none, ptr<raw>) extern3(c-arg-address(local441))
-    store local442 -> local51
-    t19 = raw_load local51 align 4 : struct0
-    t20 = extract t19, 0 : i32
-    store t20 -> local52
+    call native-safe-direct-target4 sp<native-safe:4> roots=[] t24 = sig=direct5 (ptr<raw>) -> ptr<raw> extern3(local50)
+    store t24 -> local51
+    t25 = raw_load local51 align 4 : struct1
+    t26 = extract t25, 0 : i32
+    store t26 -> local52
     store local52 -> local53
-    call managed-void-target4 sp<managed-call:4> live=[] sig=void4 (i32) local-fn30(local53)
-    t21 = aggregate () : {}
+    call managed-void-target4 sp<managed-call:4> live=[] sig=void4 (i32) local-fn35(local53)
+    t27 = aggregate () : {}
     store local2 -> local54
     store local54 -> local55
-    t22 = enum_wrap e0 v0 (local55) : enum0
-    store t22 -> local56
+    t28 = enum_wrap e0 v0 (local55) : enum0
+    store t28 -> local56
     store local56 -> local57
-    store local57 -> local443
-    call native-safe-indirect-target5 sp<native-safe:5> roots=[] local444 = sig=indirect6 (c-storage-pointer enum0 size=8 align=8 scan=none, ptr<raw>) extern4(c-arg-address(local443))
-    store local444 -> local58
+    call native-safe-direct-target5 sp<native-safe:5> roots=[] t29 = sig=direct6 (enum0) -> enum0 extern4(local57)
+    store t29 -> local58
     store local2 -> local59
     store local58 -> local60
     store local59 -> local61
-    call managed-direct-target0 sp<managed-call:5> live=[] t23 = sig=direct0 (enum0, ptr<raw>) -> i1 local-fn22(local60, local61)
-    store t23 -> local62
+    call managed-direct-target0 sp<managed-call:5> live=[] t30 = sig=direct7 (enum0, ptr<raw>) -> i1 local-fn24(local60, local61)
+    store t30 -> local62
     store local62 -> local63
-    call managed-void-target5 sp<managed-call:6> live=[] sig=void5 (i1) local-fn29(local63)
-    t24 = aggregate () : {}
+    call managed-void-target5 sp<managed-call:6> live=[] sig=void5 (i1) local-fn34(local63)
+    t31 = aggregate () : {}
     store local10 -> local64
     store local64 -> local65
-    t25 = enum_wrap e1 v0 (local65) : enum1
-    store t25 -> local66
+    t32 = enum_wrap e1 v0 (local65) : enum1
+    store t32 -> local66
     store local66 -> local67
-    store local67 -> local445
-    call native-safe-indirect-target6 sp<native-safe:6> roots=[] local446 = sig=indirect7 (c-storage-pointer enum1 size=8 align=8 scan=none, ptr<raw>) extern5(c-arg-address(local445))
-    store local446 -> local68
+    call native-safe-direct-target6 sp<native-safe:6> roots=[] t33 = sig=direct8 (enum1) -> enum1 extern5(local67)
+    store t33 -> local68
     store local10 -> local69
     store local68 -> local70
     store local69 -> local71
-    call managed-direct-target1 sp<managed-call:7> live=[] t26 = sig=direct1 (enum1, ptr<raw>) -> i1 local-fn23(local70, local71)
-    store t26 -> local72
+    call managed-direct-target1 sp<managed-call:7> live=[] t34 = sig=direct9 (enum1, ptr<raw>) -> i1 local-fn25(local70, local71)
+    store t34 -> local72
     store local72 -> local73
-    call managed-void-target6 sp<managed-call:8> live=[] sig=void6 (i1) local-fn29(local73)
-    t27 = aggregate () : {}
-    t28 = enum_wrap e0 v1 () : enum0
-    store t28 -> local74
-    store local74 -> local75
-    store local75 -> local447
-    call native-safe-indirect-target7 sp<native-safe:7> roots=[] local448 = sig=indirect8 (c-storage-pointer enum0 size=8 align=8 scan=none, ptr<raw>) extern4(c-arg-address(local447))
-    store local448 -> local76
-    store local76 -> local77
-    call managed-direct-target2 sp<managed-call:9> live=[] t29 = sig=direct2 (enum0) -> i1 local-fn24(local77)
-    store t29 -> local78
-    store local78 -> local79
-    call managed-void-target7 sp<managed-call:10> live=[] sig=void7 (i1) local-fn29(local79)
-    t30 = aggregate () : {}
-    t31 = enum_wrap e1 v1 () : enum1
-    store t31 -> local80
-    store local80 -> local81
-    store local81 -> local449
-    call native-safe-indirect-target8 sp<native-safe:8> roots=[] local450 = sig=indirect9 (c-storage-pointer enum1 size=8 align=8 scan=none, ptr<raw>) extern5(c-arg-address(local449))
-    store local450 -> local82
-    store local82 -> local83
-    call managed-direct-target3 sp<managed-call:11> live=[] t32 = sig=direct3 (enum1) -> i1 local-fn25(local83)
-    store t32 -> local84
-    store local84 -> local85
-    call managed-void-target8 sp<managed-call:12> live=[] sig=void8 (i1) local-fn29(local85)
-    t33 = aggregate () : {}
-    call native-safe-indirect-target9 sp<native-safe:9> roots=[] local451 = sig=indirect10 (c-storage-pointer enum0 size=8 align=8 scan=none) extern8()
-    store local451 -> local86
-    store local86 -> local87
-    call managed-direct-target4 sp<managed-call:13> live=[] t34 = sig=direct4 (enum0) -> i1 local-fn24(local87)
-    store t34 -> local88
-    store local88 -> local89
-    call managed-void-target9 sp<managed-call:14> live=[] sig=void9 (i1) local-fn29(local89)
+    call managed-void-target6 sp<managed-call:8> live=[] sig=void6 (i1) local-fn34(local73)
     t35 = aggregate () : {}
-    call native-safe-indirect-target10 sp<native-safe:10> roots=[] local452 = sig=indirect11 (c-storage-pointer enum1 size=8 align=8 scan=none) extern9()
-    store local452 -> local90
+    t36 = enum_wrap e0 v1 () : enum0
+    store t36 -> local74
+    store local74 -> local75
+    call native-safe-direct-target7 sp<native-safe:7> roots=[] t37 = sig=direct10 (enum0) -> enum0 extern4(local75)
+    store t37 -> local76
+    store local76 -> local77
+    call managed-direct-target2 sp<managed-call:9> live=[] t38 = sig=direct11 (enum0) -> i1 local-fn26(local77)
+    store t38 -> local78
+    store local78 -> local79
+    call managed-void-target7 sp<managed-call:10> live=[] sig=void7 (i1) local-fn34(local79)
+    t39 = aggregate () : {}
+    t40 = enum_wrap e1 v1 () : enum1
+    store t40 -> local80
+    store local80 -> local81
+    call native-safe-direct-target8 sp<native-safe:8> roots=[] t41 = sig=direct12 (enum1) -> enum1 extern5(local81)
+    store t41 -> local82
+    store local82 -> local83
+    call managed-direct-target3 sp<managed-call:11> live=[] t42 = sig=direct13 (enum1) -> i1 local-fn27(local83)
+    store t42 -> local84
+    store local84 -> local85
+    call managed-void-target8 sp<managed-call:12> live=[] sig=void8 (i1) local-fn34(local85)
+    t43 = aggregate () : {}
+    call native-safe-direct-target9 sp<native-safe:9> roots=[] t44 = sig=direct14 () -> enum0 extern8()
+    store t44 -> local86
+    store local86 -> local87
+    call managed-direct-target4 sp<managed-call:13> live=[] t45 = sig=direct15 (enum0) -> i1 local-fn26(local87)
+    store t45 -> local88
+    store local88 -> local89
+    call managed-void-target9 sp<managed-call:14> live=[] sig=void9 (i1) local-fn34(local89)
+    t46 = aggregate () : {}
+    call native-safe-direct-target10 sp<native-safe:10> roots=[] t47 = sig=direct16 () -> enum1 extern9()
+    store t47 -> local90
     store local90 -> local91
-    call managed-direct-target5 sp<managed-call:15> live=[] t36 = sig=direct5 (enum1) -> i1 local-fn25(local91)
-    store t36 -> local92
+    call managed-direct-target5 sp<managed-call:15> live=[] t48 = sig=direct17 (enum1) -> i1 local-fn27(local91)
+    store t48 -> local92
     store local92 -> local93
-    call managed-void-target10 sp<managed-call:16> live=[] sig=void10 (i1) local-fn29(local93)
-    t37 = aggregate () : {}
-    call native-safe-indirect-target11 sp<native-safe:11> roots=[] local453 = sig=indirect12 (c-storage-pointer ptr<code> size=8 align=8 scan=none) extern10()
-    store local453 -> local94
+    call managed-void-target10 sp<managed-call:16> live=[] sig=void10 (i1) local-fn34(local93)
+    t49 = aggregate () : {}
+    call native-safe-direct-target11 sp<native-safe:11> roots=[] t50 = sig=direct18 () -> ptr<code> extern10()
+    store t50 -> local94
     store integer<Int>(0x00000001) -> local95
     store local94 -> local96
     store local95 -> local97
     store local96 -> local98
-    store local97 -> local454
-    store local98 -> local455
-    call native-safe-indirect-target12 sp<native-safe:12> roots=[] local456 = sig=indirect13 (c-storage-pointer i32 size=4 align=4 scan=none, ptr<raw>, ptr<raw>) extern13(c-arg-address(local454), c-arg-address(local455))
-    store local456 -> local99
+    call native-safe-direct-target12 sp<native-safe:12> roots=[] t51 = sig=direct19 (i32, ptr<code>) -> i32 extern13(local97, local98)
+    store t51 -> local99
     store local99 -> local100
-    call managed-void-target11 sp<managed-call:17> live=[] sig=void11 (i32) local-fn30(local100)
-    t38 = aggregate () : {}
+    call managed-void-target11 sp<managed-call:17> live=[] sig=void11 (i32) local-fn35(local100)
+    t52 = aggregate () : {}
     store integer<Int>(0x00000002) -> local103
     store local94 -> local101
     store local101 -> local102
-    store local102 -> local457
-    call native-safe-indirect-target13 sp<native-safe:13> roots=[] local458 = sig=indirect14 (c-storage-pointer ptr<code> size=8 align=8 scan=none, ptr<raw>) extern6(c-arg-address(local457))
-    store local458 -> local104
+    call native-safe-direct-target13 sp<native-safe:13> roots=[] t53 = sig=direct20 (ptr<code>) -> ptr<code> extern6(local102)
+    store t53 -> local104
     store local103 -> local105
     store local104 -> local106
-    store local105 -> local459
-    store local106 -> local460
-    call native-safe-indirect-target14 sp<native-safe:14> roots=[] local461 = sig=indirect15 (c-storage-pointer i32 size=4 align=4 scan=none, ptr<raw>, ptr<raw>) extern13(c-arg-address(local459), c-arg-address(local460))
-    store local461 -> local107
+    call native-safe-direct-target14 sp<native-safe:14> roots=[] t54 = sig=direct21 (i32, ptr<code>) -> i32 extern13(local105, local106)
+    store t54 -> local107
     store local107 -> local108
-    call managed-void-target12 sp<managed-call:18> live=[] sig=void12 (i32) local-fn30(local108)
-    t39 = aggregate () : {}
+    call managed-void-target12 sp<managed-call:18> live=[] sig=void12 (i32) local-fn35(local108)
+    t55 = aggregate () : {}
     store integer<Int>(0x00000028) -> local111
     store local16 -> local109
     store local109 -> local110
-    store local110 -> local462
-    call native-safe-indirect-target15 sp<native-safe:15> roots=[] local463 = sig=indirect16 (c-storage-pointer ptr<code> size=8 align=8 scan=none, ptr<raw>) extern6(c-arg-address(local462))
-    store local463 -> local112
+    call native-safe-direct-target15 sp<native-safe:15> roots=[] t56 = sig=direct22 (ptr<code>) -> ptr<code> extern6(local110)
+    store t56 -> local112
     store local111 -> local113
     store local112 -> local114
-    store local113 -> local464
-    store local114 -> local465
-    call native-safe-indirect-target16 sp<native-safe:16> roots=[] local466 = sig=indirect17 (c-storage-pointer i32 size=4 align=4 scan=none, ptr<raw>, ptr<raw>) extern13(c-arg-address(local464), c-arg-address(local465))
-    store local466 -> local115
+    call native-safe-direct-target16 sp<native-safe:16> roots=[] t57 = sig=direct23 (i32, ptr<code>) -> i32 extern13(local113, local114)
+    store t57 -> local115
     store local115 -> local116
-    call managed-void-target13 sp<managed-call:19> live=[] sig=void13 (i32) local-fn30(local116)
-    t40 = aggregate () : {}
-    call native-safe-indirect-target17 sp<native-safe:17> roots=[] local467 = sig=indirect18 (c-storage-pointer enum2 size=8 align=8 scan=none) extern11()
-    store local467 -> local117
+    call managed-void-target13 sp<managed-call:19> live=[] sig=void13 (i32) local-fn35(local116)
+    t58 = aggregate () : {}
+    call native-safe-direct-target17 sp<native-safe:17> roots=[] t59 = sig=direct24 () -> enum2 extern11()
+    store t59 -> local117
     store integer<Int>(0x00000003) -> local118
     store local117 -> local119
     store local118 -> local120
-    call managed-direct-target6 sp<managed-call:20> live=[] t41 = sig=direct6 (enum2, i32) -> i32 local-fn26(local119, local120)
-    store t41 -> local121
+    call managed-direct-target6 sp<managed-call:20> live=[] t60 = sig=direct25 (enum2, i32) -> i32 local-fn28(local119, local120)
+    store t60 -> local121
     store local121 -> local122
-    call managed-void-target14 sp<managed-call:21> live=[] sig=void14 (i32) local-fn30(local122)
-    t42 = aggregate () : {}
+    call managed-void-target14 sp<managed-call:21> live=[] sig=void14 (i32) local-fn35(local122)
+    t61 = aggregate () : {}
     store local16 -> local123
     store local123 -> local124
-    t43 = enum_wrap e2 v0 (local124) : enum2
-    store t43 -> local125
+    t62 = enum_wrap e2 v0 (local124) : enum2
+    store t62 -> local125
     store local125 -> local126
-    store local126 -> local468
-    call native-safe-indirect-target18 sp<native-safe:18> roots=[] local469 = sig=indirect19 (c-storage-pointer enum2 size=8 align=8 scan=none, ptr<raw>) extern7(c-arg-address(local468))
-    store local469 -> local127
+    call native-safe-direct-target18 sp<native-safe:18> roots=[] t63 = sig=direct26 (enum2) -> enum2 extern7(local126)
+    store t63 -> local127
     store integer<Int>(0x00000029) -> local128
     store local127 -> local129
     store local128 -> local130
-    call managed-direct-target7 sp<managed-call:22> live=[] t44 = sig=direct7 (enum2, i32) -> i32 local-fn26(local129, local130)
-    store t44 -> local131
+    call managed-direct-target7 sp<managed-call:22> live=[] t64 = sig=direct27 (enum2, i32) -> i32 local-fn28(local129, local130)
+    store t64 -> local131
     store local131 -> local132
-    call managed-void-target15 sp<managed-call:23> live=[] sig=void15 (i32) local-fn30(local132)
-    t45 = aggregate () : {}
-    t46 = enum_wrap e2 v1 () : enum2
-    store t46 -> local133
+    call managed-void-target15 sp<managed-call:23> live=[] sig=void15 (i32) local-fn35(local132)
+    t65 = aggregate () : {}
+    t66 = enum_wrap e2 v1 () : enum2
+    store t66 -> local133
     store local133 -> local134
-    store local134 -> local470
-    call native-safe-indirect-target19 sp<native-safe:19> roots=[] local471 = sig=indirect20 (c-storage-pointer enum2 size=8 align=8 scan=none, ptr<raw>) extern7(c-arg-address(local470))
-    store local471 -> local135
+    call native-safe-direct-target19 sp<native-safe:19> roots=[] t67 = sig=direct28 (enum2) -> enum2 extern7(local134)
+    store t67 -> local135
     store local135 -> local136
-    call managed-direct-target8 sp<managed-call:24> live=[] t47 = sig=direct8 (enum2) -> i1 local-fn27(local136)
-    store t47 -> local137
+    call managed-direct-target8 sp<managed-call:24> live=[] t68 = sig=direct29 (enum2) -> i1 local-fn29(local136)
+    store t68 -> local137
     store local137 -> local138
-    call managed-void-target16 sp<managed-call:25> live=[] sig=void16 (i1) local-fn29(local138)
-    t48 = aggregate () : {}
-    call native-safe-indirect-target20 sp<native-safe:20> roots=[] local472 = sig=indirect21 (c-storage-pointer enum2 size=8 align=8 scan=none) extern12()
-    store local472 -> local139
+    call managed-void-target16 sp<managed-call:25> live=[] sig=void16 (i1) local-fn34(local138)
+    t69 = aggregate () : {}
+    call native-safe-direct-target20 sp<native-safe:20> roots=[] t70 = sig=direct30 () -> enum2 extern12()
+    store t70 -> local139
     store local139 -> local140
-    call managed-direct-target9 sp<managed-call:26> live=[] t49 = sig=direct9 (enum2) -> i1 local-fn27(local140)
-    store t49 -> local141
+    call managed-direct-target9 sp<managed-call:26> live=[] t71 = sig=direct31 (enum2) -> i1 local-fn29(local140)
+    store t71 -> local141
     store local141 -> local142
-    call managed-void-target17 sp<managed-call:27> live=[] sig=void17 (i1) local-fn29(local142)
-    t50 = aggregate () : {}
+    call managed-void-target17 sp<managed-call:27> live=[] sig=void17 (i1) local-fn34(local142)
+    t72 = aggregate () : {}
     store local2 -> local143
     store local10 -> local144
     store local143 -> local145
     store local144 -> local146
-    store local145 -> local473
-    store local146 -> local474
-    call native-safe-indirect-target21 sp<native-safe:21> roots=[] local475 = sig=indirect22 (c-storage-pointer struct1 size=48 align=8 scan=none, ptr<raw>, ptr<raw>) extern15(c-arg-address(local473), c-arg-address(local474))
-    store local475 -> local147
-    t51 = extract local147, 0 : ptr<raw>
-    store t51 -> local148
-    t52 = ptr_to_ulong local148 : i64
-    store t52 -> local150
+    call native-safe-indirect-target0 sp<native-safe:21> roots=[] local432 = sig=indirect0 (sret struct3 size=48 align=8 scan=none, ptr<raw>, ptr<raw>) extern15(local145, local146)
+    store local432 -> local147
+    t73 = extract local147, 0 : ptr<raw>
+    store t73 -> local148
+    t74 = ptr_to_ulong local148 : i64
+    store t74 -> local150
     store local2 -> local149
     store local150 -> local151
-    t53 = ptr_to_ulong local149 : i64
-    store t53 -> local152
+    t75 = ptr_to_ulong local149 : i64
+    store t75 -> local152
     store local152 -> local153
-    t54 = integer_compare_Equal<ULong> local151, local153 : i1
-    store t54 -> local154
+    t76 = integer_compare_Equal<ULong> local151, local153 : i1
+    store t76 -> local154
     store local154 -> local155
-    call managed-void-target18 sp<managed-call:28> live=[] sig=void18 (i1) local-fn29(local155)
-    t55 = aggregate () : {}
-    t56 = extract local147, 1 : ptr<raw>
-    store t56 -> local156
-    t57 = raw_load local156 align 4 : struct0
-    t58 = extract t57, 0 : i32
-    store t58 -> local157
+    call managed-void-target18 sp<managed-call:28> live=[] sig=void18 (i1) local-fn34(local155)
+    t77 = aggregate () : {}
+    t78 = extract local147, 1 : ptr<raw>
+    store t78 -> local156
+    t79 = raw_load local156 align 4 : struct1
+    t80 = extract t79, 0 : i32
+    store t80 -> local157
     store local157 -> local158
-    call managed-void-target19 sp<managed-call:29> live=[] sig=void19 (i32) local-fn30(local158)
-    t59 = aggregate () : {}
-    t60 = extract local147, 2 : enum0
-    store t60 -> local159
+    call managed-void-target19 sp<managed-call:29> live=[] sig=void19 (i32) local-fn35(local158)
+    t81 = aggregate () : {}
+    t82 = extract local147, 2 : enum0
+    store t82 -> local159
     store local2 -> local160
     store local159 -> local161
     store local160 -> local162
-    call managed-direct-target10 sp<managed-call:30> live=[] t61 = sig=direct10 (enum0, ptr<raw>) -> i1 local-fn22(local161, local162)
-    store t61 -> local163
+    call managed-direct-target10 sp<managed-call:30> live=[] t83 = sig=direct32 (enum0, ptr<raw>) -> i1 local-fn24(local161, local162)
+    store t83 -> local163
     store local163 -> local164
-    call managed-void-target20 sp<managed-call:31> live=[] sig=void20 (i1) local-fn29(local164)
-    t62 = aggregate () : {}
-    t63 = extract local147, 3 : enum1
-    store t63 -> local165
+    call managed-void-target20 sp<managed-call:31> live=[] sig=void20 (i1) local-fn34(local164)
+    t84 = aggregate () : {}
+    t85 = extract local147, 3 : enum1
+    store t85 -> local165
     store local10 -> local166
     store local165 -> local167
     store local166 -> local168
-    call managed-direct-target11 sp<managed-call:32> live=[] t64 = sig=direct11 (enum1, ptr<raw>) -> i1 local-fn23(local167, local168)
-    store t64 -> local169
+    call managed-direct-target11 sp<managed-call:32> live=[] t86 = sig=direct33 (enum1, ptr<raw>) -> i1 local-fn25(local167, local168)
+    store t86 -> local169
     store local169 -> local170
-    call managed-void-target21 sp<managed-call:33> live=[] sig=void21 (i1) local-fn29(local170)
-    t65 = aggregate () : {}
+    call managed-void-target21 sp<managed-call:33> live=[] sig=void21 (i1) local-fn34(local170)
+    t87 = aggregate () : {}
     store integer<Int>(0x00000004) -> local171
-    t66 = extract local147, 4 : ptr<code>
-    store t66 -> local172
+    t88 = extract local147, 4 : ptr<code>
+    store t88 -> local172
     store local171 -> local173
     store local172 -> local174
-    store local173 -> local476
-    store local174 -> local477
-    call native-safe-indirect-target22 sp<native-safe:22> roots=[] local478 = sig=indirect23 (c-storage-pointer i32 size=4 align=4 scan=none, ptr<raw>, ptr<raw>) extern13(c-arg-address(local476), c-arg-address(local477))
-    store local478 -> local175
+    call native-safe-direct-target21 sp<native-safe:22> roots=[] t89 = sig=direct34 (i32, ptr<code>) -> i32 extern13(local173, local174)
+    store t89 -> local175
     store local175 -> local176
-    call managed-void-target22 sp<managed-call:34> live=[] sig=void22 (i32) local-fn30(local176)
-    t67 = aggregate () : {}
-    t68 = extract local147, 5 : enum2
-    store t68 -> local177
+    call managed-void-target22 sp<managed-call:34> live=[] sig=void22 (i32) local-fn35(local176)
+    t90 = aggregate () : {}
+    t91 = extract local147, 5 : enum2
+    store t91 -> local177
     store integer<Int>(0x00000005) -> local178
     store local177 -> local179
     store local178 -> local180
-    call managed-direct-target12 sp<managed-call:35> live=[] t69 = sig=direct12 (enum2, i32) -> i32 local-fn26(local179, local180)
-    store t69 -> local181
+    call managed-direct-target12 sp<managed-call:35> live=[] t92 = sig=direct35 (enum2, i32) -> i32 local-fn28(local179, local180)
+    store t92 -> local181
     store local181 -> local182
-    call managed-void-target23 sp<managed-call:36> live=[] sig=void23 (i32) local-fn30(local182)
-    t70 = aggregate () : {}
+    call managed-void-target23 sp<managed-call:36> live=[] sig=void23 (i32) local-fn35(local182)
+    t93 = aggregate () : {}
     store local2 -> local183
     store local10 -> local184
     store local183 -> local185
     store local184 -> local186
-    store local185 -> local479
-    store local186 -> local480
-    call native-safe-indirect-target23 sp<native-safe:23> roots=[] local481 = sig=indirect24 (c-storage-pointer struct1 size=48 align=8 scan=none, ptr<raw>, ptr<raw>) extern16(c-arg-address(local479), c-arg-address(local480))
-    store local481 -> local187
-    t71 = extract local187, 2 : enum0
-    store t71 -> local188
+    call native-safe-indirect-target1 sp<native-safe:23> roots=[] local433 = sig=indirect1 (sret struct3 size=48 align=8 scan=none, ptr<raw>, ptr<raw>) extern16(local185, local186)
+    store local433 -> local187
+    t94 = extract local187, 2 : enum0
+    store t94 -> local188
     store local188 -> local189
-    call managed-direct-target13 sp<managed-call:37> live=[] t72 = sig=direct13 (enum0) -> i1 local-fn24(local189)
-    store t72 -> local190
+    call managed-direct-target13 sp<managed-call:37> live=[] t95 = sig=direct36 (enum0) -> i1 local-fn26(local189)
+    store t95 -> local190
     store local190 -> local191
-    call managed-void-target24 sp<managed-call:38> live=[] sig=void24 (i1) local-fn29(local191)
-    t73 = aggregate () : {}
-    t74 = extract local187, 3 : enum1
-    store t74 -> local192
+    call managed-void-target24 sp<managed-call:38> live=[] sig=void24 (i1) local-fn34(local191)
+    t96 = aggregate () : {}
+    t97 = extract local187, 3 : enum1
+    store t97 -> local192
     store local192 -> local193
-    call managed-direct-target14 sp<managed-call:39> live=[] t75 = sig=direct14 (enum1) -> i1 local-fn25(local193)
-    store t75 -> local194
+    call managed-direct-target14 sp<managed-call:39> live=[] t98 = sig=direct37 (enum1) -> i1 local-fn27(local193)
+    store t98 -> local194
     store local194 -> local195
-    call managed-void-target25 sp<managed-call:40> live=[] sig=void25 (i1) local-fn29(local195)
-    t76 = aggregate () : {}
-    t77 = extract local187, 5 : enum2
-    store t77 -> local196
+    call managed-void-target25 sp<managed-call:40> live=[] sig=void25 (i1) local-fn34(local195)
+    t99 = aggregate () : {}
+    t100 = extract local187, 5 : enum2
+    store t100 -> local196
     store local196 -> local197
-    call managed-direct-target15 sp<managed-call:41> live=[] t78 = sig=direct15 (enum2) -> i1 local-fn27(local197)
-    store t78 -> local198
+    call managed-direct-target15 sp<managed-call:41> live=[] t101 = sig=direct38 (enum2) -> i1 local-fn29(local197)
+    store t101 -> local198
     store local198 -> local199
-    call managed-void-target26 sp<managed-call:42> live=[] sig=void26 (i1) local-fn29(local199)
-    t79 = aggregate () : {}
+    call managed-void-target26 sp<managed-call:42> live=[] sig=void26 (i1) local-fn34(local199)
+    t102 = aggregate () : {}
     store local2 -> local206
     store local10 -> local207
     store local2 -> local200
     store local200 -> local201
-    t80 = enum_wrap e0 v0 (local201) : enum0
-    store t80 -> local208
+    t103 = enum_wrap e0 v0 (local201) : enum0
+    store t103 -> local208
     store local10 -> local202
     store local202 -> local203
-    t81 = enum_wrap e1 v0 (local203) : enum1
-    store t81 -> local209
+    t104 = enum_wrap e1 v0 (local203) : enum1
+    store t104 -> local209
     store local16 -> local210
     store local16 -> local204
     store local204 -> local205
-    t82 = enum_wrap e2 v0 (local205) : enum2
-    store t82 -> local211
+    t105 = enum_wrap e2 v0 (local205) : enum2
+    store t105 -> local211
     store local206 -> local212
     store local207 -> local213
     store local208 -> local214
     store local209 -> local215
     store local210 -> local216
     store local211 -> local217
-    call no-gc-indirect-target1 local482 = sig=indirect25 (sret struct1 size=48 align=8 scan=none, ptr<raw>, ptr<raw>, enum0, enum1, ptr<code>, enum2) local-fn36(local212, local213, local214, local215, local216, local217)
-    store local482 -> local218
+    call no-gc-indirect-target0 local434 = sig=indirect2 (sret struct3 size=48 align=8 scan=none, ptr<raw>, ptr<raw>, enum0, enum1, ptr<code>, enum2) local-fn42(local212, local213, local214, local215, local216, local217)
+    store local434 -> local218
     store local218 -> local219
-    store local219 -> local483
-    call native-safe-indirect-target24 sp<native-safe:24> roots=[] local484 = sig=indirect26 (c-storage-pointer struct1 size=48 align=8 scan=none, ptr<raw>) extern14(c-arg-address(local483))
-    store local484 -> local220
-    t83 = extract local220, 0 : ptr<raw>
-    store t83 -> local221
-    t84 = ptr_to_ulong local221 : i64
-    store t84 -> local223
+    store local219 -> local435
+    call native-safe-indirect-target2 sp<native-safe:24> roots=[] local436 = sig=indirect3 (sret struct3 size=48 align=8 scan=none, indirect<struct3 size=48 align=8 scan=none>) extern14(indirect local435)
+    store local436 -> local220
+    t106 = extract local220, 0 : ptr<raw>
+    store t106 -> local221
+    t107 = ptr_to_ulong local221 : i64
+    store t107 -> local223
     store local2 -> local222
     store local223 -> local224
-    t85 = ptr_to_ulong local222 : i64
-    store t85 -> local225
+    t108 = ptr_to_ulong local222 : i64
+    store t108 -> local225
     store local225 -> local226
-    t86 = integer_compare_Equal<ULong> local224, local226 : i1
-    store t86 -> local227
+    t109 = integer_compare_Equal<ULong> local224, local226 : i1
+    store t109 -> local227
     store local227 -> local228
-    call managed-void-target27 sp<managed-call:43> live=[] sig=void27 (i1) local-fn29(local228)
-    t87 = aggregate () : {}
-    t88 = extract local220, 1 : ptr<raw>
-    store t88 -> local229
-    t89 = ptr_to_ulong local229 : i64
-    store t89 -> local231
+    call managed-void-target27 sp<managed-call:43> live=[] sig=void27 (i1) local-fn34(local228)
+    t110 = aggregate () : {}
+    t111 = extract local220, 1 : ptr<raw>
+    store t111 -> local229
+    t112 = ptr_to_ulong local229 : i64
+    store t112 -> local231
     store local10 -> local230
     store local231 -> local232
-    t90 = ptr_to_ulong local230 : i64
-    store t90 -> local233
+    t113 = ptr_to_ulong local230 : i64
+    store t113 -> local233
     store local233 -> local234
-    t91 = integer_compare_Equal<ULong> local232, local234 : i1
-    store t91 -> local235
+    t114 = integer_compare_Equal<ULong> local232, local234 : i1
+    store t114 -> local235
     store local235 -> local236
-    call managed-void-target28 sp<managed-call:44> live=[] sig=void28 (i1) local-fn29(local236)
-    t92 = aggregate () : {}
-    t93 = extract local220, 2 : enum0
-    store t93 -> local237
+    call managed-void-target28 sp<managed-call:44> live=[] sig=void28 (i1) local-fn34(local236)
+    t115 = aggregate () : {}
+    t116 = extract local220, 2 : enum0
+    store t116 -> local237
     store local2 -> local238
     store local237 -> local239
     store local238 -> local240
-    call managed-direct-target16 sp<managed-call:45> live=[] t94 = sig=direct16 (enum0, ptr<raw>) -> i1 local-fn22(local239, local240)
-    store t94 -> local241
+    call managed-direct-target16 sp<managed-call:45> live=[] t117 = sig=direct39 (enum0, ptr<raw>) -> i1 local-fn24(local239, local240)
+    store t117 -> local241
     store local241 -> local242
-    call managed-void-target29 sp<managed-call:46> live=[] sig=void29 (i1) local-fn29(local242)
-    t95 = aggregate () : {}
-    t96 = extract local220, 3 : enum1
-    store t96 -> local243
+    call managed-void-target29 sp<managed-call:46> live=[] sig=void29 (i1) local-fn34(local242)
+    t118 = aggregate () : {}
+    t119 = extract local220, 3 : enum1
+    store t119 -> local243
     store local10 -> local244
     store local243 -> local245
     store local244 -> local246
-    call managed-direct-target17 sp<managed-call:47> live=[] t97 = sig=direct17 (enum1, ptr<raw>) -> i1 local-fn23(local245, local246)
-    store t97 -> local247
+    call managed-direct-target17 sp<managed-call:47> live=[] t120 = sig=direct40 (enum1, ptr<raw>) -> i1 local-fn25(local245, local246)
+    store t120 -> local247
     store local247 -> local248
-    call managed-void-target30 sp<managed-call:48> live=[] sig=void30 (i1) local-fn29(local248)
-    t98 = aggregate () : {}
+    call managed-void-target30 sp<managed-call:48> live=[] sig=void30 (i1) local-fn34(local248)
+    t121 = aggregate () : {}
     store integer<Int>(0x0000002a) -> local249
-    t99 = extract local220, 4 : ptr<code>
-    store t99 -> local250
+    t122 = extract local220, 4 : ptr<code>
+    store t122 -> local250
     store local249 -> local251
     store local250 -> local252
-    store local251 -> local485
-    store local252 -> local486
-    call native-safe-indirect-target25 sp<native-safe:25> roots=[] local487 = sig=indirect27 (c-storage-pointer i32 size=4 align=4 scan=none, ptr<raw>, ptr<raw>) extern13(c-arg-address(local485), c-arg-address(local486))
-    store local487 -> local253
+    call native-safe-direct-target22 sp<native-safe:25> roots=[] t123 = sig=direct41 (i32, ptr<code>) -> i32 extern13(local251, local252)
+    store t123 -> local253
     store local253 -> local254
-    call managed-void-target31 sp<managed-call:49> live=[] sig=void31 (i32) local-fn30(local254)
-    t100 = aggregate () : {}
-    t101 = extract local220, 5 : enum2
-    store t101 -> local255
+    call managed-void-target31 sp<managed-call:49> live=[] sig=void31 (i32) local-fn35(local254)
+    t124 = aggregate () : {}
+    t125 = extract local220, 5 : enum2
+    store t125 -> local255
     store integer<Int>(0x0000002b) -> local256
     store local255 -> local257
     store local256 -> local258
-    call managed-direct-target18 sp<managed-call:50> live=[] t102 = sig=direct18 (enum2, i32) -> i32 local-fn26(local257, local258)
-    store t102 -> local259
+    call managed-direct-target18 sp<managed-call:50> live=[] t126 = sig=direct42 (enum2, i32) -> i32 local-fn28(local257, local258)
+    store t126 -> local259
     store local259 -> local260
-    call managed-void-target32 sp<managed-call:51> live=[] sig=void32 (i32) local-fn30(local260)
-    t103 = aggregate () : {}
-    t104 = native_global_load ng2 sp<native-safe:26> roots=[] : enum0
-    store t104 -> local261
+    call managed-void-target32 sp<managed-call:51> live=[] sig=void32 (i32) local-fn35(local260)
+    t127 = aggregate () : {}
+    t128 = native_global_load ng2 sp<native-safe:26> roots=[] : enum0
+    store t128 -> local261
     store local261 -> local262
-    call managed-direct-target19 sp<managed-call:52> live=[] t105 = sig=direct19 (enum0) -> i1 local-fn24(local262)
-    store t105 -> local263
+    call managed-direct-target19 sp<managed-call:52> live=[] t129 = sig=direct43 (enum0) -> i1 local-fn26(local262)
+    store t129 -> local263
     store local263 -> local264
-    call managed-void-target33 sp<managed-call:53> live=[] sig=void33 (i1) local-fn29(local264)
-    t106 = aggregate () : {}
-    t107 = native_global_load ng3 sp<native-safe:27> roots=[] : enum1
-    store t107 -> local265
+    call managed-void-target33 sp<managed-call:53> live=[] sig=void33 (i1) local-fn34(local264)
+    t130 = aggregate () : {}
+    t131 = native_global_load ng3 sp<native-safe:27> roots=[] : enum1
+    store t131 -> local265
     store local265 -> local266
-    call managed-direct-target20 sp<managed-call:54> live=[] t108 = sig=direct20 (enum1) -> i1 local-fn25(local266)
-    store t108 -> local267
+    call managed-direct-target20 sp<managed-call:54> live=[] t132 = sig=direct44 (enum1) -> i1 local-fn27(local266)
+    store t132 -> local267
     store local267 -> local268
-    call managed-void-target34 sp<managed-call:55> live=[] sig=void34 (i1) local-fn29(local268)
-    t109 = aggregate () : {}
-    t110 = native_global_load ng5 sp<native-safe:28> roots=[] : enum2
-    store t110 -> local269
+    call managed-void-target34 sp<managed-call:55> live=[] sig=void34 (i1) local-fn34(local268)
+    t133 = aggregate () : {}
+    t134 = native_global_load ng5 sp<native-safe:28> roots=[] : enum2
+    store t134 -> local269
     store local269 -> local270
-    call managed-direct-target21 sp<managed-call:56> live=[] t111 = sig=direct21 (enum2) -> i1 local-fn27(local270)
-    store t111 -> local271
+    call managed-direct-target21 sp<managed-call:56> live=[] t135 = sig=direct45 (enum2) -> i1 local-fn29(local270)
+    store t135 -> local271
     store local271 -> local272
-    call managed-void-target35 sp<managed-call:57> live=[] sig=void35 (i1) local-fn29(local272)
-    t112 = aggregate () : {}
+    call managed-void-target35 sp<managed-call:57> live=[] sig=void35 (i1) local-fn34(local272)
+    t136 = aggregate () : {}
     call native-safe-void-target0 sp<native-safe:29> roots=[] sig=void36 () extern18()
-    t113 = aggregate () : {}
-    t114 = native_global_load ng0 sp<native-safe:30> roots=[] : ptr<raw>
-    store t114 -> local273
-    t115 = ptr_to_ulong local273 : i64
-    store t115 -> local274
+    t137 = aggregate () : {}
+    t138 = native_global_load ng0 sp<native-safe:30> roots=[] : ptr<raw>
+    store t138 -> local273
+    t139 = ptr_to_ulong local273 : i64
+    store t139 -> local274
     store integer<ULong>(0x0000000000000000) -> local275
     store local275 -> local276
-    t116 = integer_compare_Equal<ULong> local274, local276 : i1
-    t117 = Not t116 : i1
-    store t117 -> local277
+    t140 = integer_compare_Equal<ULong> local274, local276 : i1
+    t141 = Not t140 : i1
+    store t141 -> local277
     store local277 -> local278
-    call managed-void-target36 sp<managed-call:58> live=[] sig=void37 (i1) local-fn29(local278)
-    t118 = aggregate () : {}
-    t119 = native_global_load ng0 sp<native-safe:31> roots=[] : ptr<raw>
-    store t119 -> local279
+    call managed-void-target36 sp<managed-call:58> live=[] sig=void37 (i1) local-fn34(local278)
+    t142 = aggregate () : {}
+    t143 = native_global_load ng0 sp<native-safe:31> roots=[] : ptr<raw>
+    store t143 -> local279
     store local279 -> local280
-    store local280 -> local488
-    call native-safe-indirect-target26 sp<native-safe:32> roots=[] local489 = sig=indirect28 (c-storage-pointer i32 size=4 align=4 scan=none, ptr<raw>) extern17(c-arg-address(local488))
-    store local489 -> local281
+    call native-safe-direct-target23 sp<native-safe:32> roots=[] t144 = sig=direct46 (ptr<raw>) -> i32 extern17(local280)
+    store t144 -> local281
     store local281 -> local282
-    call managed-void-target37 sp<managed-call:59> live=[] sig=void38 (i32) local-fn30(local282)
-    t120 = aggregate () : {}
-    t121 = native_global_load ng1 sp<native-safe:33> roots=[] : ptr<raw>
-    store t121 -> local283
-    t122 = ptr_to_ulong local283 : i64
-    store t122 -> local284
+    call managed-void-target37 sp<managed-call:59> live=[] sig=void38 (i32) local-fn35(local282)
+    t145 = aggregate () : {}
+    t146 = native_global_load ng1 sp<native-safe:33> roots=[] : ptr<raw>
+    store t146 -> local283
+    t147 = ptr_to_ulong local283 : i64
+    store t147 -> local284
     store integer<ULong>(0x0000000000000000) -> local285
     store local285 -> local286
-    t123 = integer_compare_Equal<ULong> local284, local286 : i1
-    t124 = Not t123 : i1
-    store t124 -> local287
+    t148 = integer_compare_Equal<ULong> local284, local286 : i1
+    t149 = Not t148 : i1
+    store t149 -> local287
     store local287 -> local288
-    call managed-void-target38 sp<managed-call:60> live=[] sig=void39 (i1) local-fn29(local288)
-    t125 = aggregate () : {}
-    t126 = native_global_load ng1 sp<native-safe:34> roots=[] : ptr<raw>
-    store t126 -> local289
-    t127 = raw_load local289 align 4 : struct0
-    t128 = extract t127, 0 : i32
-    store t128 -> local290
+    call managed-void-target38 sp<managed-call:60> live=[] sig=void39 (i1) local-fn34(local288)
+    t150 = aggregate () : {}
+    t151 = native_global_load ng1 sp<native-safe:34> roots=[] : ptr<raw>
+    store t151 -> local289
+    t152 = raw_load local289 align 4 : struct1
+    t153 = extract t152, 0 : i32
+    store t153 -> local290
     store local290 -> local291
-    call managed-void-target39 sp<managed-call:61> live=[] sig=void40 (i32) local-fn30(local291)
-    t129 = aggregate () : {}
-    t130 = native_global_load ng2 sp<native-safe:35> roots=[] : enum0
-    store t130 -> local292
-    t131 = native_global_load ng2 sp<native-safe:36> roots=[] : enum0
-    store t131 -> local420
-    t132 = variant_test e0 v0 local420 : i1
-    cbr t132 then @if.then.1 else @if.else.2
+    call managed-void-target39 sp<managed-call:61> live=[] sig=void40 (i32) local-fn35(local291)
+    t154 = aggregate () : {}
+    t155 = native_global_load ng2 sp<native-safe:35> roots=[] : enum0
+    store t155 -> local292
+    t156 = native_global_load ng2 sp<native-safe:36> roots=[] : enum0
+    store t156 -> local420
+    t157 = variant_test e0 v0 local420 : i1
+    cbr t157 then @if.then.1 else @if.else.2
   block if.then.1
-    t133 = variant_payload_project e0 v0 f0 local420 : ptr<raw>
-    store t133 -> local421
+    t158 = variant_payload_project e0 v0 f0 local420 : ptr<raw>
+    store t158 -> local421
     br @if.merge.3
   block if.else.2
-    call managed-direct-target22 sp<managed-call:62> live=[] t134 = sig=direct22 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td7, machine<byte-size>(ByteSize(24)))
-    store t134 -> local428
+    call managed-direct-target22 sp<managed-call:62> live=[] t159 = sig=direct47 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td7, machine<byte-size>(ByteSize(24)))
+    store t159 -> local428
     call managed-void-target40 sp<managed-call:63> live=[local428:ptr<managed>@0] sig=void41 (ptr<managed>) external-fn3(local428)
-    t135 = aggregate () : {}
+    t160 = aggregate () : {}
     throw local428
     unreachable
   block if.merge.3
     store local421 -> local293
     store local292 -> local294
     store local293 -> local295
-    call managed-direct-target23 sp<managed-call:64> live=[] t136 = sig=direct23 (enum0, ptr<raw>) -> i1 local-fn22(local294, local295)
-    store t136 -> local296
+    call managed-direct-target23 sp<managed-call:64> live=[] t161 = sig=direct48 (enum0, ptr<raw>) -> i1 local-fn24(local294, local295)
+    store t161 -> local296
     store local296 -> local297
-    call managed-void-target41 sp<managed-call:65> live=[] sig=void42 (i1) local-fn29(local297)
-    t137 = aggregate () : {}
-    t138 = native_global_load ng2 sp<native-safe:37> roots=[] : enum0
-    store t138 -> local422
-    t139 = variant_test e0 v0 local422 : i1
-    cbr t139 then @if.then.4 else @if.else.5
+    call managed-void-target41 sp<managed-call:65> live=[] sig=void42 (i1) local-fn34(local297)
+    t162 = aggregate () : {}
+    t163 = native_global_load ng2 sp<native-safe:37> roots=[] : enum0
+    store t163 -> local422
+    t164 = variant_test e0 v0 local422 : i1
+    cbr t164 then @if.then.4 else @if.else.5
   block if.then.4
-    t140 = variant_payload_project e0 v0 f0 local422 : ptr<raw>
-    store t140 -> local423
+    t165 = variant_payload_project e0 v0 f0 local422 : ptr<raw>
+    store t165 -> local423
     br @if.merge.6
   block if.else.5
-    call managed-direct-target24 sp<managed-call:66> live=[] t141 = sig=direct24 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td7, machine<byte-size>(ByteSize(24)))
-    store t141 -> local429
+    call managed-direct-target24 sp<managed-call:66> live=[] t166 = sig=direct49 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td7, machine<byte-size>(ByteSize(24)))
+    store t166 -> local429
     call managed-void-target42 sp<managed-call:67> live=[local429:ptr<managed>@0] sig=void43 (ptr<managed>) external-fn3(local429)
-    t142 = aggregate () : {}
+    t167 = aggregate () : {}
     throw local429
     unreachable
   block if.merge.6
     store local423 -> local298
     store local298 -> local299
-    store local299 -> local490
-    call native-safe-indirect-target27 sp<native-safe:38> roots=[] local491 = sig=indirect29 (c-storage-pointer i32 size=4 align=4 scan=none, ptr<raw>) extern17(c-arg-address(local490))
-    store local491 -> local300
+    call native-safe-direct-target24 sp<native-safe:38> roots=[] t168 = sig=direct50 (ptr<raw>) -> i32 extern17(local299)
+    store t168 -> local300
     store local300 -> local301
-    call managed-void-target43 sp<managed-call:68> live=[] sig=void44 (i32) local-fn30(local301)
-    t143 = aggregate () : {}
-    t144 = native_global_load ng3 sp<native-safe:39> roots=[] : enum1
-    store t144 -> local302
-    t145 = native_global_load ng3 sp<native-safe:40> roots=[] : enum1
-    store t145 -> local424
-    t146 = variant_test e1 v0 local424 : i1
-    cbr t146 then @if.then.7 else @if.else.8
+    call managed-void-target43 sp<managed-call:68> live=[] sig=void44 (i32) local-fn35(local301)
+    t169 = aggregate () : {}
+    t170 = native_global_load ng3 sp<native-safe:39> roots=[] : enum1
+    store t170 -> local302
+    t171 = native_global_load ng3 sp<native-safe:40> roots=[] : enum1
+    store t171 -> local424
+    t172 = variant_test e1 v0 local424 : i1
+    cbr t172 then @if.then.7 else @if.else.8
   block if.then.7
-    t147 = variant_payload_project e1 v0 f0 local424 : ptr<raw>
-    store t147 -> local425
+    t173 = variant_payload_project e1 v0 f0 local424 : ptr<raw>
+    store t173 -> local425
     br @if.merge.9
   block if.else.8
-    call managed-direct-target25 sp<managed-call:69> live=[] t148 = sig=direct25 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td7, machine<byte-size>(ByteSize(24)))
-    store t148 -> local430
+    call managed-direct-target25 sp<managed-call:69> live=[] t174 = sig=direct51 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td7, machine<byte-size>(ByteSize(24)))
+    store t174 -> local430
     call managed-void-target44 sp<managed-call:70> live=[local430:ptr<managed>@0] sig=void45 (ptr<managed>) external-fn3(local430)
-    t149 = aggregate () : {}
+    t175 = aggregate () : {}
     throw local430
     unreachable
   block if.merge.9
     store local425 -> local303
     store local302 -> local304
     store local303 -> local305
-    call managed-direct-target26 sp<managed-call:71> live=[] t150 = sig=direct26 (enum1, ptr<raw>) -> i1 local-fn23(local304, local305)
-    store t150 -> local306
+    call managed-direct-target26 sp<managed-call:71> live=[] t176 = sig=direct52 (enum1, ptr<raw>) -> i1 local-fn25(local304, local305)
+    store t176 -> local306
     store local306 -> local307
-    call managed-void-target45 sp<managed-call:72> live=[] sig=void46 (i1) local-fn29(local307)
-    t151 = aggregate () : {}
-    t152 = native_global_load ng3 sp<native-safe:41> roots=[] : enum1
-    store t152 -> local426
-    t153 = variant_test e1 v0 local426 : i1
-    cbr t153 then @if.then.10 else @if.else.11
+    call managed-void-target45 sp<managed-call:72> live=[] sig=void46 (i1) local-fn34(local307)
+    t177 = aggregate () : {}
+    t178 = native_global_load ng3 sp<native-safe:41> roots=[] : enum1
+    store t178 -> local426
+    t179 = variant_test e1 v0 local426 : i1
+    cbr t179 then @if.then.10 else @if.else.11
   block if.then.10
-    t154 = variant_payload_project e1 v0 f0 local426 : ptr<raw>
-    store t154 -> local427
+    t180 = variant_payload_project e1 v0 f0 local426 : ptr<raw>
+    store t180 -> local427
     br @if.merge.12
   block if.else.11
-    call managed-direct-target27 sp<managed-call:73> live=[] t155 = sig=direct27 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td7, machine<byte-size>(ByteSize(24)))
-    store t155 -> local431
+    call managed-direct-target27 sp<managed-call:73> live=[] t181 = sig=direct53 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td7, machine<byte-size>(ByteSize(24)))
+    store t181 -> local431
     call managed-void-target46 sp<managed-call:74> live=[local431:ptr<managed>@0] sig=void47 (ptr<managed>) external-fn3(local431)
-    t156 = aggregate () : {}
+    t182 = aggregate () : {}
     throw local431
     unreachable
   block if.merge.12
     store local427 -> local308
-    t157 = raw_load local308 align 4 : struct0
-    t158 = extract t157, 0 : i32
-    store t158 -> local309
+    t183 = raw_load local308 align 4 : struct1
+    t184 = extract t183, 0 : i32
+    store t184 -> local309
     store local309 -> local310
-    call managed-void-target47 sp<managed-call:75> live=[] sig=void48 (i32) local-fn30(local310)
-    t159 = aggregate () : {}
+    call managed-void-target47 sp<managed-call:75> live=[] sig=void48 (i32) local-fn35(local310)
+    t185 = aggregate () : {}
     store integer<Int>(0x00000006) -> local311
-    t160 = native_global_load ng4 sp<native-safe:42> roots=[] : ptr<code>
-    store t160 -> local312
+    t186 = native_global_load ng4 sp<native-safe:42> roots=[] : ptr<code>
+    store t186 -> local312
     store local311 -> local313
     store local312 -> local314
-    store local313 -> local492
-    store local314 -> local493
-    call native-safe-indirect-target28 sp<native-safe:43> roots=[] local494 = sig=indirect30 (c-storage-pointer i32 size=4 align=4 scan=none, ptr<raw>, ptr<raw>) extern13(c-arg-address(local492), c-arg-address(local493))
-    store local494 -> local315
+    call native-safe-direct-target25 sp<native-safe:43> roots=[] t187 = sig=direct54 (i32, ptr<code>) -> i32 extern13(local313, local314)
+    store t187 -> local315
     store local315 -> local316
-    call managed-void-target48 sp<managed-call:76> live=[] sig=void49 (i32) local-fn30(local316)
-    t161 = aggregate () : {}
-    t162 = native_global_load ng5 sp<native-safe:44> roots=[] : enum2
-    store t162 -> local317
+    call managed-void-target48 sp<managed-call:76> live=[] sig=void49 (i32) local-fn35(local316)
+    t188 = aggregate () : {}
+    t189 = native_global_load ng5 sp<native-safe:44> roots=[] : enum2
+    store t189 -> local317
     store integer<Int>(0x00000007) -> local318
     store local317 -> local319
     store local318 -> local320
-    call managed-direct-target28 sp<managed-call:77> live=[] t163 = sig=direct28 (enum2, i32) -> i32 local-fn26(local319, local320)
-    store t163 -> local321
+    call managed-direct-target28 sp<managed-call:77> live=[] t190 = sig=direct55 (enum2, i32) -> i32 local-fn28(local319, local320)
+    store t190 -> local321
     store local321 -> local322
-    call managed-void-target49 sp<managed-call:78> live=[] sig=void50 (i32) local-fn30(local322)
-    t164 = aggregate () : {}
+    call managed-void-target49 sp<managed-call:78> live=[] sig=void50 (i32) local-fn35(local322)
+    t191 = aggregate () : {}
     native_global_store ng0, local2 sp<native-safe:45> roots=[]
     native_global_store ng1, local10 sp<native-safe:46> roots=[]
     store local2 -> local323
     store local323 -> local324
-    t165 = enum_wrap e0 v0 (local324) : enum0
-    native_global_store ng2, t165 sp<native-safe:47> roots=[]
+    t192 = enum_wrap e0 v0 (local324) : enum0
+    native_global_store ng2, t192 sp<native-safe:47> roots=[]
     store local10 -> local325
     store local325 -> local326
-    t166 = enum_wrap e1 v0 (local326) : enum1
-    native_global_store ng3, t166 sp<native-safe:48> roots=[]
+    t193 = enum_wrap e1 v0 (local326) : enum1
+    native_global_store ng3, t193 sp<native-safe:48> roots=[]
     native_global_store ng4, local16 sp<native-safe:49> roots=[]
     store local16 -> local327
     store local327 -> local328
-    t167 = enum_wrap e2 v0 (local328) : enum2
-    native_global_store ng5, t167 sp<native-safe:50> roots=[]
+    t194 = enum_wrap e2 v0 (local328) : enum2
+    native_global_store ng5, t194 sp<native-safe:50> roots=[]
     store local2 -> local335
     store local10 -> local336
     store local2 -> local329
     store local329 -> local330
-    t168 = enum_wrap e0 v0 (local330) : enum0
-    store t168 -> local337
+    t195 = enum_wrap e0 v0 (local330) : enum0
+    store t195 -> local337
     store local10 -> local331
     store local331 -> local332
-    t169 = enum_wrap e1 v0 (local332) : enum1
-    store t169 -> local338
+    t196 = enum_wrap e1 v0 (local332) : enum1
+    store t196 -> local338
     store local16 -> local339
     store local16 -> local333
     store local333 -> local334
-    t170 = enum_wrap e2 v0 (local334) : enum2
-    store t170 -> local340
+    t197 = enum_wrap e2 v0 (local334) : enum2
+    store t197 -> local340
     store local335 -> local341
     store local336 -> local342
     store local337 -> local343
     store local338 -> local344
     store local339 -> local345
     store local340 -> local346
-    store local341 -> local495
-    store local342 -> local496
-    store local343 -> local497
-    store local344 -> local498
-    store local345 -> local499
-    store local346 -> local500
-    call native-safe-indirect-target29 sp<native-safe:51> roots=[] local501 = sig=indirect31 (c-storage-pointer i1 size=1 align=1 scan=none, ptr<raw>, ptr<raw>, ptr<raw>, ptr<raw>, ptr<raw>, ptr<raw>) extern20(c-arg-address(local495), c-arg-address(local496), c-arg-address(local497), c-arg-address(local498), c-arg-address(local499), c-arg-address(local500))
-    store local501 -> local347
+    call native-safe-direct-target26 sp<native-safe:51> roots=[] t198 = sig=direct56 (ptr<raw>, ptr<raw>, enum0, enum1, ptr<code>, enum2) -> i1 extern20(local341, local342, local343, local344, local345, local346)
+    store t198 -> local347
     store local347 -> local348
-    call managed-void-target50 sp<managed-call:79> live=[] sig=void51 (i1) local-fn29(local348)
-    t171 = aggregate () : {}
-    t172 = native_global_load ng0 sp<native-safe:52> roots=[] : ptr<raw>
-    store t172 -> local349
-    t173 = ptr_to_ulong local349 : i64
-    store t173 -> local351
+    call managed-void-target50 sp<managed-call:79> live=[] sig=void51 (i1) local-fn34(local348)
+    t199 = aggregate () : {}
+    t200 = native_global_load ng0 sp<native-safe:52> roots=[] : ptr<raw>
+    store t200 -> local349
+    t201 = ptr_to_ulong local349 : i64
+    store t201 -> local351
     store local2 -> local350
     store local351 -> local352
-    t174 = ptr_to_ulong local350 : i64
-    store t174 -> local353
+    t202 = ptr_to_ulong local350 : i64
+    store t202 -> local353
     store local353 -> local354
-    t175 = integer_compare_Equal<ULong> local352, local354 : i1
-    store t175 -> local355
+    t203 = integer_compare_Equal<ULong> local352, local354 : i1
+    store t203 -> local355
     store local355 -> local356
-    call managed-void-target51 sp<managed-call:80> live=[] sig=void52 (i1) local-fn29(local356)
-    t176 = aggregate () : {}
-    t177 = native_global_load ng1 sp<native-safe:53> roots=[] : ptr<raw>
-    store t177 -> local357
-    t178 = ptr_to_ulong local357 : i64
-    store t178 -> local359
+    call managed-void-target51 sp<managed-call:80> live=[] sig=void52 (i1) local-fn34(local356)
+    t204 = aggregate () : {}
+    t205 = native_global_load ng1 sp<native-safe:53> roots=[] : ptr<raw>
+    store t205 -> local357
+    t206 = ptr_to_ulong local357 : i64
+    store t206 -> local359
     store local10 -> local358
     store local359 -> local360
-    t179 = ptr_to_ulong local358 : i64
-    store t179 -> local361
+    t207 = ptr_to_ulong local358 : i64
+    store t207 -> local361
     store local361 -> local362
-    t180 = integer_compare_Equal<ULong> local360, local362 : i1
-    store t180 -> local363
+    t208 = integer_compare_Equal<ULong> local360, local362 : i1
+    store t208 -> local363
     store local363 -> local364
-    call managed-void-target52 sp<managed-call:81> live=[] sig=void53 (i1) local-fn29(local364)
-    t181 = aggregate () : {}
-    t182 = native_global_load ng2 sp<native-safe:54> roots=[] : enum0
-    store t182 -> local365
+    call managed-void-target52 sp<managed-call:81> live=[] sig=void53 (i1) local-fn34(local364)
+    t209 = aggregate () : {}
+    t210 = native_global_load ng2 sp<native-safe:54> roots=[] : enum0
+    store t210 -> local365
     store local2 -> local366
     store local365 -> local367
     store local366 -> local368
-    call managed-direct-target29 sp<managed-call:82> live=[] t183 = sig=direct29 (enum0, ptr<raw>) -> i1 local-fn22(local367, local368)
-    store t183 -> local369
+    call managed-direct-target29 sp<managed-call:82> live=[] t211 = sig=direct57 (enum0, ptr<raw>) -> i1 local-fn24(local367, local368)
+    store t211 -> local369
     store local369 -> local370
-    call managed-void-target53 sp<managed-call:83> live=[] sig=void54 (i1) local-fn29(local370)
-    t184 = aggregate () : {}
-    t185 = native_global_load ng3 sp<native-safe:55> roots=[] : enum1
-    store t185 -> local371
+    call managed-void-target53 sp<managed-call:83> live=[] sig=void54 (i1) local-fn34(local370)
+    t212 = aggregate () : {}
+    t213 = native_global_load ng3 sp<native-safe:55> roots=[] : enum1
+    store t213 -> local371
     store local10 -> local372
     store local371 -> local373
     store local372 -> local374
-    call managed-direct-target30 sp<managed-call:84> live=[] t186 = sig=direct30 (enum1, ptr<raw>) -> i1 local-fn23(local373, local374)
-    store t186 -> local375
+    call managed-direct-target30 sp<managed-call:84> live=[] t214 = sig=direct58 (enum1, ptr<raw>) -> i1 local-fn25(local373, local374)
+    store t214 -> local375
     store local375 -> local376
-    call managed-void-target54 sp<managed-call:85> live=[] sig=void55 (i1) local-fn29(local376)
-    t187 = aggregate () : {}
+    call managed-void-target54 sp<managed-call:85> live=[] sig=void55 (i1) local-fn34(local376)
+    t215 = aggregate () : {}
     store integer<Int>(0x0000002c) -> local377
-    t188 = native_global_load ng4 sp<native-safe:56> roots=[] : ptr<code>
-    store t188 -> local378
+    t216 = native_global_load ng4 sp<native-safe:56> roots=[] : ptr<code>
+    store t216 -> local378
     store local377 -> local379
     store local378 -> local380
-    store local379 -> local502
-    store local380 -> local503
-    call native-safe-indirect-target30 sp<native-safe:57> roots=[] local504 = sig=indirect32 (c-storage-pointer i32 size=4 align=4 scan=none, ptr<raw>, ptr<raw>) extern13(c-arg-address(local502), c-arg-address(local503))
-    store local504 -> local381
+    call native-safe-direct-target27 sp<native-safe:57> roots=[] t217 = sig=direct59 (i32, ptr<code>) -> i32 extern13(local379, local380)
+    store t217 -> local381
     store local381 -> local382
-    call managed-void-target55 sp<managed-call:86> live=[] sig=void56 (i32) local-fn30(local382)
-    t189 = aggregate () : {}
-    t190 = native_global_load ng5 sp<native-safe:58> roots=[] : enum2
-    store t190 -> local383
+    call managed-void-target55 sp<managed-call:86> live=[] sig=void56 (i32) local-fn35(local382)
+    t218 = aggregate () : {}
+    t219 = native_global_load ng5 sp<native-safe:58> roots=[] : enum2
+    store t219 -> local383
     store integer<Int>(0x0000002d) -> local384
     store local383 -> local385
     store local384 -> local386
-    call managed-direct-target31 sp<managed-call:87> live=[] t191 = sig=direct31 (enum2, i32) -> i32 local-fn26(local385, local386)
-    store t191 -> local387
+    call managed-direct-target31 sp<managed-call:87> live=[] t220 = sig=direct60 (enum2, i32) -> i32 local-fn28(local385, local386)
+    store t220 -> local387
     store local387 -> local388
-    call managed-void-target56 sp<managed-call:88> live=[] sig=void57 (i32) local-fn30(local388)
-    t192 = aggregate () : {}
-    t193 = enum_wrap e0 v1 () : enum0
-    native_global_store ng2, t193 sp<native-safe:59> roots=[]
-    t194 = enum_wrap e1 v1 () : enum1
-    native_global_store ng3, t194 sp<native-safe:60> roots=[]
-    t195 = enum_wrap e2 v1 () : enum2
-    native_global_store ng5, t195 sp<native-safe:61> roots=[]
+    call managed-void-target56 sp<managed-call:88> live=[] sig=void57 (i32) local-fn35(local388)
+    t221 = aggregate () : {}
+    t222 = enum_wrap e0 v1 () : enum0
+    native_global_store ng2, t222 sp<native-safe:59> roots=[]
+    t223 = enum_wrap e1 v1 () : enum1
+    native_global_store ng3, t223 sp<native-safe:60> roots=[]
+    t224 = enum_wrap e2 v1 () : enum2
+    native_global_store ng5, t224 sp<native-safe:61> roots=[]
     store local2 -> local389
     store local10 -> local390
-    t196 = enum_wrap e0 v1 () : enum0
-    store t196 -> local391
-    t197 = enum_wrap e1 v1 () : enum1
-    store t197 -> local392
+    t225 = enum_wrap e0 v1 () : enum0
+    store t225 -> local391
+    t226 = enum_wrap e1 v1 () : enum1
+    store t226 -> local392
     store local16 -> local393
-    t198 = enum_wrap e2 v1 () : enum2
-    store t198 -> local394
+    t227 = enum_wrap e2 v1 () : enum2
+    store t227 -> local394
     store local389 -> local395
     store local390 -> local396
     store local391 -> local397
     store local392 -> local398
     store local393 -> local399
     store local394 -> local400
-    store local395 -> local505
-    store local396 -> local506
-    store local397 -> local507
-    store local398 -> local508
-    store local399 -> local509
-    store local400 -> local510
-    call native-safe-indirect-target31 sp<native-safe:62> roots=[] local511 = sig=indirect33 (c-storage-pointer i1 size=1 align=1 scan=none, ptr<raw>, ptr<raw>, ptr<raw>, ptr<raw>, ptr<raw>, ptr<raw>) extern20(c-arg-address(local505), c-arg-address(local506), c-arg-address(local507), c-arg-address(local508), c-arg-address(local509), c-arg-address(local510))
-    store local511 -> local401
+    call native-safe-direct-target28 sp<native-safe:62> roots=[] t228 = sig=direct61 (ptr<raw>, ptr<raw>, enum0, enum1, ptr<code>, enum2) -> i1 extern20(local395, local396, local397, local398, local399, local400)
+    store t228 -> local401
     store local401 -> local402
-    call managed-void-target57 sp<managed-call:89> live=[] sig=void58 (i1) local-fn29(local402)
-    t199 = aggregate () : {}
-    t200 = native_global_load ng2 sp<native-safe:63> roots=[] : enum0
-    store t200 -> local403
+    call managed-void-target57 sp<managed-call:89> live=[] sig=void58 (i1) local-fn34(local402)
+    t229 = aggregate () : {}
+    t230 = native_global_load ng2 sp<native-safe:63> roots=[] : enum0
+    store t230 -> local403
     store local403 -> local404
-    call managed-direct-target32 sp<managed-call:90> live=[] t201 = sig=direct32 (enum0) -> i1 local-fn24(local404)
-    store t201 -> local405
+    call managed-direct-target32 sp<managed-call:90> live=[] t231 = sig=direct62 (enum0) -> i1 local-fn26(local404)
+    store t231 -> local405
     store local405 -> local406
-    call managed-void-target58 sp<managed-call:91> live=[] sig=void59 (i1) local-fn29(local406)
-    t202 = aggregate () : {}
-    t203 = native_global_load ng3 sp<native-safe:64> roots=[] : enum1
-    store t203 -> local407
+    call managed-void-target58 sp<managed-call:91> live=[] sig=void59 (i1) local-fn34(local406)
+    t232 = aggregate () : {}
+    t233 = native_global_load ng3 sp<native-safe:64> roots=[] : enum1
+    store t233 -> local407
     store local407 -> local408
-    call managed-direct-target33 sp<managed-call:92> live=[] t204 = sig=direct33 (enum1) -> i1 local-fn25(local408)
-    store t204 -> local409
+    call managed-direct-target33 sp<managed-call:92> live=[] t234 = sig=direct63 (enum1) -> i1 local-fn27(local408)
+    store t234 -> local409
     store local409 -> local410
-    call managed-void-target59 sp<managed-call:93> live=[] sig=void60 (i1) local-fn29(local410)
-    t205 = aggregate () : {}
-    t206 = native_global_load ng5 sp<native-safe:65> roots=[] : enum2
-    store t206 -> local411
+    call managed-void-target59 sp<managed-call:93> live=[] sig=void60 (i1) local-fn34(local410)
+    t235 = aggregate () : {}
+    t236 = native_global_load ng5 sp<native-safe:65> roots=[] : enum2
+    store t236 -> local411
     store local411 -> local412
-    call managed-direct-target34 sp<managed-call:94> live=[] t207 = sig=direct34 (enum2) -> i1 local-fn27(local412)
-    store t207 -> local413
+    call managed-direct-target34 sp<managed-call:94> live=[] t237 = sig=direct64 (enum2) -> i1 local-fn29(local412)
+    store t237 -> local413
     store local413 -> local414
-    call managed-void-target60 sp<managed-call:95> live=[] sig=void61 (i1) local-fn29(local414)
-    t208 = aggregate () : {}
+    call managed-void-target60 sp<managed-call:95> live=[] sig=void61 (i1) local-fn34(local414)
+    t238 = aggregate () : {}
     call native-safe-void-target1 sp<native-safe:66> roots=[] sig=void62 () extern19()
-    t209 = aggregate () : {}
+    t239 = aggregate () : {}
     store local10 -> local415
     store local415 -> local416
     store local416 -> local417
-    store local417 -> local512
-    call native-safe-void-target2 sp<native-safe:67> roots=[] sig=void63 (ptr<raw>) extern1(c-arg-address(local512))
-    t210 = aggregate () : {}
+    call native-safe-void-target2 sp<native-safe:67> roots=[] sig=void63 (ptr<raw>) extern1(local417)
+    t240 = aggregate () : {}
     store local2 -> local418
     store local418 -> local419
-    store local419 -> local513
-    call native-safe-void-target3 sp<native-safe:68> roots=[] sig=void64 (ptr<raw>) extern1(c-arg-address(local513))
-    t211 = aggregate () : {}
+    call native-safe-void-target3 sp<native-safe:68> roots=[] sig=void64 (ptr<raw>) extern1(local419)
+    t241 = aggregate () : {}
     ret
+  fun @scoop$1$cb$9f05b3865f9d292f41b4d9e9406eb8edd6ef8d76602387d2166c11f7add07a0f(ptr<raw>, ptr<raw>) -> i1
+    local %0 $dependency.local.2: ptr<raw>
+    local %1 $dependency.local.3: ptr<raw>
+    local %2 $dependency.local.4: i64
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store param0 -> local0
+    t0 = ptr_to_ulong local0 : i64
+    store t0 -> local2
+    store param1 -> local1
+    t1 = ptr_to_ulong local1 : i64
+    t2 = integer_compare_Equal<ULong> local2, t1 : i1
+    ret t2
+  fun @scoop$1$cb$4f74f5eab79ab30448b9eb42039558804b0edae55c4cda6507d6aaa2fb3cc519(ptr<raw>, ptr<raw>) -> i1
+    local %0 $dependency.local.2: ptr<raw>
+    local %1 $dependency.local.3: ptr<raw>
+    local %2 $dependency.local.4: i64
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store param0 -> local0
+    t0 = ptr_to_ulong local0 : i64
+    store t0 -> local2
+    store param1 -> local1
+    t1 = ptr_to_ulong local1 : i64
+    t2 = integer_compare_Equal<ULong> local2, t1 : i1
+    ret t2
+  fun @scoop$1$cb$aefb014273e0beeb534f58fee527f3a9a80a492578c7f9b86e35dd081479b845(ptr<raw>, ptr<raw>) -> i1
+    local %0 $dependency.local.2: ptr<raw>
+    local %1 $dependency.local.3: ptr<raw>
+    local %2 $dependency.local.4: ptr<raw>
+    local %3 $call.1: i1
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store param0 -> local0
+    store param1 -> local1
+    store local1 -> local2
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (ptr<raw>, ptr<raw>) -> i1 local-fn36(local0, local2)
+    store t0 -> local3
+    ret local3
   fun @scoop$1$cb$b0c2bbaec5d3e971bdbf6b7be42ee32b5cd27aa28cd91cd80288f41a25f3b6cf(i1) -> void
     local %0 $dependency.local.1: i1
     local %1 $dependency.local.2: ptr<managed>
@@ -1870,61 +1749,72 @@ Module
     call managed-void-target1 sp<managed-call:2> live=[local4:ptr<managed>@0] sig=void1 (ptr<managed>) external-fn2(local4)
     t2 = aggregate () : {}
     ret
-  fun @scoop$1$cb$a5820348cd4267a01bba805769229234c6fe45284a987f33c5ea71a8747d402b(ptr<managed>, indirect<struct0 size=4 align=4 scan=none>) -> void
+  fun @scoop$1$cb$5a6abb171a03e58adf7c3cb6a63cff00accc8026986c499a85167bbc80089dff(ptr<raw>, ptr<raw>) -> i1
+    local %0 $dependency.local.2: ptr<raw>
+    local %1 $dependency.local.3: ptr<raw>
+    local %2 $dependency.local.4: i64
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store param0 -> local0
+    t0 = ptr_to_ulong local0 : i64
+    store t0 -> local2
+    store param1 -> local1
+    t1 = ptr_to_ulong local1 : i64
+    t2 = integer_compare_Equal<ULong> local2, t1 : i1
+    ret t2
+  fun @scoop$1$cb$a5820348cd4267a01bba805769229234c6fe45284a987f33c5ea71a8747d402b(parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>, parts<struct1 [i32@0+4/4]>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     br @unwrap.trap.1
   block unwrap.trap.1
     call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global3)
     unreachable
-  fun @scoop$1$cb$55cdbbe4a2ea856e5dd19b531d289d178287bcdc9c44b6f53c02c54faf716c8a(ptr<managed>, ptr<managed>) -> void
+  fun @scoop$1$cb$55cdbbe4a2ea856e5dd19b531d289d178287bcdc9c44b6f53c02c54faf716c8a(parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>, ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     br @unwrap.trap.1
   block unwrap.trap.1
     call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global4)
     unreachable
-  fun @scoop$1$cb$d0efdcf153f45918101fdc61814259bde986ac1ddd2c12fcc29317e7e5481457(ptr<managed>, ptr<managed>) -> sret<enum4 size=16 align=8 scan=none>
+  fun @scoop$1$cb$d0efdcf153f45918101fdc61814259bde986ac1ddd2c12fcc29317e7e5481457(parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>, parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>) -> parts<enum4 [i64@0+8/8,i64@8+8/8]>
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     br @unwrap.trap.1
   block unwrap.trap.1
     call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global5)
     unreachable
-  fun @scoop$1$cb$1a2617ae02fc3f9f79094af76ca392ac7ccea3e69198e547ccc07be1b0fdb367(ptr<managed>, ptr<managed>) -> void
+  fun @scoop$1$cb$1a2617ae02fc3f9f79094af76ca392ac7ccea3e69198e547ccc07be1b0fdb367(parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>, parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     br @unwrap.trap.1
   block unwrap.trap.1
     call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global6)
     unreachable
-  fun @scoop$1$cb$921f4518b5b349bcc4e6e8268bbd4e092a1595f77aa85f3593bbc5f28221ee0c(i32) -> sret<struct0 size=4 align=4 scan=none> <no-gc>
+  fun @scoop$1$cb$921f4518b5b349bcc4e6e8268bbd4e092a1595f77aa85f3593bbc5f28221ee0c(i32) -> parts<struct1 [i32@0+4/4]> <no-gc>
   block entry
-    t0 = aggregate (param0) : struct0
+    t0 = aggregate (param0) : struct1
     ret t0
-  fun @scoop$1$cb$a7f91b15c578998e2e7a523f5f988159b8342bb0faa372f813d89608b7111f6a(ptr<raw>, ptr<raw>, enum0, enum1, ptr<code>, enum2) -> sret<struct1 size=48 align=8 scan=none> <no-gc>
+  fun @scoop$1$cb$a7f91b15c578998e2e7a523f5f988159b8342bb0faa372f813d89608b7111f6a(ptr<raw>, ptr<raw>, enum0, enum1, ptr<code>, enum2) -> sret<struct3 size=48 align=8 scan=none> <no-gc>
   block entry
-    t0 = aggregate (param0, param1, param2, param3, param4, param5) : struct1
+    t0 = aggregate (param0, param1, param2, param3, param4, param5) : struct3
     ret t0
   fun @scoop$1$cb$c72a2b4d0bb430a71a00658d3a55e4cf3e8691870602b0405a10f451e893c082(ptr<raw>, ptr<raw>) -> void <no-gc>
     local %0 $value: i32
   block entry
     t0 = raw_load param1 align 4 : i32
-    call no-gc-direct-target0 t1 = sig=direct0 (i32) -> i32 local-fn21(t0)
+    call no-gc-direct-target0 t1 = sig=direct0 (i32) -> i32 local-fn23(t0)
     store t1 -> local0
     raw_store param0 local0 align 4
     t2 = aggregate () : {}
     ret
-  fun @scoop$1$cb$51bd8cda5cc56ebae462a125a73da3304c523b9bef8f8d28f80aa57162b46164(ptr<managed>, ptr<managed>) -> void
+  fun @scoop$1$cb$51bd8cda5cc56ebae462a125a73da3304c523b9bef8f8d28f80aa57162b46164(parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>, parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>) -> void
     local %0 $step: enum4
     local %1 $exception: ptr<managed>
     local %2 $context_guard: {ptr<managed>}
     local %3 $child_context: ptr<managed>
     local %4 $sc.1: exception_record
     local %5 $sc.2: ptr<raw>
-    local %6 $sc.3: struct0
-    local %7 $sc.4: ptr<managed>
-    local %8 $sc.5: enum4
+    local %6 $sc.3: ptr<managed>
   block context.unwind
     (t0, t1) = cleanup_pad : (exception_record, ptr<raw>)
     store t0 -> local4
@@ -1939,40 +1829,39 @@ Module
     t9 = aggregate () : {}
     ret
   block completed
-    t10 = enum_field e4 v0 f0 local0 : struct0
-    t11 = heap_load param1 +0 : ptr<metadata>
-    call no-gc-direct-target0 t12 = sig=direct0 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t11, td0)
-    store t10 -> local6
-    invoke managed-void-target0 sp<managed-invoke:2> roots=[param1:argument, local2:normal+unwind] sig=void3 (ptr<managed>, indirect<struct0 size=4 align=4 scan=none>) dispatch[Interface:0] t12(param1, indirect local6) normal @invoke.normal.1 unwind @context.unwind
+    t10 = enum_field e4 v0 f0 local0 : struct1
+    t11 = extract param1, 1 : ptr<metadata>
+    t12 = extract param1, 0 : ptr<managed>
+    invoke managed-void-target0 sp<managed-invoke:2> roots=[local2:normal+unwind, t12:argument] sig=void3 (ptr<managed>, parts<struct1 [i32@0+4/4]>) dispatch[Interface:0] t11(t12, t10) normal @invoke.normal.1 unwind @context.unwind
     br @invoke.normal.1
   block failed
-    t16 = heap_load param1 +0 : ptr<metadata>
-    call no-gc-direct-target1 t17 = sig=direct1 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t16, td0)
-    invoke managed-void-target1 sp<managed-invoke:1> roots=[param1:argument, local1:argument, local2:normal+unwind] sig=void5 (ptr<managed>, ptr<managed>) dispatch[Interface:1] t17(param1, local1) normal @invoke.normal.2 unwind @context.unwind
+    t16 = extract param1, 1 : ptr<metadata>
+    t17 = extract param1, 0 : ptr<managed>
+    invoke managed-void-target1 sp<managed-invoke:1> roots=[local1:argument, local2:normal+unwind, t17:argument] sig=void5 (ptr<managed>, ptr<managed>) dispatch[Interface:1] t16(t17, local1) normal @invoke.normal.2 unwind @context.unwind
     br @invoke.normal.2
   block body_failure
     (t21, t22) = landingpad : (exception_record, ptr<raw>)
     store t21 -> local4
     store t22 -> local5
     t23 = begin_catch local5 : ptr<managed>
-    store t23 -> local7
-    call managed-direct-target0 sp<managed-call:1> live=[param1:ptr<managed>@0, local2:{ptr<managed>}@0, local7:ptr<managed>@0] t24 = sig=direct2 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(local7)
+    store t23 -> local6
+    call managed-direct-target0 sp<managed-call:1> live=[param1:interface{object,itab}@0, local2:{ptr<managed>}@0, local6:ptr<managed>@0] t24 = sig=direct0 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(local6)
     store t24 -> local1
     end_catch
     br @failed
   block run
-    t25 = heap_load param0 +0 : ptr<metadata>
-    call no-gc-direct-target2 t26 = sig=direct3 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t25, td1)
-    invoke managed-indirect-target0 sp<managed-invoke:0> roots=[param0:argument, param1:normal+unwind, local2:normal+unwind] local8 = sig=indirect0 (sret enum4 size=16 align=8 scan=none, ptr<managed>, ptr<managed>) dispatch[Interface:0] t26(param0, param1) normal @invoke.normal.3 unwind @body_failure
+    t25 = extract param0, 1 : ptr<metadata>
+    t26 = extract param0, 0 : ptr<managed>
+    invoke managed-direct-target1 sp<managed-invoke:0> roots=[param1:normal+unwind, local2:normal+unwind, t26:argument] t27 = sig=direct1 (ptr<managed>, parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>) -> enum4 dispatch[Interface:0] t25(t26, param1) normal @invoke.normal.3 unwind @body_failure
     br @invoke.normal.3
   block entry
-    poll managed-void-target2 sp<managed-poll:0> live=[param0:ptr<managed>@0, param1:ptr<managed>@0]
-    call no-gc-direct-target3 t29 = sig=direct4 () -> ptr<managed> runtime @scoop_rt_context_snapshot()
-    call managed-direct-target1 sp<managed-call:0> live=[param0:ptr<managed>@0, param1:ptr<managed>@0, t29:ptr<managed>@0] t30 = sig=direct5 (ptr<managed>, ptr<metadata>) -> ptr<managed> runtime @scoop_rt_context_fork(t29, external-td3)
-    store t30 -> local3
-    call no-gc-direct-target4 t31 = sig=direct6 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_context_enter(local3)
-    t32 = aggregate (t31) : {ptr<managed>}
-    store t32 -> local2
+    poll managed-void-target2 sp<managed-poll:0> live=[param0:interface{object,itab}@0, param1:interface{object,itab}@0]
+    call no-gc-direct-target0 t30 = sig=direct2 () -> ptr<managed> runtime @scoop_rt_context_snapshot()
+    call managed-direct-target2 sp<managed-call:0> live=[param0:interface{object,itab}@0, param1:interface{object,itab}@0, t30:ptr<managed>@0] t31 = sig=direct3 (ptr<managed>, ptr<metadata>) -> ptr<managed> runtime @scoop_rt_context_fork(t30, external-td3)
+    store t31 -> local3
+    call no-gc-direct-target1 t32 = sig=direct4 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_context_enter(local3)
+    t33 = aggregate (t32) : {ptr<managed>}
+    store t33 -> local2
     br @run
   block invoke.normal.1
     t13 = aggregate () : {}
@@ -1987,17 +1876,18 @@ Module
     t20 = aggregate () : {}
     ret
   block invoke.normal.3
-    store local8 -> local0
-    t27 = enum_tag e4 local0 : machine<enum-tag>
-    t28 = MachineEq(EnumTag) t27, machine<enum-tag>(EnumTag(0)) : i1
-    cbr t28 then @completed else @suspended
-  fun @scoop$1$cb$d3bd523ea7c4b775508c06e622f76772db6a21fddb406c6d3fe7d1f20a2a89c1() -> i32
+    store t27 -> local0
+    t28 = enum_tag e4 local0 : machine<enum-tag>
+    t29 = MachineEq(EnumTag) t28, machine<enum-tag>(EnumTag(0)) : i1
+    cbr t29 then @completed else @suspended
+  fun @scoop$1$cb$d3bd523ea7c4b775508c06e622f76772db6a21fddb406c6d3fe7d1f20a2a89c1(i32, ptr<raw>, ptr<raw>) -> i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
     call managed-direct-target1 sp<managed-call:0> live=[] t4 = sig=direct1 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_context_ensure_root(external-td3)
-    invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn28() normal @success unwind @failure
+    invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn30() normal @success unwind @failure
     br @success
   block success
+    raw_store param2 integer<Int>(0x00000000) align 4
     ret integer<UInt>(0x00000000)
   block failure
     (t0, t1) = landingpad : (exception_record, ptr<raw>)
@@ -2006,18 +1896,23 @@ Module
     global_store global2, t3
     end_catch
     ret integer<UInt>(0x00000001)
-  td td0 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=scoop%3Asingle-file%3A0.0.0;p=;o=-;k=S;x=NativeCell)]) @scoop$1$td$9a045c2773397e8ba309ea8da45462c4deb4321664d7c86e3a7cd94a9eed7b4a type-id=7137868531362457428 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
-  td td1 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=scoop%3Asingle-file%3A0.0.0;p=;o=-;k=S;x=NativeCell)]) @scoop$1$td$3e879e4d28c4a5bd2504cd6bf108f5dbd7911e76a5181055d08f6124b97cb6d9 type-id=16122733303772949409 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
-  td td2 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=scoop%3Asingle-file%3A0.0.0;p=;o=-;k=S;x=NativeCell)]) @scoop$1$td$0b2b81da695cdb4cb8f83ca248930c4d4b9b87fd1ee2d2d9c3c624070e1da906 type-id=2354751196092763955 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
-  td td3 g(r=00000006;i=07d79ca14f0815a3fb1aeb344f53b0f75f23b8ecfadc7a12aa15626c868e029c) @scoop$1$td$ec51504300dc1631064574c8a4185ac59c799a0515b2e621344468ec89d6791a type-id=17660865679449896222 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
-  td td4 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=Option);[r(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Unit))]) @scoop$1$td$6e4ab9282cb7ebc0ff50766661eac1e46b544e1861aa9cb209d80bb99e632dc4 type-id=8582705861163909397 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
-  td td5 n(c=scoop%3Asingle-file%3A0.0.0;p=;o=-;k=S;x=PointerBundle) @scoop$1$td$708d16fb5c825f5dcd40316e22338f90cd8babffaa57213d5d2c2a617ec9a2c4 type-id=3609680719827951355 shape=BoxedValue minimum-size=64 align=8 parent=none vtable=[] itables=[]
-  td td6 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=Option);[x(c;[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]->n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int))]) @scoop$1$td$9baa9c4e640bfa7caed8b9c1c9ed562267e7a439ac3749a4144c0e5ee5a3b463 type-id=13769363773206174195 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
-  td td7 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=Option);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=String)]) @scoop$1$td$ae549cdc775dd9ab0e9bae5a7a2d6790f211d7978acd71210d6088d347896a35 type-id=12995891512699415417 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
-  td td8 n(c=scoop%3Asingle-file%3A0.0.0;p=;o=-;k=S;x=NativeCell) @scoop$1$td$c080072539087631a241575e16450c777eabd36deb61f426b9bd85f29377d6bd type-id=3056916557370450243 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
-  td td9 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=Option);[r(n(c=scoop%3Asingle-file%3A0.0.0;p=;o=-;k=S;x=NativeCell))]) @scoop$1$td$e11b36f075a80b2ea8610b71843f697f7abfb1efee47bbdf0917eab3e592577d type-id=6465046704971183512 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
-  td td10 g(r=00000007;i=a4de730e764b983f0e30edf1b78d7ec9d877b7f6304db16052710989c7a5a934) @scoop$1$td$06369d73d002409a04f6dd3f8fe438c464a3ff5e7874ddf1373916ecd2d74a21 type-id=3185686365089889808 shape=BoxedValue minimum-size=32 align=8 parent=none vtable=[] itables=[]
-  td td11 g(r=00000005;i=aa646d94176bb475c7c5784843a8fb562cdcbb869e190c9293fda23e274e0cd7) @scoop$1$td$74e2b296818ee402cddcf52c61f0098e25391371a78abb142b7f82d66a905cf7 type-id=1872014514444271503 shape=BoxedValue minimum-size=32 align=8 parent=none vtable=[] itables=[]
+  td td0 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Equality);[r(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Unit))]) @scoop$1$td$0bc23c412fad764e60961b62c9b3f04f12bc4ba47ea57104ba43fc06a3686fb9 type-id=18108120377996161931 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
+  td td1 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Equality);[r(n(c=scoop%3Asingle-file%3A0.0.0;p=;o=-;k=S;x=NativeCell))]) @scoop$1$td$f4dab3b0d161bff1d51e5c5de7b485f0277bfc438c45d8df1b4d65dacaba1646 type-id=16660123186664535489 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
+  td td2 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Equality);[r(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int))]) @scoop$1$td$417d849ab9faf4ee7cc245d7444316539a92fddeb0d74a52baa9166df5b641dd type-id=6625804449091664072 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
+  td td3 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Equality);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Boolean)]) @scoop$1$td$e516c798cd62cc191cdf46333dc921b4e3639305065abc8cb9318e8d276cad36 type-id=5680730302189010564 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
+  td td4 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Equality);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$6fb0bdfcaef72d458561b350a56fb80e86e68f4c020173148c7fe1ec239ea687 type-id=940003777485400453 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
+  td td5 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=scoop%3Asingle-file%3A0.0.0;p=;o=-;k=S;x=NativeCell)]) @scoop$1$td$9a045c2773397e8ba309ea8da45462c4deb4321664d7c86e3a7cd94a9eed7b4a type-id=7137868531362457428 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
+  td td6 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=scoop%3Asingle-file%3A0.0.0;p=;o=-;k=S;x=NativeCell)]) @scoop$1$td$3e879e4d28c4a5bd2504cd6bf108f5dbd7911e76a5181055d08f6124b97cb6d9 type-id=16122733303772949409 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
+  td td7 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=scoop%3Asingle-file%3A0.0.0;p=;o=-;k=S;x=NativeCell)]) @scoop$1$td$0b2b81da695cdb4cb8f83ca248930c4d4b9b87fd1ee2d2d9c3c624070e1da906 type-id=2354751196092763955 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
+  td td8 g(r=00000006;i=07d79ca14f0815a3fb1aeb344f53b0f75f23b8ecfadc7a12aa15626c868e029c) @scoop$1$td$ec51504300dc1631064574c8a4185ac59c799a0515b2e621344468ec89d6791a type-id=17660865679449896222 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td9 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=Option);[r(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Unit))]) @scoop$1$td$6e4ab9282cb7ebc0ff50766661eac1e46b544e1861aa9cb209d80bb99e632dc4 type-id=8582705861163909397 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td10 n(c=scoop%3Asingle-file%3A0.0.0;p=;o=-;k=S;x=PointerBundle) @scoop$1$td$708d16fb5c825f5dcd40316e22338f90cd8babffaa57213d5d2c2a617ec9a2c4 type-id=3609680719827951355 shape=BoxedValue minimum-size=64 align=8 parent=none vtable=[] itables=[]
+  td td11 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=Option);[x(c;[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]->n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int))]) @scoop$1$td$9baa9c4e640bfa7caed8b9c1c9ed562267e7a439ac3749a4144c0e5ee5a3b463 type-id=13769363773206174195 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td12 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=Option);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=String)]) @scoop$1$td$ae549cdc775dd9ab0e9bae5a7a2d6790f211d7978acd71210d6088d347896a35 type-id=12995891512699415417 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td13 n(c=scoop%3Asingle-file%3A0.0.0;p=;o=-;k=S;x=NativeCell) @scoop$1$td$c080072539087631a241575e16450c777eabd36deb61f426b9bd85f29377d6bd type-id=3056916557370450243 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td14 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=Option);[r(n(c=scoop%3Asingle-file%3A0.0.0;p=;o=-;k=S;x=NativeCell))]) @scoop$1$td$e11b36f075a80b2ea8610b71843f697f7abfb1efee47bbdf0917eab3e592577d type-id=6465046704971183512 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td15 g(r=00000007;i=a4de730e764b983f0e30edf1b78d7ec9d877b7f6304db16052710989c7a5a934) @scoop$1$td$06369d73d002409a04f6dd3f8fe438c464a3ff5e7874ddf1373916ecd2d74a21 type-id=3185686365089889808 shape=BoxedValue minimum-size=32 align=8 parent=none vtable=[] itables=[]
+  td td16 g(r=00000005;i=aa646d94176bb475c7c5784843a8fb562cdcbb869e190c9293fda23e274e0cd7) @scoop$1$td$74e2b296818ee402cddcf52c61f0098e25391371a78abb142b7f82d66a905cf7 type-id=1872014514444271503 shape=BoxedValue minimum-size=32 align=8 parent=none vtable=[] itables=[]
   layout NativeCell size=4 align=4 refs=[]
   layout-meta NativeCell c-layout(aligned=0,packed=0) fields=[0@4] interior-mutable=false
   layout NativeCell size=4 align=4 refs=[]
@@ -2032,9 +1927,14 @@ Module
   layout Option size=8 align=8 enum-scan=refs[0]
   layout CoroutineStep<NativeCell> size=16 align=8 enum-scan=none
   layout CoroutineSlot<NativeCell> size=16 align=8 enum-scan=none
-  layout Continuation value size=8 align=8 refs=[0]
-  layout SuspendTask value size=8 align=8 refs=[0]
-  layout SuspendRegistration value size=8 align=8 refs=[0]
+  layout Equality value size=16 align=8 refs=[0]
+  layout Equality value size=16 align=8 refs=[0]
+  layout Equality value size=16 align=8 refs=[0]
+  layout Equality value size=16 align=8 refs=[0]
+  layout Equality value size=16 align=8 refs=[0]
+  layout Continuation value size=16 align=8 refs=[0]
+  layout SuspendTask value size=16 align=8 refs=[0]
+  layout SuspendRegistration value size=16 align=8 refs=[0]
   layout box<NativeCell> value size=8 align=8 refs=[0]
   layout box<NativeCell> size=24 align=8 refs=[]
   output executable @scoop$1$cb$a59ba8328a87a3c09df1111305261ccbca23796630e0ce6dea24e3ae106f48ca

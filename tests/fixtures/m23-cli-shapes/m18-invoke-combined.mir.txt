@@ -1210,8 +1210,10 @@ Module
         Local $parameter.transform
         Type String
         Local $parameter.suffix
-        Type CoroutineAdapter<InvokeTask.run>$1
-        Local $adapter.1
+        Type Continuation<String>
+        Retype Continuation<String>
+          Type CoroutineAdapter<InvokeTask.run>$1
+          Local $adapter.1
       branch bb14 bb15
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -1763,8 +1765,10 @@ Module
       call @fn14 interface SuspendRegistration<Int>[0]
         Type SuspendRegistration<Int>
         Local $dependency.parameter.registration
-        Type CoroutineAdapter<awaitInvoke>$1
-        Local $safe_adapter.1
+        Type Continuation<Int>
+        Retype Continuation<Int>
+          Type CoroutineAdapter<awaitInvoke>$1
+          Local $safe_adapter.1
       goto bb14
     bb3 coroutine.registered_success.1
       atomic_store_release kind=coroutine-adapter-state field=1
@@ -2510,8 +2514,10 @@ Module
       call $step.1: CoroutineStep<Int> = @fn5 direct
         Type InvokeGate
         Local $parameter.gate
-        Type CoroutineAdapter<AsyncInvoker.invoke>$1
-        Local $adapter.1
+        Type Continuation<Int>
+        Retype Continuation<Int>
+          Type CoroutineAdapter<AsyncInvoker.invoke>$1
+          Local $adapter.1
       branch bb7 bb8
         Type Boolean
         Binary MachineEq(EnumTag)

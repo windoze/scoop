@@ -46,27 +46,23 @@ Module
     local %16 $argument.0: i1
     local %17 $parameter.value: i1
     local %18 $call.1: struct0
-    local %19 $sc.1: struct0
-    local %20 $sc.2: struct0
-    local %21 $sc.3: struct0
-    local %22 $sc.4: struct0
   block entry
     poll managed-void-target2 sp<managed-poll:0> live=[]
     store true -> local0
     store integer<Int>(0x00000011) -> local1
     store local0 -> local2
     store local1 -> local3
-    call no-gc-indirect-target0 local19 = sig=indirect0 (sret struct0 size=8 align=4 scan=none, i1, i32) external-fn1(local2, local3)
-    store local19 -> local4
-    t0 = extract local4, 0 : i1
-    cbr t0 then @if.then.1 else @if.else.2
+    call no-gc-direct-target0 t0 = sig=direct0 (i1, i32) -> struct0 external-fn1(local2, local3)
+    store t0 -> local4
+    t1 = extract local4, 0 : i1
+    cbr t1 then @if.then.1 else @if.else.2
   block if.then.1
-    t1 = extract local4, 1 : i32
-    store t1 -> local5
+    t2 = extract local4, 1 : i32
+    store t2 -> local5
     store integer<Int>(0x00000011) -> local6
     store local6 -> local7
-    t2 = integer_compare_Equal<Int> local5, local7 : i1
-    store t2 -> local8
+    t3 = integer_compare_Equal<Int> local5, local7 : i1
+    store t3 -> local8
     br @if.merge.3
   block if.else.2
     store false -> local8
@@ -75,21 +71,19 @@ Module
     store local8 -> local9
     store local9 -> local10
     call managed-void-target0 sp<managed-call:0> live=[] sig=void0 (i1) local-fn0(local10)
-    t3 = aggregate () : {}
+    t4 = aggregate () : {}
     store local4 -> local15
     store true -> local11
     store integer<Int>(0x00000011) -> local12
     store local11 -> local13
     store local12 -> local14
-    call no-gc-indirect-target1 local20 = sig=indirect1 (sret struct0 size=8 align=4 scan=none, i1, i32) external-fn1(local13, local14)
-    store local20 -> local18
-    store local15 -> local21
-    store local18 -> local22
-    call managed-direct-target0 sp<managed-call:1> live=[] t4 = sig=direct0 (indirect<struct0 size=8 align=4 scan=none>, indirect<struct0 size=8 align=4 scan=none>) -> i1 external-fn2(indirect local21, indirect local22)
-    store t4 -> local16
+    call no-gc-direct-target1 t5 = sig=direct1 (i1, i32) -> struct0 external-fn1(local13, local14)
+    store t5 -> local18
+    call managed-direct-target0 sp<managed-call:1> live=[] t6 = sig=direct2 (parts<struct0 [i64@0+8/4]>, parts<struct0 [i64@0+8/4]>) -> i1 external-fn2(local15, local18)
+    store t6 -> local16
     store local16 -> local17
     call managed-void-target1 sp<managed-call:2> live=[] sig=void1 (i1) local-fn0(local17)
-    t5 = aggregate () : {}
+    t7 = aggregate () : {}
     ret
   fun @scoop$1$cb$bdef402a996d774aa7e332e932b2c4bfa6f50bc4d0c2bb749111c1f0a64c4cbd(i32, ptr<raw>, ptr<raw>) -> i32
   block entry

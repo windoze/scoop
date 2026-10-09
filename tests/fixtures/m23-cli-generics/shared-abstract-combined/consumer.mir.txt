@@ -6,11 +6,11 @@ Module
   class box<Unit> vtable=0 itables=0
   interface MutableReader<Int>
   closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn1 captures=0
-    bridge function_type1 -> @fn24 id=153d985134a5b10bd2f6ac8bd5528035548fa82f870dd8279d06a34daf5fd936
-  closure cc1 $Closure$reference0 type=function_type2 invoke=@fn19 captures=1
-    bridge function_type1 -> @fn25 id=5ddb82fa786c05397e44ac0ee91c8a47c385db09b697b8e64e795d1264ba8cbf
-  closure cc2 $Closure$reference1 type=function_type3 invoke=@fn20 captures=1
-    bridge function_type4 -> @fn26 id=06eb77161f6b664959d6173feb4226471825fcdd5449bd63fb6ca18e22f7b960
+    bridge function_type1 -> @fn27 id=153d985134a5b10bd2f6ac8bd5528035548fa82f870dd8279d06a34daf5fd936
+  closure cc1 $Closure$reference0 type=function_type2 invoke=@fn22 captures=1
+    bridge function_type1 -> @fn28 id=5ddb82fa786c05397e44ac0ee91c8a47c385db09b697b8e64e795d1264ba8cbf
+  closure cc2 $Closure$reference1 type=function_type3 invoke=@fn23 captures=1
+    bridge function_type4 -> @fn29 id=06eb77161f6b664959d6173feb4226471825fcdd5449bd63fb6ca18e22f7b960
   generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
   generated_exact_type get1 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
   generated_exact_type get2 location=class4 nominal_id=2d46c9bb220fbefe39c9d1e29a6611ec7bc6e5ae56b1648ee5f0f44bea118eda exact_id=3fffd277817e10802b81aa1eaa231983087c84e2f97f68e50ca3b7bfd6209975
@@ -21,9 +21,12 @@ Module
   generated_exact_type get7 location=closure1 nominal_id=022265a864db891ebee58e718cda5e73e28bf20d3c18ef61aed8de10a9d36dcf exact_id=d269387ddb8c4dca2e49efe50f8a1bf27f5b329310a91b1be66d63dc16dbd43d
   generated_exact_type get8 location=class3 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
   generated_exact_type get9 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
-  generated_callable gc0 function=@fn26 id=06eb77161f6b664959d6173feb4226471825fcdd5449bd63fb6ca18e22f7b960
-  generated_callable gc1 function=@fn24 id=153d985134a5b10bd2f6ac8bd5528035548fa82f870dd8279d06a34daf5fd936
-  generated_callable gc2 function=@fn25 id=5ddb82fa786c05397e44ac0ee91c8a47c385db09b697b8e64e795d1264ba8cbf
+  generated_callable gc0 function=@fn29 id=06eb77161f6b664959d6173feb4226471825fcdd5449bd63fb6ca18e22f7b960
+  generated_callable gc1 function=@fn27 id=153d985134a5b10bd2f6ac8bd5528035548fa82f870dd8279d06a34daf5fd936
+  generated_callable gc2 function=@fn21 id=1db2829f63994a053e5c42349b9be44e4e9bbc30413dd6c516af36493685ef0f
+  generated_callable gc3 function=@fn28 id=5ddb82fa786c05397e44ac0ee91c8a47c385db09b697b8e64e795d1264ba8cbf
+  generated_callable gc4 function=@fn19 id=8fb6748dac927e92eeba70afefb849506f7e4542ae44101bd6d46c9bf3e9ee45
+  generated_callable gc5 function=@fn20 id=df200c22fb3d33740859e2ef0739783097276a3437455f84142915bb373ddc9c
   fun result @fn0() -> Int
     bb0 entry
       val $argument.0: Int
@@ -62,7 +65,7 @@ Module
       assign $new.1
         Type ReaderBox<Int>
         ClassAlloc ReaderBox<Int>
-      call @fn21 direct
+      call @fn24 direct
         Type ReaderBox<Int>
         Local $new.1
         Type Int
@@ -103,7 +106,7 @@ Module
       assign $new.2
         Type LocalReader<Int>
         ClassAlloc LocalReader<Int>
-      call @fn22 direct
+      call @fn25 direct
         Type LocalReader<Int>
         Local $new.2
         Type Int
@@ -335,7 +338,37 @@ Module
   fun MutableReader.$get$value @fn18(this: MutableReader<Int>) -> Int
     bb0 entry
       trap "call to abstract method `MutableReader.$get$value`"
-  fun $reference.0 @fn19($closure: (Int) -> Unit, arg0: Int) -> Unit
+  fun receiver<BaseReader> MutableReader.again @fn19(this: BaseReader<Int>) -> Int
+    bb0 entry
+      call $call.1: Int = @fn8 direct
+        Type MutableReader<Int>
+        Retype MutableReader<Int>
+          Type BaseReader<Int>
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun receiver<ReaderBox> MutableReader.again @fn20(this: ReaderBox<Int>) -> Int
+    bb0 entry
+      call $call.1: Int = @fn8 direct
+        Type MutableReader<Int>
+        Retype MutableReader<Int>
+          Type ReaderBox<Int>
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun receiver<LocalReader> MutableReader.again @fn21(this: LocalReader<Int>) -> Int
+    bb0 entry
+      call $call.1: Int = @fn8 direct
+        Type MutableReader<Int>
+        Retype MutableReader<Int>
+          Type LocalReader<Int>
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun $reference.0 @fn22($closure: (Int) -> Unit, arg0: Int) -> Unit
     bb0 entry
       call @fn17 interface MutableReader<Int>[0]
         Type MutableReader<Int>
@@ -345,7 +378,7 @@ Module
         Type Int
         Local arg0
       return
-  fun $reference.1 @fn20($closure: () -> Int) -> Int
+  fun $reference.1 @fn23($closure: () -> Int) -> Int
     bb0 entry
       call $call.1: Int = @fn16 interface MutableReader<Int>[1]
         Type MutableReader<Int>
@@ -355,9 +388,9 @@ Module
       return
         Type Int
         Local $call.1
-  fun init.ReaderBox.$c1 @fn21(this: ReaderBox<Int>, item: Int) -> Unit
+  fun init.ReaderBox.$c1 @fn24(this: ReaderBox<Int>, item: Int) -> Unit
     bb0 entry
-      call @fn23 direct
+      call @fn26 direct
         Type BaseReader<Int>
         Retype BaseReader<Int>
           Type ReaderBox<Int>
@@ -368,9 +401,9 @@ Module
         Type Int
         Local item
       return
-  fun init.LocalReader.$c0 @fn22(this: LocalReader<Int>, item: Int) -> Unit
+  fun init.LocalReader.$c0 @fn25(this: LocalReader<Int>, item: Int) -> Unit
     bb0 entry
-      call @fn23 direct
+      call @fn26 direct
         Type BaseReader<Int>
         Retype BaseReader<Int>
           Type LocalReader<Int>
@@ -381,10 +414,10 @@ Module
         Type Int
         Local item
       return
-  fun init.BaseReader.$c0 @fn23(this: BaseReader<Int>) -> Unit
+  fun init.BaseReader.$c0 @fn26(this: BaseReader<Int>) -> Unit
     bb0 entry
       return
-  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn24($source: (Int) -> Int, arg0: Any) -> Any
+  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn27($source: (Int) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type0> closure[function_type0]
         Type (Int) -> Int
@@ -398,7 +431,7 @@ Module
         Box
           Type Int
           Local $call.1
-  fun function_bridge.$Closure$reference0.(Any) -> Any @fn25($source: (Int) -> Unit, arg0: Any) -> Any
+  fun function_bridge.$Closure$reference0.(Any) -> Any @fn28($source: (Int) -> Unit, arg0: Any) -> Any
     bb0 entry
       call <closure:function_type2> closure[function_type2]
         Type (Int) -> Unit
@@ -412,7 +445,7 @@ Module
         Box
           Type Unit
           UnitLiteral
-  fun function_bridge.$Closure$reference1.() -> Any @fn26($source: () -> Int) -> Any
+  fun function_bridge.$Closure$reference1.() -> Any @fn29($source: () -> Int) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type3> closure[function_type3]
         Type () -> Int

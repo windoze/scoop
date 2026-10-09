@@ -34,15 +34,13 @@ Module
     local %23 $default.local.1: ptr<managed>
     local %24 $dependency.parameter.message: enum0
     local %25 $new.1: ptr<managed>
-    local %26 $sc.1: {i16, i32}
-    local %27 $box.2: i32
+    local %26 $box.1: i32
   block entry
     poll managed-void-target2 sp<managed-poll:0> live=[]
     t0 = aggregate (integer<UInt16>(0x0001), integer<UInt>(0x00000002)) : {i16, i32}
     store t0 -> local0
     store local0 -> local1
-    store local1 -> local26
-    call managed-direct-target0 sp<managed-call:0> live=[] t1 = sig=direct0 (indirect<{i16, i32} size=8 align=4 scan=none>) -> ptr<managed> external-fn0(indirect local26)
+    call managed-direct-target0 sp<managed-call:0> live=[] t1 = sig=direct0 (parts<{i16, i32} [i64@0+8/4]>) -> ptr<managed> external-fn0(local1)
     store t1 -> local2
     call managed-void-target0 sp<managed-call:1> live=[local2:ptr<managed>@0] sig=void0 () local-fn0()
     t2 = aggregate () : {}
@@ -79,8 +77,8 @@ Module
     store true -> local21
     br @if.merge.6
   block if.else.5
-    store integer<Int>(0x0000002a) -> local27
-    t11 = box_value external-td4, local27 scan=none sp<managed-call:6> live=[]
+    store integer<Int>(0x0000002a) -> local26
+    t11 = box_value external-td4, local26 scan=none sp<managed-call:6> live=[]
     store t11 -> local16
     store local16 -> local17
     call managed-direct-target5 sp<managed-call:7> live=[local17:ptr<managed>@0] t12 = sig=direct5 (ptr<managed>) -> i32 external-fn6(local17)
@@ -125,5 +123,5 @@ Module
   td td0 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Equality);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$6fb0bdfcaef72d458561b350a56fb80e86e68f4c020173148c7fe1ec239ea687 type-id=940003777485400453 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
   td td1 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=Option);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=String)]) @scoop$1$td$ae549cdc775dd9ab0e9bae5a7a2d6790f211d7978acd71210d6088d347896a35 type-id=12995891512699415417 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
   layout Option size=8 align=8 enum-scan=refs[0]
-  layout Equality value size=8 align=8 refs=[0]
+  layout Equality value size=16 align=8 refs=[0]
   output executable @scoop$1$cb$c691e3f41844af3411b2ac144e9eef07cd90dcadf184b7c4dbf6cca23026faed

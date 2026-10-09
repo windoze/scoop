@@ -99,12 +99,13 @@ Module
   generated_exact_type get14 location=enum2 nominal_id=74e65f7849af761c3b33644779a9dec7fd4eeb57553224668dbc10dc892078e3 exact_id=b6889f34f487a28b87f9b4a4a13e784adc21f525393b8d29a77f896e846a6291
   generated_exact_type get15 location=enum11 nominal_id=71fa71b145836752cf638f5869b83a9e33f10294e828d5116c88840886cb7e03 exact_id=b9e6401cab1864abe5ac50ff011c90e3db77d5fafeb0c8c1a025c9ee6d67cb7a
   generated_exact_type get16 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
-  generated_callable gc0 function=@fn53 id=2a1cfd66b48567ba49f14edb0b4e1c872aed0600379efd54c59115d893b57975
-  generated_callable gc1 function=@fn55 id=7c5ee058157b8a55daaf603665ffa54f83483f908840c00f8242426ebb4aaf10
-  generated_callable gc2 function=@fn51 id=7f465904802770da431f604543cb2bb4d0f8d4fae016903d647a848012f20494
-  generated_callable gc3 function=@fn54 id=c1e1298a7e70c70710fcbb95b6a547ea91eee163ae2d4b6536a3f08826e05ccf
-  generated_callable gc4 function=@fn52 id=e009b5f433d4749d5ce8c5f4891f4d06f1de56418be9484607411a432d413ce5
-  generated_callable gc5 function=@fn56 id=fdb3100ea6a3b250e8d8800f3e73c1da941bbad9453c857d072e7b5781eefd45
+  generated_callable gc0 function=@fn46 id=0e4765a58b25cb42db521dd5c757c93bb39b8383d26049f7a7a784628dc395ba
+  generated_callable gc1 function=@fn54 id=2a1cfd66b48567ba49f14edb0b4e1c872aed0600379efd54c59115d893b57975
+  generated_callable gc2 function=@fn56 id=7c5ee058157b8a55daaf603665ffa54f83483f908840c00f8242426ebb4aaf10
+  generated_callable gc3 function=@fn52 id=7f465904802770da431f604543cb2bb4d0f8d4fae016903d647a848012f20494
+  generated_callable gc4 function=@fn55 id=c1e1298a7e70c70710fcbb95b6a547ea91eee163ae2d4b6536a3f08826e05ccf
+  generated_callable gc5 function=@fn53 id=e009b5f433d4749d5ce8c5f4891f4d06f1de56418be9484607411a432d413ce5
+  generated_callable gc6 function=@fn57 id=fdb3100ea6a3b250e8d8800f3e73c1da941bbad9453c857d072e7b5781eefd45
   fun Base.$get$seed @fn0(this: Base) -> Int
     bb0 entry
       return
@@ -273,7 +274,7 @@ Module
       assign $new.1
         Type Registry
         ClassAlloc Registry
-      call @fn48 direct
+      call @fn49 direct
         Type Registry
         Local $new.1
       global_assign $singleton$Registry
@@ -414,7 +415,7 @@ Module
       assign $new.1
         Type Registry.Token
         ClassAlloc Registry.Token
-      call @fn50 direct
+      call @fn51 direct
         Type Registry.Token
         Local $new.1
         Type Int
@@ -560,7 +561,7 @@ Module
       assign $new.1
         Type Registry.Nested
         ClassAlloc Registry.Nested
-      call @fn49 direct
+      call @fn50 direct
         Type Registry.Nested
         Local $new.1
       global_assign $singleton$Nested
@@ -814,7 +815,17 @@ Module
       return
         Type String
         StringConst @str8
-  fun init.Base.$c0 @fn46(this: Base, seed: Int) -> Unit
+  fun receiver<Registry> Named.name @fn46(this: Registry) -> String
+    bb0 entry
+      call $call.1: String = @fn45 direct
+        Type Named
+        Retype Named
+          Type Registry
+          Local this
+      return
+        Type String
+        Local $call.1
+  fun init.Base.$c0 @fn47(this: Base, seed: Int) -> Unit
     bb0 entry
       field_set 0
         Type Base
@@ -831,7 +842,7 @@ Module
         Type String
         Local $dependency.parameter.value
       return
-  fun init.ObjectDelegate.$c1 @fn47(this: ObjectDelegate, value: Int) -> Unit
+  fun init.ObjectDelegate.$c1 @fn48(this: ObjectDelegate, value: Int) -> Unit
     bb0 entry
       field_set 0
         Type ObjectDelegate
@@ -839,13 +850,13 @@ Module
         Type Int
         Local value
       return
-  fun init.Registry.$c3 @fn48(this: Registry) -> Unit
+  fun init.Registry.$c3 @fn49(this: Registry) -> Unit
     bb0 entry
       call $argument.0: Int = @fn9 direct
       val $parameter.seed: Int
         Type Int
         Local $argument.0
-      call @fn46 direct
+      call @fn47 direct
         Type Base
         Retype Base
           Type Registry
@@ -872,7 +883,7 @@ Module
       assign $new.2
         Type ObjectDelegate
         ClassAlloc ObjectDelegate
-      call @fn47 direct
+      call @fn48 direct
         Type ObjectDelegate
         Local $new.2
         Type Int
@@ -916,7 +927,7 @@ Module
         Type String
         Local $dependency.parameter.value
       return
-  fun init.Registry.Nested.$c4 @fn49(this: Registry.Nested) -> Unit
+  fun init.Registry.Nested.$c4 @fn50(this: Registry.Nested) -> Unit
     bb0 entry
       val $argument.0: String
         Type String
@@ -941,7 +952,7 @@ Module
         Type Int
         Local $call.1
       return
-  fun init.Registry.Token.$c2 @fn50(this: Registry.Token, value: Int) -> Unit
+  fun init.Registry.Token.$c2 @fn51(this: Registry.Token, value: Int) -> Unit
     bb0 entry
       field_set 0
         Type Registry.Token
@@ -949,7 +960,7 @@ Module
         Type Int
         Local value
       return
-  fun startCoroutine<Registry.Token> @fn51(task: SuspendTask<Registry.Token>, completion: Continuation<Registry.Token>) -> Unit
+  fun startCoroutine<Registry.Token> @fn52(task: SuspendTask<Registry.Token>, completion: Continuation<Registry.Token>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -1030,7 +1041,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Base> @fn52(task: SuspendTask<Base>, completion: Continuation<Base>) -> Unit
+  fun startCoroutine<Base> @fn53(task: SuspendTask<Base>, completion: Continuation<Base>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -1111,7 +1122,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Registry.Nested> @fn53(task: SuspendTask<Registry.Nested>, completion: Continuation<Registry.Nested>) -> Unit
+  fun startCoroutine<Registry.Nested> @fn54(task: SuspendTask<Registry.Nested>, completion: Continuation<Registry.Nested>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -1192,7 +1203,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<ObjectDelegate> @fn54(task: SuspendTask<ObjectDelegate>, completion: Continuation<ObjectDelegate>) -> Unit
+  fun startCoroutine<ObjectDelegate> @fn55(task: SuspendTask<ObjectDelegate>, completion: Continuation<ObjectDelegate>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -1273,7 +1284,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Registry> @fn55(task: SuspendTask<Registry>, completion: Continuation<Registry>) -> Unit
+  fun startCoroutine<Registry> @fn56(task: SuspendTask<Registry>, completion: Continuation<Registry>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -1354,7 +1365,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Named> @fn56(task: SuspendTask<Named>, completion: Continuation<Named>) -> Unit
+  fun startCoroutine<Named> @fn57(task: SuspendTask<Named>, completion: Continuation<Named>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -1447,12 +1458,12 @@ Module
   coroutine_slot cl3 CoroutineSlot<ObjectDelegate> value=ObjectDelegate
   coroutine_slot cl4 CoroutineSlot<Registry> value=Registry
   coroutine_slot cl5 CoroutineSlot<Named> value=Named
-  coroutine_start ct0 result=Registry.Token function=fn51
-  coroutine_start ct1 result=Base function=fn52
-  coroutine_start ct2 result=Registry.Nested function=fn53
-  coroutine_start ct3 result=ObjectDelegate function=fn54
-  coroutine_start ct4 result=Registry function=fn55
-  coroutine_start ct5 result=Named function=fn56
+  coroutine_start ct0 result=Registry.Token function=fn52
+  coroutine_start ct1 result=Base function=fn53
+  coroutine_start ct2 result=Registry.Nested function=fn54
+  coroutine_start ct3 result=ObjectDelegate function=fn55
+  coroutine_start ct4 result=Registry function=fn56
+  coroutine_start ct5 result=Named function=fn57
   coroutine_fn cf0 @fn23 source_return=Named step=cs5 immediate
   coroutine_fn cf1 @fn27 source_return=Base step=cs1 immediate
   coroutine_fn cf2 @fn31 source_return=ObjectDelegate step=cs3 immediate

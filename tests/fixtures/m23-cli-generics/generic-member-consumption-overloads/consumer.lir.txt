@@ -8,7 +8,6 @@ Module
     local %4 $dependency.parameter.value: {i32, i32}
     local %5 $new.1: ptr<managed>
     local %6 $call.2: i32
-    local %7 $sc.1: {i32, i32}
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
     call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td0, machine<byte-size>(ByteSize(16)))
@@ -21,11 +20,10 @@ Module
     store t2 -> local2
     store local1 -> local3
     store local2 -> local4
-    store local4 -> local7
-    call managed-direct-target1 sp<managed-call:2> live=[local0:ptr<managed>@0, local3:ptr<managed>@0] t3 = sig=direct1 (ptr<managed>, ptr<managed>, indirect<{i32, i32} size=8 align=4 scan=none>) -> i32 local-fn1(local0, local3, indirect local7)
+    call managed-direct-target1 sp<managed-call:2> live=[local0:ptr<managed>@0, local3:ptr<managed>@0] t3 = sig=direct1 (ptr<managed>, ptr<managed>, parts<{i32, i32} [i64@0+8/4]>) -> i32 local-fn1(local0, local3, local4)
     store t3 -> local6
     ret local6
-  fun @scoop$1$cb$e5d06e269abe6c32c53e724e14581691114ac4739ea1aa74faff3ee130afb91f(ptr<managed>, ptr<managed>, indirect<{i32, i32} size=8 align=4 scan=none>) -> i32
+  fun @scoop$1$cb$e5d06e269abe6c32c53e724e14581691114ac4739ea1aa74faff3ee130afb91f(ptr<managed>, ptr<managed>, parts<{i32, i32} [i64@0+8/4]>) -> i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret integer<Int>(0x0000002a)

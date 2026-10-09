@@ -392,7 +392,7 @@ Module
   td td1 a(n(c=dev.example%3Ageneric-member-provider%3A0.1.0;p=templates.equality;o=-;k=C;x=Key);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$d0293b881b7c959e8d2c898a4a2101f7a6c23b0a94c4b356efee61dfc783e892 type-id=10444749422965778177 shape=FixedObject minimum-size=24 align=8 parent=none vtable=[] itables=[td0:[local-fn2]]
   td td2 a(n(c=dev.example%3Ageneric-member-provider%3A0.1.0;p=templates.equality;o=-;k=E;x=Choice);[a(n(c=dev.example%3Ageneric-member-provider%3A0.1.0;p=templates.equality;o=-;k=C;x=Key);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)])]) @scoop$1$td$134ed47267d0d8d05ddac48fe17f005fafb1cce9c3bd6339dee53785aa29b834 type-id=4940602714470788150 shape=BoxedValue minimum-size=48 align=8 parent=none vtable=[] itables=[]
   layout Choice size=32 align=8 enum-scan=refs[8, 16, 24]
-  layout EqualTo value size=8 align=8 refs=[0]
+  layout EqualTo value size=16 align=8 refs=[0]
   layout Key value size=8 align=8 refs=[0]
   layout Key size=24 align=8 refs=[]
   output library

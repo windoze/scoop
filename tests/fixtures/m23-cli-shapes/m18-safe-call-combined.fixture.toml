@@ -23,7 +23,7 @@ checks = [
   {file = "${work}/dump/${build.result.root.identity}/ast.txt", snapshot = "m18-safe-call-combined.ast.txt"},
   {file = "${work}/dump/${build.result.root.identity}/hir.txt", snapshot = "m18-safe-call-combined.hir.txt"},
   {file = "${work}/dump/${build.result.root.identity}/mir.txt", snapshot = "m18-safe-call-combined.mir.txt"},
-  {file = "${work}/dump/${build.result.root.identity}/lir.txt", snapshot = "m18-safe-call-combined.lir.txt"},
+  {file = "${work}/dump/${build.result.root.identity}/lir.txt", snapshot = "m18-safe-call-combined.${target}.lir.txt"},
 ]
 
 [[steps]]

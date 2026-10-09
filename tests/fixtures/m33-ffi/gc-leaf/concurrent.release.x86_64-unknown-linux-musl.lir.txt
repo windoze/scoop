@@ -18,14 +18,32 @@ Module
     local %1 $dependency.local.3: ptr<raw>
     local %2 $dependency.local.4: ptr<raw>
     local %3 $call.1: i1
+    local %4 $inline.1.result: i1
+    local %5 $inline.1.this: ptr<raw>
+    local %6 $inline.1.other: ptr<raw>
+    local %7 $inline.1.$dependency.local.2: ptr<raw>
+    local %8 $inline.1.$dependency.local.3: ptr<raw>
+    local %9 $inline.1.$dependency.local.4: i64
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     store param0 -> local0
     store param1 -> local1
     store local1 -> local2
-    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (ptr<raw>, ptr<raw>) -> i1 local-fn6(local0, local2)
-    store t0 -> local3
+    store local0 -> local5
+    store local2 -> local6
+    br @inline.1.entry
+  block inline.cont.1
+    store local4 -> local3
     ret local3
+  block inline.1.entry
+    store local5 -> local7
+    t0 = ptr_to_ulong local7 : i64
+    store t0 -> local9
+    store local6 -> local8
+    t1 = ptr_to_ulong local8 : i64
+    t2 = integer_compare_Equal<ULong> local9, t1 : i1
+    store t2 -> local4
+    br @inline.cont.1
   fun @scoop$1$cb$340e808a847c9f9cc6baa124f24f2655dd5110f8899cab9d5d5eb1a8d3c90d23(ptr<code>, ptr<raw>, i32, i32) -> i32
     local %0 $call.1: i32
   block entry
@@ -112,7 +130,7 @@ Module
     t2 = enum_wrap e2 v0 () : enum2
     store t2 -> local2
     store local0 -> local3
-    store local1 -> local4
+    store integer<Long>(0x0000000000000001) -> local4
     store local2 -> local5
     t3 = foreign_callback_register fcb0 local3 : struct1
     store t3 -> local6
@@ -124,13 +142,13 @@ Module
     store integer<Int>(0x00000004) -> local10
     store local7 -> local11
     store local8 -> local12
-    store local9 -> local13
-    store local10 -> local14
-    call native-safe-direct-target0 sp<native-safe:0> roots=[] t6 = sig=direct1 (ptr<code>, ptr<raw>, i32, i32) -> i32 extern0(local11, local12, local13, local14)
+    store integer<Int>(0x0000000a) -> local13
+    store integer<Int>(0x00000004) -> local14
+    call native-safe-direct-target0 sp<native-safe:0> roots=[] t6 = sig=direct1 (ptr<code>, ptr<raw>, i32, i32) -> i32 extern0(local11, local12, integer<Int>(0x0000000a), integer<Int>(0x00000004))
     store t6 -> local15
     store integer<Int>(0x0000002e) -> local16
-    store local16 -> local17
-    t7 = integer_compare_Equal<Int> local15, local17 : i1
+    store integer<Int>(0x0000002e) -> local17
+    t7 = integer_compare_Equal<Int> local15, integer<Int>(0x0000002e) : i1
     store t7 -> local18
     store local18 -> local19
     call managed-void-target0 sp<managed-call:1> live=[] sig=void0 (i1) local-fn4(local19)
@@ -218,82 +236,89 @@ Module
     local %31 $dependency.argument.0: i32
     local %32 $dependency.parameter.other: i32
     local %33 $new.1: ptr<managed>
+    local %34 $inline.7.this: ptr<managed>
+    local %35 $inline.7.value: i32
   block entry
-    poll managed-void-target4 sp<managed-poll:0> live=[]
+    poll managed-void-target3 sp<managed-poll:0> live=[]
     store param1 -> local0
     store local0 -> local1
     call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td5, machine<byte-size>(ByteSize(24)))
     store t0 -> local33
-    call managed-void-target0 sp<managed-call:1> live=[local33:ptr<managed>@0] sig=void0 (ptr<managed>, i32) local-fn9(local33, local1)
-    t1 = aggregate () : {}
-    store local33 -> local2
-    store integer<Int>(0x00000000) -> local3
-    br @while.cond.1
+    store local33 -> local34
+    store local1 -> local35
+    br @inline.7.entry
   block while.cond.1
-    poll managed-void-target4 sp<managed-poll:1> live=[local2:ptr<managed>@0]
+    poll managed-void-target3 sp<managed-poll:1> live=[local2:ptr<managed>@0]
     store local3 -> local4
     store integer<Int>(0x00000020) -> local5
-    store local5 -> local6
-    t2 = integer_compare_to<Int> local4, local6 : i64
-    t3 = integer_compare_Less<Long> t2, integer<Long>(0x0000000000000000) : i1
-    cbr t3 then @while.body.3 else @while.exit.2
+    store integer<Int>(0x00000020) -> local6
+    t1 = integer_compare_to<Int> local4, integer<Int>(0x00000020) : i64
+    t2 = integer_compare_Less<Long> t1, integer<Long>(0x0000000000000000) : i1
+    cbr t2 then @while.body.3 else @while.exit.2
   block while.exit.2
-    t4 = heap_load local2 +16 : i32
-    ret t4
+    t3 = heap_load local2 +16 : i32
+    ret t3
   block while.body.3
-    call native-safe-void-target0 sp<native-safe:0> roots=[local2] sig=void1 () extern1()
+    call native-safe-void-target0 sp<native-safe:0> roots=[local2] sig=void0 () extern1()
+    t4 = aggregate () : {}
+    call managed-void-target0 sp<managed-call:1> live=[local2:ptr<managed>@0] sig=void1 () runtime @scoop_rt_gc_collect()
     t5 = aggregate () : {}
-    call managed-void-target1 sp<managed-call:2> live=[local2:ptr<managed>@0] sig=void2 () runtime @scoop_rt_gc_collect()
-    t6 = aggregate () : {}
     store integer<Int>(0x00000000) -> local7
     br @while.cond.4
   block while.cond.4
-    poll managed-void-target4 sp<managed-poll:2> live=[local2:ptr<managed>@0]
+    poll managed-void-target3 sp<managed-poll:2> live=[local2:ptr<managed>@0]
     store local7 -> local8
     store integer<Int>(0x00000020) -> local9
-    store local9 -> local10
-    t7 = integer_compare_to<Int> local8, local10 : i64
-    t8 = integer_compare_Less<Long> t7, integer<Long>(0x0000000000000000) : i1
-    cbr t8 then @while.body.6 else @while.exit.5
+    store integer<Int>(0x00000020) -> local10
+    t6 = integer_compare_to<Int> local8, integer<Int>(0x00000020) : i64
+    t7 = integer_compare_Less<Long> t6, integer<Long>(0x0000000000000000) : i1
+    cbr t7 then @while.body.6 else @while.exit.5
   block while.exit.5
-    t9 = heap_load local2 +16 : i32
-    store t9 -> local24
+    t8 = heap_load local2 +16 : i32
+    store t8 -> local24
     store param1 -> local25
     store local25 -> local26
-    t10 = integer_compare_Equal<Int> local24, local26 : i1
-    store t10 -> local27
+    t9 = integer_compare_Equal<Int> local24, local26 : i1
+    store t9 -> local27
     store local27 -> local28
-    call managed-void-target2 sp<managed-call:3> live=[local2:ptr<managed>@0] sig=void3 (i1) local-fn4(local28)
-    t11 = aggregate () : {}
+    call managed-void-target1 sp<managed-call:2> live=[local2:ptr<managed>@0] sig=void2 (i1) local-fn4(local28)
+    t10 = aggregate () : {}
     store local3 -> local29
     store local29 -> local30
     store integer<Int>(0x00000001) -> local31
-    store local31 -> local32
-    t12 = integer_Add<Int> local30, local32 : i32
-    store t12 -> local3
+    store integer<Int>(0x00000001) -> local32
+    t11 = integer_Add<Int> local30, integer<Int>(0x00000001) : i32
+    store t11 -> local3
     br @while.cond.1
   block while.body.6
     store integer<Int>(0x00000001) -> local11
-    t13 = heap_load local2 +16 : i32
-    store t13 -> local12
-    store local11 -> local13
+    t12 = heap_load local2 +16 : i32
+    store t12 -> local12
+    store integer<Int>(0x00000001) -> local13
     store local12 -> local14
-    call native-gc-leaf-direct-target0 t14 = sig=direct1 (i32, i32) -> i32 extern2(local13, local14)
-    store t14 -> local15
+    call native-gc-leaf-direct-target0 t13 = sig=direct1 (i32, i32) -> i32 extern2(integer<Int>(0x00000001), local14)
+    store t13 -> local15
     store param1 -> local16
     store local16 -> local17
-    t15 = integer_compare_Equal<Int> local15, local17 : i1
-    store t15 -> local18
+    t14 = integer_compare_Equal<Int> local15, local17 : i1
+    store t14 -> local18
     store local18 -> local19
-    call managed-void-target3 sp<managed-call:4> live=[local2:ptr<managed>@0] sig=void4 (i1) local-fn4(local19)
-    t16 = aggregate () : {}
+    call managed-void-target2 sp<managed-call:3> live=[local2:ptr<managed>@0] sig=void3 (i1) local-fn4(local19)
+    t15 = aggregate () : {}
     store local7 -> local20
     store local20 -> local21
     store integer<Int>(0x00000001) -> local22
-    store local22 -> local23
-    t17 = integer_Add<Int> local21, local23 : i32
-    store t17 -> local7
+    store integer<Int>(0x00000001) -> local23
+    t16 = integer_Add<Int> local21, integer<Int>(0x00000001) : i32
+    store t16 -> local7
     br @while.cond.4
+  block inline.cont.7
+    store local33 -> local2
+    store integer<Int>(0x00000000) -> local3
+    br @while.cond.1
+  block inline.7.entry
+    heap_store local34 +16 local35
+    br @inline.cont.7
   fun @scoop$1$cb$43be1945af2e9ba3587bf2ead706ac7563f8181567977803f1aaa99bf055da0f(ptr<managed>) -> void
     local %0 $dependency.local.1: ptr<managed>
     local %1 $dependency.local.2: ptr<managed>
@@ -407,11 +432,11 @@ Module
   layout Option size=8 align=8 enum-scan=refs[0]
   layout Option size=16 align=8 enum-scan=none
   layout Option size=8 align=8 enum-scan=refs[0]
-  layout Equality value size=8 align=8 refs=[0]
-  layout Equality value size=8 align=8 refs=[0]
-  layout Iterable value size=8 align=8 refs=[0]
-  layout Iterator value size=8 align=8 refs=[0]
-  layout Equality value size=8 align=8 refs=[0]
+  layout Equality value size=16 align=8 refs=[0]
+  layout Equality value size=16 align=8 refs=[0]
+  layout Iterable value size=16 align=8 refs=[0]
+  layout Iterator value size=16 align=8 refs=[0]
+  layout Equality value size=16 align=8 refs=[0]
   layout Cell value size=8 align=8 refs=[0]
   layout Cell size=24 align=8 refs=[]
   layout $Closure$lambda0 value size=8 align=8 refs=[0]

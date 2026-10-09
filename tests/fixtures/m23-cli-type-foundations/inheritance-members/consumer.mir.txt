@@ -9,7 +9,7 @@ Module
     Empty()
     Value(value: Child)
   class Child vtable=2 itables=1
-  class Surface vtable=2 itables=1
+  class Surface vtable=2 itables=0
   class IllegalStateException vtable=0 itables=0
   class Exception vtable=0 itables=0
   class Throwable vtable=0 itables=0

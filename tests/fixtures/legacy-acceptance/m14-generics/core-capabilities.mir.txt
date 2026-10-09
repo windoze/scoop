@@ -909,32 +909,32 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun thunk<Point> ToString.toString() @fn39(this: ToString) -> String
+  fun thunk<Point> ToString.toString() @fn39(this: box<Point>) -> String
     bb0 entry
       call $call.1: String = @fn0 direct
         Type Point
         Unbox
-          Type ToString
+          Type box<Point>
           Local this
       return
         Type String
         Local $call.1
-  fun thunk<Point> Hash.hash() @fn40(this: Hash) -> Long
+  fun thunk<Point> Hash.hash() @fn40(this: box<Point>) -> Long
     bb0 entry
       call $call.1: Long = @fn1 direct
         Type Point
         Unbox
-          Type Hash
+          Type box<Point>
           Local this
       return
         Type Long
         Local $call.1
-  fun thunk<Point> Label.label() @fn41(this: Label) -> String
+  fun thunk<Point> Label.label() @fn41(this: box<Point>) -> String
     bb0 entry
       call $call.1: String = @fn2 direct
         Type Point
         Unbox
-          Type Label
+          Type box<Point>
           Local this
       return
         Type String

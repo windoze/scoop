@@ -434,9 +434,9 @@ Module
   td td3 n(c=dev.example%3Ageneric-member-downstream-zst-nested%3A0.1.0;p=;o=-;k=C;x=Later) @scoop$1$td$09bb166112b84b2d8533dca628dac291dcd90369ddbdce7a4ebc97ab90a77cd3 type-id=16301707190374895939 shape=FixedObject minimum-size=24 align=8 parent=none vtable=[] itables=[]
   td td4 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=Option);[r(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int))]) @scoop$1$td$9d572fb7b6764129002a75b480deee5a0cda74232de03f5e6f9c4d461dcd7c6b type-id=6459035658027077739 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
   layout Option size=8 align=8 enum-scan=none
-  layout Equality value size=8 align=8 refs=[0]
-  layout Equality value size=8 align=8 refs=[0]
-  layout Equality value size=8 align=8 refs=[0]
+  layout Equality value size=16 align=8 refs=[0]
+  layout Equality value size=16 align=8 refs=[0]
+  layout Equality value size=16 align=8 refs=[0]
   layout Later value size=8 align=8 refs=[0]
   layout Later size=24 align=8 refs=[]
   output library

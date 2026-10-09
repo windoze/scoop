@@ -1,0 +1,318 @@
+Module
+  extern ef0 capture @m33_errno_int(Int, Int, Int) -> (Int, Int) <abi=c no-gc lib=fixture_errno capture-errno native-result=Int>
+  extern ef1 leaf @m33_errno_int(Int, Int, Int) -> (Int, Int) <abi=c gc-leaf no-gc lib=fixture_errno capture-errno native-result=Int>
+  extern ef2 capturePair @m33_errno_pair(Pair, Int) -> (Pair, Int) <abi=c no-gc lib=fixture_errno capture-errno native-result=Pair>
+  extern ef3 disturb @m33_errno_disturb() -> Unit <abi=c gc-leaf no-gc lib=fixture_errno>
+  extern ef4 record @m33_errno_record(Int, Int) -> Unit <abi=c no-gc lib=fixture_errno>
+  extern ef5 released @m33_errno_released() -> Int <abi=c gc-leaf no-gc lib=fixture_errno>
+  struct Pair (number: Int, flag: Boolean, fraction: Double) <c-layout aligned=natural packed=natural>
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<Pair>
+    Completed(value: Pair)
+    Suspended()
+  enum CoroutineSlot<Pair>
+    Empty()
+    Value(value: Pair)
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class box<Pair> vtable=0 itables=0
+  interface ToString
+  interface Equality<Double>
+  interface Continuation<Pair>
+  interface SuspendTask<Pair>
+  interface SuspendRegistration<Pair>
+  generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
+  generated_exact_type get1 location=class3 nominal_id=9de56f1744dada19b1ec28b9e8b7c603c05650d33e5fe3bd908e329804e2c909 exact_id=2b1282acce6bcbaf06fa794f502278e3a1cc8612e9c55246be206c51281cdb45
+  generated_exact_type get2 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
+  generated_exact_type get3 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
+  generated_exact_type get4 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
+  generated_exact_type get5 location=enum1 nominal_id=dfbb33153f02aef1fcfe0bd2cb8568779b44961fb0ade8d19605849315656732 exact_id=c7d05bd8fc6849c0cd2e604609c19276932d61de02c3a98527ea0edd88efc39b
+  generated_exact_type get6 location=enum2 nominal_id=e6b9282f6cf437ec15b0e1c13cfaf127db6b4b9f377153b4aa0337dae8ea8b97 exact_id=e1a3ae0ab3cf37dafd961d624f54347402ea224b31393810775a28ebc328de8c
+  generated_exact_type get7 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
+  generated_callable gc0 function=@fn14 id=2fd7fd8cf851521e207a078a61f71cea33b98a69f6f42846f389c2261f98615e
+  fun Pair.equals @fn0(this: Pair, other: Pair) -> Boolean
+    bb0 entry
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          FieldAccess 0
+            Type Pair
+            Local this
+          Type Int
+          FieldAccess 0
+            Type Pair
+            Local other
+    bb1 logic.rhs.1
+      call $call.2: Boolean = external0 direct
+        Type Boolean
+        FieldAccess 1
+          Type Pair
+          Local this
+        Type Boolean
+        FieldAccess 1
+          Type Pair
+          Local other
+      assign $logic.1
+        Type Boolean
+        Local $call.2
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.1
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 logic.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $logic.1
+    bb4 logic.rhs.4
+      assign $logic.3
+        Type Boolean
+        FloatBinary F64 Equal
+          Type Double
+          FieldAccess 2
+            Type Pair
+            Local this
+          Type Double
+          FieldAccess 2
+            Type Pair
+            Local other
+      goto bb6
+    bb5 logic.short.5
+      assign $logic.3
+        Type Boolean
+        BoolLiteral false
+      goto bb6
+    bb6 logic.merge.6
+      return
+        Type Boolean
+        Local $logic.3
+  fun capture @fn1(arg0: Int, arg1: Int, arg2: Int) -> (Int, Int)
+    bb0 entry
+      call $call.1: (Int, Int) = extern0 @m33_errno_int direct
+        Type Int
+        Local arg0
+        Type Int
+        Local arg1
+        Type Int
+        Local arg2
+      return
+        Type (Int, Int)
+        Local $call.1
+  fun leaf @fn2(arg0: Int, arg1: Int, arg2: Int) -> (Int, Int) <no-gc>
+    bb0 entry
+      call $call.1: (Int, Int) = extern1 @m33_errno_int direct
+        Type Int
+        Local arg0
+        Type Int
+        Local arg1
+        Type Int
+        Local arg2
+      return
+        Type (Int, Int)
+        Local $call.1
+  fun capturePair @fn3(arg0: Pair, arg1: Int) -> (Pair, Int)
+    bb0 entry
+      call $call.1: (Pair, Int) = extern2 @m33_errno_pair direct
+        Type Pair
+        Local arg0
+        Type Int
+        Local arg1
+      return
+        Type (Pair, Int)
+        Local $call.1
+  fun disturb @fn4() -> Unit <no-gc>
+    bb0 entry
+      call extern3 @m33_errno_disturb direct
+      return
+  fun record @fn5(arg0: Int, arg1: Int) -> Unit
+    bb0 entry
+      call extern4 @m33_errno_record direct
+        Type Int
+        Local arg0
+        Type Int
+        Local arg1
+      return
+  fun released @fn6() -> Int <no-gc>
+    bb0 entry
+      call $call.1: Int = extern5 @m33_errno_released direct
+      return
+        Type Int
+        Local $call.1
+  fun captured @fn7(value: Int, code: Int) -> (Int, Int)
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $argument.1: Int
+        Type Int
+        Local code
+      val $argument.2: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      val $parameter.code: Int
+        Type Int
+        Local $argument.1
+      val $parameter.mode: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      call $call.1: (Int, Int) = extern0 @m33_errno_int direct
+        Type Int
+        Local $parameter.value
+        Type Int
+        Local $parameter.code
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      return
+        Type (Int, Int)
+        Local $call.1
+  fun leafNoGc @fn8(value: Int) -> (Int, Int) <no-gc>
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $argument.1: Int
+        Type Int
+        IntegerLiteral Int value=17 bits=0x00000011
+      val $argument.2: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      val $parameter.code: Int
+        Type Int
+        IntegerLiteral Int value=17 bits=0x00000011
+      val $parameter.mode: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      call $call.1: (Int, Int) = extern1 @m33_errno_int direct
+        Type Int
+        Local $parameter.value
+        Type Int
+        IntegerLiteral Int value=17 bits=0x00000011
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      return
+        Type (Int, Int)
+        Local $call.1
+  fun Continuation.resume @fn9(this: Continuation<Pair>, value: Pair) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn10(this: Continuation<Pair>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn11(this: SuspendTask<Pair>, $completion: Continuation<Pair>) -> CoroutineStep<Pair>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn12(this: SuspendRegistration<Pair>, continuation: Continuation<Pair>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun ctor.Pair.$c0 @fn13(number: Int, flag: Boolean, fraction: Double) -> Pair <no-gc>
+    bb0 entry
+      return
+        Type Pair
+        StructInit Pair
+          Type Int
+          Local number
+          Type Boolean
+          Local flag
+          Type Double
+          Local fraction
+  fun startCoroutine<Pair> @fn14(task: SuspendTask<Pair>, completion: Continuation<Pair>) -> Unit
+    bb0 context.unwind
+      landing_pad cleanup=true
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb1 context.catch_unwind
+      landing_pad cleanup=true
+      end_catch
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb2 suspended
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb3 completed unwind bb0
+      call @fn9 interface Continuation<Pair>[0]
+        Type Continuation<Pair>
+        Local completion
+        Type Pair
+        EnumField v0 f0
+          Type CoroutineStep<Pair>
+          Local $step
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb4 failed unwind bb0
+      call @fn10 interface Continuation<Pair>[1]
+        Type Continuation<Pair>
+        Local completion
+        Type Throwable
+        Local $exception
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb5 body_failure unwind bb1
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb4
+    bb6 run unwind bb5
+      call $step: CoroutineStep<Pair> = @fn11 interface SuspendTask<Pair>[0]
+        Type SuspendTask<Pair>
+        Local task
+        Type Continuation<Pair>
+        Local completion
+      branch bb3 bb2
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Pair>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+    bb7 entry
+      val $child_context: internal<task-context>
+        Type internal<task-context>
+        ContextFork
+          Type internal<context-node>
+          ContextSnapshot
+      val $context_guard: internal<context-switch-guard>
+        Type internal<context-switch-guard>
+        ContextEnter
+          Type internal<task-context>
+          Local $child_context
+      goto bb6
+  coroutine_step cs0 CoroutineStep<Pair> result=Pair
+  coroutine_slot cl0 CoroutineSlot<Pair> value=Pair
+  coroutine_start ct0 result=Pair function=fn14
+  coroutine_fn cf0 @fn11 source_return=Pair step=cs0 immediate
+  instance mi0 function=@fn9 <- Continuation.resume
+  instance mi1 function=@fn10 <- Continuation.resumeWithException
+  instance mi2 function=@fn11 <- SuspendTask.run
+  instance mi3 function=@fn12 <- SuspendRegistration.register
+  output library

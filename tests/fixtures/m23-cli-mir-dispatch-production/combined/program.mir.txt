@@ -11,10 +11,10 @@ Module
   class IllegalStateException vtable=0 itables=0
   class Exception vtable=0 itables=0
   class Throwable vtable=0 itables=0
-  class Derived vtable=2 itables=4
-  class Base vtable=2 itables=1
-  class Singleton vtable=2 itables=4
-  class OtherSingleton vtable=2 itables=1
+  class Derived vtable=2 itables=0
+  class Base vtable=2 itables=0
+  class Singleton vtable=2 itables=0
+  class OtherSingleton vtable=2 itables=0
   class box<Value> vtable=0 itables=0
   class box<Choice> vtable=0 itables=0
   interface Diamond : Left, Right

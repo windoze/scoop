@@ -353,22 +353,22 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun thunk<LocalValue> Valued.value() @fn16(this: Valued) -> Long
+  fun thunk<LocalValue> Valued.value() @fn16(this: box<LocalValue>) -> Long
     bb0 entry
       call $call.1: Long = @fn0 direct
         Type LocalValue
         Unbox
-          Type Valued
+          Type box<LocalValue>
           Local this
       return
         Type Long
         Local $call.1
-  fun thunk<Marker> Valued.value() @fn17(this: Valued) -> Long
+  fun thunk<Marker> Valued.value() @fn17(this: box<Marker>) -> Long
     bb0 entry
       call $call.1: Long = @fn2 direct
         Type Marker
         Unbox
-          Type Valued
+          Type box<Marker>
           Local this
       return
         Type Long

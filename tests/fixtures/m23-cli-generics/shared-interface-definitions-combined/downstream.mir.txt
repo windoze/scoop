@@ -42,11 +42,11 @@ Module
   interface SuspendTask<Later>
   interface SuspendRegistration<Later>
   closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn1 captures=0
-    bridge function_type1 -> @fn109 id=2018cf00e765278e8412a74596cfe48cc4952826a299b7a16eefa65f782efe73
+    bridge function_type1 -> @fn136 id=2018cf00e765278e8412a74596cfe48cc4952826a299b7a16eefa65f782efe73
   closure cc1 $Closure$lambda1 type=function_type2 invoke=@fn3 captures=0
-    bridge function_type1 -> @fn110 id=719c29abc1d5752c381a988cbb93dd6d3060072029c925c39d7de20c00047a8c
+    bridge function_type1 -> @fn137 id=719c29abc1d5752c381a988cbb93dd6d3060072029c925c39d7de20c00047a8c
   closure cc2 $Closure$lambda2 type=function_type3 invoke=@fn5 captures=0
-    bridge function_type1 -> @fn111 id=b89e39d8f5f31b24c84e525c0408c669e5a210eda69da991087a3adbeea84bfc
+    bridge function_type1 -> @fn138 id=b89e39d8f5f31b24c84e525c0408c669e5a210eda69da991087a3adbeea84bfc
   generated_exact_type get0 location=closure0 nominal_id=5ae7cf6922f33b4b3a0a8dc35c9465abd7d3d0cc2df89e843ece3ace55f0345d exact_id=05a87b8afbeb1a56aaf15390c2885ed506d1e155268b31f88569c69210b99e49
   generated_exact_type get1 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
   generated_exact_type get2 location=class11 nominal_id=066288fcc575b7054124cb19b305a6e0072d8c3bbef0f7e89409b09e0f02fc83 exact_id=1ce6e9f3b257fe6d0f3fdef64ec7d687df8af93372c510e643d00bd4c3007ff1
@@ -62,52 +62,79 @@ Module
   generated_exact_type get12 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
   generated_exact_type get13 location=class12 nominal_id=f4722df97876e01266fe017b3fbc3b978d39e83df69bd815b4b75f7c674afc25 exact_id=f0c7f47d078eb802c88b7c9756afa5b47fded5203cfa8987be7532290d3065b8
   generated_exact_type get14 location=class10 nominal_id=1d909fb04340abe4c54a97f34a2697c52f5195b54cea0bb6cf794e67607de3ad exact_id=fc7eaffb1aa485e8bb7a2570668cdc121754c09a01317be9eabe2db86b5573fb
-  generated_callable gc0 function=@fn108 id=03ff8b74b17d1d470297b627130ab07f028a756c5fba59ab8fb603474fd64f0c
-  generated_callable gc1 function=@fn92 id=053d9ba401fd6ba23ea9a5b3d227d74fe4dfc1f44333c85052b50c29f83eacf8
-  generated_callable gc2 function=@fn79 id=07d2edc21827baaff04f4e02244281c27d0f2e799625e31975f5f2557c34f914
-  generated_callable gc3 function=@fn103 id=08e2a7ae9c9bf58d5b514b630e07948b5315464ebecf4da7faf7e2ce95902b53
-  generated_callable gc4 function=@fn83 id=0c922700beddd8eca08b28610b3f92beb6c25d13b12931c187ed46550959775c
-  generated_callable gc5 function=@fn109 id=2018cf00e765278e8412a74596cfe48cc4952826a299b7a16eefa65f782efe73
-  generated_callable gc6 function=@fn77 id=298b6f287aab039a8b85fa4f751ded5adeec1fe1bf32fa23f6fc157fe5e80b6f
-  generated_callable gc7 function=@fn86 id=319427724c872329d7256dfa280ecd88f3f2548f118d505e5996ff802e1fc220
-  generated_callable gc8 function=@fn96 id=31bccac5a6994e74bea0a083d7ce7e525d47808beb94d9d8a7b017d4e0f83b5c
-  generated_callable gc9 function=@fn98 id=38c443ad9635c3aa72e7155564d0f8bec88e9364e6b69a27858e3d4c2d4c3145
-  generated_callable gc10 function=@fn68 id=40184e3eef0001e737df41bacf0e15b485ef4ab95a42f4f065f3d9efdb22e2a7
-  generated_callable gc11 function=@fn82 id=465e66862cb18e6978979d0671ec5386a53d14c35e8be4b423db89cfc62968fb
-  generated_callable gc12 function=@fn88 id=490062732e99881c1c2c9dd61dd77c24c45a82be658edce832ddd10c4e75af3a
-  generated_callable gc13 function=@fn100 id=49e3c5031300fdc1aace083fd0b4052ca36999928afb7f27669176a1eafe519f
-  generated_callable gc14 function=@fn89 id=4b69ace3551a0eb28f31ed0daa05967680120083190dc66e64df72c6b5cf8b48
-  generated_callable gc15 function=@fn72 id=525a3930a04d8ae11714872ab044b4bebc8fe893baf3aa40a97d808d1a1dc0a5
-  generated_callable gc16 function=@fn95 id=55c07e32acc9acc6522877701086fb36593fa53a16bd991bfe5d3edf50ab234e
-  generated_callable gc17 function=@fn99 id=585ba7b4e0774fe2b9bcb2dc9f0edfd76e95a9382e06b07f7b13ea7be169cfb9
-  generated_callable gc18 function=@fn102 id=5add68b871436513e74ab29eae1f2a016e984eb2737c9a8a61c21054718d894c
-  generated_callable gc19 function=@fn107 id=61e37f887777a942462b024aaec81c4e9ab8fc3ff16fe28c2b4bc99a0355fe0c
-  generated_callable gc20 function=@fn71 id=6eba0e6ccb01d57ed1683f264603d206ca84acef47ad7c3fb89311a2db383817
-  generated_callable gc21 function=@fn110 id=719c29abc1d5752c381a988cbb93dd6d3060072029c925c39d7de20c00047a8c
-  generated_callable gc22 function=@fn104 id=74f9cb8fd748e6306df23df4cf56086675ec161f1662f4b0c6619dbbc297be29
-  generated_callable gc23 function=@fn76 id=7715426f99eb37288c80b60fbc0b173e628350c924169007f6e961eb5b35f434
-  generated_callable gc24 function=@fn67 id=7752d84d11e2b62f68b0c184430c43d3a55c0b7609a0134859a623ab19d1db0a
-  generated_callable gc25 function=@fn78 id=7c11e7c3ee69eff0ce45958e60a749f75089052544b731a774eb29ba66e9e203
-  generated_callable gc26 function=@fn70 id=8472578770a589b62a26badd0e56419e3118b12710f7b6c8cf680f00b42f3a22
-  generated_callable gc27 function=@fn85 id=8abe3f74b0bf1532bc444a2d64ea808de1812ef9946e76e663de939ee266bca2
-  generated_callable gc28 function=@fn106 id=8c28923d06f60d2fa7fcdac45a3331b0a632da4f46b3a87a280e4b62f9e7d182
-  generated_callable gc29 function=@fn105 id=8d979124a51e43d41ed50c67c539a5989190e2bbe0b6bc417fba6347ebc53382
-  generated_callable gc30 function=@fn84 id=9290f7e5f9ab0fe9da530d97424e5edaaa8e5e21daf09bc8f69b7fbba3f0952b
-  generated_callable gc31 function=@fn101 id=97cd5c321936da3d3a21b4343ca584438779da7f5920a2758661b0f7995da875
-  generated_callable gc32 function=@fn90 id=9d4443bb57da749808b7abe68e677ea9db8618c8b95d2c4ff0dda2dc4a7acf69
-  generated_callable gc33 function=@fn74 id=a5f1e089c1ba5030fdb866986de48e8e77e29b2519a2b2c9f095e1f891713229
-  generated_callable gc34 function=@fn111 id=b89e39d8f5f31b24c84e525c0408c669e5a210eda69da991087a3adbeea84bfc
-  generated_callable gc35 function=@fn69 id=ba2a5fe69005df29fc620a71eb0d2cb3e7fc3089b4580462a2541a08554d156b
-  generated_callable gc36 function=@fn80 id=c1e1ce515bae1e70f9210807e5bc547fddce2910d4bdec439c9fbc15709059ef
-  generated_callable gc37 function=@fn66 id=d3658e2462ce83ee77c3643eb87d3fd1f0d0c71db276d5630081fda15f02b141
-  generated_callable gc38 function=@fn81 id=d468afa404bd8166ea32b41526392517a3a23341a4862a4e49f896fda7c2dced
-  generated_callable gc39 function=@fn87 id=d90b01b93a4779106f71929667fb0427eb66cb12017f1c0222b8be102c993209
-  generated_callable gc40 function=@fn93 id=db65dcb4d323cfd4617c01fd9853977b59b4f0782ef084472111be43e00e23ff
-  generated_callable gc41 function=@fn94 id=dbb8e776387a4e0a827c3eaa32c4288b88d1cf9899c57c6c13be0c2f62d604d7
-  generated_callable gc42 function=@fn91 id=e032c29c2792826ad3f0de6f72c7ab53d961aef09d99ffca388b64063f799d6c
-  generated_callable gc43 function=@fn73 id=e1be0295c7b0e7ce9aba6429dd9d773642b508197d1f1534b9340ccbbba2744a
-  generated_callable gc44 function=@fn75 id=f5e353362e902cd4b925a61288d2dc54b25643199a195c31e6b4ae66fa8575dd
-  generated_callable gc45 function=@fn97 id=f7cf939913ec9ec56a2837ddc1f81a4443429337a3c08579798a8db527b90927
+  generated_callable gc0 function=@fn135 id=03ff8b74b17d1d470297b627130ab07f028a756c5fba59ab8fb603474fd64f0c
+  generated_callable gc1 function=@fn119 id=053d9ba401fd6ba23ea9a5b3d227d74fe4dfc1f44333c85052b50c29f83eacf8
+  generated_callable gc2 function=@fn58 id=05c76aac528abf586e1783a70ba87c303927a0c9ace09827719918b30c9e4792
+  generated_callable gc3 function=@fn106 id=07d2edc21827baaff04f4e02244281c27d0f2e799625e31975f5f2557c34f914
+  generated_callable gc4 function=@fn75 id=07ef5677052c65713f6e882075a3f9d70dd3d47c38525a3f3b283fe25a67ed1a
+  generated_callable gc5 function=@fn130 id=08e2a7ae9c9bf58d5b514b630e07948b5315464ebecf4da7faf7e2ce95902b53
+  generated_callable gc6 function=@fn77 id=0b0f8af7983ec95f5d482e313d4be7ea822cdf78d123abbbc08b04dc76e2fff6
+  generated_callable gc7 function=@fn110 id=0c922700beddd8eca08b28610b3f92beb6c25d13b12931c187ed46550959775c
+  generated_callable gc8 function=@fn69 id=0eeeddf93e4a0f6e09929235e81d2495247b8fdda1081365e09a3598f6f3a539
+  generated_callable gc9 function=@fn136 id=2018cf00e765278e8412a74596cfe48cc4952826a299b7a16eefa65f782efe73
+  generated_callable gc10 function=@fn65 id=25f5d01f0f553c4740fd13330ce8a128f41bf3103a342eae40ec99a95c2d490d
+  generated_callable gc11 function=@fn64 id=27afa5bd10ff625cb2c9214eb2d0f61253f879b3fbfb097b822ab47051c24cf1
+  generated_callable gc12 function=@fn104 id=298b6f287aab039a8b85fa4f751ded5adeec1fe1bf32fa23f6fc157fe5e80b6f
+  generated_callable gc13 function=@fn79 id=2b080f0c021d5057d67ab537dd30a00fc401fea6a34e5878a263e91a7cf34913
+  generated_callable gc14 function=@fn113 id=319427724c872329d7256dfa280ecd88f3f2548f118d505e5996ff802e1fc220
+  generated_callable gc15 function=@fn123 id=31bccac5a6994e74bea0a083d7ce7e525d47808beb94d9d8a7b017d4e0f83b5c
+  generated_callable gc16 function=@fn74 id=386936c54c26fdd5d2ca2e9ad2f44217beee32bd402dd9c5af1de8bfe2b5d6d7
+  generated_callable gc17 function=@fn125 id=38c443ad9635c3aa72e7155564d0f8bec88e9364e6b69a27858e3d4c2d4c3145
+  generated_callable gc18 function=@fn95 id=40184e3eef0001e737df41bacf0e15b485ef4ab95a42f4f065f3d9efdb22e2a7
+  generated_callable gc19 function=@fn81 id=44fa281e214133acf6405ec538e2bf09d45e3d353f87c277593d912ba662ad6b
+  generated_callable gc20 function=@fn109 id=465e66862cb18e6978979d0671ec5386a53d14c35e8be4b423db89cfc62968fb
+  generated_callable gc21 function=@fn60 id=4723511883613ae3c05f123da44148a00a2f657a15156aa1dd82005c2ebebb6f
+  generated_callable gc22 function=@fn115 id=490062732e99881c1c2c9dd61dd77c24c45a82be658edce832ddd10c4e75af3a
+  generated_callable gc23 function=@fn127 id=49e3c5031300fdc1aace083fd0b4052ca36999928afb7f27669176a1eafe519f
+  generated_callable gc24 function=@fn116 id=4b69ace3551a0eb28f31ed0daa05967680120083190dc66e64df72c6b5cf8b48
+  generated_callable gc25 function=@fn68 id=51addfd56e6129c580e9acf96aff8f14628f2b631b002a7f8e180691654f61b2
+  generated_callable gc26 function=@fn99 id=525a3930a04d8ae11714872ab044b4bebc8fe893baf3aa40a97d808d1a1dc0a5
+  generated_callable gc27 function=@fn63 id=533c6655c3fba3dcf0eb44852c241c6e573a94bd0a6e17c9da5b4c558e7e341c
+  generated_callable gc28 function=@fn122 id=55c07e32acc9acc6522877701086fb36593fa53a16bd991bfe5d3edf50ab234e
+  generated_callable gc29 function=@fn126 id=585ba7b4e0774fe2b9bcb2dc9f0edfd76e95a9382e06b07f7b13ea7be169cfb9
+  generated_callable gc30 function=@fn129 id=5add68b871436513e74ab29eae1f2a016e984eb2737c9a8a61c21054718d894c
+  generated_callable gc31 function=@fn62 id=5e3496c0a93aaee8bdfe407518a68f59d8d6c2e2cd832454eefab0a6f28e8464
+  generated_callable gc32 function=@fn70 id=60e19b878e418e4023950e687d3e2a633e08601d425a28177b182e626dd118fd
+  generated_callable gc33 function=@fn134 id=61e37f887777a942462b024aaec81c4e9ab8fc3ff16fe28c2b4bc99a0355fe0c
+  generated_callable gc34 function=@fn72 id=64c69b62e6992344ce595bd7037865abec0ed8bad68c607fa8c2be423c378c0a
+  generated_callable gc35 function=@fn98 id=6eba0e6ccb01d57ed1683f264603d206ca84acef47ad7c3fb89311a2db383817
+  generated_callable gc36 function=@fn66 id=70ee715f4d6563094b856179d42d7e869b571eb92cfe24431019b35d7a900298
+  generated_callable gc37 function=@fn137 id=719c29abc1d5752c381a988cbb93dd6d3060072029c925c39d7de20c00047a8c
+  generated_callable gc38 function=@fn80 id=73b69094506d1f0c55af0143d2c1c80f63b70a77b2702841d332ac0b283f1808
+  generated_callable gc39 function=@fn131 id=74f9cb8fd748e6306df23df4cf56086675ec161f1662f4b0c6619dbbc297be29
+  generated_callable gc40 function=@fn103 id=7715426f99eb37288c80b60fbc0b173e628350c924169007f6e961eb5b35f434
+  generated_callable gc41 function=@fn94 id=7752d84d11e2b62f68b0c184430c43d3a55c0b7609a0134859a623ab19d1db0a
+  generated_callable gc42 function=@fn105 id=7c11e7c3ee69eff0ce45958e60a749f75089052544b731a774eb29ba66e9e203
+  generated_callable gc43 function=@fn97 id=8472578770a589b62a26badd0e56419e3118b12710f7b6c8cf680f00b42f3a22
+  generated_callable gc44 function=@fn112 id=8abe3f74b0bf1532bc444a2d64ea808de1812ef9946e76e663de939ee266bca2
+  generated_callable gc45 function=@fn133 id=8c28923d06f60d2fa7fcdac45a3331b0a632da4f46b3a87a280e4b62f9e7d182
+  generated_callable gc46 function=@fn132 id=8d979124a51e43d41ed50c67c539a5989190e2bbe0b6bc417fba6347ebc53382
+  generated_callable gc47 function=@fn111 id=9290f7e5f9ab0fe9da530d97424e5edaaa8e5e21daf09bc8f69b7fbba3f0952b
+  generated_callable gc48 function=@fn128 id=97cd5c321936da3d3a21b4343ca584438779da7f5920a2758661b0f7995da875
+  generated_callable gc49 function=@fn117 id=9d4443bb57da749808b7abe68e677ea9db8618c8b95d2c4ff0dda2dc4a7acf69
+  generated_callable gc50 function=@fn61 id=a22eef0ad79ede19edce2abbbc9048fd7b5eda9fe2a573361558d8cb81f38aca
+  generated_callable gc51 function=@fn101 id=a5f1e089c1ba5030fdb866986de48e8e77e29b2519a2b2c9f095e1f891713229
+  generated_callable gc52 function=@fn67 id=b88bead331132028ab63404674b9c7b2438c677dccf1abe484cc2541063c5d84
+  generated_callable gc53 function=@fn138 id=b89e39d8f5f31b24c84e525c0408c669e5a210eda69da991087a3adbeea84bfc
+  generated_callable gc54 function=@fn96 id=ba2a5fe69005df29fc620a71eb0d2cb3e7fc3089b4580462a2541a08554d156b
+  generated_callable gc55 function=@fn107 id=c1e1ce515bae1e70f9210807e5bc547fddce2910d4bdec439c9fbc15709059ef
+  generated_callable gc56 function=@fn78 id=c7fd450182d60a0b5db77c286b6b0e639eee74b64965d84f241994964f7365d3
+  generated_callable gc57 function=@fn76 id=d1a56c9190245f417beaa4934780474ee8c361c5ca1de866ad10f51974c032c2
+  generated_callable gc58 function=@fn93 id=d3658e2462ce83ee77c3643eb87d3fd1f0d0c71db276d5630081fda15f02b141
+  generated_callable gc59 function=@fn108 id=d468afa404bd8166ea32b41526392517a3a23341a4862a4e49f896fda7c2dced
+  generated_callable gc60 function=@fn114 id=d90b01b93a4779106f71929667fb0427eb66cb12017f1c0222b8be102c993209
+  generated_callable gc61 function=@fn73 id=d923c95f0fecb1146133da847f43eb404e8b55638f99b9b7d0b7fe19d0542f02
+  generated_callable gc62 function=@fn120 id=db65dcb4d323cfd4617c01fd9853977b59b4f0782ef084472111be43e00e23ff
+  generated_callable gc63 function=@fn121 id=dbb8e776387a4e0a827c3eaa32c4288b88d1cf9899c57c6c13be0c2f62d604d7
+  generated_callable gc64 function=@fn118 id=e032c29c2792826ad3f0de6f72c7ab53d961aef09d99ffca388b64063f799d6c
+  generated_callable gc65 function=@fn100 id=e1be0295c7b0e7ce9aba6429dd9d773642b508197d1f1534b9340ccbbba2744a
+  generated_callable gc66 function=@fn56 id=e7845aaf8f691b1c785a95eeefb80e7a1d3e84edd4918ab7eb55fd0ef3f461e3
+  generated_callable gc67 function=@fn59 id=ee2c2c680129b5fb9288919d14553700f7c7e4a4e25fa67dd4dce8e279d5c25e
+  generated_callable gc68 function=@fn102 id=f5e353362e902cd4b925a61288d2dc54b25643199a195c31e6b4ae66fa8575dd
+  generated_callable gc69 function=@fn57 id=f6002695bafc9569a479a0d669872083ccc36c94453376b21c11e6a81ed2528b
+  generated_callable gc70 function=@fn82 id=f72245b0d4b2382c5995f3ab637fbb623eee2848bd5d7ebb6e1b68f9e67536f6
+  generated_callable gc71 function=@fn124 id=f7cf939913ec9ec56a2837ddc1f81a4443429337a3c08579798a8db527b90927
+  generated_callable gc72 function=@fn71 id=fc73eea734539044419eca6b66c04415b1fff28616f506ef4382d42a8be726b0
   fun check @fn0() -> Int
     bb0 entry
       call $argument.0: Int = external0 direct
@@ -117,7 +144,7 @@ Module
       assign $new.1
         Type Later
         ClassAlloc Later
-      call @fn56 direct
+      call @fn83 direct
         Type Later
         Local $new.1
         Type Int
@@ -245,7 +272,7 @@ Module
       assign $new.2
         Type Later
         ClassAlloc Later
-      call @fn56 direct
+      call @fn83 direct
         Type Later
         Local $new.2
         Type Int
@@ -291,7 +318,7 @@ Module
       assign $new.1
         Type Local<Later>
         ClassAlloc Local<Later>
-      call @fn57 direct
+      call @fn84 direct
         Type Local<Later>
         Local $new.1
         Type Later
@@ -445,7 +472,7 @@ Module
       val $dependency.local.31: Later
         Type Later
         Local $dependency.local.30
-      call $dependency.local.5: Inline<Later> = @fn63 direct
+      call $dependency.local.5: Inline<Later> = @fn90 direct
         Type Later
         Local $dependency.local.31
       val $dependency.local.32: Inline<Later>
@@ -530,7 +557,7 @@ Module
       assign $new.1
         Type Local<Int>
         ClassAlloc Local<Int>
-      call @fn58 direct
+      call @fn85 direct
         Type Local<Int>
         Local $new.1
         Type Int
@@ -684,7 +711,7 @@ Module
       val $dependency.local.31: Int
         Type Int
         Local $dependency.local.30
-      call $dependency.local.5: Inline<Int> = @fn64 direct
+      call $dependency.local.5: Inline<Int> = @fn91 direct
         Type Int
         Local $dependency.local.31
       val $dependency.local.32: Inline<Int>
@@ -769,7 +796,7 @@ Module
       assign $new.1
         Type Local<Unit>
         ClassAlloc Local<Unit>
-      call @fn59 direct
+      call @fn86 direct
         Type Local<Unit>
         Local $new.1
         Type Unit
@@ -926,7 +953,7 @@ Module
       val $dependency.local.31: Unit
         Type Unit
         Local $dependency.local.30
-      call $dependency.local.5: Inline<Unit> = @fn65 direct
+      call $dependency.local.5: Inline<Unit> = @fn92 direct
         Type Unit
         Local $dependency.local.31
       val $dependency.local.32: Inline<Unit>
@@ -1075,7 +1102,7 @@ Module
       assign $new.1
         Type Remote<Later>
         ClassAlloc Remote<Later>
-      call @fn60 direct
+      call @fn87 direct
         Type Remote<Later>
         Local $new.1
         Type Later
@@ -1190,7 +1217,7 @@ Module
       assign $new.1
         Type Remote<Int>
         ClassAlloc Remote<Int>
-      call @fn61 direct
+      call @fn88 direct
         Type Remote<Int>
         Local $new.1
         Type Int
@@ -1308,7 +1335,7 @@ Module
       assign $new.1
         Type Remote<Unit>
         ClassAlloc Remote<Unit>
-      call @fn62 direct
+      call @fn89 direct
         Type Remote<Unit>
         Local $new.1
         Type Unit
@@ -1421,7 +1448,321 @@ Module
   fun SuspendRegistration.register @fn55(this: SuspendRegistration<Later>, continuation: Continuation<Later>) -> Unit
     bb0 entry
       trap "call to abstract method `SuspendRegistration.register`"
-  fun init.Later.$c0 @fn56(this: Later, value: Int) -> Unit
+  fun receiver<Local> Diamond.peer @fn56(this: Local<Later>, other: View<Unit, Later>) -> View<Unit, Later>
+    bb0 entry
+      call $call.1: View<Unit, Later> = @fn7 direct
+        Type View<Unit, Later>
+        Retype View<Unit, Later>
+          Type Local<Later>
+          Local this
+        Type View<Unit, Later>
+        Local other
+      return
+        Type View<Unit, Later>
+        Local $call.1
+  fun receiver<Local> Diamond.same @fn57(this: Local<Later>, other: Swap<Later, Unit>) -> Swap<Later, Unit>
+    bb0 entry
+      call $call.1: Swap<Later, Unit> = @fn10 direct
+        Type Swap<Later, Unit>
+        Retype Swap<Later, Unit>
+          Type Local<Later>
+          Local this
+        Type Swap<Later, Unit>
+        Local other
+      return
+        Type Swap<Later, Unit>
+        Local $call.1
+  fun receiver<Local> Diamond.choose @fn58(this: Local<Later>, next: Later) -> Later
+    bb0 entry
+      call $call.1: Later = @fn11 direct
+        Type Restored<Unit, Later>
+        Retype Restored<Unit, Later>
+          Type Local<Later>
+          Local this
+        Type Later
+        Local next
+      return
+        Type Later
+        Local $call.1
+  fun receiver<Local> Swap.choose @fn59(this: Local<Later>, next: Later) -> Later
+    bb0 entry
+      call $call.1: Later = @fn11 direct
+        Type Restored<Unit, Later>
+        Retype Restored<Unit, Later>
+          Type Local<Later>
+          Local this
+        Type Later
+        Local next
+      return
+        Type Later
+        Local $call.1
+  fun receiver<Local> View.choose @fn60(this: Local<Later>, next: Later) -> Later
+    bb0 entry
+      call $call.1: Later = @fn11 direct
+        Type Restored<Unit, Later>
+        Retype Restored<Unit, Later>
+          Type Local<Later>
+          Local this
+        Type Later
+        Local next
+      return
+        Type Later
+        Local $call.1
+  fun receiver<Local> Diamond.peer @fn61(this: Local<Int>, other: View<Unit, Int>) -> View<Unit, Int>
+    bb0 entry
+      call $call.1: View<Unit, Int> = @fn18 direct
+        Type View<Unit, Int>
+        Retype View<Unit, Int>
+          Type Local<Int>
+          Local this
+        Type View<Unit, Int>
+        Local other
+      return
+        Type View<Unit, Int>
+        Local $call.1
+  fun receiver<Local> Diamond.same @fn62(this: Local<Int>, other: Swap<Int, Unit>) -> Swap<Int, Unit>
+    bb0 entry
+      call $call.1: Swap<Int, Unit> = @fn21 direct
+        Type Swap<Int, Unit>
+        Retype Swap<Int, Unit>
+          Type Local<Int>
+          Local this
+        Type Swap<Int, Unit>
+        Local other
+      return
+        Type Swap<Int, Unit>
+        Local $call.1
+  fun receiver<Local> Diamond.choose @fn63(this: Local<Int>, next: Int) -> Int
+    bb0 entry
+      call $call.1: Int = @fn22 direct
+        Type Restored<Unit, Int>
+        Retype Restored<Unit, Int>
+          Type Local<Int>
+          Local this
+        Type Int
+        Local next
+      return
+        Type Int
+        Local $call.1
+  fun receiver<Local> Swap.choose @fn64(this: Local<Int>, next: Int) -> Int
+    bb0 entry
+      call $call.1: Int = @fn22 direct
+        Type Restored<Unit, Int>
+        Retype Restored<Unit, Int>
+          Type Local<Int>
+          Local this
+        Type Int
+        Local next
+      return
+        Type Int
+        Local $call.1
+  fun receiver<Local> View.choose @fn65(this: Local<Int>, next: Int) -> Int
+    bb0 entry
+      call $call.1: Int = @fn22 direct
+        Type Restored<Unit, Int>
+        Retype Restored<Unit, Int>
+          Type Local<Int>
+          Local this
+        Type Int
+        Local next
+      return
+        Type Int
+        Local $call.1
+  fun receiver<Local> Diamond.peer @fn66(this: Local<Unit>, other: View<Unit, Unit>) -> View<Unit, Unit>
+    bb0 entry
+      call $call.1: View<Unit, Unit> = @fn29 direct
+        Type View<Unit, Unit>
+        Retype View<Unit, Unit>
+          Type Local<Unit>
+          Local this
+        Type View<Unit, Unit>
+        Local other
+      return
+        Type View<Unit, Unit>
+        Local $call.1
+  fun receiver<Local> Diamond.same @fn67(this: Local<Unit>, other: Swap<Unit, Unit>) -> Swap<Unit, Unit>
+    bb0 entry
+      call $call.1: Swap<Unit, Unit> = @fn32 direct
+        Type Swap<Unit, Unit>
+        Retype Swap<Unit, Unit>
+          Type Local<Unit>
+          Local this
+        Type Swap<Unit, Unit>
+        Local other
+      return
+        Type Swap<Unit, Unit>
+        Local $call.1
+  fun receiver<Local> Diamond.choose @fn68(this: Local<Unit>, next: Unit) -> Unit
+    bb0 entry
+      call @fn33 direct
+        Type Restored<Unit, Unit>
+        Retype Restored<Unit, Unit>
+          Type Local<Unit>
+          Local this
+        Type Unit
+        Local next
+      return
+  fun receiver<Local> Swap.choose @fn69(this: Local<Unit>, next: Unit) -> Unit
+    bb0 entry
+      call @fn33 direct
+        Type Restored<Unit, Unit>
+        Retype Restored<Unit, Unit>
+          Type Local<Unit>
+          Local this
+        Type Unit
+        Local next
+      return
+  fun receiver<Local> View.choose @fn70(this: Local<Unit>, next: Unit) -> Unit
+    bb0 entry
+      call @fn33 direct
+        Type Restored<Unit, Unit>
+        Retype Restored<Unit, Unit>
+          Type Local<Unit>
+          Local this
+        Type Unit
+        Local next
+      return
+  fun receiver<Remote> Swap.peer @fn71(this: Remote<Later>, other: View<Unit, Later>) -> View<Unit, Later>
+    bb0 entry
+      call $call.1: View<Unit, Later> = @fn7 direct
+        Type View<Unit, Later>
+        Retype View<Unit, Later>
+          Type Remote<Later>
+          Local this
+        Type View<Unit, Later>
+        Local other
+      return
+        Type View<Unit, Later>
+        Local $call.1
+  fun receiver<Remote> Swap.choose @fn72(this: Remote<Later>, next: Later) -> Later
+    bb0 entry
+      call $call.1: Later = @fn43 direct
+        Type Swap<Later, Unit>
+        Retype Swap<Later, Unit>
+          Type Remote<Later>
+          Local this
+        Type Later
+        Local next
+      return
+        Type Later
+        Local $call.1
+  fun receiver<Remote> Swap.same @fn73(this: Remote<Later>, other: Swap<Later, Unit>) -> Swap<Later, Unit>
+    bb0 entry
+      call $call.1: Swap<Later, Unit> = @fn10 direct
+        Type Swap<Later, Unit>
+        Retype Swap<Later, Unit>
+          Type Remote<Later>
+          Local this
+        Type Swap<Later, Unit>
+        Local other
+      return
+        Type Swap<Later, Unit>
+        Local $call.1
+  fun receiver<Remote> View.choose @fn74(this: Remote<Later>, next: Later) -> Later
+    bb0 entry
+      call $call.1: Later = @fn43 direct
+        Type Swap<Later, Unit>
+        Retype Swap<Later, Unit>
+          Type Remote<Later>
+          Local this
+        Type Later
+        Local next
+      return
+        Type Later
+        Local $call.1
+  fun receiver<Remote> Swap.peer @fn75(this: Remote<Int>, other: View<Unit, Int>) -> View<Unit, Int>
+    bb0 entry
+      call $call.1: View<Unit, Int> = @fn18 direct
+        Type View<Unit, Int>
+        Retype View<Unit, Int>
+          Type Remote<Int>
+          Local this
+        Type View<Unit, Int>
+        Local other
+      return
+        Type View<Unit, Int>
+        Local $call.1
+  fun receiver<Remote> Swap.choose @fn76(this: Remote<Int>, next: Int) -> Int
+    bb0 entry
+      call $call.1: Int = @fn47 direct
+        Type Swap<Int, Unit>
+        Retype Swap<Int, Unit>
+          Type Remote<Int>
+          Local this
+        Type Int
+        Local next
+      return
+        Type Int
+        Local $call.1
+  fun receiver<Remote> Swap.same @fn77(this: Remote<Int>, other: Swap<Int, Unit>) -> Swap<Int, Unit>
+    bb0 entry
+      call $call.1: Swap<Int, Unit> = @fn21 direct
+        Type Swap<Int, Unit>
+        Retype Swap<Int, Unit>
+          Type Remote<Int>
+          Local this
+        Type Swap<Int, Unit>
+        Local other
+      return
+        Type Swap<Int, Unit>
+        Local $call.1
+  fun receiver<Remote> View.choose @fn78(this: Remote<Int>, next: Int) -> Int
+    bb0 entry
+      call $call.1: Int = @fn47 direct
+        Type Swap<Int, Unit>
+        Retype Swap<Int, Unit>
+          Type Remote<Int>
+          Local this
+        Type Int
+        Local next
+      return
+        Type Int
+        Local $call.1
+  fun receiver<Remote> Swap.peer @fn79(this: Remote<Unit>, other: View<Unit, Unit>) -> View<Unit, Unit>
+    bb0 entry
+      call $call.1: View<Unit, Unit> = @fn29 direct
+        Type View<Unit, Unit>
+        Retype View<Unit, Unit>
+          Type Remote<Unit>
+          Local this
+        Type View<Unit, Unit>
+        Local other
+      return
+        Type View<Unit, Unit>
+        Local $call.1
+  fun receiver<Remote> Swap.choose @fn80(this: Remote<Unit>, next: Unit) -> Unit
+    bb0 entry
+      call @fn51 direct
+        Type Swap<Unit, Unit>
+        Retype Swap<Unit, Unit>
+          Type Remote<Unit>
+          Local this
+        Type Unit
+        Local next
+      return
+  fun receiver<Remote> Swap.same @fn81(this: Remote<Unit>, other: Swap<Unit, Unit>) -> Swap<Unit, Unit>
+    bb0 entry
+      call $call.1: Swap<Unit, Unit> = @fn32 direct
+        Type Swap<Unit, Unit>
+        Retype Swap<Unit, Unit>
+          Type Remote<Unit>
+          Local this
+        Type Swap<Unit, Unit>
+        Local other
+      return
+        Type Swap<Unit, Unit>
+        Local $call.1
+  fun receiver<Remote> View.choose @fn82(this: Remote<Unit>, next: Unit) -> Unit
+    bb0 entry
+      call @fn51 direct
+        Type Swap<Unit, Unit>
+        Retype Swap<Unit, Unit>
+          Type Remote<Unit>
+          Local this
+        Type Unit
+        Local next
+      return
+  fun init.Later.$c0 @fn83(this: Later, value: Int) -> Unit
     bb0 entry
       field_set 0
         Type Later
@@ -1429,7 +1770,7 @@ Module
         Type Int
         Local value
       return
-  fun init.Local.$c0 @fn57(this: Local<Later>, second: Later) -> Unit
+  fun init.Local.$c0 @fn84(this: Local<Later>, second: Later) -> Unit
     bb0 entry
       field_set 0
         Type Local<Later>
@@ -1437,7 +1778,7 @@ Module
         Type Later
         Local second
       return
-  fun init.Local.$c0 @fn58(this: Local<Int>, second: Int) -> Unit
+  fun init.Local.$c0 @fn85(this: Local<Int>, second: Int) -> Unit
     bb0 entry
       field_set 0
         Type Local<Int>
@@ -1445,7 +1786,7 @@ Module
         Type Int
         Local second
       return
-  fun init.Local.$c0 @fn59(this: Local<Unit>, second: Unit) -> Unit
+  fun init.Local.$c0 @fn86(this: Local<Unit>, second: Unit) -> Unit
     bb0 entry
       field_set 0
         Type Local<Unit>
@@ -1453,7 +1794,7 @@ Module
         Type Unit
         Local second
       return
-  fun init.Remote.$c2 @fn60(this: Remote<Later>, second: Later) -> Unit
+  fun init.Remote.$c2 @fn87(this: Remote<Later>, second: Later) -> Unit
     bb0 entry
       field_set 0
         Type Remote<Later>
@@ -1461,7 +1802,7 @@ Module
         Type Later
         Local second
       return
-  fun init.Remote.$c2 @fn61(this: Remote<Int>, second: Int) -> Unit
+  fun init.Remote.$c2 @fn88(this: Remote<Int>, second: Int) -> Unit
     bb0 entry
       field_set 0
         Type Remote<Int>
@@ -1469,7 +1810,7 @@ Module
         Type Int
         Local second
       return
-  fun init.Remote.$c2 @fn62(this: Remote<Unit>, second: Unit) -> Unit
+  fun init.Remote.$c2 @fn89(this: Remote<Unit>, second: Unit) -> Unit
     bb0 entry
       field_set 0
         Type Remote<Unit>
@@ -1477,28 +1818,28 @@ Module
         Type Unit
         Local second
       return
-  fun ctor.Inline.$c1 @fn63(value: Later) -> Inline<Later> <no-gc>
+  fun ctor.Inline.$c1 @fn90(value: Later) -> Inline<Later> <no-gc>
     bb0 entry
       return
         Type Inline<Later>
         StructInit Inline<Later>
           Type Later
           Local value
-  fun ctor.Inline.$c1 @fn64(value: Int) -> Inline<Int> <no-gc>
+  fun ctor.Inline.$c1 @fn91(value: Int) -> Inline<Int> <no-gc>
     bb0 entry
       return
         Type Inline<Int>
         StructInit Inline<Int>
           Type Int
           Local value
-  fun ctor.Inline.$c1 @fn65(value: Unit) -> Inline<Unit> <no-gc>
+  fun ctor.Inline.$c1 @fn92(value: Unit) -> Inline<Unit> <no-gc>
     bb0 entry
       return
         Type Inline<Unit>
         StructInit Inline<Unit>
           Type Unit
           Local value
-  fun startCoroutine<Later> @fn66(task: SuspendTask<Later>, completion: Continuation<Later>) -> Unit
+  fun startCoroutine<Later> @fn93(task: SuspendTask<Later>, completion: Continuation<Later>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -1579,445 +1920,445 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun thunk<Inline<Later>> Restored.peer(View<Unit, Later>) @fn67(this: Restored<Unit, Later>, other: View<Unit, Later>) -> View<Unit, Later>
+  fun thunk<Inline<Later>> Restored.peer(View<Unit, Later>) @fn94(this: box<Inline<Later>>, other: View<Unit, Later>) -> View<Unit, Later>
     bb0 entry
       call $call.1: View<Unit, Later> = @fn7 direct
         Type View<Unit, Later>
         Retype View<Unit, Later>
-          Type Restored<Unit, Later>
+          Type box<Inline<Later>>
           Local this
         Type View<Unit, Later>
         Local other
       return
         Type View<Unit, Later>
         Local $call.1
-  fun thunk<Inline<Later>> Restored.first() @fn68(this: Restored<Unit, Later>) -> Unit
+  fun thunk<Inline<Later>> Restored.first() @fn95(this: box<Inline<Later>>) -> Unit
     bb0 entry
       call @fn8 direct
         Type Inline<Later>
         Unbox
-          Type Restored<Unit, Later>
+          Type box<Inline<Later>>
           Local this
       return
-  fun thunk<Inline<Later>> Restored.second() @fn69(this: Restored<Unit, Later>) -> Later
+  fun thunk<Inline<Later>> Restored.second() @fn96(this: box<Inline<Later>>) -> Later
     bb0 entry
       call $call.1: Later = @fn9 direct
         Type Inline<Later>
         Unbox
-          Type Restored<Unit, Later>
+          Type box<Inline<Later>>
           Local this
       return
         Type Later
         Local $call.1
-  fun thunk<Inline<Later>> Restored.same(Swap<Later, Unit>) @fn70(this: Restored<Unit, Later>, other: Swap<Later, Unit>) -> Swap<Later, Unit>
+  fun thunk<Inline<Later>> Restored.same(Swap<Later, Unit>) @fn97(this: box<Inline<Later>>, other: Swap<Later, Unit>) -> Swap<Later, Unit>
     bb0 entry
       call $call.1: Swap<Later, Unit> = @fn10 direct
         Type Swap<Later, Unit>
         Retype Swap<Later, Unit>
-          Type Restored<Unit, Later>
+          Type box<Inline<Later>>
           Local this
         Type Swap<Later, Unit>
         Local other
       return
         Type Swap<Later, Unit>
         Local $call.1
-  fun thunk<Inline<Later>> Restored.choose(Later) @fn71(this: Restored<Unit, Later>, next: Later) -> Later
+  fun thunk<Inline<Later>> Restored.choose(Later) @fn98(this: box<Inline<Later>>, next: Later) -> Later
     bb0 entry
       call $call.1: Later = @fn11 direct
         Type Restored<Unit, Later>
         Retype Restored<Unit, Later>
-          Type Restored<Unit, Later>
+          Type box<Inline<Later>>
           Local this
         Type Later
         Local next
       return
         Type Later
         Local $call.1
-  fun thunk<Inline<Later>> Swap.peer(View<Unit, Later>) @fn72(this: Swap<Later, Unit>, other: View<Unit, Later>) -> View<Unit, Later>
+  fun thunk<Inline<Later>> Swap.peer(View<Unit, Later>) @fn99(this: box<Inline<Later>>, other: View<Unit, Later>) -> View<Unit, Later>
     bb0 entry
       call $call.1: View<Unit, Later> = @fn7 direct
         Type View<Unit, Later>
         Retype View<Unit, Later>
-          Type Swap<Later, Unit>
+          Type box<Inline<Later>>
           Local this
         Type View<Unit, Later>
         Local other
       return
         Type View<Unit, Later>
         Local $call.1
-  fun thunk<Inline<Later>> Swap.first() @fn73(this: Swap<Later, Unit>) -> Unit
+  fun thunk<Inline<Later>> Swap.first() @fn100(this: box<Inline<Later>>) -> Unit
     bb0 entry
       call @fn8 direct
         Type Inline<Later>
         Unbox
-          Type Swap<Later, Unit>
+          Type box<Inline<Later>>
           Local this
       return
-  fun thunk<Inline<Later>> Swap.second() @fn74(this: Swap<Later, Unit>) -> Later
+  fun thunk<Inline<Later>> Swap.second() @fn101(this: box<Inline<Later>>) -> Later
     bb0 entry
       call $call.1: Later = @fn9 direct
         Type Inline<Later>
         Unbox
-          Type Swap<Later, Unit>
+          Type box<Inline<Later>>
           Local this
       return
         Type Later
         Local $call.1
-  fun thunk<Inline<Later>> Swap.choose(Later) @fn75(this: Swap<Later, Unit>, next: Later) -> Later
+  fun thunk<Inline<Later>> Swap.choose(Later) @fn102(this: box<Inline<Later>>, next: Later) -> Later
     bb0 entry
       call $call.1: Later = @fn11 direct
         Type Restored<Unit, Later>
         Retype Restored<Unit, Later>
-          Type Swap<Later, Unit>
+          Type box<Inline<Later>>
           Local this
         Type Later
         Local next
       return
         Type Later
         Local $call.1
-  fun thunk<Inline<Later>> Swap.same(Swap<Later, Unit>) @fn76(this: Swap<Later, Unit>, other: Swap<Later, Unit>) -> Swap<Later, Unit>
+  fun thunk<Inline<Later>> Swap.same(Swap<Later, Unit>) @fn103(this: box<Inline<Later>>, other: Swap<Later, Unit>) -> Swap<Later, Unit>
     bb0 entry
       call $call.1: Swap<Later, Unit> = @fn10 direct
         Type Swap<Later, Unit>
         Retype Swap<Later, Unit>
-          Type Swap<Later, Unit>
+          Type box<Inline<Later>>
           Local this
         Type Swap<Later, Unit>
         Local other
       return
         Type Swap<Later, Unit>
         Local $call.1
-  fun thunk<Inline<Later>> View.choose(Later) @fn77(this: View<Unit, Later>, next: Later) -> Later
+  fun thunk<Inline<Later>> View.choose(Later) @fn104(this: box<Inline<Later>>, next: Later) -> Later
     bb0 entry
       call $call.1: Later = @fn11 direct
         Type Restored<Unit, Later>
         Retype Restored<Unit, Later>
-          Type View<Unit, Later>
+          Type box<Inline<Later>>
           Local this
         Type Later
         Local next
       return
         Type Later
         Local $call.1
-  fun thunk<Inline<Later>> View.peer(View<Unit, Later>) @fn78(this: View<Unit, Later>, other: View<Unit, Later>) -> View<Unit, Later>
+  fun thunk<Inline<Later>> View.peer(View<Unit, Later>) @fn105(this: box<Inline<Later>>, other: View<Unit, Later>) -> View<Unit, Later>
     bb0 entry
       call $call.1: View<Unit, Later> = @fn7 direct
         Type View<Unit, Later>
         Retype View<Unit, Later>
-          Type View<Unit, Later>
+          Type box<Inline<Later>>
           Local this
         Type View<Unit, Later>
         Local other
       return
         Type View<Unit, Later>
         Local $call.1
-  fun thunk<Inline<Later>> View.first() @fn79(this: View<Unit, Later>) -> Unit
+  fun thunk<Inline<Later>> View.first() @fn106(this: box<Inline<Later>>) -> Unit
     bb0 entry
       call @fn8 direct
         Type Inline<Later>
         Unbox
-          Type View<Unit, Later>
+          Type box<Inline<Later>>
           Local this
       return
-  fun thunk<Inline<Later>> View.second() @fn80(this: View<Unit, Later>) -> Later
+  fun thunk<Inline<Later>> View.second() @fn107(this: box<Inline<Later>>) -> Later
     bb0 entry
       call $call.1: Later = @fn9 direct
         Type Inline<Later>
         Unbox
-          Type View<Unit, Later>
+          Type box<Inline<Later>>
           Local this
       return
         Type Later
         Local $call.1
-  fun thunk<Inline<Int>> Restored.peer(View<Unit, Int>) @fn81(this: Restored<Unit, Int>, other: View<Unit, Int>) -> View<Unit, Int>
+  fun thunk<Inline<Int>> Restored.peer(View<Unit, Int>) @fn108(this: box<Inline<Int>>, other: View<Unit, Int>) -> View<Unit, Int>
     bb0 entry
       call $call.1: View<Unit, Int> = @fn18 direct
         Type View<Unit, Int>
         Retype View<Unit, Int>
-          Type Restored<Unit, Int>
+          Type box<Inline<Int>>
           Local this
         Type View<Unit, Int>
         Local other
       return
         Type View<Unit, Int>
         Local $call.1
-  fun thunk<Inline<Int>> Restored.first() @fn82(this: Restored<Unit, Int>) -> Unit
+  fun thunk<Inline<Int>> Restored.first() @fn109(this: box<Inline<Int>>) -> Unit
     bb0 entry
       call @fn19 direct
         Type Inline<Int>
         Unbox
-          Type Restored<Unit, Int>
+          Type box<Inline<Int>>
           Local this
       return
-  fun thunk<Inline<Int>> Restored.second() @fn83(this: Restored<Unit, Int>) -> Int
+  fun thunk<Inline<Int>> Restored.second() @fn110(this: box<Inline<Int>>) -> Int
     bb0 entry
       call $call.1: Int = @fn20 direct
         Type Inline<Int>
         Unbox
-          Type Restored<Unit, Int>
+          Type box<Inline<Int>>
           Local this
       return
         Type Int
         Local $call.1
-  fun thunk<Inline<Int>> Restored.same(Swap<Int, Unit>) @fn84(this: Restored<Unit, Int>, other: Swap<Int, Unit>) -> Swap<Int, Unit>
+  fun thunk<Inline<Int>> Restored.same(Swap<Int, Unit>) @fn111(this: box<Inline<Int>>, other: Swap<Int, Unit>) -> Swap<Int, Unit>
     bb0 entry
       call $call.1: Swap<Int, Unit> = @fn21 direct
         Type Swap<Int, Unit>
         Retype Swap<Int, Unit>
-          Type Restored<Unit, Int>
+          Type box<Inline<Int>>
           Local this
         Type Swap<Int, Unit>
         Local other
       return
         Type Swap<Int, Unit>
         Local $call.1
-  fun thunk<Inline<Int>> Restored.choose(Int) @fn85(this: Restored<Unit, Int>, next: Int) -> Int
+  fun thunk<Inline<Int>> Restored.choose(Int) @fn112(this: box<Inline<Int>>, next: Int) -> Int
     bb0 entry
       call $call.1: Int = @fn22 direct
         Type Restored<Unit, Int>
         Retype Restored<Unit, Int>
-          Type Restored<Unit, Int>
+          Type box<Inline<Int>>
           Local this
         Type Int
         Local next
       return
         Type Int
         Local $call.1
-  fun thunk<Inline<Int>> Swap.peer(View<Unit, Int>) @fn86(this: Swap<Int, Unit>, other: View<Unit, Int>) -> View<Unit, Int>
+  fun thunk<Inline<Int>> Swap.peer(View<Unit, Int>) @fn113(this: box<Inline<Int>>, other: View<Unit, Int>) -> View<Unit, Int>
     bb0 entry
       call $call.1: View<Unit, Int> = @fn18 direct
         Type View<Unit, Int>
         Retype View<Unit, Int>
-          Type Swap<Int, Unit>
+          Type box<Inline<Int>>
           Local this
         Type View<Unit, Int>
         Local other
       return
         Type View<Unit, Int>
         Local $call.1
-  fun thunk<Inline<Int>> Swap.first() @fn87(this: Swap<Int, Unit>) -> Unit
+  fun thunk<Inline<Int>> Swap.first() @fn114(this: box<Inline<Int>>) -> Unit
     bb0 entry
       call @fn19 direct
         Type Inline<Int>
         Unbox
-          Type Swap<Int, Unit>
+          Type box<Inline<Int>>
           Local this
       return
-  fun thunk<Inline<Int>> Swap.second() @fn88(this: Swap<Int, Unit>) -> Int
+  fun thunk<Inline<Int>> Swap.second() @fn115(this: box<Inline<Int>>) -> Int
     bb0 entry
       call $call.1: Int = @fn20 direct
         Type Inline<Int>
         Unbox
-          Type Swap<Int, Unit>
+          Type box<Inline<Int>>
           Local this
       return
         Type Int
         Local $call.1
-  fun thunk<Inline<Int>> Swap.choose(Int) @fn89(this: Swap<Int, Unit>, next: Int) -> Int
+  fun thunk<Inline<Int>> Swap.choose(Int) @fn116(this: box<Inline<Int>>, next: Int) -> Int
     bb0 entry
       call $call.1: Int = @fn22 direct
         Type Restored<Unit, Int>
         Retype Restored<Unit, Int>
-          Type Swap<Int, Unit>
+          Type box<Inline<Int>>
           Local this
         Type Int
         Local next
       return
         Type Int
         Local $call.1
-  fun thunk<Inline<Int>> Swap.same(Swap<Int, Unit>) @fn90(this: Swap<Int, Unit>, other: Swap<Int, Unit>) -> Swap<Int, Unit>
+  fun thunk<Inline<Int>> Swap.same(Swap<Int, Unit>) @fn117(this: box<Inline<Int>>, other: Swap<Int, Unit>) -> Swap<Int, Unit>
     bb0 entry
       call $call.1: Swap<Int, Unit> = @fn21 direct
         Type Swap<Int, Unit>
         Retype Swap<Int, Unit>
-          Type Swap<Int, Unit>
+          Type box<Inline<Int>>
           Local this
         Type Swap<Int, Unit>
         Local other
       return
         Type Swap<Int, Unit>
         Local $call.1
-  fun thunk<Inline<Int>> View.choose(Int) @fn91(this: View<Unit, Int>, next: Int) -> Int
+  fun thunk<Inline<Int>> View.choose(Int) @fn118(this: box<Inline<Int>>, next: Int) -> Int
     bb0 entry
       call $call.1: Int = @fn22 direct
         Type Restored<Unit, Int>
         Retype Restored<Unit, Int>
-          Type View<Unit, Int>
+          Type box<Inline<Int>>
           Local this
         Type Int
         Local next
       return
         Type Int
         Local $call.1
-  fun thunk<Inline<Int>> View.peer(View<Unit, Int>) @fn92(this: View<Unit, Int>, other: View<Unit, Int>) -> View<Unit, Int>
+  fun thunk<Inline<Int>> View.peer(View<Unit, Int>) @fn119(this: box<Inline<Int>>, other: View<Unit, Int>) -> View<Unit, Int>
     bb0 entry
       call $call.1: View<Unit, Int> = @fn18 direct
         Type View<Unit, Int>
         Retype View<Unit, Int>
-          Type View<Unit, Int>
+          Type box<Inline<Int>>
           Local this
         Type View<Unit, Int>
         Local other
       return
         Type View<Unit, Int>
         Local $call.1
-  fun thunk<Inline<Int>> View.first() @fn93(this: View<Unit, Int>) -> Unit
+  fun thunk<Inline<Int>> View.first() @fn120(this: box<Inline<Int>>) -> Unit
     bb0 entry
       call @fn19 direct
         Type Inline<Int>
         Unbox
-          Type View<Unit, Int>
+          Type box<Inline<Int>>
           Local this
       return
-  fun thunk<Inline<Int>> View.second() @fn94(this: View<Unit, Int>) -> Int
+  fun thunk<Inline<Int>> View.second() @fn121(this: box<Inline<Int>>) -> Int
     bb0 entry
       call $call.1: Int = @fn20 direct
         Type Inline<Int>
         Unbox
-          Type View<Unit, Int>
+          Type box<Inline<Int>>
           Local this
       return
         Type Int
         Local $call.1
-  fun thunk<Inline<Unit>> Restored.peer(View<Unit, Unit>) @fn95(this: Restored<Unit, Unit>, other: View<Unit, Unit>) -> View<Unit, Unit>
+  fun thunk<Inline<Unit>> Restored.peer(View<Unit, Unit>) @fn122(this: box<Inline<Unit>>, other: View<Unit, Unit>) -> View<Unit, Unit>
     bb0 entry
       call $call.1: View<Unit, Unit> = @fn29 direct
         Type View<Unit, Unit>
         Retype View<Unit, Unit>
-          Type Restored<Unit, Unit>
+          Type box<Inline<Unit>>
           Local this
         Type View<Unit, Unit>
         Local other
       return
         Type View<Unit, Unit>
         Local $call.1
-  fun thunk<Inline<Unit>> Restored.first() @fn96(this: Restored<Unit, Unit>) -> Unit
+  fun thunk<Inline<Unit>> Restored.first() @fn123(this: box<Inline<Unit>>) -> Unit
     bb0 entry
       call @fn30 direct
         Type Inline<Unit>
         Unbox
-          Type Restored<Unit, Unit>
+          Type box<Inline<Unit>>
           Local this
       return
-  fun thunk<Inline<Unit>> Restored.second() @fn97(this: Restored<Unit, Unit>) -> Unit
+  fun thunk<Inline<Unit>> Restored.second() @fn124(this: box<Inline<Unit>>) -> Unit
     bb0 entry
       call @fn31 direct
         Type Inline<Unit>
         Unbox
-          Type Restored<Unit, Unit>
+          Type box<Inline<Unit>>
           Local this
       return
-  fun thunk<Inline<Unit>> Restored.same(Swap<Unit, Unit>) @fn98(this: Restored<Unit, Unit>, other: Swap<Unit, Unit>) -> Swap<Unit, Unit>
+  fun thunk<Inline<Unit>> Restored.same(Swap<Unit, Unit>) @fn125(this: box<Inline<Unit>>, other: Swap<Unit, Unit>) -> Swap<Unit, Unit>
     bb0 entry
       call $call.1: Swap<Unit, Unit> = @fn32 direct
         Type Swap<Unit, Unit>
         Retype Swap<Unit, Unit>
-          Type Restored<Unit, Unit>
+          Type box<Inline<Unit>>
           Local this
         Type Swap<Unit, Unit>
         Local other
       return
         Type Swap<Unit, Unit>
         Local $call.1
-  fun thunk<Inline<Unit>> Restored.choose(Unit) @fn99(this: Restored<Unit, Unit>, next: Unit) -> Unit
+  fun thunk<Inline<Unit>> Restored.choose(Unit) @fn126(this: box<Inline<Unit>>, next: Unit) -> Unit
     bb0 entry
       call @fn33 direct
         Type Restored<Unit, Unit>
         Retype Restored<Unit, Unit>
-          Type Restored<Unit, Unit>
+          Type box<Inline<Unit>>
           Local this
         Type Unit
         Local next
       return
-  fun thunk<Inline<Unit>> Swap.peer(View<Unit, Unit>) @fn100(this: Swap<Unit, Unit>, other: View<Unit, Unit>) -> View<Unit, Unit>
+  fun thunk<Inline<Unit>> Swap.peer(View<Unit, Unit>) @fn127(this: box<Inline<Unit>>, other: View<Unit, Unit>) -> View<Unit, Unit>
     bb0 entry
       call $call.1: View<Unit, Unit> = @fn29 direct
         Type View<Unit, Unit>
         Retype View<Unit, Unit>
-          Type Swap<Unit, Unit>
+          Type box<Inline<Unit>>
           Local this
         Type View<Unit, Unit>
         Local other
       return
         Type View<Unit, Unit>
         Local $call.1
-  fun thunk<Inline<Unit>> Swap.first() @fn101(this: Swap<Unit, Unit>) -> Unit
+  fun thunk<Inline<Unit>> Swap.first() @fn128(this: box<Inline<Unit>>) -> Unit
     bb0 entry
       call @fn30 direct
         Type Inline<Unit>
         Unbox
-          Type Swap<Unit, Unit>
+          Type box<Inline<Unit>>
           Local this
       return
-  fun thunk<Inline<Unit>> Swap.second() @fn102(this: Swap<Unit, Unit>) -> Unit
+  fun thunk<Inline<Unit>> Swap.second() @fn129(this: box<Inline<Unit>>) -> Unit
     bb0 entry
       call @fn31 direct
         Type Inline<Unit>
         Unbox
-          Type Swap<Unit, Unit>
+          Type box<Inline<Unit>>
           Local this
       return
-  fun thunk<Inline<Unit>> Swap.choose(Unit) @fn103(this: Swap<Unit, Unit>, next: Unit) -> Unit
+  fun thunk<Inline<Unit>> Swap.choose(Unit) @fn130(this: box<Inline<Unit>>, next: Unit) -> Unit
     bb0 entry
       call @fn33 direct
         Type Restored<Unit, Unit>
         Retype Restored<Unit, Unit>
-          Type Swap<Unit, Unit>
+          Type box<Inline<Unit>>
           Local this
         Type Unit
         Local next
       return
-  fun thunk<Inline<Unit>> Swap.same(Swap<Unit, Unit>) @fn104(this: Swap<Unit, Unit>, other: Swap<Unit, Unit>) -> Swap<Unit, Unit>
+  fun thunk<Inline<Unit>> Swap.same(Swap<Unit, Unit>) @fn131(this: box<Inline<Unit>>, other: Swap<Unit, Unit>) -> Swap<Unit, Unit>
     bb0 entry
       call $call.1: Swap<Unit, Unit> = @fn32 direct
         Type Swap<Unit, Unit>
         Retype Swap<Unit, Unit>
-          Type Swap<Unit, Unit>
+          Type box<Inline<Unit>>
           Local this
         Type Swap<Unit, Unit>
         Local other
       return
         Type Swap<Unit, Unit>
         Local $call.1
-  fun thunk<Inline<Unit>> View.choose(Unit) @fn105(this: View<Unit, Unit>, next: Unit) -> Unit
+  fun thunk<Inline<Unit>> View.choose(Unit) @fn132(this: box<Inline<Unit>>, next: Unit) -> Unit
     bb0 entry
       call @fn33 direct
         Type Restored<Unit, Unit>
         Retype Restored<Unit, Unit>
-          Type View<Unit, Unit>
+          Type box<Inline<Unit>>
           Local this
         Type Unit
         Local next
       return
-  fun thunk<Inline<Unit>> View.peer(View<Unit, Unit>) @fn106(this: View<Unit, Unit>, other: View<Unit, Unit>) -> View<Unit, Unit>
+  fun thunk<Inline<Unit>> View.peer(View<Unit, Unit>) @fn133(this: box<Inline<Unit>>, other: View<Unit, Unit>) -> View<Unit, Unit>
     bb0 entry
       call $call.1: View<Unit, Unit> = @fn29 direct
         Type View<Unit, Unit>
         Retype View<Unit, Unit>
-          Type View<Unit, Unit>
+          Type box<Inline<Unit>>
           Local this
         Type View<Unit, Unit>
         Local other
       return
         Type View<Unit, Unit>
         Local $call.1
-  fun thunk<Inline<Unit>> View.first() @fn107(this: View<Unit, Unit>) -> Unit
+  fun thunk<Inline<Unit>> View.first() @fn134(this: box<Inline<Unit>>) -> Unit
     bb0 entry
       call @fn30 direct
         Type Inline<Unit>
         Unbox
-          Type View<Unit, Unit>
+          Type box<Inline<Unit>>
           Local this
       return
-  fun thunk<Inline<Unit>> View.second() @fn108(this: View<Unit, Unit>) -> Unit
+  fun thunk<Inline<Unit>> View.second() @fn135(this: box<Inline<Unit>>) -> Unit
     bb0 entry
       call @fn31 direct
         Type Inline<Unit>
         Unbox
-          Type View<Unit, Unit>
+          Type box<Inline<Unit>>
           Local this
       return
-  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn109($source: (Later) -> Int, arg0: Any) -> Any
+  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn136($source: (Later) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type0> closure[function_type0]
         Type (Later) -> Int
@@ -2031,7 +2372,7 @@ Module
         Box
           Type Int
           Local $call.1
-  fun function_bridge.$Closure$lambda1.(Any) -> Any @fn110($source: (Int) -> Int, arg0: Any) -> Any
+  fun function_bridge.$Closure$lambda1.(Any) -> Any @fn137($source: (Int) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type2> closure[function_type2]
         Type (Int) -> Int
@@ -2045,7 +2386,7 @@ Module
         Box
           Type Int
           Local $call.1
-  fun function_bridge.$Closure$lambda2.(Any) -> Any @fn111($source: (Unit) -> Int, arg0: Any) -> Any
+  fun function_bridge.$Closure$lambda2.(Any) -> Any @fn138($source: (Unit) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type3> closure[function_type3]
         Type (Unit) -> Int
@@ -2061,7 +2402,7 @@ Module
           Local $call.1
   coroutine_step cs0 CoroutineStep<Later> result=Later
   coroutine_slot cl0 CoroutineSlot<Later> value=Later
-  coroutine_start ct0 result=Later function=fn66
+  coroutine_start ct0 result=Later function=fn93
   coroutine_fn cf0 @fn54 source_return=Later step=cs0 immediate
   instance mi0 function=@fn2 <- exercise
   instance mi1 function=@fn4 <- exercise

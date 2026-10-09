@@ -629,8 +629,10 @@ Module
       call @fn13 interface SuspendRegistration<Int>[0]
         Type SuspendRegistration<Int>
         Local $dependency.parameter.registration
-        Type CoroutineAdapter<CaughtTask.run>$1
-        Local $safe_adapter.1
+        Type Continuation<Int>
+        Retype Continuation<Int>
+          Type CoroutineAdapter<CaughtTask.run>$1
+          Local $safe_adapter.1
       goto bb23
     bb12 coroutine.registered_success.1 unwind bb1
       atomic_store_release kind=coroutine-adapter-state field=1
@@ -1392,8 +1394,10 @@ Module
       call @fn13 interface SuspendRegistration<Int>[0]
         Type SuspendRegistration<Int>
         Local $dependency.parameter.registration
-        Type CoroutineAdapter<UncaughtTask.run>$1
-        Local $safe_adapter.1
+        Type Continuation<Int>
+        Retype Continuation<Int>
+          Type CoroutineAdapter<UncaughtTask.run>$1
+          Local $safe_adapter.1
       goto bb14
     bb3 coroutine.registered_success.1
       atomic_store_release kind=coroutine-adapter-state field=1

@@ -498,56 +498,56 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun thunk<InterfaceCell<Unit>> Reader.get() @fn21(this: Reader<Unit>) -> Unit
+  fun thunk<InterfaceCell<Unit>> Reader.get() @fn21(this: box<InterfaceCell<Unit>>) -> Unit
     bb0 entry
       call @fn1 direct
         Type InterfaceCell<Unit>
         Unbox
-          Type Reader<Unit>
+          Type box<InterfaceCell<Unit>>
           Local this
       return
-  fun thunk<InterfaceCell<Unit>> Reader.read() @fn22(this: Reader<Unit>) -> Unit
+  fun thunk<InterfaceCell<Unit>> Reader.read() @fn22(this: box<InterfaceCell<Unit>>) -> Unit
     bb0 entry
       call @fn2 direct
         Type Reader<Unit>
         Retype Reader<Unit>
-          Type Reader<Unit>
+          Type box<InterfaceCell<Unit>>
           Local this
       return
-  fun thunk<InterfaceCell<Unit>> Readable.get() @fn23(this: Readable<Unit>) -> Unit
+  fun thunk<InterfaceCell<Unit>> Readable.get() @fn23(this: box<InterfaceCell<Unit>>) -> Unit
     bb0 entry
       call @fn1 direct
         Type InterfaceCell<Unit>
         Unbox
-          Type Readable<Unit>
+          Type box<InterfaceCell<Unit>>
           Local this
       return
-  fun thunk<InterfaceCell<Large>> Reader.get() @fn24(this: Reader<Large>) -> Large
+  fun thunk<InterfaceCell<Large>> Reader.get() @fn24(this: box<InterfaceCell<Large>>) -> Large
     bb0 entry
       call $call.1: Large = @fn3 direct
         Type InterfaceCell<Large>
         Unbox
-          Type Reader<Large>
+          Type box<InterfaceCell<Large>>
           Local this
       return
         Type Large
         Local $call.1
-  fun thunk<InterfaceCell<Large>> Reader.read() @fn25(this: Reader<Large>) -> Large
+  fun thunk<InterfaceCell<Large>> Reader.read() @fn25(this: box<InterfaceCell<Large>>) -> Large
     bb0 entry
       call $call.1: Large = @fn4 direct
         Type Reader<Large>
         Retype Reader<Large>
-          Type Reader<Large>
+          Type box<InterfaceCell<Large>>
           Local this
       return
         Type Large
         Local $call.1
-  fun thunk<InterfaceCell<Large>> Readable.get() @fn26(this: Readable<Large>) -> Large
+  fun thunk<InterfaceCell<Large>> Readable.get() @fn26(this: box<InterfaceCell<Large>>) -> Large
     bb0 entry
       call $call.1: Large = @fn3 direct
         Type InterfaceCell<Large>
         Unbox
-          Type Readable<Large>
+          Type box<InterfaceCell<Large>>
           Local this
       return
         Type Large

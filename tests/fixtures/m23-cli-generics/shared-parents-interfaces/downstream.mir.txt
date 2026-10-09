@@ -9,8 +9,8 @@ Module
     Empty()
     Value(value: Later)
   class Later vtable=0 itables=0
-  class NumberReader vtable=0 itables=2
-  class LocalNumberReader vtable=0 itables=2
+  class NumberReader vtable=0 itables=0
+  class LocalNumberReader vtable=0 itables=0
   class IllegalStateException vtable=0 itables=0
   class Exception vtable=0 itables=0
   class Throwable vtable=0 itables=0

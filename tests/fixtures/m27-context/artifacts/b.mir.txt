@@ -1016,8 +1016,10 @@ Module
       call $step.1: CoroutineStep<Request> = @fn7 direct
         Type SuspendRegistration<Int>
         Local $dependency.parameter.registration
-        Type CoroutineAdapter<throughBWait>$1
-        Local $adapter.1
+        Type Continuation<Request>
+        Retype Continuation<Request>
+          Type CoroutineAdapter<throughBWait>$1
+          Local $adapter.1
       branch bb8 bb9
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -1621,8 +1623,10 @@ Module
       call @fn16 interface SuspendRegistration<Int>[0]
         Type SuspendRegistration<Int>
         Local $dependency.local.3
-        Type CoroutineAdapter<delayed>$1
-        Local $safe_adapter.1
+        Type Continuation<Int>
+        Retype Continuation<Int>
+          Type CoroutineAdapter<delayed>$1
+          Local $safe_adapter.1
       goto bb22
     bb11 coroutine.registered_success.1 unwind bb4
       atomic_store_release kind=coroutine-adapter-state field=1

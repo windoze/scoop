@@ -161,7 +161,7 @@ Module
     ret
   td td0 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Equality);[r(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int))]) @scoop$1$td$417d849ab9faf4ee7cc245d7444316539a92fddeb0d74a52baa9166df5b641dd type-id=6625804449091664072 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
   td td1 n(c=dev.example%3Ageneric-member-downstream-local%3A0.1.0;p=;o=-;k=C;x=Later) @scoop$1$td$8a5395bdca7f5d9c2bbed0bc555ba5ee0a117a3d2785ecdf6fd3ec128e83edab type-id=3089924352190587420 shape=FixedObject minimum-size=24 align=8 parent=none vtable=[] itables=[]
-  layout Equality value size=8 align=8 refs=[0]
+  layout Equality value size=16 align=8 refs=[0]
   layout Later value size=8 align=8 refs=[0]
   layout Later size=24 align=8 refs=[]
   output library

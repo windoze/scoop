@@ -321,18 +321,17 @@ Module
     local %0 $argument.0: i32
     local %1 $parameter.value: i32
     local %2 box: struct0
-    local %3 $sc.1: struct0
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     store param0 -> local0
     store local0 -> local1
-    call no-gc-indirect-target0 local3 = sig=indirect0 (sret struct0 size=4 align=4 scan=none, i32) local-fn39(local1)
-    store local3 -> local2
-    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td13, machine<byte-size>(ByteSize(32)))
-    t1 = function_address @scoop$1$cb$7542ba1c076c3a2df067bb45ee59831ef6447af6048caa3e6e6c7ed55b7c04f2 : ptr
-    heap_store t0 +16 t1
-    heap_store t0 +24 local2
-    ret t0
+    call no-gc-direct-target0 t0 = sig=direct0 (i32) -> struct0 local-fn39(local1)
+    store t0 -> local2
+    call managed-direct-target0 sp<managed-call:0> live=[] t1 = sig=direct1 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td13, machine<byte-size>(ByteSize(32)))
+    t2 = function_address @scoop$1$cb$7542ba1c076c3a2df067bb45ee59831ef6447af6048caa3e6e6c7ed55b7c04f2 : ptr
+    heap_store t1 +16 t2
+    heap_store t1 +24 local2
+    ret t1
   fun @scoop$1$cb$cc10c0e15d273e9c47cb2025581707635361aa4289d45208dd81c3e797c30bea(ptr<managed>) -> ptr<managed>
     local %0 $argument.0: ptr<managed>
     local %1 $parameter.value: ptr<managed>
@@ -517,7 +516,7 @@ Module
     call managed-direct-target0 sp<managed-call:0> live=[t0:ptr<managed>@0] t1 = sig=direct0 (ptr<managed>) -> ptr<managed> local-fn26(t0)
     store t1 -> local0
     ret local0
-  fun @scoop$1$cb$11e3d868e413bcb0d10f073fb98b24ab01059ccdb417dbf73835d9d0f906c45b(i32) -> sret<struct0 size=4 align=4 scan=none> <no-gc>
+  fun @scoop$1$cb$11e3d868e413bcb0d10f073fb98b24ab01059ccdb417dbf73835d9d0f906c45b(i32) -> parts<struct0 [i32@0+4/4]> <no-gc>
   block entry
     t0 = aggregate (param0) : struct0
     ret t0
@@ -709,11 +708,11 @@ Module
   layout GenericBox size=4 align=4 refs=[]
   layout GenericBox size=8 align=8 refs=[0]
   layout Option size=16 align=8 enum-scan=none
-  layout Equality value size=8 align=8 refs=[0]
-  layout Equality value size=8 align=8 refs=[0]
-  layout Iterable value size=8 align=8 refs=[0]
-  layout Iterator value size=8 align=8 refs=[0]
-  layout Equality value size=8 align=8 refs=[0]
+  layout Equality value size=16 align=8 refs=[0]
+  layout Equality value size=16 align=8 refs=[0]
+  layout Iterable value size=16 align=8 refs=[0]
+  layout Iterator value size=16 align=8 refs=[0]
+  layout Equality value size=16 align=8 refs=[0]
   layout $Closure$lambda0 value size=8 align=8 refs=[0]
   layout $Closure$lambda0 size=32 align=8 refs=[]
   layout $Closure$lambda1 value size=8 align=8 refs=[0]

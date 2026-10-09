@@ -9,7 +9,7 @@ Module
     Empty()
     Value(value: Derived)
   class Derived vtable=4 itables=1
-  class InterfaceParent vtable=4 itables=1
+  class InterfaceParent vtable=4 itables=0
   class Parent vtable=4 itables=0
   class Counter vtable=0 itables=0
   class IllegalStateException vtable=0 itables=0
@@ -26,7 +26,8 @@ Module
   generated_exact_type get4 location=enum1 nominal_id=cb448dba82728a8d44199908f94b59ec8497a176935e6713878fa5397e29ac51 exact_id=5122aae7ebb74775fac510c5b7b9ada1aff1cb1759b6d98654647e2f95c5d3f3
   generated_exact_type get5 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
   generated_exact_type get6 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
-  generated_callable gc0 function=@fn7 id=824a0f87417845a5b95d4e6afcc79aa9af2f3b4ef3c9b3ec95ecb011d1c9fbad
+  generated_callable gc0 function=@fn8 id=824a0f87417845a5b95d4e6afcc79aa9af2f3b4ef3c9b3ec95ecb011d1c9fbad
+  generated_callable gc1 function=@fn6 id=901741df4e291464af61a3f56b0eb4d3028ca652f0cfc7b8e7078f77c910fecf
   fun Derived.read @fn0(this: Derived) -> Long
     bb0 entry
       call $dependency.receiver: Long = external8 direct
@@ -52,7 +53,7 @@ Module
       assign $new.1
         Type Derived
         ClassAlloc Derived
-      call @fn6 direct
+      call @fn7 direct
         Type Derived
         Local $new.1
       val value: Readable
@@ -110,7 +111,19 @@ Module
   fun SuspendRegistration.register @fn5(this: SuspendRegistration<Derived>, continuation: Continuation<Derived>) -> Unit
     bb0 entry
       trap "call to abstract method `SuspendRegistration.register`"
-  fun init.Derived.$c0 @fn6(this: Derived) -> Unit
+  fun receiver<Derived> Readable.answer @fn6(this: Derived, extra: Long) -> Long
+    bb0 entry
+      call $call.1: Long = external5 direct
+        Type Readable
+        Retype Readable
+          Type Derived
+          Local this
+        Type Long
+        Local extra
+      return
+        Type Long
+        Local $call.1
+  fun init.Derived.$c0 @fn7(this: Derived) -> Unit
     bb0 entry
       call external6 direct
         Type InterfaceParent
@@ -118,7 +131,7 @@ Module
           Type Derived
           Local this
       return
-  fun startCoroutine<Derived> @fn7(task: SuspendTask<Derived>, completion: Continuation<Derived>) -> Unit
+  fun startCoroutine<Derived> @fn8(task: SuspendTask<Derived>, completion: Continuation<Derived>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -201,7 +214,7 @@ Module
       goto bb6
   coroutine_step cs0 CoroutineStep<Derived> result=Derived
   coroutine_slot cl0 CoroutineSlot<Derived> value=Derived
-  coroutine_start ct0 result=Derived function=fn7
+  coroutine_start ct0 result=Derived function=fn8
   coroutine_fn cf0 @fn4 source_return=Derived step=cs0 immediate
   instance mi0 function=@fn2 <- Continuation.resume
   instance mi1 function=@fn3 <- Continuation.resumeWithException

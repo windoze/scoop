@@ -26,7 +26,9 @@ Module
   generated_exact_type get4 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
   generated_exact_type get5 location=enum1 nominal_id=d8d780799907a124f2fec716d97eee48e772950a578b51756a64fff8ca42c192 exact_id=8ef33cbf39264dd46cc734acc2df53e22a19e6a887e35bc0c50c9fd874b8bd2f
   generated_exact_type get6 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
-  generated_callable gc0 function=@fn11 id=2d5b77a957b98f9a4c4d61195afa07b39a40464b4379cff223385d30494a7047
+  generated_callable gc0 function=@fn13 id=2d5b77a957b98f9a4c4d61195afa07b39a40464b4379cff223385d30494a7047
+  generated_callable gc1 function=@fn9 id=da733e819e9b805283deea6db201afc7a6a669feabea6f26557c2041e62a9ba0
+  generated_callable gc2 function=@fn8 id=f823351012c4838dfaa00c3be78d64faf3f173171ae5c873c19f1f24cf74391d
   fun check @fn0() -> Int
     bb0 entry
       call $argument.0: Int = external0 direct
@@ -36,7 +38,7 @@ Module
       assign $new.1
         Type Later
         ClassAlloc Later
-      call @fn8 direct
+      call @fn10 direct
         Type Later
         Local $new.1
         Type Int
@@ -59,7 +61,7 @@ Module
       assign $new.2
         Type Later
         ClassAlloc Later
-      call @fn8 direct
+      call @fn10 direct
         Type Later
         Local $new.2
         Type Int
@@ -76,7 +78,7 @@ Module
       assign $new.3
         Type Later
         ClassAlloc Later
-      call @fn8 direct
+      call @fn10 direct
         Type Later
         Local $new.3
         Type Int
@@ -94,7 +96,7 @@ Module
       assign $new.1
         Type InterfaceChooser<Later>
         ClassAlloc InterfaceChooser<Later>
-      call @fn9 direct
+      call @fn11 direct
         Type InterfaceChooser<Later>
         Local $new.1
       val $dependency.local.1: RequiredChooser<Later>
@@ -139,7 +141,31 @@ Module
   fun SuspendRegistration.register @fn7(this: SuspendRegistration<Later>, continuation: Continuation<Later>) -> Unit
     bb0 entry
       trap "call to abstract method `SuspendRegistration.register`"
-  fun init.Later.$c0 @fn8(this: Later, value: Int) -> Unit
+  fun receiver<AbstractChooser> RequiredChooser.choose @fn8(this: AbstractChooser<Later>, value: Later) -> Later
+    bb0 entry
+      call $call.1: Later = @fn2 direct
+        Type RequiredChooser<Later>
+        Retype RequiredChooser<Later>
+          Type AbstractChooser<Later>
+          Local this
+        Type Later
+        Local value
+      return
+        Type Later
+        Local $call.1
+  fun receiver<AbstractChooser> Chooser.choose @fn9(this: AbstractChooser<Later>, value: Later) -> Later
+    bb0 entry
+      call $call.1: Later = @fn2 direct
+        Type RequiredChooser<Later>
+        Retype RequiredChooser<Later>
+          Type AbstractChooser<Later>
+          Local this
+        Type Later
+        Local value
+      return
+        Type Later
+        Local $call.1
+  fun init.Later.$c0 @fn10(this: Later, value: Int) -> Unit
     bb0 entry
       field_set 0
         Type Later
@@ -147,18 +173,18 @@ Module
         Type Int
         Local value
       return
-  fun init.InterfaceChooser.$c0 @fn9(this: InterfaceChooser<Later>) -> Unit
+  fun init.InterfaceChooser.$c0 @fn11(this: InterfaceChooser<Later>) -> Unit
     bb0 entry
-      call @fn10 direct
+      call @fn12 direct
         Type AbstractChooser<Later>
         Retype AbstractChooser<Later>
           Type InterfaceChooser<Later>
           Local this
       return
-  fun init.AbstractChooser.$c1 @fn10(this: AbstractChooser<Later>) -> Unit
+  fun init.AbstractChooser.$c1 @fn12(this: AbstractChooser<Later>) -> Unit
     bb0 entry
       return
-  fun startCoroutine<Later> @fn11(task: SuspendTask<Later>, completion: Continuation<Later>) -> Unit
+  fun startCoroutine<Later> @fn13(task: SuspendTask<Later>, completion: Continuation<Later>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -241,7 +267,7 @@ Module
       goto bb6
   coroutine_step cs0 CoroutineStep<Later> result=Later
   coroutine_slot cl0 CoroutineSlot<Later> value=Later
-  coroutine_start ct0 result=Later function=fn11
+  coroutine_start ct0 result=Later function=fn13
   coroutine_fn cf0 @fn6 source_return=Later step=cs0 immediate
   instance mi0 function=@fn1 <- make
   instance mi1 function=@fn2 <- RequiredChooser.choose

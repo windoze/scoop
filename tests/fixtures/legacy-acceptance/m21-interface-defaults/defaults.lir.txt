@@ -16,7 +16,7 @@ Module
     t1 = heap_load t0 +8 : ptr<metadata>
     t2 = aggregate (param0, t1) : interface{object,itab}
     store t2 -> local0
-    call managed-direct-target0 sp<managed-call:0> live=[local0:interface{object,itab}@0] t3 = sig=direct0 (interface{object,itab}) -> i32 local-fn12(local0)
+    call managed-direct-target0 sp<managed-call:0> live=[local0:interface{object,itab}@0] t3 = sig=direct0 (parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>) -> i32 local-fn12(local0)
     store t3 -> local1
     store integer<Int>(0x00000002) -> local2
     store local2 -> local3
@@ -35,7 +35,7 @@ Module
     t1 = heap_load td8 +96 : ptr<metadata>
     t2 = heap_load t1 +8 : ptr<metadata>
     t3 = aggregate (param0, t2) : interface{object,itab}
-    call managed-direct-target1 sp<managed-call:1> live=[t3:interface{object,itab}@0] t4 = sig=direct1 (interface{object,itab}) -> i32 local-fn13(t3)
+    call managed-direct-target1 sp<managed-call:1> live=[t3:interface{object,itab}@0] t4 = sig=direct1 (parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>) -> i32 local-fn13(t3)
     store t4 -> local2
     store local2 -> local3
     t5 = integer_Add<Int> local1, local3 : i32
@@ -47,7 +47,7 @@ Module
     t0 = heap_load td9 +96 : ptr<metadata>
     t1 = heap_load t0 +8 : ptr<metadata>
     t2 = aggregate (param0, t1) : interface{object,itab}
-    call managed-direct-target0 sp<managed-call:0> live=[t2:interface{object,itab}@0] t3 = sig=direct0 (interface{object,itab}) -> i32 local-fn15(t2)
+    call managed-direct-target0 sp<managed-call:0> live=[t2:interface{object,itab}@0] t3 = sig=direct0 (parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>) -> i32 local-fn15(t2)
     store t3 -> local0
     ret local0
   fun @scoop$1$cb$ffdf6b3026a4ce7bbf7b0f971238477e64135dced9c859b6dda1274eebee8cff(ptr<managed>, i32) -> void
@@ -56,10 +56,10 @@ Module
     t0 = heap_load td9 +96 : ptr<metadata>
     t1 = heap_load t0 +8 : ptr<metadata>
     t2 = aggregate (param0, t1) : interface{object,itab}
-    call managed-void-target0 sp<managed-call:0> live=[t2:interface{object,itab}@0] sig=void0 (interface{object,itab}, i32) local-fn16(t2, param1)
+    call managed-void-target0 sp<managed-call:0> live=[t2:interface{object,itab}@0] sig=void0 (parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>, i32) local-fn16(t2, param1)
     t3 = aggregate () : {}
     ret
-  fun @scoop$1$cb$f5d1146e6fbbde27a9fa536b838abc0c248ed1d71aef7241bc828b1dc3b0c6b2(interface{object,itab}) -> i32
+  fun @scoop$1$cb$f5d1146e6fbbde27a9fa536b838abc0c248ed1d71aef7241bc828b1dc3b0c6b2(parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>) -> i32
     local %0 $receiver: interface{object,itab}
     local %1 $call.1: i32
   block entry
@@ -70,7 +70,7 @@ Module
     call managed-direct-target0 sp<managed-call:0> live=[t1:ptr<managed>@0] t2 = sig=direct0 (ptr<managed>) -> i32 dispatch[Interface:0] t0(t1)
     store t2 -> local1
     ret local1
-  fun @scoop$1$cb$54b80cb215dcb808af4ed3009875455e984da5925d67595eb18384072a87868b(interface{object,itab}) -> i32
+  fun @scoop$1$cb$54b80cb215dcb808af4ed3009875455e984da5925d67595eb18384072a87868b(parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>) -> i32
     local %0 $receiver: interface{object,itab}
     local %1 $call.1: i32
   block entry
@@ -81,7 +81,7 @@ Module
     call managed-direct-target0 sp<managed-call:0> live=[t1:ptr<managed>@0] t2 = sig=direct0 (ptr<managed>) -> i32 dispatch[Interface:0] t0(t1)
     store t2 -> local1
     ret local1
-  fun @scoop$1$cb$3170e1fc70d813a12a2643028f564f1494250fd74333bbc6d369466a6d5b2a09(interface{object,itab}) -> i32
+  fun @scoop$1$cb$3170e1fc70d813a12a2643028f564f1494250fd74333bbc6d369466a6d5b2a09(parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>) -> i32
     local %0 $receiver: interface{object,itab}
     local %1 $argument.0: i32
     local %2 $parameter.value: i32
@@ -145,7 +145,7 @@ Module
     t4 = aggregate (local30, t3) : interface{object,itab}
     store t4 -> local0
     store local0 -> local1
-    call managed-direct-target1 sp<managed-call:2> live=[local1:interface{object,itab}@0] t5 = sig=direct1 (interface{object,itab}) -> i32 local-fn5(local1)
+    call managed-direct-target1 sp<managed-call:2> live=[local1:interface{object,itab}@0] t5 = sig=direct1 (parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>) -> i32 local-fn5(local1)
     store t5 -> local2
     store local2 -> local3
     call managed-void-target1 sp<managed-call:3> live=[] sig=void1 (i32) local-fn9(local3)
@@ -159,7 +159,7 @@ Module
     t11 = aggregate (local31, t10) : interface{object,itab}
     store t11 -> local4
     store local4 -> local5
-    call managed-direct-target3 sp<managed-call:6> live=[local5:interface{object,itab}@0] t12 = sig=direct3 (interface{object,itab}) -> i32 local-fn5(local5)
+    call managed-direct-target3 sp<managed-call:6> live=[local5:interface{object,itab}@0] t12 = sig=direct3 (parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>) -> i32 local-fn5(local5)
     store t12 -> local6
     store local6 -> local7
     call managed-void-target3 sp<managed-call:7> live=[] sig=void3 (i32) local-fn9(local7)
@@ -199,7 +199,7 @@ Module
     t27 = aggregate (local34, t26) : interface{object,itab}
     store t27 -> local18
     store local18 -> local19
-    call managed-direct-target9 sp<managed-call:19> live=[local19:interface{object,itab}@0] t28 = sig=direct9 (interface{object,itab}) -> i32 local-fn6(local19)
+    call managed-direct-target9 sp<managed-call:19> live=[local19:interface{object,itab}@0] t28 = sig=direct9 (parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>) -> i32 local-fn6(local19)
     store t28 -> local20
     store local20 -> local21
     call managed-void-target10 sp<managed-call:20> live=[] sig=void10 (i32) local-fn9(local21)
@@ -212,7 +212,7 @@ Module
     t34 = aggregate (t31, t33) : interface{object,itab}
     store t34 -> local22
     store local22 -> local23
-    call managed-direct-target10 sp<managed-call:22> live=[local23:interface{object,itab}@0] t35 = sig=direct10 (interface{object,itab}) -> i32 local-fn6(local23)
+    call managed-direct-target10 sp<managed-call:22> live=[local23:interface{object,itab}@0] t35 = sig=direct10 (parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>) -> i32 local-fn6(local23)
     store t35 -> local24
     store local24 -> local25
     call managed-void-target11 sp<managed-call:23> live=[] sig=void11 (i32) local-fn9(local25)
@@ -226,7 +226,7 @@ Module
     t41 = aggregate (local36, t40) : interface{object,itab}
     store t41 -> local26
     store local26 -> local27
-    call managed-direct-target12 sp<managed-call:26> live=[local27:interface{object,itab}@0] t42 = sig=direct12 (interface{object,itab}) -> i32 local-fn7(local27)
+    call managed-direct-target12 sp<managed-call:26> live=[local27:interface{object,itab}@0] t42 = sig=direct12 (parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>) -> i32 local-fn7(local27)
     store t42 -> local28
     store local28 -> local29
     call managed-void-target13 sp<managed-call:27> live=[] sig=void13 (i32) local-fn9(local29)
@@ -251,28 +251,28 @@ Module
     call managed-void-target1 sp<managed-call:2> live=[local4:ptr<managed>@0] sig=void1 (ptr<managed>) external-fn1(local4)
     t2 = aggregate () : {}
     ret
-  fun @scoop$1$cb$996265a933e42c85128bee6c0b37ab7b6692846cee3791d99dfe4a0742447f48(interface{object,itab}) -> i32
+  fun @scoop$1$cb$996265a933e42c85128bee6c0b37ab7b6692846cee3791d99dfe4a0742447f48(parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>) -> i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret integer<Int>(0x00000003)
-  fun @scoop$1$cb$e1c05bab260533803e85d7a65f0da3d75f578bf881ab31c5a91cacf8568541ea(interface{object,itab}) -> i32
+  fun @scoop$1$cb$e1c05bab260533803e85d7a65f0da3d75f578bf881ab31c5a91cacf8568541ea(parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>) -> i32
     local %0 $receiver: interface{object,itab}
     local %1 $call.1: i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:interface{object,itab}@0]
     store param0 -> local0
-    call managed-direct-target0 sp<managed-call:0> live=[local0:interface{object,itab}@0] t0 = sig=direct0 (interface{object,itab}) -> i32 local-fn10(local0)
+    call managed-direct-target0 sp<managed-call:0> live=[local0:interface{object,itab}@0] t0 = sig=direct0 (parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>) -> i32 local-fn10(local0)
     store t0 -> local1
     ret local1
-  fun @scoop$1$cb$a794cc374a71a0d8dbac1eb220460ecc2aa16deeaff5bffc195d75fb223e6597(interface{object,itab}) -> i32
+  fun @scoop$1$cb$a794cc374a71a0d8dbac1eb220460ecc2aa16deeaff5bffc195d75fb223e6597(parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>) -> i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret integer<Int>(0x0000000a)
-  fun @scoop$1$cb$26e05e59b06b1b110c1d3d78e25afe0577ad38efe2fcbfd7495470fff30d364e(interface{object,itab}) -> i32
+  fun @scoop$1$cb$26e05e59b06b1b110c1d3d78e25afe0577ad38efe2fcbfd7495470fff30d364e(parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>) -> i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret integer<Int>(0x00000001)
-  fun @scoop$1$cb$0d1a6c9123feb5bed23591497b3542c12ef935626cfdcd5145e46cb21d3cd612(interface{object,itab}) -> i32
+  fun @scoop$1$cb$0d1a6c9123feb5bed23591497b3542c12ef935626cfdcd5145e46cb21d3cd612(parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>) -> i32
     local %0 $receiver: interface{object,itab}
     local %1 $dependency.receiver: i32
     local %2 $dependency.argument.0: i32
@@ -284,17 +284,17 @@ Module
     call no-gc-direct-target0 t2 = sig=direct0 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t1, td1)
     t3 = aggregate (t0, t2) : interface{object,itab}
     store t3 -> local0
-    call managed-direct-target0 sp<managed-call:0> live=[local0:interface{object,itab}@0] t4 = sig=direct1 (interface{object,itab}) -> i32 local-fn12(local0)
+    call managed-direct-target0 sp<managed-call:0> live=[local0:interface{object,itab}@0] t4 = sig=direct1 (parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>) -> i32 local-fn12(local0)
     store t4 -> local1
     store integer<Int>(0x00000001) -> local2
     store local2 -> local3
     t5 = integer_Add<Int> local1, local3 : i32
     ret t5
-  fun @scoop$1$cb$8a7651c1ddde4dd8ac134b78d40f6f28bd551fd9967e8b3af450f29316211310(interface{object,itab}) -> i32
+  fun @scoop$1$cb$8a7651c1ddde4dd8ac134b78d40f6f28bd551fd9967e8b3af450f29316211310(parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>) -> i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret integer<Int>(0x00000005)
-  fun @scoop$1$cb$b504f4a8ecad5d2a104956ef041f2cac54bc8b6d0f86ebc40b5e1a604a988a47(interface{object,itab}, i32) -> void
+  fun @scoop$1$cb$b504f4a8ecad5d2a104956ef041f2cac54bc8b6d0f86ebc40b5e1a604a988a47(parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>, i32) -> void
     local %0 $dependency.argument.0: i32
     local %1 $dependency.parameter.value: i32
   block entry
@@ -304,7 +304,7 @@ Module
     call managed-void-target0 sp<managed-call:0> live=[] sig=void0 (i32) local-fn9(local1)
     t0 = aggregate () : {}
     ret
-  fun @scoop$1$cb$1071dc88443b0a286c0349c19e88405c25a01ae2d66ff3684ba6427d71db332e(interface{object,itab}, i32) -> i32
+  fun @scoop$1$cb$1071dc88443b0a286c0349c19e88405c25a01ae2d66ff3684ba6427d71db332e(parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>, i32) -> i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret param1
@@ -315,7 +315,7 @@ Module
     t0 = heap_load td6 +96 : ptr<metadata>
     t1 = heap_load t0 +8 : ptr<metadata>
     t2 = aggregate (param0, t1) : interface{object,itab}
-    call managed-direct-target0 sp<managed-call:0> live=[t2:interface{object,itab}@0] t3 = sig=direct0 (interface{object,itab}) -> i32 local-fn13(t2)
+    call managed-direct-target0 sp<managed-call:0> live=[t2:interface{object,itab}@0] t3 = sig=direct0 (parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>) -> i32 local-fn13(t2)
     store t3 -> local0
     ret local0
   fun @scoop$1$cb$10704f64c7bd7def88f2045e1e9b5532bd3de55d42bb7140c643bbbcc79636fb(ptr<managed>) -> i32
@@ -325,7 +325,7 @@ Module
     t0 = heap_load td6 +96 : ptr<metadata>
     t1 = heap_load t0 +24 : ptr<metadata>
     t2 = aggregate (param0, t1) : interface{object,itab}
-    call managed-direct-target0 sp<managed-call:0> live=[t2:interface{object,itab}@0] t3 = sig=direct0 (interface{object,itab}) -> i32 local-fn14(t2)
+    call managed-direct-target0 sp<managed-call:0> live=[t2:interface{object,itab}@0] t3 = sig=direct0 (parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>) -> i32 local-fn14(t2)
     store t3 -> local0
     ret local0
   fun @scoop$1$cb$5d49fefb55605b22d829536ab0a383af56172fc6913fa021c4ed24508fbeca59(ptr<managed>) -> i32
@@ -335,7 +335,7 @@ Module
     t0 = heap_load td6 +96 : ptr<metadata>
     t1 = heap_load t0 +24 : ptr<metadata>
     t2 = aggregate (param0, t1) : interface{object,itab}
-    call managed-direct-target0 sp<managed-call:0> live=[t2:interface{object,itab}@0] t3 = sig=direct0 (interface{object,itab}) -> i32 local-fn14(t2)
+    call managed-direct-target0 sp<managed-call:0> live=[t2:interface{object,itab}@0] t3 = sig=direct0 (parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>) -> i32 local-fn14(t2)
     store t3 -> local0
     ret local0
   fun @scoop$1$cb$4d0931f2f3c02ce95e355f73c8e8a4be4eec4bb3ec7eb216a8c9a3611a9d56f8(ptr<managed>) -> i32
@@ -345,7 +345,7 @@ Module
     t0 = heap_load td7 +96 : ptr<metadata>
     t1 = heap_load t0 +8 : ptr<metadata>
     t2 = aggregate (param0, t1) : interface{object,itab}
-    call managed-direct-target0 sp<managed-call:0> live=[t2:interface{object,itab}@0] t3 = sig=direct0 (interface{object,itab}) -> i32 local-fn13(t2)
+    call managed-direct-target0 sp<managed-call:0> live=[t2:interface{object,itab}@0] t3 = sig=direct0 (parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>) -> i32 local-fn13(t2)
     store t3 -> local0
     ret local0
   fun @scoop$1$cb$afccbb1d32f201b95699e295096bd046faf3b2923d6bbead686f242d33474075(ptr<managed>) -> i32
@@ -355,7 +355,7 @@ Module
     t0 = heap_load td8 +96 : ptr<metadata>
     t1 = heap_load t0 +8 : ptr<metadata>
     t2 = aggregate (param0, t1) : interface{object,itab}
-    call managed-direct-target0 sp<managed-call:0> live=[t2:interface{object,itab}@0] t3 = sig=direct0 (interface{object,itab}) -> i32 local-fn13(t2)
+    call managed-direct-target0 sp<managed-call:0> live=[t2:interface{object,itab}@0] t3 = sig=direct0 (parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>) -> i32 local-fn13(t2)
     store t3 -> local0
     ret local0
   fun @scoop$1$cb$d30bb78b77ddc46bf4d6eccba07c40055bf1383bd6d8c49acfade7e0aba79571(ptr<managed>) -> i32
@@ -365,7 +365,7 @@ Module
     t0 = heap_load td9 +96 : ptr<metadata>
     t1 = heap_load t0 +8 : ptr<metadata>
     t2 = aggregate (param0, t1) : interface{object,itab}
-    call managed-direct-target0 sp<managed-call:0> live=[t2:interface{object,itab}@0] t3 = sig=direct0 (interface{object,itab}) -> i32 local-fn15(t2)
+    call managed-direct-target0 sp<managed-call:0> live=[t2:interface{object,itab}@0] t3 = sig=direct0 (parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>) -> i32 local-fn15(t2)
     store t3 -> local0
     ret local0
   fun @scoop$1$cb$03d11b1c1c14ca4150165f0cff25ed4d774fdcd120b4f89e837818a3e6c1df91(ptr<managed>, i32) -> void
@@ -374,7 +374,7 @@ Module
     t0 = heap_load td9 +96 : ptr<metadata>
     t1 = heap_load t0 +8 : ptr<metadata>
     t2 = aggregate (param0, t1) : interface{object,itab}
-    call managed-void-target0 sp<managed-call:0> live=[t2:interface{object,itab}@0] sig=void0 (interface{object,itab}, i32) local-fn16(t2, param1)
+    call managed-void-target0 sp<managed-call:0> live=[t2:interface{object,itab}@0] sig=void0 (parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>, i32) local-fn16(t2, param1)
     t3 = aggregate () : {}
     ret
   fun @scoop$1$cb$207658ca65a11b2a31cab9f529e1ac29f627238dcc3a5ac0180ab18b9ca75e7e(ptr<managed>) -> i32
@@ -384,7 +384,7 @@ Module
     t0 = heap_load td10 +96 : ptr<metadata>
     t1 = heap_load t0 +8 : ptr<metadata>
     t2 = aggregate (param0, t1) : interface{object,itab}
-    call managed-direct-target0 sp<managed-call:0> live=[t2:interface{object,itab}@0] t3 = sig=direct0 (interface{object,itab}) -> i32 local-fn11(t2)
+    call managed-direct-target0 sp<managed-call:0> live=[t2:interface{object,itab}@0] t3 = sig=direct0 (parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>) -> i32 local-fn11(t2)
     store t3 -> local0
     ret local0
   fun @scoop$1$cb$6bf6a43249aba4f8368dcfc32a7a3f5c4b3b21a4f9da2e0465580a652ff57865(ptr<managed>, i32) -> i32
@@ -394,7 +394,7 @@ Module
     t0 = heap_load td11 +96 : ptr<metadata>
     t1 = heap_load t0 +8 : ptr<metadata>
     t2 = aggregate (param0, t1) : interface{object,itab}
-    call managed-direct-target0 sp<managed-call:0> live=[t2:interface{object,itab}@0] t3 = sig=direct0 (interface{object,itab}, i32) -> i32 local-fn17(t2, param1)
+    call managed-direct-target0 sp<managed-call:0> live=[t2:interface{object,itab}@0] t3 = sig=direct0 (parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>, i32) -> i32 local-fn17(t2, param1)
     store t3 -> local0
     ret local0
   fun @scoop$1$cb$e8c9543e01dc762cc6c04f6c2ffe54801de9dba550534ba5934ee0f62240e0dd(ptr<managed>) -> i32
@@ -404,7 +404,7 @@ Module
     t0 = heap_load td13 +96 : ptr<metadata>
     t1 = heap_load t0 +8 : ptr<metadata>
     t2 = aggregate (param0, t1) : interface{object,itab}
-    call managed-direct-target0 sp<managed-call:0> live=[t2:interface{object,itab}@0] t3 = sig=direct0 (interface{object,itab}) -> i32 local-fn13(t2)
+    call managed-direct-target0 sp<managed-call:0> live=[t2:interface{object,itab}@0] t3 = sig=direct0 (parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>) -> i32 local-fn13(t2)
     store t3 -> local0
     ret local0
   fun @scoop$1$cb$197ee3e471dc6196a11d183105a175d93cf39248f4021472fcca254602d89e56(ptr<managed>) -> void
@@ -448,7 +448,7 @@ Module
     t0 = heap_load td12 +96 : ptr<metadata>
     t1 = heap_load t0 +8 : ptr<metadata>
     t2 = aggregate (param0, t1) : interface{object,itab}
-    call managed-direct-target0 sp<managed-call:0> live=[t2:interface{object,itab}@0] t3 = sig=direct0 (interface{object,itab}) -> i32 local-fn11(t2)
+    call managed-direct-target0 sp<managed-call:0> live=[t2:interface{object,itab}@0] t3 = sig=direct0 (parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>) -> i32 local-fn11(t2)
     store t3 -> local0
     ret local0
   fun @scoop$1$cb$d3bd523ea7c4b775508c06e622f76772db6a21fddb406c6d3fe7d1f20a2a89c1(i32, ptr<raw>, ptr<raw>) -> i32

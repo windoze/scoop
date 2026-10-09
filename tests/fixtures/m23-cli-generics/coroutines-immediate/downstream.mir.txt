@@ -1306,8 +1306,10 @@ Module
       call $step.1: CoroutineStep<Local> = @fn24 direct
         Type Local
         Local $dependency.local.2
-        Type CoroutineAdapter<run>$1
-        Local $adapter.1
+        Type Continuation<Local>
+        Retype Continuation<Local>
+          Type CoroutineAdapter<run>$1
+          Local $adapter.1
       branch bb5 bb6
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -1810,8 +1812,10 @@ Module
       call $step.1: CoroutineStep<Int> = @fn30 direct
         Type Int
         Local $dependency.local.2
-        Type CoroutineAdapter<run>$1
-        Local $adapter.1
+        Type Continuation<Int>
+        Retype Continuation<Int>
+          Type CoroutineAdapter<run>$1
+          Local $adapter.1
       branch bb5 bb6
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -2317,8 +2321,10 @@ Module
       call $step.1: CoroutineStep<Unit> = @fn36 direct
         Type Unit
         Local $dependency.local.2
-        Type CoroutineAdapter<run>$1
-        Local $adapter.1
+        Type Continuation<Unit>
+        Retype Continuation<Unit>
+          Type CoroutineAdapter<run>$1
+          Local $adapter.1
       branch bb5 bb6
         Type Boolean
         Binary MachineEq(EnumTag)

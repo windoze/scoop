@@ -8,6 +8,8 @@ Module
   generated_exact_type get2 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
   generated_exact_type get3 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
   generated_exact_type get4 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
+  generated_callable gc0 function=@fn6 id=5bc08c5d96d47a0e4af32cf4bf464de53c863b65db9c3b8a993d0828f132a757
+  generated_callable gc1 function=@fn7 id=8f55e7705987703dc1892b3c59d34e58d7ae8854c6bc6bb0b523153581ac3524
   fun result @fn0() -> Int
     bb0 entry
       val $dependency.argument.0: Int
@@ -19,7 +21,7 @@ Module
       assign $new.1
         Type InterfaceItem<Int>
         ClassAlloc InterfaceItem<Int>
-      call @fn6 direct
+      call @fn8 direct
         Type InterfaceItem<Int>
         Local $new.1
         Type Int
@@ -72,9 +74,29 @@ Module
         FieldAccess 0
           Type InterfaceItem<Int>
           Local this
-  fun init.InterfaceItem.$c0 @fn6(this: InterfaceItem<Int>, value: Int) -> Unit
+  fun receiver<AbstractReader> Reader.read @fn6(this: AbstractReader<Int>) -> Int
     bb0 entry
-      call @fn7 direct
+      call $call.1: Int = @fn2 direct
+        Type Reader<Int>
+        Retype Reader<Int>
+          Type AbstractReader<Int>
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun receiver<InterfaceItem> Reader.read @fn7(this: InterfaceItem<Int>) -> Int
+    bb0 entry
+      call $call.1: Int = @fn2 direct
+        Type Reader<Int>
+        Retype Reader<Int>
+          Type InterfaceItem<Int>
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun init.InterfaceItem.$c0 @fn8(this: InterfaceItem<Int>, value: Int) -> Unit
+    bb0 entry
+      call @fn9 direct
         Type AbstractReader<Int>
         Retype AbstractReader<Int>
           Type InterfaceItem<Int>
@@ -85,7 +107,7 @@ Module
         Type Int
         Local value
       return
-  fun init.AbstractReader.$c1 @fn7(this: AbstractReader<Int>) -> Unit
+  fun init.AbstractReader.$c1 @fn9(this: AbstractReader<Int>) -> Unit
     bb0 entry
       return
   instance mi0 function=@fn1 <- AbstractReader.get

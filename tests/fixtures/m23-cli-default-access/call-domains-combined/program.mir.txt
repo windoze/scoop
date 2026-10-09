@@ -636,12 +636,12 @@ Module
       return
         Type DomainValue<Int>
         StructInit DomainValue<Int>
-  fun thunk<DomainValue<Int>> DomainReader.choose(Int, Int) @fn30(this: DomainReader<Int>, seed: Int, value: Int) -> Int
+  fun thunk<DomainValue<Int>> DomainReader.choose(Int, Int) @fn30(this: box<DomainValue<Int>>, seed: Int, value: Int) -> Int
     bb0 entry
       call $call.1: Int = @fn14 direct
         Type DomainValue<Int>
         Unbox
-          Type DomainReader<Int>
+          Type box<DomainValue<Int>>
           Local this
         Type Int
         Local seed

@@ -1,0 +1,54 @@
+Module
+  global @scoop$1$ss$9b273ab0bbc562dd7f8e8b0487c0e98f4a7d0781b1cb5aa5b6d69c2d8a7f66b1 : ptr<managed> scan=refs[0]
+  enum Signal tagged size=16 align=8 variants=()@8+0 (i32, i1)@8+8 (i32, i1)@8+8 (i32)@8+4
+  fun @scoop$1$cb$3299b363a049903749bc398d9944de721c0ff9801a8717488db85c681c7476c7(parts<enum0 [[2xi64]@0+16/8]>) -> void
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    ret
+  fun @scoop$1$cb$a59ba8328a87a3c09df1111305261ccbca23796630e0ce6dea24e3ae106f48ca() -> void
+    local %0 $argument.0: i32
+    local %1 $argument.1: i1
+    local %2 $parameter._1: i32
+    local %3 $parameter._2: i1
+    local %4 $argument.0: enum0
+    local %5 $parameter.value: enum0
+    local %6 $parameter.count: i32
+    local %7 $argument.0: enum0
+    local %8 $parameter.value: enum0
+  block entry
+    poll managed-void-target2 sp<managed-poll:0> live=[]
+    store integer<Int>(0x00000001) -> local0
+    store true -> local1
+    store local0 -> local2
+    store local1 -> local3
+    t0 = enum_wrap e0 v1 (local2, local3) : enum0
+    store t0 -> local4
+    store local4 -> local5
+    call managed-void-target0 sp<managed-call:0> live=[] sig=void0 (parts<enum0 [[2xi64]@0+16/8]>) local-fn0(local5)
+    t1 = aggregate () : {}
+    store integer<Int>(0x00000007) -> local6
+    t2 = enum_wrap e0 v3 (local6) : enum0
+    store t2 -> local7
+    store local7 -> local8
+    call managed-void-target1 sp<managed-call:1> live=[] sig=void1 (parts<enum0 [[2xi64]@0+16/8]>) local-fn0(local8)
+    t3 = aggregate () : {}
+    ret
+  fun @scoop$1$cb$d3bd523ea7c4b775508c06e622f76772db6a21fddb406c6d3fe7d1f20a2a89c1(i32, ptr<raw>, ptr<raw>) -> i32
+  block entry
+    poll managed-void-target1 sp<managed-poll:0> live=[]
+    call managed-direct-target1 sp<managed-call:0> live=[] t4 = sig=direct1 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_context_ensure_root(external-td3)
+    invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn1() normal @success unwind @failure
+    br @success
+  block success
+    raw_store param2 integer<Int>(0x00000000) align 4
+    ret integer<UInt>(0x00000000)
+  block failure
+    (t0, t1) = landingpad : (exception_record, ptr<raw>)
+    t2 = begin_catch t1 : ptr<managed>
+    call managed-direct-target0 sp<managed-call:1> live=[t2:ptr<managed>@0] t3 = sig=direct0 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(t2)
+    global_store global0, t3
+    end_catch
+    ret integer<UInt>(0x00000001)
+  td td0 n(c=scoop%3Asingle-file%3A0.0.0;p=;o=-;k=E;x=Signal) @scoop$1$td$169e602dc68e91cf30797bf323ec5bb693a61d602e7d651452b70cf43599e705 type-id=11821722871246130035 shape=BoxedValue minimum-size=32 align=8 parent=none vtable=[] itables=[]
+  layout Signal size=16 align=8 enum-scan=none
+  output executable @scoop$1$cb$a59ba8328a87a3c09df1111305261ccbca23796630e0ce6dea24e3ae106f48ca

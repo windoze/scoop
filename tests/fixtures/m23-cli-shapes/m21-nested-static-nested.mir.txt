@@ -76,10 +76,11 @@ Module
   generated_exact_type get11 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
   generated_exact_type get12 location=enum3 nominal_id=64688bc310d846aed028b92437978b5b1b752de4dc09093ccc46bb344ac66bf0 exact_id=fba83e64f6e14b7b4700a6f6f4d266fef4b46b9c0038ed0dd131acc8a15e618b
   generated_exact_type get13 location=enum10 nominal_id=983c012249559480afb1a65db7dbe24c3cb487b17ada92c099f903ddc1722789 exact_id=feab889f679e7ff612ed458546ea7dcade71dcc46dc9f8ff55b4e3df2f6f26cf
-  generated_callable gc0 function=@fn32 id=6bdf1d3c208840a75730fd1b201169ab954ec88a8e9ed0926dd6a5b40546ce00
-  generated_callable gc1 function=@fn31 id=bce5137bd200debf667655ad5a0076d1b29cb24c43f55f678d4b8e29f42dcfc4
-  generated_callable gc2 function=@fn30 id=bd52bda69c857a2bd1a0555820eb4ba164eecabb954029fc0394c243bcb30691
-  generated_callable gc3 function=@fn29 id=cbaf9c2b09e8492e199539f8433a5ac7c1bb15cbba74e096d233482fc0ad9d88
+  generated_callable gc0 function=@fn24 id=0a551b82c29e7cf39a3bddf02d4a4aee69042dae93de022e5d62accc832b2a2f
+  generated_callable gc1 function=@fn33 id=6bdf1d3c208840a75730fd1b201169ab954ec88a8e9ed0926dd6a5b40546ce00
+  generated_callable gc2 function=@fn32 id=bce5137bd200debf667655ad5a0076d1b29cb24c43f55f678d4b8e29f42dcfc4
+  generated_callable gc3 function=@fn31 id=bd52bda69c857a2bd1a0555820eb4ba164eecabb954029fc0394c243bcb30691
+  generated_callable gc4 function=@fn30 id=cbaf9c2b09e8492e199539f8433a5ac7c1bb15cbba74e096d233482fc0ad9d88
   fun Outer.Flag.equals @fn0(this: Outer.Flag, other: Outer.Flag) -> Boolean
     bb0 entry
       val $when.1: Outer.Flag
@@ -174,7 +175,7 @@ Module
       assign $new.1
         Type Outer.Nested<Int>
         ClassAlloc Outer.Nested<Int>
-      call @fn27 direct
+      call @fn28 direct
         Type Outer.Nested<Int>
         Local $new.1
         Type Int
@@ -206,7 +207,7 @@ Module
       val $parameter.second: String
         Type String
         Local $argument.1
-      call pair: Outer.Pair<String> = @fn28 direct
+      call pair: Outer.Pair<String> = @fn29 direct
         Type String
         Local $parameter.first
         Type String
@@ -256,7 +257,7 @@ Module
       assign $new.2
         Type Outer.Deep.Leaf
         ClassAlloc Outer.Deep.Leaf
-      call @fn26 direct
+      call @fn27 direct
         Type Outer.Deep.Leaf
         Local $new.2
         Type Int
@@ -278,7 +279,7 @@ Module
       assign $new.3
         Type Marked
         ClassAlloc Marked
-      call @fn24 direct
+      call @fn25 direct
         Type Marked
         Local $new.3
       val $argument.0: Outer.Marker
@@ -431,13 +432,23 @@ Module
       return
         Type Int
         IntegerLiteral Int value=7 bits=0x00000007
-  fun init.Marked.$c1 @fn24(this: Marked) -> Unit
+  fun receiver<Marked> Outer.Marker.id @fn24(this: Marked) -> Int
+    bb0 entry
+      call $call.1: Int = @fn23 direct
+        Type Outer.Marker
+        Retype Outer.Marker
+          Type Marked
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun init.Marked.$c1 @fn25(this: Marked) -> Unit
     bb0 entry
       return
-  fun init.Outer.Deep.$c3 @fn25(this: Outer.Deep) -> Unit
+  fun init.Outer.Deep.$c3 @fn26(this: Outer.Deep) -> Unit
     bb0 entry
       return
-  fun init.Outer.Deep.Leaf.$c4 @fn26(this: Outer.Deep.Leaf, value: Int) -> Unit
+  fun init.Outer.Deep.Leaf.$c4 @fn27(this: Outer.Deep.Leaf, value: Int) -> Unit
     bb0 entry
       field_set 0
         Type Outer.Deep.Leaf
@@ -445,7 +456,7 @@ Module
         Type Int
         Local value
       return
-  fun init.Outer.Nested.$c2 @fn27(this: Outer.Nested<Int>, value: Int) -> Unit
+  fun init.Outer.Nested.$c2 @fn28(this: Outer.Nested<Int>, value: Int) -> Unit
     bb0 entry
       field_set 0
         Type Outer.Nested<Int>
@@ -453,7 +464,7 @@ Module
         Type Int
         Local value
       return
-  fun ctor.Outer.Pair.$c0 @fn28(first: String, second: String) -> Outer.Pair<String> <no-gc>
+  fun ctor.Outer.Pair.$c0 @fn29(first: String, second: String) -> Outer.Pair<String> <no-gc>
     bb0 entry
       return
         Type Outer.Pair<String>
@@ -462,7 +473,7 @@ Module
           Local first
           Type String
           Local second
-  fun startCoroutine<Outer.Deep> @fn29(task: SuspendTask<Outer.Deep>, completion: Continuation<Outer.Deep>) -> Unit
+  fun startCoroutine<Outer.Deep> @fn30(task: SuspendTask<Outer.Deep>, completion: Continuation<Outer.Deep>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -543,7 +554,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Outer.Flag> @fn30(task: SuspendTask<Outer.Flag>, completion: Continuation<Outer.Flag>) -> Unit
+  fun startCoroutine<Outer.Flag> @fn31(task: SuspendTask<Outer.Flag>, completion: Continuation<Outer.Flag>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -624,7 +635,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Outer.Deep.Leaf> @fn31(task: SuspendTask<Outer.Deep.Leaf>, completion: Continuation<Outer.Deep.Leaf>) -> Unit
+  fun startCoroutine<Outer.Deep.Leaf> @fn32(task: SuspendTask<Outer.Deep.Leaf>, completion: Continuation<Outer.Deep.Leaf>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -705,7 +716,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Outer.Marker> @fn32(task: SuspendTask<Outer.Marker>, completion: Continuation<Outer.Marker>) -> Unit
+  fun startCoroutine<Outer.Marker> @fn33(task: SuspendTask<Outer.Marker>, completion: Continuation<Outer.Marker>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -794,10 +805,10 @@ Module
   coroutine_slot cl1 CoroutineSlot<Outer.Flag> value=Outer.Flag
   coroutine_slot cl2 CoroutineSlot<Outer.Deep.Leaf> value=Outer.Deep.Leaf
   coroutine_slot cl3 CoroutineSlot<Outer.Marker> value=Outer.Marker
-  coroutine_start ct0 result=Outer.Deep function=fn29
-  coroutine_start ct1 result=Outer.Flag function=fn30
-  coroutine_start ct2 result=Outer.Deep.Leaf function=fn31
-  coroutine_start ct3 result=Outer.Marker function=fn32
+  coroutine_start ct0 result=Outer.Deep function=fn30
+  coroutine_start ct1 result=Outer.Flag function=fn31
+  coroutine_start ct2 result=Outer.Deep.Leaf function=fn32
+  coroutine_start ct3 result=Outer.Marker function=fn33
   coroutine_fn cf0 @fn9 source_return=Outer.Flag step=cs1 immediate
   coroutine_fn cf1 @fn13 source_return=Outer.Marker step=cs3 immediate
   coroutine_fn cf2 @fn17 source_return=Outer.Deep step=cs0 immediate

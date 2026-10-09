@@ -279,7 +279,7 @@ Module
   td td2 n(c=scoop%3Asingle-file%3A0.0.0;p=;o=-;k=C;x=Right) @scoop$1$td$d08e5fd904af41ed3a2616de542d320a861d3b9c0b26d593a7f2212c61ec3620 type-id=8717569085288802336 shape=FixedObject minimum-size=16 align=8 parent=none vtable=[] itables=[]
   td td3 n(c=scoop%3Asingle-file%3A0.0.0;p=;o=C:Left;k=O;x=Companion) @scoop$1$td$4867f815a75c969ad1b1897939c056d58b6ccf72fbd191c550593f419b30fbb2 type-id=11377669177745858882 shape=FixedObject minimum-size=24 align=8 parent=none vtable=[] itables=[]
   td td4 n(c=scoop%3Asingle-file%3A0.0.0;p=;o=C:Right;k=O;x=Companion) @scoop$1$td$9eab13513beefa50618b2d364f97f690fa4fd7f2138c6497e6a63f5a24e228e5 type-id=11357258826784495731 shape=FixedObject minimum-size=24 align=8 parent=none vtable=[] itables=[]
-  layout Equality value size=8 align=8 refs=[0]
+  layout Equality value size=16 align=8 refs=[0]
   layout Left value size=8 align=8 refs=[0]
   layout Left size=16 align=8 refs=[]
   layout Right value size=8 align=8 refs=[0]

@@ -44,8 +44,10 @@ Module
   generated_exact_type get7 location=enum3 nominal_id=f13467aee1fc71bc800b7f3d6df632ad8dff5f1237f31f61a27638bf9d91b0ef exact_id=c38e7d06195f03ea8a209c412ff3d968d6a24a766c79aeef82e05d29c6055cb0
   generated_exact_type get8 location=enum2 nominal_id=425a643ec78e84448214ed08e34f8ec4c7a72b1f3ad769384c5fb679fbef5e2b exact_id=d3e5c0ebf3a5fa1373fbcdb10622f2726d7366f58b5245cec0a28409e0eeb380
   generated_exact_type get9 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
-  generated_callable gc0 function=@fn32 id=a8b38e70cac1c77e2358b220641925fc581a06b146eb9a5acce1985cf84b466a
-  generated_callable gc1 function=@fn33 id=ee6c5ac5cd12a3401e187425e359cb8cbec53eb82061c64774001ad22772932d
+  generated_callable gc0 function=@fn27 id=505b795faf29d72bccbd4011c7464cfdbfcccc59c6e46f4c81a16b5ffe8cc848
+  generated_callable gc1 function=@fn26 id=9b94026ff3549ecacb0bd476ce84fe5380b39d647ea44a751aadef60dec2da8c
+  generated_callable gc2 function=@fn34 id=a8b38e70cac1c77e2358b220641925fc581a06b146eb9a5acce1985cf84b466a
+  generated_callable gc3 function=@fn35 id=ee6c5ac5cd12a3401e187425e359cb8cbec53eb82061c64774001ad22772932d
   fun result @fn0() -> Int
     bb0 entry
       val $dependency.argument.0: Unit
@@ -57,7 +59,7 @@ Module
       assign $new.1
         Type Box<Unit>
         ClassAlloc Box<Unit>
-      call @fn27 direct
+      call @fn29 direct
         Type Box<Unit>
         Local $new.1
         Type Unit
@@ -77,7 +79,7 @@ Module
       assign $new.2
         Type PropertyItem<Unit>
         ClassAlloc PropertyItem<Unit>
-      call @fn28 direct
+      call @fn30 direct
         Type PropertyItem<Unit>
         Local $new.2
         Type Unit
@@ -105,7 +107,7 @@ Module
       assign $new.3
         Type Reference
         ClassAlloc Reference
-      call @fn26 direct
+      call @fn28 direct
         Type Reference
         Local $new.3
         Type Int
@@ -122,7 +124,7 @@ Module
       assign $new.4
         Type Reference
         ClassAlloc Reference
-      call @fn26 direct
+      call @fn28 direct
         Type Reference
         Local $new.4
         Type Int
@@ -139,7 +141,7 @@ Module
       assign $new.5
         Type Reference
         ClassAlloc Reference
-      call @fn26 direct
+      call @fn28 direct
         Type Reference
         Local $new.5
         Type Int
@@ -156,7 +158,7 @@ Module
       val $parameter.third: Reference
         Type Reference
         Local $argument.2
-      call $dependency.argument.0: Large = @fn31 direct
+      call $dependency.argument.0: Large = @fn33 direct
         Type Reference
         Local $parameter.first
         Type Reference
@@ -169,7 +171,7 @@ Module
       assign $new.6
         Type PropertyItem<Large>
         ClassAlloc PropertyItem<Large>
-      call @fn29 direct
+      call @fn31 direct
         Type PropertyItem<Large>
         Local $new.6
         Type Large
@@ -186,7 +188,7 @@ Module
       assign $new.7
         Type Reference
         ClassAlloc Reference
-      call @fn26 direct
+      call @fn28 direct
         Type Reference
         Local $new.7
         Type Int
@@ -203,7 +205,7 @@ Module
       assign $new.8
         Type Reference
         ClassAlloc Reference
-      call @fn26 direct
+      call @fn28 direct
         Type Reference
         Local $new.8
         Type Int
@@ -220,7 +222,7 @@ Module
       assign $new.9
         Type Reference
         ClassAlloc Reference
-      call @fn26 direct
+      call @fn28 direct
         Type Reference
         Local $new.9
         Type Int
@@ -237,7 +239,7 @@ Module
       val $parameter.third: Reference
         Type Reference
         Local $argument.2
-      call $call.10: Large = @fn31 direct
+      call $call.10: Large = @fn33 direct
         Type Reference
         Local $parameter.first
         Type Reference
@@ -258,7 +260,7 @@ Module
       assign $new.11
         Type Box<Large>
         ClassAlloc Box<Large>
-      call @fn30 direct
+      call @fn32 direct
         Type Box<Large>
         Local $new.11
         Type Large
@@ -275,7 +277,7 @@ Module
       assign $new.12
         Type Reference
         ClassAlloc Reference
-      call @fn26 direct
+      call @fn28 direct
         Type Reference
         Local $new.12
         Type Int
@@ -292,7 +294,7 @@ Module
       assign $new.13
         Type Reference
         ClassAlloc Reference
-      call @fn26 direct
+      call @fn28 direct
         Type Reference
         Local $new.13
         Type Int
@@ -484,7 +486,25 @@ Module
   fun SuspendRegistration.register @fn25(this: SuspendRegistration<Reference>, continuation: Continuation<Reference>) -> Unit
     bb0 entry
       trap "call to abstract method `SuspendRegistration.register`"
-  fun init.Reference.$c0 @fn26(this: Reference, value: Int) -> Unit
+  fun receiver<PropertyItem> MutableProperty.read @fn26(this: PropertyItem<Unit>) -> Unit
+    bb0 entry
+      call @fn1 direct
+        Type ReadOnlyProperty<Unit>
+        Retype ReadOnlyProperty<Unit>
+          Type PropertyItem<Unit>
+          Local this
+      return
+  fun receiver<PropertyItem> MutableProperty.read @fn27(this: PropertyItem<Large>) -> Large
+    bb0 entry
+      call $call.1: Large = @fn4 direct
+        Type ReadOnlyProperty<Large>
+        Retype ReadOnlyProperty<Large>
+          Type PropertyItem<Large>
+          Local this
+      return
+        Type Large
+        Local $call.1
+  fun init.Reference.$c0 @fn28(this: Reference, value: Int) -> Unit
     bb0 entry
       field_set 0
         Type Reference
@@ -492,7 +512,7 @@ Module
         Type Int
         Local value
       return
-  fun init.Box.$c0 @fn27(this: Box<Unit>, value: Unit) -> Unit
+  fun init.Box.$c0 @fn29(this: Box<Unit>, value: Unit) -> Unit
     bb0 entry
       field_set 0
         Type Box<Unit>
@@ -500,7 +520,7 @@ Module
         Type Unit
         Local value
       return
-  fun init.PropertyItem.$c1 @fn28(this: PropertyItem<Unit>, value: Unit) -> Unit
+  fun init.PropertyItem.$c1 @fn30(this: PropertyItem<Unit>, value: Unit) -> Unit
     bb0 entry
       field_set 0
         Type PropertyItem<Unit>
@@ -508,7 +528,7 @@ Module
         Type Unit
         Local value
       return
-  fun init.PropertyItem.$c1 @fn29(this: PropertyItem<Large>, value: Large) -> Unit
+  fun init.PropertyItem.$c1 @fn31(this: PropertyItem<Large>, value: Large) -> Unit
     bb0 entry
       field_set 0
         Type PropertyItem<Large>
@@ -516,7 +536,7 @@ Module
         Type Large
         Local value
       return
-  fun init.Box.$c0 @fn30(this: Box<Large>, value: Large) -> Unit
+  fun init.Box.$c0 @fn32(this: Box<Large>, value: Large) -> Unit
     bb0 entry
       field_set 0
         Type Box<Large>
@@ -524,7 +544,7 @@ Module
         Type Large
         Local value
       return
-  fun ctor.Large.$c0 @fn31(first: Reference, second: Reference, third: Reference) -> Large <no-gc>
+  fun ctor.Large.$c0 @fn33(first: Reference, second: Reference, third: Reference) -> Large <no-gc>
     bb0 entry
       return
         Type Large
@@ -535,7 +555,7 @@ Module
           Local second
           Type Reference
           Local third
-  fun startCoroutine<Reference> @fn32(task: SuspendTask<Reference>, completion: Continuation<Reference>) -> Unit
+  fun startCoroutine<Reference> @fn34(task: SuspendTask<Reference>, completion: Continuation<Reference>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -616,7 +636,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Large> @fn33(task: SuspendTask<Large>, completion: Continuation<Large>) -> Unit
+  fun startCoroutine<Large> @fn35(task: SuspendTask<Large>, completion: Continuation<Large>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -701,8 +721,8 @@ Module
   coroutine_step cs1 CoroutineStep<Large> result=Large
   coroutine_slot cl0 CoroutineSlot<Reference> value=Reference
   coroutine_slot cl1 CoroutineSlot<Large> value=Large
-  coroutine_start ct0 result=Reference function=fn32
-  coroutine_start ct1 result=Large function=fn33
+  coroutine_start ct0 result=Reference function=fn34
+  coroutine_start ct1 result=Large function=fn35
   coroutine_fn cf0 @fn20 source_return=Large step=cs1 immediate
   coroutine_fn cf1 @fn24 source_return=Reference step=cs0 immediate
   instance mi0 function=@fn1 <- read

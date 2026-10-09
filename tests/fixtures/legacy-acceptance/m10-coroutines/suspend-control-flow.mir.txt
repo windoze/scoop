@@ -1571,8 +1571,10 @@ Module
       call $step.1: CoroutineStep<Int> = @fn10 direct
         Type IntGate
         Local $parameter.gate
-        Type CoroutineAdapter<ControlTask.run>$1
-        Local $adapter.1
+        Type Continuation<Int>
+        Retype Continuation<Int>
+          Type CoroutineAdapter<ControlTask.run>$1
+          Local $adapter.1
       branch bb93 bb94
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -1626,8 +1628,10 @@ Module
       call $step.3: CoroutineStep<Int> = @fn10 direct
         Type IntGate
         Local $parameter.gate
-        Type CoroutineAdapter<ControlTask.run>$3
-        Local $adapter.3
+        Type Continuation<Int>
+        Retype Continuation<Int>
+          Type CoroutineAdapter<ControlTask.run>$3
+          Local $adapter.3
       branch bb77 bb78
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -1696,8 +1700,10 @@ Module
       call $step.4: CoroutineStep<Choice> = @fn12 direct
         Type ChoiceGate
         Local $parameter.gate
-        Type CoroutineAdapter<ControlTask.run>$4
-        Local $adapter.4
+        Type Continuation<Choice>
+        Retype Continuation<Choice>
+          Type CoroutineAdapter<ControlTask.run>$4
+          Local $adapter.4
       branch bb69 bb70
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -1773,8 +1779,10 @@ Module
       call $step.5: CoroutineStep<Int> = @fn10 direct
         Type IntGate
         Local $parameter.gate
-        Type CoroutineAdapter<ControlTask.run>$5
-        Local $adapter.5
+        Type Continuation<Int>
+        Retype Continuation<Int>
+          Type CoroutineAdapter<ControlTask.run>$5
+          Local $adapter.5
       branch bb61 bb62
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -1875,8 +1883,10 @@ Module
       call $step.6: CoroutineStep<Boolean> = @fn11 direct
         Type BooleanGate
         Local $parameter.gate
-        Type CoroutineAdapter<ControlTask.run>$6
-        Local $adapter.6
+        Type Continuation<Boolean>
+        Retype Continuation<Boolean>
+          Type CoroutineAdapter<ControlTask.run>$6
+          Local $adapter.6
       branch bb53 bb54
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -1975,8 +1985,10 @@ Module
       call $step.7: CoroutineStep<Int> = @fn10 direct
         Type IntGate
         Local $parameter.gate
-        Type CoroutineAdapter<ControlTask.run>$7
-        Local $adapter.7
+        Type Continuation<Int>
+        Retype Continuation<Int>
+          Type CoroutineAdapter<ControlTask.run>$7
+          Local $adapter.7
       branch bb45 bb46
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -2051,8 +2063,10 @@ Module
       call $step.8: CoroutineStep<Boolean> = @fn11 direct
         Type BooleanGate
         Local $parameter.gate
-        Type CoroutineAdapter<ControlTask.run>$8
-        Local $adapter.8
+        Type Continuation<Boolean>
+        Retype Continuation<Boolean>
+          Type CoroutineAdapter<ControlTask.run>$8
+          Local $adapter.8
       branch bb37 bb38
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -2161,8 +2175,10 @@ Module
       call $step.9: CoroutineStep<Boolean> = @fn11 direct
         Type BooleanGate
         Local $parameter.gate
-        Type CoroutineAdapter<ControlTask.run>$9
-        Local $adapter.9
+        Type Continuation<Boolean>
+        Retype Continuation<Boolean>
+          Type CoroutineAdapter<ControlTask.run>$9
+          Local $adapter.9
       branch bb29 bb30
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -3417,8 +3433,10 @@ Module
       call $step.2: CoroutineStep<Boolean> = @fn11 direct
         Type BooleanGate
         Local $parameter.gate
-        Type CoroutineAdapter<ControlTask.run>$2
-        Local $adapter.2
+        Type Continuation<Boolean>
+        Retype Continuation<Boolean>
+          Type CoroutineAdapter<ControlTask.run>$2
+          Local $adapter.2
       branch bb85 bb86
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -6809,8 +6827,10 @@ Module
       call @fn24 interface SuspendRegistration<Int>[0]
         Type SuspendRegistration<Int>
         Local $dependency.parameter.registration
-        Type CoroutineAdapter<waitForInt>$1
-        Local $safe_adapter.1
+        Type Continuation<Int>
+        Retype Continuation<Int>
+          Type CoroutineAdapter<waitForInt>$1
+          Local $safe_adapter.1
       goto bb14
     bb3 coroutine.registered_success.1
       atomic_store_release kind=coroutine-adapter-state field=1
@@ -7567,8 +7587,10 @@ Module
       call @fn27 interface SuspendRegistration<Boolean>[0]
         Type SuspendRegistration<Boolean>
         Local $dependency.parameter.registration
-        Type CoroutineAdapter<waitForBoolean>$1
-        Local $safe_adapter.1
+        Type Continuation<Boolean>
+        Retype Continuation<Boolean>
+          Type CoroutineAdapter<waitForBoolean>$1
+          Local $safe_adapter.1
       goto bb14
     bb3 coroutine.registered_success.1
       atomic_store_release kind=coroutine-adapter-state field=1
@@ -8325,8 +8347,10 @@ Module
       call @fn30 interface SuspendRegistration<Choice>[0]
         Type SuspendRegistration<Choice>
         Local $dependency.parameter.registration
-        Type CoroutineAdapter<waitForChoice>$1
-        Local $safe_adapter.1
+        Type Continuation<Choice>
+        Retype Continuation<Choice>
+          Type CoroutineAdapter<waitForChoice>$1
+          Local $safe_adapter.1
       goto bb14
     bb3 coroutine.registered_success.1
       atomic_store_release kind=coroutine-adapter-state field=1

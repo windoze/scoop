@@ -3,14 +3,13 @@ Module
   global @scoop$1$io$d767efc8d55edbcf86e3da0aff5de37161a9b2720d2a000f874a49968db60429 = "illegal state"
   global @scoop$1$ss$3419110fbe65bc447377fe3719597cbdadc4ffef4f8acbe144c03407f71fd2e8 : ptr<managed> scan=refs[0]
   enum Option niche(kind=managed,payload_variant=0)
-  extern ef0 collected @m23_class_gc_collected() -> i32 <c exact=()->Int bridge=@scoop$1$br$1578028d0cfafbe5f7d62979f354cb7356e2fee430ddf5ab089ce93ba04b4c0f gc-leaf nounwind lib=m23_class_gc>
+  extern ef0 collected @m23_class_gc_collected() -> i32 <c exact=()->Int direct-c=()->i32 gc-leaf nounwind lib=m23_class_gc>
   fun @scoop$1$cb$208c788e9981e6af20660053199256cb3744fa98ab2d42c4aaa8b6d80f4ab971() -> i32
     local %0 $call.1: i32
-    local %1 $sc.1: i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
-    call native-safe-indirect-target0 sp<native-safe:0> roots=[] local1 = sig=indirect0 (c-storage-pointer i32 size=4 align=4 scan=none) extern0()
-    store local1 -> local0
+    call native-safe-direct-target0 sp<native-safe:0> roots=[] t0 = sig=direct0 () -> i32 extern0()
+    store t0 -> local0
     ret local0
   fun @scoop$1$cb$c157ebfeaf3b9bc72b8048319c4e03323864361e3be6d154331250f57c11fab1() -> void
     local %0 $dependency.receiver: i32
@@ -27,7 +26,6 @@ Module
     local %11 $dependency.parameter.message: enum0
     local %12 $new.1: ptr<managed>
     local %13 $new.2: ptr<managed>
-    local %14 $sc.1: i32
   block entry
     poll managed-void-target2 sp<managed-poll:0> live=[]
     call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 () -> i32 external-fn0()
@@ -49,33 +47,34 @@ Module
     throw local12
     unreachable
   block if.merge.2
-    call native-safe-indirect-target0 sp<native-safe:0> roots=[] local14 = sig=indirect0 (c-storage-pointer i32 size=4 align=4 scan=none) extern0()
-    store local14 -> local6
+    call native-safe-direct-target0 sp<native-safe:0> roots=[] t6 = sig=direct2 () -> i32 extern0()
+    store t6 -> local6
     store integer<Int>(0x00000001) -> local7
     store local7 -> local8
-    t6 = integer_compare_Equal<Int> local6, local8 : i1
-    t7 = Not t6 : i1
-    cbr t7 then @if.then.3 else @if.merge.4
+    t7 = integer_compare_Equal<Int> local6, local8 : i1
+    t8 = Not t7 : i1
+    cbr t8 then @if.then.3 else @if.merge.4
   block if.then.3
     store global1 -> local9
     store local9 -> local10
-    t8 = enum_wrap e0 v0 (local10) : enum0
-    store t8 -> local11
-    call managed-direct-target2 sp<managed-call:1> live=[local11:enum0@0] t9 = sig=direct2 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td5, machine<byte-size>(ByteSize(24)))
-    store t9 -> local13
+    t9 = enum_wrap e0 v0 (local10) : enum0
+    store t9 -> local11
+    call managed-direct-target2 sp<managed-call:1> live=[local11:enum0@0] t10 = sig=direct3 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td5, machine<byte-size>(ByteSize(24)))
+    store t10 -> local13
     call managed-void-target1 sp<managed-call:2> live=[local11:enum0@0, local13:ptr<managed>@0] sig=void1 (ptr<managed>, enum0) external-fn1(local13, local11)
-    t10 = aggregate () : {}
+    t11 = aggregate () : {}
     throw local13
     unreachable
   block if.merge.4
     ret
-  fun @scoop$1$cb$fe2f2dddbbd1f8a5621c091240fff2ef1045d84e3a53b37cd7b2b5e5c816f41c() -> i32
+  fun @scoop$1$cb$fe2f2dddbbd1f8a5621c091240fff2ef1045d84e3a53b37cd7b2b5e5c816f41c(i32, ptr<raw>, ptr<raw>) -> i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
     call managed-direct-target1 sp<managed-call:0> live=[] t4 = sig=direct1 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_context_ensure_root(external-td3)
     invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn1() normal @success unwind @failure
     br @success
   block success
+    raw_store param2 integer<Int>(0x00000000) align 4
     ret integer<UInt>(0x00000000)
   block failure
     (t0, t1) = landingpad : (exception_record, ptr<raw>)

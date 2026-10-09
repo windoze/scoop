@@ -136,42 +136,42 @@ Module
         StructInit StoredHolder<Int>
           Type Int
           Local payload
-  fun thunk<StoredHolder<Int>> DefaultHolder.stored() @fn8(this: DefaultHolder<Int>) -> Int
+  fun thunk<StoredHolder<Int>> DefaultHolder.stored() @fn8(this: box<StoredHolder<Int>>) -> Int
     bb0 entry
       call $call.1: Int = @fn1 direct
         Type StoredHolder<Int>
         Unbox
-          Type DefaultHolder<Int>
+          Type box<StoredHolder<Int>>
           Local this
       return
         Type Int
         Local $call.1
-  fun thunk<StoredHolder<Int>> DefaultHolder.get() @fn9(this: DefaultHolder<Int>) -> Int
+  fun thunk<StoredHolder<Int>> DefaultHolder.get() @fn9(this: box<StoredHolder<Int>>) -> Int
     bb0 entry
       call $call.1: Int = @fn2 direct
         Type DefaultHolder<Int>
         Retype DefaultHolder<Int>
-          Type DefaultHolder<Int>
+          Type box<StoredHolder<Int>>
           Local this
       return
         Type Int
         Local $call.1
-  fun thunk<StoredHolder<Int>> ChildHolder.get() @fn10(this: ChildHolder<Int>) -> Int
+  fun thunk<StoredHolder<Int>> ChildHolder.get() @fn10(this: box<StoredHolder<Int>>) -> Int
     bb0 entry
       call $call.1: Int = @fn2 direct
         Type DefaultHolder<Int>
         Retype DefaultHolder<Int>
-          Type ChildHolder<Int>
+          Type box<StoredHolder<Int>>
           Local this
       return
         Type Int
         Local $call.1
-  fun thunk<StoredHolder<Int>> Holder.get() @fn11(this: Holder<Int>) -> Int
+  fun thunk<StoredHolder<Int>> Holder.get() @fn11(this: box<StoredHolder<Int>>) -> Int
     bb0 entry
       call $call.1: Int = @fn2 direct
         Type DefaultHolder<Int>
         Retype DefaultHolder<Int>
-          Type Holder<Int>
+          Type box<StoredHolder<Int>>
           Local this
       return
         Type Int

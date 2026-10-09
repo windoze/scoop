@@ -64,10 +64,12 @@ Module
   generated_exact_type get10 location=enum1 nominal_id=89eb9467f5936af7e16d432711b3232750c2c197a851f25c44bef8c2de116399 exact_id=d510605e25af90d20a9f42241e97e645b1afb563d2efb0a554fc3dcb704ea677
   generated_exact_type get11 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
   generated_exact_type get12 location=enum3 nominal_id=afc0619ca85c025e6d995dddbdb02a62b176eca0f1dac36a16635a072a2785df exact_id=f8c5d3a6b8e523f813e7513280c3b0a07c1917d0db135223dca159937205baa2
-  generated_callable gc0 function=@fn36 id=98710dbb5ed901859a8cd1f34152cc826ea01a51f83d7a8b0d2472aed85a09d1
-  generated_callable gc1 function=@fn37 id=a3277c4d1f214e0ab982d4b395f89ee5fe1351357bdc4c50d7925469a4480c0f
-  generated_callable gc2 function=@fn34 id=ddb2bb1cb1e1adc546eccd8fe78a8b4a27fe490d3f253c1fe574d1e0b17e01c6
-  generated_callable gc3 function=@fn35 id=e055cf8ab080a3238afd4caaad55b735877ad91c9dfc2a8b1ee744d77c291187
+  generated_callable gc0 function=@fn27 id=70472c04b492c0950fb410253ba460cebbcc0d3ac13edea1fbc312f4cf074dc4
+  generated_callable gc1 function=@fn26 id=71201d8bc083de761f73b1fa51f4f93efa207b0074f5ee9ee2a06df7ef6b1555
+  generated_callable gc2 function=@fn38 id=98710dbb5ed901859a8cd1f34152cc826ea01a51f83d7a8b0d2472aed85a09d1
+  generated_callable gc3 function=@fn39 id=a3277c4d1f214e0ab982d4b395f89ee5fe1351357bdc4c50d7925469a4480c0f
+  generated_callable gc4 function=@fn36 id=ddb2bb1cb1e1adc546eccd8fe78a8b4a27fe490d3f253c1fe574d1e0b17e01c6
+  generated_callable gc5 function=@fn37 id=e055cf8ab080a3238afd4caaad55b735877ad91c9dfc2a8b1ee744d77c291187
   fun read @fn0(this: ReadingBase<Int>) -> Int
     bb0 entry
       call $call.1: Int = @fn6 direct
@@ -137,7 +139,7 @@ Module
       assign $new.1
         Type Nested
         ClassAlloc Nested
-      call @fn27 direct
+      call @fn29 direct
         Type Nested
         Local $new.1
         Type Int
@@ -187,7 +189,7 @@ Module
       assign $new.3
         Type Combined
         ClassAlloc Combined
-      call @fn26 direct
+      call @fn28 direct
         Type Combined
         Local $new.3
         Type Int
@@ -234,7 +236,7 @@ Module
       assign $new.4
         Type Hidden
         ClassAlloc Hidden
-      call @fn28 direct
+      call @fn30 direct
         Type Hidden
         Local $new.4
         Type Int
@@ -248,7 +250,7 @@ Module
       assign $new.5
         Type HiddenChild
         ClassAlloc HiddenChild
-      call @fn29 direct
+      call @fn31 direct
         Type HiddenChild
         Local $new.5
         Type Hidden
@@ -338,7 +340,27 @@ Module
   fun SuspendRegistration.register @fn25(this: SuspendRegistration<Hidden>, continuation: Continuation<Hidden>) -> Unit
     bb0 entry
       trap "call to abstract method `SuspendRegistration.register`"
-  fun init.Combined.$c0 @fn26(this: Combined, value: Int) -> Unit
+  fun receiver<ReadingBase> Reader.again @fn26(this: ReadingBase<Int>) -> Int
+    bb0 entry
+      call $call.1: Int = @fn1 direct
+        Type Reader<Int>
+        Retype Reader<Int>
+          Type ReadingBase<Int>
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun receiver<Combined> ClosedReader.again @fn27(this: Combined) -> Int
+    bb0 entry
+      call $call.1: Int = @fn1 direct
+        Type Reader<Int>
+        Retype Reader<Int>
+          Type Combined
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun init.Combined.$c0 @fn28(this: Combined, value: Int) -> Unit
     bb0 entry
       val $dependency.argument.0: Int
         Type Int
@@ -346,7 +368,7 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn30 direct
+      call @fn32 direct
         Type ReadingBase<Int>
         Retype ReadingBase<Int>
           Type Combined
@@ -354,7 +376,7 @@ Module
         Type Int
         Local $dependency.parameter.value
       return
-  fun init.Nested.$c1 @fn27(this: Nested, value: Int) -> Unit
+  fun init.Nested.$c1 @fn29(this: Nested, value: Int) -> Unit
     bb0 entry
       val $argument.0: Int
         Type Int
@@ -362,13 +384,13 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call $dependency.argument.0: Payload<Int> = @fn33 direct
+      call $dependency.argument.0: Payload<Int> = @fn35 direct
         Type Int
         Local $parameter.value
       val $dependency.parameter.value: Payload<Int>
         Type Payload<Int>
         Local $dependency.argument.0
-      call @fn31 direct
+      call @fn33 direct
         Type Base<Payload<Int>>
         Retype Base<Payload<Int>>
           Type Nested
@@ -376,7 +398,7 @@ Module
         Type Payload<Int>
         Local $dependency.parameter.value
       return
-  fun init.Hidden.$c2 @fn28(this: Hidden, number: Int) -> Unit
+  fun init.Hidden.$c2 @fn30(this: Hidden, number: Int) -> Unit
     bb0 entry
       field_set 0
         Type Hidden
@@ -384,7 +406,7 @@ Module
         Type Int
         Local number
       return
-  fun init.HiddenChild.$c3 @fn29(this: HiddenChild, value: Hidden) -> Unit
+  fun init.HiddenChild.$c3 @fn31(this: HiddenChild, value: Hidden) -> Unit
     bb0 entry
       val $dependency.argument.0: Hidden
         Type Hidden
@@ -392,7 +414,7 @@ Module
       val $dependency.parameter.value: Hidden
         Type Hidden
         Local $dependency.argument.0
-      call @fn32 direct
+      call @fn34 direct
         Type Base<Hidden>
         Retype Base<Hidden>
           Type HiddenChild
@@ -400,7 +422,7 @@ Module
         Type Hidden
         Local $dependency.parameter.value
       return
-  fun init.ReadingBase.$c0 @fn30(this: ReadingBase<Int>, value: Int) -> Unit
+  fun init.ReadingBase.$c0 @fn32(this: ReadingBase<Int>, value: Int) -> Unit
     bb0 entry
       field_set 0
         Type ReadingBase<Int>
@@ -408,7 +430,7 @@ Module
         Type Int
         Local value
       return
-  fun init.Base.$c1 @fn31(this: Base<Payload<Int>>, value: Payload<Int>) -> Unit
+  fun init.Base.$c1 @fn33(this: Base<Payload<Int>>, value: Payload<Int>) -> Unit
     bb0 entry
       field_set 0
         Type Base<Payload<Int>>
@@ -416,7 +438,7 @@ Module
         Type Payload<Int>
         Local value
       return
-  fun init.Base.$c1 @fn32(this: Base<Hidden>, value: Hidden) -> Unit
+  fun init.Base.$c1 @fn34(this: Base<Hidden>, value: Hidden) -> Unit
     bb0 entry
       field_set 0
         Type Base<Hidden>
@@ -424,14 +446,14 @@ Module
         Type Hidden
         Local value
       return
-  fun ctor.Payload.$c0 @fn33(value: Int) -> Payload<Int> <no-gc>
+  fun ctor.Payload.$c0 @fn35(value: Int) -> Payload<Int> <no-gc>
     bb0 entry
       return
         Type Payload<Int>
         StructInit Payload<Int>
           Type Int
           Local value
-  fun startCoroutine<Nested> @fn34(task: SuspendTask<Nested>, completion: Continuation<Nested>) -> Unit
+  fun startCoroutine<Nested> @fn36(task: SuspendTask<Nested>, completion: Continuation<Nested>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -512,7 +534,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<ClosedReader> @fn35(task: SuspendTask<ClosedReader>, completion: Continuation<ClosedReader>) -> Unit
+  fun startCoroutine<ClosedReader> @fn37(task: SuspendTask<ClosedReader>, completion: Continuation<ClosedReader>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -593,7 +615,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Hidden> @fn36(task: SuspendTask<Hidden>, completion: Continuation<Hidden>) -> Unit
+  fun startCoroutine<Hidden> @fn38(task: SuspendTask<Hidden>, completion: Continuation<Hidden>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -674,7 +696,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Combined> @fn37(task: SuspendTask<Combined>, completion: Continuation<Combined>) -> Unit
+  fun startCoroutine<Combined> @fn39(task: SuspendTask<Combined>, completion: Continuation<Combined>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -763,10 +785,10 @@ Module
   coroutine_slot cl1 CoroutineSlot<ClosedReader> value=ClosedReader
   coroutine_slot cl2 CoroutineSlot<Hidden> value=Hidden
   coroutine_slot cl3 CoroutineSlot<Combined> value=Combined
-  coroutine_start ct0 result=Nested function=fn34
-  coroutine_start ct1 result=ClosedReader function=fn35
-  coroutine_start ct2 result=Hidden function=fn36
-  coroutine_start ct3 result=Combined function=fn37
+  coroutine_start ct0 result=Nested function=fn36
+  coroutine_start ct1 result=ClosedReader function=fn37
+  coroutine_start ct2 result=Hidden function=fn38
+  coroutine_start ct3 result=Combined function=fn39
   coroutine_fn cf0 @fn12 source_return=ClosedReader step=cs1 immediate
   coroutine_fn cf1 @fn16 source_return=Combined step=cs3 immediate
   coroutine_fn cf2 @fn20 source_return=Nested step=cs0 immediate

@@ -295,3 +295,13 @@ GNU 旧回归的 release 退出用例发现，LLVM 22.1 会在机器基本块布
 34 行 LLVM／63 行 Rust 回归先复现 `LLVM stackmap repeats SafepointId 8`，修复后在三个 target 的 debug／release 下完成普通优化、RS4GC、typed roots 检查与真实对象验证。两机格式化和 workspace/all-targets clippy 通过；Darwin 的 363 项、GNU 的 378 项 codegen 测试通过。Darwin 的 40 个 M34 运行 fixture 随后通过严格复验。
 
 退出用例同时拆开 debug／release 的 HIR、MIR 预期：前者的导入 arena 索引、后者的内联结果本来就不同，不能由最后运行的 profile 覆盖公共快照。三个 target 的对应 HIR／MIR 实际字节相同；各自两种 profile、28 个进程、六次快照检查均关闭更新通过，覆盖源码删除后链接、普通／moving／minor GC、缓冲输出、退出码及禁止执行 finally／release／atexit 的原断言。原始记录见[机器布局回归](validation/terminal-poll-machine.json)。机器码与最终性能已重新核对，最新同机样本见 M34-10i。
+
+## M34-10k：旧 fixture 的 profile 与 target 快照迁移
+
+按保存的真实阶段输出迁移旧预期，Darwin 的 169 个模板、GNU 的 168 个模板分别使用 debug／release 文件，避免后运行的 profile 覆盖另一种输出。两个宿主有 633 份公共 LIR 因实际 carrier 差异拆为 target 专用，涉及 416 个 fixture；公共 HIR／MIR 没有新增平台差异。487 份 fixture 声明经解析后与提交前逐项比较，只有 800 处 snapshot 路径变化，命令参数、超时、环境、运行断言和归一化规则均保持原值。
+
+Darwin 的 11,442 次保存文件观测／10,904 个不同文件、GNU 的 10,854 次观测／10,399 个不同文件逐份吻合；没有保存到文件的共享 native link plan 分别以原 artifact-link 进程重放 44／34 次，精确快照比较全部通过。重放复用已经构建的产物，不计作再次完整执行 fixture。GNU 的 63 项 core 重建与既有超时用例以两路并发全部通过，保持原有时限。
+
+musl 对链接计划、原生符号及平台专用的 442 项旧回归进行完整执行：11 项以两路并发、431 项以四路并发通过，没有放宽时限。与已完成的 M34／String 和退出用例合并，当前覆盖 503 项；5,279 次保存文件观测／5,103 个不同文件全部一致，另有 34 次共享 native link plan 严格比较通过。189 组跨 variant 共享快照中，172 组保存文件没有覆盖冲突，17 组流输出由上述链接重放核对。
+
+相同 SysV ABI 的 805 份预期迁移单独记录，未计作 musl 执行成功。取得 musl 实际输出后，5,769 份快照中 4,932 份与本机字节相同，仅合入 837 份不同的目标专用文件，没有覆盖共享输出；15 份已无引用的旧 musl profile 文件删除。三个 target 的非更新模式配置发现均通过，各 2,920 项。具体迁移范围和核对计数见[快照迁移记录](validation/golden-migration.json)。

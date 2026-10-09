@@ -32,8 +32,8 @@ Module
     call native-safe-direct-target0 sp<native-safe:0> roots=[] t0 = sig=direct0 () -> i32 extern0()
     store t0 -> local0
     store integer<Int>(0x00000006) -> local1
-    store local1 -> local2
-    t1 = integer_compare_Equal<Int> local0, local2 : i1
+    store integer<Int>(0x00000006) -> local2
+    t1 = integer_compare_Equal<Int> local0, integer<Int>(0x00000006) : i1
     t2 = Not t1 : i1
     cbr t2 then @if.then.1 else @if.merge.2
   block if.then.1
@@ -57,8 +57,8 @@ Module
     call managed-void-target2 sp<managed-call:1> live=[local9:ptr<managed>@0] sig=void2 (ptr<managed>) external-fn2(local9)
     t7 = aggregate () : {}
     store integer<Int>(0x00000025) -> local10
-    store local10 -> local11
-    call managed-direct-target1 sp<managed-call:2> live=[] t8 = sig=direct2 (i32) -> ptr<managed> external-fn3(local11)
+    store integer<Int>(0x00000025) -> local11
+    call managed-direct-target1 sp<managed-call:2> live=[] t8 = sig=direct2 (i32) -> ptr<managed> external-fn3(integer<Int>(0x00000025))
     store t8 -> local13
     unreachable
   fun @scoop$1$cb$596f922b3a48000607f5c904fcbaa1ed20d70d00bcfd0bdbde77476b29f25096(i32, ptr<raw>, ptr<raw>) -> i32

@@ -49,7 +49,7 @@ checks = [
   {"file" = "${work}/dump/origin/${origin.result.root.identity}/ast.txt", "snapshot" = "origin.ast.txt"},
   {"file" = "${work}/dump/origin/${origin.result.root.identity}/hir.txt", "snapshot" = "origin.hir.txt"},
   {"file" = "${work}/dump/origin/${origin.result.root.identity}/mir.txt", "snapshot" = "origin.mir.txt"},
-  {"file" = "${work}/dump/origin/${origin.result.root.identity}/lir.txt", "snapshot" = "origin.lir.txt"},
+  {"file" = "${work}/dump/origin/${origin.result.root.identity}/lir.txt", "snapshot" = "origin.${target}.lir.txt"},
 ]
 
 [[steps]]

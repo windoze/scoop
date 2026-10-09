@@ -77,8 +77,6 @@ Module
     local %47 $dependency.parameter.value: i32
     local %48 $call.1: struct0
     local %49 $call.2: struct0
-    local %50 $sc.1: struct0
-    local %51 $sc.2: struct0
   block entry
     poll managed-void-target17 sp<managed-poll:0> live=[]
     t0 = global_load global1 : i32
@@ -142,68 +140,68 @@ Module
     store integer<Int>(0x00000018) -> local22
     store local21 -> local23
     store local22 -> local24
-    call no-gc-indirect-target0 local50 = sig=indirect0 (sret struct0 size=8 align=4 scan=none, i32, i32) local-fn14(local23, local24)
-    store local50 -> local48
+    call no-gc-direct-target0 t24 = sig=direct0 (i32, i32) -> struct0 local-fn14(local23, local24)
+    store t24 -> local48
     global_store global3, local48
     native_global_store ng0, integer<Int>(0x00000028) sp<native-safe:5> roots=[]
     native_global_store ng1, integer<Int>(0x00000029) sp<native-safe:6> roots=[]
-    t24 = native_global_address ng0 sp<native-safe:7> roots=[]
-    store t24 -> local25
+    t25 = native_global_address ng0 sp<native-safe:7> roots=[]
+    store t25 -> local25
     store integer<Int>(0x0000002a) -> local26
     store local26 -> local27
     raw_store local25 local27 align 4
-    t25 = aggregate () : {}
+    t26 = aggregate () : {}
     store integer<Int>(0x0000002b) -> local28
     store integer<Int>(0x0000002c) -> local29
     store local28 -> local30
     store local29 -> local31
-    call no-gc-indirect-target1 local51 = sig=indirect1 (sret struct0 size=8 align=4 scan=none, i32, i32) local-fn14(local30, local31)
-    store local51 -> local49
+    call no-gc-direct-target1 t27 = sig=direct1 (i32, i32) -> struct0 local-fn14(local30, local31)
+    store t27 -> local49
     native_global_store ng3, local49 sp<native-safe:8> roots=[]
-    t26 = global_load global1 : i32
-    store t26 -> local32
+    t28 = global_load global1 : i32
+    store t28 -> local32
     store local32 -> local33
     call managed-void-target9 sp<managed-call:9> live=[] sig=void9 (i32) local-fn13(local33)
-    t27 = aggregate () : {}
-    t28 = global_load global2 : i32
-    store t28 -> local34
+    t29 = aggregate () : {}
+    t30 = global_load global2 : i32
+    store t30 -> local34
     store local34 -> local35
     call managed-void-target10 sp<managed-call:10> live=[] sig=void10 (i32) local-fn13(local35)
-    t29 = aggregate () : {}
-    t30 = global_load global3 : struct0
-    t31 = extract t30, 0 : i32
-    store t31 -> local36
+    t31 = aggregate () : {}
+    t32 = global_load global3 : struct0
+    t33 = extract t32, 0 : i32
+    store t33 -> local36
     store local36 -> local37
     call managed-void-target11 sp<managed-call:11> live=[] sig=void11 (i32) local-fn13(local37)
-    t32 = aggregate () : {}
-    t33 = global_load global3 : struct0
-    t34 = extract t33, 1 : i32
-    store t34 -> local38
+    t34 = aggregate () : {}
+    t35 = global_load global3 : struct0
+    t36 = extract t35, 1 : i32
+    store t36 -> local38
     store local38 -> local39
     call managed-void-target12 sp<managed-call:12> live=[] sig=void12 (i32) local-fn13(local39)
-    t35 = aggregate () : {}
-    t36 = native_global_load ng0 sp<native-safe:9> roots=[] : i32
-    store t36 -> local40
+    t37 = aggregate () : {}
+    t38 = native_global_load ng0 sp<native-safe:9> roots=[] : i32
+    store t38 -> local40
     store local40 -> local41
     call managed-void-target13 sp<managed-call:13> live=[] sig=void13 (i32) local-fn13(local41)
-    t37 = aggregate () : {}
-    t38 = native_global_load ng1 sp<native-safe:10> roots=[] : i32
-    store t38 -> local42
+    t39 = aggregate () : {}
+    t40 = native_global_load ng1 sp<native-safe:10> roots=[] : i32
+    store t40 -> local42
     store local42 -> local43
     call managed-void-target14 sp<managed-call:14> live=[] sig=void14 (i32) local-fn13(local43)
-    t39 = aggregate () : {}
-    t40 = native_global_load ng3 sp<native-safe:11> roots=[] : struct0
-    t41 = extract t40, 0 : i32
-    store t41 -> local44
+    t41 = aggregate () : {}
+    t42 = native_global_load ng3 sp<native-safe:11> roots=[] : struct0
+    t43 = extract t42, 0 : i32
+    store t43 -> local44
     store local44 -> local45
     call managed-void-target15 sp<managed-call:15> live=[] sig=void15 (i32) local-fn13(local45)
-    t42 = aggregate () : {}
-    t43 = native_global_load ng3 sp<native-safe:12> roots=[] : struct0
-    t44 = extract t43, 1 : i32
-    store t44 -> local46
+    t44 = aggregate () : {}
+    t45 = native_global_load ng3 sp<native-safe:12> roots=[] : struct0
+    t46 = extract t45, 1 : i32
+    store t46 -> local46
     store local46 -> local47
     call managed-void-target16 sp<managed-call:16> live=[] sig=void16 (i32) local-fn13(local47)
-    t45 = aggregate () : {}
+    t47 = aggregate () : {}
     ret
   fun @scoop$1$cb$17e9287c3a19a62e884ed693f5df37a1055b1dbe5d38a859aa02ed1eb4a37c1f() -> i32 <no-gc>
   block entry
@@ -221,11 +219,11 @@ Module
   block entry
     global_store global2, param0
     ret
-  fun @scoop$1$cb$e82e910f10533b0955fa0fc2f397ad9de39ae3df8cfb19d72396927397188338() -> sret<struct0 size=8 align=4 scan=none> <no-gc>
+  fun @scoop$1$cb$e82e910f10533b0955fa0fc2f397ad9de39ae3df8cfb19d72396927397188338() -> parts<struct0 [i64@0+8/4]> <no-gc>
   block entry
     t0 = global_load global3 : struct0
     ret t0
-  fun @scoop$1$cb$e5c65a1bf7b0ae8c35f744c1f8d37c16b31b96de93347d18378469936ff1120c(indirect<struct0 size=8 align=4 scan=none>) -> void <no-gc>
+  fun @scoop$1$cb$e5c65a1bf7b0ae8c35f744c1f8d37c16b31b96de93347d18378469936ff1120c(parts<struct0 [i64@0+8/4]>) -> void <no-gc>
   block entry
     global_store global3, param0
     ret
@@ -277,7 +275,7 @@ Module
     call managed-void-target1 sp<managed-call:2> live=[local4:ptr<managed>@0] sig=void1 (ptr<managed>) external-fn1(local4)
     t2 = aggregate () : {}
     ret
-  fun @scoop$1$cb$c3c4d539c254411679ae04c8b7824ea3745f03a549ef61da948ed7597ceb297d(i32, i32) -> sret<struct0 size=8 align=4 scan=none> <no-gc>
+  fun @scoop$1$cb$c3c4d539c254411679ae04c8b7824ea3745f03a549ef61da948ed7597ceb297d(i32, i32) -> parts<struct0 [i64@0+8/4]> <no-gc>
   block entry
     t0 = aggregate (param0, param1) : struct0
     ret t0
@@ -308,6 +306,6 @@ Module
   layout-meta NativePair c-layout(aligned=0,packed=0) fields=[0@4,4@4] interior-mutable=false
   layout Option size=8 align=8 enum-scan=none
   layout Option size=8 align=8 enum-scan=none
-  layout Equality value size=8 align=8 refs=[0]
-  layout Equality value size=8 align=8 refs=[0]
+  layout Equality value size=16 align=8 refs=[0]
+  layout Equality value size=16 align=8 refs=[0]
   output executable @scoop$1$cb$a59ba8328a87a3c09df1111305261ccbca23796630e0ce6dea24e3ae106f48ca

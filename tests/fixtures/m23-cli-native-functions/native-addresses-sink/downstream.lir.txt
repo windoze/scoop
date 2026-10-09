@@ -87,7 +87,7 @@ Module
     ret
   td td0 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Equality);[r(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Long))]) @scoop$1$td$6786b084643aa78b4ed8e6f33f8b81b10b7df0435640e0d599b950491bf615bb type-id=9657049773529793327 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
   td td1 n(c=dev.example%3Ageneric-member-downstream-sink%3A0.1.0;p=;o=-;k=C;x=Later) @scoop$1$td$74aee255fed1b437f4daba1f92549aa93e8bad4f257c605a30b492d231133005 type-id=9685511443951093537 shape=FixedObject minimum-size=24 align=8 parent=none vtable=[] itables=[]
-  layout Equality value size=8 align=8 refs=[0]
+  layout Equality value size=16 align=8 refs=[0]
   layout Later value size=8 align=8 refs=[0]
   layout Later size=24 align=8 refs=[]
   output library

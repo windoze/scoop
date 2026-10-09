@@ -9,5 +9,5 @@ Module
     poll managed-void-target0 sp<managed-poll:0> live=[param0:enum0@0]
     ret param0
   td td0 a(n(c=dev.example%3Ashape-demand%3A0.1.0;p=;o=-;k=I;x=DeferredGeneric);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$5c3168e1ec77e66213f74a1a5ab554d074628b2f629d372329dafd410522bbce type-id=15208568603507973705 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
-  layout DeferredGeneric value size=8 align=8 refs=[0]
+  layout DeferredGeneric value size=16 align=8 refs=[0]
   output library

@@ -52,7 +52,6 @@ Module
     local %14 $dependency.parameter.value: i32
     local %15 $new.1: ptr<managed>
     local %16 $new.2: ptr<managed>
-    local %17 $sc.1: struct0
   block entry
     poll managed-void-target8 sp<managed-poll:0> live=[]
     call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td6, machine<byte-size>(ByteSize(32)))
@@ -90,13 +89,13 @@ Module
     store local10 -> local11
     call managed-void-target6 sp<managed-call:8> live=[] sig=void6 (i32) local-fn3(local11)
     t13 = aggregate () : {}
-    call managed-indirect-target0 sp<managed-call:9> live=[] local17 = sig=indirect0 (sret struct0 size=4 align=4 scan=none) local-fn12()
-    store local17 -> local12
-    t14 = extract local12, 0 : i32
-    store t14 -> local13
+    call managed-direct-target2 sp<managed-call:9> live=[] t14 = sig=direct2 () -> struct0 local-fn12()
+    store t14 -> local12
+    t15 = extract local12, 0 : i32
+    store t15 -> local13
     store local13 -> local14
     call managed-void-target7 sp<managed-call:10> live=[] sig=void7 (i32) local-fn3(local14)
-    t15 = aggregate () : {}
+    t16 = aggregate () : {}
     ret
   fun @scoop$1$cb$43be1945af2e9ba3587bf2ead706ac7563f8181567977803f1aaa99bf055da0f(ptr<managed>) -> void
     local %0 $dependency.local.1: ptr<managed>
@@ -379,11 +378,11 @@ Module
     call managed-void-target1 sp<managed-call:2> live=[local7:ptr<managed>@0] sig=void1 (ptr<managed>) local-fn2(local7)
     t2 = aggregate () : {}
     ret
-  fun @scoop$1$cb$204a64dc7e85a84bb4ddcc7889d4f1a19108f004e205871c64339727c6f9b987(i32) -> sret<struct0 size=4 align=4 scan=none> <no-gc>
+  fun @scoop$1$cb$204a64dc7e85a84bb4ddcc7889d4f1a19108f004e205871c64339727c6f9b987(i32) -> parts<struct0 [i32@0+4/4]> <no-gc>
   block entry
     t0 = aggregate (param0) : struct0
     ret t0
-  fun @scoop$1$cb$b7837c61746a5b6d6df4cc316a8ed2720c0a8a6137818ab45464aea047ff5a26() -> sret<struct0 size=4 align=4 scan=none>
+  fun @scoop$1$cb$b7837c61746a5b6d6df4cc316a8ed2720c0a8a6137818ab45464aea047ff5a26() -> parts<struct0 [i32@0+4/4]>
     local %0 $argument.0: ptr<managed>
     local %1 $argument.1: i32
     local %2 $parameter.label: ptr<managed>
@@ -395,7 +394,6 @@ Module
     local %8 $dependency.parameter.value: i32
     local %9 $dependency.argument.0: ptr<managed>
     local %10 $dependency.parameter.value: ptr<managed>
-    local %11 $sc.1: struct0
   block entry
     poll managed-void-target2 sp<managed-poll:0> live=[]
     store global21 -> local0
@@ -405,17 +403,17 @@ Module
     call managed-direct-target0 sp<managed-call:0> live=[local2:ptr<managed>@0] t0 = sig=direct0 (ptr<managed>, i32) -> i32 local-fn0(local2, local3)
     store t0 -> local4
     store local4 -> local5
-    call no-gc-indirect-target0 local11 = sig=indirect0 (sret struct0 size=4 align=4 scan=none, i32) local-fn11(local5)
-    store local11 -> local6
-    t1 = extract local6, 0 : i32
-    store t1 -> local7
+    call no-gc-direct-target0 t1 = sig=direct1 (i32) -> struct0 local-fn11(local5)
+    store t1 -> local6
+    t2 = extract local6, 0 : i32
+    store t2 -> local7
     store local7 -> local8
     call managed-void-target0 sp<managed-call:1> live=[] sig=void0 (i32) local-fn3(local8)
-    t2 = aggregate () : {}
+    t3 = aggregate () : {}
     store global22 -> local9
     store local9 -> local10
     call managed-void-target1 sp<managed-call:2> live=[local10:ptr<managed>@0] sig=void1 (ptr<managed>) local-fn2(local10)
-    t3 = aggregate () : {}
+    t4 = aggregate () : {}
     ret local6
   fun @scoop$1$cb$d3bd523ea7c4b775508c06e622f76772db6a21fddb406c6d3fe7d1f20a2a89c1(i32, ptr<raw>, ptr<raw>) -> i32
   block entry
@@ -445,11 +443,11 @@ Module
   td td9 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=Option);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Char)]) @scoop$1$td$d7f4366e65835cbfa9730a35af33f51b9ed79c85d1b97de13e951aaa6136a11d type-id=4546798213121979959 shape=BoxedValue minimum-size=32 align=8 parent=none vtable=[] itables=[]
   layout Count size=4 align=4 refs=[]
   layout Option size=16 align=8 enum-scan=none
-  layout Equality value size=8 align=8 refs=[0]
-  layout Iterable value size=8 align=8 refs=[0]
-  layout Iterator value size=8 align=8 refs=[0]
-  layout Equality value size=8 align=8 refs=[0]
-  layout Equality value size=8 align=8 refs=[0]
+  layout Equality value size=16 align=8 refs=[0]
+  layout Iterable value size=16 align=8 refs=[0]
+  layout Iterator value size=16 align=8 refs=[0]
+  layout Equality value size=16 align=8 refs=[0]
+  layout Equality value size=16 align=8 refs=[0]
   layout Base value size=8 align=8 refs=[0]
   layout Base size=24 align=8 refs=[]
   layout Derived value size=8 align=8 refs=[0]

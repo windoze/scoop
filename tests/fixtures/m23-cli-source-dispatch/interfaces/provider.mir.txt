@@ -150,43 +150,70 @@ Module
   generated_exact_type get26 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
   generated_exact_type get27 location=enum14 nominal_id=5742e0733f2cb3bd4135fa60957bff475c61643194c69daeee9ebe629bfd870e exact_id=fac1d7907f0a44b9ccc3263b9f135b3a4ec5c68f1fcf51972a6b1e9925298fed
   generated_exact_type get28 location=enum21 nominal_id=3e307b882548ffcbb96227d24a990ffa182297dd6906b5a0eeb3e34475150ff4 exact_id=fc881a105b93a1e3faef44861181ebe4a517dd4eb019055f4a721d1e45f5aeb2
-  generated_callable gc0 function=@fn67 id=029ea675a92256f0c196ac60b1ea6755cecc1bac83461f0740a26a553c52bd38
-  generated_callable gc1 function=@fn81 id=03576c734d25949c8405a782fb4d9e2487ae8269b69686c1ec8928fa35999e5c
-  generated_callable gc2 function=@fn70 id=1db304cf4e3fe651cf49f3398a13ecae2db7f89d852a86f4db4cb7122174aef7
-  generated_callable gc3 function=@fn64 id=256ed06f6fbd9bd1910b9c19afbdcb26d28c1ec5c3df4ff007708c0d7f5e0cc5
-  generated_callable gc4 function=@fn62 id=261278648ebf47d3f4950ad71d9cd06d9d97b37afad951a3aaba6ca9aad2704e
-  generated_callable gc5 function=@fn84 id=2afe527f7aef9eaa106f4b3c1ce78963e5b2f1341ac2b0857ad1eee8f8e17da1
-  generated_callable gc6 function=@fn92 id=403991466d7bd89972eb2c9701f07e3a37bd4fc0699adc4855c1c93e472b4bf7
-  generated_callable gc7 function=@fn75 id=50b2989879b1a724b33f444c7f7bce088a0be2fa8f4a693b409834e7e803a0d4
-  generated_callable gc8 function=@fn63 id=605004b959a590061824fef2df8d596fda4d83d569fafb904e7a4bb569c52a50
-  generated_callable gc9 function=@fn65 id=64aa3f63e9e33ade94a3f6efe6b4b637057b3b3c4449f88a7e36d78d6c5989fd
-  generated_callable gc10 function=@fn88 id=6ca926feb88680fafb2e19b2311bd3eafbd1a1c254fbea48754effc6436605ce
-  generated_callable gc11 function=@fn89 id=7ac9bca89add8b575d94d47cce03fb06f0ad05114a3d847c2d025bda40559ecb
-  generated_callable gc12 function=@fn86 id=7b800177d0d03bd3743ff06950e5dc31fc0540dc667f9cbe9c0508c9cd77a179
-  generated_callable gc13 function=@fn83 id=8e015619b4bb9463d201853e763b7a727a33d7741185d1194e473aeb1e681f75
-  generated_callable gc14 function=@fn91 id=9eceb7d8f64d49e566b4ecd9e22191cbe73d648c98133a588d7cd2078027d763
-  generated_callable gc15 function=@fn71 id=ab60c71c88f23e6a4c1cdc3cc9a6e17e4bf2607665d51b0f168fdc8cb8f364ea
-  generated_callable gc16 function=@fn73 id=afffd822ad2821a9438e7de4e91b147032517f3df1ec26651b419e07e6cf5478
-  generated_callable gc17 function=@fn93 id=b7ad76b56c1dc017809dbb87f6f9e661509e00d01c423c9692073ed71c37b3e1
-  generated_callable gc18 function=@fn79 id=bbf0f1a445bdc8bc2f4909dfe8aace6ebb2201d5e609f71b7dfd871d73520bd5
-  generated_callable gc19 function=@fn94 id=bf7bde0b6de67168ddc967f85c2c004295c10c839a7c493f663ddabddee16227
-  generated_callable gc20 function=@fn77 id=c2db8a45dcb63ff817777486cc05f958dc3b7d364a12fad92f7166e47a80080f
-  generated_callable gc21 function=@fn74 id=c59a8d70dc37b31fbf9cc86468e31785b5a781c06c31194b72a111e585c5b57c
-  generated_callable gc22 function=@fn69 id=c76a27ac38c965a5edb5d8c537ac86937a46984108f41b188e7f2a5a3fb5e04e
-  generated_callable gc23 function=@fn82 id=cbf938fd3897da35f7dd95f5a8b5bea32c80beb4f36e7d52415ac8eeafefb5c3
-  generated_callable gc24 function=@fn76 id=cccc6a5d992340c34b9ee92c6d89a92d6a74a5d50ba16b44c7cae7d9371baee5
-  generated_callable gc25 function=@fn85 id=d207493d12abe1097eff3c3209076eed1a94ccc941cd7f19faa7fe4c25d69882
-  generated_callable gc26 function=@fn95 id=d8aa8f25b286518c6a7e759fd9055a33f874c856526be31d2fd6699a5d07e63d
-  generated_callable gc27 function=@fn96 id=db58430fd18f077abd8af684a3f5c66ef08db6003a518cd5ae062aa6e3fab329
-  generated_callable gc28 function=@fn90 id=dbba809d271c8503568f4d8d5b539cb1ee8e0205d78cccaeead27b2842ab51ef
-  generated_callable gc29 function=@fn78 id=e06445ff2883a564fc48b5cbf03a813deaa98f4b4b192dbf5db4af96c8640676
-  generated_callable gc30 function=@fn98 id=e0ea81d95113d92a34ddc2d48efe0602a331a3c91be49289d7813ae0a7ae20b0
-  generated_callable gc31 function=@fn80 id=e74feb9f6aaf82a962e00fac777d03de8bc948b502a884cf8e7b7a15808af3a4
-  generated_callable gc32 function=@fn68 id=ea6e57d8721f885a281466b2bf790357b8d8a6e871ab5bbce9df8f49a07da87f
-  generated_callable gc33 function=@fn87 id=f190b27aa4711b09d0d62b116780fa5ef4e23ad3c29f9bc30190ad44e79fc088
-  generated_callable gc34 function=@fn66 id=f36583f66f44f582423829f6bfd347c920031ee2d2720b19710baf7e6813ebc2
-  generated_callable gc35 function=@fn97 id=f60cf7d45d39a466f9f214e2a894c1c96427b984dbd7a437f594ec6f2f07fe36
-  generated_callable gc36 function=@fn72 id=f826edffa5993bf65614b472e83059d5f3254a94cc7f3e4ba380dfdadc3ce6cf
+  generated_callable gc0 function=@fn69 id=00fb9f9487eaafeb4752059821dd600e1d04c8aa42c38f145cee59b9bcf2f3b4
+  generated_callable gc1 function=@fn94 id=029ea675a92256f0c196ac60b1ea6755cecc1bac83461f0740a26a553c52bd38
+  generated_callable gc2 function=@fn108 id=03576c734d25949c8405a782fb4d9e2487ae8269b69686c1ec8928fa35999e5c
+  generated_callable gc3 function=@fn80 id=1aa30a42e132f0e9a3f7f8e64989c28d10feb646f2fd71161741780cad7c5099
+  generated_callable gc4 function=@fn83 id=1ab48ee233e1236fda1ed625838c60d96190314ddd762e412bd2faf430453e82
+  generated_callable gc5 function=@fn59 id=1d1c0f855e3e43c87fa0e4cc1f45823b35d108724ad50fd89d8a800baf38d38c
+  generated_callable gc6 function=@fn97 id=1db304cf4e3fe651cf49f3398a13ecae2db7f89d852a86f4db4cb7122174aef7
+  generated_callable gc7 function=@fn91 id=256ed06f6fbd9bd1910b9c19afbdcb26d28c1ec5c3df4ff007708c0d7f5e0cc5
+  generated_callable gc8 function=@fn89 id=261278648ebf47d3f4950ad71d9cd06d9d97b37afad951a3aaba6ca9aad2704e
+  generated_callable gc9 function=@fn65 id=28a6c3df90bb8e2a8ed07e7c47926331c37f4cb98a6e291893c326cb68671b62
+  generated_callable gc10 function=@fn111 id=2afe527f7aef9eaa106f4b3c1ce78963e5b2f1341ac2b0857ad1eee8f8e17da1
+  generated_callable gc11 function=@fn74 id=2dca24a8b0cdb28045c9a5568d6f0cde964cf4ca1fc52626336a0ce9e13a218f
+  generated_callable gc12 function=@fn71 id=3e1e4a23d647f21e4e2f9990cefbf5cd5a74269f34f25735064e877b24af0452
+  generated_callable gc13 function=@fn119 id=403991466d7bd89972eb2c9701f07e3a37bd4fc0699adc4855c1c93e472b4bf7
+  generated_callable gc14 function=@fn102 id=50b2989879b1a724b33f444c7f7bce088a0be2fa8f4a693b409834e7e803a0d4
+  generated_callable gc15 function=@fn90 id=605004b959a590061824fef2df8d596fda4d83d569fafb904e7a4bb569c52a50
+  generated_callable gc16 function=@fn78 id=619c515e39968e19d358f2bb6c7c4f951bfb787a7b7d3023ef730cb5e9673869
+  generated_callable gc17 function=@fn92 id=64aa3f63e9e33ade94a3f6efe6b4b637057b3b3c4449f88a7e36d78d6c5989fd
+  generated_callable gc18 function=@fn70 id=6698adfeaef734075a626e7773b468e882c81c159752f439bf1d57a39a90e1df
+  generated_callable gc19 function=@fn115 id=6ca926feb88680fafb2e19b2311bd3eafbd1a1c254fbea48754effc6436605ce
+  generated_callable gc20 function=@fn75 id=788f6004a6ee89e8845d5b6aa852e74081e7519d1410e85e31c530e81b956343
+  generated_callable gc21 function=@fn116 id=7ac9bca89add8b575d94d47cce03fb06f0ad05114a3d847c2d025bda40559ecb
+  generated_callable gc22 function=@fn63 id=7b7d96e83fb55a82b781ba31d06a76044de1d995f1c240aeba88dcaaeaf8a968
+  generated_callable gc23 function=@fn113 id=7b800177d0d03bd3743ff06950e5dc31fc0540dc667f9cbe9c0508c9cd77a179
+  generated_callable gc24 function=@fn64 id=7ecf740c9bfcf9be2eb61442b9dd6fcde0527a35c1612601e0cd9f432a42802c
+  generated_callable gc25 function=@fn110 id=8e015619b4bb9463d201853e763b7a727a33d7741185d1194e473aeb1e681f75
+  generated_callable gc26 function=@fn81 id=90eb0de16ffd4bdde288ab9600104d26c865c13dbdbe16ef24d808c240e957aa
+  generated_callable gc27 function=@fn79 id=9c6c5fe8758f92efe01f68553e365e2813b32dca9ea3ed6379b15894a61cce5b
+  generated_callable gc28 function=@fn68 id=9ca6f6701bfb414dbba6624e5f4bb5bcb73fd4bcb40c515d4b13518d44c53afd
+  generated_callable gc29 function=@fn118 id=9eceb7d8f64d49e566b4ecd9e22191cbe73d648c98133a588d7cd2078027d763
+  generated_callable gc30 function=@fn77 id=a424b8872f2db0a2e3a8d060b989768dbbde05ed8c1880f4ec1321ba31f3f547
+  generated_callable gc31 function=@fn98 id=ab60c71c88f23e6a4c1cdc3cc9a6e17e4bf2607665d51b0f168fdc8cb8f364ea
+  generated_callable gc32 function=@fn100 id=afffd822ad2821a9438e7de4e91b147032517f3df1ec26651b419e07e6cf5478
+  generated_callable gc33 function=@fn67 id=b036759bfc0412310f35576921f5b071ed490a63842498a1133a4434d6f26f3a
+  generated_callable gc34 function=@fn120 id=b7ad76b56c1dc017809dbb87f6f9e661509e00d01c423c9692073ed71c37b3e1
+  generated_callable gc35 function=@fn106 id=bbf0f1a445bdc8bc2f4909dfe8aace6ebb2201d5e609f71b7dfd871d73520bd5
+  generated_callable gc36 function=@fn121 id=bf7bde0b6de67168ddc967f85c2c004295c10c839a7c493f663ddabddee16227
+  generated_callable gc37 function=@fn104 id=c2db8a45dcb63ff817777486cc05f958dc3b7d364a12fad92f7166e47a80080f
+  generated_callable gc38 function=@fn101 id=c59a8d70dc37b31fbf9cc86468e31785b5a781c06c31194b72a111e585c5b57c
+  generated_callable gc39 function=@fn82 id=c65ca4bedab909d76813ff09b85185dfdd940af8666389d19e9d72ada3a5592d
+  generated_callable gc40 function=@fn96 id=c76a27ac38c965a5edb5d8c537ac86937a46984108f41b188e7f2a5a3fb5e04e
+  generated_callable gc41 function=@fn109 id=cbf938fd3897da35f7dd95f5a8b5bea32c80beb4f36e7d52415ac8eeafefb5c3
+  generated_callable gc42 function=@fn60 id=cc11432edf2e1fa13f675bacb3460203b853531b1d1cb2ba30e1b2eef2e17fe1
+  generated_callable gc43 function=@fn103 id=cccc6a5d992340c34b9ee92c6d89a92d6a74a5d50ba16b44c7cae7d9371baee5
+  generated_callable gc44 function=@fn76 id=cd4dffbe2d86de91d138305d0dc7919b2f9c232e27e16a0a997d61d09635e13a
+  generated_callable gc45 function=@fn84 id=cd874ad2c4efdd1c7f35eee3eae0b515c4509c02a98e4eb5fa1307801b19ca65
+  generated_callable gc46 function=@fn112 id=d207493d12abe1097eff3c3209076eed1a94ccc941cd7f19faa7fe4c25d69882
+  generated_callable gc47 function=@fn122 id=d8aa8f25b286518c6a7e759fd9055a33f874c856526be31d2fd6699a5d07e63d
+  generated_callable gc48 function=@fn123 id=db58430fd18f077abd8af684a3f5c66ef08db6003a518cd5ae062aa6e3fab329
+  generated_callable gc49 function=@fn117 id=dbba809d271c8503568f4d8d5b539cb1ee8e0205d78cccaeead27b2842ab51ef
+  generated_callable gc50 function=@fn66 id=dc65353eb493fc8ddebadc709afd5a311352de5503c357408cf476f00b57ed08
+  generated_callable gc51 function=@fn105 id=e06445ff2883a564fc48b5cbf03a813deaa98f4b4b192dbf5db4af96c8640676
+  generated_callable gc52 function=@fn125 id=e0ea81d95113d92a34ddc2d48efe0602a331a3c91be49289d7813ae0a7ae20b0
+  generated_callable gc53 function=@fn72 id=e6917ab3902565daed2f317180e463d5883da7e5aac128297dc1868e218cdaf8
+  generated_callable gc54 function=@fn107 id=e74feb9f6aaf82a962e00fac777d03de8bc948b502a884cf8e7b7a15808af3a4
+  generated_callable gc55 function=@fn95 id=ea6e57d8721f885a281466b2bf790357b8d8a6e871ab5bbce9df8f49a07da87f
+  generated_callable gc56 function=@fn58 id=ecd7decbd2f1ebda8d03c9405db30a0781785a7529f099d32cb6db9b891db04b
+  generated_callable gc57 function=@fn114 id=f190b27aa4711b09d0d62b116780fa5ef4e23ad3c29f9bc30190ad44e79fc088
+  generated_callable gc58 function=@fn93 id=f36583f66f44f582423829f6bfd347c920031ee2d2720b19710baf7e6813ebc2
+  generated_callable gc59 function=@fn124 id=f60cf7d45d39a466f9f214e2a894c1c96427b984dbd7a437f594ec6f2f07fe36
+  generated_callable gc60 function=@fn99 id=f826edffa5993bf65614b472e83059d5f3254a94cc7f3e4ba380dfdadc3ce6cf
+  generated_callable gc61 function=@fn61 id=f92da960a97a3890f7bae0dff81209f680e83bd36877647ac746eebe2524e284
+  generated_callable gc62 function=@fn73 id=fa4079adb7b3152a7b636739d86c9512650ddf6d9c8c47c7f0d06591bc7cf0c9
+  generated_callable gc63 function=@fn62 id=fb12bf883425e0be95391baddbe0d9eb05604d4d5a5e43d048021716b6954bf5
   fun Value.equals @fn0(this: Value, other: Value) -> Boolean
     bb0 entry
       return
@@ -236,7 +263,7 @@ Module
       assign $new.1
         Type Singleton
         ClassAlloc Singleton
-      call @fn60 direct
+      call @fn87 direct
         Type Singleton
         Local $new.1
       global_assign $singleton$Singleton
@@ -519,31 +546,301 @@ Module
   fun Mutable.$set$change @fn57(this: Mutable, value: Int) -> Unit
     bb0 entry
       return
-  fun init.User.$c0 @fn58(this: User) -> Unit
+  fun receiver<User> Mutable.left @fn58(this: User) -> Int
+    bb0 entry
+      call $call.1: Int = @fn50 direct
+        Type Left
+        Retype Left
+          Type User
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun receiver<User> Mutable.right @fn59(this: User) -> Int
+    bb0 entry
+      call $call.1: Int = @fn51 direct
+        Type Right
+        Retype Right
+          Type User
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun receiver<User> Mutable.zeta @fn60(this: User) -> Int
+    bb0 entry
+      call $call.1: Int = @fn52 direct
+        Type Diamond
+        Retype Diamond
+          Type User
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun receiver<User> Mutable.own @fn61(this: User) -> Int
+    bb0 entry
+      call $call.1: Int = @fn53 direct
+        Type Diamond
+        Retype Diamond
+          Type User
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun receiver<User> Mutable.$get$value @fn62(this: User) -> Int
+    bb0 entry
+      call $call.1: Int = @fn54 direct
+        Type Diamond
+        Retype Diamond
+          Type User
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun receiver<User> Mutable.$get$change @fn63(this: User) -> Int
+    bb0 entry
+      call $call.1: Int = @fn56 direct
+        Type Mutable
+        Retype Mutable
+          Type User
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun receiver<User> Mutable.$set$change @fn64(this: User, value: Int) -> Unit
+    bb0 entry
+      call @fn57 direct
+        Type Mutable
+        Retype Mutable
+          Type User
+          Local this
+        Type Int
+        Local value
+      return
+  fun receiver<User> Left.zeta @fn65(this: User) -> Int
+    bb0 entry
+      call $call.1: Int = @fn52 direct
+        Type Diamond
+        Retype Diamond
+          Type User
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun receiver<User> Left.$get$value @fn66(this: User) -> Int
+    bb0 entry
+      call $call.1: Int = @fn54 direct
+        Type Diamond
+        Retype Diamond
+          Type User
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun receiver<Derived> Mutable.left @fn67(this: Derived) -> Int
+    bb0 entry
+      call $call.1: Int = @fn50 direct
+        Type Left
+        Retype Left
+          Type Derived
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun receiver<Derived> Mutable.right @fn68(this: Derived) -> Int
+    bb0 entry
+      call $call.1: Int = @fn51 direct
+        Type Right
+        Retype Right
+          Type Derived
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun receiver<Derived> Mutable.zeta @fn69(this: Derived) -> Int
+    bb0 entry
+      call $call.1: Int = @fn52 direct
+        Type Diamond
+        Retype Diamond
+          Type Derived
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun receiver<Derived> Mutable.own @fn70(this: Derived) -> Int
+    bb0 entry
+      call $call.1: Int = @fn53 direct
+        Type Diamond
+        Retype Diamond
+          Type Derived
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun receiver<Derived> Mutable.$get$value @fn71(this: Derived) -> Int
+    bb0 entry
+      call $call.1: Int = @fn54 direct
+        Type Diamond
+        Retype Diamond
+          Type Derived
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun receiver<Derived> Mutable.$get$change @fn72(this: Derived) -> Int
+    bb0 entry
+      call $call.1: Int = @fn56 direct
+        Type Mutable
+        Retype Mutable
+          Type Derived
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun receiver<Derived> Mutable.$set$change @fn73(this: Derived, value: Int) -> Unit
+    bb0 entry
+      call @fn57 direct
+        Type Mutable
+        Retype Mutable
+          Type Derived
+          Local this
+        Type Int
+        Local value
+      return
+  fun receiver<Derived> Left.zeta @fn74(this: Derived) -> Int
+    bb0 entry
+      call $call.1: Int = @fn52 direct
+        Type Diamond
+        Retype Diamond
+          Type Derived
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun receiver<Derived> Left.$get$value @fn75(this: Derived) -> Int
+    bb0 entry
+      call $call.1: Int = @fn54 direct
+        Type Diamond
+        Retype Diamond
+          Type Derived
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun receiver<Singleton> Mutable.left @fn76(this: Singleton) -> Int
+    bb0 entry
+      call $call.1: Int = @fn50 direct
+        Type Left
+        Retype Left
+          Type Singleton
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun receiver<Singleton> Mutable.right @fn77(this: Singleton) -> Int
+    bb0 entry
+      call $call.1: Int = @fn51 direct
+        Type Right
+        Retype Right
+          Type Singleton
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun receiver<Singleton> Mutable.zeta @fn78(this: Singleton) -> Int
+    bb0 entry
+      call $call.1: Int = @fn52 direct
+        Type Diamond
+        Retype Diamond
+          Type Singleton
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun receiver<Singleton> Mutable.own @fn79(this: Singleton) -> Int
+    bb0 entry
+      call $call.1: Int = @fn53 direct
+        Type Diamond
+        Retype Diamond
+          Type Singleton
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun receiver<Singleton> Mutable.$get$value @fn80(this: Singleton) -> Int
+    bb0 entry
+      call $call.1: Int = @fn54 direct
+        Type Diamond
+        Retype Diamond
+          Type Singleton
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun receiver<Singleton> Mutable.$get$change @fn81(this: Singleton) -> Int
+    bb0 entry
+      call $call.1: Int = @fn56 direct
+        Type Mutable
+        Retype Mutable
+          Type Singleton
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun receiver<Singleton> Mutable.$set$change @fn82(this: Singleton, value: Int) -> Unit
+    bb0 entry
+      call @fn57 direct
+        Type Mutable
+        Retype Mutable
+          Type Singleton
+          Local this
+        Type Int
+        Local value
+      return
+  fun receiver<Singleton> Left.zeta @fn83(this: Singleton) -> Int
+    bb0 entry
+      call $call.1: Int = @fn52 direct
+        Type Diamond
+        Retype Diamond
+          Type Singleton
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun receiver<Singleton> Left.$get$value @fn84(this: Singleton) -> Int
+    bb0 entry
+      call $call.1: Int = @fn54 direct
+        Type Diamond
+        Retype Diamond
+          Type Singleton
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun init.User.$c0 @fn85(this: User) -> Unit
     bb0 entry
       return
-  fun init.Derived.$c1 @fn59(this: Derived) -> Unit
+  fun init.Derived.$c1 @fn86(this: Derived) -> Unit
     bb0 entry
-      call @fn58 direct
+      call @fn85 direct
         Type User
         Retype User
           Type Derived
           Local this
       return
-  fun init.Singleton.$c2 @fn60(this: Singleton) -> Unit
+  fun init.Singleton.$c2 @fn87(this: Singleton) -> Unit
     bb0 entry
-      call @fn58 direct
+      call @fn85 direct
         Type User
         Retype User
           Type Singleton
           Local this
       return
-  fun ctor.Value.$c0 @fn61() -> Value <no-gc>
+  fun ctor.Value.$c0 @fn88() -> Value <no-gc>
     bb0 entry
       return
         Type Value
         StructInit Value
-  fun startCoroutine<Diamond> @fn62(task: SuspendTask<Diamond>, completion: Continuation<Diamond>) -> Unit
+  fun startCoroutine<Diamond> @fn89(task: SuspendTask<Diamond>, completion: Continuation<Diamond>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -624,7 +921,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Root> @fn63(task: SuspendTask<Root>, completion: Continuation<Root>) -> Unit
+  fun startCoroutine<Root> @fn90(task: SuspendTask<Root>, completion: Continuation<Root>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -705,7 +1002,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Singleton> @fn64(task: SuspendTask<Singleton>, completion: Continuation<Singleton>) -> Unit
+  fun startCoroutine<Singleton> @fn91(task: SuspendTask<Singleton>, completion: Continuation<Singleton>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -786,7 +1083,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Right> @fn65(task: SuspendTask<Right>, completion: Continuation<Right>) -> Unit
+  fun startCoroutine<Right> @fn92(task: SuspendTask<Right>, completion: Continuation<Right>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -867,7 +1164,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Mutable> @fn66(task: SuspendTask<Mutable>, completion: Continuation<Mutable>) -> Unit
+  fun startCoroutine<Mutable> @fn93(task: SuspendTask<Mutable>, completion: Continuation<Mutable>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -948,7 +1245,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Value> @fn67(task: SuspendTask<Value>, completion: Continuation<Value>) -> Unit
+  fun startCoroutine<Value> @fn94(task: SuspendTask<Value>, completion: Continuation<Value>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -1029,7 +1326,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Derived> @fn68(task: SuspendTask<Derived>, completion: Continuation<Derived>) -> Unit
+  fun startCoroutine<Derived> @fn95(task: SuspendTask<Derived>, completion: Continuation<Derived>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -1110,7 +1407,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<User> @fn69(task: SuspendTask<User>, completion: Continuation<User>) -> Unit
+  fun startCoroutine<User> @fn96(task: SuspendTask<User>, completion: Continuation<User>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -1191,7 +1488,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<AbstractAgain> @fn70(task: SuspendTask<AbstractAgain>, completion: Continuation<AbstractAgain>) -> Unit
+  fun startCoroutine<AbstractAgain> @fn97(task: SuspendTask<AbstractAgain>, completion: Continuation<AbstractAgain>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -1272,7 +1569,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Left> @fn71(task: SuspendTask<Left>, completion: Continuation<Left>) -> Unit
+  fun startCoroutine<Left> @fn98(task: SuspendTask<Left>, completion: Continuation<Left>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -1353,7 +1650,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Choice> @fn72(task: SuspendTask<Choice>, completion: Continuation<Choice>) -> Unit
+  fun startCoroutine<Choice> @fn99(task: SuspendTask<Choice>, completion: Continuation<Choice>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -1434,262 +1731,262 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun thunk<Value> Diamond.left() @fn73(this: Diamond) -> Int
+  fun thunk<Value> Diamond.left() @fn100(this: box<Value>) -> Int
     bb0 entry
       call $call.1: Int = @fn50 direct
         Type Left
         Retype Left
-          Type Diamond
+          Type box<Value>
           Local this
       return
         Type Int
         Local $call.1
-  fun thunk<Value> Diamond.right() @fn74(this: Diamond) -> Int
+  fun thunk<Value> Diamond.right() @fn101(this: box<Value>) -> Int
     bb0 entry
       call $call.1: Int = @fn51 direct
         Type Right
         Retype Right
-          Type Diamond
+          Type box<Value>
           Local this
       return
         Type Int
         Local $call.1
-  fun thunk<Value> Diamond.zeta() @fn75(this: Diamond) -> Int
+  fun thunk<Value> Diamond.zeta() @fn102(this: box<Value>) -> Int
     bb0 entry
       call $call.1: Int = @fn52 direct
         Type Diamond
         Retype Diamond
-          Type Diamond
+          Type box<Value>
           Local this
       return
         Type Int
         Local $call.1
-  fun thunk<Value> Diamond.own() @fn76(this: Diamond) -> Int
+  fun thunk<Value> Diamond.own() @fn103(this: box<Value>) -> Int
     bb0 entry
       call $call.1: Int = @fn53 direct
         Type Diamond
         Retype Diamond
-          Type Diamond
+          Type box<Value>
           Local this
       return
         Type Int
         Local $call.1
-  fun thunk<Value> Diamond.$get$value() @fn77(this: Diamond) -> Int
+  fun thunk<Value> Diamond.$get$value() @fn104(this: box<Value>) -> Int
     bb0 entry
       call $call.1: Int = @fn54 direct
         Type Diamond
         Retype Diamond
-          Type Diamond
+          Type box<Value>
           Local this
       return
         Type Int
         Local $call.1
-  fun thunk<Value> Left.zeta() @fn78(this: Left) -> Int
+  fun thunk<Value> Left.zeta() @fn105(this: box<Value>) -> Int
     bb0 entry
       call $call.1: Int = @fn52 direct
         Type Diamond
         Retype Diamond
-          Type Left
+          Type box<Value>
           Local this
       return
         Type Int
         Local $call.1
-  fun thunk<Value> Left.$get$value() @fn79(this: Left) -> Int
+  fun thunk<Value> Left.$get$value() @fn106(this: box<Value>) -> Int
     bb0 entry
       call $call.1: Int = @fn54 direct
         Type Diamond
         Retype Diamond
-          Type Left
+          Type box<Value>
           Local this
       return
         Type Int
         Local $call.1
-  fun thunk<Value> Left.left() @fn80(this: Left) -> Int
+  fun thunk<Value> Left.left() @fn107(this: box<Value>) -> Int
     bb0 entry
       call $call.1: Int = @fn50 direct
         Type Left
         Retype Left
-          Type Left
+          Type box<Value>
           Local this
       return
         Type Int
         Local $call.1
-  fun thunk<Value> Root.zeta() @fn81(this: Root) -> Int
+  fun thunk<Value> Root.zeta() @fn108(this: box<Value>) -> Int
     bb0 entry
       call $call.1: Int = @fn52 direct
         Type Diamond
         Retype Diamond
-          Type Root
+          Type box<Value>
           Local this
       return
         Type Int
         Local $call.1
-  fun thunk<Value> Root.$get$value() @fn82(this: Root) -> Int
+  fun thunk<Value> Root.$get$value() @fn109(this: box<Value>) -> Int
     bb0 entry
       call $call.1: Int = @fn54 direct
         Type Diamond
         Retype Diamond
-          Type Root
+          Type box<Value>
           Local this
       return
         Type Int
         Local $call.1
-  fun thunk<Value> Right.zeta() @fn83(this: Right) -> Int
+  fun thunk<Value> Right.zeta() @fn110(this: box<Value>) -> Int
     bb0 entry
       call $call.1: Int = @fn52 direct
         Type Diamond
         Retype Diamond
-          Type Right
+          Type box<Value>
           Local this
       return
         Type Int
         Local $call.1
-  fun thunk<Value> Right.$get$value() @fn84(this: Right) -> Int
+  fun thunk<Value> Right.$get$value() @fn111(this: box<Value>) -> Int
     bb0 entry
       call $call.1: Int = @fn54 direct
         Type Diamond
         Retype Diamond
-          Type Right
+          Type box<Value>
           Local this
       return
         Type Int
         Local $call.1
-  fun thunk<Value> Right.right() @fn85(this: Right) -> Int
+  fun thunk<Value> Right.right() @fn112(this: box<Value>) -> Int
     bb0 entry
       call $call.1: Int = @fn51 direct
         Type Right
         Retype Right
-          Type Right
+          Type box<Value>
           Local this
       return
         Type Int
         Local $call.1
-  fun thunk<Choice> Diamond.left() @fn86(this: Diamond) -> Int
+  fun thunk<Choice> Diamond.left() @fn113(this: box<Choice>) -> Int
     bb0 entry
       call $call.1: Int = @fn50 direct
         Type Left
         Retype Left
-          Type Diamond
+          Type box<Choice>
           Local this
       return
         Type Int
         Local $call.1
-  fun thunk<Choice> Diamond.right() @fn87(this: Diamond) -> Int
+  fun thunk<Choice> Diamond.right() @fn114(this: box<Choice>) -> Int
     bb0 entry
       call $call.1: Int = @fn51 direct
         Type Right
         Retype Right
-          Type Diamond
+          Type box<Choice>
           Local this
       return
         Type Int
         Local $call.1
-  fun thunk<Choice> Diamond.zeta() @fn88(this: Diamond) -> Int
+  fun thunk<Choice> Diamond.zeta() @fn115(this: box<Choice>) -> Int
     bb0 entry
       call $call.1: Int = @fn52 direct
         Type Diamond
         Retype Diamond
-          Type Diamond
+          Type box<Choice>
           Local this
       return
         Type Int
         Local $call.1
-  fun thunk<Choice> Diamond.own() @fn89(this: Diamond) -> Int
+  fun thunk<Choice> Diamond.own() @fn116(this: box<Choice>) -> Int
     bb0 entry
       call $call.1: Int = @fn53 direct
         Type Diamond
         Retype Diamond
-          Type Diamond
+          Type box<Choice>
           Local this
       return
         Type Int
         Local $call.1
-  fun thunk<Choice> Diamond.$get$value() @fn90(this: Diamond) -> Int
+  fun thunk<Choice> Diamond.$get$value() @fn117(this: box<Choice>) -> Int
     bb0 entry
       call $call.1: Int = @fn54 direct
         Type Diamond
         Retype Diamond
-          Type Diamond
+          Type box<Choice>
           Local this
       return
         Type Int
         Local $call.1
-  fun thunk<Choice> Left.zeta() @fn91(this: Left) -> Int
+  fun thunk<Choice> Left.zeta() @fn118(this: box<Choice>) -> Int
     bb0 entry
       call $call.1: Int = @fn52 direct
         Type Diamond
         Retype Diamond
-          Type Left
+          Type box<Choice>
           Local this
       return
         Type Int
         Local $call.1
-  fun thunk<Choice> Left.$get$value() @fn92(this: Left) -> Int
+  fun thunk<Choice> Left.$get$value() @fn119(this: box<Choice>) -> Int
     bb0 entry
       call $call.1: Int = @fn54 direct
         Type Diamond
         Retype Diamond
-          Type Left
+          Type box<Choice>
           Local this
       return
         Type Int
         Local $call.1
-  fun thunk<Choice> Left.left() @fn93(this: Left) -> Int
+  fun thunk<Choice> Left.left() @fn120(this: box<Choice>) -> Int
     bb0 entry
       call $call.1: Int = @fn50 direct
         Type Left
         Retype Left
-          Type Left
+          Type box<Choice>
           Local this
       return
         Type Int
         Local $call.1
-  fun thunk<Choice> Root.zeta() @fn94(this: Root) -> Int
+  fun thunk<Choice> Root.zeta() @fn121(this: box<Choice>) -> Int
     bb0 entry
       call $call.1: Int = @fn52 direct
         Type Diamond
         Retype Diamond
-          Type Root
+          Type box<Choice>
           Local this
       return
         Type Int
         Local $call.1
-  fun thunk<Choice> Root.$get$value() @fn95(this: Root) -> Int
+  fun thunk<Choice> Root.$get$value() @fn122(this: box<Choice>) -> Int
     bb0 entry
       call $call.1: Int = @fn54 direct
         Type Diamond
         Retype Diamond
-          Type Root
+          Type box<Choice>
           Local this
       return
         Type Int
         Local $call.1
-  fun thunk<Choice> Right.zeta() @fn96(this: Right) -> Int
+  fun thunk<Choice> Right.zeta() @fn123(this: box<Choice>) -> Int
     bb0 entry
       call $call.1: Int = @fn52 direct
         Type Diamond
         Retype Diamond
-          Type Right
+          Type box<Choice>
           Local this
       return
         Type Int
         Local $call.1
-  fun thunk<Choice> Right.$get$value() @fn97(this: Right) -> Int
+  fun thunk<Choice> Right.$get$value() @fn124(this: box<Choice>) -> Int
     bb0 entry
       call $call.1: Int = @fn54 direct
         Type Diamond
         Retype Diamond
-          Type Right
+          Type box<Choice>
           Local this
       return
         Type Int
         Local $call.1
-  fun thunk<Choice> Right.right() @fn98(this: Right) -> Int
+  fun thunk<Choice> Right.right() @fn125(this: box<Choice>) -> Int
     bb0 entry
       call $call.1: Int = @fn51 direct
         Type Right
         Retype Right
-          Type Right
+          Type box<Choice>
           Local this
       return
         Type Int
@@ -1716,17 +2013,17 @@ Module
   coroutine_slot cl8 CoroutineSlot<AbstractAgain> value=AbstractAgain
   coroutine_slot cl9 CoroutineSlot<Left> value=Left
   coroutine_slot cl10 CoroutineSlot<Choice> value=Choice
-  coroutine_start ct0 result=Diamond function=fn62
-  coroutine_start ct1 result=Root function=fn63
-  coroutine_start ct2 result=Singleton function=fn64
-  coroutine_start ct3 result=Right function=fn65
-  coroutine_start ct4 result=Mutable function=fn66
-  coroutine_start ct5 result=Value function=fn67
-  coroutine_start ct6 result=Derived function=fn68
-  coroutine_start ct7 result=User function=fn69
-  coroutine_start ct8 result=AbstractAgain function=fn70
-  coroutine_start ct9 result=Left function=fn71
-  coroutine_start ct10 result=Choice function=fn72
+  coroutine_start ct0 result=Diamond function=fn89
+  coroutine_start ct1 result=Root function=fn90
+  coroutine_start ct2 result=Singleton function=fn91
+  coroutine_start ct3 result=Right function=fn92
+  coroutine_start ct4 result=Mutable function=fn93
+  coroutine_start ct5 result=Value function=fn94
+  coroutine_start ct6 result=Derived function=fn95
+  coroutine_start ct7 result=User function=fn96
+  coroutine_start ct8 result=AbstractAgain function=fn97
+  coroutine_start ct9 result=Left function=fn98
+  coroutine_start ct10 result=Choice function=fn99
   coroutine_fn cf0 @fn6 source_return=Value step=cs5 immediate
   coroutine_fn cf1 @fn10 source_return=Diamond step=cs0 immediate
   coroutine_fn cf2 @fn14 source_return=Left step=cs9 immediate

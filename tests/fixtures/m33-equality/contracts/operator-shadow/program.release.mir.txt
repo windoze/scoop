@@ -1,0 +1,504 @@
+Module
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum Option<Char>
+    Some(_0: Char)
+    None()
+  enum CoroutineStep<Key>
+    Completed(value: Key)
+    Suspended()
+  enum CoroutineSlot<Key>
+    Empty()
+    Value(value: Key)
+  class Key vtable=0 itables=1
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  interface Equality<Key>
+  interface ToString
+  interface Hash
+  interface Equality<Char>
+  interface Iterable<Char>
+  interface Iterator<Char>
+  interface Equality<String>
+  interface Continuation<Key>
+  interface SuspendTask<Key>
+  interface SuspendRegistration<Key>
+  generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
+  generated_exact_type get1 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
+  generated_exact_type get2 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
+  generated_exact_type get3 location=enum2 nominal_id=52e993063e0c5815848ea1dc7bdb1ed843072d81cdd26ceb5838375c53cd1283 exact_id=63035b9a0dc6e4d78c822ff5ad42535d276b94822e5ffd394b0023420a296e3d
+  generated_exact_type get4 location=enum3 nominal_id=9837d3e494cd00cc13cba8b36d914013d27dc246c52af6861adf22cc00eedc59 exact_id=78340954a1102a5b21e2291adc66a0258e805e66830458a3e68ff52a58b26994
+  generated_exact_type get5 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
+  generated_exact_type get6 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
+  generated_callable gc0 function=@fn9 id=b06f758d41c0802963220aaf02adc9a189a19bf441ab7b03ae963d54cf4d3673
+  fun Key.equals @fn0(this: Key, other: Key) -> Boolean
+    bb0 entry
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Key
+          Local this
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type Key
+          Local other
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun main @fn1() -> Unit
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.value: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      assign $new.1
+        Type Key
+        ClassAlloc Key
+      val $inline.16.this: Key
+        Type Key
+        Local $new.1
+      val $inline.16.value: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      goto bb17
+    bb1 if.then.1
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb3
+    bb2 if.else.2
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.value: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      assign $new.3
+        Type Key
+        ClassAlloc Key
+      val $inline.10.this: Key
+        Type Key
+        Local $new.3
+      val $inline.10.value: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      goto bb11
+    bb3 if.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $shortCircuit.0
+    bb4 if.then.4
+      val $default.local.0: String
+        Type String
+        StringConst @str0
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.5
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $new.5
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.5
+    bb5 if.merge.5
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str1
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn3 direct
+        Type String
+        Local $dependency.parameter.value
+      return
+    bb6 inline.cont.6
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        Local $inline.6.result
+      goto bb3
+    bb7 inline.6.entry
+      val $inline.20.this: Key
+        Type Key
+        Local $inline.6.left
+      val $inline.20.other: Key
+        Type Key
+        Local $inline.6.right
+      goto bb21
+    bb8 inline.cont.8
+      val $argument.1: Key
+        Type Key
+        Local $new.4
+      val $parameter.left: Key
+        Type Key
+        Local $argument.0
+      val $parameter.right: Key
+        Type Key
+        Local $argument.1
+      val $inline.6.left: Key
+        Type Key
+        Local $parameter.left
+      val $inline.6.right: Key
+        Type Key
+        Local $parameter.right
+      goto bb7
+    bb9 inline.8.entry
+      field_set 0
+        Type Key
+        Local $inline.8.this
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      goto bb8
+    bb10 inline.cont.10
+      val $argument.0: Key
+        Type Key
+        Local $new.3
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $parameter.value: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      assign $new.4
+        Type Key
+        ClassAlloc Key
+      val $inline.8.this: Key
+        Type Key
+        Local $new.4
+      val $inline.8.value: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      goto bb9
+    bb11 inline.10.entry
+      field_set 0
+        Type Key
+        Local $inline.10.this
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      goto bb10
+    bb12 inline.cont.12
+      val $dependency.receiver: Boolean
+        Type Boolean
+        Local $inline.12.result
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+    bb13 inline.12.entry
+      val $inline.18.this: Key
+        Type Key
+        Local $inline.12.left
+      val $inline.18.other: Key
+        Type Key
+        Local $inline.12.right
+      goto bb19
+    bb14 inline.cont.14
+      val $argument.1: Key
+        Type Key
+        Local $new.2
+      val $parameter.left: Key
+        Type Key
+        Local $argument.0
+      val $parameter.right: Key
+        Type Key
+        Local $argument.1
+      val $inline.12.left: Key
+        Type Key
+        Local $parameter.left
+      val $inline.12.right: Key
+        Type Key
+        Local $parameter.right
+      goto bb13
+    bb15 inline.14.entry
+      field_set 0
+        Type Key
+        Local $inline.14.this
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      goto bb14
+    bb16 inline.cont.16
+      val $argument.0: Key
+        Type Key
+        Local $new.1
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.value: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      assign $new.2
+        Type Key
+        ClassAlloc Key
+      val $inline.14.this: Key
+        Type Key
+        Local $new.2
+      val $inline.14.value: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      goto bb15
+    bb17 inline.16.entry
+      field_set 0
+        Type Key
+        Local $inline.16.this
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      goto bb16
+    bb18 inline.cont.18
+      val $inline.12.$call.1: Boolean
+        Type Boolean
+        Local $inline.18.result
+      assign $inline.12.result
+        Type Boolean
+        Local $inline.12.$call.1
+      goto bb12
+    bb19 inline.18.entry
+      val $inline.18.$dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Key
+          Local $inline.18.this
+      val $inline.18.$dependency.argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type Key
+          Local $inline.18.other
+      val $inline.18.$dependency.parameter.other: Int
+        Type Int
+        Local $inline.18.$dependency.argument.0
+      assign $inline.18.result
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $inline.18.$dependency.receiver
+          Type Int
+          Local $inline.18.$dependency.parameter.other
+      goto bb18
+    bb20 inline.cont.20
+      val $inline.6.$call.1: Boolean
+        Type Boolean
+        Local $inline.20.result
+      assign $inline.6.result
+        Type Boolean
+        Local $inline.6.$call.1
+      goto bb6
+    bb21 inline.20.entry
+      val $inline.20.$dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Key
+          Local $inline.20.this
+      val $inline.20.$dependency.argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type Key
+          Local $inline.20.other
+      val $inline.20.$dependency.parameter.other: Int
+        Type Int
+        Local $inline.20.$dependency.argument.0
+      assign $inline.20.result
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $inline.20.$dependency.receiver
+          Type Int
+          Local $inline.20.$dependency.parameter.other
+      goto bb20
+  fun same @fn2(left: Key, right: Key) -> Boolean
+    bb0 entry
+      val $inline.1.this: Key
+        Type Key
+        Local left
+      val $inline.1.other: Key
+        Type Key
+        Local right
+      goto bb2
+    bb1 inline.cont.1
+      val $call.1: Boolean
+        Type Boolean
+        Local $inline.1.result
+      return
+        Type Boolean
+        Local $call.1
+    bb2 inline.1.entry
+      val $inline.1.$dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Key
+          Local $inline.1.this
+      val $inline.1.$dependency.argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type Key
+          Local $inline.1.other
+      val $inline.1.$dependency.parameter.other: Int
+        Type Int
+        Local $inline.1.$dependency.argument.0
+      assign $inline.1.result
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $inline.1.$dependency.receiver
+          Type Int
+          Local $inline.1.$dependency.parameter.other
+      goto bb1
+  fun println @fn3(value: String) -> Unit
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local value
+      call $dependency.local.2: String = external1 direct
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external2 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str2
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external2 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun Continuation.resume @fn4(this: Continuation<Key>, value: Key) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn5(this: Continuation<Key>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn6(this: SuspendTask<Key>, $completion: Continuation<Key>) -> CoroutineStep<Key>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn7(this: SuspendRegistration<Key>, continuation: Continuation<Key>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.Key.$c0 @fn8(this: Key, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Key
+        Local this
+        Type Int
+        Local value
+      return
+  fun startCoroutine<Key> @fn9(task: SuspendTask<Key>, completion: Continuation<Key>) -> Unit
+    bb0 context.unwind
+      landing_pad cleanup=true
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb1 context.catch_unwind
+      landing_pad cleanup=true
+      end_catch
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb2 suspended
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb3 completed unwind bb0
+      call @fn4 interface Continuation<Key>[0]
+        Type Continuation<Key>
+        Local completion
+        Type Key
+        EnumField v0 f0
+          Type CoroutineStep<Key>
+          Local $step
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb4 failed unwind bb0
+      call @fn5 interface Continuation<Key>[1]
+        Type Continuation<Key>
+        Local completion
+        Type Throwable
+        Local $exception
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb5 body_failure unwind bb1
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb4
+    bb6 run unwind bb5
+      call $step: CoroutineStep<Key> = @fn6 interface SuspendTask<Key>[0]
+        Type SuspendTask<Key>
+        Local task
+        Type Continuation<Key>
+        Local completion
+      branch bb3 bb2
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Key>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+    bb7 entry
+      val $child_context: internal<task-context>
+        Type internal<task-context>
+        ContextFork
+          Type internal<context-node>
+          ContextSnapshot
+      val $context_guard: internal<context-switch-guard>
+        Type internal<context-switch-guard>
+        ContextEnter
+          Type internal<task-context>
+          Local $child_context
+      goto bb6
+  coroutine_step cs0 CoroutineStep<Key> result=Key
+  coroutine_slot cl0 CoroutineSlot<Key> value=Key
+  coroutine_start ct0 result=Key function=fn9
+  coroutine_fn cf0 @fn6 source_return=Key step=cs0 immediate
+  instance mi0 function=@fn2 <- same
+  instance mi1 function=@fn3 <- println
+  instance mi2 function=@fn4 <- Continuation.resume
+  instance mi3 function=@fn5 <- Continuation.resumeWithException
+  instance mi4 function=@fn6 <- SuspendTask.run
+  instance mi5 function=@fn7 <- SuspendRegistration.register
+  str @str0 "illegal state"
+  str @str1 "operator-shadow"
+  str @str2 "\n"
+  output executable @fn1

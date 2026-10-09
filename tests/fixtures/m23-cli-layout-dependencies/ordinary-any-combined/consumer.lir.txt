@@ -873,8 +873,8 @@ Module
     ret integer<UInt>(0x00000001)
   td td0 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Equality);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Unit)]) @scoop$1$td$a358082891776b6d5ee2ec122f155150ddb8595ccb5acff5a8dfb67d136657aa type-id=5053075942960604998 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
   td td1 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Equality);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$6fb0bdfcaef72d458561b350a56fb80e86e68f4c020173148c7fe1ec239ea687 type-id=940003777485400453 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
-  layout Equality value size=8 align=8 refs=[0]
-  layout Equality value size=8 align=8 refs=[0]
+  layout Equality value size=16 align=8 refs=[0]
+  layout Equality value size=16 align=8 refs=[0]
   output library
   init-dependencies 258be4d0cf35811f4a43f1f8579f104de82916eed76df8bd1bae52ad0528a21f [external(provider=2c638839c6a85505792b5bfe740a6587cad75d20c347c1ba36542cd602130085,unit=f090a5a293e908b5d1081aca5192ebe7cc28773d0a8f1f4bcbf3de66eecbe85f)]
   init-dependencies 3a2043994c0bf00a31b5fb5b45411f11fe7417f0e65aaec616368c6019b9b678 [external(provider=2c638839c6a85505792b5bfe740a6587cad75d20c347c1ba36542cd602130085,unit=f090a5a293e908b5d1081aca5192ebe7cc28773d0a8f1f4bcbf3de66eecbe85f)]

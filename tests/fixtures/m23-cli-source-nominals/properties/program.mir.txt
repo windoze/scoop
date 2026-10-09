@@ -19,6 +19,8 @@ Module
   generated_exact_type get2 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
   generated_exact_type get3 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
   generated_exact_type get4 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
+  generated_callable gc0 function=@fn24 id=96f85e21ba34b1601eac49f6090022f99f66473d1df48301afdb48d78d9eac7b
+  generated_callable gc1 function=@fn23 id=c756a97556cc76b826a4c210e688e468cd8a8aa6112128fbd4551fec4e363e7c
   fun verifyNominal @fn0(value: Boolean) -> Unit
     bb0 entry
       val $dependency.receiver: Boolean
@@ -328,7 +330,7 @@ Module
       assign $new.1
         Type Box<Int>
         ClassAlloc Box<Int>
-      call @fn23 direct
+      call @fn25 direct
         Type Box<Int>
         Local $new.1
         Type Int
@@ -418,7 +420,7 @@ Module
       assign $new.1
         Type Box<String>
         ClassAlloc Box<String>
-      call @fn24 direct
+      call @fn26 direct
         Type Box<String>
         Local $new.1
         Type String
@@ -511,7 +513,7 @@ Module
       assign $new.1
         Type Reader<Int>
         ClassAlloc Reader<Int>
-      call @fn25 direct
+      call @fn27 direct
         Type Reader<Int>
         Local $new.1
         Type Int
@@ -580,7 +582,7 @@ Module
       assign $new.1
         Type Reader<String>
         ClassAlloc Reader<String>
-      call @fn26 direct
+      call @fn28 direct
         Type Reader<String>
         Local $new.1
         Type String
@@ -836,7 +838,27 @@ Module
         FieldAccess 0
           Type Box<String>
           Local this
-  fun init.Box.$c0 @fn23(this: Box<Int>, source: Int) -> Unit
+  fun receiver<Reader> View.size @fn23(this: Reader<Int>) -> Int
+    bb0 entry
+      call $call.1: Int = @fn16 direct
+        Type View<Int>
+        Retype View<Int>
+          Type Reader<Int>
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun receiver<Reader> View.size @fn24(this: Reader<String>) -> Int
+    bb0 entry
+      call $call.1: Int = @fn18 direct
+        Type View<String>
+        Retype View<String>
+          Type Reader<String>
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun init.Box.$c0 @fn25(this: Box<Int>, source: Int) -> Unit
     bb0 entry
       field_set 0
         Type Box<Int>
@@ -849,7 +871,7 @@ Module
         Type Int
         Local source
       return
-  fun init.Box.$c0 @fn24(this: Box<String>, source: String) -> Unit
+  fun init.Box.$c0 @fn26(this: Box<String>, source: String) -> Unit
     bb0 entry
       field_set 0
         Type Box<String>
@@ -862,7 +884,7 @@ Module
         Type String
         Local source
       return
-  fun init.Reader.$c1 @fn25(this: Reader<Int>, stored: Int) -> Unit
+  fun init.Reader.$c1 @fn27(this: Reader<Int>, stored: Int) -> Unit
     bb0 entry
       field_set 0
         Type Reader<Int>
@@ -870,7 +892,7 @@ Module
         Type Int
         Local stored
       return
-  fun init.Reader.$c1 @fn26(this: Reader<String>, stored: String) -> Unit
+  fun init.Reader.$c1 @fn28(this: Reader<String>, stored: String) -> Unit
     bb0 entry
       field_set 0
         Type Reader<String>

@@ -1,12 +1,12 @@
 Module
-  enum Option<String>
-    Some(_0: String)
-    None()
   enum Option<Continuation<Int>>
     Some(_0: Continuation<Int>)
     None()
-  enum Option<Option<String>>
-    Some(_0: Option<String>)
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum Option<MaybeUninit<String>>
+    Some(_0: MaybeUninit<String>)
     None()
   enum CoroutineStep<Journal>
     Completed(value: Journal)
@@ -57,11 +57,11 @@ Module
   class StringBuilder vtable=0 itables=0
   class ArrayList<String> vtable=0 itables=3
   class IllegalStateException vtable=0 itables=0
-  class ListIterator<Option<String>> vtable=0 itables=1
+  class ListIterator<MaybeUninit<String>> vtable=0 itables=1
   class IndexOutOfBoundsException vtable=0 itables=0
   class ListIterator<String> vtable=0 itables=1
   class box<Long> vtable=0 itables=0
-  class box<Option<String>> vtable=0 itables=0
+  class box<MaybeUninit<String>> vtable=0 itables=0
   class CoroutineFrame<Task.run> vtable=0 itables=0
   class CoroutineAdapter<Task.run>$4 vtable=0 itables=1
   class CoroutineAdapter<Task.run>$3 vtable=0 itables=1
@@ -74,9 +74,9 @@ Module
   interface ToString
   interface SuspendTask<String>
   interface Continuation<String>
-  interface List<Option<String>> : Iterable<Option<String>>
-  interface Iterable<Option<String>>
-  interface Iterator<Option<String>>
+  interface List<MaybeUninit<String>> : Iterable<MaybeUninit<String>>
+  interface Iterable<MaybeUninit<String>>
+  interface Iterator<MaybeUninit<String>>
   interface MutableList<String> : List<String>
   interface List<String> : Iterable<String>
   interface Iterable<String>
@@ -91,7 +91,7 @@ Module
   interface Continuation<Mark>
   interface SuspendTask<Mark>
   interface SuspendRegistration<Mark>
-  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn35 captures=3
+  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn35 captures=2
     bridge function_type1 -> @fn60 id=f52e9fb1ee54d8ae79a0433ee9cf3d2128458dc56c0c19c7d013431b7395a700
   generated_exact_type get0 location=enum7 nominal_id=11095ad3fdb8a19e049d7d29a62d75e350d5ee778b3cd195021b9129aab33c6e exact_id=0e5d4d97d7f257c285a63651f7e787975762977458c4e8c056b56ddcec76465f
   generated_exact_type get1 location=enum4 nominal_id=4d27876e42758a7429f8cb0446b9685fcefdfd7cacc376dd0d9d20003f03508c exact_id=0f7a67c7ed446e63b3b012208ea787c45d746f1af501a0a424457accbd1a9d90
@@ -106,11 +106,11 @@ Module
   generated_exact_type get10 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
   generated_exact_type get11 location=enum5 nominal_id=872180ac978c3bf80f2574e9cac863f9b226cc392dc424bbaba6ec5103d4727d exact_id=59f9907b62629dc3350390431caccd1bbb9f0191aa12a1ea8034f1cb44575742
   generated_exact_type get12 location=closure0 nominal_id=df28a2a2b0858cb708c84abef35704002907e5591afd20a4938829e93317ceb8 exact_id=5df904f5fa2221f20be7ae2c15ab1589691bdcef47e98d5a758844d27efe426d
-  generated_exact_type get13 location=class18 nominal_id=2bfe99aa3138de0ece9b269daa5ec117f1166de4f319de07d9617b003d631074 exact_id=7a8939d2e85488cceb4dee3841b8e3767d2d0c12c79cc197e20656845154e60f
-  generated_exact_type get14 location=class24 nominal_id=16e05b346574bf905b5b83fda4a714c3ee8d65150f65b139714c102f4bb1f9a2 exact_id=841a2e0a36d9980a24d5bb39ff8b48c7564f88b7a09bd1bd01272c191ed2b6db
-  generated_exact_type get15 location=enum11 nominal_id=3df08594284a1b2b63ca7a799775322010d110e8b212efc91cacabf19ec01a1e exact_id=8497ba56ae54736cc2dd8bcc540b83a70ddc09c2ae6384089105226808619f21
-  generated_exact_type get16 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
-  generated_exact_type get17 location=class20 nominal_id=324b20c062a043db544dae837f85ea6012a366c11c8faf2cb9885e6302e633e4 exact_id=8bc1704f2e35a46955976e05653b4e0747637b61dc4ac5d0a9d3217e88836e68
+  generated_exact_type get13 location=class24 nominal_id=16e05b346574bf905b5b83fda4a714c3ee8d65150f65b139714c102f4bb1f9a2 exact_id=841a2e0a36d9980a24d5bb39ff8b48c7564f88b7a09bd1bd01272c191ed2b6db
+  generated_exact_type get14 location=enum11 nominal_id=3df08594284a1b2b63ca7a799775322010d110e8b212efc91cacabf19ec01a1e exact_id=8497ba56ae54736cc2dd8bcc540b83a70ddc09c2ae6384089105226808619f21
+  generated_exact_type get15 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
+  generated_exact_type get16 location=class20 nominal_id=324b20c062a043db544dae837f85ea6012a366c11c8faf2cb9885e6302e633e4 exact_id=8bc1704f2e35a46955976e05653b4e0747637b61dc4ac5d0a9d3217e88836e68
+  generated_exact_type get17 location=class18 nominal_id=94859e26b9726c826bbd21a8ce23e3e7c73e6f382d3f9221e0a857b4c8a0d9aa exact_id=a9467c0f11fc88d2e81930126eedc9e16609b6cf581081945137bd56ba6e5100
   generated_exact_type get18 location=enum8 nominal_id=16eb07fc5cc4c97ad08fbf6b69c7e65ac7075bc2f68c9d9ef2fdd2eec3e71bc0 exact_id=b8eb707f2b7f406c2e94e35b5e0a093ac125351c5c71418d9a2850df324d7483
   generated_exact_type get19 location=enum14 nominal_id=ba96b2c719aa9930b95dbad95a6e3550ed9f0e92d8d096a67d0d69fd6feb3502 exact_id=c0fb0732ab6219f44998140f1b9331e22d0234090a00b8df7cb7e16605290f42
   generated_exact_type get20 location=enum12 nominal_id=c06fe089df24c64bc2a5a9f4b0269fe38bbcc63fc2f3bb9f02d53cc64aad2541 exact_id=c6ed5063e5693dbaade12bc6687f7bb3cf7f6cbc25f73d01920eef3757deac0e
@@ -978,12 +978,12 @@ Module
   fun Continuation.resumeWithException @fn12(this: Continuation<Int>, exception: Throwable) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resumeWithException`"
-  fun iterator @fn13(this: MutableArray<Option<String>>) -> Iterator<Option<String>>
+  fun iterator @fn13(this: MutableArray<MaybeUninit<String>>) -> Iterator<MaybeUninit<String>>
     bb0 entry
-      val $dependency.local.1: List<Option<String>>
-        Type List<Option<String>>
-        Retype List<Option<String>>
-          Type MutableArray<Option<String>>
+      val $dependency.local.1: List<MaybeUninit<String>>
+        Type List<MaybeUninit<String>>
+        Retype List<MaybeUninit<String>>
+          Type MutableArray<MaybeUninit<String>>
           Local this
       val $dependency.local.2: Long
         Type Long
@@ -991,8 +991,8 @@ Module
       val $dependency.local.3: Boolean
         Type Boolean
         BoolLiteral false
-      val $dependency.local.4: List<Option<String>>
-        Type List<Option<String>>
+      val $dependency.local.4: List<MaybeUninit<String>>
+        Type List<MaybeUninit<String>>
         Local $dependency.local.1
       val $dependency.local.5: Long
         Type Long
@@ -1001,26 +1001,26 @@ Module
         Type Boolean
         Local $dependency.local.3
       assign $new.1
-        Type ListIterator<Option<String>>
-        ClassAlloc ListIterator<Option<String>>
+        Type ListIterator<MaybeUninit<String>>
+        ClassAlloc ListIterator<MaybeUninit<String>>
       call @fn56 direct
-        Type ListIterator<Option<String>>
+        Type ListIterator<MaybeUninit<String>>
         Local $new.1
-        Type List<Option<String>>
+        Type List<MaybeUninit<String>>
         Local $dependency.local.4
         Type Long
         Local $dependency.local.5
         Type Boolean
         Local $dependency.local.6
       return
-        Type Iterator<Option<String>>
-        Retype Iterator<Option<String>>
-          Type ListIterator<Option<String>>
+        Type Iterator<MaybeUninit<String>>
+        Retype Iterator<MaybeUninit<String>>
+          Type ListIterator<MaybeUninit<String>>
           Local $new.1
-  fun get @fn14(this: MutableArray<Option<String>>, index: Long) -> Option<String>
+  fun get @fn14(this: MutableArray<MaybeUninit<String>>, index: Long) -> MaybeUninit<String>
     bb0 entry
-      val $dependency.local.2: MutableArray<Option<String>>
-        Type MutableArray<Option<String>>
+      val $dependency.local.2: MutableArray<MaybeUninit<String>>
+        Type MutableArray<MaybeUninit<String>>
         Local this
       val $dependency.local.3: Long
         Type Long
@@ -1028,8 +1028,8 @@ Module
       val $dependency.local.4: Long
         Type Long
         Local $dependency.local.3
-      val $arr.1: MutableArray<Option<String>>
-        Type MutableArray<Option<String>>
+      val $arr.1: MutableArray<MaybeUninit<String>>
+        Type MutableArray<MaybeUninit<String>>
         Local $dependency.local.2
       val $idx.2: Long
         Type Long
@@ -1048,8 +1048,8 @@ Module
           Type Long
           Local $idx.2
           Type Long
-          ArrayLen MutableArray<Option<String>>
-            Type MutableArray<Option<String>>
+          ArrayLen MutableArray<MaybeUninit<String>>
+            Type MutableArray<MaybeUninit<String>>
             Local $arr.1
       goto bb3
     bb2 logic.short.2
@@ -1073,21 +1073,21 @@ Module
         Local $new.2
     bb5 if.merge.5
       return
-        Type Option<String>
-        ArrayGet MutableArray<Option<String>>
-          Type MutableArray<Option<String>>
+        Type MaybeUninit<String>
+        ArrayGet MutableArray<MaybeUninit<String>>
+          Type MutableArray<MaybeUninit<String>>
           Local $arr.1
           Type Long
           Local $idx.2
-  fun size @fn15(this: MutableArray<Option<String>>) -> Long
+  fun size @fn15(this: MutableArray<MaybeUninit<String>>) -> Long
     bb0 entry
-      val $dependency.local.1: MutableArray<Option<String>>
-        Type MutableArray<Option<String>>
+      val $dependency.local.1: MutableArray<MaybeUninit<String>>
+        Type MutableArray<MaybeUninit<String>>
         Local this
       return
         Type Long
-        ArrayLen MutableArray<Option<String>>
-          Type MutableArray<Option<String>>
+        ArrayLen MutableArray<MaybeUninit<String>>
+          Type MutableArray<MaybeUninit<String>>
           Local $dependency.local.1
   fun iterator @fn16(this: ArrayList<String>) -> Iterator<String>
     bb0 entry
@@ -1144,8 +1144,8 @@ Module
         Local $dependency.local.2
         Type Long
         Local $dependency.local.4
-      val $dependency.local.5: MutableArray<Option<String>>
-        Type MutableArray<Option<String>>
+      val $dependency.local.5: MutableArray<MaybeUninit<String>>
+        Type MutableArray<MaybeUninit<String>>
         FieldAccess 0
           Type ArrayList<String>
           Local this
@@ -1155,37 +1155,16 @@ Module
       val $dependency.local.7: Long
         Type Long
         Local $dependency.local.6
-      call $opt.1: Option<String> = @fn14 direct
-        Type MutableArray<Option<String>>
+      call $dependency.local.8: MaybeUninit<String> = @fn14 direct
+        Type MutableArray<MaybeUninit<String>>
         Local $dependency.local.5
         Type Long
         Local $dependency.local.7
-      branch bb1 bb2
-        Type Boolean
-        VariantTest Option<String> v0
-          Type Option<String>
-          Local $opt.1
-    bb1 if.then.1
-      val $uw.2: String
-        Type String
-        VariantPayloadProject Option<String> v0 f0
-          Type Option<String>
-          Local $opt.1
-      goto bb3
-    bb2 if.else.2
-      assign $new.1
-        Type UnwrapException
-        ClassAlloc UnwrapException
-      call external10 direct
-        Type UnwrapException
-        Local $new.1
-      throw
-        Type UnwrapException
-        Local $new.1
-    bb3 if.merge.3
       return
         Type String
-        Local $uw.2
+        MaybeUninit.AssumeInit MaybeUninit
+          Type MaybeUninit<String>
+          Local $dependency.local.8
   fun size @fn18(this: ArrayList<String>) -> Long
     bb0 entry
       return
@@ -1209,8 +1188,8 @@ Module
         Local $dependency.local.3
         Type Long
         Local $dependency.local.5
-      val $dependency.local.8: MutableArray<Option<String>>
-        Type MutableArray<Option<String>>
+      val $dependency.local.8: MutableArray<MaybeUninit<String>>
+        Type MutableArray<MaybeUninit<String>>
         FieldAccess 0
           Type ArrayList<String>
           Local this
@@ -1223,25 +1202,25 @@ Module
       val $dependency.local.7: String
         Type String
         Local $dependency.local.6
-      val $dependency.local.10: Option<String>
-        Type Option<String>
-        VariantConstruct Option<String> v0
+      val $dependency.local.10: MaybeUninit<String>
+        Type MaybeUninit<String>
+        MaybeUninit.Initialized MaybeUninit
           Type String
           Local $dependency.local.7
       val $dependency.local.11: Long
         Type Long
         Local $dependency.local.9
-      val $dependency.local.12: Option<String>
-        Type Option<String>
+      val $dependency.local.12: MaybeUninit<String>
+        Type MaybeUninit<String>
         Local $dependency.local.10
-      val $arr.1: MutableArray<Option<String>>
-        Type MutableArray<Option<String>>
+      val $arr.1: MutableArray<MaybeUninit<String>>
+        Type MutableArray<MaybeUninit<String>>
         Local $dependency.local.8
       val $idx.2: Long
         Type Long
         Local $dependency.local.11
-      val $value.3: Option<String>
-        Type Option<String>
+      val $value.3: MaybeUninit<String>
+        Type MaybeUninit<String>
         Local $dependency.local.12
       branch bb2 bb1
         Type Boolean
@@ -1257,8 +1236,8 @@ Module
           Type Long
           Local $idx.2
           Type Long
-          ArrayLen MutableArray<Option<String>>
-            Type MutableArray<Option<String>>
+          ArrayLen MutableArray<MaybeUninit<String>>
+            Type MutableArray<MaybeUninit<String>>
             Local $arr.1
       goto bb3
     bb2 logic.short.2
@@ -1281,12 +1260,12 @@ Module
         Type IndexOutOfBoundsException
         Local $new.2
     bb5 if.merge.5
-      array_set MutableArray<Option<String>>
-        Type MutableArray<Option<String>>
+      array_set MutableArray<MaybeUninit<String>>
+        Type MutableArray<MaybeUninit<String>>
         Local $arr.1
         Type Long
         Local $idx.2
-        Type Option<String>
+        Type MaybeUninit<String>
         Local $value.3
       return
   fun add @fn20(this: ArrayList<String>, value: String) -> Unit
@@ -1297,8 +1276,8 @@ Module
       call @fn30 direct
         Type ArrayList<String>
         Local $dependency.local.2
-      val $dependency.local.5: MutableArray<Option<String>>
-        Type MutableArray<Option<String>>
+      val $dependency.local.5: MutableArray<MaybeUninit<String>>
+        Type MutableArray<MaybeUninit<String>>
         FieldAccess 0
           Type ArrayList<String>
           Local this
@@ -1313,25 +1292,25 @@ Module
       val $dependency.local.4: String
         Type String
         Local $dependency.local.3
-      val $dependency.local.7: Option<String>
-        Type Option<String>
-        VariantConstruct Option<String> v0
+      val $dependency.local.7: MaybeUninit<String>
+        Type MaybeUninit<String>
+        MaybeUninit.Initialized MaybeUninit
           Type String
           Local $dependency.local.4
       val $dependency.local.8: Long
         Type Long
         Local $dependency.local.6
-      val $dependency.local.9: Option<String>
-        Type Option<String>
+      val $dependency.local.9: MaybeUninit<String>
+        Type MaybeUninit<String>
         Local $dependency.local.7
-      val $arr.1: MutableArray<Option<String>>
-        Type MutableArray<Option<String>>
+      val $arr.1: MutableArray<MaybeUninit<String>>
+        Type MutableArray<MaybeUninit<String>>
         Local $dependency.local.5
       val $idx.2: Long
         Type Long
         Local $dependency.local.8
-      val $value.3: Option<String>
-        Type Option<String>
+      val $value.3: MaybeUninit<String>
+        Type MaybeUninit<String>
         Local $dependency.local.9
       branch bb2 bb1
         Type Boolean
@@ -1347,8 +1326,8 @@ Module
           Type Long
           Local $idx.2
           Type Long
-          ArrayLen MutableArray<Option<String>>
-            Type MutableArray<Option<String>>
+          ArrayLen MutableArray<MaybeUninit<String>>
+            Type MutableArray<MaybeUninit<String>>
             Local $arr.1
       goto bb3
     bb2 logic.short.2
@@ -1371,12 +1350,12 @@ Module
         Type IndexOutOfBoundsException
         Local $new.2
     bb5 if.merge.5
-      array_set MutableArray<Option<String>>
-        Type MutableArray<Option<String>>
+      array_set MutableArray<MaybeUninit<String>>
+        Type MutableArray<MaybeUninit<String>>
         Local $arr.1
         Type Long
         Local $idx.2
-        Type Option<String>
+        Type MaybeUninit<String>
         Local $value.3
       val $dependency.local.10: Long
         Type Long
@@ -1499,8 +1478,8 @@ Module
           Type Long
           IntegerLiteral Long value=0 bits=0x0000000000000000
     bb7 while.exit.7
-      val $dependency.local.31: MutableArray<Option<String>>
-        Type MutableArray<Option<String>>
+      val $dependency.local.31: MutableArray<MaybeUninit<String>>
+        Type MutableArray<MaybeUninit<String>>
         FieldAccess 0
           Type ArrayList<String>
           Local this
@@ -1513,25 +1492,25 @@ Module
       val $dependency.local.30: String
         Type String
         Local $dependency.local.29
-      val $dependency.local.33: Option<String>
-        Type Option<String>
-        VariantConstruct Option<String> v0
+      val $dependency.local.33: MaybeUninit<String>
+        Type MaybeUninit<String>
+        MaybeUninit.Initialized MaybeUninit
           Type String
           Local $dependency.local.30
       val $dependency.local.34: Long
         Type Long
         Local $dependency.local.32
-      val $dependency.local.35: Option<String>
-        Type Option<String>
+      val $dependency.local.35: MaybeUninit<String>
+        Type MaybeUninit<String>
         Local $dependency.local.33
-      val $arr.4: MutableArray<Option<String>>
-        Type MutableArray<Option<String>>
+      val $arr.4: MutableArray<MaybeUninit<String>>
+        Type MutableArray<MaybeUninit<String>>
         Local $dependency.local.31
       val $idx.5: Long
         Type Long
         Local $dependency.local.34
-      val $value.6: Option<String>
-        Type Option<String>
+      val $value.6: MaybeUninit<String>
+        Type MaybeUninit<String>
         Local $dependency.local.35
       branch bb15 bb14
         Type Boolean
@@ -1541,16 +1520,16 @@ Module
           Type Long
           IntegerLiteral Long value=0 bits=0x0000000000000000
     bb8 while.body.8
-      val $dependency.local.21: MutableArray<Option<String>>
-        Type MutableArray<Option<String>>
+      val $dependency.local.21: MutableArray<MaybeUninit<String>>
+        Type MutableArray<MaybeUninit<String>>
         FieldAccess 0
           Type ArrayList<String>
           Local this
       val $dependency.local.22: Long
         Type Long
         Local $dependency.local.3
-      val $dependency.local.18: MutableArray<Option<String>>
-        Type MutableArray<Option<String>>
+      val $dependency.local.18: MutableArray<MaybeUninit<String>>
+        Type MutableArray<MaybeUninit<String>>
         FieldAccess 0
           Type ArrayList<String>
           Local this
@@ -1573,25 +1552,25 @@ Module
       val $dependency.local.20: Long
         Type Long
         Local $dependency.local.19
-      call $dependency.local.23: Option<String> = @fn14 direct
-        Type MutableArray<Option<String>>
+      call $dependency.local.23: MaybeUninit<String> = @fn14 direct
+        Type MutableArray<MaybeUninit<String>>
         Local $dependency.local.18
         Type Long
         Local $dependency.local.20
       val $dependency.local.24: Long
         Type Long
         Local $dependency.local.22
-      val $dependency.local.25: Option<String>
-        Type Option<String>
+      val $dependency.local.25: MaybeUninit<String>
+        Type MaybeUninit<String>
         Local $dependency.local.23
-      val $arr.1: MutableArray<Option<String>>
-        Type MutableArray<Option<String>>
+      val $arr.1: MutableArray<MaybeUninit<String>>
+        Type MutableArray<MaybeUninit<String>>
         Local $dependency.local.21
       val $idx.2: Long
         Type Long
         Local $dependency.local.24
-      val $value.3: Option<String>
-        Type Option<String>
+      val $value.3: MaybeUninit<String>
+        Type MaybeUninit<String>
         Local $dependency.local.25
       branch bb10 bb9
         Type Boolean
@@ -1607,8 +1586,8 @@ Module
           Type Long
           Local $idx.2
           Type Long
-          ArrayLen MutableArray<Option<String>>
-            Type MutableArray<Option<String>>
+          ArrayLen MutableArray<MaybeUninit<String>>
+            Type MutableArray<MaybeUninit<String>>
             Local $arr.1
       goto bb11
     bb10 logic.short.10
@@ -1631,12 +1610,12 @@ Module
         Type IndexOutOfBoundsException
         Local $new.3
     bb13 if.merge.13
-      array_set MutableArray<Option<String>>
-        Type MutableArray<Option<String>>
+      array_set MutableArray<MaybeUninit<String>>
+        Type MutableArray<MaybeUninit<String>>
         Local $arr.1
         Type Long
         Local $idx.2
-        Type Option<String>
+        Type MaybeUninit<String>
         Local $value.3
       val $dependency.local.26: Long
         Type Long
@@ -1662,8 +1641,8 @@ Module
           Type Long
           Local $idx.5
           Type Long
-          ArrayLen MutableArray<Option<String>>
-            Type MutableArray<Option<String>>
+          ArrayLen MutableArray<MaybeUninit<String>>
+            Type MutableArray<MaybeUninit<String>>
             Local $arr.4
       goto bb16
     bb15 logic.short.15
@@ -1686,12 +1665,12 @@ Module
         Type IndexOutOfBoundsException
         Local $new.5
     bb18 if.merge.18
-      array_set MutableArray<Option<String>>
-        Type MutableArray<Option<String>>
+      array_set MutableArray<MaybeUninit<String>>
+        Type MutableArray<MaybeUninit<String>>
         Local $arr.4
         Type Long
         Local $idx.5
-        Type Option<String>
+        Type MaybeUninit<String>
         Local $value.6
       val $dependency.local.36: Long
         Type Long
@@ -1730,8 +1709,8 @@ Module
         Local $dependency.local.5
         Type Long
         Local $dependency.local.7
-      val $dependency.local.8: MutableArray<Option<String>>
-        Type MutableArray<Option<String>>
+      val $dependency.local.8: MutableArray<MaybeUninit<String>>
+        Type MutableArray<MaybeUninit<String>>
         FieldAccess 0
           Type ArrayList<String>
           Local this
@@ -1741,267 +1720,246 @@ Module
       val $dependency.local.10: Long
         Type Long
         Local $dependency.local.9
-      call $opt.1: Option<String> = @fn14 direct
-        Type MutableArray<Option<String>>
+      call $dependency.local.11: MaybeUninit<String> = @fn14 direct
+        Type MutableArray<MaybeUninit<String>>
         Local $dependency.local.8
         Type Long
         Local $dependency.local.10
-      branch bb1 bb2
-        Type Boolean
-        VariantTest Option<String> v0
-          Type Option<String>
-          Local $opt.1
-    bb1 if.then.1
-      val $uw.2: String
-        Type String
-        VariantPayloadProject Option<String> v0 f0
-          Type Option<String>
-          Local $opt.1
-      goto bb3
-    bb2 if.else.2
-      assign $new.1
-        Type UnwrapException
-        ClassAlloc UnwrapException
-      call external10 direct
-        Type UnwrapException
-        Local $new.1
-      throw
-        Type UnwrapException
-        Local $new.1
-    bb3 if.merge.3
       val $dependency.local.2: String
         Type String
-        Local $uw.2
-      val $dependency.local.11: Long
+        MaybeUninit.AssumeInit MaybeUninit
+          Type MaybeUninit<String>
+          Local $dependency.local.11
+      val $dependency.local.12: Long
         Type Long
         FieldAccess 1
           Type ArrayList<String>
           Local this
-      val $dependency.local.12: Long
-        Type Long
-        IntegerLiteral Long value=1 bits=0x0000000000000001
       val $dependency.local.13: Long
         Type Long
-        Local $dependency.local.12
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.local.14: Long
+        Type Long
+        Local $dependency.local.13
       val $dependency.local.3: Long
         Type Long
         IntegerBinary subtract kind=Long
           Type Long
-          Local $dependency.local.11
+          Local $dependency.local.12
           Type Long
-          Local $dependency.local.13
+          Local $dependency.local.14
       var $dependency.local.4: Long
         Type Long
         Local index
-      goto bb4
-    bb4 while.cond.4 <loop-header-poll>
-      val $dependency.local.14: Long
-        Type Long
-        Local $dependency.local.4
+      goto bb1
+    bb1 while.cond.1 <loop-header-poll>
       val $dependency.local.15: Long
         Type Long
-        Local $dependency.local.3
+        Local $dependency.local.4
       val $dependency.local.16: Long
         Type Long
-        Local $dependency.local.15
-      branch bb6 bb5
+        Local $dependency.local.3
+      val $dependency.local.17: Long
+        Type Long
+        Local $dependency.local.16
+      branch bb3 bb2
         Type Boolean
         IntegerCompare less-than operands=Long result=Boolean
           Type Long
           IntegerCompareTo operands=Long result=Long
             Type Long
-            Local $dependency.local.14
+            Local $dependency.local.15
             Type Long
-            Local $dependency.local.16
+            Local $dependency.local.17
           Type Long
           IntegerLiteral Long value=0 bits=0x0000000000000000
-    bb5 while.exit.5
-      val $dependency.local.31: MutableArray<Option<String>>
-        Type MutableArray<Option<String>>
+    bb2 while.exit.2
+      val $dependency.local.32: MutableArray<MaybeUninit<String>>
+        Type MutableArray<MaybeUninit<String>>
         FieldAccess 0
           Type ArrayList<String>
           Local this
-      val $dependency.local.32: Long
+      val $dependency.local.33: Long
         Type Long
         Local $dependency.local.3
-      val $dependency.local.33: Option<String>
-        Type Option<String>
-        VariantConstruct Option<String> v1
-      val $dependency.local.34: Long
+      val $dependency.local.34: MaybeUninit<String>
+        Type MaybeUninit<String>
+        MaybeUninit.Uninit MaybeUninit
+      val $dependency.local.35: Long
         Type Long
-        Local $dependency.local.32
-      val $dependency.local.35: Option<String>
-        Type Option<String>
         Local $dependency.local.33
-      val $arr.6: MutableArray<Option<String>>
-        Type MutableArray<Option<String>>
-        Local $dependency.local.31
-      val $idx.7: Long
-        Type Long
+      val $dependency.local.36: MaybeUninit<String>
+        Type MaybeUninit<String>
         Local $dependency.local.34
-      val $value.8: Option<String>
-        Type Option<String>
+      val $arr.4: MutableArray<MaybeUninit<String>>
+        Type MutableArray<MaybeUninit<String>>
+        Local $dependency.local.32
+      val $idx.5: Long
+        Type Long
         Local $dependency.local.35
-      branch bb13 bb12
+      val $value.6: MaybeUninit<String>
+        Type MaybeUninit<String>
+        Local $dependency.local.36
+      branch bb10 bb9
         Type Boolean
         IntegerCompare less-than operands=Long result=Boolean
           Type Long
-          Local $idx.7
+          Local $idx.5
           Type Long
           IntegerLiteral Long value=0 bits=0x0000000000000000
-    bb6 while.body.6
-      val $dependency.local.23: MutableArray<Option<String>>
-        Type MutableArray<Option<String>>
+    bb3 while.body.3
+      val $dependency.local.24: MutableArray<MaybeUninit<String>>
+        Type MutableArray<MaybeUninit<String>>
         FieldAccess 0
           Type ArrayList<String>
           Local this
-      val $dependency.local.24: Long
+      val $dependency.local.25: Long
         Type Long
         Local $dependency.local.4
-      val $dependency.local.20: MutableArray<Option<String>>
-        Type MutableArray<Option<String>>
+      val $dependency.local.21: MutableArray<MaybeUninit<String>>
+        Type MutableArray<MaybeUninit<String>>
         FieldAccess 0
           Type ArrayList<String>
           Local this
-      val $dependency.local.17: Long
-        Type Long
-        Local $dependency.local.4
       val $dependency.local.18: Long
         Type Long
-        IntegerLiteral Long value=1 bits=0x0000000000000001
+        Local $dependency.local.4
       val $dependency.local.19: Long
         Type Long
-        Local $dependency.local.18
-      val $dependency.local.21: Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.local.20: Long
+        Type Long
+        Local $dependency.local.19
+      val $dependency.local.22: Long
         Type Long
         IntegerBinary add kind=Long
           Type Long
-          Local $dependency.local.17
+          Local $dependency.local.18
           Type Long
-          Local $dependency.local.19
-      val $dependency.local.22: Long
-        Type Long
-        Local $dependency.local.21
-      call $dependency.local.25: Option<String> = @fn14 direct
-        Type MutableArray<Option<String>>
-        Local $dependency.local.20
+          Local $dependency.local.20
+      val $dependency.local.23: Long
         Type Long
         Local $dependency.local.22
-      val $dependency.local.26: Long
+      call $dependency.local.26: MaybeUninit<String> = @fn14 direct
+        Type MutableArray<MaybeUninit<String>>
+        Local $dependency.local.21
         Type Long
-        Local $dependency.local.24
-      val $dependency.local.27: Option<String>
-        Type Option<String>
-        Local $dependency.local.25
-      val $arr.3: MutableArray<Option<String>>
-        Type MutableArray<Option<String>>
         Local $dependency.local.23
-      val $idx.4: Long
+      val $dependency.local.27: Long
         Type Long
+        Local $dependency.local.25
+      val $dependency.local.28: MaybeUninit<String>
+        Type MaybeUninit<String>
         Local $dependency.local.26
-      val $value.5: Option<String>
-        Type Option<String>
+      val $arr.1: MutableArray<MaybeUninit<String>>
+        Type MutableArray<MaybeUninit<String>>
+        Local $dependency.local.24
+      val $idx.2: Long
+        Type Long
         Local $dependency.local.27
-      branch bb8 bb7
+      val $value.3: MaybeUninit<String>
+        Type MaybeUninit<String>
+        Local $dependency.local.28
+      branch bb5 bb4
         Type Boolean
         IntegerCompare less-than operands=Long result=Boolean
           Type Long
-          Local $idx.4
+          Local $idx.2
           Type Long
           IntegerLiteral Long value=0 bits=0x0000000000000000
-    bb7 logic.rhs.7
-      assign $logic.2
+    bb4 logic.rhs.4
+      assign $logic.1
         Type Boolean
         IntegerCompare greater-than-or-equal operands=Long result=Boolean
           Type Long
-          Local $idx.4
+          Local $idx.2
           Type Long
-          ArrayLen MutableArray<Option<String>>
-            Type MutableArray<Option<String>>
-            Local $arr.3
-      goto bb9
-    bb8 logic.short.8
-      assign $logic.2
+          ArrayLen MutableArray<MaybeUninit<String>>
+            Type MutableArray<MaybeUninit<String>>
+            Local $arr.1
+      goto bb6
+    bb5 logic.short.5
+      assign $logic.1
         Type Boolean
         BoolLiteral true
-      goto bb9
-    bb9 logic.merge.9
-      branch bb10 bb11
+      goto bb6
+    bb6 logic.merge.6
+      branch bb7 bb8
         Type Boolean
-        Local $logic.2
-    bb10 if.then.10
-      assign $new.3
+        Local $logic.1
+    bb7 if.then.7
+      assign $new.2
         Type IndexOutOfBoundsException
         ClassAlloc IndexOutOfBoundsException
       call external6 direct
         Type IndexOutOfBoundsException
-        Local $new.3
+        Local $new.2
       throw
         Type IndexOutOfBoundsException
-        Local $new.3
-    bb11 if.merge.11
-      array_set MutableArray<Option<String>>
-        Type MutableArray<Option<String>>
-        Local $arr.3
+        Local $new.2
+    bb8 if.merge.8
+      array_set MutableArray<MaybeUninit<String>>
+        Type MutableArray<MaybeUninit<String>>
+        Local $arr.1
         Type Long
-        Local $idx.4
-        Type Option<String>
-        Local $value.5
-      val $dependency.local.28: Long
-        Type Long
-        Local $dependency.local.4
+        Local $idx.2
+        Type MaybeUninit<String>
+        Local $value.3
       val $dependency.local.29: Long
         Type Long
-        IntegerLiteral Long value=1 bits=0x0000000000000001
+        Local $dependency.local.4
       val $dependency.local.30: Long
         Type Long
-        Local $dependency.local.29
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.local.31: Long
+        Type Long
+        Local $dependency.local.30
       assign $dependency.local.4
         Type Long
         IntegerBinary add kind=Long
           Type Long
-          Local $dependency.local.28
+          Local $dependency.local.29
           Type Long
-          Local $dependency.local.30
-      goto bb4
-    bb12 logic.rhs.12
-      assign $logic.4
+          Local $dependency.local.31
+      goto bb1
+    bb9 logic.rhs.9
+      assign $logic.3
         Type Boolean
         IntegerCompare greater-than-or-equal operands=Long result=Boolean
           Type Long
-          Local $idx.7
+          Local $idx.5
           Type Long
-          ArrayLen MutableArray<Option<String>>
-            Type MutableArray<Option<String>>
-            Local $arr.6
-      goto bb14
-    bb13 logic.short.13
-      assign $logic.4
+          ArrayLen MutableArray<MaybeUninit<String>>
+            Type MutableArray<MaybeUninit<String>>
+            Local $arr.4
+      goto bb11
+    bb10 logic.short.10
+      assign $logic.3
         Type Boolean
         BoolLiteral true
-      goto bb14
-    bb14 logic.merge.14
-      branch bb15 bb16
+      goto bb11
+    bb11 logic.merge.11
+      branch bb12 bb13
         Type Boolean
-        Local $logic.4
-    bb15 if.then.15
-      assign $new.5
+        Local $logic.3
+    bb12 if.then.12
+      assign $new.4
         Type IndexOutOfBoundsException
         ClassAlloc IndexOutOfBoundsException
       call external6 direct
         Type IndexOutOfBoundsException
-        Local $new.5
+        Local $new.4
       throw
         Type IndexOutOfBoundsException
-        Local $new.5
-    bb16 if.merge.16
-      array_set MutableArray<Option<String>>
-        Type MutableArray<Option<String>>
-        Local $arr.6
+        Local $new.4
+    bb13 if.merge.13
+      array_set MutableArray<MaybeUninit<String>>
+        Type MutableArray<MaybeUninit<String>>
+        Local $arr.4
         Type Long
-        Local $idx.7
-        Type Option<String>
-        Local $value.8
+        Local $idx.5
+        Type MaybeUninit<String>
+        Local $value.6
       field_set 1
         Type ArrayList<String>
         Local this
@@ -2047,31 +2005,31 @@ Module
         IntegerLiteral Long value=0 bits=0x0000000000000000
       return
     bb3 while.body.3
-      val $dependency.local.5: MutableArray<Option<String>>
-        Type MutableArray<Option<String>>
+      val $dependency.local.5: MutableArray<MaybeUninit<String>>
+        Type MutableArray<MaybeUninit<String>>
         FieldAccess 0
           Type ArrayList<String>
           Local this
       val $dependency.local.6: Long
         Type Long
         Local $dependency.local.1
-      val $dependency.local.7: Option<String>
-        Type Option<String>
-        VariantConstruct Option<String> v1
+      val $dependency.local.7: MaybeUninit<String>
+        Type MaybeUninit<String>
+        MaybeUninit.Uninit MaybeUninit
       val $dependency.local.8: Long
         Type Long
         Local $dependency.local.6
-      val $dependency.local.9: Option<String>
-        Type Option<String>
+      val $dependency.local.9: MaybeUninit<String>
+        Type MaybeUninit<String>
         Local $dependency.local.7
-      val $arr.1: MutableArray<Option<String>>
-        Type MutableArray<Option<String>>
+      val $arr.1: MutableArray<MaybeUninit<String>>
+        Type MutableArray<MaybeUninit<String>>
         Local $dependency.local.5
       val $idx.2: Long
         Type Long
         Local $dependency.local.8
-      val $value.3: Option<String>
-        Type Option<String>
+      val $value.3: MaybeUninit<String>
+        Type MaybeUninit<String>
         Local $dependency.local.9
       branch bb5 bb4
         Type Boolean
@@ -2087,8 +2045,8 @@ Module
           Type Long
           Local $idx.2
           Type Long
-          ArrayLen MutableArray<Option<String>>
-            Type MutableArray<Option<String>>
+          ArrayLen MutableArray<MaybeUninit<String>>
+            Type MutableArray<MaybeUninit<String>>
             Local $arr.1
       goto bb6
     bb5 logic.short.5
@@ -2111,12 +2069,12 @@ Module
         Type IndexOutOfBoundsException
         Local $new.2
     bb8 if.merge.8
-      array_set MutableArray<Option<String>>
-        Type MutableArray<Option<String>>
+      array_set MutableArray<MaybeUninit<String>>
+        Type MutableArray<MaybeUninit<String>>
         Local $arr.1
         Type Long
         Local $idx.2
-        Type Option<String>
+        Type MaybeUninit<String>
         Local $value.3
       val $dependency.local.10: Long
         Type Long
@@ -2213,27 +2171,27 @@ Module
         Type String
         Local $dependency.local.5
       return
-  fun next @fn27(this: ListIterator<Option<String>>) -> Option<Option<String>>
+  fun next @fn27(this: ListIterator<MaybeUninit<String>>) -> Option<MaybeUninit<String>>
     bb0 entry
       branch bb1 bb2
         Type Boolean
         FieldAccess 2
-          Type ListIterator<Option<String>>
+          Type ListIterator<MaybeUninit<String>>
           Local this
     bb1 if.then.1
       return
-        Type Option<Option<String>>
-        VariantConstruct Option<Option<String>> v1
+        Type Option<MaybeUninit<String>>
+        VariantConstruct Option<MaybeUninit<String>> v1
     bb2 if.merge.2
       val $dependency.local.2: Long
         Type Long
         FieldAccess 1
-          Type ListIterator<Option<String>>
+          Type ListIterator<MaybeUninit<String>>
           Local this
-      call $dependency.local.3: Long = @fn31 interface List<Option<String>>[2]
-        Type List<Option<String>>
+      call $dependency.local.3: Long = @fn31 interface List<MaybeUninit<String>>[2]
+        Type List<MaybeUninit<String>>
         FieldAccess 0
-          Type ListIterator<Option<String>>
+          Type ListIterator<MaybeUninit<String>>
           Local this
       val $dependency.local.4: Long
         Type Long
@@ -2251,36 +2209,36 @@ Module
           IntegerLiteral Long value=0 bits=0x0000000000000000
     bb3 if.then.3
       field_set 2
-        Type ListIterator<Option<String>>
+        Type ListIterator<MaybeUninit<String>>
         Local this
         Type Boolean
         BoolLiteral true
       return
-        Type Option<Option<String>>
-        VariantConstruct Option<Option<String>> v1
+        Type Option<MaybeUninit<String>>
+        VariantConstruct Option<MaybeUninit<String>> v1
     bb4 if.merge.4
-      val $dependency.local.5: List<Option<String>>
-        Type List<Option<String>>
+      val $dependency.local.5: List<MaybeUninit<String>>
+        Type List<MaybeUninit<String>>
         FieldAccess 0
-          Type ListIterator<Option<String>>
+          Type ListIterator<MaybeUninit<String>>
           Local this
       val $dependency.local.6: Long
         Type Long
         FieldAccess 1
-          Type ListIterator<Option<String>>
+          Type ListIterator<MaybeUninit<String>>
           Local this
       val $dependency.local.7: Long
         Type Long
         Local $dependency.local.6
-      call $dependency.local.1: Option<String> = @fn32 interface List<Option<String>>[1]
-        Type List<Option<String>>
+      call $dependency.local.1: MaybeUninit<String> = @fn32 interface List<MaybeUninit<String>>[1]
+        Type List<MaybeUninit<String>>
         Local $dependency.local.5
         Type Long
         Local $dependency.local.7
       val $dependency.local.8: Long
         Type Long
         FieldAccess 1
-          Type ListIterator<Option<String>>
+          Type ListIterator<MaybeUninit<String>>
           Local this
       val $dependency.local.9: Long
         Type Long
@@ -2289,7 +2247,7 @@ Module
         Type Long
         Local $dependency.local.9
       field_set 1
-        Type ListIterator<Option<String>>
+        Type ListIterator<MaybeUninit<String>>
         Local this
         Type Long
         IntegerBinary add kind=Long
@@ -2297,16 +2255,16 @@ Module
           Local $dependency.local.8
           Type Long
           Local $dependency.local.10
-      val $dependency.local.11: Option<String>
-        Type Option<String>
+      val $dependency.local.11: MaybeUninit<String>
+        Type MaybeUninit<String>
         Local $dependency.local.1
-      val $dependency.local.12: Option<String>
-        Type Option<String>
+      val $dependency.local.12: MaybeUninit<String>
+        Type MaybeUninit<String>
         Local $dependency.local.11
       return
-        Type Option<Option<String>>
-        VariantConstruct Option<Option<String>> v0
-          Type Option<String>
+        Type Option<MaybeUninit<String>>
+        VariantConstruct Option<MaybeUninit<String>> v0
+          Type MaybeUninit<String>
           Local $dependency.local.12
   fun next @fn28(this: ListIterator<String>) -> Option<String>
     bb0 entry
@@ -2504,7 +2462,7 @@ Module
           Type Long
           Local $dependency.local.9
       call $dependency.local.2: Long = @fn15 direct
-        Type MutableArray<Option<String>>
+        Type MutableArray<MaybeUninit<String>>
         FieldAccess 0
           Type ArrayList<String>
           Local this
@@ -2568,8 +2526,8 @@ Module
       val $dependency.local.3: Long
         Type Long
         Local $dependency.local.20
-      val $dependency.local.4: MutableArray<Option<String>>
-        Type MutableArray<Option<String>>
+      val $dependency.local.4: MutableArray<MaybeUninit<String>>
+        Type MutableArray<MaybeUninit<String>>
         FieldAccess 0
           Type ArrayList<String>
           Local this
@@ -2581,29 +2539,26 @@ Module
       val $dependency.local.21: Long
         Type Long
         Local $dependency.local.3
-      val $dependency.local.22: (Long) -> Option<String>
-        Type (Long) -> Option<String>
+      val $dependency.local.22: (Long) -> MaybeUninit<String>
+        Type (Long) -> MaybeUninit<String>
         ClosureAlloc cc0 $Closure$lambda0
           CaptureInit field=0
             Type Long
             Local $dependency.local.5
-          CaptureInit field=2
-            Type MutableArray<Option<String>>
-            Local $dependency.local.4
           CaptureInit field=1
-            Type ArrayList<String>
-            Local this
+            Type MutableArray<MaybeUninit<String>>
+            Local $dependency.local.4
       val $dependency.local.23: Long
         Type Long
         Local $dependency.local.21
-      val $dependency.local.24: (Long) -> Option<String>
-        Type (Long) -> Option<String>
+      val $dependency.local.24: (Long) -> MaybeUninit<String>
+        Type (Long) -> MaybeUninit<String>
         Local $dependency.local.22
       val $array_size.1: Long
         Type Long
         Local $dependency.local.23
-      val $array_init.2: (Long) -> Option<String>
-        Type (Long) -> Option<String>
+      val $array_init.2: (Long) -> MaybeUninit<String>
+        Type (Long) -> MaybeUninit<String>
         Local $dependency.local.24
       branch bb11 bb12
         Type Boolean
@@ -2651,9 +2606,9 @@ Module
         Type IllegalArgumentException
         Local $new.1
     bb12 if.merge.12
-      val $array.3: MutableArray<Option<String>>
-        Type MutableArray<Option<String>>
-        ArrayAllocate MutableArray<Option<String>>
+      val $array.3: MutableArray<MaybeUninit<String>>
+        Type MutableArray<MaybeUninit<String>>
+        ArrayAllocate MutableArray<MaybeUninit<String>>
           Type Long
           Local $array_size.1
       var $array_index.4: Long
@@ -2669,27 +2624,27 @@ Module
           Type Long
           Local $array_size.1
     bb14 while.exit.14
-      val $dependency.local.6: MutableArray<Option<String>>
-        Type MutableArray<Option<String>>
+      val $dependency.local.6: MutableArray<MaybeUninit<String>>
+        Type MutableArray<MaybeUninit<String>>
         Local $array.3
       field_set 0
         Type ArrayList<String>
         Local this
-        Type MutableArray<Option<String>>
+        Type MutableArray<MaybeUninit<String>>
         Local $dependency.local.6
       return
     bb15 while.body.15
-      call $array_value.5: Option<String> = <closure:function_type0> closure[function_type0]
-        Type (Long) -> Option<String>
+      call $array_value.5: MaybeUninit<String> = <closure:function_type0> closure[function_type0]
+        Type (Long) -> MaybeUninit<String>
         Local $array_init.2
         Type Long
         Local $array_index.4
-      array_set MutableArray<Option<String>>
-        Type MutableArray<Option<String>>
+      array_set MutableArray<MaybeUninit<String>>
+        Type MutableArray<MaybeUninit<String>>
         Local $array.3
         Type Long
         Local $array_index.4
-        Type Option<String>
+        Type MaybeUninit<String>
         Local $array_value.5
       assign $array_index.4
         Type Long
@@ -2699,10 +2654,10 @@ Module
           Type Long
           IntegerLiteral Long value=1 bits=0x0000000000000001
       goto bb13
-  fun List.$get$size @fn31(this: List<Option<String>>) -> Long
+  fun List.$get$size @fn31(this: List<MaybeUninit<String>>) -> Long
     bb0 entry
       trap "call to abstract method `List.$get$size`"
-  fun List.get @fn32(this: List<Option<String>>, index: Long) -> Option<String>
+  fun List.get @fn32(this: List<MaybeUninit<String>>, index: Long) -> MaybeUninit<String>
     bb0 entry
       trap "call to abstract method `List.get`"
   fun List.$get$size @fn33(this: List<String>) -> Long
@@ -2711,7 +2666,7 @@ Module
   fun List.get @fn34(this: List<String>, index: Long) -> String
     bb0 entry
       trap "call to abstract method `List.get`"
-  fun $lambda @fn35($argument.0: (Long) -> Option<String>, $argument.1: Long) -> Option<String>
+  fun $lambda @fn35($argument.0: (Long) -> MaybeUninit<String>, $argument.1: Long) -> MaybeUninit<String>
     bb0 entry
       val $dependency.local.1: Long
         Type Long
@@ -2719,7 +2674,7 @@ Module
       val $dependency.local.2: Long
         Type Long
         ClosureCapture cc0 0
-          Type (Long) -> Option<String>
+          Type (Long) -> MaybeUninit<String>
           Local $argument.0
       val $dependency.local.3: Long
         Type Long
@@ -2736,10 +2691,10 @@ Module
           Type Long
           IntegerLiteral Long value=0 bits=0x0000000000000000
     bb1 if.then.1
-      val $dependency.local.4: MutableArray<Option<String>>
-        Type MutableArray<Option<String>>
-        ClosureCapture cc0 2
-          Type (Long) -> Option<String>
+      val $dependency.local.4: MutableArray<MaybeUninit<String>>
+        Type MutableArray<MaybeUninit<String>>
+        ClosureCapture cc0 1
+          Type (Long) -> MaybeUninit<String>
           Local $argument.0
       val $dependency.local.5: Long
         Type Long
@@ -2747,23 +2702,23 @@ Module
       val $dependency.local.6: Long
         Type Long
         Local $dependency.local.5
-      call $call.1: Option<String> = @fn14 direct
-        Type MutableArray<Option<String>>
+      call $call.1: MaybeUninit<String> = @fn14 direct
+        Type MutableArray<MaybeUninit<String>>
         Local $dependency.local.4
         Type Long
         Local $dependency.local.6
       assign $dependency.local.7
-        Type Option<String>
+        Type MaybeUninit<String>
         Local $call.1
       goto bb3
     bb2 if.else.2
       assign $dependency.local.7
-        Type Option<String>
-        VariantConstruct Option<String> v1
+        Type MaybeUninit<String>
+        MaybeUninit.Uninit MaybeUninit
       goto bb3
     bb3 if.merge.3
       return
-        Type Option<String>
+        Type MaybeUninit<String>
         Local $dependency.local.7
   fun SuspendTask.run @fn36(this: SuspendTask<Int>, $completion: Continuation<Int>) -> CoroutineStep<Int>
     bb0 entry
@@ -2875,20 +2830,20 @@ Module
         Type String
         StringConst @str14
       return
-  fun init.ListIterator.$c0 @fn56(this: ListIterator<Option<String>>, source: List<Option<String>>, index: Long, exhausted: Boolean) -> Unit
+  fun init.ListIterator.$c0 @fn56(this: ListIterator<MaybeUninit<String>>, source: List<MaybeUninit<String>>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
-        Type ListIterator<Option<String>>
+        Type ListIterator<MaybeUninit<String>>
         Local this
-        Type List<Option<String>>
+        Type List<MaybeUninit<String>>
         Local source
       field_set 1
-        Type ListIterator<Option<String>>
+        Type ListIterator<MaybeUninit<String>>
         Local this
         Type Long
         Local index
       field_set 2
-        Type ListIterator<Option<String>>
+        Type ListIterator<MaybeUninit<String>>
         Local this
         Type Boolean
         Local exhausted
@@ -3073,10 +3028,10 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn60($source: (Long) -> Option<String>, arg0: Any) -> Any
+  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn60($source: (Long) -> MaybeUninit<String>, arg0: Any) -> Any
     bb0 entry
-      call $call.1: Option<String> = <closure:function_type0> closure[function_type0]
-        Type (Long) -> Option<String>
+      call $call.1: MaybeUninit<String> = <closure:function_type0> closure[function_type0]
+        Type (Long) -> MaybeUninit<String>
         Local $source
         Type Long
         Unbox
@@ -3085,7 +3040,7 @@ Module
       return
         Type Any
         Box
-          Type Option<String>
+          Type MaybeUninit<String>
           Local $call.1
   fun Task.run$drive @fn61($frame: CoroutineFrame<Task.run>, $dispatch_state: machine<coroutine-frame-state>) -> CoroutineStep<String>
     bb0 entry
@@ -3189,8 +3144,10 @@ Module
       call $step.1: CoroutineStep<Int> = @fn7 direct
         Type Gate
         Local $parameter.gate
-        Type CoroutineAdapter<Task.run>$1
-        Local $adapter.1
+        Type Continuation<Int>
+        Retype Continuation<Int>
+          Type CoroutineAdapter<Task.run>$1
+          Local $adapter.1
       branch bb29 bb30
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -3318,8 +3275,10 @@ Module
         Local $parameter.text
         Type String
         Local $parameter.result
-        Type CoroutineAdapter<Task.run>$4
-        Local $adapter.4
+        Type Continuation<String>
+        Retype Continuation<String>
+          Type CoroutineAdapter<Task.run>$4
+          Local $adapter.4
       branch bb5 bb6
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -3619,8 +3578,10 @@ Module
       call $step.3: CoroutineStep<Int> = @fn7 direct
         Type Gate
         Local $parameter.gate
-        Type CoroutineAdapter<Task.run>$3
-        Local $adapter.3
+        Type Continuation<Int>
+        Retype Continuation<Int>
+          Type CoroutineAdapter<Task.run>$3
+          Local $adapter.3
       branch bb13 bb14
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -3844,8 +3805,10 @@ Module
       call $step.2: CoroutineStep<Int> = @fn7 direct
         Type Gate
         Local $parameter.gate
-        Type CoroutineAdapter<Task.run>$2
-        Local $adapter.2
+        Type Continuation<Int>
+        Retype Continuation<Int>
+          Type CoroutineAdapter<Task.run>$2
+          Local $adapter.2
       branch bb21 bb22
         Type Boolean
         Binary MachineEq(EnumTag)
@@ -5480,8 +5443,10 @@ Module
       call @fn37 interface SuspendRegistration<Int>[0]
         Type SuspendRegistration<Int>
         Local $dependency.parameter.registration
-        Type CoroutineAdapter<await>$1
-        Local $safe_adapter.1
+        Type Continuation<Int>
+        Retype Continuation<Int>
+          Type CoroutineAdapter<await>$1
+          Local $safe_adapter.1
       goto bb14
     bb3 coroutine.registered_success.1
       atomic_store_release kind=coroutine-adapter-state field=1

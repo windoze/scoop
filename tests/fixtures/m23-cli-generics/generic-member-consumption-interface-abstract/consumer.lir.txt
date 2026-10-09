@@ -1,8 +1,8 @@
 Module
   global @scoop$1$bs$07e55da25eff17bcdf6f3a15c4da3e3018c2c5849f6e4df2588ec7dcd2220fbe = c"call to abstract method `RequiredChooser.choose`"
   fun @scoop$1$cb$61fda156dfa5fb798e5aca0a2cf87287778fc3302f9c40143f246d0f825b4dce() -> i32
-    local %0 chooser: ptr<managed>
-    local %1 $dependency.receiver: ptr<managed>
+    local %0 chooser: interface{object,itab}
+    local %1 $dependency.receiver: interface{object,itab}
     local %2 $dependency.argument.0: i32
     local %3 $dependency.parameter.value: i32
     local %4 $new.1: ptr<managed>
@@ -11,18 +11,21 @@ Module
     poll managed-void-target1 sp<managed-poll:0> live=[]
     call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td3, machine<byte-size>(ByteSize(16)))
     store t0 -> local4
-    call managed-void-target0 sp<managed-call:1> live=[local4:ptr<managed>@0] sig=void0 (ptr<managed>) local-fn4(local4)
+    call managed-void-target0 sp<managed-call:1> live=[local4:ptr<managed>@0] sig=void0 (ptr<managed>) local-fn6(local4)
     t1 = aggregate () : {}
-    store local4 -> local0
+    t2 = heap_load td3 +96 : ptr<metadata>
+    t3 = heap_load t2 +8 : ptr<metadata>
+    t4 = aggregate (local4, t3) : interface{object,itab}
+    store t4 -> local0
     store local0 -> local1
     store integer<Int>(0x0000002a) -> local2
     store local2 -> local3
-    t2 = heap_load local1 +0 : ptr<metadata>
-    call no-gc-direct-target0 t3 = sig=direct1 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t2, td0)
-    call managed-direct-target1 sp<managed-call:2> live=[local1:ptr<managed>@0] t4 = sig=direct2 (ptr<managed>, i32) -> i32 dispatch[Interface:0] t3(local1, local3)
-    store t4 -> local5
+    t5 = extract local1, 1 : ptr<metadata>
+    t6 = extract local1, 0 : ptr<managed>
+    call managed-direct-target1 sp<managed-call:2> live=[t6:ptr<managed>@0] t7 = sig=direct1 (ptr<managed>, i32) -> i32 dispatch[Interface:0] t5(t6, local3)
+    store t7 -> local5
     ret local5
-  fun @scoop$1$cb$aecaa3f118863e181541e449435d57156e96e4c29a50b961e70e40c9e6642687(ptr<managed>, i32) -> i32
+  fun @scoop$1$cb$aecaa3f118863e181541e449435d57156e96e4c29a50b961e70e40c9e6642687(parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>, i32) -> i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     br @unwrap.trap.1
@@ -33,14 +36,34 @@ Module
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret param1
-  fun @scoop$1$cb$376b47ae755a4a20054d60f8e00d6de35f3cd87f2edc5744453fab69c9dca689(ptr<managed>, i32) -> i32
+  fun @scoop$1$cb$376b47ae755a4a20054d60f8e00d6de35f3cd87f2edc5744453fab69c9dca689(parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>, i32) -> i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret param1
+  fun @scoop$1$cb$1a6a204ab660214d85793027d4c0ffb15f898dc5dbb2341c24f525e37478772b(ptr<managed>, i32) -> i32
+    local %0 $call.1: i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
+    t0 = heap_load td2 +96 : ptr<metadata>
+    t1 = heap_load t0 +24 : ptr<metadata>
+    t2 = aggregate (param0, t1) : interface{object,itab}
+    call managed-direct-target0 sp<managed-call:0> live=[t2:interface{object,itab}@0] t3 = sig=direct0 (parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>, i32) -> i32 local-fn1(t2, param1)
+    store t3 -> local0
+    ret local0
+  fun @scoop$1$cb$002db88cbda69c7c1f2d89d79654fe48ee605112ec605cbd4e545afd82fb6f16(ptr<managed>, i32) -> i32
+    local %0 $call.1: i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
+    t0 = heap_load td2 +96 : ptr<metadata>
+    t1 = heap_load t0 +24 : ptr<metadata>
+    t2 = aggregate (param0, t1) : interface{object,itab}
+    call managed-direct-target0 sp<managed-call:0> live=[t2:interface{object,itab}@0] t3 = sig=direct0 (parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>, i32) -> i32 local-fn1(t2, param1)
+    store t3 -> local0
+    ret local0
   fun @scoop$1$cb$42b4aa8951ba4f516a3d58f967cfc301a9c6c6a104eaac3a64671c770b817ca5(ptr<managed>) -> void
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[param0:ptr<managed>@0]
-    call managed-void-target0 sp<managed-call:0> live=[param0:ptr<managed>@0] sig=void0 (ptr<managed>) local-fn5(param0)
+    call managed-void-target0 sp<managed-call:0> live=[param0:ptr<managed>@0] sig=void0 (ptr<managed>) local-fn7(param0)
     t0 = aggregate () : {}
     ret
   fun @scoop$1$cb$11f7f7ebbe6defd820a7a4394e2861cabfd518001da02dfc56d82ceb09af6ec3(ptr<managed>) -> void
@@ -49,10 +72,10 @@ Module
     ret
   td td0 a(n(c=dev.example%3Ageneric-member-provider%3A0.1.0;p=templates.members;o=-;k=I;x=Chooser);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$14b9116756e9ad2f0229c0fa5ab03e4a9dd14bf57038c5fd161e06d8dc293036 type-id=6899980662842889677 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
   td td1 a(n(c=dev.example%3Ageneric-member-provider%3A0.1.0;p=templates.members;o=-;k=I;x=RequiredChooser);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$5387c00ce85270daec292fd51b8a9116b1c0566b63f7635e70e7b640fdced158 type-id=6515831204789174516 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[td0]
-  td td2 a(n(c=dev.example%3Ageneric-member-provider%3A0.1.0;p=templates.members;o=-;k=C;x=AbstractChooser);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$70b8463fbdc5e6a8a05bfa6863c0429b841ac8ae99c703b33413fd986ecc6e8d type-id=13221779813509048219 shape=FixedObject minimum-size=16 align=8 parent=none vtable=[] itables=[td0:[local-fn1], td1:[local-fn1]]
+  td td2 a(n(c=dev.example%3Ageneric-member-provider%3A0.1.0;p=templates.members;o=-;k=C;x=AbstractChooser);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$70b8463fbdc5e6a8a05bfa6863c0429b841ac8ae99c703b33413fd986ecc6e8d type-id=13221779813509048219 shape=FixedObject minimum-size=16 align=8 parent=none vtable=[] itables=[td0:[local-fn5], td1:[local-fn4]]
   td td3 a(n(c=dev.example%3Ageneric-member-provider%3A0.1.0;p=templates.members;o=-;k=C;x=InterfaceChooser);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$c77bb91fbaf2cd17cd8f163c86182ac15bdc5797d34f5ad58a9f7a237022a1ec type-id=3090998592231864934 shape=FixedObject minimum-size=16 align=8 parent=td2 vtable=[] itables=[td0:[local-fn2], td1:[local-fn2]]
-  layout Chooser value size=8 align=8 refs=[0]
-  layout RequiredChooser value size=8 align=8 refs=[0]
+  layout Chooser value size=16 align=8 refs=[0]
+  layout RequiredChooser value size=16 align=8 refs=[0]
   layout InterfaceChooser value size=8 align=8 refs=[0]
   layout InterfaceChooser size=16 align=8 refs=[]
   layout AbstractChooser value size=8 align=8 refs=[0]

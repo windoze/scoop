@@ -153,7 +153,7 @@ Module
   td td1 g(r=00000006;i=e4ec7d6b35190924acf349c23aa85b835331b1cde257b59a1cf209a4f577efb6) @scoop$1$td$acbd9a5050cdf37dd5a6fad9850d5d4669abd0b71fdf840928443f44fe027453 type-id=4995921351475284515 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[td0:[local-fn6]]
   td td2 f(o;[r(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=UInt8)),n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Long)]->n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Long)) @scoop$1$td$4f5e6b7e3982407f7b017a61f57158d2f57fb19c0ceb680bab1ce4b9bef9ac39 type-id=18236249324230198300 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] function=ordinary(td1, external-td5)->external-td5
   td td3 g(r=00000001;i=23368405167fc728cb5ca14e9b54728335e5261caf57695effa17b0afa8e0252) @scoop$1$td$db6a5b1c021aed2b683b4b59db4a1345ed6aab95571b0407b7eef329d484c142 type-id=84097283446746512 shape=FixedObject minimum-size=24 align=8 parent=td2 vtable=[local-fn7] itables=[]
-  layout Equality value size=8 align=8 refs=[0]
+  layout Equality value size=16 align=8 refs=[0]
   layout box<Ptr<UInt8>> value size=8 align=8 refs=[0]
   layout box<Ptr<UInt8>> size=24 align=8 refs=[]
   layout $Closure$anonymous0 value size=8 align=8 refs=[0]

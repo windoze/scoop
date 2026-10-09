@@ -67,32 +67,32 @@ Module
         StructInit InterfaceCell<Int>
           Type Int
           Local value
-  fun thunk<InterfaceCell<Int>> Reader.get() @fn5(this: Reader<Int>) -> Int
+  fun thunk<InterfaceCell<Int>> Reader.get() @fn5(this: box<InterfaceCell<Int>>) -> Int
     bb0 entry
       call $call.1: Int = @fn1 direct
         Type InterfaceCell<Int>
         Unbox
-          Type Reader<Int>
+          Type box<InterfaceCell<Int>>
           Local this
       return
         Type Int
         Local $call.1
-  fun thunk<InterfaceCell<Int>> Reader.read() @fn6(this: Reader<Int>) -> Int
+  fun thunk<InterfaceCell<Int>> Reader.read() @fn6(this: box<InterfaceCell<Int>>) -> Int
     bb0 entry
       call $call.1: Int = @fn2 direct
         Type Reader<Int>
         Retype Reader<Int>
-          Type Reader<Int>
+          Type box<InterfaceCell<Int>>
           Local this
       return
         Type Int
         Local $call.1
-  fun thunk<InterfaceCell<Int>> Readable.get() @fn7(this: Readable<Int>) -> Int
+  fun thunk<InterfaceCell<Int>> Readable.get() @fn7(this: box<InterfaceCell<Int>>) -> Int
     bb0 entry
       call $call.1: Int = @fn1 direct
         Type InterfaceCell<Int>
         Unbox
-          Type Readable<Int>
+          Type box<InterfaceCell<Int>>
           Local this
       return
         Type Int

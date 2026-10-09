@@ -959,8 +959,10 @@ Module
         Local $receiver
         Type Int
         Local $parameter.value
-        Type CoroutineAdapter<Source.waitObserved>$1
-        Local $adapter.1
+        Type Continuation<Long>
+        Retype Continuation<Long>
+          Type CoroutineAdapter<Source.waitObserved>$1
+          Local $adapter.1
       branch bb5 bb6
         Type Boolean
         Binary MachineEq(EnumTag)

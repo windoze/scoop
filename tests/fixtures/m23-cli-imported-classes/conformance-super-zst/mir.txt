@@ -174,12 +174,12 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun thunk<LocalChoice> FirstChoice.choose() @fn9(this: FirstChoice) -> Long
+  fun thunk<LocalChoice> FirstChoice.choose() @fn9(this: box<LocalChoice>) -> Long
     bb0 entry
       call $call.1: Long = @fn0 direct
         Type LocalChoice
         Unbox
-          Type FirstChoice
+          Type box<LocalChoice>
           Local this
       return
         Type Long

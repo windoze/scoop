@@ -4583,62 +4583,62 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun thunk<ValueCursor<Later>> Iterator.next() @fn130(this: Iterator<Later>) -> Option<Later>
+  fun thunk<ValueCursor<Later>> Iterator.next() @fn130(this: box<ValueCursor<Later>>) -> Option<Later>
     bb0 entry
       call $call.1: Option<Later> = @fn14 direct
         Type ValueCursor<Later>
         Unbox
-          Type Iterator<Later>
+          Type box<ValueCursor<Later>>
           Local this
       return
         Type Option<Later>
         Local $call.1
-  fun thunk<EnumCursor<Later>> Iterator.next() @fn131(this: Iterator<Later>) -> Option<Later>
+  fun thunk<EnumCursor<Later>> Iterator.next() @fn131(this: box<EnumCursor<Later>>) -> Option<Later>
     bb0 entry
       call $call.1: Option<Later> = @fn15 direct
         Type EnumCursor<Later>
         Unbox
-          Type Iterator<Later>
+          Type box<EnumCursor<Later>>
           Local this
       return
         Type Option<Later>
         Local $call.1
-  fun thunk<ValueCursor<Int>> Iterator.next() @fn132(this: Iterator<Int>) -> Option<Int>
+  fun thunk<ValueCursor<Int>> Iterator.next() @fn132(this: box<ValueCursor<Int>>) -> Option<Int>
     bb0 entry
       call $call.1: Option<Int> = @fn30 direct
         Type ValueCursor<Int>
         Unbox
-          Type Iterator<Int>
+          Type box<ValueCursor<Int>>
           Local this
       return
         Type Option<Int>
         Local $call.1
-  fun thunk<EnumCursor<Int>> Iterator.next() @fn133(this: Iterator<Int>) -> Option<Int>
+  fun thunk<EnumCursor<Int>> Iterator.next() @fn133(this: box<EnumCursor<Int>>) -> Option<Int>
     bb0 entry
       call $call.1: Option<Int> = @fn31 direct
         Type EnumCursor<Int>
         Unbox
-          Type Iterator<Int>
+          Type box<EnumCursor<Int>>
           Local this
       return
         Type Option<Int>
         Local $call.1
-  fun thunk<ValueCursor<Unit>> Iterator.next() @fn134(this: Iterator<Unit>) -> Option<Unit>
+  fun thunk<ValueCursor<Unit>> Iterator.next() @fn134(this: box<ValueCursor<Unit>>) -> Option<Unit>
     bb0 entry
       call $call.1: Option<Unit> = @fn46 direct
         Type ValueCursor<Unit>
         Unbox
-          Type Iterator<Unit>
+          Type box<ValueCursor<Unit>>
           Local this
       return
         Type Option<Unit>
         Local $call.1
-  fun thunk<EnumCursor<Unit>> Iterator.next() @fn135(this: Iterator<Unit>) -> Option<Unit>
+  fun thunk<EnumCursor<Unit>> Iterator.next() @fn135(this: box<EnumCursor<Unit>>) -> Option<Unit>
     bb0 entry
       call $call.1: Option<Unit> = @fn47 direct
         Type EnumCursor<Unit>
         Unbox
-          Type Iterator<Unit>
+          Type box<EnumCursor<Unit>>
           Local this
       return
         Type Option<Unit>

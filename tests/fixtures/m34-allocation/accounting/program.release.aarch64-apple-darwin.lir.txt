@@ -450,7 +450,7 @@ Module
     t34 = enum_wrap e0 v1 () : enum0
     store t34 -> local64
     br @inline.cont.17
-  fun @scoop$1$cb$5edf3c98aa76b1b1638f7358686e6847f67263438f1c87882bc98f5c8392cfdd(ptr<managed>) -> interface{object,itab}
+  fun @scoop$1$cb$5edf3c98aa76b1b1638f7358686e6847f67263438f1c87882bc98f5c8392cfdd(ptr<managed>) -> parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>
     local %0 $dependency.local.1: interface{object,itab}
     local %1 $dependency.local.2: i64
     local %2 $dependency.local.3: i1
@@ -614,42 +614,42 @@ Module
     store local10 -> local11
     t17 = enum_wrap e2 v0 (local11) : enum2
     ret t17
-  fun @scoop$1$cb$2d98ad270dcce0c7dd503c6c623adcc5ca5f1a1f192df3fd0c5b06ec6aab19c7(interface{object,itab}) -> i64
+  fun @scoop$1$cb$2d98ad270dcce0c7dd503c6c623adcc5ca5f1a1f192df3fd0c5b06ec6aab19c7(parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>) -> i64
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     br @unwrap.trap.1
   block unwrap.trap.1
     call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global5)
     unreachable
-  fun @scoop$1$cb$8379bb5afdbba212b659bee19a213778786ce5a742dabf57932b05fdbea88c98(interface{object,itab}, i64) -> enum0
+  fun @scoop$1$cb$8379bb5afdbba212b659bee19a213778786ce5a742dabf57932b05fdbea88c98(parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>, i64) -> enum0
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     br @unwrap.trap.1
   block unwrap.trap.1
     call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global6)
     unreachable
-  fun @scoop$1$cb$b62cf36fdfafbe7ab9bc79a498c5fadaaf6b7f3d37b06c0eec3e4d17379a8069(interface{object,itab}, ptr<managed>) -> void
+  fun @scoop$1$cb$b62cf36fdfafbe7ab9bc79a498c5fadaaf6b7f3d37b06c0eec3e4d17379a8069(parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>, ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     br @unwrap.trap.1
   block unwrap.trap.1
     call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global7)
     unreachable
-  fun @scoop$1$cb$ae7b927274bbafa93a3ca4f7728b981acfb2d6b20690441f9599879c5e42e84a(interface{object,itab}, ptr<managed>) -> void
+  fun @scoop$1$cb$ae7b927274bbafa93a3ca4f7728b981acfb2d6b20690441f9599879c5e42e84a(parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>, ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     br @unwrap.trap.1
   block unwrap.trap.1
     call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global8)
     unreachable
-  fun @scoop$1$cb$8837d9ccecedc1fd9a4b534ee5f58eac73b552668c13d5b4d13ce9642f7201df(interface{object,itab}, interface{object,itab}) -> enum4
+  fun @scoop$1$cb$8837d9ccecedc1fd9a4b534ee5f58eac73b552668c13d5b4d13ce9642f7201df(parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>, parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>) -> enum4
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     br @unwrap.trap.1
   block unwrap.trap.1
     call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global9)
     unreachable
-  fun @scoop$1$cb$4f16be18560dd81ba2e722769344b3d78076b999f9e77f696a424ea4fb34b1b0(interface{object,itab}, interface{object,itab}) -> void
+  fun @scoop$1$cb$4f16be18560dd81ba2e722769344b3d78076b999f9e77f696a424ea4fb34b1b0(parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>, parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     br @unwrap.trap.1
@@ -661,14 +661,14 @@ Module
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
     heap_store param0 +16 param1
     ret
-  fun @scoop$1$cb$1edd4069991be27757e3749a371bbfc508c2ce9d7e49d9743e60fcbe1ad29edd(ptr<managed>, interface{object,itab}, i64, i1) -> void
+  fun @scoop$1$cb$1edd4069991be27757e3749a371bbfc508c2ce9d7e49d9743e60fcbe1ad29edd(ptr<managed>, parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>, i64, i1) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0, param1:interface{object,itab}@0]
     heap_store param0 +16 param1
     heap_store param0 +32 param2
     heap_store param0 +40 param3
     ret
-  fun @scoop$1$cb$7518c89b6ebf409a520c6608e6f29bdf6c97e0f4be59715b37e10b7899af4f94(interface{object,itab}, interface{object,itab}) -> void
+  fun @scoop$1$cb$7518c89b6ebf409a520c6608e6f29bdf6c97e0f4be59715b37e10b7899af4f94(parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>, parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>) -> void
     local %0 $step: enum4
     local %1 $exception: ptr<managed>
     local %2 $context_guard: {ptr<managed>}
@@ -713,7 +713,7 @@ Module
   block run
     t25 = extract param0, 1 : ptr<metadata>
     t26 = extract param0, 0 : ptr<managed>
-    invoke managed-direct-target1 sp<managed-invoke:0> roots=[param1:normal+unwind, local2:normal+unwind, t26:argument] t27 = sig=direct1 (ptr<managed>, interface{object,itab}) -> enum4 dispatch[Interface:0] t25(t26, param1) normal @invoke.normal.3 unwind @body_failure
+    invoke managed-direct-target1 sp<managed-invoke:0> roots=[param1:normal+unwind, local2:normal+unwind, t26:argument] t27 = sig=direct1 (ptr<managed>, parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>) -> enum4 dispatch[Interface:0] t25(t26, param1) normal @invoke.normal.3 unwind @body_failure
     br @invoke.normal.3
   block entry
     poll managed-void-target2 sp<managed-poll:0> live=[param0:interface{object,itab}@0, param1:interface{object,itab}@0]

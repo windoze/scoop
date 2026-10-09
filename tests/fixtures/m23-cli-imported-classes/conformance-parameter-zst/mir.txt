@@ -185,22 +185,22 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun thunk<LocalDefaults> ParameterSource.base() @fn10(this: ParameterSource) -> Long
+  fun thunk<LocalDefaults> ParameterSource.base() @fn10(this: box<LocalDefaults>) -> Long
     bb0 entry
       call $call.1: Long = @fn0 direct
         Type LocalDefaults
         Unbox
-          Type ParameterSource
+          Type box<LocalDefaults>
           Local this
       return
         Type Long
         Local $call.1
-  fun thunk<LocalDefaults> ParameterSource.answer(Long) @fn11(this: ParameterSource, value: Long) -> Long
+  fun thunk<LocalDefaults> ParameterSource.answer(Long) @fn11(this: box<LocalDefaults>, value: Long) -> Long
     bb0 entry
       call $call.1: Long = @fn1 direct
         Type LocalDefaults
         Unbox
-          Type ParameterSource
+          Type box<LocalDefaults>
           Local this
         Type Long
         Local value

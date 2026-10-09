@@ -4,13 +4,11 @@ Module
   global @scoop$1$ss$c13e4cae8362359f69b63aa7eeded30f3698a2c78866bdb827f4a3852e366a96 : ptr<managed> scan=refs[0]
   global @scoop$1$ss$711a339ba958a881908552a9752b749f5df8862fc74aa8553f6d4e673152e9d7 : ptr<managed> scan=refs[0]
   init0 top-level:peer storage=@scoop$1$ss$c13e4cae8362359f69b63aa7eeded30f3698a2c78866bdb827f4a3852e366a96 failure=@scoop$1$ss$711a339ba958a881908552a9752b749f5df8862fc74aa8553f6d4e673152e9d7 initializer=@scoop$1$cb$a529177fe66d13c3e1aa33fb2d952724d1c1c5a04e47576c1cfbc5e3df4b714f ensure=@scoop$1$cb$61aebf1514473dc04e64f0568148d65755159deb6476ebc71016f0f5d4dd0764 deps=[]
-  extern ef0 trace @m23_trace(i64) -> void <c exact=(Long)->void bridge=@scoop$1$br$2a5a38c39ab1c699bda41270a4ee3eb3f9d64a2736207bcf6470567f8a8e9e65 gc-leaf nounwind lib=m23_runtime_images>
+  extern ef0 trace @m23_trace(i64) -> void <c exact=(Long)->void direct-c=(i64)->void gc-leaf nounwind lib=m23_runtime_images>
   fun @scoop$1$cb$a120ee6b8b0b76072b2165b1522bc991516cdda278408af82c6af1cc216f829b(i64) -> void
-    local %0 $sc.1: i64
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
-    store param0 -> local0
-    call native-safe-void-target0 sp<native-safe:0> roots=[] sig=void0 (ptr<raw>) extern0(c-arg-address(local0))
+    call native-safe-void-target0 sp<native-safe:0> roots=[] sig=void0 (i64) extern0(param0)
     t0 = aggregate () : {}
     ret
   fun @scoop$1$cb$c44aea32174c6117d045247af7ec43e0032fdc5a4bf5b8ec95d2029b091fcd40() -> ptr<managed>
@@ -20,13 +18,11 @@ Module
     local %3 $dependency.argument.0: ptr<managed>
     local %4 $dependency.parameter.other: ptr<managed>
     local %5 $call.1: ptr<managed>
-    local %6 $sc.1: i64
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     store integer<Long>(0x000000000000001e) -> local0
     store local0 -> local1
-    store local1 -> local6
-    call native-safe-void-target0 sp<native-safe:0> roots=[] sig=void0 (ptr<raw>) extern0(c-arg-address(local6))
+    call native-safe-void-target0 sp<native-safe:0> roots=[] sig=void0 (i64) extern0(local1)
     t0 = aggregate () : {}
     store global0 -> local2
     store global1 -> local3

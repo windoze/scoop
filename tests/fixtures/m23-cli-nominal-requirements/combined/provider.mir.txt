@@ -111,15 +111,21 @@ Module
   generated_exact_type get20 location=enum9 nominal_id=51f2b1739907a3a7e3ca137a6f8cbd58f28fa9ff7108e604743178a12c30ed75 exact_id=ea9b5c7a711086a0e48fbbbdcaa5149317b51407800597906e1bf0c12c500dfd
   generated_exact_type get21 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
   generated_exact_type get22 location=class7 nominal_id=4b665afc8f4e5088acd9b3061cedbd07b28fa436e36686bf49fa93105991c550 exact_id=faf61d7d30d4caa7a0277385c48b48410ccbf606afa77ac5c1ec220f3c23876b
-  generated_callable gc0 function=@fn56 id=029ea675a92256f0c196ac60b1ea6755cecc1bac83461f0740a26a553c52bd38
-  generated_callable gc1 function=@fn55 id=0d12a1e6c51347254accee37d6b91cbbec08afa03782631bdb63733d368ff66e
-  generated_callable gc2 function=@fn53 id=605004b959a590061824fef2df8d596fda4d83d569fafb904e7a4bb569c52a50
-  generated_callable gc3 function=@fn57 id=728857e18a614c4a6adc18f20b17930f36156267b715b5cb7283ebf718561b51
-  generated_callable gc4 function=@fn49 id=81c634bc9587739fc78d11f213c594519dd6417e7f4d31ebfbca54dfa85c50fb
-  generated_callable gc5 function=@fn50 id=9e5b7ac89b93f82642dd4e21a580f0f74af34c3c0ee9a2ab90a7951d2067b2f7
-  generated_callable gc6 function=@fn51 id=abc5eb577b136090bdd28eb06895d093eb79e8492caf5595a4ac8ce5e6b170f0
-  generated_callable gc7 function=@fn52 id=ccc8fd14d812cc96c08428c5d1afead22071d8be1d382dffea7ecea909ca2bc9
-  generated_callable gc8 function=@fn54 id=e9528cb8dcaa43e47b9c5f41e8a8054c0294fcee0926f2131692fe008a4e7b60
+  generated_callable gc0 function=@fn62 id=029ea675a92256f0c196ac60b1ea6755cecc1bac83461f0740a26a553c52bd38
+  generated_callable gc1 function=@fn44 id=0cc752f0cc49903cfee81179195b9436e785095c5325265fe0dc1a5a334f01c9
+  generated_callable gc2 function=@fn61 id=0d12a1e6c51347254accee37d6b91cbbec08afa03782631bdb63733d368ff66e
+  generated_callable gc3 function=@fn40 id=335ade0ac473597923174eeca9428826b9661bb07164d8ecbfccb7a89b8eda0a
+  generated_callable gc4 function=@fn59 id=605004b959a590061824fef2df8d596fda4d83d569fafb904e7a4bb569c52a50
+  generated_callable gc5 function=@fn42 id=627364c001d4ca1f4071cd7e91c3b56b5153e2b85dcdac4c4698f8dc33fe1b1a
+  generated_callable gc6 function=@fn45 id=6ba8227eec35bf42318ac2c335d229bdb01edec7659b27c9116ae2be6ad04bd5
+  generated_callable gc7 function=@fn63 id=728857e18a614c4a6adc18f20b17930f36156267b715b5cb7283ebf718561b51
+  generated_callable gc8 function=@fn55 id=81c634bc9587739fc78d11f213c594519dd6417e7f4d31ebfbca54dfa85c50fb
+  generated_callable gc9 function=@fn41 id=9addd34360e9b898f641ddf995656364365f698e550d51a0d3eaabe77a919c66
+  generated_callable gc10 function=@fn56 id=9e5b7ac89b93f82642dd4e21a580f0f74af34c3c0ee9a2ab90a7951d2067b2f7
+  generated_callable gc11 function=@fn57 id=abc5eb577b136090bdd28eb06895d093eb79e8492caf5595a4ac8ce5e6b170f0
+  generated_callable gc12 function=@fn43 id=bfa5126dbb4e81ad45a7f6144674712ca2ef74e81746d062a837ce7c83bd7c5f
+  generated_callable gc13 function=@fn58 id=ccc8fd14d812cc96c08428c5d1afead22071d8be1d382dffea7ecea909ca2bc9
+  generated_callable gc14 function=@fn60 id=e9528cb8dcaa43e47b9c5f41e8a8054c0294fcee0926f2131692fe008a4e7b60
   fun Value.evaluate @fn0(this: Value) -> Int
     bb0 entry
       return
@@ -262,10 +268,70 @@ Module
   fun Root.$set$count @fn39(this: Root, value: Int) -> Unit
     bb0 entry
       return
-  fun init.DeferredRoot.$c6 @fn40(this: DeferredRoot) -> Unit
+  fun receiver<Factory> Root.evaluate @fn40(this: Factory) -> Int
+    bb0 entry
+      call $call.1: Int = @fn37 direct
+        Type Readable
+        Retype Readable
+          Type Factory
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun receiver<Factory> Root.$get$count @fn41(this: Factory) -> Int
+    bb0 entry
+      call $call.1: Int = @fn38 direct
+        Type Root
+        Retype Root
+          Type Factory
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun receiver<Factory> Root.$set$count @fn42(this: Factory, value: Int) -> Unit
+    bb0 entry
+      call @fn39 direct
+        Type Root
+        Retype Root
+          Type Factory
+          Local this
+        Type Int
+        Local value
+      return
+  fun receiver<Child> Root.evaluate @fn43(this: Child) -> Int
+    bb0 entry
+      call $call.1: Int = @fn37 direct
+        Type Readable
+        Retype Readable
+          Type Child
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun receiver<Child> Root.$get$count @fn44(this: Child) -> Int
+    bb0 entry
+      call $call.1: Int = @fn38 direct
+        Type Root
+        Retype Root
+          Type Child
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun receiver<Child> Root.$set$count @fn45(this: Child, value: Int) -> Unit
+    bb0 entry
+      call @fn39 direct
+        Type Root
+        Retype Root
+          Type Child
+          Local this
+        Type Int
+        Local value
+      return
+  fun init.DeferredRoot.$c6 @fn46(this: DeferredRoot) -> Unit
     bb0 entry
       return
-  fun init.Factory.$c0 @fn41(this: Factory, seed: Int) -> Unit
+  fun init.Factory.$c0 @fn47(this: Factory, seed: Int) -> Unit
     bb0 entry
       field_set 0
         Type Factory
@@ -273,7 +339,7 @@ Module
         Type Int
         IntegerLiteral Int value=7 bits=0x00000007
       return
-  fun init.Factory.$c1 @fn42(this: Factory, text: String) -> Unit
+  fun init.Factory.$c1 @fn48(this: Factory, text: String) -> Unit
     bb0 entry
       val $argument.0: Int
         Type Int
@@ -281,13 +347,13 @@ Module
       val $parameter.seed: Int
         Type Int
         Local $argument.0
-      call @fn41 direct
+      call @fn47 direct
         Type Factory
         Local this
         Type Int
         Local $parameter.seed
       return
-  fun init.Factory.$c2 @fn43(this: Factory, flag: Boolean) -> Unit
+  fun init.Factory.$c2 @fn49(this: Factory, flag: Boolean) -> Unit
     bb0 entry
       val $argument.0: Int
         Type Int
@@ -295,13 +361,13 @@ Module
       val $parameter.seed: Int
         Type Int
         Local $argument.0
-      call @fn41 direct
+      call @fn47 direct
         Type Factory
         Local this
         Type Int
         Local $parameter.seed
       return
-  fun init.Factory.$c3 @fn44(this: Factory, value: Long) -> Unit
+  fun init.Factory.$c3 @fn50(this: Factory, value: Long) -> Unit
     bb0 entry
       val $argument.0: Int
         Type Int
@@ -309,13 +375,13 @@ Module
       val $parameter.seed: Int
         Type Int
         Local $argument.0
-      call @fn41 direct
+      call @fn47 direct
         Type Factory
         Local this
         Type Int
         Local $parameter.seed
       return
-  fun init.Child.$c4 @fn45(this: Child, label: String) -> Unit
+  fun init.Child.$c4 @fn51(this: Child, label: String) -> Unit
     bb0 entry
       val $argument.0: String
         Type String
@@ -323,7 +389,7 @@ Module
       val $parameter.text: String
         Type String
         Local $argument.0
-      call @fn42 direct
+      call @fn48 direct
         Type Factory
         Retype Factory
           Type Child
@@ -331,24 +397,24 @@ Module
         Type String
         Local $parameter.text
       return
-  fun init.FinalReader.$c5 @fn46(this: FinalReader) -> Unit
+  fun init.FinalReader.$c5 @fn52(this: FinalReader) -> Unit
     bb0 entry
       return
-  fun ctor.Value.$c0 @fn47(payload: Int) -> Value <no-gc>
+  fun ctor.Value.$c0 @fn53(payload: Int) -> Value <no-gc>
     bb0 entry
       return
         Type Value
         StructInit Value
           Type Int
           Local payload
-  fun ctor.DeferredStorage.$c2 @fn48(root: DeferredRoot) -> DeferredStorage <no-gc>
+  fun ctor.DeferredStorage.$c2 @fn54(root: DeferredRoot) -> DeferredStorage <no-gc>
     bb0 entry
       return
         Type DeferredStorage
         StructInit DeferredStorage
           Type DeferredRoot
           Local root
-  fun startCoroutine<DeferredStorage> @fn49(task: SuspendTask<DeferredStorage>, completion: Continuation<DeferredStorage>) -> Unit
+  fun startCoroutine<DeferredStorage> @fn55(task: SuspendTask<DeferredStorage>, completion: Continuation<DeferredStorage>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -429,7 +495,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<FinalReader> @fn50(task: SuspendTask<FinalReader>, completion: Continuation<FinalReader>) -> Unit
+  fun startCoroutine<FinalReader> @fn56(task: SuspendTask<FinalReader>, completion: Continuation<FinalReader>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -510,7 +576,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Child> @fn51(task: SuspendTask<Child>, completion: Continuation<Child>) -> Unit
+  fun startCoroutine<Child> @fn57(task: SuspendTask<Child>, completion: Continuation<Child>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -591,7 +657,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Readable> @fn52(task: SuspendTask<Readable>, completion: Continuation<Readable>) -> Unit
+  fun startCoroutine<Readable> @fn58(task: SuspendTask<Readable>, completion: Continuation<Readable>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -672,7 +738,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Root> @fn53(task: SuspendTask<Root>, completion: Continuation<Root>) -> Unit
+  fun startCoroutine<Root> @fn59(task: SuspendTask<Root>, completion: Continuation<Root>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -753,7 +819,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<DeferredRoot> @fn54(task: SuspendTask<DeferredRoot>, completion: Continuation<DeferredRoot>) -> Unit
+  fun startCoroutine<DeferredRoot> @fn60(task: SuspendTask<DeferredRoot>, completion: Continuation<DeferredRoot>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -834,7 +900,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Factory> @fn55(task: SuspendTask<Factory>, completion: Continuation<Factory>) -> Unit
+  fun startCoroutine<Factory> @fn61(task: SuspendTask<Factory>, completion: Continuation<Factory>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -915,7 +981,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Value> @fn56(task: SuspendTask<Value>, completion: Continuation<Value>) -> Unit
+  fun startCoroutine<Value> @fn62(task: SuspendTask<Value>, completion: Continuation<Value>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -996,12 +1062,12 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun thunk<Value> Readable.evaluate() @fn57(this: Readable) -> Int
+  fun thunk<Value> Readable.evaluate() @fn63(this: box<Value>) -> Int
     bb0 entry
       call $call.1: Int = @fn0 direct
         Type Value
         Unbox
-          Type Readable
+          Type box<Value>
           Local this
       return
         Type Int
@@ -1022,14 +1088,14 @@ Module
   coroutine_slot cl5 CoroutineSlot<DeferredRoot> value=DeferredRoot
   coroutine_slot cl6 CoroutineSlot<Factory> value=Factory
   coroutine_slot cl7 CoroutineSlot<Value> value=Value
-  coroutine_start ct0 result=DeferredStorage function=fn49
-  coroutine_start ct1 result=FinalReader function=fn50
-  coroutine_start ct2 result=Child function=fn51
-  coroutine_start ct3 result=Readable function=fn52
-  coroutine_start ct4 result=Root function=fn53
-  coroutine_start ct5 result=DeferredRoot function=fn54
-  coroutine_start ct6 result=Factory function=fn55
-  coroutine_start ct7 result=Value function=fn56
+  coroutine_start ct0 result=DeferredStorage function=fn55
+  coroutine_start ct1 result=FinalReader function=fn56
+  coroutine_start ct2 result=Child function=fn57
+  coroutine_start ct3 result=Readable function=fn58
+  coroutine_start ct4 result=Root function=fn59
+  coroutine_start ct5 result=DeferredRoot function=fn60
+  coroutine_start ct6 result=Factory function=fn61
+  coroutine_start ct7 result=Value function=fn62
   coroutine_fn cf0 @fn7 source_return=Value step=cs7 immediate
   coroutine_fn cf1 @fn11 source_return=Readable step=cs3 immediate
   coroutine_fn cf2 @fn15 source_return=DeferredStorage step=cs0 immediate

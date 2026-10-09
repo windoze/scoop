@@ -47,42 +47,41 @@ Module
     local %17 $dependency.parameter.other: i32
     local %18 $argument.0: i1
     local %19 $parameter.value: i1
-    local %20 $sc.1: struct0
   block entry
     poll managed-void-target3 sp<managed-poll:0> live=[]
     store integer<Int>(0x00000011) -> local0
     store integer<Int>(0x00000019) -> local1
     store local0 -> local2
     store local1 -> local3
-    call no-gc-indirect-target0 local20 = sig=indirect0 (sret struct0 size=8 align=4 scan=none, i32, i32) external-fn1(local2, local3)
-    store local20 -> local4
-    t0 = extract local4, 0 : i32
-    store t0 -> local5
-    t1 = extract local4, 1 : i32
-    store t1 -> local6
+    call no-gc-direct-target0 t0 = sig=direct0 (i32, i32) -> struct0 external-fn1(local2, local3)
+    store t0 -> local4
+    t1 = extract local4, 0 : i32
+    store t1 -> local5
+    t2 = extract local4, 1 : i32
+    store t2 -> local6
     store local6 -> local7
-    t2 = integer_Add<Int> local5, local7 : i32
-    store t2 -> local8
+    t3 = integer_Add<Int> local5, local7 : i32
+    store t3 -> local8
     store integer<Int>(0x0000002a) -> local9
     store local9 -> local10
-    t3 = integer_compare_Equal<Int> local8, local10 : i1
-    store t3 -> local11
+    t4 = integer_compare_Equal<Int> local8, local10 : i1
+    store t4 -> local11
     store local11 -> local12
     call managed-void-target0 sp<managed-call:0> live=[] sig=void0 (i1) local-fn0(local12)
-    t4 = aggregate () : {}
+    t5 = aggregate () : {}
     store integer<Int>(0x0000000d) -> local13
     store local13 -> local14
-    call managed-direct-target0 sp<managed-call:1> live=[] t5 = sig=direct0 (i32) -> i32 external-fn2(local14)
-    store t5 -> local15
+    call managed-direct-target0 sp<managed-call:1> live=[] t6 = sig=direct1 (i32) -> i32 external-fn2(local14)
+    store t6 -> local15
     store integer<Int>(0x0000000d) -> local16
     store local16 -> local17
-    t6 = integer_compare_Equal<Int> local15, local17 : i1
-    store t6 -> local18
+    t7 = integer_compare_Equal<Int> local15, local17 : i1
+    store t7 -> local18
     store local18 -> local19
     call managed-void-target1 sp<managed-call:2> live=[] sig=void1 (i1) local-fn0(local19)
-    t7 = aggregate () : {}
-    call managed-void-target2 sp<managed-call:3> live=[] sig=void2 () external-fn3()
     t8 = aggregate () : {}
+    call managed-void-target2 sp<managed-call:3> live=[] sig=void2 () external-fn3()
+    t9 = aggregate () : {}
     ret
   fun @scoop$1$cb$55daebc335e6c033e42a1af0b4666c9f764eb4b70b9cce7c6e3dd14c89c0ed33(i32, ptr<raw>, ptr<raw>) -> i32
   block entry

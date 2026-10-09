@@ -509,12 +509,12 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun thunk<Shown> Show.show() @fn23(this: Show) -> Int
+  fun thunk<Shown> Show.show() @fn23(this: box<Shown>) -> Int
     bb0 entry
       call $call.1: Int = @fn0 direct
         Type Shown
         Unbox
-          Type Show
+          Type box<Shown>
           Local this
       return
         Type Int

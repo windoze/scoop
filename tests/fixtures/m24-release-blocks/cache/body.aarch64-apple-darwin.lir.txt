@@ -131,7 +131,7 @@ Module
     ret
   td td0 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Equality);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Long)]) @scoop$1$td$a029704dbc1ea0fb62b31835a65fe61da1e837f77ca3df0677c1ccbfeb2fde68 type-id=5074273259029904722 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
   td td1 a(n(c=test%3Arelease-cache-provider%3A0.1.0;p=releasecache;o=-;k=C;x=Owner);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$9b8f1a1540438382d5f10d9114b4e9245535df41cb98ae5a8f3012b2b17a0925 type-id=1713462519192436310 shape=FixedObject minimum-size=32 align=8 parent=none vtable=[] itables=[]
-  layout Equality value size=8 align=8 refs=[0]
+  layout Equality value size=16 align=8 refs=[0]
   layout Owner value size=8 align=8 refs=[0]
   layout Owner size=32 align=8 refs=[]
   output executable @scoop$1$cb$ffada6e1b577694a4201e4006ad6acdcf8a35fa91e705c0cef46e60e7a2847e7

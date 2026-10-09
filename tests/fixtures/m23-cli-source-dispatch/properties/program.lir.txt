@@ -33,7 +33,7 @@ Module
     local %3 $dependency.receiver: ptr<managed>
     local %4 $argument.0: i1
     local %5 $parameter.value: i1
-    local %6 value: ptr<managed>
+    local %6 value: interface{object,itab}
     local %7 $dependency.receiver: i32
     local %8 $dependency.argument.0: i32
     local %9 $dependency.parameter.other: i32
@@ -88,32 +88,35 @@ Module
     t7 = aggregate () : {}
     call managed-direct-target4 sp<managed-call:8> live=[] t8 = sig=direct4 () -> ptr<managed> external-fn8()
     store t8 -> local24
-    store local24 -> local6
-    t9 = heap_load local6 +0 : ptr<metadata>
-    call no-gc-direct-target0 t10 = sig=direct5 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t9, external-td5)
-    call managed-direct-target5 sp<managed-call:9> live=[local6:ptr<managed>@0] t11 = sig=direct6 (ptr<managed>) -> i32 dispatch[Interface:0] t10(local6)
-    store t11 -> local7
+    t9 = heap_load external-td10 +96 : ptr<metadata>
+    t10 = heap_load t9 +8 : ptr<metadata>
+    t11 = aggregate (local24, t10) : interface{object,itab}
+    store t11 -> local6
+    t12 = extract local6, 1 : ptr<metadata>
+    t13 = extract local6, 0 : ptr<managed>
+    call managed-direct-target5 sp<managed-call:9> live=[t13:ptr<managed>@0] t14 = sig=direct5 (ptr<managed>) -> i32 dispatch[Interface:0] t12(t13)
+    store t14 -> local7
     store integer<Int>(0x00000003) -> local8
     store local8 -> local9
-    t12 = integer_compare_Equal<Int> local7, local9 : i1
-    store t12 -> local10
+    t15 = integer_compare_Equal<Int> local7, local9 : i1
+    store t15 -> local10
     store local10 -> local11
     call managed-void-target2 sp<managed-call:10> live=[] sig=void2 (i1) local-fn0(local11)
-    t13 = aggregate () : {}
-    call no-gc-elided-zst-target0 t14 = sig=elided-zst0 () -> elided-zst<struct0 size=0 align=1> external-fn10()
-    store t14 -> local25
-    call managed-direct-target6 sp<managed-call:11> live=[] t15 = sig=direct7 (elided-zst<struct0 size=0 align=1>) -> i32 external-fn9(elided-zst local25)
-    store t15 -> local12
+    t16 = aggregate () : {}
+    call no-gc-elided-zst-target0 t17 = sig=elided-zst0 () -> elided-zst<struct0 size=0 align=1> external-fn10()
+    store t17 -> local25
+    call managed-direct-target6 sp<managed-call:11> live=[] t18 = sig=direct6 (elided-zst<struct0 size=0 align=1>) -> i32 external-fn9(elided-zst local25)
+    store t18 -> local12
     store integer<Int>(0x00000006) -> local13
     store local13 -> local14
-    t16 = integer_compare_Equal<Int> local12, local14 : i1
-    cbr t16 then @if.then.1 else @if.else.2
+    t19 = integer_compare_Equal<Int> local12, local14 : i1
+    cbr t19 then @if.then.1 else @if.else.2
   block if.then.1
     store integer<Int>(0x00000007) -> local15
     store integer<Int>(0x00000007) -> local16
     store local16 -> local17
-    t17 = integer_compare_Equal<Int> local15, local17 : i1
-    store t17 -> local18
+    t20 = integer_compare_Equal<Int> local15, local17 : i1
+    store t20 -> local18
     br @if.merge.3
   block if.else.2
     store false -> local18
@@ -122,7 +125,7 @@ Module
     store local18 -> local19
     store local19 -> local20
     call managed-void-target3 sp<managed-call:12> live=[] sig=void3 (i1) local-fn0(local20)
-    t18 = aggregate () : {}
+    t21 = aggregate () : {}
     ret
   fun @scoop$1$cb$f95912501e428a3cdd92ff8cadb91d7143193fea88a98adba0352ff74dbeadf0(indirect<{i32, i32, i32, i32, i32, i32, i32, i32} size=32 align=4 scan=none>, indirect<{i32, i32, i32, i32, i32, i32, i32, i32} size=32 align=4 scan=none>) -> i1
     local %0 $logic.1: i1

@@ -9,9 +9,9 @@ Module
   class IllegalStateException vtable=0 itables=0
   class Exception vtable=0 itables=0
   class Throwable vtable=0 itables=0
-  class User vtable=0 itables=5
-  class Derived vtable=0 itables=5
-  class Singleton vtable=0 itables=5
+  class User vtable=0 itables=0
+  class Derived vtable=0 itables=0
+  class Singleton vtable=0 itables=0
   class box<Value> vtable=0 itables=0
   class box<Choice> vtable=0 itables=0
   interface Mutable : Diamond

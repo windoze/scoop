@@ -2372,22 +2372,22 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun thunk<Sample> Readable.read() @fn80(this: Readable) -> Int
+  fun thunk<Sample> Readable.read() @fn80(this: box<Sample>) -> Int
     bb0 entry
       call $call.1: Int = @fn0 direct
         Type Sample
         Unbox
-          Type Readable
+          Type box<Sample>
           Local this
       return
         Type Int
         Local $call.1
-  fun thunk<Recursive> SelfRead.read(Recursive) @fn81(this: SelfRead<Recursive>, value: Recursive) -> Int
+  fun thunk<Recursive> SelfRead.read(Recursive) @fn81(this: box<Recursive>, value: Recursive) -> Int
     bb0 entry
       call $call.1: Int = @fn2 direct
         Type Recursive
         Unbox
-          Type SelfRead<Recursive>
+          Type box<Recursive>
           Local this
         Type Recursive
         Local value

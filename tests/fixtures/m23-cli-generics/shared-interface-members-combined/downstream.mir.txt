@@ -754,60 +754,60 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun thunk<ValueReader<Later>> Reader.read() @fn31(this: Reader<Later>) -> Later
+  fun thunk<ValueReader<Later>> Reader.read() @fn31(this: box<ValueReader<Later>>) -> Later
     bb0 entry
       call $call.1: Later = @fn7 direct
         Type ValueReader<Later>
         Unbox
-          Type Reader<Later>
+          Type box<ValueReader<Later>>
           Local this
       return
         Type Later
         Local $call.1
-  fun thunk<ValueReader<Later>> Reader.again() @fn32(this: Reader<Later>) -> Later
+  fun thunk<ValueReader<Later>> Reader.again() @fn32(this: box<ValueReader<Later>>) -> Later
     bb0 entry
       call $call.1: Later = @fn8 direct
         Type Reader<Later>
         Retype Reader<Later>
-          Type Reader<Later>
+          Type box<ValueReader<Later>>
           Local this
       return
         Type Later
         Local $call.1
-  fun thunk<ValueReader<Int>> Reader.read() @fn33(this: Reader<Int>) -> Int
+  fun thunk<ValueReader<Int>> Reader.read() @fn33(this: box<ValueReader<Int>>) -> Int
     bb0 entry
       call $call.1: Int = @fn10 direct
         Type ValueReader<Int>
         Unbox
-          Type Reader<Int>
+          Type box<ValueReader<Int>>
           Local this
       return
         Type Int
         Local $call.1
-  fun thunk<ValueReader<Int>> Reader.again() @fn34(this: Reader<Int>) -> Int
+  fun thunk<ValueReader<Int>> Reader.again() @fn34(this: box<ValueReader<Int>>) -> Int
     bb0 entry
       call $call.1: Int = @fn11 direct
         Type Reader<Int>
         Retype Reader<Int>
-          Type Reader<Int>
+          Type box<ValueReader<Int>>
           Local this
       return
         Type Int
         Local $call.1
-  fun thunk<ValueReader<Unit>> Reader.read() @fn35(this: Reader<Unit>) -> Unit
+  fun thunk<ValueReader<Unit>> Reader.read() @fn35(this: box<ValueReader<Unit>>) -> Unit
     bb0 entry
       call @fn13 direct
         Type ValueReader<Unit>
         Unbox
-          Type Reader<Unit>
+          Type box<ValueReader<Unit>>
           Local this
       return
-  fun thunk<ValueReader<Unit>> Reader.again() @fn36(this: Reader<Unit>) -> Unit
+  fun thunk<ValueReader<Unit>> Reader.again() @fn36(this: box<ValueReader<Unit>>) -> Unit
     bb0 entry
       call @fn14 direct
         Type Reader<Unit>
         Retype Reader<Unit>
-          Type Reader<Unit>
+          Type box<ValueReader<Unit>>
           Local this
       return
   fun function_bridge.$Closure$reference0.(Any) -> Any @fn37($source: (Later) -> Int, arg0: Any) -> Any

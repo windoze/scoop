@@ -289,22 +289,22 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun thunk<LocalChoice> LocalDefault.choose() @fn14(this: LocalDefault) -> Long
+  fun thunk<LocalChoice> LocalDefault.choose() @fn14(this: box<LocalChoice>) -> Long
     bb0 entry
       call $call.1: Long = @fn10 direct
         Type LocalDefault
         Retype LocalDefault
-          Type LocalDefault
+          Type box<LocalChoice>
           Local this
       return
         Type Long
         Local $call.1
-  fun thunk<LocalChoice> FirstChoice.choose() @fn15(this: FirstChoice) -> Long
+  fun thunk<LocalChoice> FirstChoice.choose() @fn15(this: box<LocalChoice>) -> Long
     bb0 entry
       call $call.1: Long = @fn10 direct
         Type LocalDefault
         Retype LocalDefault
-          Type FirstChoice
+          Type box<LocalChoice>
           Local this
       return
         Type Long

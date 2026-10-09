@@ -228,12 +228,12 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun thunk<LocalWide> DefaultWide.value(Token, Counter) @fn9(this: DefaultWide, marker: Token, input: Counter) -> WideValue
+  fun thunk<LocalWide> DefaultWide.value(Token, Counter) @fn9(this: box<LocalWide>, marker: Token, input: Counter) -> WideValue
     bb0 entry
       call $call.1: WideValue = @fn0 direct
         Type LocalWide
         Unbox
-          Type DefaultWide
+          Type box<LocalWide>
           Local this
         Type Token
         Local marker

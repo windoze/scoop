@@ -1,8 +1,8 @@
 Module
   fun @scoop$1$cb$e654ad421c8083b880f9d4b70a96546c26943ece1ff99e2137658132a74e0b64() -> ptr<managed>
     local %0 source: i64
-    local %1 value: ptr<managed>
-    local %2 $dependency.receiver: ptr<managed>
+    local %1 value: interface{object,itab}
+    local %2 $dependency.receiver: interface{object,itab}
     local %3 $dependency.argument.0: i64
     local %4 $dependency.parameter.value: i64
     local %5 $new.1: ptr<managed>
@@ -12,18 +12,21 @@ Module
     store integer<Long>(0x0000000000000015) -> local0
     store local0 -> local6
     t0 = box_value external-td5, local6 scan=none sp<managed-call:0> live=[]
-    store t0 -> local1
+    t1 = heap_load external-td5 +96 : ptr<metadata>
+    t2 = heap_load t1 +8 : ptr<metadata>
+    t3 = aggregate (t0, t2) : interface{object,itab}
+    store t3 -> local1
     store local1 -> local2
-    t1 = heap_load local2 +0 : ptr<metadata>
-    call no-gc-direct-target0 t2 = sig=direct0 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t1, external-td6)
-    call managed-direct-target0 sp<managed-call:1> live=[local2:ptr<managed>@0] t3 = sig=direct1 (ptr<managed>) -> i64 dispatch[Interface:0] t2(local2)
-    store t3 -> local3
+    t4 = extract local2, 1 : ptr<metadata>
+    t5 = extract local2, 0 : ptr<managed>
+    call managed-direct-target0 sp<managed-call:1> live=[t5:ptr<managed>@0] t6 = sig=direct0 (ptr<managed>) -> i64 dispatch[Interface:0] t4(t5)
+    store t6 -> local3
     store local3 -> local4
-    call managed-direct-target1 sp<managed-call:2> live=[] t4 = sig=direct2 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td9, machine<byte-size>(ByteSize(24)))
-    store t4 -> local5
+    call managed-direct-target1 sp<managed-call:2> live=[] t7 = sig=direct1 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td9, machine<byte-size>(ByteSize(24)))
+    store t7 -> local5
     call managed-void-target0 sp<managed-call:3> live=[local5:ptr<managed>@0] sig=void0 (ptr<managed>, i64) external-fn1(local5, local4)
-    t5 = aggregate () : {}
+    t8 = aggregate () : {}
     ret local5
   td td0 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Equality);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Long)]) @scoop$1$td$a029704dbc1ea0fb62b31835a65fe61da1e837f77ca3df0677c1ccbfeb2fde68 type-id=5074273259029904722 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
-  layout Equality value size=8 align=8 refs=[0]
+  layout Equality value size=16 align=8 refs=[0]
   output library

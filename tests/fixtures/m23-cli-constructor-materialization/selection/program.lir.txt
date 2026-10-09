@@ -12,7 +12,6 @@ Module
     local %4 $parameter.value: i32
     local %5 data: struct0
     local %6 $new.1: ptr<managed>
-    local %7 $sc.1: struct0
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
     store integer<Int>(0x00000001) -> local0
@@ -24,15 +23,15 @@ Module
     store local6 -> local2
     store integer<Int>(0x00000001) -> local3
     store local3 -> local4
-    call no-gc-indirect-target0 local7 = sig=indirect0 (sret struct0 size=4 align=4 scan=none, i32) local-fn3(local4)
-    store local7 -> local5
+    call no-gc-direct-target0 t2 = sig=direct1 (i32) -> struct0 local-fn3(local4)
+    store t2 -> local5
     ret
   fun @scoop$1$cb$a4d0f04c2b7195ccee652a7d371e402321baa800b455ec4bc074719b95d679b9(ptr<managed>, i32) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
     heap_store param0 +16 param1
     ret
-  fun @scoop$1$cb$58f0407a8820cfd8c32ec63fe2e71072692849c670cda8d0d80a9c048475e377(i32) -> sret<struct0 size=4 align=4 scan=none> <no-gc>
+  fun @scoop$1$cb$58f0407a8820cfd8c32ec63fe2e71072692849c670cda8d0d80a9c048475e377(i32) -> parts<struct0 [i32@0+4/4]> <no-gc>
   block entry
     t0 = aggregate (param0) : struct0
     ret t0
