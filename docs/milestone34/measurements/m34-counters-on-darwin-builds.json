@@ -1,0 +1,162 @@
+[
+  {
+    "case": "single",
+    "argv": [
+      "/Volumes/Data/home/chenxu/repos/scoop/target/release/scoop",
+      "build",
+      "/Volumes/Data/home/chenxu/repos/scoop/tests/benchmarks/allocation.scoop",
+      "--scoopc",
+      "/Volumes/Data/home/chenxu/repos/scoop/target/release/scoopc",
+      "--profile",
+      "release",
+      "--target",
+      "aarch64-apple-darwin",
+      "--sysroot",
+      "/Volumes/Data/home/chenxu/repos/scoop/sysroot",
+      "--runtime-root",
+      "/Volumes/Data/home/chenxu/repos/scoop/runtime",
+      "--cache-dir",
+      "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/interface-third/cache",
+      "--library-path",
+      "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/counters-on-darwin",
+      "-o",
+      "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/counters-on-darwin/single",
+      "--emit",
+      "all",
+      "--dump-dir",
+      "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/counters-on-darwin/dump/single",
+      "--message-format",
+      "json"
+    ],
+    "seconds": 4.934544041054323,
+    "records": [
+      {
+        "dependencies": [
+          {
+            "artifact_fingerprint": "80f7b505a334d3000c6e7d9e01708b07d89e0d344032dcaafe089896383bdcf8",
+            "coordinate": {
+              "group": "scoop",
+              "name": "scoop.core",
+              "version": "0.1.0"
+            },
+            "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+            "path": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/interface-third/cache/compile-v1/c4620e676c33b2d245118f211fca3732d860d841a827ac9b9c6ee23e9ab19df9/artifact.slib"
+          }
+        ],
+        "kind": "executable",
+        "link_plan_fingerprint": "2acf417077aac7fe892191505455508ca7ad1d6185256188ae8cb6aca9f2f3f6",
+        "observations": {
+          "child_invocations": [
+            "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6"
+          ],
+          "nodes": [
+            {
+              "cache_key": "c4620e676c33b2d245118f211fca3732d860d841a827ac9b9c6ee23e9ab19df9",
+              "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+              "origin": "cache"
+            },
+            {
+              "cache_key": "ce4d8bc05d48886319f7c6a1fddf4d992c1bf49b7adb69ca94ef86570d9a47b5",
+              "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+              "origin": "compiled"
+            }
+          ]
+        },
+        "output": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/counters-on-darwin/single",
+        "profile": "release",
+        "root": {
+          "artifact_fingerprint": "fb505bf3812fd447d22e668f092c455904db1c9bd0ffd79ff788399dca491928",
+          "coordinate": {
+            "group": "scoop",
+            "name": "single-file",
+            "version": "0.0.0"
+          },
+          "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+          "path": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/interface-third/cache/compile-v1/ce4d8bc05d48886319f7c6a1fddf4d992c1bf49b7adb69ca94ef86570d9a47b5/artifact.slib"
+        },
+        "runtime_index": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/interface-third/cache/runtime-v1/499213b8bedd7223b1e475f3ceb66419785f3abe49f5fa1b777b659dabc0af0d/index.cbor",
+        "schema": 1
+      }
+    ]
+  },
+  {
+    "case": "parallel",
+    "argv": [
+      "/Volumes/Data/home/chenxu/repos/scoop/target/release/scoop",
+      "build",
+      "/Volumes/Data/home/chenxu/repos/scoop/tests/benchmarks/parallel-allocation/program.scoop",
+      "--scoopc",
+      "/Volumes/Data/home/chenxu/repos/scoop/target/release/scoopc",
+      "--profile",
+      "release",
+      "--target",
+      "aarch64-apple-darwin",
+      "--sysroot",
+      "/Volumes/Data/home/chenxu/repos/scoop/sysroot",
+      "--runtime-root",
+      "/Volumes/Data/home/chenxu/repos/scoop/runtime",
+      "--cache-dir",
+      "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/interface-third/cache",
+      "--library-path",
+      "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/counters-on-darwin",
+      "-o",
+      "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/counters-on-darwin/parallel",
+      "--emit",
+      "all",
+      "--dump-dir",
+      "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/counters-on-darwin/dump/parallel",
+      "--message-format",
+      "json"
+    ],
+    "seconds": 4.953517667017877,
+    "records": [
+      {
+        "dependencies": [
+          {
+            "artifact_fingerprint": "80f7b505a334d3000c6e7d9e01708b07d89e0d344032dcaafe089896383bdcf8",
+            "coordinate": {
+              "group": "scoop",
+              "name": "scoop.core",
+              "version": "0.1.0"
+            },
+            "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+            "path": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/interface-third/cache/compile-v1/c4620e676c33b2d245118f211fca3732d860d841a827ac9b9c6ee23e9ab19df9/artifact.slib"
+          }
+        ],
+        "kind": "executable",
+        "link_plan_fingerprint": "47111ed4d57295fe6622403fddfb0836dfd27ff5563370097fcc7072d5da934b",
+        "observations": {
+          "child_invocations": [
+            "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6"
+          ],
+          "nodes": [
+            {
+              "cache_key": "c4620e676c33b2d245118f211fca3732d860d841a827ac9b9c6ee23e9ab19df9",
+              "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+              "origin": "cache"
+            },
+            {
+              "cache_key": "82cd6340a77b2a1e34b9c1edbcd9b533ca6f5a0def2e5de32a2989d678ddbc9d",
+              "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+              "origin": "compiled"
+            }
+          ]
+        },
+        "output": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/counters-on-darwin/parallel",
+        "profile": "release",
+        "root": {
+          "artifact_fingerprint": "5d2d3039cfd173b669f2ec27dce2486786e701a2ae42e9cca58c6639f044cfa1",
+          "coordinate": {
+            "group": "scoop",
+            "name": "single-file",
+            "version": "0.0.0"
+          },
+          "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+          "path": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/interface-third/cache/compile-v1/82cd6340a77b2a1e34b9c1edbcd9b533ca6f5a0def2e5de32a2989d678ddbc9d/artifact.slib"
+        },
+        "runtime_index": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/interface-third/cache/runtime-v1/499213b8bedd7223b1e475f3ceb66419785f3abe49f5fa1b777b659dabc0af0d/index.cbor",
+        "schema": 1
+      }
+    ]
+  }
+]

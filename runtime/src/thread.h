@@ -43,6 +43,20 @@ typedef enum ScoopThreadAttachmentKind {
 struct ScoopExceptionRecord;
 struct ScoopTaskContext;
 
+typedef struct ScoopAllocationCounters {
+    _Atomic(uint64_t) objects;
+    _Atomic(uint64_t) nursery_objects;
+    _Atomic(uint64_t) bytes;
+    _Atomic(uint64_t) nursery_bytes;
+} ScoopAllocationCounters;
+
+typedef struct ScoopAllocationTotals {
+    uint64_t objects;
+    uint64_t nursery_objects;
+    uint64_t bytes;
+    uint64_t nursery_bytes;
+} ScoopAllocationTotals;
+
 /* Runtime-private per-OS-thread state. The address is stable from registry
  * insertion until detach. STW, roots and the owner-only TLAB all belong to
  * this one entity; there are no separate main-thread mutator globals. */
@@ -76,7 +90,13 @@ typedef struct ScoopThreadState {
     ScoopAllocationContext allocation;
     struct ScoopThreadState *registry_prev;
     struct ScoopThreadState *registry_next;
+    /* Isolated from other fields and allocations on all current targets. */
+    _Alignas(128) ScoopAllocationCounters allocation_counters;
 } ScoopThreadState;
+
+_Static_assert(offsetof(ScoopThreadState, allocation_counters) % 128 == 0 &&
+                   _Alignof(ScoopThreadState) == 128,
+               "allocation counters must occupy a separate cache line");
 
 typedef struct ScoopCallbackThreadEntry {
     ScoopThreadMode previous_mode;
@@ -114,6 +134,8 @@ void scoop_rt_enter_native_borrowed_impl(ScoopThreadTransition *transition,
 bool scoop_thread_begin_collection(void);
 void scoop_thread_end_collection(void);
 ScoopThreadState *scoop_thread_collection_registry_head(void);
+/* Requires the world lock, or the stable registry of an STW collection. */
+ScoopAllocationTotals scoop_thread_allocation_totals_locked(void);
 
 /* Managed entry/exit primitives. The full LIFO native-safe/native-borrowed
  * segment chain composes with these handshakes. */

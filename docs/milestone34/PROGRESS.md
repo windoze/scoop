@@ -9,7 +9,7 @@
 | M34-1 规范与基线 | 已完成 | 三份规范先行修订；两地 M33 基线、混合 AS1／metadata 返回及目标 C ABI 实验完成，详见下文。 |
 | M34-2 双字接口 | 已完成 | 表示、slot receiver、niche、GC、AtomicRef、native、closure／coroutine、跨 Cone；三 target 的六组 CLI fixture 通过。 |
 | M34-3 MIR 优化 | 已完成 | 实际类型传播、去虚拟化、三档调用点内联、常量化简及累计增长控制；三 target 的 13 组 CLI、两机开关性能对照完成。 |
-| M34-4 poll 与分配 | 进行中 | 条件 poll／pending 激活及三 target 验收完成；下一批迁移线程局部统计及汇总。 |
+| M34-4 poll 与分配 | 已完成 | 条件 poll／pending 激活、线程累计计数／detach 归并、三 target 验收与两机性能对照完成。 |
 | M34-5 小值与 DirectC | 待实施 | DirectParts 与两套目标 C aggregate ABI。 |
 | M34-6 多 region | 待实施 | 稀疏地址索引、扩容、large mapping、cards。 |
 | M34-7 搬迁与归还 | 待实施 | source／target 规划、完整回写、discard／unmap。 |
@@ -97,3 +97,15 @@ MIR `identity-foundation` 升至 6，其实际局部值目录进入 Code／LinkV
 三个 target 均完成两组新用例及接口并发、协程、artifact-only、内联语义组合验收，每个 target 为 12 variants、60 processes、42 stage goldens，包含 debug／release 与普通／full-moving／minor-stress。最终运行关闭 snapshot 更新；八份新 HIR／MIR 跨主机逐字一致。poll 发射与新增结构测试分别为 165／89 行。
 
 整数循环的两机七次开关对照及机器码已记录在性能报告：正常循环不再每轮调用协调入口或解析 TLS，原子检查保留；入口栈和机器码增量如实记录。两地保存 `tmp/m34/poll-tools` 与 `poll-source` 供分配统计对照。本机清理 target 5,622 项、6,273,385,579 bytes；Linux 清理 4,362 项、4,987,043,809 bytes，记录为两地 `tmp/m34/batch4a-target-cleanup.json`。
+
+## M34-4b：线程分配统计
+
+TLAB 完成、普通慢分配和大对象分配改为更新本线程的累计对象数、nursery 对象数及两种分配字节数。单写者使用 relaxed atomic load／store；对象起点登记的原子发布保持原职责。计数区域独占 128-byte 对齐区域，线程状态使用相同对齐的 `posix_memalign` 分配，覆盖本机实际的 128-byte cache line。
+
+detach 在 world lock 内先归并累计值再移除目录项；查询按 world → heap 顺序保护目录和 collection 基线。collector 在已停止的稳定目录上直接汇总，累计值不清零；当前对象数由回收后存活数与随后分配数得到，minor 同时扣除新增 nursery 数以保留旧代。主线程退出后的最终报告仍包含全部分配。
+
+两机 22 项 runtime 回归和两套 Linux runtime 的完整 ABI 导出检查通过。新增 120 行 C 测试覆盖内联 TLAB、普通／old／large 分配、minor／full 基线、并发查询、32 次 attach／detach 与主线程退出后的统计；先在旧实现上确认已有行为，再迁移计数。新增 accounting／threads 两组正式 CLI fixture，组合数组、Option、GC、callback、重复线程退出与 gcStats；三个 target 的四组定向验收各为 8 variants、40 processes、24 goldens，最终关闭 snapshot 更新，八份 HIR／MIR 跨主机一致。
+
+两机分别测量单／四 mutator、GC 诊断关／开，每组七次。两种实现的每次累计分配字节严格相同，minor 次数在原有范围内，未发生 full collection；机器码确认四次全局统计 RMW 已替换为线程字段的 load／store。四线程收益明确，单线程结果与波动、TLS 读取成本一并记录在性能报告，不声称所有场景加速。
+
+生产改动保持在现有 allocation、statistics、thread 与 collection 结算模块；最长相关文件为 thread.c 的 323 行。本批回收本机 target 520 项、444,825,719 bytes；Linux 264 项、380,448,508 bytes。配套工具和源码保存为两地 `tmp/m34/allocation-tools`／`allocation-source`，清理记录为 `batch4b-target-cleanup.json`。

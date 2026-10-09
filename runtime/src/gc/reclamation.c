@@ -6,6 +6,7 @@
 #include "gc_internal.h"
 #include "heap_internal.h"
 #include "../platform/platform.h"
+#include "../thread.h"
 
 static void release_dead_object(void *object) {
     ScoopObjectHeader *header = object;
@@ -254,9 +255,13 @@ void scoop_gc_heap_finish_collection_locked(uint64_t object_count, bool minor) {
     if (!collection_active) {
         heap_fatal("heap collection finished without begin");
     }
+    ScoopAllocationTotals allocations = scoop_thread_allocation_totals_locked();
     if (minor) {
-        object_count += atomic_load_explicit(&live_objects, memory_order_relaxed) -
-                        atomic_load_explicit(&scoop_gc_heap_state.nursery_objects, memory_order_relaxed);
+        uint64_t allocated =
+            allocations.objects - scoop_gc_heap_state.allocation_objects_at_collection;
+        uint64_t young =
+            allocations.nursery_objects - scoop_gc_heap_state.nursery_objects_at_collection;
+        object_count += scoop_gc_heap_state.collected_live_objects + allocated - young;
     } else {
         free_run_nodes();
     }
@@ -284,9 +289,9 @@ void scoop_gc_heap_finish_collection_locked(uint64_t object_count, bool minor) {
     }
     memset(card_table_storage, 0, GC_CARD_TABLE_SIZE);
     scoop_gc_heap_state.nursery_bytes = 0;
-    atomic_store_explicit(&scoop_gc_heap_state.nursery_objects, 0, memory_order_relaxed);
-    atomic_store_explicit(&live_objects, object_count,
-                          memory_order_release);
+    scoop_gc_heap_state.collected_live_objects = object_count;
+    scoop_gc_heap_state.allocation_objects_at_collection = allocations.objects;
+    scoop_gc_heap_state.nursery_objects_at_collection = allocations.nursery_objects;
     atomic_store_explicit(&last_moved_objects, moved_objects,
                           memory_order_release);
     if (!minor) {

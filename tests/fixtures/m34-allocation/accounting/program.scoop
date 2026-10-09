@@ -1,0 +1,36 @@
+class Node(val value: Int)
+fun check(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+fun fill(values: MutableArray<Node?>) {
+    var index = 0L
+    while (index < values.size) {
+        values[index] = Some(Node(index.toInt32()))
+        index += 1L
+    }
+}
+
+fun clearEven(values: MutableArray<Node?>) {
+    var index = 0L
+    while (index < values.size) { values[index] = None; index += 2L }
+}
+
+fun main() {
+    val values = MutableArray<Node?>(64L) { index -> None }
+    gcCollect()
+    val before = gcStats()
+    fill(values)
+    gcCollect()
+    val filled = gcStats()
+    check(filled >= before + 64uL)
+    clearEven(values)
+    gcCollect()
+    check(filled >= gcStats() + 32uL)
+    var index = 0L
+    var sum = 0
+    while (index < values.size) {
+        sum += when (values[index]) { None -> 0; Some(value) -> value.value }
+        index += 1L
+    }
+    check(sum == 1024)
+    println("allocation counters")
+}

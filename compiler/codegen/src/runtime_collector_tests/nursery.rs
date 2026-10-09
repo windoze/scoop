@@ -1,6 +1,25 @@
 use super::{compile_and_run, compile_and_run_with_flags, workspace_root};
 
 #[test]
+fn allocation_statistics_include_detach_and_collection_baselines() {
+    let output = compile_and_run(
+        &workspace_root(),
+        "allocation_statistics_test",
+        "runtime/tests/allocation_statistics_test.c",
+        true,
+    );
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(
+        output.stdout,
+        b"allocation statistics survive collection, concurrent queries and repeated detach\n"
+    );
+}
+
+#[test]
 fn nursery_refill_retries_when_other_mutators_claim_the_capacity() {
     for optimization in ["-O0", "-O2"] {
         let output = compile_and_run_with_flags(

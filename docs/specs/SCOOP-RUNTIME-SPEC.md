@@ -297,6 +297,8 @@ nursery 容量和 collection threshold 是收集触发条件，不是堆空间�
 
 分配计数为 cache-line 分隔的线程累计值，本线程以 relaxed atomic store 发布，查询以 atomic load 汇总；热路径不对多个全局统计量执行 atomic RMW。detach 在 registry 生命周期保护下并入退出线程总账；STW 汇总更新 collection 基线，当前对象数由基线和随后分配推导，minor 同时保留旧代计数。查询、基线更新和 detach 归并遵守同一锁顺序，不漏计或双计。
 
+累计对象数、nursery 对象数及两种分配字节数在 collection 后不清零。查询按 registry/world lock → heap lock 读取目录与基线；STW collector 在目录已稳定、持 heap lock 时直接汇总，不反向取得 world lock。detached 总账在移除线程前更新，主线程退出后的最终报告仍包含其分配。并发查询是逐线程、逐字段的原子快照，不承诺不同统计字段间的事务一致性；STW 与线程全部退出后的汇总精确。线程计数区域按 128-byte 边界独立对齐并分配，覆盖当前 Darwin/AArch64 的 128-byte 和 amd64 的 64-byte cache line。
+
 ### 3.2 Safepoint 与机器根
 
 managed 函数入口和循环回边，包括 continue 回边，提供 safepoint。managed references 在 LLVM ABI 中使用 address space 1；跨 safepoint 存活的引用必须由 stackmap 或显式 compiler root frame 描述。

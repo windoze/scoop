@@ -1,6 +1,8 @@
+#define _POSIX_C_SOURCE 200809L
 #include "floating.h"
 #include "thread/internal.h"
 #include <errno.h>
+#include <string.h>
 #include <time.h>
 
 pthread_mutex_t scoop_thread_world_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -15,6 +17,24 @@ _Atomic(uint64_t) scoop_thread_last_gc_native_safe_count;
 _Thread_local ScoopThreadState *scoop_thread_tls;
 _Thread_local ScoopAllocationContext *scoop_rt_allocation_context;
 _Thread_local ScoopPollState *scoop_rt_poll_state;
+static ScoopAllocationTotals detached_allocations;
+
+static void add_allocation_counters(ScoopAllocationTotals *total,
+                                    const ScoopAllocationCounters *counters) {
+    total->objects += atomic_load_explicit(&counters->objects, memory_order_relaxed);
+    total->nursery_objects += atomic_load_explicit(&counters->nursery_objects, memory_order_relaxed);
+    total->bytes += atomic_load_explicit(&counters->bytes, memory_order_relaxed);
+    total->nursery_bytes += atomic_load_explicit(&counters->nursery_bytes, memory_order_relaxed);
+}
+
+ScoopAllocationTotals scoop_thread_allocation_totals_locked(void) {
+    ScoopAllocationTotals total = detached_allocations;
+    for (ScoopThreadState *state = scoop_thread_registry; state != NULL;
+         state = state->registry_next) {
+        add_allocation_counters(&total, &state->allocation_counters);
+    }
+    return total;
+}
 
 _Noreturn void scoop_thread_fatal(const char *message) {
     fprintf(stderr, "scoop runtime: %s\n", message);
@@ -91,10 +111,12 @@ static ScoopThreadState *new_thread_state(ScoopThreadAttachmentKind kind, ScoopT
     if (!scoop_float_init_environment()) {
         scoop_thread_fatal("failed to initialize the floating-point environment");
     }
-    ScoopThreadState *state = calloc(1, sizeof *state);
-    if (state == NULL) {
+    void *storage = NULL;
+    if (posix_memalign(&storage, _Alignof(ScoopThreadState), sizeof(ScoopThreadState)) != 0) {
         scoop_thread_fatal("out of memory attaching a thread");
     }
+    ScoopThreadState *state = storage;
+    memset(state, 0, sizeof *state);
     state->os_thread = pthread_self();
     ScoopPlatformStackBounds bounds = scoop_platform_stack_bounds();
     state->stack_low = bounds.low;
@@ -105,6 +127,10 @@ static ScoopThreadState *new_thread_state(ScoopThreadAttachmentKind kind, ScoopT
     state->parked_from = mode;
     state->managed_depth = managed_depth;
     state->attachment_kind = kind;
+    atomic_init(&state->allocation_counters.objects, 0);
+    atomic_init(&state->allocation_counters.nursery_objects, 0);
+    atomic_init(&state->allocation_counters.bytes, 0);
+    atomic_init(&state->allocation_counters.nursery_bytes, 0);
     return state;
 }
 
@@ -169,6 +195,7 @@ static void detach_current(ScoopThreadAttachmentKind expected_kind) {
     require_detachable(state, expected_kind);
     state->current_task_context = NULL;
     atomic_store_explicit(&state->poll.mode, SCOOP_THREAD_DETACHING, memory_order_release);
+    add_allocation_counters(&detached_allocations, &state->allocation_counters);
     registry_remove(state);
     scoop_thread_tls = NULL;
     scoop_rt_allocation_context = NULL;

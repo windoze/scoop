@@ -182,7 +182,25 @@ static void *allocate_large_stress(size_t size, uint32_t *block_index) {
     return (char *)block_base(index) + GC_LINE_SIZE;
 }
 
-static void finish_small_allocation(void *object, const ScoopTypeDescriptor *td, size_t size) {
+static void record_allocation(ScoopThreadState *thread, size_t size, bool nursery) {
+    ScoopAllocationCounters *counters = &thread->allocation_counters;
+    atomic_store_explicit(&counters->objects,
+                          atomic_load_explicit(&counters->objects, memory_order_relaxed) + 1,
+                          memory_order_relaxed);
+    atomic_store_explicit(&counters->bytes,
+                          atomic_load_explicit(&counters->bytes, memory_order_relaxed) + size,
+                          memory_order_relaxed);
+    if (nursery) {
+        uint64_t objects = atomic_load_explicit(&counters->nursery_objects, memory_order_relaxed);
+        uint64_t bytes = atomic_load_explicit(&counters->nursery_bytes, memory_order_relaxed);
+        atomic_store_explicit(&counters->nursery_objects,
+                              objects + 1, memory_order_relaxed);
+        atomic_store_explicit(&counters->nursery_bytes, bytes + size, memory_order_relaxed);
+    }
+}
+
+static void finish_small_allocation(ScoopThreadState *thread, void *object,
+                                    const ScoopTypeDescriptor *td, size_t size) {
     uint32_t block_index;
     if (object == NULL || td == NULL || size > GC_REGULAR_MAX ||
         (uintptr_t)object % td->instance_shape.instance_alignment != 0 ||
@@ -194,20 +212,15 @@ static void finish_small_allocation(void *object, const ScoopTypeDescriptor *td,
     header->td = td;
     header->gc_word = 0;
     record_small_object(block_index, object, size, false);
-    atomic_fetch_add_explicit(&live_objects, 1, memory_order_relaxed);
-    atomic_fetch_add_explicit(&scoop_gc_heap_state.allocated_bytes, size, memory_order_relaxed);
-    if (blocks[block_index].generation == SCOOP_GC_YOUNG) {
-        atomic_fetch_add_explicit(&scoop_gc_heap_state.nursery_objects, 1, memory_order_relaxed);
-        atomic_fetch_add_explicit(&scoop_gc_heap_state.nursery_allocated_bytes, size,
-                                  memory_order_relaxed);
-    }
+    record_allocation(thread, size, blocks[block_index].generation == SCOOP_GC_YOUNG);
 }
 
 void scoop_runtime_finish_tlab_alloc(void *object, const ScoopTypeDescriptor *td, size_t size) {
     if (scoop_gc_stress_move_enabled() || td->release_hook != NULL) {
         heap_fatal("inline TLAB allocation violates its nursery contract");
     }
-    finish_small_allocation(object, td, scoop_shape_normalize_allocation(td, size));
+    finish_small_allocation(scoop_thread_current_required(), object, td,
+                            scoop_shape_normalize_allocation(td, size));
 }
 
 void *scoop_gc_alloc_internal(const ScoopTypeDescriptor *td, size_t size) {
@@ -231,7 +244,7 @@ void *scoop_gc_alloc_internal(const ScoopTypeDescriptor *td, size_t size) {
             : td->release_hook != NULL
                 ? allocate_old(size, (size_t)td->instance_shape.instance_alignment)
                 : allocate_small(thread, size, (size_t)td->instance_shape.instance_alignment);
-        finish_small_allocation(object, td, size);
+        finish_small_allocation(thread, object, td, size);
         return object;
     }
     uint32_t block_index;
@@ -242,7 +255,6 @@ void *scoop_gc_alloc_internal(const ScoopTypeDescriptor *td, size_t size) {
     header->td = td;
     header->gc_word = 0;
     publish_large_object(block_index, false);
-    atomic_fetch_add_explicit(&live_objects, 1, memory_order_relaxed);
-    atomic_fetch_add_explicit(&scoop_gc_heap_state.allocated_bytes, size, memory_order_relaxed);
+    record_allocation(thread, size, false);
     return object;
 }

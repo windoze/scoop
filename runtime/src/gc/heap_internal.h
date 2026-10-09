@@ -98,7 +98,9 @@ typedef struct ScoopGcHeapState {
     size_t committed_bytes;
     size_t collection_threshold;
     uint64_t active_block_heads;
-    _Atomic(uint64_t) live_objects;
+    uint64_t collected_live_objects;
+    uint64_t allocation_objects_at_collection;
+    uint64_t nursery_objects_at_collection;
     _Atomic(uint64_t) last_moved_objects;
     bool arena_ready;
     bool stress_move;
@@ -107,9 +109,6 @@ typedef struct ScoopGcHeapState {
     bool print_metrics;
     bool collection_active;
     size_t nursery_bytes;
-    _Atomic(uint64_t) nursery_objects;
-    _Atomic(uint64_t) allocated_bytes;
-    _Atomic(uint64_t) nursery_allocated_bytes;
     ScoopGcMetrics metrics;
     uint64_t copied_bytes;
     uint64_t minor_pause_ns;
@@ -137,7 +136,6 @@ extern ScoopGcHeapState scoop_gc_heap_state;
 #define committed_bytes (scoop_gc_heap_state.committed_bytes)
 #define collection_threshold (scoop_gc_heap_state.collection_threshold)
 #define active_block_heads (scoop_gc_heap_state.active_block_heads)
-#define live_objects (scoop_gc_heap_state.live_objects)
 #define last_moved_objects (scoop_gc_heap_state.last_moved_objects)
 #define arena_ready (scoop_gc_heap_state.arena_ready)
 #define stress_move (scoop_gc_heap_state.stress_move)

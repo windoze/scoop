@@ -79,3 +79,26 @@ Linux 追加 `--build-arg=--target --build-arg=x86_64-unknown-linux-gnu` 与实�
 全部样本：[Darwin 完整](measurements/m34-poll-off-darwin.json)、[条件](measurements/m34-poll-on-darwin.json)，[GNU 完整](measurements/m34-poll-off-linux-gnu.json)、[条件](measurements/m34-poll-on-linux-gnu.json)。Darwin 首次启动分别为 603.59／501.37 ms，完整保留在七次样本中；其余样本范围分别为 132.17～136.00／16.41～17.41 ms。GNU 完整组为 122.94～128.58 ms，条件组为 13.30～20.29 ms，后者有明显波动，表内不选择最快样本。每组构建只测量一次，不解释为稳定的编译速度变化。
 
 两组均分配 104 bytes，未发生 minor／full collection，因此本对照只衡量无请求 poll 的成本。慢路径停顿、移动根和 pending 激活由正式 fixture 与 runtime 线程回归验证，不从本程序的零 GC 结果推断。最初保留每轮 TLV 解析的 Darwin 实现在同样七次测量中为 22.30 ms；根据机器码改为仅复用线程地址后，重新执行结构测试和三个 target 的组合验收，再得到上表的最终结果。
+
+## M34-4b：线程累计分配计数
+
+对照为 `56343447b`（M34-4a），两组都使用条件 poll。单 mutator 使用原有 `allocation.scoop`，分配 40,000 个 Small 和 40,000 个 Medium；四 mutator 使用新 [`parallel-allocation/program.scoop`](../../tests/benchmarks/parallel-allocation/program.scoop)，每线程分配 200,000 个 Item。C companion 只启动和 join pthread，循环与分配均来自真实 Scoop 生成代码。两类工作负载各自比较旧／新实现，不跨负载相除。
+
+使用同一宿主的普通编译缓存复用未变的 core；两组独立指定 runtime 源码并保存实际构建 argv。每个组合七次串行测量，无单独 warmup。诊断开关只改变退出时的 GC 报告，计数始终维护。复跑入口与构建说明见 [README](../../tests/benchmarks/parallel-allocation/README.md)。
+
+| 主机 | mutator | GC 诊断 | 全局计数 ms | 线程计数 ms | 中位数比值（全局／线程） |
+| --- | ---: | --- | ---: | ---: | ---: |
+| Darwin | 1 | 关 | 10.734 | 11.067 | 0.970 |
+| Darwin | 1 | 开 | 10.571 | 10.750 | 0.983 |
+| Darwin | 4 | 关 | 93.708 | 21.138 | 4.433 |
+| Darwin | 4 | 开 | 89.255 | 20.396 | 4.376 |
+| GNU | 1 | 关 | 12.725 | 12.201 | 1.043 |
+| GNU | 1 | 开 | 14.071 | 12.045 | 1.168 |
+| GNU | 4 | 关 | 91.587 | 28.468 | 3.217 |
+| GNU | 4 | 开 | 91.381 | 27.167 | 3.364 |
+
+开启诊断的每次单线程运行均分配 4,160,112 bytes、执行 3 次 minor；四线程均分配 19,200,224 bytes、执行 18～19 次 minor。两组均无 full collection，stdout 分别为 `1599960000` 和 `2000000`。完整 JSON 保留分配、晋升／复制、根扫描、暂停直方图及所有样本，验证没有因线程退出而丢失累计字节。
+
+机器码中，旧 Darwin nursery 完成路径有四条对共享 heap state 的 `ldadd`，GNU 有四次带 `lock` 前缀的 RMW；新路径只对当前线程字段进行普通 load／store，以实现 relaxed atomic 合同。对象起点 bitmap 的必要原子发布仍保留。新的 TLAB helper 需要取得当前线程，线程状态也保留独立对齐的计数区域；Darwin 单线程中位数稍慢，两组样本范围重叠。GNU 单线程波动亦较大，不将其小幅比值解释为稳定的普遍收益。四线程样本则支持消除共享计数争用的效果。
+
+原始样本：[Darwin 全局](measurements/m34-counters-off-darwin.json)、[线程](measurements/m34-counters-on-darwin.json)，[GNU 全局](measurements/m34-counters-off-linux-gnu.json)、[线程](measurements/m34-counters-on-linux-gnu.json)。首次启动的 Darwin 高值全部保留，未删去离群样本。对应机器码：[Darwin 全局](measurements/m34-counters-off-darwin.asm)、[线程](measurements/m34-counters-on-darwin.asm)，[GNU 全局](measurements/m34-counters-off-linux-gnu.asm)、[线程](measurements/m34-counters-on-linux-gnu.asm)。实际构建记录保存在同名前缀的 `-builds.json`，这批共享缓存测量不作为冷构建速度对照。
