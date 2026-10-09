@@ -1,0 +1,663 @@
+{
+  "host": "Linux-7.0.0-38-generic-x86_64-with-glibc2.43",
+  "target": "x86_64-unknown-linux-gnu",
+  "revision": "96323e2b0",
+  "mode": "on",
+  "kind": "standard",
+  "builds": [
+    {
+      "name": "aggregate",
+      "first_build_seconds": 81.68099090902251,
+      "warm_build_seconds": 3.281825587997446,
+      "command": [
+        "/home/chenxu/repos/scoop/target/release/scoop",
+        "build",
+        "--scoopc",
+        "/home/chenxu/repos/scoop/target/release/scoopc",
+        "--sysroot",
+        "/home/chenxu/repos/scoop/sysroot",
+        "--runtime-root",
+        "/home/chenxu/repos/scoop/runtime",
+        "--cache-dir",
+        "/home/chenxu/repos/scoop/tmp/m34/index-gnu/cache",
+        "--profile",
+        "release",
+        "--message-format",
+        "json",
+        "--target",
+        "x86_64-unknown-linux-gnu",
+        "--unwind-prefix",
+        "/home/chenxu/repos/scoop/sysroot/native/x86_64-unknown-linux-gnu/unwind",
+        "/home/chenxu/repos/scoop/tests/benchmarks/aggregate.scoop",
+        "--target-dir",
+        "/home/chenxu/repos/scoop/tmp/m34/final-standard-on-linux-gnu/target-aggregate",
+        "-o",
+        "/home/chenxu/repos/scoop/tmp/m34/final-standard-on-linux-gnu/aggregate"
+      ],
+      "records": [
+        {
+          "dependencies": [
+            {
+              "artifact_fingerprint": "c5f6e5f6d6b52a389b4452ff9b73c5d17d855063a3131fed233149c8da82eae7",
+              "coordinate": {
+                "group": "scoop",
+                "name": "scoop.core",
+                "version": "0.1.0"
+              },
+              "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+              "path": "/home/chenxu/repos/scoop/tmp/m34/index-gnu/cache/compile-v1/2220c9d4c67aaea603b0c22ce5620826c10e5cd30da46cf141d593700d847d40/artifact.slib"
+            }
+          ],
+          "kind": "executable",
+          "link_plan_fingerprint": "2d9f37c232688b37343d04c0d1fc48e11fd4d568273e10235c24943d88c3fc7c",
+          "observations": {
+            "child_invocations": [
+              "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+              "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6"
+            ],
+            "nodes": [
+              {
+                "cache_key": "2220c9d4c67aaea603b0c22ce5620826c10e5cd30da46cf141d593700d847d40",
+                "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+                "origin": "compiled"
+              },
+              {
+                "cache_key": "0e971cc4cb8810c6371d0734db3cad57216b56ca552ca83d612c1ffcfdd6f083",
+                "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+                "origin": "compiled"
+              }
+            ]
+          },
+          "output": "/home/chenxu/repos/scoop/tmp/m34/final-standard-on-linux-gnu/aggregate",
+          "profile": "release",
+          "root": {
+            "artifact_fingerprint": "8292896562fb42131467ac446131f5e8cdd6d361308ad7e2898f7e202dd828a6",
+            "coordinate": {
+              "group": "scoop",
+              "name": "single-file",
+              "version": "0.0.0"
+            },
+            "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+            "path": "/home/chenxu/repos/scoop/tmp/m34/index-gnu/cache/compile-v1/0e971cc4cb8810c6371d0734db3cad57216b56ca552ca83d612c1ffcfdd6f083/artifact.slib"
+          },
+          "runtime_index": "/home/chenxu/repos/scoop/tmp/m34/index-gnu/cache/runtime-v1/ce9b1b299f01c9cd88956b788b880d9576e56e99e378462aafd828f51c1f5cf6/index.cbor",
+          "schema": 1
+        }
+      ],
+      "output_bytes": 4536744,
+      "root_slib_bytes": 232344
+    },
+    {
+      "name": "allocation",
+      "first_build_seconds": 5.94851753898547,
+      "warm_build_seconds": 3.2916604779893532,
+      "command": [
+        "/home/chenxu/repos/scoop/target/release/scoop",
+        "build",
+        "--scoopc",
+        "/home/chenxu/repos/scoop/target/release/scoopc",
+        "--sysroot",
+        "/home/chenxu/repos/scoop/sysroot",
+        "--runtime-root",
+        "/home/chenxu/repos/scoop/runtime",
+        "--cache-dir",
+        "/home/chenxu/repos/scoop/tmp/m34/index-gnu/cache",
+        "--profile",
+        "release",
+        "--message-format",
+        "json",
+        "--target",
+        "x86_64-unknown-linux-gnu",
+        "--unwind-prefix",
+        "/home/chenxu/repos/scoop/sysroot/native/x86_64-unknown-linux-gnu/unwind",
+        "/home/chenxu/repos/scoop/tests/benchmarks/allocation.scoop",
+        "--target-dir",
+        "/home/chenxu/repos/scoop/tmp/m34/final-standard-on-linux-gnu/target-allocation",
+        "-o",
+        "/home/chenxu/repos/scoop/tmp/m34/final-standard-on-linux-gnu/allocation"
+      ],
+      "records": [
+        {
+          "dependencies": [
+            {
+              "artifact_fingerprint": "c5f6e5f6d6b52a389b4452ff9b73c5d17d855063a3131fed233149c8da82eae7",
+              "coordinate": {
+                "group": "scoop",
+                "name": "scoop.core",
+                "version": "0.1.0"
+              },
+              "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+              "path": "/home/chenxu/repos/scoop/tmp/m34/index-gnu/cache/compile-v1/2220c9d4c67aaea603b0c22ce5620826c10e5cd30da46cf141d593700d847d40/artifact.slib"
+            }
+          ],
+          "kind": "executable",
+          "link_plan_fingerprint": "3b7ba0f91fedb3bc2a930e15fa474d6825e2b605124cae49404a9e5256e341a1",
+          "observations": {
+            "child_invocations": [
+              "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6"
+            ],
+            "nodes": [
+              {
+                "cache_key": "2220c9d4c67aaea603b0c22ce5620826c10e5cd30da46cf141d593700d847d40",
+                "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+                "origin": "cache"
+              },
+              {
+                "cache_key": "aab0b410186ff749d7af5468e4b897bb239bb6ea7463fbe7135c804997caaece",
+                "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+                "origin": "compiled"
+              }
+            ]
+          },
+          "output": "/home/chenxu/repos/scoop/tmp/m34/final-standard-on-linux-gnu/allocation",
+          "profile": "release",
+          "root": {
+            "artifact_fingerprint": "d4232a652c04650d007a6ae5ef192359d99de0406d7de2fe95f03e5dfdcc2ce6",
+            "coordinate": {
+              "group": "scoop",
+              "name": "single-file",
+              "version": "0.0.0"
+            },
+            "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+            "path": "/home/chenxu/repos/scoop/tmp/m34/index-gnu/cache/compile-v1/aab0b410186ff749d7af5468e4b897bb239bb6ea7463fbe7135c804997caaece/artifact.slib"
+          },
+          "runtime_index": "/home/chenxu/repos/scoop/tmp/m34/index-gnu/cache/runtime-v1/ce9b1b299f01c9cd88956b788b880d9576e56e99e378462aafd828f51c1f5cf6/index.cbor",
+          "schema": 1
+        }
+      ],
+      "output_bytes": 4543312,
+      "root_slib_bytes": 281978
+    },
+    {
+      "name": "arrays",
+      "first_build_seconds": 6.272658090019831,
+      "warm_build_seconds": 3.4450605909805745,
+      "command": [
+        "/home/chenxu/repos/scoop/target/release/scoop",
+        "build",
+        "--scoopc",
+        "/home/chenxu/repos/scoop/target/release/scoopc",
+        "--sysroot",
+        "/home/chenxu/repos/scoop/sysroot",
+        "--runtime-root",
+        "/home/chenxu/repos/scoop/runtime",
+        "--cache-dir",
+        "/home/chenxu/repos/scoop/tmp/m34/index-gnu/cache",
+        "--profile",
+        "release",
+        "--message-format",
+        "json",
+        "--target",
+        "x86_64-unknown-linux-gnu",
+        "--unwind-prefix",
+        "/home/chenxu/repos/scoop/sysroot/native/x86_64-unknown-linux-gnu/unwind",
+        "/home/chenxu/repos/scoop/tests/benchmarks/arrays.scoop",
+        "--target-dir",
+        "/home/chenxu/repos/scoop/tmp/m34/final-standard-on-linux-gnu/target-arrays",
+        "-o",
+        "/home/chenxu/repos/scoop/tmp/m34/final-standard-on-linux-gnu/arrays"
+      ],
+      "records": [
+        {
+          "dependencies": [
+            {
+              "artifact_fingerprint": "c5f6e5f6d6b52a389b4452ff9b73c5d17d855063a3131fed233149c8da82eae7",
+              "coordinate": {
+                "group": "scoop",
+                "name": "scoop.core",
+                "version": "0.1.0"
+              },
+              "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+              "path": "/home/chenxu/repos/scoop/tmp/m34/index-gnu/cache/compile-v1/2220c9d4c67aaea603b0c22ce5620826c10e5cd30da46cf141d593700d847d40/artifact.slib"
+            }
+          ],
+          "kind": "executable",
+          "link_plan_fingerprint": "cf9c57428c6ceb58890947a0d528d59139bf70836fed178478794d87b41df0a9",
+          "observations": {
+            "child_invocations": [
+              "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6"
+            ],
+            "nodes": [
+              {
+                "cache_key": "2220c9d4c67aaea603b0c22ce5620826c10e5cd30da46cf141d593700d847d40",
+                "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+                "origin": "cache"
+              },
+              {
+                "cache_key": "f9fb92209fa356b59f9885cbe7bb304f5a793ec8befd7587255b997870a707e1",
+                "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+                "origin": "compiled"
+              }
+            ]
+          },
+          "output": "/home/chenxu/repos/scoop/tmp/m34/final-standard-on-linux-gnu/arrays",
+          "profile": "release",
+          "root": {
+            "artifact_fingerprint": "cdc10ec0b63bd773f2eee018007b995c836020bd5c76aaad4cadece4454e3379",
+            "coordinate": {
+              "group": "scoop",
+              "name": "single-file",
+              "version": "0.0.0"
+            },
+            "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+            "path": "/home/chenxu/repos/scoop/tmp/m34/index-gnu/cache/compile-v1/f9fb92209fa356b59f9885cbe7bb304f5a793ec8befd7587255b997870a707e1/artifact.slib"
+          },
+          "runtime_index": "/home/chenxu/repos/scoop/tmp/m34/index-gnu/cache/runtime-v1/ce9b1b299f01c9cd88956b788b880d9576e56e99e378462aafd828f51c1f5cf6/index.cbor",
+          "schema": 1
+        }
+      ],
+      "output_bytes": 4675496,
+      "root_slib_bytes": 1482236
+    },
+    {
+      "name": "collections",
+      "first_build_seconds": 6.3111162959830835,
+      "warm_build_seconds": 3.3164756519836374,
+      "command": [
+        "/home/chenxu/repos/scoop/target/release/scoop",
+        "build",
+        "--scoopc",
+        "/home/chenxu/repos/scoop/target/release/scoopc",
+        "--sysroot",
+        "/home/chenxu/repos/scoop/sysroot",
+        "--runtime-root",
+        "/home/chenxu/repos/scoop/runtime",
+        "--cache-dir",
+        "/home/chenxu/repos/scoop/tmp/m34/index-gnu/cache",
+        "--profile",
+        "release",
+        "--message-format",
+        "json",
+        "--target",
+        "x86_64-unknown-linux-gnu",
+        "--unwind-prefix",
+        "/home/chenxu/repos/scoop/sysroot/native/x86_64-unknown-linux-gnu/unwind",
+        "/home/chenxu/repos/scoop/tests/benchmarks/collections.scoop",
+        "--target-dir",
+        "/home/chenxu/repos/scoop/tmp/m34/final-standard-on-linux-gnu/target-collections",
+        "-o",
+        "/home/chenxu/repos/scoop/tmp/m34/final-standard-on-linux-gnu/collections"
+      ],
+      "records": [
+        {
+          "dependencies": [
+            {
+              "artifact_fingerprint": "c5f6e5f6d6b52a389b4452ff9b73c5d17d855063a3131fed233149c8da82eae7",
+              "coordinate": {
+                "group": "scoop",
+                "name": "scoop.core",
+                "version": "0.1.0"
+              },
+              "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+              "path": "/home/chenxu/repos/scoop/tmp/m34/index-gnu/cache/compile-v1/2220c9d4c67aaea603b0c22ce5620826c10e5cd30da46cf141d593700d847d40/artifact.slib"
+            }
+          ],
+          "kind": "executable",
+          "link_plan_fingerprint": "9b3a427b7b6a50a129aa26549296db088fdb5f87ec222bc4424f30781b6ad267",
+          "observations": {
+            "child_invocations": [
+              "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6"
+            ],
+            "nodes": [
+              {
+                "cache_key": "2220c9d4c67aaea603b0c22ce5620826c10e5cd30da46cf141d593700d847d40",
+                "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+                "origin": "cache"
+              },
+              {
+                "cache_key": "70804fb5ff84dc65e11f08cc271d1794cd3f5b43068930572b52d94cfe299adc",
+                "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+                "origin": "compiled"
+              }
+            ]
+          },
+          "output": "/home/chenxu/repos/scoop/tmp/m34/final-standard-on-linux-gnu/collections",
+          "profile": "release",
+          "root": {
+            "artifact_fingerprint": "94acf10b6c0334670539a2cd45d195ea85db0da53fda511d9f46f9d33b53b694",
+            "coordinate": {
+              "group": "scoop",
+              "name": "single-file",
+              "version": "0.0.0"
+            },
+            "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+            "path": "/home/chenxu/repos/scoop/tmp/m34/index-gnu/cache/compile-v1/70804fb5ff84dc65e11f08cc271d1794cd3f5b43068930572b52d94cfe299adc/artifact.slib"
+          },
+          "runtime_index": "/home/chenxu/repos/scoop/tmp/m34/index-gnu/cache/runtime-v1/ce9b1b299f01c9cd88956b788b880d9576e56e99e378462aafd828f51c1f5cf6/index.cbor",
+          "schema": 1
+        }
+      ],
+      "output_bytes": 4542712,
+      "root_slib_bytes": 1859168
+    },
+    {
+      "name": "old-graph-large",
+      "first_build_seconds": 6.13959908101242,
+      "warm_build_seconds": 3.368971124989912,
+      "command": [
+        "/home/chenxu/repos/scoop/target/release/scoop",
+        "build",
+        "--scoopc",
+        "/home/chenxu/repos/scoop/target/release/scoopc",
+        "--sysroot",
+        "/home/chenxu/repos/scoop/sysroot",
+        "--runtime-root",
+        "/home/chenxu/repos/scoop/runtime",
+        "--cache-dir",
+        "/home/chenxu/repos/scoop/tmp/m34/index-gnu/cache",
+        "--profile",
+        "release",
+        "--message-format",
+        "json",
+        "--target",
+        "x86_64-unknown-linux-gnu",
+        "--unwind-prefix",
+        "/home/chenxu/repos/scoop/sysroot/native/x86_64-unknown-linux-gnu/unwind",
+        "/home/chenxu/repos/scoop/tests/benchmarks/old-graph-large.scoop",
+        "--target-dir",
+        "/home/chenxu/repos/scoop/tmp/m34/final-standard-on-linux-gnu/target-old-graph-large",
+        "-o",
+        "/home/chenxu/repos/scoop/tmp/m34/final-standard-on-linux-gnu/old-graph-large"
+      ],
+      "records": [
+        {
+          "dependencies": [
+            {
+              "artifact_fingerprint": "c5f6e5f6d6b52a389b4452ff9b73c5d17d855063a3131fed233149c8da82eae7",
+              "coordinate": {
+                "group": "scoop",
+                "name": "scoop.core",
+                "version": "0.1.0"
+              },
+              "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+              "path": "/home/chenxu/repos/scoop/tmp/m34/index-gnu/cache/compile-v1/2220c9d4c67aaea603b0c22ce5620826c10e5cd30da46cf141d593700d847d40/artifact.slib"
+            }
+          ],
+          "kind": "executable",
+          "link_plan_fingerprint": "1739d19ef8d2bf2e26b4fb6f8912cbec9d739f4bd89f1d744b9c194afc0b0ad0",
+          "observations": {
+            "child_invocations": [
+              "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6"
+            ],
+            "nodes": [
+              {
+                "cache_key": "2220c9d4c67aaea603b0c22ce5620826c10e5cd30da46cf141d593700d847d40",
+                "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+                "origin": "cache"
+              },
+              {
+                "cache_key": "03128baf51d6e5a9ae3e2684b8a9e2c525ebca9edda6cd6a3b77aa6a0b07a603",
+                "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+                "origin": "compiled"
+              }
+            ]
+          },
+          "output": "/home/chenxu/repos/scoop/tmp/m34/final-standard-on-linux-gnu/old-graph-large",
+          "profile": "release",
+          "root": {
+            "artifact_fingerprint": "2cc6c2daa148f6f58356ba35712b79551f97f2f76df55661d3191b51545f09cb",
+            "coordinate": {
+              "group": "scoop",
+              "name": "single-file",
+              "version": "0.0.0"
+            },
+            "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+            "path": "/home/chenxu/repos/scoop/tmp/m34/index-gnu/cache/compile-v1/03128baf51d6e5a9ae3e2684b8a9e2c525ebca9edda6cd6a3b77aa6a0b07a603/artifact.slib"
+          },
+          "runtime_index": "/home/chenxu/repos/scoop/tmp/m34/index-gnu/cache/runtime-v1/ce9b1b299f01c9cd88956b788b880d9576e56e99e378462aafd828f51c1f5cf6/index.cbor",
+          "schema": 1
+        }
+      ],
+      "output_bytes": 4630056,
+      "root_slib_bytes": 1022868
+    },
+    {
+      "name": "old-graph",
+      "first_build_seconds": 6.225722092989599,
+      "warm_build_seconds": 3.346270045003621,
+      "command": [
+        "/home/chenxu/repos/scoop/target/release/scoop",
+        "build",
+        "--scoopc",
+        "/home/chenxu/repos/scoop/target/release/scoopc",
+        "--sysroot",
+        "/home/chenxu/repos/scoop/sysroot",
+        "--runtime-root",
+        "/home/chenxu/repos/scoop/runtime",
+        "--cache-dir",
+        "/home/chenxu/repos/scoop/tmp/m34/index-gnu/cache",
+        "--profile",
+        "release",
+        "--message-format",
+        "json",
+        "--target",
+        "x86_64-unknown-linux-gnu",
+        "--unwind-prefix",
+        "/home/chenxu/repos/scoop/sysroot/native/x86_64-unknown-linux-gnu/unwind",
+        "/home/chenxu/repos/scoop/tests/benchmarks/old-graph.scoop",
+        "--target-dir",
+        "/home/chenxu/repos/scoop/tmp/m34/final-standard-on-linux-gnu/target-old-graph",
+        "-o",
+        "/home/chenxu/repos/scoop/tmp/m34/final-standard-on-linux-gnu/old-graph"
+      ],
+      "records": [
+        {
+          "dependencies": [
+            {
+              "artifact_fingerprint": "c5f6e5f6d6b52a389b4452ff9b73c5d17d855063a3131fed233149c8da82eae7",
+              "coordinate": {
+                "group": "scoop",
+                "name": "scoop.core",
+                "version": "0.1.0"
+              },
+              "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+              "path": "/home/chenxu/repos/scoop/tmp/m34/index-gnu/cache/compile-v1/2220c9d4c67aaea603b0c22ce5620826c10e5cd30da46cf141d593700d847d40/artifact.slib"
+            }
+          ],
+          "kind": "executable",
+          "link_plan_fingerprint": "cda807bee461d03f30fa783997b80cacbe02ea76733f7d8f2c20dea3a683ff28",
+          "observations": {
+            "child_invocations": [
+              "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6"
+            ],
+            "nodes": [
+              {
+                "cache_key": "2220c9d4c67aaea603b0c22ce5620826c10e5cd30da46cf141d593700d847d40",
+                "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+                "origin": "cache"
+              },
+              {
+                "cache_key": "f0f6c5df0b32d308acbe512dab749479681fbbdcd077b23367a06e37a1293e17",
+                "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+                "origin": "compiled"
+              }
+            ]
+          },
+          "output": "/home/chenxu/repos/scoop/tmp/m34/final-standard-on-linux-gnu/old-graph",
+          "profile": "release",
+          "root": {
+            "artifact_fingerprint": "20b6cd7f1ab56d6a74706309beb9c57369d7aa7a4ec2358a7bbd25434497ebb7",
+            "coordinate": {
+              "group": "scoop",
+              "name": "single-file",
+              "version": "0.0.0"
+            },
+            "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+            "path": "/home/chenxu/repos/scoop/tmp/m34/index-gnu/cache/compile-v1/f0f6c5df0b32d308acbe512dab749479681fbbdcd077b23367a06e37a1293e17/artifact.slib"
+          },
+          "runtime_index": "/home/chenxu/repos/scoop/tmp/m34/index-gnu/cache/runtime-v1/ce9b1b299f01c9cd88956b788b880d9576e56e99e378462aafd828f51c1f5cf6/index.cbor",
+          "schema": 1
+        }
+      ],
+      "output_bytes": 4630056,
+      "root_slib_bytes": 1022868
+    },
+    {
+      "name": "primitive",
+      "first_build_seconds": 5.948966963973362,
+      "warm_build_seconds": 3.2814634069800377,
+      "command": [
+        "/home/chenxu/repos/scoop/target/release/scoop",
+        "build",
+        "--scoopc",
+        "/home/chenxu/repos/scoop/target/release/scoopc",
+        "--sysroot",
+        "/home/chenxu/repos/scoop/sysroot",
+        "--runtime-root",
+        "/home/chenxu/repos/scoop/runtime",
+        "--cache-dir",
+        "/home/chenxu/repos/scoop/tmp/m34/index-gnu/cache",
+        "--profile",
+        "release",
+        "--message-format",
+        "json",
+        "--target",
+        "x86_64-unknown-linux-gnu",
+        "--unwind-prefix",
+        "/home/chenxu/repos/scoop/sysroot/native/x86_64-unknown-linux-gnu/unwind",
+        "/home/chenxu/repos/scoop/tests/benchmarks/primitive.scoop",
+        "--target-dir",
+        "/home/chenxu/repos/scoop/tmp/m34/final-standard-on-linux-gnu/target-primitive",
+        "-o",
+        "/home/chenxu/repos/scoop/tmp/m34/final-standard-on-linux-gnu/primitive"
+      ],
+      "records": [
+        {
+          "dependencies": [
+            {
+              "artifact_fingerprint": "c5f6e5f6d6b52a389b4452ff9b73c5d17d855063a3131fed233149c8da82eae7",
+              "coordinate": {
+                "group": "scoop",
+                "name": "scoop.core",
+                "version": "0.1.0"
+              },
+              "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+              "path": "/home/chenxu/repos/scoop/tmp/m34/index-gnu/cache/compile-v1/2220c9d4c67aaea603b0c22ce5620826c10e5cd30da46cf141d593700d847d40/artifact.slib"
+            }
+          ],
+          "kind": "executable",
+          "link_plan_fingerprint": "9caac4a712c1c828a7c3824f08729e6add55c64793772d546122f7a5a33d72e2",
+          "observations": {
+            "child_invocations": [
+              "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6"
+            ],
+            "nodes": [
+              {
+                "cache_key": "2220c9d4c67aaea603b0c22ce5620826c10e5cd30da46cf141d593700d847d40",
+                "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+                "origin": "cache"
+              },
+              {
+                "cache_key": "8144f84923d4868cc650cc08ba4ee992f8773ab26c2fda38843bf989d9c59683",
+                "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+                "origin": "compiled"
+              }
+            ]
+          },
+          "output": "/home/chenxu/repos/scoop/tmp/m34/final-standard-on-linux-gnu/primitive",
+          "profile": "release",
+          "root": {
+            "artifact_fingerprint": "43e952978310db2925f74f75bae83b89c4430fca3a15050510b6c048f01dfa56",
+            "coordinate": {
+              "group": "scoop",
+              "name": "single-file",
+              "version": "0.0.0"
+            },
+            "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+            "path": "/home/chenxu/repos/scoop/tmp/m34/index-gnu/cache/compile-v1/8144f84923d4868cc650cc08ba4ee992f8773ab26c2fda38843bf989d9c59683/artifact.slib"
+          },
+          "runtime_index": "/home/chenxu/repos/scoop/tmp/m34/index-gnu/cache/runtime-v1/ce9b1b299f01c9cd88956b788b880d9576e56e99e378462aafd828f51c1f5cf6/index.cbor",
+          "schema": 1
+        }
+      ],
+      "output_bytes": 4531320,
+      "root_slib_bytes": 223318
+    },
+    {
+      "name": "survivors",
+      "first_build_seconds": 6.149827198998537,
+      "warm_build_seconds": 3.3043427910015453,
+      "command": [
+        "/home/chenxu/repos/scoop/target/release/scoop",
+        "build",
+        "--scoopc",
+        "/home/chenxu/repos/scoop/target/release/scoopc",
+        "--sysroot",
+        "/home/chenxu/repos/scoop/sysroot",
+        "--runtime-root",
+        "/home/chenxu/repos/scoop/runtime",
+        "--cache-dir",
+        "/home/chenxu/repos/scoop/tmp/m34/index-gnu/cache",
+        "--profile",
+        "release",
+        "--message-format",
+        "json",
+        "--target",
+        "x86_64-unknown-linux-gnu",
+        "--unwind-prefix",
+        "/home/chenxu/repos/scoop/sysroot/native/x86_64-unknown-linux-gnu/unwind",
+        "/home/chenxu/repos/scoop/tests/benchmarks/survivors.scoop",
+        "--target-dir",
+        "/home/chenxu/repos/scoop/tmp/m34/final-standard-on-linux-gnu/target-survivors",
+        "-o",
+        "/home/chenxu/repos/scoop/tmp/m34/final-standard-on-linux-gnu/survivors"
+      ],
+      "records": [
+        {
+          "dependencies": [
+            {
+              "artifact_fingerprint": "c5f6e5f6d6b52a389b4452ff9b73c5d17d855063a3131fed233149c8da82eae7",
+              "coordinate": {
+                "group": "scoop",
+                "name": "scoop.core",
+                "version": "0.1.0"
+              },
+              "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+              "path": "/home/chenxu/repos/scoop/tmp/m34/index-gnu/cache/compile-v1/2220c9d4c67aaea603b0c22ce5620826c10e5cd30da46cf141d593700d847d40/artifact.slib"
+            }
+          ],
+          "kind": "executable",
+          "link_plan_fingerprint": "97432963a0ba82efd26b31e4a41e375a07c2d44d9ed646a2392281ea6e02ece0",
+          "observations": {
+            "child_invocations": [
+              "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6"
+            ],
+            "nodes": [
+              {
+                "cache_key": "2220c9d4c67aaea603b0c22ce5620826c10e5cd30da46cf141d593700d847d40",
+                "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+                "origin": "cache"
+              },
+              {
+                "cache_key": "a753a59322b9182c514ff02d0296c7e1f69fad5eccb342b9d7ce5441f132f1cd",
+                "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+                "origin": "compiled"
+              }
+            ]
+          },
+          "output": "/home/chenxu/repos/scoop/tmp/m34/final-standard-on-linux-gnu/survivors",
+          "profile": "release",
+          "root": {
+            "artifact_fingerprint": "fca26943020b20c679ed57f533c716548fd2c7dedd96c85b5428f3feed9ee37d",
+            "coordinate": {
+              "group": "scoop",
+              "name": "single-file",
+              "version": "0.0.0"
+            },
+            "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+            "path": "/home/chenxu/repos/scoop/tmp/m34/index-gnu/cache/compile-v1/a753a59322b9182c514ff02d0296c7e1f69fad5eccb342b9d7ce5441f132f1cd/artifact.slib"
+          },
+          "runtime_index": "/home/chenxu/repos/scoop/tmp/m34/index-gnu/cache/runtime-v1/ce9b1b299f01c9cd88956b788b880d9576e56e99e378462aafd828f51c1f5cf6/index.cbor",
+          "schema": 1
+        }
+      ],
+      "output_bytes": 4636048,
+      "root_slib_bytes": 1112758
+    }
+  ],
+  "commands": [],
+  "tools": {
+    "cc": "cc (Ubuntu 15.2.0-16ubuntu1) 15.2.0\nCopyright (C) 2025 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.",
+    "llvm": "22.1.2"
+  }
+}

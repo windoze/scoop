@@ -286,3 +286,110 @@ Int 容量初始化在 Darwin／GNU 分别为 0.582 → 0.430／1.258 → 0.398 
 低占用测试每进程预热一次 full 后再计五次 full。capacity 1024 和 1048576 的实际 `mark_reference_slots` 分别为 1026 和 1048578，两版完全一致。大容量 full pause 的 35 次样本中位数在 Darwin 为 8.133 → 7.918 ms，在 GNU 为 4.012 → 4.023 ms；新实现对应进程 CPU 为 10.673／7.887 ms，mark 为 0.965／1.378 ms。即使只有一个有效元素，全零空闲槽仍有按 capacity 访问的成本，当前实现没有按 size 扫描的优化。
 
 Darwin 的 executable／root `.slib` 为 8,923,112／12,307,088 → 8,939,048／12,393,038 bytes，`__text` 从 437,332 降至 433,992 bytes。GNU 对应为 6,676,112／13,447,850 → 6,682,688／13,534,934，`.text` 从 507,569 降至 504,241。机器码略减而类型／产物描述略增，两者分别记录。
+
+## M34-10：完整变更的同机对照
+
+这里的 off／on 分别是完整 M33／完整 M34，不能把总收益归给某一个优化。M33 为 `e97b40f5c9c408e2ff785e5d09c6bf9222c78979`；最终编译器实现为 `fbd98ad0d`，之后的 fixture／记录提交不改变编译器或 runtime。复用八个原有工作负载，新增跨 Cone 接口和纯计算 GC 响应两套程序，按模式形成 14 组比较。源码、构建和计时入口见 [复跑说明](../../tests/benchmarks/m34/README.md)。
+
+每组分别 warmup 一次，正式运行七轮并交替 M33／M34 顺序，开启相同的 GC 统计，使用默认 nursery／worker 策略。计时不与同宿主的编译、CLI 验收或 target 清理并发。程序输出、接口的独立 UInt checksum、各线程整数和及 GC histogram 总数全部检查；CPU 为进程及线程累计 CPU 时间，墙钟包含进程启动。两机环境沿用本文件开头的记录，未固定 CPU affinity，GNU 的混合核调度存在可见波动。
+
+Linux 样本最初使用 `96323e2b0` 构建。后续 non-integral pointer 与 intrinsic receiver 修复完成后，两机各重新构建全部十个可执行文件，与对应旧候选逐字节相同，热点机器码大小也相同，因此保留并复用 Linux 已完成的七轮；[Darwin 对照](measurements/m34-final-binary-comparison-darwin.json)和[GNU 对照](measurements/m34-final-binary-comparison-linux-gnu.json)同时记录路径、字节数与 SHA-256。原始样本与修复后构建记录分别保存，不把重新计算摘要当作重新计时。
+
+### 原有工作负载
+
+八个程序的输入与 M33 基线一致。表内时间为七次中位数及最小／最大值，单位 ms；不能把整进程时间当作单个操作延迟。全部墙钟、CPU、stdout、GC 及 binary 大小见 [Darwin](measurements/m34-final-standard-darwin.json)／[GNU](measurements/m34-final-standard-linux-gnu.json)原始报告。
+
+| 主机／工作负载 | M33 墙钟 ms，中位数 [范围] | M34 墙钟 ms，中位数 [范围] | CPU ms，旧 → 新 |
+| --- | ---: | ---: | ---: |
+| Darwin／aggregate | 36.092 [35.404, 37.745] | 10.510 [10.197, 10.840] | 34.003 → 8.529 |
+| Darwin／allocation | 14.238 [13.896, 14.628] | 11.853 [11.476, 12.918] | 12.251 → 9.770 |
+| Darwin／arrays | 26.581 [25.772, 26.822] | 19.422 [19.254, 19.625] | 24.397 → 17.340 |
+| Darwin／collections | 32.005 [30.843, 34.502] | 18.926 [18.679, 19.107] | 29.811 → 16.735 |
+| Darwin／old-graph-large | 49.197 [48.752, 50.392] | 36.865 [36.075, 37.719] | 46.744 → 34.568 |
+| Darwin／old-graph | 25.763 [25.195, 25.970] | 18.596 [18.085, 20.212] | 23.498 → 16.421 |
+| Darwin／primitive | 139.522 [136.218, 175.711] | 17.802 [17.291, 18.637] | 137.043 → 15.650 |
+| Darwin／survivors | 68.389 [67.965, 69.672] | 47.563 [47.390, 47.809] | 66.201 → 51.007 |
+| GNU／aggregate | 37.463 [32.160, 40.961] | 6.371 [5.197, 8.847] | 37.248 → 6.241 |
+| GNU／allocation | 13.786 [12.614, 15.776] | 9.682 [8.578, 11.915] | 13.633 → 9.575 |
+| GNU／arrays | 25.222 [24.131, 27.076] | 16.067 [15.224, 18.335] | 25.090 → 15.906 |
+| GNU／collections | 26.224 [24.500, 28.687] | 15.631 [13.023, 18.515] | 26.042 → 15.530 |
+| GNU／old-graph-large | 49.815 [47.533, 54.614] | 35.964 [35.333, 38.988] | 49.525 → 35.787 |
+| GNU／old-graph | 23.677 [23.021, 26.485] | 16.238 [14.009, 21.848] | 23.546 → 16.088 |
+| GNU／primitive | 131.647 [124.128, 135.278] | 13.491 [12.686, 15.587] | 131.396 → 13.387 |
+| GNU／survivors | 75.656 [70.645, 87.778] | 55.491 [53.410, 62.109] | 74.950 → 62.240 |
+
+原有 aggregate、primitive 的分配仍均为 104 bytes，没有 collection。allocation／arrays／old-graph 的工作量与分配量保持一致；collections 因紧凑容器减少 9,600 bytes。Darwin allocation 的累计 GC pause 中位数为 0.863 → 0.627 ms，survivors 为 44.258 → 31.557 ms；GNU 分别为 2.293 → 0.776 ms、51.658 → 41.980 ms。survivors 新版进程 CPU 为 62.240 ms，超过 55.491 ms 墙钟，反映并行 GC 使用额外核心，不是计时错误。
+
+八个程序的可执行文件大小在 Darwin 变化 −0.098%～+0.239%，GNU 增加 0.559%～0.688%；根 `.slib` 的变化与 executable 分开记录。修复后实际构建：[Darwin](measurements/m34-final-standard-on-darwin-build.json)／[GNU](measurements/m34-final-standard-on-linux-gnu-build.json)。构建期间存在同机验收活动，首次构建也复用了缓存，所存首次／重复构建时间仅作执行记录，不据此宣称稳定编译速度改善；受控内联编译时间对照见 M34-3。
+
+### 接口调用与转换
+
+provider 中的 Cell.next 执行 UInt xorshift，四种模式各循环 2,000,000 次；consumer 独立构建，所有输出均为 `3383936671`。known 使用已知 Cell，unknown 接收 Reader，converted-once 在循环前把 Any 转为 Reader，converted-each 每轮重新转换。完整样本：[Darwin](measurements/m34-final-interfaces-darwin.json)／[GNU](measurements/m34-final-interfaces-linux-gnu.json)。
+
+| 主机／工作负载 | M33 墙钟 ms，中位数 [范围] | M34 墙钟 ms，中位数 [范围] | CPU ms，旧 → 新 |
+| --- | ---: | ---: | ---: |
+| Darwin／known | 180.841 [172.347, 184.478] | 16.342 [14.995, 17.839] | 178.671 → 14.179 |
+| Darwin／unknown | 185.849 [178.025, 191.173] | 15.583 [15.118, 15.623] | 183.622 → 13.483 |
+| Darwin／converted-once | 177.242 [171.614, 179.087] | 15.743 [15.219, 18.180] | 174.896 → 13.634 |
+| Darwin／converted-each | 236.566 [231.249, 239.289] | 133.816 [132.695, 134.225] | 234.110 → 131.599 |
+| GNU／known | 99.964 [98.872, 107.697] | 9.645 [9.000, 13.806] | 99.814 → 9.541 |
+| GNU／unknown | 101.299 [99.615, 107.455] | 9.397 [9.121, 13.573] | 101.136 → 9.161 |
+| GNU／converted-once | 107.419 [99.357, 111.858] | 13.555 [9.135, 15.395] | 107.161 → 13.449 |
+| GNU／converted-each | 130.611 [129.568, 131.831] | 74.457 [74.104, 77.667] | 130.496 → 74.307 |
+
+C companion 只在普通 Scoop 循环外记录时间；去掉进程启动后的 kernel 如下，仍保留 Managed poll 和真实调用。
+
+| 主机／模式 | M33 kernel ms | M34 kernel ms |
+| --- | ---: | ---: |
+| Darwin／known | 171.850 [163.083, 175.332] | 7.323 [6.469, 8.788] |
+| Darwin／unknown | 176.660 [168.941, 182.095] | 6.440 [6.321, 6.546] |
+| Darwin／converted-once | 168.586 [162.514, 170.077] | 6.596 [6.163, 8.780] |
+| Darwin／converted-each | 227.309 [222.267, 229.926] | 124.755 [123.531, 124.954] |
+| GNU／known | 94.479 [93.151, 100.755] | 4.842 [4.716, 7.376] |
+| GNU／unknown | 95.697 [94.446, 100.714] | 4.871 [4.709, 7.048] |
+| GNU／converted-once | 100.998 [94.121, 104.787] | 7.024 [4.723, 8.627] |
+| GNU／converted-each | 126.107 [125.085, 127.054] | 69.886 [69.795, 71.112] |
+
+机器码中，known 已去虚拟化为 Cell.next 直接调用，但没有将 next 整体内联；next 内的 salt getter 已内联。unknown 直接从保存的 itab 取 slot，循环中没有 itable lookup。converted-once 在循环外检查／查表一次；converted-each 保留每轮检查／查表，仍明显慢于前两种模式。旧版 known／unknown 每轮均查表。两目标原始机器码与源码符号映射见 [Darwin M33](measurements/m34-final-interfaces-off-darwin.asm)／[M34](measurements/m34-final-interfaces-on-darwin.asm)、[GNU M33](measurements/m34-final-interfaces-off-linux-gnu.asm)／[M34](measurements/m34-final-interfaces-on-linux-gnu.asm)，同名 JSON 保存完整构建和 section 数据。
+
+GNU converted-once 的波动较大，不能据其一次中位数声称循环前转换使每次接口调用本身更慢。四种模式分配均为 136 bytes，没有 GC，表中收益包含条件 poll、getter 内联和接口表示的共同变化。
+
+### 纯计算循环的 GC 响应
+
+每个工作线程在普通 Managed Scoop 函数中执行 100,000,000 次整数循环；独立 collector 重复请求 full GC，并在请求之间以 NativeSafe 等待 100 μs。比较 1／4 个工作线程，C runner 核对每个线程的完整整数和。报告：[Darwin](measurements/m34-final-poll-darwin.json)／[GNU](measurements/m34-final-poll-linux-gnu.json)。
+
+| 主机／工作负载 | M33 墙钟 ms，中位数 [范围] | M34 墙钟 ms，中位数 [范围] | CPU ms，旧 → 新 |
+| --- | ---: | ---: | ---: |
+| Darwin／1-thread | 1936.320 [1901.175, 1954.302] | 122.824 [122.258, 125.339] | 1991.572 → 124.786 |
+| Darwin／4-threads | 2389.429 [2346.569, 2507.524] | 155.280 [153.333, 156.020] | 8647.807 → 545.658 |
+| GNU／1-thread | 2727.635 [2691.932, 2740.281] | 73.858 [66.760, 78.586] | 2756.073 → 74.593 |
+| GNU／4-threads | 3526.523 [3507.025, 3555.251] | 92.267 [85.575, 96.935] | 13857.512 → 326.601 |
+
+每个进程内部按实际请求记录停稳等待及 pause 的 p50／p99／max。下表是七个进程各自分位数的中位数和范围，不是把全部请求合并后的分位数；collection 数为七次正式运行之和。
+
+| 主机／线程 | 总 collection，旧 → 新 | stop-wait p50 μs，旧 → 新 | stop-wait p99 μs，旧 → 新 | pause p99 μs，旧 → 新 |
+| --- | ---: | ---: | ---: | ---: |
+| Darwin／1-thread | 73201 → 5074 | 6.000 [6.000, 6.000] → 6.000 [6.000, 6.000] | 19.000 [19.000, 22.000] → 18.000 [16.000, 21.000] | 78.000 [71.000, 80.000] → 41.000 [37.000, 50.000] |
+| Darwin／4-threads | 73035 → 5087 | 29.000 [28.000, 30.000] → 28.000 [26.000, 29.000] | 98.000 [89.000, 113.000] → 84.000 [77.000, 101.000] | 178.000 [169.000, 195.000] → 137.000 [121.000, 140.000] |
+| GNU／1-thread | 72417 → 2691 | 0.727 [0.685, 0.903] → 0.900 [0.806, 4.009] | 2.346 [1.047, 2.411] → 6.385 [5.782, 7.457] | 125.045 [117.159, 152.063] → 31.588 [31.169, 38.311] |
+| GNU／4-threads | 81194 → 3120 | 8.384 [8.114, 8.492] → 7.765 [7.495, 8.458] | 22.673 [22.022, 23.483] → 26.981 [21.589, 28.704] | 226.111 [180.512, 233.880] → 61.756 [55.542, 67.745] |
+
+循环变快后，collector 在程序结束前能发出的请求数量随之减少。因此累计 pause 与整个程序时间不能解释为相同请求数量或固定 GC 压力下的单独 poll 加速。Darwin 的停稳等待 p99 为 19 → 18 μs、98 → 84 μs，记录精度为整 μs；GNU 则从 2.346 → 6.385 μs、22.673 → 26.981 μs，吞吐提高并不意味着等待尾部也下降；全部极值保留，但两版请求数不同，不把观察到的最大值差异解释为稳定极值保证。
+
+两目标的 compute 循环仍在，正常回边是条件检查，GC 请求走保留根与 relocation 的慢分支。[Darwin M33](measurements/m34-final-poll-off-darwin.asm)／[M34](measurements/m34-final-poll-on-darwin.asm)、[GNU M33](measurements/m34-final-poll-off-linux-gnu.asm)／[M34](measurements/m34-final-poll-on-linux-gnu.asm)记录实际机器码；同名 JSON 保存构建与函数映射。
+
+### 代码大小、内存与结果边界
+
+| 热点 | Darwin bytes，M33 → M34 | GNU bytes，M33 → M34 |
+| --- | ---: | ---: |
+| Cell.next | 80 → 164 | 71 → 136 |
+| salt getter 的独立入口 | 44 → 136 | 34 → 109 |
+| known | 180 → 300 | 169 → 279 |
+| unknown | 176 → 312 | 169 → 274 |
+| convertedOnce | 372 → 540 | 380 → 517 |
+| convertedEach | 388 → 544 | 382 → 525 |
+| compute | 80 → 200 | 66 → 171 |
+
+条件 poll 增加分支、状态地址与慢路径，热点机器码可以增长；完整 executable 的变化远小于这些局部比例。独立 getter 入口仍存在；next 内已经内联 getter，并不表示链接结果中的独立 getter 正文也消失。
+
+当前与峰值 RSS、mapped／committed／discarded／unmapped、GC 子阶段、pin 和再次增长成本在 M34-7 的阶段实验中记录，1／2／4／8 worker 与 worker CPU 在 M34-8 中记录。M33 普通统计没有新增 RSS／子阶段字段，因此这里不补造跨版本字段。M34-9 的容器对照显示 Int stride 16 → 4、ZST 8 → 0，但引用／接口仍扫描完整 capacity，StringBuilder／JSON 没有一致墙钟收益；这些取舍继续保留。

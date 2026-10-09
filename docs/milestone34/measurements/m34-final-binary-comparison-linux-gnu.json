@@ -1,0 +1,95 @@
+{
+  "revision": "fbd98ad0d",
+  "binaries": [
+    {
+      "kind": "standard",
+      "name": "aggregate",
+      "measured_binary": "/home/chenxu/repos/scoop/tmp/m34/final-standard-on-linux-gnu/aggregate",
+      "rebuilt_binary": "/home/chenxu/repos/scoop/tmp/m34/verified-standard-on-linux-gnu/aggregate",
+      "identical_bytes": true,
+      "bytes": 4536744,
+      "sha256": "cba247dc838f0d535cf5da135d18418ea3a9fefffaac1d2fdcd61e01f6e435ea"
+    },
+    {
+      "kind": "standard",
+      "name": "allocation",
+      "measured_binary": "/home/chenxu/repos/scoop/tmp/m34/final-standard-on-linux-gnu/allocation",
+      "rebuilt_binary": "/home/chenxu/repos/scoop/tmp/m34/verified-standard-on-linux-gnu/allocation",
+      "identical_bytes": true,
+      "bytes": 4543312,
+      "sha256": "09303201f2be6f600bd8585f9282b5849d690e4bf48f6740ca8932437af34750"
+    },
+    {
+      "kind": "standard",
+      "name": "arrays",
+      "measured_binary": "/home/chenxu/repos/scoop/tmp/m34/final-standard-on-linux-gnu/arrays",
+      "rebuilt_binary": "/home/chenxu/repos/scoop/tmp/m34/verified-standard-on-linux-gnu/arrays",
+      "identical_bytes": true,
+      "bytes": 4675496,
+      "sha256": "ada311bc8b12fa374efaaf0f850b77ee3dc576a202187f8a692603e47618c0d3"
+    },
+    {
+      "kind": "standard",
+      "name": "collections",
+      "measured_binary": "/home/chenxu/repos/scoop/tmp/m34/final-standard-on-linux-gnu/collections",
+      "rebuilt_binary": "/home/chenxu/repos/scoop/tmp/m34/verified-standard-on-linux-gnu/collections",
+      "identical_bytes": true,
+      "bytes": 4542712,
+      "sha256": "461f5e4a4f6a89888bb3303c054419e2925f646821bb7b0c58c6fc043d9b8fa2"
+    },
+    {
+      "kind": "standard",
+      "name": "old-graph-large",
+      "measured_binary": "/home/chenxu/repos/scoop/tmp/m34/final-standard-on-linux-gnu/old-graph-large",
+      "rebuilt_binary": "/home/chenxu/repos/scoop/tmp/m34/verified-standard-on-linux-gnu/old-graph-large",
+      "identical_bytes": true,
+      "bytes": 4630056,
+      "sha256": "5463c14141d10f360a0aeda76d4a820463a303f5983f1eecd38f7c464b6703a8"
+    },
+    {
+      "kind": "standard",
+      "name": "old-graph",
+      "measured_binary": "/home/chenxu/repos/scoop/tmp/m34/final-standard-on-linux-gnu/old-graph",
+      "rebuilt_binary": "/home/chenxu/repos/scoop/tmp/m34/verified-standard-on-linux-gnu/old-graph",
+      "identical_bytes": true,
+      "bytes": 4630056,
+      "sha256": "4fa51db7fff71dc4ebf2a04fb97ba3f2e9d55ac4cde98beb09c42588d9e564c5"
+    },
+    {
+      "kind": "standard",
+      "name": "primitive",
+      "measured_binary": "/home/chenxu/repos/scoop/tmp/m34/final-standard-on-linux-gnu/primitive",
+      "rebuilt_binary": "/home/chenxu/repos/scoop/tmp/m34/verified-standard-on-linux-gnu/primitive",
+      "identical_bytes": true,
+      "bytes": 4531320,
+      "sha256": "da3b94dddb9a70c8507c5d10a609c8aa9c69e9cffab607c83330a996ff53c1b3"
+    },
+    {
+      "kind": "standard",
+      "name": "survivors",
+      "measured_binary": "/home/chenxu/repos/scoop/tmp/m34/final-standard-on-linux-gnu/survivors",
+      "rebuilt_binary": "/home/chenxu/repos/scoop/tmp/m34/verified-standard-on-linux-gnu/survivors",
+      "identical_bytes": true,
+      "bytes": 4636048,
+      "sha256": "b9964e922e5034f8e5739d0db92ff994ccfba5821c7f73387ffbf4a1e197888c"
+    },
+    {
+      "kind": "interfaces",
+      "name": "interfaces",
+      "measured_binary": "/home/chenxu/repos/scoop/tmp/m34/final-interfaces-on-linux-gnu/interfaces",
+      "rebuilt_binary": "/home/chenxu/repos/scoop/tmp/m34/verified-interfaces-on-linux-gnu/interfaces",
+      "identical_bytes": true,
+      "bytes": 4640304,
+      "sha256": "b344fabdb0294ed328468687d2fed61b222455ca4956777dfc0583a4be0f8db4"
+    },
+    {
+      "kind": "poll",
+      "name": "poll",
+      "measured_binary": "/home/chenxu/repos/scoop/tmp/m34/final-poll-on-linux-gnu/poll",
+      "rebuilt_binary": "/home/chenxu/repos/scoop/tmp/m34/verified-poll-on-linux-gnu/poll",
+      "identical_bytes": true,
+      "bytes": 4595040,
+      "sha256": "14db8f7ead6bdc72038b0cc93f75aa7d489082b7c9029be19839bcb586aa8d16"
+    }
+  ]
+}

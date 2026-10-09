@@ -1,0 +1,646 @@
+{
+  "host": "macOS-27.0.1-arm64-arm-64bit-Mach-O",
+  "target": "aarch64-apple-darwin",
+  "revision": "fbd98ad0d",
+  "mode": "on",
+  "kind": "standard",
+  "builds": [
+    {
+      "name": "aggregate",
+      "first_build_seconds": 5.776622332981788,
+      "warm_build_seconds": 3.489644124987535,
+      "command": [
+        "/Volumes/Data/home/chenxu/repos/scoop/target/release/scoop",
+        "build",
+        "--scoopc",
+        "/Volumes/Data/home/chenxu/repos/scoop/target/release/scoopc",
+        "--sysroot",
+        "/Volumes/Data/home/chenxu/repos/scoop/sysroot",
+        "--runtime-root",
+        "/Volumes/Data/home/chenxu/repos/scoop/runtime",
+        "--cache-dir",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/m10-boundary-update-darwin/cache",
+        "--profile",
+        "release",
+        "--message-format",
+        "json",
+        "--target",
+        "aarch64-apple-darwin",
+        "/Volumes/Data/home/chenxu/repos/scoop/tests/benchmarks/aggregate.scoop",
+        "--target-dir",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/verified-standard-on-darwin/target-aggregate",
+        "-o",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/verified-standard-on-darwin/aggregate"
+      ],
+      "records": [
+        {
+          "dependencies": [
+            {
+              "artifact_fingerprint": "f378c488eddf4b21aa4347256fc10a01277cee2dda814d226075c10ae3e07afb",
+              "coordinate": {
+                "group": "scoop",
+                "name": "scoop.core",
+                "version": "0.1.0"
+              },
+              "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+              "path": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/m10-boundary-update-darwin/cache/compile-v1/447155b4d4e193de288539dc01c7bb91a765439802dc4a0c7fc8cc7fce957ede/artifact.slib"
+            }
+          ],
+          "kind": "executable",
+          "link_plan_fingerprint": "9f363e1cd87830d0c7d3b5ee620505143e776e38f934fe784fed3fa36fd7ed4e",
+          "observations": {
+            "child_invocations": [
+              "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6"
+            ],
+            "nodes": [
+              {
+                "cache_key": "447155b4d4e193de288539dc01c7bb91a765439802dc4a0c7fc8cc7fce957ede",
+                "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+                "origin": "cache"
+              },
+              {
+                "cache_key": "66964153901fc4e5b05faa3d743bd1015a30cebba90db7f7fe3dc9f36375d947",
+                "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+                "origin": "compiled"
+              }
+            ]
+          },
+          "output": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/verified-standard-on-darwin/aggregate",
+          "profile": "release",
+          "root": {
+            "artifact_fingerprint": "040c2f2cb84afab082bec242c4b3be185ce804589c6a833451dee0ad466a1462",
+            "coordinate": {
+              "group": "scoop",
+              "name": "single-file",
+              "version": "0.0.0"
+            },
+            "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+            "path": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/m10-boundary-update-darwin/cache/compile-v1/66964153901fc4e5b05faa3d743bd1015a30cebba90db7f7fe3dc9f36375d947/artifact.slib"
+          },
+          "runtime_index": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/m10-boundary-update-darwin/cache/runtime-v1/ee32dd7aa3a573d37f55f32710889382d8848bac6a3a62f6d42599c322668107/index.cbor",
+          "schema": 1
+        }
+      ],
+      "output_bytes": 6057224,
+      "root_slib_bytes": 219012
+    },
+    {
+      "name": "allocation",
+      "first_build_seconds": 5.9042385420762,
+      "warm_build_seconds": 3.480291665997356,
+      "command": [
+        "/Volumes/Data/home/chenxu/repos/scoop/target/release/scoop",
+        "build",
+        "--scoopc",
+        "/Volumes/Data/home/chenxu/repos/scoop/target/release/scoopc",
+        "--sysroot",
+        "/Volumes/Data/home/chenxu/repos/scoop/sysroot",
+        "--runtime-root",
+        "/Volumes/Data/home/chenxu/repos/scoop/runtime",
+        "--cache-dir",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/m10-boundary-update-darwin/cache",
+        "--profile",
+        "release",
+        "--message-format",
+        "json",
+        "--target",
+        "aarch64-apple-darwin",
+        "/Volumes/Data/home/chenxu/repos/scoop/tests/benchmarks/allocation.scoop",
+        "--target-dir",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/verified-standard-on-darwin/target-allocation",
+        "-o",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/verified-standard-on-darwin/allocation"
+      ],
+      "records": [
+        {
+          "dependencies": [
+            {
+              "artifact_fingerprint": "f378c488eddf4b21aa4347256fc10a01277cee2dda814d226075c10ae3e07afb",
+              "coordinate": {
+                "group": "scoop",
+                "name": "scoop.core",
+                "version": "0.1.0"
+              },
+              "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+              "path": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/m10-boundary-update-darwin/cache/compile-v1/447155b4d4e193de288539dc01c7bb91a765439802dc4a0c7fc8cc7fce957ede/artifact.slib"
+            }
+          ],
+          "kind": "executable",
+          "link_plan_fingerprint": "e054887953dd623ebcc49fbe8a67274543b9040d8ea118246127eff7f39f5ebd",
+          "observations": {
+            "child_invocations": [
+              "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6"
+            ],
+            "nodes": [
+              {
+                "cache_key": "447155b4d4e193de288539dc01c7bb91a765439802dc4a0c7fc8cc7fce957ede",
+                "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+                "origin": "cache"
+              },
+              {
+                "cache_key": "1b6ae7877564103a69f58830239fdde211b123da010a1d84400c0f5606348d5c",
+                "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+                "origin": "compiled"
+              }
+            ]
+          },
+          "output": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/verified-standard-on-darwin/allocation",
+          "profile": "release",
+          "root": {
+            "artifact_fingerprint": "ea510c0958a975dca7fe91f9145405cf10f727ae2da9cd5eca4cb6713f58abf2",
+            "coordinate": {
+              "group": "scoop",
+              "name": "single-file",
+              "version": "0.0.0"
+            },
+            "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+            "path": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/m10-boundary-update-darwin/cache/compile-v1/1b6ae7877564103a69f58830239fdde211b123da010a1d84400c0f5606348d5c/artifact.slib"
+          },
+          "runtime_index": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/m10-boundary-update-darwin/cache/runtime-v1/ee32dd7aa3a573d37f55f32710889382d8848bac6a3a62f6d42599c322668107/index.cbor",
+          "schema": 1
+        }
+      ],
+      "output_bytes": 6061016,
+      "root_slib_bytes": 263888
+    },
+    {
+      "name": "arrays",
+      "first_build_seconds": 6.016569167026319,
+      "warm_build_seconds": 3.502170040970668,
+      "command": [
+        "/Volumes/Data/home/chenxu/repos/scoop/target/release/scoop",
+        "build",
+        "--scoopc",
+        "/Volumes/Data/home/chenxu/repos/scoop/target/release/scoopc",
+        "--sysroot",
+        "/Volumes/Data/home/chenxu/repos/scoop/sysroot",
+        "--runtime-root",
+        "/Volumes/Data/home/chenxu/repos/scoop/runtime",
+        "--cache-dir",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/m10-boundary-update-darwin/cache",
+        "--profile",
+        "release",
+        "--message-format",
+        "json",
+        "--target",
+        "aarch64-apple-darwin",
+        "/Volumes/Data/home/chenxu/repos/scoop/tests/benchmarks/arrays.scoop",
+        "--target-dir",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/verified-standard-on-darwin/target-arrays",
+        "-o",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/verified-standard-on-darwin/arrays"
+      ],
+      "records": [
+        {
+          "dependencies": [
+            {
+              "artifact_fingerprint": "f378c488eddf4b21aa4347256fc10a01277cee2dda814d226075c10ae3e07afb",
+              "coordinate": {
+                "group": "scoop",
+                "name": "scoop.core",
+                "version": "0.1.0"
+              },
+              "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+              "path": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/m10-boundary-update-darwin/cache/compile-v1/447155b4d4e193de288539dc01c7bb91a765439802dc4a0c7fc8cc7fce957ede/artifact.slib"
+            }
+          ],
+          "kind": "executable",
+          "link_plan_fingerprint": "23177ee0cdb6269fa43801299a541c0a6a26495b7632190de93abe0333335756",
+          "observations": {
+            "child_invocations": [
+              "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6"
+            ],
+            "nodes": [
+              {
+                "cache_key": "447155b4d4e193de288539dc01c7bb91a765439802dc4a0c7fc8cc7fce957ede",
+                "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+                "origin": "cache"
+              },
+              {
+                "cache_key": "0a36c24b40df5cf6a832ebd23bb965fa094c1731e7ee5e3304baec6e5a5952bf",
+                "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+                "origin": "compiled"
+              }
+            ]
+          },
+          "output": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/verified-standard-on-darwin/arrays",
+          "profile": "release",
+          "root": {
+            "artifact_fingerprint": "b646483eb3a17bf5df17c393d0a11d29fb75f4a3446c46717d595ead881b11b5",
+            "coordinate": {
+              "group": "scoop",
+              "name": "single-file",
+              "version": "0.0.0"
+            },
+            "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+            "path": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/m10-boundary-update-darwin/cache/compile-v1/0a36c24b40df5cf6a832ebd23bb965fa094c1731e7ee5e3304baec6e5a5952bf/artifact.slib"
+          },
+          "runtime_index": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/m10-boundary-update-darwin/cache/runtime-v1/ee32dd7aa3a573d37f55f32710889382d8848bac6a3a62f6d42599c322668107/index.cbor",
+          "schema": 1
+        }
+      ],
+      "output_bytes": 6254264,
+      "root_slib_bytes": 1361352
+    },
+    {
+      "name": "collections",
+      "first_build_seconds": 5.914205791079439,
+      "warm_build_seconds": 3.4010819590184838,
+      "command": [
+        "/Volumes/Data/home/chenxu/repos/scoop/target/release/scoop",
+        "build",
+        "--scoopc",
+        "/Volumes/Data/home/chenxu/repos/scoop/target/release/scoopc",
+        "--sysroot",
+        "/Volumes/Data/home/chenxu/repos/scoop/sysroot",
+        "--runtime-root",
+        "/Volumes/Data/home/chenxu/repos/scoop/runtime",
+        "--cache-dir",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/m10-boundary-update-darwin/cache",
+        "--profile",
+        "release",
+        "--message-format",
+        "json",
+        "--target",
+        "aarch64-apple-darwin",
+        "/Volumes/Data/home/chenxu/repos/scoop/tests/benchmarks/collections.scoop",
+        "--target-dir",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/verified-standard-on-darwin/target-collections",
+        "-o",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/verified-standard-on-darwin/collections"
+      ],
+      "records": [
+        {
+          "dependencies": [
+            {
+              "artifact_fingerprint": "f378c488eddf4b21aa4347256fc10a01277cee2dda814d226075c10ae3e07afb",
+              "coordinate": {
+                "group": "scoop",
+                "name": "scoop.core",
+                "version": "0.1.0"
+              },
+              "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+              "path": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/m10-boundary-update-darwin/cache/compile-v1/447155b4d4e193de288539dc01c7bb91a765439802dc4a0c7fc8cc7fce957ede/artifact.slib"
+            }
+          ],
+          "kind": "executable",
+          "link_plan_fingerprint": "df4db443efef59b3e005764a531554664a49f5c6ca7f8b820dad3e7cde9be9e7",
+          "observations": {
+            "child_invocations": [
+              "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6"
+            ],
+            "nodes": [
+              {
+                "cache_key": "447155b4d4e193de288539dc01c7bb91a765439802dc4a0c7fc8cc7fce957ede",
+                "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+                "origin": "cache"
+              },
+              {
+                "cache_key": "26882258f2cab936545e90e409b11c2226ec1fe873a268fec1aea410fe41672f",
+                "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+                "origin": "compiled"
+              }
+            ]
+          },
+          "output": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/verified-standard-on-darwin/collections",
+          "profile": "release",
+          "root": {
+            "artifact_fingerprint": "c544be77c17cab4ec6853929937c9ddb8cfb18d02f886acd7cb4301400936a7e",
+            "coordinate": {
+              "group": "scoop",
+              "name": "single-file",
+              "version": "0.0.0"
+            },
+            "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+            "path": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/m10-boundary-update-darwin/cache/compile-v1/26882258f2cab936545e90e409b11c2226ec1fe873a268fec1aea410fe41672f/artifact.slib"
+          },
+          "runtime_index": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/m10-boundary-update-darwin/cache/runtime-v1/ee32dd7aa3a573d37f55f32710889382d8848bac6a3a62f6d42599c322668107/index.cbor",
+          "schema": 1
+        }
+      ],
+      "output_bytes": 6060632,
+      "root_slib_bytes": 1709624
+    },
+    {
+      "name": "old-graph-large",
+      "first_build_seconds": 5.658468249952421,
+      "warm_build_seconds": 3.558866542065516,
+      "command": [
+        "/Volumes/Data/home/chenxu/repos/scoop/target/release/scoop",
+        "build",
+        "--scoopc",
+        "/Volumes/Data/home/chenxu/repos/scoop/target/release/scoopc",
+        "--sysroot",
+        "/Volumes/Data/home/chenxu/repos/scoop/sysroot",
+        "--runtime-root",
+        "/Volumes/Data/home/chenxu/repos/scoop/runtime",
+        "--cache-dir",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/m10-boundary-update-darwin/cache",
+        "--profile",
+        "release",
+        "--message-format",
+        "json",
+        "--target",
+        "aarch64-apple-darwin",
+        "/Volumes/Data/home/chenxu/repos/scoop/tests/benchmarks/old-graph-large.scoop",
+        "--target-dir",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/verified-standard-on-darwin/target-old-graph-large",
+        "-o",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/verified-standard-on-darwin/old-graph-large"
+      ],
+      "records": [
+        {
+          "dependencies": [
+            {
+              "artifact_fingerprint": "f378c488eddf4b21aa4347256fc10a01277cee2dda814d226075c10ae3e07afb",
+              "coordinate": {
+                "group": "scoop",
+                "name": "scoop.core",
+                "version": "0.1.0"
+              },
+              "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+              "path": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/m10-boundary-update-darwin/cache/compile-v1/447155b4d4e193de288539dc01c7bb91a765439802dc4a0c7fc8cc7fce957ede/artifact.slib"
+            }
+          ],
+          "kind": "executable",
+          "link_plan_fingerprint": "385485394cb70463cb1d6190c11d51f4cbd85f6b838580e62f244b3c484b4836",
+          "observations": {
+            "child_invocations": [
+              "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6"
+            ],
+            "nodes": [
+              {
+                "cache_key": "447155b4d4e193de288539dc01c7bb91a765439802dc4a0c7fc8cc7fce957ede",
+                "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+                "origin": "cache"
+              },
+              {
+                "cache_key": "b45d6a47bac9d898c4fa27a7de701d5c6da8177a3854e14656105267bd36a62e",
+                "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+                "origin": "compiled"
+              }
+            ]
+          },
+          "output": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/verified-standard-on-darwin/old-graph-large",
+          "profile": "release",
+          "root": {
+            "artifact_fingerprint": "e3943259d0b1526964c96f8ccfb6283055046f11d7207173c70f0744c9bd078e",
+            "coordinate": {
+              "group": "scoop",
+              "name": "single-file",
+              "version": "0.0.0"
+            },
+            "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+            "path": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/m10-boundary-update-darwin/cache/compile-v1/b45d6a47bac9d898c4fa27a7de701d5c6da8177a3854e14656105267bd36a62e/artifact.slib"
+          },
+          "runtime_index": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/m10-boundary-update-darwin/cache/runtime-v1/ee32dd7aa3a573d37f55f32710889382d8848bac6a3a62f6d42599c322668107/index.cbor",
+          "schema": 1
+        }
+      ],
+      "output_bytes": 6190008,
+      "root_slib_bytes": 938862
+    },
+    {
+      "name": "old-graph",
+      "first_build_seconds": 6.798656416940503,
+      "warm_build_seconds": 4.582424749969505,
+      "command": [
+        "/Volumes/Data/home/chenxu/repos/scoop/target/release/scoop",
+        "build",
+        "--scoopc",
+        "/Volumes/Data/home/chenxu/repos/scoop/target/release/scoopc",
+        "--sysroot",
+        "/Volumes/Data/home/chenxu/repos/scoop/sysroot",
+        "--runtime-root",
+        "/Volumes/Data/home/chenxu/repos/scoop/runtime",
+        "--cache-dir",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/m10-boundary-update-darwin/cache",
+        "--profile",
+        "release",
+        "--message-format",
+        "json",
+        "--target",
+        "aarch64-apple-darwin",
+        "/Volumes/Data/home/chenxu/repos/scoop/tests/benchmarks/old-graph.scoop",
+        "--target-dir",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/verified-standard-on-darwin/target-old-graph",
+        "-o",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/verified-standard-on-darwin/old-graph"
+      ],
+      "records": [
+        {
+          "dependencies": [
+            {
+              "artifact_fingerprint": "f378c488eddf4b21aa4347256fc10a01277cee2dda814d226075c10ae3e07afb",
+              "coordinate": {
+                "group": "scoop",
+                "name": "scoop.core",
+                "version": "0.1.0"
+              },
+              "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+              "path": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/m10-boundary-update-darwin/cache/compile-v1/447155b4d4e193de288539dc01c7bb91a765439802dc4a0c7fc8cc7fce957ede/artifact.slib"
+            }
+          ],
+          "kind": "executable",
+          "link_plan_fingerprint": "1a44d48936055b162e93de3da7c29c58188ce1f602529fe176aa0d7793d519be",
+          "observations": {
+            "child_invocations": [
+              "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6"
+            ],
+            "nodes": [
+              {
+                "cache_key": "447155b4d4e193de288539dc01c7bb91a765439802dc4a0c7fc8cc7fce957ede",
+                "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+                "origin": "cache"
+              },
+              {
+                "cache_key": "df323ef50fd5be00f8950a52021f3d29979177ea5ad79096e9c4236476acb95b",
+                "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+                "origin": "compiled"
+              }
+            ]
+          },
+          "output": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/verified-standard-on-darwin/old-graph",
+          "profile": "release",
+          "root": {
+            "artifact_fingerprint": "8502f5ab3ce01f8fe3f232fdbb54be364b5c4e8de28c16e863918a8aaaebea69",
+            "coordinate": {
+              "group": "scoop",
+              "name": "single-file",
+              "version": "0.0.0"
+            },
+            "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+            "path": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/m10-boundary-update-darwin/cache/compile-v1/df323ef50fd5be00f8950a52021f3d29979177ea5ad79096e9c4236476acb95b/artifact.slib"
+          },
+          "runtime_index": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/m10-boundary-update-darwin/cache/runtime-v1/ee32dd7aa3a573d37f55f32710889382d8848bac6a3a62f6d42599c322668107/index.cbor",
+          "schema": 1
+        }
+      ],
+      "output_bytes": 6190008,
+      "root_slib_bytes": 938862
+    },
+    {
+      "name": "primitive",
+      "first_build_seconds": 6.084320042049512,
+      "warm_build_seconds": 4.179896333022043,
+      "command": [
+        "/Volumes/Data/home/chenxu/repos/scoop/target/release/scoop",
+        "build",
+        "--scoopc",
+        "/Volumes/Data/home/chenxu/repos/scoop/target/release/scoopc",
+        "--sysroot",
+        "/Volumes/Data/home/chenxu/repos/scoop/sysroot",
+        "--runtime-root",
+        "/Volumes/Data/home/chenxu/repos/scoop/runtime",
+        "--cache-dir",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/m10-boundary-update-darwin/cache",
+        "--profile",
+        "release",
+        "--message-format",
+        "json",
+        "--target",
+        "aarch64-apple-darwin",
+        "/Volumes/Data/home/chenxu/repos/scoop/tests/benchmarks/primitive.scoop",
+        "--target-dir",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/verified-standard-on-darwin/target-primitive",
+        "-o",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/verified-standard-on-darwin/primitive"
+      ],
+      "records": [
+        {
+          "dependencies": [
+            {
+              "artifact_fingerprint": "f378c488eddf4b21aa4347256fc10a01277cee2dda814d226075c10ae3e07afb",
+              "coordinate": {
+                "group": "scoop",
+                "name": "scoop.core",
+                "version": "0.1.0"
+              },
+              "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+              "path": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/m10-boundary-update-darwin/cache/compile-v1/447155b4d4e193de288539dc01c7bb91a765439802dc4a0c7fc8cc7fce957ede/artifact.slib"
+            }
+          ],
+          "kind": "executable",
+          "link_plan_fingerprint": "3c60e0df11a07e43238fc492984b17aff5f32b0374e2f3d280bc4b13b9425c56",
+          "observations": {
+            "child_invocations": [
+              "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6"
+            ],
+            "nodes": [
+              {
+                "cache_key": "447155b4d4e193de288539dc01c7bb91a765439802dc4a0c7fc8cc7fce957ede",
+                "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+                "origin": "cache"
+              },
+              {
+                "cache_key": "80ec0969a8fc1a6a593041e784dd8495824da0000695ec1d8115946978378ed9",
+                "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+                "origin": "compiled"
+              }
+            ]
+          },
+          "output": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/verified-standard-on-darwin/primitive",
+          "profile": "release",
+          "root": {
+            "artifact_fingerprint": "f7cf8804970c98cf22ba883dd8740937e3bb43347da113a66cb01005dcdb0815",
+            "coordinate": {
+              "group": "scoop",
+              "name": "single-file",
+              "version": "0.0.0"
+            },
+            "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+            "path": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/m10-boundary-update-darwin/cache/compile-v1/80ec0969a8fc1a6a593041e784dd8495824da0000695ec1d8115946978378ed9/artifact.slib"
+          },
+          "runtime_index": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/m10-boundary-update-darwin/cache/runtime-v1/ee32dd7aa3a573d37f55f32710889382d8848bac6a3a62f6d42599c322668107/index.cbor",
+          "schema": 1
+        }
+      ],
+      "output_bytes": 6048536,
+      "root_slib_bytes": 208620
+    },
+    {
+      "name": "survivors",
+      "first_build_seconds": 6.719619957963005,
+      "warm_build_seconds": 4.100270542083308,
+      "command": [
+        "/Volumes/Data/home/chenxu/repos/scoop/target/release/scoop",
+        "build",
+        "--scoopc",
+        "/Volumes/Data/home/chenxu/repos/scoop/target/release/scoopc",
+        "--sysroot",
+        "/Volumes/Data/home/chenxu/repos/scoop/sysroot",
+        "--runtime-root",
+        "/Volumes/Data/home/chenxu/repos/scoop/runtime",
+        "--cache-dir",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/m10-boundary-update-darwin/cache",
+        "--profile",
+        "release",
+        "--message-format",
+        "json",
+        "--target",
+        "aarch64-apple-darwin",
+        "/Volumes/Data/home/chenxu/repos/scoop/tests/benchmarks/survivors.scoop",
+        "--target-dir",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/verified-standard-on-darwin/target-survivors",
+        "-o",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/verified-standard-on-darwin/survivors"
+      ],
+      "records": [
+        {
+          "dependencies": [
+            {
+              "artifact_fingerprint": "f378c488eddf4b21aa4347256fc10a01277cee2dda814d226075c10ae3e07afb",
+              "coordinate": {
+                "group": "scoop",
+                "name": "scoop.core",
+                "version": "0.1.0"
+              },
+              "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+              "path": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/m10-boundary-update-darwin/cache/compile-v1/447155b4d4e193de288539dc01c7bb91a765439802dc4a0c7fc8cc7fce957ede/artifact.slib"
+            }
+          ],
+          "kind": "executable",
+          "link_plan_fingerprint": "cb2da857ce9b2cf4301ecb1e3d485acd6ea2a5d99e9abddb5fd6aa60350f7a2d",
+          "observations": {
+            "child_invocations": [
+              "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6"
+            ],
+            "nodes": [
+              {
+                "cache_key": "447155b4d4e193de288539dc01c7bb91a765439802dc4a0c7fc8cc7fce957ede",
+                "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+                "origin": "cache"
+              },
+              {
+                "cache_key": "c4c1e4fb8ed58cd5fd94e5067ce3127aa17f2b37f564aa57bebcc94b905f6f45",
+                "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+                "origin": "compiled"
+              }
+            ]
+          },
+          "output": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/verified-standard-on-darwin/survivors",
+          "profile": "release",
+          "root": {
+            "artifact_fingerprint": "a00495e7d4e2bdceb9b19a170a695177abe5b310b6277a052299d09ab84fe5ad",
+            "coordinate": {
+              "group": "scoop",
+              "name": "single-file",
+              "version": "0.0.0"
+            },
+            "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+            "path": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/m10-boundary-update-darwin/cache/compile-v1/c4c1e4fb8ed58cd5fd94e5067ce3127aa17f2b37f564aa57bebcc94b905f6f45/artifact.slib"
+          },
+          "runtime_index": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/m10-boundary-update-darwin/cache/runtime-v1/ee32dd7aa3a573d37f55f32710889382d8848bac6a3a62f6d42599c322668107/index.cbor",
+          "schema": 1
+        }
+      ],
+      "output_bytes": 6199544,
+      "root_slib_bytes": 1026452
+    }
+  ],
+  "commands": [],
+  "tools": {
+    "cc": "Apple clang version 21.0.0 (clang-2100.3.34.2)\nTarget: arm64-apple-darwin27.0.0\nThread model: posix\nInstalledDir: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin",
+    "llvm": "22.1.8"
+  }
+}

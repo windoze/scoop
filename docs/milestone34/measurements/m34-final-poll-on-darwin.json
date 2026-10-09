@@ -1,0 +1,145 @@
+{
+  "host": "macOS-27.0.1-arm64-arm-64bit-Mach-O",
+  "target": "aarch64-apple-darwin",
+  "revision": "fbd98ad0d",
+  "mode": "on",
+  "kind": "poll",
+  "builds": [
+    {
+      "name": "poll",
+      "first_build_seconds": 6.64967837498989,
+      "warm_build_seconds": 7.0485198750393465,
+      "command": [
+        "/Volumes/Data/home/chenxu/repos/scoop/target/release/scoop",
+        "build",
+        "--scoopc",
+        "/Volumes/Data/home/chenxu/repos/scoop/target/release/scoopc",
+        "--sysroot",
+        "/Volumes/Data/home/chenxu/repos/scoop/sysroot",
+        "--runtime-root",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/verified-poll-on-darwin/runtime",
+        "--cache-dir",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/m10-boundary-update-darwin/cache",
+        "--profile",
+        "release",
+        "--message-format",
+        "json",
+        "--target",
+        "aarch64-apple-darwin",
+        "/Volumes/Data/home/chenxu/repos/scoop/tests/benchmarks/poll-response/program.scoop",
+        "--target-dir",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/verified-poll-on-darwin/target-poll",
+        "-o",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/verified-poll-on-darwin/poll",
+        "--library-path",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/verified-poll-on-darwin",
+        "--emit",
+        "all",
+        "--dump-dir",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/verified-poll-on-darwin/dump"
+      ],
+      "records": [
+        {
+          "dependencies": [
+            {
+              "artifact_fingerprint": "f378c488eddf4b21aa4347256fc10a01277cee2dda814d226075c10ae3e07afb",
+              "coordinate": {
+                "group": "scoop",
+                "name": "scoop.core",
+                "version": "0.1.0"
+              },
+              "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+              "path": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/m10-boundary-update-darwin/cache/compile-v1/447155b4d4e193de288539dc01c7bb91a765439802dc4a0c7fc8cc7fce957ede/artifact.slib"
+            }
+          ],
+          "kind": "executable",
+          "link_plan_fingerprint": "40575f4ae720ec7ad388c11bf5aa6bca2ddf40951291c2aef85ae29242c0106b",
+          "observations": {
+            "child_invocations": [
+              "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6"
+            ],
+            "nodes": [
+              {
+                "cache_key": "447155b4d4e193de288539dc01c7bb91a765439802dc4a0c7fc8cc7fce957ede",
+                "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+                "origin": "cache"
+              },
+              {
+                "cache_key": "af7bba8365132a606bd48be2e4f035ee5eff89edffff0bb6b94dff704803338c",
+                "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+                "origin": "compiled"
+              }
+            ]
+          },
+          "output": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/verified-poll-on-darwin/poll",
+          "profile": "release",
+          "root": {
+            "artifact_fingerprint": "ad9aa9aad80a2fa30b5cd56cb3a29b664de61291e4dcaea84afcec757cd99b60",
+            "coordinate": {
+              "group": "scoop",
+              "name": "single-file",
+              "version": "0.0.0"
+            },
+            "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+            "path": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/m10-boundary-update-darwin/cache/compile-v1/af7bba8365132a606bd48be2e4f035ee5eff89edffff0bb6b94dff704803338c/artifact.slib"
+          },
+          "runtime_index": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/m10-boundary-update-darwin/cache/runtime-v1/43b06265b7fcbe3af163719fea20d3c175fbb24c9ceaf73f48481a56e04cc421/index.cbor",
+          "schema": 1
+        }
+      ],
+      "output_bytes": 6140552,
+      "root_slib_bytes": 619268
+    }
+  ],
+  "commands": [
+    [
+      "cc",
+      "-std=c11",
+      "-D_POSIX_C_SOURCE=200809L",
+      "-O2",
+      "-fno-omit-frame-pointer",
+      "-fno-optimize-sibling-calls",
+      "-fno-builtin",
+      "-pthread",
+      "-c",
+      "/Volumes/Data/home/chenxu/repos/scoop/tests/benchmarks/ffi/leaf.c",
+      "-o",
+      "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/verified-poll-on-darwin/leaf.o"
+    ],
+    [
+      "cc",
+      "-std=c11",
+      "-D_POSIX_C_SOURCE=200809L",
+      "-O2",
+      "-fno-omit-frame-pointer",
+      "-fno-optimize-sibling-calls",
+      "-fno-builtin",
+      "-pthread",
+      "-c",
+      "/Volumes/Data/home/chenxu/repos/scoop/tests/benchmarks/ffi/runner.c",
+      "-o",
+      "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/verified-poll-on-darwin/runner.o"
+    ],
+    [
+      "ar",
+      "rcs",
+      "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/verified-poll-on-darwin/libffi_benchmark.a",
+      "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/verified-poll-on-darwin/leaf.o",
+      "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/verified-poll-on-darwin/runner.o"
+    ]
+  ],
+  "tools": {
+    "cc": "Apple clang version 21.0.0 (clang-2100.3.34.2)\nTarget: arm64-apple-darwin27.0.0\nThread model: posix\nInstalledDir: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin",
+    "llvm": "22.1.8"
+  },
+  "sections": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/verified-poll-on-darwin/poll  :\nsection                 size         addr\n__text                295780   4294969560\n__stubs                 1056   4295265340\n__stub_helper            912   4295266396\n__const                96288   4295267312\n__gcc_except_tab        4280   4295363600\n__cstring              22548   4295367888\n__scoop_sig                1   4295390436\n__unwind_info          10576   4295390440\n__eh_frame             30384   4295401016\n__const               756128   4295442432\n__llvm_stackmaps      163664   4296198560\n__got                   2616   4296362224\n__la_symbol_ptr          592   4296376320\n__data                  4896   4296376960\n__thread_vars             72   4296381856\n__thread_bss              24   4296381928\n__bss                1600553   4296381952\n__common               32816   4297982512\nTotal                3023186\n\n\n",
+  "hot_functions": [
+    {
+      "source": "compute",
+      "mir_function": "5",
+      "symbol": "scoop$1$cb$1fae31b5ae643617acccfbe5d51c772901b38ef70423d570500ef8eb3981e50c",
+      "machine_bytes": 200,
+      "instruction_count": 50
+    }
+  ]
+}

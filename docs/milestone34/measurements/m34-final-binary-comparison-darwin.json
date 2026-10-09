@@ -1,0 +1,95 @@
+{
+  "revision": "fbd98ad0d",
+  "binaries": [
+    {
+      "kind": "standard",
+      "name": "aggregate",
+      "measured_binary": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/final-standard-on-darwin/aggregate",
+      "rebuilt_binary": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/verified-standard-on-darwin/aggregate",
+      "identical_bytes": true,
+      "bytes": 6057224,
+      "sha256": "6b2f436c91f9185f26f5ade38ec97aa9da7fd7122bd736114425703c1d6189eb"
+    },
+    {
+      "kind": "standard",
+      "name": "allocation",
+      "measured_binary": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/final-standard-on-darwin/allocation",
+      "rebuilt_binary": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/verified-standard-on-darwin/allocation",
+      "identical_bytes": true,
+      "bytes": 6061016,
+      "sha256": "42cdcafc26b14a1e28c14500b07f77f6523af1078dbd5be2f80405c46060757b"
+    },
+    {
+      "kind": "standard",
+      "name": "arrays",
+      "measured_binary": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/final-standard-on-darwin/arrays",
+      "rebuilt_binary": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/verified-standard-on-darwin/arrays",
+      "identical_bytes": true,
+      "bytes": 6254264,
+      "sha256": "d3c079961d1f869e835dd31928e68213661b56d68d9861f5afda5c2270b18078"
+    },
+    {
+      "kind": "standard",
+      "name": "collections",
+      "measured_binary": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/final-standard-on-darwin/collections",
+      "rebuilt_binary": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/verified-standard-on-darwin/collections",
+      "identical_bytes": true,
+      "bytes": 6060632,
+      "sha256": "f414d9a3af592f339ef3213e47c5ebed276284604de868560fb3f7515b7b00c2"
+    },
+    {
+      "kind": "standard",
+      "name": "old-graph-large",
+      "measured_binary": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/final-standard-on-darwin/old-graph-large",
+      "rebuilt_binary": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/verified-standard-on-darwin/old-graph-large",
+      "identical_bytes": true,
+      "bytes": 6190008,
+      "sha256": "7cb2994f8ad5cf76547fd3cbb1fd13798a75021d8b5a6d386f19644f38f75e82"
+    },
+    {
+      "kind": "standard",
+      "name": "old-graph",
+      "measured_binary": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/final-standard-on-darwin/old-graph",
+      "rebuilt_binary": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/verified-standard-on-darwin/old-graph",
+      "identical_bytes": true,
+      "bytes": 6190008,
+      "sha256": "0cf0f51add8641b706bd988fa5a499cc1424bd237a766c7d35e1b02404d67935"
+    },
+    {
+      "kind": "standard",
+      "name": "primitive",
+      "measured_binary": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/final-standard-on-darwin/primitive",
+      "rebuilt_binary": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/verified-standard-on-darwin/primitive",
+      "identical_bytes": true,
+      "bytes": 6048536,
+      "sha256": "6b8f4093210456f599da70bb804190b471b55e5201b044939ad6b845a851c46a"
+    },
+    {
+      "kind": "standard",
+      "name": "survivors",
+      "measured_binary": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/final-standard-on-darwin/survivors",
+      "rebuilt_binary": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/verified-standard-on-darwin/survivors",
+      "identical_bytes": true,
+      "bytes": 6199544,
+      "sha256": "cd6d0ee1067e19c7ddbf8a1faf121af663c1ef05c092179a1d835b22db9bc7e1"
+    },
+    {
+      "kind": "interfaces",
+      "name": "interfaces",
+      "measured_binary": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/final-interfaces-on-darwin/interfaces",
+      "rebuilt_binary": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/verified-interfaces-on-darwin/interfaces",
+      "identical_bytes": true,
+      "bytes": 6194712,
+      "sha256": "20423e0bdf68bd63be47805a84ef2e69ebe35de42d176973b3db7400f5c5fc5e"
+    },
+    {
+      "kind": "poll",
+      "name": "poll",
+      "measured_binary": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/final-poll-on-darwin/poll",
+      "rebuilt_binary": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/verified-poll-on-darwin/poll",
+      "identical_bytes": true,
+      "bytes": 6140552,
+      "sha256": "de79398daa074e1bd174f349ce295ca2bd6b06e90e11d11170cb3792a46752af"
+    }
+  ]
+}

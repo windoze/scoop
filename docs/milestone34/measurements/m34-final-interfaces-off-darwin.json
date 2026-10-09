@@ -1,0 +1,261 @@
+{
+  "host": "macOS-27.0.1-arm64-arm-64bit-Mach-O",
+  "target": "aarch64-apple-darwin",
+  "revision": "e97b40f5c9c408e2ff785e5d09c6bf9222c78979",
+  "mode": "off",
+  "kind": "interfaces",
+  "builds": [
+    {
+      "name": "provider",
+      "first_build_seconds": 2.880709541030228,
+      "warm_build_seconds": 2.7890171670587733,
+      "command": [
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/baseline-tools/scoop",
+        "build",
+        "--scoopc",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/baseline-tools/scoopc",
+        "--sysroot",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/baseline-source/sysroot",
+        "--runtime-root",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/baseline-source/runtime",
+        "--cache-dir",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/baseline-darwin-release-llvm22/cache",
+        "--profile",
+        "release",
+        "--message-format",
+        "json",
+        "--target",
+        "aarch64-apple-darwin",
+        "/Volumes/Data/home/chenxu/repos/scoop/tests/benchmarks/interfaces/provider",
+        "--target-dir",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/final-interfaces-off-darwin/target-provider",
+        "-o",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/final-interfaces-off-darwin/artifacts/dev.m34/interface-bench-provider/0.1.0/cone.slib",
+        "--emit",
+        "all",
+        "--dump-dir",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/final-interfaces-off-darwin/provider-dump"
+      ],
+      "records": [
+        {
+          "dependencies": [
+            {
+              "artifact_fingerprint": "740f28adb1e161cd6d5b1078c664f8c37ce59fd35de7020b986d04ac728e6f3d",
+              "coordinate": {
+                "group": "scoop",
+                "name": "scoop.core",
+                "version": "0.1.0"
+              },
+              "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+              "path": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/baseline-darwin-release-llvm22/cache/compile-v1/48b9c51447f82d53978e3a8abcbc40241649f4a91a0a2c983abdb7fb64402d59/artifact.slib"
+            }
+          ],
+          "kind": "library",
+          "observations": {
+            "child_invocations": [
+              "4287d082a0853b58d3bf59369e562dd8e9a7fe6216958c9ad4b4b48d143eac7c"
+            ],
+            "nodes": [
+              {
+                "cache_key": "48b9c51447f82d53978e3a8abcbc40241649f4a91a0a2c983abdb7fb64402d59",
+                "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+                "origin": "cache"
+              },
+              {
+                "cache_key": "a0cab354928660502097f2ae3a7c2127e16880dbf49033d91fa96c78fe73b344",
+                "identity": "4287d082a0853b58d3bf59369e562dd8e9a7fe6216958c9ad4b4b48d143eac7c",
+                "origin": "compiled"
+              }
+            ]
+          },
+          "output": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/final-interfaces-off-darwin/artifacts/dev.m34/interface-bench-provider/0.1.0/cone.slib",
+          "profile": "release",
+          "root": {
+            "artifact_fingerprint": "39c075c0e8c6ce1b101bdc50f214496c8f495c979b387e08353924d46b59e588",
+            "coordinate": {
+              "group": "dev.m34",
+              "name": "interface-bench-provider",
+              "version": "0.1.0"
+            },
+            "identity": "4287d082a0853b58d3bf59369e562dd8e9a7fe6216958c9ad4b4b48d143eac7c",
+            "path": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/baseline-darwin-release-llvm22/cache/compile-v1/a0cab354928660502097f2ae3a7c2127e16880dbf49033d91fa96c78fe73b344/artifact.slib"
+          },
+          "schema": 1
+        }
+      ],
+      "output_bytes": 756568,
+      "root_slib_bytes": 756568
+    },
+    {
+      "name": "consumer",
+      "first_build_seconds": 6.014545249985531,
+      "warm_build_seconds": 6.123114250018261,
+      "command": [
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/baseline-tools/scoop",
+        "build",
+        "--scoopc",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/baseline-tools/scoopc",
+        "--sysroot",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/baseline-source/sysroot",
+        "--runtime-root",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/baseline-source/runtime",
+        "--cache-dir",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/baseline-darwin-release-llvm22/cache",
+        "--profile",
+        "release",
+        "--message-format",
+        "json",
+        "--target",
+        "aarch64-apple-darwin",
+        "/Volumes/Data/home/chenxu/repos/scoop/tests/benchmarks/interfaces/consumer",
+        "--target-dir",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/final-interfaces-off-darwin/target-consumer",
+        "-o",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/final-interfaces-off-darwin/interfaces",
+        "--cone-path",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/final-interfaces-off-darwin/artifacts",
+        "--library-path",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/final-interfaces-off-darwin",
+        "--emit",
+        "all",
+        "--dump-dir",
+        "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/final-interfaces-off-darwin/consumer-dump"
+      ],
+      "records": [
+        {
+          "dependencies": [
+            {
+              "artifact_fingerprint": "740f28adb1e161cd6d5b1078c664f8c37ce59fd35de7020b986d04ac728e6f3d",
+              "coordinate": {
+                "group": "scoop",
+                "name": "scoop.core",
+                "version": "0.1.0"
+              },
+              "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+              "path": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/baseline-darwin-release-llvm22/cache/compile-v1/48b9c51447f82d53978e3a8abcbc40241649f4a91a0a2c983abdb7fb64402d59/artifact.slib"
+            },
+            {
+              "artifact_fingerprint": "39c075c0e8c6ce1b101bdc50f214496c8f495c979b387e08353924d46b59e588",
+              "coordinate": {
+                "group": "dev.m34",
+                "name": "interface-bench-provider",
+                "version": "0.1.0"
+              },
+              "identity": "4287d082a0853b58d3bf59369e562dd8e9a7fe6216958c9ad4b4b48d143eac7c",
+              "path": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/final-interfaces-off-darwin/artifacts/dev.m34/interface-bench-provider/0.1.0/cone.slib"
+            }
+          ],
+          "kind": "executable",
+          "link_plan_fingerprint": "ecec38da24cff0d473ba671d772a3e2f02ee263a56496d822a15b72ac867833f",
+          "observations": {
+            "child_invocations": [
+              "3defb077b78153b1a806ad302ab005d7a7715f5f0f1d84764f104656ed3e8090"
+            ],
+            "nodes": [
+              {
+                "cache_key": "48b9c51447f82d53978e3a8abcbc40241649f4a91a0a2c983abdb7fb64402d59",
+                "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+                "origin": "cache"
+              },
+              {
+                "cache_key": null,
+                "identity": "4287d082a0853b58d3bf59369e562dd8e9a7fe6216958c9ad4b4b48d143eac7c",
+                "origin": "prebuilt"
+              },
+              {
+                "cache_key": "728d2ab3e8f4a5d93d9cba7678bccf397b3f112243a56eac92f9aa54857330c8",
+                "identity": "3defb077b78153b1a806ad302ab005d7a7715f5f0f1d84764f104656ed3e8090",
+                "origin": "compiled"
+              }
+            ]
+          },
+          "output": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/final-interfaces-off-darwin/interfaces",
+          "profile": "release",
+          "root": {
+            "artifact_fingerprint": "18921849cbed7e09643217f8ee00ff74322f52246f184fa8b0ae3540dfd51230",
+            "coordinate": {
+              "group": "dev.m34",
+              "name": "interface-bench-consumer",
+              "version": "0.1.0"
+            },
+            "identity": "3defb077b78153b1a806ad302ab005d7a7715f5f0f1d84764f104656ed3e8090",
+            "path": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/baseline-darwin-release-llvm22/cache/compile-v1/728d2ab3e8f4a5d93d9cba7678bccf397b3f112243a56eac92f9aa54857330c8/artifact.slib"
+          },
+          "runtime_index": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/baseline-darwin-release-llvm22/cache/runtime-v1/af33b28b8287f3dbd98d4e0d5b375fae6f05cd27764609285e0d96cf422d7d47/index.cbor",
+          "schema": 1
+        }
+      ],
+      "output_bytes": 6181608,
+      "root_slib_bytes": 245620
+    }
+  ],
+  "commands": [
+    [
+      "cc",
+      "-std=c11",
+      "-O2",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-c",
+      "/Volumes/Data/home/chenxu/repos/scoop/tests/benchmarks/interfaces/phases.c",
+      "-o",
+      "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/final-interfaces-off-darwin/phases.o"
+    ],
+    [
+      "ar",
+      "rcs",
+      "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/final-interfaces-off-darwin/libm34_interfaces.a",
+      "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/final-interfaces-off-darwin/phases.o"
+    ]
+  ],
+  "tools": {
+    "cc": "Apple clang version 21.0.0 (clang-2100.3.34.2)\nTarget: arm64-apple-darwin27.0.0\nThread model: posix\nInstalledDir: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin",
+    "llvm": "22.1.8"
+  },
+  "sections": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/final-interfaces-off-darwin/interfaces  :\nsection                size         addr\n__text               217092   4294969480\n__stubs                1020   4295186572\n__stub_helper           720   4295187592\n__const               97464   4295188320\n__gcc_except_tab       4260   4295285784\n__cstring             20876   4295290048\n__unwind_info         10304   4295310924\n__eh_frame            27872   4295321232\n__const              786304   4295360512\n__llvm_stackmaps     176024   4296146816\n__got                  3872   4296322840\n__la_symbol_ptr         464   4296327168\n__data                 1024   4296327632\n__thread_vars            48   4296328656\n__thread_bss             16   4296328704\n__bss                   504   4296328720\n__common                 56   4296329224\nTotal               1347920\n\n\n",
+  "hot_functions": [
+    {
+      "source": "Cell.next",
+      "mir_function": "0",
+      "symbol": "scoop$1$cb$d6d44c12518bb1e3171fe4235a04708304936c6d7b2f9b60aec3050058d674b0",
+      "machine_bytes": 80,
+      "instruction_count": 20
+    },
+    {
+      "source": "Cell.$get$salt",
+      "mir_function": "1",
+      "symbol": "scoop$1$cb$073cd401d310770fd6c547809a2719a257086eb47c666e34c45a2ae41a89e0be",
+      "machine_bytes": 44,
+      "instruction_count": 11
+    },
+    {
+      "source": "known",
+      "mir_function": "2",
+      "symbol": "scoop$1$cb$89d463c70b3b9092140dcfc3a35d7372a7af6539922bbbaaa5b3ecc51369ffeb",
+      "machine_bytes": 180,
+      "instruction_count": 45
+    },
+    {
+      "source": "unknown",
+      "mir_function": "3",
+      "symbol": "scoop$1$cb$803f972bd8a37e762b321c8df27119f059d46b85f2f6aefcb5acb6f300a859c0",
+      "machine_bytes": 176,
+      "instruction_count": 44
+    },
+    {
+      "source": "convertedOnce",
+      "mir_function": "4",
+      "symbol": "scoop$1$cb$d96b4b18d972ec178c732a7b98ed8faf23417a50a315c26392b65225672007cd",
+      "machine_bytes": 372,
+      "instruction_count": 93
+    },
+    {
+      "source": "convertedEach",
+      "mir_function": "5",
+      "symbol": "scoop$1$cb$4012dab5872149ded60b8a912e8966def1aeeee9dd24a0444293c16878ed786b",
+      "machine_bytes": 388,
+      "instruction_count": 97
+    }
+  ]
+}
