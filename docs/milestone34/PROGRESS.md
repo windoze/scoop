@@ -258,12 +258,18 @@ Linux 的跨 Cone nominal 签名和完整 core 产物测试暴露了小值 coerc
 
 ## M34-10e：复制值中的 managed pointer provenance
 
-Linux 的 release 接口协程用例在 unbox 后复制含引用 struct，再以 byval 参数调用挂起适配器。LLVM 将复制降为整数 load／store，随后把 GC leaf 的 pointer load 合并为未授权的 `inttoptr`，触发既有 provenance 校验。最小 LLVM 复现确认是缺少 managed 地址空间的 non-integral 声明；module 现在从已有目标 data layout 派生 `ni:1`，保持原指针大小、对齐与原生 ABI，也不放宽显式转换检查。
+Linux 的 release 接口协程用例在 unbox 后复制含引用 struct，再以 byval 参数调用挂起适配器。LLVM 将复制降为整数 load／store，随后把 GC leaf 的 pointer load 合并为新引入的 `inttoptr`，触发既有 provenance 校验。最小 LLVM 复现确认是缺少 managed 地址空间的 non-integral 声明；module 现在从已有目标 data layout 派生 `ni:1`，保持原指针大小、对齐与原生 ABI，也不放宽显式转换检查。
 
-新增 22 行 LLVM／61 行 Rust 回归在三个 target 的 debug／release 下执行优化、RS4GC、Scoop 根验证、LLVM safepoint verifier 和真实对象生成，保留一个正确 relocation root，禁止优化器引入整数重建。两机 workspace/all-targets clippy 和 362 项 codegen 测试通过。原接口协程正式 fixture 已在 Darwin／GNU 完成普通、full-moving、minor-stress 的 debug／release 运行；Darwin 关闭快照更新复验通过。临时 LLVM 诊断输出已从生产代码移除。
+新增 22 行 LLVM／59 行 Rust 回归在三个 target 的 debug／release 下执行优化、RS4GC、Scoop 根验证、LLVM safepoint verifier 和真实对象生成，保留一个正确 relocation root，禁止优化器引入整数重建。两机 workspace/all-targets clippy 通过；Darwin 的 362 项、Linux 的 377 项 codegen 测试通过，数量差异来自既有平台条件测试。原接口协程正式 fixture 已在 Darwin／GNU 完成普通、full-moving、minor-stress 的 debug／release 运行；两机关闭快照更新复验通过。临时 LLVM 诊断输出已从生产代码移除。
 
 ## M34-10f：intrinsic class 的 default receiver
 
 完整 CLI 初跑发现六组修改 core 后再从产物继承成员的用例失败：String 的接口 default adapter 使用了普通 `Class` 类型，而其 source exact registry 正确保存的是 intrinsic `String`。adapter 的参数、局部变量、receiver 表达式和 MIR 检查现在统一使用类声明已有的 `physical_type`，同时覆盖 Any；没有增加别名、名称回退或重复身份登记。
 
-两机 20 项 MIR 引用类型回归通过。六组 core 重建／消费用例及上一批的接口协程在 Darwin、GNU 均完成验收，各为 8 variants、60 processes、22 goldens；包括源码删除后的链接与 moving GC，以及原有 NoGC／错误实参诊断。Darwin 对这七组关闭快照更新再验一次通过。生产修改限于已有 receiver lowering 和相应结构验证。
+两机 20 项 MIR 引用类型回归通过。六组 core 重建／消费用例及上一批的接口协程在 Darwin、GNU 均完成验收，各为 8 variants、60 processes、22 goldens；包括源码删除后的链接与 moving GC，以及原有 NoGC／错误实参诊断。两机对这七组关闭快照更新再验一次通过。生产修改限于已有 receiver lowering 和相应结构验证。
+
+这两个修复后，两台主机各自重新构建了十个最终基准可执行文件。与修复前逐字节比较全部相同，热点机器码大小也相同，因此复用已经完成的 Linux 七轮样本；原始测量、修复后构建与 binary 对照分别保留，不重复计时。Darwin 的首次最终计时仍等待该机 CLI 验收结束。
+
+## M34-10g：core 非法声明的诊断位置
+
+完整 CLI 的预期迁移中，六组缺失或非法 Any／Nothing 声明用例保留了旧 ArrayList 文件范围。错误文本、所属 Cone、文件和起点都未改变；终点按真实源码大小从 3036 更新为 3336 bytes，继续比较完整诊断 JSON。Darwin 对六组关闭快照更新复验通过，未扩大测试时限或删除位置断言；相同预期已同步到正在执行的 GNU 选择中。
