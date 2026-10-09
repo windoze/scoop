@@ -143,13 +143,23 @@ impl Lowerer {
         if let Some((property, owner, property_ty)) =
             self.find_accessible_nominal_property(receiver_ty, &name.text)
         {
-            let (receiver, value) = self.lower_ordered_rhs(
-                receiver,
-                &assign.value,
-                sink,
-                Some(property_ty),
-                "$place.receiver",
-            )?;
+            // An immutable reference local already fixes the target across the RHS.
+            let stable_reference = matches!(self.types[receiver_ty], Type::Class(_))
+                && matches!(&receiver.kind, hir::ExprKind::Local(local) if !self.locals[*local].mutable);
+            let (receiver, value) = if stable_reference {
+                (
+                    receiver,
+                    self.lower_expr(&assign.value, sink, Some(property_ty))?,
+                )
+            } else {
+                self.lower_ordered_rhs(
+                    receiver,
+                    &assign.value,
+                    sink,
+                    Some(property_ty),
+                    "$place.receiver",
+                )?
+            };
             if !self.is_subtype(value.ty, property_ty) {
                 let expected = self.type_name(property_ty);
                 let found = self.type_name(value.ty);

@@ -421,9 +421,6 @@ Module
         Local $dependency.local.5
         Type Long
         Local $dependency.local.7
-      val $dependency.local.11: ListIterator<Int>
-        Type ListIterator<Int>
-        Local this
       val $dependency.local.8: Long
         Type Long
         FieldAccess 1
@@ -437,24 +434,24 @@ Module
         IntegerLiteral Long value=1 bits=0x0000000000000001
       field_set 1
         Type ListIterator<Int>
-        Local $dependency.local.11
+        Local this
         Type Long
         IntegerBinary add kind=Long
           Type Long
           Local $dependency.local.8
           Type Long
           IntegerLiteral Long value=1 bits=0x0000000000000001
-      val $dependency.local.12: Int
+      val $dependency.local.11: Int
         Type Int
         Local $dependency.local.1
-      val $dependency.local.13: Int
+      val $dependency.local.12: Int
         Type Int
-        Local $dependency.local.12
+        Local $dependency.local.11
       return
         Type Option<Int>
         VariantConstruct Option<Int> v0
           Type Int
-          Local $dependency.local.13
+          Local $dependency.local.12
   fun List.$get$size @fn7(this: List<Int>) -> Long
     bb0 entry
       trap "call to abstract method `List.$get$size`"
