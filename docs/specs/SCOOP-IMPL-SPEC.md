@@ -75,6 +75,8 @@ singleton、runtime property 与 generic delegated application 保存完整初�
 
 `==` / `!=` 按语言规范 9.3、11.11 从普通成员中选择 operator equals，保存实际 callable 或普通接口 bound target；不要求 core Equality conformance。`Equality<T>.equalTo` 按普通 interface 声明、override 和 bound call 处理，不进入 core operator／protocol 身份表，也不为同形方法或结构比较补齐接口。
 
+不可重载的 `===` / `!==` 同样从左到右各求值一次；右侧展开出的 HIR 前置语句必须位于左侧取值之后，不能改变左侧已取得的引用。
+
 判定派生签名是否被手写成员占用时，检查名为 `equals`、参数为完整宿主类型的原成员签名，不以 operator 标记或当前调用处的可见性过滤。普通同签名成员仍可按普通函数调用，但不会成为 operator；导入的 nominal 使用已保存的成员声明执行相同判断，不因成员正文或源码不可见而重新派生。
 
 结构比较沿用引入 Equality 统一方案之前的派生、具体化与产物路径。M33 只撤销 operator 对 Equality 的依赖，不新增按泛型上下文区分的比较模板、生成身份或 ODR 规则。`Equality.equalTo` 的新增实现由普通接口、泛型正文、装箱和跨库调用机制承担。原有泛型结构比较问题单独记录，不作为本轮库接口拆分的前置条件。

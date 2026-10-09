@@ -413,7 +413,7 @@ impl Lowerer {
             "!=="
         };
         let lhs = self.lower_expr(lhs, sink, None)?;
-        let rhs = self.lower_expr(rhs, sink, None)?;
+        let (lhs, rhs) = self.lower_ordered_rhs(lhs, rhs, sink, None, "$equality.lhs")?;
         if !self.is_ref_ty(lhs.ty) || !self.is_ref_ty(rhs.ty) {
             self.error(
                 span,
