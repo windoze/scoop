@@ -56,7 +56,7 @@ fn closure_abi_module() -> Module {
     let aggregate_suspend_signature =
         call_targets
             .indirect_result_signatures
-            .alloc(IndirectResultCallSignature::scoop_sret(
+            .alloc(IndirectResultCallSignature::sret(
                 vec![
                     scoop_lir::AbiArgument::Direct(managed_pointer.clone().into()),
                     scoop_lir::AbiArgument::Indirect(aggregate_value),

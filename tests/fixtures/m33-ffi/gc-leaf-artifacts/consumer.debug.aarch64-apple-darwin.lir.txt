@@ -94,9 +94,6 @@ Module
     local %58 $dependency.parameter.value: ptr<managed>
     local %59 $new.1: ptr<managed>
     local %60 $call.2: ptr<managed>
-    local %61 $sc.1: struct1
-    local %62 $sc.2: struct1
-    local %63 $sc.3: struct1
   block entry
     poll managed-void-target9 sp<managed-poll:0> live=[]
     store integer<Int>(0x0000002a) -> local0
@@ -136,25 +133,24 @@ Module
     store f64(0x3fe8000000000000) -> local22
     store local21 -> local23
     store local22 -> local24
-    call no-gc-indirect-target0 local61 = sig=indirect0 (sret struct1 size=16 align=8 scan=none, i32, f64) external-fn3(local23, local24)
-    store local61 -> local25
+    call no-gc-direct-target1 t8 = sig=direct3 (i32, f64) -> struct1 external-fn3(local23, local24)
+    store t8 -> local25
     store local25 -> local26
-    store local26 -> local62
-    call no-gc-indirect-target1 local63 = sig=indirect1 (sret struct1 size=16 align=8 scan=none, indirect<struct1 size=16 align=8 scan=none>) external-fn4(indirect local62)
-    store local63 -> local27
-    t8 = extract local27, 0 : i32
-    store t8 -> local28
+    call no-gc-direct-target2 t9 = sig=direct4 (parts<struct1 [[2xi64]@0+16/8]>) -> struct1 external-fn4(local26)
+    store t9 -> local27
+    t10 = extract local27, 0 : i32
+    store t10 -> local28
     store integer<Int>(0x0000000f) -> local29
     store local29 -> local30
-    t9 = integer_compare_Equal<Int> local28, local30 : i1
-    cbr t9 then @if.then.1 else @if.else.2
+    t11 = integer_compare_Equal<Int> local28, local30 : i1
+    cbr t11 then @if.then.1 else @if.else.2
   block if.then.1
-    t10 = extract local27, 1 : f64
-    store t10 -> local31
+    t12 = extract local27, 1 : f64
+    store t12 -> local31
     store f64(0x3ff4000000000000) -> local32
     store local32 -> local33
-    t11 = float_Equal<F64> local31, local33 : i1
-    store t11 -> local34
+    t13 = float_Equal<F64> local31, local33 : i1
+    store t13 -> local34
     br @if.merge.3
   block if.else.2
     store false -> local34
@@ -163,46 +159,46 @@ Module
     store local34 -> local35
     store local35 -> local36
     call managed-void-target3 sp<managed-call:5> live=[local2:ptr<managed>@0] sig=void3 (i1) local-fn0(local36)
-    t12 = aggregate () : {}
+    t14 = aggregate () : {}
     store local2 -> local37
     store integer<Int>(0x0000000d) -> local38
     store local37 -> local39
     store local38 -> local40
-    call managed-direct-target2 sp<managed-call:6> live=[local2:ptr<managed>@0, local39:ptr<managed>@0] t13 = sig=direct3 (ptr<managed>, i32) -> ptr<managed> local-fn2(local39, local40)
-    store t13 -> local60
-    t14 = Eq local60, local2 : i1
-    store t14 -> local41
+    call managed-direct-target2 sp<managed-call:6> live=[local2:ptr<managed>@0, local39:ptr<managed>@0] t15 = sig=direct5 (ptr<managed>, i32) -> ptr<managed> local-fn2(local39, local40)
+    store t15 -> local60
+    t16 = Eq local60, local2 : i1
+    store t16 -> local41
     store local41 -> local42
     call managed-void-target4 sp<managed-call:7> live=[local2:ptr<managed>@0] sig=void4 (i1) local-fn0(local42)
-    t15 = aggregate () : {}
+    t17 = aggregate () : {}
     store integer<Int>(0x00000011) -> local43
     store integer<Int>(0x00000013) -> local44
     store local43 -> local45
     store local44 -> local46
-    call managed-direct-target3 sp<managed-call:8> live=[local2:ptr<managed>@0] t16 = sig=direct4 (i32, i32) -> i32 local-fn3(local45, local46)
-    store t16 -> local47
+    call managed-direct-target3 sp<managed-call:8> live=[local2:ptr<managed>@0] t18 = sig=direct6 (i32, i32) -> i32 local-fn3(local45, local46)
+    store t18 -> local47
     store integer<Int>(0x00000011) -> local48
     store local48 -> local49
-    t17 = integer_compare_Equal<Int> local47, local49 : i1
-    store t17 -> local50
+    t19 = integer_compare_Equal<Int> local47, local49 : i1
+    store t19 -> local50
     store local50 -> local51
     call managed-void-target5 sp<managed-call:9> live=[local2:ptr<managed>@0] sig=void5 (i1) local-fn0(local51)
-    t18 = aggregate () : {}
+    t20 = aggregate () : {}
     call managed-void-target6 sp<managed-call:10> live=[local2:ptr<managed>@0] sig=void6 () runtime @scoop_rt_gc_collect()
-    t19 = aggregate () : {}
-    t20 = heap_load local2 +16 : i32
-    store t20 -> local52
+    t21 = aggregate () : {}
+    t22 = heap_load local2 +16 : i32
+    store t22 -> local52
     store integer<Int>(0x0000002a) -> local53
     store local53 -> local54
-    t21 = integer_compare_Equal<Int> local52, local54 : i1
-    store t21 -> local55
+    t23 = integer_compare_Equal<Int> local52, local54 : i1
+    store t23 -> local55
     store local55 -> local56
     call managed-void-target7 sp<managed-call:11> live=[] sig=void7 (i1) local-fn0(local56)
-    t22 = aggregate () : {}
+    t24 = aggregate () : {}
     store global1 -> local57
     store local57 -> local58
     call managed-void-target8 sp<managed-call:12> live=[local58:ptr<managed>@0] sig=void8 (ptr<managed>) local-fn4(local58)
-    t23 = aggregate () : {}
+    t25 = aggregate () : {}
     ret
   fun @scoop$1$cb$7321390c8bd54a090b8e499408480a4d08c560c145c9d9417b585b5cf204e21b(ptr<managed>, i32) -> ptr<managed>
     local %0 $dependency.local.2: i32
@@ -330,11 +326,11 @@ Module
   td td7 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=Option);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Char)]) @scoop$1$td$d7f4366e65835cbfa9730a35af33f51b9ed79c85d1b97de13e951aaa6136a11d type-id=4546798213121979959 shape=BoxedValue minimum-size=32 align=8 parent=none vtable=[] itables=[]
   layout Option size=8 align=8 enum-scan=refs[0]
   layout Option size=16 align=8 enum-scan=none
-  layout Equality value size=8 align=8 refs=[0]
-  layout Equality value size=8 align=8 refs=[0]
-  layout Iterable value size=8 align=8 refs=[0]
-  layout Iterator value size=8 align=8 refs=[0]
-  layout Equality value size=8 align=8 refs=[0]
+  layout Equality value size=16 align=8 refs=[0]
+  layout Equality value size=16 align=8 refs=[0]
+  layout Iterable value size=16 align=8 refs=[0]
+  layout Iterator value size=16 align=8 refs=[0]
+  layout Equality value size=16 align=8 refs=[0]
   layout Cell value size=8 align=8 refs=[0]
   layout Cell size=24 align=8 refs=[]
   output executable @scoop$1$cb$9b7b76abf047b298ab241d6bf1f254b087da75bb50a332958da8716b754644df

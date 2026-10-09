@@ -313,14 +313,13 @@ pub(in crate::tests) fn indirect_result_site_with_layout(
 ) -> CallSite {
     let arguments = plain_call_arguments(params);
     let args = call_values(&arguments, args);
-    let signature =
-        targets
-            .indirect_result_signatures
-            .alloc(IndirectResultCallSignature::scoop_sret(
-                arguments,
-                abi_value_with_layout(result.0, result.1, result.2, result.3),
-                scoop_lir::CallingConvention::Cdecl,
-            ));
+    let signature = targets
+        .indirect_result_signatures
+        .alloc(IndirectResultCallSignature::sret(
+            arguments,
+            abi_value_with_layout(result.0, result.1, result.2, result.3),
+            scoop_lir::CallingConvention::Cdecl,
+        ));
     protocol_site(
         targets,
         protocol,

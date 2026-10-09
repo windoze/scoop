@@ -4,7 +4,7 @@ use scoop_mir as mir;
 use crate::{LoweringContext, StorageResult, lir_type, safepoints};
 
 mod leaves;
-pub(crate) use leaves::aggregate_layout;
+pub(crate) use leaves::{aggregate_layout, scalar_carrier};
 
 pub(crate) enum ValueStorage {
     ZeroSized(lir::AbiZst),

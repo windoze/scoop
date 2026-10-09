@@ -42,7 +42,7 @@ pub(super) fn validate_destination(
                     ),
                 ));
             }
-            require_scoop_signature(
+            require_abi_signature(
                 function,
                 call,
                 &declaration.signature,
@@ -73,7 +73,7 @@ pub(super) fn validate_destination(
                     ),
                 ));
             }
-            require_scoop_signature(
+            require_abi_signature(
                 function,
                 call,
                 declaration.signature(),
@@ -109,7 +109,7 @@ pub(super) fn validate_destination(
                             ),
                         ));
                     }
-                    require_scoop_signature(
+                    require_abi_signature(
                         function,
                         call,
                         signature,
@@ -160,7 +160,7 @@ pub(super) fn extern_declaration<'a>(
     Ok(&module.extern_functions[id])
 }
 
-pub(super) fn require_scoop_signature(
+pub(super) fn require_abi_signature(
     function: &Function,
     call: &scoop_lir::TypedCallView<'_>,
     expected: &scoop_lir::ScoopAbiSignature,
@@ -182,7 +182,7 @@ pub(super) fn require_scoop_signature(
                 scoop_lir::TypedCallView::IndirectResult { signature, .. },
                 scoop_lir::AbiReturn::Indirect(result),
             ) => {
-                signature.convention() == scoop_lir::IndirectResultConvention::ScoopSret
+                signature.convention() == scoop_lir::IndirectResultConvention::Sret
                     && signature.result() == result
             }
             _ => false,
@@ -196,7 +196,7 @@ pub(super) fn require_scoop_signature(
         return Err(call_error(
             function,
             format!(
-                "{callee} signature or physical convention does not match its authoritative Scoop declaration returning {result}"
+                "{callee} signature or physical convention does not match its authoritative ABI declaration returning {result}"
             ),
         ));
     }

@@ -1,0 +1,26 @@
+class Empty { release {} }
+class Owner(val code: Int) {
+    init { gcCollect(); if (code < 0) { throw ArithmeticException() } }
+    release { val copied = code }
+}
+class Generic<T>(val value: T) { release { val copied = value } }
+
+fun check(value: Boolean) { if (!value) { throw IllegalStateException() } }
+fun empty(): Empty = Empty()
+fun owner(code: Int): Owner = Owner(code)
+fun generic(value: Int): Generic<Int> = Generic(value)
+fun main() {
+    val first = empty()
+    val second = Empty()
+    check(first !== second)
+    val a = owner(42)
+    val b = generic(73)
+    gcCollect()
+    check(a.code == 42 && b.value == 73)
+    var caught = false
+    try { owner(-1) }
+    catch (error: ArithmeticException) { caught = true }
+    finally { gcCollect() }
+    check(caught && a.code == 42 && b.value == 73)
+    println("inlined release")
+}

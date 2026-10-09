@@ -45,7 +45,7 @@ fn abi_zst_name(value: &AbiZst) -> String {
     )
 }
 
-fn abi_direct_name(value: &AbiDirectValue) -> String {
+pub(crate) fn abi_direct_name(value: &AbiDirectValue) -> String {
     match value {
         AbiDirectValue::Scalar(value) => value.storage_type().dump(),
         AbiDirectValue::DirectParts(parts) => format!(
@@ -213,7 +213,7 @@ pub(super) fn typed_call_name(function: &Function, call: &TypedCallView<'_>) -> 
                 .collect::<Vec<_>>()
                 .join(", ");
             let convention = match signature.convention() {
-                IndirectResultConvention::ScoopSret => "sret",
+                IndirectResultConvention::Sret => "sret",
                 IndirectResultConvention::CStoragePointer => "c-storage-pointer",
             };
             let physical_parameters = if params.is_empty() {

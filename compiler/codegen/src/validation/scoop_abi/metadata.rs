@@ -34,11 +34,38 @@ impl<'a> AbiMetadataValidator<'a> {
             }
         }
         for (_, function) in self.module.extern_functions.iter() {
-            if let ExternFunctionKind::Scoop { signature, .. } = &function.kind {
-                self.validate_scoop_signature(
-                    signature,
-                    &format!("Scoop extern `{}`", function.source_name),
-                )?;
+            let owner = format!("extern `{}`", function.source_name);
+            match &function.kind {
+                ExternFunctionKind::Scoop { signature, .. } => {
+                    self.validate_scoop_signature(signature, &owner)?;
+                }
+                ExternFunctionKind::C {
+                    call_plan: scoop_lir::CAbiCallPlan::Direct(signature),
+                    ..
+                } => {
+                    for (index, parameter) in signature.params.iter().enumerate() {
+                        self.validate_value(
+                            parameter.value(),
+                            &format!("{owner} argument {index}"),
+                        )?;
+                    }
+                    match &signature.result {
+                        scoop_lir::DirectCReturn::Void => {}
+                        scoop_lir::DirectCReturn::Value(value) => {
+                            self.validate_value(&value.storage, &owner)?
+                        }
+                        scoop_lir::DirectCReturn::DirectParts(parts) => {
+                            self.validate_value(parts.value(), &owner)?
+                        }
+                        scoop_lir::DirectCReturn::Indirect(value) => {
+                            self.validate_value(value, &owner)?
+                        }
+                    }
+                }
+                ExternFunctionKind::C {
+                    call_plan: scoop_lir::CAbiCallPlan::StorageBridge { .. },
+                    ..
+                } => {}
             }
         }
         Ok(())
@@ -50,7 +77,7 @@ impl<'a> AbiMetadataValidator<'a> {
     ) -> Result<(), CodegenError> {
         let targets = &function.call_targets;
         for (id, signature) in targets.void_signatures.iter() {
-            self.validate_arguments(
+            self.validate_call_arguments(
                 signature.arguments(),
                 &format!(
                     "function @{} void call signature {}",
@@ -65,7 +92,7 @@ impl<'a> AbiMetadataValidator<'a> {
                 function.symbol(),
                 id.into_raw()
             );
-            self.validate_arguments(signature.arguments(), &owner)?;
+            self.validate_call_arguments(signature.arguments(), &owner)?;
             self.validate_zst(signature.result(), &format!("{owner} result"))?;
         }
         for (id, signature) in targets.direct_signatures.iter() {
@@ -74,9 +101,9 @@ impl<'a> AbiMetadataValidator<'a> {
                 function.symbol(),
                 id.into_raw()
             );
-            self.validate_arguments(signature.arguments(), &owner)?;
+            self.validate_call_arguments(signature.arguments(), &owner)?;
             let result_owner = format!("{owner} result");
-            self.validate_direct(signature.result(), &result_owner)?;
+            self.validate_value(signature.result().value(), &result_owner)?;
         }
         for (id, signature) in targets.indirect_result_signatures.iter() {
             let owner = format!(
@@ -84,15 +111,28 @@ impl<'a> AbiMetadataValidator<'a> {
                 function.symbol(),
                 id.into_raw()
             );
-            self.validate_arguments(signature.arguments(), &owner)?;
+            self.validate_call_arguments(signature.arguments(), &owner)?;
             let result_owner = format!("{owner} result");
             self.validate_value(signature.result(), &result_owner)?;
-            if signature.convention() == scoop_lir::IndirectResultConvention::ScoopSret {
-                self.validate_passing(
-                    signature.result(),
-                    scoop_lir::ScoopAbiPassing::Indirect,
-                    &result_owner,
-                )?;
+        }
+        Ok(())
+    }
+
+    fn validate_call_arguments(
+        &mut self,
+        arguments: &[scoop_lir::AbiArgument],
+        owner: &str,
+    ) -> Result<(), CodegenError> {
+        // The destination supplies the authoritative Scoop or C passing
+        // plan. A signature directory only owns exact storage geometry.
+        for (index, argument) in arguments.iter().enumerate() {
+            let owner = format!("{owner} argument {index}");
+            match argument {
+                scoop_lir::AbiArgument::ElidedZst(value) => self.validate_zst(value, &owner)?,
+                scoop_lir::AbiArgument::Direct(value) => {
+                    self.validate_value(value.value(), &owner)?
+                }
+                scoop_lir::AbiArgument::Indirect(value) => self.validate_value(value, &owner)?,
             }
         }
         Ok(())

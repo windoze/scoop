@@ -1,6 +1,6 @@
 use super::*;
 
-pub(super) fn scalar_carrier(ty: &lir::LirType, enums: &lir::EnumDefs) -> Option<lir::AbiCarrier> {
+pub(crate) fn scalar_carrier(ty: &lir::LirType, enums: &lir::EnumDefs) -> Option<lir::AbiCarrier> {
     use lir::{AbiCarrier as C, FloatKind, LirType as T};
     Some(match ty {
         T::I1 | T::I8 => C::Integer(8),

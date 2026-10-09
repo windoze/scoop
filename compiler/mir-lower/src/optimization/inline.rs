@@ -113,7 +113,18 @@ impl Context<'_> {
                 if *remaining == 0 {
                     return choices;
                 }
-                if let mir::StatementKind::Call(effect) = &statement.kind {
+                // Release publication is adjacent to its outer initializer
+                // and allocation. Keep that call when copying the sequence.
+                let publishes_release =
+                    block
+                        .statements
+                        .get(statement_index + 1)
+                        .is_some_and(|next| {
+                            matches!(next.kind, mir::StatementKind::PublishReleaseReady { .. })
+                        });
+                if let mir::StatementKind::Call(effect) = &statement.kind
+                    && !publishes_release
+                {
                     let call = super::call(effect);
                     if let Some(callee) = policy::local_target(self.module, call)
                         && self.eligible[index(callee)]

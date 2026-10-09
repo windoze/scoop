@@ -121,3 +121,26 @@ native 组合保留现有 NativeBorrowed 的 roots 发布、进入／退出协�
 所有运行均分配 104 bytes，minor／full 次数均为零；本对照不推断 GC 吞吐。Darwin 首次启动的 360～719 ms 高值全部保留在七次样本中。普通跨 Cone 的两组复用各自 core cache：provider 构建分别为 Darwin 2.325／2.549 s、GNU 3.177／3.139 s，consumer 首次构建为 4.959／5.361 s、6.495／6.238 s；缓存构建为 5.106／5.129 s、6.212／6.220 s。这些各一次的构建观测不代表稳定的编译速度变化。
 
 普通跨 Cone 的可执行文件大小在 Darwin 两组均为 6,094,552 bytes，在 GNU 均为 4,554,120 bytes；根 slib 分别为 179,678 → 179,698 和 192,582 → 192,478 bytes。native 的可执行文件为 Darwin 6,035,960 → 6,035,960、GNU 4,519,720 → 4,519,736 bytes。Darwin 初次 native 探针缺少 deployment 导致 Mach-O 装载信息检查失败，修正 LLVM triple 后复用已经构建的 core；该组 JSON 的 `first_build_cache_reused` 标明此事，其首次构建时间不能当作冷构建时间。失败阶段没有产生运行样本。
+
+## M34-5b：C aggregate 直接调用
+
+对照为 `dfc609f83`（M34-5a），[既有 C FFI workload](../../tests/benchmarks/ffi/README.md) 的源码、独立 C native objects、MIR 优化和 production runtime 配置相同。每个线程调用返回 16-byte Pair 的 C 函数 2,000,000 次并核对完整校验和；在 1、4 线程下，各按轮交替 C／NativeSafe／GCLeaf 三条路径，保留七轮全部样本。表中单位为 ns/call，四线程值是墙钟时间除以总调用数，表示聚合吞吐。
+
+| 主机 | 线程 | 协议 | StorageBridge | DirectC | 中位数比值（旧／新） |
+| --- | ---: | --- | ---: | ---: | ---: |
+| Darwin | 1 | NativeSafe | 16.987 | 16.046 | 1.059 |
+| Darwin | 1 | GCLeaf | 1.494 | 1.000 | 1.494 |
+| Darwin | 4 | NativeSafe | 4.788 | 4.710 | 1.017 |
+| Darwin | 4 | GCLeaf | 0.418 | 0.282 | 1.482 |
+| GNU | 1 | NativeSafe | 23.171 | 22.424 | 1.033 |
+| GNU | 1 | GCLeaf | 2.000 | 1.797 | 1.113 |
+| GNU | 4 | NativeSafe | 6.343 | 6.095 | 1.041 |
+| GNU | 4 | GCLeaf | 0.636 | 0.462 | 1.377 |
+
+独立 C 循环的前后中位数分别为 Darwin 0.749／0.753（1 线程）、0.210／0.210（4 线程），GNU 0.997／0.995、0.252／0.249。GCLeaf 在 Darwin 和 GNU 四线程的样本有一致改善；GNU 单线程旧组为 1.717～2.502，新组为 1.779～1.822，存在明显重叠，表中的 1.113 不作为稳定的整体加速结论。NativeSafe 各组前后分布也有重叠，保留七次观测及其小幅中位数差异，不将它们解释为已证明的稳定收益。
+
+机器码确认原 C storage bridge 已消除，Pair 直接经目标寄存器传递；GCLeaf 路径不包含 native 状态切换或 caller roots，正常循环保留条件 poll。NativeSafe 继续调用原有 enter／leave 协议，返回寄存器的值按需要跨 leave 保存。两组的运行分配量相同：C 控制路径 80 bytes，Scoop 1／4 线程分别为 104／176 bytes，均为 callback 建立时的一次性分配；minor／full 次数均为零。
+
+全部样本、C／LLVM 版本、完整构建 argv 与记录保存在 [Darwin 旧](measurements/m34-direct-c-off-darwin.json)／[新](measurements/m34-direct-c-on-darwin.json)、[GNU 旧](measurements/m34-direct-c-off-linux-gnu.json)／[新](measurements/m34-direct-c-on-linux-gnu.json)，同名 `.asm` 保存 caller、原 bridge 和独立 C callee。native compiler 为 Apple clang 21.0.0／GCC 15.2.0；Scoop LLVM 为 22.1.8／22.1.2。
+
+构建复用现有 core cache，首次／重复构建分别为 Darwin 旧 8.441／5.238 s、新 4.960／5.313 s，GNU 旧 6.203／6.192 s、新 6.134／6.173 s，均非冷构建。每项只有一次构建观测，不据此推断编译速度。可执行文件为 Darwin 6,153,256 → 6,152,760 bytes、GNU 4,613,280 → 4,612,888 bytes；根 slib 为 934,722 → 931,180、1,017,674 → 1,012,704 bytes。

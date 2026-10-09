@@ -6,6 +6,7 @@ mod validation;
 impl<'ctx> FnEmitter<'_, 'ctx> {
     fn physical_call_arguments(
         &self,
+        destination: scoop_lir::CallDestination,
         arguments: &[scoop_lir::AbiCallArgument],
         signature: &scoop_lir::ScoopAbiSignature,
         result: &TypedCallResult<'_>,
@@ -17,7 +18,9 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         if let TypedCallResult::Indirect { storage, .. } = result {
             values.push(self.local_pointer(*storage)?.into());
         }
-        for (argument, convention) in arguments.iter().zip(signature.arguments()) {
+        for (index, (argument, convention)) in
+            arguments.iter().zip(signature.arguments()).enumerate()
+        {
             match *argument {
                 scoop_lir::AbiCallArgument::ElidedZst(_) => {}
                 scoop_lir::AbiCallArgument::Direct(logical) => {
@@ -39,7 +42,10 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     }
                 }
                 scoop_lir::AbiCallArgument::Indirect(storage) => {
-                    values.push(self.local_pointer(storage.local())?.into());
+                    values.push(
+                        self.c_indirect_argument_pointer(destination, index, storage.local())?
+                            .into(),
+                    );
                 }
             }
         }
@@ -245,6 +251,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         // A native handshake may relocate the published roots. Materialize
         // arguments afterwards, and coerce each GC-free aggregate only once.
         let call_args = self.physical_call_arguments(
+            destination,
             call.args(),
             &signature,
             &result,
@@ -320,7 +327,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             self.apply_nounwind(call);
             self.apply_c_abi_attributes(destination, |location, attribute| {
                 call.add_attribute(location, attribute)
-            });
+            })?;
             call.add_attribute(
                 AttributeLoc::Function,
                 self.context.create_string_attribute("gc-leaf-function", ""),
@@ -380,7 +387,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             self.apply_call_protocol(call, destination, &protocol);
             self.apply_c_abi_attributes(destination, |location, attribute| {
                 call.add_attribute(location, attribute)
-            });
+            })?;
             match &result {
                 TypedCallResult::Direct { .. } => match call.try_as_basic_value() {
                     ValueKind::Basic(value) => Some(value),

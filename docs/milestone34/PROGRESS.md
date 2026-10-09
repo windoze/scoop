@@ -10,7 +10,7 @@
 | M34-2 双字接口 | 已完成 | 表示、slot receiver、niche、GC、AtomicRef、native、closure／coroutine、跨 Cone；三 target 的六组 CLI fixture 通过。 |
 | M34-3 MIR 优化 | 已完成 | 实际类型传播、去虚拟化、三档调用点内联、常量化简及累计增长控制；三 target 的 13 组 CLI、两机开关性能对照完成。 |
 | M34-4 poll 与分配 | 已完成 | 条件 poll／pending 激活、线程累计计数／detach 归并、三 target 验收与两机性能对照完成。 |
-| M34-5 小值与 DirectC | 部分完成 | 小值 DirectParts 与三 target 功能验收已完成；正向 C aggregate DirectC 待实施。 |
+| M34-5 小值与 DirectC | 已完成 | 小值 DirectParts、正向 C aggregate DirectC、三 target ABI／GC／artifact-only 验收与两机性能对照。 |
 | M34-6 多 region | 待实施 | 稀疏地址索引、扩容、large mapping、cards。 |
 | M34-7 搬迁与归还 | 待实施 | source／target 规划、完整回写、discard／unmap。 |
 | M34-8 并行 mark | 待实施 | 首次标记、分块任务、全局终止、存活集合复用。 |
@@ -125,3 +125,17 @@ canonical callable／native contract 保存完整计划，产物读入后核对 
 新 carrier、classifier 和 coercion 发射文件分别为 204／221／261 行，canonical storage 从签名模块分出；原 1593 行 ABI 校验文件按 metadata、调用点、目标、runtime 和测试拆分，最大模块为 433 行。整理后 15 项 codegen ABI 校验回归通过。本机回收 target 19,276 项、22,542,764,718 bytes；Linux 298 项、1,984,919,128 bytes，保留有效库、CLI、测试程序及对照工具。两地清理记录为 `batch5a-target-cleanup.json`。
 
 两台主机各完成普通跨 Cone 与 Scoop native 两种小值调用的七次前后对照，保留全部原始样本、构建记录与 caller／callee 机器码。普通跨 Cone 在 Darwin／GNU 的中位数比值分别为 3.243／4.110；native 边界组合未获收益，Darwin 变慢、GNU 波动较大，详见性能报告，不将这组数据删去或更改已有 native 协议。两地配套工具与源码保存为 `tmp/m34/small-value-tools`／`small-value-source`，供 DirectC 对照使用。
+
+## M34-5b：正向 C aggregate DirectC
+
+固定 cdecl、无 errno 捕获的合法 C signature 全部使用 DirectC。物理计划保存 C scalar、coercion parts、SysV byval／Darwin caller copy 和 sret，复用 M34-5a 的目标 carrier 分类及 typed call storage；小整数扩展按展开后的物理位置发射。SysV 的 MEMORY 参数副本至少 8-byte 对齐，packed 类型布局保持原值；Darwin 的大结构使用独立副本指针，HFA 支持四个 Double。模块边界检查 canonical C 类型、存储和所选计划，调用目录不再误套 Scoop 的 16-byte 门槛。errno、callback、FunPtr 与 native global/TLS 保留各自既有协议。
+
+C lowering profile 由退役 tag 2 迁为 tag 3，进入现有 target fingerprint 和构建缓存；runtime contract 12／metadata ABI 8、M34-5a 的 section versions 不变。通用间接结果约定在代码中改称 Sret，明确与 C bridge 的普通结果指针不同，未引入另一套 carrier 或 GC 协议。新增分类和 C 属性发射模块为 93／156 行，C call plan 为 149 行。
+
+新增三组 DirectC fixture 覆盖 3-byte 值、整数／浮点／混合、32-byte HFA、nested／packed／aligned 布局、尾 padding、Char／Boolean／nullable data/code pointer、小整数扩展、两类寄存器耗尽、隐藏结果参数、独立副本和 signaling NaN／负零位型。NativeSafe callback 与两个 foreign threads 在 GC 中保活对象，GCLeaf 循环直接调用 native symbol。跨 Cone 用例组合泛型 C-layout、interface／函数值、相反构建 profile，并删除双方源码后使用正式 linker 重链运行。
+
+FFI 回归发现并修复 M34-3b 的构造发布问题：保留 release-ready 紧邻的最外层 initializer 调用，允许包含完整构造序列的函数整体内联，维持构造异常不发布。独立 `m34-inlining-release` fixture 锁定空构造、泛型、异常与 GC；原两组含 release 的 FFI 用例在 release 模式恢复通过。
+
+Darwin、GNU、musl 均在关闭 snapshot 更新后通过九组正式 CLI 验收，各为 18 variants、108 processes、68 goldens。43 份共用 AST／HIR／MIR 跨主机逐字一致；实际不同的 debug/release HIR／MIR 分别保存。两机 workspace／all-targets clippy 通过，相关 Rust ABI 99 项及 MIR 内联 3 项测试通过。前后性能以 `dfc609f83` 为对照，复用既有 FFI workload 的 C／NativeSafe／GCLeaf aggregate 路径，详见性能记录。
+
+本机回收 target 324 项、1,812,724,794 bytes；Linux 回收 147 项、767,645,502 bytes，保留有效库、CLI 和测试程序。记录为两地 `batch5b-target-cleanup.json`；配套工具与 runtime／sysroot 保存为 `tmp/m34/direct-c-tools`／`direct-c-source`，供后续 runtime 批次对照。

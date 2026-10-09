@@ -610,7 +610,7 @@ fn native_borrowed_result_publication_is_sealed_with_return_convention() {
     let indirect_signature =
         targets
             .indirect_result_signatures
-            .alloc(IndirectResultCallSignature::scoop_sret(
+            .alloc(IndirectResultCallSignature::sret(
                 Vec::new(),
                 indirect_result,
                 CallingConvention::Cdecl,
@@ -636,7 +636,7 @@ fn native_borrowed_result_publication_is_sealed_with_return_convention() {
     let TypedCallView::IndirectResult { signature, .. } = indirect.call else {
         panic!("indirect target must preserve its return arm");
     };
-    assert_eq!(signature.convention(), IndirectResultConvention::ScoopSret);
+    assert_eq!(signature.convention(), IndirectResultConvention::Sret);
     assert!(matches!(
         indirect.result,
         NativeBorrowedResultPublication::IndirectResultRooted { storage, scan }
@@ -652,18 +652,15 @@ fn indirect_result_signatures_keep_scoop_and_c_pointer_conventions_distinct() {
         8,
         RefScan::None,
     );
-    let scoop = IndirectResultCallSignature::scoop_sret(
-        Vec::new(),
-        result.clone(),
-        CallingConvention::Cdecl,
-    );
+    let scoop =
+        IndirectResultCallSignature::sret(Vec::new(), result.clone(), CallingConvention::Cdecl);
     let c_bridge = IndirectResultCallSignature::c_storage_pointer(
         Vec::new(),
         result,
         CallingConvention::Cdecl,
     );
 
-    assert_eq!(scoop.convention(), IndirectResultConvention::ScoopSret);
+    assert_eq!(scoop.convention(), IndirectResultConvention::Sret);
     assert_eq!(
         c_bridge.convention(),
         IndirectResultConvention::CStoragePointer
