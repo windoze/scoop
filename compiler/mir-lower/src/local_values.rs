@@ -20,6 +20,16 @@ pub(super) struct LocalValueRegistry {
 }
 
 impl LocalValueRegistry {
+    pub(super) fn from_existing(values: &mir::LocalValueIdentities) -> Self {
+        let mut registry = Self::default();
+        for entry in values.iter() {
+            let identity = entry.identity_record();
+            registry.observe_selector(identity.key().owner(), identity.key().selector());
+            registry.entries.push(entry.clone());
+        }
+        registry
+    }
+
     pub(super) fn record(
         &mut self,
         function: impl Into<mir::LocalValueOwner>,

@@ -303,369 +303,18 @@ Module
       assign $new.1
         Type Leaf
         ClassAlloc Leaf
-      call @fn46 direct
+      val $inline.128.this: Leaf
         Type Leaf
         Local $new.1
-      val instance: Leaf
-        Type Leaf
-        Local $new.1
-      val view: Measure
-        Type Measure
-        Retype Measure
-          Type Leaf
-          Local instance
-      val label: Label
-        Type Label
-        Retype Label
-          Type Leaf
-          Local instance
-      val empty: Empty
-        Type Empty
-        Retype Empty
-          Type Leaf
-          Local instance
-      val $argument.0: Boolean
-        Type Boolean
-        Binary RefEq
-          Type Measure
-          Local view
-          Type Label
-          Local label
-      val $parameter.value: Boolean
-        Type Boolean
-        Local $argument.0
-      call @fn6 direct
-        Type Boolean
-        Local $parameter.value
-      val $argument.0: Boolean
-        Type Boolean
-        Binary RefEq
-          Type Empty
-          Local empty
-          Type Measure
-          Local view
-      val $parameter.value: Boolean
-        Type Boolean
-        Local $argument.0
-      call @fn6 direct
-        Type Boolean
-        Local $parameter.value
-      val $argument.0: Measure
-        Type Measure
-        Local view
-      val $parameter.value: Measure
-        Type Measure
-        Local $argument.0
-      call $dependency.receiver: Int = @fn10 direct
-        Type Measure
-        Local $parameter.value
-      val $dependency.argument.0: Int
-        Type Int
-        IntegerLiteral Int value=42 bits=0x0000002a
-      val $dependency.parameter.other: Int
-        Type Int
-        Local $dependency.argument.0
-      val $argument.0: Boolean
-        Type Boolean
-        IntegerCompare equal operands=Int result=Boolean
-          Type Int
-          Local $dependency.receiver
-          Type Int
-          Local $dependency.parameter.other
-      val $parameter.value: Boolean
-        Type Boolean
-        Local $argument.0
-      call @fn6 direct
-        Type Boolean
-        Local $parameter.value
-      val $receiver: Label
-        Type Label
-        Local label
-      call $dependency.receiver: String = @fn3 direct
-        Type Item
-        Retype Item
-          Type Label
-          Local $receiver
-      val $dependency.argument.0: String
-        Type String
-        StringConst @str3
-      val $dependency.parameter.other: String
-        Type String
-        Local $dependency.argument.0
-      call $argument.0: Boolean = external1 direct
-        Type String
-        Local $dependency.receiver
-        Type String
-        Local $dependency.parameter.other
-      val $parameter.value: Boolean
-        Type Boolean
-        Local $argument.0
-      call @fn6 direct
-        Type Boolean
-        Local $parameter.value
-      val $argument.0: Measure
-        Type Measure
-        Local view
-      val $parameter.value: Measure
-        Type Measure
-        Local $argument.0
-      call $call.2: Measure = @fn7 direct
-        Type Measure
-        Local $parameter.value
-      val $argument.0: Boolean
-        Type Boolean
-        Binary RefEq
-          Type Measure
-          Local $call.2
-          Type Measure
-          Local view
-      val $parameter.value: Boolean
-        Type Boolean
-        Local $argument.0
-      call @fn6 direct
-        Type Boolean
-        Local $parameter.value
-      val $argument.0: Any
-        Type Any
-        Retype Any
-          Type Measure
-          Local view
-      val $parameter.value: Any
-        Type Any
-        Local $argument.0
-      call $receiver: Measure = @fn8 direct
-        Type Any
-        Local $parameter.value
-      call $dependency.receiver: Int = @fn35 interface Parent[0]
-        Type Parent
-        Retype Parent
-          Type Measure
-          Local $receiver
-      val $dependency.argument.0: Int
-        Type Int
-        IntegerLiteral Int value=21 bits=0x00000015
-      val $dependency.parameter.other: Int
-        Type Int
-        Local $dependency.argument.0
-      val $argument.0: Boolean
-        Type Boolean
-        IntegerCompare equal operands=Int result=Boolean
-          Type Int
-          Local $dependency.receiver
-          Type Int
-          Local $dependency.parameter.other
-      val $parameter.value: Boolean
-        Type Boolean
-        Local $argument.0
-      call @fn6 direct
-        Type Boolean
-        Local $parameter.value
-      assign $new.3
-        Type EchoUser
-        ClassAlloc EchoUser
-      call @fn47 direct
-        Type EchoUser
-        Local $new.3
-      val $receiver: EchoUser
-        Type EchoUser
-        Local $new.3
-      val $argument.0: Measure
-        Type Measure
-        Local view
-      val $parameter.value: Measure
-        Type Measure
-        Local $argument.0
-      call $call.4: Measure = @fn42 direct
-        Type EchoUser
-        Retype EchoUser
-          Type Echo<Measure>
-          Retype Echo<Measure>
-            Type EchoUser
-            Local $receiver
-        Type Measure
-        Local $parameter.value
-      val $argument.0: Boolean
-        Type Boolean
-        Binary RefEq
-          Type Measure
-          Local $call.4
-          Type Measure
-          Local view
-      val $parameter.value: Boolean
-        Type Boolean
-        Local $argument.0
-      call @fn6 direct
-        Type Boolean
-        Local $parameter.value
-      val $argument.0: Int
-        Type Int
-        IntegerLiteral Int value=9 bits=0x00000009
-      val $parameter.number: Int
-        Type Int
-        Local $argument.0
-      call $call.5: Small = @fn50 direct
-        Type Int
-        Local $parameter.number
-      val boxed: Measure
-        Type Measure
-        Box
-          Type Small
-          Local $call.5
-      val $receiver: Measure
-        Type Measure
-        Local boxed
-      call $dependency.receiver: Int = @fn61 direct
-        Type box<Small>
-        Retype box<Small>
-          Type Parent
-          Retype Parent
-            Type Measure
-            Local $receiver
-      val $dependency.argument.0: Int
-        Type Int
-        IntegerLiteral Int value=18 bits=0x00000012
-      val $dependency.parameter.other: Int
-        Type Int
-        Local $dependency.argument.0
-      val $argument.0: Boolean
-        Type Boolean
-        IntegerCompare equal operands=Int result=Boolean
-          Type Int
-          Local $dependency.receiver
-          Type Int
-          Local $dependency.parameter.other
-      val $parameter.value: Boolean
-        Type Boolean
-        Local $argument.0
-      call @fn6 direct
-        Type Boolean
-        Local $parameter.value
-      call $call.6: Zero = @fn51 direct
-      val zero: Measure
-        Type Measure
-        Box
-          Type Zero
-          Local $call.6
-      val $receiver: Measure
-        Type Measure
-        Local zero
-      call $dependency.receiver: Int = @fn65 direct
-        Type box<Zero>
-        Retype box<Zero>
-          Type Parent
-          Retype Parent
-            Type Measure
-            Local $receiver
-      val $dependency.argument.0: Int
-        Type Int
-        IntegerLiteral Int value=0 bits=0x00000000
-      val $dependency.parameter.other: Int
-        Type Int
-        Local $dependency.argument.0
-      val $argument.0: Boolean
-        Type Boolean
-        IntegerCompare equal operands=Int result=Boolean
-          Type Int
-          Local $dependency.receiver
-          Type Int
-          Local $dependency.parameter.other
-      val $parameter.value: Boolean
-        Type Boolean
-        Local $argument.0
-      call @fn6 direct
-        Type Boolean
-        Local $parameter.value
-      val $argument.0: Measure
-        Type Measure
-        Local view
-      val $argument.0: Measure
-        Type Measure
-        Local view
-      val $argument.1: Measure
-        Type Measure
-        Local boxed
-      val $parameter.first: Measure
-        Type Measure
-        Local $argument.0
-      val $parameter.second: Measure
-        Type Measure
-        Local $argument.1
-      call $argument.1: Pair = @fn52 direct
-        Type Measure
-        Local $parameter.first
-        Type Measure
-        Local $parameter.second
-      val $parameter.item: Measure
-        Type Measure
-        Local $argument.0
-      val $parameter.pair: Pair
-        Type Pair
-        Local $argument.1
-      assign $new.7
-        Type Holder
-        ClassAlloc Holder
-      call @fn48 direct
-        Type Holder
-        Local $new.7
-        Type Measure
-        Local $parameter.item
-        Type Pair
-        Local $parameter.pair
-      val holder: Holder
-        Type Holder
-        Local $new.7
-      val cell: Cell
-        Type Cell
-        Retype Cell
-          Type Holder
-          Local holder
-      val $argument.0: Long
-        Type Long
-        IntegerLiteral Long value=3 bits=0x0000000000000003
-      val $argument.1: (Long) -> Measure
-        Type (Long) -> Measure
-        ClosureAlloc cc0 $Closure$lambda0
-          CaptureInit field=0
-            Type Measure
-            Local view
-          CaptureInit field=1
-            Type Measure
-            Local boxed
-      val $parameter.size: Long
-        Type Long
-        Local $argument.0
-      val $parameter.init: (Long) -> Measure
-        Type (Long) -> Measure
-        Local $argument.1
-      val $array_size.1: Long
-        Type Long
-        Local $parameter.size
-      val $array_init.2: (Long) -> Measure
-        Type (Long) -> Measure
-        Local $parameter.init
-      branch bb1 bb2
-        Type Boolean
-        IntegerCompare less-than operands=Long result=Boolean
-          Type Long
-          Local $array_size.1
-          Type Long
-          IntegerLiteral Long value=0 bits=0x0000000000000000
+      goto bb129
     bb1 if.then.1
-      assign $new.8
-        Type IllegalArgumentException
-        ClassAlloc IllegalArgumentException
-      call external7 direct
-        Type IllegalArgumentException
-        Local $new.8
-      throw
-        Type IllegalArgumentException
-        Local $new.8
+      unreachable
     bb2 if.merge.2
       val $array.3: MutableArray<Measure>
         Type MutableArray<Measure>
         ArrayAllocate MutableArray<Measure>
           Type Long
-          Local $array_size.1
+          IntegerLiteral Long value=3 bits=0x0000000000000003
       var $array_index.4: Long
         Type Long
         IntegerLiteral Long value=0 bits=0x0000000000000000
@@ -677,7 +326,7 @@ Module
           Type Long
           Local $array_index.4
           Type Long
-          Local $array_size.1
+          IntegerLiteral Long value=3 bits=0x0000000000000003
     bb4 while.exit.4
       val values: MutableArray<Measure>
         Type MutableArray<Measure>
@@ -693,14 +342,14 @@ Module
         Local $argument.0
       val $parameter._2: Int
         Type Int
-        Local $argument.1
+        IntegerLiteral Int value=3 bits=0x00000003
       val envelope: Envelope
         Type Envelope
         VariantConstruct Envelope v0
           Type Measure
           Local $parameter._1
           Type Int
-          Local $parameter._2
+          IntegerLiteral Int value=3 bits=0x00000003
       val $dependency.argument.0: Option<Measure>
         Type Option<Measure>
         VariantConstruct Option<Measure> v1
@@ -724,116 +373,36 @@ Module
           Type Empty
           Local $dependency.parameter._1
       call @scoop_rt_gc_collect direct
-      call @fn5 direct
+      val $inline.104.this: Holder
         Type Holder
         Retype Holder
           Type Cell
           Local cell
+      val $inline.104.value: Measure
         Type Measure
         Local boxed
-      call $receiver: Measure = @fn4 direct
-        Type Holder
-        Retype Holder
-          Type Cell
-          Local cell
-      call $dependency.receiver: Int = @fn35 interface Parent[0]
-        Type Parent
-        Retype Parent
-          Type Measure
-          Local $receiver
-      val $dependency.argument.0: Int
-        Type Int
-        IntegerLiteral Int value=9 bits=0x00000009
-      val $dependency.parameter.other: Int
-        Type Int
-        Local $dependency.argument.0
-      val $argument.0: Boolean
-        Type Boolean
-        IntegerCompare equal operands=Int result=Boolean
-          Type Int
-          Local $dependency.receiver
-          Type Int
-          Local $dependency.parameter.other
-      val $parameter.value: Boolean
-        Type Boolean
-        Local $argument.0
-      call @fn6 direct
-        Type Boolean
-        Local $parameter.value
-      val $dependency.receiver: MutableArray<Measure>
-        Type MutableArray<Measure>
-        Local values
-      val $dependency.argument.0: Long
-        Type Long
-        IntegerLiteral Long value=1 bits=0x0000000000000001
-      val $argument.0: Measure
-        Type Measure
-        Local view
-      val $parameter.value: Measure
-        Type Measure
-        Local $argument.0
-      call $dependency.argument.1: Measure = @fn7 direct
-        Type Measure
-        Local $parameter.value
-      val $dependency.parameter.index: Long
-        Type Long
-        Local $dependency.argument.0
-      val $dependency.parameter.value: Measure
-        Type Measure
-        Local $dependency.argument.1
-      val $arr.6: MutableArray<Measure>
-        Type MutableArray<Measure>
-        Local $dependency.receiver
-      val $idx.7: Long
-        Type Long
-        Local $dependency.parameter.index
-      val $value.8: Measure
-        Type Measure
-        Local $dependency.parameter.value
-      branch bb7 bb6
-        Type Boolean
-        IntegerCompare less-than operands=Long result=Boolean
-          Type Long
-          Local $idx.7
-          Type Long
-          IntegerLiteral Long value=0 bits=0x0000000000000000
+      goto bb105
     bb5 while.body.5
-      call $array_value.5: Measure = @fn16 direct
+      val $inline.95.$closure: (Long) -> Measure
         Type (Long) -> Measure
         Local $array_init.2
+      val $inline.95.i: Long
         Type Long
         Local $array_index.4
-      array_set MutableArray<Measure>
-        Type MutableArray<Measure>
-        Local $array.3
-        Type Long
-        Local $array_index.4
-        Type Measure
-        Local $array_value.5
-      assign $array_index.4
-        Type Long
-        IntegerBinary add kind=Long
-          Type Long
-          Local $array_index.4
-          Type Long
-          IntegerLiteral Long value=1 bits=0x0000000000000001
-      goto bb3
+      goto bb96
     bb6 logic.rhs.6
       assign $logic.9
         Type Boolean
         IntegerCompare greater-than-or-equal operands=Long result=Boolean
           Type Long
-          Local $idx.7
+          IntegerLiteral Long value=1 bits=0x0000000000000001
           Type Long
           ArrayLen MutableArray<Measure>
             Type MutableArray<Measure>
             Local $arr.6
       goto bb8
     bb7 logic.short.7
-      assign $logic.9
-        Type Boolean
-        BoolLiteral true
-      goto bb8
+      unreachable
     bb8 logic.merge.8
       branch bb9 bb10
         Type Boolean
@@ -853,196 +422,13 @@ Module
         Type MutableArray<Measure>
         Local $arr.6
         Type Long
-        Local $idx.7
+        IntegerLiteral Long value=1 bits=0x0000000000000001
         Type Measure
         Local $value.8
-      call $receiver: Measure = @fn4 direct
+      val $inline.93.this: Holder
         Type Holder
         Local holder
-      call $dependency.receiver: Int = @fn35 interface Parent[0]
-        Type Parent
-        Retype Parent
-          Type Measure
-          Local $receiver
-      val $dependency.argument.0: Int
-        Type Int
-        IntegerLiteral Int value=9 bits=0x00000009
-      val $dependency.parameter.other: Int
-        Type Int
-        Local $dependency.argument.0
-      val $argument.0: Boolean
-        Type Boolean
-        IntegerCompare equal operands=Int result=Boolean
-          Type Int
-          Local $dependency.receiver
-          Type Int
-          Local $dependency.parameter.other
-      val $parameter.value: Boolean
-        Type Boolean
-        Local $argument.0
-      call @fn6 direct
-        Type Boolean
-        Local $parameter.value
-      val $receiver: Measure
-        Type Measure
-        FieldAccess 0
-          Type Pair
-          FieldAccess 1
-            Type Holder
-            Local holder
-      call $dependency.receiver: Int = @fn36 interface Parent[1]
-        Type Parent
-        Retype Parent
-          Type Measure
-          Local $receiver
-      val $receiver: Measure
-        Type Measure
-        FieldAccess 1
-          Type Pair
-          FieldAccess 1
-            Type Holder
-            Local holder
-      call $dependency.argument.0: Int = @fn35 interface Parent[0]
-        Type Parent
-        Retype Parent
-          Type Measure
-          Local $receiver
-      val $dependency.parameter.other: Int
-        Type Int
-        Local $dependency.argument.0
-      val $dependency.receiver: Int
-        Type Int
-        IntegerBinary add kind=Int
-          Type Int
-          Local $dependency.receiver
-          Type Int
-          Local $dependency.parameter.other
-      val $dependency.argument.0: Int
-        Type Int
-        IntegerLiteral Int value=51 bits=0x00000033
-      val $dependency.parameter.other: Int
-        Type Int
-        Local $dependency.argument.0
-      val $argument.0: Boolean
-        Type Boolean
-        IntegerCompare equal operands=Int result=Boolean
-          Type Int
-          Local $dependency.receiver
-          Type Int
-          Local $dependency.parameter.other
-      val $parameter.value: Boolean
-        Type Boolean
-        Local $argument.0
-      call @fn6 direct
-        Type Boolean
-        Local $parameter.value
-      val $dependency.receiver: MutableArray<Measure>
-        Type MutableArray<Measure>
-        Local values
-      val $dependency.argument.0: Long
-        Type Long
-        IntegerLiteral Long value=0 bits=0x0000000000000000
-      val $dependency.parameter.index: Long
-        Type Long
-        Local $dependency.argument.0
-      call $receiver: Measure = @fn14 direct
-        Type MutableArray<Measure>
-        Local $dependency.receiver
-        Type Long
-        Local $dependency.parameter.index
-      call $dependency.receiver: Int = @fn35 interface Parent[0]
-        Type Parent
-        Retype Parent
-          Type Measure
-          Local $receiver
-      val $dependency.receiver: MutableArray<Measure>
-        Type MutableArray<Measure>
-        Local values
-      val $dependency.argument.0: Long
-        Type Long
-        IntegerLiteral Long value=1 bits=0x0000000000000001
-      val $dependency.parameter.index: Long
-        Type Long
-        Local $dependency.argument.0
-      call $receiver: Measure = @fn14 direct
-        Type MutableArray<Measure>
-        Local $dependency.receiver
-        Type Long
-        Local $dependency.parameter.index
-      call $dependency.argument.0: Int = @fn35 interface Parent[0]
-        Type Parent
-        Retype Parent
-          Type Measure
-          Local $receiver
-      val $dependency.parameter.other: Int
-        Type Int
-        Local $dependency.argument.0
-      val $dependency.receiver: Int
-        Type Int
-        IntegerBinary add kind=Int
-          Type Int
-          Local $dependency.receiver
-          Type Int
-          Local $dependency.parameter.other
-      val $dependency.receiver: MutableArray<Measure>
-        Type MutableArray<Measure>
-        Local values
-      val $dependency.argument.0: Long
-        Type Long
-        IntegerLiteral Long value=2 bits=0x0000000000000002
-      val $dependency.parameter.index: Long
-        Type Long
-        Local $dependency.argument.0
-      call $receiver: Measure = @fn14 direct
-        Type MutableArray<Measure>
-        Local $dependency.receiver
-        Type Long
-        Local $dependency.parameter.index
-      call $dependency.argument.0: Int = @fn35 interface Parent[0]
-        Type Parent
-        Retype Parent
-          Type Measure
-          Local $receiver
-      val $dependency.parameter.other: Int
-        Type Int
-        Local $dependency.argument.0
-      val $dependency.receiver: Int
-        Type Int
-        IntegerBinary add kind=Int
-          Type Int
-          Local $dependency.receiver
-          Type Int
-          Local $dependency.parameter.other
-      val $dependency.argument.0: Int
-        Type Int
-        IntegerLiteral Int value=51 bits=0x00000033
-      val $dependency.parameter.other: Int
-        Type Int
-        Local $dependency.argument.0
-      val $argument.0: Boolean
-        Type Boolean
-        IntegerCompare equal operands=Int result=Boolean
-          Type Int
-          Local $dependency.receiver
-          Type Int
-          Local $dependency.parameter.other
-      val $parameter.value: Boolean
-        Type Boolean
-        Local $argument.0
-      call @fn6 direct
-        Type Boolean
-        Local $parameter.value
-      val $when.9: Envelope
-        Type Envelope
-        Local envelope
-      val $pattern.subject.10: Envelope
-        Type Envelope
-        Local $when.9
-      branch bb11 bb12
-        Type Boolean
-        VariantTest Envelope v0
-          Type Envelope
-          Local $pattern.subject.10
+      goto bb94
     bb11 pattern.pass.11
       val value: Measure
         Type Measure
@@ -1094,14 +480,14 @@ Module
         IntegerLiteral Int value=24 bits=0x00000018
       val $dependency.parameter.other: Int
         Type Int
-        Local $dependency.argument.0
+        IntegerLiteral Int value=24 bits=0x00000018
       val $argument.0: Boolean
         Type Boolean
         IntegerCompare equal operands=Int result=Boolean
           Type Int
           Local $dependency.receiver
           Type Int
-          Local $dependency.parameter.other
+          IntegerLiteral Int value=24 bits=0x00000018
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
@@ -1122,14 +508,10 @@ Module
       val $parameter.value: Option<Measure>
         Type Option<Measure>
         Local $argument.0
-      call $opt.12: Option<Measure> = @fn9 direct
+      val $inline.91.value: Option<Measure>
         Type Option<Measure>
         Local $parameter.value
-      branch bb17 bb18
-        Type Boolean
-        VariantTest Option<Measure> v0
-          Type Option<Measure>
-          Local $opt.12
+      goto bb92
     bb14 pattern.pass.14
       assign $result.1
         Type Int
@@ -1176,17 +558,10 @@ Module
       val $parameter.value: Option<Measure>
         Type Option<Measure>
         Local $argument.0
-      call $when.14: Option<Measure> = @fn9 direct
+      val $inline.89.value: Option<Measure>
         Type Option<Measure>
         Local $parameter.value
-      val $pattern.subject.15: Option<Measure>
-        Type Option<Measure>
-        Local $when.14
-      branch bb20 bb21
-        Type Boolean
-        VariantTest Option<Measure> v0
-          Type Option<Measure>
-          Local $pattern.subject.15
+      goto bb90
     bb20 pattern.pass.20
       assign $result.2
         Type Boolean
@@ -1407,68 +782,10 @@ Module
           CaptureInit field=0
             Type Measure
             Local view
-      call $receiver: Measure = @fn17 direct
+      val $inline.87.$closure: () -> Measure
         Type () -> Measure
         Local captured
-      call $dependency.receiver: Int = @fn36 interface Parent[1]
-        Type Parent
-        Retype Parent
-          Type Measure
-          Local $receiver
-      val $dependency.argument.0: Int
-        Type Int
-        IntegerLiteral Int value=42 bits=0x0000002a
-      val $dependency.parameter.other: Int
-        Type Int
-        Local $dependency.argument.0
-      val $argument.0: Boolean
-        Type Boolean
-        IntegerCompare equal operands=Int result=Boolean
-          Type Int
-          Local $dependency.receiver
-          Type Int
-          Local $dependency.parameter.other
-      val $parameter.value: Boolean
-        Type Boolean
-        Local $argument.0
-      call @fn6 direct
-        Type Boolean
-        Local $parameter.value
-      val bound: () -> Int
-        Type () -> Int
-        ClosureAlloc cc3 $Closure$reference0
-          CaptureInit field=0
-            Type Parent
-            Retype Parent
-              Type Measure
-              Local view
-      val exact: (Any) -> Measure
-        Type (Any) -> Measure
-        ClosureAlloc cc2 $Closure$lambda2
-          CaptureInit field=0
-            Type Measure
-            Local view
-      val widened: (Measure) -> Any
-        Type (Measure) -> Any
-        ClosureAlloc cc4 $Closure$adapter$(Any) -> Measure$(Measure) -> Any
-          CaptureInit field=0
-            Type (Any) -> Measure
-            Local exact
-      val erased: Any
-        Type Any
-        Retype Any
-          Type (Any) -> Measure
-          Local exact
-      val $cast.30: Any
-        Type Any
-        Local erased
-      branch bb49 bb50
-        Type Boolean
-        Unary BoolNot
-          Type Boolean
-          IsInstance (Measure) -> Measure
-            Type Any
-            Local $cast.30
+      goto bb88
     bb46 pattern.pass.46
       assign $result.4
         Type Boolean
@@ -1496,65 +813,10 @@ Module
             Type Any
             Local $cast.30
       call @scoop_rt_gc_collect direct
-      call $dependency.receiver: Int = @fn44 direct
+      val $inline.85.$closure: () -> Int
         Type () -> Int
         Local bound
-      val $dependency.argument.0: Int
-        Type Int
-        IntegerLiteral Int value=42 bits=0x0000002a
-      val $dependency.parameter.other: Int
-        Type Int
-        Local $dependency.argument.0
-      val $argument.0: Boolean
-        Type Boolean
-        IntegerCompare equal operands=Int result=Boolean
-          Type Int
-          Local $dependency.receiver
-          Type Int
-          Local $dependency.parameter.other
-      val $parameter.value: Boolean
-        Type Boolean
-        Local $argument.0
-      call @fn6 direct
-        Type Boolean
-        Local $parameter.value
-      call $call.14: Any = @fn53 direct
-        Type (Measure) -> Any
-        Local widened
-        Type Measure
-        Local view
-      val $argument.0: Boolean
-        Type Boolean
-        Binary RefEq
-          Type Any
-          Local $call.14
-          Type Measure
-          Local view
-      val $parameter.value: Boolean
-        Type Boolean
-        Local $argument.0
-      call @fn6 direct
-        Type Boolean
-        Local $parameter.value
-      call $call.15: Measure = @fn54 direct
-        Type (Measure) -> Measure
-        Local dynamic
-        Type Measure
-        Local view
-      val $argument.0: Boolean
-        Type Boolean
-        Binary RefEq
-          Type Measure
-          Local $call.15
-          Type Measure
-          Local view
-      val $parameter.value: Boolean
-        Type Boolean
-        Local $argument.0
-      call @fn6 direct
-        Type Boolean
-        Local $parameter.value
-      goto bb58
+      goto bb86
     bb51 try.unwind.51
       landing_pad cleanup=false
       goto bb52
@@ -1595,14 +857,14 @@ Module
         IntegerLiteral Int value=9 bits=0x00000009
       val $dependency.parameter.other: Int
         Type Int
-        Local $dependency.argument.0
+        IntegerLiteral Int value=9 bits=0x00000009
       val $argument.0: Boolean
         Type Boolean
         IntegerCompare equal operands=Int result=Boolean
           Type Int
           Local $dependency.receiver
           Type Int
-          Local $dependency.parameter.other
+          IntegerLiteral Int value=9 bits=0x00000009
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
@@ -1622,13 +884,10 @@ Module
       val $parameter.value: Measure
         Type Measure
         Local $argument.0
-      call $call.16: Measure = @fn7 direct
+      val $inline.79.value: Measure
         Type Measure
         Local $parameter.value
-      assign $result.5
-        Type Measure
-        Local $call.16
-      goto bb57
+      goto bb80
     bb59 try.catch.59
       call $catch.17: Any = @scoop_rt_materialize_exception direct
         Type Any
@@ -1685,14 +944,14 @@ Module
         IntegerLiteral Int value=42 bits=0x0000002a
       val $dependency.parameter.other: Int
         Type Int
-        Local $dependency.argument.0
+        IntegerLiteral Int value=42 bits=0x0000002a
       val $argument.0: Boolean
         Type Boolean
         IntegerCompare equal operands=Int result=Boolean
           Type Int
           Local $dependency.receiver
           Type Int
-          Local $dependency.parameter.other
+          IntegerLiteral Int value=42 bits=0x0000002a
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
@@ -1745,14 +1004,14 @@ Module
         IntegerLiteral Int value=9 bits=0x00000009
       val $dependency.parameter.other: Int
         Type Int
-        Local $dependency.argument.0
+        IntegerLiteral Int value=9 bits=0x00000009
       val $argument.0: Boolean
         Type Boolean
         IntegerCompare equal operands=Int result=Boolean
           Type Int
           Local $dependency.receiver
           Type Int
-          Local $dependency.parameter.other
+          IntegerLiteral Int value=9 bits=0x00000009
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
@@ -1784,6 +1043,1174 @@ Module
         Type internal<context-mark>
         Local $context_mark.31
       rethrow unwind bb65
+    bb79 inline.cont.79 unwind bb51
+      val $call.16: Measure
+        Type Measure
+        Local $inline.79.result
+      assign $result.5
+        Type Measure
+        Local $call.16
+      goto bb57
+    bb80 inline.79.entry unwind bb51
+      call @scoop_rt_gc_collect direct
+      assign $inline.79.result
+        Type Measure
+        Local $inline.79.value
+      goto bb79
+    bb81 inline.cont.81
+      val $call.15: Measure
+        Type Measure
+        Local $inline.81.result
+      val $argument.0: Boolean
+        Type Boolean
+        Binary RefEq
+          Type Measure
+          Local $call.15
+          Type Measure
+          Local view
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn6 direct
+        Type Boolean
+        Local $parameter.value
+      goto bb58
+    bb82 inline.81.entry
+      call $inline.81.$call.1: Any = <function_bridge:function_type1> function_bridge[function_type1]
+        Type Any
+        ClosureCapture cc5 0
+          Type (Measure) -> Measure
+          Local $inline.81.$closure
+        Type Any
+        Retype Any
+          Type Measure
+          Local $inline.81.arg0
+      assign $inline.81.result
+        Type Measure
+        Retype Measure
+          Type Any
+          Local $inline.81.$call.1
+      goto bb81
+    bb83 inline.cont.83
+      val $call.14: Any
+        Type Any
+        Local $inline.83.result
+      val $argument.0: Boolean
+        Type Boolean
+        Binary RefEq
+          Type Any
+          Local $call.14
+          Type Measure
+          Local view
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn6 direct
+        Type Boolean
+        Local $parameter.value
+      val $inline.81.$closure: (Measure) -> Measure
+        Type (Measure) -> Measure
+        Local dynamic
+      val $inline.81.arg0: Measure
+        Type Measure
+        Local view
+      goto bb82
+    bb84 inline.83.entry
+      call $inline.83.$call.1: Measure = <closure:function_type5> closure[function_type5]
+        Type (Any) -> Measure
+        ClosureCapture cc4 0
+          Type (Measure) -> Any
+          Local $inline.83.$closure
+        Type Any
+        Retype Any
+          Type Measure
+          Local $inline.83.arg0
+      assign $inline.83.result
+        Type Any
+        Retype Any
+          Type Measure
+          Local $inline.83.$call.1
+      goto bb83
+    bb85 inline.cont.85
+      val $dependency.receiver: Int
+        Type Int
+        Local $inline.85.result
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          IntegerLiteral Int value=42 bits=0x0000002a
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn6 direct
+        Type Boolean
+        Local $parameter.value
+      val $inline.83.$closure: (Measure) -> Any
+        Type (Measure) -> Any
+        Local widened
+      val $inline.83.arg0: Measure
+        Type Measure
+        Local view
+      goto bb84
+    bb86 inline.85.entry
+      call $inline.85.$call.1: Int = @fn36 interface Parent[1]
+        Type Parent
+        ClosureCapture cc3 0
+          Type () -> Int
+          Local $inline.85.$closure
+      assign $inline.85.result
+        Type Int
+        Local $inline.85.$call.1
+      goto bb85
+    bb87 inline.cont.87
+      val $receiver: Measure
+        Type Measure
+        Local $inline.87.result
+      call $dependency.receiver: Int = @fn36 interface Parent[1]
+        Type Parent
+        Retype Parent
+          Type Measure
+          Local $receiver
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          IntegerLiteral Int value=42 bits=0x0000002a
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn6 direct
+        Type Boolean
+        Local $parameter.value
+      val bound: () -> Int
+        Type () -> Int
+        ClosureAlloc cc3 $Closure$reference0
+          CaptureInit field=0
+            Type Parent
+            Retype Parent
+              Type Measure
+              Local view
+      val exact: (Any) -> Measure
+        Type (Any) -> Measure
+        ClosureAlloc cc2 $Closure$lambda2
+          CaptureInit field=0
+            Type Measure
+            Local view
+      val widened: (Measure) -> Any
+        Type (Measure) -> Any
+        ClosureAlloc cc4 $Closure$adapter$(Any) -> Measure$(Measure) -> Any
+          CaptureInit field=0
+            Type (Any) -> Measure
+            Local exact
+      val erased: Any
+        Type Any
+        Retype Any
+          Type (Any) -> Measure
+          Local exact
+      val $cast.30: Any
+        Type Any
+        Local erased
+      branch bb49 bb50
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IsInstance (Measure) -> Measure
+            Type Any
+            Local $cast.30
+    bb88 inline.87.entry
+      val $inline.87.$argument.0: Measure
+        Type Measure
+        ClosureCapture cc1 0
+          Type () -> Measure
+          Local $inline.87.$closure
+      val $inline.87.$parameter.value: Measure
+        Type Measure
+        Local $inline.87.$argument.0
+      val $inline.138.value: Measure
+        Type Measure
+        Local $inline.87.$parameter.value
+      goto bb139
+    bb89 inline.cont.89
+      val $when.14: Option<Measure>
+        Type Option<Measure>
+        Local $inline.89.result
+      val $pattern.subject.15: Option<Measure>
+        Type Option<Measure>
+        Local $when.14
+      branch bb20 bb21
+        Type Boolean
+        VariantTest Option<Measure> v0
+          Type Option<Measure>
+          Local $pattern.subject.15
+    bb90 inline.89.entry
+      call @scoop_rt_gc_collect direct
+      assign $inline.89.result
+        Type Option<Measure>
+        Local $inline.89.value
+      goto bb89
+    bb91 inline.cont.91
+      val $opt.12: Option<Measure>
+        Type Option<Measure>
+        Local $inline.91.result
+      branch bb17 bb18
+        Type Boolean
+        VariantTest Option<Measure> v0
+          Type Option<Measure>
+          Local $opt.12
+    bb92 inline.91.entry
+      call @scoop_rt_gc_collect direct
+      assign $inline.91.result
+        Type Option<Measure>
+        Local $inline.91.value
+      goto bb91
+    bb93 inline.cont.93
+      val $receiver: Measure
+        Type Measure
+        Local $inline.93.result
+      call $dependency.receiver: Int = @fn35 interface Parent[0]
+        Type Parent
+        Retype Parent
+          Type Measure
+          Local $receiver
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=9 bits=0x00000009
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=9 bits=0x00000009
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          IntegerLiteral Int value=9 bits=0x00000009
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn6 direct
+        Type Boolean
+        Local $parameter.value
+      val $receiver: Measure
+        Type Measure
+        FieldAccess 0
+          Type Pair
+          FieldAccess 1
+            Type Holder
+            Local holder
+      call $dependency.receiver: Int = @fn36 interface Parent[1]
+        Type Parent
+        Retype Parent
+          Type Measure
+          Local $receiver
+      val $receiver: Measure
+        Type Measure
+        FieldAccess 1
+          Type Pair
+          FieldAccess 1
+            Type Holder
+            Local holder
+      call $dependency.argument.0: Int = @fn35 interface Parent[0]
+        Type Parent
+        Retype Parent
+          Type Measure
+          Local $receiver
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.receiver: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=51 bits=0x00000033
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=51 bits=0x00000033
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          IntegerLiteral Int value=51 bits=0x00000033
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn6 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.receiver: MutableArray<Measure>
+        Type MutableArray<Measure>
+        Local values
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.parameter.index: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      call $receiver: Measure = @fn14 direct
+        Type MutableArray<Measure>
+        Local $dependency.receiver
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      call $dependency.receiver: Int = @fn35 interface Parent[0]
+        Type Parent
+        Retype Parent
+          Type Measure
+          Local $receiver
+      val $dependency.receiver: MutableArray<Measure>
+        Type MutableArray<Measure>
+        Local values
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.parameter.index: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      call $receiver: Measure = @fn14 direct
+        Type MutableArray<Measure>
+        Local $dependency.receiver
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      call $dependency.argument.0: Int = @fn35 interface Parent[0]
+        Type Parent
+        Retype Parent
+          Type Measure
+          Local $receiver
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.receiver: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $dependency.receiver: MutableArray<Measure>
+        Type MutableArray<Measure>
+        Local values
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=2 bits=0x0000000000000002
+      val $dependency.parameter.index: Long
+        Type Long
+        IntegerLiteral Long value=2 bits=0x0000000000000002
+      call $receiver: Measure = @fn14 direct
+        Type MutableArray<Measure>
+        Local $dependency.receiver
+        Type Long
+        IntegerLiteral Long value=2 bits=0x0000000000000002
+      call $dependency.argument.0: Int = @fn35 interface Parent[0]
+        Type Parent
+        Retype Parent
+          Type Measure
+          Local $receiver
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.receiver: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=51 bits=0x00000033
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=51 bits=0x00000033
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          IntegerLiteral Int value=51 bits=0x00000033
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn6 direct
+        Type Boolean
+        Local $parameter.value
+      val $when.9: Envelope
+        Type Envelope
+        Local envelope
+      val $pattern.subject.10: Envelope
+        Type Envelope
+        Local $when.9
+      branch bb11 bb12
+        Type Boolean
+        VariantTest Envelope v0
+          Type Envelope
+          Local $pattern.subject.10
+    bb94 inline.93.entry
+      assign $inline.93.result
+        Type Measure
+        FieldAccess 0
+          Type Holder
+          Local $inline.93.this
+      goto bb93
+    bb95 inline.cont.95
+      val $array_value.5: Measure
+        Type Measure
+        Local $inline.95.result
+      array_set MutableArray<Measure>
+        Type MutableArray<Measure>
+        Local $array.3
+        Type Long
+        Local $array_index.4
+        Type Measure
+        Local $array_value.5
+      assign $array_index.4
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $array_index.4
+          Type Long
+          IntegerLiteral Long value=1 bits=0x0000000000000001
+      goto bb3
+    bb96 inline.95.entry
+      val $inline.95.$dependency.receiver: Long
+        Type Long
+        Local $inline.95.i
+      val $inline.95.$dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $inline.95.$dependency.parameter.other: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      branch bb97 bb98
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          Local $inline.95.$dependency.receiver
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb97 inline.95.if.then.1
+      assign $inline.95.$result.0
+        Type Measure
+        ClosureCapture cc0 0
+          Type (Long) -> Measure
+          Local $inline.95.$closure
+      goto bb99
+    bb98 inline.95.if.else.2
+      assign $inline.95.$result.0
+        Type Measure
+        ClosureCapture cc0 1
+          Type (Long) -> Measure
+          Local $inline.95.$closure
+      goto bb99
+    bb99 inline.95.if.merge.3
+      assign $inline.95.result
+        Type Measure
+        Local $inline.95.$result.0
+      goto bb95
+    bb100 inline.cont.100
+      val $dependency.argument.1: Measure
+        Type Measure
+        Local $inline.100.result
+      val $dependency.parameter.index: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.parameter.value: Measure
+        Type Measure
+        Local $dependency.argument.1
+      val $arr.6: MutableArray<Measure>
+        Type MutableArray<Measure>
+        Local $dependency.receiver
+      val $idx.7: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $value.8: Measure
+        Type Measure
+        Local $dependency.parameter.value
+      goto bb6
+    bb101 inline.100.entry
+      call @scoop_rt_gc_collect direct
+      assign $inline.100.result
+        Type Measure
+        Local $inline.100.value
+      goto bb100
+    bb102 inline.cont.102
+      val $receiver: Measure
+        Type Measure
+        Local $inline.102.result
+      call $dependency.receiver: Int = @fn35 interface Parent[0]
+        Type Parent
+        Retype Parent
+          Type Measure
+          Local $receiver
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=9 bits=0x00000009
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=9 bits=0x00000009
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          IntegerLiteral Int value=9 bits=0x00000009
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn6 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.receiver: MutableArray<Measure>
+        Type MutableArray<Measure>
+        Local values
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $argument.0: Measure
+        Type Measure
+        Local view
+      val $parameter.value: Measure
+        Type Measure
+        Local $argument.0
+      val $inline.100.value: Measure
+        Type Measure
+        Local $parameter.value
+      goto bb101
+    bb103 inline.102.entry
+      assign $inline.102.result
+        Type Measure
+        FieldAccess 0
+          Type Holder
+          Local $inline.102.this
+      goto bb102
+    bb104 inline.cont.104
+      val $inline.102.this: Holder
+        Type Holder
+        Retype Holder
+          Type Cell
+          Local cell
+      goto bb103
+    bb105 inline.104.entry
+      field_set 0
+        Type Holder
+        Local $inline.104.this
+        Type Measure
+        Local $inline.104.value
+      goto bb104
+    bb106 inline.cont.106
+      val holder: Holder
+        Type Holder
+        Local $new.7
+      val cell: Cell
+        Type Cell
+        Retype Cell
+          Type Holder
+          Local holder
+      val $argument.0: Long
+        Type Long
+        IntegerLiteral Long value=3 bits=0x0000000000000003
+      val $argument.1: (Long) -> Measure
+        Type (Long) -> Measure
+        ClosureAlloc cc0 $Closure$lambda0
+          CaptureInit field=0
+            Type Measure
+            Local view
+          CaptureInit field=1
+            Type Measure
+            Local boxed
+      val $parameter.size: Long
+        Type Long
+        IntegerLiteral Long value=3 bits=0x0000000000000003
+      val $parameter.init: (Long) -> Measure
+        Type (Long) -> Measure
+        Local $argument.1
+      val $array_size.1: Long
+        Type Long
+        IntegerLiteral Long value=3 bits=0x0000000000000003
+      val $array_init.2: (Long) -> Measure
+        Type (Long) -> Measure
+        Local $parameter.init
+      goto bb2
+    bb107 inline.106.entry
+      field_set 0
+        Type Holder
+        Local $inline.106.this
+        Type Measure
+        Local $inline.106.item
+      field_set 1
+        Type Holder
+        Local $inline.106.this
+        Type Pair
+        Local $inline.106.pair
+      goto bb106
+    bb108 inline.cont.108
+      val $argument.1: Pair
+        Type Pair
+        Local $inline.108.result
+      val $parameter.item: Measure
+        Type Measure
+        Local $argument.0
+      val $parameter.pair: Pair
+        Type Pair
+        Local $argument.1
+      assign $new.7
+        Type Holder
+        ClassAlloc Holder
+      val $inline.106.this: Holder
+        Type Holder
+        Local $new.7
+      val $inline.106.item: Measure
+        Type Measure
+        Local $parameter.item
+      val $inline.106.pair: Pair
+        Type Pair
+        Local $parameter.pair
+      goto bb107
+    bb109 inline.108.entry
+      assign $inline.108.result
+        Type Pair
+        StructInit Pair
+          Type Measure
+          Local $inline.108.first
+          Type Measure
+          Local $inline.108.second
+      goto bb108
+    bb110 inline.cont.110
+      val $dependency.receiver: Int
+        Type Int
+        Local $inline.110.result
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          IntegerLiteral Int value=0 bits=0x00000000
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn6 direct
+        Type Boolean
+        Local $parameter.value
+      val $argument.0: Measure
+        Type Measure
+        Local view
+      val $argument.0: Measure
+        Type Measure
+        Local view
+      val $argument.1: Measure
+        Type Measure
+        Local boxed
+      val $parameter.first: Measure
+        Type Measure
+        Local $argument.0
+      val $parameter.second: Measure
+        Type Measure
+        Local $argument.1
+      val $inline.108.first: Measure
+        Type Measure
+        Local $parameter.first
+      val $inline.108.second: Measure
+        Type Measure
+        Local $parameter.second
+      goto bb109
+    bb111 inline.110.entry
+      val $inline.136.this: Parent
+        Type Parent
+        Retype Parent
+          Type box<Zero>
+          Local $inline.110.this
+      goto bb137
+    bb112 inline.cont.112
+      val $call.6: Zero
+        Type Zero
+        Local $inline.112.result
+      val zero: Measure
+        Type Measure
+        Box
+          Type Zero
+          Local $call.6
+      val $receiver: Measure
+        Type Measure
+        Local zero
+      val $inline.110.this: box<Zero>
+        Type box<Zero>
+        Retype box<Zero>
+          Type Parent
+          Retype Parent
+            Type Measure
+            Local $receiver
+      goto bb111
+    bb113 inline.112.entry
+      assign $inline.112.result
+        Type Zero
+        StructInit Zero
+      goto bb112
+    bb114 inline.cont.114
+      val $dependency.receiver: Int
+        Type Int
+        Local $inline.114.result
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=18 bits=0x00000012
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=18 bits=0x00000012
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          IntegerLiteral Int value=18 bits=0x00000012
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn6 direct
+        Type Boolean
+        Local $parameter.value
+      goto bb113
+    bb115 inline.114.entry
+      val $inline.134.this: Parent
+        Type Parent
+        Retype Parent
+          Type box<Small>
+          Local $inline.114.this
+      goto bb135
+    bb116 inline.cont.116
+      val $call.5: Small
+        Type Small
+        Local $inline.116.result
+      val boxed: Measure
+        Type Measure
+        Box
+          Type Small
+          Local $call.5
+      val $receiver: Measure
+        Type Measure
+        Local boxed
+      val $inline.114.this: box<Small>
+        Type box<Small>
+        Retype box<Small>
+          Type Parent
+          Retype Parent
+            Type Measure
+            Local $receiver
+      goto bb115
+    bb117 inline.116.entry
+      assign $inline.116.result
+        Type Small
+        StructInit Small
+          Type Int
+          IntegerLiteral Int value=9 bits=0x00000009
+      goto bb116
+    bb118 inline.cont.118
+      val $call.4: Measure
+        Type Measure
+        Local $inline.118.result
+      val $argument.0: Boolean
+        Type Boolean
+        Binary RefEq
+          Type Measure
+          Local $call.4
+          Type Measure
+          Local view
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn6 direct
+        Type Boolean
+        Local $parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=9 bits=0x00000009
+      val $parameter.number: Int
+        Type Int
+        IntegerLiteral Int value=9 bits=0x00000009
+      val $inline.116.number: Int
+        Type Int
+        IntegerLiteral Int value=9 bits=0x00000009
+      goto bb117
+    bb119 inline.118.entry
+      val $inline.132.this: Echo<Measure>
+        Type Echo<Measure>
+        Retype Echo<Measure>
+          Type EchoUser
+          Local $inline.118.this
+      val $inline.132.value: Measure
+        Type Measure
+        Local $inline.118.value
+      goto bb133
+    bb120 inline.cont.120
+      val $receiver: EchoUser
+        Type EchoUser
+        Local $new.3
+      val $argument.0: Measure
+        Type Measure
+        Local view
+      val $parameter.value: Measure
+        Type Measure
+        Local $argument.0
+      val $inline.118.this: EchoUser
+        Type EchoUser
+        Retype EchoUser
+          Type Echo<Measure>
+          Retype Echo<Measure>
+            Type EchoUser
+            Local $receiver
+      val $inline.118.value: Measure
+        Type Measure
+        Local $parameter.value
+      goto bb119
+    bb121 inline.120.entry
+      goto bb120
+    bb122 inline.cont.122
+      val $call.2: Measure
+        Type Measure
+        Local $inline.122.result
+      val $argument.0: Boolean
+        Type Boolean
+        Binary RefEq
+          Type Measure
+          Local $call.2
+          Type Measure
+          Local view
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn6 direct
+        Type Boolean
+        Local $parameter.value
+      val $argument.0: Any
+        Type Any
+        Retype Any
+          Type Measure
+          Local view
+      val $parameter.value: Any
+        Type Any
+        Local $argument.0
+      call $receiver: Measure = @fn8 direct
+        Type Any
+        Local $parameter.value
+      call $dependency.receiver: Int = @fn35 interface Parent[0]
+        Type Parent
+        Retype Parent
+          Type Measure
+          Local $receiver
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=21 bits=0x00000015
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=21 bits=0x00000015
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          IntegerLiteral Int value=21 bits=0x00000015
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn6 direct
+        Type Boolean
+        Local $parameter.value
+      assign $new.3
+        Type EchoUser
+        ClassAlloc EchoUser
+      val $inline.120.this: EchoUser
+        Type EchoUser
+        Local $new.3
+      goto bb121
+    bb123 inline.122.entry
+      call @scoop_rt_gc_collect direct
+      assign $inline.122.result
+        Type Measure
+        Local $inline.122.value
+      goto bb122
+    bb124 inline.cont.124
+      val $dependency.receiver: String
+        Type String
+        Local $inline.124.result
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str3
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $argument.0: Boolean = external1 direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn6 direct
+        Type Boolean
+        Local $parameter.value
+      val $argument.0: Measure
+        Type Measure
+        Local view
+      val $parameter.value: Measure
+        Type Measure
+        Local $argument.0
+      val $inline.122.value: Measure
+        Type Measure
+        Local $parameter.value
+      goto bb123
+    bb125 inline.124.entry
+      assign $inline.124.result
+        Type String
+        StringConst @str0
+      goto bb124
+    bb126 inline.cont.126
+      val $dependency.receiver: Int
+        Type Int
+        Local $inline.126.result
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          IntegerLiteral Int value=42 bits=0x0000002a
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn6 direct
+        Type Boolean
+        Local $parameter.value
+      val $receiver: Label
+        Type Label
+        Local label
+      val $inline.124.this: Item
+        Type Item
+        Retype Item
+          Type Label
+          Local $receiver
+      goto bb125
+    bb127 inline.126.entry
+      val $inline.126.$receiver: Measure
+        Type Measure
+        Local $inline.126.value
+      call $inline.126.$call.1: Int = @fn43 direct
+        Type Leaf
+        Retype Leaf
+          Type Parent
+          Retype Parent
+            Type Measure
+            Local $inline.126.$receiver
+      assign $inline.126.result
+        Type Int
+        Local $inline.126.$call.1
+      goto bb126
+    bb128 inline.cont.128
+      val instance: Leaf
+        Type Leaf
+        Local $new.1
+      val view: Measure
+        Type Measure
+        Retype Measure
+          Type Leaf
+          Local instance
+      val label: Label
+        Type Label
+        Retype Label
+          Type Leaf
+          Local instance
+      val empty: Empty
+        Type Empty
+        Retype Empty
+          Type Leaf
+          Local instance
+      val $argument.0: Boolean
+        Type Boolean
+        Binary RefEq
+          Type Measure
+          Local view
+          Type Label
+          Local label
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn6 direct
+        Type Boolean
+        Local $parameter.value
+      val $argument.0: Boolean
+        Type Boolean
+        Binary RefEq
+          Type Empty
+          Local empty
+          Type Measure
+          Local view
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn6 direct
+        Type Boolean
+        Local $parameter.value
+      val $argument.0: Measure
+        Type Measure
+        Local view
+      val $parameter.value: Measure
+        Type Measure
+        Local $argument.0
+      val $inline.126.value: Measure
+        Type Measure
+        Local $parameter.value
+      goto bb127
+    bb129 inline.128.entry
+      val $inline.128.$argument.0: Int
+        Type Int
+        IntegerLiteral Int value=21 bits=0x00000015
+      val $inline.128.$parameter.number: Int
+        Type Int
+        IntegerLiteral Int value=21 bits=0x00000015
+      val $inline.130.this: Item
+        Type Item
+        Retype Item
+          Type Leaf
+          Local $inline.128.this
+      val $inline.130.number: Int
+        Type Int
+        IntegerLiteral Int value=21 bits=0x00000015
+      goto bb131
+    bb130 inline.cont.130
+      goto bb128
+    bb131 inline.130.entry
+      field_set 0
+        Type Item
+        Local $inline.130.this
+        Type Int
+        IntegerLiteral Int value=21 bits=0x00000015
+      goto bb130
+    bb132 inline.cont.132
+      val $inline.118.$call.1: Measure
+        Type Measure
+        Local $inline.132.result
+      assign $inline.118.result
+        Type Measure
+        Local $inline.118.$call.1
+      goto bb118
+    bb133 inline.132.entry
+      assign $inline.132.result
+        Type Measure
+        Local $inline.132.value
+      goto bb132
+    bb134 inline.cont.134
+      val $inline.114.$call.1: Int
+        Type Int
+        Local $inline.134.result
+      assign $inline.114.result
+        Type Int
+        Local $inline.114.$call.1
+      goto bb114
+    bb135 inline.134.entry
+      val $inline.134.$receiver: Parent
+        Type Parent
+        Local $inline.134.this
+      call $inline.134.$dependency.receiver: Int = @fn60 direct
+        Type box<Small>
+        Retype box<Small>
+          Type Parent
+          Local $inline.134.$receiver
+      val $inline.134.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.134.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      assign $inline.134.result
+        Type Int
+        IntegerBinary multiply kind=Int
+          Type Int
+          Local $inline.134.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=2 bits=0x00000002
+      goto bb134
+    bb136 inline.cont.136
+      val $inline.110.$call.1: Int
+        Type Int
+        Local $inline.136.result
+      assign $inline.110.result
+        Type Int
+        Local $inline.110.$call.1
+      goto bb110
+    bb137 inline.136.entry
+      val $inline.136.$receiver: Parent
+        Type Parent
+        Local $inline.136.this
+      call $inline.136.$dependency.receiver: Int = @fn64 direct
+        Type box<Zero>
+        Retype box<Zero>
+          Type Parent
+          Local $inline.136.$receiver
+      val $inline.136.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.136.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      assign $inline.136.result
+        Type Int
+        IntegerBinary multiply kind=Int
+          Type Int
+          Local $inline.136.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=2 bits=0x00000002
+      goto bb136
+    bb138 inline.cont.138
+      val $inline.87.$call.1: Measure
+        Type Measure
+        Local $inline.138.result
+      assign $inline.87.result
+        Type Measure
+        Local $inline.87.$call.1
+      goto bb87
+    bb139 inline.138.entry
+      call @scoop_rt_gc_collect direct
+      assign $inline.138.result
+        Type Measure
+        Local $inline.138.value
+      goto bb138
   fun iterator @fn13(this: MutableArray<Measure>) -> Iterator<Measure>
     bb0 entry
       val $dependency.local.1: List<Measure>
@@ -1802,27 +2229,49 @@ Module
         Local $dependency.local.1
       val $dependency.local.5: Long
         Type Long
-        Local $dependency.local.2
+        IntegerLiteral Long value=0 bits=0x0000000000000000
       val $dependency.local.6: Boolean
         Type Boolean
-        Local $dependency.local.3
+        BoolLiteral false
       assign $new.1
         Type ListIterator<Measure>
         ClassAlloc ListIterator<Measure>
-      call @fn49 direct
+      val $inline.1.this: ListIterator<Measure>
         Type ListIterator<Measure>
         Local $new.1
+      val $inline.1.source: List<Measure>
         Type List<Measure>
         Local $dependency.local.4
+      val $inline.1.index: Long
         Type Long
-        Local $dependency.local.5
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $inline.1.exhausted: Boolean
         Type Boolean
-        Local $dependency.local.6
+        BoolLiteral false
+      goto bb2
+    bb1 inline.cont.1
       return
         Type Iterator<Measure>
         Retype Iterator<Measure>
           Type ListIterator<Measure>
           Local $new.1
+    bb2 inline.1.entry
+      field_set 0
+        Type ListIterator<Measure>
+        Local $inline.1.this
+        Type List<Measure>
+        Local $inline.1.source
+      field_set 1
+        Type ListIterator<Measure>
+        Local $inline.1.this
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      field_set 2
+        Type ListIterator<Measure>
+        Local $inline.1.this
+        Type Boolean
+        BoolLiteral false
+      goto bb1
   fun get @fn14(this: MutableArray<Measure>, index: Long) -> Measure
     bb0 entry
       val $dependency.local.2: MutableArray<Measure>
@@ -1905,14 +2354,14 @@ Module
         IntegerLiteral Long value=0 bits=0x0000000000000000
       val $dependency.parameter.other: Long
         Type Long
-        Local $dependency.argument.0
+        IntegerLiteral Long value=0 bits=0x0000000000000000
       branch bb1 bb2
         Type Boolean
         IntegerCompare equal operands=Long result=Boolean
           Type Long
           Local $dependency.receiver
           Type Long
-          Local $dependency.parameter.other
+          IntegerLiteral Long value=0 bits=0x0000000000000000
     bb1 if.then.1
       assign $result.0
         Type Measure
@@ -1941,12 +2390,23 @@ Module
       val $parameter.value: Measure
         Type Measure
         Local $argument.0
-      call $call.1: Measure = @fn7 direct
+      val $inline.1.value: Measure
         Type Measure
         Local $parameter.value
+      goto bb2
+    bb1 inline.cont.1
+      val $call.1: Measure
+        Type Measure
+        Local $inline.1.result
       return
         Type Measure
         Local $call.1
+    bb2 inline.1.entry
+      call @scoop_rt_gc_collect direct
+      assign $inline.1.result
+        Type Measure
+        Local $inline.1.value
+      goto bb1
   fun $lambda.2 @fn18($closure: (Any) -> Measure, $arg.0: Any) -> Measure
     bb0 entry
       val $argument.0: Measure
@@ -1957,12 +2417,23 @@ Module
       val $parameter.value: Measure
         Type Measure
         Local $argument.0
-      call $call.1: Measure = @fn7 direct
+      val $inline.1.value: Measure
         Type Measure
         Local $parameter.value
+      goto bb2
+    bb1 inline.cont.1
+      val $call.1: Measure
+        Type Measure
+        Local $inline.1.result
       return
         Type Measure
         Local $call.1
+    bb2 inline.1.entry
+      call @scoop_rt_gc_collect direct
+      assign $inline.1.result
+        Type Measure
+        Local $inline.1.value
+      goto bb1
   fun println @fn19(value: String) -> Unit
     bb0 entry
       val $dependency.local.1: String
@@ -2061,7 +2532,7 @@ Module
         IntegerLiteral Long value=1 bits=0x0000000000000001
       val $dependency.local.10: Long
         Type Long
-        Local $dependency.local.9
+        IntegerLiteral Long value=1 bits=0x0000000000000001
       field_set 1
         Type ListIterator<Measure>
         Local this
@@ -2070,7 +2541,7 @@ Module
           Type Long
           Local $dependency.local.8
           Type Long
-          Local $dependency.local.10
+          IntegerLiteral Long value=1 bits=0x0000000000000001
       val $dependency.local.11: Measure
         Type Measure
         Local $dependency.local.1
@@ -2140,14 +2611,14 @@ Module
         IntegerLiteral Int value=2 bits=0x00000002
       val $dependency.parameter.other: Int
         Type Int
-        Local $dependency.argument.0
+        IntegerLiteral Int value=2 bits=0x00000002
       return
         Type Int
         IntegerBinary multiply kind=Int
           Type Int
           Local $dependency.receiver
           Type Int
-          Local $dependency.parameter.other
+          IntegerLiteral Int value=2 bits=0x00000002
   fun Label.label @fn37(this: Label) -> String
     bb0 entry
       trap "call to abstract method `Label.label`"
@@ -2164,36 +2635,101 @@ Module
         Local value
   fun receiver<Item> Measure.doubled @fn41(this: Item) -> Int
     bb0 entry
-      call $call.1: Int = @fn36 direct
+      val $inline.1.this: Parent
         Type Parent
         Retype Parent
           Type Item
           Local this
+      goto bb2
+    bb1 inline.cont.1
+      val $call.1: Int
+        Type Int
+        Local $inline.1.result
       return
         Type Int
         Local $call.1
+    bb2 inline.1.entry
+      val $inline.1.$receiver: Parent
+        Type Parent
+        Local $inline.1.this
+      call $inline.1.$dependency.receiver: Int = @fn35 interface Parent[0]
+        Type Parent
+        Local $inline.1.$receiver
+      val $inline.1.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.1.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      assign $inline.1.result
+        Type Int
+        IntegerBinary multiply kind=Int
+          Type Int
+          Local $inline.1.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=2 bits=0x00000002
+      goto bb1
   fun receiver<EchoUser> Echo.echo @fn42(this: EchoUser, value: Measure) -> Measure
     bb0 entry
-      call $call.1: Measure = @fn40 direct
+      val $inline.1.this: Echo<Measure>
         Type Echo<Measure>
         Retype Echo<Measure>
           Type EchoUser
           Local this
+      val $inline.1.value: Measure
         Type Measure
         Local value
+      goto bb2
+    bb1 inline.cont.1
+      val $call.1: Measure
+        Type Measure
+        Local $inline.1.result
       return
         Type Measure
         Local $call.1
+    bb2 inline.1.entry
+      assign $inline.1.result
+        Type Measure
+        Local $inline.1.value
+      goto bb1
   fun receiver<Leaf> Measure.doubled @fn43(this: Leaf) -> Int
     bb0 entry
-      call $call.1: Int = @fn36 direct
+      val $inline.1.this: Parent
         Type Parent
         Retype Parent
           Type Leaf
           Local this
+      goto bb2
+    bb1 inline.cont.1
+      val $call.1: Int
+        Type Int
+        Local $inline.1.result
       return
         Type Int
         Local $call.1
+    bb2 inline.1.entry
+      val $inline.1.$receiver: Parent
+        Type Parent
+        Local $inline.1.this
+      call $inline.1.$dependency.receiver: Int = @fn2 direct
+        Type Item
+        Retype Item
+          Type Parent
+          Local $inline.1.$receiver
+      val $inline.1.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.1.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      assign $inline.1.result
+        Type Int
+        IntegerBinary multiply kind=Int
+          Type Int
+          Local $inline.1.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=2 bits=0x00000002
+      goto bb1
   fun $reference.0 @fn44($closure: () -> Int) -> Int
     bb0 entry
       call $call.1: Int = @fn36 interface Parent[1]
@@ -2219,15 +2755,25 @@ Module
         IntegerLiteral Int value=21 bits=0x00000015
       val $parameter.number: Int
         Type Int
-        Local $argument.0
-      call @fn45 direct
+        IntegerLiteral Int value=21 bits=0x00000015
+      val $inline.1.this: Item
         Type Item
         Retype Item
           Type Leaf
           Local this
+      val $inline.1.number: Int
         Type Int
-        Local $parameter.number
+        IntegerLiteral Int value=21 bits=0x00000015
+      goto bb2
+    bb1 inline.cont.1
       return
+    bb2 inline.1.entry
+      field_set 0
+        Type Item
+        Local $inline.1.this
+        Type Int
+        IntegerLiteral Int value=21 bits=0x00000015
+      goto bb1
   fun init.EchoUser.$c2 @fn47(this: EchoUser) -> Unit
     bb0 entry
       return
@@ -2560,84 +3106,240 @@ Module
       goto bb6
   fun thunk<Small> Measure.value() @fn58(this: box<Small>) -> Int
     bb0 entry
-      call $call.1: Int = @fn0 direct
+      val $inline.1.this: Small
         Type Small
         Unbox
           Type box<Small>
           Local this
+      goto bb2
+    bb1 inline.cont.1
+      val $call.1: Int
+        Type Int
+        Local $inline.1.result
       return
         Type Int
         Local $call.1
+    bb2 inline.1.entry
+      assign $inline.1.result
+        Type Int
+        FieldAccess 0
+          Type Small
+          Local $inline.1.this
+      goto bb1
   fun thunk<Small> Measure.doubled() @fn59(this: box<Small>) -> Int
     bb0 entry
-      call $call.1: Int = @fn36 direct
+      val $inline.1.this: Parent
         Type Parent
         Retype Parent
           Type box<Small>
           Local this
+      goto bb2
+    bb1 inline.cont.1
+      val $call.1: Int
+        Type Int
+        Local $inline.1.result
       return
         Type Int
         Local $call.1
+    bb2 inline.1.entry
+      val $inline.1.$receiver: Parent
+        Type Parent
+        Local $inline.1.this
+      call $inline.1.$dependency.receiver: Int = @fn60 direct
+        Type box<Small>
+        Retype box<Small>
+          Type Parent
+          Local $inline.1.$receiver
+      val $inline.1.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.1.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      assign $inline.1.result
+        Type Int
+        IntegerBinary multiply kind=Int
+          Type Int
+          Local $inline.1.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=2 bits=0x00000002
+      goto bb1
   fun thunk<Small> Parent.value() @fn60(this: box<Small>) -> Int
     bb0 entry
-      call $call.1: Int = @fn0 direct
+      val $inline.1.this: Small
         Type Small
         Unbox
           Type box<Small>
           Local this
+      goto bb2
+    bb1 inline.cont.1
+      val $call.1: Int
+        Type Int
+        Local $inline.1.result
       return
         Type Int
         Local $call.1
+    bb2 inline.1.entry
+      assign $inline.1.result
+        Type Int
+        FieldAccess 0
+          Type Small
+          Local $inline.1.this
+      goto bb1
   fun thunk<Small> Parent.doubled() @fn61(this: box<Small>) -> Int
     bb0 entry
-      call $call.1: Int = @fn36 direct
+      val $inline.1.this: Parent
         Type Parent
         Retype Parent
           Type box<Small>
           Local this
+      goto bb2
+    bb1 inline.cont.1
+      val $call.1: Int
+        Type Int
+        Local $inline.1.result
       return
         Type Int
         Local $call.1
+    bb2 inline.1.entry
+      val $inline.1.$receiver: Parent
+        Type Parent
+        Local $inline.1.this
+      call $inline.1.$dependency.receiver: Int = @fn60 direct
+        Type box<Small>
+        Retype box<Small>
+          Type Parent
+          Local $inline.1.$receiver
+      val $inline.1.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.1.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      assign $inline.1.result
+        Type Int
+        IntegerBinary multiply kind=Int
+          Type Int
+          Local $inline.1.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=2 bits=0x00000002
+      goto bb1
   fun thunk<Zero> Measure.value() @fn62(this: box<Zero>) -> Int
     bb0 entry
-      call $call.1: Int = @fn1 direct
+      val $inline.1.this: Zero
         Type Zero
         Unbox
           Type box<Zero>
           Local this
+      goto bb2
+    bb1 inline.cont.1
+      val $call.1: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
       return
         Type Int
-        Local $call.1
+        IntegerLiteral Int value=0 bits=0x00000000
+    bb2 inline.1.entry
+      assign $inline.1.result
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      goto bb1
   fun thunk<Zero> Measure.doubled() @fn63(this: box<Zero>) -> Int
     bb0 entry
-      call $call.1: Int = @fn36 direct
+      val $inline.1.this: Parent
         Type Parent
         Retype Parent
           Type box<Zero>
           Local this
+      goto bb2
+    bb1 inline.cont.1
+      val $call.1: Int
+        Type Int
+        Local $inline.1.result
       return
         Type Int
         Local $call.1
+    bb2 inline.1.entry
+      val $inline.1.$receiver: Parent
+        Type Parent
+        Local $inline.1.this
+      call $inline.1.$dependency.receiver: Int = @fn64 direct
+        Type box<Zero>
+        Retype box<Zero>
+          Type Parent
+          Local $inline.1.$receiver
+      val $inline.1.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.1.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      assign $inline.1.result
+        Type Int
+        IntegerBinary multiply kind=Int
+          Type Int
+          Local $inline.1.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=2 bits=0x00000002
+      goto bb1
   fun thunk<Zero> Parent.value() @fn64(this: box<Zero>) -> Int
     bb0 entry
-      call $call.1: Int = @fn1 direct
+      val $inline.1.this: Zero
         Type Zero
         Unbox
           Type box<Zero>
           Local this
+      goto bb2
+    bb1 inline.cont.1
+      val $call.1: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
       return
         Type Int
-        Local $call.1
+        IntegerLiteral Int value=0 bits=0x00000000
+    bb2 inline.1.entry
+      assign $inline.1.result
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      goto bb1
   fun thunk<Zero> Parent.doubled() @fn65(this: box<Zero>) -> Int
     bb0 entry
-      call $call.1: Int = @fn36 direct
+      val $inline.1.this: Parent
         Type Parent
         Retype Parent
           Type box<Zero>
           Local this
+      goto bb2
+    bb1 inline.cont.1
+      val $call.1: Int
+        Type Int
+        Local $inline.1.result
       return
         Type Int
         Local $call.1
+    bb2 inline.1.entry
+      val $inline.1.$receiver: Parent
+        Type Parent
+        Local $inline.1.this
+      call $inline.1.$dependency.receiver: Int = @fn64 direct
+        Type box<Zero>
+        Retype box<Zero>
+          Type Parent
+          Local $inline.1.$receiver
+      val $inline.1.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.1.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      assign $inline.1.result
+        Type Int
+        IntegerBinary multiply kind=Int
+          Type Int
+          Local $inline.1.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=2 bits=0x00000002
+      goto bb1
   fun function_bridge.$Closure$lambda0.(Any) -> Any @fn66($source: (Long) -> Measure, arg0: Any) -> Any
     bb0 entry
       call $call.1: Measure = <closure:function_type0> closure[function_type0]

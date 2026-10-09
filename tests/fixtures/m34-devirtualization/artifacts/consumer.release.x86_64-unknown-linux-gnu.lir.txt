@@ -39,10 +39,10 @@ Module
   block entry
     poll managed-void-target2 sp<managed-poll:0> live=[]
     store integer<Int>(0x00000001) -> local0
-    store local0 -> local1
+    store integer<Int>(0x00000001) -> local1
     call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td13, machine<byte-size>(ByteSize(24)))
     store t0 -> local4
-    call managed-void-target0 sp<managed-call:1> live=[local4:ptr<managed>@0] sig=void0 (ptr<managed>, i32) external-fn3(local4, local1)
+    call managed-void-target0 sp<managed-call:1> live=[local4:ptr<managed>@0] sig=void0 (ptr<managed>, i32) external-fn3(local4, integer<Int>(0x00000001))
     t1 = aggregate () : {}
     store local4 -> local2
     call managed-void-target1 sp<managed-call:2> live=[local2:ptr<managed>@0] sig=void1 () runtime @scoop_rt_gc_collect()
@@ -61,10 +61,10 @@ Module
   block entry
     poll managed-void-target2 sp<managed-poll:0> live=[]
     store integer<Int>(0x00000005) -> local0
-    store local0 -> local1
+    store integer<Int>(0x00000005) -> local1
     call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td14, machine<byte-size>(ByteSize(24)))
     store t0 -> local4
-    call managed-void-target0 sp<managed-call:1> live=[local4:ptr<managed>@0] sig=void0 (ptr<managed>, i32) external-fn4(local4, local1)
+    call managed-void-target0 sp<managed-call:1> live=[local4:ptr<managed>@0] sig=void0 (ptr<managed>, i32) external-fn4(local4, integer<Int>(0x00000005))
     t1 = aggregate () : {}
     store local4 -> local2
     call managed-void-target1 sp<managed-call:2> live=[local2:ptr<managed>@0] sig=void1 () runtime @scoop_rt_gc_collect()
@@ -139,20 +139,35 @@ Module
     local %39 $dependency.parameter.value: ptr<managed>
     local %40 $new.1: ptr<managed>
     local %41 $new.2: ptr<managed>
+    local %42 $inline.7.result: i32
+    local %43 $inline.7.value: ptr<managed>
+    local %44 $inline.7.$dependency.local.1: ptr<managed>
+    local %45 $inline.7.$call.1: i32
+    local %46 $inline.9.result: i32
+    local %47 $inline.9.$dependency.receiver: ptr<managed>
+    local %48 $inline.9.$call.1: i32
+    local %49 $inline.11.result: i32
+    local %50 $inline.11.value: ptr<managed>
+    local %51 $inline.11.$dependency.receiver: ptr<managed>
+    local %52 $inline.11.$call.1: i32
+    local %53 $inline.13.result: i32
+    local %54 $inline.13.value: ptr<managed>
+    local %55 $inline.13.$dependency.receiver: ptr<managed>
+    local %56 $inline.13.$call.1: i32
   block entry
     poll managed-void-target7 sp<managed-poll:0> live=[]
     call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 () -> i32 local-fn1()
     store t0 -> local0
     store integer<Int>(0x00000046) -> local1
-    store local1 -> local2
-    t1 = integer_compare_Equal<Int> local0, local2 : i1
+    store integer<Int>(0x00000046) -> local2
+    t1 = integer_compare_Equal<Int> local0, integer<Int>(0x00000046) : i1
     cbr t1 then @if.then.1 else @if.else.2
   block if.then.1
     call managed-direct-target1 sp<managed-call:1> live=[] t2 = sig=direct1 () -> i32 local-fn2()
     store t2 -> local3
     store integer<Int>(0x00000005) -> local4
-    store local4 -> local5
-    t3 = integer_compare_Equal<Int> local3, local5 : i1
+    store integer<Int>(0x00000005) -> local5
+    t3 = integer_compare_Equal<Int> local3, integer<Int>(0x00000005) : i1
     store t3 -> local6
     br @if.merge.3
   block if.else.2
@@ -164,69 +179,105 @@ Module
     call managed-void-target0 sp<managed-call:2> live=[] sig=void0 (i1) local-fn0(local8)
     t4 = aggregate () : {}
     store integer<Int>(0x00000001) -> local9
-    store local9 -> local10
+    store integer<Int>(0x00000001) -> local10
     call managed-direct-target2 sp<managed-call:3> live=[] t5 = sig=direct2 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td13, machine<byte-size>(ByteSize(24)))
     store t5 -> local40
-    call managed-void-target1 sp<managed-call:4> live=[local40:ptr<managed>@0] sig=void1 (ptr<managed>, i32) external-fn3(local40, local10)
+    call managed-void-target1 sp<managed-call:4> live=[local40:ptr<managed>@0] sig=void1 (ptr<managed>, i32) external-fn3(local40, integer<Int>(0x00000001))
     t6 = aggregate () : {}
     store local40 -> local11
     store local11 -> local12
-    call managed-direct-target3 sp<managed-call:5> live=[local12:ptr<managed>@0] t7 = sig=direct3 (ptr<managed>) -> i32 local-fn3(local12)
-    store t7 -> local13
-    store integer<Int>(0x00000046) -> local14
-    store local14 -> local15
-    t8 = integer_compare_Equal<Int> local13, local15 : i1
-    store t8 -> local16
-    store local16 -> local17
-    call managed-void-target2 sp<managed-call:6> live=[] sig=void2 (i1) local-fn0(local17)
-    t9 = aggregate () : {}
-    call managed-direct-target4 sp<managed-call:7> live=[] t10 = sig=direct4 () -> ptr<managed> external-fn5()
-    store t10 -> local18
-    store local18 -> local19
-    call managed-direct-target5 sp<managed-call:8> live=[local19:ptr<managed>@0] t11 = sig=direct5 (ptr<managed>) -> i32 local-fn3(local19)
-    store t11 -> local20
-    store integer<Int>(0x00000063) -> local21
-    store local21 -> local22
-    t12 = integer_compare_Equal<Int> local20, local22 : i1
-    cbr t12 then @if.then.4 else @if.else.5
+    store local12 -> local54
+    br @inline.13.entry
   block if.then.4
-    call managed-direct-target6 sp<managed-call:9> live=[] t13 = sig=direct6 () -> i32 local-fn4()
-    store t13 -> local23
-    store integer<Int>(0x00000063) -> local24
-    store local24 -> local25
-    t14 = integer_compare_Equal<Int> local23, local25 : i1
-    store t14 -> local26
-    br @if.merge.6
+    br @inline.9.entry
   block if.else.5
     store false -> local26
     br @if.merge.6
   block if.merge.6
     store local26 -> local27
     store local27 -> local28
-    call managed-void-target3 sp<managed-call:10> live=[] sig=void3 (i1) local-fn0(local28)
-    t15 = aggregate () : {}
+    call managed-void-target2 sp<managed-call:11> live=[] sig=void2 (i1) local-fn0(local28)
+    t7 = aggregate () : {}
     store integer<Int>(0x00000002) -> local29
-    store local29 -> local30
-    call managed-direct-target7 sp<managed-call:11> live=[] t16 = sig=direct7 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td13, machine<byte-size>(ByteSize(24)))
-    store t16 -> local41
-    call managed-void-target4 sp<managed-call:12> live=[local41:ptr<managed>@0] sig=void4 (ptr<managed>, i32) external-fn3(local41, local30)
-    t17 = aggregate () : {}
+    store integer<Int>(0x00000002) -> local30
+    call managed-direct-target3 sp<managed-call:12> live=[] t8 = sig=direct3 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td13, machine<byte-size>(ByteSize(24)))
+    store t8 -> local41
+    call managed-void-target3 sp<managed-call:13> live=[local41:ptr<managed>@0] sig=void3 (ptr<managed>, i32) external-fn3(local41, integer<Int>(0x00000002))
+    t9 = aggregate () : {}
     store local41 -> local31
     store local31 -> local32
-    call managed-direct-target8 sp<managed-call:13> live=[local32:ptr<managed>@0] t18 = sig=direct8 (ptr<managed>) -> i32 local-fn6(local32)
-    store t18 -> local33
+    store local32 -> local43
+    br @inline.7.entry
+  block inline.cont.7
+    store local42 -> local33
     store integer<Int>(0x00000046) -> local34
-    store local34 -> local35
-    t19 = integer_compare_Equal<Int> local33, local35 : i1
-    store t19 -> local36
+    store integer<Int>(0x00000046) -> local35
+    t10 = integer_compare_Equal<Int> local33, integer<Int>(0x00000046) : i1
+    store t10 -> local36
     store local36 -> local37
-    call managed-void-target5 sp<managed-call:14> live=[] sig=void5 (i1) local-fn0(local37)
-    t20 = aggregate () : {}
+    call managed-void-target4 sp<managed-call:15> live=[] sig=void4 (i1) local-fn0(local37)
+    t11 = aggregate () : {}
     store global1 -> local38
     store local38 -> local39
-    call managed-void-target6 sp<managed-call:15> live=[local39:ptr<managed>@0] sig=void6 (ptr<managed>) local-fn7(local39)
-    t21 = aggregate () : {}
+    call managed-void-target5 sp<managed-call:16> live=[local39:ptr<managed>@0] sig=void5 (ptr<managed>) local-fn7(local39)
+    t12 = aggregate () : {}
     ret
+  block inline.7.entry
+    store local43 -> local44
+    call managed-direct-target4 sp<managed-call:14> live=[local44:ptr<managed>@0] t13 = sig=direct4 (ptr<managed>) -> i32 external-fn2(local44)
+    store t13 -> local45
+    store local45 -> local42
+    br @inline.cont.7
+  block inline.cont.9
+    store local46 -> local23
+    store integer<Int>(0x00000063) -> local24
+    store integer<Int>(0x00000063) -> local25
+    t14 = integer_compare_Equal<Int> local23, integer<Int>(0x00000063) : i1
+    store t14 -> local26
+    br @if.merge.6
+  block inline.9.entry
+    call managed-direct-target5 sp<managed-call:9> live=[] t15 = sig=direct5 () -> ptr<managed> external-fn5()
+    store t15 -> local47
+    t16 = heap_load local47 +0 : ptr<metadata>
+    t17 = heap_load t16 +88 : ptr<metadata>
+    call managed-direct-target6 sp<managed-call:10> live=[local47:ptr<managed>@0] t18 = sig=direct6 (ptr<managed>) -> i32 dispatch[Virtual:0] t17(local47)
+    store t18 -> local48
+    store local48 -> local46
+    br @inline.cont.9
+  block inline.cont.11
+    store local49 -> local20
+    store integer<Int>(0x00000063) -> local21
+    store integer<Int>(0x00000063) -> local22
+    t19 = integer_compare_Equal<Int> local20, integer<Int>(0x00000063) : i1
+    cbr t19 then @if.then.4 else @if.else.5
+  block inline.11.entry
+    store local50 -> local51
+    t20 = heap_load local51 +0 : ptr<metadata>
+    t21 = heap_load t20 +88 : ptr<metadata>
+    call managed-direct-target7 sp<managed-call:8> live=[local51:ptr<managed>@0] t22 = sig=direct7 (ptr<managed>) -> i32 dispatch[Virtual:0] t21(local51)
+    store t22 -> local52
+    store local52 -> local49
+    br @inline.cont.11
+  block inline.cont.13
+    store local53 -> local13
+    store integer<Int>(0x00000046) -> local14
+    store integer<Int>(0x00000046) -> local15
+    t23 = integer_compare_Equal<Int> local13, integer<Int>(0x00000046) : i1
+    store t23 -> local16
+    store local16 -> local17
+    call managed-void-target6 sp<managed-call:6> live=[] sig=void6 (i1) local-fn0(local17)
+    t24 = aggregate () : {}
+    call managed-direct-target8 sp<managed-call:7> live=[] t25 = sig=direct8 () -> ptr<managed> external-fn5()
+    store t25 -> local18
+    store local18 -> local19
+    store local19 -> local50
+    br @inline.11.entry
+  block inline.13.entry
+    store local54 -> local55
+    call managed-direct-target9 sp<managed-call:5> live=[local55:ptr<managed>@0] t26 = sig=direct9 (ptr<managed>) -> i32 external-fn2(local55)
+    store t26 -> local56
+    store local56 -> local53
+    br @inline.cont.13
   fun @scoop$1$cb$983e1214c8b68bc6b2fef5c050585773a516a25b4857fb96b12de0be45c1d0a9(ptr<managed>) -> i32
     local %0 $dependency.local.1: ptr<managed>
     local %1 $call.1: i32

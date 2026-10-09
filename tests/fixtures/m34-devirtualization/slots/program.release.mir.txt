@@ -106,7 +106,7 @@ Module
         Type Int
         IntegerBinary add kind=Int
           Type Int
-          Local $dependency.receiver
+          IntegerLiteral Int value=7 bits=0x00000007
           Type Int
           Local $dependency.parameter.other
   fun check @fn4(value: Boolean) -> Unit
@@ -190,74 +190,22 @@ Module
       assign $new.1
         Type Derived
         ClassAlloc Derived
-      call @fn25 direct
+      val $inline.50.this: Derived
         Type Derived
         Local $new.1
-      val concrete: Derived
-        Type Derived
-        Local $new.1
-      val root: Root
-        Type Root
-        Retype Root
-          Type Derived
-          Local concrete
-      val diamond: Diamond
-        Type Diamond
-        Retype Diamond
-          Type Derived
-          Local concrete
-      val overloaded: Overloaded
-        Type Overloaded
-        Retype Overloaded
-          Type Derived
-          Local concrete
-      call @scoop_rt_gc_collect direct
-      val $receiver: Root
-        Type Root
-        Local root
-      call $dependency.receiver: Int = @fn22 direct
-        Type Derived
-        Retype Derived
-          Type Root
-          Local $receiver
-      val $dependency.argument.0: Int
-        Type Int
-        IntegerLiteral Int value=21 bits=0x00000015
-      val $dependency.parameter.other: Int
-        Type Int
-        Local $dependency.argument.0
-      branch bb1 bb2
-        Type Boolean
-        IntegerCompare equal operands=Int result=Boolean
-          Type Int
-          Local $dependency.receiver
-          Type Int
-          Local $dependency.parameter.other
+      goto bb51
     bb1 if.then.1
       val $receiver: Diamond
         Type Diamond
         Local diamond
-      call $dependency.receiver: Int = @fn2 direct
+      val $inline.46.this: Derived
         Type Derived
         Retype Derived
           Type Root
           Retype Root
             Type Diamond
             Local $receiver
-      val $dependency.argument.0: Int
-        Type Int
-        IntegerLiteral Int value=7 bits=0x00000007
-      val $dependency.parameter.other: Int
-        Type Int
-        Local $dependency.argument.0
-      val $shortCircuit.0: Boolean
-        Type Boolean
-        IntegerCompare equal operands=Int result=Boolean
-          Type Int
-          Local $dependency.receiver
-          Type Int
-          Local $dependency.parameter.other
-      goto bb3
+      goto bb47
     bb2 if.else.2
       val $shortCircuit.0: Boolean
         Type Boolean
@@ -276,24 +224,12 @@ Module
       val $receiver: Overloaded
         Type Overloaded
         Local overloaded
-      call $dependency.receiver: Int = @fn2 direct
+      val $inline.44.this: Derived
         Type Derived
         Retype Derived
           Type Overloaded
           Local $receiver
-      val $dependency.argument.0: Int
-        Type Int
-        IntegerLiteral Int value=7 bits=0x00000007
-      val $dependency.parameter.other: Int
-        Type Int
-        Local $dependency.argument.0
-      branch bb4 bb5
-        Type Boolean
-        IntegerCompare equal operands=Int result=Boolean
-          Type Int
-          Local $dependency.receiver
-          Type Int
-          Local $dependency.parameter.other
+      goto bb45
     bb4 if.then.4
       val $receiver: Overloaded
         Type Overloaded
@@ -303,102 +239,39 @@ Module
         IntegerLiteral Int value=5 bits=0x00000005
       val $parameter.extra: Int
         Type Int
-        Local $argument.0
-      call $dependency.receiver: Int = @fn3 direct
+        IntegerLiteral Int value=5 bits=0x00000005
+      val $inline.42.this: Derived
         Type Derived
         Retype Derived
           Type Overloaded
           Local $receiver
+      val $inline.42.extra: Int
         Type Int
-        Local $parameter.extra
-      val $dependency.argument.0: Int
-        Type Int
-        IntegerLiteral Int value=12 bits=0x0000000c
-      val $dependency.parameter.other: Int
-        Type Int
-        Local $dependency.argument.0
-      val $shortCircuit.1: Boolean
-        Type Boolean
-        IntegerCompare equal operands=Int result=Boolean
-          Type Int
-          Local $dependency.receiver
-          Type Int
-          Local $dependency.parameter.other
-      goto bb6
+        IntegerLiteral Int value=5 bits=0x00000005
+      goto bb43
     bb5 if.else.5
-      val $shortCircuit.1: Boolean
-        Type Boolean
-        BoolLiteral false
-      goto bb6
+      unreachable
     bb6 if.merge.6
       val $argument.0: Boolean
         Type Boolean
-        Local $shortCircuit.1
+        BoolLiteral true
       val $parameter.value: Boolean
         Type Boolean
-        Local $argument.0
-      call @fn4 direct
+        BoolLiteral true
+      val $inline.60.value: Boolean
         Type Boolean
-        Local $parameter.value
-      val $argument.0: Int
-        Type Int
-        IntegerLiteral Int value=9 bits=0x00000009
-      val $parameter.number: Int
-        Type Int
-        Local $argument.0
-      call $call.2: Small = @fn26 direct
-        Type Int
-        Local $parameter.number
-      val boxed: Root
-        Type Root
-        Box
-          Type Small
-          Local $call.2
-      call @scoop_rt_gc_collect direct
-      val $receiver: Root
-        Type Root
-        Local boxed
-      call $dependency.receiver: Int = @fn33 direct
-        Type box<Small>
-        Retype box<Small>
-          Type Root
-          Local $receiver
-      val $dependency.argument.0: Int
-        Type Int
-        IntegerLiteral Int value=9 bits=0x00000009
-      val $dependency.parameter.other: Int
-        Type Int
-        Local $dependency.argument.0
-      branch bb7 bb8
-        Type Boolean
-        IntegerCompare equal operands=Int result=Boolean
-          Type Int
-          Local $dependency.receiver
-          Type Int
-          Local $dependency.parameter.other
+        BoolLiteral true
+      goto bb61
     bb7 if.then.7
       val $receiver: Root
         Type Root
         Local boxed
-      call $dependency.receiver: Int = @fn34 direct
+      val $inline.36.this: box<Small>
         Type box<Small>
         Retype box<Small>
           Type Root
           Local $receiver
-      val $dependency.argument.0: Int
-        Type Int
-        IntegerLiteral Int value=27 bits=0x0000001b
-      val $dependency.parameter.other: Int
-        Type Int
-        Local $dependency.argument.0
-      val $shortCircuit.2: Boolean
-        Type Boolean
-        IntegerCompare equal operands=Int result=Boolean
-          Type Int
-          Local $dependency.receiver
-          Type Int
-          Local $dependency.parameter.other
-      goto bb9
+      goto bb37
     bb8 if.else.8
       val $shortCircuit.2: Boolean
         Type Boolean
@@ -419,92 +292,16 @@ Module
         IntegerLiteral Int value=6 bits=0x00000006
       val $parameter.number: Int
         Type Int
-        Local $argument.0
-      call $argument.0: Small = @fn26 direct
+        IntegerLiteral Int value=6 bits=0x00000006
+      val $inline.34.number: Int
         Type Int
-        Local $parameter.number
-      val $parameter.value: Small
-        Type Small
-        Local $argument.0
-      call $dependency.receiver: Int = @fn7 direct
-        Type Small
-        Local $parameter.value
-      val $dependency.argument.0: Int
-        Type Int
-        IntegerLiteral Int value=18 bits=0x00000012
-      val $dependency.parameter.other: Int
-        Type Int
-        Local $dependency.argument.0
-      val $argument.0: Boolean
-        Type Boolean
-        IntegerCompare equal operands=Int result=Boolean
-          Type Int
-          Local $dependency.receiver
-          Type Int
-          Local $dependency.parameter.other
-      val $parameter.value: Boolean
-        Type Boolean
-        Local $argument.0
-      call @fn4 direct
-        Type Boolean
-        Local $parameter.value
-      val closure: (Int) -> Root
-        Type (Int) -> Root
-        ClosureAlloc cc0 $Closure$lambda0
-          CaptureInit field=0
-            Type Root
-            Local boxed
-      val copied: (Int) -> Root
-        Type (Int) -> Root
-        Local closure
-      val bound: () -> Int
-        Type () -> Int
-        ClosureAlloc cc2 $Closure$reference0
-          CaptureInit field=0
-            Type Left
-            Retype Left
-              Type Diamond
-              Local diamond
-      call @scoop_rt_gc_collect direct
-      call $receiver: Root = @fn8 direct
-        Type (Int) -> Root
-        Local copied
-        Type Int
-        IntegerLiteral Int value=3 bits=0x00000003
-      call $dependency.receiver: Int = @fn15 interface Root[0]
-        Type Root
-        Local $receiver
-      val $dependency.argument.0: Int
-        Type Int
-        IntegerLiteral Int value=9 bits=0x00000009
-      val $dependency.parameter.other: Int
-        Type Int
-        Local $dependency.argument.0
-      branch bb10 bb11
-        Type Boolean
-        IntegerCompare equal operands=Int result=Boolean
-          Type Int
-          Local $dependency.receiver
-          Type Int
-          Local $dependency.parameter.other
+        IntegerLiteral Int value=6 bits=0x00000006
+      goto bb35
     bb10 if.then.10
-      call $dependency.receiver: Int = @fn23 direct
+      val $inline.30.$closure: () -> Int
         Type () -> Int
         Local bound
-      val $dependency.argument.0: Int
-        Type Int
-        IntegerLiteral Int value=21 bits=0x00000015
-      val $dependency.parameter.other: Int
-        Type Int
-        Local $dependency.argument.0
-      val $shortCircuit.3: Boolean
-        Type Boolean
-        IntegerCompare equal operands=Int result=Boolean
-          Type Int
-          Local $dependency.receiver
-          Type Int
-          Local $dependency.parameter.other
-      goto bb12
+      goto bb31
     bb11 if.else.11
       val $shortCircuit.3: Boolean
         Type Boolean
@@ -558,39 +355,13 @@ Module
           CaptureInit field=0
             Type Any
             Local $cast.1
-      call $receiver: Root = @fn27 direct
+      val $inline.28.$closure: (Root) -> Root
         Type (Root) -> Root
         Local dynamic
+      val $inline.28.arg0: Root
         Type Root
         Local boxed
-      call $dependency.receiver: Int = @fn16 interface Root[1]
-        Type Root
-        Local $receiver
-      val $dependency.argument.0: Int
-        Type Int
-        IntegerLiteral Int value=21 bits=0x00000015
-      val $dependency.parameter.other: Int
-        Type Int
-        Local $dependency.argument.0
-      val $argument.0: Boolean
-        Type Boolean
-        IntegerCompare equal operands=Int result=Boolean
-          Type Int
-          Local $dependency.receiver
-          Type Int
-          Local $dependency.parameter.other
-      val $parameter.value: Boolean
-        Type Boolean
-        Local $argument.0
-      call @fn4 direct
-        Type Boolean
-        Local $parameter.value
-      val $context_mark.2: internal<context-mark>
-        Type internal<context-mark>
-        ContextPush 176b83947cc68f4371d5eb3bc684dcf201a2612f6b9b4f5a0c6976923070a950
-          Type Root
-          Local root
-      goto bb20
+      goto bb29
     bb15 try.unwind.15
       landing_pad cleanup=false
       goto bb16
@@ -622,37 +393,24 @@ Module
         IntegerLiteral Int value=21 bits=0x00000015
       val $dependency.parameter.other: Int
         Type Int
-        Local $dependency.argument.0
+        IntegerLiteral Int value=21 bits=0x00000015
       branch bb21 bb22
         Type Boolean
         IntegerCompare equal operands=Int result=Boolean
           Type Int
           Local $dependency.receiver
           Type Int
-          Local $dependency.parameter.other
+          IntegerLiteral Int value=21 bits=0x00000015
     bb21 if.then.21 unwind bb15
       val $receiver: Root
         Type Root
         Local root
-      call $dependency.receiver: Int = @fn2 direct
+      val $inline.26.this: Derived
         Type Derived
         Retype Derived
           Type Root
           Local $receiver
-      val $dependency.argument.0: Int
-        Type Int
-        IntegerLiteral Int value=7 bits=0x00000007
-      val $dependency.parameter.other: Int
-        Type Int
-        Local $dependency.argument.0
-      val $shortCircuit.4: Boolean
-        Type Boolean
-        IntegerCompare equal operands=Int result=Boolean
-          Type Int
-          Local $dependency.receiver
-          Type Int
-          Local $dependency.parameter.other
-      goto bb23
+      goto bb27
     bb22 if.else.22 unwind bb15
       val $shortCircuit.4: Boolean
         Type Boolean
@@ -681,21 +439,551 @@ Module
         Type internal<context-mark>
         Local $context_mark.2
       rethrow unwind bb17
+    bb26 inline.cont.26 unwind bb15
+      val $dependency.receiver: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $shortCircuit.4: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb23
+    bb27 inline.26.entry unwind bb15
+      assign $inline.26.result
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      goto bb26
+    bb28 inline.cont.28
+      val $receiver: Root
+        Type Root
+        Local $inline.28.result
+      call $dependency.receiver: Int = @fn16 interface Root[1]
+        Type Root
+        Local $receiver
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=21 bits=0x00000015
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=21 bits=0x00000015
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          IntegerLiteral Int value=21 bits=0x00000015
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn4 direct
+        Type Boolean
+        Local $parameter.value
+      val $context_mark.2: internal<context-mark>
+        Type internal<context-mark>
+        ContextPush 176b83947cc68f4371d5eb3bc684dcf201a2612f6b9b4f5a0c6976923070a950
+          Type Root
+          Local root
+      goto bb20
+    bb29 inline.28.entry
+      call $inline.28.$call.1: Any = <function_bridge:function_type1> function_bridge[function_type1]
+        Type Any
+        ClosureCapture cc3 0
+          Type (Root) -> Root
+          Local $inline.28.$closure
+        Type Any
+        Retype Any
+          Type Root
+          Local $inline.28.arg0
+      assign $inline.28.result
+        Type Root
+        Retype Root
+          Type Any
+          Local $inline.28.$call.1
+      goto bb28
+    bb30 inline.cont.30
+      val $dependency.receiver: Int
+        Type Int
+        Local $inline.30.result
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=21 bits=0x00000015
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=21 bits=0x00000015
+      val $shortCircuit.3: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          IntegerLiteral Int value=21 bits=0x00000015
+      goto bb12
+    bb31 inline.30.entry
+      call $inline.30.$call.1: Int = @fn17 interface Left[1]
+        Type Left
+        ClosureCapture cc2 0
+          Type () -> Int
+          Local $inline.30.$closure
+      assign $inline.30.result
+        Type Int
+        Local $inline.30.$call.1
+      goto bb30
+    bb32 inline.cont.32
+      val $receiver: Root
+        Type Root
+        Local $inline.32.result
+      call $dependency.receiver: Int = @fn15 interface Root[0]
+        Type Root
+        Local $receiver
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=9 bits=0x00000009
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=9 bits=0x00000009
+      branch bb10 bb11
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          IntegerLiteral Int value=9 bits=0x00000009
+    bb33 inline.32.entry
+      call @scoop_rt_gc_collect direct
+      assign $inline.32.result
+        Type Root
+        ClosureCapture cc0 0
+          Type (Int) -> Root
+          Local $inline.32.$closure
+      goto bb32
+    bb34 inline.cont.34
+      val $argument.0: Small
+        Type Small
+        Local $inline.34.result
+      val $parameter.value: Small
+        Type Small
+        Local $argument.0
+      call $dependency.receiver: Int = @fn7 direct
+        Type Small
+        Local $parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=18 bits=0x00000012
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=18 bits=0x00000012
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          IntegerLiteral Int value=18 bits=0x00000012
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn4 direct
+        Type Boolean
+        Local $parameter.value
+      val closure: (Int) -> Root
+        Type (Int) -> Root
+        ClosureAlloc cc0 $Closure$lambda0
+          CaptureInit field=0
+            Type Root
+            Local boxed
+      val copied: (Int) -> Root
+        Type (Int) -> Root
+        Local closure
+      val bound: () -> Int
+        Type () -> Int
+        ClosureAlloc cc2 $Closure$reference0
+          CaptureInit field=0
+            Type Left
+            Retype Left
+              Type Diamond
+              Local diamond
+      call @scoop_rt_gc_collect direct
+      val $inline.32.$closure: (Int) -> Root
+        Type (Int) -> Root
+        Local copied
+      val $inline.32.$arg.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      goto bb33
+    bb35 inline.34.entry
+      assign $inline.34.result
+        Type Small
+        StructInit Small
+          Type Int
+          IntegerLiteral Int value=6 bits=0x00000006
+      goto bb34
+    bb36 inline.cont.36
+      val $dependency.receiver: Int
+        Type Int
+        Local $inline.36.result
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=27 bits=0x0000001b
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=27 bits=0x0000001b
+      val $shortCircuit.2: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          IntegerLiteral Int value=27 bits=0x0000001b
+      goto bb9
+    bb37 inline.36.entry
+      val $inline.58.this: Left
+        Type Left
+        Retype Left
+          Type box<Small>
+          Local $inline.36.this
+      goto bb59
+    bb38 inline.cont.38
+      val $dependency.receiver: Int
+        Type Int
+        Local $inline.38.result
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=9 bits=0x00000009
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=9 bits=0x00000009
+      branch bb7 bb8
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          IntegerLiteral Int value=9 bits=0x00000009
+    bb39 inline.38.entry
+      val $inline.56.this: Small
+        Type Small
+        Unbox
+          Type box<Small>
+          Local $inline.38.this
+      goto bb57
+    bb40 inline.cont.40
+      val $call.2: Small
+        Type Small
+        Local $inline.40.result
+      val boxed: Root
+        Type Root
+        Box
+          Type Small
+          Local $call.2
+      call @scoop_rt_gc_collect direct
+      val $receiver: Root
+        Type Root
+        Local boxed
+      val $inline.38.this: box<Small>
+        Type box<Small>
+        Retype box<Small>
+          Type Root
+          Local $receiver
+      goto bb39
+    bb41 inline.40.entry
+      assign $inline.40.result
+        Type Small
+        StructInit Small
+          Type Int
+          IntegerLiteral Int value=9 bits=0x00000009
+      goto bb40
+    bb42 inline.cont.42
+      val $dependency.receiver: Int
+        Type Int
+        IntegerLiteral Int value=12 bits=0x0000000c
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=12 bits=0x0000000c
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=12 bits=0x0000000c
+      val $shortCircuit.1: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb6
+    bb43 inline.42.entry
+      val $inline.42.$dependency.receiver: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $inline.42.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=5 bits=0x00000005
+      val $inline.42.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=5 bits=0x00000005
+      assign $inline.42.result
+        Type Int
+        IntegerLiteral Int value=12 bits=0x0000000c
+      goto bb42
+    bb44 inline.cont.44
+      val $dependency.receiver: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      goto bb4
+    bb45 inline.44.entry
+      assign $inline.44.result
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      goto bb44
+    bb46 inline.cont.46
+      val $dependency.receiver: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb3
+    bb47 inline.46.entry
+      assign $inline.46.result
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      goto bb46
+    bb48 inline.cont.48
+      val $dependency.receiver: Int
+        Type Int
+        Local $inline.48.result
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=21 bits=0x00000015
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=21 bits=0x00000015
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          IntegerLiteral Int value=21 bits=0x00000015
+    bb49 inline.48.entry
+      val $inline.54.this: Left
+        Type Left
+        Retype Left
+          Type Derived
+          Local $inline.48.this
+      goto bb55
+    bb50 inline.cont.50
+      val concrete: Derived
+        Type Derived
+        Local $new.1
+      val root: Root
+        Type Root
+        Retype Root
+          Type Derived
+          Local concrete
+      val diamond: Diamond
+        Type Diamond
+        Retype Diamond
+          Type Derived
+          Local concrete
+      val overloaded: Overloaded
+        Type Overloaded
+        Retype Overloaded
+          Type Derived
+          Local concrete
+      call @scoop_rt_gc_collect direct
+      val $receiver: Root
+        Type Root
+        Local root
+      val $inline.48.this: Derived
+        Type Derived
+        Retype Derived
+          Type Root
+          Local $receiver
+      goto bb49
+    bb51 inline.50.entry
+      val $inline.52.this: Base
+        Type Base
+        Retype Base
+          Type Derived
+          Local $inline.50.this
+      goto bb53
+    bb52 inline.cont.52
+      goto bb50
+    bb53 inline.52.entry
+      goto bb52
+    bb54 inline.cont.54
+      val $inline.48.$call.1: Int
+        Type Int
+        Local $inline.54.result
+      assign $inline.48.result
+        Type Int
+        Local $inline.48.$call.1
+      goto bb48
+    bb55 inline.54.entry
+      val $inline.54.$receiver: Left
+        Type Left
+        Local $inline.54.this
+      call $inline.54.$dependency.receiver: Int = @fn2 direct
+        Type Derived
+        Retype Derived
+          Type Root
+          Retype Root
+            Type Left
+            Local $inline.54.$receiver
+      val $inline.54.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $inline.54.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      assign $inline.54.result
+        Type Int
+        IntegerBinary multiply kind=Int
+          Type Int
+          Local $inline.54.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=3 bits=0x00000003
+      goto bb54
+    bb56 inline.cont.56
+      val $inline.38.$call.1: Int
+        Type Int
+        Local $inline.56.result
+      assign $inline.38.result
+        Type Int
+        Local $inline.38.$call.1
+      goto bb38
+    bb57 inline.56.entry
+      assign $inline.56.result
+        Type Int
+        FieldAccess 0
+          Type Small
+          Local $inline.56.this
+      goto bb56
+    bb58 inline.cont.58
+      val $inline.36.$call.1: Int
+        Type Int
+        Local $inline.58.result
+      assign $inline.36.result
+        Type Int
+        Local $inline.36.$call.1
+      goto bb36
+    bb59 inline.58.entry
+      val $inline.58.$receiver: Left
+        Type Left
+        Local $inline.58.this
+      call $inline.58.$dependency.receiver: Int = @fn33 direct
+        Type box<Small>
+        Retype box<Small>
+          Type Root
+          Retype Root
+            Type Left
+            Local $inline.58.$receiver
+      val $inline.58.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $inline.58.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      assign $inline.58.result
+        Type Int
+        IntegerBinary multiply kind=Int
+          Type Int
+          Local $inline.58.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=3 bits=0x00000003
+      goto bb58
+    bb60 inline.cont.60
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=9 bits=0x00000009
+      val $parameter.number: Int
+        Type Int
+        IntegerLiteral Int value=9 bits=0x00000009
+      val $inline.40.number: Int
+        Type Int
+        IntegerLiteral Int value=9 bits=0x00000009
+      goto bb41
+    bb61 inline.60.entry
+      val $inline.60.$dependency.receiver: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb62
+    bb62 inline.60.if.merge.2
+      goto bb60
   fun generic @fn7(value: Small) -> Int
     bb0 entry
       val $receiver: Small
         Type Small
         Local value
-      call $call.1: Int = @fn32 direct
+      val $inline.1.this: box<Small>
         Type box<Small>
         Retype box<Small>
           Type Left
           Box
             Type Small
             Local $receiver
+      goto bb2
+    bb1 inline.cont.1
+      val $call.1: Int
+        Type Int
+        Local $inline.1.result
       return
         Type Int
         Local $call.1
+    bb2 inline.1.entry
+      val $inline.3.this: Left
+        Type Left
+        Retype Left
+          Type box<Small>
+          Local $inline.1.this
+      goto bb4
+    bb3 inline.cont.3
+      val $inline.1.$call.1: Int
+        Type Int
+        Local $inline.3.result
+      assign $inline.1.result
+        Type Int
+        Local $inline.1.$call.1
+      goto bb1
+    bb4 inline.3.entry
+      val $inline.3.$receiver: Left
+        Type Left
+        Local $inline.3.this
+      call $inline.3.$dependency.receiver: Int = @fn33 direct
+        Type box<Small>
+        Retype box<Small>
+          Type Root
+          Retype Root
+            Type Left
+            Local $inline.3.$receiver
+      val $inline.3.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $inline.3.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      assign $inline.3.result
+        Type Int
+        IntegerBinary multiply kind=Int
+          Type Int
+          Local $inline.3.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=3 bits=0x00000003
+      goto bb3
   fun $lambda.0 @fn8($closure: (Int) -> Root, $arg.0: Int) -> Root
     bb0 entry
       call @scoop_rt_gc_collect direct
@@ -763,14 +1051,14 @@ Module
         IntegerLiteral Int value=2 bits=0x00000002
       val $dependency.parameter.other: Int
         Type Int
-        Local $dependency.argument.0
+        IntegerLiteral Int value=2 bits=0x00000002
       return
         Type Int
         IntegerBinary multiply kind=Int
           Type Int
           Local $dependency.receiver
           Type Int
-          Local $dependency.parameter.other
+          IntegerLiteral Int value=2 bits=0x00000002
   fun Left.twice @fn17(this: Left) -> Int
     bb0 entry
       val $receiver: Left
@@ -786,14 +1074,14 @@ Module
         IntegerLiteral Int value=3 bits=0x00000003
       val $dependency.parameter.other: Int
         Type Int
-        Local $dependency.argument.0
+        IntegerLiteral Int value=3 bits=0x00000003
       return
         Type Int
         IntegerBinary multiply kind=Int
           Type Int
           Local $dependency.receiver
           Type Int
-          Local $dependency.parameter.other
+          IntegerLiteral Int value=3 bits=0x00000003
   fun Overloaded.get @fn18(this: Overloaded) -> Int
     bb0 entry
       trap "call to abstract method `Overloaded.get`"
@@ -802,34 +1090,120 @@ Module
       trap "call to abstract method `Overloaded.get`"
   fun receiver<Base> Root.twice @fn20(this: Base) -> Int
     bb0 entry
-      call $call.1: Int = @fn16 direct
+      val $inline.1.this: Root
         Type Root
         Retype Root
           Type Base
           Local this
+      goto bb2
+    bb1 inline.cont.1
+      val $call.1: Int
+        Type Int
+        Local $inline.1.result
       return
         Type Int
         Local $call.1
+    bb2 inline.1.entry
+      val $inline.1.$receiver: Root
+        Type Root
+        Local $inline.1.this
+      call $inline.1.$dependency.receiver: Int = @fn15 interface Root[0]
+        Type Root
+        Local $inline.1.$receiver
+      val $inline.1.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.1.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      assign $inline.1.result
+        Type Int
+        IntegerBinary multiply kind=Int
+          Type Int
+          Local $inline.1.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=2 bits=0x00000002
+      goto bb1
   fun receiver<Derived> Diamond.twice @fn21(this: Derived) -> Int
     bb0 entry
-      call $call.1: Int = @fn17 direct
+      val $inline.1.this: Left
         Type Left
         Retype Left
           Type Derived
           Local this
+      goto bb2
+    bb1 inline.cont.1
+      val $call.1: Int
+        Type Int
+        Local $inline.1.result
       return
         Type Int
         Local $call.1
+    bb2 inline.1.entry
+      val $inline.1.$receiver: Left
+        Type Left
+        Local $inline.1.this
+      call $inline.1.$dependency.receiver: Int = @fn2 direct
+        Type Derived
+        Retype Derived
+          Type Root
+          Retype Root
+            Type Left
+            Local $inline.1.$receiver
+      val $inline.1.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $inline.1.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      assign $inline.1.result
+        Type Int
+        IntegerBinary multiply kind=Int
+          Type Int
+          Local $inline.1.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=3 bits=0x00000003
+      goto bb1
   fun receiver<Derived> Root.twice @fn22(this: Derived) -> Int
     bb0 entry
-      call $call.1: Int = @fn17 direct
+      val $inline.1.this: Left
         Type Left
         Retype Left
           Type Derived
           Local this
+      goto bb2
+    bb1 inline.cont.1
+      val $call.1: Int
+        Type Int
+        Local $inline.1.result
       return
         Type Int
         Local $call.1
+    bb2 inline.1.entry
+      val $inline.1.$receiver: Left
+        Type Left
+        Local $inline.1.this
+      call $inline.1.$dependency.receiver: Int = @fn2 direct
+        Type Derived
+        Retype Derived
+          Type Root
+          Retype Root
+            Type Left
+            Local $inline.1.$receiver
+      val $inline.1.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $inline.1.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      assign $inline.1.result
+        Type Int
+        IntegerBinary multiply kind=Int
+          Type Int
+          Local $inline.1.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=3 bits=0x00000003
+      goto bb1
   fun $reference.0 @fn23($closure: () -> Int) -> Int
     bb0 entry
       call $call.1: Int = @fn17 interface Left[1]
@@ -845,12 +1219,16 @@ Module
       return
   fun init.Derived.$c1 @fn25(this: Derived) -> Unit
     bb0 entry
-      call @fn24 direct
+      val $inline.1.this: Base
         Type Base
         Retype Base
           Type Derived
           Local this
+      goto bb2
+    bb1 inline.cont.1
       return
+    bb2 inline.1.entry
+      goto bb1
   fun ctor.Small.$c0 @fn26(number: Int) -> Small <no-gc>
     bb0 entry
       return
@@ -957,84 +1335,252 @@ Module
       goto bb6
   fun thunk<Small> Diamond.get() @fn29(this: box<Small>) -> Int
     bb0 entry
-      call $call.1: Int = @fn0 direct
+      val $inline.1.this: Small
         Type Small
         Unbox
           Type box<Small>
           Local this
+      goto bb2
+    bb1 inline.cont.1
+      val $call.1: Int
+        Type Int
+        Local $inline.1.result
       return
         Type Int
         Local $call.1
+    bb2 inline.1.entry
+      assign $inline.1.result
+        Type Int
+        FieldAccess 0
+          Type Small
+          Local $inline.1.this
+      goto bb1
   fun thunk<Small> Diamond.twice() @fn30(this: box<Small>) -> Int
     bb0 entry
-      call $call.1: Int = @fn17 direct
+      val $inline.1.this: Left
         Type Left
         Retype Left
           Type box<Small>
           Local this
+      goto bb2
+    bb1 inline.cont.1
+      val $call.1: Int
+        Type Int
+        Local $inline.1.result
       return
         Type Int
         Local $call.1
+    bb2 inline.1.entry
+      val $inline.1.$receiver: Left
+        Type Left
+        Local $inline.1.this
+      call $inline.1.$dependency.receiver: Int = @fn33 direct
+        Type box<Small>
+        Retype box<Small>
+          Type Root
+          Retype Root
+            Type Left
+            Local $inline.1.$receiver
+      val $inline.1.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $inline.1.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      assign $inline.1.result
+        Type Int
+        IntegerBinary multiply kind=Int
+          Type Int
+          Local $inline.1.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=3 bits=0x00000003
+      goto bb1
   fun thunk<Small> Left.get() @fn31(this: box<Small>) -> Int
     bb0 entry
-      call $call.1: Int = @fn0 direct
+      val $inline.1.this: Small
         Type Small
         Unbox
           Type box<Small>
           Local this
+      goto bb2
+    bb1 inline.cont.1
+      val $call.1: Int
+        Type Int
+        Local $inline.1.result
       return
         Type Int
         Local $call.1
+    bb2 inline.1.entry
+      assign $inline.1.result
+        Type Int
+        FieldAccess 0
+          Type Small
+          Local $inline.1.this
+      goto bb1
   fun thunk<Small> Left.twice() @fn32(this: box<Small>) -> Int
     bb0 entry
-      call $call.1: Int = @fn17 direct
+      val $inline.1.this: Left
         Type Left
         Retype Left
           Type box<Small>
           Local this
+      goto bb2
+    bb1 inline.cont.1
+      val $call.1: Int
+        Type Int
+        Local $inline.1.result
       return
         Type Int
         Local $call.1
+    bb2 inline.1.entry
+      val $inline.1.$receiver: Left
+        Type Left
+        Local $inline.1.this
+      call $inline.1.$dependency.receiver: Int = @fn33 direct
+        Type box<Small>
+        Retype box<Small>
+          Type Root
+          Retype Root
+            Type Left
+            Local $inline.1.$receiver
+      val $inline.1.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $inline.1.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      assign $inline.1.result
+        Type Int
+        IntegerBinary multiply kind=Int
+          Type Int
+          Local $inline.1.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=3 bits=0x00000003
+      goto bb1
   fun thunk<Small> Root.get() @fn33(this: box<Small>) -> Int
     bb0 entry
-      call $call.1: Int = @fn0 direct
+      val $inline.1.this: Small
         Type Small
         Unbox
           Type box<Small>
           Local this
+      goto bb2
+    bb1 inline.cont.1
+      val $call.1: Int
+        Type Int
+        Local $inline.1.result
       return
         Type Int
         Local $call.1
+    bb2 inline.1.entry
+      assign $inline.1.result
+        Type Int
+        FieldAccess 0
+          Type Small
+          Local $inline.1.this
+      goto bb1
   fun thunk<Small> Root.twice() @fn34(this: box<Small>) -> Int
     bb0 entry
-      call $call.1: Int = @fn17 direct
+      val $inline.1.this: Left
         Type Left
         Retype Left
           Type box<Small>
           Local this
+      goto bb2
+    bb1 inline.cont.1
+      val $call.1: Int
+        Type Int
+        Local $inline.1.result
       return
         Type Int
         Local $call.1
+    bb2 inline.1.entry
+      val $inline.1.$receiver: Left
+        Type Left
+        Local $inline.1.this
+      call $inline.1.$dependency.receiver: Int = @fn33 direct
+        Type box<Small>
+        Retype box<Small>
+          Type Root
+          Retype Root
+            Type Left
+            Local $inline.1.$receiver
+      val $inline.1.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $inline.1.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      assign $inline.1.result
+        Type Int
+        IntegerBinary multiply kind=Int
+          Type Int
+          Local $inline.1.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=3 bits=0x00000003
+      goto bb1
   fun thunk<Small> Right.get() @fn35(this: box<Small>) -> Int
     bb0 entry
-      call $call.1: Int = @fn0 direct
+      val $inline.1.this: Small
         Type Small
         Unbox
           Type box<Small>
           Local this
+      goto bb2
+    bb1 inline.cont.1
+      val $call.1: Int
+        Type Int
+        Local $inline.1.result
       return
         Type Int
         Local $call.1
+    bb2 inline.1.entry
+      assign $inline.1.result
+        Type Int
+        FieldAccess 0
+          Type Small
+          Local $inline.1.this
+      goto bb1
   fun thunk<Small> Right.twice() @fn36(this: box<Small>) -> Int
     bb0 entry
-      call $call.1: Int = @fn17 direct
+      val $inline.1.this: Left
         Type Left
         Retype Left
           Type box<Small>
           Local this
+      goto bb2
+    bb1 inline.cont.1
+      val $call.1: Int
+        Type Int
+        Local $inline.1.result
       return
         Type Int
         Local $call.1
+    bb2 inline.1.entry
+      val $inline.1.$receiver: Left
+        Type Left
+        Local $inline.1.this
+      call $inline.1.$dependency.receiver: Int = @fn33 direct
+        Type box<Small>
+        Retype box<Small>
+          Type Root
+          Retype Root
+            Type Left
+            Local $inline.1.$receiver
+      val $inline.1.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $inline.1.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      assign $inline.1.result
+        Type Int
+        IntegerBinary multiply kind=Int
+          Type Int
+          Local $inline.1.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=3 bits=0x00000003
+      goto bb1
   fun function_bridge.$Closure$lambda0.(Any) -> Any @fn37($source: (Int) -> Root, arg0: Any) -> Any
     bb0 entry
       call $call.1: Root = <closure:function_type0> closure[function_type0]

@@ -65,7 +65,7 @@ Module
         IntegerLiteral Int value=1 bits=0x00000001
       val $dependency.parameter.number: Int
         Type Int
-        Local $dependency.argument.0
+        IntegerLiteral Int value=1 bits=0x00000001
       assign $new.1
         Type Final
         ClassAlloc Final
@@ -73,7 +73,7 @@ Module
         Type Final
         Local $new.1
         Type Int
-        Local $dependency.parameter.number
+        IntegerLiteral Int value=1 bits=0x00000001
       val value: Base
         Type Base
         Retype Base
@@ -98,7 +98,7 @@ Module
         IntegerLiteral Int value=5 bits=0x00000005
       val $dependency.parameter.number: Int
         Type Int
-        Local $dependency.argument.0
+        IntegerLiteral Int value=5 bits=0x00000005
       assign $new.1
         Type Inherited
         ClassAlloc Inherited
@@ -106,7 +106,7 @@ Module
         Type Inherited
         Local $new.1
         Type Int
-        Local $dependency.parameter.number
+        IntegerLiteral Int value=5 bits=0x00000005
       val value: Base
         Type Base
         Retype Base
@@ -150,14 +150,14 @@ Module
         IntegerLiteral Int value=70 bits=0x00000046
       val $dependency.parameter.other: Int
         Type Int
-        Local $dependency.argument.0
+        IntegerLiteral Int value=70 bits=0x00000046
       branch bb1 bb2
         Type Boolean
         IntegerCompare equal operands=Int result=Boolean
           Type Int
           Local $dependency.receiver
           Type Int
-          Local $dependency.parameter.other
+          IntegerLiteral Int value=70 bits=0x00000046
     bb1 if.then.1
       call $dependency.receiver: Int = @fn2 direct
       val $dependency.argument.0: Int
@@ -165,14 +165,14 @@ Module
         IntegerLiteral Int value=5 bits=0x00000005
       val $dependency.parameter.other: Int
         Type Int
-        Local $dependency.argument.0
+        IntegerLiteral Int value=5 bits=0x00000005
       val $shortCircuit.0: Boolean
         Type Boolean
         IntegerCompare equal operands=Int result=Boolean
           Type Int
           Local $dependency.receiver
           Type Int
-          Local $dependency.parameter.other
+          IntegerLiteral Int value=5 bits=0x00000005
       goto bb3
     bb2 if.else.2
       val $shortCircuit.0: Boolean
@@ -194,7 +194,7 @@ Module
         IntegerLiteral Int value=1 bits=0x00000001
       val $dependency.parameter.number: Int
         Type Int
-        Local $dependency.argument.0
+        IntegerLiteral Int value=1 bits=0x00000001
       assign $new.1
         Type Final
         ClassAlloc Final
@@ -202,7 +202,7 @@ Module
         Type Final
         Local $new.1
         Type Int
-        Local $dependency.parameter.number
+        IntegerLiteral Int value=1 bits=0x00000001
       val $argument.0: Base
         Type Base
         Retype Base
@@ -211,64 +211,12 @@ Module
       val $parameter.value: Base
         Type Base
         Local $argument.0
-      call $dependency.receiver: Int = @fn3 direct
+      val $inline.13.value: Base
         Type Base
         Local $parameter.value
-      val $dependency.argument.0: Int
-        Type Int
-        IntegerLiteral Int value=70 bits=0x00000046
-      val $dependency.parameter.other: Int
-        Type Int
-        Local $dependency.argument.0
-      val $argument.0: Boolean
-        Type Boolean
-        IntegerCompare equal operands=Int result=Boolean
-          Type Int
-          Local $dependency.receiver
-          Type Int
-          Local $dependency.parameter.other
-      val $parameter.value: Boolean
-        Type Boolean
-        Local $argument.0
-      call @fn0 direct
-        Type Boolean
-        Local $parameter.value
-      call $argument.0: Base = external5 direct
-      val $parameter.value: Base
-        Type Base
-        Local $argument.0
-      call $dependency.receiver: Int = @fn3 direct
-        Type Base
-        Local $parameter.value
-      val $dependency.argument.0: Int
-        Type Int
-        IntegerLiteral Int value=99 bits=0x00000063
-      val $dependency.parameter.other: Int
-        Type Int
-        Local $dependency.argument.0
-      branch bb4 bb5
-        Type Boolean
-        IntegerCompare equal operands=Int result=Boolean
-          Type Int
-          Local $dependency.receiver
-          Type Int
-          Local $dependency.parameter.other
+      goto bb14
     bb4 if.then.4
-      call $dependency.receiver: Int = @fn4 direct
-      val $dependency.argument.0: Int
-        Type Int
-        IntegerLiteral Int value=99 bits=0x00000063
-      val $dependency.parameter.other: Int
-        Type Int
-        Local $dependency.argument.0
-      val $shortCircuit.1: Boolean
-        Type Boolean
-        IntegerCompare equal operands=Int result=Boolean
-          Type Int
-          Local $dependency.receiver
-          Type Int
-          Local $dependency.parameter.other
-      goto bb6
+      goto bb10
     bb5 if.else.5
       val $shortCircuit.1: Boolean
         Type Boolean
@@ -289,7 +237,7 @@ Module
         IntegerLiteral Int value=2 bits=0x00000002
       val $dependency.parameter.number: Int
         Type Int
-        Local $dependency.argument.0
+        IntegerLiteral Int value=2 bits=0x00000002
       assign $new.2
         Type Final
         ClassAlloc Final
@@ -297,29 +245,34 @@ Module
         Type Final
         Local $new.2
         Type Int
-        Local $dependency.parameter.number
+        IntegerLiteral Int value=2 bits=0x00000002
       val $dependency.argument.0: Final
         Type Final
         Local $new.2
       val $dependency.parameter.value: Final
         Type Final
         Local $dependency.argument.0
-      call $dependency.receiver: Int = @fn6 direct
+      val $inline.7.value: Final
         Type Final
         Local $dependency.parameter.value
+      goto bb8
+    bb7 inline.cont.7
+      val $dependency.receiver: Int
+        Type Int
+        Local $inline.7.result
       val $dependency.argument.0: Int
         Type Int
         IntegerLiteral Int value=70 bits=0x00000046
       val $dependency.parameter.other: Int
         Type Int
-        Local $dependency.argument.0
+        IntegerLiteral Int value=70 bits=0x00000046
       val $argument.0: Boolean
         Type Boolean
         IntegerCompare equal operands=Int result=Boolean
           Type Int
           Local $dependency.receiver
           Type Int
-          Local $dependency.parameter.other
+          IntegerLiteral Int value=70 bits=0x00000046
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
@@ -336,6 +289,116 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+    bb8 inline.7.entry
+      val $inline.7.$dependency.local.1: Final
+        Type Final
+        Local $inline.7.value
+      call $inline.7.$call.1: Int = external2 direct
+        Type Final
+        Local $inline.7.$dependency.local.1
+      assign $inline.7.result
+        Type Int
+        Local $inline.7.$call.1
+      goto bb7
+    bb9 inline.cont.9
+      val $dependency.receiver: Int
+        Type Int
+        Local $inline.9.result
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=99 bits=0x00000063
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=99 bits=0x00000063
+      val $shortCircuit.1: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          IntegerLiteral Int value=99 bits=0x00000063
+      goto bb6
+    bb10 inline.9.entry
+      call $inline.9.$dependency.receiver: Base = external5 direct
+      call $inline.9.$call.1: Int = external0 virtual[0]
+        Type Base
+        Local $inline.9.$dependency.receiver
+      assign $inline.9.result
+        Type Int
+        Local $inline.9.$call.1
+      goto bb9
+    bb11 inline.cont.11
+      val $dependency.receiver: Int
+        Type Int
+        Local $inline.11.result
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=99 bits=0x00000063
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=99 bits=0x00000063
+      branch bb4 bb5
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          IntegerLiteral Int value=99 bits=0x00000063
+    bb12 inline.11.entry
+      val $inline.11.$dependency.receiver: Base
+        Type Base
+        Local $inline.11.value
+      call $inline.11.$call.1: Int = external0 virtual[0]
+        Type Base
+        Local $inline.11.$dependency.receiver
+      assign $inline.11.result
+        Type Int
+        Local $inline.11.$call.1
+      goto bb11
+    bb13 inline.cont.13
+      val $dependency.receiver: Int
+        Type Int
+        Local $inline.13.result
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=70 bits=0x00000046
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=70 bits=0x00000046
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          IntegerLiteral Int value=70 bits=0x00000046
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      call $argument.0: Base = external5 direct
+      val $parameter.value: Base
+        Type Base
+        Local $argument.0
+      val $inline.11.value: Base
+        Type Base
+        Local $parameter.value
+      goto bb12
+    bb14 inline.13.entry
+      val $inline.13.$dependency.receiver: Base
+        Type Base
+        Local $inline.13.value
+      call $inline.13.$call.1: Int = external2 direct
+        Type Final
+        Retype Final
+          Type Base
+          Local $inline.13.$dependency.receiver
+      assign $inline.13.result
+        Type Int
+        Local $inline.13.$call.1
+      goto bb13
   fun generic @fn6(value: Final) -> Int
     bb0 entry
       val $dependency.local.1: Final

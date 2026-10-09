@@ -121,188 +121,202 @@ Module
     local %75 $dependency.parameter.value: ptr<managed>
     local %76 $new.1: ptr<managed>
     local %77 $new.2: ptr<managed>
+    local %78 $inline.1.this: ptr<managed>
+    local %79 $inline.1.number: i32
+    local %80 $inline.3.this: ptr<managed>
+    local %81 $inline.3.number: i32
   block entry
-    poll managed-void-target11 sp<managed-poll:0> live=[]
+    poll managed-void-target9 sp<managed-poll:0> live=[]
     store integer<Int>(0x0000000b) -> local0
-    store local0 -> local1
+    store integer<Int>(0x0000000b) -> local1
     call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td8, machine<byte-size>(ByteSize(24)))
     store t0 -> local76
-    call managed-void-target0 sp<managed-call:1> live=[local76:ptr<managed>@0] sig=void0 (ptr<managed>, i32) local-fn9(local76, local1)
-    t1 = aggregate () : {}
-    t2 = heap_load td8 +96 : ptr<metadata>
-    t3 = heap_load t2 +8 : ptr<metadata>
-    t4 = aggregate (local76, t3) : interface{object,itab}
-    store t4 -> local2
-    store integer<Int>(0x00000016) -> local3
-    store local3 -> local4
-    call managed-direct-target1 sp<managed-call:2> live=[local2:interface{object,itab}@0] t5 = sig=direct1 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td8, machine<byte-size>(ByteSize(24)))
-    store t5 -> local77
-    call managed-void-target1 sp<managed-call:3> live=[local2:interface{object,itab}@0, local77:ptr<managed>@0] sig=void1 (ptr<managed>, i32) local-fn9(local77, local4)
-    t6 = aggregate () : {}
-    t7 = heap_load td8 +96 : ptr<metadata>
-    t8 = heap_load t7 +8 : ptr<metadata>
-    t9 = aggregate (local77, t8) : interface{object,itab}
-    store t9 -> local5
+    store local76 -> local80
+    store integer<Int>(0x0000000b) -> local81
+    br @inline.3.entry
+  block inline.cont.1
+    t1 = heap_load td8 +96 : ptr<metadata>
+    t2 = heap_load t1 +8 : ptr<metadata>
+    t3 = aggregate (local77, t2) : interface{object,itab}
+    store t3 -> local5
     store local2 -> local6
     store local6 -> local7
-    t10 = extract local7, 0 : ptr<managed>
-    call managed-direct-target2 sp<managed-call:4> live=[local2:interface{object,itab}@0, local5:interface{object,itab}@0, t10:ptr<managed>@0] t11 = sig=direct2 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td9, machine<byte-size>(ByteSize(24)))
-    atomic_store Reference Relaxed t11 +16, t10
-    store t11 -> local8
+    t4 = extract local7, 0 : ptr<managed>
+    call managed-direct-target1 sp<managed-call:2> live=[local2:interface{object,itab}@0, local5:interface{object,itab}@0, t4:ptr<managed>@0] t5 = sig=direct1 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td9, machine<byte-size>(ByteSize(24)))
+    atomic_store Reference Relaxed t5 +16, t4
+    store t5 -> local8
     store local8 -> local9
-    t12 = enum_wrap e2 v4 () : enum2
-    store t12 -> local10
-    t13 = atomic_load Reference SeqCst local9 +16
-    t14 = heap_load t13 +0 : ptr<metadata>
-    call no-gc-direct-target0 t15 = sig=direct3 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t14, td0)
-    t16 = aggregate (t13, t15) : interface{object,itab}
-    store t16 -> local11
-    t17 = extract local11, 1 : ptr<metadata>
-    t18 = extract local11, 0 : ptr<managed>
-    call managed-direct-target3 sp<managed-call:5> live=[local2:interface{object,itab}@0, local5:interface{object,itab}@0, local8:ptr<managed>@0, t18:ptr<managed>@0] t19 = sig=direct4 (ptr<managed>) -> i32 dispatch[Interface:0] t17(t18)
-    store t19 -> local12
+    t6 = enum_wrap e2 v4 () : enum2
+    store t6 -> local10
+    t7 = atomic_load Reference SeqCst local9 +16
+    t8 = heap_load t7 +0 : ptr<metadata>
+    call no-gc-direct-target0 t9 = sig=direct2 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t8, td0)
+    t10 = aggregate (t7, t9) : interface{object,itab}
+    store t10 -> local11
+    t11 = extract local11, 1 : ptr<metadata>
+    t12 = extract local11, 0 : ptr<managed>
+    call managed-direct-target2 sp<managed-call:3> live=[local2:interface{object,itab}@0, local5:interface{object,itab}@0, local8:ptr<managed>@0, t12:ptr<managed>@0] t13 = sig=direct3 (ptr<managed>) -> i32 dispatch[Interface:0] t11(t12)
+    store t13 -> local12
     store integer<Int>(0x0000000b) -> local13
-    store local13 -> local14
-    t20 = integer_compare_Equal<Int> local12, local14 : i1
-    store t20 -> local15
+    store integer<Int>(0x0000000b) -> local14
+    t14 = integer_compare_Equal<Int> local12, integer<Int>(0x0000000b) : i1
+    store t14 -> local15
     store local15 -> local16
-    call managed-void-target2 sp<managed-call:6> live=[local2:interface{object,itab}@0, local5:interface{object,itab}@0, local8:ptr<managed>@0] sig=void2 (i1) local-fn1(local16)
-    t21 = aggregate () : {}
+    call managed-void-target0 sp<managed-call:4> live=[local2:interface{object,itab}@0, local5:interface{object,itab}@0, local8:ptr<managed>@0] sig=void0 (i1) local-fn1(local16)
+    t15 = aggregate () : {}
     store local8 -> local17
     store local5 -> local18
     store local18 -> local19
-    t22 = enum_wrap e2 v4 () : enum2
-    store t22 -> local20
-    t23 = extract local19, 0 : ptr<managed>
-    t24 = atomic_rmw Reference Exchange SeqCst local17 +16, t23
-    t25 = heap_load t24 +0 : ptr<metadata>
-    call no-gc-direct-target1 t26 = sig=direct5 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t25, td0)
-    t27 = aggregate (t24, t26) : interface{object,itab}
-    t28 = extract t27, 0 : ptr<managed>
-    t29 = extract local2, 0 : ptr<managed>
-    t30 = Eq t28, t29 : i1
-    store t30 -> local21
+    t16 = enum_wrap e2 v4 () : enum2
+    store t16 -> local20
+    t17 = extract local19, 0 : ptr<managed>
+    t18 = atomic_rmw Reference Exchange SeqCst local17 +16, t17
+    t19 = heap_load t18 +0 : ptr<metadata>
+    call no-gc-direct-target1 t20 = sig=direct4 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t19, td0)
+    t21 = aggregate (t18, t20) : interface{object,itab}
+    t22 = extract t21, 0 : ptr<managed>
+    t23 = extract local2, 0 : ptr<managed>
+    t24 = Eq t22, t23 : i1
+    store t24 -> local21
     store local21 -> local22
-    call managed-void-target3 sp<managed-call:7> live=[local2:interface{object,itab}@0, local5:interface{object,itab}@0, local8:ptr<managed>@0] sig=void3 (i1) local-fn1(local22)
-    t31 = aggregate () : {}
+    call managed-void-target1 sp<managed-call:5> live=[local2:interface{object,itab}@0, local5:interface{object,itab}@0, local8:ptr<managed>@0] sig=void1 (i1) local-fn1(local22)
+    t25 = aggregate () : {}
     store local8 -> local23
     store local2 -> local24
     store local5 -> local25
     store local24 -> local26
     store local25 -> local27
-    t32 = enum_wrap e2 v4 () : enum2
-    store t32 -> local28
-    t33 = enum_wrap e2 v4 () : enum2
-    store t33 -> local29
-    t34 = extract local26, 0 : ptr<managed>
-    t35 = extract local27, 0 : ptr<managed>
-    t36 = atomic_cmpxchg Reference ObservedValue success=SeqCst failure=SeqCst local23 +16, t34, t35
-    t37 = heap_load t36 +0 : ptr<metadata>
-    call no-gc-direct-target2 t38 = sig=direct6 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t37, td0)
-    t39 = aggregate (t36, t38) : interface{object,itab}
-    t40 = extract t39, 0 : ptr<managed>
-    t41 = extract local5, 0 : ptr<managed>
-    t42 = Eq t40, t41 : i1
-    store t42 -> local30
+    t26 = enum_wrap e2 v4 () : enum2
+    store t26 -> local28
+    t27 = enum_wrap e2 v4 () : enum2
+    store t27 -> local29
+    t28 = extract local26, 0 : ptr<managed>
+    t29 = extract local27, 0 : ptr<managed>
+    t30 = atomic_cmpxchg Reference ObservedValue success=SeqCst failure=SeqCst local23 +16, t28, t29
+    t31 = heap_load t30 +0 : ptr<metadata>
+    call no-gc-direct-target2 t32 = sig=direct5 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t31, td0)
+    t33 = aggregate (t30, t32) : interface{object,itab}
+    t34 = extract t33, 0 : ptr<managed>
+    t35 = extract local5, 0 : ptr<managed>
+    t36 = Eq t34, t35 : i1
+    store t36 -> local30
     store local30 -> local31
-    call managed-void-target4 sp<managed-call:8> live=[local2:interface{object,itab}@0, local5:interface{object,itab}@0, local8:ptr<managed>@0] sig=void4 (i1) local-fn1(local31)
-    t43 = aggregate () : {}
+    call managed-void-target2 sp<managed-call:6> live=[local2:interface{object,itab}@0, local5:interface{object,itab}@0, local8:ptr<managed>@0] sig=void2 (i1) local-fn1(local31)
+    t37 = aggregate () : {}
     store local8 -> local32
     store local5 -> local33
     store local2 -> local34
     store local33 -> local35
     store local34 -> local36
-    t44 = enum_wrap e2 v4 () : enum2
-    store t44 -> local37
-    t45 = enum_wrap e2 v4 () : enum2
-    store t45 -> local38
-    t46 = extract local35, 0 : ptr<managed>
-    t47 = extract local36, 0 : ptr<managed>
-    t48 = atomic_cmpxchg Reference ObservedValue success=SeqCst failure=SeqCst local32 +16, t46, t47
-    t49 = heap_load t48 +0 : ptr<metadata>
-    call no-gc-direct-target3 t50 = sig=direct7 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t49, td0)
-    t51 = aggregate (t48, t50) : interface{object,itab}
-    store t51 -> local39
-    t52 = extract local39, 1 : ptr<metadata>
-    t53 = extract local39, 0 : ptr<managed>
-    call managed-direct-target4 sp<managed-call:9> live=[local2:interface{object,itab}@0, local5:interface{object,itab}@0, local8:ptr<managed>@0, t53:ptr<managed>@0] t54 = sig=direct8 (ptr<managed>) -> i32 dispatch[Interface:0] t52(t53)
-    store t54 -> local40
+    t38 = enum_wrap e2 v4 () : enum2
+    store t38 -> local37
+    t39 = enum_wrap e2 v4 () : enum2
+    store t39 -> local38
+    t40 = extract local35, 0 : ptr<managed>
+    t41 = extract local36, 0 : ptr<managed>
+    t42 = atomic_cmpxchg Reference ObservedValue success=SeqCst failure=SeqCst local32 +16, t40, t41
+    t43 = heap_load t42 +0 : ptr<metadata>
+    call no-gc-direct-target3 t44 = sig=direct6 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t43, td0)
+    t45 = aggregate (t42, t44) : interface{object,itab}
+    store t45 -> local39
+    t46 = extract local39, 1 : ptr<metadata>
+    t47 = extract local39, 0 : ptr<managed>
+    call managed-direct-target3 sp<managed-call:7> live=[local2:interface{object,itab}@0, local5:interface{object,itab}@0, local8:ptr<managed>@0, t47:ptr<managed>@0] t48 = sig=direct7 (ptr<managed>) -> i32 dispatch[Interface:0] t46(t47)
+    store t48 -> local40
     store integer<Int>(0x00000016) -> local41
-    store local41 -> local42
-    t55 = integer_compare_Equal<Int> local40, local42 : i1
-    store t55 -> local43
+    store integer<Int>(0x00000016) -> local42
+    t49 = integer_compare_Equal<Int> local40, integer<Int>(0x00000016) : i1
+    store t49 -> local43
     store local43 -> local44
-    call managed-void-target5 sp<managed-call:10> live=[local2:interface{object,itab}@0, local5:interface{object,itab}@0, local8:ptr<managed>@0] sig=void5 (i1) local-fn1(local44)
-    t56 = aggregate () : {}
+    call managed-void-target3 sp<managed-call:8> live=[local2:interface{object,itab}@0, local5:interface{object,itab}@0, local8:ptr<managed>@0] sig=void3 (i1) local-fn1(local44)
+    t50 = aggregate () : {}
     store local8 -> local45
     store local2 -> local46
     store local5 -> local47
     store local46 -> local48
     store local47 -> local49
-    t57 = enum_wrap e2 v4 () : enum2
-    store t57 -> local50
-    t58 = enum_wrap e2 v4 () : enum2
-    store t58 -> local51
-    t59 = extract local48, 0 : ptr<managed>
-    t60 = extract local49, 0 : ptr<managed>
-    t61 = atomic_cmpxchg Reference Success success=SeqCst failure=SeqCst local45 +16, t59, t60
-    store t61 -> local52
+    t51 = enum_wrap e2 v4 () : enum2
+    store t51 -> local50
+    t52 = enum_wrap e2 v4 () : enum2
+    store t52 -> local51
+    t53 = extract local48, 0 : ptr<managed>
+    t54 = extract local49, 0 : ptr<managed>
+    t55 = atomic_cmpxchg Reference Success success=SeqCst failure=SeqCst local45 +16, t53, t54
+    store t55 -> local52
     store local52 -> local53
-    call managed-void-target6 sp<managed-call:11> live=[local2:interface{object,itab}@0, local8:ptr<managed>@0] sig=void6 (i1) local-fn1(local53)
-    t62 = aggregate () : {}
-    call managed-void-target7 sp<managed-call:12> live=[local2:interface{object,itab}@0, local8:ptr<managed>@0] sig=void7 () runtime @scoop_rt_gc_collect()
-    t63 = aggregate () : {}
+    call managed-void-target4 sp<managed-call:9> live=[local2:interface{object,itab}@0, local8:ptr<managed>@0] sig=void4 (i1) local-fn1(local53)
+    t56 = aggregate () : {}
+    call managed-void-target5 sp<managed-call:10> live=[local2:interface{object,itab}@0, local8:ptr<managed>@0] sig=void5 () runtime @scoop_rt_gc_collect()
+    t57 = aggregate () : {}
     store local8 -> local54
-    t64 = enum_wrap e2 v4 () : enum2
-    store t64 -> local55
-    t65 = atomic_load Reference SeqCst local54 +16
-    t66 = heap_load t65 +0 : ptr<metadata>
-    call no-gc-direct-target4 t67 = sig=direct9 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t66, td0)
-    t68 = aggregate (t65, t67) : interface{object,itab}
-    store t68 -> local56
-    t69 = extract local56, 1 : ptr<metadata>
-    t70 = extract local56, 0 : ptr<managed>
-    call managed-direct-target5 sp<managed-call:13> live=[local2:interface{object,itab}@0, local8:ptr<managed>@0, t70:ptr<managed>@0] t71 = sig=direct10 (ptr<managed>) -> i32 dispatch[Interface:0] t69(t70)
-    store t71 -> local57
+    t58 = enum_wrap e2 v4 () : enum2
+    store t58 -> local55
+    t59 = atomic_load Reference SeqCst local54 +16
+    t60 = heap_load t59 +0 : ptr<metadata>
+    call no-gc-direct-target4 t61 = sig=direct8 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t60, td0)
+    t62 = aggregate (t59, t61) : interface{object,itab}
+    store t62 -> local56
+    t63 = extract local56, 1 : ptr<metadata>
+    t64 = extract local56, 0 : ptr<managed>
+    call managed-direct-target4 sp<managed-call:11> live=[local2:interface{object,itab}@0, local8:ptr<managed>@0, t64:ptr<managed>@0] t65 = sig=direct9 (ptr<managed>) -> i32 dispatch[Interface:0] t63(t64)
+    store t65 -> local57
     store integer<Int>(0x00000016) -> local58
-    store local58 -> local59
-    t72 = integer_compare_Equal<Int> local57, local59 : i1
-    store t72 -> local60
+    store integer<Int>(0x00000016) -> local59
+    t66 = integer_compare_Equal<Int> local57, integer<Int>(0x00000016) : i1
+    store t66 -> local60
     store local60 -> local61
-    call managed-void-target8 sp<managed-call:14> live=[local2:interface{object,itab}@0, local8:ptr<managed>@0] sig=void8 (i1) local-fn1(local61)
-    t73 = aggregate () : {}
+    call managed-void-target6 sp<managed-call:12> live=[local2:interface{object,itab}@0, local8:ptr<managed>@0] sig=void6 (i1) local-fn1(local61)
+    t67 = aggregate () : {}
     store local8 -> local62
     store local2 -> local63
     store local63 -> local64
-    t74 = enum_wrap e2 v4 () : enum2
-    store t74 -> local65
-    t75 = extract local64, 0 : ptr<managed>
-    atomic_store Reference SeqCst local62 +16, t75
-    t76 = aggregate () : {}
+    t68 = enum_wrap e2 v4 () : enum2
+    store t68 -> local65
+    t69 = extract local64, 0 : ptr<managed>
+    atomic_store Reference SeqCst local62 +16, t69
+    t70 = aggregate () : {}
     store local8 -> local66
-    t77 = enum_wrap e2 v4 () : enum2
-    store t77 -> local67
-    t78 = atomic_load Reference SeqCst local66 +16
-    t79 = heap_load t78 +0 : ptr<metadata>
-    call no-gc-direct-target5 t80 = sig=direct11 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t79, td0)
-    t81 = aggregate (t78, t80) : interface{object,itab}
-    store t81 -> local68
-    t82 = extract local68, 1 : ptr<metadata>
-    t83 = extract local68, 0 : ptr<managed>
-    call managed-direct-target6 sp<managed-call:15> live=[t83:ptr<managed>@0] t84 = sig=direct12 (ptr<managed>) -> i32 dispatch[Interface:0] t82(t83)
-    store t84 -> local69
+    t71 = enum_wrap e2 v4 () : enum2
+    store t71 -> local67
+    t72 = atomic_load Reference SeqCst local66 +16
+    t73 = heap_load t72 +0 : ptr<metadata>
+    call no-gc-direct-target5 t74 = sig=direct10 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t73, td0)
+    t75 = aggregate (t72, t74) : interface{object,itab}
+    store t75 -> local68
+    t76 = extract local68, 1 : ptr<metadata>
+    t77 = extract local68, 0 : ptr<managed>
+    call managed-direct-target5 sp<managed-call:13> live=[t77:ptr<managed>@0] t78 = sig=direct11 (ptr<managed>) -> i32 dispatch[Interface:0] t76(t77)
+    store t78 -> local69
     store integer<Int>(0x0000000b) -> local70
-    store local70 -> local71
-    t85 = integer_compare_Equal<Int> local69, local71 : i1
-    store t85 -> local72
+    store integer<Int>(0x0000000b) -> local71
+    t79 = integer_compare_Equal<Int> local69, integer<Int>(0x0000000b) : i1
+    store t79 -> local72
     store local72 -> local73
-    call managed-void-target9 sp<managed-call:16> live=[] sig=void9 (i1) local-fn1(local73)
-    t86 = aggregate () : {}
+    call managed-void-target7 sp<managed-call:14> live=[] sig=void7 (i1) local-fn1(local73)
+    t80 = aggregate () : {}
     store global1 -> local74
     store local74 -> local75
-    call managed-void-target10 sp<managed-call:17> live=[local75:ptr<managed>@0] sig=void10 (ptr<managed>) local-fn3(local75)
-    t87 = aggregate () : {}
+    call managed-void-target8 sp<managed-call:15> live=[local75:ptr<managed>@0] sig=void8 (ptr<managed>) local-fn3(local75)
+    t81 = aggregate () : {}
     ret
+  block inline.1.entry
+    heap_store local78 +16 integer<Int>(0x00000016)
+    br @inline.cont.1
+  block inline.cont.3
+    t82 = heap_load td8 +96 : ptr<metadata>
+    t83 = heap_load t82 +8 : ptr<metadata>
+    t84 = aggregate (local76, t83) : interface{object,itab}
+    store t84 -> local2
+    store integer<Int>(0x00000016) -> local3
+    store integer<Int>(0x00000016) -> local4
+    call managed-direct-target6 sp<managed-call:1> live=[local2:interface{object,itab}@0] t85 = sig=direct12 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td8, machine<byte-size>(ByteSize(24)))
+    store t85 -> local77
+    store local77 -> local78
+    store integer<Int>(0x00000016) -> local79
+    br @inline.1.entry
+  block inline.3.entry
+    heap_store local80 +16 integer<Int>(0x0000000b)
+    br @inline.cont.3
   fun @scoop$1$cb$43be1945af2e9ba3587bf2ead706ac7563f8181567977803f1aaa99bf055da0f(ptr<managed>) -> void
     local %0 $dependency.local.1: ptr<managed>
     local %1 $dependency.local.2: ptr<managed>

@@ -1,6 +1,9 @@
 use std::collections::{HashSet, VecDeque};
 
-use super::mir;
+use super::{
+    constants::{self, Constant},
+    mir,
+};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) enum ActualType {
@@ -9,12 +12,26 @@ pub(super) enum ActualType {
     Closure(mir::ClosureClassId),
 }
 
-pub(super) type State = Vec<ActualType>;
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) struct ValueFacts {
+    pub actual: ActualType,
+    pub constant: Option<Constant>,
+}
+
+impl ValueFacts {
+    pub const UNKNOWN: Self = Self {
+        actual: ActualType::Unknown,
+        constant: None,
+    };
+}
+
+pub(super) type State = Vec<ValueFacts>;
 
 pub(super) struct Analysis<'a> {
     module: &'a mir::Module,
     function: &'a mir::Function,
     addressed: HashSet<mir::LocalId>,
+    initial: State,
 }
 
 impl<'a> Analysis<'a> {
@@ -27,25 +44,41 @@ impl<'a> Analysis<'a> {
                 }
             });
         }
-        Self {
+        let mut analysis = Self {
             module,
             function,
             addressed,
+            initial: Vec::new(),
+        };
+        let mut initial = vec![ValueFacts::UNKNOWN; function.body.locals.len()];
+        for parameter in &function.params {
+            analysis.assign(
+                parameter.local,
+                analysis.static_facts(&parameter.ty),
+                &mut initial,
+            );
         }
+        analysis.initial = initial;
+        analysis
+    }
+
+    pub fn with_arguments(mut self, arguments: &[ValueFacts]) -> Self {
+        for (parameter, argument) in self.function.params.iter().zip(arguments) {
+            if !self.addressed.contains(&parameter.local) {
+                let mut facts = *argument;
+                if facts.actual == ActualType::Unknown {
+                    facts.actual = self.static_type(&parameter.ty);
+                }
+                self.initial[parameter.local.into_raw().into_u32() as usize] = facts;
+            }
+        }
+        self
     }
 
     pub fn solve(&self) -> Vec<Option<State>> {
         let body = &self.function.body;
         let mut incoming = vec![None; body.blocks.len()];
-        let mut initial = vec![ActualType::Unknown; body.locals.len()];
-        for parameter in &self.function.params {
-            self.assign(
-                parameter.local,
-                self.static_type(&parameter.ty),
-                &mut initial,
-            );
-        }
-        incoming[index(body.entry)] = Some(initial);
+        incoming[index(body.entry)] = Some(self.initial.clone());
         let mut pending = VecDeque::from([body.entry]);
         let mut queued = vec![false; body.blocks.len()];
         queued[index(body.entry)] = true;
@@ -84,9 +117,9 @@ impl<'a> Analysis<'a> {
                     cond,
                     then_block,
                     else_block,
-                } => match cond.kind {
-                    mir::ExprKind::BoolLiteral(true) => propagate(*then_block, &state),
-                    mir::ExprKind::BoolLiteral(false) => propagate(*else_block, &state),
+                } => match self.expression(cond, &state).constant {
+                    Some(Constant::Boolean(true)) => propagate(*then_block, &state),
+                    Some(Constant::Boolean(false)) => propagate(*else_block, &state),
                     _ => {
                         propagate(*then_block, &state);
                         propagate(*else_block, &state);
@@ -119,7 +152,7 @@ impl<'a> Analysis<'a> {
             mir::StatementKind::Call(mir::CallEffect::Value { destination, .. }) => {
                 self.assign(
                     *destination,
-                    self.static_type(&self.function.body.locals[*destination].ty),
+                    self.static_facts(&self.function.body.locals[*destination].ty),
                     state,
                 );
             }
@@ -134,12 +167,19 @@ impl<'a> Analysis<'a> {
         }
     }
 
-    fn assign(&self, local: mir::LocalId, value: ActualType, state: &mut State) {
+    fn assign(&self, local: mir::LocalId, value: ValueFacts, state: &mut State) {
         state[local.into_raw().into_u32() as usize] = if self.addressed.contains(&local) {
-            ActualType::Unknown
+            ValueFacts::UNKNOWN
         } else {
             value
         };
+    }
+
+    fn static_facts(&self, ty: &mir::Type) -> ValueFacts {
+        ValueFacts {
+            actual: self.static_type(ty),
+            constant: None,
+        }
     }
 
     fn static_type(&self, ty: &mir::Type) -> ActualType {
@@ -153,14 +193,14 @@ impl<'a> Analysis<'a> {
         }
     }
 
-    pub fn expression(&self, expression: &mir::Expr, state: &State) -> ActualType {
-        match &expression.kind {
+    pub fn expression(&self, expression: &mir::Expr, state: &State) -> ValueFacts {
+        let actual = match &expression.kind {
             mir::ExprKind::Local(local) => {
-                if self.addressed.contains(local) {
-                    ActualType::Unknown
+                return if self.addressed.contains(local) {
+                    ValueFacts::UNKNOWN
                 } else {
                     state[local.into_raw().into_u32() as usize]
-                }
+                };
             }
             mir::ExprKind::ClassAlloc { class_id } => ActualType::Class(*class_id),
             mir::ExprKind::ClosureAlloc { class, .. } => ActualType::Closure(*class),
@@ -173,7 +213,7 @@ impl<'a> Analysis<'a> {
                 operand,
                 optional: false,
             } => {
-                let actual = self.expression(operand, state);
+                let actual = self.expression(operand, state).actual;
                 if actual == ActualType::Unknown {
                     self.static_type(&expression.ty)
                 } else {
@@ -190,6 +230,12 @@ impl<'a> Analysis<'a> {
                     ActualType::Class(boxed.class())
                 }),
             _ => self.static_type(&expression.ty),
+        };
+        ValueFacts {
+            actual,
+            constant: constants::evaluate(expression, |operand| {
+                self.expression(operand, state).constant
+            }),
         }
     }
 }
@@ -201,8 +247,12 @@ fn index(block: mir::BlockId) -> usize {
 fn merge(target: &mut State, source: &State) -> bool {
     let mut changed = false;
     for (target, source) in target.iter_mut().zip(source) {
-        if *target != *source && *target != ActualType::Unknown {
-            *target = ActualType::Unknown;
+        if target.actual != source.actual && target.actual != ActualType::Unknown {
+            target.actual = ActualType::Unknown;
+            changed = true;
+        }
+        if target.constant != source.constant && target.constant.is_some() {
+            target.constant = None;
             changed = true;
         }
     }

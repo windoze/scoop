@@ -266,7 +266,7 @@ mod tests {
         );
         assert_eq!(
             descriptor.fingerprint().unwrap().to_string(),
-            "9c57315fa9f82ac6b90223a3d39740d569108042e4e7d02ae424ad3ee51a2e43"
+            "a34960d3760496a3fe9c31e2a55b3897fdfd1cdf6cfc68352fb330ceb17a59b9"
         );
     }
 
@@ -290,7 +290,7 @@ mod tests {
         );
         assert_eq!(
             record.artifact_profile_fingerprint().to_string(),
-            "87b4f913e3b9d8eac27308776a203e8a6881f4b8b7a10f0590336be009337026"
+            "a478265f67adb46dd4d14a01a443b6177ffbedfd9625c95b31e61fdd4a47dbd7"
         );
     }
 

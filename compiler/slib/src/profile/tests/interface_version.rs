@@ -34,10 +34,10 @@ fn mir_type_bridge_v18_retains_concrete_interface_receivers() {
 }
 
 #[test]
-fn mir_foundation_v5_retains_callback_snapshot_abi() {
+fn mir_foundation_v6_keeps_implementation_identities_out_of_semantic_fingerprints() {
     assert_retired_version(
         mir_identity_foundation_capability(),
-        5,
+        6,
         MemberPurposeSet::COMPILE_AND_LINK,
         &[
             ArtifactCapabilityProfile::SINGLE_CONE_STRONG,

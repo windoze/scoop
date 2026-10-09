@@ -1,0 +1,370 @@
+{
+  "revision": "codex/m34-M34-3b",
+  "host": "Linux-7.0.0-38-generic-x86_64-with-glibc2.43",
+  "profile": "release",
+  "runs": 7,
+  "build_args": [
+    "--target",
+    "x86_64-unknown-linux-gnu",
+    "--unwind-prefix",
+    "/home/chenxu/repos/scoop/sysroot/native/x86_64-unknown-linux-gnu/unwind"
+  ],
+  "gc_stats": true,
+  "compare_full": false,
+  "cases": [
+    {
+      "name": "mir-inlining",
+      "cold_build_seconds": 84.46869824800524,
+      "warm_build_seconds": 3.1644364520034287,
+      "run_seconds": [
+        0.03697955998359248,
+        0.035466872999677435,
+        0.03511468999204226,
+        0.03502540398039855,
+        0.03622724598972127,
+        0.03717187701840885,
+        0.03548089199466631
+      ],
+      "gc": [
+        {
+          "scoop_gc": 1,
+          "minor_collections": 0,
+          "full_collections": 0,
+          "promotion_fallbacks": 0,
+          "allocated_bytes": 112,
+          "nursery_allocated_bytes": 112,
+          "promoted_bytes": 0,
+          "copied_bytes": 0,
+          "dirty_cards": 0,
+          "old_reference_slots": 0,
+          "root_slots": 0,
+          "traced_objects": 0,
+          "pause_ns": 0,
+          "maximum_pause_ns": 0,
+          "committed_bytes": 32768,
+          "minor_pause_ns": 0,
+          "full_pause_ns": 0,
+          "pause_bucket_upper_ns": [
+            10000,
+            50000,
+            100000,
+            500000,
+            1000000,
+            5000000,
+            10000000,
+            null
+          ],
+          "pause_buckets": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "scoop_gc": 1,
+          "minor_collections": 0,
+          "full_collections": 0,
+          "promotion_fallbacks": 0,
+          "allocated_bytes": 112,
+          "nursery_allocated_bytes": 112,
+          "promoted_bytes": 0,
+          "copied_bytes": 0,
+          "dirty_cards": 0,
+          "old_reference_slots": 0,
+          "root_slots": 0,
+          "traced_objects": 0,
+          "pause_ns": 0,
+          "maximum_pause_ns": 0,
+          "committed_bytes": 32768,
+          "minor_pause_ns": 0,
+          "full_pause_ns": 0,
+          "pause_bucket_upper_ns": [
+            10000,
+            50000,
+            100000,
+            500000,
+            1000000,
+            5000000,
+            10000000,
+            null
+          ],
+          "pause_buckets": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "scoop_gc": 1,
+          "minor_collections": 0,
+          "full_collections": 0,
+          "promotion_fallbacks": 0,
+          "allocated_bytes": 112,
+          "nursery_allocated_bytes": 112,
+          "promoted_bytes": 0,
+          "copied_bytes": 0,
+          "dirty_cards": 0,
+          "old_reference_slots": 0,
+          "root_slots": 0,
+          "traced_objects": 0,
+          "pause_ns": 0,
+          "maximum_pause_ns": 0,
+          "committed_bytes": 32768,
+          "minor_pause_ns": 0,
+          "full_pause_ns": 0,
+          "pause_bucket_upper_ns": [
+            10000,
+            50000,
+            100000,
+            500000,
+            1000000,
+            5000000,
+            10000000,
+            null
+          ],
+          "pause_buckets": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "scoop_gc": 1,
+          "minor_collections": 0,
+          "full_collections": 0,
+          "promotion_fallbacks": 0,
+          "allocated_bytes": 112,
+          "nursery_allocated_bytes": 112,
+          "promoted_bytes": 0,
+          "copied_bytes": 0,
+          "dirty_cards": 0,
+          "old_reference_slots": 0,
+          "root_slots": 0,
+          "traced_objects": 0,
+          "pause_ns": 0,
+          "maximum_pause_ns": 0,
+          "committed_bytes": 32768,
+          "minor_pause_ns": 0,
+          "full_pause_ns": 0,
+          "pause_bucket_upper_ns": [
+            10000,
+            50000,
+            100000,
+            500000,
+            1000000,
+            5000000,
+            10000000,
+            null
+          ],
+          "pause_buckets": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "scoop_gc": 1,
+          "minor_collections": 0,
+          "full_collections": 0,
+          "promotion_fallbacks": 0,
+          "allocated_bytes": 112,
+          "nursery_allocated_bytes": 112,
+          "promoted_bytes": 0,
+          "copied_bytes": 0,
+          "dirty_cards": 0,
+          "old_reference_slots": 0,
+          "root_slots": 0,
+          "traced_objects": 0,
+          "pause_ns": 0,
+          "maximum_pause_ns": 0,
+          "committed_bytes": 32768,
+          "minor_pause_ns": 0,
+          "full_pause_ns": 0,
+          "pause_bucket_upper_ns": [
+            10000,
+            50000,
+            100000,
+            500000,
+            1000000,
+            5000000,
+            10000000,
+            null
+          ],
+          "pause_buckets": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "scoop_gc": 1,
+          "minor_collections": 0,
+          "full_collections": 0,
+          "promotion_fallbacks": 0,
+          "allocated_bytes": 112,
+          "nursery_allocated_bytes": 112,
+          "promoted_bytes": 0,
+          "copied_bytes": 0,
+          "dirty_cards": 0,
+          "old_reference_slots": 0,
+          "root_slots": 0,
+          "traced_objects": 0,
+          "pause_ns": 0,
+          "maximum_pause_ns": 0,
+          "committed_bytes": 32768,
+          "minor_pause_ns": 0,
+          "full_pause_ns": 0,
+          "pause_bucket_upper_ns": [
+            10000,
+            50000,
+            100000,
+            500000,
+            1000000,
+            5000000,
+            10000000,
+            null
+          ],
+          "pause_buckets": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "scoop_gc": 1,
+          "minor_collections": 0,
+          "full_collections": 0,
+          "promotion_fallbacks": 0,
+          "allocated_bytes": 112,
+          "nursery_allocated_bytes": 112,
+          "promoted_bytes": 0,
+          "copied_bytes": 0,
+          "dirty_cards": 0,
+          "old_reference_slots": 0,
+          "root_slots": 0,
+          "traced_objects": 0,
+          "pause_ns": 0,
+          "maximum_pause_ns": 0,
+          "committed_bytes": 32768,
+          "minor_pause_ns": 0,
+          "full_pause_ns": 0,
+          "pause_bucket_upper_ns": [
+            10000,
+            50000,
+            100000,
+            500000,
+            1000000,
+            5000000,
+            10000000,
+            null
+          ],
+          "pause_buckets": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      ],
+      "stderr": [
+        "{\"scoop_gc\":1,\"minor_collections\":0,\"full_collections\":0,\"promotion_fallbacks\":0,\"allocated_bytes\":112,\"nursery_allocated_bytes\":112,\"promoted_bytes\":0,\"copied_bytes\":0,\"dirty_cards\":0,\"old_reference_slots\":0,\"root_slots\":0,\"traced_objects\":0,\"pause_ns\":0,\"maximum_pause_ns\":0,\"committed_bytes\":32768,\"minor_pause_ns\":0,\"full_pause_ns\":0,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,0,0,0,0,0]}\n",
+        "{\"scoop_gc\":1,\"minor_collections\":0,\"full_collections\":0,\"promotion_fallbacks\":0,\"allocated_bytes\":112,\"nursery_allocated_bytes\":112,\"promoted_bytes\":0,\"copied_bytes\":0,\"dirty_cards\":0,\"old_reference_slots\":0,\"root_slots\":0,\"traced_objects\":0,\"pause_ns\":0,\"maximum_pause_ns\":0,\"committed_bytes\":32768,\"minor_pause_ns\":0,\"full_pause_ns\":0,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,0,0,0,0,0]}\n",
+        "{\"scoop_gc\":1,\"minor_collections\":0,\"full_collections\":0,\"promotion_fallbacks\":0,\"allocated_bytes\":112,\"nursery_allocated_bytes\":112,\"promoted_bytes\":0,\"copied_bytes\":0,\"dirty_cards\":0,\"old_reference_slots\":0,\"root_slots\":0,\"traced_objects\":0,\"pause_ns\":0,\"maximum_pause_ns\":0,\"committed_bytes\":32768,\"minor_pause_ns\":0,\"full_pause_ns\":0,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,0,0,0,0,0]}\n",
+        "{\"scoop_gc\":1,\"minor_collections\":0,\"full_collections\":0,\"promotion_fallbacks\":0,\"allocated_bytes\":112,\"nursery_allocated_bytes\":112,\"promoted_bytes\":0,\"copied_bytes\":0,\"dirty_cards\":0,\"old_reference_slots\":0,\"root_slots\":0,\"traced_objects\":0,\"pause_ns\":0,\"maximum_pause_ns\":0,\"committed_bytes\":32768,\"minor_pause_ns\":0,\"full_pause_ns\":0,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,0,0,0,0,0]}\n",
+        "{\"scoop_gc\":1,\"minor_collections\":0,\"full_collections\":0,\"promotion_fallbacks\":0,\"allocated_bytes\":112,\"nursery_allocated_bytes\":112,\"promoted_bytes\":0,\"copied_bytes\":0,\"dirty_cards\":0,\"old_reference_slots\":0,\"root_slots\":0,\"traced_objects\":0,\"pause_ns\":0,\"maximum_pause_ns\":0,\"committed_bytes\":32768,\"minor_pause_ns\":0,\"full_pause_ns\":0,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,0,0,0,0,0]}\n",
+        "{\"scoop_gc\":1,\"minor_collections\":0,\"full_collections\":0,\"promotion_fallbacks\":0,\"allocated_bytes\":112,\"nursery_allocated_bytes\":112,\"promoted_bytes\":0,\"copied_bytes\":0,\"dirty_cards\":0,\"old_reference_slots\":0,\"root_slots\":0,\"traced_objects\":0,\"pause_ns\":0,\"maximum_pause_ns\":0,\"committed_bytes\":32768,\"minor_pause_ns\":0,\"full_pause_ns\":0,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,0,0,0,0,0]}\n",
+        "{\"scoop_gc\":1,\"minor_collections\":0,\"full_collections\":0,\"promotion_fallbacks\":0,\"allocated_bytes\":112,\"nursery_allocated_bytes\":112,\"promoted_bytes\":0,\"copied_bytes\":0,\"dirty_cards\":0,\"old_reference_slots\":0,\"root_slots\":0,\"traced_objects\":0,\"pause_ns\":0,\"maximum_pause_ns\":0,\"committed_bytes\":32768,\"minor_pause_ns\":0,\"full_pause_ns\":0,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,0,0,0,0,0]}\n"
+      ],
+      "median_seconds": 0.03548089199466631,
+      "min_seconds": 0.03502540398039855,
+      "max_seconds": 0.03717187701840885,
+      "stdout": "4062365736\n",
+      "executable_bytes": 4461632,
+      "slib_bytes": 263966,
+      "build_records": [
+        {
+          "dependencies": [
+            {
+              "artifact_fingerprint": "291f168768bd3faccaaf8cd4719a101305a4e72bea466350dfcfe7c32c424fae",
+              "coordinate": {
+                "group": "scoop",
+                "name": "scoop.core",
+                "version": "0.1.0"
+              },
+              "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+              "path": "/home/chenxu/repos/scoop/tmp/m34/inline-on-linux-gnu/cache/compile-v1/c22b68ed3aa25b60232bb646291b7900eb4b2ad615a3901a3059dac745fc84bc/artifact.slib"
+            }
+          ],
+          "kind": "executable",
+          "link_plan_fingerprint": "dd6df2f8701876b70634e7a89c2dbee90a34f68dc05adcb97b24906e5b3aa340",
+          "observations": {
+            "child_invocations": [
+              "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+              "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6"
+            ],
+            "nodes": [
+              {
+                "cache_key": "c22b68ed3aa25b60232bb646291b7900eb4b2ad615a3901a3059dac745fc84bc",
+                "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+                "origin": "compiled"
+              },
+              {
+                "cache_key": "4ae0a444824abf8f75442224a7addb615eef957f3a6cc3dfbf08259e14e3f0b1",
+                "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+                "origin": "compiled"
+              }
+            ]
+          },
+          "output": "/home/chenxu/repos/scoop/tmp/m34/inline-on-linux-gnu/mir-inlining",
+          "profile": "release",
+          "root": {
+            "artifact_fingerprint": "fa2381868e746a96c5254e42467ebd188c44f28ff3c232c7efbe5403009c4d3f",
+            "coordinate": {
+              "group": "scoop",
+              "name": "single-file",
+              "version": "0.0.0"
+            },
+            "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+            "path": "/home/chenxu/repos/scoop/tmp/m34/inline-on-linux-gnu/cache/compile-v1/4ae0a444824abf8f75442224a7addb615eef957f3a6cc3dfbf08259e14e3f0b1/artifact.slib"
+          },
+          "runtime_index": "/home/chenxu/repos/scoop/tmp/m34/inline-on-linux-gnu/cache/runtime-v1/62a5ae5f5d027d649c831898590d33c388bd2e0637f7e725199a20fc4fe9e929/index.cbor",
+          "schema": 1
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,1870 @@
+Module
+  global @scoop$1$io$d4c102321abf878aeb0ab356c7ecce41efcb9154bc7b4ecd57ac294b5fb561c5 = "illegal state"
+  global @scoop$1$io$71a26c79ac22ff482f6ba3fbb052e16c2be7f861bab4f3f320864d8df82b48cc = "inlined growth"
+  global @scoop$1$io$5f21604d2e4e126b3ec45d6462f3d27156b8da96e7b690422f6f233dc3e56888 = "\n"
+  global @scoop$1$ss$9b273ab0bbc562dd7f8e8b0487c0e98f4a7d0781b1cb5aa5b6d69c2d8a7f66b1 : ptr<managed> scan=refs[0]
+  enum Option niche(kind=managed,payload_variant=0)
+  enum Option tagged size=16 align=8 variants=(i32)@8+4 ()@8+0
+  fun @scoop$1$cb$06573494cb684b376f9f7e4bf39489d19ce7611309b6e42e6a23383fa8590dbf(i1) -> void
+    local %0 $dependency.receiver: i1
+    local %1 $default.local.0: ptr<managed>
+    local %2 $default.local.1: ptr<managed>
+    local %3 $dependency.parameter.message: enum0
+    local %4 $new.1: ptr<managed>
+  block entry
+    poll managed-void-target1 sp<managed-poll:0> live=[]
+    store param0 -> local0
+    t0 = Not local0 : i1
+    cbr t0 then @if.then.1 else @if.merge.2
+  block if.then.1
+    store global0 -> local1
+    store local1 -> local2
+    t1 = enum_wrap e0 v0 (local2) : enum0
+    store t1 -> local3
+    call managed-direct-target0 sp<managed-call:0> live=[local3:enum0@0] t2 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td8, machine<byte-size>(ByteSize(24)))
+    store t2 -> local4
+    call managed-void-target0 sp<managed-call:1> live=[local3:enum0@0, local4:ptr<managed>@0] sig=void0 (ptr<managed>, enum0) external-fn0(local4, local3)
+    t3 = aggregate () : {}
+    throw local4
+    unreachable
+  block if.merge.2
+    ret
+  fun @scoop$1$cb$dbf090a271cdc5efd3210e421aebe8906be0c8c1c6629c87bd4f94a8ee948850(i32) -> i32
+    local %0 $dependency.receiver: i32
+    local %1 $dependency.argument.0: i32
+    local %2 $dependency.parameter.other: i32
+    local %3 first: i32
+    local %4 $dependency.receiver: i32
+    local %5 $dependency.argument.0: i32
+    local %6 $dependency.parameter.other: i32
+    local %7 second: i32
+    local %8 $dependency.receiver: i32
+    local %9 $dependency.argument.0: i32
+    local %10 $dependency.parameter.other: i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store param0 -> local0
+    store integer<Int>(0x00000001) -> local1
+    store integer<Int>(0x00000001) -> local2
+    t0 = integer_Add<Int> local0, integer<Int>(0x00000001) : i32
+    store t0 -> local3
+    store local3 -> local4
+    store integer<Int>(0x00000002) -> local5
+    store integer<Int>(0x00000002) -> local6
+    t1 = integer_Add<Int> local4, integer<Int>(0x00000002) : i32
+    store t1 -> local7
+    store local7 -> local8
+    store integer<Int>(0x00000003) -> local9
+    store integer<Int>(0x00000003) -> local10
+    t2 = integer_Add<Int> local8, integer<Int>(0x00000003) : i32
+    ret t2
+  fun @scoop$1$cb$9dc3ceba64793819408f90a602c67a596486a7979ae1b0be46b76ccb61f189ad(i32) -> i32
+    local %0 value: i32
+    local %1 $argument.0: i32
+    local %2 $parameter.value: i32
+    local %3 $argument.0: i32
+    local %4 $parameter.value: i32
+    local %5 $argument.0: i32
+    local %6 $parameter.value: i32
+    local %7 $argument.0: i32
+    local %8 $parameter.value: i32
+    local %9 $argument.0: i32
+    local %10 $parameter.value: i32
+    local %11 $argument.0: i32
+    local %12 $parameter.value: i32
+    local %13 $argument.0: i32
+    local %14 $parameter.value: i32
+    local %15 $argument.0: i32
+    local %16 $parameter.value: i32
+    local %17 $argument.0: i32
+    local %18 $parameter.value: i32
+    local %19 $argument.0: i32
+    local %20 $parameter.value: i32
+    local %21 $argument.0: i32
+    local %22 $parameter.value: i32
+    local %23 $argument.0: i32
+    local %24 $parameter.value: i32
+    local %25 $argument.0: i32
+    local %26 $parameter.value: i32
+    local %27 $argument.0: i32
+    local %28 $parameter.value: i32
+    local %29 $argument.0: i32
+    local %30 $parameter.value: i32
+    local %31 $argument.0: i32
+    local %32 $parameter.value: i32
+    local %33 $argument.0: i32
+    local %34 $parameter.value: i32
+    local %35 $argument.0: i32
+    local %36 $parameter.value: i32
+    local %37 $argument.0: i32
+    local %38 $parameter.value: i32
+    local %39 $argument.0: i32
+    local %40 $parameter.value: i32
+    local %41 $argument.0: i32
+    local %42 $parameter.value: i32
+    local %43 $argument.0: i32
+    local %44 $parameter.value: i32
+    local %45 $argument.0: i32
+    local %46 $parameter.value: i32
+    local %47 $argument.0: i32
+    local %48 $parameter.value: i32
+    local %49 $argument.0: i32
+    local %50 $parameter.value: i32
+    local %51 $argument.0: i32
+    local %52 $parameter.value: i32
+    local %53 $argument.0: i32
+    local %54 $parameter.value: i32
+    local %55 $argument.0: i32
+    local %56 $parameter.value: i32
+    local %57 $argument.0: i32
+    local %58 $parameter.value: i32
+    local %59 $argument.0: i32
+    local %60 $parameter.value: i32
+    local %61 $argument.0: i32
+    local %62 $parameter.value: i32
+    local %63 $argument.0: i32
+    local %64 $parameter.value: i32
+    local %65 $argument.0: i32
+    local %66 $parameter.value: i32
+    local %67 $argument.0: i32
+    local %68 $parameter.value: i32
+    local %69 $argument.0: i32
+    local %70 $parameter.value: i32
+    local %71 $argument.0: i32
+    local %72 $parameter.value: i32
+    local %73 $argument.0: i32
+    local %74 $parameter.value: i32
+    local %75 $argument.0: i32
+    local %76 $parameter.value: i32
+    local %77 $argument.0: i32
+    local %78 $parameter.value: i32
+    local %79 $argument.0: i32
+    local %80 $parameter.value: i32
+    local %81 $argument.0: i32
+    local %82 $parameter.value: i32
+    local %83 $argument.0: i32
+    local %84 $parameter.value: i32
+    local %85 $argument.0: i32
+    local %86 $parameter.value: i32
+    local %87 $argument.0: i32
+    local %88 $parameter.value: i32
+    local %89 $argument.0: i32
+    local %90 $parameter.value: i32
+    local %91 $argument.0: i32
+    local %92 $parameter.value: i32
+    local %93 $argument.0: i32
+    local %94 $parameter.value: i32
+    local %95 $argument.0: i32
+    local %96 $parameter.value: i32
+    local %97 $argument.0: i32
+    local %98 $parameter.value: i32
+    local %99 $argument.0: i32
+    local %100 $parameter.value: i32
+    local %101 $argument.0: i32
+    local %102 $parameter.value: i32
+    local %103 $argument.0: i32
+    local %104 $parameter.value: i32
+    local %105 $argument.0: i32
+    local %106 $parameter.value: i32
+    local %107 $argument.0: i32
+    local %108 $parameter.value: i32
+    local %109 $argument.0: i32
+    local %110 $parameter.value: i32
+    local %111 $argument.0: i32
+    local %112 $parameter.value: i32
+    local %113 $argument.0: i32
+    local %114 $parameter.value: i32
+    local %115 $argument.0: i32
+    local %116 $parameter.value: i32
+    local %117 $argument.0: i32
+    local %118 $parameter.value: i32
+    local %119 $argument.0: i32
+    local %120 $parameter.value: i32
+    local %121 $argument.0: i32
+    local %122 $parameter.value: i32
+    local %123 $argument.0: i32
+    local %124 $parameter.value: i32
+    local %125 $argument.0: i32
+    local %126 $parameter.value: i32
+    local %127 $argument.0: i32
+    local %128 $parameter.value: i32
+    local %129 $call.1: i32
+    local %130 $call.2: i32
+    local %131 $call.3: i32
+    local %132 $call.4: i32
+    local %133 $call.5: i32
+    local %134 $call.6: i32
+    local %135 $call.7: i32
+    local %136 $call.8: i32
+    local %137 $call.9: i32
+    local %138 $call.10: i32
+    local %139 $call.11: i32
+    local %140 $call.12: i32
+    local %141 $call.13: i32
+    local %142 $call.14: i32
+    local %143 $call.15: i32
+    local %144 $call.16: i32
+    local %145 $call.17: i32
+    local %146 $call.18: i32
+    local %147 $call.19: i32
+    local %148 $call.20: i32
+    local %149 $call.21: i32
+    local %150 $call.22: i32
+    local %151 $call.23: i32
+    local %152 $call.24: i32
+    local %153 $call.25: i32
+    local %154 $call.26: i32
+    local %155 $call.27: i32
+    local %156 $call.28: i32
+    local %157 $call.29: i32
+    local %158 $call.30: i32
+    local %159 $call.31: i32
+    local %160 $call.32: i32
+    local %161 $call.33: i32
+    local %162 $call.34: i32
+    local %163 $call.35: i32
+    local %164 $call.36: i32
+    local %165 $call.37: i32
+    local %166 $call.38: i32
+    local %167 $call.39: i32
+    local %168 $call.40: i32
+    local %169 $call.41: i32
+    local %170 $call.42: i32
+    local %171 $call.43: i32
+    local %172 $call.44: i32
+    local %173 $call.45: i32
+    local %174 $call.46: i32
+    local %175 $call.47: i32
+    local %176 $call.48: i32
+    local %177 $call.49: i32
+    local %178 $call.50: i32
+    local %179 $call.51: i32
+    local %180 $call.52: i32
+    local %181 $call.53: i32
+    local %182 $call.54: i32
+    local %183 $call.55: i32
+    local %184 $call.56: i32
+    local %185 $call.57: i32
+    local %186 $call.58: i32
+    local %187 $call.59: i32
+    local %188 $call.60: i32
+    local %189 $call.61: i32
+    local %190 $call.62: i32
+    local %191 $call.63: i32
+    local %192 $call.64: i32
+    local %193 $inline.1.result: i32
+    local %194 $inline.1.value: i32
+    local %195 $inline.1.$dependency.receiver: i32
+    local %196 $inline.1.$dependency.argument.0: i32
+    local %197 $inline.1.$dependency.parameter.other: i32
+    local %198 $inline.1.first: i32
+    local %199 $inline.1.$dependency.receiver: i32
+    local %200 $inline.1.$dependency.argument.0: i32
+    local %201 $inline.1.$dependency.parameter.other: i32
+    local %202 $inline.1.second: i32
+    local %203 $inline.1.$dependency.receiver: i32
+    local %204 $inline.1.$dependency.argument.0: i32
+    local %205 $inline.1.$dependency.parameter.other: i32
+    local %206 $inline.3.result: i32
+    local %207 $inline.3.value: i32
+    local %208 $inline.3.$dependency.receiver: i32
+    local %209 $inline.3.$dependency.argument.0: i32
+    local %210 $inline.3.$dependency.parameter.other: i32
+    local %211 $inline.3.first: i32
+    local %212 $inline.3.$dependency.receiver: i32
+    local %213 $inline.3.$dependency.argument.0: i32
+    local %214 $inline.3.$dependency.parameter.other: i32
+    local %215 $inline.3.second: i32
+    local %216 $inline.3.$dependency.receiver: i32
+    local %217 $inline.3.$dependency.argument.0: i32
+    local %218 $inline.3.$dependency.parameter.other: i32
+    local %219 $inline.5.result: i32
+    local %220 $inline.5.value: i32
+    local %221 $inline.5.$dependency.receiver: i32
+    local %222 $inline.5.$dependency.argument.0: i32
+    local %223 $inline.5.$dependency.parameter.other: i32
+    local %224 $inline.5.first: i32
+    local %225 $inline.5.$dependency.receiver: i32
+    local %226 $inline.5.$dependency.argument.0: i32
+    local %227 $inline.5.$dependency.parameter.other: i32
+    local %228 $inline.5.second: i32
+    local %229 $inline.5.$dependency.receiver: i32
+    local %230 $inline.5.$dependency.argument.0: i32
+    local %231 $inline.5.$dependency.parameter.other: i32
+    local %232 $inline.7.result: i32
+    local %233 $inline.7.value: i32
+    local %234 $inline.7.$dependency.receiver: i32
+    local %235 $inline.7.$dependency.argument.0: i32
+    local %236 $inline.7.$dependency.parameter.other: i32
+    local %237 $inline.7.first: i32
+    local %238 $inline.7.$dependency.receiver: i32
+    local %239 $inline.7.$dependency.argument.0: i32
+    local %240 $inline.7.$dependency.parameter.other: i32
+    local %241 $inline.7.second: i32
+    local %242 $inline.7.$dependency.receiver: i32
+    local %243 $inline.7.$dependency.argument.0: i32
+    local %244 $inline.7.$dependency.parameter.other: i32
+    local %245 $inline.9.result: i32
+    local %246 $inline.9.value: i32
+    local %247 $inline.9.$dependency.receiver: i32
+    local %248 $inline.9.$dependency.argument.0: i32
+    local %249 $inline.9.$dependency.parameter.other: i32
+    local %250 $inline.9.first: i32
+    local %251 $inline.9.$dependency.receiver: i32
+    local %252 $inline.9.$dependency.argument.0: i32
+    local %253 $inline.9.$dependency.parameter.other: i32
+    local %254 $inline.9.second: i32
+    local %255 $inline.9.$dependency.receiver: i32
+    local %256 $inline.9.$dependency.argument.0: i32
+    local %257 $inline.9.$dependency.parameter.other: i32
+    local %258 $inline.11.result: i32
+    local %259 $inline.11.value: i32
+    local %260 $inline.11.$dependency.receiver: i32
+    local %261 $inline.11.$dependency.argument.0: i32
+    local %262 $inline.11.$dependency.parameter.other: i32
+    local %263 $inline.11.first: i32
+    local %264 $inline.11.$dependency.receiver: i32
+    local %265 $inline.11.$dependency.argument.0: i32
+    local %266 $inline.11.$dependency.parameter.other: i32
+    local %267 $inline.11.second: i32
+    local %268 $inline.11.$dependency.receiver: i32
+    local %269 $inline.11.$dependency.argument.0: i32
+    local %270 $inline.11.$dependency.parameter.other: i32
+    local %271 $inline.13.result: i32
+    local %272 $inline.13.value: i32
+    local %273 $inline.13.$dependency.receiver: i32
+    local %274 $inline.13.$dependency.argument.0: i32
+    local %275 $inline.13.$dependency.parameter.other: i32
+    local %276 $inline.13.first: i32
+    local %277 $inline.13.$dependency.receiver: i32
+    local %278 $inline.13.$dependency.argument.0: i32
+    local %279 $inline.13.$dependency.parameter.other: i32
+    local %280 $inline.13.second: i32
+    local %281 $inline.13.$dependency.receiver: i32
+    local %282 $inline.13.$dependency.argument.0: i32
+    local %283 $inline.13.$dependency.parameter.other: i32
+    local %284 $inline.15.result: i32
+    local %285 $inline.15.value: i32
+    local %286 $inline.15.$dependency.receiver: i32
+    local %287 $inline.15.$dependency.argument.0: i32
+    local %288 $inline.15.$dependency.parameter.other: i32
+    local %289 $inline.15.first: i32
+    local %290 $inline.15.$dependency.receiver: i32
+    local %291 $inline.15.$dependency.argument.0: i32
+    local %292 $inline.15.$dependency.parameter.other: i32
+    local %293 $inline.15.second: i32
+    local %294 $inline.15.$dependency.receiver: i32
+    local %295 $inline.15.$dependency.argument.0: i32
+    local %296 $inline.15.$dependency.parameter.other: i32
+    local %297 $inline.17.result: i32
+    local %298 $inline.17.value: i32
+    local %299 $inline.17.$dependency.receiver: i32
+    local %300 $inline.17.$dependency.argument.0: i32
+    local %301 $inline.17.$dependency.parameter.other: i32
+    local %302 $inline.17.first: i32
+    local %303 $inline.17.$dependency.receiver: i32
+    local %304 $inline.17.$dependency.argument.0: i32
+    local %305 $inline.17.$dependency.parameter.other: i32
+    local %306 $inline.17.second: i32
+    local %307 $inline.17.$dependency.receiver: i32
+    local %308 $inline.17.$dependency.argument.0: i32
+    local %309 $inline.17.$dependency.parameter.other: i32
+    local %310 $inline.19.result: i32
+    local %311 $inline.19.value: i32
+    local %312 $inline.19.$dependency.receiver: i32
+    local %313 $inline.19.$dependency.argument.0: i32
+    local %314 $inline.19.$dependency.parameter.other: i32
+    local %315 $inline.19.first: i32
+    local %316 $inline.19.$dependency.receiver: i32
+    local %317 $inline.19.$dependency.argument.0: i32
+    local %318 $inline.19.$dependency.parameter.other: i32
+    local %319 $inline.19.second: i32
+    local %320 $inline.19.$dependency.receiver: i32
+    local %321 $inline.19.$dependency.argument.0: i32
+    local %322 $inline.19.$dependency.parameter.other: i32
+    local %323 $inline.21.result: i32
+    local %324 $inline.21.value: i32
+    local %325 $inline.21.$dependency.receiver: i32
+    local %326 $inline.21.$dependency.argument.0: i32
+    local %327 $inline.21.$dependency.parameter.other: i32
+    local %328 $inline.21.first: i32
+    local %329 $inline.21.$dependency.receiver: i32
+    local %330 $inline.21.$dependency.argument.0: i32
+    local %331 $inline.21.$dependency.parameter.other: i32
+    local %332 $inline.21.second: i32
+    local %333 $inline.21.$dependency.receiver: i32
+    local %334 $inline.21.$dependency.argument.0: i32
+    local %335 $inline.21.$dependency.parameter.other: i32
+    local %336 $inline.23.result: i32
+    local %337 $inline.23.value: i32
+    local %338 $inline.23.$dependency.receiver: i32
+    local %339 $inline.23.$dependency.argument.0: i32
+    local %340 $inline.23.$dependency.parameter.other: i32
+    local %341 $inline.23.first: i32
+    local %342 $inline.23.$dependency.receiver: i32
+    local %343 $inline.23.$dependency.argument.0: i32
+    local %344 $inline.23.$dependency.parameter.other: i32
+    local %345 $inline.23.second: i32
+    local %346 $inline.23.$dependency.receiver: i32
+    local %347 $inline.23.$dependency.argument.0: i32
+    local %348 $inline.23.$dependency.parameter.other: i32
+    local %349 $inline.25.result: i32
+    local %350 $inline.25.value: i32
+    local %351 $inline.25.$dependency.receiver: i32
+    local %352 $inline.25.$dependency.argument.0: i32
+    local %353 $inline.25.$dependency.parameter.other: i32
+    local %354 $inline.25.first: i32
+    local %355 $inline.25.$dependency.receiver: i32
+    local %356 $inline.25.$dependency.argument.0: i32
+    local %357 $inline.25.$dependency.parameter.other: i32
+    local %358 $inline.25.second: i32
+    local %359 $inline.25.$dependency.receiver: i32
+    local %360 $inline.25.$dependency.argument.0: i32
+    local %361 $inline.25.$dependency.parameter.other: i32
+    local %362 $inline.27.result: i32
+    local %363 $inline.27.value: i32
+    local %364 $inline.27.$dependency.receiver: i32
+    local %365 $inline.27.$dependency.argument.0: i32
+    local %366 $inline.27.$dependency.parameter.other: i32
+    local %367 $inline.27.first: i32
+    local %368 $inline.27.$dependency.receiver: i32
+    local %369 $inline.27.$dependency.argument.0: i32
+    local %370 $inline.27.$dependency.parameter.other: i32
+    local %371 $inline.27.second: i32
+    local %372 $inline.27.$dependency.receiver: i32
+    local %373 $inline.27.$dependency.argument.0: i32
+    local %374 $inline.27.$dependency.parameter.other: i32
+    local %375 $inline.29.result: i32
+    local %376 $inline.29.value: i32
+    local %377 $inline.29.$dependency.receiver: i32
+    local %378 $inline.29.$dependency.argument.0: i32
+    local %379 $inline.29.$dependency.parameter.other: i32
+    local %380 $inline.29.first: i32
+    local %381 $inline.29.$dependency.receiver: i32
+    local %382 $inline.29.$dependency.argument.0: i32
+    local %383 $inline.29.$dependency.parameter.other: i32
+    local %384 $inline.29.second: i32
+    local %385 $inline.29.$dependency.receiver: i32
+    local %386 $inline.29.$dependency.argument.0: i32
+    local %387 $inline.29.$dependency.parameter.other: i32
+    local %388 $inline.31.result: i32
+    local %389 $inline.31.value: i32
+    local %390 $inline.31.$dependency.receiver: i32
+    local %391 $inline.31.$dependency.argument.0: i32
+    local %392 $inline.31.$dependency.parameter.other: i32
+    local %393 $inline.31.first: i32
+    local %394 $inline.31.$dependency.receiver: i32
+    local %395 $inline.31.$dependency.argument.0: i32
+    local %396 $inline.31.$dependency.parameter.other: i32
+    local %397 $inline.31.second: i32
+    local %398 $inline.31.$dependency.receiver: i32
+    local %399 $inline.31.$dependency.argument.0: i32
+    local %400 $inline.31.$dependency.parameter.other: i32
+    local %401 $inline.33.result: i32
+    local %402 $inline.33.value: i32
+    local %403 $inline.33.$dependency.receiver: i32
+    local %404 $inline.33.$dependency.argument.0: i32
+    local %405 $inline.33.$dependency.parameter.other: i32
+    local %406 $inline.33.first: i32
+    local %407 $inline.33.$dependency.receiver: i32
+    local %408 $inline.33.$dependency.argument.0: i32
+    local %409 $inline.33.$dependency.parameter.other: i32
+    local %410 $inline.33.second: i32
+    local %411 $inline.33.$dependency.receiver: i32
+    local %412 $inline.33.$dependency.argument.0: i32
+    local %413 $inline.33.$dependency.parameter.other: i32
+    local %414 $inline.35.result: i32
+    local %415 $inline.35.value: i32
+    local %416 $inline.35.$dependency.receiver: i32
+    local %417 $inline.35.$dependency.argument.0: i32
+    local %418 $inline.35.$dependency.parameter.other: i32
+    local %419 $inline.35.first: i32
+    local %420 $inline.35.$dependency.receiver: i32
+    local %421 $inline.35.$dependency.argument.0: i32
+    local %422 $inline.35.$dependency.parameter.other: i32
+    local %423 $inline.35.second: i32
+    local %424 $inline.35.$dependency.receiver: i32
+    local %425 $inline.35.$dependency.argument.0: i32
+    local %426 $inline.35.$dependency.parameter.other: i32
+    local %427 $inline.37.result: i32
+    local %428 $inline.37.value: i32
+    local %429 $inline.37.$dependency.receiver: i32
+    local %430 $inline.37.$dependency.argument.0: i32
+    local %431 $inline.37.$dependency.parameter.other: i32
+    local %432 $inline.37.first: i32
+    local %433 $inline.37.$dependency.receiver: i32
+    local %434 $inline.37.$dependency.argument.0: i32
+    local %435 $inline.37.$dependency.parameter.other: i32
+    local %436 $inline.37.second: i32
+    local %437 $inline.37.$dependency.receiver: i32
+    local %438 $inline.37.$dependency.argument.0: i32
+    local %439 $inline.37.$dependency.parameter.other: i32
+    local %440 $inline.39.result: i32
+    local %441 $inline.39.value: i32
+    local %442 $inline.39.$dependency.receiver: i32
+    local %443 $inline.39.$dependency.argument.0: i32
+    local %444 $inline.39.$dependency.parameter.other: i32
+    local %445 $inline.39.first: i32
+    local %446 $inline.39.$dependency.receiver: i32
+    local %447 $inline.39.$dependency.argument.0: i32
+    local %448 $inline.39.$dependency.parameter.other: i32
+    local %449 $inline.39.second: i32
+    local %450 $inline.39.$dependency.receiver: i32
+    local %451 $inline.39.$dependency.argument.0: i32
+    local %452 $inline.39.$dependency.parameter.other: i32
+    local %453 $inline.41.result: i32
+    local %454 $inline.41.value: i32
+    local %455 $inline.41.$dependency.receiver: i32
+    local %456 $inline.41.$dependency.argument.0: i32
+    local %457 $inline.41.$dependency.parameter.other: i32
+    local %458 $inline.41.first: i32
+    local %459 $inline.41.$dependency.receiver: i32
+    local %460 $inline.41.$dependency.argument.0: i32
+    local %461 $inline.41.$dependency.parameter.other: i32
+    local %462 $inline.41.second: i32
+    local %463 $inline.41.$dependency.receiver: i32
+    local %464 $inline.41.$dependency.argument.0: i32
+    local %465 $inline.41.$dependency.parameter.other: i32
+    local %466 $inline.43.result: i32
+    local %467 $inline.43.value: i32
+    local %468 $inline.43.$dependency.receiver: i32
+    local %469 $inline.43.$dependency.argument.0: i32
+    local %470 $inline.43.$dependency.parameter.other: i32
+    local %471 $inline.43.first: i32
+    local %472 $inline.43.$dependency.receiver: i32
+    local %473 $inline.43.$dependency.argument.0: i32
+    local %474 $inline.43.$dependency.parameter.other: i32
+    local %475 $inline.43.second: i32
+    local %476 $inline.43.$dependency.receiver: i32
+    local %477 $inline.43.$dependency.argument.0: i32
+    local %478 $inline.43.$dependency.parameter.other: i32
+    local %479 $inline.45.result: i32
+    local %480 $inline.45.value: i32
+    local %481 $inline.45.$dependency.receiver: i32
+    local %482 $inline.45.$dependency.argument.0: i32
+    local %483 $inline.45.$dependency.parameter.other: i32
+    local %484 $inline.45.first: i32
+    local %485 $inline.45.$dependency.receiver: i32
+    local %486 $inline.45.$dependency.argument.0: i32
+    local %487 $inline.45.$dependency.parameter.other: i32
+    local %488 $inline.45.second: i32
+    local %489 $inline.45.$dependency.receiver: i32
+    local %490 $inline.45.$dependency.argument.0: i32
+    local %491 $inline.45.$dependency.parameter.other: i32
+    local %492 $inline.47.result: i32
+    local %493 $inline.47.value: i32
+    local %494 $inline.47.$dependency.receiver: i32
+    local %495 $inline.47.$dependency.argument.0: i32
+    local %496 $inline.47.$dependency.parameter.other: i32
+    local %497 $inline.47.first: i32
+    local %498 $inline.47.$dependency.receiver: i32
+    local %499 $inline.47.$dependency.argument.0: i32
+    local %500 $inline.47.$dependency.parameter.other: i32
+    local %501 $inline.47.second: i32
+    local %502 $inline.47.$dependency.receiver: i32
+    local %503 $inline.47.$dependency.argument.0: i32
+    local %504 $inline.47.$dependency.parameter.other: i32
+    local %505 $inline.49.result: i32
+    local %506 $inline.49.value: i32
+    local %507 $inline.49.$dependency.receiver: i32
+    local %508 $inline.49.$dependency.argument.0: i32
+    local %509 $inline.49.$dependency.parameter.other: i32
+    local %510 $inline.49.first: i32
+    local %511 $inline.49.$dependency.receiver: i32
+    local %512 $inline.49.$dependency.argument.0: i32
+    local %513 $inline.49.$dependency.parameter.other: i32
+    local %514 $inline.49.second: i32
+    local %515 $inline.49.$dependency.receiver: i32
+    local %516 $inline.49.$dependency.argument.0: i32
+    local %517 $inline.49.$dependency.parameter.other: i32
+    local %518 $inline.51.result: i32
+    local %519 $inline.51.value: i32
+    local %520 $inline.51.$dependency.receiver: i32
+    local %521 $inline.51.$dependency.argument.0: i32
+    local %522 $inline.51.$dependency.parameter.other: i32
+    local %523 $inline.51.first: i32
+    local %524 $inline.51.$dependency.receiver: i32
+    local %525 $inline.51.$dependency.argument.0: i32
+    local %526 $inline.51.$dependency.parameter.other: i32
+    local %527 $inline.51.second: i32
+    local %528 $inline.51.$dependency.receiver: i32
+    local %529 $inline.51.$dependency.argument.0: i32
+    local %530 $inline.51.$dependency.parameter.other: i32
+    local %531 $inline.53.result: i32
+    local %532 $inline.53.value: i32
+    local %533 $inline.53.$dependency.receiver: i32
+    local %534 $inline.53.$dependency.argument.0: i32
+    local %535 $inline.53.$dependency.parameter.other: i32
+    local %536 $inline.53.first: i32
+    local %537 $inline.53.$dependency.receiver: i32
+    local %538 $inline.53.$dependency.argument.0: i32
+    local %539 $inline.53.$dependency.parameter.other: i32
+    local %540 $inline.53.second: i32
+    local %541 $inline.53.$dependency.receiver: i32
+    local %542 $inline.53.$dependency.argument.0: i32
+    local %543 $inline.53.$dependency.parameter.other: i32
+    local %544 $inline.55.result: i32
+    local %545 $inline.55.value: i32
+    local %546 $inline.55.$dependency.receiver: i32
+    local %547 $inline.55.$dependency.argument.0: i32
+    local %548 $inline.55.$dependency.parameter.other: i32
+    local %549 $inline.55.first: i32
+    local %550 $inline.55.$dependency.receiver: i32
+    local %551 $inline.55.$dependency.argument.0: i32
+    local %552 $inline.55.$dependency.parameter.other: i32
+    local %553 $inline.55.second: i32
+    local %554 $inline.55.$dependency.receiver: i32
+    local %555 $inline.55.$dependency.argument.0: i32
+    local %556 $inline.55.$dependency.parameter.other: i32
+    local %557 $inline.57.result: i32
+    local %558 $inline.57.value: i32
+    local %559 $inline.57.$dependency.receiver: i32
+    local %560 $inline.57.$dependency.argument.0: i32
+    local %561 $inline.57.$dependency.parameter.other: i32
+    local %562 $inline.57.first: i32
+    local %563 $inline.57.$dependency.receiver: i32
+    local %564 $inline.57.$dependency.argument.0: i32
+    local %565 $inline.57.$dependency.parameter.other: i32
+    local %566 $inline.57.second: i32
+    local %567 $inline.57.$dependency.receiver: i32
+    local %568 $inline.57.$dependency.argument.0: i32
+    local %569 $inline.57.$dependency.parameter.other: i32
+    local %570 $inline.59.result: i32
+    local %571 $inline.59.value: i32
+    local %572 $inline.59.$dependency.receiver: i32
+    local %573 $inline.59.$dependency.argument.0: i32
+    local %574 $inline.59.$dependency.parameter.other: i32
+    local %575 $inline.59.first: i32
+    local %576 $inline.59.$dependency.receiver: i32
+    local %577 $inline.59.$dependency.argument.0: i32
+    local %578 $inline.59.$dependency.parameter.other: i32
+    local %579 $inline.59.second: i32
+    local %580 $inline.59.$dependency.receiver: i32
+    local %581 $inline.59.$dependency.argument.0: i32
+    local %582 $inline.59.$dependency.parameter.other: i32
+    local %583 $inline.61.result: i32
+    local %584 $inline.61.value: i32
+    local %585 $inline.61.$dependency.receiver: i32
+    local %586 $inline.61.$dependency.argument.0: i32
+    local %587 $inline.61.$dependency.parameter.other: i32
+    local %588 $inline.61.first: i32
+    local %589 $inline.61.$dependency.receiver: i32
+    local %590 $inline.61.$dependency.argument.0: i32
+    local %591 $inline.61.$dependency.parameter.other: i32
+    local %592 $inline.61.second: i32
+    local %593 $inline.61.$dependency.receiver: i32
+    local %594 $inline.61.$dependency.argument.0: i32
+    local %595 $inline.61.$dependency.parameter.other: i32
+    local %596 $inline.63.result: i32
+    local %597 $inline.63.value: i32
+    local %598 $inline.63.$dependency.receiver: i32
+    local %599 $inline.63.$dependency.argument.0: i32
+    local %600 $inline.63.$dependency.parameter.other: i32
+    local %601 $inline.63.first: i32
+    local %602 $inline.63.$dependency.receiver: i32
+    local %603 $inline.63.$dependency.argument.0: i32
+    local %604 $inline.63.$dependency.parameter.other: i32
+    local %605 $inline.63.second: i32
+    local %606 $inline.63.$dependency.receiver: i32
+    local %607 $inline.63.$dependency.argument.0: i32
+    local %608 $inline.63.$dependency.parameter.other: i32
+    local %609 $inline.65.result: i32
+    local %610 $inline.65.value: i32
+    local %611 $inline.65.$dependency.receiver: i32
+    local %612 $inline.65.$dependency.argument.0: i32
+    local %613 $inline.65.$dependency.parameter.other: i32
+    local %614 $inline.65.first: i32
+    local %615 $inline.65.$dependency.receiver: i32
+    local %616 $inline.65.$dependency.argument.0: i32
+    local %617 $inline.65.$dependency.parameter.other: i32
+    local %618 $inline.65.second: i32
+    local %619 $inline.65.$dependency.receiver: i32
+    local %620 $inline.65.$dependency.argument.0: i32
+    local %621 $inline.65.$dependency.parameter.other: i32
+    local %622 $inline.67.result: i32
+    local %623 $inline.67.value: i32
+    local %624 $inline.67.$dependency.receiver: i32
+    local %625 $inline.67.$dependency.argument.0: i32
+    local %626 $inline.67.$dependency.parameter.other: i32
+    local %627 $inline.67.first: i32
+    local %628 $inline.67.$dependency.receiver: i32
+    local %629 $inline.67.$dependency.argument.0: i32
+    local %630 $inline.67.$dependency.parameter.other: i32
+    local %631 $inline.67.second: i32
+    local %632 $inline.67.$dependency.receiver: i32
+    local %633 $inline.67.$dependency.argument.0: i32
+    local %634 $inline.67.$dependency.parameter.other: i32
+    local %635 $inline.69.result: i32
+    local %636 $inline.69.value: i32
+    local %637 $inline.69.$dependency.receiver: i32
+    local %638 $inline.69.$dependency.argument.0: i32
+    local %639 $inline.69.$dependency.parameter.other: i32
+    local %640 $inline.69.first: i32
+    local %641 $inline.69.$dependency.receiver: i32
+    local %642 $inline.69.$dependency.argument.0: i32
+    local %643 $inline.69.$dependency.parameter.other: i32
+    local %644 $inline.69.second: i32
+    local %645 $inline.69.$dependency.receiver: i32
+    local %646 $inline.69.$dependency.argument.0: i32
+    local %647 $inline.69.$dependency.parameter.other: i32
+    local %648 $inline.71.result: i32
+    local %649 $inline.71.value: i32
+    local %650 $inline.71.$dependency.receiver: i32
+    local %651 $inline.71.$dependency.argument.0: i32
+    local %652 $inline.71.$dependency.parameter.other: i32
+    local %653 $inline.71.first: i32
+    local %654 $inline.71.$dependency.receiver: i32
+    local %655 $inline.71.$dependency.argument.0: i32
+    local %656 $inline.71.$dependency.parameter.other: i32
+    local %657 $inline.71.second: i32
+    local %658 $inline.71.$dependency.receiver: i32
+    local %659 $inline.71.$dependency.argument.0: i32
+    local %660 $inline.71.$dependency.parameter.other: i32
+    local %661 $inline.73.result: i32
+    local %662 $inline.73.value: i32
+    local %663 $inline.73.$dependency.receiver: i32
+    local %664 $inline.73.$dependency.argument.0: i32
+    local %665 $inline.73.$dependency.parameter.other: i32
+    local %666 $inline.73.first: i32
+    local %667 $inline.73.$dependency.receiver: i32
+    local %668 $inline.73.$dependency.argument.0: i32
+    local %669 $inline.73.$dependency.parameter.other: i32
+    local %670 $inline.73.second: i32
+    local %671 $inline.73.$dependency.receiver: i32
+    local %672 $inline.73.$dependency.argument.0: i32
+    local %673 $inline.73.$dependency.parameter.other: i32
+    local %674 $inline.75.result: i32
+    local %675 $inline.75.value: i32
+    local %676 $inline.75.$dependency.receiver: i32
+    local %677 $inline.75.$dependency.argument.0: i32
+    local %678 $inline.75.$dependency.parameter.other: i32
+    local %679 $inline.75.first: i32
+    local %680 $inline.75.$dependency.receiver: i32
+    local %681 $inline.75.$dependency.argument.0: i32
+    local %682 $inline.75.$dependency.parameter.other: i32
+    local %683 $inline.75.second: i32
+    local %684 $inline.75.$dependency.receiver: i32
+    local %685 $inline.75.$dependency.argument.0: i32
+    local %686 $inline.75.$dependency.parameter.other: i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store param0 -> local0
+    store local0 -> local1
+    store local1 -> local2
+    store local2 -> local675
+    br @inline.75.entry
+  block inline.cont.1
+    store local193 -> local166
+    store local166 -> local0
+    store local0 -> local77
+    store local77 -> local78
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (i32) -> i32 local-fn1(local78)
+    store t0 -> local167
+    store local167 -> local0
+    store local0 -> local79
+    store local79 -> local80
+    call managed-direct-target1 sp<managed-call:1> live=[] t1 = sig=direct1 (i32) -> i32 local-fn1(local80)
+    store t1 -> local168
+    store local168 -> local0
+    store local0 -> local81
+    store local81 -> local82
+    call managed-direct-target2 sp<managed-call:2> live=[] t2 = sig=direct2 (i32) -> i32 local-fn1(local82)
+    store t2 -> local169
+    store local169 -> local0
+    store local0 -> local83
+    store local83 -> local84
+    call managed-direct-target3 sp<managed-call:3> live=[] t3 = sig=direct3 (i32) -> i32 local-fn1(local84)
+    store t3 -> local170
+    store local170 -> local0
+    store local0 -> local85
+    store local85 -> local86
+    call managed-direct-target4 sp<managed-call:4> live=[] t4 = sig=direct4 (i32) -> i32 local-fn1(local86)
+    store t4 -> local171
+    store local171 -> local0
+    store local0 -> local87
+    store local87 -> local88
+    call managed-direct-target5 sp<managed-call:5> live=[] t5 = sig=direct5 (i32) -> i32 local-fn1(local88)
+    store t5 -> local172
+    store local172 -> local0
+    store local0 -> local89
+    store local89 -> local90
+    call managed-direct-target6 sp<managed-call:6> live=[] t6 = sig=direct6 (i32) -> i32 local-fn1(local90)
+    store t6 -> local173
+    store local173 -> local0
+    store local0 -> local91
+    store local91 -> local92
+    call managed-direct-target7 sp<managed-call:7> live=[] t7 = sig=direct7 (i32) -> i32 local-fn1(local92)
+    store t7 -> local174
+    store local174 -> local0
+    store local0 -> local93
+    store local93 -> local94
+    call managed-direct-target8 sp<managed-call:8> live=[] t8 = sig=direct8 (i32) -> i32 local-fn1(local94)
+    store t8 -> local175
+    store local175 -> local0
+    store local0 -> local95
+    store local95 -> local96
+    call managed-direct-target9 sp<managed-call:9> live=[] t9 = sig=direct9 (i32) -> i32 local-fn1(local96)
+    store t9 -> local176
+    store local176 -> local0
+    store local0 -> local97
+    store local97 -> local98
+    call managed-direct-target10 sp<managed-call:10> live=[] t10 = sig=direct10 (i32) -> i32 local-fn1(local98)
+    store t10 -> local177
+    store local177 -> local0
+    store local0 -> local99
+    store local99 -> local100
+    call managed-direct-target11 sp<managed-call:11> live=[] t11 = sig=direct11 (i32) -> i32 local-fn1(local100)
+    store t11 -> local178
+    store local178 -> local0
+    store local0 -> local101
+    store local101 -> local102
+    call managed-direct-target12 sp<managed-call:12> live=[] t12 = sig=direct12 (i32) -> i32 local-fn1(local102)
+    store t12 -> local179
+    store local179 -> local0
+    store local0 -> local103
+    store local103 -> local104
+    call managed-direct-target13 sp<managed-call:13> live=[] t13 = sig=direct13 (i32) -> i32 local-fn1(local104)
+    store t13 -> local180
+    store local180 -> local0
+    store local0 -> local105
+    store local105 -> local106
+    call managed-direct-target14 sp<managed-call:14> live=[] t14 = sig=direct14 (i32) -> i32 local-fn1(local106)
+    store t14 -> local181
+    store local181 -> local0
+    store local0 -> local107
+    store local107 -> local108
+    call managed-direct-target15 sp<managed-call:15> live=[] t15 = sig=direct15 (i32) -> i32 local-fn1(local108)
+    store t15 -> local182
+    store local182 -> local0
+    store local0 -> local109
+    store local109 -> local110
+    call managed-direct-target16 sp<managed-call:16> live=[] t16 = sig=direct16 (i32) -> i32 local-fn1(local110)
+    store t16 -> local183
+    store local183 -> local0
+    store local0 -> local111
+    store local111 -> local112
+    call managed-direct-target17 sp<managed-call:17> live=[] t17 = sig=direct17 (i32) -> i32 local-fn1(local112)
+    store t17 -> local184
+    store local184 -> local0
+    store local0 -> local113
+    store local113 -> local114
+    call managed-direct-target18 sp<managed-call:18> live=[] t18 = sig=direct18 (i32) -> i32 local-fn1(local114)
+    store t18 -> local185
+    store local185 -> local0
+    store local0 -> local115
+    store local115 -> local116
+    call managed-direct-target19 sp<managed-call:19> live=[] t19 = sig=direct19 (i32) -> i32 local-fn1(local116)
+    store t19 -> local186
+    store local186 -> local0
+    store local0 -> local117
+    store local117 -> local118
+    call managed-direct-target20 sp<managed-call:20> live=[] t20 = sig=direct20 (i32) -> i32 local-fn1(local118)
+    store t20 -> local187
+    store local187 -> local0
+    store local0 -> local119
+    store local119 -> local120
+    call managed-direct-target21 sp<managed-call:21> live=[] t21 = sig=direct21 (i32) -> i32 local-fn1(local120)
+    store t21 -> local188
+    store local188 -> local0
+    store local0 -> local121
+    store local121 -> local122
+    call managed-direct-target22 sp<managed-call:22> live=[] t22 = sig=direct22 (i32) -> i32 local-fn1(local122)
+    store t22 -> local189
+    store local189 -> local0
+    store local0 -> local123
+    store local123 -> local124
+    call managed-direct-target23 sp<managed-call:23> live=[] t23 = sig=direct23 (i32) -> i32 local-fn1(local124)
+    store t23 -> local190
+    store local190 -> local0
+    store local0 -> local125
+    store local125 -> local126
+    call managed-direct-target24 sp<managed-call:24> live=[] t24 = sig=direct24 (i32) -> i32 local-fn1(local126)
+    store t24 -> local191
+    store local191 -> local0
+    store local0 -> local127
+    store local127 -> local128
+    call managed-direct-target25 sp<managed-call:25> live=[] t25 = sig=direct25 (i32) -> i32 local-fn1(local128)
+    store t25 -> local192
+    store local192 -> local0
+    ret local0
+  block inline.1.entry
+    store local194 -> local195
+    store integer<Int>(0x00000001) -> local196
+    store integer<Int>(0x00000001) -> local197
+    t26 = integer_Add<Int> local195, integer<Int>(0x00000001) : i32
+    store t26 -> local198
+    store local198 -> local199
+    store integer<Int>(0x00000002) -> local200
+    store integer<Int>(0x00000002) -> local201
+    t27 = integer_Add<Int> local199, integer<Int>(0x00000002) : i32
+    store t27 -> local202
+    store local202 -> local203
+    store integer<Int>(0x00000003) -> local204
+    store integer<Int>(0x00000003) -> local205
+    t28 = integer_Add<Int> local203, integer<Int>(0x00000003) : i32
+    store t28 -> local193
+    br @inline.cont.1
+  block inline.cont.3
+    store local206 -> local165
+    store local165 -> local0
+    store local0 -> local75
+    store local75 -> local76
+    store local76 -> local194
+    br @inline.1.entry
+  block inline.3.entry
+    store local207 -> local208
+    store integer<Int>(0x00000001) -> local209
+    store integer<Int>(0x00000001) -> local210
+    t29 = integer_Add<Int> local208, integer<Int>(0x00000001) : i32
+    store t29 -> local211
+    store local211 -> local212
+    store integer<Int>(0x00000002) -> local213
+    store integer<Int>(0x00000002) -> local214
+    t30 = integer_Add<Int> local212, integer<Int>(0x00000002) : i32
+    store t30 -> local215
+    store local215 -> local216
+    store integer<Int>(0x00000003) -> local217
+    store integer<Int>(0x00000003) -> local218
+    t31 = integer_Add<Int> local216, integer<Int>(0x00000003) : i32
+    store t31 -> local206
+    br @inline.cont.3
+  block inline.cont.5
+    store local219 -> local164
+    store local164 -> local0
+    store local0 -> local73
+    store local73 -> local74
+    store local74 -> local207
+    br @inline.3.entry
+  block inline.5.entry
+    store local220 -> local221
+    store integer<Int>(0x00000001) -> local222
+    store integer<Int>(0x00000001) -> local223
+    t32 = integer_Add<Int> local221, integer<Int>(0x00000001) : i32
+    store t32 -> local224
+    store local224 -> local225
+    store integer<Int>(0x00000002) -> local226
+    store integer<Int>(0x00000002) -> local227
+    t33 = integer_Add<Int> local225, integer<Int>(0x00000002) : i32
+    store t33 -> local228
+    store local228 -> local229
+    store integer<Int>(0x00000003) -> local230
+    store integer<Int>(0x00000003) -> local231
+    t34 = integer_Add<Int> local229, integer<Int>(0x00000003) : i32
+    store t34 -> local219
+    br @inline.cont.5
+  block inline.cont.7
+    store local232 -> local163
+    store local163 -> local0
+    store local0 -> local71
+    store local71 -> local72
+    store local72 -> local220
+    br @inline.5.entry
+  block inline.7.entry
+    store local233 -> local234
+    store integer<Int>(0x00000001) -> local235
+    store integer<Int>(0x00000001) -> local236
+    t35 = integer_Add<Int> local234, integer<Int>(0x00000001) : i32
+    store t35 -> local237
+    store local237 -> local238
+    store integer<Int>(0x00000002) -> local239
+    store integer<Int>(0x00000002) -> local240
+    t36 = integer_Add<Int> local238, integer<Int>(0x00000002) : i32
+    store t36 -> local241
+    store local241 -> local242
+    store integer<Int>(0x00000003) -> local243
+    store integer<Int>(0x00000003) -> local244
+    t37 = integer_Add<Int> local242, integer<Int>(0x00000003) : i32
+    store t37 -> local232
+    br @inline.cont.7
+  block inline.cont.9
+    store local245 -> local162
+    store local162 -> local0
+    store local0 -> local69
+    store local69 -> local70
+    store local70 -> local233
+    br @inline.7.entry
+  block inline.9.entry
+    store local246 -> local247
+    store integer<Int>(0x00000001) -> local248
+    store integer<Int>(0x00000001) -> local249
+    t38 = integer_Add<Int> local247, integer<Int>(0x00000001) : i32
+    store t38 -> local250
+    store local250 -> local251
+    store integer<Int>(0x00000002) -> local252
+    store integer<Int>(0x00000002) -> local253
+    t39 = integer_Add<Int> local251, integer<Int>(0x00000002) : i32
+    store t39 -> local254
+    store local254 -> local255
+    store integer<Int>(0x00000003) -> local256
+    store integer<Int>(0x00000003) -> local257
+    t40 = integer_Add<Int> local255, integer<Int>(0x00000003) : i32
+    store t40 -> local245
+    br @inline.cont.9
+  block inline.cont.11
+    store local258 -> local161
+    store local161 -> local0
+    store local0 -> local67
+    store local67 -> local68
+    store local68 -> local246
+    br @inline.9.entry
+  block inline.11.entry
+    store local259 -> local260
+    store integer<Int>(0x00000001) -> local261
+    store integer<Int>(0x00000001) -> local262
+    t41 = integer_Add<Int> local260, integer<Int>(0x00000001) : i32
+    store t41 -> local263
+    store local263 -> local264
+    store integer<Int>(0x00000002) -> local265
+    store integer<Int>(0x00000002) -> local266
+    t42 = integer_Add<Int> local264, integer<Int>(0x00000002) : i32
+    store t42 -> local267
+    store local267 -> local268
+    store integer<Int>(0x00000003) -> local269
+    store integer<Int>(0x00000003) -> local270
+    t43 = integer_Add<Int> local268, integer<Int>(0x00000003) : i32
+    store t43 -> local258
+    br @inline.cont.11
+  block inline.cont.13
+    store local271 -> local160
+    store local160 -> local0
+    store local0 -> local65
+    store local65 -> local66
+    store local66 -> local259
+    br @inline.11.entry
+  block inline.13.entry
+    store local272 -> local273
+    store integer<Int>(0x00000001) -> local274
+    store integer<Int>(0x00000001) -> local275
+    t44 = integer_Add<Int> local273, integer<Int>(0x00000001) : i32
+    store t44 -> local276
+    store local276 -> local277
+    store integer<Int>(0x00000002) -> local278
+    store integer<Int>(0x00000002) -> local279
+    t45 = integer_Add<Int> local277, integer<Int>(0x00000002) : i32
+    store t45 -> local280
+    store local280 -> local281
+    store integer<Int>(0x00000003) -> local282
+    store integer<Int>(0x00000003) -> local283
+    t46 = integer_Add<Int> local281, integer<Int>(0x00000003) : i32
+    store t46 -> local271
+    br @inline.cont.13
+  block inline.cont.15
+    store local284 -> local159
+    store local159 -> local0
+    store local0 -> local63
+    store local63 -> local64
+    store local64 -> local272
+    br @inline.13.entry
+  block inline.15.entry
+    store local285 -> local286
+    store integer<Int>(0x00000001) -> local287
+    store integer<Int>(0x00000001) -> local288
+    t47 = integer_Add<Int> local286, integer<Int>(0x00000001) : i32
+    store t47 -> local289
+    store local289 -> local290
+    store integer<Int>(0x00000002) -> local291
+    store integer<Int>(0x00000002) -> local292
+    t48 = integer_Add<Int> local290, integer<Int>(0x00000002) : i32
+    store t48 -> local293
+    store local293 -> local294
+    store integer<Int>(0x00000003) -> local295
+    store integer<Int>(0x00000003) -> local296
+    t49 = integer_Add<Int> local294, integer<Int>(0x00000003) : i32
+    store t49 -> local284
+    br @inline.cont.15
+  block inline.cont.17
+    store local297 -> local158
+    store local158 -> local0
+    store local0 -> local61
+    store local61 -> local62
+    store local62 -> local285
+    br @inline.15.entry
+  block inline.17.entry
+    store local298 -> local299
+    store integer<Int>(0x00000001) -> local300
+    store integer<Int>(0x00000001) -> local301
+    t50 = integer_Add<Int> local299, integer<Int>(0x00000001) : i32
+    store t50 -> local302
+    store local302 -> local303
+    store integer<Int>(0x00000002) -> local304
+    store integer<Int>(0x00000002) -> local305
+    t51 = integer_Add<Int> local303, integer<Int>(0x00000002) : i32
+    store t51 -> local306
+    store local306 -> local307
+    store integer<Int>(0x00000003) -> local308
+    store integer<Int>(0x00000003) -> local309
+    t52 = integer_Add<Int> local307, integer<Int>(0x00000003) : i32
+    store t52 -> local297
+    br @inline.cont.17
+  block inline.cont.19
+    store local310 -> local157
+    store local157 -> local0
+    store local0 -> local59
+    store local59 -> local60
+    store local60 -> local298
+    br @inline.17.entry
+  block inline.19.entry
+    store local311 -> local312
+    store integer<Int>(0x00000001) -> local313
+    store integer<Int>(0x00000001) -> local314
+    t53 = integer_Add<Int> local312, integer<Int>(0x00000001) : i32
+    store t53 -> local315
+    store local315 -> local316
+    store integer<Int>(0x00000002) -> local317
+    store integer<Int>(0x00000002) -> local318
+    t54 = integer_Add<Int> local316, integer<Int>(0x00000002) : i32
+    store t54 -> local319
+    store local319 -> local320
+    store integer<Int>(0x00000003) -> local321
+    store integer<Int>(0x00000003) -> local322
+    t55 = integer_Add<Int> local320, integer<Int>(0x00000003) : i32
+    store t55 -> local310
+    br @inline.cont.19
+  block inline.cont.21
+    store local323 -> local156
+    store local156 -> local0
+    store local0 -> local57
+    store local57 -> local58
+    store local58 -> local311
+    br @inline.19.entry
+  block inline.21.entry
+    store local324 -> local325
+    store integer<Int>(0x00000001) -> local326
+    store integer<Int>(0x00000001) -> local327
+    t56 = integer_Add<Int> local325, integer<Int>(0x00000001) : i32
+    store t56 -> local328
+    store local328 -> local329
+    store integer<Int>(0x00000002) -> local330
+    store integer<Int>(0x00000002) -> local331
+    t57 = integer_Add<Int> local329, integer<Int>(0x00000002) : i32
+    store t57 -> local332
+    store local332 -> local333
+    store integer<Int>(0x00000003) -> local334
+    store integer<Int>(0x00000003) -> local335
+    t58 = integer_Add<Int> local333, integer<Int>(0x00000003) : i32
+    store t58 -> local323
+    br @inline.cont.21
+  block inline.cont.23
+    store local336 -> local155
+    store local155 -> local0
+    store local0 -> local55
+    store local55 -> local56
+    store local56 -> local324
+    br @inline.21.entry
+  block inline.23.entry
+    store local337 -> local338
+    store integer<Int>(0x00000001) -> local339
+    store integer<Int>(0x00000001) -> local340
+    t59 = integer_Add<Int> local338, integer<Int>(0x00000001) : i32
+    store t59 -> local341
+    store local341 -> local342
+    store integer<Int>(0x00000002) -> local343
+    store integer<Int>(0x00000002) -> local344
+    t60 = integer_Add<Int> local342, integer<Int>(0x00000002) : i32
+    store t60 -> local345
+    store local345 -> local346
+    store integer<Int>(0x00000003) -> local347
+    store integer<Int>(0x00000003) -> local348
+    t61 = integer_Add<Int> local346, integer<Int>(0x00000003) : i32
+    store t61 -> local336
+    br @inline.cont.23
+  block inline.cont.25
+    store local349 -> local154
+    store local154 -> local0
+    store local0 -> local53
+    store local53 -> local54
+    store local54 -> local337
+    br @inline.23.entry
+  block inline.25.entry
+    store local350 -> local351
+    store integer<Int>(0x00000001) -> local352
+    store integer<Int>(0x00000001) -> local353
+    t62 = integer_Add<Int> local351, integer<Int>(0x00000001) : i32
+    store t62 -> local354
+    store local354 -> local355
+    store integer<Int>(0x00000002) -> local356
+    store integer<Int>(0x00000002) -> local357
+    t63 = integer_Add<Int> local355, integer<Int>(0x00000002) : i32
+    store t63 -> local358
+    store local358 -> local359
+    store integer<Int>(0x00000003) -> local360
+    store integer<Int>(0x00000003) -> local361
+    t64 = integer_Add<Int> local359, integer<Int>(0x00000003) : i32
+    store t64 -> local349
+    br @inline.cont.25
+  block inline.cont.27
+    store local362 -> local153
+    store local153 -> local0
+    store local0 -> local51
+    store local51 -> local52
+    store local52 -> local350
+    br @inline.25.entry
+  block inline.27.entry
+    store local363 -> local364
+    store integer<Int>(0x00000001) -> local365
+    store integer<Int>(0x00000001) -> local366
+    t65 = integer_Add<Int> local364, integer<Int>(0x00000001) : i32
+    store t65 -> local367
+    store local367 -> local368
+    store integer<Int>(0x00000002) -> local369
+    store integer<Int>(0x00000002) -> local370
+    t66 = integer_Add<Int> local368, integer<Int>(0x00000002) : i32
+    store t66 -> local371
+    store local371 -> local372
+    store integer<Int>(0x00000003) -> local373
+    store integer<Int>(0x00000003) -> local374
+    t67 = integer_Add<Int> local372, integer<Int>(0x00000003) : i32
+    store t67 -> local362
+    br @inline.cont.27
+  block inline.cont.29
+    store local375 -> local152
+    store local152 -> local0
+    store local0 -> local49
+    store local49 -> local50
+    store local50 -> local363
+    br @inline.27.entry
+  block inline.29.entry
+    store local376 -> local377
+    store integer<Int>(0x00000001) -> local378
+    store integer<Int>(0x00000001) -> local379
+    t68 = integer_Add<Int> local377, integer<Int>(0x00000001) : i32
+    store t68 -> local380
+    store local380 -> local381
+    store integer<Int>(0x00000002) -> local382
+    store integer<Int>(0x00000002) -> local383
+    t69 = integer_Add<Int> local381, integer<Int>(0x00000002) : i32
+    store t69 -> local384
+    store local384 -> local385
+    store integer<Int>(0x00000003) -> local386
+    store integer<Int>(0x00000003) -> local387
+    t70 = integer_Add<Int> local385, integer<Int>(0x00000003) : i32
+    store t70 -> local375
+    br @inline.cont.29
+  block inline.cont.31
+    store local388 -> local151
+    store local151 -> local0
+    store local0 -> local47
+    store local47 -> local48
+    store local48 -> local376
+    br @inline.29.entry
+  block inline.31.entry
+    store local389 -> local390
+    store integer<Int>(0x00000001) -> local391
+    store integer<Int>(0x00000001) -> local392
+    t71 = integer_Add<Int> local390, integer<Int>(0x00000001) : i32
+    store t71 -> local393
+    store local393 -> local394
+    store integer<Int>(0x00000002) -> local395
+    store integer<Int>(0x00000002) -> local396
+    t72 = integer_Add<Int> local394, integer<Int>(0x00000002) : i32
+    store t72 -> local397
+    store local397 -> local398
+    store integer<Int>(0x00000003) -> local399
+    store integer<Int>(0x00000003) -> local400
+    t73 = integer_Add<Int> local398, integer<Int>(0x00000003) : i32
+    store t73 -> local388
+    br @inline.cont.31
+  block inline.cont.33
+    store local401 -> local150
+    store local150 -> local0
+    store local0 -> local45
+    store local45 -> local46
+    store local46 -> local389
+    br @inline.31.entry
+  block inline.33.entry
+    store local402 -> local403
+    store integer<Int>(0x00000001) -> local404
+    store integer<Int>(0x00000001) -> local405
+    t74 = integer_Add<Int> local403, integer<Int>(0x00000001) : i32
+    store t74 -> local406
+    store local406 -> local407
+    store integer<Int>(0x00000002) -> local408
+    store integer<Int>(0x00000002) -> local409
+    t75 = integer_Add<Int> local407, integer<Int>(0x00000002) : i32
+    store t75 -> local410
+    store local410 -> local411
+    store integer<Int>(0x00000003) -> local412
+    store integer<Int>(0x00000003) -> local413
+    t76 = integer_Add<Int> local411, integer<Int>(0x00000003) : i32
+    store t76 -> local401
+    br @inline.cont.33
+  block inline.cont.35
+    store local414 -> local149
+    store local149 -> local0
+    store local0 -> local43
+    store local43 -> local44
+    store local44 -> local402
+    br @inline.33.entry
+  block inline.35.entry
+    store local415 -> local416
+    store integer<Int>(0x00000001) -> local417
+    store integer<Int>(0x00000001) -> local418
+    t77 = integer_Add<Int> local416, integer<Int>(0x00000001) : i32
+    store t77 -> local419
+    store local419 -> local420
+    store integer<Int>(0x00000002) -> local421
+    store integer<Int>(0x00000002) -> local422
+    t78 = integer_Add<Int> local420, integer<Int>(0x00000002) : i32
+    store t78 -> local423
+    store local423 -> local424
+    store integer<Int>(0x00000003) -> local425
+    store integer<Int>(0x00000003) -> local426
+    t79 = integer_Add<Int> local424, integer<Int>(0x00000003) : i32
+    store t79 -> local414
+    br @inline.cont.35
+  block inline.cont.37
+    store local427 -> local148
+    store local148 -> local0
+    store local0 -> local41
+    store local41 -> local42
+    store local42 -> local415
+    br @inline.35.entry
+  block inline.37.entry
+    store local428 -> local429
+    store integer<Int>(0x00000001) -> local430
+    store integer<Int>(0x00000001) -> local431
+    t80 = integer_Add<Int> local429, integer<Int>(0x00000001) : i32
+    store t80 -> local432
+    store local432 -> local433
+    store integer<Int>(0x00000002) -> local434
+    store integer<Int>(0x00000002) -> local435
+    t81 = integer_Add<Int> local433, integer<Int>(0x00000002) : i32
+    store t81 -> local436
+    store local436 -> local437
+    store integer<Int>(0x00000003) -> local438
+    store integer<Int>(0x00000003) -> local439
+    t82 = integer_Add<Int> local437, integer<Int>(0x00000003) : i32
+    store t82 -> local427
+    br @inline.cont.37
+  block inline.cont.39
+    store local440 -> local147
+    store local147 -> local0
+    store local0 -> local39
+    store local39 -> local40
+    store local40 -> local428
+    br @inline.37.entry
+  block inline.39.entry
+    store local441 -> local442
+    store integer<Int>(0x00000001) -> local443
+    store integer<Int>(0x00000001) -> local444
+    t83 = integer_Add<Int> local442, integer<Int>(0x00000001) : i32
+    store t83 -> local445
+    store local445 -> local446
+    store integer<Int>(0x00000002) -> local447
+    store integer<Int>(0x00000002) -> local448
+    t84 = integer_Add<Int> local446, integer<Int>(0x00000002) : i32
+    store t84 -> local449
+    store local449 -> local450
+    store integer<Int>(0x00000003) -> local451
+    store integer<Int>(0x00000003) -> local452
+    t85 = integer_Add<Int> local450, integer<Int>(0x00000003) : i32
+    store t85 -> local440
+    br @inline.cont.39
+  block inline.cont.41
+    store local453 -> local146
+    store local146 -> local0
+    store local0 -> local37
+    store local37 -> local38
+    store local38 -> local441
+    br @inline.39.entry
+  block inline.41.entry
+    store local454 -> local455
+    store integer<Int>(0x00000001) -> local456
+    store integer<Int>(0x00000001) -> local457
+    t86 = integer_Add<Int> local455, integer<Int>(0x00000001) : i32
+    store t86 -> local458
+    store local458 -> local459
+    store integer<Int>(0x00000002) -> local460
+    store integer<Int>(0x00000002) -> local461
+    t87 = integer_Add<Int> local459, integer<Int>(0x00000002) : i32
+    store t87 -> local462
+    store local462 -> local463
+    store integer<Int>(0x00000003) -> local464
+    store integer<Int>(0x00000003) -> local465
+    t88 = integer_Add<Int> local463, integer<Int>(0x00000003) : i32
+    store t88 -> local453
+    br @inline.cont.41
+  block inline.cont.43
+    store local466 -> local145
+    store local145 -> local0
+    store local0 -> local35
+    store local35 -> local36
+    store local36 -> local454
+    br @inline.41.entry
+  block inline.43.entry
+    store local467 -> local468
+    store integer<Int>(0x00000001) -> local469
+    store integer<Int>(0x00000001) -> local470
+    t89 = integer_Add<Int> local468, integer<Int>(0x00000001) : i32
+    store t89 -> local471
+    store local471 -> local472
+    store integer<Int>(0x00000002) -> local473
+    store integer<Int>(0x00000002) -> local474
+    t90 = integer_Add<Int> local472, integer<Int>(0x00000002) : i32
+    store t90 -> local475
+    store local475 -> local476
+    store integer<Int>(0x00000003) -> local477
+    store integer<Int>(0x00000003) -> local478
+    t91 = integer_Add<Int> local476, integer<Int>(0x00000003) : i32
+    store t91 -> local466
+    br @inline.cont.43
+  block inline.cont.45
+    store local479 -> local144
+    store local144 -> local0
+    store local0 -> local33
+    store local33 -> local34
+    store local34 -> local467
+    br @inline.43.entry
+  block inline.45.entry
+    store local480 -> local481
+    store integer<Int>(0x00000001) -> local482
+    store integer<Int>(0x00000001) -> local483
+    t92 = integer_Add<Int> local481, integer<Int>(0x00000001) : i32
+    store t92 -> local484
+    store local484 -> local485
+    store integer<Int>(0x00000002) -> local486
+    store integer<Int>(0x00000002) -> local487
+    t93 = integer_Add<Int> local485, integer<Int>(0x00000002) : i32
+    store t93 -> local488
+    store local488 -> local489
+    store integer<Int>(0x00000003) -> local490
+    store integer<Int>(0x00000003) -> local491
+    t94 = integer_Add<Int> local489, integer<Int>(0x00000003) : i32
+    store t94 -> local479
+    br @inline.cont.45
+  block inline.cont.47
+    store local492 -> local143
+    store local143 -> local0
+    store local0 -> local31
+    store local31 -> local32
+    store local32 -> local480
+    br @inline.45.entry
+  block inline.47.entry
+    store local493 -> local494
+    store integer<Int>(0x00000001) -> local495
+    store integer<Int>(0x00000001) -> local496
+    t95 = integer_Add<Int> local494, integer<Int>(0x00000001) : i32
+    store t95 -> local497
+    store local497 -> local498
+    store integer<Int>(0x00000002) -> local499
+    store integer<Int>(0x00000002) -> local500
+    t96 = integer_Add<Int> local498, integer<Int>(0x00000002) : i32
+    store t96 -> local501
+    store local501 -> local502
+    store integer<Int>(0x00000003) -> local503
+    store integer<Int>(0x00000003) -> local504
+    t97 = integer_Add<Int> local502, integer<Int>(0x00000003) : i32
+    store t97 -> local492
+    br @inline.cont.47
+  block inline.cont.49
+    store local505 -> local142
+    store local142 -> local0
+    store local0 -> local29
+    store local29 -> local30
+    store local30 -> local493
+    br @inline.47.entry
+  block inline.49.entry
+    store local506 -> local507
+    store integer<Int>(0x00000001) -> local508
+    store integer<Int>(0x00000001) -> local509
+    t98 = integer_Add<Int> local507, integer<Int>(0x00000001) : i32
+    store t98 -> local510
+    store local510 -> local511
+    store integer<Int>(0x00000002) -> local512
+    store integer<Int>(0x00000002) -> local513
+    t99 = integer_Add<Int> local511, integer<Int>(0x00000002) : i32
+    store t99 -> local514
+    store local514 -> local515
+    store integer<Int>(0x00000003) -> local516
+    store integer<Int>(0x00000003) -> local517
+    t100 = integer_Add<Int> local515, integer<Int>(0x00000003) : i32
+    store t100 -> local505
+    br @inline.cont.49
+  block inline.cont.51
+    store local518 -> local141
+    store local141 -> local0
+    store local0 -> local27
+    store local27 -> local28
+    store local28 -> local506
+    br @inline.49.entry
+  block inline.51.entry
+    store local519 -> local520
+    store integer<Int>(0x00000001) -> local521
+    store integer<Int>(0x00000001) -> local522
+    t101 = integer_Add<Int> local520, integer<Int>(0x00000001) : i32
+    store t101 -> local523
+    store local523 -> local524
+    store integer<Int>(0x00000002) -> local525
+    store integer<Int>(0x00000002) -> local526
+    t102 = integer_Add<Int> local524, integer<Int>(0x00000002) : i32
+    store t102 -> local527
+    store local527 -> local528
+    store integer<Int>(0x00000003) -> local529
+    store integer<Int>(0x00000003) -> local530
+    t103 = integer_Add<Int> local528, integer<Int>(0x00000003) : i32
+    store t103 -> local518
+    br @inline.cont.51
+  block inline.cont.53
+    store local531 -> local140
+    store local140 -> local0
+    store local0 -> local25
+    store local25 -> local26
+    store local26 -> local519
+    br @inline.51.entry
+  block inline.53.entry
+    store local532 -> local533
+    store integer<Int>(0x00000001) -> local534
+    store integer<Int>(0x00000001) -> local535
+    t104 = integer_Add<Int> local533, integer<Int>(0x00000001) : i32
+    store t104 -> local536
+    store local536 -> local537
+    store integer<Int>(0x00000002) -> local538
+    store integer<Int>(0x00000002) -> local539
+    t105 = integer_Add<Int> local537, integer<Int>(0x00000002) : i32
+    store t105 -> local540
+    store local540 -> local541
+    store integer<Int>(0x00000003) -> local542
+    store integer<Int>(0x00000003) -> local543
+    t106 = integer_Add<Int> local541, integer<Int>(0x00000003) : i32
+    store t106 -> local531
+    br @inline.cont.53
+  block inline.cont.55
+    store local544 -> local139
+    store local139 -> local0
+    store local0 -> local23
+    store local23 -> local24
+    store local24 -> local532
+    br @inline.53.entry
+  block inline.55.entry
+    store local545 -> local546
+    store integer<Int>(0x00000001) -> local547
+    store integer<Int>(0x00000001) -> local548
+    t107 = integer_Add<Int> local546, integer<Int>(0x00000001) : i32
+    store t107 -> local549
+    store local549 -> local550
+    store integer<Int>(0x00000002) -> local551
+    store integer<Int>(0x00000002) -> local552
+    t108 = integer_Add<Int> local550, integer<Int>(0x00000002) : i32
+    store t108 -> local553
+    store local553 -> local554
+    store integer<Int>(0x00000003) -> local555
+    store integer<Int>(0x00000003) -> local556
+    t109 = integer_Add<Int> local554, integer<Int>(0x00000003) : i32
+    store t109 -> local544
+    br @inline.cont.55
+  block inline.cont.57
+    store local557 -> local138
+    store local138 -> local0
+    store local0 -> local21
+    store local21 -> local22
+    store local22 -> local545
+    br @inline.55.entry
+  block inline.57.entry
+    store local558 -> local559
+    store integer<Int>(0x00000001) -> local560
+    store integer<Int>(0x00000001) -> local561
+    t110 = integer_Add<Int> local559, integer<Int>(0x00000001) : i32
+    store t110 -> local562
+    store local562 -> local563
+    store integer<Int>(0x00000002) -> local564
+    store integer<Int>(0x00000002) -> local565
+    t111 = integer_Add<Int> local563, integer<Int>(0x00000002) : i32
+    store t111 -> local566
+    store local566 -> local567
+    store integer<Int>(0x00000003) -> local568
+    store integer<Int>(0x00000003) -> local569
+    t112 = integer_Add<Int> local567, integer<Int>(0x00000003) : i32
+    store t112 -> local557
+    br @inline.cont.57
+  block inline.cont.59
+    store local570 -> local137
+    store local137 -> local0
+    store local0 -> local19
+    store local19 -> local20
+    store local20 -> local558
+    br @inline.57.entry
+  block inline.59.entry
+    store local571 -> local572
+    store integer<Int>(0x00000001) -> local573
+    store integer<Int>(0x00000001) -> local574
+    t113 = integer_Add<Int> local572, integer<Int>(0x00000001) : i32
+    store t113 -> local575
+    store local575 -> local576
+    store integer<Int>(0x00000002) -> local577
+    store integer<Int>(0x00000002) -> local578
+    t114 = integer_Add<Int> local576, integer<Int>(0x00000002) : i32
+    store t114 -> local579
+    store local579 -> local580
+    store integer<Int>(0x00000003) -> local581
+    store integer<Int>(0x00000003) -> local582
+    t115 = integer_Add<Int> local580, integer<Int>(0x00000003) : i32
+    store t115 -> local570
+    br @inline.cont.59
+  block inline.cont.61
+    store local583 -> local136
+    store local136 -> local0
+    store local0 -> local17
+    store local17 -> local18
+    store local18 -> local571
+    br @inline.59.entry
+  block inline.61.entry
+    store local584 -> local585
+    store integer<Int>(0x00000001) -> local586
+    store integer<Int>(0x00000001) -> local587
+    t116 = integer_Add<Int> local585, integer<Int>(0x00000001) : i32
+    store t116 -> local588
+    store local588 -> local589
+    store integer<Int>(0x00000002) -> local590
+    store integer<Int>(0x00000002) -> local591
+    t117 = integer_Add<Int> local589, integer<Int>(0x00000002) : i32
+    store t117 -> local592
+    store local592 -> local593
+    store integer<Int>(0x00000003) -> local594
+    store integer<Int>(0x00000003) -> local595
+    t118 = integer_Add<Int> local593, integer<Int>(0x00000003) : i32
+    store t118 -> local583
+    br @inline.cont.61
+  block inline.cont.63
+    store local596 -> local135
+    store local135 -> local0
+    store local0 -> local15
+    store local15 -> local16
+    store local16 -> local584
+    br @inline.61.entry
+  block inline.63.entry
+    store local597 -> local598
+    store integer<Int>(0x00000001) -> local599
+    store integer<Int>(0x00000001) -> local600
+    t119 = integer_Add<Int> local598, integer<Int>(0x00000001) : i32
+    store t119 -> local601
+    store local601 -> local602
+    store integer<Int>(0x00000002) -> local603
+    store integer<Int>(0x00000002) -> local604
+    t120 = integer_Add<Int> local602, integer<Int>(0x00000002) : i32
+    store t120 -> local605
+    store local605 -> local606
+    store integer<Int>(0x00000003) -> local607
+    store integer<Int>(0x00000003) -> local608
+    t121 = integer_Add<Int> local606, integer<Int>(0x00000003) : i32
+    store t121 -> local596
+    br @inline.cont.63
+  block inline.cont.65
+    store local609 -> local134
+    store local134 -> local0
+    store local0 -> local13
+    store local13 -> local14
+    store local14 -> local597
+    br @inline.63.entry
+  block inline.65.entry
+    store local610 -> local611
+    store integer<Int>(0x00000001) -> local612
+    store integer<Int>(0x00000001) -> local613
+    t122 = integer_Add<Int> local611, integer<Int>(0x00000001) : i32
+    store t122 -> local614
+    store local614 -> local615
+    store integer<Int>(0x00000002) -> local616
+    store integer<Int>(0x00000002) -> local617
+    t123 = integer_Add<Int> local615, integer<Int>(0x00000002) : i32
+    store t123 -> local618
+    store local618 -> local619
+    store integer<Int>(0x00000003) -> local620
+    store integer<Int>(0x00000003) -> local621
+    t124 = integer_Add<Int> local619, integer<Int>(0x00000003) : i32
+    store t124 -> local609
+    br @inline.cont.65
+  block inline.cont.67
+    store local622 -> local133
+    store local133 -> local0
+    store local0 -> local11
+    store local11 -> local12
+    store local12 -> local610
+    br @inline.65.entry
+  block inline.67.entry
+    store local623 -> local624
+    store integer<Int>(0x00000001) -> local625
+    store integer<Int>(0x00000001) -> local626
+    t125 = integer_Add<Int> local624, integer<Int>(0x00000001) : i32
+    store t125 -> local627
+    store local627 -> local628
+    store integer<Int>(0x00000002) -> local629
+    store integer<Int>(0x00000002) -> local630
+    t126 = integer_Add<Int> local628, integer<Int>(0x00000002) : i32
+    store t126 -> local631
+    store local631 -> local632
+    store integer<Int>(0x00000003) -> local633
+    store integer<Int>(0x00000003) -> local634
+    t127 = integer_Add<Int> local632, integer<Int>(0x00000003) : i32
+    store t127 -> local622
+    br @inline.cont.67
+  block inline.cont.69
+    store local635 -> local132
+    store local132 -> local0
+    store local0 -> local9
+    store local9 -> local10
+    store local10 -> local623
+    br @inline.67.entry
+  block inline.69.entry
+    store local636 -> local637
+    store integer<Int>(0x00000001) -> local638
+    store integer<Int>(0x00000001) -> local639
+    t128 = integer_Add<Int> local637, integer<Int>(0x00000001) : i32
+    store t128 -> local640
+    store local640 -> local641
+    store integer<Int>(0x00000002) -> local642
+    store integer<Int>(0x00000002) -> local643
+    t129 = integer_Add<Int> local641, integer<Int>(0x00000002) : i32
+    store t129 -> local644
+    store local644 -> local645
+    store integer<Int>(0x00000003) -> local646
+    store integer<Int>(0x00000003) -> local647
+    t130 = integer_Add<Int> local645, integer<Int>(0x00000003) : i32
+    store t130 -> local635
+    br @inline.cont.69
+  block inline.cont.71
+    store local648 -> local131
+    store local131 -> local0
+    store local0 -> local7
+    store local7 -> local8
+    store local8 -> local636
+    br @inline.69.entry
+  block inline.71.entry
+    store local649 -> local650
+    store integer<Int>(0x00000001) -> local651
+    store integer<Int>(0x00000001) -> local652
+    t131 = integer_Add<Int> local650, integer<Int>(0x00000001) : i32
+    store t131 -> local653
+    store local653 -> local654
+    store integer<Int>(0x00000002) -> local655
+    store integer<Int>(0x00000002) -> local656
+    t132 = integer_Add<Int> local654, integer<Int>(0x00000002) : i32
+    store t132 -> local657
+    store local657 -> local658
+    store integer<Int>(0x00000003) -> local659
+    store integer<Int>(0x00000003) -> local660
+    t133 = integer_Add<Int> local658, integer<Int>(0x00000003) : i32
+    store t133 -> local648
+    br @inline.cont.71
+  block inline.cont.73
+    store local661 -> local130
+    store local130 -> local0
+    store local0 -> local5
+    store local5 -> local6
+    store local6 -> local649
+    br @inline.71.entry
+  block inline.73.entry
+    store local662 -> local663
+    store integer<Int>(0x00000001) -> local664
+    store integer<Int>(0x00000001) -> local665
+    t134 = integer_Add<Int> local663, integer<Int>(0x00000001) : i32
+    store t134 -> local666
+    store local666 -> local667
+    store integer<Int>(0x00000002) -> local668
+    store integer<Int>(0x00000002) -> local669
+    t135 = integer_Add<Int> local667, integer<Int>(0x00000002) : i32
+    store t135 -> local670
+    store local670 -> local671
+    store integer<Int>(0x00000003) -> local672
+    store integer<Int>(0x00000003) -> local673
+    t136 = integer_Add<Int> local671, integer<Int>(0x00000003) : i32
+    store t136 -> local661
+    br @inline.cont.73
+  block inline.cont.75
+    store local674 -> local129
+    store local129 -> local0
+    store local0 -> local3
+    store local3 -> local4
+    store local4 -> local662
+    br @inline.73.entry
+  block inline.75.entry
+    store local675 -> local676
+    store integer<Int>(0x00000001) -> local677
+    store integer<Int>(0x00000001) -> local678
+    t137 = integer_Add<Int> local676, integer<Int>(0x00000001) : i32
+    store t137 -> local679
+    store local679 -> local680
+    store integer<Int>(0x00000002) -> local681
+    store integer<Int>(0x00000002) -> local682
+    t138 = integer_Add<Int> local680, integer<Int>(0x00000002) : i32
+    store t138 -> local683
+    store local683 -> local684
+    store integer<Int>(0x00000003) -> local685
+    store integer<Int>(0x00000003) -> local686
+    t139 = integer_Add<Int> local684, integer<Int>(0x00000003) : i32
+    store t139 -> local674
+    br @inline.cont.75
+  fun @scoop$1$cb$a59ba8328a87a3c09df1111305261ccbca23796630e0ce6dea24e3ae106f48ca() -> void
+    local %0 $argument.0: i32
+    local %1 $parameter.input: i32
+    local %2 $dependency.receiver: i32
+    local %3 $dependency.argument.0: i32
+    local %4 $dependency.parameter.other: i32
+    local %5 $argument.0: i1
+    local %6 $parameter.value: i1
+    local %7 $dependency.argument.0: ptr<managed>
+    local %8 $dependency.parameter.value: ptr<managed>
+  block entry
+    poll managed-void-target2 sp<managed-poll:0> live=[]
+    store integer<Int>(0x0000000a) -> local0
+    store integer<Int>(0x0000000a) -> local1
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (i32) -> i32 local-fn2(integer<Int>(0x0000000a))
+    store t0 -> local2
+    store integer<Int>(0x0000018a) -> local3
+    store integer<Int>(0x0000018a) -> local4
+    t1 = integer_compare_Equal<Int> local2, integer<Int>(0x0000018a) : i1
+    store t1 -> local5
+    store local5 -> local6
+    call managed-void-target0 sp<managed-call:1> live=[] sig=void0 (i1) local-fn0(local6)
+    t2 = aggregate () : {}
+    store global1 -> local7
+    store local7 -> local8
+    call managed-void-target1 sp<managed-call:2> live=[local8:ptr<managed>@0] sig=void1 (ptr<managed>) local-fn4(local8)
+    t3 = aggregate () : {}
+    ret
+  fun @scoop$1$cb$43be1945af2e9ba3587bf2ead706ac7563f8181567977803f1aaa99bf055da0f(ptr<managed>) -> void
+    local %0 $dependency.local.1: ptr<managed>
+    local %1 $dependency.local.2: ptr<managed>
+    local %2 $dependency.local.3: ptr<managed>
+    local %3 $dependency.local.4: ptr<managed>
+    local %4 $dependency.local.5: ptr<managed>
+  block entry
+    poll managed-void-target2 sp<managed-poll:0> live=[param0:ptr<managed>@0]
+    store param0 -> local0
+    call managed-direct-target0 sp<managed-call:0> live=[local0:ptr<managed>@0] t0 = sig=direct0 (ptr<managed>) -> ptr<managed> external-fn1(local0)
+    store t0 -> local1
+    store local1 -> local2
+    call managed-void-target0 sp<managed-call:1> live=[local2:ptr<managed>@0] sig=void0 (ptr<managed>) external-fn2(local2)
+    t1 = aggregate () : {}
+    store global2 -> local3
+    store local3 -> local4
+    call managed-void-target1 sp<managed-call:2> live=[local4:ptr<managed>@0] sig=void1 (ptr<managed>) external-fn2(local4)
+    t2 = aggregate () : {}
+    ret
+  fun @scoop$1$cb$d3bd523ea7c4b775508c06e622f76772db6a21fddb406c6d3fe7d1f20a2a89c1(i32, ptr<raw>, ptr<raw>) -> i32
+  block entry
+    poll managed-void-target1 sp<managed-poll:0> live=[]
+    call managed-direct-target1 sp<managed-call:0> live=[] t4 = sig=direct1 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_context_ensure_root(external-td3)
+    invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn3() normal @success unwind @failure
+    br @success
+  block success
+    raw_store param2 integer<Int>(0x00000000) align 4
+    ret integer<UInt>(0x00000000)
+  block failure
+    (t0, t1) = landingpad : (exception_record, ptr<raw>)
+    t2 = begin_catch t1 : ptr<managed>
+    call managed-direct-target0 sp<managed-call:1> live=[t2:ptr<managed>@0] t3 = sig=direct0 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(t2)
+    global_store global3, t3
+    end_catch
+    ret integer<UInt>(0x00000001)
+  td td0 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Equality);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Char)]) @scoop$1$td$0f4d8eca35177919534de9ce0291a10ee5574dac0e99777edd7eb05ecc820465 type-id=3821555638981672158 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
+  td td1 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Iterable);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Char)]) @scoop$1$td$ef6b36ca09c9933b3bea840528953a3d291a9603d801f756a28cae62bb923998 type-id=10315282307843172623 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
+  td td2 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Iterator);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Char)]) @scoop$1$td$2ae1daea8950ad158982fc142740cd4330fb486dd7dae7c2229b04b285155cfd type-id=16446202047868660179 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
+  td td3 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Equality);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=String)]) @scoop$1$td$0d8186dad7dc186993ac409f3c89912796864b66fe505b6840799771e02438d5 type-id=10328602540278925084 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
+  td td4 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=Option);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=String)]) @scoop$1$td$ae549cdc775dd9ab0e9bae5a7a2d6790f211d7978acd71210d6088d347896a35 type-id=12995891512699415417 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td5 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=Option);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Char)]) @scoop$1$td$d7f4366e65835cbfa9730a35af33f51b9ed79c85d1b97de13e951aaa6136a11d type-id=4546798213121979959 shape=BoxedValue minimum-size=32 align=8 parent=none vtable=[] itables=[]
+  layout Option size=8 align=8 enum-scan=refs[0]
+  layout Option size=16 align=8 enum-scan=none
+  layout Equality value size=16 align=8 refs=[0]
+  layout Iterable value size=16 align=8 refs=[0]
+  layout Iterator value size=16 align=8 refs=[0]
+  layout Equality value size=16 align=8 refs=[0]
+  output executable @scoop$1$cb$a59ba8328a87a3c09df1111305261ccbca23796630e0ce6dea24e3ae106f48ca

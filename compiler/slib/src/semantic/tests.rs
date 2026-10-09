@@ -4,7 +4,8 @@ use scoop_lir::ValidatedLirTargetSelection;
 use super::*;
 use crate::{
     MemberPurposeSet, MetadataSection, hir_identity_foundation_capability,
-    lir_cross_cone_layout_abi_capability, mir_identity_foundation_capability,
+    lir_cross_cone_layout_abi_capability, mir_core_bootstrap_bridge_capability,
+    mir_identity_foundation_capability,
 };
 
 fn compatibility() -> CompatibilityRecord {
@@ -18,13 +19,17 @@ fn compatibility() -> CompatibilityRecord {
 fn section(layer: FoundationLayer, payload: &[u8]) -> MetadataSection {
     let capability = match layer {
         FoundationLayer::Hir => hir_identity_foundation_capability(),
-        FoundationLayer::Mir => mir_identity_foundation_capability(),
+        FoundationLayer::Mir => mir_core_bootstrap_bridge_capability(),
         FoundationLayer::Lir => lir_cross_cone_layout_abi_capability(),
     };
     MetadataSection::new(
         layer.location(),
         capability,
-        MemberPurposeSet::COMPILE_AND_LINK,
+        if layer == FoundationLayer::Mir {
+            MemberPurposeSet::COMPILE
+        } else {
+            MemberPurposeSet::COMPILE_AND_LINK
+        },
         payload.to_vec(),
     )
     .unwrap()
@@ -57,7 +62,7 @@ fn semantic_fingerprints(
 }
 
 #[test]
-fn foundation_fingerprints_have_fixed_vectors() {
+fn semantic_layer_fingerprints_have_fixed_vectors() {
     let fingerprints = semantic_fingerprints(
         &compatibility(),
         &[],
@@ -74,9 +79,9 @@ fn foundation_fingerprints_have_fixed_vectors() {
             fingerprints.lir().to_string()
         ],
         [
-            "fd08d836f6d2128b9c4e03beac7ec25dc0d844e6ca9224d883ebd6a19d1c546d",
-            "8f37311043b9f883cf28eb265492dc07166f7764e563bb138f77b48c29257d9b",
-            "529d068717b7806d24dd211e58795cea07f758a2c6e9b55122108002ddd77145",
+            "cbe1a8e47bc80038e6959c98a447604bf0cbbda794523b433d459ec985f8b9ea",
+            "70a884cb770a6617753bda039f5d601743fe711195c8a27615def507d10355a9",
+            "ea25b580ff5df8b4f50197fb63cc4bbe7ccf070e15f44524b60d1a33ea7b637e",
         ]
     );
 }
@@ -280,4 +285,50 @@ fn private_lir_production_does_not_change_dependency_semantics() {
     assert_eq!(changed_abi.hir(), baseline.hir());
     assert_eq!(changed_abi.mir(), baseline.mir());
     assert_ne!(changed_abi.lir(), baseline.lir());
+}
+
+#[test]
+fn mir_implementation_identities_do_not_change_dependency_semantics() {
+    let compatibility = compatibility();
+    let make = |payload: &[u8]| {
+        MetadataSection::new(
+            MetadataLocation::Mir,
+            mir_identity_foundation_capability(),
+            MemberPurposeSet::COMPILE_AND_LINK,
+            payload.to_vec(),
+        )
+        .unwrap()
+    };
+    let semantic = section(FoundationLayer::Mir, b"public bridge");
+    let fingerprints = |foundation| {
+        SemanticFingerprintRecord::from_metadata_sections(
+            &compatibility,
+            &[],
+            &[],
+            &[semantic.clone(), foundation],
+            &[],
+        )
+        .unwrap()
+    };
+    assert_eq!(
+        fingerprints(make(b"original locals")),
+        fingerprints(make(b"inlined locals"))
+    );
+    let contract =
+        CapabilityContractRegistry::contract(&mir_identity_foundation_capability()).unwrap();
+    assert!(contract.sinks().contains(FingerprintSink::Code));
+    assert!(
+        contract
+            .sinks()
+            .contains(FingerprintSink::LinkValidationOnly)
+    );
+    let changed = SemanticFingerprintRecord::from_metadata_sections(
+        &compatibility,
+        &[],
+        &[],
+        &[section(FoundationLayer::Mir, b"changed public bridge")],
+        &[],
+    )
+    .unwrap();
+    assert_ne!(fingerprints(make(b"original locals")).mir(), changed.mir());
 }

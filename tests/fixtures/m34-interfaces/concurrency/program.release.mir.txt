@@ -76,14 +76,42 @@ Module
       val $dependency.local.4: Ptr<Unit>
         Type Ptr<Unit>
         Local $dependency.local.3
-      call $call.1: Boolean = @fn7 direct
+      val $inline.1.this: Ptr<Unit>
         Type Ptr<Unit>
         Local $dependency.local.2
+      val $inline.1.other: Ptr<Unit>
         Type Ptr<Unit>
         Local $dependency.local.4
+      goto bb2
+    bb1 inline.cont.1
+      val $call.1: Boolean
+        Type Boolean
+        Local $inline.1.result
       return
         Type Boolean
         Local $call.1
+    bb2 inline.1.entry
+      val $inline.1.$dependency.local.2: Ptr<Unit>
+        Type Ptr<Unit>
+        Local $inline.1.this
+      val $inline.1.$dependency.local.4: ULong
+        Type ULong
+        PtrToULong
+          Type Ptr<Unit>
+          Local $inline.1.$dependency.local.2
+      val $inline.1.$dependency.local.3: Ptr<Unit>
+        Type Ptr<Unit>
+        Local $inline.1.other
+      assign $inline.1.result
+        Type Boolean
+        IntegerCompare equal operands=ULong result=Boolean
+          Type ULong
+          Local $inline.1.$dependency.local.4
+          Type ULong
+          PtrToULong
+            Type Ptr<Unit>
+            Local $inline.1.$dependency.local.3
+      goto bb1
   fun First.number @fn1(this: First) -> Int
     bb0 entry
       return
@@ -158,62 +186,17 @@ Module
         IntegerLiteral Int value=1 bits=0x00000001
       val $parameter.value: Int
         Type Int
-        Local $argument.0
+        IntegerLiteral Int value=1 bits=0x00000001
       assign $new.1
         Type First
         ClassAlloc First
-      call @fn15 direct
+      val $inline.15.this: First
         Type First
         Local $new.1
+      val $inline.15.value: Int
         Type Int
-        Local $parameter.value
-      val initial: Value
-        Type Value
-        Retype Value
-          Type First
-          Local $new.1
-      val $argument.0: Value
-        Type Value
-        Local initial
-      val $parameter.initial: Value
-        Type Value
-        Local $argument.0
-      val cell: AtomicRef<Value>
-        Type AtomicRef<Value>
-        AtomicNew AtomicRef<Value>
-          Type Value
-          Local $parameter.initial
-      call @scoop_rt_gc_collect direct
-      val action: (Int) -> Int
-        Type (Int) -> Int
-        ClosureAlloc cc0 $Closure$lambda0
-          CaptureInit field=0
-            Type AtomicRef<Value>
-            Local cell
-      val $dependency.argument.0: (Int) -> Int
-        Type (Int) -> Int
-        Local action
-      val $dependency.argument.1: Long
-        Type Long
-        IntegerLiteral Long value=1 bits=0x0000000000000001
-      val $dependency.argument.2: ForeignCallbackMode
-        Type ForeignCallbackMode
-        VariantConstruct ForeignCallbackMode v0
-      val $dependency.parameter.callback: (Int) -> Int
-        Type (Int) -> Int
-        Local $dependency.argument.0
-      val $dependency.parameter.contextIndex: Long
-        Type Long
-        Local $dependency.argument.1
-      val $dependency.parameter.mode: ForeignCallbackMode
-        Type ForeignCallbackMode
-        Local $dependency.argument.2
-      val callback: ForeignCallback<(Int, Ptr<Unit>) -> Int>
-        Type ForeignCallback<(Int, Ptr<Unit>) -> Int>
-        ForeignCallbackRegister fcb0 family=fcf0
-          Type (Int) -> Int
-          Local $dependency.parameter.callback
-      goto bb6
+        IntegerLiteral Int value=1 bits=0x00000001
+      goto bb16
     bb1 try.unwind.1
       landing_pad cleanup=false
       goto bb2
@@ -247,7 +230,7 @@ Module
         IntegerLiteral Int value=1 bits=0x00000001
       val $dependency.parameter.other: Int
         Type Int
-        Local $dependency.argument.0
+        IntegerLiteral Int value=1 bits=0x00000001
       val $argument.0: Boolean
         Type Boolean
         IntegerCompare greater-than-or-equal operands=Long result=Boolean
@@ -256,7 +239,7 @@ Module
             Type Int
             Local $dependency.receiver
             Type Int
-            Local $dependency.parameter.other
+            IntegerLiteral Int value=1 bits=0x00000001
           Type Long
           IntegerLiteral Long value=0 bits=0x0000000000000000
       val $parameter.value: Boolean
@@ -300,32 +283,32 @@ Module
         Local $argument.1
       val $parameter.base: Int
         Type Int
-        Local $argument.2
+        IntegerLiteral Int value=0 bits=0x00000000
       val $parameter.count: Int
         Type Int
-        Local $argument.3
+        IntegerLiteral Int value=4 bits=0x00000004
       call $dependency.receiver: Int = extern0 @m13_run_many direct
         Type FunPtr<(Int, Ptr<Unit>) -> Int>
         Local $parameter.function
         Type Ptr<Unit>
         Local $parameter.context
         Type Int
-        Local $parameter.base
+        IntegerLiteral Int value=0 bits=0x00000000
         Type Int
-        Local $parameter.count
+        IntegerLiteral Int value=4 bits=0x00000004
       val $dependency.argument.0: Int
         Type Int
         IntegerLiteral Int value=64 bits=0x00000040
       val $dependency.parameter.other: Int
         Type Int
-        Local $dependency.argument.0
+        IntegerLiteral Int value=64 bits=0x00000040
       val $argument.0: Boolean
         Type Boolean
         IntegerCompare equal operands=Int result=Boolean
           Type Int
           Local $dependency.receiver
           Type Int
-          Local $dependency.parameter.other
+          IntegerLiteral Int value=64 bits=0x00000040
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
@@ -409,6 +392,61 @@ Module
         Type ForeignCallback<(Int, Ptr<Unit>) -> Int>
         Local $dependency.parameter.callback
       rethrow unwind bb3
+    bb15 inline.cont.15
+      val initial: Value
+        Type Value
+        Retype Value
+          Type First
+          Local $new.1
+      val $argument.0: Value
+        Type Value
+        Local initial
+      val $parameter.initial: Value
+        Type Value
+        Local $argument.0
+      val cell: AtomicRef<Value>
+        Type AtomicRef<Value>
+        AtomicNew AtomicRef<Value>
+          Type Value
+          Local $parameter.initial
+      call @scoop_rt_gc_collect direct
+      val action: (Int) -> Int
+        Type (Int) -> Int
+        ClosureAlloc cc0 $Closure$lambda0
+          CaptureInit field=0
+            Type AtomicRef<Value>
+            Local cell
+      val $dependency.argument.0: (Int) -> Int
+        Type (Int) -> Int
+        Local action
+      val $dependency.argument.1: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.argument.2: ForeignCallbackMode
+        Type ForeignCallbackMode
+        VariantConstruct ForeignCallbackMode v0
+      val $dependency.parameter.callback: (Int) -> Int
+        Type (Int) -> Int
+        Local $dependency.argument.0
+      val $dependency.parameter.contextIndex: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.parameter.mode: ForeignCallbackMode
+        Type ForeignCallbackMode
+        Local $dependency.argument.2
+      val callback: ForeignCallback<(Int, Ptr<Unit>) -> Int>
+        Type ForeignCallback<(Int, Ptr<Unit>) -> Int>
+        ForeignCallbackRegister fcb0 family=fcf0
+          Type (Int) -> Int
+          Local $dependency.parameter.callback
+      goto bb6
+    bb16 inline.15.entry
+      field_set 0
+        Type First
+        Local $inline.15.this
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      goto bb15
   fun equals @fn7(this: Ptr<Unit>, other: Ptr<Unit>) -> Boolean
     bb0 entry
       val $dependency.local.2: Ptr<Unit>
@@ -447,7 +485,7 @@ Module
         IntegerLiteral Int value=16 bits=0x00000010
       val $dependency.parameter.other: Int
         Type Int
-        Local $dependency.argument.0
+        IntegerLiteral Int value=16 bits=0x00000010
       branch bb3 bb2
         Type Boolean
         IntegerCompare less-than operands=Long result=Boolean
@@ -456,7 +494,7 @@ Module
             Type Int
             Local $dependency.receiver
             Type Int
-            Local $dependency.parameter.other
+            IntegerLiteral Int value=16 bits=0x00000010
           Type Long
           IntegerLiteral Long value=0 bits=0x0000000000000000
     bb2 while.exit.2
@@ -472,14 +510,14 @@ Module
         IntegerLiteral Int value=16 bits=0x00000010
       val $dependency.parameter.other: Int
         Type Int
-        Local $dependency.argument.0
+        IntegerLiteral Int value=16 bits=0x00000010
       val $dependency.receiver: Int
         Type Int
         IntegerBinary multiply kind=Int
           Type Int
           Local $dependency.receiver
           Type Int
-          Local $dependency.parameter.other
+          IntegerLiteral Int value=16 bits=0x00000010
       val $dependency.argument.0: Int
         Type Int
         Local index
@@ -498,14 +536,14 @@ Module
         IntegerLiteral Int value=1 bits=0x00000001
       val $dependency.parameter.other: Int
         Type Int
-        Local $dependency.argument.0
+        IntegerLiteral Int value=1 bits=0x00000001
       val number: Int
         Type Int
         IntegerBinary add kind=Int
           Type Int
           Local $dependency.receiver
           Type Int
-          Local $dependency.parameter.other
+          IntegerLiteral Int value=1 bits=0x00000001
       val $dependency.receiver: Int
         Type Int
         Local index
@@ -514,30 +552,16 @@ Module
         IntegerLiteral Int value=2 bits=0x00000002
       val $dependency.parameter.other: Int
         Type Int
-        Local $dependency.argument.0
+        IntegerLiteral Int value=2 bits=0x00000002
       val $div.1: Int
         Type Int
         Local $dependency.receiver
       val $div.2: Int
         Type Int
-        Local $dependency.parameter.other
-      branch bb4 bb5
-        Type Boolean
-        IntegerCompare equal operands=Int result=Boolean
-          Type Int
-          Local $div.2
-          Type Int
-          IntegerLiteral Int value=0 bits=0x00000000
+        IntegerLiteral Int value=2 bits=0x00000002
+      goto bb5
     bb4 if.then.4
-      assign $new.1
-        Type ArithmeticException
-        ClassAlloc ArithmeticException
-      call external3 direct
-        Type ArithmeticException
-        Local $new.1
-      throw
-        Type ArithmeticException
-        Local $new.1
+      unreachable
     bb5 if.merge.5
       branch bb6 bb7
         Type Boolean
@@ -549,11 +573,7 @@ Module
     bb6 logic.rhs.6
       assign $logic.2
         Type Boolean
-        IntegerCompare equal operands=Int result=Boolean
-          Type Int
-          Local $div.2
-          Type Int
-          IntegerLiteral Int value=-1 bits=0xffffffff
+        BoolLiteral false
       goto bb8
     bb7 logic.short.7
       assign $logic.2
@@ -561,14 +581,9 @@ Module
         BoolLiteral false
       goto bb8
     bb8 logic.merge.8
-      branch bb9 bb10
-        Type Boolean
-        Local $logic.2
+      goto bb10
     bb9 if.then.9
-      assign $div.result.3
-        Type Int
-        IntegerLiteral Int value=0 bits=0x00000000
-      goto bb11
+      unreachable
     bb10 if.else.10
       assign $div.result.3
         Type Int
@@ -576,7 +591,7 @@ Module
           Type Int
           Local $div.1
           Type Int
-          Local $div.2
+          IntegerLiteral Int value=2 bits=0x00000002
       goto bb11
     bb11 if.merge.11
       val $dependency.receiver: Int
@@ -587,14 +602,14 @@ Module
         IntegerLiteral Int value=0 bits=0x00000000
       val $dependency.parameter.other: Int
         Type Int
-        Local $dependency.argument.0
+        IntegerLiteral Int value=0 bits=0x00000000
       branch bb12 bb13
         Type Boolean
         IntegerCompare equal operands=Int result=Boolean
           Type Int
           Local $dependency.receiver
           Type Int
-          Local $dependency.parameter.other
+          IntegerLiteral Int value=0 bits=0x00000000
     bb12 if.then.12
       val $argument.0: Int
         Type Int
@@ -605,17 +620,13 @@ Module
       assign $new.3
         Type First
         ClassAlloc First
-      call @fn15 direct
+      val $inline.30.this: First
         Type First
         Local $new.3
+      val $inline.30.value: Int
         Type Int
         Local $parameter.value
-      assign $result.0
-        Type Value
-        Retype Value
-          Type First
-          Local $new.3
-      goto bb14
+      goto bb31
     bb13 if.else.13
       val $argument.0: String
         Type String
@@ -632,19 +643,16 @@ Module
       assign $new.4
         Type Second
         ClassAlloc Second
-      call @fn16 direct
+      val $inline.28.this: Second
         Type Second
         Local $new.4
+      val $inline.28.padding: String
         Type String
         Local $parameter.padding
+      val $inline.28.value: Int
         Type Int
         Local $parameter.value
-      assign $result.0
-        Type Value
-        Retype Value
-          Type Second
-          Local $new.4
-      goto bb14
+      goto bb29
     bb14 if.merge.14
       val next: Value
         Type Value
@@ -696,30 +704,16 @@ Module
         IntegerLiteral Int value=8 bits=0x00000008
       val $dependency.parameter.other: Int
         Type Int
-        Local $dependency.argument.0
+        IntegerLiteral Int value=8 bits=0x00000008
       val $div.4: Int
         Type Int
         Local $dependency.receiver
       val $div.5: Int
         Type Int
-        Local $dependency.parameter.other
-      branch bb15 bb16
-        Type Boolean
-        IntegerCompare equal operands=Int result=Boolean
-          Type Int
-          Local $div.5
-          Type Int
-          IntegerLiteral Int value=0 bits=0x00000000
+        IntegerLiteral Int value=8 bits=0x00000008
+      goto bb16
     bb15 if.then.15
-      assign $new.5
-        Type ArithmeticException
-        ClassAlloc ArithmeticException
-      call external3 direct
-        Type ArithmeticException
-        Local $new.5
-      throw
-        Type ArithmeticException
-        Local $new.5
+      unreachable
     bb16 if.merge.16
       branch bb17 bb18
         Type Boolean
@@ -731,11 +725,7 @@ Module
     bb17 logic.rhs.17
       assign $logic.6
         Type Boolean
-        IntegerCompare equal operands=Int result=Boolean
-          Type Int
-          Local $div.5
-          Type Int
-          IntegerLiteral Int value=-1 bits=0xffffffff
+        BoolLiteral false
       goto bb19
     bb18 logic.short.18
       assign $logic.6
@@ -743,14 +733,9 @@ Module
         BoolLiteral false
       goto bb19
     bb19 logic.merge.19
-      branch bb20 bb21
-        Type Boolean
-        Local $logic.6
+      goto bb21
     bb20 if.then.20
-      assign $div.result.6
-        Type Int
-        IntegerLiteral Int value=0 bits=0x00000000
-      goto bb22
+      unreachable
     bb21 if.else.21
       assign $div.result.6
         Type Int
@@ -758,7 +743,7 @@ Module
           Type Int
           Local $div.4
           Type Int
-          Local $div.5
+          IntegerLiteral Int value=8 bits=0x00000008
       goto bb22
     bb22 if.merge.22
       val $dependency.receiver: Int
@@ -769,14 +754,14 @@ Module
         IntegerLiteral Int value=0 bits=0x00000000
       val $dependency.parameter.other: Int
         Type Int
-        Local $dependency.argument.0
+        IntegerLiteral Int value=0 bits=0x00000000
       branch bb23 bb24
         Type Boolean
         IntegerCompare equal operands=Int result=Boolean
           Type Int
           Local $dependency.receiver
           Type Int
-          Local $dependency.parameter.other
+          IntegerLiteral Int value=0 bits=0x00000000
     bb23 if.then.23
       call @scoop_rt_gc_collect direct
       goto bb24
@@ -792,7 +777,7 @@ Module
         IntegerLiteral Int value=1 bits=0x00000001
       val $dependency.parameter.other: Int
         Type Int
-        Local $dependency.argument.0
+        IntegerLiteral Int value=1 bits=0x00000001
       branch bb25 bb26
         Type Boolean
         IntegerCompare greater-than-or-equal operands=Long result=Boolean
@@ -801,7 +786,7 @@ Module
             Type Int
             Local $dependency.receiver
             Type Int
-            Local $dependency.parameter.other
+            IntegerLiteral Int value=1 bits=0x00000001
           Type Long
           IntegerLiteral Long value=0 bits=0x0000000000000000
     bb25 if.then.25
@@ -816,7 +801,7 @@ Module
         IntegerLiteral Int value=64 bits=0x00000040
       val $dependency.parameter.other: Int
         Type Int
-        Local $dependency.argument.0
+        IntegerLiteral Int value=64 bits=0x00000040
       val $shortCircuit.1: Boolean
         Type Boolean
         IntegerCompare less-than-or-equal operands=Long result=Boolean
@@ -825,7 +810,7 @@ Module
             Type Int
             Local $dependency.receiver
             Type Int
-            Local $dependency.parameter.other
+            IntegerLiteral Int value=64 bits=0x00000040
           Type Long
           IntegerLiteral Long value=0 bits=0x0000000000000000
       goto bb27
@@ -904,7 +889,7 @@ Module
         IntegerLiteral Int value=1 bits=0x00000001
       val $dependency.parameter.other: Int
         Type Int
-        Local $dependency.argument.0
+        IntegerLiteral Int value=1 bits=0x00000001
       val $argument.0: Boolean
         Type Boolean
         IntegerCompare greater-than-or-equal operands=Long result=Boolean
@@ -913,7 +898,7 @@ Module
             Type Int
             Local $dependency.receiver
             Type Int
-            Local $dependency.parameter.other
+            IntegerLiteral Int value=1 bits=0x00000001
           Type Long
           IntegerLiteral Long value=0 bits=0x0000000000000000
       val $parameter.value: Boolean
@@ -933,15 +918,48 @@ Module
         IntegerLiteral Int value=1 bits=0x00000001
       val $dependency.parameter.other: Int
         Type Int
-        Local $dependency.argument.0
+        IntegerLiteral Int value=1 bits=0x00000001
       assign index
         Type Int
         IntegerBinary add kind=Int
           Type Int
           Local $dependency.receiver
           Type Int
-          Local $dependency.parameter.other
+          IntegerLiteral Int value=1 bits=0x00000001
       goto bb1
+    bb28 inline.cont.28
+      assign $result.0
+        Type Value
+        Retype Value
+          Type Second
+          Local $new.4
+      goto bb14
+    bb29 inline.28.entry
+      field_set 0
+        Type Second
+        Local $inline.28.this
+        Type String
+        Local $inline.28.padding
+      field_set 1
+        Type Second
+        Local $inline.28.this
+        Type Int
+        Local $inline.28.value
+      goto bb28
+    bb30 inline.cont.30
+      assign $result.0
+        Type Value
+        Retype Value
+          Type First
+          Local $new.3
+      goto bb14
+    bb31 inline.30.entry
+      field_set 0
+        Type First
+        Local $inline.30.this
+        Type Int
+        Local $inline.30.value
+      goto bb30
   fun println @fn9(value: String) -> Unit
     bb0 entry
       val $dependency.local.1: String

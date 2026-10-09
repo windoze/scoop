@@ -131,10 +131,10 @@ impl CapabilityContractRegistry {
                 MemberPurposeSet::COMPILE_AND_LINK,
                 FingerprintSinkSet::HIR,
             ),
-            ("org.scoop-lang.mir", "identity-foundation", 5) => (
+            ("org.scoop-lang.mir", "identity-foundation", 6) => (
                 SectionLocation::Mir,
                 MemberPurposeSet::COMPILE_AND_LINK,
-                FingerprintSinkSet::MIR,
+                FingerprintSinkSet::CODE.union(FingerprintSinkSet::LINK_VALIDATION_ONLY),
             ),
             ("org.scoop-lang.lir", "identity-foundation", 8) => (
                 SectionLocation::Lir,

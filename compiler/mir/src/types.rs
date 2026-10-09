@@ -524,7 +524,7 @@ pub struct InterfaceMethod {
     pub return_type: Type,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Local {
     pub name: String,
     pub ty: Type,

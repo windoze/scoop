@@ -1,0 +1,3041 @@
+Module
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum Option<Char>
+    Some(_0: Char)
+    None()
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  interface ToString
+  interface Hash
+  interface Equality<Char>
+  interface Iterable<Char>
+  interface Iterator<Char>
+  interface Equality<String>
+  generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
+  generated_exact_type get1 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
+  generated_exact_type get2 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
+  generated_exact_type get3 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
+  generated_exact_type get4 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
+  fun check @fn0(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.receiver: Boolean
+        Type Boolean
+        Local value
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+    bb1 if.then.1
+      val $default.local.0: String
+        Type String
+        StringConst @str0
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.1
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $new.1
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.1
+    bb2 if.merge.2
+      return
+  fun step @fn1(value: Int) -> Int
+    bb0 entry
+      val $dependency.receiver: Int
+        Type Int
+        Local value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val first: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.receiver: Int
+        Type Int
+        Local first
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val second: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.receiver: Int
+        Type Int
+        Local second
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          IntegerLiteral Int value=3 bits=0x00000003
+  fun expanded @fn2(input: Int) -> Int
+    bb0 entry
+      var value: Int
+        Type Int
+        Local input
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      val $inline.75.value: Int
+        Type Int
+        Local $parameter.value
+      goto bb76
+    bb1 inline.cont.1
+      val $call.38: Int
+        Type Int
+        Local $inline.1.result
+      assign value
+        Type Int
+        Local $call.38
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.39: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      assign value
+        Type Int
+        Local $call.39
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.40: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      assign value
+        Type Int
+        Local $call.40
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.41: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      assign value
+        Type Int
+        Local $call.41
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.42: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      assign value
+        Type Int
+        Local $call.42
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.43: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      assign value
+        Type Int
+        Local $call.43
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.44: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      assign value
+        Type Int
+        Local $call.44
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.45: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      assign value
+        Type Int
+        Local $call.45
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.46: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      assign value
+        Type Int
+        Local $call.46
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.47: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      assign value
+        Type Int
+        Local $call.47
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.48: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      assign value
+        Type Int
+        Local $call.48
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.49: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      assign value
+        Type Int
+        Local $call.49
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.50: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      assign value
+        Type Int
+        Local $call.50
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.51: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      assign value
+        Type Int
+        Local $call.51
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.52: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      assign value
+        Type Int
+        Local $call.52
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.53: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      assign value
+        Type Int
+        Local $call.53
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.54: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      assign value
+        Type Int
+        Local $call.54
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.55: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      assign value
+        Type Int
+        Local $call.55
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.56: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      assign value
+        Type Int
+        Local $call.56
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.57: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      assign value
+        Type Int
+        Local $call.57
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.58: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      assign value
+        Type Int
+        Local $call.58
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.59: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      assign value
+        Type Int
+        Local $call.59
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.60: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      assign value
+        Type Int
+        Local $call.60
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.61: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      assign value
+        Type Int
+        Local $call.61
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.62: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      assign value
+        Type Int
+        Local $call.62
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.63: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      assign value
+        Type Int
+        Local $call.63
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.64: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      assign value
+        Type Int
+        Local $call.64
+      return
+        Type Int
+        Local value
+    bb2 inline.1.entry
+      val $inline.1.$dependency.receiver: Int
+        Type Int
+        Local $inline.1.value
+      val $inline.1.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.1.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.1.first: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.1.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.1.$dependency.receiver: Int
+        Type Int
+        Local $inline.1.first
+      val $inline.1.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.1.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.1.second: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.1.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.1.$dependency.receiver: Int
+        Type Int
+        Local $inline.1.second
+      val $inline.1.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $inline.1.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      assign $inline.1.result
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.1.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=3 bits=0x00000003
+      goto bb1
+    bb3 inline.cont.3
+      val $call.37: Int
+        Type Int
+        Local $inline.3.result
+      assign value
+        Type Int
+        Local $call.37
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      val $inline.1.value: Int
+        Type Int
+        Local $parameter.value
+      goto bb2
+    bb4 inline.3.entry
+      val $inline.3.$dependency.receiver: Int
+        Type Int
+        Local $inline.3.value
+      val $inline.3.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.3.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.3.first: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.3.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.3.$dependency.receiver: Int
+        Type Int
+        Local $inline.3.first
+      val $inline.3.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.3.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.3.second: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.3.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.3.$dependency.receiver: Int
+        Type Int
+        Local $inline.3.second
+      val $inline.3.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $inline.3.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      assign $inline.3.result
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.3.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=3 bits=0x00000003
+      goto bb3
+    bb5 inline.cont.5
+      val $call.36: Int
+        Type Int
+        Local $inline.5.result
+      assign value
+        Type Int
+        Local $call.36
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      val $inline.3.value: Int
+        Type Int
+        Local $parameter.value
+      goto bb4
+    bb6 inline.5.entry
+      val $inline.5.$dependency.receiver: Int
+        Type Int
+        Local $inline.5.value
+      val $inline.5.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.5.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.5.first: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.5.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.5.$dependency.receiver: Int
+        Type Int
+        Local $inline.5.first
+      val $inline.5.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.5.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.5.second: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.5.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.5.$dependency.receiver: Int
+        Type Int
+        Local $inline.5.second
+      val $inline.5.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $inline.5.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      assign $inline.5.result
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.5.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=3 bits=0x00000003
+      goto bb5
+    bb7 inline.cont.7
+      val $call.35: Int
+        Type Int
+        Local $inline.7.result
+      assign value
+        Type Int
+        Local $call.35
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      val $inline.5.value: Int
+        Type Int
+        Local $parameter.value
+      goto bb6
+    bb8 inline.7.entry
+      val $inline.7.$dependency.receiver: Int
+        Type Int
+        Local $inline.7.value
+      val $inline.7.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.7.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.7.first: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.7.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.7.$dependency.receiver: Int
+        Type Int
+        Local $inline.7.first
+      val $inline.7.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.7.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.7.second: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.7.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.7.$dependency.receiver: Int
+        Type Int
+        Local $inline.7.second
+      val $inline.7.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $inline.7.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      assign $inline.7.result
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.7.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=3 bits=0x00000003
+      goto bb7
+    bb9 inline.cont.9
+      val $call.34: Int
+        Type Int
+        Local $inline.9.result
+      assign value
+        Type Int
+        Local $call.34
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      val $inline.7.value: Int
+        Type Int
+        Local $parameter.value
+      goto bb8
+    bb10 inline.9.entry
+      val $inline.9.$dependency.receiver: Int
+        Type Int
+        Local $inline.9.value
+      val $inline.9.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.9.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.9.first: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.9.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.9.$dependency.receiver: Int
+        Type Int
+        Local $inline.9.first
+      val $inline.9.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.9.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.9.second: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.9.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.9.$dependency.receiver: Int
+        Type Int
+        Local $inline.9.second
+      val $inline.9.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $inline.9.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      assign $inline.9.result
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.9.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=3 bits=0x00000003
+      goto bb9
+    bb11 inline.cont.11
+      val $call.33: Int
+        Type Int
+        Local $inline.11.result
+      assign value
+        Type Int
+        Local $call.33
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      val $inline.9.value: Int
+        Type Int
+        Local $parameter.value
+      goto bb10
+    bb12 inline.11.entry
+      val $inline.11.$dependency.receiver: Int
+        Type Int
+        Local $inline.11.value
+      val $inline.11.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.11.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.11.first: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.11.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.11.$dependency.receiver: Int
+        Type Int
+        Local $inline.11.first
+      val $inline.11.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.11.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.11.second: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.11.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.11.$dependency.receiver: Int
+        Type Int
+        Local $inline.11.second
+      val $inline.11.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $inline.11.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      assign $inline.11.result
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.11.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=3 bits=0x00000003
+      goto bb11
+    bb13 inline.cont.13
+      val $call.32: Int
+        Type Int
+        Local $inline.13.result
+      assign value
+        Type Int
+        Local $call.32
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      val $inline.11.value: Int
+        Type Int
+        Local $parameter.value
+      goto bb12
+    bb14 inline.13.entry
+      val $inline.13.$dependency.receiver: Int
+        Type Int
+        Local $inline.13.value
+      val $inline.13.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.13.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.13.first: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.13.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.13.$dependency.receiver: Int
+        Type Int
+        Local $inline.13.first
+      val $inline.13.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.13.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.13.second: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.13.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.13.$dependency.receiver: Int
+        Type Int
+        Local $inline.13.second
+      val $inline.13.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $inline.13.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      assign $inline.13.result
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.13.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=3 bits=0x00000003
+      goto bb13
+    bb15 inline.cont.15
+      val $call.31: Int
+        Type Int
+        Local $inline.15.result
+      assign value
+        Type Int
+        Local $call.31
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      val $inline.13.value: Int
+        Type Int
+        Local $parameter.value
+      goto bb14
+    bb16 inline.15.entry
+      val $inline.15.$dependency.receiver: Int
+        Type Int
+        Local $inline.15.value
+      val $inline.15.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.15.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.15.first: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.15.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.15.$dependency.receiver: Int
+        Type Int
+        Local $inline.15.first
+      val $inline.15.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.15.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.15.second: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.15.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.15.$dependency.receiver: Int
+        Type Int
+        Local $inline.15.second
+      val $inline.15.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $inline.15.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      assign $inline.15.result
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.15.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=3 bits=0x00000003
+      goto bb15
+    bb17 inline.cont.17
+      val $call.30: Int
+        Type Int
+        Local $inline.17.result
+      assign value
+        Type Int
+        Local $call.30
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      val $inline.15.value: Int
+        Type Int
+        Local $parameter.value
+      goto bb16
+    bb18 inline.17.entry
+      val $inline.17.$dependency.receiver: Int
+        Type Int
+        Local $inline.17.value
+      val $inline.17.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.17.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.17.first: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.17.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.17.$dependency.receiver: Int
+        Type Int
+        Local $inline.17.first
+      val $inline.17.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.17.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.17.second: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.17.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.17.$dependency.receiver: Int
+        Type Int
+        Local $inline.17.second
+      val $inline.17.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $inline.17.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      assign $inline.17.result
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.17.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=3 bits=0x00000003
+      goto bb17
+    bb19 inline.cont.19
+      val $call.29: Int
+        Type Int
+        Local $inline.19.result
+      assign value
+        Type Int
+        Local $call.29
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      val $inline.17.value: Int
+        Type Int
+        Local $parameter.value
+      goto bb18
+    bb20 inline.19.entry
+      val $inline.19.$dependency.receiver: Int
+        Type Int
+        Local $inline.19.value
+      val $inline.19.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.19.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.19.first: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.19.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.19.$dependency.receiver: Int
+        Type Int
+        Local $inline.19.first
+      val $inline.19.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.19.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.19.second: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.19.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.19.$dependency.receiver: Int
+        Type Int
+        Local $inline.19.second
+      val $inline.19.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $inline.19.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      assign $inline.19.result
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.19.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=3 bits=0x00000003
+      goto bb19
+    bb21 inline.cont.21
+      val $call.28: Int
+        Type Int
+        Local $inline.21.result
+      assign value
+        Type Int
+        Local $call.28
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      val $inline.19.value: Int
+        Type Int
+        Local $parameter.value
+      goto bb20
+    bb22 inline.21.entry
+      val $inline.21.$dependency.receiver: Int
+        Type Int
+        Local $inline.21.value
+      val $inline.21.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.21.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.21.first: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.21.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.21.$dependency.receiver: Int
+        Type Int
+        Local $inline.21.first
+      val $inline.21.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.21.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.21.second: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.21.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.21.$dependency.receiver: Int
+        Type Int
+        Local $inline.21.second
+      val $inline.21.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $inline.21.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      assign $inline.21.result
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.21.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=3 bits=0x00000003
+      goto bb21
+    bb23 inline.cont.23
+      val $call.27: Int
+        Type Int
+        Local $inline.23.result
+      assign value
+        Type Int
+        Local $call.27
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      val $inline.21.value: Int
+        Type Int
+        Local $parameter.value
+      goto bb22
+    bb24 inline.23.entry
+      val $inline.23.$dependency.receiver: Int
+        Type Int
+        Local $inline.23.value
+      val $inline.23.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.23.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.23.first: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.23.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.23.$dependency.receiver: Int
+        Type Int
+        Local $inline.23.first
+      val $inline.23.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.23.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.23.second: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.23.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.23.$dependency.receiver: Int
+        Type Int
+        Local $inline.23.second
+      val $inline.23.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $inline.23.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      assign $inline.23.result
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.23.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=3 bits=0x00000003
+      goto bb23
+    bb25 inline.cont.25
+      val $call.26: Int
+        Type Int
+        Local $inline.25.result
+      assign value
+        Type Int
+        Local $call.26
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      val $inline.23.value: Int
+        Type Int
+        Local $parameter.value
+      goto bb24
+    bb26 inline.25.entry
+      val $inline.25.$dependency.receiver: Int
+        Type Int
+        Local $inline.25.value
+      val $inline.25.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.25.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.25.first: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.25.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.25.$dependency.receiver: Int
+        Type Int
+        Local $inline.25.first
+      val $inline.25.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.25.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.25.second: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.25.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.25.$dependency.receiver: Int
+        Type Int
+        Local $inline.25.second
+      val $inline.25.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $inline.25.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      assign $inline.25.result
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.25.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=3 bits=0x00000003
+      goto bb25
+    bb27 inline.cont.27
+      val $call.25: Int
+        Type Int
+        Local $inline.27.result
+      assign value
+        Type Int
+        Local $call.25
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      val $inline.25.value: Int
+        Type Int
+        Local $parameter.value
+      goto bb26
+    bb28 inline.27.entry
+      val $inline.27.$dependency.receiver: Int
+        Type Int
+        Local $inline.27.value
+      val $inline.27.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.27.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.27.first: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.27.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.27.$dependency.receiver: Int
+        Type Int
+        Local $inline.27.first
+      val $inline.27.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.27.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.27.second: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.27.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.27.$dependency.receiver: Int
+        Type Int
+        Local $inline.27.second
+      val $inline.27.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $inline.27.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      assign $inline.27.result
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.27.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=3 bits=0x00000003
+      goto bb27
+    bb29 inline.cont.29
+      val $call.24: Int
+        Type Int
+        Local $inline.29.result
+      assign value
+        Type Int
+        Local $call.24
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      val $inline.27.value: Int
+        Type Int
+        Local $parameter.value
+      goto bb28
+    bb30 inline.29.entry
+      val $inline.29.$dependency.receiver: Int
+        Type Int
+        Local $inline.29.value
+      val $inline.29.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.29.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.29.first: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.29.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.29.$dependency.receiver: Int
+        Type Int
+        Local $inline.29.first
+      val $inline.29.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.29.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.29.second: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.29.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.29.$dependency.receiver: Int
+        Type Int
+        Local $inline.29.second
+      val $inline.29.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $inline.29.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      assign $inline.29.result
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.29.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=3 bits=0x00000003
+      goto bb29
+    bb31 inline.cont.31
+      val $call.23: Int
+        Type Int
+        Local $inline.31.result
+      assign value
+        Type Int
+        Local $call.23
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      val $inline.29.value: Int
+        Type Int
+        Local $parameter.value
+      goto bb30
+    bb32 inline.31.entry
+      val $inline.31.$dependency.receiver: Int
+        Type Int
+        Local $inline.31.value
+      val $inline.31.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.31.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.31.first: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.31.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.31.$dependency.receiver: Int
+        Type Int
+        Local $inline.31.first
+      val $inline.31.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.31.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.31.second: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.31.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.31.$dependency.receiver: Int
+        Type Int
+        Local $inline.31.second
+      val $inline.31.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $inline.31.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      assign $inline.31.result
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.31.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=3 bits=0x00000003
+      goto bb31
+    bb33 inline.cont.33
+      val $call.22: Int
+        Type Int
+        Local $inline.33.result
+      assign value
+        Type Int
+        Local $call.22
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      val $inline.31.value: Int
+        Type Int
+        Local $parameter.value
+      goto bb32
+    bb34 inline.33.entry
+      val $inline.33.$dependency.receiver: Int
+        Type Int
+        Local $inline.33.value
+      val $inline.33.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.33.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.33.first: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.33.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.33.$dependency.receiver: Int
+        Type Int
+        Local $inline.33.first
+      val $inline.33.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.33.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.33.second: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.33.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.33.$dependency.receiver: Int
+        Type Int
+        Local $inline.33.second
+      val $inline.33.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $inline.33.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      assign $inline.33.result
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.33.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=3 bits=0x00000003
+      goto bb33
+    bb35 inline.cont.35
+      val $call.21: Int
+        Type Int
+        Local $inline.35.result
+      assign value
+        Type Int
+        Local $call.21
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      val $inline.33.value: Int
+        Type Int
+        Local $parameter.value
+      goto bb34
+    bb36 inline.35.entry
+      val $inline.35.$dependency.receiver: Int
+        Type Int
+        Local $inline.35.value
+      val $inline.35.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.35.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.35.first: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.35.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.35.$dependency.receiver: Int
+        Type Int
+        Local $inline.35.first
+      val $inline.35.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.35.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.35.second: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.35.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.35.$dependency.receiver: Int
+        Type Int
+        Local $inline.35.second
+      val $inline.35.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $inline.35.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      assign $inline.35.result
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.35.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=3 bits=0x00000003
+      goto bb35
+    bb37 inline.cont.37
+      val $call.20: Int
+        Type Int
+        Local $inline.37.result
+      assign value
+        Type Int
+        Local $call.20
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      val $inline.35.value: Int
+        Type Int
+        Local $parameter.value
+      goto bb36
+    bb38 inline.37.entry
+      val $inline.37.$dependency.receiver: Int
+        Type Int
+        Local $inline.37.value
+      val $inline.37.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.37.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.37.first: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.37.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.37.$dependency.receiver: Int
+        Type Int
+        Local $inline.37.first
+      val $inline.37.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.37.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.37.second: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.37.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.37.$dependency.receiver: Int
+        Type Int
+        Local $inline.37.second
+      val $inline.37.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $inline.37.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      assign $inline.37.result
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.37.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=3 bits=0x00000003
+      goto bb37
+    bb39 inline.cont.39
+      val $call.19: Int
+        Type Int
+        Local $inline.39.result
+      assign value
+        Type Int
+        Local $call.19
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      val $inline.37.value: Int
+        Type Int
+        Local $parameter.value
+      goto bb38
+    bb40 inline.39.entry
+      val $inline.39.$dependency.receiver: Int
+        Type Int
+        Local $inline.39.value
+      val $inline.39.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.39.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.39.first: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.39.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.39.$dependency.receiver: Int
+        Type Int
+        Local $inline.39.first
+      val $inline.39.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.39.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.39.second: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.39.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.39.$dependency.receiver: Int
+        Type Int
+        Local $inline.39.second
+      val $inline.39.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $inline.39.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      assign $inline.39.result
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.39.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=3 bits=0x00000003
+      goto bb39
+    bb41 inline.cont.41
+      val $call.18: Int
+        Type Int
+        Local $inline.41.result
+      assign value
+        Type Int
+        Local $call.18
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      val $inline.39.value: Int
+        Type Int
+        Local $parameter.value
+      goto bb40
+    bb42 inline.41.entry
+      val $inline.41.$dependency.receiver: Int
+        Type Int
+        Local $inline.41.value
+      val $inline.41.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.41.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.41.first: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.41.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.41.$dependency.receiver: Int
+        Type Int
+        Local $inline.41.first
+      val $inline.41.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.41.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.41.second: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.41.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.41.$dependency.receiver: Int
+        Type Int
+        Local $inline.41.second
+      val $inline.41.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $inline.41.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      assign $inline.41.result
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.41.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=3 bits=0x00000003
+      goto bb41
+    bb43 inline.cont.43
+      val $call.17: Int
+        Type Int
+        Local $inline.43.result
+      assign value
+        Type Int
+        Local $call.17
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      val $inline.41.value: Int
+        Type Int
+        Local $parameter.value
+      goto bb42
+    bb44 inline.43.entry
+      val $inline.43.$dependency.receiver: Int
+        Type Int
+        Local $inline.43.value
+      val $inline.43.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.43.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.43.first: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.43.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.43.$dependency.receiver: Int
+        Type Int
+        Local $inline.43.first
+      val $inline.43.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.43.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.43.second: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.43.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.43.$dependency.receiver: Int
+        Type Int
+        Local $inline.43.second
+      val $inline.43.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $inline.43.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      assign $inline.43.result
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.43.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=3 bits=0x00000003
+      goto bb43
+    bb45 inline.cont.45
+      val $call.16: Int
+        Type Int
+        Local $inline.45.result
+      assign value
+        Type Int
+        Local $call.16
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      val $inline.43.value: Int
+        Type Int
+        Local $parameter.value
+      goto bb44
+    bb46 inline.45.entry
+      val $inline.45.$dependency.receiver: Int
+        Type Int
+        Local $inline.45.value
+      val $inline.45.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.45.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.45.first: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.45.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.45.$dependency.receiver: Int
+        Type Int
+        Local $inline.45.first
+      val $inline.45.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.45.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.45.second: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.45.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.45.$dependency.receiver: Int
+        Type Int
+        Local $inline.45.second
+      val $inline.45.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $inline.45.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      assign $inline.45.result
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.45.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=3 bits=0x00000003
+      goto bb45
+    bb47 inline.cont.47
+      val $call.15: Int
+        Type Int
+        Local $inline.47.result
+      assign value
+        Type Int
+        Local $call.15
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      val $inline.45.value: Int
+        Type Int
+        Local $parameter.value
+      goto bb46
+    bb48 inline.47.entry
+      val $inline.47.$dependency.receiver: Int
+        Type Int
+        Local $inline.47.value
+      val $inline.47.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.47.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.47.first: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.47.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.47.$dependency.receiver: Int
+        Type Int
+        Local $inline.47.first
+      val $inline.47.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.47.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.47.second: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.47.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.47.$dependency.receiver: Int
+        Type Int
+        Local $inline.47.second
+      val $inline.47.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $inline.47.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      assign $inline.47.result
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.47.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=3 bits=0x00000003
+      goto bb47
+    bb49 inline.cont.49
+      val $call.14: Int
+        Type Int
+        Local $inline.49.result
+      assign value
+        Type Int
+        Local $call.14
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      val $inline.47.value: Int
+        Type Int
+        Local $parameter.value
+      goto bb48
+    bb50 inline.49.entry
+      val $inline.49.$dependency.receiver: Int
+        Type Int
+        Local $inline.49.value
+      val $inline.49.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.49.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.49.first: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.49.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.49.$dependency.receiver: Int
+        Type Int
+        Local $inline.49.first
+      val $inline.49.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.49.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.49.second: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.49.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.49.$dependency.receiver: Int
+        Type Int
+        Local $inline.49.second
+      val $inline.49.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $inline.49.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      assign $inline.49.result
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.49.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=3 bits=0x00000003
+      goto bb49
+    bb51 inline.cont.51
+      val $call.13: Int
+        Type Int
+        Local $inline.51.result
+      assign value
+        Type Int
+        Local $call.13
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      val $inline.49.value: Int
+        Type Int
+        Local $parameter.value
+      goto bb50
+    bb52 inline.51.entry
+      val $inline.51.$dependency.receiver: Int
+        Type Int
+        Local $inline.51.value
+      val $inline.51.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.51.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.51.first: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.51.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.51.$dependency.receiver: Int
+        Type Int
+        Local $inline.51.first
+      val $inline.51.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.51.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.51.second: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.51.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.51.$dependency.receiver: Int
+        Type Int
+        Local $inline.51.second
+      val $inline.51.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $inline.51.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      assign $inline.51.result
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.51.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=3 bits=0x00000003
+      goto bb51
+    bb53 inline.cont.53
+      val $call.12: Int
+        Type Int
+        Local $inline.53.result
+      assign value
+        Type Int
+        Local $call.12
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      val $inline.51.value: Int
+        Type Int
+        Local $parameter.value
+      goto bb52
+    bb54 inline.53.entry
+      val $inline.53.$dependency.receiver: Int
+        Type Int
+        Local $inline.53.value
+      val $inline.53.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.53.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.53.first: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.53.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.53.$dependency.receiver: Int
+        Type Int
+        Local $inline.53.first
+      val $inline.53.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.53.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.53.second: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.53.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.53.$dependency.receiver: Int
+        Type Int
+        Local $inline.53.second
+      val $inline.53.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $inline.53.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      assign $inline.53.result
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.53.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=3 bits=0x00000003
+      goto bb53
+    bb55 inline.cont.55
+      val $call.11: Int
+        Type Int
+        Local $inline.55.result
+      assign value
+        Type Int
+        Local $call.11
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      val $inline.53.value: Int
+        Type Int
+        Local $parameter.value
+      goto bb54
+    bb56 inline.55.entry
+      val $inline.55.$dependency.receiver: Int
+        Type Int
+        Local $inline.55.value
+      val $inline.55.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.55.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.55.first: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.55.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.55.$dependency.receiver: Int
+        Type Int
+        Local $inline.55.first
+      val $inline.55.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.55.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.55.second: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.55.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.55.$dependency.receiver: Int
+        Type Int
+        Local $inline.55.second
+      val $inline.55.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $inline.55.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      assign $inline.55.result
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.55.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=3 bits=0x00000003
+      goto bb55
+    bb57 inline.cont.57
+      val $call.10: Int
+        Type Int
+        Local $inline.57.result
+      assign value
+        Type Int
+        Local $call.10
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      val $inline.55.value: Int
+        Type Int
+        Local $parameter.value
+      goto bb56
+    bb58 inline.57.entry
+      val $inline.57.$dependency.receiver: Int
+        Type Int
+        Local $inline.57.value
+      val $inline.57.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.57.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.57.first: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.57.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.57.$dependency.receiver: Int
+        Type Int
+        Local $inline.57.first
+      val $inline.57.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.57.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.57.second: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.57.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.57.$dependency.receiver: Int
+        Type Int
+        Local $inline.57.second
+      val $inline.57.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $inline.57.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      assign $inline.57.result
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.57.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=3 bits=0x00000003
+      goto bb57
+    bb59 inline.cont.59
+      val $call.9: Int
+        Type Int
+        Local $inline.59.result
+      assign value
+        Type Int
+        Local $call.9
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      val $inline.57.value: Int
+        Type Int
+        Local $parameter.value
+      goto bb58
+    bb60 inline.59.entry
+      val $inline.59.$dependency.receiver: Int
+        Type Int
+        Local $inline.59.value
+      val $inline.59.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.59.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.59.first: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.59.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.59.$dependency.receiver: Int
+        Type Int
+        Local $inline.59.first
+      val $inline.59.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.59.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.59.second: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.59.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.59.$dependency.receiver: Int
+        Type Int
+        Local $inline.59.second
+      val $inline.59.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $inline.59.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      assign $inline.59.result
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.59.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=3 bits=0x00000003
+      goto bb59
+    bb61 inline.cont.61
+      val $call.8: Int
+        Type Int
+        Local $inline.61.result
+      assign value
+        Type Int
+        Local $call.8
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      val $inline.59.value: Int
+        Type Int
+        Local $parameter.value
+      goto bb60
+    bb62 inline.61.entry
+      val $inline.61.$dependency.receiver: Int
+        Type Int
+        Local $inline.61.value
+      val $inline.61.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.61.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.61.first: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.61.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.61.$dependency.receiver: Int
+        Type Int
+        Local $inline.61.first
+      val $inline.61.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.61.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.61.second: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.61.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.61.$dependency.receiver: Int
+        Type Int
+        Local $inline.61.second
+      val $inline.61.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $inline.61.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      assign $inline.61.result
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.61.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=3 bits=0x00000003
+      goto bb61
+    bb63 inline.cont.63
+      val $call.7: Int
+        Type Int
+        Local $inline.63.result
+      assign value
+        Type Int
+        Local $call.7
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      val $inline.61.value: Int
+        Type Int
+        Local $parameter.value
+      goto bb62
+    bb64 inline.63.entry
+      val $inline.63.$dependency.receiver: Int
+        Type Int
+        Local $inline.63.value
+      val $inline.63.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.63.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.63.first: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.63.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.63.$dependency.receiver: Int
+        Type Int
+        Local $inline.63.first
+      val $inline.63.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.63.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.63.second: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.63.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.63.$dependency.receiver: Int
+        Type Int
+        Local $inline.63.second
+      val $inline.63.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $inline.63.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      assign $inline.63.result
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.63.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=3 bits=0x00000003
+      goto bb63
+    bb65 inline.cont.65
+      val $call.6: Int
+        Type Int
+        Local $inline.65.result
+      assign value
+        Type Int
+        Local $call.6
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      val $inline.63.value: Int
+        Type Int
+        Local $parameter.value
+      goto bb64
+    bb66 inline.65.entry
+      val $inline.65.$dependency.receiver: Int
+        Type Int
+        Local $inline.65.value
+      val $inline.65.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.65.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.65.first: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.65.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.65.$dependency.receiver: Int
+        Type Int
+        Local $inline.65.first
+      val $inline.65.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.65.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.65.second: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.65.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.65.$dependency.receiver: Int
+        Type Int
+        Local $inline.65.second
+      val $inline.65.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $inline.65.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      assign $inline.65.result
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.65.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=3 bits=0x00000003
+      goto bb65
+    bb67 inline.cont.67
+      val $call.5: Int
+        Type Int
+        Local $inline.67.result
+      assign value
+        Type Int
+        Local $call.5
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      val $inline.65.value: Int
+        Type Int
+        Local $parameter.value
+      goto bb66
+    bb68 inline.67.entry
+      val $inline.67.$dependency.receiver: Int
+        Type Int
+        Local $inline.67.value
+      val $inline.67.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.67.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.67.first: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.67.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.67.$dependency.receiver: Int
+        Type Int
+        Local $inline.67.first
+      val $inline.67.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.67.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.67.second: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.67.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.67.$dependency.receiver: Int
+        Type Int
+        Local $inline.67.second
+      val $inline.67.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $inline.67.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      assign $inline.67.result
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.67.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=3 bits=0x00000003
+      goto bb67
+    bb69 inline.cont.69
+      val $call.4: Int
+        Type Int
+        Local $inline.69.result
+      assign value
+        Type Int
+        Local $call.4
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      val $inline.67.value: Int
+        Type Int
+        Local $parameter.value
+      goto bb68
+    bb70 inline.69.entry
+      val $inline.69.$dependency.receiver: Int
+        Type Int
+        Local $inline.69.value
+      val $inline.69.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.69.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.69.first: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.69.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.69.$dependency.receiver: Int
+        Type Int
+        Local $inline.69.first
+      val $inline.69.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.69.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.69.second: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.69.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.69.$dependency.receiver: Int
+        Type Int
+        Local $inline.69.second
+      val $inline.69.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $inline.69.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      assign $inline.69.result
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.69.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=3 bits=0x00000003
+      goto bb69
+    bb71 inline.cont.71
+      val $call.3: Int
+        Type Int
+        Local $inline.71.result
+      assign value
+        Type Int
+        Local $call.3
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      val $inline.69.value: Int
+        Type Int
+        Local $parameter.value
+      goto bb70
+    bb72 inline.71.entry
+      val $inline.71.$dependency.receiver: Int
+        Type Int
+        Local $inline.71.value
+      val $inline.71.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.71.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.71.first: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.71.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.71.$dependency.receiver: Int
+        Type Int
+        Local $inline.71.first
+      val $inline.71.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.71.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.71.second: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.71.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.71.$dependency.receiver: Int
+        Type Int
+        Local $inline.71.second
+      val $inline.71.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $inline.71.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      assign $inline.71.result
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.71.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=3 bits=0x00000003
+      goto bb71
+    bb73 inline.cont.73
+      val $call.2: Int
+        Type Int
+        Local $inline.73.result
+      assign value
+        Type Int
+        Local $call.2
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      val $inline.71.value: Int
+        Type Int
+        Local $parameter.value
+      goto bb72
+    bb74 inline.73.entry
+      val $inline.73.$dependency.receiver: Int
+        Type Int
+        Local $inline.73.value
+      val $inline.73.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.73.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.73.first: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.73.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.73.$dependency.receiver: Int
+        Type Int
+        Local $inline.73.first
+      val $inline.73.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.73.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.73.second: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.73.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.73.$dependency.receiver: Int
+        Type Int
+        Local $inline.73.second
+      val $inline.73.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $inline.73.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      assign $inline.73.result
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.73.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=3 bits=0x00000003
+      goto bb73
+    bb75 inline.cont.75
+      val $call.1: Int
+        Type Int
+        Local $inline.75.result
+      assign value
+        Type Int
+        Local $call.1
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      val $inline.73.value: Int
+        Type Int
+        Local $parameter.value
+      goto bb74
+    bb76 inline.75.entry
+      val $inline.75.$dependency.receiver: Int
+        Type Int
+        Local $inline.75.value
+      val $inline.75.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.75.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.75.first: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.75.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.75.$dependency.receiver: Int
+        Type Int
+        Local $inline.75.first
+      val $inline.75.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.75.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.75.second: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.75.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.75.$dependency.receiver: Int
+        Type Int
+        Local $inline.75.second
+      val $inline.75.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $inline.75.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      assign $inline.75.result
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.75.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=3 bits=0x00000003
+      goto bb75
+  fun main @fn3() -> Unit
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+      val $parameter.input: Int
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+      call $dependency.receiver: Int = @fn2 direct
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=394 bits=0x0000018a
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=394 bits=0x0000018a
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          IntegerLiteral Int value=394 bits=0x0000018a
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str1
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn4 direct
+        Type String
+        Local $dependency.parameter.value
+      return
+  fun println @fn4(value: String) -> Unit
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local value
+      call $dependency.local.2: String = external1 direct
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external2 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str2
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external2 direct
+        Type String
+        Local $dependency.local.5
+      return
+  instance mi0 function=@fn4 <- println
+  str @str0 "illegal state"
+  str @str1 "inlined growth"
+  str @str2 "\n"
+  output executable @fn3

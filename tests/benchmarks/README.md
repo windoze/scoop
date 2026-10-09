@@ -27,3 +27,5 @@ python3 tests/benchmarks/measure.py --tools target/release \
 Linux 例如追加 `--build-arg=--target --build-arg=x86_64-unknown-linux-gnu`，以及 `--build-arg=--unwind-prefix --build-arg=/absolute/sysroot/native/x86_64-unknown-linux-gnu/unwind`。M30 runtime 不提供这些 GC 统计，复跑旧基线时省略 `--gc-stats --compare-full`。容器和原生宿主分别记录环境，各自比较，不跨环境计算加速比。
 
 当前 Linux 复现使用 `ssh nuc12`，仓库为 `~/repos/scoop`；工作目录和 `TMPDIR` 都放在该仓库的 `tmp/` 下。先完成工具构建与功能验证，再串行计时，避免并行编译或清理目录干扰测量。
+
+M34 的 `mir-inlining.scoop` 用两千万次 xorshift 组合比较同一 release 配置下的 MIR 内联开关。kernel 与 helper 为 NoGC，使现有完整 poll 不掩盖调用和常量分支的差异；最终 checksum 为 `4062365736`。用 `--case mir-inlining --runs 7 --gc-stats` 单独运行，关闭内联的工具保存自 M34-3a。两套工具分别使用独立 cache，结果及热点机器码见 [M34 性能记录](../../docs/milestone34/PERFORMANCE.md)。

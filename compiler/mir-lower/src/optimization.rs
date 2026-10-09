@@ -2,17 +2,25 @@
 
 use scoop_mir as mir;
 
+mod constants;
 mod dispatch;
 mod flow;
+mod graph;
+mod inline;
+mod simplify;
 
 /// Producer choices; they do not change entity or ABI identity.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct MirOptimizationOptions {
     pub devirtualize: bool,
+    pub inline: bool,
 }
 
 impl MirOptimizationOptions {
-    pub const RELEASE: Self = Self { devirtualize: true };
+    pub const RELEASE: Self = Self {
+        devirtualize: true,
+        inline: true,
+    };
 }
 
 pub(super) fn run(
@@ -21,6 +29,12 @@ pub(super) fn run(
     options: MirOptimizationOptions,
 ) {
     if options.devirtualize {
+        devirtualize(module, selected);
+    }
+    if options.inline {
+        inline::run(module);
+    }
+    if options.devirtualize && options.inline {
         devirtualize(module, selected);
     }
 }
@@ -65,7 +79,7 @@ fn devirtualize(module: &mut mir::Module, selected: &mir::SelectedExternalMirSet
                             selected,
                             call,
                             result,
-                            analysis.expression(receiver, &state),
+                            analysis.expression(receiver, &state).actual,
                         )
                     {
                         rewrites.push(Rewrite {

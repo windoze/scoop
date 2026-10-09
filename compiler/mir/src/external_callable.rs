@@ -1,9 +1,6 @@
 //! External Scoop callable uses and their committed selection references.
 
-use crate::{
-    Callee, ExternalCallableUseId, GcEffect, Module, SelectedExternalMirCallableRef, StatementKind,
-};
-use std::collections::HashSet;
+use crate::{GcEffect, SelectedExternalMirCallableRef};
 
 /// A selected external implementation and its inseparable caller GC effect.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -28,56 +25,4 @@ impl ExternalCallableUse {
     pub const fn gc_effect(self) -> GcEffect {
         self.gc_effect
     }
-}
-
-pub(crate) fn referenced_external_callables(module: &Module) -> HashSet<ExternalCallableUseId> {
-    let mut referenced = HashSet::new();
-    if let crate::MirOutput::Executable {
-        arguments: crate::ProgramArguments::External(builder),
-        ..
-    } = module.output
-    {
-        referenced.insert(builder);
-    }
-    for function in module
-        .functions
-        .iter()
-        .map(|(_, function)| function)
-        .chain(module.release_hooks.iter().map(|(_, hook)| &hook.code))
-    {
-        for (_, block) in function.body.blocks.iter() {
-            for statement in &block.statements {
-                let StatementKind::Call(effect) = &statement.kind else {
-                    continue;
-                };
-                let call = match effect {
-                    crate::CallEffect::Unit(call) | crate::CallEffect::Value { call, .. } => call,
-                };
-                if let Callee::External(callable) = call.target.callee {
-                    referenced.insert(callable);
-                }
-            }
-        }
-    }
-    for (_, class) in module.classes.iter() {
-        for slot in class
-            .vtable
-            .iter()
-            .chain(class.itables.iter().flat_map(|table| &table.slots))
-        {
-            if let crate::TableSlot::External(callable) = slot {
-                referenced.insert(*callable);
-            }
-        }
-    }
-    for (_, bridge) in module.callback_bridges.iter() {
-        if let crate::StaticCallbackTarget::External {
-            source,
-            bridge_function,
-        } = bridge.target
-        {
-            referenced.extend([source, bridge_function]);
-        }
-    }
-    referenced
 }

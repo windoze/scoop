@@ -1,0 +1,2329 @@
+Module
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum Option<Char>
+    Some(_0: Char)
+    None()
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  interface ToString
+  interface Hash
+  interface Equality<Char>
+  interface Iterable<Char>
+  interface Iterator<Char>
+  interface Equality<String>
+  generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
+  generated_exact_type get1 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
+  generated_exact_type get2 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
+  generated_exact_type get3 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
+  generated_exact_type get4 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
+  fun check @fn0(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.receiver: Boolean
+        Type Boolean
+        Local value
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+    bb1 if.then.1
+      val $default.local.0: String
+        Type String
+        StringConst @str0
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.1
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $new.1
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.1
+    bb2 if.merge.2
+      return
+  fun medium @fn1(value: Int) -> Int
+    bb0 entry
+      val $dependency.receiver: Int
+        Type Int
+        Local value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val a: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.receiver: Int
+        Type Int
+        Local a
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val b: Int
+        Type Int
+        IntegerBinary multiply kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.receiver: Int
+        Type Int
+        Local b
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val c: Int
+        Type Int
+        IntegerBinary subtract kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.receiver: Int
+        Type Int
+        Local c
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=5 bits=0x00000005
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=5 bits=0x00000005
+      val d: Int
+        Type Int
+        IntegerBinary multiply kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          IntegerLiteral Int value=5 bits=0x00000005
+      val $dependency.receiver: Int
+        Type Int
+        Local d
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val e: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          IntegerLiteral Int value=7 bits=0x00000007
+      val $dependency.receiver: Int
+        Type Int
+        Local e
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      return
+        Type Int
+        IntegerBinary multiply kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          IntegerLiteral Int value=2 bits=0x00000002
+  fun cold @fn2(value: Int) -> Int
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.1: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      return
+        Type Int
+        Local $call.1
+  fun hot @fn3(count: Int) -> Int
+    bb0 entry
+      var result: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      var index: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      goto bb1
+    bb1 while.cond.1 <loop-header-poll>
+      val $dependency.receiver: Int
+        Type Int
+        Local index
+      val $dependency.argument.0: Int
+        Type Int
+        Local count
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb3 bb2
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Int result=Long
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb2 while.exit.2
+      return
+        Type Int
+        Local result
+    bb3 while.body.3
+      val $old.0: Int
+        Type Int
+        Local result
+      val $dependency.receiver: Int
+        Type Int
+        Local $old.0
+      val $argument.0: Int
+        Type Int
+        Local index
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      val $inline.4.value: Int
+        Type Int
+        Local $parameter.value
+      goto bb5
+    bb4 inline.cont.4
+      val $dependency.argument.0: Int
+        Type Int
+        Local $inline.4.result
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      assign result
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $old.1: Int
+        Type Int
+        Local index
+      val $dependency.receiver: Int
+        Type Int
+        Local $old.1
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      assign index
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          IntegerLiteral Int value=1 bits=0x00000001
+      goto bb1
+    bb5 inline.4.entry
+      val $inline.4.$dependency.receiver: Int
+        Type Int
+        Local $inline.4.value
+      val $inline.4.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.4.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.4.a: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.4.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.4.$dependency.receiver: Int
+        Type Int
+        Local $inline.4.a
+      val $inline.4.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $inline.4.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $inline.4.b: Int
+        Type Int
+        IntegerBinary multiply kind=Int
+          Type Int
+          Local $inline.4.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=3 bits=0x00000003
+      val $inline.4.$dependency.receiver: Int
+        Type Int
+        Local $inline.4.b
+      val $inline.4.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.4.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.4.c: Int
+        Type Int
+        IntegerBinary subtract kind=Int
+          Type Int
+          Local $inline.4.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.4.$dependency.receiver: Int
+        Type Int
+        Local $inline.4.c
+      val $inline.4.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=5 bits=0x00000005
+      val $inline.4.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=5 bits=0x00000005
+      val $inline.4.d: Int
+        Type Int
+        IntegerBinary multiply kind=Int
+          Type Int
+          Local $inline.4.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=5 bits=0x00000005
+      val $inline.4.$dependency.receiver: Int
+        Type Int
+        Local $inline.4.d
+      val $inline.4.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $inline.4.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $inline.4.e: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.4.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=7 bits=0x00000007
+      val $inline.4.$dependency.receiver: Int
+        Type Int
+        Local $inline.4.e
+      val $inline.4.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.4.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      assign $inline.4.result
+        Type Int
+        IntegerBinary multiply kind=Int
+          Type Int
+          Local $inline.4.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=2 bits=0x00000002
+      goto bb4
+  fun calculate @fn4(value: Int, checked: Boolean) -> Int
+    bb0 entry
+      branch bb1 bb2
+        Type Boolean
+        Local checked
+    bb1 if.then.1
+      var result: Int
+        Type Int
+        Local value
+      var index: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      goto bb3
+    bb2 if.merge.2
+      val $dependency.receiver: Int
+        Type Int
+        Local value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          IntegerLiteral Int value=1 bits=0x00000001
+    bb3 while.cond.3 <loop-header-poll>
+      val $dependency.receiver: Int
+        Type Int
+        Local index
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=8 bits=0x00000008
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=8 bits=0x00000008
+      branch bb5 bb4
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Int result=Long
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            IntegerLiteral Int value=8 bits=0x00000008
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb4 while.exit.4
+      return
+        Type Int
+        Local result
+    bb5 while.body.5
+      val $argument.0: Int
+        Type Int
+        Local result
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      val $inline.6.value: Int
+        Type Int
+        Local $parameter.value
+      goto bb7
+    bb6 inline.cont.6
+      val $call.1: Int
+        Type Int
+        Local $inline.6.result
+      assign result
+        Type Int
+        Local $call.1
+      val $old.2: Int
+        Type Int
+        Local index
+      val $dependency.receiver: Int
+        Type Int
+        Local $old.2
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      assign index
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          IntegerLiteral Int value=1 bits=0x00000001
+      goto bb3
+    bb7 inline.6.entry
+      val $inline.6.$dependency.receiver: Int
+        Type Int
+        Local $inline.6.value
+      val $inline.6.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.6.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.6.a: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.6.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.6.$dependency.receiver: Int
+        Type Int
+        Local $inline.6.a
+      val $inline.6.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $inline.6.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $inline.6.b: Int
+        Type Int
+        IntegerBinary multiply kind=Int
+          Type Int
+          Local $inline.6.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=3 bits=0x00000003
+      val $inline.6.$dependency.receiver: Int
+        Type Int
+        Local $inline.6.b
+      val $inline.6.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.6.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.6.c: Int
+        Type Int
+        IntegerBinary subtract kind=Int
+          Type Int
+          Local $inline.6.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.6.$dependency.receiver: Int
+        Type Int
+        Local $inline.6.c
+      val $inline.6.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=5 bits=0x00000005
+      val $inline.6.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=5 bits=0x00000005
+      val $inline.6.d: Int
+        Type Int
+        IntegerBinary multiply kind=Int
+          Type Int
+          Local $inline.6.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=5 bits=0x00000005
+      val $inline.6.$dependency.receiver: Int
+        Type Int
+        Local $inline.6.d
+      val $inline.6.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $inline.6.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $inline.6.e: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.6.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=7 bits=0x00000007
+      val $inline.6.$dependency.receiver: Int
+        Type Int
+        Local $inline.6.e
+      val $inline.6.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.6.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      assign $inline.6.result
+        Type Int
+        IntegerBinary multiply kind=Int
+          Type Int
+          Local $inline.6.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=2 bits=0x00000002
+      goto bb6
+  fun constantPath @fn5(value: Int) -> Int
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $argument.1: Boolean
+        Type Boolean
+        BoolLiteral false
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      val $parameter.checked: Boolean
+        Type Boolean
+        BoolLiteral false
+      val $inline.1.value: Int
+        Type Int
+        Local $parameter.value
+      val $inline.1.checked: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb2
+    bb1 inline.cont.1
+      val $call.1: Int
+        Type Int
+        Local $inline.1.result
+      return
+        Type Int
+        Local $call.1
+    bb2 inline.1.entry
+      goto bb3
+    bb3 inline.1.if.merge.2
+      val $inline.1.$dependency.receiver: Int
+        Type Int
+        Local $inline.1.value
+      val $inline.1.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.1.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      assign $inline.1.result
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.1.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=1 bits=0x00000001
+      goto bb1
+  fun unknownPath @fn6(value: Int, checked: Boolean) -> Int
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $argument.1: Boolean
+        Type Boolean
+        Local checked
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      val $parameter.checked: Boolean
+        Type Boolean
+        Local $argument.1
+      call $call.1: Int = @fn4 direct
+        Type Int
+        Local $parameter.value
+        Type Boolean
+        Local $parameter.checked
+      return
+        Type Int
+        Local $call.1
+  fun even @fn7(value: Int) -> Boolean
+    bb0 entry
+      val $dependency.receiver: Int
+        Type Int
+        Local value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          IntegerLiteral Int value=0 bits=0x00000000
+    bb1 if.then.1
+      return
+        Type Boolean
+        BoolLiteral true
+    bb2 if.merge.2
+      val $dependency.receiver: Int
+        Type Int
+        Local value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $argument.0: Int
+        Type Int
+        IntegerBinary subtract kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.1: Boolean = @fn8 direct
+        Type Int
+        Local $parameter.value
+      return
+        Type Boolean
+        Local $call.1
+  fun odd @fn8(value: Int) -> Boolean
+    bb0 entry
+      val $dependency.receiver: Int
+        Type Int
+        Local value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          IntegerLiteral Int value=0 bits=0x00000000
+    bb1 if.then.1
+      return
+        Type Boolean
+        BoolLiteral false
+    bb2 if.merge.2
+      val $dependency.receiver: Int
+        Type Int
+        Local value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $argument.0: Int
+        Type Int
+        IntegerBinary subtract kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.1: Boolean = @fn7 direct
+        Type Int
+        Local $parameter.value
+      return
+        Type Boolean
+        Local $call.1
+  fun wrap0 @fn9(value: Int) -> Int
+    bb0 entry
+      val $dependency.receiver: Int
+        Type Int
+        Local value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          IntegerLiteral Int value=1 bits=0x00000001
+  fun wrap1 @fn10(value: Int) -> Int
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      val $inline.1.value: Int
+        Type Int
+        Local $parameter.value
+      goto bb2
+    bb1 inline.cont.1
+      val $call.1: Int
+        Type Int
+        Local $inline.1.result
+      return
+        Type Int
+        Local $call.1
+    bb2 inline.1.entry
+      val $inline.1.$dependency.receiver: Int
+        Type Int
+        Local $inline.1.value
+      val $inline.1.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.1.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      assign $inline.1.result
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.1.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=1 bits=0x00000001
+      goto bb1
+  fun wrap2 @fn11(value: Int) -> Int
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      val $inline.1.value: Int
+        Type Int
+        Local $parameter.value
+      goto bb2
+    bb1 inline.cont.1
+      val $call.1: Int
+        Type Int
+        Local $inline.1.result
+      return
+        Type Int
+        Local $call.1
+    bb2 inline.1.entry
+      val $inline.1.$argument.0: Int
+        Type Int
+        Local $inline.1.value
+      val $inline.1.$parameter.value: Int
+        Type Int
+        Local $inline.1.$argument.0
+      val $inline.3.value: Int
+        Type Int
+        Local $inline.1.$parameter.value
+      goto bb4
+    bb3 inline.cont.3
+      val $inline.1.$call.1: Int
+        Type Int
+        Local $inline.3.result
+      assign $inline.1.result
+        Type Int
+        Local $inline.1.$call.1
+      goto bb1
+    bb4 inline.3.entry
+      val $inline.3.$dependency.receiver: Int
+        Type Int
+        Local $inline.3.value
+      val $inline.3.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.3.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      assign $inline.3.result
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.3.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=1 bits=0x00000001
+      goto bb3
+  fun wrap3 @fn12(value: Int) -> Int
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      val $inline.1.value: Int
+        Type Int
+        Local $parameter.value
+      goto bb2
+    bb1 inline.cont.1
+      val $call.1: Int
+        Type Int
+        Local $inline.1.result
+      return
+        Type Int
+        Local $call.1
+    bb2 inline.1.entry
+      val $inline.1.$argument.0: Int
+        Type Int
+        Local $inline.1.value
+      val $inline.1.$parameter.value: Int
+        Type Int
+        Local $inline.1.$argument.0
+      val $inline.3.value: Int
+        Type Int
+        Local $inline.1.$parameter.value
+      goto bb4
+    bb3 inline.cont.3
+      val $inline.1.$call.1: Int
+        Type Int
+        Local $inline.3.result
+      assign $inline.1.result
+        Type Int
+        Local $inline.1.$call.1
+      goto bb1
+    bb4 inline.3.entry
+      val $inline.3.$argument.0: Int
+        Type Int
+        Local $inline.3.value
+      val $inline.3.$parameter.value: Int
+        Type Int
+        Local $inline.3.$argument.0
+      val $inline.5.value: Int
+        Type Int
+        Local $inline.3.$parameter.value
+      goto bb6
+    bb5 inline.cont.5
+      val $inline.3.$call.1: Int
+        Type Int
+        Local $inline.5.result
+      assign $inline.3.result
+        Type Int
+        Local $inline.3.$call.1
+      goto bb3
+    bb6 inline.5.entry
+      val $inline.5.$dependency.receiver: Int
+        Type Int
+        Local $inline.5.value
+      val $inline.5.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.5.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      assign $inline.5.result
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.5.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=1 bits=0x00000001
+      goto bb5
+  fun wrap4 @fn13(value: Int) -> Int
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      val $inline.1.value: Int
+        Type Int
+        Local $parameter.value
+      goto bb2
+    bb1 inline.cont.1
+      val $call.1: Int
+        Type Int
+        Local $inline.1.result
+      return
+        Type Int
+        Local $call.1
+    bb2 inline.1.entry
+      val $inline.1.$argument.0: Int
+        Type Int
+        Local $inline.1.value
+      val $inline.1.$parameter.value: Int
+        Type Int
+        Local $inline.1.$argument.0
+      val $inline.3.value: Int
+        Type Int
+        Local $inline.1.$parameter.value
+      goto bb4
+    bb3 inline.cont.3
+      val $inline.1.$call.1: Int
+        Type Int
+        Local $inline.3.result
+      assign $inline.1.result
+        Type Int
+        Local $inline.1.$call.1
+      goto bb1
+    bb4 inline.3.entry
+      val $inline.3.$argument.0: Int
+        Type Int
+        Local $inline.3.value
+      val $inline.3.$parameter.value: Int
+        Type Int
+        Local $inline.3.$argument.0
+      val $inline.5.value: Int
+        Type Int
+        Local $inline.3.$parameter.value
+      goto bb6
+    bb5 inline.cont.5
+      val $inline.3.$call.1: Int
+        Type Int
+        Local $inline.5.result
+      assign $inline.3.result
+        Type Int
+        Local $inline.3.$call.1
+      goto bb3
+    bb6 inline.5.entry
+      val $inline.5.$argument.0: Int
+        Type Int
+        Local $inline.5.value
+      val $inline.5.$parameter.value: Int
+        Type Int
+        Local $inline.5.$argument.0
+      val $inline.7.value: Int
+        Type Int
+        Local $inline.5.$parameter.value
+      goto bb8
+    bb7 inline.cont.7
+      val $inline.5.$call.1: Int
+        Type Int
+        Local $inline.7.result
+      assign $inline.5.result
+        Type Int
+        Local $inline.5.$call.1
+      goto bb5
+    bb8 inline.7.entry
+      val $inline.7.$dependency.receiver: Int
+        Type Int
+        Local $inline.7.value
+      val $inline.7.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.7.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      assign $inline.7.result
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.7.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=1 bits=0x00000001
+      goto bb7
+  fun wrap5 @fn14(value: Int) -> Int
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      val $inline.1.value: Int
+        Type Int
+        Local $parameter.value
+      goto bb2
+    bb1 inline.cont.1
+      val $call.1: Int
+        Type Int
+        Local $inline.1.result
+      return
+        Type Int
+        Local $call.1
+    bb2 inline.1.entry
+      val $inline.1.$argument.0: Int
+        Type Int
+        Local $inline.1.value
+      val $inline.1.$parameter.value: Int
+        Type Int
+        Local $inline.1.$argument.0
+      val $inline.3.value: Int
+        Type Int
+        Local $inline.1.$parameter.value
+      goto bb4
+    bb3 inline.cont.3
+      val $inline.1.$call.1: Int
+        Type Int
+        Local $inline.3.result
+      assign $inline.1.result
+        Type Int
+        Local $inline.1.$call.1
+      goto bb1
+    bb4 inline.3.entry
+      val $inline.3.$argument.0: Int
+        Type Int
+        Local $inline.3.value
+      val $inline.3.$parameter.value: Int
+        Type Int
+        Local $inline.3.$argument.0
+      val $inline.5.value: Int
+        Type Int
+        Local $inline.3.$parameter.value
+      goto bb6
+    bb5 inline.cont.5
+      val $inline.3.$call.1: Int
+        Type Int
+        Local $inline.5.result
+      assign $inline.3.result
+        Type Int
+        Local $inline.3.$call.1
+      goto bb3
+    bb6 inline.5.entry
+      val $inline.5.$argument.0: Int
+        Type Int
+        Local $inline.5.value
+      val $inline.5.$parameter.value: Int
+        Type Int
+        Local $inline.5.$argument.0
+      val $inline.7.value: Int
+        Type Int
+        Local $inline.5.$parameter.value
+      goto bb8
+    bb7 inline.cont.7
+      val $inline.5.$call.1: Int
+        Type Int
+        Local $inline.7.result
+      assign $inline.5.result
+        Type Int
+        Local $inline.5.$call.1
+      goto bb5
+    bb8 inline.7.entry
+      val $inline.7.$argument.0: Int
+        Type Int
+        Local $inline.7.value
+      val $inline.7.$parameter.value: Int
+        Type Int
+        Local $inline.7.$argument.0
+      val $inline.9.value: Int
+        Type Int
+        Local $inline.7.$parameter.value
+      goto bb10
+    bb9 inline.cont.9
+      val $inline.7.$call.1: Int
+        Type Int
+        Local $inline.9.result
+      assign $inline.7.result
+        Type Int
+        Local $inline.7.$call.1
+      goto bb7
+    bb10 inline.9.entry
+      val $inline.9.$dependency.receiver: Int
+        Type Int
+        Local $inline.9.value
+      val $inline.9.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.9.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      assign $inline.9.result
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.9.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=1 bits=0x00000001
+      goto bb9
+  fun wrap6 @fn15(value: Int) -> Int
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      val $inline.1.value: Int
+        Type Int
+        Local $parameter.value
+      goto bb2
+    bb1 inline.cont.1
+      val $call.1: Int
+        Type Int
+        Local $inline.1.result
+      return
+        Type Int
+        Local $call.1
+    bb2 inline.1.entry
+      val $inline.1.$argument.0: Int
+        Type Int
+        Local $inline.1.value
+      val $inline.1.$parameter.value: Int
+        Type Int
+        Local $inline.1.$argument.0
+      val $inline.3.value: Int
+        Type Int
+        Local $inline.1.$parameter.value
+      goto bb4
+    bb3 inline.cont.3
+      val $inline.1.$call.1: Int
+        Type Int
+        Local $inline.3.result
+      assign $inline.1.result
+        Type Int
+        Local $inline.1.$call.1
+      goto bb1
+    bb4 inline.3.entry
+      val $inline.3.$argument.0: Int
+        Type Int
+        Local $inline.3.value
+      val $inline.3.$parameter.value: Int
+        Type Int
+        Local $inline.3.$argument.0
+      val $inline.5.value: Int
+        Type Int
+        Local $inline.3.$parameter.value
+      goto bb6
+    bb5 inline.cont.5
+      val $inline.3.$call.1: Int
+        Type Int
+        Local $inline.5.result
+      assign $inline.3.result
+        Type Int
+        Local $inline.3.$call.1
+      goto bb3
+    bb6 inline.5.entry
+      val $inline.5.$argument.0: Int
+        Type Int
+        Local $inline.5.value
+      val $inline.5.$parameter.value: Int
+        Type Int
+        Local $inline.5.$argument.0
+      val $inline.7.value: Int
+        Type Int
+        Local $inline.5.$parameter.value
+      goto bb8
+    bb7 inline.cont.7
+      val $inline.5.$call.1: Int
+        Type Int
+        Local $inline.7.result
+      assign $inline.5.result
+        Type Int
+        Local $inline.5.$call.1
+      goto bb5
+    bb8 inline.7.entry
+      val $inline.7.$argument.0: Int
+        Type Int
+        Local $inline.7.value
+      val $inline.7.$parameter.value: Int
+        Type Int
+        Local $inline.7.$argument.0
+      val $inline.9.value: Int
+        Type Int
+        Local $inline.7.$parameter.value
+      goto bb10
+    bb9 inline.cont.9
+      val $inline.7.$call.1: Int
+        Type Int
+        Local $inline.9.result
+      assign $inline.7.result
+        Type Int
+        Local $inline.7.$call.1
+      goto bb7
+    bb10 inline.9.entry
+      val $inline.9.$argument.0: Int
+        Type Int
+        Local $inline.9.value
+      val $inline.9.$parameter.value: Int
+        Type Int
+        Local $inline.9.$argument.0
+      val $inline.11.value: Int
+        Type Int
+        Local $inline.9.$parameter.value
+      goto bb12
+    bb11 inline.cont.11
+      val $inline.9.$call.1: Int
+        Type Int
+        Local $inline.11.result
+      assign $inline.9.result
+        Type Int
+        Local $inline.9.$call.1
+      goto bb9
+    bb12 inline.11.entry
+      val $inline.11.$dependency.receiver: Int
+        Type Int
+        Local $inline.11.value
+      val $inline.11.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.11.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      assign $inline.11.result
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $inline.11.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=1 bits=0x00000001
+      goto bb11
+  fun wrap7 @fn16(value: Int) -> Int
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      val $inline.1.value: Int
+        Type Int
+        Local $parameter.value
+      goto bb2
+    bb1 inline.cont.1
+      val $call.1: Int
+        Type Int
+        Local $inline.1.result
+      return
+        Type Int
+        Local $call.1
+    bb2 inline.1.entry
+      val $inline.1.$argument.0: Int
+        Type Int
+        Local $inline.1.value
+      val $inline.1.$parameter.value: Int
+        Type Int
+        Local $inline.1.$argument.0
+      val $inline.3.value: Int
+        Type Int
+        Local $inline.1.$parameter.value
+      goto bb4
+    bb3 inline.cont.3
+      val $inline.1.$call.1: Int
+        Type Int
+        Local $inline.3.result
+      assign $inline.1.result
+        Type Int
+        Local $inline.1.$call.1
+      goto bb1
+    bb4 inline.3.entry
+      val $inline.3.$argument.0: Int
+        Type Int
+        Local $inline.3.value
+      val $inline.3.$parameter.value: Int
+        Type Int
+        Local $inline.3.$argument.0
+      val $inline.5.value: Int
+        Type Int
+        Local $inline.3.$parameter.value
+      goto bb6
+    bb5 inline.cont.5
+      val $inline.3.$call.1: Int
+        Type Int
+        Local $inline.5.result
+      assign $inline.3.result
+        Type Int
+        Local $inline.3.$call.1
+      goto bb3
+    bb6 inline.5.entry
+      val $inline.5.$argument.0: Int
+        Type Int
+        Local $inline.5.value
+      val $inline.5.$parameter.value: Int
+        Type Int
+        Local $inline.5.$argument.0
+      val $inline.7.value: Int
+        Type Int
+        Local $inline.5.$parameter.value
+      goto bb8
+    bb7 inline.cont.7
+      val $inline.5.$call.1: Int
+        Type Int
+        Local $inline.7.result
+      assign $inline.5.result
+        Type Int
+        Local $inline.5.$call.1
+      goto bb5
+    bb8 inline.7.entry
+      val $inline.7.$argument.0: Int
+        Type Int
+        Local $inline.7.value
+      val $inline.7.$parameter.value: Int
+        Type Int
+        Local $inline.7.$argument.0
+      val $inline.9.value: Int
+        Type Int
+        Local $inline.7.$parameter.value
+      goto bb10
+    bb9 inline.cont.9
+      val $inline.7.$call.1: Int
+        Type Int
+        Local $inline.9.result
+      assign $inline.7.result
+        Type Int
+        Local $inline.7.$call.1
+      goto bb7
+    bb10 inline.9.entry
+      val $inline.9.$argument.0: Int
+        Type Int
+        Local $inline.9.value
+      val $inline.9.$parameter.value: Int
+        Type Int
+        Local $inline.9.$argument.0
+      val $inline.11.value: Int
+        Type Int
+        Local $inline.9.$parameter.value
+      goto bb12
+    bb11 inline.cont.11
+      val $inline.9.$call.1: Int
+        Type Int
+        Local $inline.11.result
+      assign $inline.9.result
+        Type Int
+        Local $inline.9.$call.1
+      goto bb9
+    bb12 inline.11.entry
+      val $inline.11.$argument.0: Int
+        Type Int
+        Local $inline.11.value
+      val $inline.11.$parameter.value: Int
+        Type Int
+        Local $inline.11.$argument.0
+      call $inline.11.$call.1: Int = @fn9 direct
+        Type Int
+        Local $inline.11.$parameter.value
+      assign $inline.11.result
+        Type Int
+        Local $inline.11.$call.1
+      goto bb11
+  fun wrap8 @fn17(value: Int) -> Int
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      val $inline.1.value: Int
+        Type Int
+        Local $parameter.value
+      goto bb2
+    bb1 inline.cont.1
+      val $call.1: Int
+        Type Int
+        Local $inline.1.result
+      return
+        Type Int
+        Local $call.1
+    bb2 inline.1.entry
+      val $inline.1.$argument.0: Int
+        Type Int
+        Local $inline.1.value
+      val $inline.1.$parameter.value: Int
+        Type Int
+        Local $inline.1.$argument.0
+      val $inline.3.value: Int
+        Type Int
+        Local $inline.1.$parameter.value
+      goto bb4
+    bb3 inline.cont.3
+      val $inline.1.$call.1: Int
+        Type Int
+        Local $inline.3.result
+      assign $inline.1.result
+        Type Int
+        Local $inline.1.$call.1
+      goto bb1
+    bb4 inline.3.entry
+      val $inline.3.$argument.0: Int
+        Type Int
+        Local $inline.3.value
+      val $inline.3.$parameter.value: Int
+        Type Int
+        Local $inline.3.$argument.0
+      val $inline.5.value: Int
+        Type Int
+        Local $inline.3.$parameter.value
+      goto bb6
+    bb5 inline.cont.5
+      val $inline.3.$call.1: Int
+        Type Int
+        Local $inline.5.result
+      assign $inline.3.result
+        Type Int
+        Local $inline.3.$call.1
+      goto bb3
+    bb6 inline.5.entry
+      val $inline.5.$argument.0: Int
+        Type Int
+        Local $inline.5.value
+      val $inline.5.$parameter.value: Int
+        Type Int
+        Local $inline.5.$argument.0
+      val $inline.7.value: Int
+        Type Int
+        Local $inline.5.$parameter.value
+      goto bb8
+    bb7 inline.cont.7
+      val $inline.5.$call.1: Int
+        Type Int
+        Local $inline.7.result
+      assign $inline.5.result
+        Type Int
+        Local $inline.5.$call.1
+      goto bb5
+    bb8 inline.7.entry
+      val $inline.7.$argument.0: Int
+        Type Int
+        Local $inline.7.value
+      val $inline.7.$parameter.value: Int
+        Type Int
+        Local $inline.7.$argument.0
+      val $inline.9.value: Int
+        Type Int
+        Local $inline.7.$parameter.value
+      goto bb10
+    bb9 inline.cont.9
+      val $inline.7.$call.1: Int
+        Type Int
+        Local $inline.9.result
+      assign $inline.7.result
+        Type Int
+        Local $inline.7.$call.1
+      goto bb7
+    bb10 inline.9.entry
+      val $inline.9.$argument.0: Int
+        Type Int
+        Local $inline.9.value
+      val $inline.9.$parameter.value: Int
+        Type Int
+        Local $inline.9.$argument.0
+      val $inline.11.value: Int
+        Type Int
+        Local $inline.9.$parameter.value
+      goto bb12
+    bb11 inline.cont.11
+      val $inline.9.$call.1: Int
+        Type Int
+        Local $inline.11.result
+      assign $inline.9.result
+        Type Int
+        Local $inline.9.$call.1
+      goto bb9
+    bb12 inline.11.entry
+      val $inline.11.$argument.0: Int
+        Type Int
+        Local $inline.11.value
+      val $inline.11.$parameter.value: Int
+        Type Int
+        Local $inline.11.$argument.0
+      call $inline.11.$call.1: Int = @fn10 direct
+        Type Int
+        Local $inline.11.$parameter.value
+      assign $inline.11.result
+        Type Int
+        Local $inline.11.$call.1
+      goto bb11
+  fun narrow @fn18(value: Int8) -> Int8
+    bb0 entry
+      val $dependency.receiver: Int8
+        Type Int8
+        Local value
+      val $dependency.argument.0: Int8
+        Type Int8
+        IntegerLiteral Int8 value=1 bits=0x01
+      val $dependency.parameter.other: Int8
+        Type Int8
+        IntegerLiteral Int8 value=1 bits=0x01
+      return
+        Type Int8
+        IntegerBinary add kind=Int8
+          Type Int8
+          Local $dependency.receiver
+          Type Int8
+          IntegerLiteral Int8 value=1 bits=0x01
+  fun narrowUnsigned @fn19(value: UInt8) -> UInt8
+    bb0 entry
+      val $dependency.receiver: UInt8
+        Type UInt8
+        Local value
+      val $dependency.argument.0: UInt8
+        Type UInt8
+        IntegerLiteral UInt8 value=1 bits=0x01
+      val $dependency.parameter.other: UInt8
+        Type UInt8
+        IntegerLiteral UInt8 value=1 bits=0x01
+      return
+        Type UInt8
+        IntegerBinary add kind=UInt8
+          Type UInt8
+          Local $dependency.receiver
+          Type UInt8
+          IntegerLiteral UInt8 value=1 bits=0x01
+  fun widen @fn20(value: UInt8) -> Int
+    bb0 entry
+      val $dependency.receiver: UInt8
+        Type UInt8
+        Local value
+      return
+        Type Int
+        IntegerConversion UInt8 -> Int
+          Type UInt8
+          Local $dependency.receiver
+  fun negative @fn21(value: Int8) -> Boolean
+    bb0 entry
+      val $dependency.receiver: Int8
+        Type Int8
+        Local value
+      val $dependency.argument.0: Int8
+        Type Int8
+        IntegerLiteral Int8 value=0 bits=0x00
+      val $dependency.parameter.other: Int8
+        Type Int8
+        IntegerLiteral Int8 value=0 bits=0x00
+      return
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Int8 result=Long
+            Type Int8
+            Local $dependency.receiver
+            Type Int8
+            IntegerLiteral Int8 value=0 bits=0x00
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+  fun main @fn22() -> Unit
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $parameter.value: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.38.value: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      goto bb39
+    bb1 if.then.1
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+      val $parameter.count: Int
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+      call $dependency.receiver: Int = @fn3 direct
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=276 bits=0x00000114
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=276 bits=0x00000114
+      val $shortCircuit.3: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          IntegerLiteral Int value=276 bits=0x00000114
+      goto bb3
+    bb2 if.else.2
+      unreachable
+    bb3 if.merge.3
+      val $argument.0: Boolean
+        Type Boolean
+        Local $shortCircuit.3
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=9 bits=0x00000009
+      val $parameter.value: Int
+        Type Int
+        IntegerLiteral Int value=9 bits=0x00000009
+      val $inline.36.value: Int
+        Type Int
+        IntegerLiteral Int value=9 bits=0x00000009
+      goto bb37
+    bb4 if.then.4
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=12 bits=0x0000000c
+      val $argument.1: Boolean
+        Type Boolean
+        BoolLiteral false
+      val $parameter.value: Int
+        Type Int
+        IntegerLiteral Int value=12 bits=0x0000000c
+      val $parameter.checked: Boolean
+        Type Boolean
+        BoolLiteral false
+      val $inline.34.value: Int
+        Type Int
+        IntegerLiteral Int value=12 bits=0x0000000c
+      val $inline.34.checked: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb35
+    bb5 if.else.5
+      unreachable
+    bb6 if.merge.6
+      val $argument.0: Boolean
+        Type Boolean
+        BoolLiteral true
+      val $parameter.value: Boolean
+        Type Boolean
+        BoolLiteral true
+      val $inline.58.value: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb59
+    bb7 if.then.7
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=8 bits=0x00000008
+      val $parameter.value: Int
+        Type Int
+        IntegerLiteral Int value=8 bits=0x00000008
+      call $dependency.receiver: Boolean = @fn8 direct
+        Type Int
+        IntegerLiteral Int value=8 bits=0x00000008
+      val $shortCircuit.5: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+      goto bb9
+    bb8 if.else.8
+      val $shortCircuit.5: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb9
+    bb9 if.merge.9
+      branch bb10 bb11
+        Type Boolean
+        Local $shortCircuit.5
+    bb10 if.then.10
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=9 bits=0x00000009
+      val $parameter.value: Int
+        Type Int
+        IntegerLiteral Int value=9 bits=0x00000009
+      call $shortCircuit.6: Boolean = @fn8 direct
+        Type Int
+        IntegerLiteral Int value=9 bits=0x00000009
+      goto bb12
+    bb11 if.else.11
+      val $shortCircuit.6: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb12
+    bb12 if.merge.12
+      val $argument.0: Boolean
+        Type Boolean
+        Local $shortCircuit.6
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=41 bits=0x00000029
+      val $parameter.value: Int
+        Type Int
+        IntegerLiteral Int value=41 bits=0x00000029
+      val $inline.32.value: Int
+        Type Int
+        IntegerLiteral Int value=41 bits=0x00000029
+      goto bb33
+    bb13 if.then.13
+      val $argument.0: UInt8
+        Type UInt8
+        IntegerLiteral UInt8 value=255 bits=0xff
+      val $parameter.value: UInt8
+        Type UInt8
+        IntegerLiteral UInt8 value=255 bits=0xff
+      val $inline.28.value: UInt8
+        Type UInt8
+        IntegerLiteral UInt8 value=255 bits=0xff
+      goto bb29
+    bb14 if.else.14
+      unreachable
+    bb15 if.merge.15
+      val $argument.0: Boolean
+        Type Boolean
+        BoolLiteral true
+      val $parameter.value: Boolean
+        Type Boolean
+        BoolLiteral true
+      val $inline.53.value: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb54
+    bb16 if.then.16
+      val $argument.0: Int8
+        Type Int8
+        IntegerLiteral Int8 value=-1 bits=0xff
+      val $parameter.value: Int8
+        Type Int8
+        IntegerLiteral Int8 value=-1 bits=0xff
+      val $inline.24.value: Int8
+        Type Int8
+        IntegerLiteral Int8 value=-1 bits=0xff
+      goto bb25
+    bb17 if.else.17
+      unreachable
+    bb18 if.merge.18
+      goto bb19
+    bb19 if.then.19
+      val $argument.0: Int8
+        Type Int8
+        IntegerLiteral Int8 value=1 bits=0x01
+      val $parameter.value: Int8
+        Type Int8
+        IntegerLiteral Int8 value=1 bits=0x01
+      val $inline.22.value: Int8
+        Type Int8
+        IntegerLiteral Int8 value=1 bits=0x01
+      goto bb23
+    bb20 if.else.20
+      unreachable
+    bb21 if.merge.21
+      val $argument.0: Boolean
+        Type Boolean
+        BoolLiteral true
+      val $parameter.value: Boolean
+        Type Boolean
+        BoolLiteral true
+      val $inline.50.value: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb51
+    bb22 inline.cont.22
+      val $dependency.receiver: Boolean
+        Type Boolean
+        BoolLiteral false
+      val $shortCircuit.9: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb21
+    bb23 inline.22.entry
+      val $inline.22.$dependency.receiver: Int8
+        Type Int8
+        IntegerLiteral Int8 value=1 bits=0x01
+      val $inline.22.$dependency.argument.0: Int8
+        Type Int8
+        IntegerLiteral Int8 value=0 bits=0x00
+      val $inline.22.$dependency.parameter.other: Int8
+        Type Int8
+        IntegerLiteral Int8 value=0 bits=0x00
+      assign $inline.22.result
+        Type Boolean
+        BoolLiteral false
+      goto bb22
+    bb24 inline.cont.24
+      val $shortCircuit.8: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb18
+    bb25 inline.24.entry
+      val $inline.24.$dependency.receiver: Int8
+        Type Int8
+        IntegerLiteral Int8 value=-1 bits=0xff
+      val $inline.24.$dependency.argument.0: Int8
+        Type Int8
+        IntegerLiteral Int8 value=0 bits=0x00
+      val $inline.24.$dependency.parameter.other: Int8
+        Type Int8
+        IntegerLiteral Int8 value=0 bits=0x00
+      assign $inline.24.result
+        Type Boolean
+        BoolLiteral true
+      goto bb24
+    bb26 inline.cont.26
+      val $dependency.receiver: Int
+        Type Int
+        IntegerLiteral Int value=255 bits=0x000000ff
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=255 bits=0x000000ff
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=255 bits=0x000000ff
+      goto bb16
+    bb27 inline.26.entry
+      val $inline.26.$dependency.receiver: UInt8
+        Type UInt8
+        IntegerLiteral UInt8 value=255 bits=0xff
+      assign $inline.26.result
+        Type Int
+        IntegerLiteral Int value=255 bits=0x000000ff
+      goto bb26
+    bb28 inline.cont.28
+      val $dependency.receiver: UInt8
+        Type UInt8
+        IntegerLiteral UInt8 value=0 bits=0x00
+      val $dependency.argument.0: UInt8
+        Type UInt8
+        IntegerLiteral UInt8 value=0 bits=0x00
+      val $dependency.parameter.other: UInt8
+        Type UInt8
+        IntegerLiteral UInt8 value=0 bits=0x00
+      val $shortCircuit.7: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb15
+    bb29 inline.28.entry
+      val $inline.28.$dependency.receiver: UInt8
+        Type UInt8
+        IntegerLiteral UInt8 value=255 bits=0xff
+      val $inline.28.$dependency.argument.0: UInt8
+        Type UInt8
+        IntegerLiteral UInt8 value=1 bits=0x01
+      val $inline.28.$dependency.parameter.other: UInt8
+        Type UInt8
+        IntegerLiteral UInt8 value=1 bits=0x01
+      assign $inline.28.result
+        Type UInt8
+        IntegerLiteral UInt8 value=0 bits=0x00
+      goto bb28
+    bb30 inline.cont.30
+      val $dependency.receiver: Int8
+        Type Int8
+        IntegerLiteral Int8 value=-128 bits=0x80
+      val $dependency.argument.0: Int8
+        Type Int8
+        IntegerLiteral Int8 value=-128 bits=0x80
+      val $dependency.parameter.other: Int8
+        Type Int8
+        IntegerLiteral Int8 value=-128 bits=0x80
+      goto bb13
+    bb31 inline.30.entry
+      val $inline.30.$dependency.receiver: Int8
+        Type Int8
+        IntegerLiteral Int8 value=127 bits=0x7f
+      val $inline.30.$dependency.argument.0: Int8
+        Type Int8
+        IntegerLiteral Int8 value=1 bits=0x01
+      val $inline.30.$dependency.parameter.other: Int8
+        Type Int8
+        IntegerLiteral Int8 value=1 bits=0x01
+      assign $inline.30.result
+        Type Int8
+        IntegerLiteral Int8 value=-128 bits=0x80
+      goto bb30
+    bb32 inline.cont.32
+      val $dependency.receiver: Int
+        Type Int
+        Local $inline.32.result
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          IntegerLiteral Int value=42 bits=0x0000002a
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      val $argument.0: Int8
+        Type Int8
+        IntegerLiteral Int8 value=127 bits=0x7f
+      val $parameter.value: Int8
+        Type Int8
+        IntegerLiteral Int8 value=127 bits=0x7f
+      val $inline.30.value: Int8
+        Type Int8
+        IntegerLiteral Int8 value=127 bits=0x7f
+      goto bb31
+    bb33 inline.32.entry
+      val $inline.32.$argument.0: Int
+        Type Int
+        IntegerLiteral Int value=41 bits=0x00000029
+      val $inline.32.$parameter.value: Int
+        Type Int
+        IntegerLiteral Int value=41 bits=0x00000029
+      val $inline.48.value: Int
+        Type Int
+        IntegerLiteral Int value=41 bits=0x00000029
+      goto bb49
+    bb34 inline.cont.34
+      val $dependency.receiver: Int
+        Type Int
+        IntegerLiteral Int value=13 bits=0x0000000d
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=13 bits=0x0000000d
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=13 bits=0x0000000d
+      val $shortCircuit.4: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb6
+    bb35 inline.34.entry
+      val $inline.34.$argument.0: Int
+        Type Int
+        IntegerLiteral Int value=12 bits=0x0000000c
+      val $inline.34.$argument.1: Boolean
+        Type Boolean
+        BoolLiteral false
+      val $inline.34.$parameter.value: Int
+        Type Int
+        IntegerLiteral Int value=12 bits=0x0000000c
+      val $inline.34.$parameter.checked: Boolean
+        Type Boolean
+        BoolLiteral false
+      val $inline.45.value: Int
+        Type Int
+        IntegerLiteral Int value=12 bits=0x0000000c
+      val $inline.45.checked: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb46
+    bb36 inline.cont.36
+      val $dependency.receiver: Int
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+      goto bb4
+    bb37 inline.36.entry
+      val $inline.36.$argument.0: Int
+        Type Int
+        IntegerLiteral Int value=9 bits=0x00000009
+      val $inline.36.$argument.1: Boolean
+        Type Boolean
+        BoolLiteral false
+      val $inline.36.$parameter.value: Int
+        Type Int
+        IntegerLiteral Int value=9 bits=0x00000009
+      val $inline.36.$parameter.checked: Boolean
+        Type Boolean
+        BoolLiteral false
+      val $inline.42.value: Int
+        Type Int
+        IntegerLiteral Int value=9 bits=0x00000009
+      val $inline.42.checked: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb43
+    bb38 inline.cont.38
+      val $dependency.receiver: Int
+        Type Int
+        IntegerLiteral Int value=84 bits=0x00000054
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=84 bits=0x00000054
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=84 bits=0x00000054
+      goto bb1
+    bb39 inline.38.entry
+      val $inline.38.$argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.38.$parameter.value: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.40.value: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      goto bb41
+    bb40 inline.cont.40
+      val $inline.38.$call.1: Int
+        Type Int
+        IntegerLiteral Int value=84 bits=0x00000054
+      assign $inline.38.result
+        Type Int
+        IntegerLiteral Int value=84 bits=0x00000054
+      goto bb38
+    bb41 inline.40.entry
+      val $inline.40.$dependency.receiver: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.40.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.40.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.40.a: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $inline.40.$dependency.receiver: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $inline.40.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $inline.40.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $inline.40.b: Int
+        Type Int
+        IntegerLiteral Int value=9 bits=0x00000009
+      val $inline.40.$dependency.receiver: Int
+        Type Int
+        IntegerLiteral Int value=9 bits=0x00000009
+      val $inline.40.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.40.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.40.c: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $inline.40.$dependency.receiver: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $inline.40.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=5 bits=0x00000005
+      val $inline.40.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=5 bits=0x00000005
+      val $inline.40.d: Int
+        Type Int
+        IntegerLiteral Int value=35 bits=0x00000023
+      val $inline.40.$dependency.receiver: Int
+        Type Int
+        IntegerLiteral Int value=35 bits=0x00000023
+      val $inline.40.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $inline.40.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $inline.40.e: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $inline.40.$dependency.receiver: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $inline.40.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.40.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      assign $inline.40.result
+        Type Int
+        IntegerLiteral Int value=84 bits=0x00000054
+      goto bb40
+    bb42 inline.cont.42
+      val $inline.36.$call.1: Int
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+      assign $inline.36.result
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+      goto bb36
+    bb43 inline.42.entry
+      goto bb44
+    bb44 inline.42.if.merge.2
+      val $inline.42.$dependency.receiver: Int
+        Type Int
+        IntegerLiteral Int value=9 bits=0x00000009
+      val $inline.42.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.42.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      assign $inline.42.result
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+      goto bb42
+    bb45 inline.cont.45
+      val $inline.34.$call.1: Int
+        Type Int
+        IntegerLiteral Int value=13 bits=0x0000000d
+      assign $inline.34.result
+        Type Int
+        IntegerLiteral Int value=13 bits=0x0000000d
+      goto bb34
+    bb46 inline.45.entry
+      goto bb47
+    bb47 inline.45.if.merge.2
+      val $inline.45.$dependency.receiver: Int
+        Type Int
+        IntegerLiteral Int value=12 bits=0x0000000c
+      val $inline.45.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.45.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      assign $inline.45.result
+        Type Int
+        IntegerLiteral Int value=13 bits=0x0000000d
+      goto bb45
+    bb48 inline.cont.48
+      val $inline.32.$call.1: Int
+        Type Int
+        Local $inline.48.result
+      assign $inline.32.result
+        Type Int
+        Local $inline.32.$call.1
+      goto bb32
+    bb49 inline.48.entry
+      val $inline.48.$argument.0: Int
+        Type Int
+        IntegerLiteral Int value=41 bits=0x00000029
+      val $inline.48.$parameter.value: Int
+        Type Int
+        IntegerLiteral Int value=41 bits=0x00000029
+      val $inline.56.value: Int
+        Type Int
+        IntegerLiteral Int value=41 bits=0x00000029
+      goto bb57
+    bb50 inline.cont.50
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str1
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn23 direct
+        Type String
+        Local $dependency.parameter.value
+      return
+    bb51 inline.50.entry
+      val $inline.50.$dependency.receiver: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb52
+    bb52 inline.50.if.merge.2
+      goto bb50
+    bb53 inline.cont.53
+      val $argument.0: UInt8
+        Type UInt8
+        IntegerLiteral UInt8 value=255 bits=0xff
+      val $parameter.value: UInt8
+        Type UInt8
+        IntegerLiteral UInt8 value=255 bits=0xff
+      val $inline.26.value: UInt8
+        Type UInt8
+        IntegerLiteral UInt8 value=255 bits=0xff
+      goto bb27
+    bb54 inline.53.entry
+      val $inline.53.$dependency.receiver: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb55
+    bb55 inline.53.if.merge.2
+      goto bb53
+    bb56 inline.cont.56
+      val $inline.48.$call.1: Int
+        Type Int
+        Local $inline.56.result
+      assign $inline.48.result
+        Type Int
+        Local $inline.48.$call.1
+      goto bb48
+    bb57 inline.56.entry
+      val $inline.56.$argument.0: Int
+        Type Int
+        IntegerLiteral Int value=41 bits=0x00000029
+      val $inline.56.$parameter.value: Int
+        Type Int
+        IntegerLiteral Int value=41 bits=0x00000029
+      val $inline.61.value: Int
+        Type Int
+        IntegerLiteral Int value=41 bits=0x00000029
+      goto bb62
+    bb58 inline.cont.58
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=8 bits=0x00000008
+      val $parameter.value: Int
+        Type Int
+        IntegerLiteral Int value=8 bits=0x00000008
+      call $call.1: Boolean = @fn7 direct
+        Type Int
+        IntegerLiteral Int value=8 bits=0x00000008
+      branch bb7 bb8
+        Type Boolean
+        Local $call.1
+    bb59 inline.58.entry
+      val $inline.58.$dependency.receiver: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb60
+    bb60 inline.58.if.merge.2
+      goto bb58
+    bb61 inline.cont.61
+      val $inline.56.$call.1: Int
+        Type Int
+        Local $inline.61.result
+      assign $inline.56.result
+        Type Int
+        Local $inline.56.$call.1
+      goto bb56
+    bb62 inline.61.entry
+      val $inline.61.$argument.0: Int
+        Type Int
+        IntegerLiteral Int value=41 bits=0x00000029
+      val $inline.61.$parameter.value: Int
+        Type Int
+        IntegerLiteral Int value=41 bits=0x00000029
+      val $inline.63.value: Int
+        Type Int
+        IntegerLiteral Int value=41 bits=0x00000029
+      goto bb64
+    bb63 inline.cont.63
+      val $inline.61.$call.1: Int
+        Type Int
+        Local $inline.63.result
+      assign $inline.61.result
+        Type Int
+        Local $inline.61.$call.1
+      goto bb61
+    bb64 inline.63.entry
+      val $inline.63.$argument.0: Int
+        Type Int
+        IntegerLiteral Int value=41 bits=0x00000029
+      val $inline.63.$parameter.value: Int
+        Type Int
+        IntegerLiteral Int value=41 bits=0x00000029
+      val $inline.65.value: Int
+        Type Int
+        IntegerLiteral Int value=41 bits=0x00000029
+      goto bb66
+    bb65 inline.cont.65
+      val $inline.63.$call.1: Int
+        Type Int
+        Local $inline.65.result
+      assign $inline.63.result
+        Type Int
+        Local $inline.63.$call.1
+      goto bb63
+    bb66 inline.65.entry
+      val $inline.65.$argument.0: Int
+        Type Int
+        IntegerLiteral Int value=41 bits=0x00000029
+      val $inline.65.$parameter.value: Int
+        Type Int
+        IntegerLiteral Int value=41 bits=0x00000029
+      call $inline.65.$call.1: Int = @fn11 direct
+        Type Int
+        IntegerLiteral Int value=41 bits=0x00000029
+      assign $inline.65.result
+        Type Int
+        Local $inline.65.$call.1
+      goto bb65
+  fun println @fn23(value: String) -> Unit
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local value
+      call $dependency.local.2: String = external1 direct
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external2 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str2
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external2 direct
+        Type String
+        Local $dependency.local.5
+      return
+  instance mi0 function=@fn23 <- println
+  str @str0 "illegal state"
+  str @str1 "inlined decisions"
+  str @str2 "\n"
+  output executable @fn22

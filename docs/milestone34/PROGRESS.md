@@ -8,7 +8,7 @@
 | --- | --- | --- |
 | M34-1 规范与基线 | 已完成 | 三份规范先行修订；两地 M33 基线、混合 AS1／metadata 返回及目标 C ABI 实验完成，详见下文。 |
 | M34-2 双字接口 | 已完成 | 表示、slot receiver、niche、GC、AtomicRef、native、closure／coroutine、跨 Cone；三 target 的六组 CLI fixture 通过。 |
-| M34-3 MIR 优化 | 进行中 | 先实现实际类型传播与去虚拟化并单独提交，再实现三档调用点内联与累计增长控制。 |
+| M34-3 MIR 优化 | 已完成 | 实际类型传播、去虚拟化、三档调用点内联、常量化简及累计增长控制；三 target 的 13 组 CLI、两机开关性能对照完成。 |
 | M34-4 poll 与分配 | 待实施 | 条件 poll、pending 激活、线程局部统计及汇总。 |
 | M34-5 小值与 DirectC | 待实施 | DirectParts 与两套目标 C aggregate ABI。 |
 | M34-6 多 region | 待实施 | 稀疏地址索引、扩容、large mapping、cards。 |
@@ -69,3 +69,19 @@ virtual／interface／closure／function bridge 调用从已有 typed slot 或 i
 接口 fixture 的 MIR golden 按 profile 分开；debug 的七份逐字保持上一提交内容，release 锁定真实优化结果。本机 HIR→MIR 生产路径 26 项及六组接口 CLI 回归通过，Linux GNU／musl 的六组接口回归亦通过，各为 12 variants、60 processes、42 stage goldens。实现拆为优化入口、数据流和目标解析三个文件，分别为 114／210／117 行。
 
 本机清理 1,805 项已链接中间对象及 incremental，回收逻辑大小 3,590,215,643 bytes；Linux 清理 224 项、1,216,699,824 bytes。两地均保留有效库、测试程序与 CLI，并保存仅去虚拟化的工具用于内联性能对照。
+
+## M34-3b：调用点内联与局部化简
+
+优化在同一原始 concrete 函数目录上选点，不依赖先前 caller 的展开顺序。极小正文阈值为 12；普通正文基础阈值为 20，循环、已证明的常量化简、已知 receiver 和小值复制机会可提高到最多 48。每个 caller 的累计展开额度为原成本的一半加 96、最多 384，嵌套深度最多 6。成本只决定是否保留调用，不影响程序合法性或产物兼容性；具体权重与测量见性能记录。
+
+布尔与精确位宽整数的常量事实复用 receiver 分析，代入实参后删除已证明不可达分支；纯标量运算可折叠，内存、分配、检查和调用保留效果。callee 的形参和局部值取得 caller 的独立身份与存储，实参各求值一次；多个 return 先写临时值，再在 continuation 初始化原调用结果，保持 variant test／payload projection 所需的稳定 local。Managed 循环保留 poll，NoGC 循环展开后不增加 poll。普通 throw 和可能抛出的操作继承调用点出口；callee 自身 EH 协议、callback、协程入口与递归 SCC 保留调用。
+
+MIR `identity-foundation` 升至 6，其实际局部值目录进入 Code／LinkValidationOnly sink；依赖语义仍由现有可消费 bridge sections 决定。新增指纹测试确认内联产生的局部身份不使相反 profile 的依赖失效，公开 bridge 变化仍改变语义。已选外部声明可以保留未使用项和原索引，移除“目录项未被引用即非法”的重复遍历；最终链接继续由实际 undefined references 驱动。
+
+新增四组 CLI fixture：调用点决策、累计增长、效果与 GC、跨产物。快照显示循环 helper 被展开而冷调用保留，常量 false 删除大检查分支，未知分支和互递归保留；8 层 wrapper 在 6 层停止；64 个连续小调用中 38 个展开、26 个保留。语义组合实际展开了分配、throw、取址参数、InteriorMutable 副本、闭包捕获与枚举返回；caller 的 catch／finally／Context 仍生效。外部泛型的本地 concrete 实例被展开，普通外部正文保持调用；交叉 profile 与删除源码后的重新链接均已验证。
+
+工作区 fmt／all-targets clippy、内联身份／递归／NoGC 循环三项结构测试、外部声明索引回归与 scoop-slib 的 569 项单测通过。新增实现分为常量、CFG、选点、成本、克隆与简化模块，最长的优化文件为 260 行。HIR 快照按 profile 分开，记录依赖 identity table 的真实临时索引；既有 11 份 debug MIR 逐字保持 M34-3a 内容。
+
+三个 target 的四组新 fixture 与九组接口／去虚拟化回归全部通过，每个 target 为 26 variants、124 processes、96 stage goldens。本机最终关闭 snapshot 更新重新验收；Linux 复核保留输出与按 profile 分开的 96 份快照逐字一致，两地 64 份 HIR／MIR 文件的 SHA-256 相同。两机内联开关分别运行七次并保留机器码、代码大小、构建时间及全部样本；本机中位数比值为 1.073，Linux GNU 为 1.023，限制见性能记录。
+
+本机本批清理 target 6,382 项、8,215,828,137 bytes；Linux 清理 224 项、1,219,044,107 bytes。保留有效库、CLI、测试程序，并在两地保存 M34-3b 的配套工具和源码用于下一批对照。清理记录位于两地 `tmp/m34/batch3b-target-cleanup.json`。

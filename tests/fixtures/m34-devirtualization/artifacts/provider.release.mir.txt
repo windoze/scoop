@@ -85,14 +85,41 @@ Module
       assign $new.1
         Type Hidden
         ClassAlloc Hidden
-      call @fn24 direct
+      val $inline.1.this: Hidden
         Type Hidden
         Local $new.1
+      goto bb2
+    bb1 inline.cont.1
       return
         Type Base
         Retype Base
           Type Hidden
           Local $new.1
+    bb2 inline.1.entry
+      val $inline.1.$argument.0: Int
+        Type Int
+        IntegerLiteral Int value=99 bits=0x00000063
+      val $inline.1.$parameter.number: Int
+        Type Int
+        IntegerLiteral Int value=99 bits=0x00000063
+      val $inline.3.this: Base
+        Type Base
+        Retype Base
+          Type Hidden
+          Local $inline.1.this
+      val $inline.3.number: Int
+        Type Int
+        IntegerLiteral Int value=99 bits=0x00000063
+      goto bb4
+    bb3 inline.cont.3
+      goto bb1
+    bb4 inline.3.entry
+      field_set 0
+        Type Base
+        Local $inline.3.this
+        Type Int
+        IntegerLiteral Int value=99 bits=0x00000063
+      goto bb3
   fun Continuation.resume @fn4(this: Continuation<Measure>, value: Measure) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
@@ -160,14 +187,24 @@ Module
       val $parameter.number: Int
         Type Int
         Local $argument.0
-      call @fn21 direct
+      val $inline.1.this: Base
         Type Base
         Retype Base
           Type Final
           Local this
+      val $inline.1.number: Int
         Type Int
         Local $parameter.number
+      goto bb2
+    bb1 inline.cont.1
       return
+    bb2 inline.1.entry
+      field_set 0
+        Type Base
+        Local $inline.1.this
+        Type Int
+        Local $inline.1.number
+      goto bb1
   fun init.Inherited.$c2 @fn23(this: Inherited, number: Int) -> Unit
     bb0 entry
       val $argument.0: Int
@@ -176,14 +213,24 @@ Module
       val $parameter.number: Int
         Type Int
         Local $argument.0
-      call @fn21 direct
+      val $inline.1.this: Base
         Type Base
         Retype Base
           Type Inherited
           Local this
+      val $inline.1.number: Int
         Type Int
         Local $parameter.number
+      goto bb2
+    bb1 inline.cont.1
       return
+    bb2 inline.1.entry
+      field_set 0
+        Type Base
+        Local $inline.1.this
+        Type Int
+        Local $inline.1.number
+      goto bb1
   fun init.Hidden.$c3 @fn24(this: Hidden) -> Unit
     bb0 entry
       val $argument.0: Int
@@ -191,15 +238,25 @@ Module
         IntegerLiteral Int value=99 bits=0x00000063
       val $parameter.number: Int
         Type Int
-        Local $argument.0
-      call @fn21 direct
+        IntegerLiteral Int value=99 bits=0x00000063
+      val $inline.1.this: Base
         Type Base
         Retype Base
           Type Hidden
           Local this
+      val $inline.1.number: Int
         Type Int
-        Local $parameter.number
+        IntegerLiteral Int value=99 bits=0x00000063
+      goto bb2
+    bb1 inline.cont.1
       return
+    bb2 inline.1.entry
+      field_set 0
+        Type Base
+        Local $inline.1.this
+        Type Int
+        IntegerLiteral Int value=99 bits=0x00000063
+      goto bb1
   fun startCoroutine<Inherited> @fn25(task: SuspendTask<Inherited>, completion: Continuation<Inherited>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true

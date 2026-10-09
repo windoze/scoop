@@ -103,13 +103,40 @@ Module
       assign $new.1
         Type Singleton
         ClassAlloc Singleton
-      call @fn28 direct
+      val $inline.1.this: Singleton
         Type Singleton
         Local $new.1
+      goto bb2
+    bb1 inline.cont.1
       global_assign $singleton$Singleton
         Type Singleton
         Local $new.1
       return
+    bb2 inline.1.entry
+      val $inline.1.$argument.0: Int
+        Type Int
+        IntegerLiteral Int value=19 bits=0x00000013
+      val $inline.1.$parameter.number: Int
+        Type Int
+        IntegerLiteral Int value=19 bits=0x00000013
+      val $inline.3.this: Base
+        Type Base
+        Retype Base
+          Type Singleton
+          Local $inline.1.this
+      val $inline.3.number: Int
+        Type Int
+        IntegerLiteral Int value=19 bits=0x00000013
+      goto bb4
+    bb3 inline.cont.3
+      goto bb1
+    bb4 inline.3.entry
+      field_set 0
+        Type Base
+        Local $inline.3.this
+        Type Int
+        IntegerLiteral Int value=19 bits=0x00000013
+      goto bb3
   fun $init$ensure$0 @fn4() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -147,11 +174,9 @@ Module
       end_catch
       resume
     bb8 try.exit_pad.8
-      landing_pad cleanup=true
-      goto bb9
+      unreachable
     bb9 try.exit_cleanup.9
-      end_catch
-      resume
+      unreachable
     bb10 try.end.10
       goto bb3
     bb11 try.body.11 unwind bb4
@@ -219,16 +244,26 @@ Module
       assign $new.1
         Type Base
         ClassAlloc Base
-      call @fn27 direct
+      val $inline.1.this: Base
         Type Base
         Local $new.1
+      val $inline.1.number: Int
         Type Int
         Local $parameter.number
+      goto bb2
+    bb1 inline.cont.1
       return
         Type Value
         Retype Value
           Type Base
           Local $new.1
+    bb2 inline.1.entry
+      field_set 0
+        Type Base
+        Local $inline.1.this
+        Type Int
+        Local $inline.1.number
+      goto bb1
   fun keep @fn6(value: Value) -> Value
     bb0 entry
       call @scoop_rt_gc_collect direct
@@ -299,34 +334,88 @@ Module
         IntegerLiteral Int value=2 bits=0x00000002
       val $dependency.parameter.other: Int
         Type Int
-        Local $dependency.argument.0
+        IntegerLiteral Int value=2 bits=0x00000002
       return
         Type Int
         IntegerBinary multiply kind=Int
           Type Int
           Local $dependency.receiver
           Type Int
-          Local $dependency.parameter.other
+          IntegerLiteral Int value=2 bits=0x00000002
   fun receiver<Base> Value.doubled @fn25(this: Base) -> Int
     bb0 entry
-      call $call.1: Int = @fn24 direct
+      val $inline.1.this: Value
         Type Value
         Retype Value
           Type Base
           Local this
+      goto bb2
+    bb1 inline.cont.1
+      val $call.1: Int
+        Type Int
+        Local $inline.1.result
       return
         Type Int
         Local $call.1
+    bb2 inline.1.entry
+      val $inline.1.$receiver: Value
+        Type Value
+        Local $inline.1.this
+      call $inline.1.$dependency.receiver: Int = @fn23 interface Value[0]
+        Type Value
+        Local $inline.1.$receiver
+      val $inline.1.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.1.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      assign $inline.1.result
+        Type Int
+        IntegerBinary multiply kind=Int
+          Type Int
+          Local $inline.1.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=2 bits=0x00000002
+      goto bb1
   fun receiver<Singleton> Value.doubled @fn26(this: Singleton) -> Int
     bb0 entry
-      call $call.1: Int = @fn24 direct
+      val $inline.1.this: Value
         Type Value
         Retype Value
           Type Singleton
           Local this
+      goto bb2
+    bb1 inline.cont.1
+      val $call.1: Int
+        Type Int
+        Local $inline.1.result
       return
         Type Int
         Local $call.1
+    bb2 inline.1.entry
+      val $inline.1.$receiver: Value
+        Type Value
+        Local $inline.1.this
+      call $inline.1.$dependency.receiver: Int = @fn2 direct
+        Type Base
+        Retype Base
+          Type Value
+          Local $inline.1.$receiver
+      val $inline.1.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.1.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      assign $inline.1.result
+        Type Int
+        IntegerBinary multiply kind=Int
+          Type Int
+          Local $inline.1.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=2 bits=0x00000002
+      goto bb1
   fun init.Base.$c0 @fn27(this: Base, number: Int) -> Unit
     bb0 entry
       field_set 0
@@ -342,15 +431,25 @@ Module
         IntegerLiteral Int value=19 bits=0x00000013
       val $parameter.number: Int
         Type Int
-        Local $argument.0
-      call @fn27 direct
+        IntegerLiteral Int value=19 bits=0x00000013
+      val $inline.1.this: Base
         Type Base
         Retype Base
           Type Singleton
           Local this
+      val $inline.1.number: Int
         Type Int
-        Local $parameter.number
+        IntegerLiteral Int value=19 bits=0x00000013
+      goto bb2
+    bb1 inline.cont.1
       return
+    bb2 inline.1.entry
+      field_set 0
+        Type Base
+        Local $inline.1.this
+        Type Int
+        IntegerLiteral Int value=19 bits=0x00000013
+      goto bb1
   fun ctor.Small.$c0 @fn29(number: Int) -> Small <no-gc>
     bb0 entry
       return
@@ -684,24 +783,64 @@ Module
       goto bb6
   fun thunk<Small> Value.get() @fn34(this: box<Small>) -> Int
     bb0 entry
-      call $call.1: Int = @fn0 direct
+      val $inline.1.this: Small
         Type Small
         Unbox
           Type box<Small>
           Local this
+      goto bb2
+    bb1 inline.cont.1
+      val $call.1: Int
+        Type Int
+        Local $inline.1.result
       return
         Type Int
         Local $call.1
+    bb2 inline.1.entry
+      assign $inline.1.result
+        Type Int
+        FieldAccess 0
+          Type Small
+          Local $inline.1.this
+      goto bb1
   fun thunk<Small> Value.doubled() @fn35(this: box<Small>) -> Int
     bb0 entry
-      call $call.1: Int = @fn24 direct
+      val $inline.1.this: Value
         Type Value
         Retype Value
           Type box<Small>
           Local this
+      goto bb2
+    bb1 inline.cont.1
+      val $call.1: Int
+        Type Int
+        Local $inline.1.result
       return
         Type Int
         Local $call.1
+    bb2 inline.1.entry
+      val $inline.1.$receiver: Value
+        Type Value
+        Local $inline.1.this
+      call $inline.1.$dependency.receiver: Int = @fn34 direct
+        Type box<Small>
+        Retype box<Small>
+          Type Value
+          Local $inline.1.$receiver
+      val $inline.1.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $inline.1.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      assign $inline.1.result
+        Type Int
+        IntegerBinary multiply kind=Int
+          Type Int
+          Local $inline.1.$dependency.receiver
+          Type Int
+          IntegerLiteral Int value=2 bits=0x00000002
+      goto bb1
   coroutine_step cs0 CoroutineStep<Small> result=Small
   coroutine_step cs1 CoroutineStep<Value> result=Value
   coroutine_step cs2 CoroutineStep<Singleton> result=Singleton
