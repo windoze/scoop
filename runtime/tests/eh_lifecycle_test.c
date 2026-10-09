@@ -110,7 +110,7 @@ static void check_observer_counts(size_t expected_roots,
 static void initialize_current_test_thread(void) {
     memset(&test_thread, 0, sizeof test_thread);
     test_thread.os_thread = pthread_self();
-    atomic_init(&test_thread.mode, SCOOP_THREAD_MANAGED);
+    atomic_init(&test_thread.poll.mode, SCOOP_THREAD_MANAGED);
     test_thread.managed_depth = 1;
     raise_jump_armed = false;
     memset(raise_history, 0, sizeof raise_history);
@@ -614,7 +614,7 @@ ScoopThreadState *scoop_thread_current(void) { return &test_thread; }
 ScoopThreadState *scoop_thread_current_required(void) { return &test_thread; }
 
 void scoop_thread_require_managed(void) {
-    CHECK(atomic_load_explicit(&test_thread.mode, memory_order_relaxed) ==
+    CHECK(atomic_load_explicit(&test_thread.poll.mode, memory_order_relaxed) ==
           SCOOP_THREAD_MANAGED);
     CHECK(test_thread.managed_depth == 1);
 }

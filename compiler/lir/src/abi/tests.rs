@@ -59,8 +59,14 @@ fn interface_parts_preserve_managed_metadata_and_follow_indirect_result() {
         );
         assert_eq!(physical[index + 1].index(), index + 1);
     }
-    assert_eq!(parts.parts()[0].pointer_kind, crate::PointerKind::Managed);
-    assert_eq!(parts.parts()[1].pointer_kind, crate::PointerKind::Metadata);
+    assert_eq!(
+        parts.parts()[0].carrier(),
+        crate::AbiCarrier::Pointer(crate::PointerKind::Managed)
+    );
+    assert_eq!(
+        parts.parts()[1].carrier(),
+        crate::AbiCarrier::Pointer(crate::PointerKind::Metadata)
+    );
 }
 
 #[test]

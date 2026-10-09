@@ -26,8 +26,8 @@ mod source_closure;
 mod source_contracts;
 mod target;
 pub use errors::NativeBoundaryCompileError;
+pub(crate) use target::AbiReplayDependency;
 pub use target::NativeBoundaryTargetError;
-pub(crate) use target::{AbiReplayDependency, collect_abi_types, replay_canonical_scoop_abi};
 
 #[derive(Clone, Copy)]
 pub(crate) struct NativeBoundaryFoundationView<'foundation> {

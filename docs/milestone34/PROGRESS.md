@@ -10,7 +10,7 @@
 | M34-2 双字接口 | 已完成 | 表示、slot receiver、niche、GC、AtomicRef、native、closure／coroutine、跨 Cone；三 target 的六组 CLI fixture 通过。 |
 | M34-3 MIR 优化 | 已完成 | 实际类型传播、去虚拟化、三档调用点内联、常量化简及累计增长控制；三 target 的 13 组 CLI、两机开关性能对照完成。 |
 | M34-4 poll 与分配 | 已完成 | 条件 poll／pending 激活、线程累计计数／detach 归并、三 target 验收与两机性能对照完成。 |
-| M34-5 小值与 DirectC | 待实施 | DirectParts 与两套目标 C aggregate ABI。 |
+| M34-5 小值与 DirectC | 部分完成 | 小值 DirectParts 与三 target 功能验收已完成；正向 C aggregate DirectC 待实施。 |
 | M34-6 多 region | 待实施 | 稀疏地址索引、扩容、large mapping、cards。 |
 | M34-7 搬迁与归还 | 待实施 | source／target 规划、完整回写、discard／unmap。 |
 | M34-8 并行 mark | 待实施 | 首次标记、分块任务、全局终止、存活集合复用。 |
@@ -109,3 +109,19 @@ detach 在 world lock 内先归并累计值再移除目录项；查询按 world 
 两机分别测量单／四 mutator、GC 诊断关／开，每组七次。两种实现的每次累计分配字节严格相同，minor 次数在原有范围内，未发生 full collection；机器码确认四次全局统计 RMW 已替换为线程字段的 load／store。四线程收益明确，单线程结果与波动、TLS 读取成本一并记录在性能报告，不声称所有场景加速。
 
 生产改动保持在现有 allocation、statistics、thread 与 collection 结算模块；最长相关文件为 thread.c 的 323 行。本批回收本机 target 520 项、444,825,719 bytes；Linux 264 项、380,448,508 bytes。配套工具和源码保存为两地 `tmp/m34/allocation-tools`／`allocation-source`，清理记录为 `batch4b-target-cleanup.json`。
+
+## M34-5a：小值 Scoop ABI
+
+GC-free、size ≤ 16、alignment ≤ 8 的 struct／tuple／tagged enum 按目标分类直接传递，含 GC leaf、大值与过高对齐保留间接值协议。双字接口继续使用专门的 AS1 object／AS0 metadata 两分量。参数与返回分别分类：Darwin 保留 HFA 和连续整数 carrier，SysV 按完整签名计算 INTEGER／SSE 余量，含隐藏 sret，余量不足时整个聚合参数回退。
+
+物理计划保存 carrier、byte offset、有效 extent 与 alignment；三个 target 的分类共用已有 scalar／layout 数据。发射时逐字段物化已清零的源 storage，只复制有效范围，较宽 carrier 的高位补零，保留浮点位模式。callee 的取址参数是独立副本；普通返回、invoke、函数值及 interface slot 共用相同转换，receiver projection 后重新确定完整签名的寄存器分配。
+
+canonical callable／native contract 保存完整计划，产物读入后核对 exact signature、引用、GC 与布局，并复用已保存的物理分类；删除 metadata 消费端另行重放源码 ABI 分类的实现。LIR `cross-cone-param-free-bridge` 升为 3、`cross-cone-layout-abi` 为 14、`cross-cone-layout-link-closure` 为 7；Scoop target classifier 使用新 tag 3。runtime contract 12／metadata ABI 8 不变，C classifier 留待下一批。
+
+新增三组正式 fixture：普通值与效果、独立 LLVM native 入口、跨 Cone artifact-only。覆盖整数／浮点／混合／嵌套／packed／tuple／tagged enum、大值与含引用值回退、参数取址、寄存器耗尽、函数值／interface slot、try／finally、GC 和交叉 profile。native 用例单独检查 signaling NaN、负零、3-byte 高位与 padding 补零。迁移原有 16-byte Scoop native 浮点探针，24-byte 间接探针保持原合同。
+
+三个 target 的新用例及接口 native／artifact-only、内联效果、浮点 FFI 回归均通过；各为 14 variants、78 processes、56 goldens，最终运行关闭 snapshot 更新。37 份共用 HIR／MIR／AST 跨主机逐字一致。受影响 identity、分类、codegen、native 布局、产物版本和两组真实 core 共享 ABI／普通跨库关系测试通过；EH 测试桩同步修正了条件 poll 后的线程字段位置。
+
+新 carrier、classifier 和 coercion 发射文件分别为 204／221／261 行，canonical storage 从签名模块分出；原 1593 行 ABI 校验文件按 metadata、调用点、目标、runtime 和测试拆分，最大模块为 433 行。整理后 15 项 codegen ABI 校验回归通过。本机回收 target 19,276 项、22,542,764,718 bytes；Linux 298 项、1,984,919,128 bytes，保留有效库、CLI、测试程序及对照工具。两地清理记录为 `batch5a-target-cleanup.json`。
+
+两台主机各完成普通跨 Cone 与 Scoop native 两种小值调用的七次前后对照，保留全部原始样本、构建记录与 caller／callee 机器码。普通跨 Cone 在 Darwin／GNU 的中位数比值分别为 3.243／4.110；native 边界组合未获收益，Darwin 变慢、GNU 波动较大，详见性能报告，不将这组数据删去或更改已有 native 协议。两地配套工具与源码保存为 `tmp/m34/small-value-tools`／`small-value-source`，供 DirectC 对照使用。

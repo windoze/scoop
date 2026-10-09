@@ -77,11 +77,10 @@ impl Provider {
             scoop_identity::CanonicalScoopAbiFunctionSignature::new(
                 ExactCallableSignature::new(Effect::Ordinary, None, Vec::new(), exact),
                 vec![],
-                value
-                    .value_handle()
-                    .unwrap()
-                    .scoop_abi_return(TARGET)
-                    .unwrap(),
+                scoop_identity::ScoopAbiReturn::direct(
+                    value.value_handle().unwrap().canonical_storage(),
+                )
+                .unwrap(),
                 (ExactCallableProtocolV1::OrdinaryManaged).gc_effect(),
             )
             .unwrap(),

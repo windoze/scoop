@@ -212,6 +212,8 @@ struct/tuple 根据 exact size、alignment、字段 offset 和 scalar leaves 构
 
 callee 只在操作需要 place 时重建独立存储，不能把 caller 的 storage 当成按值参数的可观察别名。ZST 仍求值且不传 payload；异常记录与一般含引用 aggregate 保持各自完整根和返回规则。Scoop ABI native shim 根据实际 carrier 签名实现，不把源码同形 C struct 当成自动兼容。
 
+参数和结果的 carrier 可不同，例如 Darwin 的三字节值使用 i64 参数、i24 结果。SysV 在完整签名中分配六个 GPR／八个 SSE 参数寄存器，aggregate 任一类别不足便整体回退；Darwin 保留 LLVM 数组／i128 参数的连续放置规则。HFA 的同精度浮点叶必须连续覆盖完整 storage，额外尾部填充不能被当作成员。canonical ABI 保存实际 carrier、offset、extent 和 alignment，产物消费者复用该计划，避免在多个 metadata 入口重新进行完整源码 ABI 分类。
+
 ### 5.2 DirectC 适用，但必须按 C ABI 分类
 
 M33 已将固定参数的标量 C extern 直接发射为 native symbol 调用；M34 将无 errno 捕获的合法按值 C-layout struct 参数／结果纳入 DirectC。小 aggregate 的寄存器传递是重要收益，但 DirectC 也可以使用目标要求的栈参数、byval 或隐藏 sret，不以“全部走寄存器”为定义。

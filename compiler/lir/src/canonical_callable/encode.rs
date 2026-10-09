@@ -90,17 +90,7 @@ impl CallableAbiProjection<'_> {
                 e.field(1)?;
                 self.value(parts.value(), e)?;
                 e.field(2)?;
-                e.array(parts.parts().len() as u64)?;
-                for part in parts.parts() {
-                    e.array(2)?;
-                    e.unsigned(part.byte_offset)?;
-                    crate::canonical_type::encode_type(
-                        self.module,
-                        &LirType::Ptr(part.pointer_kind),
-                        e,
-                    )?;
-                }
-                Ok(())
+                parts.coercion().encode(e)
             }
         }
     }

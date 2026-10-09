@@ -79,45 +79,45 @@ pub(super) fn aggregate(zst: bool) -> ExactLayoutExportV1 {
 }
 
 pub(super) fn function(
-    result: &ExactLayoutExportV1,
-    parameters: &[&ExactLayoutExportV1],
+    exact_result: PersistentExactTypeId,
+    result: ScoopAbiReturn,
+    arguments: Vec<ScoopAbiArgument>,
 ) -> ExactCallableAbiExportV1 {
     let signature = ExactCallableSignature::new(
         Effect::Ordinary,
         None,
-        parameters
+        arguments
             .iter()
-            .map(|layout| layout.identity().exact())
+            .map(|argument| argument.storage().exact_type())
             .collect(),
-        result.identity().exact(),
+        exact_result,
     );
     let (target, foundation) = foundation("function", true);
     ExactCallableAbiExportV1::from_signature(
         TARGET,
         target,
-        scoop_identity::CanonicalScoopAbiFunctionSignature::new(
+        CanonicalScoopAbiFunctionSignature::new(
             signature,
-            (parameters)
-                .iter()
-                .map(|layout| {
-                    layout
-                        .value_handle()
-                        .unwrap()
-                        .scoop_abi_argument(TARGET)
-                        .unwrap()
-                })
-                .collect(),
-            (result)
-                .value_handle()
-                .unwrap()
-                .scoop_abi_return(TARGET)
-                .unwrap(),
-            (ExactCallableProtocolV1::OrdinaryNoGc).gc_effect(),
+            arguments,
+            result,
+            scoop_identity::GcEffect::NoGc,
         )
         .unwrap(),
         &foundation,
     )
     .unwrap()
+}
+
+pub(super) fn integer_part(value: CanonicalScoopStorage, bits: u8) -> AbiCoercion {
+    AbiCoercion::One(
+        AbiPart::new(
+            AbiCarrier::Integer(bits),
+            0,
+            value.byte_size(),
+            value.alignment().get(),
+        )
+        .unwrap(),
+    )
 }
 
 pub(super) fn enumeration(payload: &ExactValueLayoutV1) -> ExactLayoutExportV1 {

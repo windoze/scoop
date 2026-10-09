@@ -858,20 +858,18 @@ fn abi_argument(
     }
     let scan = abi_scan(structs, enums, &ty, 0);
     let value = abi_value_with_layout(ty, size, align, scan);
-    match scoop_lir::classify_non_zero_scoop_abi_value(
-        scoop_lir::LirTargetProfile::DARWIN_AARCH64,
-        enums,
-        value.storage_type(),
-    )
-    .expect("test ABI helper only classifies valid non-void value types")
+    // General codegen fixtures retain byval aggregates; tests of optimized
+    // small-value calls provide their complete carrier plans explicitly.
+    match scoop_lir::scoop_abi_value_shape(enums, value.storage_type())
+        .expect("valid non-void fixture storage")
     {
-        scoop_lir::ScoopAbiPassing::Direct => scoop_lir::AbiArgument::Direct(value.into()),
-        scoop_lir::ScoopAbiPassing::DirectParts => {
+        scoop_lir::ScoopAbiValueShape::Scalar => scoop_lir::AbiArgument::Direct(value.into()),
+        scoop_lir::ScoopAbiValueShape::Interface => {
             scoop_lir::AbiArgument::Direct(scoop_lir::AbiDirectValue::DirectParts(
                 scoop_lir::AbiDirectParts::interface(value).unwrap(),
             ))
         }
-        scoop_lir::ScoopAbiPassing::Indirect => scoop_lir::AbiArgument::Indirect(value),
+        scoop_lir::ScoopAbiValueShape::Aggregate => scoop_lir::AbiArgument::Indirect(value),
     }
 }
 

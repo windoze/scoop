@@ -1,0 +1,111 @@
+struct Pair(val first: Long, val second: Long)
+struct Mixed(val number: Double, val tag: Long)
+struct Floats(val first: Float, val second: Float, val third: Float)
+struct Nested(val values: Floats, val tag: Int)
+struct Large(val first: Long, val second: Long, val third: Long)
+struct Rooted(val label: String, val number: Long)
+@CLayout(packed = 1) struct Packed(val tag: Byte, val number: Double)
+enum Choice { Value(Long), Empty }
+
+fun check(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+// Local handlers keep these calls present in both MIR profiles.
+fun mixed(value: Mixed): Mixed {
+    try { check(value.tag != 0L); return value }
+    catch (error: IllegalStateException) { return Mixed(0.0, 0L) }
+}
+fun floats(value: Floats): Floats {
+    try { check(value.third > 0f); return value }
+    catch (error: IllegalStateException) { return Floats(0f, 0f, 0f) }
+}
+fun nested(value: Nested): Nested {
+    try { check(value.tag > 0); return value }
+    catch (error: IllegalStateException) { return Nested(Floats(0f, 0f, 0f), 0) }
+}
+fun tuple(value: (Long, Double)): (Long, Double) {
+    try { gcCollect(); return value }
+    catch (error: IllegalStateException) { return (0L, 0.0) }
+}
+fun optional(value: Int?): Int? {
+    try { gcCollect(); return value }
+    catch (error: IllegalStateException) { return None }
+}
+fun choice(value: Choice): Choice {
+    try { gcCollect(); return value }
+    catch (error: IllegalStateException) { return Empty }
+}
+fun large(value: Large): Large {
+    try { gcCollect(); return value }
+    catch (error: IllegalStateException) { return Large(0L, 0L, 0L) }
+}
+fun rooted(value: Rooted): Rooted {
+    try { gcCollect(); return value }
+    catch (error: IllegalStateException) { return Rooted("empty", 0L) }
+}
+fun packed(value: Packed): Packed {
+    try { check(value.tag > 0.toInt8()); return value }
+    catch (error: IllegalStateException) { return Packed(0.toInt8(), 0.0) }
+}
+@Unsafe fun replace(value: Pair): Pair {
+    try { addressOf(value).store(Pair(7L, 8L)); return value }
+    catch (error: IllegalStateException) { return Pair(0L, 0L) }
+}
+fun registers(a: Long, b: Long, c: Long, d: Long, e: Long, f: Long,
+              value: Mixed, tail: Double): Mixed {
+    try {
+        check(a + b + c + d + e + f == 21L && tail == 2.5)
+        return value
+    } catch (error: IllegalStateException) { return Mixed(0.0, 0L) }
+}
+fun <T> generic(value: T): T {
+    try { gcCollect(); return value }
+    catch (error: IllegalStateException) { return value }
+}
+interface Transform { fun apply(value: Pair): Pair }
+class Worker(val delta: Long) : Transform {
+    public override fun apply(value: Pair): Pair {
+        try { gcCollect(); return Pair(value.first + delta, value.second + delta) }
+        catch (error: IllegalStateException) { return value }
+    }
+}
+fun worker(): Transform {
+    try { return Worker(10L) }
+    catch (error: IllegalStateException) { return Worker(0L) }
+}
+fun fail(value: Pair): Pair { throw IllegalStateException(Some("small value")) }
+
+@Unsafe fun main() {
+    val original = Pair(3L, 4L)
+    val changed = replace(original)
+    check(changed.first == 7L && changed.second == 8L && original.first == 3L)
+    val m = mixed(Mixed(1.25, 42L))
+    check(m.number == 1.25 && m.tag == 42L)
+    val f = floats(Floats(1.5f, -0f, 3.5f))
+    check(f.first == 1.5f && f.second == -0f && f.third == 3.5f)
+    val n = nested(Nested(f, 19))
+    check(n.values.first == 1.5f && n.values.third == 3.5f && n.tag == 19)
+    val (left, right) = tuple((55L, 2.75))
+    check(left == 55L && right == 2.75)
+    check(optional(Some(31))!! == 31 && optional(None) == None)
+    check(when (choice(Value(29L))) { Value(number) -> number == 29L; Empty -> false })
+    check(when (choice(Empty)) { Value(number) -> false; Empty -> true })
+    val big = large(Large(1L, 2L, 3L))
+    val root = rooted(Rooted("retained", 5L))
+    check(big.first + big.second + big.third == 6L && root.label == "retained" && root.number == 5L)
+    val p = packed(Packed(7.toInt8(), 1.5))
+    check(p.tag == 7.toInt8() && p.number == 1.5)
+    val r = registers(1L, 2L, 3L, 4L, 5L, 6L, m, 2.5)
+    check(r.number == 1.25 && r.tag == 42L && generic(m).tag == 42L)
+    val transform = worker()
+    val applied = transform.apply(original)
+    check(applied.first == 13L && applied.second == 14L)
+    val invoke: (Mixed) -> Mixed = ::mixed
+    var cleanups = 0
+    try {
+        check(invoke(m).tag == 42L)
+        fail(original)
+    } catch (error: IllegalStateException) { check(error.message!! == "small value") }
+    finally { cleanups += 1 }
+    check(cleanups == 1)
+    println("small values")
+}

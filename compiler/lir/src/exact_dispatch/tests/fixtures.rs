@@ -46,17 +46,12 @@ impl DirectFixture {
             scoop_identity::CanonicalScoopAbiFunctionSignature::new(
                 signature,
                 vec![
-                    target_receiver
-                        .value_handle()
-                        .unwrap()
-                        .scoop_abi_argument(TARGET)
-                        .unwrap(),
-                ],
-                result
-                    .value_handle()
-                    .unwrap()
-                    .scoop_abi_return(TARGET)
+                    scoop_identity::ScoopAbiArgument::direct(
+                        target_receiver.value_handle().unwrap().canonical_storage(),
+                    )
                     .unwrap(),
+                ],
+                scoop_identity::ScoopAbiReturn::UnitVoid,
                 (ExactCallableProtocolV1::OrdinaryManaged).gc_effect(),
             )
             .unwrap(),

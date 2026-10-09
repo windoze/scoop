@@ -9,14 +9,19 @@ impl FunctionLowerer<'_> {
     ) -> StorageResult<()> {
         if matches!(kind, mir::CallKind::Interface { .. }) {
             args[0] = self.interface_component(args[0], 0);
-            let mut arguments = signature.arguments().to_vec();
-            arguments[0] =
-                abi::classify_argument(self.context, lir::MANAGED_PTR, self.structs, self.enums)?;
-            *signature = lir::ScoopAbiSignature::new(
-                arguments,
-                signature.result().clone(),
-                signature.calling_convention(),
-            );
+            let mut parameters = signature
+                .arguments()
+                .iter()
+                .map(|argument| argument.logical_storage_type().clone())
+                .collect::<Vec<_>>();
+            parameters[0] = lir::MANAGED_PTR;
+            *signature = abi::classify_signature(
+                self.context,
+                parameters,
+                signature.result().logical_storage_type().cloned(),
+                self.structs,
+                self.enums,
+            )?;
         }
         Ok(())
     }

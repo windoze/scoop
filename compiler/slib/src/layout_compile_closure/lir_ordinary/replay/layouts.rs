@@ -4,7 +4,7 @@ use scoop_identity::{CanonicalScoopAbiFunctionSignature, PersistentExactTypeId};
 pub(super) fn check(
     declaration: DependencyCallableDeclarationId,
     signature: &CanonicalScoopAbiFunctionSignature,
-    target: lir::LirTargetProfile,
+    _target: lir::LirTargetProfile,
     layouts: &Layouts<'_>,
 ) -> Result<(), Error> {
     let exact = signature.signature();
@@ -17,19 +17,23 @@ pub(super) fn check(
         .zip(signature.arguments())
     {
         if let Some(value) = value(declaration, layouts, exact)? {
-            let actual = value.scoop_abi_argument(target).map_err(|source| {
-                abi_error(declaration, lir::ExactCallableAbiError::Abi(source))
-            })?;
-            if &actual != expected {
+            let actual = value.canonical_storage();
+            if actual != expected.storage() {
                 return Err(Error::LayoutSignature { declaration, exact });
             }
         }
     }
     if let Some(value) = value(declaration, layouts, exact.result())? {
-        let actual = value
-            .scoop_abi_return(target)
-            .map_err(|source| abi_error(declaration, lir::ExactCallableAbiError::Abi(source)))?;
-        if actual != signature.result() {
+        let is_unit = matches!(
+            value.representation().kind(),
+            lir::ExactRepresentationKindV1::IntrinsicValue(lir::IntrinsicValueFamilyV1::Unit)
+        );
+        let matches = if is_unit {
+            signature.result() == scoop_identity::ScoopAbiReturn::UnitVoid
+        } else {
+            signature.result().storage() == Some(value.canonical_storage())
+        };
+        if !matches {
             return Err(Error::LayoutSignature {
                 declaration,
                 exact: exact.result(),

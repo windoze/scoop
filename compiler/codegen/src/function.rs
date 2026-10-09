@@ -445,8 +445,9 @@ pub(super) fn emit_function<'ctx>(
                             CodegenError(format!("ret @{}: {e}", function.symbol()))
                         })?;
                     }
-                    scoop_lir::AbiReturn::Direct(_) => {
+                    scoop_lir::AbiReturn::Direct(plan) => {
                         let value = emitter.value(value.expect("direct result was validated"))?;
+                        let value = emitter.encode_direct_result(plan, value)?;
                         builder.build_return(Some(&value)).map_err(|e| {
                             CodegenError(format!("ret @{}: {e}", function.symbol()))
                         })?;

@@ -5,9 +5,11 @@
 //! metadata, functions, instructions and calls in separate source modules.
 
 pub use scoop_identity::{
+    AbiArrayElement, AbiCarrier, AbiCoercion, AbiCoercionError, AbiPart,
     AtomicCompareExchangeOrder, AtomicCompareExchangeResult, AtomicLoadOrder, AtomicMemoryOrder,
     AtomicRmwOperation, AtomicStoreOrder, AtomicValueKind, CAbiCallMode, CResultAdaptation,
     FloatBinaryOperator, FloatConstant as LirFloatConstant, FloatKind, FloatUnaryOperator,
+    PointerKind,
 };
 
 use std::num::NonZeroU32;

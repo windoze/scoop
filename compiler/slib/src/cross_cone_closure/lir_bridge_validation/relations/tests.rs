@@ -64,26 +64,14 @@ fn lir_export_gc_effect_must_match_the_hir_callable_contract() {
 }
 
 #[test]
-fn exact_lir_export_projection_records_an_abi_replay_obligation() {
+fn exact_lir_export_projection_preserves_the_saved_abi() {
     let fixture = Fixture::new(GcEffect::NoGc);
     let lir = fixture.lir_bridge(GcEffect::NoGc);
-    let mut expectations = Vec::new();
-
-    validate_local_projection(
-        fixture.artifact,
-        &fixture.interface,
-        &fixture.mir,
-        &lir,
-        &mut expectations,
-    )
-    .unwrap();
-
-    assert_eq!(expectations.len(), 1);
-    assert_eq!(expectations[0].artifact, fixture.artifact);
-    assert_eq!(expectations[0].declaration, fixture.declaration);
-    assert_eq!(expectations[0].signature, fixture.signature);
-    assert_eq!(expectations[0].gc_effect, GcEffect::NoGc);
-    assert_eq!(expectations[0].actual, fixture.abi(GcEffect::NoGc));
+    validate(&fixture, &lir).unwrap();
+    assert_eq!(
+        lir.export(fixture.declaration).unwrap().abi_signature(),
+        &fixture.abi(GcEffect::NoGc)
+    );
 }
 
 struct Fixture {
@@ -205,57 +193,11 @@ impl Fixture {
     }
 }
 
-#[test]
-fn core_and_ordinary_providers_reject_the_same_noncanonical_abi() {
-    for provider in [ConeIdentity::CORE, ConeIdentity::SINGLE_FILE] {
-        let fixture = Fixture::for_provider(provider, GcEffect::Managed);
-        let lir = fixture.lir_bridge(GcEffect::Managed);
-        let mut expectations = Vec::new();
-
-        validate_local_projection(
-            provider,
-            &fixture.interface,
-            &fixture.mir,
-            &lir,
-            &mut expectations,
-        )
-        .unwrap();
-        let expected = fixture.abi(GcEffect::Managed);
-        expectations[0].check_canonical(&expected).unwrap();
-        let unit_value = scoop_identity::CanonicalScoopStorage::new(
-            fixture.signature.result(),
-            0,
-            std::num::NonZeroU64::MIN,
-            scoop_identity::ScoopAbiValueShape::Aggregate,
-        );
-        expectations[0].actual = CanonicalScoopAbiFunctionSignature::new(
-            fixture.signature.clone(),
-            vec![],
-            ScoopAbiReturn::elided_zst(unit_value).unwrap(),
-            GcEffect::Managed,
-        )
-        .unwrap();
-        assert_eq!(
-            expectations[0].check_canonical(&expected),
-            Err(CrossConeLirClosureRelationError::NonCanonicalExportAbi {
-                declaration: fixture.declaration
-            })
-        );
-    }
-}
-
 fn validate(
     fixture: &Fixture,
     lir: &CrossConeLirBridgeSectionV1,
 ) -> Result<(), CrossConeLirClosureRelationError> {
-    let mut expectations = Vec::new();
-    validate_local_projection(
-        fixture.artifact,
-        &fixture.interface,
-        &fixture.mir,
-        lir,
-        &mut expectations,
-    )
+    validate_local_projection(&fixture.interface, &fixture.mir, lir)
 }
 
 fn function(artifact: ConeIdentity) -> PersistentFunctionId {

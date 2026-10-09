@@ -45,7 +45,7 @@ pub(super) fn check(
             ScoopAbiReturn::UnitVoid => continue,
             ScoopAbiReturn::ElidedZst(storage)
             | ScoopAbiReturn::Direct(storage)
-            | ScoopAbiReturn::DirectParts(storage)
+            | ScoopAbiReturn::DirectParts(storage, _)
             | ScoopAbiReturn::Indirect(storage) => {
                 check_storage(
                     storage,

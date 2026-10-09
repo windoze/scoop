@@ -3,10 +3,7 @@
 use std::collections::BTreeMap;
 
 use scoop_hir::{CallableDeclarationRecordV1, CrossConeHirInterfaceSectionV1};
-use scoop_identity::{
-    CallableTemplateOrigin, CanonicalScoopAbiFunctionSignature, ConeIdentity,
-    DependencyCallableDeclarationId, ExactCallableSignature, GcEffect,
-};
+use scoop_identity::{CallableTemplateOrigin, ConeIdentity, DependencyCallableDeclarationId};
 use scoop_lir::{CallingConvention, CrossConeLirBridgeSectionV1, SelectedDependencyLirCallableV1};
 use scoop_mir::{
     CrossConeMirBridgeSectionV1, ParamFreeMirCallableExportV1, SelectedDependencyMirCallableV1,
@@ -23,54 +20,10 @@ pub(super) fn validate_lir_bridge_relations(
     positions: &BTreeMap<ConeIdentity, usize>,
     dependency_positions: &[Vec<usize>],
 ) -> Result<(), CrossConeClosureLirBridgeError> {
-    let mut abi_expectations = Vec::new();
-    for artifact in artifacts.iter_mut() {
+    for artifact in artifacts.iter() {
         artifact
-            .append_abi_expectations(&mut abi_expectations)
+            .validate_local_projection()
             .map_err(|source| relation(artifact, source))?;
-    }
-    for expectation in abi_expectations {
-        let position = positions
-            .get(&expectation.artifact)
-            .copied()
-            .ok_or_else(|| CrossConeClosureLirBridgeError::Relation {
-                identity: expectation.artifact,
-                source: Box::new(CrossConeLirClosureRelationError::MissingProvider {
-                    provider: expectation.artifact,
-                    declaration: expectation.declaration,
-                }),
-            })?;
-        let reachable = transitive_dependency_positions(position, dependency_positions);
-        let (before, remaining) = artifacts.split_at_mut(position);
-        let (artifact, after) = remaining.split_first_mut().ok_or_else(|| {
-            CrossConeClosureLirBridgeError::Relation {
-                identity: expectation.artifact,
-                source: Box::new(CrossConeLirClosureRelationError::MissingProvider {
-                    provider: expectation.artifact,
-                    declaration: expectation.declaration,
-                }),
-            }
-        })?;
-        let dependencies = reachable.iter().map(|dependency| {
-            if *dependency < position {
-                before[*dependency].abi_replay_types()
-            } else {
-                after[*dependency - position - 1].abi_replay_types()
-            }
-        });
-        let expected = artifact
-            .replay_canonical_scoop_abi(dependencies, &expectation.signature, expectation.gc_effect)
-            .map_err(|source| CrossConeClosureLirBridgeError::AbiReplay {
-                identity: expectation.artifact,
-                declaration: expectation.declaration,
-                source: Box::new(source),
-            })?;
-        expectation.check_canonical(&expected).map_err(|source| {
-            CrossConeClosureLirBridgeError::Relation {
-                identity: expectation.artifact,
-                source: Box::new(source),
-            }
-        })?;
     }
 
     for (position, artifact) in artifacts.iter().enumerate() {
@@ -84,11 +37,9 @@ pub(super) fn validate_lir_bridge_relations(
 }
 
 pub(crate) fn validate_local_projection(
-    artifact: ConeIdentity,
     interface: &CrossConeHirInterfaceSectionV1,
     mir: &CrossConeMirBridgeSectionV1,
     lir: &CrossConeLirBridgeSectionV1,
-    abi_expectations: &mut Vec<AbiExpectation>,
 ) -> Result<(), CrossConeLirClosureRelationError> {
     for expected in mir.exports() {
         let declaration = expected.declaration();
@@ -120,18 +71,6 @@ pub(crate) fn validate_local_projection(
                 CrossConeLirClosureRelationError::ExportCallingConventionMismatch { declaration },
             );
         }
-
-        let path = scoop_wire::WirePath::root();
-
-        scoop_wire::allocation::try_reserve(abi_expectations, 1, &path)
-            .map_err(CrossConeLirClosureRelationError::Resource)?;
-        abi_expectations.push(AbiExpectation {
-            artifact,
-            declaration,
-            signature: expected.signature().clone(),
-            gc_effect: expected_gc,
-            actual: actual.abi_signature().clone(),
-        });
     }
     for actual in lir.exports() {
         if mir_export(mir.exports(), actual.declaration()).is_none() {
@@ -174,28 +113,6 @@ pub(crate) fn validate_local_projection(
         }
     }
     Ok(())
-}
-
-pub(crate) struct AbiExpectation {
-    pub(crate) artifact: ConeIdentity,
-    pub(crate) declaration: DependencyCallableDeclarationId,
-    pub(crate) signature: ExactCallableSignature,
-    pub(crate) gc_effect: GcEffect,
-    pub(crate) actual: CanonicalScoopAbiFunctionSignature,
-}
-
-impl AbiExpectation {
-    pub(crate) fn check_canonical(
-        &self,
-        expected: &CanonicalScoopAbiFunctionSignature,
-    ) -> Result<(), CrossConeLirClosureRelationError> {
-        if expected != &self.actual {
-            return Err(CrossConeLirClosureRelationError::NonCanonicalExportAbi {
-                declaration: self.declaration,
-            });
-        }
-        Ok(())
-    }
 }
 
 fn validate_terminal_provider(

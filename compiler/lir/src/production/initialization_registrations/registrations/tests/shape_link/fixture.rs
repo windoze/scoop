@@ -102,11 +102,7 @@ impl ProviderFixture {
                         unit_layout.identity().exact(),
                     ),
                     vec![],
-                    unit_layout
-                        .value_handle()
-                        .unwrap()
-                        .scoop_abi_return(TARGET)
-                        .unwrap(),
+                    scoop_identity::ScoopAbiReturn::UnitVoid,
                     (ExactCallableProtocolV1::OrdinaryManaged).gc_effect(),
                 )
                 .unwrap(),

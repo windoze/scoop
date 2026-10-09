@@ -12,7 +12,7 @@ mod table;
 const TARGET: LirTargetProfile = LirTargetProfile::DARWIN_AARCH64;
 
 #[test]
-fn abi_records_preserve_receiver_order_and_all_pass_modes() {
+fn abi_records_preserve_receiver_order_and_carrier_plans() {
     let unit: ExactLayoutExportV1 = unit().into();
     let byte: ExactLayoutExportV1 = integer("Byte", IntegerKind::SIGNED_8).into();
     let reference: ExactLayoutExportV1 = managed().into();
@@ -34,26 +34,29 @@ fn abi_records_preserve_receiver_order_and_all_pass_modes() {
         target,
         scoop_identity::CanonicalScoopAbiFunctionSignature::new(
             signature,
-            std::iter::once(
-                reference
-                    .value_handle()
-                    .unwrap()
-                    .scoop_abi_argument(TARGET)
+            vec![
+                ScoopAbiArgument::direct(reference.value_handle().unwrap().canonical_storage())
                     .unwrap(),
-            )
-            .chain(parameters.iter().map(|layout| {
-                layout
-                    .value_handle()
-                    .unwrap()
-                    .scoop_abi_argument(TARGET)
-                    .unwrap()
-            }))
-            .collect(),
-            aggregate
-                .value_handle()
-                .unwrap()
-                .scoop_abi_return(TARGET)
+                ScoopAbiArgument::elided_zst(unit.value_handle().unwrap().canonical_storage())
+                    .unwrap(),
+                ScoopAbiArgument::direct(byte.value_handle().unwrap().canonical_storage()).unwrap(),
+                ScoopAbiArgument::direct_parts(
+                    aggregate.value_handle().unwrap().canonical_storage(),
+                    fixtures::integer_part(
+                        aggregate.value_handle().unwrap().canonical_storage(),
+                        64,
+                    ),
+                )
                 .unwrap(),
+                ScoopAbiArgument::elided_zst(zst.value_handle().unwrap().canonical_storage())
+                    .unwrap(),
+                ScoopAbiArgument::direct(byte.value_handle().unwrap().canonical_storage()).unwrap(),
+            ],
+            ScoopAbiReturn::direct_parts(
+                aggregate.value_handle().unwrap().canonical_storage(),
+                fixtures::integer_part(aggregate.value_handle().unwrap().canonical_storage(), 8),
+            )
+            .unwrap(),
             (ExactCallableProtocolV1::OrdinaryManaged).gc_effect(),
         )
         .unwrap(),
@@ -67,18 +70,26 @@ fn abi_records_preserve_receiver_order_and_all_pass_modes() {
             ScoopAbiArgument::Direct(_),
             ScoopAbiArgument::ElidedZst(_),
             ScoopAbiArgument::Direct(_),
-            ScoopAbiArgument::Indirect(_),
+            ScoopAbiArgument::DirectParts(_, _),
             ScoopAbiArgument::ElidedZst(_),
             ScoopAbiArgument::Direct(_)
         ]
     ));
     assert!(matches!(
         value.canonical_signature().result(),
-        ScoopAbiReturn::Indirect(_)
+        ScoopAbiReturn::DirectParts(_, _)
     ));
     fixtures::roundtrip(&value);
     for result in [&unit, &zst, &byte, &reference] {
-        let value = fixtures::function(result, &[]);
+        let storage = result.value_handle().unwrap().canonical_storage();
+        let result_plan = if result.identity().exact() == unit.identity().exact() {
+            ScoopAbiReturn::UnitVoid
+        } else if storage.byte_size() == 0 {
+            ScoopAbiReturn::elided_zst(storage).unwrap()
+        } else {
+            ScoopAbiReturn::direct(storage).unwrap()
+        };
+        let value = fixtures::function(result.identity().exact(), result_plan, vec![]);
         match result.value_handle().unwrap().representation().kind() {
             ExactRepresentationKindV1::IntrinsicValue(IntrinsicValueFamilyV1::Unit) => assert_eq!(
                 value.canonical_signature().result(),
@@ -98,22 +109,33 @@ fn abi_records_preserve_receiver_order_and_all_pass_modes() {
 }
 
 #[test]
-fn abi_classifies_tagged_enum_as_indirect_and_pointer_niche_as_direct_at_equal_size() {
+fn abi_keeps_integer_coercion_and_pointer_niche_distinct_at_equal_size() {
     let tagged = fixtures::enumeration(&unit());
     let niche = fixtures::enumeration(&managed());
     assert_eq!(
         tagged.value_handle().unwrap().value().storage().byte_size(),
         niche.value_handle().unwrap().value().storage().byte_size()
     );
-    let tagged = fixtures::function(&tagged, &[&tagged]);
-    let niche = fixtures::function(&niche, &[&niche]);
+    let tagged_storage = tagged.value_handle().unwrap().canonical_storage();
+    let coercion = fixtures::integer_part(tagged_storage, 64);
+    let tagged = fixtures::function(
+        tagged.identity().exact(),
+        ScoopAbiReturn::direct_parts(tagged_storage, coercion).unwrap(),
+        vec![ScoopAbiArgument::direct_parts(tagged_storage, coercion).unwrap()],
+    );
+    let niche_storage = niche.value_handle().unwrap().canonical_storage();
+    let niche = fixtures::function(
+        niche.identity().exact(),
+        ScoopAbiReturn::direct(niche_storage).unwrap(),
+        vec![ScoopAbiArgument::direct(niche_storage).unwrap()],
+    );
     assert!(matches!(
         tagged.canonical_signature().arguments(),
-        [ScoopAbiArgument::Indirect(_)]
+        [ScoopAbiArgument::DirectParts(_, _)]
     ));
     assert!(matches!(
         tagged.canonical_signature().result(),
-        ScoopAbiReturn::Indirect(_)
+        ScoopAbiReturn::DirectParts(_, _)
     ));
     assert!(matches!(
         niche.canonical_signature().arguments(),

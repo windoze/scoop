@@ -102,3 +102,22 @@ Linux 追加 `--build-arg=--target --build-arg=x86_64-unknown-linux-gnu` 与实�
 机器码中，旧 Darwin nursery 完成路径有四条对共享 heap state 的 `ldadd`，GNU 有四次带 `lock` 前缀的 RMW；新路径只对当前线程字段进行普通 load／store，以实现 relaxed atomic 合同。对象起点 bitmap 的必要原子发布仍保留。新的 TLAB helper 需要取得当前线程，线程状态也保留独立对齐的计数区域；Darwin 单线程中位数稍慢，两组样本范围重叠。GNU 单线程波动亦较大，不将其小幅比值解释为稳定的普遍收益。四线程样本则支持消除共享计数争用的效果。
 
 原始样本：[Darwin 全局](measurements/m34-counters-off-darwin.json)、[线程](measurements/m34-counters-on-darwin.json)，[GNU 全局](measurements/m34-counters-off-linux-gnu.json)、[线程](measurements/m34-counters-on-linux-gnu.json)。首次启动的 Darwin 高值全部保留，未删去离群样本。对应机器码：[Darwin 全局](measurements/m34-counters-off-darwin.asm)、[线程](measurements/m34-counters-on-darwin.asm)，[GNU 全局](measurements/m34-counters-off-linux-gnu.asm)、[线程](measurements/m34-counters-on-linux-gnu.asm)。实际构建记录保存在同名前缀的 `-builds.json`，这批共享缓存测量不作为冷构建速度对照。
+
+## M34-5a：小值参数与结果
+
+对照为 `430a69c71`（M34-4b），两组均保留条件 poll、线程分配统计和相同的优化配置。[用例与复跑说明](../../tests/benchmarks/small-values/README.md) 提供两个工作负载：普通跨 Cone 源码调用，以及独立 LLVM object 中的 Scoop native 调用。每组循环一千万次，每次递增 16-byte Pair 的第一个字段，输出 `10000010`。callee 均不会被 consumer 的 MIR／LLVM 内联删除；每个组合七次串行测量，无单独 warmup，时间包含进程启动。
+
+| 主机 | 调用边界 | 间接 ABI ms | 小值 ABI ms | 中位数比值（间接／小值） | main 机器码 bytes |
+| --- | --- | ---: | ---: | ---: | ---: |
+| Darwin | 普通跨 Cone | 58.196 | 17.947 | 3.243 | 264 → 232 |
+| GNU | 普通跨 Cone | 65.110 | 15.840 | 4.110 | 231 → 209 |
+| Darwin | Scoop native | 187.180 | 226.641 | 0.826 | 308 → 304 |
+| GNU | Scoop native | 176.290 | 182.943 | 0.964 | 325 → 291 |
+
+普通跨 Cone 的 caller 不再逐轮构造 byval 参数和隐藏结果槽，Pair 在寄存器中跨循环传递；callee 直接在返回寄存器中递增字段。Darwin main 栈从 144 降至 80 bytes，正常循环没有值复制或 spill，poll 慢路仍按需要保存值。coercion 的临时存储被 LLVM 优化消除；独立 place 的语义由正式取址 fixture 验证。原始样本及机器码：[Darwin 间接](measurements/m34-small-source-off-darwin.json)／[小值](measurements/m34-small-source-on-darwin.json)，[GNU 间接](measurements/m34-small-source-off-linux-gnu.json)／[小值](measurements/m34-small-source-on-linux-gnu.json)；同名 `.asm` 保存 caller 与 provider 代码。
+
+native 组合保留现有 NativeBorrowed 的 roots 发布、进入／退出协议；小值减少了按值存储，但整体没有获得收益。Darwin 除首次启动外，旧组为 186.28～188.03 ms、新组为 202.67～236.79 ms，观察到实际变慢。GNU 新组为 176.12～280.77 ms，范围与旧组重叠且有明显高值；本轮不足以认定稳定的 4% 回退。机器码显示 ABI 值已直接传递，仍有 native 协议调用与对应活跃寄存器保存；本次没有进一步把时间差归因于某条指令或缓存因素。这组限制同样保留：[Darwin 间接](measurements/m34-small-native-off-darwin.json)／[小值](measurements/m34-small-native-on-darwin.json)，[GNU 间接](measurements/m34-small-native-off-linux-gnu.json)／[小值](measurements/m34-small-native-on-linux-gnu.json)，同名 `.asm` 给出完整调用路径。
+
+所有运行均分配 104 bytes，minor／full 次数均为零；本对照不推断 GC 吞吐。Darwin 首次启动的 360～719 ms 高值全部保留在七次样本中。普通跨 Cone 的两组复用各自 core cache：provider 构建分别为 Darwin 2.325／2.549 s、GNU 3.177／3.139 s，consumer 首次构建为 4.959／5.361 s、6.495／6.238 s；缓存构建为 5.106／5.129 s、6.212／6.220 s。这些各一次的构建观测不代表稳定的编译速度变化。
+
+普通跨 Cone 的可执行文件大小在 Darwin 两组均为 6,094,552 bytes，在 GNU 均为 4,554,120 bytes；根 slib 分别为 179,678 → 179,698 和 192,582 → 192,478 bytes。native 的可执行文件为 Darwin 6,035,960 → 6,035,960、GNU 4,519,720 → 4,519,736 bytes。Darwin 初次 native 探针缺少 deployment 导致 Mach-O 装载信息检查失败，修正 LLVM triple 后复用已经构建的 core；该组 JSON 的 `first_build_cache_reused` 标明此事，其首次构建时间不能当作冷构建时间。失败阶段没有产生运行样本。

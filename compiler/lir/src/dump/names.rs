@@ -45,10 +45,32 @@ fn abi_zst_name(value: &AbiZst) -> String {
     )
 }
 
+fn abi_direct_name(value: &AbiDirectValue) -> String {
+    match value {
+        AbiDirectValue::Scalar(value) => value.storage_type().dump(),
+        AbiDirectValue::DirectParts(parts) => format!(
+            "parts<{} [{}]>",
+            parts.value().storage_type().dump(),
+            parts
+                .parts()
+                .iter()
+                .map(|part| format!(
+                    "{}@{}+{}/{}",
+                    part.carrier().dump(),
+                    part.byte_offset(),
+                    part.extent(),
+                    part.alignment()
+                ))
+                .collect::<Vec<_>>()
+                .join(",")
+        ),
+    }
+}
+
 pub(super) fn abi_argument_name(argument: &AbiArgument) -> String {
     match argument {
         AbiArgument::ElidedZst(value) => format!("elided-zst<{}>", abi_zst_name(value)),
-        AbiArgument::Direct(value) => value.storage_type().dump(),
+        AbiArgument::Direct(value) => abi_direct_name(value),
         AbiArgument::Indirect(value) => format!("indirect<{}>", abi_value_name(value)),
     }
 }
@@ -57,7 +79,7 @@ pub(super) fn abi_return_name(result: &AbiReturn) -> String {
     match result {
         AbiReturn::UnitVoid => "void".to_string(),
         AbiReturn::ElidedZst(value) => format!("elided-zst<{}>", abi_zst_name(value)),
-        AbiReturn::Direct(value) => value.storage_type().dump(),
+        AbiReturn::Direct(value) => abi_direct_name(value),
         AbiReturn::Indirect(value) => format!("sret<{}>", abi_value_name(value)),
     }
 }

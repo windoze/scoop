@@ -1,0 +1,403 @@
+{
+  "revision": "430a69c71",
+  "target": "aarch64-apple-darwin",
+  "host": "macOS-27.0.1-arm64-arm-64bit-Mach-O",
+  "runs": 7,
+  "cold_build_seconds": 4.823472833028063,
+  "first_build_cache_reused": true,
+  "warm_build_seconds": 4.948879707953893,
+  "native_commands": [
+    [
+      "llc",
+      "-mtriple=aarch64-apple-macosx27.0.1",
+      "-filetype=obj",
+      "-relocation-model=pic",
+      "/Volumes/Data/home/chenxu/repos/scoop/tests/benchmarks/small-values/indirect.ll",
+      "-o",
+      "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/small-values-before-darwin/native.o"
+    ],
+    [
+      "ar",
+      "rcs",
+      "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/small-values-before-darwin/libsmall_values.a",
+      "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/small-values-before-darwin/native.o"
+    ]
+  ],
+  "build_command": [
+    "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/allocation-tools/scoop",
+    "build",
+    "/Volumes/Data/home/chenxu/repos/scoop/tests/benchmarks/small-values/program.scoop",
+    "--scoopc",
+    "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/allocation-tools/scoopc",
+    "--sysroot",
+    "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/allocation-source/sysroot",
+    "--runtime-root",
+    "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/allocation-source/runtime",
+    "--cache-dir",
+    "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/small-values-before-darwin/cache",
+    "--target-dir",
+    "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/small-values-before-darwin/target",
+    "--profile",
+    "release",
+    "--message-format",
+    "json",
+    "--target",
+    "aarch64-apple-darwin",
+    "--library-path",
+    "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/small-values-before-darwin",
+    "--emit",
+    "all",
+    "--dump-dir",
+    "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/small-values-before-darwin/dump",
+    "-o",
+    "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/small-values-before-darwin/small-values"
+  ],
+  "build_records": [
+    {
+      "dependencies": [
+        {
+          "artifact_fingerprint": "80f7b505a334d3000c6e7d9e01708b07d89e0d344032dcaafe089896383bdcf8",
+          "coordinate": {
+            "group": "scoop",
+            "name": "scoop.core",
+            "version": "0.1.0"
+          },
+          "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+          "path": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/small-values-before-darwin/cache/compile-v1/c4620e676c33b2d245118f211fca3732d860d841a827ac9b9c6ee23e9ab19df9/artifact.slib"
+        }
+      ],
+      "kind": "executable",
+      "link_plan_fingerprint": "6d1943191e9098ee87b3e8227d79da3443ddeedb2e2c00adcfab470647029752",
+      "observations": {
+        "child_invocations": [
+          "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6"
+        ],
+        "nodes": [
+          {
+            "cache_key": "c4620e676c33b2d245118f211fca3732d860d841a827ac9b9c6ee23e9ab19df9",
+            "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+            "origin": "cache"
+          },
+          {
+            "cache_key": "5749f2c455065f324f5f7b08e200abaab495ac3a2f94dd96254971be727a453f",
+            "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+            "origin": "compiled"
+          }
+        ]
+      },
+      "output": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/small-values-before-darwin/small-values",
+      "profile": "release",
+      "root": {
+        "artifact_fingerprint": "fe37d3295d93dd396d6010b681aa37e425772da32bf1fd69abb13448498025b2",
+        "coordinate": {
+          "group": "scoop",
+          "name": "single-file",
+          "version": "0.0.0"
+        },
+        "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+        "path": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/small-values-before-darwin/cache/compile-v1/5749f2c455065f324f5f7b08e200abaab495ac3a2f94dd96254971be727a453f/artifact.slib"
+      },
+      "runtime_index": "/Volumes/Data/home/chenxu/repos/scoop/tmp/m34/small-values-before-darwin/cache/runtime-v1/499213b8bedd7223b1e475f3ceb66419785f3abe49f5fa1b777b659dabc0af0d/index.cbor",
+      "schema": 1
+    }
+  ],
+  "executable_bytes": 6035960,
+  "slib_bytes": 220646,
+  "run_seconds": [
+    0.719297832925804,
+    0.18676099996082485,
+    0.1877911250339821,
+    0.18802800006233156,
+    0.1862845829455182,
+    0.18717962503433228,
+    0.18701745895668864
+  ],
+  "gc": [
+    {
+      "scoop_gc": 1,
+      "minor_collections": 0,
+      "full_collections": 0,
+      "promotion_fallbacks": 0,
+      "allocated_bytes": 104,
+      "nursery_allocated_bytes": 104,
+      "promoted_bytes": 0,
+      "copied_bytes": 0,
+      "dirty_cards": 0,
+      "old_reference_slots": 0,
+      "root_slots": 0,
+      "traced_objects": 0,
+      "pause_ns": 0,
+      "maximum_pause_ns": 0,
+      "committed_bytes": 32768,
+      "minor_pause_ns": 0,
+      "full_pause_ns": 0,
+      "pause_bucket_upper_ns": [
+        10000,
+        50000,
+        100000,
+        500000,
+        1000000,
+        5000000,
+        10000000,
+        null
+      ],
+      "pause_buckets": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "scoop_gc": 1,
+      "minor_collections": 0,
+      "full_collections": 0,
+      "promotion_fallbacks": 0,
+      "allocated_bytes": 104,
+      "nursery_allocated_bytes": 104,
+      "promoted_bytes": 0,
+      "copied_bytes": 0,
+      "dirty_cards": 0,
+      "old_reference_slots": 0,
+      "root_slots": 0,
+      "traced_objects": 0,
+      "pause_ns": 0,
+      "maximum_pause_ns": 0,
+      "committed_bytes": 32768,
+      "minor_pause_ns": 0,
+      "full_pause_ns": 0,
+      "pause_bucket_upper_ns": [
+        10000,
+        50000,
+        100000,
+        500000,
+        1000000,
+        5000000,
+        10000000,
+        null
+      ],
+      "pause_buckets": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "scoop_gc": 1,
+      "minor_collections": 0,
+      "full_collections": 0,
+      "promotion_fallbacks": 0,
+      "allocated_bytes": 104,
+      "nursery_allocated_bytes": 104,
+      "promoted_bytes": 0,
+      "copied_bytes": 0,
+      "dirty_cards": 0,
+      "old_reference_slots": 0,
+      "root_slots": 0,
+      "traced_objects": 0,
+      "pause_ns": 0,
+      "maximum_pause_ns": 0,
+      "committed_bytes": 32768,
+      "minor_pause_ns": 0,
+      "full_pause_ns": 0,
+      "pause_bucket_upper_ns": [
+        10000,
+        50000,
+        100000,
+        500000,
+        1000000,
+        5000000,
+        10000000,
+        null
+      ],
+      "pause_buckets": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "scoop_gc": 1,
+      "minor_collections": 0,
+      "full_collections": 0,
+      "promotion_fallbacks": 0,
+      "allocated_bytes": 104,
+      "nursery_allocated_bytes": 104,
+      "promoted_bytes": 0,
+      "copied_bytes": 0,
+      "dirty_cards": 0,
+      "old_reference_slots": 0,
+      "root_slots": 0,
+      "traced_objects": 0,
+      "pause_ns": 0,
+      "maximum_pause_ns": 0,
+      "committed_bytes": 32768,
+      "minor_pause_ns": 0,
+      "full_pause_ns": 0,
+      "pause_bucket_upper_ns": [
+        10000,
+        50000,
+        100000,
+        500000,
+        1000000,
+        5000000,
+        10000000,
+        null
+      ],
+      "pause_buckets": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "scoop_gc": 1,
+      "minor_collections": 0,
+      "full_collections": 0,
+      "promotion_fallbacks": 0,
+      "allocated_bytes": 104,
+      "nursery_allocated_bytes": 104,
+      "promoted_bytes": 0,
+      "copied_bytes": 0,
+      "dirty_cards": 0,
+      "old_reference_slots": 0,
+      "root_slots": 0,
+      "traced_objects": 0,
+      "pause_ns": 0,
+      "maximum_pause_ns": 0,
+      "committed_bytes": 32768,
+      "minor_pause_ns": 0,
+      "full_pause_ns": 0,
+      "pause_bucket_upper_ns": [
+        10000,
+        50000,
+        100000,
+        500000,
+        1000000,
+        5000000,
+        10000000,
+        null
+      ],
+      "pause_buckets": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "scoop_gc": 1,
+      "minor_collections": 0,
+      "full_collections": 0,
+      "promotion_fallbacks": 0,
+      "allocated_bytes": 104,
+      "nursery_allocated_bytes": 104,
+      "promoted_bytes": 0,
+      "copied_bytes": 0,
+      "dirty_cards": 0,
+      "old_reference_slots": 0,
+      "root_slots": 0,
+      "traced_objects": 0,
+      "pause_ns": 0,
+      "maximum_pause_ns": 0,
+      "committed_bytes": 32768,
+      "minor_pause_ns": 0,
+      "full_pause_ns": 0,
+      "pause_bucket_upper_ns": [
+        10000,
+        50000,
+        100000,
+        500000,
+        1000000,
+        5000000,
+        10000000,
+        null
+      ],
+      "pause_buckets": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "scoop_gc": 1,
+      "minor_collections": 0,
+      "full_collections": 0,
+      "promotion_fallbacks": 0,
+      "allocated_bytes": 104,
+      "nursery_allocated_bytes": 104,
+      "promoted_bytes": 0,
+      "copied_bytes": 0,
+      "dirty_cards": 0,
+      "old_reference_slots": 0,
+      "root_slots": 0,
+      "traced_objects": 0,
+      "pause_ns": 0,
+      "maximum_pause_ns": 0,
+      "committed_bytes": 32768,
+      "minor_pause_ns": 0,
+      "full_pause_ns": 0,
+      "pause_bucket_upper_ns": [
+        10000,
+        50000,
+        100000,
+        500000,
+        1000000,
+        5000000,
+        10000000,
+        null
+      ],
+      "pause_buckets": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    }
+  ],
+  "stderr": [
+    "{\"scoop_gc\":1,\"minor_collections\":0,\"full_collections\":0,\"promotion_fallbacks\":0,\"allocated_bytes\":104,\"nursery_allocated_bytes\":104,\"promoted_bytes\":0,\"copied_bytes\":0,\"dirty_cards\":0,\"old_reference_slots\":0,\"root_slots\":0,\"traced_objects\":0,\"pause_ns\":0,\"maximum_pause_ns\":0,\"committed_bytes\":32768,\"minor_pause_ns\":0,\"full_pause_ns\":0,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,0,0,0,0,0]}\n",
+    "{\"scoop_gc\":1,\"minor_collections\":0,\"full_collections\":0,\"promotion_fallbacks\":0,\"allocated_bytes\":104,\"nursery_allocated_bytes\":104,\"promoted_bytes\":0,\"copied_bytes\":0,\"dirty_cards\":0,\"old_reference_slots\":0,\"root_slots\":0,\"traced_objects\":0,\"pause_ns\":0,\"maximum_pause_ns\":0,\"committed_bytes\":32768,\"minor_pause_ns\":0,\"full_pause_ns\":0,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,0,0,0,0,0]}\n",
+    "{\"scoop_gc\":1,\"minor_collections\":0,\"full_collections\":0,\"promotion_fallbacks\":0,\"allocated_bytes\":104,\"nursery_allocated_bytes\":104,\"promoted_bytes\":0,\"copied_bytes\":0,\"dirty_cards\":0,\"old_reference_slots\":0,\"root_slots\":0,\"traced_objects\":0,\"pause_ns\":0,\"maximum_pause_ns\":0,\"committed_bytes\":32768,\"minor_pause_ns\":0,\"full_pause_ns\":0,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,0,0,0,0,0]}\n",
+    "{\"scoop_gc\":1,\"minor_collections\":0,\"full_collections\":0,\"promotion_fallbacks\":0,\"allocated_bytes\":104,\"nursery_allocated_bytes\":104,\"promoted_bytes\":0,\"copied_bytes\":0,\"dirty_cards\":0,\"old_reference_slots\":0,\"root_slots\":0,\"traced_objects\":0,\"pause_ns\":0,\"maximum_pause_ns\":0,\"committed_bytes\":32768,\"minor_pause_ns\":0,\"full_pause_ns\":0,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,0,0,0,0,0]}\n",
+    "{\"scoop_gc\":1,\"minor_collections\":0,\"full_collections\":0,\"promotion_fallbacks\":0,\"allocated_bytes\":104,\"nursery_allocated_bytes\":104,\"promoted_bytes\":0,\"copied_bytes\":0,\"dirty_cards\":0,\"old_reference_slots\":0,\"root_slots\":0,\"traced_objects\":0,\"pause_ns\":0,\"maximum_pause_ns\":0,\"committed_bytes\":32768,\"minor_pause_ns\":0,\"full_pause_ns\":0,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,0,0,0,0,0]}\n",
+    "{\"scoop_gc\":1,\"minor_collections\":0,\"full_collections\":0,\"promotion_fallbacks\":0,\"allocated_bytes\":104,\"nursery_allocated_bytes\":104,\"promoted_bytes\":0,\"copied_bytes\":0,\"dirty_cards\":0,\"old_reference_slots\":0,\"root_slots\":0,\"traced_objects\":0,\"pause_ns\":0,\"maximum_pause_ns\":0,\"committed_bytes\":32768,\"minor_pause_ns\":0,\"full_pause_ns\":0,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,0,0,0,0,0]}\n",
+    "{\"scoop_gc\":1,\"minor_collections\":0,\"full_collections\":0,\"promotion_fallbacks\":0,\"allocated_bytes\":104,\"nursery_allocated_bytes\":104,\"promoted_bytes\":0,\"copied_bytes\":0,\"dirty_cards\":0,\"old_reference_slots\":0,\"root_slots\":0,\"traced_objects\":0,\"pause_ns\":0,\"maximum_pause_ns\":0,\"committed_bytes\":32768,\"minor_pause_ns\":0,\"full_pause_ns\":0,\"pause_bucket_upper_ns\":[10000,50000,100000,500000,1000000,5000000,10000000,null],\"pause_buckets\":[0,0,0,0,0,0,0,0]}\n"
+  ],
+  "median_seconds": 0.18717962503433228,
+  "min_seconds": 0.1862845829455182,
+  "max_seconds": 0.719297832925804,
+  "stdout": "10000010\n"
+}

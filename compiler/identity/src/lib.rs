@@ -12,6 +12,10 @@
 //! let _: PersistentTypeId = cone;
 //! ```
 
+mod abi_carrier;
+pub use abi_carrier::{
+    AbiArrayElement, AbiCarrier, AbiCoercion, AbiCoercionError, AbiPart, PointerKind,
+};
 mod atomic;
 pub use atomic::{
     AtomicCompareExchangeOrder, AtomicCompareExchangeResult, AtomicExpression, AtomicLoadOrder,

@@ -232,18 +232,6 @@ pub enum LirType {
     Enum(EnumDefId),
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum PointerKind {
-    /// A GC-traced reference to a managed heap object.
-    Managed,
-    /// A native address that the GC must neither trace nor relocate.
-    Raw,
-    /// An executable function address.
-    Code,
-    /// An immortal runtime descriptor or dispatch-table address.
-    Metadata,
-}
-
 /// Pointer provenance admitted by a null-niche enum representation.
 ///
 /// Metadata pointers are deliberately excluded: they are immortal compiler
@@ -290,17 +278,6 @@ pub const MANAGED_PTR: LirType = LirType::Ptr(PointerKind::Managed);
 pub const RAW_PTR: LirType = LirType::Ptr(PointerKind::Raw);
 pub const CODE_PTR: LirType = LirType::Ptr(PointerKind::Code);
 pub const METADATA_PTR: LirType = LirType::Ptr(PointerKind::Metadata);
-
-impl PointerKind {
-    pub fn dump(self) -> &'static str {
-        match self {
-            Self::Managed => "managed",
-            Self::Raw => "raw",
-            Self::Code => "code",
-            Self::Metadata => "metadata",
-        }
-    }
-}
 
 impl LirType {
     pub const fn floating(kind: FloatKind) -> Self {

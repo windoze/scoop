@@ -1,32 +1,22 @@
 use super::*;
 
+mod coercion;
+
 impl<'ctx> FnEmitter<'_, 'ctx> {
     pub(super) fn incoming_direct_parts(
         &self,
         parts: &scoop_lir::AbiDirectParts,
         first: usize,
     ) -> Result<BasicValueEnum<'ctx>, CodegenError> {
-        let ty = basic_ty(
-            self.context,
-            self.structs,
-            self.enums,
-            self.managed_address_space,
-            parts.value().storage_type(),
-        )?
-        .into_struct_type();
-        let mut value = ty.const_zero();
+        let mut values = Vec::with_capacity(parts.parts().len());
         for (index, _) in parts.parts().iter().enumerate() {
             let parameter = u32::try_from(first + index)
                 .ok()
                 .and_then(|index| self.llvm_function.get_nth_param(index))
                 .ok_or_else(|| CodegenError("direct part parameter is out of range".into()))?;
-            value = self
-                .builder
-                .build_insert_value(value, parameter, index as u32, "parameter_part")
-                .map_err(|e| CodegenError(format!("assemble direct parameter: {e}")))?
-                .into_struct_value();
+            values.push(parameter);
         }
-        Ok(value.into())
+        self.value_from_parts(parts, &values)
     }
 
     pub(super) fn is_interface_storage(&self, ty: &LirType) -> bool {

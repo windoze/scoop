@@ -48,11 +48,31 @@ fn mir_foundation_v6_keeps_implementation_identities_out_of_semantic_fingerprint
 }
 
 #[test]
-fn lir_layout_abi_v13_retains_interface_parts() {
+fn lir_layout_abi_v14_retains_target_coercions() {
     assert_retired_version(
         lir_cross_cone_layout_abi_capability(),
-        13,
+        14,
         MemberPurposeSet::COMPILE_AND_LINK,
+        &[ArtifactCapabilityProfile::CROSS_CONE_GENERIC],
+    );
+}
+
+#[test]
+fn lir_param_free_v3_retains_target_coercions() {
+    assert_retired_version(
+        lir_cross_cone_param_free_bridge_capability(),
+        3,
+        MemberPurposeSet::COMPILE_AND_LINK,
+        &[ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG],
+    );
+}
+
+#[test]
+fn lir_layout_link_v7_retains_target_coercions() {
+    assert_retired_version(
+        lir_cross_cone_layout_link_closure_capability(),
+        7,
+        MemberPurposeSet::LINK,
         &[ArtifactCapabilityProfile::CROSS_CONE_GENERIC],
     );
 }

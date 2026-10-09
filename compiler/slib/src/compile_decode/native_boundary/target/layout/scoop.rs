@@ -1,27 +1,7 @@
 use super::*;
 
 impl NativeBoundaryNormalizer<'_> {
-    pub(in super::super) fn scoop_argument(
-        &mut self,
-        exact: PersistentExactTypeId,
-    ) -> Result<ScoopAbiArgument, NativeBoundaryCompileError> {
-        let storage = self.scoop_storage(exact)?;
-        scoop_lir::canonical_scoop_abi_argument(self.target, storage)
-            .map_err(NativeBoundaryTargetError::ScoopAbi)
-            .map_err(Into::into)
-    }
-
-    pub(in super::super) fn scoop_return(
-        &mut self,
-        exact: PersistentExactTypeId,
-    ) -> Result<ScoopAbiReturn, NativeBoundaryCompileError> {
-        let storage = self.scoop_storage(exact)?;
-        scoop_lir::canonical_scoop_abi_value_return(self.target, storage)
-            .map_err(NativeBoundaryTargetError::ScoopAbi)
-            .map_err(Into::into)
-    }
-
-    fn scoop_storage(
+    pub(in super::super) fn scoop_storage(
         &mut self,
         exact: PersistentExactTypeId,
     ) -> Result<CanonicalScoopStorage, NativeBoundaryCompileError> {
@@ -36,7 +16,7 @@ impl NativeBoundaryNormalizer<'_> {
         ))
     }
 
-    pub(super) fn scoop_layout(
+    pub(in super::super) fn scoop_layout(
         &mut self,
         exact: PersistentExactTypeId,
     ) -> Result<PhysicalType, NativeBoundaryCompileError> {

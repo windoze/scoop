@@ -63,10 +63,7 @@ fn records() -> (
                     unit.identity().exact(),
                 ),
                 vec![],
-                unit.value_handle()
-                    .unwrap()
-                    .scoop_abi_return(TARGET)
-                    .unwrap(),
+                scoop_identity::ScoopAbiReturn::UnitVoid,
                 (ExactCallableProtocolV1::OrdinaryNoGc).gc_effect(),
             )
             .unwrap(),

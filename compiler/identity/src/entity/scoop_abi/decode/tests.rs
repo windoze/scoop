@@ -39,13 +39,44 @@ fn scoop_storage_round_trips_and_resolves_exact_type() {
 }
 
 #[test]
+fn small_value_signature_preserves_distinct_argument_and_return_carriers() {
+    use crate::{AbiCarrier, AbiCoercion, AbiPart};
+    let storage = CanonicalScoopStorage::new(
+        first_type(),
+        3,
+        NonZeroU64::MIN,
+        ScoopAbiValueShape::Aggregate,
+    );
+    let argument = AbiCoercion::One(AbiPart::new(AbiCarrier::Integer(64), 0, 3, 1).unwrap());
+    let result = AbiCoercion::One(AbiPart::new(AbiCarrier::Integer(24), 0, 3, 1).unwrap());
+    let signature = CanonicalScoopAbiFunctionSignature::new(
+        ExactCallableSignature::new(Effect::Ordinary, None, vec![first_type()], first_type()),
+        vec![ScoopAbiArgument::direct_parts(storage, argument).unwrap()],
+        ScoopAbiReturn::direct_parts(storage, result).unwrap(),
+        GcEffect::NoGc,
+    )
+    .unwrap();
+    let decoded: DecodedCanonicalScoopAbiFunctionSignature =
+        decode_canonical(&encode(&signature).unwrap()).unwrap();
+    assert_eq!(decoded.resolve(&mut Resolver).unwrap(), signature);
+    let overread = AbiCoercion::One(AbiPart::new(AbiCarrier::Integer(64), 0, 8, 1).unwrap());
+    assert_eq!(
+        ScoopAbiArgument::direct_parts(storage, overread),
+        Err(ScoopAbiError::PassingShapeMismatch)
+    );
+}
+
+#[test]
 fn all_scoop_argument_and_return_kinds_round_trip_and_recheck_shape() {
     let arguments = [
         ScoopAbiArgument::elided_zst(zero(first_type())).unwrap(),
         ScoopAbiArgument::direct(scalar(first_type())).unwrap(),
         ScoopAbiArgument::indirect(aggregate(first_type())).unwrap(),
-        ScoopAbiArgument::direct_parts(storage(first_type(), 16, ScoopAbiValueShape::Interface))
-            .unwrap(),
+        ScoopAbiArgument::direct_parts(
+            storage(first_type(), 16, ScoopAbiValueShape::Interface),
+            crate::AbiCoercion::interface(),
+        )
+        .unwrap(),
     ];
     for argument in arguments {
         let decoded =
@@ -58,8 +89,11 @@ fn all_scoop_argument_and_return_kinds_round_trip_and_recheck_shape() {
         ScoopAbiReturn::elided_zst(zero(second_type())).unwrap(),
         ScoopAbiReturn::direct(scalar(second_type())).unwrap(),
         ScoopAbiReturn::indirect(aggregate(second_type())).unwrap(),
-        ScoopAbiReturn::direct_parts(storage(second_type(), 16, ScoopAbiValueShape::Interface))
-            .unwrap(),
+        ScoopAbiReturn::direct_parts(
+            storage(second_type(), 16, ScoopAbiValueShape::Interface),
+            crate::AbiCoercion::interface(),
+        )
+        .unwrap(),
     ];
     for result in returns {
         let decoded = decode_canonical::<DecodedScoopAbiReturn>(&encode(&result).unwrap()).unwrap();

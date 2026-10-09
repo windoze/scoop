@@ -1,7 +1,7 @@
 schema = 1
 name = "m30-floating-ffi"
 root = "program.scoop"
-inputs = ["program.scoop", "native.c", "scoop.ll"]
+inputs = ["program.scoop", "native.c", "scoop.aarch64-apple-darwin.ll", "scoop.x86_64-unknown-linux-gnu.ll", "scoop.x86_64-unknown-linux-musl.ll"]
 tools = ["scoop", "scoopc", "cc", "ar", "llc"]
 targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
 tags = ["m30", "floating", "gc", "stage-golden"]
@@ -21,7 +21,7 @@ stderr = ""
 
 [[steps]]
 name = "compile_scoop_abi"
-argv = ["${llc}", "-mtriple=${llvm_target}", "-filetype=obj", "-relocation-model=pic", "${fixture}/scoop.ll", "-o", "${work}/native/objects/scoop_abi.o"]
+argv = ["${llc}", "-mtriple=${llvm_target}", "-filetype=obj", "-relocation-model=pic", "${fixture}/scoop.${target}.ll", "-o", "${work}/native/objects/scoop_abi.o"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -43,9 +43,9 @@ json = "stderr"
 diagnostics = []
 checks = [
   {file = "${work}/dump/${build.result.root.identity}/ast.txt", snapshot = "program.ast.txt"},
-  {file = "${work}/dump/${build.result.root.identity}/hir.txt", snapshot = "program.hir.txt"},
-  {file = "${work}/dump/${build.result.root.identity}/mir.txt", snapshot = "program.mir.txt"},
-  {file = "${work}/dump/${build.result.root.identity}/lir.txt", snapshot = "program.${target}.lir.txt"},
+  {file = "${work}/dump/${build.result.root.identity}/hir.txt", snapshot = "program.${profile}.hir.txt"},
+  {file = "${work}/dump/${build.result.root.identity}/mir.txt", snapshot = "program.${profile}.mir.txt"},
+  {file = "${work}/dump/${build.result.root.identity}/lir.txt", snapshot = "program.${profile}.${target}.lir.txt"},
 ]
 
 [[steps]]

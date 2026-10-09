@@ -55,11 +55,12 @@ fn argument_matches(canonical: CanonicalArgument, physical: &AbiArgument) -> boo
                 && expected.alignment() == actual.layout().alignment()
         }
         (
-            CanonicalArgument::DirectParts(expected),
+            CanonicalArgument::DirectParts(expected, coercion),
             AbiArgument::Direct(crate::AbiDirectValue::DirectParts(actual)),
         ) => {
             expected.byte_size() == actual.value().layout().size().get()
                 && expected.alignment() == actual.value().layout().alignment()
+                && coercion == actual.coercion()
         }
         _ => false,
     }
@@ -81,11 +82,12 @@ fn return_matches(canonical: CanonicalReturn, physical: &AbiReturn) -> bool {
                 && expected.alignment() == actual.layout().alignment()
         }
         (
-            CanonicalReturn::DirectParts(expected),
+            CanonicalReturn::DirectParts(expected, coercion),
             AbiReturn::Direct(crate::AbiDirectValue::DirectParts(actual)),
         ) => {
             expected.byte_size() == actual.value().layout().size().get()
                 && expected.alignment() == actual.value().layout().alignment()
+                && coercion == actual.coercion()
         }
         _ => false,
     }

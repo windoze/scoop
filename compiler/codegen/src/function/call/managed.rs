@@ -26,25 +26,14 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                         parts,
                     )) = convention
                     {
-                        let value = value.into_struct_value();
-                        for (index, _) in parts.parts().iter().enumerate() {
-                            // Reuse the marked SSA leaf instead of extracting a second
-                            // object SSA value from the reconstructed logical interface.
-                            if index == 0
-                                && let Some(object) =
-                                    live.and_then(|live| live.interface_object(logical))
-                            {
-                                values.push(object.into());
-                                continue;
-                            }
-                            values.push(
-                                self.builder
-                                    .build_extract_value(value, index as u32, "argument_part")
-                                    .map_err(|e| {
-                                        CodegenError(format!("extract direct argument part: {e}"))
-                                    })?,
-                            );
+                        let mut physical = self.outgoing_parts(parts, value)?;
+                        if parts.coercion() == scoop_lir::AbiCoercion::interface()
+                            && let Some(object) =
+                                live.and_then(|live| live.interface_object(logical))
+                        {
+                            physical[0] = object.into();
                         }
+                        values.extend(physical);
                     } else {
                         values.push(value);
                     }
@@ -180,8 +169,6 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             self.managed_address_space,
             &signature,
         )?;
-        let mut call_args =
-            self.physical_call_arguments(call.args(), &signature, &result, managed_live.as_ref())?;
 
         let native = match &protocol {
             CallProtocol::NativeSafe { roots, .. } => {
@@ -255,15 +242,18 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             None
         };
 
-        if native.is_some() {
-            // Entering either native transition may park this thread. The
-            // collector then updates the published canonical storage, while
-            // any SSA arguments evaluated before the transition retain their
-            // old addresses. Rebuild the physical call arguments after the
-            // handshake so direct refs and managed leaves inside aggregates
-            // are loaded from the relocated caller-root storage.
-            call_args = self.physical_call_arguments(call.args(), &signature, &result, None)?;
-        }
+        // A native handshake may relocate the published roots. Materialize
+        // arguments afterwards, and coerce each GC-free aggregate only once.
+        let call_args = self.physical_call_arguments(
+            call.args(),
+            &signature,
+            &result,
+            if native.is_some() {
+                None
+            } else {
+                managed_live.as_ref()
+            },
+        )?;
 
         let apply_scoop_abi_attributes = match destination {
             scoop_lir::CallDestination::Local(_)
@@ -405,6 +395,13 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 | TypedCallResult::ElidedZst { .. }
                 | TypedCallResult::Indirect { .. } => None,
             }
+        };
+
+        let direct_value = match (&result, direct_value) {
+            (TypedCallResult::Direct { value: plan, .. }, Some(value)) => {
+                Some(self.decode_direct_result(plan, value)?)
+            }
+            (_, value) => value,
         };
 
         if let (Some(live), CallProtocol::Managed { safepoint, .. }) = (managed_live, &protocol) {

@@ -250,17 +250,4 @@ impl LirTargetProfile {
             PointerKind::Metadata => self.metadata_pointer_layout(),
         }
     }
-
-    /// Closed classifier for non-zero-sized Scoop values.
-    ///
-    /// This is intentionally not the target C ABI. The same result is stored
-    /// in typed LIR and consumed by definitions, every caller, dispatch, and
-    /// Scoop extern declarations.
-    pub const fn classify_scoop_abi_value(self, shape: ScoopAbiValueShape) -> ScoopAbiPassing {
-        match shape {
-            ScoopAbiValueShape::Scalar => ScoopAbiPassing::Direct,
-            ScoopAbiValueShape::Aggregate => ScoopAbiPassing::Indirect,
-            ScoopAbiValueShape::Interface => ScoopAbiPassing::DirectParts,
-        }
-    }
 }

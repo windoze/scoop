@@ -41,17 +41,12 @@ impl AbiDirectValue {
     }
 }
 
-/// Interface values have two distinct pointer carriers. The object is the
-/// only managed leaf; the itable belongs to immutable runtime metadata.
+/// A complete carrier plan for one logical value. GC-free aggregates use
+/// target coercions; interfaces retain their distinct object and metadata parts.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AbiDirectParts {
     value: AbiValue,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct AbiPart {
-    pub byte_offset: u64,
-    pub pointer_kind: crate::PointerKind,
+    coercion: crate::AbiCoercion,
 }
 
 impl AbiDirectParts {
@@ -62,23 +57,40 @@ impl AbiDirectParts {
         {
             return Err(AbiValueError::InvalidInterfaceLayout);
         }
-        Ok(Self { value })
+        Ok(Self {
+            value,
+            coercion: crate::AbiCoercion::interface(),
+        })
     }
 
     pub const fn value(&self) -> &AbiValue {
         &self.value
     }
 
-    pub const fn parts(&self) -> &'static [AbiPart; 2] {
-        &[
-            AbiPart {
-                byte_offset: 0,
-                pointer_kind: crate::PointerKind::Managed,
-            },
-            AbiPart {
-                byte_offset: 8,
-                pointer_kind: crate::PointerKind::Metadata,
-            },
-        ]
+    pub fn new(value: AbiValue, coercion: crate::AbiCoercion) -> Result<Self, AbiValueError> {
+        coercion
+            .validate_storage(
+                value.layout().size().get(),
+                value.layout().alignment().get(),
+            )
+            .map_err(|_| AbiValueError::InvalidCoercion)?;
+        if coercion.has_managed_pointer() {
+            let interface = Self::interface(value)?;
+            if coercion != interface.coercion {
+                return Err(AbiValueError::InvalidCoercion);
+            }
+            return Ok(interface);
+        }
+        if value.scan() != &RefScan::None {
+            return Err(AbiValueError::InvalidCoercion);
+        }
+        Ok(Self { value, coercion })
+    }
+
+    pub const fn coercion(&self) -> crate::AbiCoercion {
+        self.coercion
+    }
+    pub const fn parts(&self) -> &[crate::AbiPart] {
+        self.coercion.parts()
     }
 }
