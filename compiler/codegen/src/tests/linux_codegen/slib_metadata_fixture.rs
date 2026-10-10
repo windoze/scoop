@@ -78,14 +78,17 @@ pub(super) fn zeroed_odr_only(target: TargetProfileId) -> Module {
 }
 
 fn module_empty_struct(module: &mut Module) -> scoop_lir::StructDefId {
-    module.structs.alloc_scoop(
-        test_physical_exact("EmptyStatic", scoop_identity::SourceNominalKind::Struct),
-        "EmptyStatic".to_owned(),
-        0,
-        1,
-        false,
-        Vec::new(),
-    )
+    module
+        .structs
+        .alloc_scoop(
+            test_physical_exact("EmptyStatic", scoop_identity::SourceNominalKind::Struct),
+            "EmptyStatic".to_owned(),
+            0,
+            1,
+            false,
+            Vec::new(),
+        )
+        .definition()
 }
 
 fn add_storage(

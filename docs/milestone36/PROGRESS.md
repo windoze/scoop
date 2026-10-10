@@ -104,6 +104,8 @@ LIR 的 Scoop／C shell 分别返回窄引用，第二遍字段填充保留同�
 
 报告为 target/m36-validation/r06-verify-report.json，格式化、lint、Rust、快照生成及普通比较日志同目录保留。完成后清理过期测试可执行文件及用例工作目录，保留当前 CLI、库、sysroot 与编译缓存；清理明细见 r06-cleanup.log。Linux 对应 target 的新 C LIR golden 在最终完整验收时生成并复验。
 
+最终 Linux lint 发现 ELF metadata 测试的空 struct 构造器遗漏窄引用投影，已沿现有接口显式取得 definition。修正后两机 fmt／workspace clippy 通过，Linux codegen 378 项通过；该补充只迁移测试输入，不改变语言、阶段合同或产物。
+
 ## R01：完整调用目标与 receiver
 
 structured MIR 与最终 MIR 的调用按 Direct、Virtual、Interface、Closure、FunctionBridge 保存完整目标；动态方法只接受本地、单态化或外部 Scoop 声明，函数签名身份不再重复。动态 receiver 必填并独立于普通实参，遍历与 liveness 始终先消费 receiver。CFG 在后续参数产生控制流时保存该值；去虚拟化一次构造完整 direct 调用，把已求值 receiver 放入首个逻辑实参。
