@@ -339,6 +339,11 @@ Module
       goto bb3
   fun $lambda.1 @fn5($closure: () -> Int) -> Int
     bb0 entry
+      val $place.receiver: SharedState
+        Type SharedState
+        ClosureCapture cc1 1
+          Type () -> Int
+          Local $closure
       val $dependency.receiver: Int
         Type Int
         FieldAccess 0
@@ -356,9 +361,7 @@ Module
         Local $dependency.argument.0
       field_set 0
         Type SharedState
-        ClosureCapture cc1 1
-          Type () -> Int
-          Local $closure
+        Local $place.receiver
         Type Int
         IntegerBinary add kind=Int
           Type Int

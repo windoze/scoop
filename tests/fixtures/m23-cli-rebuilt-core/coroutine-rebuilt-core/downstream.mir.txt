@@ -2340,6 +2340,11 @@ Module
       trap "call to abstract method `Continuation.resumeWithException`"
   fun $lambda @fn28($argument.0: (Continuation<Local>) -> Unit, $argument.1: Continuation<Local>) -> Unit
     bb0 entry
+      val $dependency.local.3: Pending<Local>
+        Type Pending<Local>
+        ClosureCapture cc9 0
+          Type (Continuation<Local>) -> Unit
+          Local $argument.0
       val $dependency.local.1: Continuation<Local>
         Type Continuation<Local>
         Local $argument.1
@@ -2348,9 +2353,7 @@ Module
         Local $dependency.local.1
       field_set 0
         Type Pending<Local>
-        ClosureCapture cc9 0
-          Type (Continuation<Local>) -> Unit
-          Local $argument.0
+        Local $dependency.local.3
         Type Option<Continuation<Local>>
         VariantConstruct Option<Continuation<Local>> v0
           Type Continuation<Local>
@@ -2448,6 +2451,11 @@ Module
         Local $step
   fun $lambda @fn31($argument.0: (Continuation<Local>) -> Unit, $argument.1: Continuation<Local>) -> Unit
     bb0 entry
+      val $dependency.local.3: Pending<Local>
+        Type Pending<Local>
+        ClosureCapture cc10 0
+          Type (Continuation<Local>) -> Unit
+          Local $argument.0
       val $dependency.local.1: Continuation<Local>
         Type Continuation<Local>
         Local $argument.1
@@ -2456,9 +2464,7 @@ Module
         Local $dependency.local.1
       field_set 0
         Type Pending<Local>
-        ClosureCapture cc10 0
-          Type (Continuation<Local>) -> Unit
-          Local $argument.0
+        Local $dependency.local.3
         Type Option<Continuation<Local>>
         VariantConstruct Option<Continuation<Local>> v0
           Type Continuation<Local>
@@ -2466,6 +2472,11 @@ Module
       return
   fun $lambda @fn32($argument.0: (Continuation<Int>) -> Unit, $argument.1: Continuation<Int>) -> Unit
     bb0 entry
+      val $dependency.local.3: Pending<Int>
+        Type Pending<Int>
+        ClosureCapture cc11 0
+          Type (Continuation<Int>) -> Unit
+          Local $argument.0
       val $dependency.local.1: Continuation<Int>
         Type Continuation<Int>
         Local $argument.1
@@ -2474,9 +2485,7 @@ Module
         Local $dependency.local.1
       field_set 0
         Type Pending<Int>
-        ClosureCapture cc11 0
-          Type (Continuation<Int>) -> Unit
-          Local $argument.0
+        Local $dependency.local.3
         Type Option<Continuation<Int>>
         VariantConstruct Option<Continuation<Int>> v0
           Type Continuation<Int>
@@ -2574,6 +2583,11 @@ Module
         Local $step
   fun $lambda @fn35($argument.0: (Continuation<Int>) -> Unit, $argument.1: Continuation<Int>) -> Unit
     bb0 entry
+      val $dependency.local.3: Pending<Int>
+        Type Pending<Int>
+        ClosureCapture cc12 0
+          Type (Continuation<Int>) -> Unit
+          Local $argument.0
       val $dependency.local.1: Continuation<Int>
         Type Continuation<Int>
         Local $argument.1
@@ -2582,9 +2596,7 @@ Module
         Local $dependency.local.1
       field_set 0
         Type Pending<Int>
-        ClosureCapture cc12 0
-          Type (Continuation<Int>) -> Unit
-          Local $argument.0
+        Local $dependency.local.3
         Type Option<Continuation<Int>>
         VariantConstruct Option<Continuation<Int>> v0
           Type Continuation<Int>
@@ -2592,6 +2604,11 @@ Module
       return
   fun $lambda @fn36($argument.0: (Continuation<Unit>) -> Unit, $argument.1: Continuation<Unit>) -> Unit
     bb0 entry
+      val $dependency.local.3: Pending<Unit>
+        Type Pending<Unit>
+        ClosureCapture cc13 0
+          Type (Continuation<Unit>) -> Unit
+          Local $argument.0
       val $dependency.local.1: Continuation<Unit>
         Type Continuation<Unit>
         Local $argument.1
@@ -2600,9 +2617,7 @@ Module
         Local $dependency.local.1
       field_set 0
         Type Pending<Unit>
-        ClosureCapture cc13 0
-          Type (Continuation<Unit>) -> Unit
-          Local $argument.0
+        Local $dependency.local.3
         Type Option<Continuation<Unit>>
         VariantConstruct Option<Continuation<Unit>> v0
           Type Continuation<Unit>
@@ -2690,6 +2705,11 @@ Module
         Local $step
   fun $lambda @fn39($argument.0: (Continuation<Unit>) -> Unit, $argument.1: Continuation<Unit>) -> Unit
     bb0 entry
+      val $dependency.local.3: Pending<Unit>
+        Type Pending<Unit>
+        ClosureCapture cc14 0
+          Type (Continuation<Unit>) -> Unit
+          Local $argument.0
       val $dependency.local.1: Continuation<Unit>
         Type Continuation<Unit>
         Local $argument.1
@@ -2698,9 +2718,7 @@ Module
         Local $dependency.local.1
       field_set 0
         Type Pending<Unit>
-        ClosureCapture cc14 0
-          Type (Continuation<Unit>) -> Unit
-          Local $argument.0
+        Local $dependency.local.3
         Type Option<Continuation<Unit>>
         VariantConstruct Option<Continuation<Unit>> v0
           Type Continuation<Unit>

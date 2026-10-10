@@ -191,6 +191,11 @@ Module
           Local $dependency.receiver
   fun Ordered.equals @fn3(this: Ordered, other: Ordered) -> Boolean
     bb0 entry
+      val $place.receiver: Trace
+        Type Trace
+        FieldAccess 1
+          Type Ordered
+          Local this
       val $dependency.receiver: Int
         Type Int
         FieldAccess 0
@@ -219,9 +224,7 @@ Module
         IntegerLiteral Int value=3 bits=0x00000003
       field_set 0
         Type Trace
-        FieldAccess 1
-          Type Ordered
-          Local this
+        Local $place.receiver
         Type Int
         IntegerBinary add kind=Int
           Type Int

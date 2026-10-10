@@ -498,13 +498,13 @@ Module
   fun @scoop$1$cb$68084ee0ec4bc159a098bdd32106af928bb7164fc2f4d504cc5921029357a9e2(ptr<managed>, parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>) -> void
     local %0 $dependency.local.2: interface{object,itab}
     local %1 $dependency.local.3: interface{object,itab}
-    local %2 $call.1: ptr<managed>
+    local %2 $dependency.local.4: ptr<managed>
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[param0:ptr<managed>@0, param1:interface{object,itab}@0]
+    call managed-direct-target0 sp<managed-call:0> live=[param0:ptr<managed>@0, param1:interface{object,itab}@0] t0 = sig=direct0 (ptr<managed>) -> ptr<managed> local-fn23(param0)
+    store t0 -> local2
     store param1 -> local0
     store local0 -> local1
-    call managed-direct-target0 sp<managed-call:0> live=[param0:ptr<managed>@0, local1:interface{object,itab}@0] t0 = sig=direct0 (ptr<managed>) -> ptr<managed> local-fn23(param0)
-    store t0 -> local2
     t1 = enum_wrap e2 v0 (local1) : enum2
     call managed-void-target0 sp<managed-call:1> live=[local2:ptr<managed>@0, t1:enum2@0] sig=void0 (ptr<managed>, parts<enum2 [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>) local-fn18(local2, t1)
     t2 = aggregate () : {}

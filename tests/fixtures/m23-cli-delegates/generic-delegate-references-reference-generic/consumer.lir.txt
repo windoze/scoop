@@ -133,16 +133,18 @@ Module
     store t2 -> local0
     ret local0
   fun @scoop$1$cb$85d45f21b0ab76ea3f6c64a394e520cc6174adbec6b2e8cbc2e613e4a13555ce(ptr<managed>, ptr<managed>) -> i32
-    local %0 $call.1: i32
+    local %0 $operand.1: ptr<managed>
     local %1 $call.2: i32
+    local %2 $call.3: i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0, param1:ptr<managed>@0]
-    call managed-direct-target0 sp<managed-call:0> live=[param0:ptr<managed>@0, param1:ptr<managed>@0] t0 = sig=direct0 (ptr<managed>) -> i32 local-fn6(param1)
+    t0 = heap_load param0 +16 : ptr<managed>
     store t0 -> local0
-    t1 = heap_load param0 +16 : ptr<managed>
-    call managed-direct-target1 sp<managed-call:1> live=[t1:ptr<managed>@0] t2 = sig=direct1 (ptr<managed>, i32) -> i32 dispatch[Closure:2] t1(t1, local0)
-    store t2 -> local1
-    ret local1
+    call managed-direct-target0 sp<managed-call:0> live=[param1:ptr<managed>@0, local0:ptr<managed>@0] t1 = sig=direct0 (ptr<managed>) -> i32 local-fn6(param1)
+    store t1 -> local1
+    call managed-direct-target1 sp<managed-call:1> live=[local0:ptr<managed>@0] t2 = sig=direct1 (ptr<managed>, i32) -> i32 dispatch[Closure:2] local0(local0, local1)
+    store t2 -> local2
+    ret local2
   fun @scoop$1$cb$e74a6d535995a41b33fd62c65e60b06fb7e199484babc7d2f97887139f977d50() -> void
     local %0 $dependency.local.0: ptr<managed>
     local %1 $dependency.local.1: i32

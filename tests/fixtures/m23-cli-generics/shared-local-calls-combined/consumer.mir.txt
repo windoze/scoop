@@ -786,6 +786,9 @@ Module
           Local $dependency.local.1
   fun step @fn14($capture.0: Trace, $argument.0: Int) -> Int
     bb0 entry
+      val $dependency.local.7: Trace
+        Type Trace
+        Local $capture.0
       val $dependency.local.1: Int
         Type Int
         FieldAccess 0
@@ -812,7 +815,7 @@ Module
         Local $dependency.local.5
       field_set 0
         Type Trace
-        Local $capture.0
+        Local $dependency.local.7
         Type Int
         IntegerBinary add kind=Int
           Type Int

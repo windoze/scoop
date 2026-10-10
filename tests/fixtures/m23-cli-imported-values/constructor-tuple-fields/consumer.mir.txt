@@ -19,22 +19,25 @@ Module
   fun primary @fn1() -> Wide <no-gc>
     bb0 entry
       call $call.1: Token = external0 direct
-      call $call.2: Token = external0 direct
+      val $operand.2: (Long, Long, Long)
+        Type (Long, Long, Long)
+        TupleLiteral
+          Type Long
+          IntegerLiteral Long value=17 bits=0x0000000000000011
+          Type Long
+          IntegerLiteral Long value=-29 bits=0xffffffffffffffe3
+          Type Long
+          IntegerLiteral Long value=53 bits=0x0000000000000035
+      call $call.3: Token = external0 direct
       val $dependency.argument.0: (Token, (Long, Long, Long), Token)
         Type (Token, (Long, Long, Long), Token)
         TupleLiteral
           Type Token
           Local $call.1
           Type (Long, Long, Long)
-          TupleLiteral
-            Type Long
-            IntegerLiteral Long value=17 bits=0x0000000000000011
-            Type Long
-            IntegerLiteral Long value=-29 bits=0xffffffffffffffe3
-            Type Long
-            IntegerLiteral Long value=53 bits=0x0000000000000035
+          Local $operand.2
           Type Token
-          Local $call.2
+          Local $call.3
       val $dependency.parameter.elements: (Token, (Long, Long, Long), Token)
         Type (Token, (Long, Long, Long), Token)
         Local $dependency.argument.0
@@ -49,12 +52,12 @@ Module
       val $dependency.parameter.values: (Token, (Long, Long, Long), Token)
         Type (Token, (Long, Long, Long), Token)
         Local $dependency.argument.0
-      call $call.3: Wide = external3 direct
+      call $call.4: Wide = external3 direct
         Type (Token, (Long, Long, Long), Token)
         Local $dependency.parameter.values
       return
         Type Wide
-        Local $call.3
+        Local $call.4
   fun secondary @fn2() -> Wide <no-gc>
     bb0 entry
       call $call.1: Token = external0 direct

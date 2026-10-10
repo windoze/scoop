@@ -685,6 +685,11 @@ Module
           Local $dependency.parameter.other
   fun $lambda.3 @fn15($closure: (Int) -> Int, value: Int) -> Int
     bb0 entry
+      val $place.receiver: Counter
+        Type Counter
+        ClosureCapture cc4 0
+          Type (Int) -> Int
+          Local $closure
       call $dependency.receiver: Int = @fn0 direct
         Type Counter
         ClosureCapture cc4 0
@@ -698,9 +703,7 @@ Module
         Local $dependency.argument.0
       call @fn1 direct
         Type Counter
-        ClosureCapture cc4 0
-          Type (Int) -> Int
-          Local $closure
+        Local $place.receiver
         Type Int
         IntegerBinary add kind=Int
           Type Int

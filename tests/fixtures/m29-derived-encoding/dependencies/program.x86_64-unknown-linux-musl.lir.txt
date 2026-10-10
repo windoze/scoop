@@ -571,9 +571,10 @@ Module
     local %11 $argument.1: ptr<managed>
     local %12 $parameter.number: i32
     local %13 $parameter.text: ptr<managed>
-    local %14 $call.1: ptr<managed>
-    local %15 $call.2: struct2
-    local %16 $sc.1: struct2
+    local %14 $place.receiver: ptr<managed>
+    local %15 $call.1: ptr<managed>
+    local %16 $call.2: struct2
+    local %17 $sc.1: struct2
   block entry
     poll managed-void-target2 sp<managed-poll:0> live=[param0:ptr<managed>@0, param1:ptr<managed>@0]
     store param1 -> local0
@@ -594,16 +595,17 @@ Module
     store global5 -> local8
     store local8 -> local9
     call managed-direct-target1 sp<managed-call:3> live=[param0:ptr<managed>@0, local5:ptr<managed>@0, local7:ptr<managed>@0, local9:ptr<managed>@0] t5 = sig=direct1 (ptr<managed>, ptr<managed>) -> ptr<managed> runtime @scoop_rt_string_concat(local7, local9)
-    store t5 -> local14
-    heap_store local5 +16 local14
+    store t5 -> local15
+    heap_store local5 +16 local15
+    t6 = heap_load param0 +16 : ptr<managed>
+    store t6 -> local14
     store integer<Int>(0x00000009) -> local10
     store global6 -> local11
     store local10 -> local12
     store local11 -> local13
-    call no-gc-indirect-target0 local16 = sig=indirect0 (sret struct2 size=16 align=8 scan=refs[8], i32, ptr<managed>) local-fn262(local12, local13)
-    store local16 -> local15
-    t6 = heap_load param0 +16 : ptr<managed>
-    heap_store t6 +16 local15
+    call no-gc-indirect-target0 local17 = sig=indirect0 (sret struct2 size=16 align=8 scan=refs[8], i32, ptr<managed>) local-fn262(local12, local13)
+    store local17 -> local16
+    heap_store local14 +16 local16
     t7 = heap_load td105 +96 : ptr<metadata>
     t8 = heap_load t7 +40 : ptr<metadata>
     t9 = aggregate (param0, t8) : interface{object,itab}

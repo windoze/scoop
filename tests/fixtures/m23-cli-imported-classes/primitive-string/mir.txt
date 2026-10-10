@@ -52,6 +52,9 @@ Module
         Type Boolean
         Local $call.1
     bb1 if.then.1
+      val $equality.lhs: String
+        Type String
+        Local text
       val $dependency.receiver: ToString
         Type ToString
         Local reference
@@ -62,7 +65,7 @@ Module
         Type Boolean
         Binary RefEq
           Type String
-          Local text
+          Local $equality.lhs
           Type String
           Local $call.2
       goto bb3

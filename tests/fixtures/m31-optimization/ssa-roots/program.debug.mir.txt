@@ -87,6 +87,11 @@ Module
             Type Pair
             Local pair
       call @scoop_rt_gc_collect direct
+      val $place.receiver: Item
+        Type Item
+        FieldAccess 0
+          Type Pair
+          Local pair
       val $dependency.receiver: Long
         Type Long
         FieldAccess 0
@@ -102,9 +107,7 @@ Module
         Local $dependency.argument.0
       field_set 0
         Type Item
-        FieldAccess 0
-          Type Pair
-          Local pair
+        Local $place.receiver
         Type Long
         IntegerBinary add kind=Long
           Type Long
@@ -334,6 +337,11 @@ Module
       call @scoop_rt_gc_collect direct
       rethrow unwind bb5
     bb11 scope.11 unwind bb3
+      val $place.receiver: Item
+        Type Item
+        FieldAccess 0
+          Type Pair
+          Local pair
       val $argument.0: Item
         Type Item
         FieldAccess 1
@@ -358,9 +366,7 @@ Module
         Local $dependency.argument.0
       field_set 0
         Type Item
-        FieldAccess 0
-          Type Pair
-          Local pair
+        Local $place.receiver
         Type Long
         IntegerBinary add kind=Long
           Type Long

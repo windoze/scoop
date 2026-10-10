@@ -323,6 +323,37 @@ Module
       val $dependency.parameter.index: Long
         Type Long
         Local $dependency.argument.0
+      call $opt.1: Option<Node> = @fn11 direct
+        Type MutableArray<Option<Node>>
+        Local $dependency.receiver
+        Type Long
+        Local $dependency.parameter.index
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Option<Node> v0
+          Type Option<Node>
+          Local $opt.1
+    bb1 if.then.1
+      val $uw.2: Node
+        Type Node
+        VariantPayloadProject Option<Node> v0 f0
+          Type Option<Node>
+          Local $opt.1
+      goto bb3
+    bb2 if.else.2
+      assign $new.1
+        Type UnwrapException
+        ClassAlloc UnwrapException
+      call external4 direct
+        Type UnwrapException
+        Local $new.1
+      throw
+        Type UnwrapException
+        Local $new.1
+    bb3 if.merge.3
+      val $place.receiver: Node
+        Type Node
+        Local $uw.2
       val $argument.0: Long
         Type Long
         IntegerLiteral Long value=70 bits=0x0000000000000046
@@ -359,53 +390,25 @@ Module
       val $parameter.next: Option<Node>
         Type Option<Node>
         Local $argument.1
-      assign $new.1
+      assign $new.2
         Type Node
         ClassAlloc Node
       call @fn38 direct
         Type Node
-        Local $new.1
+        Local $new.2
         Type Long
         Local $parameter.value
         Type Option<Node>
         Local $parameter.next
       val $dependency.argument.0: Node
         Type Node
-        Local $new.1
+        Local $new.2
       val $dependency.parameter._1: Node
         Type Node
         Local $dependency.argument.0
-      call $opt.1: Option<Node> = @fn11 direct
-        Type MutableArray<Option<Node>>
-        Local $dependency.receiver
-        Type Long
-        Local $dependency.parameter.index
-      branch bb1 bb2
-        Type Boolean
-        VariantTest Option<Node> v0
-          Type Option<Node>
-          Local $opt.1
-    bb1 if.then.1
-      val $uw.2: Node
-        Type Node
-        VariantPayloadProject Option<Node> v0 f0
-          Type Option<Node>
-          Local $opt.1
-      goto bb3
-    bb2 if.else.2
-      assign $new.2
-        Type UnwrapException
-        ClassAlloc UnwrapException
-      call external4 direct
-        Type UnwrapException
-        Local $new.2
-      throw
-        Type UnwrapException
-        Local $new.2
-    bb3 if.merge.3
       field_set 1
         Type Node
-        Local $uw.2
+        Local $place.receiver
         Type Option<Node>
         VariantConstruct Option<Node> v0
           Type Node
@@ -1817,15 +1820,6 @@ Module
       val $dependency.parameter.index: Long
         Type Long
         Local $dependency.argument.0
-      val $dependency.receiver: MutableArray<Option<Value>>
-        Type MutableArray<Option<Value>>
-        Local values
-      val $dependency.argument.0: Long
-        Type Long
-        IntegerLiteral Long value=0 bits=0x0000000000000000
-      val $dependency.parameter.index: Long
-        Type Long
-        Local $dependency.argument.0
       call $opt.32: Option<Value> = @fn17 direct
         Type Array<Option<Value>>
         Local $dependency.receiver
@@ -1854,6 +1848,18 @@ Module
         Type UnwrapException
         Local $new.14
     bb62 if.merge.62
+      val $equality.lhs: Value
+        Type Value
+        Local $uw.33
+      val $dependency.receiver: MutableArray<Option<Value>>
+        Type MutableArray<Option<Value>>
+        Local values
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.parameter.index: Long
+        Type Long
+        Local $dependency.argument.0
       call $opt.34: Option<Value> = @fn14 direct
         Type MutableArray<Option<Value>>
         Local $dependency.receiver
@@ -1886,7 +1892,7 @@ Module
         Type Boolean
         Binary RefEq
           Type Value
-          Local $uw.33
+          Local $equality.lhs
           Type Value
           Local $uw.35
       val $parameter.value: Boolean
@@ -1898,28 +1904,6 @@ Module
       val $dependency.receiver: Array<Option<Value>>
         Type Array<Option<Value>>
         Local copied
-      val $dependency.receiver: Long
-        Type Long
-        Local capacity
-      val $dependency.argument.0: Long
-        Type Long
-        IntegerLiteral Long value=1 bits=0x0000000000000001
-      val $dependency.parameter.other: Long
-        Type Long
-        Local $dependency.argument.0
-      val $dependency.argument.0: Long
-        Type Long
-        IntegerBinary subtract kind=Long
-          Type Long
-          Local $dependency.receiver
-          Type Long
-          Local $dependency.parameter.other
-      val $dependency.parameter.index: Long
-        Type Long
-        Local $dependency.argument.0
-      val $dependency.receiver: MutableArray<Option<Value>>
-        Type MutableArray<Option<Value>>
-        Local values
       val $dependency.receiver: Long
         Type Long
         Local capacity
@@ -1967,6 +1951,31 @@ Module
         Type UnwrapException
         Local $new.16
     bb68 if.merge.68
+      val $equality.lhs: Value
+        Type Value
+        Local $uw.37
+      val $dependency.receiver: MutableArray<Option<Value>>
+        Type MutableArray<Option<Value>>
+        Local values
+      val $dependency.receiver: Long
+        Type Long
+        Local capacity
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerBinary subtract kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      val $dependency.parameter.index: Long
+        Type Long
+        Local $dependency.argument.0
       call $opt.38: Option<Value> = @fn14 direct
         Type MutableArray<Option<Value>>
         Local $dependency.receiver
@@ -1999,7 +2008,7 @@ Module
         Type Boolean
         Binary RefEq
           Type Value
-          Local $uw.37
+          Local $equality.lhs
           Type Value
           Local $uw.39
       val $parameter.value: Boolean

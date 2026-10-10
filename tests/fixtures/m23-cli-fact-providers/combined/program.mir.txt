@@ -404,17 +404,20 @@ Module
         Type Boolean
         Local $shortCircuit.6
     bb22 logic.rhs.22
-      call $call.2: Empty = external2 direct
-      call $call.3: Boolean = external10 direct
+      val $operand.2: Empty
         Type Empty
         FieldAccess 2
           Type Packet
           Local packet
+      call $call.3: Empty = external2 direct
+      call $call.4: Boolean = external10 direct
         Type Empty
-        Local $call.2
+        Local $operand.2
+        Type Empty
+        Local $call.3
       assign $logic.1
         Type Boolean
-        Local $call.3
+        Local $call.4
       goto bb24
     bb23 logic.short.23
       assign $logic.1
@@ -431,20 +434,6 @@ Module
       call @fn0 direct
         Type Boolean
         Local $parameter.value
-      call $call.4: Empty = external2 direct
-      val $dependency.argument.0: (Empty, Unit)
-        Type (Empty, Unit)
-        TupleLiteral
-          Type Empty
-          Local $call.4
-          Type Unit
-          UnitLiteral
-      val $dependency.parameter.pair: (Empty, Unit)
-        Type (Empty, Unit)
-        Local $dependency.argument.0
-      call $equality.lhs: NothingStored = external5 direct
-        Type (Empty, Unit)
-        Local $dependency.parameter.pair
       call $call.5: Empty = external2 direct
       val $dependency.argument.0: (Empty, Unit)
         Type (Empty, Unit)
@@ -456,14 +445,28 @@ Module
       val $dependency.parameter.pair: (Empty, Unit)
         Type (Empty, Unit)
         Local $dependency.argument.0
-      call $call.6: NothingStored = external5 direct
+      call $equality.lhs: NothingStored = external5 direct
+        Type (Empty, Unit)
+        Local $dependency.parameter.pair
+      call $call.6: Empty = external2 direct
+      val $dependency.argument.0: (Empty, Unit)
+        Type (Empty, Unit)
+        TupleLiteral
+          Type Empty
+          Local $call.6
+          Type Unit
+          UnitLiteral
+      val $dependency.parameter.pair: (Empty, Unit)
+        Type (Empty, Unit)
+        Local $dependency.argument.0
+      call $call.7: NothingStored = external5 direct
         Type (Empty, Unit)
         Local $dependency.parameter.pair
       call $argument.0: Boolean = external9 direct
         Type NothingStored
         Local $equality.lhs
         Type NothingStored
-        Local $call.6
+        Local $call.7
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
@@ -498,14 +501,14 @@ Module
         VariantPayloadProject Result v0 f0
           Type Result
           Local $pattern.subject.2
-      call $call.7: Boolean = external8 direct
+      call $call.8: Boolean = external8 direct
         Type Packet
         Local value
         Type Packet
         Local packet
       assign $result.7
         Type Boolean
-        Local $call.7
+        Local $call.8
       goto bb27
     bb26 pattern.else.26
       val $pattern.subject.3: Result

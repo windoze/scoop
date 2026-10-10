@@ -473,8 +473,10 @@ Module
     local %3 $dependency.receiver: i32
     local %4 $dependency.argument.0: i32
     local %5 $dependency.parameter.other: i32
+    local %6 $place.receiver: ptr<managed>
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
+    store param0 -> local6
     t0 = heap_load param0 +16 : i32
     store t0 -> local0
     store integer<Int>(0x0000000a) -> local1
@@ -484,7 +486,7 @@ Module
     store param1 -> local4
     store local4 -> local5
     t2 = integer_Add<Int> local3, local5 : i32
-    heap_store param0 +16 t2
+    heap_store local6 +16 t2
     ret param1
   fun @scoop$1$cb$f51178464a01dc05c6bfb4d38c16274c210156e5cee2511e933d32652b487233(i32, i32) -> i32
     local %0 $dependency.receiver: i32

@@ -79,27 +79,11 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      assign $new.3
-        Type Payload
-        ClassAlloc Payload
-      call @fn9 direct
-        Type Payload
-        Local $new.3
-        Type Int
-        Local $parameter.value
-      call @fn2 direct
+      val $operand.3: Box<Payload>
         Type Box<Payload>
         Retype Box<Payload>
           Type Derived<Payload>
           Local $place.0
-        Type Payload
-        Local $new.3
-      val $argument.0: Int
-        Type Int
-        IntegerLiteral Int value=1 bits=0x00000001
-      val $parameter.value: Int
-        Type Int
-        Local $argument.0
       assign $new.4
         Type Payload
         ClassAlloc Payload
@@ -108,12 +92,14 @@ Module
         Local $new.4
         Type Int
         Local $parameter.value
-      val first: Payload
+      call @fn2 direct
+        Type Box<Payload>
+        Local $operand.3
         Type Payload
         Local $new.4
       val $argument.0: Int
         Type Int
-        IntegerLiteral Int value=2 bits=0x00000002
+        IntegerLiteral Int value=1 bits=0x00000001
       val $parameter.value: Int
         Type Int
         Local $argument.0
@@ -125,9 +111,26 @@ Module
         Local $new.5
         Type Int
         Local $parameter.value
-      val second: Payload
+      val first: Payload
         Type Payload
         Local $new.5
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.6
+        Type Payload
+        ClassAlloc Payload
+      call @fn9 direct
+        Type Payload
+        Local $new.6
+        Type Int
+        Local $parameter.value
+      val second: Payload
+        Type Payload
+        Local $new.6
       val $dependency.receiver: Int
         Type Int
         FieldAccess 0

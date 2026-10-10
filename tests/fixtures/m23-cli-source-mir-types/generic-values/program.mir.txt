@@ -186,32 +186,35 @@ Module
         VariantPayloadProject Maybe<Box<Marker>> v1 f0
           Type Maybe<Box<Marker>>
           Local $pattern.subject.3
-      call $call.1: Marker = external1 direct
-      call $call.2: Boolean = external5 direct
+      val $operand.1: Marker
         Type Marker
         FieldAccess 0
           Type Box<Marker>
           Local value
+      call $call.2: Marker = external1 direct
+      call $call.3: Boolean = external5 direct
         Type Marker
-        Local $call.1
+        Local $operand.1
+        Type Marker
+        Local $call.2
       assign $result.0
         Type Boolean
-        Local $call.2
+        Local $call.3
       goto bb6
     bb5 pattern.else.5
       unreachable
     bb6 pattern.merge.6
       goto bb3
     bb7 if.then.7
-      assign $new.3
+      assign $new.4
         Type ClassCastException
         ClassAlloc ClassCastException
       call external4 direct
         Type ClassCastException
-        Local $new.3
+        Local $new.4
       throw
         Type ClassCastException
-        Local $new.3
+        Local $new.4
     bb8 if.merge.8
       val $ub.5: Box<String>
         Type Box<String>

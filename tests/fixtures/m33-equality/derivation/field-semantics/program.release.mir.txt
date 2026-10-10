@@ -103,6 +103,11 @@ Module
       goto bb1
   fun Traced.equals @fn2(this: Traced, other: Traced) -> Boolean
     bb0 entry
+      val $place.receiver: Trace
+        Type Trace
+        FieldAccess 2
+          Type Traced
+          Local this
       val $dependency.receiver: Int
         Type Int
         FieldAccess 0
@@ -133,9 +138,7 @@ Module
         Local $dependency.argument.0
       field_set 0
         Type Trace
-        FieldAccess 2
-          Type Traced
-          Local this
+        Local $place.receiver
         Type Int
         IntegerBinary add kind=Int
           Type Int

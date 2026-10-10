@@ -532,6 +532,11 @@ Module
       return
   fun IntRegistration.register @fn6(this: IntRegistration, continuation: Continuation<Int>) -> Unit
     bb0 entry
+      val $place.receiver: IntGate
+        Type IntGate
+        FieldAccess 0
+          Type IntRegistration
+          Local this
       val $dependency.argument.0: Continuation<Int>
         Type Continuation<Int>
         Local continuation
@@ -540,9 +545,7 @@ Module
         Local $dependency.argument.0
       field_set 0
         Type IntGate
-        FieldAccess 0
-          Type IntRegistration
-          Local this
+        Local $place.receiver
         Type Option<Continuation<Int>>
         VariantConstruct Option<Continuation<Int>> v0
           Type Continuation<Int>
@@ -550,6 +553,11 @@ Module
       return
   fun PairRegistration.register @fn7(this: PairRegistration, continuation: Continuation<Pair>) -> Unit
     bb0 entry
+      val $place.receiver: PairGate
+        Type PairGate
+        FieldAccess 0
+          Type PairRegistration
+          Local this
       val $dependency.argument.0: Continuation<Pair>
         Type Continuation<Pair>
         Local continuation
@@ -558,9 +566,7 @@ Module
         Local $dependency.argument.0
       field_set 0
         Type PairGate
-        FieldAccess 0
-          Type PairRegistration
-          Local this
+        Local $place.receiver
         Type Option<Continuation<Pair>>
         VariantConstruct Option<Continuation<Pair>> v0
           Type Continuation<Pair>
@@ -568,6 +574,11 @@ Module
       return
   fun BooleanRegistration.register @fn8(this: BooleanRegistration, continuation: Continuation<Boolean>) -> Unit
     bb0 entry
+      val $place.receiver: BooleanGate
+        Type BooleanGate
+        FieldAccess 0
+          Type BooleanRegistration
+          Local this
       val $dependency.argument.0: Continuation<Boolean>
         Type Continuation<Boolean>
         Local continuation
@@ -576,9 +587,7 @@ Module
         Local $dependency.argument.0
       field_set 0
         Type BooleanGate
-        FieldAccess 0
-          Type BooleanRegistration
-          Local this
+        Local $place.receiver
         Type Option<Continuation<Boolean>>
         VariantConstruct Option<Continuation<Boolean>> v0
           Type Continuation<Boolean>
@@ -586,6 +595,11 @@ Module
       return
   fun ChoiceRegistration.register @fn9(this: ChoiceRegistration, continuation: Continuation<Choice>) -> Unit
     bb0 entry
+      val $place.receiver: ChoiceGate
+        Type ChoiceGate
+        FieldAccess 0
+          Type ChoiceRegistration
+          Local this
       val $dependency.argument.0: Continuation<Choice>
         Type Continuation<Choice>
         Local continuation
@@ -594,9 +608,7 @@ Module
         Local $dependency.argument.0
       field_set 0
         Type ChoiceGate
-        FieldAccess 0
-          Type ChoiceRegistration
-          Local this
+        Local $place.receiver
         Type Option<Continuation<Choice>>
         VariantConstruct Option<Continuation<Choice>> v0
           Type Continuation<Choice>

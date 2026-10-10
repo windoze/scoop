@@ -298,6 +298,11 @@ Module
       val $dependency.parameter.value: Box
         Type Box
         Local $new.5
+      call $equality.lhs: Box = external10 direct
+        Type Samples
+        Local $dependency.receiver
+        Type Box
+        Local $dependency.parameter.value
       val $dependency.receiver: Samples
         Type Samples
         Local samples
@@ -315,33 +320,28 @@ Module
         Local $dependency.receiver
         Type Box
         Local $dependency.parameter.value
-      call $call.8: Box = external10 direct
-        Type Samples
-        Local $dependency.receiver
-        Type Box
-        Local $dependency.parameter.value
       val $argument.0: Boolean
         Type Boolean
         Binary RefNe
           Type Box
-          Local $call.7
+          Local $equality.lhs
           Type Box
-          Local $call.8
+          Local $call.7
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
       call @fn0 direct
         Type Boolean
         Local $parameter.value
-      assign $new.9
+      assign $new.8
         Type MarkerValue
         ClassAlloc MarkerValue
       call @fn2 direct
         Type MarkerValue
-        Local $new.9
+        Local $new.8
       val marker: MarkerValue
         Type MarkerValue
-        Local $new.9
+        Local $new.8
       val $dependency.receiver: Samples
         Type Samples
         Local samples
@@ -356,7 +356,7 @@ Module
       val $dependency.parameter.value: Marker
         Type Marker
         Local $dependency.parameter.seed
-      call $call.10: Marker = external11 direct
+      call $call.9: Marker = external11 direct
         Type Samples
         Local $dependency.receiver
         Type Marker
@@ -367,7 +367,7 @@ Module
         Type Boolean
         Binary RefEq
           Type Marker
-          Local $call.10
+          Local $call.9
           Type MarkerValue
           Local marker
       val $parameter.value: Boolean

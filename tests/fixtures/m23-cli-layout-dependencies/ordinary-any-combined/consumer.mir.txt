@@ -55,16 +55,19 @@ Module
       val $dependency.parameter.value: Any
         Type Any
         Local $dependency.argument.0
-      call $call.1: Any = external7 direct
-        Type Any
-        Local $dependency.parameter.value
-      call external8 direct
+      val $operand.1: Any
         Type Any
         Retype Any
           Type String
           StringConst @str1
+      call $call.2: Any = external7 direct
         Type Any
-        Local $call.1
+        Local $dependency.parameter.value
+      call external8 direct
+        Type Any
+        Local $operand.1
+        Type Any
+        Local $call.2
       call selected: Any = external9 direct
         Type Any
         Retype Any
@@ -109,12 +112,12 @@ Module
       val $dependency.parameter.value: Any
         Type Any
         Local $dependency.argument.0
-      call $call.2: Any = external7 direct
+      call $call.3: Any = external7 direct
         Type Any
         Local $dependency.parameter.value
       return
         Type Any
-        Local $call.2
+        Local $call.3
   fun unusedDefault @fn2(value: Int) -> Int
     bb0 entry
       return

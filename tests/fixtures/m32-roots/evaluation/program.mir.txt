@@ -542,17 +542,17 @@ Module
     bb76 try.end.76
       goto bb89
     bb77 try.body.77 unwind bb70
-      call $aggregate.0: Nothing = @fn1 direct
+      call $call.15: Nothing = @fn1 direct
       unreachable
     bb78 try.catch.78
-      call $catch.15: Any = @scoop_rt_materialize_exception direct
+      call $catch.16: Any = @scoop_rt_materialize_exception direct
         Type Any
         CaughtException
       val error: IllegalStateException
         Type IllegalStateException
         Retype IllegalStateException
           Type Any
-          Local $catch.15
+          Local $catch.16
       goto bb80
     bb79 try.next.79
       rethrow unwind bb74
@@ -595,17 +595,17 @@ Module
     bb88 try.end.88
       goto bb101
     bb89 try.body.89 unwind bb82
-      call $call.16: Nothing = @fn1 direct
+      call $call.17: Nothing = @fn1 direct
       unreachable
     bb90 try.catch.90
-      call $catch.17: Any = @scoop_rt_materialize_exception direct
+      call $catch.18: Any = @scoop_rt_materialize_exception direct
         Type Any
         CaughtException
       val error: IllegalStateException
         Type IllegalStateException
         Retype IllegalStateException
           Type Any
-          Local $catch.17
+          Local $catch.18
       goto bb92
     bb91 try.next.91
       rethrow unwind bb86
@@ -657,17 +657,17 @@ Module
       call $aggregate.0: Int = @fn2 direct
         Type Int
         Local $parameter.value
-      call $aggregate.1: Nothing = @fn1 direct
+      call $call.19: Nothing = @fn1 direct
       unreachable
     bb102 try.catch.102
-      call $catch.18: Any = @scoop_rt_materialize_exception direct
+      call $catch.20: Any = @scoop_rt_materialize_exception direct
         Type Any
         CaughtException
       val error: IllegalStateException
         Type IllegalStateException
         Retype IllegalStateException
           Type Any
-          Local $catch.18
+          Local $catch.20
       goto bb104
     bb103 try.next.103
       rethrow unwind bb98
@@ -719,17 +719,17 @@ Module
       call $aggregate.0: Int = @fn2 direct
         Type Int
         Local $parameter.value
-      call $aggregate.1: Nothing = @fn1 direct
+      call $call.21: Nothing = @fn1 direct
       unreachable
     bb114 try.catch.114
-      call $catch.19: Any = @scoop_rt_materialize_exception direct
+      call $catch.22: Any = @scoop_rt_materialize_exception direct
         Type Any
         CaughtException
       val error: IllegalStateException
         Type IllegalStateException
         Retype IllegalStateException
           Type Any
-          Local $catch.19
+          Local $catch.22
       goto bb116
     bb115 try.next.115
       rethrow unwind bb110

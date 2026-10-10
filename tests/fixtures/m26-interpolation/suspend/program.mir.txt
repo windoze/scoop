@@ -264,6 +264,11 @@ Module
       return
   fun Registration.register @fn2(this: Registration, continuation: Continuation<Int>) -> Unit
     bb0 entry
+      val $place.receiver: Gate
+        Type Gate
+        FieldAccess 0
+          Type Registration
+          Local this
       val $dependency.argument.0: Continuation<Int>
         Type Continuation<Int>
         Local continuation
@@ -272,9 +277,7 @@ Module
         Local $dependency.argument.0
       field_set 0
         Type Gate
-        FieldAccess 0
-          Type Registration
-          Local this
+        Local $place.receiver
         Type Option<Continuation<Int>>
         VariantConstruct Option<Continuation<Int>> v0
           Type Continuation<Int>
@@ -282,6 +285,11 @@ Module
       return
   fun Mark.toString @fn3(this: Mark) -> String
     bb0 entry
+      val $place.receiver: Journal
+        Type Journal
+        FieldAccess 0
+          Type Mark
+          Local this
       val $dependency.receiver: String
         Type String
         FieldAccess 0
@@ -304,9 +312,7 @@ Module
         Local $dependency.parameter.other
       field_set 0
         Type Journal
-        FieldAccess 0
-          Type Mark
-          Local this
+        Local $place.receiver
         Type String
         Local $call.1
       call @scoop_rt_gc_collect direct

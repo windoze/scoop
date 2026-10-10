@@ -655,7 +655,7 @@ Module
       val $dependency.local.7: Long
         Type Long
         Local $dependency.local.6
-      call $dependency.local.1: Nothing = @fn10 interface List<Nothing>[1]
+      call $call.1: Nothing = @fn10 interface List<Nothing>[1]
         Type List<Nothing>
         Local $dependency.local.5
         Type Long

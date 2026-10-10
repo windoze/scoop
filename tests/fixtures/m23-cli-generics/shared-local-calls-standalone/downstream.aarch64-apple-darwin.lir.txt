@@ -1082,8 +1082,10 @@ Module
     local %3 $dependency.local.4: i32
     local %4 $dependency.local.5: i32
     local %5 $dependency.local.6: i32
+    local %6 $dependency.local.7: ptr<managed>
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
+    store param0 -> local6
     t0 = heap_load param0 +16 : i32
     store t0 -> local0
     store integer<Int>(0x0000000a) -> local1
@@ -1093,7 +1095,7 @@ Module
     store param1 -> local4
     store local4 -> local5
     t2 = integer_Add<Int> local3, local5 : i32
-    heap_store param0 +16 t2
+    heap_store local6 +16 t2
     ret param1
   fun @scoop$1$cb$84ade42fb42c54e784f96d44d4eb482ff1637ffff3a2eb05724e8645f962d3da(i32, i32) -> i32
     local %0 $dependency.local.2: i32
@@ -1263,8 +1265,10 @@ Module
     local %3 $dependency.local.4: i32
     local %4 $dependency.local.5: i32
     local %5 $dependency.local.6: i32
+    local %6 $dependency.local.7: ptr<managed>
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
+    store param0 -> local6
     t0 = heap_load param0 +16 : i32
     store t0 -> local0
     store integer<Int>(0x0000000a) -> local1
@@ -1274,7 +1278,7 @@ Module
     store param1 -> local4
     store local4 -> local5
     t2 = integer_Add<Int> local3, local5 : i32
-    heap_store param0 +16 t2
+    heap_store local6 +16 t2
     ret param1
   fun @scoop$1$cb$ff743f50a275c503f6473f3b0223d0f77ec04dbcdd6c2b9fbccb4763753902ae(i32, i32) -> i32
     local %0 $dependency.local.2: i32
@@ -1438,8 +1442,10 @@ Module
     local %3 $dependency.local.4: i32
     local %4 $dependency.local.5: i32
     local %5 $dependency.local.6: i32
+    local %6 $dependency.local.7: ptr<managed>
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
+    store param0 -> local6
     t0 = heap_load param0 +16 : i32
     store t0 -> local0
     store integer<Int>(0x0000000a) -> local1
@@ -1449,7 +1455,7 @@ Module
     store param1 -> local4
     store local4 -> local5
     t2 = integer_Add<Int> local3, local5 : i32
-    heap_store param0 +16 t2
+    heap_store local6 +16 t2
     ret param1
   fun @scoop$1$cb$93b2179ec255b8bb4feb82689e36054e41959aeb5770470fcb371195032621f8(i32, i32) -> i32
     local %0 $dependency.local.2: i32

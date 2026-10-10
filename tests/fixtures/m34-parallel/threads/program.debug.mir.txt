@@ -636,6 +636,62 @@ Module
       val $dependency.parameter.index: Long
         Type Long
         Local $dependency.argument.0
+      call $cast.11: Value = @fn14 direct
+        Type Array<Value>
+        Local $dependency.receiver
+        Type Long
+        Local $dependency.parameter.index
+      branch bb24 bb25
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IsInstance Node
+            Type Value
+            Local $cast.11
+    bb24 if.then.24
+      assign $new.6
+        Type ClassCastException
+        ClassAlloc ClassCastException
+      call external3 direct
+        Type ClassCastException
+        Local $new.6
+      throw
+        Type ClassCastException
+        Local $new.6
+    bb25 if.merge.25
+      val $opt.12: Option<Node>
+        Type Option<Node>
+        FieldAccess 1
+          Type Node
+          Retype Node
+            Type Value
+            Local $cast.11
+      branch bb26 bb27
+        Type Boolean
+        VariantTest Option<Node> v0
+          Type Option<Node>
+          Local $opt.12
+    bb26 if.then.26
+      val $uw.13: Node
+        Type Node
+        VariantPayloadProject Option<Node> v0 f0
+          Type Option<Node>
+          Local $opt.12
+      goto bb28
+    bb27 if.else.27
+      assign $new.7
+        Type UnwrapException
+        ClassAlloc UnwrapException
+      call external5 direct
+        Type UnwrapException
+        Local $new.7
+      throw
+        Type UnwrapException
+        Local $new.7
+    bb28 if.merge.28
+      val $equality.lhs: Node
+        Type Node
+        Local $uw.13
       val $dependency.receiver: MutableArray<Value>
         Type MutableArray<Value>
         Local values
@@ -661,129 +717,76 @@ Module
       val $dependency.parameter.other: Long
         Type Long
         Local $dependency.argument.0
-      val $div.11: Long
+      val $div.14: Long
         Type Long
         Local $dependency.receiver
-      val $div.12: Long
+      val $div.15: Long
         Type Long
         Local $dependency.parameter.other
-      branch bb24 bb25
+      branch bb29 bb30
         Type Boolean
         IntegerCompare equal operands=Long result=Boolean
           Type Long
-          Local $div.12
+          Local $div.15
           Type Long
           IntegerLiteral Long value=0 bits=0x0000000000000000
-    bb24 if.then.24
-      assign $new.6
+    bb29 if.then.29
+      assign $new.8
         Type ArithmeticException
         ClassAlloc ArithmeticException
       call external4 direct
         Type ArithmeticException
-        Local $new.6
+        Local $new.8
       throw
         Type ArithmeticException
-        Local $new.6
-    bb25 if.merge.25
-      branch bb26 bb27
+        Local $new.8
+    bb30 if.merge.30
+      branch bb31 bb32
         Type Boolean
         IntegerCompare equal operands=Long result=Boolean
           Type Long
-          Local $div.11
+          Local $div.14
           Type Long
           IntegerLiteral Long value=-9223372036854775808 bits=0x8000000000000000
-    bb26 logic.rhs.26
-      assign $logic.7
+    bb31 logic.rhs.31
+      assign $logic.9
         Type Boolean
         IntegerCompare equal operands=Long result=Boolean
           Type Long
-          Local $div.12
+          Local $div.15
           Type Long
           IntegerLiteral Long value=-1 bits=0xffffffffffffffff
-      goto bb28
-    bb27 logic.short.27
-      assign $logic.7
+      goto bb33
+    bb32 logic.short.32
+      assign $logic.9
         Type Boolean
         BoolLiteral false
-      goto bb28
-    bb28 logic.merge.28
-      branch bb29 bb30
+      goto bb33
+    bb33 logic.merge.33
+      branch bb34 bb35
         Type Boolean
-        Local $logic.7
-    bb29 if.then.29
-      assign $div.result.13
+        Local $logic.9
+    bb34 if.then.34
+      assign $div.result.16
         Type Long
         IntegerLiteral Long value=0 bits=0x0000000000000000
-      goto bb31
-    bb30 if.else.30
-      assign $div.result.13
+      goto bb36
+    bb35 if.else.35
+      assign $div.result.16
         Type Long
         SafeIntegerDivRem remainder kind=Long
           Type Long
-          Local $div.11
+          Local $div.14
           Type Long
-          Local $div.12
-      goto bb31
-    bb31 if.merge.31
+          Local $div.15
+      goto bb36
+    bb36 if.merge.36
       val $dependency.argument.0: Long
         Type Long
-        Local $div.result.13
+        Local $div.result.16
       val $dependency.parameter.index: Long
         Type Long
         Local $dependency.argument.0
-      call $cast.14: Value = @fn14 direct
-        Type Array<Value>
-        Local $dependency.receiver
-        Type Long
-        Local $dependency.parameter.index
-      branch bb32 bb33
-        Type Boolean
-        Unary BoolNot
-          Type Boolean
-          IsInstance Node
-            Type Value
-            Local $cast.14
-    bb32 if.then.32
-      assign $new.8
-        Type ClassCastException
-        ClassAlloc ClassCastException
-      call external3 direct
-        Type ClassCastException
-        Local $new.8
-      throw
-        Type ClassCastException
-        Local $new.8
-    bb33 if.merge.33
-      val $opt.15: Option<Node>
-        Type Option<Node>
-        FieldAccess 1
-          Type Node
-          Retype Node
-            Type Value
-            Local $cast.14
-      branch bb34 bb35
-        Type Boolean
-        VariantTest Option<Node> v0
-          Type Option<Node>
-          Local $opt.15
-    bb34 if.then.34
-      val $uw.16: Node
-        Type Node
-        VariantPayloadProject Option<Node> v0 f0
-          Type Option<Node>
-          Local $opt.15
-      goto bb36
-    bb35 if.else.35
-      assign $new.9
-        Type UnwrapException
-        ClassAlloc UnwrapException
-      call external5 direct
-        Type UnwrapException
-        Local $new.9
-      throw
-        Type UnwrapException
-        Local $new.9
-    bb36 if.merge.36
       call $call.10: Value = @fn11 direct
         Type MutableArray<Value>
         Local $dependency.receiver
@@ -793,7 +796,7 @@ Module
         Type Boolean
         Binary RefEq
           Type Node
-          Local $uw.16
+          Local $equality.lhs
           Type Value
           Local $call.10
       val $parameter.value: Boolean

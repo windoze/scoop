@@ -43,52 +43,54 @@ Module
     local %4 $dependency.receiver: ptr<managed>
     local %5 $dependency.argument.0: ptr<managed>
     local %6 $dependency.parameter.other: ptr<managed>
-    local %7 $default.local.0: ptr<managed>
-    local %8 $default.local.1: ptr<managed>
-    local %9 $dependency.parameter.message: enum0
-    local %10 $dependency.receiver: i32
-    local %11 $call.1: ptr<managed>
-    local %12 $new.2: ptr<managed>
-    local %13 $call.3: ptr<managed>
+    local %7 $place.receiver: ptr<managed>
+    local %8 $default.local.0: ptr<managed>
+    local %9 $default.local.1: ptr<managed>
+    local %10 $dependency.parameter.message: enum0
+    local %11 $dependency.receiver: i32
+    local %12 $call.1: ptr<managed>
+    local %13 $new.2: ptr<managed>
+    local %14 $call.3: ptr<managed>
   block entry
     poll managed-void-target2 sp<managed-poll:0> live=[param0:ptr<managed>@0]
     t0 = heap_load param0 +16 : ptr<managed>
-    t1 = heap_load t0 +16 : ptr<managed>
-    store t1 -> local0
+    store t0 -> local7
+    t1 = heap_load param0 +16 : ptr<managed>
+    t2 = heap_load t1 +16 : ptr<managed>
+    store t2 -> local0
     store global0 -> local1
     store local1 -> local2
-    call managed-direct-target0 sp<managed-call:0> live=[param0:ptr<managed>@0, local0:ptr<managed>@0, local2:ptr<managed>@0] t2 = sig=direct0 (ptr<managed>, ptr<managed>) -> ptr<managed> runtime @scoop_rt_string_concat(local0, local2)
-    store t2 -> local4
-    t3 = heap_load param0 +24 : i32
-    store t3 -> local3
-    call managed-direct-target1 sp<managed-call:1> live=[param0:ptr<managed>@0, local4:ptr<managed>@0] t4 = sig=direct1 (i32) -> ptr<managed> external-fn0(local3)
-    store t4 -> local5
+    call managed-direct-target0 sp<managed-call:0> live=[param0:ptr<managed>@0, local0:ptr<managed>@0, local2:ptr<managed>@0, local7:ptr<managed>@0] t3 = sig=direct0 (ptr<managed>, ptr<managed>) -> ptr<managed> runtime @scoop_rt_string_concat(local0, local2)
+    store t3 -> local4
+    t4 = heap_load param0 +24 : i32
+    store t4 -> local3
+    call managed-direct-target1 sp<managed-call:1> live=[param0:ptr<managed>@0, local4:ptr<managed>@0, local7:ptr<managed>@0] t5 = sig=direct1 (i32) -> ptr<managed> external-fn0(local3)
+    store t5 -> local5
     store local5 -> local6
-    call managed-direct-target2 sp<managed-call:2> live=[param0:ptr<managed>@0, local4:ptr<managed>@0, local6:ptr<managed>@0] t5 = sig=direct2 (ptr<managed>, ptr<managed>) -> ptr<managed> runtime @scoop_rt_string_concat(local4, local6)
-    store t5 -> local11
-    t6 = heap_load param0 +16 : ptr<managed>
-    heap_store t6 +16 local11
+    call managed-direct-target2 sp<managed-call:2> live=[param0:ptr<managed>@0, local4:ptr<managed>@0, local6:ptr<managed>@0, local7:ptr<managed>@0] t6 = sig=direct2 (ptr<managed>, ptr<managed>) -> ptr<managed> runtime @scoop_rt_string_concat(local4, local6)
+    store t6 -> local12
+    heap_store local7 +16 local12
     call managed-void-target0 sp<managed-call:3> live=[param0:ptr<managed>@0] sig=void0 () runtime @scoop_rt_gc_collect()
     t7 = aggregate () : {}
     t8 = heap_load param0 +28 : i1
     cbr t8 then @if.then.1 else @if.merge.2
   block if.then.1
-    store global1 -> local7
-    store local7 -> local8
-    t9 = enum_wrap e0 v0 (local8) : enum0
-    store t9 -> local9
-    call managed-direct-target3 sp<managed-call:5> live=[local9:enum0@0] t10 = sig=direct3 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td9, machine<byte-size>(ByteSize(24)))
-    store t10 -> local12
-    call managed-void-target1 sp<managed-call:6> live=[local9:enum0@0, local12:ptr<managed>@0] sig=void1 (ptr<managed>, enum0) external-fn2(local12, local9)
+    store global1 -> local8
+    store local8 -> local9
+    t9 = enum_wrap e0 v0 (local9) : enum0
+    store t9 -> local10
+    call managed-direct-target3 sp<managed-call:5> live=[local10:enum0@0] t10 = sig=direct3 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td9, machine<byte-size>(ByteSize(24)))
+    store t10 -> local13
+    call managed-void-target1 sp<managed-call:6> live=[local10:enum0@0, local13:ptr<managed>@0] sig=void1 (ptr<managed>, enum0) external-fn2(local13, local10)
     t11 = aggregate () : {}
-    throw local12
+    throw local13
     unreachable
   block if.merge.2
     t12 = heap_load param0 +24 : i32
-    store t12 -> local10
-    call managed-direct-target4 sp<managed-call:4> live=[] t13 = sig=direct4 (i32) -> ptr<managed> external-fn0(local10)
-    store t13 -> local13
-    ret local13
+    store t12 -> local11
+    call managed-direct-target4 sp<managed-call:4> live=[] t13 = sig=direct4 (i32) -> ptr<managed> external-fn0(local11)
+    store t13 -> local14
+    ret local14
   fun @scoop$1$cb$ee486af370716aa3eb789c1769e8d661f061446a92328441e0b16269c29055a3(ptr<managed>, i32, i1) -> ptr<managed>
     local %0 $dependency.receiver: ptr<managed>
     local %1 $dependency.argument.0: ptr<managed>

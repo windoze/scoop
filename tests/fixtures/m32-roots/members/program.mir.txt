@@ -287,17 +287,17 @@ Module
     bb43 try.end.43
       goto bb56
     bb44 try.body.44 unwind bb37
-      call $argument.0: Nothing = @fn2 direct
+      call $call.8: Nothing = @fn2 direct
       unreachable
     bb45 try.catch.45
-      call $catch.8: Any = @scoop_rt_materialize_exception direct
+      call $catch.9: Any = @scoop_rt_materialize_exception direct
         Type Any
         CaughtException
       val error: IllegalStateException
         Type IllegalStateException
         Retype IllegalStateException
           Type Any
-          Local $catch.8
+          Local $catch.9
       goto bb47
     bb46 try.next.46
       rethrow unwind bb41
@@ -340,17 +340,17 @@ Module
     bb55 try.end.55
       goto bb68
     bb56 try.body.56 unwind bb49
-      call $argument.0: Nothing = @fn2 direct
+      call $call.10: Nothing = @fn2 direct
       unreachable
     bb57 try.catch.57
-      call $catch.9: Any = @scoop_rt_materialize_exception direct
+      call $catch.11: Any = @scoop_rt_materialize_exception direct
         Type Any
         CaughtException
       val error: IllegalStateException
         Type IllegalStateException
         Retype IllegalStateException
           Type Any
-          Local $catch.9
+          Local $catch.11
       goto bb59
     bb58 try.next.58
       rethrow unwind bb53
@@ -404,17 +404,17 @@ Module
           Type Option<Nothing>
           Local $pattern.subject.2
     bb68 try.body.68 unwind bb61
-      call $argument.0: Nothing = @fn2 direct
+      call $call.12: Nothing = @fn2 direct
       unreachable
     bb69 try.catch.69
-      call $catch.10: Any = @scoop_rt_materialize_exception direct
+      call $catch.13: Any = @scoop_rt_materialize_exception direct
         Type Any
         CaughtException
       val error: IllegalStateException
         Type IllegalStateException
         Retype IllegalStateException
           Type Any
-          Local $catch.10
+          Local $catch.13
       goto bb71
     bb70 try.next.70
       rethrow unwind bb65

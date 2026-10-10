@@ -202,16 +202,18 @@ Module
     local %0 $dependency.receiver: i32
     local %1 $dependency.argument.0: i32
     local %2 $dependency.parameter.other: i32
+    local %3 $place.receiver: ptr<managed>
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
     t0 = heap_load param0 +24 : ptr<managed>
-    t1 = heap_load t0 +16 : i32
-    store t1 -> local0
+    store t0 -> local3
+    t1 = heap_load param0 +24 : ptr<managed>
+    t2 = heap_load t1 +16 : i32
+    store t2 -> local0
     store integer<Int>(0x00000001) -> local1
     store local1 -> local2
-    t2 = heap_load param0 +24 : ptr<managed>
     t3 = integer_Add<Int> local0, local2 : i32
-    heap_store t2 +16 t3
+    heap_store local3 +16 t3
     t4 = heap_load param0 +24 : ptr<managed>
     t5 = heap_load t4 +16 : i32
     ret t5

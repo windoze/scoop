@@ -105,12 +105,15 @@ Module
     local %45 $catch.5: ptr<managed>
     local %46 $call.6: ptr<managed>
     local %47 $catch.7: ptr<managed>
-    local %48 $catch.8: ptr<managed>
+    local %48 $call.8: ptr<managed>
     local %49 $catch.9: ptr<managed>
-    local %50 $catch.10: ptr<managed>
-    local %51 $sc.1: exception_record
-    local %52 $sc.2: ptr<raw>
-    local %53 $sc.3: ptr<managed>
+    local %50 $call.10: ptr<managed>
+    local %51 $catch.11: ptr<managed>
+    local %52 $call.12: ptr<managed>
+    local %53 $catch.13: ptr<managed>
+    local %54 $sc.1: exception_record
+    local %55 $sc.2: ptr<raw>
+    local %56 $sc.3: ptr<managed>
   block entry
     poll managed-void-target8 sp<managed-poll:0> live=[]
     call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td6, machine<byte-size>(ByteSize(16)))
@@ -125,30 +128,30 @@ Module
     br @try.body.8
   block try.unwind.1
     (t5, t6) = landingpad : (exception_record, ptr<raw>)
-    store t5 -> local51
-    store t6 -> local52
+    store t5 -> local54
+    store t6 -> local55
     br @try.dispatch.2
   block try.dispatch.2
-    t7 = begin_catch local52 : ptr<managed>
-    store t7 -> local53
-    call no-gc-direct-target0 t8 = sig=direct1 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local53, external-td9)
+    t7 = begin_catch local55 : ptr<managed>
+    store t7 -> local56
+    call no-gc-direct-target0 t8 = sig=direct1 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local56, external-td9)
     cbr t8 then @try.catch.9 else @try.next.10
   block try.handler_pad.3
     (t9, t10) = cleanup_pad : (exception_record, ptr<raw>)
-    store t9 -> local51
-    store t10 -> local52
+    store t9 -> local54
+    store t10 -> local55
     br @try.handler_cleanup.4
   block try.handler_cleanup.4
     end_catch
-    resume local51
+    resume local54
   block try.exit_pad.5
     (t11, t12) = cleanup_pad : (exception_record, ptr<raw>)
-    store t11 -> local51
-    store t12 -> local52
+    store t11 -> local54
+    store t12 -> local55
     br @try.exit_cleanup.6
   block try.exit_cleanup.6
     end_catch
-    resume local51
+    resume local54
   block try.end.7
     br @try.body.20
   block try.body.8
@@ -157,7 +160,7 @@ Module
     invoke managed-direct-target1 sp<managed-invoke:0> roots=[local0:normal+unwind, local3:argument] t13 = sig=direct2 (parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>) -> i32 local-fn3(local3) normal @invoke.normal.1 unwind @try.unwind.1
     br @invoke.normal.1
   block try.catch.9
-    call managed-direct-target2 sp<managed-call:2> live=[local0:ptr<managed>@0, local53:ptr<managed>@0] t14 = sig=direct3 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(local53)
+    call managed-direct-target2 sp<managed-call:2> live=[local0:ptr<managed>@0, local56:ptr<managed>@0] t14 = sig=direct3 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(local56)
     store t14 -> local43
     store local43 -> local4
     br @scope.11
@@ -173,30 +176,30 @@ Module
     br @try.end.7
   block try.unwind.13
     (t16, t17) = landingpad : (exception_record, ptr<raw>)
-    store t16 -> local51
-    store t17 -> local52
+    store t16 -> local54
+    store t17 -> local55
     br @try.dispatch.14
   block try.dispatch.14
-    t18 = begin_catch local52 : ptr<managed>
-    store t18 -> local53
-    call no-gc-direct-target1 t19 = sig=direct4 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local53, external-td9)
+    t18 = begin_catch local55 : ptr<managed>
+    store t18 -> local56
+    call no-gc-direct-target1 t19 = sig=direct4 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local56, external-td9)
     cbr t19 then @try.catch.21 else @try.next.22
   block try.handler_pad.15
     (t20, t21) = cleanup_pad : (exception_record, ptr<raw>)
-    store t20 -> local51
-    store t21 -> local52
+    store t20 -> local54
+    store t21 -> local55
     br @try.handler_cleanup.16
   block try.handler_cleanup.16
     end_catch
-    resume local51
+    resume local54
   block try.exit_pad.17
     (t22, t23) = cleanup_pad : (exception_record, ptr<raw>)
-    store t22 -> local51
-    store t23 -> local52
+    store t22 -> local54
+    store t23 -> local55
     br @try.exit_cleanup.18
   block try.exit_cleanup.18
     end_catch
-    resume local51
+    resume local54
   block try.end.19
     br @try.body.32
   block try.body.20
@@ -204,7 +207,7 @@ Module
     invoke managed-direct-target3 sp<managed-invoke:2> roots=[local0:unwind, local7:argument] t24 = sig=direct5 (ptr<managed>) -> ptr<managed> local-fn0(local7) normal @invoke.normal.4 unwind @try.unwind.13
     br @invoke.normal.4
   block try.catch.21
-    call managed-direct-target4 sp<managed-call:3> live=[local0:ptr<managed>@0, local53:ptr<managed>@0] t25 = sig=direct6 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(local53)
+    call managed-direct-target4 sp<managed-call:3> live=[local0:ptr<managed>@0, local56:ptr<managed>@0] t25 = sig=direct6 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(local56)
     store t25 -> local45
     store local45 -> local8
     br @scope.23
@@ -220,37 +223,37 @@ Module
     br @try.end.19
   block try.unwind.25
     (t27, t28) = landingpad : (exception_record, ptr<raw>)
-    store t27 -> local51
-    store t28 -> local52
+    store t27 -> local54
+    store t28 -> local55
     br @try.dispatch.26
   block try.dispatch.26
-    t29 = begin_catch local52 : ptr<managed>
-    store t29 -> local53
-    call no-gc-direct-target2 t30 = sig=direct7 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local53, external-td9)
+    t29 = begin_catch local55 : ptr<managed>
+    store t29 -> local56
+    call no-gc-direct-target2 t30 = sig=direct7 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local56, external-td9)
     cbr t30 then @try.catch.33 else @try.next.34
   block try.handler_pad.27
     (t31, t32) = cleanup_pad : (exception_record, ptr<raw>)
-    store t31 -> local51
-    store t32 -> local52
+    store t31 -> local54
+    store t32 -> local55
     br @try.handler_cleanup.28
   block try.handler_cleanup.28
     end_catch
-    resume local51
+    resume local54
   block try.exit_pad.29
     (t33, t34) = cleanup_pad : (exception_record, ptr<raw>)
-    store t33 -> local51
-    store t34 -> local52
+    store t33 -> local54
+    store t34 -> local55
     br @try.exit_cleanup.30
   block try.exit_cleanup.30
     end_catch
-    resume local51
+    resume local54
   block try.end.31
     br @try.body.44
   block try.body.32
     invoke managed-direct-target5 sp<managed-invoke:4> roots=[local0:argument] t35 = sig=direct8 (ptr<managed>) -> ptr<managed> local-fn1(local0) normal @invoke.normal.7 unwind @try.unwind.25
     br @invoke.normal.7
   block try.catch.33
-    call managed-direct-target6 sp<managed-call:4> live=[local53:ptr<managed>@0] t36 = sig=direct9 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(local53)
+    call managed-direct-target6 sp<managed-call:4> live=[local56:ptr<managed>@0] t36 = sig=direct9 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(local56)
     store t36 -> local47
     store local47 -> local12
     br @scope.35
@@ -266,39 +269,39 @@ Module
     br @try.end.31
   block try.unwind.37
     (t38, t39) = landingpad : (exception_record, ptr<raw>)
-    store t38 -> local51
-    store t39 -> local52
+    store t38 -> local54
+    store t39 -> local55
     br @try.dispatch.38
   block try.dispatch.38
-    t40 = begin_catch local52 : ptr<managed>
-    store t40 -> local53
-    call no-gc-direct-target3 t41 = sig=direct10 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local53, external-td9)
+    t40 = begin_catch local55 : ptr<managed>
+    store t40 -> local56
+    call no-gc-direct-target3 t41 = sig=direct10 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local56, external-td9)
     cbr t41 then @try.catch.45 else @try.next.46
   block try.handler_pad.39
     (t42, t43) = cleanup_pad : (exception_record, ptr<raw>)
-    store t42 -> local51
-    store t43 -> local52
+    store t42 -> local54
+    store t43 -> local55
     br @try.handler_cleanup.40
   block try.handler_cleanup.40
     end_catch
-    resume local51
+    resume local54
   block try.exit_pad.41
     (t44, t45) = cleanup_pad : (exception_record, ptr<raw>)
-    store t44 -> local51
-    store t45 -> local52
+    store t44 -> local54
+    store t45 -> local55
     br @try.exit_cleanup.42
   block try.exit_cleanup.42
     end_catch
-    resume local51
+    resume local54
   block try.end.43
     br @try.body.56
   block try.body.44
     invoke managed-direct-target7 sp<managed-invoke:6> roots=[] t46 = sig=direct11 () -> ptr<managed> local-fn2() normal @invoke.normal.10 unwind @try.unwind.37
     br @invoke.normal.10
   block try.catch.45
-    call managed-direct-target8 sp<managed-call:5> live=[local53:ptr<managed>@0] t47 = sig=direct12 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(local53)
-    store t47 -> local48
-    store local48 -> local18
+    call managed-direct-target8 sp<managed-call:5> live=[local56:ptr<managed>@0] t47 = sig=direct12 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(local56)
+    store t47 -> local49
+    store local49 -> local18
     br @scope.47
   block try.next.46
     invoke no-gc-void-target3 sig=void7 () runtime @scoop_rt_rethrow() normal @rethrow.normal.11 unwind @try.exit_pad.41
@@ -312,39 +315,39 @@ Module
     br @try.end.43
   block try.unwind.49
     (t49, t50) = landingpad : (exception_record, ptr<raw>)
-    store t49 -> local51
-    store t50 -> local52
+    store t49 -> local54
+    store t50 -> local55
     br @try.dispatch.50
   block try.dispatch.50
-    t51 = begin_catch local52 : ptr<managed>
-    store t51 -> local53
-    call no-gc-direct-target4 t52 = sig=direct13 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local53, external-td9)
+    t51 = begin_catch local55 : ptr<managed>
+    store t51 -> local56
+    call no-gc-direct-target4 t52 = sig=direct13 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local56, external-td9)
     cbr t52 then @try.catch.57 else @try.next.58
   block try.handler_pad.51
     (t53, t54) = cleanup_pad : (exception_record, ptr<raw>)
-    store t53 -> local51
-    store t54 -> local52
+    store t53 -> local54
+    store t54 -> local55
     br @try.handler_cleanup.52
   block try.handler_cleanup.52
     end_catch
-    resume local51
+    resume local54
   block try.exit_pad.53
     (t55, t56) = cleanup_pad : (exception_record, ptr<raw>)
-    store t55 -> local51
-    store t56 -> local52
+    store t55 -> local54
+    store t56 -> local55
     br @try.exit_cleanup.54
   block try.exit_cleanup.54
     end_catch
-    resume local51
+    resume local54
   block try.end.55
     br @try.body.68
   block try.body.56
     invoke managed-direct-target9 sp<managed-invoke:8> roots=[] t57 = sig=direct14 () -> ptr<managed> local-fn2() normal @invoke.normal.13 unwind @try.unwind.49
     br @invoke.normal.13
   block try.catch.57
-    call managed-direct-target10 sp<managed-call:6> live=[local53:ptr<managed>@0] t58 = sig=direct15 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(local53)
-    store t58 -> local49
-    store local49 -> local24
+    call managed-direct-target10 sp<managed-call:6> live=[local56:ptr<managed>@0] t58 = sig=direct15 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(local56)
+    store t58 -> local51
+    store local51 -> local24
     br @scope.59
   block try.next.58
     invoke no-gc-void-target4 sig=void9 () runtime @scoop_rt_rethrow() normal @rethrow.normal.14 unwind @try.exit_pad.53
@@ -358,30 +361,30 @@ Module
     br @try.end.55
   block try.unwind.61
     (t60, t61) = landingpad : (exception_record, ptr<raw>)
-    store t60 -> local51
-    store t61 -> local52
+    store t60 -> local54
+    store t61 -> local55
     br @try.dispatch.62
   block try.dispatch.62
-    t62 = begin_catch local52 : ptr<managed>
-    store t62 -> local53
-    call no-gc-direct-target5 t63 = sig=direct16 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local53, external-td9)
+    t62 = begin_catch local55 : ptr<managed>
+    store t62 -> local56
+    call no-gc-direct-target5 t63 = sig=direct16 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local56, external-td9)
     cbr t63 then @try.catch.69 else @try.next.70
   block try.handler_pad.63
     (t64, t65) = cleanup_pad : (exception_record, ptr<raw>)
-    store t64 -> local51
-    store t65 -> local52
+    store t64 -> local54
+    store t65 -> local55
     br @try.handler_cleanup.64
   block try.handler_cleanup.64
     end_catch
-    resume local51
+    resume local54
   block try.exit_pad.65
     (t66, t67) = cleanup_pad : (exception_record, ptr<raw>)
-    store t66 -> local51
-    store t67 -> local52
+    store t66 -> local54
+    store t67 -> local55
     br @try.exit_cleanup.66
   block try.exit_cleanup.66
     end_catch
-    resume local51
+    resume local54
   block try.end.67
     call managed-direct-target11 sp<managed-call:8> live=[] t68 = sig=direct17 () -> enum3 local-fn6()
     store t68 -> local33
@@ -393,9 +396,9 @@ Module
     invoke managed-direct-target12 sp<managed-invoke:10> roots=[] t70 = sig=direct18 () -> ptr<managed> local-fn2() normal @invoke.normal.16 unwind @try.unwind.61
     br @invoke.normal.16
   block try.catch.69
-    call managed-direct-target13 sp<managed-call:7> live=[local53:ptr<managed>@0] t71 = sig=direct19 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(local53)
-    store t71 -> local50
-    store local50 -> local30
+    call managed-direct-target13 sp<managed-call:7> live=[local56:ptr<managed>@0] t71 = sig=direct19 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(local56)
+    store t71 -> local53
+    store local53 -> local30
     br @scope.71
   block try.next.70
     invoke no-gc-void-target5 sig=void11 () runtime @scoop_rt_rethrow() normal @rethrow.normal.17 unwind @try.exit_pad.65
@@ -457,7 +460,7 @@ Module
     end_catch
     br @scope.36
   block invoke.normal.10
-    store t46 -> local15
+    store t46 -> local48
     unreachable
   block rethrow.normal.11
     unreachable
@@ -466,7 +469,7 @@ Module
     end_catch
     br @scope.48
   block invoke.normal.13
-    store t57 -> local21
+    store t57 -> local50
     unreachable
   block rethrow.normal.14
     unreachable
@@ -475,7 +478,7 @@ Module
     end_catch
     br @scope.60
   block invoke.normal.16
-    store t70 -> local27
+    store t70 -> local52
     unreachable
   block rethrow.normal.17
     unreachable

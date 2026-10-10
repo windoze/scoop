@@ -2132,6 +2132,13 @@ Module
       trap "call to abstract method `Continuation.resumeWithException`"
   fun $lambda.23 @fn26($closure: (Continuation<Int>) -> Unit, continuation: Continuation<Int>) -> Unit
     bb0 entry
+      val $place.receiver: Gate
+        Type Gate
+        FieldAccess 0
+          Type Worker
+          ClosureCapture cc0 0
+            Type (Continuation<Int>) -> Unit
+            Local $closure
       val $dependency.argument.0: Continuation<Int>
         Type Continuation<Int>
         Local continuation
@@ -2140,11 +2147,7 @@ Module
         Local $dependency.argument.0
       field_set 0
         Type Gate
-        FieldAccess 0
-          Type Worker
-          ClosureCapture cc0 0
-            Type (Continuation<Int>) -> Unit
-            Local $closure
+        Local $place.receiver
         Type Option<Continuation<Int>>
         VariantConstruct Option<Continuation<Int>> v0
           Type Continuation<Int>
@@ -2197,6 +2200,13 @@ Module
         Local $step
   fun $lambda.24 @fn28($closure: (Continuation<Int>) -> Unit, continuation: Continuation<Int>) -> Unit
     bb0 entry
+      val $place.receiver: Gate
+        Type Gate
+        FieldAccess 0
+          Type AsyncWorker
+          ClosureCapture cc1 0
+            Type (Continuation<Int>) -> Unit
+            Local $closure
       val $dependency.argument.0: Continuation<Int>
         Type Continuation<Int>
         Local continuation
@@ -2205,11 +2215,7 @@ Module
         Local $dependency.argument.0
       field_set 0
         Type Gate
-        FieldAccess 0
-          Type AsyncWorker
-          ClosureCapture cc1 0
-            Type (Continuation<Int>) -> Unit
-            Local $closure
+        Local $place.receiver
         Type Option<Continuation<Int>>
         VariantConstruct Option<Continuation<Int>> v0
           Type Continuation<Int>
@@ -2971,6 +2977,11 @@ Module
       return
   fun $lambda.1 @fn54($closure: (Continuation<Int>) -> Unit, continuation: Continuation<Int>) -> Unit
     bb0 entry
+      val $place.receiver: Gate
+        Type Gate
+        ClosureCapture cc19 0
+          Type (Continuation<Int>) -> Unit
+          Local $closure
       val $dependency.argument.0: Continuation<Int>
         Type Continuation<Int>
         Local continuation
@@ -2979,9 +2990,7 @@ Module
         Local $dependency.argument.0
       field_set 0
         Type Gate
-        ClosureCapture cc19 0
-          Type (Continuation<Int>) -> Unit
-          Local $closure
+        Local $place.receiver
         Type Option<Continuation<Int>>
         VariantConstruct Option<Continuation<Int>> v0
           Type Continuation<Int>
@@ -2989,6 +2998,11 @@ Module
       return
   fun $lambda.2 @fn55($closure: (Continuation<Int>) -> Unit, continuation: Continuation<Int>) -> Unit
     bb0 entry
+      val $place.receiver: Gate
+        Type Gate
+        ClosureCapture cc20 0
+          Type (Continuation<Int>) -> Unit
+          Local $closure
       val $dependency.argument.0: Continuation<Int>
         Type Continuation<Int>
         Local continuation
@@ -2997,9 +3011,7 @@ Module
         Local $dependency.argument.0
       field_set 0
         Type Gate
-        ClosureCapture cc20 0
-          Type (Continuation<Int>) -> Unit
-          Local $closure
+        Local $place.receiver
         Type Option<Continuation<Int>>
         VariantConstruct Option<Continuation<Int>> v0
           Type Continuation<Int>
@@ -3007,6 +3019,11 @@ Module
       return
   fun $lambda.7 @fn56($closure: (Continuation<Int>) -> Unit, continuation: Continuation<Int>) -> Unit
     bb0 entry
+      val $place.receiver: Gate
+        Type Gate
+        ClosureCapture cc21 0
+          Type (Continuation<Int>) -> Unit
+          Local $closure
       val $dependency.argument.0: Continuation<Int>
         Type Continuation<Int>
         Local continuation
@@ -3015,9 +3032,7 @@ Module
         Local $dependency.argument.0
       field_set 0
         Type Gate
-        ClosureCapture cc21 0
-          Type (Continuation<Int>) -> Unit
-          Local $closure
+        Local $place.receiver
         Type Option<Continuation<Int>>
         VariantConstruct Option<Continuation<Int>> v0
           Type Continuation<Int>
@@ -3164,6 +3179,11 @@ Module
             Local $closure
   fun $lambda.15 @fn61($closure: (Continuation<Int>) -> Unit, continuation: Continuation<Int>) -> Unit
     bb0 entry
+      val $place.receiver: Gate
+        Type Gate
+        ClosureCapture cc24 0
+          Type (Continuation<Int>) -> Unit
+          Local $closure
       val $dependency.argument.0: Continuation<Int>
         Type Continuation<Int>
         Local continuation
@@ -3172,9 +3192,7 @@ Module
         Local $dependency.argument.0
       field_set 0
         Type Gate
-        ClosureCapture cc24 0
-          Type (Continuation<Int>) -> Unit
-          Local $closure
+        Local $place.receiver
         Type Option<Continuation<Int>>
         VariantConstruct Option<Continuation<Int>> v0
           Type Continuation<Int>

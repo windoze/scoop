@@ -319,6 +319,10 @@ Module
   fun getValue @fn3(this: OrderedSlot<Later>, thisRef: Receiver<Later>) -> Int
     bb0 entry
       call external6 direct
+      val $dependency.local.8: Trace
+        Type Trace
+        GlobalRead $singleton$5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce
+      call external6 direct
       call $dependency.local.2: Int = external3 direct
         Type Trace
         GlobalRead $singleton$5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce
@@ -341,10 +345,9 @@ Module
       val $dependency.local.7: Int
         Type Int
         Local $dependency.local.6
-      call external6 direct
       call external1 direct
         Type Trace
-        GlobalRead $singleton$5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce
+        Local $dependency.local.8
         Type Int
         IntegerBinary add kind=Int
           Type Int
@@ -470,6 +473,10 @@ Module
   fun start @fn6() -> Starter<Later>
     bb0 entry
       call external6 direct
+      val $dependency.local.6: Trace
+        Type Trace
+        GlobalRead $singleton$5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce
+      call external6 direct
       call $dependency.local.0: Int = external3 direct
         Type Trace
         GlobalRead $singleton$5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce
@@ -492,10 +499,9 @@ Module
       val $dependency.local.5: Int
         Type Int
         Local $dependency.local.4
-      call external6 direct
       call external1 direct
         Type Trace
-        GlobalRead $singleton$5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce
+        Local $dependency.local.6
         Type Int
         IntegerBinary add kind=Int
           Type Int
@@ -513,6 +519,10 @@ Module
         Local $new.1
   fun provideDelegate @fn7(this: Starter<Later>) -> OrderedSlot<Later>
     bb0 entry
+      call external6 direct
+      val $dependency.local.7: Trace
+        Type Trace
+        GlobalRead $singleton$5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce
       call external6 direct
       call $dependency.local.1: Int = external3 direct
         Type Trace
@@ -536,22 +546,21 @@ Module
       val $dependency.local.6: Int
         Type Int
         Local $dependency.local.5
-      call external6 direct
       call external1 direct
         Type Trace
-        GlobalRead $singleton$5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce
+        Local $dependency.local.7
         Type Int
         IntegerBinary add kind=Int
           Type Int
           Local $dependency.local.4
           Type Int
           Local $dependency.local.6
-      val $dependency.local.7: Int
-        Type Int
-        IntegerLiteral Int value=10 bits=0x0000000a
       val $dependency.local.8: Int
         Type Int
-        Local $dependency.local.7
+        IntegerLiteral Int value=10 bits=0x0000000a
+      val $dependency.local.9: Int
+        Type Int
+        Local $dependency.local.8
       assign $new.1
         Type Payload
         ClassAlloc Payload
@@ -559,13 +568,13 @@ Module
         Type Payload
         Local $new.1
         Type Int
-        Local $dependency.local.8
-      val $dependency.local.9: Payload
-        Type Payload
-        Local $new.1
+        Local $dependency.local.9
       val $dependency.local.10: Payload
         Type Payload
-        Local $dependency.local.9
+        Local $new.1
+      val $dependency.local.11: Payload
+        Type Payload
+        Local $dependency.local.10
       assign $new.2
         Type OrderedSlot<Later>
         ClassAlloc OrderedSlot<Later>
@@ -573,7 +582,7 @@ Module
         Type OrderedSlot<Later>
         Local $new.2
         Type Payload
-        Local $dependency.local.10
+        Local $dependency.local.11
       return
         Type OrderedSlot<Later>
         Local $new.2

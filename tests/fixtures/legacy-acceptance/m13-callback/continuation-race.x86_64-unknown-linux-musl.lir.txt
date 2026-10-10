@@ -48,16 +48,18 @@ Module
     local %6 callback: struct1
     local %7 $dependency.argument.0: struct1
     local %8 $dependency.parameter._1: struct1
-    local %9 $argument.0: ptr<code>
-    local %10 $argument.1: ptr<raw>
-    local %11 $argument.2: i32
-    local %12 $argument.3: i32
-    local %13 $parameter.callback: ptr<code>
-    local %14 $parameter.context: ptr<raw>
-    local %15 $parameter.base: i32
-    local %16 $parameter.count: i32
-    local %17 $dependency.argument.0: ptr<raw>
-    local %18 $dependency.parameter._1: ptr<raw>
+    local %9 $place.receiver: ptr<managed>
+    local %10 $argument.0: ptr<code>
+    local %11 $argument.1: ptr<raw>
+    local %12 $argument.2: i32
+    local %13 $argument.3: i32
+    local %14 $parameter.callback: ptr<code>
+    local %15 $parameter.context: ptr<raw>
+    local %16 $parameter.base: i32
+    local %17 $parameter.count: i32
+    local %18 $dependency.argument.0: ptr<raw>
+    local %19 $dependency.parameter._1: ptr<raw>
+    local %20 $place.receiver: ptr<managed>
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0, param1:interface{object,itab}@0]
     call managed-direct-target0 sp<managed-call:0> live=[param0:ptr<managed>@0, param1:interface{object,itab}@0] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td17, machine<byte-size>(ByteSize(40)))
@@ -73,27 +75,29 @@ Module
     store local2 -> local5
     t3 = foreign_callback_register fcb0 local3 : struct1
     store t3 -> local6
+    t4 = heap_load param0 +16 : ptr<managed>
+    store t4 -> local9
     store local6 -> local7
     store local7 -> local8
-    t4 = heap_load param0 +16 : ptr<managed>
     t5 = enum_wrap e1 v0 (local8) : enum1
-    heap_store t4 +24 t5
-    t6 = extract local6, 0 : ptr<code>
-    store t6 -> local9
-    t7 = extract local6, 1 : ptr<raw>
+    heap_store local9 +24 t5
+    t6 = heap_load param0 +16 : ptr<managed>
+    store t6 -> local20
+    t7 = extract local6, 0 : ptr<code>
     store t7 -> local10
-    store integer<Int>(0x00000046) -> local11
-    store integer<Int>(0x00000002) -> local12
-    store local9 -> local13
+    t8 = extract local6, 1 : ptr<raw>
+    store t8 -> local11
+    store integer<Int>(0x00000046) -> local12
+    store integer<Int>(0x00000002) -> local13
     store local10 -> local14
     store local11 -> local15
     store local12 -> local16
-    call native-safe-direct-target0 sp<native-safe:0> roots=[param0] t8 = sig=direct1 (ptr<code>, ptr<raw>, i32, i32) -> ptr<raw> extern0(local13, local14, local15, local16)
-    store t8 -> local17
-    store local17 -> local18
-    t9 = heap_load param0 +16 : ptr<managed>
-    t10 = enum_wrap e0 v0 (local18) : enum0
-    heap_store t9 +16 t10
+    store local13 -> local17
+    call native-safe-direct-target0 sp<native-safe:0> roots=[local20] t9 = sig=direct1 (ptr<code>, ptr<raw>, i32, i32) -> ptr<raw> extern0(local14, local15, local16, local17)
+    store t9 -> local18
+    store local18 -> local19
+    t10 = enum_wrap e0 v0 (local19) : enum0
+    heap_store local20 +16 t10
     ret
   fun @scoop$1$cb$c2626e1f53a18c6e58de704a279bb13a4da9e96b0e0cf166f21fb166c043a1f8(ptr<managed>, parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>) -> parts<enum7 [i64@0+8/8,i64@8+8/8]>
     local %0 $frame: ptr<managed>

@@ -335,17 +335,17 @@ Module
       call $argument.0: Int = @fn6 direct
         Type Int
         Local $parameter.value
-      call $argument.1: Nothing = @fn0 direct
+      call $call.2: Nothing = @fn0 direct
       unreachable
     bb21 try.catch.21
-      call $catch.2: Any = @scoop_rt_materialize_exception direct
+      call $catch.3: Any = @scoop_rt_materialize_exception direct
         Type Any
         CaughtException
       val error: IllegalStateException
         Type IllegalStateException
         Retype IllegalStateException
           Type Any
-          Local $catch.2
+          Local $catch.3
       goto bb23
     bb22 try.next.22
       rethrow unwind bb17
@@ -388,17 +388,17 @@ Module
     bb31 try.end.31
       goto bb44
     bb32 try.body.32 unwind bb25
-      call $parameter.value: Nothing = @fn0 direct
+      call $call.4: Nothing = @fn0 direct
       unreachable
     bb33 try.catch.33
-      call $catch.3: Any = @scoop_rt_materialize_exception direct
+      call $catch.5: Any = @scoop_rt_materialize_exception direct
         Type Any
         CaughtException
       val error: IllegalStateException
         Type IllegalStateException
         Retype IllegalStateException
           Type Any
-          Local $catch.3
+          Local $catch.5
       goto bb35
     bb34 try.next.34
       rethrow unwind bb29
@@ -454,19 +454,19 @@ Module
       val $parameter.flag: Boolean
         Type Boolean
         Local $argument.0
-      call $call.4: Nothing = @fn4 direct
+      call $call.6: Nothing = @fn4 direct
         Type Boolean
         Local $parameter.flag
       unreachable
     bb45 try.catch.45
-      call $catch.5: Any = @scoop_rt_materialize_exception direct
+      call $catch.7: Any = @scoop_rt_materialize_exception direct
         Type Any
         CaughtException
       val error: IllegalStateException
         Type IllegalStateException
         Retype IllegalStateException
           Type Any
-          Local $catch.5
+          Local $catch.7
       goto bb47
     bb46 try.next.46
       rethrow unwind bb41

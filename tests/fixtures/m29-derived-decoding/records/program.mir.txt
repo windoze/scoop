@@ -1740,6 +1740,9 @@ Module
         Local $dependency.parameter.text
         Type Decodable<Blank>
         Local $dependency.parameter.codec
+      val $equality.lhs: Blank
+        Type Blank
+        Local blank
       call external56 direct
       val $dependency.receiver: Json
         Type Json
@@ -1770,7 +1773,7 @@ Module
         Type Boolean
         Binary RefNe
           Type Blank
-          Local blank
+          Local $equality.lhs
           Type Blank
           Local $call.3
       val $argument.1: Int

@@ -455,17 +455,17 @@ Module
     bb57 try.end.57
       goto bb70
     bb58 try.body.58 unwind bb51
-      call $argument.0: Nothing = @fn0 direct
+      call $call.9: Nothing = @fn0 direct
       unreachable
     bb59 try.catch.59
-      call $catch.9: Any = @scoop_rt_materialize_exception direct
+      call $catch.10: Any = @scoop_rt_materialize_exception direct
         Type Any
         CaughtException
       val error: IllegalStateException
         Type IllegalStateException
         Retype IllegalStateException
           Type Any
-          Local $catch.9
+          Local $catch.10
       goto bb61
     bb60 try.next.60
       rethrow unwind bb55
@@ -521,17 +521,17 @@ Module
           Type Option<Nothing>
           Local $pattern.subject.3
     bb70 try.body.70 unwind bb63
-      call $argument.0: Nothing = @fn0 direct
+      call $call.11: Nothing = @fn0 direct
       unreachable
     bb71 try.catch.71
-      call $catch.10: Any = @scoop_rt_materialize_exception direct
+      call $catch.12: Any = @scoop_rt_materialize_exception direct
         Type Any
         CaughtException
       val error: IllegalStateException
         Type IllegalStateException
         Retype IllegalStateException
           Type Any
-          Local $catch.10
+          Local $catch.12
       goto bb73
     bb72 try.next.72
       rethrow unwind bb67
@@ -625,15 +625,15 @@ Module
     bb80 pattern.merge.80
       goto bb77
     bb81 if.then.81
-      assign $new.11
+      assign $new.13
         Type IllegalArgumentException
         ClassAlloc IllegalArgumentException
       call external7 direct
         Type IllegalArgumentException
-        Local $new.11
+        Local $new.13
       throw
         Type IllegalArgumentException
-        Local $new.11
+        Local $new.13
     bb82 if.merge.82
       val $array.7: Array<Nothing>
         Type Array<Nothing>
@@ -953,7 +953,7 @@ Module
       val $dependency.local.7: Long
         Type Long
         Local $dependency.local.6
-      call $dependency.local.1: Nothing = @fn16 interface List<Nothing>[1]
+      call $call.1: Nothing = @fn16 interface List<Nothing>[1]
         Type List<Nothing>
         Local $dependency.local.5
         Type Long

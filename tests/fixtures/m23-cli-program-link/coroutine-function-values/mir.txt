@@ -2028,18 +2028,18 @@ Module
         Local $step
   fun register @fn45(this: Registration<Int>, continuation: Continuation<Int>) -> Unit
     bb0 entry
+      call $dependency.local.4: Gate<Int> = @fn46 direct
+        Type Registration<Int>
+        Local this
       val $dependency.local.2: Continuation<Int>
         Type Continuation<Int>
         Local continuation
       val $dependency.local.3: Continuation<Int>
         Type Continuation<Int>
         Local $dependency.local.2
-      call $call.1: Gate<Int> = @fn46 direct
-        Type Registration<Int>
-        Local this
       call @fn41 direct
         Type Gate<Int>
-        Local $call.1
+        Local $dependency.local.4
         Type Option<Continuation<Int>>
         VariantConstruct Option<Continuation<Int>> v0
           Type Continuation<Int>
@@ -6753,7 +6753,12 @@ Module
           Type machine<enum-tag>
           MachineScalarLiteral EnumTag(0)
     bb1 coroutine.post.1
-      call $call.1: Int = <closure:function_type5> closure[function_type5]
+      val $operand.1: Counter
+        Type Counter
+        ClosureCapture cc5 1
+          Type suspend () -> Int
+          Local $argument.0
+      call $call.2: Int = <closure:function_type5> closure[function_type5]
         Type (Int) -> Int
         ClosureCapture cc5 0
           Type suspend () -> Int
@@ -6764,11 +6769,9 @@ Module
           Local $argument.0
       call external1 direct
         Type Counter
-        ClosureCapture cc5 1
-          Type suspend () -> Int
-          Local $argument.0
+        Local $operand.1
         Type Int
-        Local $call.1
+        Local $call.2
       return
         Type CoroutineStep<Int>
         VariantConstruct CoroutineStep<Int> v0

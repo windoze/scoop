@@ -342,10 +342,9 @@ Module
       val $dependency.parameter.value: Rooted
         Type Rooted
         Local $dependency.argument.0
-      call @fn9 direct
       field_set 0
         Type Shared
-        GlobalRead $singleton$Shared
+        Local $place.receiver
         Type MaybeUninit<Rooted>
         MaybeUninit.Initialized MaybeUninit
           Type Rooted
@@ -398,6 +397,10 @@ Module
         MaybeUninit.Initialized MaybeUninit
           Type Rooted
           Local $dependency.parameter.value
+      call @fn9 direct
+      val $place.receiver: Shared
+        Type Shared
+        GlobalRead $singleton$Shared
       val $argument.0: Long
         Type Long
         IntegerLiteral Long value=55 bits=0x0000000000000037

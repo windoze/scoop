@@ -156,6 +156,9 @@ Module
       call @fn1 direct
         Type Boolean
         Local $parameter.value
+      val $equality.lhs: AtomicInt
+        Type AtomicInt
+        Local counter
       val $argument.0: Int
         Type Int
         IntegerLiteral Int value=0 bits=0x00000000
@@ -166,7 +169,7 @@ Module
         Type Boolean
         Binary RefNe
           Type AtomicInt
-          Local counter
+          Local $equality.lhs
           Type AtomicInt
           AtomicNew AtomicInt
             Type Int
@@ -470,6 +473,11 @@ Module
       val $dependency.parameter.index: Long
         Type Long
         Local $dependency.argument.0
+      call $equality.lhs: AtomicRef<Payload> = @fn6 direct
+        Type MutableArray<AtomicRef<Payload>>
+        Local $dependency.receiver
+        Type Long
+        Local $dependency.parameter.index
       val $dependency.receiver: MutableArray<AtomicRef<Payload>>
         Type MutableArray<AtomicRef<Payload>>
         Local cells
@@ -484,18 +492,13 @@ Module
         Local $dependency.receiver
         Type Long
         Local $dependency.parameter.index
-      call $call.6: AtomicRef<Payload> = @fn6 direct
-        Type MutableArray<AtomicRef<Payload>>
-        Local $dependency.receiver
-        Type Long
-        Local $dependency.parameter.index
       val $argument.0: Boolean
         Type Boolean
         Binary RefNe
           Type AtomicRef<Payload>
-          Local $call.5
+          Local $equality.lhs
           Type AtomicRef<Payload>
-          Local $call.6
+          Local $call.5
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
@@ -534,15 +537,15 @@ Module
           IntegerLiteral Long value=1 bits=0x0000000000000001
       goto bb5
     bb8 if.then.8
-      assign $new.7
+      assign $new.6
         Type ClassCastException
         ClassAlloc ClassCastException
       call external3 direct
         Type ClassCastException
-        Local $new.7
+        Local $new.6
       throw
         Type ClassCastException
-        Local $new.7
+        Local $new.6
     bb9 if.merge.9
       val $argument.0: Boolean
         Type Boolean

@@ -115,16 +115,17 @@ Module
     local %82 $pattern.subject.2: enum1
     local %83 $pattern.subject.3: enum1
     local %84 $logic.1: i1
-    local %85 $call.2: struct1 <logical-zst e4d7462c3ada495d0e047f9e35c2b9729b06189b591586f3a00f12d822cbcd96>
-    local %86 $call.3: i1
-    local %87 $call.4: struct1 <logical-zst e4d7462c3ada495d0e047f9e35c2b9729b06189b591586f3a00f12d822cbcd96>
+    local %85 $operand.2: struct1 <logical-zst e4d7462c3ada495d0e047f9e35c2b9729b06189b591586f3a00f12d822cbcd96>
+    local %86 $call.3: struct1 <logical-zst e4d7462c3ada495d0e047f9e35c2b9729b06189b591586f3a00f12d822cbcd96>
+    local %87 $call.4: i1
     local %88 $call.5: struct1 <logical-zst e4d7462c3ada495d0e047f9e35c2b9729b06189b591586f3a00f12d822cbcd96>
-    local %89 $call.6: struct3 <logical-zst 72b593aac813a054435ad6d5894a5c83d7a34551f911b34b0450ca4616e3e0ba>
-    local %90 $call.7: i1
-    local %91 $sc.1: struct0
-    local %92 $sc.2: struct2
-    local %93 $sc.3: struct2
-    local %94 $sc.4: struct2
+    local %89 $call.6: struct1 <logical-zst e4d7462c3ada495d0e047f9e35c2b9729b06189b591586f3a00f12d822cbcd96>
+    local %90 $call.7: struct3 <logical-zst 72b593aac813a054435ad6d5894a5c83d7a34551f911b34b0450ca4616e3e0ba>
+    local %91 $call.8: i1
+    local %92 $sc.1: struct0
+    local %93 $sc.2: struct2
+    local %94 $sc.3: struct2
+    local %95 $sc.4: struct2
   block entry
     poll managed-void-target6 sp<managed-poll:0> live=[]
     store integer<Int8>(0x01) -> local0
@@ -143,8 +144,8 @@ Module
     store local5 -> local13
     store local6 -> local14
     store local7 -> local15
-    call no-gc-indirect-target0 local91 = sig=indirect0 (sret struct0 size=32 align=8 scan=none, i8, i16, i32, i64, i8, i16, i32, i64) external-fn1(local8, local9, local10, local11, local12, local13, local14, local15)
-    store local91 -> local16
+    call no-gc-indirect-target0 local92 = sig=indirect0 (sret struct0 size=32 align=8 scan=none, i8, i16, i32, i64, i8, i16, i32, i64) external-fn1(local8, local9, local10, local11, local12, local13, local14, local15)
+    store local92 -> local16
     t0 = extract local16, 0 : i8
     store t0 -> local17
     store integer<Int8>(0x01) -> local18
@@ -250,8 +251,8 @@ Module
     store local51 -> local54
     store local52 -> local55
     store local53 -> local56
-    call no-gc-indirect-target1 local92 = sig=indirect1 (sret struct2 size=16 align=8 scan=refs[8], parts<{i1, {}} [i64@0+1/1]>, ptr<managed>, elided-zst<struct1 size=0 align=1>) external-fn3(local54, local55, elided-zst local56)
-    store local92 -> local57
+    call no-gc-indirect-target1 local93 = sig=indirect1 (sret struct2 size=16 align=8 scan=refs[8], parts<{i1, {}} [i64@0+1/1]>, ptr<managed>, elided-zst<struct1 size=0 align=1>) external-fn3(local54, local55, elided-zst local56)
+    store local93 -> local57
     t21 = extract local57, 0 : {i1, {}}
     t22 = extract t21, 0 : i1
     cbr t22 then @if.then.19 else @if.else.20
@@ -269,12 +270,13 @@ Module
   block if.merge.21
     cbr local61 then @logic.rhs.22 else @logic.short.23
   block logic.rhs.22
-    call no-gc-elided-zst-target1 t25 = sig=elided-zst1 () -> elided-zst<struct1 size=0 align=1> external-fn2()
+    t25 = extract local57, 2 : struct1
     store t25 -> local85
-    t26 = extract local57, 2 : struct1
-    call managed-direct-target1 sp<managed-call:3> live=[local57:struct2@8] t27 = sig=direct1 (elided-zst<struct1 size=0 align=1>, elided-zst<struct1 size=0 align=1>) -> i1 external-fn10(elided-zst t26, elided-zst local85)
-    store t27 -> local86
-    store local86 -> local84
+    call no-gc-elided-zst-target1 t26 = sig=elided-zst1 () -> elided-zst<struct1 size=0 align=1> external-fn2()
+    store t26 -> local86
+    call managed-direct-target1 sp<managed-call:3> live=[local57:struct2@8] t27 = sig=direct1 (elided-zst<struct1 size=0 align=1>, elided-zst<struct1 size=0 align=1>) -> i1 external-fn10(elided-zst local85, elided-zst local86)
+    store t27 -> local87
+    store local87 -> local84
     br @logic.merge.24
   block logic.short.23
     store false -> local84
@@ -285,22 +287,22 @@ Module
     call managed-void-target2 sp<managed-call:4> live=[local57:struct2@8] sig=void2 (i1) local-fn0(local63)
     t28 = aggregate () : {}
     call no-gc-elided-zst-target2 t29 = sig=elided-zst2 () -> elided-zst<struct1 size=0 align=1> external-fn2()
-    store t29 -> local87
+    store t29 -> local88
     t30 = aggregate () : {}
-    t31 = aggregate (local87, t30) : {struct1, {}}
+    t31 = aggregate (local88, t30) : {struct1, {}}
     store t31 -> local64
     store local64 -> local65
     call no-gc-elided-zst-target3 t32 = sig=elided-zst3 (elided-zst<{struct1, {}} size=0 align=1>) -> elided-zst<struct3 size=0 align=1> external-fn5(elided-zst local65)
     store t32 -> local68
     call no-gc-elided-zst-target4 t33 = sig=elided-zst4 () -> elided-zst<struct1 size=0 align=1> external-fn2()
-    store t33 -> local88
+    store t33 -> local89
     t34 = aggregate () : {}
-    t35 = aggregate (local88, t34) : {struct1, {}}
+    t35 = aggregate (local89, t34) : {struct1, {}}
     store t35 -> local66
     store local66 -> local67
     call no-gc-elided-zst-target5 t36 = sig=elided-zst5 (elided-zst<{struct1, {}} size=0 align=1>) -> elided-zst<struct3 size=0 align=1> external-fn5(elided-zst local67)
-    store t36 -> local89
-    call managed-direct-target2 sp<managed-call:5> live=[local57:struct2@8] t37 = sig=direct2 (elided-zst<struct3 size=0 align=1>, elided-zst<struct3 size=0 align=1>) -> i1 external-fn9(elided-zst local68, elided-zst local89)
+    store t36 -> local90
+    call managed-direct-target2 sp<managed-call:5> live=[local57:struct2@8] t37 = sig=direct2 (elided-zst<struct3 size=0 align=1>, elided-zst<struct3 size=0 align=1>) -> i1 external-fn9(elided-zst local68, elided-zst local90)
     store t37 -> local69
     store local69 -> local70
     call managed-void-target3 sp<managed-call:6> live=[local57:struct2@8] sig=void3 (i1) local-fn0(local70)
@@ -316,11 +318,11 @@ Module
   block pattern.pass.25
     t41 = variant_payload_project e1 v0 f0 local82 : struct2
     store t41 -> local74
-    store local74 -> local93
-    store local57 -> local94
-    call managed-direct-target3 sp<managed-call:7> live=[local93:struct2@8, local94:struct2@8] t42 = sig=direct3 (indirect<struct2 size=16 align=8 scan=refs[8]>, indirect<struct2 size=16 align=8 scan=refs[8]>) -> i1 external-fn8(indirect local93, indirect local94)
-    store t42 -> local90
-    store local90 -> local75
+    store local74 -> local94
+    store local57 -> local95
+    call managed-direct-target3 sp<managed-call:7> live=[local94:struct2@8, local95:struct2@8] t42 = sig=direct3 (indirect<struct2 size=16 align=8 scan=refs[8]>, indirect<struct2 size=16 align=8 scan=refs[8]>) -> i1 external-fn8(indirect local94, indirect local95)
+    store t42 -> local91
+    store local91 -> local75
     br @pattern.merge.27
   block pattern.merge.27
     store local75 -> local76

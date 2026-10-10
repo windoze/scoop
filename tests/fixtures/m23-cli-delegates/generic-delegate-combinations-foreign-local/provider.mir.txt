@@ -330,6 +330,10 @@ Module
   fun $extension.provideDelegate @fn19(this: ExtensionSeed) -> ExtensionSlot
     bb0 entry
       call @fn18 direct
+      val $place.receiver: Trace
+        Type Trace
+        GlobalRead $singleton$Trace
+      call @fn18 direct
       call $dependency.receiver: Int = @fn0 direct
         Type Trace
         GlobalRead $singleton$Trace
@@ -352,10 +356,9 @@ Module
       val $dependency.parameter.other: Int
         Type Int
         Local $dependency.argument.0
-      call @fn18 direct
       call @fn1 direct
         Type Trace
-        GlobalRead $singleton$Trace
+        Local $place.receiver
         Type Int
         IntegerBinary add kind=Int
           Type Int
@@ -382,6 +385,10 @@ Module
   fun $extension.getValue @fn20(this: ExtensionSlot, thisRef: Any) -> Int
     bb0 entry
       call @fn18 direct
+      val $place.receiver: Trace
+        Type Trace
+        GlobalRead $singleton$Trace
+      call @fn18 direct
       call $dependency.receiver: Int = @fn0 direct
         Type Trace
         GlobalRead $singleton$Trace
@@ -404,10 +411,9 @@ Module
       val $dependency.parameter.other: Int
         Type Int
         Local $dependency.argument.0
-      call @fn18 direct
       call @fn1 direct
         Type Trace
-        GlobalRead $singleton$Trace
+        Local $place.receiver
         Type Int
         IntegerBinary add kind=Int
           Type Int
@@ -422,6 +428,10 @@ Module
         Local $call.1
   fun $extension.setValue @fn21(this: ExtensionSlot, thisRef: Any, value: Int) -> Unit
     bb0 entry
+      call @fn18 direct
+      val $place.receiver: Trace
+        Type Trace
+        GlobalRead $singleton$Trace
       call @fn18 direct
       call $dependency.receiver: Int = @fn0 direct
         Type Trace
@@ -445,10 +455,9 @@ Module
       val $dependency.parameter.other: Int
         Type Int
         Local $dependency.argument.0
-      call @fn18 direct
       call @fn1 direct
         Type Trace
-        GlobalRead $singleton$Trace
+        Local $place.receiver
         Type Int
         IntegerBinary add kind=Int
           Type Int

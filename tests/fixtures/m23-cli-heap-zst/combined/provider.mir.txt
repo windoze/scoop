@@ -460,25 +460,31 @@ Module
         Local $call.4
         Type HeapPair
         Local $call.5
-      call $call.6: HeapEmpty = <closure:function_type0> closure[function_type0]
-        Type () -> HeapEmpty
-        Local readEmpty
-      call @fn5 direct
+      val $operand.6: HeapBase
         Type HeapBase
         Retype HeapBase
           Type HeapDerived
           Local derived
-        Type HeapEmpty
-        Local $call.6
-      call @fn13 direct
       call $call.7: HeapEmpty = <closure:function_type0> closure[function_type0]
+        Type () -> HeapEmpty
+        Local readEmpty
+      call @fn5 direct
+        Type HeapBase
+        Local $operand.6
+        Type HeapEmpty
+        Local $call.7
+      call @fn13 direct
+      val $operand.8: HeapSingleton
+        Type HeapSingleton
+        GlobalRead $singleton$HeapSingleton
+      call $call.9: HeapEmpty = <closure:function_type0> closure[function_type0]
         Type () -> HeapEmpty
         Local readChanging
       call @fn11 direct
         Type HeapSingleton
-        GlobalRead $singleton$HeapSingleton
+        Local $operand.8
         Type HeapEmpty
-        Local $call.7
+        Local $call.9
       call $dependency.receiver: Int = @fn6 direct
         Type HeapDerived
         Local derived
@@ -496,12 +502,12 @@ Module
           Type Int
           Local $dependency.parameter.other
       call @fn13 direct
-      call $call.8: HeapEmpty = @fn10 direct
+      call $call.10: HeapEmpty = @fn10 direct
         Type HeapSingleton
         GlobalRead $singleton$HeapSingleton
       return
         Type HeapEmpty
-        Local $call.8
+        Local $call.10
   fun $get$heapEffects @fn16() -> Int <no-gc>
     bb0 entry
       return

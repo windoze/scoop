@@ -319,6 +319,9 @@ Module
       call last: Cell = @fn9 direct
         Type PinnedPtr<Cell>
         Local $dependency.parameter.p
+      val $equality.lhs: Cell
+        Type Cell
+        Local last
       val $dependency.argument.0: GcHandle<Cell>
         Type GcHandle<Cell>
         Local handle
@@ -332,7 +335,7 @@ Module
         Type Boolean
         Binary RefEq
           Type Cell
-          Local last
+          Local $equality.lhs
           Type Cell
           Local $call.4
       val $parameter.value: Boolean

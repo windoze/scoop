@@ -33,23 +33,25 @@ Module
     local %0 $dependency.argument.0: {struct0, {i64, i64, i64}, struct0}
     local %1 $dependency.parameter.values: {struct0, {i64, i64, i64}, struct0}
     local %2 $call.1: struct0 <logical-zst d1762300a72b228735996c846be36e8571cf31f2a0c5513ca8abdbfc13d6fdf7>
-    local %3 $call.2: struct0 <logical-zst d1762300a72b228735996c846be36e8571cf31f2a0c5513ca8abdbfc13d6fdf7>
-    local %4 $call.3: struct1
-    local %5 $sc.1: {struct0, {i64, i64, i64}, struct0}
-    local %6 $sc.2: struct1
+    local %3 $operand.2: {i64, i64, i64}
+    local %4 $call.3: struct0 <logical-zst d1762300a72b228735996c846be36e8571cf31f2a0c5513ca8abdbfc13d6fdf7>
+    local %5 $call.4: struct1
+    local %6 $sc.1: {struct0, {i64, i64, i64}, struct0}
+    local %7 $sc.2: struct1
   block entry
     call no-gc-elided-zst-target0 t0 = sig=elided-zst0 () -> elided-zst<struct0 size=0 align=1> external-fn0()
     store t0 -> local2
-    call no-gc-elided-zst-target1 t1 = sig=elided-zst1 () -> elided-zst<struct0 size=0 align=1> external-fn0()
+    t1 = aggregate (integer<Long>(0x0000000000000005), integer<Long>(0x0000000000000008), integer<Long>(0x000000000000000b)) : {i64, i64, i64}
     store t1 -> local3
-    t2 = aggregate (integer<Long>(0x0000000000000005), integer<Long>(0x0000000000000008), integer<Long>(0x000000000000000b)) : {i64, i64, i64}
-    t3 = aggregate (local2, t2, local3) : {struct0, {i64, i64, i64}, struct0}
+    call no-gc-elided-zst-target1 t2 = sig=elided-zst1 () -> elided-zst<struct0 size=0 align=1> external-fn0()
+    store t2 -> local4
+    t3 = aggregate (local2, local3, local4) : {struct0, {i64, i64, i64}, struct0}
     store t3 -> local0
     store local0 -> local1
-    store local1 -> local5
-    call no-gc-indirect-target0 local6 = sig=indirect0 (sret struct1 size=24 align=8 scan=none, indirect<{struct0, {i64, i64, i64}, struct0} size=24 align=8 scan=none>) external-fn2(indirect local5)
-    store local6 -> local4
-    ret local4
+    store local1 -> local6
+    call no-gc-indirect-target0 local7 = sig=indirect0 (sret struct1 size=24 align=8 scan=none, indirect<{struct0, {i64, i64, i64}, struct0} size=24 align=8 scan=none>) external-fn2(indirect local6)
+    store local7 -> local5
+    ret local5
   fun @scoop$1$cb$daf40c370acb0f9578e45e8ecfc7771579e5c477c8186f48b2a92cfd41812f9f() -> i64 <no-gc>
     local %0 $default.local.0: i64
     local %1 $default.local.1: i64

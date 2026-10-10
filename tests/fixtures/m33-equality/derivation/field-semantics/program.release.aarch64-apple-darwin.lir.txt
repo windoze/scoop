@@ -53,30 +53,32 @@ Module
     local %3 $dependency.receiver: i32
     local %4 $dependency.argument.0: i32
     local %5 $dependency.parameter.other: i32
-    local %6 $dependency.receiver: i32
-    local %7 $dependency.argument.0: i32
-    local %8 $dependency.parameter.other: i32
+    local %6 $place.receiver: ptr<managed>
+    local %7 $dependency.receiver: i32
+    local %8 $dependency.argument.0: i32
+    local %9 $dependency.parameter.other: i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0, param1:ptr<managed>@0]
     t0 = heap_load param0 +24 : ptr<managed>
-    t1 = heap_load t0 +16 : i32
-    store t1 -> local0
+    store t0 -> local6
+    t1 = heap_load param0 +24 : ptr<managed>
+    t2 = heap_load t1 +16 : i32
+    store t2 -> local0
     store integer<Int>(0x0000000a) -> local1
     store integer<Int>(0x0000000a) -> local2
-    t2 = integer_Multiply<Int> local0, integer<Int>(0x0000000a) : i32
-    store t2 -> local3
-    t3 = heap_load param0 +20 : i32
-    store t3 -> local4
+    t3 = integer_Multiply<Int> local0, integer<Int>(0x0000000a) : i32
+    store t3 -> local3
+    t4 = heap_load param0 +20 : i32
+    store t4 -> local4
     store local4 -> local5
-    t4 = heap_load param0 +24 : ptr<managed>
     t5 = integer_Add<Int> local3, local5 : i32
-    heap_store t4 +16 t5
+    heap_store local6 +16 t5
     t6 = heap_load param0 +16 : i32
-    store t6 -> local6
+    store t6 -> local7
     t7 = heap_load param1 +16 : i32
-    store t7 -> local7
-    store local7 -> local8
-    t8 = integer_compare_Equal<Int> local6, local8 : i1
+    store t7 -> local8
+    store local8 -> local9
+    t8 = integer_compare_Equal<Int> local7, local9 : i1
     ret t8
   fun @scoop$1$cb$8448a685e0a3d16c40ea3305db21ecc1fec78e1dbb40ca5723af9de67f7af02d(indirect<struct1 size=16 align=8 scan=refs[0, 8]>, indirect<struct1 size=16 align=8 scan=refs[0, 8]>) -> i1
     local %0 $call.1: i1

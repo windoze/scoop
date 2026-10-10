@@ -815,6 +815,11 @@ Module
       val $dependency.parameter.index: Long
         Type Long
         IntegerLiteral Long value=0 bits=0x0000000000000000
+      call $equality.lhs: Value = @fn17 direct
+        Type Array<Value>
+        Local $dependency.receiver
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
       val $dependency.receiver: MutableArray<Value>
         Type MutableArray<Value>
         Local values
@@ -824,12 +829,7 @@ Module
       val $dependency.parameter.index: Long
         Type Long
         IntegerLiteral Long value=0 bits=0x0000000000000000
-      call $call.9: Value = @fn17 direct
-        Type Array<Value>
-        Local $dependency.receiver
-        Type Long
-        IntegerLiteral Long value=0 bits=0x0000000000000000
-      call $call.10: Value = @fn14 direct
+      call $call.9: Value = @fn14 direct
         Type MutableArray<Value>
         Local $dependency.receiver
         Type Long
@@ -838,9 +838,9 @@ Module
         Type Boolean
         Binary RefEq
           Type Value
-          Local $call.9
+          Local $equality.lhs
           Type Value
-          Local $call.10
+          Local $call.9
     bb22 if.then.22
       val $dependency.receiver: Array<Value>
         Type Array<Value>
@@ -851,6 +851,11 @@ Module
       val $dependency.parameter.index: Long
         Type Long
         IntegerLiteral Long value=63 bits=0x000000000000003f
+      call $equality.lhs: Value = @fn17 direct
+        Type Array<Value>
+        Local $dependency.receiver
+        Type Long
+        IntegerLiteral Long value=63 bits=0x000000000000003f
       val $dependency.receiver: MutableArray<Value>
         Type MutableArray<Value>
         Local values
@@ -860,12 +865,7 @@ Module
       val $dependency.parameter.index: Long
         Type Long
         IntegerLiteral Long value=63 bits=0x000000000000003f
-      call $call.11: Value = @fn17 direct
-        Type Array<Value>
-        Local $dependency.receiver
-        Type Long
-        IntegerLiteral Long value=63 bits=0x000000000000003f
-      call $call.12: Value = @fn14 direct
+      call $call.10: Value = @fn14 direct
         Type MutableArray<Value>
         Local $dependency.receiver
         Type Long
@@ -874,9 +874,9 @@ Module
         Type Boolean
         Binary RefEq
           Type Value
-          Local $call.11
+          Local $equality.lhs
           Type Value
-          Local $call.12
+          Local $call.10
       goto bb24
     bb23 if.else.23
       val $shortCircuit.1: Boolean
@@ -977,12 +977,12 @@ Module
           Type Long
           IntegerLiteral Long value=-9223372036854775808 bits=0x8000000000000000
     bb27 logic.rhs.27
-      assign $logic.14
+      assign $logic.12
         Type Boolean
         BoolLiteral false
       goto bb29
     bb28 logic.short.28
-      assign $logic.14
+      assign $logic.12
         Type Boolean
         BoolLiteral false
       goto bb29
@@ -1057,14 +1057,14 @@ Module
         Local $parameter.value
       return
     bb36 inline.cont.36
-      val $call.16: Node
+      val $call.14: Node
         Type Node
         Local $inline.36.result
       val $shortCircuit.5: Boolean
         Type Boolean
         Binary RefEq
           Type Node
-          Local $call.16
+          Local $call.14
           Type Node
           Local last
       goto bb35
@@ -1085,14 +1085,14 @@ Module
         Local $inline.36.$call.1
       goto bb36
     bb38 inline.cont.38
-      val $call.15: Node
+      val $call.13: Node
         Type Node
         Local $inline.38.result
       branch bb33 bb34
         Type Boolean
         Binary RefEq
           Type Node
-          Local $call.15
+          Local $call.13
           Type Node
           Local first
     bb39 inline.38.entry

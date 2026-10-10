@@ -1148,6 +1148,11 @@ Module
       val $dependency.parameter.order: MemoryOrder
         Type MemoryOrder
         VariantConstruct MemoryOrder v4
+      val $equality.lhs: Payload
+        Type Payload
+        AtomicLoad SeqCst Reference
+          Type AtomicRef<Payload>
+          Local $dependency.receiver
       val $dependency.argument.0: PinnedPtr<Payload>
         Type PinnedPtr<Payload>
         Local pinnedValue
@@ -1161,9 +1166,7 @@ Module
         Type Boolean
         Binary RefEq
           Type Payload
-          AtomicLoad SeqCst Reference
-            Type AtomicRef<Payload>
-            Local $dependency.receiver
+          Local $equality.lhs
           Type Payload
           Local $call.2
       val $parameter.value: Boolean

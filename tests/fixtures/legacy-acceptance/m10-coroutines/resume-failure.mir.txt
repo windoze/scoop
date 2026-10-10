@@ -129,6 +129,11 @@ Module
       return
   fun FailureRegistration.register @fn1(this: FailureRegistration, continuation: Continuation<Int>) -> Unit
     bb0 entry
+      val $place.receiver: FailureGate
+        Type FailureGate
+        FieldAccess 0
+          Type FailureRegistration
+          Local this
       val $dependency.argument.0: Continuation<Int>
         Type Continuation<Int>
         Local continuation
@@ -137,9 +142,7 @@ Module
         Local $dependency.argument.0
       field_set 0
         Type FailureGate
-        FieldAccess 0
-          Type FailureRegistration
-          Local this
+        Local $place.receiver
         Type Option<Continuation<Int>>
         VariantConstruct Option<Continuation<Int>> v0
           Type Continuation<Int>

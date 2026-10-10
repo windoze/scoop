@@ -705,14 +705,17 @@ Module
   fun $lambda @fn12($argument.0: (Int) -> Unit, $argument.1: Int) -> Unit
     bb0 entry
       call @scoop_rt_gc_collect direct
-      call $call.1: Request = @fn5 direct
-      call $dependency.local.1: Int = <closure:function_type0> closure[function_type0]
+      val $operand.1: (Request) -> Int
         Type (Request) -> Int
         ClosureCapture cc0 0
           Type (Int) -> Unit
           Local $argument.0
+      call $call.2: Request = @fn5 direct
+      call $dependency.local.1: Int = <closure:function_type0> closure[function_type0]
+        Type (Request) -> Int
+        Local $operand.1
         Type Request
-        Local $call.1
+        Local $call.2
       val $dependency.local.2: Int
         Type Int
         Local $argument.1
@@ -740,17 +743,17 @@ Module
         VariantConstruct Option<String> v0
           Type String
           Local $dependency.local.5
-      assign $new.2
+      assign $new.3
         Type IllegalStateException
         ClassAlloc IllegalStateException
       call external1 direct
         Type IllegalStateException
-        Local $new.2
+        Local $new.3
         Type Option<String>
         Local $dependency.local.6
       throw
         Type IllegalStateException
-        Local $new.2
+        Local $new.3
     bb2 if.merge.2
       call @scoop_rt_gc_collect direct
       return

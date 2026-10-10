@@ -225,6 +225,11 @@ Module
       val $dependency.parameter.index: Long
         Type Long
         IntegerLiteral Long value=0 bits=0x0000000000000000
+      call $equality.lhs: AtomicRef<Payload> = @fn6 direct
+        Type MutableArray<AtomicRef<Payload>>
+        Local $dependency.receiver
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
       val $dependency.receiver: MutableArray<AtomicRef<Payload>>
         Type MutableArray<AtomicRef<Payload>>
         Local cells
@@ -238,19 +243,14 @@ Module
         Type MutableArray<AtomicRef<Payload>>
         Local $dependency.receiver
         Type Long
-        IntegerLiteral Long value=0 bits=0x0000000000000000
-      call $call.6: AtomicRef<Payload> = @fn6 direct
-        Type MutableArray<AtomicRef<Payload>>
-        Local $dependency.receiver
-        Type Long
         IntegerLiteral Long value=1 bits=0x0000000000000001
       val $argument.0: Boolean
         Type Boolean
         Binary RefNe
           Type AtomicRef<Payload>
-          Local $call.5
+          Local $equality.lhs
           Type AtomicRef<Payload>
-          Local $call.6
+          Local $call.5
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
@@ -276,15 +276,15 @@ Module
         Local $array_index.5
       goto bb11
     bb8 if.then.8
-      assign $new.7
+      assign $new.6
         Type ClassCastException
         ClassAlloc ClassCastException
       call external3 direct
         Type ClassCastException
-        Local $new.7
+        Local $new.6
       throw
         Type ClassCastException
-        Local $new.7
+        Local $new.6
     bb9 if.merge.9
       val $argument.0: Boolean
         Type Boolean
@@ -515,6 +515,9 @@ Module
       call @fn1 direct
         Type Boolean
         Local $parameter.value
+      val $equality.lhs: AtomicInt
+        Type AtomicInt
+        Local counter
       val $argument.0: Int
         Type Int
         IntegerLiteral Int value=0 bits=0x00000000
@@ -525,7 +528,7 @@ Module
         Type Boolean
         Binary RefNe
           Type AtomicInt
-          Local counter
+          Local $equality.lhs
           Type AtomicInt
           AtomicNew AtomicInt
             Type Int
