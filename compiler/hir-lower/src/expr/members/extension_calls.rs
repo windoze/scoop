@@ -49,59 +49,69 @@ impl Lowerer {
         if candidates.is_empty() {
             return PropertyExtensionInvokeOutcome::NoApplicable(None);
         }
+        let mut context = self.clone();
+        let views = context.smart_cast_receiver_views(&receiver);
         let mut probes = Vec::new();
         let mut first_failure = None;
         let mut suppressed = false;
         for target in candidates {
-            match target {
-                ExtensionCallTarget::Current(function) => {
-                    if self.declaration_surface.rejects_function(*function) {
-                        suppressed = true;
-                        continue;
-                    }
-                    let mut state = self.clone();
-                    let Some(explicit_type_args) = state.resolve_call_type_args(call.type_args)
-                    else {
-                        first_failure.get_or_insert(Box::new(state));
-                        continue;
-                    };
-                    let candidate = crate::CallableCandidate::function(*function, Vec::new());
-                    match state.probe_named_callable(
-                        &name.text,
-                        candidate,
-                        NamedCallReceiver::Extension(receiver.clone()),
-                        OverloadCall {
-                            explicit_type_args: &explicit_type_args,
-                            arg_exprs: call.args,
-                            span: call.span,
-                            expected_result: expected,
-                            argument_protocol: if operator_set {
-                                CallArgumentProtocol::OperatorSet
-                            } else {
-                                CallArgumentProtocol::Ordinary
+            for receiver in &views {
+                match target {
+                    ExtensionCallTarget::Current(function) => {
+                        if self.declaration_surface.rejects_function(*function) {
+                            suppressed = true;
+                            continue;
+                        }
+                        let mut state = context.clone();
+                        let Some(explicit_type_args) = state.resolve_call_type_args(call.type_args)
+                        else {
+                            first_failure.get_or_insert(Box::new(state));
+                            continue;
+                        };
+                        let candidate = crate::CallableCandidate::function(*function, Vec::new());
+                        match state.probe_named_callable(
+                            &name.text,
+                            candidate,
+                            NamedCallReceiver::Extension(receiver.clone()),
+                            OverloadCall {
+                                explicit_type_args: &explicit_type_args,
+                                arg_exprs: call.args,
+                                span: call.span,
+                                expected_result: expected,
+                                argument_protocol: if operator_set {
+                                    CallArgumentProtocol::OperatorSet
+                                } else {
+                                    CallArgumentProtocol::Ordinary
+                                },
                             },
-                        },
-                    ) {
-                        Ok(probe) => probes.push(NamedFunctionLikeProbe::Callable(Box::new(probe))),
-                        Err(failure) => {
-                            first_failure.get_or_insert(failure);
+                        ) {
+                            Ok(probe) => {
+                                probes.push(NamedFunctionLikeProbe::Callable(Box::new(probe)));
+                                break;
+                            }
+                            Err(failure) => {
+                                first_failure.get_or_insert(failure);
+                            }
                         }
                     }
-                }
-                ExtensionCallTarget::Dependency(binding) => {
-                    match self.probe_imported_dependency_extension_callable(
-                        binding,
-                        receiver.clone(),
-                        name,
-                        call,
-                        expected,
-                        operator_set,
-                    ) {
-                        Ok(probe) => {
-                            probes.push(NamedFunctionLikeProbe::ImportedDependency(Box::new(probe)))
-                        }
-                        Err(failure) => {
-                            first_failure.get_or_insert(failure);
+                    ExtensionCallTarget::Dependency(binding) => {
+                        match context.probe_imported_dependency_extension_callable(
+                            binding,
+                            receiver.clone(),
+                            name,
+                            call,
+                            expected,
+                            operator_set,
+                        ) {
+                            Ok(probe) => {
+                                probes.push(NamedFunctionLikeProbe::ImportedDependency(Box::new(
+                                    probe,
+                                )));
+                                break;
+                            }
+                            Err(failure) => {
+                                first_failure.get_or_insert(failure);
+                            }
                         }
                     }
                 }
@@ -115,7 +125,7 @@ impl Lowerer {
             };
         }
 
-        let mut state = self.clone();
+        let mut state = context;
         let Some(winner) =
             state.select_named_function_like(&name.text, layer_name, &probes, call.args, call.span)
         else {

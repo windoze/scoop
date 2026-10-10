@@ -1,0 +1,1605 @@
+Module
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum Option<Char>
+    Some(_0: Char)
+    None()
+  enum CoroutineStep<Left>
+    Completed(value: Left)
+    Suspended()
+  enum CoroutineSlot<Left>
+    Empty()
+    Value(value: Left)
+  enum CoroutineStep<Right>
+    Completed(value: Right)
+    Suspended()
+  enum CoroutineSlot<Right>
+    Empty()
+    Value(value: Right)
+  enum CoroutineStep<Root>
+    Completed(value: Root)
+    Suspended()
+  enum CoroutineSlot<Root>
+    Empty()
+    Value(value: Root)
+  class Both vtable=0 itables=3
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class box<Int> vtable=0 itables=0
+  interface Root
+  interface Left : Root
+  interface Right : Root
+  interface ToString
+  interface Hash
+  interface Equality<Int>
+  interface Equality<Char>
+  interface Iterable<Char>
+  interface Iterator<Char>
+  interface Equality<String>
+  interface Continuation<Root>
+  interface SuspendTask<Root>
+  interface SuspendRegistration<Root>
+  interface Continuation<Left>
+  interface SuspendTask<Left>
+  interface SuspendRegistration<Left>
+  interface Continuation<Right>
+  interface SuspendTask<Right>
+  interface SuspendRegistration<Right>
+  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn24 captures=1
+    bridge function_type1 -> @fn55 id=22203b291a2b6e86f37fe7e1f0f3e3244137944a14dc5d8a60fc1dab1ada4e96
+  closure cc1 $Closure$reference0 type=function_type0 invoke=@fn48 captures=1
+    bridge function_type1 -> @fn56 id=81a72616fb9042997b96e69f3cea1a6420286e5524ce26739cadc603c23305a1
+  closure cc2 $Closure$reference1 type=function_type0 invoke=@fn49 captures=1
+    bridge function_type1 -> @fn57 id=39cec0786a30d3ed9ade6af217e15a250090477f8ae4366c0eef77ba9324c303
+  closure cc3 $Closure$reference2 type=function_type0 invoke=@fn50 captures=1
+    bridge function_type1 -> @fn58 id=671504719134cc891adead98eab36fbea5a3a7aabbbd4c5f066792e1ecd53cbc
+  generated_exact_type get0 location=closure3 nominal_id=e7777b0e59b0a09b0a415c76aeacbef2fd0a89c2be515bfbc237eb6b8858d9fc exact_id=0b4b85ceb35eb42f577f89f89eb251e0e8e6bd64aaa4d5a7a9976ceee73fb083
+  generated_exact_type get1 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
+  generated_exact_type get2 location=closure0 nominal_id=a6550f4cd389c46d9afdd5e4bc077c41c23066e61aa75a33b7edc3eabbd81a03 exact_id=2febf5381321b7c12095b7c01c9223c493aef2151227f36bf2824c318e05eded
+  generated_exact_type get3 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
+  generated_exact_type get4 location=enum2 nominal_id=aae71021f74648d6fe56721fbc35e9d80daeb8c6914c061c895b242183fd69fe exact_id=3b939da287eb31f93a1964817f5e1e7e86684d1e1afa0a88992f9a4eee24e044
+  generated_exact_type get5 location=closure1 nominal_id=e843fdf6b8ac9489bdba23c9bf51c4ff42b4e0266bc133ba5bcedc1dbffa2734 exact_id=4f299c6b1b85f1e9be23e535d440b6315bf01954bd4b55d49d9a62f6de4b6225
+  generated_exact_type get6 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
+  generated_exact_type get7 location=enum6 nominal_id=988339898a1883c44111f789e3e7f493b5877195489b5d552155b0abb4cf8ffc exact_id=51d1a1e92cbee048268a6bc405e17d2bc0db4bb7a29665a5d1bece09f99c1b49
+  generated_exact_type get8 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
+  generated_exact_type get9 location=enum7 nominal_id=ee22565cfd76fbd52102d603fc7d1912db7d23107753f48622f7fd6534a17f39 exact_id=8fe1f8306043fec1e39e8496f8c295727db9039123b58cbbc592705f8cf8bf4a
+  generated_exact_type get10 location=enum3 nominal_id=a4dc187fdbcae6c754ef3c8b2e9e67349e4c08b94e3c6fbd0ccb2091af40ffcf exact_id=93d3766aed53729423165a54ea12a0ef4225783589bb5784ceeac77d3d1ba45d
+  generated_exact_type get11 location=enum5 nominal_id=69416218c21e077ea6f5e0c37faad537c2ecc8e806cdb5f9ccfe14dcf29d5105 exact_id=9dcacad16cd1a2a75f327c534292d2b2ae2de6dd1885393b42c8eaa1d78edece
+  generated_exact_type get12 location=closure2 nominal_id=f18e06e9fac5d2851843bf0d536bff6204fbe8ad3fa4bd0b74d9c66f40b79bd3 exact_id=a06c2ec01b88c410c545f8984ba946332f4722a52649e4ede024fa7d7430250c
+  generated_exact_type get13 location=enum4 nominal_id=83dafd145112cb33bd50b527867a075eefabb75776dfce080911e3c4f7eda655 exact_id=aba5cb5ebd8febb093ec9a9af1fc5dbe5cf2130dd698b6b0776ac4394e380d5f
+  generated_exact_type get14 location=class4 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_exact_type get15 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
+  generated_callable gc0 function=@fn55 id=22203b291a2b6e86f37fe7e1f0f3e3244137944a14dc5d8a60fc1dab1ada4e96
+  generated_callable gc1 function=@fn57 id=39cec0786a30d3ed9ade6af217e15a250090477f8ae4366c0eef77ba9324c303
+  generated_callable gc2 function=@fn58 id=671504719134cc891adead98eab36fbea5a3a7aabbbd4c5f066792e1ecd53cbc
+  generated_callable gc3 function=@fn56 id=81a72616fb9042997b96e69f3cea1a6420286e5524ce26739cadc603c23305a1
+  generated_callable gc4 function=@fn53 id=86dd0d0bbcfacf48b203e5b7c2086a72fcc208fa5723993b260ea0fb9c9003ce
+  generated_callable gc5 function=@fn52 id=b4787dea3fd5114cdb7663362081d0a7656d97f13bdd5c0d63884f0cc4168b43
+  generated_callable gc6 function=@fn54 id=e9159c311e7aaa1433b32293d629ef7f7154d1121aa4e4f831ebe640e6dfb88c
+  fun Both.root @fn0(this: Both) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=5 bits=0x00000005
+  fun Both.left @fn1(this: Both) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+  fun Both.right @fn2(this: Both) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+  fun Both.choose @fn3(this: Both, value: Int) -> Int
+    bb0 entry
+      val $dependency.receiver: Int
+        Type Int
+        Local value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun Both.choose @fn4(this: Both, value: String) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=44 bits=0x0000002c
+  fun Both.invoke @fn5(this: Both) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+  fun Both.$get$leftValue @fn6(this: Both) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=30 bits=0x0000001e
+  fun Both.$get$rightValue @fn7(this: Both) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=40 bits=0x00000028
+  fun Both.$get$stored @fn8(this: Both) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type Both
+          Local this
+  fun Both.$set$stored @fn9(this: Both, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Both
+        Local this
+        Type Int
+        Local value
+      return
+  fun $extension.leftExtra @fn10(this: Left) -> Int
+    bb0 entry
+      val $receiver: Left
+        Type Left
+        Local this
+      call $dependency.receiver: Int = @fn39 interface Left[1]
+        Type Left
+        Local $receiver
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun $extension.rightExtra @fn11(this: Right) -> Int
+    bb0 entry
+      val $receiver: Right
+        Type Right
+        Local this
+      call $dependency.receiver: Int = @fn42 interface Right[1]
+        Type Right
+        Local $receiver
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=20 bits=0x00000014
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun takeLeft @fn12(value: Left) -> Int
+    bb0 entry
+      val $receiver: Left
+        Type Left
+        Local value
+      call $call.1: Int = @fn39 interface Left[1]
+        Type Left
+        Local $receiver
+      return
+        Type Int
+        Local $call.1
+  fun takeRight @fn13(value: Right) -> Int
+    bb0 entry
+      val $receiver: Right
+        Type Right
+        Local value
+      call $call.1: Int = @fn42 interface Right[1]
+        Type Right
+        Local $receiver
+      return
+        Type Int
+        Local $call.1
+  fun withDefaults @fn14(base: Int, action: () -> Int) -> Int
+    bb0 entry
+      val $dependency.receiver: Int
+        Type Int
+        Local base
+      call $dependency.argument.0: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local action
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun inspect @fn15(value: Any) -> Unit
+    bb0 entry
+      branch bb1 bb2
+        Type Boolean
+        IsInstance Left
+          Type Any
+          Local value
+    bb1 logic.rhs.1
+      assign $logic.1
+        Type Boolean
+        IsInstance Right
+          Type Any
+          Retype Any
+            Type Left
+            Retype Left
+              Type Any
+              Local value
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.1
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 logic.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $logic.1
+    bb4 if.then.4
+      val $receiver: Left
+        Type Left
+        Retype Left
+          Type Any
+          Local value
+      call $dependency.receiver: Int = @fn39 interface Left[1]
+        Type Left
+        Local $receiver
+      val $receiver: Right
+        Type Right
+        Retype Right
+          Type Any
+          Local value
+      call $dependency.argument.0: Int = @fn42 interface Right[1]
+        Type Right
+        Local $receiver
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn23 direct
+        Type Int
+        Local $dependency.parameter.value
+      call $dependency.receiver: Int = @fn41 interface Left[3]
+        Type Left
+        Retype Left
+          Type Any
+          Local value
+      call $dependency.argument.0: Int = @fn45 interface Right[4]
+        Type Right
+        Retype Right
+          Type Any
+          Local value
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn23 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $receiver: Left
+        Type Left
+        Retype Left
+          Type Any
+          Local value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $dependency.argument.0: Int = @fn40 interface Left[2]
+        Type Left
+        Local $receiver
+        Type Int
+        Local $parameter.value
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn23 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $receiver: Right
+        Type Right
+        Retype Right
+          Type Any
+          Local value
+      val $argument.0: String
+        Type String
+        StringConst @str0
+      val $parameter.value: String
+        Type String
+        Local $argument.0
+      call $dependency.argument.0: Int = @fn43 interface Right[2]
+        Type Right
+        Local $receiver
+        Type String
+        Local $parameter.value
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn23 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $receiver: Left
+        Type Left
+        Retype Left
+          Type Any
+          Local value
+      call $dependency.argument.0: Int = @fn38 interface Root[0]
+        Type Root
+        Retype Root
+          Type Left
+          Local $receiver
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn23 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $receiver: Left
+        Type Left
+        Retype Left
+          Type Any
+          Local value
+      call $dependency.receiver: Int = @fn10 direct
+        Type Left
+        Local $receiver
+      val $receiver: Right
+        Type Right
+        Retype Right
+          Type Any
+          Local value
+      call $dependency.argument.0: Int = @fn11 direct
+        Type Right
+        Local $receiver
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn23 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $receiver: Right
+        Type Right
+        Retype Right
+          Type Any
+          Local value
+      call $dependency.argument.0: Int = @fn20 direct
+        Type Right
+        Local $receiver
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn23 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $argument.0: Left
+        Type Left
+        Retype Left
+          Type Any
+          Local value
+      val $parameter.value: Left
+        Type Left
+        Local $argument.0
+      call $dependency.receiver: Int = @fn12 direct
+        Type Left
+        Local $parameter.value
+      val $argument.0: Right
+        Type Right
+        Retype Right
+          Type Any
+          Local value
+      val $parameter.value: Right
+        Type Right
+        Local $argument.0
+      call $dependency.argument.0: Int = @fn13 direct
+        Type Right
+        Local $parameter.value
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn23 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $receiver: Right
+        Type Right
+        Retype Right
+          Type Any
+          Local value
+      call $dependency.argument.0: Int = @fn44 interface Right[3]
+        Type Right
+        Local $receiver
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn23 direct
+        Type Int
+        Local $dependency.parameter.value
+      val right: () -> Int
+        Type () -> Int
+        ClosureAlloc cc1 $Closure$reference0
+          CaptureInit field=0
+            Type Right
+            Retype Right
+              Type Any
+              Local value
+      call $dependency.argument.0: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local right
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn23 direct
+        Type Int
+        Local $dependency.parameter.value
+      val extra: () -> Int
+        Type () -> Int
+        ClosureAlloc cc2 $Closure$reference1
+          CaptureInit field=0
+            Type Right
+            Retype Right
+              Type Any
+              Local value
+      call $dependency.argument.0: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local extra
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn23 direct
+        Type Int
+        Local $dependency.parameter.value
+      val root: () -> Int
+        Type () -> Int
+        ClosureAlloc cc3 $Closure$reference2
+          CaptureInit field=0
+            Type Root
+            Retype Root
+              Type Left
+              Retype Left
+                Type Any
+                Local value
+      call $dependency.argument.0: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local root
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn23 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $argument.0: () -> Int
+        Type () -> Int
+        ClosureAlloc cc0 $Closure$lambda0
+          CaptureInit field=0
+            Type Any
+            Local value
+      val $parameter.base: Int
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+      val $parameter.action: () -> Int
+        Type () -> Int
+        Local $argument.0
+      call $dependency.argument.0: Int = @fn14 direct
+        Type Int
+        Local $parameter.base
+        Type () -> Int
+        Local $parameter.action
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn23 direct
+        Type Int
+        Local $dependency.parameter.value
+      call @fn47 interface Right[6]
+        Type Right
+        Retype Right
+          Type Any
+          Local value
+        Type Int
+        IntegerLiteral Int value=8 bits=0x00000008
+      val $place.0: Right
+        Type Right
+        Retype Right
+          Type Any
+          Local value
+      call $old.1: Int = @fn46 interface Right[5]
+        Type Right
+        Local $place.0
+      val $dependency.receiver: Int
+        Type Int
+        Local $old.1
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn47 interface Right[6]
+        Type Right
+        Local $place.0
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      call $dependency.argument.0: Int = @fn46 interface Right[5]
+        Type Right
+        Retype Right
+          Type Any
+          Local value
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn23 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $receiver: Right
+        Type Right
+        Retype Right
+          Type Any
+          Local value
+      call @fn22 direct
+        Type Right
+        Local $receiver
+        Type Int
+        IntegerLiteral Int value=20 bits=0x00000014
+      val $place.2: Left
+        Type Left
+        Retype Left
+          Type Any
+          Local value
+      val $receiver: Right
+        Type Right
+        Retype Right
+          Type Left
+          Local $place.2
+      call $old.3: Int = @fn21 direct
+        Type Right
+        Local $receiver
+      val $dependency.receiver: Int
+        Type Int
+        Local $old.3
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=5 bits=0x00000005
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn22 direct
+        Type Right
+        Local $receiver
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $place.4: Left
+        Type Left
+        Retype Left
+          Type Any
+          Local value
+      val $receiver: Right
+        Type Right
+        Retype Right
+          Type Left
+          Local $place.4
+      call $old.5: Int = @fn21 direct
+        Type Right
+        Local $receiver
+      val $dependency.receiver: Int
+        Type Int
+        Local $old.5
+      val $new.6: Int
+        Type Int
+        IntegerUnary increment kind=Int
+          Type Int
+          Local $dependency.receiver
+      call @fn22 direct
+        Type Right
+        Local $receiver
+        Type Int
+        Local $new.6
+      val $dependency.argument.0: Int
+        Type Int
+        Local $old.5
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn23 direct
+        Type Int
+        Local $dependency.parameter.value
+      call $dependency.argument.0: Int = @fn46 interface Right[5]
+        Type Right
+        Retype Right
+          Type Any
+          Local value
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn23 direct
+        Type Int
+        Local $dependency.parameter.value
+      goto bb6
+    bb5 if.else.5
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str1
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn25 direct
+        Type String
+        Local $dependency.parameter.value
+      goto bb6
+    bb6 if.merge.6
+      return
+  fun fromLeft @fn16(value: Left) -> Int
+    bb0 entry
+      val $when.subject.7: Left
+        Type Left
+        Local value
+      val $when.1: Left
+        Type Left
+        Local $when.subject.7
+      branch bb1 bb2
+        Type Boolean
+        IsInstance Right
+          Type Any
+          Retype Any
+            Type Left
+            Local value
+    bb1 if.then.1
+      val $receiver: Left
+        Type Left
+        Local value
+      call $dependency.receiver: Int = @fn39 interface Left[1]
+        Type Left
+        Local $receiver
+      val $receiver: Right
+        Type Right
+        Retype Right
+          Type Left
+          Local value
+      call $dependency.argument.0: Int = @fn42 interface Right[1]
+        Type Right
+        Local $receiver
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      assign $result.8
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      goto bb3
+    bb2 if.else.2
+      assign $result.8
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      goto bb3
+    bb3 if.merge.3
+      return
+        Type Int
+        Local $result.8
+  fun common @fn17(value: Any, flag: Boolean) -> Int
+    bb0 entry
+      branch bb1 bb2
+        Type Boolean
+        IsInstance Left
+          Type Any
+          Local value
+    bb1 logic.rhs.1
+      assign $logic.1
+        Type Boolean
+        IsInstance Right
+          Type Any
+          Retype Any
+            Type Left
+            Retype Left
+              Type Any
+              Local value
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.1
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 logic.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $logic.1
+    bb4 logic.rhs.4
+      assign $logic.2
+        Type Boolean
+        Local flag
+      goto bb6
+    bb5 logic.short.5
+      assign $logic.2
+        Type Boolean
+        BoolLiteral false
+      goto bb6
+    bb6 logic.merge.6
+      branch bb7 bb8
+        Type Boolean
+        Local $logic.2
+    bb7 if.then.7
+      val $shortCircuit.10: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb9
+    bb8 if.else.8
+      branch bb10 bb11
+        Type Boolean
+        IsInstance Right
+          Type Any
+          Local value
+    bb9 if.merge.9
+      branch bb16 bb17
+        Type Boolean
+        Local $shortCircuit.10
+    bb10 logic.rhs.10
+      assign $logic.3
+        Type Boolean
+        IsInstance Left
+          Type Any
+          Retype Any
+            Type Right
+            Retype Right
+              Type Any
+              Local value
+      goto bb12
+    bb11 logic.short.11
+      assign $logic.3
+        Type Boolean
+        BoolLiteral false
+      goto bb12
+    bb12 logic.merge.12
+      branch bb13 bb14
+        Type Boolean
+        Local $logic.3
+    bb13 if.then.13
+      val $dependency.receiver: Boolean
+        Type Boolean
+        Local flag
+      val $shortCircuit.9: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+      goto bb15
+    bb14 if.else.14
+      val $shortCircuit.9: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb15
+    bb15 if.merge.15
+      val $shortCircuit.10: Boolean
+        Type Boolean
+        Local $shortCircuit.9
+      goto bb9
+    bb16 if.then.16
+      val $receiver: Left
+        Type Left
+        Retype Left
+          Type Any
+          Local value
+      call $dependency.receiver: Int = @fn39 interface Left[1]
+        Type Left
+        Local $receiver
+      val $receiver: Right
+        Type Right
+        Retype Right
+          Type Any
+          Local value
+      call $dependency.argument.0: Int = @fn42 interface Right[1]
+        Type Right
+        Local $receiver
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      assign $result.11
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      goto bb18
+    bb17 if.else.17
+      assign $result.11
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      goto bb18
+    bb18 if.merge.18
+      return
+        Type Int
+        Local $result.11
+  fun guarded @fn18(value: Any) -> Int
+    bb0 entry
+      val $when.subject.12: Any
+        Type Any
+        Local value
+      val $when.1: Any
+        Type Any
+        Local $when.subject.12
+      branch bb1 bb2
+        Type Boolean
+        IsInstance Left
+          Type Any
+          Local value
+    bb1 if.then.1
+      branch bb4 bb5
+        Type Boolean
+        IsInstance Right
+          Type Any
+          Retype Any
+            Type Left
+            Retype Left
+              Type Any
+              Local value
+    bb2 if.else.2
+      assign $result.13
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      goto bb3
+    bb3 if.merge.3
+      return
+        Type Int
+        Local $result.13
+    bb4 if.then.4
+      val $receiver: Left
+        Type Left
+        Retype Left
+          Type Any
+          Local value
+      call $dependency.receiver: Int = @fn39 interface Left[1]
+        Type Left
+        Local $receiver
+      val $receiver: Right
+        Type Right
+        Retype Right
+          Type Any
+          Local value
+      call $dependency.argument.0: Int = @fn42 interface Right[1]
+        Type Right
+        Local $receiver
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      assign $result.13
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      goto bb6
+    bb5 if.else.5
+      assign $result.13
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      goto bb6
+    bb6 if.merge.6
+      goto bb3
+  fun main @fn19() -> Unit
+    bb0 entry
+      assign $new.1
+        Type Both
+        ClassAlloc Both
+      call @fn51 direct
+        Type Both
+        Local $new.1
+      val $argument.0: Any
+        Type Any
+        Retype Any
+          Type Both
+          Local $new.1
+      val $parameter.value: Any
+        Type Any
+        Local $argument.0
+      call @fn15 direct
+        Type Any
+        Local $parameter.value
+      assign $new.2
+        Type Both
+        ClassAlloc Both
+      call @fn51 direct
+        Type Both
+        Local $new.2
+      val $argument.0: Left
+        Type Left
+        Retype Left
+          Type Both
+          Local $new.2
+      val $parameter.value: Left
+        Type Left
+        Local $argument.0
+      call $dependency.argument.0: Int = @fn16 direct
+        Type Left
+        Local $parameter.value
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn23 direct
+        Type Int
+        Local $dependency.parameter.value
+      assign $new.3
+        Type Both
+        ClassAlloc Both
+      call @fn51 direct
+        Type Both
+        Local $new.3
+      val $argument.0: Any
+        Type Any
+        Retype Any
+          Type Both
+          Local $new.3
+      val $argument.1: Boolean
+        Type Boolean
+        BoolLiteral true
+      val $parameter.value: Any
+        Type Any
+        Local $argument.0
+      val $parameter.flag: Boolean
+        Type Boolean
+        Local $argument.1
+      call $dependency.argument.0: Int = @fn17 direct
+        Type Any
+        Local $parameter.value
+        Type Boolean
+        Local $parameter.flag
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn23 direct
+        Type Int
+        Local $dependency.parameter.value
+      assign $new.4
+        Type Both
+        ClassAlloc Both
+      call @fn51 direct
+        Type Both
+        Local $new.4
+      val $argument.0: Any
+        Type Any
+        Retype Any
+          Type Both
+          Local $new.4
+      val $argument.1: Boolean
+        Type Boolean
+        BoolLiteral false
+      val $parameter.value: Any
+        Type Any
+        Local $argument.0
+      val $parameter.flag: Boolean
+        Type Boolean
+        Local $argument.1
+      call $dependency.argument.0: Int = @fn17 direct
+        Type Any
+        Local $parameter.value
+        Type Boolean
+        Local $parameter.flag
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn23 direct
+        Type Int
+        Local $dependency.parameter.value
+      assign $new.5
+        Type Both
+        ClassAlloc Both
+      call @fn51 direct
+        Type Both
+        Local $new.5
+      val $argument.0: Any
+        Type Any
+        Retype Any
+          Type Both
+          Local $new.5
+      val $parameter.value: Any
+        Type Any
+        Local $argument.0
+      call $dependency.argument.0: Int = @fn18 direct
+        Type Any
+        Local $parameter.value
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn23 direct
+        Type Int
+        Local $dependency.parameter.value
+      return
+  fun $extension.$get$extensionValue @fn20(this: Right) -> Int
+    bb0 entry
+      call $dependency.receiver: Int = @fn45 interface Right[4]
+        Type Right
+        Local this
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=100 bits=0x00000064
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun $extension.$get$extensionSlot @fn21(this: Right) -> Int
+    bb0 entry
+      call $call.1: Int = @fn46 interface Right[5]
+        Type Right
+        Local this
+      return
+        Type Int
+        Local $call.1
+  fun $extension.$set$extensionSlot @fn22(this: Right, next: Int) -> Unit
+    bb0 entry
+      call @fn47 interface Right[6]
+        Type Right
+        Local this
+        Type Int
+        Local next
+      return
+  fun println @fn23(value: Int) -> Unit
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      call $dependency.local.2: String = external0 direct
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external2 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str2
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external2 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun $lambda.0 @fn24($closure: () -> Int) -> Int
+    bb0 entry
+      val $receiver: Left
+        Type Left
+        Retype Left
+          Type Any
+          ClosureCapture cc0 0
+            Type () -> Int
+            Local $closure
+      call $dependency.receiver: Int = @fn39 interface Left[1]
+        Type Left
+        Local $receiver
+      val $receiver: Right
+        Type Right
+        Retype Right
+          Type Any
+          ClosureCapture cc0 0
+            Type () -> Int
+            Local $closure
+      call $dependency.argument.0: Int = @fn42 interface Right[1]
+        Type Right
+        Local $receiver
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun println @fn25(value: String) -> Unit
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local value
+      call $dependency.local.2: String = external1 direct
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external2 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str3
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external2 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun Continuation.resume @fn26(this: Continuation<Root>, value: Root) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn27(this: Continuation<Root>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn28(this: SuspendTask<Root>, $completion: Continuation<Root>) -> CoroutineStep<Root>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn29(this: SuspendRegistration<Root>, continuation: Continuation<Root>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn30(this: Continuation<Left>, value: Left) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn31(this: Continuation<Left>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn32(this: SuspendTask<Left>, $completion: Continuation<Left>) -> CoroutineStep<Left>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn33(this: SuspendRegistration<Left>, continuation: Continuation<Left>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn34(this: Continuation<Right>, value: Right) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn35(this: Continuation<Right>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn36(this: SuspendTask<Right>, $completion: Continuation<Right>) -> CoroutineStep<Right>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn37(this: SuspendRegistration<Right>, continuation: Continuation<Right>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Root.root @fn38(this: Root) -> Int
+    bb0 entry
+      trap "call to abstract method `Root.root`"
+  fun Left.left @fn39(this: Left) -> Int
+    bb0 entry
+      trap "call to abstract method `Left.left`"
+  fun Left.choose @fn40(this: Left, value: Int) -> Int
+    bb0 entry
+      trap "call to abstract method `Left.choose`"
+  fun Left.$get$leftValue @fn41(this: Left) -> Int
+    bb0 entry
+      trap "call to abstract method `Left.$get$leftValue`"
+  fun Right.right @fn42(this: Right) -> Int
+    bb0 entry
+      trap "call to abstract method `Right.right`"
+  fun Right.choose @fn43(this: Right, value: String) -> Int
+    bb0 entry
+      trap "call to abstract method `Right.choose`"
+  fun Right.invoke @fn44(this: Right) -> Int
+    bb0 entry
+      trap "call to abstract method `Right.invoke`"
+  fun Right.$get$rightValue @fn45(this: Right) -> Int
+    bb0 entry
+      trap "call to abstract method `Right.$get$rightValue`"
+  fun Right.$get$stored @fn46(this: Right) -> Int
+    bb0 entry
+      trap "call to abstract method `Right.$get$stored`"
+  fun Right.$set$stored @fn47(this: Right, value: Int) -> Unit
+    bb0 entry
+      trap "call to abstract method `Right.$set$stored`"
+  fun $reference.0 @fn48($closure: () -> Int) -> Int
+    bb0 entry
+      call $call.1: Int = @fn42 interface Right[1]
+        Type Right
+        ClosureCapture cc1 0
+          Type () -> Int
+          Local $closure
+      return
+        Type Int
+        Local $call.1
+  fun $reference.1 @fn49($closure: () -> Int) -> Int
+    bb0 entry
+      call $call.1: Int = @fn11 direct
+        Type Right
+        ClosureCapture cc2 0
+          Type () -> Int
+          Local $closure
+      return
+        Type Int
+        Local $call.1
+  fun $reference.2 @fn50($closure: () -> Int) -> Int
+    bb0 entry
+      call $call.1: Int = @fn38 interface Root[0]
+        Type Root
+        ClosureCapture cc3 0
+          Type () -> Int
+          Local $closure
+      return
+        Type Int
+        Local $call.1
+  fun init.Both.$c0 @fn51(this: Both) -> Unit
+    bb0 entry
+      field_set 0
+        Type Both
+        Local this
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      return
+  fun startCoroutine<Left> @fn52(task: SuspendTask<Left>, completion: Continuation<Left>) -> Unit
+    bb0 context.unwind
+      landing_pad cleanup=true
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb1 context.catch_unwind
+      landing_pad cleanup=true
+      end_catch
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb2 suspended
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb3 completed unwind bb0
+      call @fn30 interface Continuation<Left>[0]
+        Type Continuation<Left>
+        Local completion
+        Type Left
+        EnumField v0 f0
+          Type CoroutineStep<Left>
+          Local $step
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb4 failed unwind bb0
+      call @fn31 interface Continuation<Left>[1]
+        Type Continuation<Left>
+        Local completion
+        Type Throwable
+        Local $exception
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb5 body_failure unwind bb1
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb4
+    bb6 run unwind bb5
+      call $step: CoroutineStep<Left> = @fn32 interface SuspendTask<Left>[0]
+        Type SuspendTask<Left>
+        Local task
+        Type Continuation<Left>
+        Local completion
+      branch bb3 bb2
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Left>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+    bb7 entry
+      val $child_context: internal<task-context>
+        Type internal<task-context>
+        ContextFork
+          Type internal<context-node>
+          ContextSnapshot
+      val $context_guard: internal<context-switch-guard>
+        Type internal<context-switch-guard>
+        ContextEnter
+          Type internal<task-context>
+          Local $child_context
+      goto bb6
+  fun startCoroutine<Right> @fn53(task: SuspendTask<Right>, completion: Continuation<Right>) -> Unit
+    bb0 context.unwind
+      landing_pad cleanup=true
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb1 context.catch_unwind
+      landing_pad cleanup=true
+      end_catch
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb2 suspended
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb3 completed unwind bb0
+      call @fn34 interface Continuation<Right>[0]
+        Type Continuation<Right>
+        Local completion
+        Type Right
+        EnumField v0 f0
+          Type CoroutineStep<Right>
+          Local $step
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb4 failed unwind bb0
+      call @fn35 interface Continuation<Right>[1]
+        Type Continuation<Right>
+        Local completion
+        Type Throwable
+        Local $exception
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb5 body_failure unwind bb1
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb4
+    bb6 run unwind bb5
+      call $step: CoroutineStep<Right> = @fn36 interface SuspendTask<Right>[0]
+        Type SuspendTask<Right>
+        Local task
+        Type Continuation<Right>
+        Local completion
+      branch bb3 bb2
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Right>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+    bb7 entry
+      val $child_context: internal<task-context>
+        Type internal<task-context>
+        ContextFork
+          Type internal<context-node>
+          ContextSnapshot
+      val $context_guard: internal<context-switch-guard>
+        Type internal<context-switch-guard>
+        ContextEnter
+          Type internal<task-context>
+          Local $child_context
+      goto bb6
+  fun startCoroutine<Root> @fn54(task: SuspendTask<Root>, completion: Continuation<Root>) -> Unit
+    bb0 context.unwind
+      landing_pad cleanup=true
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb1 context.catch_unwind
+      landing_pad cleanup=true
+      end_catch
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb2 suspended
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb3 completed unwind bb0
+      call @fn26 interface Continuation<Root>[0]
+        Type Continuation<Root>
+        Local completion
+        Type Root
+        EnumField v0 f0
+          Type CoroutineStep<Root>
+          Local $step
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb4 failed unwind bb0
+      call @fn27 interface Continuation<Root>[1]
+        Type Continuation<Root>
+        Local completion
+        Type Throwable
+        Local $exception
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb5 body_failure unwind bb1
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb4
+    bb6 run unwind bb5
+      call $step: CoroutineStep<Root> = @fn28 interface SuspendTask<Root>[0]
+        Type SuspendTask<Root>
+        Local task
+        Type Continuation<Root>
+        Local completion
+      branch bb3 bb2
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Root>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+    bb7 entry
+      val $child_context: internal<task-context>
+        Type internal<task-context>
+        ContextFork
+          Type internal<context-node>
+          ContextSnapshot
+      val $context_guard: internal<context-switch-guard>
+        Type internal<context-switch-guard>
+        ContextEnter
+          Type internal<task-context>
+          Local $child_context
+      goto bb6
+  fun function_bridge.$Closure$lambda0.() -> Any @fn55($source: () -> Int) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local $source
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$reference0.() -> Any @fn56($source: () -> Int) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local $source
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$reference1.() -> Any @fn57($source: () -> Int) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local $source
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$reference2.() -> Any @fn58($source: () -> Int) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local $source
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  coroutine_step cs0 CoroutineStep<Left> result=Left
+  coroutine_step cs1 CoroutineStep<Right> result=Right
+  coroutine_step cs2 CoroutineStep<Root> result=Root
+  coroutine_slot cl0 CoroutineSlot<Left> value=Left
+  coroutine_slot cl1 CoroutineSlot<Right> value=Right
+  coroutine_slot cl2 CoroutineSlot<Root> value=Root
+  coroutine_start ct0 result=Left function=fn52
+  coroutine_start ct1 result=Right function=fn53
+  coroutine_start ct2 result=Root function=fn54
+  coroutine_fn cf0 @fn28 source_return=Root step=cs2 immediate
+  coroutine_fn cf1 @fn32 source_return=Left step=cs0 immediate
+  coroutine_fn cf2 @fn36 source_return=Right step=cs1 immediate
+  instance mi0 function=@fn23 <- println
+  instance mi1 function=@fn25 <- println
+  instance mi2 function=@fn26 <- Continuation.resume
+  instance mi3 function=@fn27 <- Continuation.resumeWithException
+  instance mi4 function=@fn28 <- SuspendTask.run
+  instance mi5 function=@fn29 <- SuspendRegistration.register
+  instance mi6 function=@fn30 <- Continuation.resume
+  instance mi7 function=@fn31 <- Continuation.resumeWithException
+  instance mi8 function=@fn32 <- SuspendTask.run
+  instance mi9 function=@fn33 <- SuspendRegistration.register
+  instance mi10 function=@fn34 <- Continuation.resume
+  instance mi11 function=@fn35 <- Continuation.resumeWithException
+  instance mi12 function=@fn36 <- SuspendTask.run
+  instance mi13 function=@fn37 <- SuspendRegistration.register
+  str @str0 "text"
+  str @str1 "missing"
+  str @str2 "\n"
+  str @str3 "\n"
+  output executable @fn19

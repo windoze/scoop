@@ -95,13 +95,9 @@ impl Lowerer {
                 )?);
             }
         } else if let ast::Expr::Var(name) = initializer
-            && let Some(local) = self.scopes.lookup(&name.text)
-            && !self.locals[local].mutable
-            && !self
-                .local_delegate_plans
-                .contains_key(&self.locals[local].binding)
+            && self.stable_smart_cast_binding(&name.text).is_some()
         {
-            // A stable source local denotes the same snapshot. Its type facts
+            // A stable source binding denotes the same snapshot. Its type facts
             // can therefore apply to source uses in this arm.
             reference = initializer.clone();
         }

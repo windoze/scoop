@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "call to `choose` is ambiguous in member layer:\n  - fun Left.choose(value: Int): Int — applicable; tied by MSC\n  - fun Right.choose(value: Int): Int — applicable; tied by MSC",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 184,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 169
+    },
+    "severity": "error"
+  }
+]

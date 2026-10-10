@@ -209,7 +209,7 @@ impl Lowerer {
                 self.resolve_smart_casts(&if_.cond, false),
             )
         } else {
-            (Vec::new(), Vec::new())
+            (Default::default(), Default::default())
         };
 
         let defer_then = expected.is_none() && self.value_block_requires_expected(&if_.then_block);

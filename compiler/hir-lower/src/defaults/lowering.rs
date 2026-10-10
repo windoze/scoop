@@ -108,7 +108,7 @@ impl Lowerer {
         let outer_this = self.current_this.take();
         let outer_owner = self.current_owner;
         let outer_constructor_parameters = std::mem::take(&mut self.constructor_params_in_scope);
-        let outer_smart_casts = std::mem::take(&mut self.smart_casts);
+        let outer_smart_casts = self.smart_casts.clone();
         if let Some(available) = capture_environment {
             self.capture_contexts.push(crate::CaptureContext {
                 available,

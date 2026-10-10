@@ -15,17 +15,18 @@ use local::LocalReferenceDeclaration;
 
 #[derive(Clone)]
 pub(super) enum ReferenceCandidate {
-    Local(crate::CallableCandidate),
+    Local(crate::CallableCandidate, Option<hir::Expr>),
     Dependency(hir::DirectImportedTargetBinding),
-    Member(Box<hir::ImportedCallableDeclaration>),
+    Member(Box<hir::ImportedCallableDeclaration>, hir::Expr),
 }
 
 impl ReferenceCandidate {
     pub(super) fn named(binding: NamedCallBinding) -> Self {
         match (binding.target, binding.origin) {
-            (NamedCallTarget::Function(function), _) => {
-                Self::Local(crate::CallableCandidate::function(function, Vec::new()))
-            }
+            (NamedCallTarget::Function(function), _) => Self::Local(
+                crate::CallableCandidate::function(function, Vec::new()),
+                None,
+            ),
             (NamedCallTarget::ImportedDependency(_), NamedCallOrigin::Dependency(binding)) => {
                 Self::Dependency(binding)
             }
@@ -35,9 +36,10 @@ impl ReferenceCandidate {
 
     pub(super) fn extension(target: ExtensionCallTarget) -> Self {
         match target {
-            ExtensionCallTarget::Current(function) => {
-                Self::Local(crate::CallableCandidate::function(function, Vec::new()))
-            }
+            ExtensionCallTarget::Current(function) => Self::Local(
+                crate::CallableCandidate::function(function, Vec::new()),
+                None,
+            ),
             ExtensionCallTarget::Dependency(binding) => Self::Dependency(binding),
         }
     }
@@ -54,6 +56,7 @@ struct ApplicableReference {
     type_args: Vec<TypeId>,
     ty: TypeId,
     own_type_param_count: usize,
+    receiver: Option<hir::Expr>,
 }
 
 struct ReferenceFailure {
@@ -116,10 +119,10 @@ impl Lowerer {
             .iter()
             .copied()
             .map(|function| {
-                ReferenceCandidate::Local(crate::CallableCandidate::function(
-                    function,
-                    owner_type_args.to_vec(),
-                ))
+                ReferenceCandidate::Local(
+                    crate::CallableCandidate::function(function, owner_type_args.to_vec()),
+                    None,
+                )
             })
             .collect::<Vec<_>>();
         self.resolve_reference_candidate_set(&candidates, None, context)
@@ -133,7 +136,7 @@ impl Lowerer {
     ) -> ReferenceResolutionOutcome {
         let rejected = |candidate: &ReferenceCandidate| {
             matches!(candidate,
-            ReferenceCandidate::Local(candidate) if self.declaration_surface.rejects_function(candidate.function))
+            ReferenceCandidate::Local(candidate, _) if self.declaration_surface.rejects_function(candidate.function))
         };
         let suppressed = candidates.iter().any(rejected);
         let candidates = candidates
@@ -146,17 +149,49 @@ impl Lowerer {
         let mut applicable = Vec::new();
         let mut failures = Vec::new();
         for candidate in candidates {
-            let result = match candidate {
-                ReferenceCandidate::Local(candidate) => {
-                    self.probe_local_reference(candidate, context)
+            let views = match candidate {
+                ReferenceCandidate::Local(_, Some(view)) | ReferenceCandidate::Member(_, view) => {
+                    vec![Some(view.clone())]
                 }
-                ReferenceCandidate::Dependency(_) | ReferenceCandidate::Member(_) => self
-                    .probe_imported_reference(candidate, receiver.map(|value| value.ty), context),
+                _ => receiver
+                    .map(|receiver| {
+                        self.smart_cast_receiver_views(receiver)
+                            .into_iter()
+                            .map(Some)
+                            .collect()
+                    })
+                    .unwrap_or_else(|| vec![None]),
             };
-            match result {
-                Ok(Some(candidate)) => applicable.push(candidate),
-                Ok(None) => continue,
-                Err(failure) => failures.push(failure),
+            for view in views {
+                let probe_context = ReferenceResolutionContext {
+                    extension_mode: match (context.extension_mode, &view) {
+                        (ReferenceExtensionMode::Bound(_), Some(view)) => {
+                            ReferenceExtensionMode::Bound(view.ty)
+                        }
+                        (mode, _) => mode,
+                    },
+                    ..context
+                };
+                let result = match candidate {
+                    ReferenceCandidate::Local(candidate, _) => {
+                        self.probe_local_reference(candidate, probe_context)
+                    }
+                    ReferenceCandidate::Dependency(_) | ReferenceCandidate::Member(..) => self
+                        .probe_imported_reference(
+                            candidate,
+                            view.as_ref().map(|value| value.ty),
+                            probe_context,
+                        ),
+                };
+                match result {
+                    Ok(Some(mut candidate)) => {
+                        candidate.receiver = view;
+                        applicable.push(candidate);
+                        break;
+                    }
+                    Ok(None) => continue,
+                    Err(failure) => failures.push(failure),
+                }
             }
         }
         let selected = match applicable.len() {
@@ -209,10 +244,12 @@ impl Lowerer {
         };
         let selected = applicable.swap_remove(selected);
         *self = *selected.state;
-        match selected
-            .declaration
-            .commit(self, &selected.type_args, receiver, selected.ty)
-        {
+        match selected.declaration.commit(
+            self,
+            &selected.type_args,
+            selected.receiver.as_ref(),
+            selected.ty,
+        ) {
             Ok(target) => ReferenceResolutionOutcome::Resolved(ResolvedReference {
                 target,
                 type_args: selected.type_args,

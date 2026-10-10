@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use crate::expr::SmartCastFacts;
 
 use super::*;
 
@@ -18,7 +18,7 @@ struct ArmHead {
     condition: hir::WhenCondition,
     guard: Option<hir::WhenGuard>,
     scope: Scopes,
-    facts: HashMap<hir::LocalId, TypeId>,
+    facts: SmartCastFacts,
     coverage: Vec<hir::Pattern>,
     requires_expected: bool,
     body_reachable: bool,

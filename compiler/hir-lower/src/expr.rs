@@ -86,6 +86,7 @@ mod fields;
 mod floating;
 mod smart_casts;
 pub(crate) use floating::{float_literal_candidate_kinds, float_literal_default_kind};
+pub(crate) use smart_casts::SmartCastFacts;
 mod interpolation;
 mod members;
 mod names;

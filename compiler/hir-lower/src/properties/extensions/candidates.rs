@@ -20,7 +20,7 @@ impl Lowerer {
             return ExtensionPropertySelectionOutcome::NoCandidate;
         }
         let no_type_args = [];
-        let static_receiver_type = receiver.ty;
+        let views = self.smart_cast_receiver_views(&receiver);
         let no_arguments = [];
         let call = OverloadCall {
             explicit_type_args: &no_type_args,
@@ -34,47 +34,51 @@ impl Lowerer {
         let mut first_failure = None;
         let mut suppressed = false;
         for property in properties {
-            match property {
-                ExtensionPropertyTarget::Current(property) => {
-                    if !self.property_is_accessible(*property, Some(receiver.ty)) {
-                        continue;
-                    }
-                    let function = self.extension_property_getter(*property);
-                    if self.declaration_surface.rejects_function(function) {
-                        suppressed = true;
-                        continue;
-                    }
-                    let candidate = crate::CallableCandidate::function(function, Vec::new());
-                    match self.probe_named_callable(
-                        &name.text,
-                        candidate,
-                        NamedCallReceiver::Extension(receiver.clone()),
-                        call,
-                    ) {
-                        Ok(probe) => {
-                            probes.push(NamedFunctionLikeProbe::Callable(Box::new(probe)));
-                            commits.push(ExtensionPropertyCommit::Current);
+            for receiver in &views {
+                match property {
+                    ExtensionPropertyTarget::Current(property) => {
+                        if !self.property_is_accessible(*property, Some(receiver.ty)) {
+                            continue;
                         }
-                        Err(failure) => {
-                            first_failure.get_or_insert(failure);
+                        let function = self.extension_property_getter(*property);
+                        if self.declaration_surface.rejects_function(function) {
+                            suppressed = true;
+                            continue;
+                        }
+                        let candidate = crate::CallableCandidate::function(function, Vec::new());
+                        match self.probe_named_callable(
+                            &name.text,
+                            candidate,
+                            NamedCallReceiver::Extension(receiver.clone()),
+                            call,
+                        ) {
+                            Ok(probe) => {
+                                probes.push(NamedFunctionLikeProbe::Callable(Box::new(probe)));
+                                commits.push((ExtensionPropertyCommit::Current, receiver.ty));
+                                break;
+                            }
+                            Err(failure) => {
+                                first_failure.get_or_insert(failure);
+                            }
                         }
                     }
-                }
-                ExtensionPropertyTarget::Dependency(binding) => {
-                    match self.probe_imported_dependency_extension_property(
-                        binding,
-                        receiver.clone(),
-                        name,
-                        matches!(access, ExtensionPropertyAccess::Read),
-                    ) {
-                        Ok(probe) => {
-                            probes.push(NamedFunctionLikeProbe::ImportedDependencyProperty(
-                                Box::new(probe),
-                            ));
-                            commits.push(ExtensionPropertyCommit::Dependency);
-                        }
-                        Err(failure) => {
-                            first_failure.get_or_insert(failure);
+                    ExtensionPropertyTarget::Dependency(binding) => {
+                        match self.probe_imported_dependency_extension_property(
+                            binding,
+                            receiver.clone(),
+                            name,
+                            matches!(access, ExtensionPropertyAccess::Read),
+                        ) {
+                            Ok(probe) => {
+                                probes.push(NamedFunctionLikeProbe::ImportedDependencyProperty(
+                                    Box::new(probe),
+                                ));
+                                commits.push((ExtensionPropertyCommit::Dependency, receiver.ty));
+                                break;
+                            }
+                            Err(failure) => {
+                                first_failure.get_or_insert(failure);
+                            }
                         }
                     }
                 }
@@ -105,7 +109,7 @@ impl Lowerer {
             return ExtensionPropertySelectionOutcome::Failed;
         };
         let probe = probes.swap_remove(winner);
-        let commit = commits.swap_remove(winner);
+        let (commit, static_receiver_type) = commits.swap_remove(winner);
         let (write, current_read) = match (probe, commit) {
             (NamedFunctionLikeProbe::Callable(probe), ExtensionPropertyCommit::Current) => {
                 let Some(resolved) = self.commit_named_callable(*probe, sink) else {

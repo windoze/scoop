@@ -840,11 +840,9 @@ pub(crate) struct Lowerer {
     /// converted to typed field identities.
     pub(crate) initialization_context: Option<InitializationContext>,
     pub(crate) backing_field_context: Option<properties::BackingFieldContext>,
-    /// Active smart-cast narrowings (milestone6 DESIGN.md 5.4):
-    /// immutable local → narrowed type, valid within the branch that
-    /// established them. Saved and restored around branch lowering;
-    /// the declared type of a local never changes.
-    pub(crate) smart_casts: HashMap<hir::LocalId, TypeId>,
+    /// Path-local type constraints on immutable bindings, including captures.
+    /// A binding keeps its declared storage type; reads select a known view.
+    pub(crate) smart_casts: expr::SmartCastFacts,
     /// Index of the file currently being processed (diagnostics).
     pub(crate) current_file: usize,
     intrinsic_sources: Vec<SourceProvider>,

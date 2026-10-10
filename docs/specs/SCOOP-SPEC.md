@@ -525,7 +525,7 @@ smart cast 以当前执行路径已经建立的类型事实为依据：
 
 可收窄对象包括不可变局部、参数、subject 的 `val` 绑定（含头部解构得到的叶 binding）及不可变模式绑定。叶 binding 以自身经过的类型检查建立事实，不因完整 subject 被收窄而自动推导新的字段类型。对可变局部、delegate、可能重新计算的属性/getter 不直接收窄原表达式；需要稳定视图时使用 `when (val x = expression)`。内部 subject 快照始终稳定，但快照的事实不能反推每次重新读取都可能变化的原属性。
 
-类型检查与成功转换使用现有 exact type、泛型单态化、接口、装箱和拆箱通道，不引入 JVM 式类型擦除规则或新的 runtime 检查协议。路径事实可同时记录已知类型约束；不为此新增用户可书写的 union/intersection type。`Option<T>` 仍不因 `isSome()` 或判空获得 payload smart cast。
+类型检查与成功转换使用现有 exact type、泛型单态化、接口、装箱和拆箱通道，不引入 JVM 式类型擦除规则或新的 runtime 检查协议。同一路径上的多个已成功类型检查应同时保留其约束，访问成员或传参时使用相应的已知类型视图，并沿普通重载规则处理候选。分支内创建的闭包、匿名函数与局部函数可继续使用所捕获不可变 binding 的已知类型事实；捕获的原始存储类型与声明身份不改变。不为此新增用户可书写的 union/intersection type。`Option<T>` 仍不因 `isSome()` 或判空获得 payload smart cast。
 
 ### 5.5 subject、局部声明与作用域
 

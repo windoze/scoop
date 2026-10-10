@@ -155,34 +155,16 @@ impl Lowerer {
 
     fn when_path_facts(
         &mut self,
-        incoming: &HashMap<hir::LocalId, TypeId>,
+        incoming: &SmartCastFacts,
         source: &ast::Expr,
         outcome: bool,
-    ) -> HashMap<hir::LocalId, TypeId> {
-        let mut facts = incoming.clone();
-        for (local, ty) in self.resolve_smart_casts(source, outcome) {
-            if facts
-                .get(&local)
-                .is_none_or(|&known| self.is_subtype(ty, known))
-            {
-                facts.insert(local, ty);
-            }
-        }
-        facts
+    ) -> SmartCastFacts {
+        let added = self.resolve_smart_casts(source, outcome);
+        self.join_smart_casts(incoming.clone(), added)
     }
 
-    fn common_when_facts(
-        &mut self,
-        lhs: &HashMap<hir::LocalId, TypeId>,
-        rhs: &HashMap<hir::LocalId, TypeId>,
-    ) -> HashMap<hir::LocalId, TypeId> {
-        lhs.iter()
-            .filter_map(|(&local, &left)| {
-                let right = *rhs.get(&local)?;
-                let common = self.least_upper_bound(&[left, right]);
-                (!self.types_equal(common, self.locals[local].ty)).then_some((local, common))
-            })
-            .collect()
+    fn common_when_facts(&mut self, lhs: &SmartCastFacts, rhs: &SmartCastFacts) -> SmartCastFacts {
+        self.common_smart_casts(lhs.clone(), rhs.clone())
     }
 }
 

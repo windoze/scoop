@@ -11,7 +11,7 @@
 | M35-3 跳转与 Elvis | 已完成 | return/throw 表达式与合法返回目标；Elvis 正常结果合并；23 个定向 CLI 用例严格通过 |
 | M35-4 完整尾随调用 | 已完成 | 分组/换行后缀、最后形参映射、所有调用入口；21 个新 CLI fixture 严格通过 |
 | M35-5 注解数组 | 已完成 | 静态数组、完整参数类型、共享读写与重导出；40 个定向 CLI fixture 严格通过 |
-| M35-6 组合与回归 | 待实施 | 适用平台与正式 CLI 验收 |
+| M35-6 组合与回归 | 进行中 | 多接口与捕获组合修复完成，10 项 CLI 严格通过；待本机全量及 Linux 验收 |
 
 ## 验证与构建目录
 
@@ -65,3 +65,11 @@ M35-1 开发验证：解析器 459 项及 1 项 doctest、HIR 模式 34 项与 M
 - fmt 与 workspace clippy 通过。parser 471 项及 1 项 doctest、数组 HIR 2 项、原标量注解 2 项、静态描述 7 项、wire 2 项、annotation reader 4 项、profile 21 项通过。
 - 39 个新增 CLI fixture（含 35 个独立反例）及迁移后的 M29 MutableArray 反例，共 40 项严格通过。正例覆盖全部标量元素种类、空数组、默认值、实际 JSON 编解码、moving/minor GC、debug/release 去源码重导出和独立链接。缓存用例检查参数类型、默认值、元素内容变化引起的实际缓存键与产物变化，并验证暖缓存命中。详见 [annotations-darwin.json](validation/annotations-darwin.json)。
 - 第四次清理 debug incremental 约 9.5 GB，target 从约 31.4 GB 降至 24.6 GB；保留已构建 CLI 与依赖。严格验收只重跑修正的缓存用例，复用其余 39 项通过记录。
+
+## M35-6 组合修复
+
+- 路径事实改用稳定 BindingId 保存多个已知类型约束；合取保留全部约束，替代路径保留共同事实，按声明身份处理成员与继承去重，普通重载选择和歧义规则保持。类型事实使用有序映射，避免推导顺序影响 stage 输出。
+- 成员、属性读写、扩展、invoke 和 callable reference 选择合适的已知类型视图；一次求值的更新 receiver 保留事实。闭包、匿名函数、局部函数和构造参数沿原存储类型捕获，HIR/MIR 读取时使用现有装箱、拆箱与引用转换。
+- 局部默认值展开保留替换表达式的已知类型，修复接口视图丢失导致的指针/接口布局不一致。新增模块各不超过 130 行；不新增语言 intersection type、共享格式版本或 runtime ABI。
+- fmt 与 workspace clippy 通过；HIR 类型转换 64 项、闭包/引用 24 项、默认值相关 98 项通过。10 个独立/组合/反例 fixture 严格通过，11 个 variant、30 个进程步骤、24 个 golden；包括挂起成功/失败、moving/minor GC、跨库 debug/release 去源码消费和独立链接，见 [combinations-darwin.json](validation/combinations-darwin.json)。
+- 第五次清理 debug incremental 约 3.0 GB，target 从约 27.6 GB 降至 25.7 GB，保留依赖与已构建 CLI。

@@ -2,10 +2,14 @@ use super::*;
 
 impl BodyLowerer<'_> {
     pub(super) fn lower_expr_inner(&mut self, expr: &hir::Expr) -> smir::Expr {
-        if let hir::ExprKind::ConstructorParam(parameter) = expr.kind {
-            return self.constructor_param_map[&parameter].clone();
-        }
         let ty = self.lower_type(expr.ty);
+        if let hir::ExprKind::ConstructorParam(parameter) = expr.kind {
+            return self.lower_known_read(
+                self.constructor_param_map[&parameter].clone(),
+                ty,
+                expr.span,
+            );
+        }
         if matches!(expr.kind, hir::ExprKind::ConstructorReceiver) {
             let receiver = self
                 .constructor_receiver
@@ -221,21 +225,11 @@ impl BodyLowerer<'_> {
             }
             hir::ExprKind::Local(local) => {
                 let local = self.local_map[local];
-                let narrowed = self.lower_type(expr.ty);
-                if self.locals[local].ty == narrowed {
-                    smir::ExprKind::Local(local)
-                } else if let mir::Type::Function(function_type) = narrowed {
-                    return self.adapt_checked_function_value(
-                        smir::Expr::local(local, self.locals[local].ty.clone()),
-                        function_type,
-                        expr.span,
-                    );
-                } else {
-                    smir::ExprKind::Retype {
-                        operand: Box::new(smir::Expr::local(local, self.locals[local].ty.clone())),
-                        ty: Box::new(narrowed),
-                    }
-                }
+                return self.lower_known_read(
+                    smir::Expr::local(local, self.locals[local].ty.clone()),
+                    ty,
+                    expr.span,
+                );
             }
             hir::ExprKind::ConstructorParam(_) => {
                 unreachable!("constructor parameters return before expression lowering")
@@ -277,7 +271,12 @@ impl BodyLowerer<'_> {
             }
             hir::ExprKind::Capture(binding) => {
                 if let Some(local) = self.current_local_capture_params.get(binding) {
-                    return smir::Expr::new(ty, smir::ExprKind::Local(self.local_map[local]));
+                    let local = self.local_map[local];
+                    return self.lower_known_read(
+                        smir::Expr::local(local, self.locals[local].ty.clone()),
+                        ty,
+                        expr.span,
+                    );
                 }
                 let class = self
                     .current_closure
@@ -286,11 +285,20 @@ impl BodyLowerer<'_> {
                 let closure = self
                     .current_closure_local
                     .expect("a closure invoke body has its hidden receiver local");
-                smir::ExprKind::ClosureCapture {
-                    closure: Box::new(smir::Expr::local(closure, self.locals[closure].ty.clone())),
-                    class,
-                    index,
-                }
+                let source = smir::Expr::new(
+                    self.closure_classes[class].captures[index as usize]
+                        .ty
+                        .clone(),
+                    smir::ExprKind::ClosureCapture {
+                        closure: Box::new(smir::Expr::local(
+                            closure,
+                            self.locals[closure].ty.clone(),
+                        )),
+                        class,
+                        index,
+                    },
+                );
+                return self.lower_known_read(source, ty, expr.span);
             }
             hir::ExprKind::Lambda(id) => {
                 let class = self.ensure_lambda_closure(*id);

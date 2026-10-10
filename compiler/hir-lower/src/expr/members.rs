@@ -366,30 +366,9 @@ impl Lowerer {
         receiver: hir::Expr,
         name: &ast::Ident,
     ) -> Option<hir::Expr> {
-        let receiver_ty = receiver.ty;
-        if let Some((property, owner, ty)) =
-            self.find_accessible_nominal_property(receiver_ty, &name.text)
-        {
-            return self.lower_property_read(property, Some(owner), Some(receiver), ty, name.span);
-        }
-        if let Some((field, ty)) = self
-            .struct_field(receiver_ty, &name.text)
-            .map(|field| (field.reference, field.ty))
-        {
-            return Some(hir::Expr {
-                kind: hir::ExprKind::FieldAccess {
-                    receiver: Box::new(receiver),
-                    field,
-                },
-                ty,
-                span: name.span,
-                origin: self.expression_origin(name.span),
-            });
-        }
-        let property = self
-            .resolve_imported_member_property(receiver_ty, name)
-            .ok()??;
-        self.emit_imported_member_property_read(&property, receiver, name.span)
+        self.read_member_property_views(receiver, name, name.span, None)
+            .ok()
+            .flatten()
     }
 
     pub(super) fn lower_safe_method_call(

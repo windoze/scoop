@@ -116,7 +116,7 @@ impl Lowerer {
                         self.resolve_smart_casts(&if_.cond, false),
                     )
                 } else {
-                    (Vec::new(), Vec::new())
+                    (Default::default(), Default::default())
                 };
                 let then_body = self
                     .with_smart_casts(then_narrowings, |this| this.lower_block(&if_.then_block));

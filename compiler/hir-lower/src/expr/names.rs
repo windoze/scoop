@@ -33,22 +33,25 @@ impl Lowerer {
                 if self.local_delegate_plans.contains_key(&capture.binding) {
                     return self.local_delegate_read(storage, capture.binding, name.span);
                 }
-                return Some(storage);
+                return Some(self.smart_cast_read(storage, capture.binding, expected));
             }
-            if let Some(&(parameter, ty, _)) = self.constructor_params_in_scope.get(&name.text) {
-                return Some(hir::Expr {
+            if let Some(&(parameter, ty, binding)) =
+                self.constructor_params_in_scope.get(&name.text)
+            {
+                let source = hir::Expr {
                     kind: ExprKind::ConstructorParam(parameter),
                     ty,
                     span: name.span,
                     origin: self.expression_origin(name.span),
-                });
+                };
+                return Some(self.smart_cast_read(source, binding, expected));
             }
             if let Some(capture) = self.available_capture(&name.text) {
                 let storage = self.lower_capture(name)?;
                 if self.local_delegate_plans.contains_key(&capture.binding) {
                     return self.local_delegate_read(storage, capture.binding, name.span);
                 }
-                return Some(storage);
+                return Some(self.smart_cast_read(storage, capture.binding, expected));
             }
             if self.initialization_context.is_some()
                 && self.initializing_receiver_has_field(&name.text)
@@ -220,38 +223,13 @@ impl Lowerer {
             };
             return self.local_delegate_read(storage, binding, name.span);
         }
-        if let Some(&narrowed) = self.smart_casts.get(&local) {
-            if !self.types_equal(narrowed, declared) {
-                let local_expr = hir::Expr {
-                    kind: ExprKind::Local(local),
-                    ty: declared,
-                    span: name.span,
-                    origin: self.expression_origin(name.span),
-                };
-                if self.is_value_ty(narrowed) {
-                    // A boxed value narrowed to its value type unboxes.
-                    return Some(hir::Expr {
-                        kind: ExprKind::Unbox(Box::new(local_expr)),
-                        ty: narrowed,
-                        span: name.span,
-                        origin: self.expression_origin(name.span),
-                    });
-                }
-                // A reference narrowed to a subtype: zero-cost retype.
-                return Some(hir::Expr {
-                    kind: ExprKind::Local(local),
-                    ty: narrowed,
-                    span: name.span,
-                    origin: self.expression_origin(name.span),
-                });
-            }
-        }
-        Some(hir::Expr {
+        let source = hir::Expr {
             kind: ExprKind::Local(local),
             ty: declared,
             span: name.span,
             origin: self.expression_origin(name.span),
-        })
+        };
+        Some(self.smart_cast_read(source, binding, expected))
     }
 
     pub(crate) fn lower_named_value_target(

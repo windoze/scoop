@@ -108,33 +108,8 @@ impl Lowerer {
             self.lower_expr(&access.receiver, sink, None)?
         };
         if let ast::FieldSelector::Name(field) = &access.selector {
-            if let Some((property, owner, ty)) =
-                self.find_accessible_nominal_property(receiver.ty, &field.text)
-            {
-                return self.lower_property_read(
-                    property,
-                    Some(owner),
-                    Some(receiver),
-                    ty,
-                    access.span,
-                );
-            }
-            if let Some((field, ty)) = self
-                .struct_field(receiver.ty, &field.text)
-                .map(|field| (field.reference, field.ty))
-            {
-                return Some(hir::Expr {
-                    kind: ExprKind::FieldAccess {
-                        receiver: Box::new(receiver),
-                        field,
-                    },
-                    ty,
-                    span: access.span,
-                    origin: self.expression_origin(access.span),
-                });
-            }
             if let Some(expression) = self
-                .lower_imported_member_property_read(&receiver, field, access.span, expected)
+                .read_member_property_views(receiver.clone(), field, access.span, expected)
                 .ok()?
             {
                 return Some(expression);

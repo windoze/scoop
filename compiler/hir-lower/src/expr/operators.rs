@@ -318,7 +318,7 @@ impl Lowerer {
         let narrowings = if self.diagnostics.len() == before {
             self.resolve_smart_casts(lhs_ast, rhs_outcome)
         } else {
-            Vec::new()
+            Default::default()
         };
         let mut rhs_setup = Vec::new();
         let rhs = self.with_smart_casts(narrowings, |this| {

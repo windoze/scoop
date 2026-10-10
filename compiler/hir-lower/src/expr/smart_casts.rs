@@ -1,12 +1,19 @@
 use super::*;
+use std::collections::BTreeMap;
 
-type Facts = Vec<(hir::LocalId, TypeId)>;
+mod properties;
+mod reads;
+
+pub(crate) type SmartCastFacts = BTreeMap<hir::BindingId, Vec<TypeId>>;
 
 impl Lowerer {
-    /// Facts describe execution paths, including the two ways a short-circuit
-    /// expression can produce its result. Alternative paths retain only their
-    /// common constraints; conjunctive paths keep the most precise view.
-    pub(crate) fn resolve_smart_casts(&mut self, cond: &ast::Expr, outcome: bool) -> Facts {
+    /// Conjunctive paths retain every constraint; alternative paths retain
+    /// constraints implied by both. Binding identities survive capture.
+    pub(crate) fn resolve_smart_casts(
+        &mut self,
+        cond: &ast::Expr,
+        outcome: bool,
+    ) -> SmartCastFacts {
         match cond {
             ast::Expr::Is {
                 operand,
@@ -15,26 +22,18 @@ impl Lowerer {
                 ..
             } if outcome != *negated => {
                 let ast::Expr::Var(name) = operand.as_ref() else {
-                    return Vec::new();
+                    return BTreeMap::new();
                 };
-                let Some(local) = self.scopes.lookup(&name.text) else {
-                    return Vec::new();
+                let Some((binding, declared)) = self.stable_smart_cast_binding(&name.text) else {
+                    return BTreeMap::new();
                 };
-                if self.locals[local].mutable
-                    || self
-                        .local_delegate_plans
-                        .contains_key(&self.locals[local].binding)
-                {
-                    return Vec::new();
-                }
                 let Some(narrowed) = self.resolve_type_ref(ty) else {
-                    return Vec::new();
+                    return BTreeMap::new();
                 };
-                let declared = self.locals[local].ty;
-                if self.types_equal(narrowed, declared) || !self.is_subtype(narrowed, declared) {
-                    return Vec::new();
+                if self.is_subtype(declared, narrowed) {
+                    return BTreeMap::new();
                 }
-                vec![(local, narrowed)]
+                BTreeMap::from([(binding, vec![narrowed])])
             }
             ast::Expr::Unary {
                 op: ast::UnOp::Not,
@@ -62,50 +61,68 @@ impl Lowerer {
                     self.common_smart_casts(short, both)
                 }
             }
-            _ => Vec::new(),
+            _ => BTreeMap::new(),
         }
     }
 
-    fn join_smart_casts(&mut self, mut lhs: Facts, rhs: Facts) -> Facts {
-        for (local, ty) in rhs {
-            match lhs.iter_mut().find(|(known, _)| *known == local) {
-                Some((_, known)) if self.is_subtype(ty, *known) => *known = ty,
-                Some(_) => {}
-                None => lhs.push((local, ty)),
+    pub(crate) fn join_smart_casts(
+        &mut self,
+        mut lhs: SmartCastFacts,
+        rhs: SmartCastFacts,
+    ) -> SmartCastFacts {
+        for (binding, types) in rhs {
+            let known = lhs.entry(binding).or_default();
+            for ty in types {
+                self.add_smart_cast_type(known, ty);
             }
         }
         lhs
     }
 
-    fn common_smart_casts(&mut self, lhs: Facts, rhs: Facts) -> Facts {
-        lhs.into_iter()
-            .filter_map(|(local, left)| {
-                let (_, right) = rhs.iter().find(|(known, _)| *known == local)?;
-                let ty = self.least_upper_bound(&[left, *right]);
-                (!self.types_equal(ty, self.locals[local].ty)).then_some((local, ty))
-            })
-            .collect()
+    pub(crate) fn common_smart_casts(
+        &mut self,
+        lhs: SmartCastFacts,
+        rhs: SmartCastFacts,
+    ) -> SmartCastFacts {
+        let mut result = BTreeMap::new();
+        for (binding, left) in lhs {
+            let Some(right) = rhs.get(&binding) else {
+                continue;
+            };
+            let mut common = Vec::new();
+            for left in left {
+                for right in right {
+                    let ty = self.least_upper_bound(&[left, *right]);
+                    if !self.types_equal(ty, self.any) {
+                        self.add_smart_cast_type(&mut common, ty);
+                    }
+                }
+            }
+            if !common.is_empty() {
+                result.insert(binding, common);
+            }
+        }
+        result
+    }
+
+    fn add_smart_cast_type(&mut self, known: &mut Vec<TypeId>, ty: TypeId) {
+        if known.iter().any(|&before| self.is_subtype(before, ty)) {
+            return;
+        }
+        known.retain(|&before| !self.is_subtype(ty, before));
+        known.push(ty);
     }
 
     pub(crate) fn with_smart_casts<T>(
         &mut self,
-        narrowings: Facts,
+        narrowings: SmartCastFacts,
         f: impl FnOnce(&mut Self) -> T,
     ) -> T {
         if narrowings.is_empty() {
             return f(self);
         }
         let saved = self.smart_casts.clone();
-        for (local, ty) in narrowings {
-            if self
-                .smart_casts
-                .get(&local)
-                .copied()
-                .is_none_or(|known| self.is_subtype(ty, known))
-            {
-                self.smart_casts.insert(local, ty);
-            }
-        }
+        self.smart_casts = self.join_smart_casts(saved.clone(), narrowings);
         let result = f(self);
         self.smart_casts = saved;
         result

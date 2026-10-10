@@ -394,7 +394,7 @@ impl Lowerer {
             constructor_parameter_bindings: HashMap::new(),
             initialization_context: None,
             backing_field_context: None,
-            smart_casts: HashMap::new(),
+            smart_casts: Default::default(),
             current_file: 0,
             intrinsic_sources: Vec::new(),
             source_names: std::collections::BTreeMap::new(),

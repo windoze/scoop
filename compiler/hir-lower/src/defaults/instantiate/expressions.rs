@@ -22,7 +22,8 @@ impl Lowerer {
             let mut value = context.locals[arena_index(local)].clone();
             value.span = source.span;
             value.origin = instantiate_origin(source.origin, context.evaluation);
-            return value;
+            let ty = self.instantiate_method_ty(source.ty, &context.bindings);
+            return self.known_type_read(value, ty);
         }
         if let hir::ExprKind::Capture(binding) = source.kind
             && let Some(value) = context.captures.get(&binding)
@@ -30,7 +31,8 @@ impl Lowerer {
             let mut value = value.clone();
             value.span = source.span;
             value.origin = instantiate_origin(source.origin, context.evaluation);
-            return value;
+            let ty = self.instantiate_method_ty(source.ty, &context.bindings);
+            return self.known_type_read(value, ty);
         }
         if let hir::ExprKind::MethodCall {
             receiver,

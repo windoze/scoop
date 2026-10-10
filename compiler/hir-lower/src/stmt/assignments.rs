@@ -139,6 +139,7 @@ impl Lowerer {
         name: &ast::Ident,
         sink: &mut Vec<hir::Statement>,
     ) -> Option<hir::StatementKind> {
+        let receiver = self.smart_cast_property_receiver(receiver, name).ok()?;
         let receiver_ty = receiver.ty;
         if let Some((property, owner, property_ty)) =
             self.find_accessible_nominal_property(receiver_ty, &name.text)
