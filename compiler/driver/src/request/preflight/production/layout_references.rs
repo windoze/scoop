@@ -86,10 +86,10 @@ pub(in crate::request::preflight) fn collect_mir_references(
             mir::Type::Struct(id)
                 if matches!(
                     &input.module().structs[*id].representation,
-                    mir::StructRepresentation::Declared {
+                    mir::StructRepresentation::Declared(mir::DeclaredStruct {
                         c_layout: Some(_),
                         ..
-                    }
+                    })
                 ) =>
             {
                 scoop_identity::RepresentationRole::CValue
@@ -145,7 +145,7 @@ pub(in crate::request::preflight) fn collect_mir_references(
     for (id, class) in input.module().classes.iter() {
         let ty = if matches!(
             class.representation,
-            mir::ClassRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::String)
+            mir::ClassRepresentation::Intrinsic(mir::IntrinsicClassRepresentation::String)
         ) {
             mir::Type::String
         } else {

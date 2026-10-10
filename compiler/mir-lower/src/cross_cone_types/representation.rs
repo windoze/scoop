@@ -22,7 +22,7 @@ pub(super) fn project(
             if representation.family() == hir::IntrinsicTypeKind::Nothing
                 && matches!(
                     module.classes[*id].representation,
-                    mir::ClassRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::Nothing)
+                    mir::ClassRepresentation::Intrinsic(mir::IntrinsicClassRepresentation::Nothing)
                 ) =>
         {
             Repr::Intrinsic(mir::MirParamFreeIntrinsicV1::Nothing)
@@ -41,8 +41,9 @@ pub(super) fn project(
         (mir::Type::Struct(id), Source::Intrinsic { representation })
             if matches!(representation.family(), hir::IntrinsicTypeKind::Float(_)) =>
         {
-            let mir::StructRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::Float(kind)) =
-                module.structs[*id].representation
+            let mir::StructRepresentation::Intrinsic(mir::IntrinsicStructRepresentation::Float(
+                kind,
+            )) = module.structs[*id].representation
             else {
                 return Err(mismatch());
             };
@@ -54,7 +55,7 @@ pub(super) fn project(
         (mir::Type::Struct(id), Source::Intrinsic { .. })
             if matches!(
                 module.structs[*id].representation,
-                mir::StructRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::Char)
+                mir::StructRepresentation::Intrinsic(mir::IntrinsicStructRepresentation::Char)
             ) =>
         {
             Repr::Intrinsic(mir::MirParamFreeIntrinsicV1::Char)
@@ -68,7 +69,7 @@ pub(super) fn project(
         (mir::Type::Class(id), Source::Intrinsic { representation })
             if matches!(representation.family(), hir::IntrinsicTypeKind::Atomic(_)) =>
         {
-            let mir::ClassRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::Atomic(
+            let mir::ClassRepresentation::Intrinsic(mir::IntrinsicClassRepresentation::Atomic(
                 storage,
             )) = &module.classes[*id].representation
             else {
@@ -90,12 +91,12 @@ pub(super) fn project(
                 fields: expected, ..
             },
         ) => {
-            let mir::StructRepresentation::Declared {
+            let mir::StructRepresentation::Declared(mir::DeclaredStruct {
                 fields,
                 c_layout,
                 interior_mutable,
                 ..
-            } = &module.structs[*id].representation
+            }) = &module.structs[*id].representation
             else {
                 return Err(mismatch());
             };
@@ -150,6 +151,9 @@ pub(super) fn project(
             },
         ) => {
             let class = &module.classes[*id];
+            let mir::ClassRepresentation::Declared(declared) = &class.representation else {
+                return Err(mismatch());
+            };
             Repr::Class {
                 release_policy: release_policy(class.release_policy, fields::exact(module, ty)?),
                 kind: match class.modifier {
@@ -157,7 +161,7 @@ pub(super) fn project(
                     mir::ClassModifier::Open => mir::MirClassKindV1::Open,
                     mir::ClassModifier::Abstract => mir::MirClassKindV1::Abstract,
                 },
-                declared_fields: fields::class(module, class, source.owner(), declared_fields)?,
+                declared_fields: fields::class(module, declared, source.owner(), declared_fields)?,
             }
         }
         (mir::Type::Interface(_) | mir::Type::Any, Source::Interface) => Repr::Interface,
@@ -168,12 +172,11 @@ pub(super) fn project(
                 declared_fields,
             },
         ) => {
-            let fields = fields::class(
-                module,
-                &module.classes[*id],
-                source.owner(),
-                declared_fields,
-            )?;
+            let mir::ClassRepresentation::Declared(declared) = &module.classes[*id].representation
+            else {
+                return Err(mismatch());
+            };
+            let fields = fields::class(module, declared, source.owner(), declared_fields)?;
             let key = ExactTypeKey::Nominal(*backing_class);
 
             let exact = PersistentExactTypeId::from_key(&key)

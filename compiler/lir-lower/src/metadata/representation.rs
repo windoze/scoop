@@ -87,7 +87,7 @@ pub(crate) fn nested_enums(module: &mir::Module, ty: &mir::Type, out: &mut Vec<m
             }
         }
         mir::Type::Struct(id) => match &module.structs[*id].representation {
-            mir::StructRepresentation::Declared { fields, .. } => {
+            mir::StructRepresentation::Declared(mir::DeclaredStruct { fields, .. }) => {
                 for field in fields {
                     nested_enums(module, &field.ty, out);
                 }

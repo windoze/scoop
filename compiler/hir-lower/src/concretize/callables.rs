@@ -209,21 +209,21 @@ impl Concretizer<'_> {
                 let concrete::TypeKind::Class(class_id) = self.types[ty].kind else {
                     unreachable!("a class field retains its declaring class")
                 };
-                self.class_field_ref(class_id, field)
+                let concrete::ClassRepresentation::Declared(declared) =
+                    &self.classes[class_id].representation
+                else {
+                    unreachable!("source class fields belong to a declared class")
+                };
+                self.class_field_ref(class_id, declared, field)
             }
             export::FieldRef::StructField { owner, field } => {
                 let ty = self.lower_type(owner, substitution);
                 let concrete::TypeKind::Struct(structure) = self.types[ty].kind else {
                     unreachable!("a struct field retains its declaring struct")
                 };
-                let index = self.structs[structure]
-                    .declared_fields()
-                    .iter()
-                    .position(|candidate| candidate.identity == field)
-                    .expect("a resolved field belongs to its declaration");
                 concrete::FieldRef::StructField(
-                    concrete::StructFieldRef::checked(&self.structs, structure, index as u32)
-                        .expect("a declared field is in range"),
+                    concrete::StructFieldRef::resolve(&self.structs, structure, field)
+                        .expect("a resolved field belongs to its declaration"),
                 )
             }
             export::FieldRef::TupleIndex(index) => concrete::FieldRef::TupleIndex(index),

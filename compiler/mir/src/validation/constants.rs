@@ -78,7 +78,7 @@ fn validate_constant_image(
             if !matches!(expected, Type::Struct(id)
                 if (id.into_raw().into_u32() as usize) < module.structs.len()
                     && matches!(module.structs[*id].representation,
-                        StructRepresentation::Intrinsic(IntrinsicTypeRepresentation::Float(kind)) if kind == value.kind()))
+                        StructRepresentation::Intrinsic(IntrinsicStructRepresentation::Float(kind)) if kind == value.kind()))
             {
                 return Err(failure(MirConstantImageError::TypeMismatch {
                     image: "floating image",
@@ -89,7 +89,7 @@ fn validate_constant_image(
             if !matches!(expected, Type::Struct(id)
                 if (id.into_raw().into_u32() as usize) < module.structs.len()
                     && matches!(module.structs[*id].representation,
-                        StructRepresentation::Intrinsic(IntrinsicTypeRepresentation::Char)))
+                        StructRepresentation::Intrinsic(IntrinsicStructRepresentation::Char)))
             {
                 return Err(failure(MirConstantImageError::TypeMismatch {
                     image: "Char image",
@@ -159,10 +159,10 @@ fn validate_constant_image(
                     image: "Struct image",
                 }));
             }
-            let StructRepresentation::Declared {
+            let StructRepresentation::Declared(DeclaredStruct {
                 fields: expected_fields,
                 ..
-            } = &module.structs[*struct_id].representation
+            }) = &module.structs[*struct_id].representation
             else {
                 return Err(failure(MirConstantImageError::StructRequiresDeclared {
                     struct_id: *struct_id,

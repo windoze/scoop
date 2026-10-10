@@ -53,11 +53,11 @@ impl Concretizer<'_> {
         let representation = match &definition.representation {
             ResolvedStructRepresentation::Declared {
                 attributes, c_abi, ..
-            } => concrete::StructRepresentation::Declared {
+            } => concrete::StructRepresentation::Declared(concrete::DeclaredStruct {
                 attributes: *attributes,
                 c_abi: *c_abi,
                 fields: Vec::new(),
-            },
+            }),
             ResolvedStructRepresentation::Intrinsic {
                 declaration,
                 application,
@@ -67,7 +67,7 @@ impl Concretizer<'_> {
             },
         };
         let (kind, gc_free) = match &representation {
-            concrete::StructRepresentation::Declared { .. } => {
+            concrete::StructRepresentation::Declared(concrete::DeclaredStruct { .. }) => {
                 (concrete::TypeKind::Struct(id), false)
             }
             concrete::StructRepresentation::Intrinsic { application, .. } => {
@@ -136,10 +136,10 @@ impl Concretizer<'_> {
                 })
                 .collect();
             let gc_free = fields.iter().all(|field| self.types[field.ty].gc_free);
-            let concrete::StructRepresentation::Declared {
+            let concrete::StructRepresentation::Declared(concrete::DeclaredStruct {
                 fields: concrete_fields,
                 ..
-            } = &mut self.structs[id].representation
+            }) = &mut self.structs[id].representation
             else {
                 unreachable!("a declared struct retains its field representation")
             };
@@ -148,7 +148,10 @@ impl Concretizer<'_> {
             self.types[self.struct_type[&id]].gc_free = gc_free;
         }
         let no_gc = match &self.structs[id].representation {
-            concrete::StructRepresentation::Declared { attributes, .. } => attributes.no_gc,
+            concrete::StructRepresentation::Declared(concrete::DeclaredStruct {
+                attributes,
+                ..
+            }) => attributes.no_gc,
             concrete::StructRepresentation::Intrinsic { .. } => false,
         };
         self.check_completed_no_gc_type(

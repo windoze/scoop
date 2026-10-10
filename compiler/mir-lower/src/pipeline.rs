@@ -262,12 +262,12 @@ impl Lowerer {
         loop {
             self.prepare_function_shapes(module, &mut function_shapes);
             self.finalize_dynamic_adapters(module, &mut next_dynamic_adapter);
-            while next_boxed < self.boxed.order.len() {
+            while next_boxed < self.boxed.entries.len() {
                 self.finalize_boxed(module, next_boxed);
                 next_boxed += 1;
             }
             let added_function_bridges = self.finalize_function_bridges(module);
-            if next_boxed == self.boxed.order.len()
+            if next_boxed == self.boxed.entries.len()
                 && next_dynamic_adapter == self.dynamic_closure_adapters.len()
                 && !added_function_bridges
             {

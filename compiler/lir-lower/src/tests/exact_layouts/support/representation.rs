@@ -30,12 +30,12 @@ pub(super) fn representation(
         mir::Type::String => (Repr::Intrinsic(Intrinsic::String), Kind::Reference, false),
         mir::Type::Struct(id) => {
             let definition = &module.structs[*id];
-            let mir::StructRepresentation::Declared {
+            let mir::StructRepresentation::Declared(mir::DeclaredStruct {
                 fields,
                 c_layout,
                 interior_mutable,
                 ..
-            } = &definition.representation
+            }) = &definition.representation
             else {
                 panic!("declared")
             };
@@ -80,14 +80,19 @@ pub(super) fn representation(
         }
         mir::Type::Class(id) => {
             let definition = &module.classes[*id];
-            let mir::ClassRepresentation::Declared { fields, base_class } =
+            let mir::ClassRepresentation::Declared(mir::DeclaredClass { fields, base_class }) =
                 &definition.representation
             else {
                 panic!("declared")
             };
             let inherited = base_class.map_or(0, |id| {
                 base = mir::MirBaseClassV1::Base(exact(module, &mir::Type::Class(id)));
-                module.classes[id].declared_fields().len()
+                match &module.classes[id].representation {
+                    mir::ClassRepresentation::Declared(declared) => declared.fields.len(),
+                    mir::ClassRepresentation::Intrinsic(_) => {
+                        panic!("expected a declared test base class")
+                    }
+                }
             });
             let fields = fields[inherited..]
                 .iter()

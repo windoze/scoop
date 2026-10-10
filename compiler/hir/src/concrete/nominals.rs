@@ -1,5 +1,8 @@
 use super::*;
+
+mod references;
 use crate::HirNominalIdentity;
+pub use references::*;
 use scoop_identity::{PersistentEnumVariantFieldId, PersistentEnumVariantId};
 
 /// Static declaration owner retained after concretization. Origins name the
@@ -95,15 +98,18 @@ pub struct StructDef {
 
 #[derive(Debug, Clone)]
 pub enum StructRepresentation {
-    Declared {
-        attributes: StructAttributes,
-        c_abi: StructCAbi,
-        fields: Vec<DeclaredStructField>,
-    },
+    Declared(DeclaredStruct),
     Intrinsic {
         declaration: IntrinsicTypeKind,
         application: IntrinsicTypeRepresentation,
     },
+}
+
+#[derive(Debug, Clone)]
+pub struct DeclaredStruct {
+    pub attributes: StructAttributes,
+    pub c_abi: StructCAbi,
+    pub fields: Vec<DeclaredStructField>,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -112,17 +118,6 @@ pub enum StructCAbi {
     UInt64Field {
         field: scoop_identity::PersistentFieldId,
     },
-}
-
-impl StructDef {
-    pub fn declared_fields(&self) -> &[DeclaredStructField] {
-        match &self.representation {
-            StructRepresentation::Declared { fields, .. } => fields,
-            StructRepresentation::Intrinsic { .. } => {
-                panic!("an intrinsic struct has no source field representation")
-            }
-        }
-    }
 }
 
 #[derive(Debug, Clone)]
@@ -141,171 +136,6 @@ pub struct EnumDef {
     pub interface_implementations: Vec<InterfaceImplementation>,
     pub methods: Vec<FunctionId>,
     pub span: Span,
-}
-
-/// Checked local-concrete identity of one enum variant.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct EnumVariantRef {
-    enumeration: EnumId,
-    variant: VariantId,
-}
-
-impl EnumVariantRef {
-    pub fn checked(
-        enums: &Arena<EnumDef>,
-        enumeration: EnumId,
-        variant: VariantId,
-    ) -> Option<Self> {
-        if enumeration.into_raw().into_u32() as usize >= enums.len() {
-            return None;
-        }
-        enums[enumeration]
-            .variants
-            .get(variant.into_raw() as usize)
-            .map(|_| Self {
-                enumeration,
-                variant,
-            })
-    }
-
-    pub const fn enumeration(self) -> EnumId {
-        self.enumeration
-    }
-
-    pub const fn variant(self) -> VariantId {
-        self.variant
-    }
-}
-
-/// Checked local-concrete identity of one payload field.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct EnumVariantFieldRef {
-    variant: EnumVariantRef,
-    local_index: u32,
-}
-
-impl EnumVariantFieldRef {
-    pub fn checked(
-        enums: &Arena<EnumDef>,
-        variant: EnumVariantRef,
-        local_index: u32,
-    ) -> Option<Self> {
-        if variant.enumeration().into_raw().into_u32() as usize >= enums.len() {
-            return None;
-        }
-        let declaration = enums[variant.enumeration()]
-            .variants
-            .get(variant.variant().into_raw() as usize)?;
-        declaration.fields.get(local_index as usize).map(|_| Self {
-            variant,
-            local_index,
-        })
-    }
-
-    pub const fn variant(self) -> EnumVariantRef {
-        self.variant
-    }
-
-    pub const fn local_index(self) -> u32 {
-        self.local_index
-    }
-}
-
-/// Complete local-concrete identity of one specialized core `Option` shape.
-/// The Some payload and None variants are inseparable from their checked
-/// owner, and their arities are verified when this value is constructed.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct OptionCore {
-    some_payload: EnumVariantFieldRef,
-    none: EnumVariantRef,
-}
-
-impl OptionCore {
-    pub fn checked(
-        enums: &Arena<EnumDef>,
-        some_payload: EnumVariantFieldRef,
-        none: EnumVariantRef,
-    ) -> Option<Self> {
-        let some = some_payload.variant();
-        if some.enumeration() != none.enumeration() || some.variant() == none.variant() {
-            return None;
-        }
-        if some.enumeration().into_raw().into_u32() as usize >= enums.len() {
-            return None;
-        }
-        let enumeration = &enums[some.enumeration()];
-        let [argument] = enumeration.type_arguments.as_slice() else {
-            return None;
-        };
-        let some_definition = enumeration
-            .variants
-            .get(some.variant().into_raw() as usize)?;
-        let none_definition = enumeration
-            .variants
-            .get(none.variant().into_raw() as usize)?;
-        (enumeration.variants.len() == 2
-            && some_definition.name == "Some"
-            && some_definition.fields.len() == 1
-            && some_payload.local_index() == 0
-            && some_definition
-                .fields
-                .get(some_payload.local_index() as usize)
-                .is_some_and(|field| field.ty == *argument)
-            && none_definition.name == "None"
-            && none_definition.fields.is_empty())
-        .then_some(Self { some_payload, none })
-    }
-
-    pub const fn enumeration(self) -> EnumId {
-        self.some_payload.variant().enumeration()
-    }
-
-    pub const fn some(self) -> EnumVariantRef {
-        self.some_payload.variant()
-    }
-
-    pub const fn some_payload(self) -> EnumVariantFieldRef {
-        self.some_payload
-    }
-
-    pub const fn none(self) -> EnumVariantRef {
-        self.none
-    }
-}
-
-/// Checked local-concrete identity of one declared struct field.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct StructFieldRef {
-    structure: StructId,
-    local_index: u32,
-}
-
-impl StructFieldRef {
-    pub fn checked(
-        structs: &Arena<StructDef>,
-        structure: StructId,
-        local_index: u32,
-    ) -> Option<Self> {
-        if structure.into_raw().into_u32() as usize >= structs.len() {
-            return None;
-        }
-        let StructRepresentation::Declared { fields, .. } = &structs[structure].representation
-        else {
-            return None;
-        };
-        fields.get(local_index as usize).map(|_| Self {
-            structure,
-            local_index,
-        })
-    }
-
-    pub const fn structure(self) -> StructId {
-        self.structure
-    }
-
-    pub const fn local_index(self) -> u32 {
-        self.local_index
-    }
 }
 
 #[derive(Debug, Clone)]
@@ -421,29 +251,23 @@ pub struct ConstructorArguments {
 
 #[derive(Debug, Clone)]
 pub enum ClassRepresentation {
-    Declared {
-        fields: Vec<Field>,
-        base_class: Option<ClassId>,
-    },
+    Declared(DeclaredClass),
     Intrinsic {
         declaration: IntrinsicTypeKind,
         application: IntrinsicTypeRepresentation,
     },
 }
 
-impl ClassDef {
-    pub fn declared_fields(&self) -> &[Field] {
-        match &self.representation {
-            ClassRepresentation::Declared { fields, .. } => fields,
-            ClassRepresentation::Intrinsic { .. } => {
-                panic!("an intrinsic class has no source constructor representation")
-            }
-        }
-    }
+#[derive(Debug, Clone)]
+pub struct DeclaredClass {
+    pub fields: Vec<Field>,
+    pub base_class: Option<ClassId>,
+}
 
+impl ClassDef {
     pub fn base_class(&self) -> Option<ClassId> {
         match &self.representation {
-            ClassRepresentation::Declared { base_class, .. } => *base_class,
+            ClassRepresentation::Declared(DeclaredClass { base_class, .. }) => *base_class,
             ClassRepresentation::Intrinsic { .. } => None,
         }
     }

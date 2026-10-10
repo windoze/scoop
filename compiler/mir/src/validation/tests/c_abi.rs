@@ -10,12 +10,12 @@ fn c_uint64_projection_requires_a_single_gc_free_unsigned_field_with_the_exact_i
         };
         let (mut module, id) = module_with_declared_struct(fields);
         let definition = &mut module.structs[id];
-        let StructRepresentation::Declared {
+        let StructRepresentation::Declared(DeclaredStruct {
             fields,
             c_abi,
             c_layout,
             ..
-        } = &mut definition.representation
+        }) = &mut definition.representation
         else {
             unreachable!()
         };

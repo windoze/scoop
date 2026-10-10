@@ -73,21 +73,17 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 )?
                 .into_struct_type();
                 let aggregate = if let LirType::Struct(id) = lir_ty
-                    && self.structs[*id].is_c_layout()
+                    && let Some(reference) = self.structs.c_ref(*id)
                 {
-                    let definition = &self.structs[*id];
+                    let layout = self.structs.c(reference);
                     let payload_ty = ty
                         .get_field_type_at_index(1)
                         .expect("C-layout struct has an aligned payload")
                         .into_struct_type();
                     let mut payload = payload_ty.get_undef();
                     for (index, element) in elements.iter().enumerate() {
-                        let physical = c_physical_field_index(
-                            self.structs,
-                            self.enums,
-                            definition,
-                            index as u32,
-                        )?;
+                        let physical =
+                            c_physical_field_index(self.structs, self.enums, layout, index as u32)?;
                         payload = builder
                             .build_insert_value(payload, self.value(*element)?, physical, &name)
                             .map_err(|e| {
@@ -165,7 +161,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 }
                 let aggregate = self.value(*aggregate)?.into_struct_value();
                 let element = if let LirType::Struct(id) = aggregate_ty
-                    && self.structs[id].is_c_layout()
+                    && let Some(reference) = self.structs.c_ref(id)
                 {
                     let payload = builder
                         .build_extract_value(aggregate, 1, "c_layout_payload")
@@ -179,7 +175,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     let physical = c_physical_field_index(
                         self.structs,
                         self.enums,
-                        &self.structs[id],
+                        self.structs.c(reference),
                         *index,
                     )?;
                     builder

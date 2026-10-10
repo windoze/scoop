@@ -180,39 +180,45 @@ pub(crate) fn lower_structs(
     module: &mir::Module,
     enums: &lir::EnumDefs,
 ) -> StorageResult<lir::StructDefs> {
+    enum FieldTarget {
+        Scoop(lir::ScoopStructRef),
+        C(lir::CStructRef),
+    }
+
     let enum_shape = |id: mir::EnumId| Ok(repr_shape(context, &enums[enum_def_id(id)].repr));
     let mut structs = lir::StructDefs::default();
+    let mut pending_fields = Vec::new();
     for (id, definition) in module.structs.iter() {
         let exact_type = exact_type_record(module, &definition.physical_type(id)).id();
-        let (_, size, align) = struct_shape(context, module, &enum_shape, definition)?;
         match &definition.representation {
-            mir::StructRepresentation::Declared {
-                c_layout,
-                interior_mutable,
-                ..
-            } => {
-                if let Some(contract) = c_layout {
-                    let _ = structs.alloc_c(
+            mir::StructRepresentation::Declared(declared) => {
+                let (layouts, size, align) =
+                    declared_struct_shape(context, module, &enum_shape, declared)?;
+                let target = if let Some(contract) = declared.c_layout {
+                    FieldTarget::C(structs.alloc_c(
                         exact_type,
                         definition.name.clone(),
                         size,
                         align,
-                        *interior_mutable,
-                        lower_c_layout(*contract),
+                        declared.interior_mutable,
+                        lower_c_layout(contract),
                         Vec::new(),
-                    );
+                    ))
                 } else {
-                    structs.alloc_scoop(
+                    FieldTarget::Scoop(structs.alloc_scoop(
                         exact_type,
                         definition.name.clone(),
                         size,
                         align,
-                        *interior_mutable,
+                        declared.interior_mutable,
                         Vec::new(),
-                    );
-                }
+                    ))
+                };
+                pending_fields.push((target, &declared.fields, layouts));
             }
             mir::StructRepresentation::Intrinsic(representation) => {
+                let (size, align) =
+                    intrinsic_struct_shape(context, module, &enum_shape, representation)?;
                 structs.alloc_intrinsic(
                     exact_type,
                     definition.name.clone(),
@@ -224,45 +230,33 @@ pub(crate) fn lower_structs(
         }
     }
 
-    // Fill declared fields only after every nominal shell is present. Exact C
-    // pointer pointees may refer to the containing or a later C struct, and a
-    // checked `CStructRef` must be minted against the actual completed arena.
-    for (mir_id, definition) in module.structs.iter() {
-        let mir::StructRepresentation::Declared {
-            c_layout, fields, ..
-        } = &definition.representation
-        else {
-            continue;
-        };
-        let (field_layouts, _, _) = struct_shape(context, module, &enum_shape, definition)?;
-        if c_layout.is_some() {
-            let reference = structs
-                .c_ref(struct_def_id(mir_id))
-                .expect("the first pass allocated a C struct shell");
-            structs.set_c_fields(
-                reference,
-                fields
+    // C pointer pointees may refer to this or a later shell. Each patch keeps
+    // the classification and field layout produced by the allocation pass.
+    for (target, fields, layouts) in pending_fields {
+        match target {
+            FieldTarget::C(reference) => {
+                let fields = fields
                     .iter()
-                    .zip(field_layouts)
+                    .zip(layouts)
                     .map(|(field, layout)| lir::CStructField {
                         identity: field.identity,
                         ty: c_ffi_type(module, &structs, enums, &field.ty),
                         layout,
                     })
-                    .collect(),
-            );
-        } else {
-            structs.set_scoop_fields(
-                struct_def_id(mir_id),
-                fields
+                    .collect();
+                structs.set_c_fields(reference, fields);
+            }
+            FieldTarget::Scoop(reference) => {
+                let fields = fields
                     .iter()
-                    .zip(field_layouts)
+                    .zip(layouts)
                     .map(|(field, layout)| lir::StructField {
                         ty: lir_type(module, &field.ty),
                         layout,
                     })
-                    .collect(),
-            );
+                    .collect();
+                structs.set_scoop_fields(reference, fields);
+            }
         }
     }
     Ok(structs)
@@ -306,41 +300,33 @@ pub(crate) fn lower_intrinsic_type_representation(
     context: &LoweringContext,
     module: &mir::Module,
     enums: &lir::EnumDefs,
-    representation: &mir::IntrinsicTypeRepresentation,
+    representation: &mir::IntrinsicStructRepresentation,
 ) -> StorageResult<lir::IntrinsicTypeRepresentation> {
     Ok(match representation {
-        mir::IntrinsicTypeRepresentation::MaybeUninit { value } => {
+        mir::IntrinsicStructRepresentation::MaybeUninit { value } => {
             lir::IntrinsicTypeRepresentation::MaybeUninit {
                 value: Box::new(lir_type(module, value)),
                 scan: ref_scan(context, module, enums, value, 0)?,
             }
         }
-        mir::IntrinsicTypeRepresentation::Integer(kind) => {
+        mir::IntrinsicStructRepresentation::Integer(kind) => {
             lir::IntrinsicTypeRepresentation::Integer(integer_kind(*kind))
         }
-        mir::IntrinsicTypeRepresentation::Float(kind) => {
+        mir::IntrinsicStructRepresentation::Float(kind) => {
             lir::IntrinsicTypeRepresentation::Float(*kind)
         }
-        mir::IntrinsicTypeRepresentation::Char => lir::IntrinsicTypeRepresentation::Char,
-        mir::IntrinsicTypeRepresentation::Unit => lir::IntrinsicTypeRepresentation::Unit,
-        mir::IntrinsicTypeRepresentation::Boolean => lir::IntrinsicTypeRepresentation::Boolean,
-        mir::IntrinsicTypeRepresentation::String => lir::IntrinsicTypeRepresentation::String,
-        mir::IntrinsicTypeRepresentation::Any => lir::IntrinsicTypeRepresentation::Any,
-        mir::IntrinsicTypeRepresentation::Nothing => lir::IntrinsicTypeRepresentation::Nothing,
-        mir::IntrinsicTypeRepresentation::Ptr { pointee } => {
+        mir::IntrinsicStructRepresentation::Char => lir::IntrinsicTypeRepresentation::Char,
+        mir::IntrinsicStructRepresentation::Unit => lir::IntrinsicTypeRepresentation::Unit,
+        mir::IntrinsicStructRepresentation::Boolean => lir::IntrinsicTypeRepresentation::Boolean,
+        mir::IntrinsicStructRepresentation::Ptr { pointee } => {
             lir::IntrinsicTypeRepresentation::Ptr {
                 pointee: compiler_data_pointee(module, pointee),
             }
         }
-        mir::IntrinsicTypeRepresentation::FunPtr { signature } => {
+        mir::IntrinsicStructRepresentation::FunPtr { signature } => {
             lir::IntrinsicTypeRepresentation::FunPtr {
                 signature: compiler_function_type(module, *signature),
             }
-        }
-        mir::IntrinsicTypeRepresentation::Array { .. }
-        | mir::IntrinsicTypeRepresentation::MutableArray { .. }
-        | mir::IntrinsicTypeRepresentation::Atomic(_) => {
-            unreachable!("intrinsic class storage uses its own metadata layout")
         }
     })
 }
@@ -374,12 +360,12 @@ pub(crate) fn lir_type(module: &mir::Module, ty: &mir::Type) -> lir::LirType {
         mir::Type::Ptr(_) => lir::LirType::Ptr(lir::PointerKind::Raw),
         mir::Type::FunPtr(_) => lir::LirType::Ptr(lir::PointerKind::Code),
         mir::Type::Struct(id) => match module.structs[*id].representation {
-            mir::StructRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::Char) => {
+            mir::StructRepresentation::Intrinsic(mir::IntrinsicStructRepresentation::Char) => {
                 lir::LirType::I32
             }
-            mir::StructRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::Float(kind)) => {
-                lir::LirType::floating(kind)
-            }
+            mir::StructRepresentation::Intrinsic(mir::IntrinsicStructRepresentation::Float(
+                kind,
+            )) => lir::LirType::floating(kind),
             _ => lir::LirType::Struct(struct_def_id(*id)),
         },
         mir::Type::Tuple(elements) => {

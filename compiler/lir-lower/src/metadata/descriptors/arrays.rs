@@ -21,13 +21,14 @@ pub(crate) fn array_types(
             continue;
         }
         let (kind, element) = match &class.representation {
-            mir::ClassRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::Array {
+            mir::ClassRepresentation::Intrinsic(mir::IntrinsicClassRepresentation::Array {
                 element,
             }) => (lir::ArrayKind::Immutable, element),
             mir::ClassRepresentation::Intrinsic(
-                mir::IntrinsicTypeRepresentation::MutableArray { element },
+                mir::IntrinsicClassRepresentation::MutableArray { element },
             ) => (lir::ArrayKind::Mutable, element),
-            mir::ClassRepresentation::Declared { .. } | mir::ClassRepresentation::Intrinsic(_) => {
+            mir::ClassRepresentation::Declared(mir::DeclaredClass { .. })
+            | mir::ClassRepresentation::Intrinsic(_) => {
                 continue;
             }
         };

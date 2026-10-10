@@ -2,7 +2,7 @@ use super::*;
 
 fn projected_handle(builder: &mut Builder) -> mir::StructId {
     let id = builder.strukt("ResourceToken", &[("raw", ULONG)]);
-    let mir::StructRepresentation::Declared { c_abi, fields, .. } =
+    let mir::StructRepresentation::Declared(mir::DeclaredStruct { c_abi, fields, .. }) =
         &mut builder.structs[id].representation
     else {
         unreachable!()

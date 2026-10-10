@@ -314,6 +314,20 @@ fn boxed_class<'a>(module: &'a mir::Module, name: &str) -> &'a mir::ClassDef {
         .unwrap_or_else(|| panic!("missing boxed class `{name}`"))
 }
 
+fn declared_class(definition: &mir::ClassDef) -> &mir::DeclaredClass {
+    let mir::ClassRepresentation::Declared(declared) = &definition.representation else {
+        panic!("expected a declared test class")
+    };
+    declared
+}
+
+fn declared_struct(definition: &mir::StructDef) -> &mir::DeclaredStruct {
+    let mir::StructRepresentation::Declared(declared) = &definition.representation else {
+        panic!("expected a declared test struct")
+    };
+    declared
+}
+
 const SPAN: Span = Span { start: 0, end: 0 };
 
 fn expression_origin() -> hir::ExpressionOrigin {

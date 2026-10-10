@@ -41,7 +41,7 @@ impl CanonicalCAbiBuilder<'_> {
             },
             mir::Type::Struct(id) => {
                 if let mir::StructRepresentation::Intrinsic(
-                    mir::IntrinsicTypeRepresentation::Float(kind),
+                    mir::IntrinsicStructRepresentation::Float(kind),
                 ) = self.module.structs[*id].representation
                 {
                     return Ok(identity::CanonicalCStorageType::Float {
@@ -51,7 +51,7 @@ impl CanonicalCAbiBuilder<'_> {
                 }
                 if matches!(
                     self.module.structs[*id].representation,
-                    mir::StructRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::Char)
+                    mir::StructRepresentation::Intrinsic(mir::IntrinsicStructRepresentation::Char)
                 ) {
                     return Ok(identity::CanonicalCStorageType::Integer {
                         exact_type: self.exact_type(ty),
@@ -61,10 +61,10 @@ impl CanonicalCAbiBuilder<'_> {
                 }
                 if matches!(
                     self.module.structs[*id].representation,
-                    mir::StructRepresentation::Declared {
+                    mir::StructRepresentation::Declared(mir::DeclaredStruct {
                         c_abi: mir::StructCAbi::UInt64Field { .. },
                         ..
-                    }
+                    })
                 ) {
                     return Ok(identity::CanonicalCStorageType::Integer {
                         exact_type: self.exact_type(ty),
@@ -135,21 +135,24 @@ impl CanonicalCAbiBuilder<'_> {
 
         let ty = mir::Type::Struct(id);
         let exact_type = self.exact_type(&ty);
-        let definition = &self.structs[struct_def_id(id)];
-        let geometry =
-            lir::StorageGeometryV1::new(self.target_profile, definition.size, definition.align)?;
-        let contract = definition
-            .c_layout()
-            .ok_or(StorageLoweringError::InvalidRepresentation(
-                "C ABI storage requires a C-layout struct",
-            ))?;
-        let source_fields = self.module.structs[id].declared_fields();
-        let physical_fields =
-            definition
-                .c_fields()
-                .ok_or(StorageLoweringError::InvalidRepresentation(
-                    "missing physical C fields",
-                ))?;
+        let reference = self.structs.c_ref(struct_def_id(id)).ok_or(
+            StorageLoweringError::InvalidRepresentation("C ABI storage requires a C-layout struct"),
+        )?;
+        let view = self.structs.c(reference);
+        let geometry = lir::StorageGeometryV1::new(
+            self.target_profile,
+            view.definition.size,
+            view.definition.align,
+        )?;
+        let contract = view.contract;
+        let mir::StructRepresentation::Declared(declared) = &self.module.structs[id].representation
+        else {
+            return Err(StorageLoweringError::InvalidRepresentation(
+                "C source fields require a declared struct",
+            ));
+        };
+        let source_fields = &declared.fields;
+        let physical_fields = view.fields;
         if source_fields.len() != physical_fields.len() {
             return Err(StorageLoweringError::InvalidRepresentation(
                 "C-layout source and physical field sequences must align",

@@ -225,7 +225,7 @@ pub(crate) fn type_descriptors(
         let def = &module.classes[id];
         let is_string = matches!(
             def.representation,
-            mir::ClassRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::String)
+            mir::ClassRepresentation::Intrinsic(mir::IntrinsicClassRepresentation::String)
         );
         let descriptor_type = def.physical_type(id);
         if imported.contains(&descriptor_type) || refs.classes.contains_key(&id) {

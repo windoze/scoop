@@ -28,10 +28,10 @@ fn boxing_materializes_one_payload_class_with_its_exact_identity() {
     let module = lower(&export);
 
     let boxed = boxed_class(&module, "box<S>");
-    assert_eq!(boxed.declared_fields().len(), 1);
-    assert_eq!(boxed.declared_fields()[0].name, "value");
+    assert_eq!(declared_class(boxed).fields.len(), 1);
+    assert_eq!(declared_class(boxed).fields[0].name, "value");
     assert_eq!(
-        boxed.declared_fields()[0].ty,
+        declared_class(boxed).fields[0].ty,
         mir::Type::Struct(la_arena::Idx::from_raw(0.into()))
     );
     assert!(boxed.vtable.is_empty());
@@ -40,7 +40,7 @@ fn boxing_materializes_one_payload_class_with_its_exact_identity() {
         .meta
         .boxed_types
         .iter()
-        .filter(|metadata| metadata.payload() == &boxed.declared_fields()[0].ty);
+        .filter(|metadata| metadata.payload() == &declared_class(boxed).fields[0].ty);
     let boxed_meta = payload_boxes.next().expect("the payload has a box record");
     assert!(payload_boxes.next().is_none());
     let generated_exact = module
@@ -91,7 +91,7 @@ fn boxing_materializes_one_payload_class_with_its_exact_identity() {
         &mir::ExactOwnerRoot::SourceNominal(*owner)
     );
     assert_eq!(
-        module.classes[boxed_meta.class()].declared_fields()[0].ty,
+        declared_class(&module.classes[boxed_meta.class()]).fields[0].ty,
         mir::Type::Struct(la_arena::Idx::from_raw(0.into()))
     );
     assert_eq!(module.classes[boxed_meta.class()].name, "box<S>");

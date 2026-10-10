@@ -110,11 +110,11 @@ fn encoded_integer_templates_preserve_target_bits_and_zero_padding() {
     let mut globals = Arena::new();
     globals.alloc(storage_global(
         "bits",
-        LirType::Struct(pair),
+        LirType::Struct(pair.definition()),
         RefScan::None,
         LirStaticInitialState::EncodedStaticValue {
             payload: LirConstantImage::Struct {
-                struct_id: pair,
+                struct_id: pair.definition(),
                 fields: vec![
                     LirConstantImage::Integer(crate::LirIntegerConstant::Unsigned8(0xab)),
                     LirConstantImage::Integer(crate::LirIntegerConstant::Unsigned32(0x1234_5678)),

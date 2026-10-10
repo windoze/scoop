@@ -203,8 +203,12 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 ) =>
             {
                 let definition = &self.structs[*id];
+                let c_layout = self
+                    .structs
+                    .c_ref(*id)
+                    .map(|reference| self.structs.c(reference));
                 let mut aggregate = value.into_struct_value();
-                if definition.is_c_layout() {
+                if c_layout.is_some() {
                     aggregate = self
                         .builder
                         .build_extract_value(aggregate, 1, "coercion_payload")
@@ -213,10 +217,11 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 }
                 (0..definition.field_count())
                     .map(|i| {
-                        let index = if definition.is_c_layout() {
-                            c_physical_field_index(self.structs, self.enums, definition, i as u32)?
-                        } else {
-                            i as u32
+                        let index = match c_layout {
+                            Some(layout) => {
+                                c_physical_field_index(self.structs, self.enums, layout, i as u32)?
+                            }
+                            None => i as u32,
                         };
                         Ok((
                             definition.field_storage_type(i).expect("field has a type"),

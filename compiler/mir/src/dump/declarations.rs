@@ -177,12 +177,12 @@ pub fn dump(module: &Module) -> String {
     }
     for (id, def) in module.structs.iter() {
         match &def.representation {
-            StructRepresentation::Declared {
+            StructRepresentation::Declared(DeclaredStruct {
                 c_layout,
                 c_abi,
                 interior_mutable,
                 fields,
-            } => {
+            }) => {
                 let fields: Vec<String> = fields
                     .iter()
                     .map(|f| format!("{}: {}", f.name, type_name(module, &f.ty)))

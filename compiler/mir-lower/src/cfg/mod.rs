@@ -301,7 +301,7 @@ impl CfgLowerer<'_> {
     fn is_nothing(&self, ty: &mir::Type) -> bool {
         matches!(ty, mir::Type::Class(id) if matches!(
             self.classes[*id].representation,
-            mir::ClassRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::Nothing)))
+            mir::ClassRepresentation::Intrinsic(mir::IntrinsicClassRepresentation::Nothing)))
     }
 }
 

@@ -29,7 +29,10 @@ pub(super) fn validate_policies(module: &Module) -> Result<(), MirValidationErro
             continue;
         };
         let valid = class.modifier == ClassModifier::Final
-            && matches!(class.representation, ClassRepresentation::Declared { .. })
+            && matches!(
+                class.representation,
+                ClassRepresentation::Declared(DeclaredClass { .. })
+            )
             && match hook {
                 ReleaseHookTarget::Local(hook) => {
                     arena_get(&module.release_hooks, hook).is_some_and(|hook| hook.owner == id)

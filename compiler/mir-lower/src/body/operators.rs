@@ -74,30 +74,19 @@ impl BodyLowerer<'_> {
     /// Produce a pattern subject's nested value. Variant payload projections
     /// are guarded by the decision sequence that proved the active variant.
     pub(super) fn accessed(&mut self, root: mir::LocalId, path: &[Access]) -> smir::Expr {
-        let mut current_ty = self.locals[root].ty.clone();
-        let mut lowered = smir::Expr::local(root, current_ty.clone());
+        let mut lowered = smir::Expr::local(root, self.locals[root].ty.clone());
         for access in path {
             match access {
-                Access::Field(index) => {
-                    let next_ty = match &current_ty {
-                        mir::Type::Tuple(elements) => elements[*index as usize].clone(),
-                        mir::Type::Struct(struct_id) => self.structs.defs[*struct_id]
-                            .declared_fields()[*index as usize]
-                            .ty
-                            .clone(),
-                        _ => unreachable!("tuple/struct patterns only access aggregate fields"),
-                    };
+                Access::Field { index, ty: next_ty } => {
                     let kind = smir::ExprKind::FieldAccess {
                         receiver: Box::new(lowered),
                         index: *index,
                     };
-                    current_ty = next_ty.clone();
-                    lowered = smir::Expr::new(next_ty, kind);
+                    lowered = smir::Expr::new(next_ty.clone(), kind);
                 }
                 Access::VariantField(field) => {
                     lowered =
                         smir::Expr::variant_payload_project(&self.enums.defs, lowered, *field);
-                    current_ty = lowered.ty.clone();
                 }
             }
         }

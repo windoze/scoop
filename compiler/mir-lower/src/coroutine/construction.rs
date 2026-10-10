@@ -12,10 +12,10 @@ pub(super) fn generated_class(
         modifier: mir::ClassModifier::Final,
         name: name.clone(),
         type_arguments: Vec::new(),
-        representation: mir::ClassRepresentation::Declared {
+        representation: mir::ClassRepresentation::Declared(mir::DeclaredClass {
             fields,
             base_class: None,
-        },
+        }),
         interfaces,
         vtable: Vec::new(),
         itables,
@@ -25,10 +25,10 @@ pub(super) fn generated_class(
         modifier: mir::ClassModifier::Final,
         name,
         type_arguments: Vec::new(),
-        representation: mir::ClassRepresentation::Declared {
+        representation: mir::ClassRepresentation::Declared(mir::DeclaredClass {
             fields: Vec::new(),
             base_class: None,
-        },
+        }),
         interfaces: Vec::new(),
         vtable: Vec::new(),
         itables: Vec::new(),

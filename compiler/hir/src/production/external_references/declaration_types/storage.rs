@@ -1,7 +1,9 @@
 //! Semantic storage edges are rooted in actual materialization, not type arenas.
 
 use super::*;
-use crate::concrete::{ClassRepresentation, StructRepresentation, TypeKind};
+use crate::concrete::{
+    ClassRepresentation, DeclaredClass, DeclaredStruct, StructRepresentation, TypeKind,
+};
 
 pub(super) fn collect<E>(
     local: &crate::LocalConcreteHirOutput,
@@ -36,7 +38,7 @@ pub(super) fn collect<E>(
             .id();
         match &module.types[ty].kind {
             TypeKind::Struct(id) => {
-                if let StructRepresentation::Declared { fields, .. } =
+                if let StructRepresentation::Declared(DeclaredStruct { fields, .. }) =
                     &module.structs[*id].representation
                 {
                     for field in fields {
@@ -49,7 +51,7 @@ pub(super) fn collect<E>(
                 }
             }
             TypeKind::Class(id) => {
-                if let ClassRepresentation::Declared { fields, .. } =
+                if let ClassRepresentation::Declared(DeclaredClass { fields, .. }) =
                     &module.classes[*id].representation
                 {
                     for field in fields {

@@ -46,11 +46,13 @@ fn c_handle_source_fixtures_preserve_native_hir_and_mir_projections() {
                 .structs
                 .iter()
                 .find_map(|(_, definition)| match &definition.representation {
-                    hir::concrete::StructRepresentation::Declared {
-                        c_abi: hir::concrete::StructCAbi::UInt64Field { field: actual },
-                        fields,
-                        ..
-                    } if *actual == field => {
+                    hir::concrete::StructRepresentation::Declared(
+                        hir::concrete::DeclaredStruct {
+                            c_abi: hir::concrete::StructCAbi::UInt64Field { field: actual },
+                            fields,
+                            ..
+                        },
+                    ) if *actual == field => {
                         assert_eq!(fields.len(), 1);
                         assert_eq!(fields[0].identity, field);
                         assert!(definition.gc_free);
@@ -63,11 +65,11 @@ fn c_handle_source_fixtures_preserve_native_hir_and_mir_projections() {
                 .structs
                 .iter()
                 .find_map(|(_, definition)| match &definition.representation {
-                    scoop_mir::StructRepresentation::Declared {
+                    scoop_mir::StructRepresentation::Declared(scoop_mir::DeclaredStruct {
                         c_abi: scoop_mir::StructCAbi::UInt64Field { field: actual },
                         fields,
                         ..
-                    } if *actual == field => {
+                    }) if *actual == field => {
                         assert_eq!(fields[0].identity, field);
                         assert_eq!(
                             fields[0].ty,

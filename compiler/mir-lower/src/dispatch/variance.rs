@@ -12,7 +12,7 @@ impl Lowerer {
         if source == target
             || matches!(source, mir::Type::Class(id)
                 if matches!(self.classes[*id].representation,
-                    mir::ClassRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::Nothing)))
+                    mir::ClassRepresentation::Intrinsic(mir::IntrinsicClassRepresentation::Nothing)))
         {
             return value;
         }

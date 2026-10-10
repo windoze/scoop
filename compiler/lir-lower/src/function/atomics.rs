@@ -82,7 +82,7 @@ impl FunctionLowerer<'_> {
         let mir::Type::Class(class) = ty else {
             unreachable!("an atomic allocation has its actual class type")
         };
-        let mir::ClassRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::Atomic(storage)) =
+        let mir::ClassRepresentation::Intrinsic(mir::IntrinsicClassRepresentation::Atomic(storage)) =
             &self.module.classes[*class].representation
         else {
             unreachable!("an atomic allocation names an intrinsic atomic class")

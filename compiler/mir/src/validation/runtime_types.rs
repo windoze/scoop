@@ -65,7 +65,7 @@ pub(super) fn validate_runtime_type_metadata(module: &Module) -> Result<(), MirV
         if matches!(
             class.representation,
             ClassRepresentation::Intrinsic(
-                IntrinsicTypeRepresentation::String | IntrinsicTypeRepresentation::Any
+                IntrinsicClassRepresentation::String | IntrinsicClassRepresentation::Any
             )
         ) {
             require_source(module, location, class.physical_type(id))?;

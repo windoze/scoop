@@ -51,15 +51,16 @@ impl Lowerer {
         for &hir_id in order {
             let decl = &module.classes[hir_id];
             let mir_id = self.class_map[&hir_id];
-            if matches!(
-                decl.representation,
-                hir::ClassRepresentation::Intrinsic { .. }
-            ) {
-                debug_assert!(decl.base_class().is_none());
+            let hir::ClassRepresentation::Declared(declared) = &decl.representation else {
                 continue;
-            }
-            let mut fields = match decl.base_class() {
-                Some(base) => clone_fields(self.classes[self.class_map[&base]].declared_fields()),
+            };
+            let mut fields = match declared.base_class {
+                Some(base) => match &self.classes[self.class_map[&base]].representation {
+                    mir::ClassRepresentation::Declared(base) => clone_fields(&base.fields),
+                    mir::ClassRepresentation::Intrinsic(_) => {
+                        unreachable!("declared inheritance preserves a declared base")
+                    }
+                },
                 None => Vec::new(),
             };
             let types = Types {
@@ -67,7 +68,7 @@ impl Lowerer {
                 struct_map: &self.struct_map,
                 class_map: &self.class_map,
             };
-            for field in decl.declared_fields() {
+            for field in &declared.fields {
                 fields.push(mir::Field {
                     name: field.name.clone(),
                     ty: types.lower(
@@ -81,10 +82,13 @@ impl Lowerer {
                 });
             }
             match &mut self.classes[mir_id].representation {
-                mir::ClassRepresentation::Declared {
-                    fields: mir_fields, ..
-                } => *mir_fields = fields,
-                mir::ClassRepresentation::Intrinsic(_) => debug_assert!(fields.is_empty()),
+                mir::ClassRepresentation::Declared(mir::DeclaredClass {
+                    fields: mir_fields,
+                    ..
+                }) => *mir_fields = fields,
+                mir::ClassRepresentation::Intrinsic(_) => {
+                    unreachable!("a declared source fills its declared MIR shell")
+                }
             }
         }
     }

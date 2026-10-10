@@ -165,7 +165,7 @@ impl Builder {
             name: name.to_string(),
             type_arguments: Vec::new(),
             gc_free,
-            representation: mir::StructRepresentation::Declared {
+            representation: mir::StructRepresentation::Declared(mir::DeclaredStruct {
                 c_abi: mir::StructCAbi::SourceRepresentation,
                 c_layout: None,
                 interior_mutable: false,
@@ -177,7 +177,7 @@ impl Builder {
                         ty: ty.clone(),
                     })
                     .collect(),
-            },
+            }),
         })
     }
 
@@ -194,7 +194,7 @@ impl Builder {
             name: name.to_string(),
             type_arguments: Vec::new(),
             gc_free,
-            representation: mir::StructRepresentation::Declared {
+            representation: mir::StructRepresentation::Declared(mir::DeclaredStruct {
                 c_abi: mir::StructCAbi::SourceRepresentation,
                 c_layout: Some(mir::MirCLayoutContract { aligned, packed }),
                 interior_mutable,
@@ -206,7 +206,7 @@ impl Builder {
                         ty: ty.clone(),
                     })
                     .collect(),
-            },
+            }),
         })
     }
 
@@ -241,7 +241,7 @@ impl Builder {
             modifier: mir::ClassModifier::Final,
             name: name.to_string(),
             type_arguments: Vec::new(),
-            representation: mir::ClassRepresentation::Declared {
+            representation: mir::ClassRepresentation::Declared(mir::DeclaredClass {
                 fields: fields
                     .iter()
                     .map(|(name, ty)| mir::Field {
@@ -250,7 +250,7 @@ impl Builder {
                     })
                     .collect(),
                 base_class: base,
-            },
+            }),
             interfaces: Vec::new(),
             vtable,
             itables,
@@ -269,9 +269,9 @@ impl Builder {
             name: name.to_string(),
             type_arguments: Vec::new(),
             representation: mir::ClassRepresentation::Intrinsic(match kind {
-                mir::ArrayKind::Immutable => mir::IntrinsicTypeRepresentation::Array { element },
+                mir::ArrayKind::Immutable => mir::IntrinsicClassRepresentation::Array { element },
                 mir::ArrayKind::Mutable => {
-                    mir::IntrinsicTypeRepresentation::MutableArray { element }
+                    mir::IntrinsicClassRepresentation::MutableArray { element }
                 }
             }),
             interfaces: Vec::new(),

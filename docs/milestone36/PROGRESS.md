@@ -16,7 +16,7 @@
 | R03 MIR 临时态 | 待实施 | Cast、协程目标与 pending 留在 lowerer |
 | R07 return | 已完成 | HIR／MIR 与导出模板必填返回值；Rust 2,899、正式 CLI 8 项通过 |
 | R05 窄身份 | 已完成 | FunctionTypeId 与 enum application 贯通生产／消费；Rust 710、正式 CLI 8 项通过 |
-| R06 nominal 表示 | 待实施 | declared payload 与 C/Scoop 窄引用 |
+| R06 nominal 表示 | 已完成 | declared payload、intrinsic 类别与 C/Scoop 窄引用；Rust 1,399、正式 CLI 8 项通过 |
 | R10 core protocol | 已完成 | 生产／导入端具名 typed 字段；Rust 387、正式 CLI 6 项、产物成员字节对比通过 |
 | R08 native 结果发布 | 已完成 | 六类完整返回分支、单一间接结果存储；Rust 197、正式 CLI 5 项通过 |
 | R09 codegen 调用 | 已完成 | 完整 callee 与调用准备分支；codegen 41、正式 CLI 5 项通过 |
@@ -91,3 +91,15 @@ wire 保留现有 tagged-map 编号与版本，旧 Absent 返回在绑定时转�
 本机 fmt／workspace clippy 成功。受影响的 HIR 886、HIR lower 1,397、MIR 345、MIR lower 118、LIR lower 153，共 2,899 项 Rust 测试已覆盖；调整旧结构断言和审阅过的 golden 后，仅重跑此前失败的 58 项，全部通过。新增独立与泛型／闭包／finally 组合 fixture，覆盖 bare／显式／表达式函数 Unit 返回、Nothing、finally 替换结果、正常／移动／minor GC。
 
 正式普通比较共 8 项、10 个配置、29 个进程、28 个 golden 通过，包含现有返回路径、协程 finally 挂起恢复、M35 组合的 debug/release、删除源码后的产物消费与链接，以及 bare／错误类型／lambda return 精确诊断。报告为 `target/m36-validation/r07-verify-report.json`。本轮清理约 192 MiB 的已验证 fixture cases，保留共享缓存。其余正式 HIR/MIR golden 的表示变化在 M36 全部项目完成后统一更新并进行 Linux 全量验收，避免每批重复全量编译。
+
+## R06：declared nominal 与表示专用接口
+
+LocalConcrete HIR 与 MIR 的 declared struct／class 使用独立 payload；源字段查询、继承字段填充、模式投影、布局与 C ABI 消费直接使用已选分支。MIR intrinsic struct／class 进一步按实际允许类别拆分，删除后续布局中另一族的不可能分支。intrinsic 不再参与 declared 空字段填充；装箱直接沿用已记录的 payload，模式字段访问保留已选类型。
+
+LIR 的 Scoop／C shell 分别返回窄引用，第二遍字段填充保留同一引用和已经计算的布局。C bridge 与 LLVM helper 接收完整 C 视图，遍历持有 CStructRef。字段边界、继承前缀、按值循环、布局溢出、ABI 和扫描检查保留，不建立新的 arena 或身份体系。
+
+按职责拆出 nominal、字段引用和 C payload 模块：HIR nominal 为 461 行、引用 172 行，MIR nominal 217 行，MIR lower nominal 372／struct 147 行，LIR struct 存储 296 行，LLVM types 486／C payload 94 行。本机 fmt／workspace clippy 成功；HIR 131、HIR lower 289、MIR 345、MIR lower 118、LIR lower 153、codegen 363，共 1,399 项相关测试通过；最终字段填充收尾另复验 MIR lower 118 和字段损坏负例 1 项。
+
+新增独立与组合 CLI 用例覆盖泛型字段、继承与 ZST、装箱、Float／Char、MaybeUninit、嵌套 packed/aligned C struct、typed pointer、callback，以及正常／移动／minor GC。正式普通比较共 8 项、9 个配置、30 个进程、28 个 golden 通过，包含 C 布局三项负例、已有 MaybeUninit debug/release 与跨库 source nominal 消费。选中旧 HIR/MIR golden 同步 R07 完整返回值；release LIR 的两条无存储 Unit aggregate 来自内联返回值的表示更新，布局和 ABI 不变。
+
+报告为 target/m36-validation/r06-verify-report.json，格式化、lint、Rust、快照生成及普通比较日志同目录保留。完成后清理过期测试可执行文件及用例工作目录，保留当前 CLI、库、sysroot 与编译缓存；清理明细见 r06-cleanup.log。Linux 对应 target 的新 C LIR golden 在最终完整验收时生成并复验。

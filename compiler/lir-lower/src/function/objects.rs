@@ -7,8 +7,14 @@ impl FunctionLowerer<'_> {
         &mut self,
         class_id: &mir::ClassId,
     ) -> StorageResult<lir::Value> {
-        let def = &self.module.classes[*class_id];
-        let (_, size, _) = class_shape(self.context, self.module, self.enums, def)?;
+        let mir::ClassRepresentation::Declared(declared) =
+            &self.module.classes[*class_id].representation
+        else {
+            return Err(StorageLoweringError::InvalidRepresentation(
+                "source class allocation requires a declared class",
+            ));
+        };
+        let (_, size, _) = class_shape(self.context, self.module, self.enums, declared)?;
         let td = self.td_ref(&mir::Type::Class(*class_id));
         self.emit_plain_call(
             LoweredCallDestination::managed_runtime(lir::ManagedRuntimeFunction::Alloc),
@@ -116,18 +122,20 @@ impl FunctionLowerer<'_> {
         index: &u32,
     ) -> StorageResult<lir::Value> {
         let receiver_ty = receiver.ty.clone();
-        if let mir::Type::Class(class_id) = &receiver_ty {
-            let field_ty = &self.module.classes[*class_id].declared_fields()[*index as usize].ty;
-            assert_eq!(ty, field_ty, "a field access has its declared field type");
-        }
         let receiver = self.lower_expr(receiver)?;
         if let mir::Type::Class(class_id) = receiver_ty {
-            let (offsets, _, _) = class_shape(
-                self.context,
-                self.module,
-                self.enums,
-                &self.module.classes[class_id],
-            )?;
+            let mir::ClassRepresentation::Declared(declared) =
+                &self.module.classes[class_id].representation
+            else {
+                return Err(StorageLoweringError::InvalidRepresentation(
+                    "source field access requires a declared class",
+                ));
+            };
+            assert_eq!(
+                ty, &declared.fields[*index as usize].ty,
+                "a field access has its declared field type"
+            );
+            let (offsets, _, _) = class_shape(self.context, self.module, self.enums, declared)?;
             self.load_heap_value(receiver, offsets[*index as usize], ty)
         } else {
             let c_layout = matches!(receiver_ty, mir::Type::Struct(id)
@@ -162,18 +170,20 @@ impl FunctionLowerer<'_> {
         let mir::Type::Class(class_id) = &object_ty else {
             unreachable!("an atomic field load targets a class object")
         };
+        let mir::ClassRepresentation::Declared(declared) =
+            &self.module.classes[*class_id].representation
+        else {
+            return Err(StorageLoweringError::InvalidRepresentation(
+                "atomic state requires a declared class",
+            ));
+        };
         assert!(kind.is_atomic_state(), "only coroutine state is atomic");
         assert_eq!(
-            self.module.classes[*class_id].declared_fields()[*index as usize].ty,
+            declared.fields[*index as usize].ty,
             mir::Type::MachineScalar(*kind),
             "an atomic state operation must match its field domain"
         );
-        let (offsets, _, _) = class_shape(
-            self.context,
-            self.module,
-            self.enums,
-            &self.module.classes[*class_id],
-        )?;
+        let (offsets, _, _) = class_shape(self.context, self.module, self.enums, declared)?;
         let object = self.lower_expr(object)?;
         let kind = machine_scalar_kind(*kind);
         let out = self.new_temp(lir::LirType::MachineScalar(kind));
@@ -198,9 +208,16 @@ impl FunctionLowerer<'_> {
         let mir::Type::Class(class_id) = &object_ty else {
             unreachable!("an atomic compare-exchange targets a class object")
         };
+        let mir::ClassRepresentation::Declared(declared) =
+            &self.module.classes[*class_id].representation
+        else {
+            return Err(StorageLoweringError::InvalidRepresentation(
+                "atomic state requires a declared class",
+            ));
+        };
         assert!(kind.is_atomic_state(), "only coroutine state is atomic");
         assert_eq!(
-            self.module.classes[*class_id].declared_fields()[*index as usize].ty,
+            declared.fields[*index as usize].ty,
             mir::Type::MachineScalar(*kind),
             "an atomic state operation must match its field domain"
         );
@@ -214,12 +231,7 @@ impl FunctionLowerer<'_> {
             mir::Type::MachineScalar(*kind),
             "atomic replacement value must match its field domain"
         );
-        let (offsets, _, _) = class_shape(
-            self.context,
-            self.module,
-            self.enums,
-            &self.module.classes[*class_id],
-        )?;
+        let (offsets, _, _) = class_shape(self.context, self.module, self.enums, declared)?;
         let object = self.lower_expr(object)?;
         let expected = self.lower_expr(expected)?;
         let replacement = self.lower_expr(replacement)?;

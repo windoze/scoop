@@ -722,7 +722,7 @@ fn module_with_declared_struct(fields: Vec<Type>) -> (Module, StructId) {
         type_arguments: Vec::new(),
         name: "Record".to_string(),
         gc_free: true,
-        representation: StructRepresentation::Declared {
+        representation: StructRepresentation::Declared(DeclaredStruct {
             c_abi: StructCAbi::SourceRepresentation,
             c_layout: None,
             interior_mutable: false,
@@ -738,7 +738,7 @@ fn module_with_declared_struct(fields: Vec<Type>) -> (Module, StructId) {
                     }
                 })
                 .collect(),
-        },
+        }),
     });
     register_test_exact_type(&mut module, &Type::Struct(struct_id));
     (module, struct_id)
@@ -1023,7 +1023,7 @@ fn raw_struct_construction_validation_rejects_unknown_and_intrinsic_targets() {
     ));
 
     module.structs[struct_id].representation =
-        StructRepresentation::Intrinsic(IntrinsicTypeRepresentation::Boolean);
+        StructRepresentation::Intrinsic(IntrinsicStructRepresentation::Boolean);
     replace_test_exact_type(&mut module, &Type::Struct(struct_id), &Type::Boolean);
     set_return_expression(
         &mut module,

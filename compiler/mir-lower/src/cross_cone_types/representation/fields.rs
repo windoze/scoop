@@ -14,16 +14,12 @@ pub(in crate::cross_cone_types) fn exact(
 
 pub(super) fn class(
     module: &mir::Module,
-    class: &mir::ClassDef,
+    class: &mir::DeclaredClass,
     owner: PersistentTypeId,
     expected: &[hir::ClassRepresentationFieldV1],
 ) -> Result<Vec<mir::MirRepresentationFieldV1>, SourceMirTypeProductionError> {
     let mismatch = || SourceMirTypeProductionError::RepresentationMismatch(owner);
-    let mir::ClassRepresentation::Declared { fields, base_class } = &class.representation else {
-        return Err(mismatch());
-    };
-    let inherited = base_class.map_or(0, |id| module.classes[id].declared_fields().len());
-    let fields = fields.get(inherited..).ok_or_else(mismatch)?;
+    let fields = own_class_fields(module, class).ok_or_else(mismatch)?;
     if fields.len() != expected.len() {
         return Err(mismatch());
     }
@@ -36,6 +32,20 @@ pub(super) fn class(
         });
     }
     Ok(projected)
+}
+
+pub(in crate::cross_cone_types) fn own_class_fields<'a>(
+    module: &mir::Module,
+    class: &'a mir::DeclaredClass,
+) -> Option<&'a [mir::Field]> {
+    let inherited = match class.base_class {
+        Some(base) => match &module.classes[base].representation {
+            mir::ClassRepresentation::Declared(base) => base.fields.len(),
+            mir::ClassRepresentation::Intrinsic(_) => return None,
+        },
+        None => 0,
+    };
+    class.fields.get(inherited..)
 }
 
 pub(in crate::cross_cone_types) fn variants(

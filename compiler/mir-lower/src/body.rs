@@ -142,9 +142,9 @@ impl BodyLowerer<'_> {
 }
 
 /// A step from a pattern subject down to a nested field.
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 enum Access {
-    Field(u32),
+    Field { index: u32, ty: mir::Type },
     VariantField(mir::MirVariantFieldRef),
 }
 

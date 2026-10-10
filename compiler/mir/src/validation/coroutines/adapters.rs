@@ -191,7 +191,9 @@ fn validate_adapter_fields(
     frame: &CoroutineFrame,
     location: MirValidationLocation,
 ) -> Result<(), MirValidationError> {
-    let ClassRepresentation::Declared { fields, base_class } = &adapter.representation else {
+    let ClassRepresentation::Declared(DeclaredClass { fields, base_class }) =
+        &adapter.representation
+    else {
         return Err(error(
             location,
             "continuation adapter must have a declared class representation",

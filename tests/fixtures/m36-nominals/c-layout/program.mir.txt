@@ -1,0 +1,832 @@
+Module
+  extern ef0 exchange @m36_envelope(Envelope, FunPtr<(Envelope) -> Envelope>) -> Envelope <abi=c no-gc lib=m36_nominals>
+  extern ef1 rewrite @m36_rewrite(Ptr<Envelope>) -> Unit <abi=c no-gc lib=m36_nominals>
+  callback cb0 @fn3 -> @fn24 function_type0 id=b31f147059e5255a6e6ffe591f9330a14345b5c70550155bed5941db6e8a11ac
+  struct Envelope (tag: Int8, value: Packed, tail: Long) <c-layout aligned=16 packed=2>
+  struct Packed (flag: Boolean, count: Int) <c-layout aligned=8 packed=1>
+  struct Holder<Envelope> (item: Envelope, text: String)
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum Option<Char>
+    Some(_0: Char)
+    None()
+  enum CoroutineStep<Envelope>
+    Completed(value: Envelope)
+    Suspended()
+  enum CoroutineSlot<Envelope>
+    Empty()
+    Value(value: Envelope)
+  enum CoroutineStep<Packed>
+    Completed(value: Packed)
+    Suspended()
+  enum CoroutineSlot<Packed>
+    Empty()
+    Value(value: Packed)
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class box<Envelope> vtable=0 itables=0
+  class box<Packed> vtable=0 itables=0
+  interface Equality<Ptr<Envelope>>
+  interface ToString
+  interface Hash
+  interface Equality<Int8>
+  interface Equality<Boolean>
+  interface Equality<Int>
+  interface Equality<Long>
+  interface Equality<Char>
+  interface Iterable<Char>
+  interface Iterator<Char>
+  interface Equality<String>
+  interface Continuation<Envelope>
+  interface SuspendTask<Envelope>
+  interface SuspendRegistration<Envelope>
+  interface Continuation<Packed>
+  interface SuspendTask<Packed>
+  interface SuspendRegistration<Packed>
+  generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
+  generated_exact_type get1 location=enum5 nominal_id=4d9552e968280834ed031dfc143a4522206442d97265983dbfcbc4009303c673 exact_id=335f3edf981c514d36f7ee5428e92f89969c836f2f9dd313e8d9451ac7cdb562
+  generated_exact_type get2 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
+  generated_exact_type get3 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
+  generated_exact_type get4 location=enum4 nominal_id=50394d81d7767d20a8dab09ffdab14c3e0bb77b94b337629c51ebbf69f05cfcd exact_id=5dd390e891dd79e802978abf64a94c8c6d93f556579481864b7dd5cfabab4c96
+  generated_exact_type get5 location=class4 nominal_id=632102fc9e967c55b8be5cd46dff0cb2ebf0296a3714171817c5259dccfeca23 exact_id=73d2c64b41d66d46b964dfebd9acfcfc328575ff5346869ccb671090bcbdee3a
+  generated_exact_type get6 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
+  generated_exact_type get7 location=enum2 nominal_id=00a0d94e7b5e8036dcdcff5a74ca67b6886383f61bd8ca3225ed5cbcc72bc54f exact_id=984e32d0bf2ae05c8c359a5681f713ed8817e5fd814a9e8ec70e1f4d07d207de
+  generated_exact_type get8 location=class3 nominal_id=1f343e0e36aa17385f477b6caa7f57400c4d0671e40254174ac8edbaf17521bd exact_id=bb696b99c5bebb557a062b3823e4fef86c3b5e106951aede149161a9da5b3058
+  generated_exact_type get9 location=enum3 nominal_id=874a463892b8567145ab675c1959281ad97c3ee70f35f1541cdd3440d663d3c6 exact_id=d5e309ab0d7e5e76d413b877b8a7167596a2eee805c3e13cbe8f74ee013a99ca
+  generated_exact_type get10 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
+  generated_callable gc0 function=@fn26 id=1853241fa3b9ac4dbd34816372c724375e188cf8de4506deef85fddb8146fb9f
+  generated_callable gc1 function=@fn25 id=289ecfdb3d4fadb9e528c5eae4c81f0c4acde2b2f5b0b3f797f54e6a1b28768c
+  generated_callable gc2 function=@fn24 id=b31f147059e5255a6e6ffe591f9330a14345b5c70550155bed5941db6e8a11ac
+  fun equalTo @fn0(this: Ptr<Envelope>, other: Ptr<Envelope>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<Envelope>
+        Type Ptr<Envelope>
+        Local this
+      val $dependency.local.3: Ptr<Envelope>
+        Type Ptr<Envelope>
+        Local other
+      val $dependency.local.4: Ptr<Envelope>
+        Type Ptr<Envelope>
+        Local $dependency.local.3
+      call $call.1: Boolean = @fn5 direct
+        Type Ptr<Envelope>
+        Local $dependency.local.2
+        Type Ptr<Envelope>
+        Local $dependency.local.4
+      return
+        Type Boolean
+        Local $call.1
+  fun exchange @fn1(arg0: Envelope, arg1: FunPtr<(Envelope) -> Envelope>) -> Envelope
+    bb0 entry
+      call $call.1: Envelope = extern0 @m36_envelope direct
+        Type Envelope
+        Local arg0
+        Type FunPtr<(Envelope) -> Envelope>
+        Local arg1
+      return
+        Type Envelope
+        Local $call.1
+  fun rewrite @fn2(arg0: Ptr<Envelope>) -> Unit
+    bb0 entry
+      call extern1 @m36_rewrite direct
+        Type Ptr<Envelope>
+        Local arg0
+      return
+        Type Unit
+        UnitLiteral
+  fun adjust @fn3(value: Envelope) -> Envelope <no-gc>
+    bb0 entry
+      val $argument.0: Int8
+        Type Int8
+        FieldAccess 0
+          Type Envelope
+          Local value
+      val $dependency.receiver: Boolean
+        Type Boolean
+        FieldAccess 0
+          Type Packed
+          FieldAccess 1
+            Type Envelope
+            Local value
+      val $argument.0: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 1
+          Type Packed
+          FieldAccess 1
+            Type Envelope
+            Local value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.1: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.flag: Boolean
+        Type Boolean
+        Local $argument.0
+      val $parameter.count: Int
+        Type Int
+        Local $argument.1
+      call $argument.1: Packed = @fn21 direct
+        Type Boolean
+        Local $parameter.flag
+        Type Int
+        Local $parameter.count
+      val $dependency.receiver: Long
+        Type Long
+        FieldAccess 2
+          Type Envelope
+          Local value
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=4 bits=0x0000000000000004
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $argument.2: Long
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      val $parameter.tag: Int8
+        Type Int8
+        Local $argument.0
+      val $parameter.value: Packed
+        Type Packed
+        Local $argument.1
+      val $parameter.tail: Long
+        Type Long
+        Local $argument.2
+      call $call.1: Envelope = @fn22 direct
+        Type Int8
+        Local $parameter.tag
+        Type Packed
+        Local $parameter.value
+        Type Long
+        Local $parameter.tail
+      return
+        Type Envelope
+        Local $call.1
+  fun main @fn4() -> Unit
+    bb0 entry
+      val $argument.0: Int8
+        Type Int8
+        IntegerLiteral Int8 value=2 bits=0x02
+      val $argument.0: Boolean
+        Type Boolean
+        BoolLiteral true
+      val $argument.1: Int
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+      val $parameter.flag: Boolean
+        Type Boolean
+        Local $argument.0
+      val $parameter.count: Int
+        Type Int
+        Local $argument.1
+      call $argument.1: Packed = @fn21 direct
+        Type Boolean
+        Local $parameter.flag
+        Type Int
+        Local $parameter.count
+      val $argument.2: Long
+        Type Long
+        IntegerLiteral Long value=20 bits=0x0000000000000014
+      val $parameter.tag: Int8
+        Type Int8
+        Local $argument.0
+      val $parameter.value: Packed
+        Type Packed
+        Local $argument.1
+      val $parameter.tail: Long
+        Type Long
+        Local $argument.2
+      call $argument.0: Envelope = @fn22 direct
+        Type Int8
+        Local $parameter.tag
+        Type Packed
+        Local $parameter.value
+        Type Long
+        Local $parameter.tail
+      val $argument.1: String
+        Type String
+        StringConst @str0
+      val $parameter.item: Envelope
+        Type Envelope
+        Local $argument.0
+      val $parameter.text: String
+        Type String
+        Local $argument.1
+      call $argument.0: Holder<Envelope> = @fn23 direct
+        Type Envelope
+        Local $parameter.item
+        Type String
+        Local $parameter.text
+      val $parameter.value: Holder<Envelope>
+        Type Holder<Envelope>
+        Local $argument.0
+      call held: Holder<Envelope> = @fn6 direct
+        Type Holder<Envelope>
+        Local $parameter.value
+      val $argument.0: Envelope
+        Type Envelope
+        FieldAccess 0
+          Type Holder<Envelope>
+          Local held
+      val $argument.1: FunPtr<(Envelope) -> Envelope>
+        Type FunPtr<(Envelope) -> Envelope>
+        FunctionAddress cb0
+      val $parameter.value: Envelope
+        Type Envelope
+        Local $argument.0
+      val $parameter.callback: FunPtr<(Envelope) -> Envelope>
+        Type FunPtr<(Envelope) -> Envelope>
+        Local $argument.1
+      call result: Envelope = extern0 @m36_envelope direct
+        Type Envelope
+        Local $parameter.value
+        Type FunPtr<(Envelope) -> Envelope>
+        Local $parameter.callback
+      val $dependency.argument.0: Int8
+        Type Int8
+        FieldAccess 0
+          Type Envelope
+          Local result
+      val $dependency.parameter.value: Int8
+        Type Int8
+        Local $dependency.argument.0
+      call @fn7 direct
+        Type Int8
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        FieldAccess 0
+          Type Packed
+          FieldAccess 1
+            Type Envelope
+            Local result
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn8 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 1
+          Type Packed
+          FieldAccess 1
+            Type Envelope
+            Local result
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn9 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Long
+        Type Long
+        FieldAccess 2
+          Type Envelope
+          Local result
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      call @fn10 direct
+        Type Long
+        Local $dependency.parameter.value
+      val address: Ptr<Envelope>
+        Type Ptr<Envelope>
+        AddressOf result : Ptr<Envelope>
+      val $argument.0: Ptr<Envelope>
+        Type Ptr<Envelope>
+        Local address
+      val $parameter.value: Ptr<Envelope>
+        Type Ptr<Envelope>
+        Local $argument.0
+      call extern1 @m36_rewrite direct
+        Type Ptr<Envelope>
+        Local $parameter.value
+      val $dependency.receiver: Ptr<Envelope>
+        Type Ptr<Envelope>
+        Local address
+      val $dependency.argument.0: Envelope
+        Type Envelope
+        PtrLoad Envelope
+          Type Ptr<Envelope>
+          Local $dependency.receiver
+      val $dependency.parameter.value: Envelope
+        Type Envelope
+        Local $dependency.argument.0
+      val wrapped: MaybeUninit<Envelope>
+        Type MaybeUninit<Envelope>
+        MaybeUninit.Initialized MaybeUninit
+          Type Envelope
+          Local $dependency.parameter.value
+      val $argument.0: MaybeUninit<Envelope>
+        Type MaybeUninit<Envelope>
+        Local wrapped
+      val $parameter.value: MaybeUninit<Envelope>
+        Type MaybeUninit<Envelope>
+        Local $argument.0
+      call $dependency.receiver: MaybeUninit<Envelope> = @fn11 direct
+        Type MaybeUninit<Envelope>
+        Local $parameter.value
+      val restored: Envelope
+        Type Envelope
+        MaybeUninit.AssumeInit MaybeUninit
+          Type MaybeUninit<Envelope>
+          Local $dependency.receiver
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 1
+          Type Packed
+          FieldAccess 1
+            Type Envelope
+            Local restored
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn9 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Long
+        Type Long
+        FieldAccess 2
+          Type Envelope
+          Local restored
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      call @fn10 direct
+        Type Long
+        Local $dependency.parameter.value
+      val $dependency.argument.0: String
+        Type String
+        FieldAccess 1
+          Type Holder<Envelope>
+          Local held
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn12 direct
+        Type String
+        Local $dependency.parameter.value
+      return
+        Type Unit
+        UnitLiteral
+  fun equals @fn5(this: Ptr<Envelope>, other: Ptr<Envelope>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<Envelope>
+        Type Ptr<Envelope>
+        Local this
+      val $dependency.local.4: ULong
+        Type ULong
+        PtrToULong
+          Type Ptr<Envelope>
+          Local $dependency.local.2
+      val $dependency.local.3: Ptr<Envelope>
+        Type Ptr<Envelope>
+        Local other
+      return
+        Type Boolean
+        IntegerCompare equal operands=ULong result=Boolean
+          Type ULong
+          Local $dependency.local.4
+          Type ULong
+          PtrToULong
+            Type Ptr<Envelope>
+            Local $dependency.local.3
+  fun keep @fn6(value: Holder<Envelope>) -> Holder<Envelope>
+    bb0 entry
+      call @scoop_rt_gc_collect direct
+      return
+        Type Holder<Envelope>
+        Local value
+  fun println @fn7(value: Int8) -> Unit
+    bb0 entry
+      val $dependency.local.1: Int8
+        Type Int8
+        Local value
+      call $dependency.local.2: String = external0 direct
+        Type Int8
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external5 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str1
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external5 direct
+        Type String
+        Local $dependency.local.5
+      return
+        Type Unit
+        UnitLiteral
+  fun println @fn8(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.local.1: Boolean
+        Type Boolean
+        Local value
+      call $dependency.local.2: String = external3 direct
+        Type Boolean
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external5 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str2
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external5 direct
+        Type String
+        Local $dependency.local.5
+      return
+        Type Unit
+        UnitLiteral
+  fun println @fn9(value: Int) -> Unit
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      call $dependency.local.2: String = external1 direct
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external5 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str3
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external5 direct
+        Type String
+        Local $dependency.local.5
+      return
+        Type Unit
+        UnitLiteral
+  fun println @fn10(value: Long) -> Unit
+    bb0 entry
+      val $dependency.local.1: Long
+        Type Long
+        Local value
+      call $dependency.local.2: String = external2 direct
+        Type Long
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external5 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str4
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external5 direct
+        Type String
+        Local $dependency.local.5
+      return
+        Type Unit
+        UnitLiteral
+  fun keep @fn11(value: MaybeUninit<Envelope>) -> MaybeUninit<Envelope>
+    bb0 entry
+      call @scoop_rt_gc_collect direct
+      return
+        Type MaybeUninit<Envelope>
+        Local value
+  fun println @fn12(value: String) -> Unit
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local value
+      call $dependency.local.2: String = external4 direct
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external5 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str5
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external5 direct
+        Type String
+        Local $dependency.local.5
+      return
+        Type Unit
+        UnitLiteral
+  fun Continuation.resume @fn13(this: Continuation<Envelope>, value: Envelope) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn14(this: Continuation<Envelope>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn15(this: SuspendTask<Envelope>, $completion: Continuation<Envelope>) -> CoroutineStep<Envelope>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn16(this: SuspendRegistration<Envelope>, continuation: Continuation<Envelope>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn17(this: Continuation<Packed>, value: Packed) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn18(this: Continuation<Packed>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn19(this: SuspendTask<Packed>, $completion: Continuation<Packed>) -> CoroutineStep<Packed>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn20(this: SuspendRegistration<Packed>, continuation: Continuation<Packed>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun ctor.Packed.$c0 @fn21(flag: Boolean, count: Int) -> Packed <no-gc>
+    bb0 entry
+      return
+        Type Packed
+        StructInit Packed
+          Type Boolean
+          Local flag
+          Type Int
+          Local count
+  fun ctor.Envelope.$c1 @fn22(tag: Int8, value: Packed, tail: Long) -> Envelope <no-gc>
+    bb0 entry
+      return
+        Type Envelope
+        StructInit Envelope
+          Type Int8
+          Local tag
+          Type Packed
+          Local value
+          Type Long
+          Local tail
+  fun ctor.Holder.$c2 @fn23(item: Envelope, text: String) -> Holder<Envelope> <no-gc>
+    bb0 entry
+      return
+        Type Holder<Envelope>
+        StructInit Holder<Envelope>
+          Type Envelope
+          Local item
+          Type String
+          Local text
+  fun callback bridge for adjust @fn24($result: Ptr<Envelope>, $arg0: Ptr<Envelope>) -> Unit <no-gc>
+    bb0 entry
+      call $value: Envelope = @fn3 direct
+        Type Envelope
+        PtrLoad Envelope
+          Type Ptr<Envelope>
+          Local $arg0
+      Type Unit
+      PtrStore Envelope
+        Type Ptr<Envelope>
+        Local $result
+        Type Envelope
+        Local $value
+      return
+        Type Unit
+        UnitLiteral
+  fun startCoroutine<Envelope> @fn25(task: SuspendTask<Envelope>, completion: Continuation<Envelope>) -> Unit
+    bb0 context.unwind
+      landing_pad cleanup=true
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb1 context.catch_unwind
+      landing_pad cleanup=true
+      end_catch
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb2 suspended
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+        Type Unit
+        UnitLiteral
+    bb3 completed unwind bb0
+      call @fn13 interface Continuation<Envelope>[0]
+        Type Continuation<Envelope>
+        Local completion
+        Type Envelope
+        EnumField v0 f0
+          Type CoroutineStep<Envelope>
+          Local $step
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+        Type Unit
+        UnitLiteral
+    bb4 failed unwind bb0
+      call @fn14 interface Continuation<Envelope>[1]
+        Type Continuation<Envelope>
+        Local completion
+        Type Throwable
+        Local $exception
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+        Type Unit
+        UnitLiteral
+    bb5 body_failure unwind bb1
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb4
+    bb6 run unwind bb5
+      call $step: CoroutineStep<Envelope> = @fn15 interface SuspendTask<Envelope>[0]
+        Type SuspendTask<Envelope>
+        Local task
+        Type Continuation<Envelope>
+        Local completion
+      branch bb3 bb2
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Envelope>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+    bb7 entry
+      val $child_context: internal<task-context>
+        Type internal<task-context>
+        ContextFork
+          Type internal<context-node>
+          ContextSnapshot
+      val $context_guard: internal<context-switch-guard>
+        Type internal<context-switch-guard>
+        ContextEnter
+          Type internal<task-context>
+          Local $child_context
+      goto bb6
+  fun startCoroutine<Packed> @fn26(task: SuspendTask<Packed>, completion: Continuation<Packed>) -> Unit
+    bb0 context.unwind
+      landing_pad cleanup=true
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb1 context.catch_unwind
+      landing_pad cleanup=true
+      end_catch
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb2 suspended
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+        Type Unit
+        UnitLiteral
+    bb3 completed unwind bb0
+      call @fn17 interface Continuation<Packed>[0]
+        Type Continuation<Packed>
+        Local completion
+        Type Packed
+        EnumField v0 f0
+          Type CoroutineStep<Packed>
+          Local $step
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+        Type Unit
+        UnitLiteral
+    bb4 failed unwind bb0
+      call @fn18 interface Continuation<Packed>[1]
+        Type Continuation<Packed>
+        Local completion
+        Type Throwable
+        Local $exception
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+        Type Unit
+        UnitLiteral
+    bb5 body_failure unwind bb1
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb4
+    bb6 run unwind bb5
+      call $step: CoroutineStep<Packed> = @fn19 interface SuspendTask<Packed>[0]
+        Type SuspendTask<Packed>
+        Local task
+        Type Continuation<Packed>
+        Local completion
+      branch bb3 bb2
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Packed>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+    bb7 entry
+      val $child_context: internal<task-context>
+        Type internal<task-context>
+        ContextFork
+          Type internal<context-node>
+          ContextSnapshot
+      val $context_guard: internal<context-switch-guard>
+        Type internal<context-switch-guard>
+        ContextEnter
+          Type internal<task-context>
+          Local $child_context
+      goto bb6
+  coroutine_step cs0 CoroutineStep<Envelope> result=Envelope
+  coroutine_step cs1 CoroutineStep<Packed> result=Packed
+  coroutine_slot cl0 CoroutineSlot<Envelope> value=Envelope
+  coroutine_slot cl1 CoroutineSlot<Packed> value=Packed
+  coroutine_start ct0 result=Envelope function=fn25
+  coroutine_start ct1 result=Packed function=fn26
+  coroutine_fn cf0 @fn15 source_return=Envelope step=cs0 immediate
+  coroutine_fn cf1 @fn19 source_return=Packed step=cs1 immediate
+  instance mi0 function=@fn0 <- equalTo
+  instance mi1 function=@fn5 <- equals
+  instance mi2 function=@fn6 <- keep
+  instance mi3 function=@fn7 <- println
+  instance mi4 function=@fn8 <- println
+  instance mi5 function=@fn9 <- println
+  instance mi6 function=@fn10 <- println
+  instance mi7 function=@fn11 <- keep
+  instance mi8 function=@fn12 <- println
+  instance mi9 function=@fn13 <- Continuation.resume
+  instance mi10 function=@fn14 <- Continuation.resumeWithException
+  instance mi11 function=@fn15 <- SuspendTask.run
+  instance mi12 function=@fn16 <- SuspendRegistration.register
+  instance mi13 function=@fn17 <- Continuation.resume
+  instance mi14 function=@fn18 <- Continuation.resumeWithException
+  instance mi15 function=@fn19 <- SuspendTask.run
+  instance mi16 function=@fn20 <- SuspendRegistration.register
+  str @str0 "c-layout"
+  str @str1 "\n"
+  str @str2 "\n"
+  str @str3 "\n"
+  str @str4 "\n"
+  str @str5 "\n"
+  output executable @fn4

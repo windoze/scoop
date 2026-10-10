@@ -188,7 +188,7 @@ fn generic_structs_instantiate_per_argument_list() {
         })
         .expect("PinnedPtr<UInt>");
     assert_eq!(
-        pinned_uint.declared_fields()[0].ty,
+        declared_struct(pinned_uint).fields[0].ty,
         mir::Type::Integer(mir::IntegerKind::UNSIGNED_64)
     );
     assert!(pinned_uint.gc_free);
@@ -198,18 +198,18 @@ fn generic_structs_instantiate_per_argument_list() {
         .expect("PinnedPtr<String>");
     assert!(pinned_string.gc_free);
     assert_eq!(
-        pinned_uint.declared_fields()[0].identity,
-        pinned_string.declared_fields()[0].identity,
+        declared_struct(pinned_uint).fields[0].identity,
+        declared_struct(pinned_string).fields[0].identity,
         "specializations of one source struct retain one source field identity"
     );
     let box2 = defs("Box2");
     assert_eq!(box2.len(), 1);
     assert_eq!(box2[0].type_arguments, [mir::Type::String]);
     // Field substitution: `Box2<String>`'s `x` is `String`.
-    assert_eq!(box2[0].declared_fields()[0].ty, mir::Type::String);
+    assert_eq!(declared_struct(box2[0]).fields[0].ty, mir::Type::String);
     assert_ne!(
-        box2[0].declared_fields()[0].identity,
-        pinned_uint.declared_fields()[0].identity,
+        declared_struct(box2[0]).fields[0].identity,
+        declared_struct(pinned_uint).fields[0].identity,
         "fields owned by different source structs remain distinct"
     );
     assert!(!box2[0].gc_free);

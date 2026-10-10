@@ -81,7 +81,7 @@ pub(crate) fn layouts(
             &def.name,
         ));
         match def.representation {
-            mir::ClassRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::String) => {
+            mir::ClassRepresentation::Intrinsic(mir::IntrinsicClassRepresentation::String) => {
                 layouts.alloc(class_definition_layout(
                     context,
                     module,
@@ -91,10 +91,10 @@ pub(crate) fn layouts(
                 )?);
             }
             mir::ClassRepresentation::Intrinsic(
-                mir::IntrinsicTypeRepresentation::Any
-                | mir::IntrinsicTypeRepresentation::Nothing
-                | mir::IntrinsicTypeRepresentation::Array { .. }
-                | mir::IntrinsicTypeRepresentation::MutableArray { .. },
+                mir::IntrinsicClassRepresentation::Any
+                | mir::IntrinsicClassRepresentation::Nothing
+                | mir::IntrinsicClassRepresentation::Array { .. }
+                | mir::IntrinsicClassRepresentation::MutableArray { .. },
             ) => {}
             _ => {
                 layouts.alloc(class_definition_layout(
@@ -168,7 +168,7 @@ pub(crate) fn layouts(
             }
             match &definition.representation {
                 mir::StructRepresentation::Intrinsic(
-                    mir::IntrinsicTypeRepresentation::MaybeUninit { value },
+                    mir::IntrinsicStructRepresentation::MaybeUninit { value },
                 ) => Some(value),
                 _ => None,
             }
@@ -179,8 +179,8 @@ pub(crate) fn layouts(
             }
             match &class.representation {
                 mir::ClassRepresentation::Intrinsic(
-                    mir::IntrinsicTypeRepresentation::Array { element }
-                    | mir::IntrinsicTypeRepresentation::MutableArray { element },
+                    mir::IntrinsicClassRepresentation::Array { element }
+                    | mir::IntrinsicClassRepresentation::MutableArray { element },
                 ) => Some(element),
                 _ => None,
             }
@@ -250,13 +250,13 @@ fn struct_layout_identity(
     let target_profile = context.target_profile();
     let root = identity_roots.for_type(ty);
     match &def.representation {
-        mir::StructRepresentation::Declared {
+        mir::StructRepresentation::Declared(mir::DeclaredStruct {
             c_layout: Some(_), ..
-        } => lir::LayoutIdentity::c_value(exact_type, target_profile, root),
-        mir::StructRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::FunPtr {
+        }) => lir::LayoutIdentity::c_value(exact_type, target_profile, root),
+        mir::StructRepresentation::Intrinsic(mir::IntrinsicStructRepresentation::FunPtr {
             ..
         }) => lir::LayoutIdentity::native_function_pointer(exact_type, target_profile, root),
-        mir::StructRepresentation::Declared { c_layout: None, .. }
+        mir::StructRepresentation::Declared(mir::DeclaredStruct { c_layout: None, .. })
         | mir::StructRepresentation::Intrinsic(_) => {
             lir::LayoutIdentity::managed_value(exact_type, target_profile, root)
         }

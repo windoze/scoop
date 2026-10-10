@@ -82,7 +82,12 @@ fn struct_field_offsets_are_revalidated_before_accepting_an_abi_scan() {
         }],
     );
     let module = module_with_types(structs, EnumDefs::default());
-    let value = abi_value(LirType::Struct(id), 16, 8, RefScan::References(vec![8]));
+    let value = abi_value(
+        LirType::Struct(id.definition()),
+        16,
+        8,
+        RefScan::References(vec![8]),
+    );
     let error = AbiMetadataValidator::new(&module)
         .validate_value(&value, "test value")
         .expect_err("wrong struct field offset must be rejected");

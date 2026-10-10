@@ -14,41 +14,31 @@ pub(crate) fn class_layout(
     def: &mir::ClassDef,
 ) -> StorageResult<(u64, u64, lir::RefScan)> {
     match &def.representation {
-        mir::ClassRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::Atomic(storage)) => {
+        mir::ClassRepresentation::Intrinsic(mir::IntrinsicClassRepresentation::Atomic(storage)) => {
             let layout = atomic_object_layout(context, storage.kind())?;
-            return Ok((layout.size, layout.align, layout.scan));
+            Ok((layout.size, layout.align, layout.scan))
         }
         mir::ClassRepresentation::Intrinsic(
-            mir::IntrinsicTypeRepresentation::Any | mir::IntrinsicTypeRepresentation::Nothing,
-        ) => {
-            return Ok((0, 1, lir::RefScan::None));
-        }
-        mir::ClassRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::String) => {
+            mir::IntrinsicClassRepresentation::Any | mir::IntrinsicClassRepresentation::Nothing,
+        ) => Ok((0, 1, lir::RefScan::None)),
+        mir::ClassRepresentation::Intrinsic(mir::IntrinsicClassRepresentation::String) => {
             let layout = context.string_layout();
-            return Ok((layout.size, layout.align, lir::RefScan::None));
+            Ok((layout.size, layout.align, lir::RefScan::None))
         }
         mir::ClassRepresentation::Intrinsic(
-            mir::IntrinsicTypeRepresentation::Array { element }
-            | mir::IntrinsicTypeRepresentation::MutableArray { element },
+            mir::IntrinsicClassRepresentation::Array { element }
+            | mir::IntrinsicClassRepresentation::MutableArray { element },
         ) => {
             let enum_shape =
                 |id: mir::EnumId| Ok(repr_shape(context, &enums[enum_def_id(id)].repr));
             let (size, align) = size_align(context, module, &enum_shape, element)?;
-            return Ok((size, align, ref_scan(context, module, enums, element, 0)?));
+            Ok((size, align, ref_scan(context, module, enums, element, 0)?))
         }
-        mir::ClassRepresentation::Intrinsic(_) => {
-            unreachable!("the registry fixes intrinsic declaration targets")
+        mir::ClassRepresentation::Declared(declared) => {
+            let (_, size, align, scan) = declared_class_layout(context, module, enums, declared)?;
+            Ok((size, align, scan))
         }
-        mir::ClassRepresentation::Declared { .. } => {}
     }
-    let (offsets, size, align) = class_shape(context, module, enums, def)?;
-    let fields: Vec<mir::Type> = def
-        .declared_fields()
-        .iter()
-        .map(|field| field.ty.clone())
-        .collect();
-    let scan = scan_fields(context, module, enums, &fields, &offsets, 0)?;
-    Ok((size, align, scan))
 }
 
 /// A derived instance preserves the complete base prefix, including tail
@@ -58,18 +48,25 @@ pub(crate) fn class_shape(
     context: &LoweringContext,
     module: &mir::Module,
     enums: &lir::EnumDefs,
-    def: &mir::ClassDef,
+    def: &mir::DeclaredClass,
 ) -> StorageResult<(Vec<u64>, u64, u64)> {
     let mut chain = vec![def];
     let mut current = def;
     let mut seen = std::collections::HashSet::new();
-    while let Some(base) = current.base_class() {
+    while let Some(base) = current.base_class {
         if !seen.insert(base) {
             return Err(StorageLoweringError::InvalidRepresentation(
                 "class base cycle",
             ));
         }
-        current = &module.classes[base];
+        current = match &module.classes[base].representation {
+            mir::ClassRepresentation::Declared(base) => base,
+            mir::ClassRepresentation::Intrinsic(_) => {
+                return Err(StorageLoweringError::InvalidRepresentation(
+                    "a declared class requires a declared base",
+                ));
+            }
+        };
         chain.push(current);
     }
     let enum_shape = |id: mir::EnumId| Ok(repr_shape(context, &enums[enum_def_id(id)].repr));
@@ -79,7 +76,7 @@ pub(crate) fn class_shape(
     let mut offsets = Vec::new();
     let mut inherited_fields: &[mir::Field] = &[];
     for definition in chain.into_iter().rev() {
-        let fields = definition.declared_fields();
+        let fields = definition.fields.as_slice();
         let inherited_count = offsets.len();
         if inherited_count > fields.len()
             || fields
@@ -103,6 +100,22 @@ pub(crate) fn class_shape(
     Ok((offsets, prefix.size(), prefix.alignment().get()))
 }
 
+fn declared_class_layout(
+    context: &LoweringContext,
+    module: &mir::Module,
+    enums: &lir::EnumDefs,
+    declared: &mir::DeclaredClass,
+) -> StorageResult<(Vec<u64>, u64, u64, lir::RefScan)> {
+    let (offsets, size, align) = class_shape(context, module, enums, declared)?;
+    let fields: Vec<_> = declared
+        .fields
+        .iter()
+        .map(|field| field.ty.clone())
+        .collect();
+    let scan = scan_fields(context, module, enums, &fields, &offsets, 0)?;
+    Ok((offsets, size, align, scan))
+}
+
 pub(crate) fn class_definition_layout(
     context: &LoweringContext,
     module: &mir::Module,
@@ -111,15 +124,16 @@ pub(crate) fn class_definition_layout(
     def: &mir::ClassDef,
 ) -> StorageResult<lir::Layout> {
     Ok(match &def.representation {
-        mir::ClassRepresentation::Declared { fields, .. } => {
-            let (size, align, scan) = class_layout(context, module, enums, def)?;
-            let offsets = class_shape(context, module, enums, def)?.0;
+        mir::ClassRepresentation::Declared(declared) => {
+            let (offsets, size, align, scan) =
+                declared_class_layout(context, module, enums, declared)?;
             lir::Layout {
                 identity,
                 name: def.name.clone(),
                 size,
                 align,
-                fields: fields
+                fields: declared
+                    .fields
                     .iter()
                     .zip(offsets)
                     .map(|(field, offset)| {
@@ -140,7 +154,7 @@ pub(crate) fn class_definition_layout(
         }
         mir::ClassRepresentation::Intrinsic(representation) => {
             let (size, align, kind) = match representation {
-                mir::IntrinsicTypeRepresentation::Atomic(storage) => {
+                mir::IntrinsicClassRepresentation::Atomic(storage) => {
                     let layout = atomic_object_layout(context, storage.kind())?;
                     return Ok(lir::Layout {
                         identity,
@@ -153,13 +167,13 @@ pub(crate) fn class_definition_layout(
                         kind: lir::LayoutKind::Plain { scan: layout.scan },
                     });
                 }
-                mir::IntrinsicTypeRepresentation::Any => {
+                mir::IntrinsicClassRepresentation::Any => {
                     (0, 1, lir::IntrinsicTypeRepresentation::Any)
                 }
-                mir::IntrinsicTypeRepresentation::Nothing => {
+                mir::IntrinsicClassRepresentation::Nothing => {
                     (0, 1, lir::IntrinsicTypeRepresentation::Nothing)
                 }
-                mir::IntrinsicTypeRepresentation::String => {
+                mir::IntrinsicClassRepresentation::String => {
                     let layout = context.string_layout();
                     (
                         layout.size,
@@ -167,21 +181,9 @@ pub(crate) fn class_definition_layout(
                         lir::IntrinsicTypeRepresentation::String,
                     )
                 }
-                mir::IntrinsicTypeRepresentation::Array { .. }
-                | mir::IntrinsicTypeRepresentation::MutableArray { .. } => {
+                mir::IntrinsicClassRepresentation::Array { .. }
+                | mir::IntrinsicClassRepresentation::MutableArray { .. } => {
                     unreachable!("intrinsic arrays use the typed ArrayType metadata arena")
-                }
-                mir::IntrinsicTypeRepresentation::Unit
-                | mir::IntrinsicTypeRepresentation::MaybeUninit { .. }
-                | mir::IntrinsicTypeRepresentation::Integer(_)
-                | mir::IntrinsicTypeRepresentation::Float(_)
-                | mir::IntrinsicTypeRepresentation::Char
-                | mir::IntrinsicTypeRepresentation::Boolean => {
-                    unreachable!("the registry fixes intrinsic declaration targets")
-                }
-                mir::IntrinsicTypeRepresentation::Ptr { .. }
-                | mir::IntrinsicTypeRepresentation::FunPtr { .. } => {
-                    unreachable!("compiler pointer declarations are value-type shells")
                 }
             };
             lir::Layout {

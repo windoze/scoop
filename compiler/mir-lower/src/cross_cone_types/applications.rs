@@ -59,12 +59,12 @@ fn project(
             if matches!(
                 module.structs[*id].representation,
                 mir::StructRepresentation::Intrinsic(
-                    mir::IntrinsicTypeRepresentation::MaybeUninit { .. }
+                    mir::IntrinsicStructRepresentation::MaybeUninit { .. }
                 )
             ) =>
         {
             let mir::StructRepresentation::Intrinsic(
-                mir::IntrinsicTypeRepresentation::MaybeUninit { value },
+                mir::IntrinsicStructRepresentation::MaybeUninit { value },
             ) = &module.structs[*id].representation
             else {
                 unreachable!("the matched intrinsic application retains its payload type")
@@ -84,12 +84,12 @@ fn project(
                 .iter()
                 .map(|ty| local.exact_type_identities[*ty].id())
                 .collect();
-            let mir::StructRepresentation::Declared {
+            let mir::StructRepresentation::Declared(mir::DeclaredStruct {
                 fields,
                 c_layout,
                 interior_mutable,
                 ..
-            } = &module.structs[*id].representation
+            }) = &module.structs[*id].representation
             else {
                 return Err(mismatch());
             };
@@ -138,16 +138,19 @@ fn project(
                 .map(|ty| local.exact_type_identities[*ty].id())
                 .collect();
             match &class.representation {
-                mir::ClassRepresentation::Declared { fields, base_class } => {
-                    let inherited =
-                        base_class.map_or(0, |base| module.classes[base].declared_fields().len());
-                    let fields = fields.get(inherited..).ok_or_else(mismatch)?;
-                    if fields.len() != source.declared_fields().len() {
+                mir::ClassRepresentation::Declared(declared) => {
+                    let source::ClassRepresentation::Declared(source) = &source.representation
+                    else {
+                        return Err(mismatch());
+                    };
+                    let fields = representation::fields::own_class_fields(module, declared)
+                        .ok_or_else(mismatch)?;
+                    if fields.len() != source.fields.len() {
                         return Err(mismatch());
                     }
                     let declared_fields = fields
                         .iter()
-                        .zip(source.declared_fields())
+                        .zip(&source.fields)
                         .map(|(field, source)| {
                             Ok(mir::MirRepresentationFieldV1 {
                                 field: source.identity,
@@ -155,7 +158,7 @@ fn project(
                             })
                         })
                         .collect::<Result<Vec<_>, SourceMirTypeProductionError>>()?;
-                    if let Some(base) = base_class {
+                    if let Some(base) = &declared.base_class {
                         bases.base = mir::MirBaseClassV1::Base(representation::fields::exact(
                             module,
                             &mir::Type::Class(*base),
@@ -173,12 +176,12 @@ fn project(
                     }
                 }
                 mir::ClassRepresentation::Intrinsic(
-                    mir::IntrinsicTypeRepresentation::Array { element }
-                    | mir::IntrinsicTypeRepresentation::MutableArray { element },
+                    mir::IntrinsicClassRepresentation::Array { element }
+                    | mir::IntrinsicClassRepresentation::MutableArray { element },
                 ) => Repr::InlineArray {
                     element: representation::fields::exact(module, element)?,
                 },
-                mir::ClassRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::Atomic(
+                mir::ClassRepresentation::Intrinsic(mir::IntrinsicClassRepresentation::Atomic(
                     hir::AtomicStorage::Reference(value),
                 )) => Repr::AtomicReference {
                     value: representation::fields::exact(module, value)?,

@@ -61,36 +61,33 @@ pub(crate) fn ref_scan(
         | mir::Type::Interface(_)
         | mir::Type::Function(_)
         | mir::Type::Any => lir::RefScan::References(vec![base]),
-        mir::Type::Struct(id)
-            if matches!(
-                module.structs[*id].representation,
-                mir::StructRepresentation::Intrinsic(
-                    mir::IntrinsicTypeRepresentation::Float(_)
-                        | mir::IntrinsicTypeRepresentation::Char
-                )
-            ) =>
-        {
-            lir::RefScan::None
-        }
-        mir::Type::Struct(id) => {
-            if let mir::StructRepresentation::Intrinsic(
-                mir::IntrinsicTypeRepresentation::MaybeUninit { value },
-            ) = &module.structs[*id].representation
-            {
-                return ref_scan(context, module, enums, value, base);
+        mir::Type::Struct(id) => match &module.structs[*id].representation {
+            mir::StructRepresentation::Intrinsic(
+                mir::IntrinsicStructRepresentation::Float(_)
+                | mir::IntrinsicStructRepresentation::Char,
+            ) => lir::RefScan::None,
+            mir::StructRepresentation::Intrinsic(
+                mir::IntrinsicStructRepresentation::MaybeUninit { value },
+            ) => ref_scan(context, module, enums, value, base)?,
+            mir::StructRepresentation::Intrinsic(_) => {
+                return Err(StorageLoweringError::InvalidRepresentation(
+                    "intrinsic scalar requires its canonical value type",
+                ));
             }
-            let fields: Vec<mir::Type> = module.structs[*id]
-                .declared_fields()
-                .iter()
-                .map(|field| field.ty.clone())
-                .collect();
-            let enum_shape =
-                |id: mir::EnumId| Ok(repr_shape(context, &enums[enum_def_id(id)].repr));
-            let (field_layouts, _, _) =
-                struct_shape(context, module, &enum_shape, &module.structs[*id])?;
-            let offsets: Vec<_> = field_layouts.iter().map(|field| field.offset).collect();
-            scan_fields(context, module, enums, &fields, &offsets, base)?
-        }
+            mir::StructRepresentation::Declared(declared) => {
+                let fields: Vec<_> = declared
+                    .fields
+                    .iter()
+                    .map(|field| field.ty.clone())
+                    .collect();
+                let enum_shape =
+                    |id: mir::EnumId| Ok(repr_shape(context, &enums[enum_def_id(id)].repr));
+                let (layouts, _, _) =
+                    declared_struct_shape(context, module, &enum_shape, declared)?;
+                let offsets: Vec<_> = layouts.iter().map(|field| field.offset).collect();
+                scan_fields(context, module, enums, &fields, &offsets, base)?
+            }
+        },
         mir::Type::Tuple(fields) => {
             let enum_shape =
                 |id: mir::EnumId| Ok(repr_shape(context, &enums[enum_def_id(id)].repr));

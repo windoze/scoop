@@ -207,10 +207,10 @@ fn validate_expression_shape(module: &Module, expr: &Expr) -> Result<(), MirVali
                     actual: expr.ty.clone(),
                 });
             }
-            let StructRepresentation::Declared {
+            let StructRepresentation::Declared(DeclaredStruct {
                 fields: expected_fields,
                 ..
-            } = &module.structs[*struct_id].representation
+            }) = &module.structs[*struct_id].representation
             else {
                 return Err(MirValidationErrorKind::RawStructConstructRequiresDeclared {
                     struct_id: *struct_id,

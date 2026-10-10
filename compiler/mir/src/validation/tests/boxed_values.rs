@@ -10,13 +10,13 @@ fn module_with_box() -> Module {
         modifier: ClassModifier::Final,
         name: "box<Unit>".to_string(),
         type_arguments: Vec::new(),
-        representation: ClassRepresentation::Declared {
+        representation: ClassRepresentation::Declared(DeclaredClass {
             fields: vec![Field {
                 name: "value".to_string(),
                 ty: payload.clone(),
             }],
             base_class: None,
-        },
+        }),
         interfaces: Vec::new(),
         vtable: Vec::new(),
         itables: Vec::new(),
@@ -43,7 +43,13 @@ fn boxed_value_identity_and_class_shape_validate_together() {
 fn boxed_value_payload_field_corruption_is_rejected() {
     let mut module = module_with_box();
     let class = module.meta.boxed_types[0].class();
-    module.classes[class].declared_fields_mut()[0].ty = Type::Boolean;
+    {
+        let ClassRepresentation::Declared(declared) = &mut module.classes[class].representation
+        else {
+            panic!("test fixture has declared fields")
+        };
+        declared.fields[0].ty = Type::Boolean;
+    }
     assert!(matches!(
         module.validate(),
         Err(MirValidationError {

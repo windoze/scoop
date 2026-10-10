@@ -64,8 +64,9 @@ fn generic_class_constructors_and_used_members_have_complete_instances() {
     assert!(instances.iter().all(|instance| {
         &instance.origin == concrete_origin
             && instance.type_arguments.len() == 1
-            && instance.declared_fields().len() == 1
-            && instance.declared_fields()[0].ty == instance.type_arguments[0]
+            && matches!(&instance.representation,
+                hir::concrete::ClassRepresentation::Declared(declared)
+                if declared.fields.len() == 1 && declared.fields[0].ty == instance.type_arguments[0])
     }));
     assert!(instances.iter().any(|instance| {
         matches!(

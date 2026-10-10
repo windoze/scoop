@@ -106,7 +106,7 @@ fn atomic_class_applications_keep_reference_arguments_and_initial_values() {
     let module = scoop_mir_lower::lower(&output.local).unwrap();
     let mut kinds = std::collections::BTreeSet::new();
     for (id, class) in module.classes.iter() {
-        if let mir::ClassRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::Atomic(
+        if let mir::ClassRepresentation::Intrinsic(mir::IntrinsicClassRepresentation::Atomic(
             storage,
         )) = &class.representation
         {

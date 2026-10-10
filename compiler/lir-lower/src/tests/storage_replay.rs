@@ -1,5 +1,12 @@
 use super::*;
 
+fn declared_class(definition: &mir::ClassDef) -> &mir::DeclaredClass {
+    let mir::ClassRepresentation::Declared(declared) = &definition.representation else {
+        panic!("expected a declared test class")
+    };
+    declared
+}
+
 fn context() -> LoweringContext {
     LoweringContext::new(lir::LirTargetProfile::DARWIN_AARCH64)
 }
@@ -60,15 +67,33 @@ fn producer_preserves_base_tail_padding_and_elides_zst_fields_at_every_depth() {
     let context = context();
     let enums = lower_enums(&context, &module).unwrap();
     assert_eq!(
-        class_shape(&context, &module, &enums, &module.classes[base]).unwrap(),
+        class_shape(
+            &context,
+            &module,
+            &enums,
+            declared_class(&module.classes[base])
+        )
+        .unwrap(),
         (vec![16, 24], 32, 8)
     );
     assert_eq!(
-        class_shape(&context, &module, &enums, &module.classes[child]).unwrap(),
+        class_shape(
+            &context,
+            &module,
+            &enums,
+            declared_class(&module.classes[child])
+        )
+        .unwrap(),
         (vec![16, 24, 0, 32], 40, 8)
     );
     assert_eq!(
-        class_shape(&context, &module, &enums, &module.classes[leaf]).unwrap(),
+        class_shape(
+            &context,
+            &module,
+            &enums,
+            declared_class(&module.classes[leaf])
+        )
+        .unwrap(),
         (vec![16, 24, 0, 32, 40], 48, 8)
     );
     assert_eq!(
@@ -92,12 +117,17 @@ fn producer_rejects_changed_base_prefix_and_inheritance_cycles() {
     let context = context();
     let enums = lower_enums(&context, &module).unwrap();
     assert_eq!(
-        class_shape(&context, &module, &enums, &module.classes[child]),
+        class_shape(
+            &context,
+            &module,
+            &enums,
+            declared_class(&module.classes[child])
+        ),
         Err(StorageLoweringError::InvalidRepresentation(
             "class fields do not preserve the complete base prefix"
         ))
     );
-    let mir::ClassRepresentation::Declared { base_class, .. } =
+    let mir::ClassRepresentation::Declared(mir::DeclaredClass { base_class, .. }) =
         &mut module.classes[base].representation
     else {
         panic!("declared test base")
@@ -110,7 +140,12 @@ fn producer_rejects_changed_base_prefix_and_inheritance_cycles() {
         ))
     );
     assert_eq!(
-        class_shape(&context, &module, &enums, &module.classes[child]),
+        class_shape(
+            &context,
+            &module,
+            &enums,
+            declared_class(&module.classes[child])
+        ),
         Err(StorageLoweringError::InvalidRepresentation(
             "class base cycle"
         ))

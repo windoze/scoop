@@ -93,8 +93,11 @@ pub(super) fn lower_global_constant(
             mir::MirConstantImage::EnumUnit { variant }
         }
         (hir::HirConstantImage::Struct { fields, .. }, mir::Type::Struct(struct_id)) => {
-            let definition = &structs[*struct_id];
-            let definition_fields = definition.declared_fields();
+            let mir::StructRepresentation::Declared(declared) = &structs[*struct_id].representation
+            else {
+                unreachable!("source struct constants have declared fields")
+            };
+            let definition_fields = &declared.fields;
             assert_eq!(
                 fields.len(),
                 definition_fields.len(),

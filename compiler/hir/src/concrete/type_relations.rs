@@ -39,7 +39,7 @@ impl<'a> ConcreteTypeRelations<'a> {
                 visit_types(declaration.type_arguments.iter().copied(), visit)?;
                 visit_types(declaration.interfaces.iter().copied(), visit)?;
                 match &declaration.representation {
-                    StructRepresentation::Declared { fields, .. } => {
+                    StructRepresentation::Declared(DeclaredStruct { fields, .. }) => {
                         visit_types(fields.iter().map(|field| field.ty), visit)
                     }
                     StructRepresentation::Intrinsic { application, .. } => {
@@ -52,7 +52,7 @@ impl<'a> ConcreteTypeRelations<'a> {
                 visit_types(declaration.type_arguments.iter().copied(), visit)?;
                 visit_types(declaration.interfaces.iter().copied(), visit)?;
                 match &declaration.representation {
-                    ClassRepresentation::Declared { fields, base_class } => {
+                    ClassRepresentation::Declared(DeclaredClass { fields, base_class }) => {
                         visit_types(fields.iter().map(|field| field.ty), visit)?;
                         visit_types(base_class.map(|id| self.classes[id].canonical_type), visit)
                     }

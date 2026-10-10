@@ -66,7 +66,14 @@ impl<'a> FunctionLowerer<'a> {
                 self.make_aggregate(ty, elements)
             }
             mir::ExprKind::StructInit { struct_id, args } => {
-                let field_count = self.module.structs[*struct_id].declared_fields().len();
+                let mir::StructRepresentation::Declared(declared) =
+                    &self.module.structs[*struct_id].representation
+                else {
+                    return Err(StorageLoweringError::InvalidRepresentation(
+                        "source struct construction requires declared fields",
+                    ));
+                };
+                let field_count = declared.fields.len();
                 assert_eq!(args.len(), field_count, "struct initializer arity");
                 let args: Vec<lir::Value> = args
                     .iter()
@@ -75,7 +82,14 @@ impl<'a> FunctionLowerer<'a> {
                 self.make_aggregate(ty, args)
             }
             mir::ExprKind::StructConstruct { struct_id, fields } => {
-                let field_count = self.module.structs[*struct_id].declared_fields().len();
+                let mir::StructRepresentation::Declared(declared) =
+                    &self.module.structs[*struct_id].representation
+                else {
+                    return Err(StorageLoweringError::InvalidRepresentation(
+                        "source struct construction requires declared fields",
+                    ));
+                };
+                let field_count = declared.fields.len();
                 assert_eq!(fields.len(), field_count, "raw struct construction arity");
                 let fields: Vec<lir::Value> = fields
                     .iter()

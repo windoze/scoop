@@ -112,15 +112,6 @@ impl BodyLowerer<'_> {
                 assert!(
                     matches!(&ty, mir::Type::Struct(found) if *found == self.struct_map[struct_id])
                 );
-                let expected_fields = self.module.structs[*struct_id]
-                    .declared_fields()
-                    .iter()
-                    .map(|field| field.ty)
-                    .collect::<Vec<_>>();
-                assert_eq!(fields.len(), expected_fields.len());
-                for (field, expected) in fields.iter().zip(expected_fields) {
-                    assert_eq!(self.lower_type(field.ty), self.lower_type(expected));
-                }
                 smir::ExprKind::StructConstruct {
                     struct_id: self.struct_map[struct_id],
                     fields: fields.iter().map(|field| self.lower_expr(field)).collect(),
@@ -550,10 +541,6 @@ impl BodyLowerer<'_> {
                             receiver_ty,
                             mir::Type::Struct(self.struct_map[&field.structure()])
                         );
-                        let expected = self.module.structs[field.structure()].declared_fields()
-                            [field.local_index() as usize]
-                            .ty;
-                        assert_eq!(ty, self.lower_type(expected));
                         field.local_index()
                     }
                     hir::FieldRef::ClassField { index, .. } | hir::FieldRef::TupleIndex(index) => {

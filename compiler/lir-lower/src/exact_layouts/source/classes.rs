@@ -11,7 +11,8 @@ impl Projection<'_> {
         let exact = source.exact();
         let definition = arena_get(&self.module.classes, id)
             .ok_or(ExactLayoutLoweringError::SourceRepresentation(exact))?;
-        let mir::ClassRepresentation::Declared { fields, base_class } = &definition.representation
+        let mir::ClassRepresentation::Declared(mir::DeclaredClass { fields, base_class }) =
+            &definition.representation
         else {
             return Err(ExactLayoutLoweringError::SourceRepresentation(exact));
         };
@@ -30,10 +31,10 @@ impl Projection<'_> {
             {
                 let base = arena_get(&self.module.classes, *id)
                     .ok_or(ExactLayoutLoweringError::SourceBase(exact))?;
-                let mir::ClassRepresentation::Declared {
+                let mir::ClassRepresentation::Declared(mir::DeclaredClass {
                     fields: base_fields,
                     ..
-                } = &base.representation
+                }) = &base.representation
                 else {
                     return Err(ExactLayoutLoweringError::SourceBase(exact));
                 };

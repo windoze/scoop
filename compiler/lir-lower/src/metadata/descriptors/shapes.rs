@@ -164,7 +164,7 @@ pub(crate) fn class_type_descriptor(
     )
     .expect("validated class exact type must derive its instance layout identity");
     let (instance_shape, inline_scan) = match &def.representation {
-        mir::ClassRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::Atomic(storage)) => {
+        mir::ClassRepresentation::Intrinsic(mir::IntrinsicClassRepresentation::Atomic(storage)) => {
             let layout = atomic_object_layout(context, storage.kind())?;
             (
                 lir::TypeInstanceShapeV1::fixed_object(
@@ -177,18 +177,18 @@ pub(crate) fn class_type_descriptor(
             )
         }
         mir::ClassRepresentation::Intrinsic(
-            mir::IntrinsicTypeRepresentation::Any | mir::IntrinsicTypeRepresentation::Nothing,
+            mir::IntrinsicClassRepresentation::Any | mir::IntrinsicClassRepresentation::Nothing,
         ) => (
             lir::TypeInstanceShapeV1::abstract_ref(),
             lir::TypeDescriptorInlineScanV1::Null,
         ),
-        mir::ClassRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::String) => (
+        mir::ClassRepresentation::Intrinsic(mir::IntrinsicClassRepresentation::String) => (
             lir::TypeInstanceShapeV1::inline_bytes(context.target_profile())?,
             lir::TypeDescriptorInlineScanV1::Null,
         ),
         mir::ClassRepresentation::Intrinsic(
-            mir::IntrinsicTypeRepresentation::Array { .. }
-            | mir::IntrinsicTypeRepresentation::MutableArray { .. },
+            mir::IntrinsicClassRepresentation::Array { .. }
+            | mir::IntrinsicClassRepresentation::MutableArray { .. },
         ) => {
             let (size, align, scan) = class_layout(context, module, enums, def)?;
             let inline_scan = typed_inline_scan(
@@ -209,7 +209,7 @@ pub(crate) fn class_type_descriptor(
                 inline_scan,
             )
         }
-        mir::ClassRepresentation::Declared { .. } => {
+        mir::ClassRepresentation::Declared(mir::DeclaredClass { .. }) => {
             if let Some(boxed) = module
                 .meta
                 .boxed_types
@@ -248,9 +248,6 @@ pub(crate) fn class_type_descriptor(
                     lir::TypeDescriptorInlineScanV1::Null,
                 )
             }
-        }
-        mir::ClassRepresentation::Intrinsic(_) => {
-            unreachable!("the registry fixes intrinsic declaration targets")
         }
     };
     let vtable = lir::VtableRecord::new(
@@ -292,7 +289,7 @@ pub(crate) fn class_type_descriptor(
         },
         relations: if matches!(
             def.representation,
-            mir::ClassRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::Nothing)
+            mir::ClassRepresentation::Intrinsic(mir::IntrinsicClassRepresentation::Nothing)
         ) {
             lir::TypeDescriptorRelations::Bottom
         } else {

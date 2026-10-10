@@ -88,7 +88,7 @@ pub(super) fn materializations(
                     module
                         .meta
                         .source_exact_types
-                        .get(&module.classes[id].declared_fields()[0].ty)
+                        .get(boxed.payload())
                         .unwrap()
                         .identity_record()
                         .id()

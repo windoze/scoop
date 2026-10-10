@@ -1069,7 +1069,9 @@ pub struct CoroutineFrameFieldRef {
 impl CoroutineFrameFieldRef {
     pub fn checked(classes: &Arena<ClassDef>, class: ClassId, field: u32) -> Option<Self> {
         let definition = arena_get(classes, class)?;
-        let ClassRepresentation::Declared { fields, .. } = &definition.representation else {
+        let ClassRepresentation::Declared(DeclaredClass { fields, .. }) =
+            &definition.representation
+        else {
             return None;
         };
         fields.get(field as usize)?;
@@ -1086,7 +1088,9 @@ impl CoroutineFrameFieldRef {
 
     pub fn definition(self, classes: &Arena<ClassDef>) -> Option<&Field> {
         let definition = arena_get(classes, self.class)?;
-        let ClassRepresentation::Declared { fields, .. } = &definition.representation else {
+        let ClassRepresentation::Declared(DeclaredClass { fields, .. }) =
+            &definition.representation
+        else {
             return None;
         };
         fields.get(self.field as usize)
