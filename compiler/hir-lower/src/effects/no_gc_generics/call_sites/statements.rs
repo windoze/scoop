@@ -21,9 +21,7 @@ impl Lowerer {
                 | hir::StatementKind::Break { .. }
                 | hir::StatementKind::Continue { .. } => {}
                 hir::StatementKind::Return { value } => {
-                    if let Some(value) = value {
-                        self.collect_generic_calls_in_expr(value, out);
-                    }
+                    self.collect_generic_calls_in_expr(value, out);
                 }
                 hir::StatementKind::ValDecl { pattern, init } => {
                     self.collect_generic_calls_in_pattern(pattern, out);

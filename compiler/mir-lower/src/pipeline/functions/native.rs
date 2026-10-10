@@ -58,13 +58,15 @@ impl Lowerer {
                     span,
                 },
                 smir::Statement {
-                    kind: smir::StatementKind::Return { value: None },
+                    kind: smir::StatementKind::Return {
+                        value: smir::Expr::unit(),
+                    },
                     span,
                 },
             ]
         } else {
             vec![smir::Statement {
-                kind: smir::StatementKind::Return { value: Some(call) },
+                kind: smir::StatementKind::Return { value: call },
                 span,
             }]
         };

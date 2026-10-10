@@ -819,7 +819,7 @@ fn identity_fn(h: &mut Harness, name: &str) -> hir::FunctionId {
         hir::Body {
             locals,
             statements: vec![stmt(hir::StatementKind::Return {
-                value: Some(local_ref(x, t)),
+                value: local_ref(x, t),
             })],
         },
     )

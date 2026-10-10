@@ -139,13 +139,15 @@ impl Lowerer {
                                 span: property.span,
                             },
                             hir::Statement {
-                                kind: hir::StatementKind::Return { value: None },
+                                kind: hir::StatementKind::Return {
+                                    value: self.unit_expression(property.span),
+                                },
                                 span: property.span,
                             },
                         ]
                     } else {
                         vec![hir::Statement {
-                            kind: hir::StatementKind::Return { value: Some(value) },
+                            kind: hir::StatementKind::Return { value },
                             span: property.span,
                         }]
                     }
@@ -176,7 +178,9 @@ impl Lowerer {
                                     span: property.span,
                                 },
                                 hir::Statement {
-                                    kind: hir::StatementKind::Return { value: None },
+                                    kind: hir::StatementKind::Return {
+                                        value: self.unit_expression(property.span),
+                                    },
                                     span: property.span,
                                 },
                             ]

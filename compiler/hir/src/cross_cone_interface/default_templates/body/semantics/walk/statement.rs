@@ -55,10 +55,9 @@ where
                     definition_origin,
                 },
             ),
-            DefaultStatementKindV1::Return(value) => match value.as_ref() {
-                Some(expression) => self.push_child(pending, BodyNode::Expression(expression)),
-                None => Ok(()),
-            },
+            DefaultStatementKindV1::Return(value) => {
+                self.push_child(pending, BodyNode::Expression(value))
+            }
             DefaultStatementKindV1::ValDecl { pattern, init } => {
                 self.push_child(pending, BodyNode::Expression(init))?;
                 self.push_child(

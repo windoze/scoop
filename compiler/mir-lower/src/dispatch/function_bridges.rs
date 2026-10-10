@@ -97,7 +97,7 @@ impl Lowerer {
         );
         let statements = vec![smir::Statement {
             kind: smir::StatementKind::Return {
-                value: Some(self.dynamic_box(call)),
+                value: self.dynamic_box(call),
             },
             span: Span::new(0, 0),
         }];

@@ -117,7 +117,7 @@ pub(super) fn wrapper_body(
         name: "entry".to_string(),
         statements,
         terminator: mir::Terminator::Return {
-            value: Some(mir::Expr::local(step, step_ty.clone())),
+            value: mir::Expr::local(step, step_ty.clone()),
         },
         unwind: None,
     });

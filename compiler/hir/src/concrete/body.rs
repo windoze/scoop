@@ -20,10 +20,8 @@ pub enum StatementKind {
     InitializationEnsure(InitializationUnitId),
     LocalFunction(LocalFunctionId),
     Return {
-        /// Absent in `Unit` functions (bare `return`). If substitution makes
-        /// a generic return expression exactly `Unit`, concretization emits
-        /// that expression as a preceding statement to preserve evaluation.
-        value: Option<Expr>,
+        /// Complete semantic result, including the normal Unit value.
+        value: Expr,
     },
     ValDecl {
         pattern: Pattern,

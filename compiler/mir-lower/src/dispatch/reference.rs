@@ -117,7 +117,9 @@ impl Lowerer {
                     span: method.span,
                 },
                 smir::Statement {
-                    kind: smir::StatementKind::Return { value: None },
+                    kind: smir::StatementKind::Return {
+                        value: smir::Expr::unit(),
+                    },
                     span: method.span,
                 },
             ]
@@ -130,13 +132,13 @@ impl Lowerer {
                 .id();
             vec![smir::Statement {
                 kind: smir::StatementKind::Return {
-                    value: Some(self.adapt_variance_bridge(
+                    value: self.adapt_variance_bridge(
                         module,
                         call,
                         &target.result,
                         target_exact,
                         &lowered.return_type,
-                    )),
+                    ),
                 },
                 span: method.span,
             }]

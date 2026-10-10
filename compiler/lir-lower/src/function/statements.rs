@@ -209,14 +209,12 @@ impl<'a> FunctionLowerer<'a> {
                 });
             }
             mir::Terminator::Return { value } => {
-                let value = match (self.returns_void, value) {
-                    (true, None) => None,
-                    (true, Some(value)) => {
-                        self.lower_expr(value)?;
-                        None
+                let value = match (&value.kind, self.returns_void) {
+                    (mir::ExprKind::UnitLiteral, true) => None,
+                    _ => {
+                        let value = self.lower_expr(value)?;
+                        (!self.returns_void).then_some(value)
                     }
-                    (false, Some(value)) => Some(self.lower_expr(value)?),
-                    (false, None) => unreachable!("non-Unit return without a value"),
                 };
                 self.seal(lir::Terminator::Return { value });
             }

@@ -296,9 +296,7 @@ fn terminator_uses(terminator: &mir::Terminator) -> HashSet<mir::LocalId> {
     match terminator {
         mir::Terminator::Branch { cond, .. } => expr_uses(cond, &mut uses),
         mir::Terminator::Return { value } => {
-            if let Some(value) = value {
-                expr_uses(value, &mut uses);
-            }
+            expr_uses(value, &mut uses);
         }
         mir::Terminator::Throw { exception, .. } => expr_uses(exception, &mut uses),
         mir::Terminator::Goto(_)

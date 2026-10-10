@@ -12,6 +12,35 @@ use crate::{
 };
 
 #[test]
+fn legacy_bare_return_resolves_to_a_unit_value_at_the_statement_origin() {
+    let fixture = Fixture::new();
+    let mut bytes = vec![0xa2, 1, 0xa2, 0, 4, 1, 0xa1, 0, 1, 2];
+    bytes.extend(encode(&fixture.origin()).unwrap());
+    let decoded: DecodedDefaultStatementV1 = decode_canonical(&bytes).unwrap();
+    assert_eq!(encode(&decoded).unwrap(), bytes);
+    let resolved = decoded
+        .resolve(&mut fixture.resolver(), &mut fixture.locals())
+        .unwrap();
+    let DefaultStatementKindV1::Return(value) = resolved.kind() else {
+        panic!("a legacy bare return remains a return")
+    };
+    assert_eq!(value.kind(), &DefaultExpressionKindV1::UnitLiteral);
+    assert_eq!(
+        value.result_type(),
+        &scoop_identity::SignatureTypeKey::Nominal(
+            scoop_identity::CoreBuiltinNominal::Unit
+                .identity_record()
+                .id()
+        )
+    );
+    assert_eq!(value.definition_origin(), &fixture.origin());
+    assert_eq!(
+        value.evaluation_origin(),
+        &scoop_identity::EvaluationOrigin::at_definition(fixture.origin().origin())
+    );
+}
+
+#[test]
 fn every_statement_variant_keeps_its_frozen_wire_tag_and_round_trips() {
     let fixture = Fixture::new();
     let local_function = DefaultLocalFunctionV1::try_new(
@@ -37,7 +66,7 @@ fn every_statement_variant_keeps_its_frozen_wire_tag_and_round_trips() {
             &fixture,
         ),
         statement(
-            DefaultStatementKindV1::Return(OptionalDefaultExpressionV1::absent()),
+            DefaultStatementKindV1::Return(Box::new(unit(&fixture))),
             &fixture,
         ),
         statement(

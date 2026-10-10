@@ -19,7 +19,7 @@ fn inline_copies_have_distinct_caller_local_identities() {
         hir::Body {
             locals,
             statements: vec![stmt(hir::StatementKind::Return {
-                value: Some(local_ref(value, h.int)),
+                value: local_ref(value, h.int),
             })],
         },
     );

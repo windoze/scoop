@@ -123,9 +123,7 @@ pub(super) fn dump_terminator(
         }
         Terminator::Return { value } => {
             out.push_str(&format!("{pad}return\n"));
-            if let Some(value) = value {
-                dump_expr(module, locals, value, indent + 1, out);
-            }
+            dump_expr(module, locals, value, indent + 1, out);
         }
         Terminator::Throw { exception, unwind } => {
             let edge = unwind

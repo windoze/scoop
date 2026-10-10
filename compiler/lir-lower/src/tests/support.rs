@@ -305,11 +305,7 @@ pub(super) fn body_with_terminator(
 }
 
 pub(super) fn returning_body(locals: Arena<mir::Local>, value: mir::Expr) -> mir::Body {
-    body_with_terminator(
-        locals,
-        Vec::new(),
-        mir::Terminator::Return { value: Some(value) },
-    )
+    body_with_terminator(locals, Vec::new(), mir::Terminator::Return { value })
 }
 
 pub(super) fn cfg_block(blocks: &mut Arena<mir::BasicBlock>, name: &str) -> mir::BlockId {
@@ -430,7 +426,9 @@ pub(super) fn single_catch_body(
         &mut blocks,
         end,
         Vec::new(),
-        mir::Terminator::Return { value: None },
+        mir::Terminator::Return {
+            value: mir::Expr::unit(),
+        },
         None,
     );
     set_cfg_block(

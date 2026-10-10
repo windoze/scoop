@@ -172,13 +172,15 @@ impl Lowerer {
                     }
                     prefix.push(hir::Statement {
                         span: body_span,
-                        kind: hir::StatementKind::Return { value: None },
+                        kind: hir::StatementKind::Return {
+                            value: self.unit_expression(body_span),
+                        },
                     });
                 } else {
                     let value = self.adapt_to(value, return_ty);
                     prefix.push(hir::Statement {
                         span: value.span,
-                        kind: hir::StatementKind::Return { value: Some(value) },
+                        kind: hir::StatementKind::Return { value },
                     });
                 }
             }

@@ -58,9 +58,7 @@ pub(in super::super) fn collect_statement_type_occurrences(
                 collect_expr_type_occurrences(lowerer, expression, out);
             }
             hir::StatementKind::Return { value } => {
-                if let Some(value) = value {
-                    collect_expr_type_occurrences(lowerer, value, out);
-                }
+                collect_expr_type_occurrences(lowerer, value, out);
             }
             hir::StatementKind::ValDecl { pattern, init } => {
                 collect_pattern_type_occurrences(lowerer, pattern, file, statement.span, out);

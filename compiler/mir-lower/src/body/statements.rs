@@ -44,7 +44,7 @@ impl BodyLowerer<'_> {
                 smir::StatementKind::Expr(expr)
             }
             hir::StatementKind::Return { value } => {
-                let value = value.as_ref().map(|value| self.lower_expr(value));
+                let value = self.lower_expr(value);
                 self.drain_prelude(span, out);
                 smir::StatementKind::Return { value }
             }

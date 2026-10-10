@@ -220,7 +220,7 @@ mod tests {
     use scoop_wire::{WireErrorKind, decode_canonical, encode};
 
     use super::*;
-    use crate::{DefaultExpressionKindV1, DefaultStatementKindV1, OptionalDefaultExpressionV1};
+    use crate::{DefaultExpressionKindV1, DefaultStatementKindV1};
 
     use super::super::expressions::test_support::{Fixture, LocalError};
 
@@ -232,9 +232,7 @@ mod tests {
                 statement(DefaultStatementKindV1::Break, &fixture),
                 statement(DefaultStatementKindV1::Continue, &fixture),
                 statement(
-                    DefaultStatementKindV1::Return(OptionalDefaultExpressionV1::present(unit(
-                        &fixture,
-                    ))),
+                    DefaultStatementKindV1::Return(Box::new(unit(&fixture))),
                     &fixture,
                 ),
             ],

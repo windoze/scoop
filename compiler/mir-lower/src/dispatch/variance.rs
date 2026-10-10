@@ -166,20 +166,22 @@ impl Lowerer {
                     span,
                 },
                 smir::Statement {
-                    kind: smir::StatementKind::Return { value: None },
+                    kind: smir::StatementKind::Return {
+                        value: smir::Expr::unit(),
+                    },
                     span,
                 },
             ]
         } else {
             vec![smir::Statement {
                 kind: smir::StatementKind::Return {
-                    value: Some(self.adapt_variance_bridge(
+                    value: self.adapt_variance_bridge(
                         module,
                         call,
                         &source_signature.return_type,
                         source_identity.result(),
                         &target_signature.return_type,
-                    )),
+                    ),
                 },
                 span,
             }]

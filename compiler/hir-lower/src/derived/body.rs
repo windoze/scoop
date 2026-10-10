@@ -321,7 +321,7 @@ impl Lowerer {
 
 fn return_statement(value: hir::Expr, span: ast::Span) -> hir::Statement {
     hir::Statement {
-        kind: hir::StatementKind::Return { value: Some(value) },
+        kind: hir::StatementKind::Return { value },
         span,
     }
 }

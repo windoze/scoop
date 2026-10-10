@@ -63,9 +63,7 @@ impl Validator<'_> {
                 Ok(Flow::falling_through(available))
             }
             DefaultStatementKindV1::Return(value) => {
-                if let Some(value) = value.as_ref() {
-                    self.validate_expression(value, &available, reachable)?;
-                }
+                self.validate_expression(value, &available, reachable)?;
                 self.abrupt_flow(available, DefaultLoopControlV1::Return)
             }
             DefaultStatementKindV1::ValDecl { pattern, init } => {

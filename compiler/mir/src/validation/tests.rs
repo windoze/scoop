@@ -667,9 +667,7 @@ fn guarded_body(
     let projected = blocks.alloc(BasicBlock {
         name: "projected".to_string(),
         statements: Vec::new(),
-        terminator: Terminator::Return {
-            value: Some(project),
-        },
+        terminator: Terminator::Return { value: project },
         unwind: None,
     });
     let other = blocks.alloc(BasicBlock {
@@ -705,7 +703,7 @@ fn guarded_body(
 }
 
 fn return_value_mut(module: &mut Module, block: BlockId) -> &mut Expr {
-    let Terminator::Return { value: Some(value) } = &mut module.functions[module
+    let Terminator::Return { value } = &mut module.functions[module
         .output
         .executable_entry()
         .expect("test module is executable")]
@@ -751,9 +749,7 @@ fn set_return_expression(module: &mut Module, expression: Expr) {
     let entry = blocks.alloc(BasicBlock {
         name: "entry".to_string(),
         statements: Vec::new(),
-        terminator: Terminator::Return {
-            value: Some(expression),
-        },
+        terminator: Terminator::Return { value: expression },
         unwind: None,
     });
     module.functions[module
@@ -1727,13 +1723,13 @@ fn validation_rejects_wrong_enum_and_test_result_type() {
         name: "entry".to_string(),
         statements: Vec::new(),
         terminator: Terminator::Return {
-            value: Some(Expr::new(
+            value: Expr::new(
                 Type::Boolean,
                 ExprKind::VariantTest {
                     operand: Box::new(Expr::local(value, Type::Enum(other, Vec::new()))),
                     variant,
                 },
-            )),
+            ),
         },
         unwind: None,
     });
@@ -1764,7 +1760,7 @@ fn validation_rejects_wrong_enum_and_test_result_type() {
         }) if expected == enum_id && actual == other
     ));
 
-    let Terminator::Return { value: Some(test) } = &mut module.functions[module
+    let Terminator::Return { value: test } = &mut module.functions[module
         .output
         .executable_entry()
         .expect("test module is executable")]

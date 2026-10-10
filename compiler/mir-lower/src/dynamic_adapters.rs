@@ -235,14 +235,16 @@ impl Lowerer {
                         span,
                     },
                     smir::Statement {
-                        kind: smir::StatementKind::Return { value: None },
+                        kind: smir::StatementKind::Return {
+                            value: smir::Expr::unit(),
+                        },
                         span,
                     },
                 ]
             } else {
                 vec![smir::Statement {
                     kind: smir::StatementKind::Return {
-                        value: Some(self.dynamic_unbox(module, call, &signature.return_type)),
+                        value: self.dynamic_unbox(module, call, &signature.return_type),
                     },
                     span,
                 }]

@@ -62,7 +62,7 @@ fn print_and_println_use_the_ordinary_to_string_bound() {
     // exact bound-member identity for `ToString.toString`.
     let write = core_write(&module);
     let body = body_of(&module, print);
-    let value = expression_statement(body, 0);
+    let value = return_value(&body.statements);
     let hir::ExprKind::Call {
         callee: hir::CallableTarget::Local(callee),
         ..

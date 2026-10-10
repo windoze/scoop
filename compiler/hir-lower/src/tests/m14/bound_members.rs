@@ -136,7 +136,7 @@ fn bounded_receiver_call_records_exact_interface_member_identity() {
         .iter()
         .rev()
         .find_map(|statement| match &statement.kind {
-            hir::concrete::StatementKind::Return { value: Some(value) } => Some(value),
+            hir::concrete::StatementKind::Return { value } => Some(value),
             _ => None,
         })
         .expect("read specialization must return a value")

@@ -12,9 +12,8 @@ use crate::{
     DefaultExpressionKindV1, DefaultExpressionV1, DefaultLocalFunctionV1, DefaultPatternV1,
     DefaultStatementKindV1, DefaultStatementV1, DefaultTryV1, ExportDefaultBodyV1,
     ExportDefaultReferenceSetV1, ExportDefaultTemplateKeyV1, ExportDefaultTemplateV1,
-    OptionalDefaultExpressionV1, OptionalDefaultStatementListV1, OptionalTemplateReceiverV1,
-    PersistentLexicalRootV1, TemplateLocalDefinitionV1, TemplateLocalRecordV1,
-    TemplateValueParameterV1,
+    OptionalDefaultStatementListV1, OptionalTemplateReceiverV1, PersistentLexicalRootV1,
+    TemplateLocalDefinitionV1, TemplateLocalRecordV1, TemplateValueParameterV1,
 };
 
 #[test]
@@ -132,7 +131,7 @@ fn rejects_reachable_future_read_but_ignores_it_after_abrupt_completion() {
         vec![
             statement(
                 &fixture,
-                DefaultStatementKindV1::Return(OptionalDefaultExpressionV1::absent()),
+                DefaultStatementKindV1::Return(Box::new(unit(&fixture))),
             ),
             read(),
             declaration(),
@@ -356,7 +355,7 @@ fn finally_observes_the_intersection_of_all_incoming_completions() {
             condition: Box::new(unit(&fixture)),
             then_body: vec![statement(
                 &fixture,
-                DefaultStatementKindV1::Return(OptionalDefaultExpressionV1::absent()),
+                DefaultStatementKindV1::Return(Box::new(unit(&fixture))),
             )],
             else_body: OptionalDefaultStatementListV1::absent(),
         },

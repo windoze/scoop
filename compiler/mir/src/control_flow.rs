@@ -283,7 +283,8 @@ pub enum Terminator {
         else_block: BlockId,
     },
     Return {
-        value: Option<Expr>,
+        /// Complete semantic result, including the normal Unit value.
+        value: Expr,
     },
     /// Throw a managed exception. `unwind` is the same edge recorded on
     /// the owning block and is repeated here because this terminator itself

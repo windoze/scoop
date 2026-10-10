@@ -382,13 +382,13 @@ impl Lowerer {
         let statements = match &constructor.kind {
             hir::StructConstructorKind::Primary => vec![smir::Statement {
                 kind: smir::StatementKind::Return {
-                    value: Some(smir::Expr::new(
+                    value: smir::Expr::new(
                         return_ty.clone(),
                         smir::ExprKind::StructInit {
                             struct_id: lowerer.struct_map[&structure],
                             args: arguments,
                         },
-                    )),
+                    ),
                 },
                 span: module.structs[structure].span,
             }],
@@ -441,7 +441,7 @@ impl Lowerer {
                 statements.extend(lowerer.lower_statements(&body.statements));
                 statements.push(smir::Statement {
                     kind: smir::StatementKind::Return {
-                        value: Some(smir::Expr::local(receiver, return_ty.clone())),
+                        value: smir::Expr::local(receiver, return_ty.clone()),
                     },
                     span: module.structs[structure].span,
                 });

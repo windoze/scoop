@@ -21,9 +21,7 @@ impl ReferenceCollector<'_> {
                 self.local_function_descriptor(*function);
             }
             hir::StatementKind::Return { value } => {
-                if let Some(value) = value {
-                    self.expression(value);
-                }
+                self.expression(value);
             }
             hir::StatementKind::ValDecl { pattern, init } => {
                 self.pattern(pattern, origin);

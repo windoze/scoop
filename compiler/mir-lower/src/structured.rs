@@ -84,7 +84,8 @@ pub(crate) enum StatementKind {
     },
     Expr(Expr),
     Return {
-        value: Option<Expr>,
+        /// Complete semantic result, including the normal Unit value.
+        value: Expr,
     },
     Break {
         target: LoopId,

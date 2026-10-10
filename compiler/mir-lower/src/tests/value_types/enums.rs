@@ -401,10 +401,10 @@ fn elvis_subject_and_rhs_are_each_emitted_once_on_their_own_edges() {
         hir::Body {
             locals: Arena::new(),
             statements: vec![stmt(hir::StatementKind::Return {
-                value: Some(expr(
+                value: expr(
                     hir::ExprKind::SomeWrap(Box::new(int_lit(&h, 7))),
                     option_int,
-                )),
+                ),
             })],
         },
     );
@@ -416,7 +416,7 @@ fn elvis_subject_and_rhs_are_each_emitted_once_on_their_own_edges() {
         hir::Body {
             locals: Arena::new(),
             statements: vec![stmt(hir::StatementKind::Return {
-                value: Some(int_lit(&h, 9)),
+                value: int_lit(&h, 9),
             })],
         },
     );

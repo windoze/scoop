@@ -238,7 +238,7 @@ fn return_inside_a_branch_seals_its_block() {
         then_block,
         Vec::new(),
         mir::Terminator::Return {
-            value: Some(local_expr(x, INT)),
+            value: local_expr(x, INT),
         },
         None,
     );
@@ -246,9 +246,7 @@ fn return_inside_a_branch_seals_its_block() {
         &mut blocks,
         merge,
         Vec::new(),
-        mir::Terminator::Return {
-            value: Some(int_expr(0)),
-        },
+        mir::Terminator::Return { value: int_expr(0) },
         None,
     );
     let f = b.user_fn_body(

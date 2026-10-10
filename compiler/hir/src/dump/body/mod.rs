@@ -108,9 +108,7 @@ pub(super) fn dump_statements(
             }
             StatementKind::Return { value } => {
                 out.push_str(&format!("{pad}return\n"));
-                if let Some(value) = value {
-                    dump_expr(module, locals, value, indent + 1, out);
-                }
+                dump_expr(module, locals, value, indent + 1, out);
             }
             StatementKind::ValDecl { pattern, init } => {
                 out.push_str(&format!("{pad}val {}\n", dump_pattern(module, pattern)));

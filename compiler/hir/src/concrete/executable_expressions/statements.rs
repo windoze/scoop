@@ -10,12 +10,7 @@ impl<'a> Traversal<'a> {
             StatementKind::Expr(value) | StatementKind::Throw(value) => {
                 self.push(Item::Expression(value))
             }
-            StatementKind::Return { value } => {
-                if let Some(value) = value {
-                    self.push(Item::Expression(value))?;
-                }
-                Ok(())
-            }
+            StatementKind::Return { value } => self.push(Item::Expression(value)),
             StatementKind::ValDecl { pattern, init } => {
                 self.push(Item::Expression(init))?;
                 self.push(Item::Pattern(pattern))

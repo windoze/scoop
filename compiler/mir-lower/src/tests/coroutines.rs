@@ -13,7 +13,7 @@ fn suspend_leaf_uses_typed_hidden_abi_and_completed_step() {
         hir::Body {
             locals: Arena::new(),
             statements: vec![stmt(hir::StatementKind::Return {
-                value: Some(int_lit(&h, 42)),
+                value: int_lit(&h, 42),
             })],
         },
     );
@@ -93,8 +93,7 @@ fn suspend_leaf_uses_typed_hidden_abi_and_completed_step() {
             .fields
             .is_empty()
     );
-    let mir::Terminator::Return { value: Some(value) } =
-        &function.body.blocks[function.body.entry].terminator
+    let mir::Terminator::Return { value } = &function.body.blocks[function.body.entry].terminator
     else {
         panic!("leaf returns a completed step")
     };
@@ -136,8 +135,7 @@ fn generic_unit_return_in_suspend_function_completes_unit() {
     let step = &module.meta.coroutine_steps[coroutine.step];
     assert_eq!(step.result(), &mir::Type::Unit);
     let function = &module.functions[coroutine.function];
-    let mir::Terminator::Return { value: Some(value) } =
-        &function.body.blocks[function.body.entry].terminator
+    let mir::Terminator::Return { value } = &function.body.blocks[function.body.entry].terminator
     else {
         panic!("the immediate Unit coroutine returns Completed(Unit)")
     };
@@ -166,7 +164,7 @@ fn suspend_call_generates_a_liveness_based_frame_and_resume_point() {
         hir::Body {
             locals: Arena::new(),
             statements: vec![stmt(hir::StatementKind::Return {
-                value: Some(int_lit(&h, 41)),
+                value: int_lit(&h, 41),
             })],
         },
     );
@@ -190,7 +188,7 @@ fn suspend_call_generates_a_liveness_based_frame_and_resume_point() {
             locals,
             statements: vec![
                 val_decl(value, call_typed(leaf, Vec::new(), int)),
-                stmt(hir::StatementKind::Return { value: Some(sum) }),
+                stmt(hir::StatementKind::Return { value: sum }),
             ],
         },
     );
@@ -505,7 +503,7 @@ fn coroutine_transform_preserves_a_suspending_loop_header_poll_target() {
         hir::Body {
             locals: Arena::new(),
             statements: vec![stmt(hir::StatementKind::Return {
-                value: Some(bool_lit(&h, false)),
+                value: bool_lit(&h, false),
             })],
         },
     );
@@ -623,7 +621,7 @@ fn suspend_intrinsic_keeps_machine_kinds_and_generated_loop_header_polls_distinc
                     ),
                 ),
                 stmt(hir::StatementKind::Return {
-                    value: Some(local_ref(value, result)),
+                    value: local_ref(value, result),
                 }),
             ],
         }),
@@ -898,7 +896,12 @@ fn start_coroutine_resumes_only_an_immediately_completed_task() {
     );
     assert!(matches!(
         suspended.terminator,
-        mir::Terminator::Return { value: None }
+        mir::Terminator::Return {
+            value: mir::Expr {
+                ty: mir::Type::Unit,
+                kind: mir::ExprKind::UnitLiteral
+            }
+        }
     ));
     let catch_pad = entry
         .unwind

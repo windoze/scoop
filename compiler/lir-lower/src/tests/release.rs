@@ -32,7 +32,9 @@ fn module() -> lir::Module {
                         index: 0,
                     },
                 )))],
-                mir::Terminator::Return { value: None },
+                mir::Terminator::Return {
+                    value: mir::Expr::unit(),
+                },
             ),
         },
     });

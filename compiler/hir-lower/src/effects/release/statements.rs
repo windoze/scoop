@@ -32,9 +32,7 @@ impl Lowerer {
                     self.release_expression(expression, values, facts);
                 }
                 hir::StatementKind::Return { value } => {
-                    if let Some(value) = value {
-                        self.release_expression(value, values, facts);
-                    }
+                    self.release_expression(value, values, facts);
                 }
                 hir::StatementKind::Assign { target, value } => {
                     if !match target {

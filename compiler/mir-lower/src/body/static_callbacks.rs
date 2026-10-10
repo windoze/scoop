@@ -203,7 +203,9 @@ impl BodyLowerer<'_> {
         let entry = blocks.alloc(mir::BasicBlock {
             name: "entry".to_string(),
             statements,
-            terminator: mir::Terminator::Return { value: None },
+            terminator: mir::Terminator::Return {
+                value: mir::Expr::unit(),
+            },
             unwind: None,
         });
         let bridge_function = self.functions.alloc(mir::Function {

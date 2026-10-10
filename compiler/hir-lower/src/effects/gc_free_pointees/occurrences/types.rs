@@ -35,9 +35,7 @@ pub(in super::super) fn collect_statement_types(
                 collect_expr_types(lowerer, expression, out)
             }
             hir::StatementKind::Return { value } => {
-                if let Some(value) = value {
-                    collect_expr_types(lowerer, value, out);
-                }
+                collect_expr_types(lowerer, value, out);
             }
             hir::StatementKind::ValDecl { pattern, init } => {
                 collect_pattern_types(lowerer, pattern, out);

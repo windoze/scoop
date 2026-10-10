@@ -26,7 +26,7 @@ fn int_method(
         hir::Body {
             locals,
             statements: vec![stmt(hir::StatementKind::Return {
-                value: Some(int_lit(h, value)),
+                value: int_lit(h, value),
             })],
         },
     )

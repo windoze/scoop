@@ -170,7 +170,9 @@ pub(super) fn generate_resume_method(
                     adapter_state(ADAPTER_LATCHED_SUCCESS),
                 ),
             ],
-            terminator: mir::Terminator::Return { value: None },
+            terminator: mir::Terminator::Return {
+                value: mir::Expr::unit(),
+            },
             unwind: None,
         });
         blocks.alloc(mir::BasicBlock {

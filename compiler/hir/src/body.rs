@@ -50,8 +50,8 @@ pub enum StatementKind {
     /// `Module::local_functions`; executing this statement has no effect.
     LocalFunction(LocalFunctionId),
     Return {
-        /// Absent in `Unit` functions (bare `return`).
-        value: Option<Expr>,
+        /// Complete semantic result, including the normal Unit value.
+        value: Expr,
     },
     ValDecl {
         pattern: Pattern,

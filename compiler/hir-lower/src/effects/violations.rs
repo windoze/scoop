@@ -29,9 +29,7 @@ impl Lowerer {
                 | hir::StatementKind::Break { .. }
                 | hir::StatementKind::Continue { .. } => {}
                 hir::StatementKind::Return { value } => {
-                    if let Some(value) = value {
-                        self.collect_no_gc_expr_violations(value, out, requirements);
-                    }
+                    self.collect_no_gc_expr_violations(value, out, requirements);
                 }
                 hir::StatementKind::ValDecl { init, .. } => {
                     self.collect_no_gc_expr_violations(init, out, requirements)

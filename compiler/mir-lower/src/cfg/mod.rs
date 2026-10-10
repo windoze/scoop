@@ -248,7 +248,9 @@ pub(crate) fn lower(
     lowerer.lower_statements(&statements);
     if !lowerer.current_sealed {
         let terminator = if lowerer.return_ty == mir::Type::Unit {
-            mir::Terminator::Return { value: None }
+            mir::Terminator::Return {
+                value: mir::Expr::unit(),
+            }
         } else {
             mir::Terminator::Unreachable
         };

@@ -68,7 +68,7 @@ impl Lowerer {
                 let before = state.diagnostics.len();
                 if let Some(value) = state.decode_result(context, decoder, span, &mut statements) {
                     statements.push(hir::Statement {
-                        kind: hir::StatementKind::Return { value: Some(value) },
+                        kind: hir::StatementKind::Return { value },
                         span,
                     });
                 } else if state.diagnostics.len() == before {

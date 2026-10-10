@@ -38,7 +38,7 @@ fn anonymous_function_infers_return_and_owns_local_return() {
     };
     assert!(matches!(
         body.statements.last().map(|statement| &statement.kind),
-        Some(hir::StatementKind::Return { value: Some(_) })
+        Some(hir::StatementKind::Return { value: _ })
     ));
 }
 

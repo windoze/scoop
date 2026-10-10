@@ -131,8 +131,6 @@ fn store(pointer: mir::Expr, value: mir::Expr) -> mir::Expr {
 
 fn status(status: mir::ForeignCallbackStatus) -> mir::Terminator {
     mir::Terminator::Return {
-        value: Some(mir::Expr::machine_scalar(
-            mir::MachineScalarValue::ForeignCallbackStatus(status),
-        )),
+        value: mir::Expr::machine_scalar(mir::MachineScalarValue::ForeignCallbackStatus(status)),
     }
 }

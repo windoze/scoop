@@ -425,6 +425,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb10 if.then.10
       assign $default.local.2
         Type () -> Int
@@ -464,6 +466,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun $lambda.0 @fn2($closure: () -> Int) -> Int
     bb0 entry
       val $dependency.receiver: Left
@@ -503,6 +507,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun $lambda @fn4($argument.0: () -> Int) -> Int
     bb0 entry
       call @scoop_rt_gc_collect direct

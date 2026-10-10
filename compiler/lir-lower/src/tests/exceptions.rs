@@ -171,7 +171,9 @@ fn managed_invoke_roots_have_complete_edge_roles_and_argument_coverage() {
         body_with_terminator(
             callee_locals,
             Vec::new(),
-            mir::Terminator::Return { value: None },
+            mir::Terminator::Return {
+                value: mir::Expr::unit(),
+            },
         ),
     );
 

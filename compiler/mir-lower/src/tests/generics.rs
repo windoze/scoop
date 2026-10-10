@@ -291,10 +291,10 @@ fn generic_structs_instantiate_per_argument_list() {
     );
     let mir::Terminator::Return {
         value:
-            Some(mir::Expr {
+            mir::Expr {
                 kind: mir::ExprKind::StructInit { struct_id, .. },
                 ..
-            }),
+            },
     } = &module.functions[first_constructor].body.blocks
         [module.functions[first_constructor].body.entry]
         .terminator

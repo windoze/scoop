@@ -102,12 +102,12 @@ fn trap_terminators_branch_to_a_shared_trap_block() {
         merge2,
         Vec::new(),
         mir::Terminator::Return {
-            value: Some(integer_binary_expr(
+            value: integer_binary_expr(
                 mir::IntegerKind::SIGNED_32,
                 mir::IntegerBinaryOperator::Add,
                 local_expr(uw1, INT),
                 local_expr(uw2, INT),
-            )),
+            ),
         },
         None,
     );

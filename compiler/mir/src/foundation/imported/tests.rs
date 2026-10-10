@@ -32,7 +32,9 @@ fn ordinary_module(callable: crate::ExternalCallableUse) -> Module {
             })),
             span: SourceSpan::new(0, 0).unwrap(),
         }],
-        terminator: Terminator::Return { value: None },
+        terminator: Terminator::Return {
+            value: crate::Expr::unit(),
+        },
         unwind: None,
     });
     let mut functions = Arena::new();

@@ -11,18 +11,22 @@ impl Lowerer {
         let mut out = Vec::with_capacity(statements.len());
         for mut statement in statements {
             match statement.kind {
-                hir::StatementKind::Return { value: Some(value) }
-                    if self.types_equal(target, self.unit) =>
+                hir::StatementKind::Return { value }
+                    if self.types_equal(target, self.unit)
+                        && !self.types_equal(value.ty, self.unit)
+                        && !self.is_nothing_ty(value.ty) =>
                 {
                     out.push(hir::Statement {
                         kind: hir::StatementKind::Expr(value),
                         span: statement.span,
                     });
-                    statement.kind = hir::StatementKind::Return { value: None };
-                }
-                hir::StatementKind::Return { value: Some(value) } => {
                     statement.kind = hir::StatementKind::Return {
-                        value: Some(self.adapt_to(value, target)),
+                        value: self.unit_expression(statement.span),
+                    };
+                }
+                hir::StatementKind::Return { value } => {
+                    statement.kind = hir::StatementKind::Return {
+                        value: self.adapt_to(value, target),
                     };
                 }
                 hir::StatementKind::If {
@@ -160,38 +164,18 @@ impl Lowerer {
         }
     }
 
-    /// Append the statement(s) returning `value` (already checked
-    /// against the current function's return type). In a `Unit`
-    /// function the value is evaluated as a plain statement and the
-    /// `return` is bare: `hir::StatementKind::Return::value` is absent
-    /// in `Unit` functions (hir docs).
+    /// Preserve the checked result expression; a source bare return has the
+    /// unique Unit value at the return statement's evaluation origin.
     pub(super) fn push_return(
         &mut self,
         value: Option<hir::Expr>,
         span: Span,
         out: &mut Vec<hir::Statement>,
     ) {
-        if let Some(value) = value {
-            if self.types_equal(self.current_return_ty, self.unit) {
-                out.push(hir::Statement {
-                    kind: hir::StatementKind::Expr(value),
-                    span,
-                });
-                out.push(hir::Statement {
-                    kind: hir::StatementKind::Return { value: None },
-                    span,
-                });
-            } else {
-                out.push(hir::Statement {
-                    kind: hir::StatementKind::Return { value: Some(value) },
-                    span,
-                });
-            }
-        } else {
-            out.push(hir::Statement {
-                kind: hir::StatementKind::Return { value: None },
-                span,
-            });
-        }
+        let value = value.unwrap_or_else(|| self.unit_expression(span));
+        out.push(hir::Statement {
+            kind: hir::StatementKind::Return { value },
+            span,
+        });
     }
 }

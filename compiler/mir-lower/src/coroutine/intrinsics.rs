@@ -191,7 +191,7 @@ pub(super) fn rewrite_intrinsic_site(
         name: format!("coroutine.registered_suspend.{}", site.state),
         statements: Vec::new(),
         terminator: mir::Terminator::Return {
-            value: Some(suspended_value(outer_step, outer_suspended)),
+            value: suspended_value(outer_step, outer_suspended),
         },
         unwind: None,
     });

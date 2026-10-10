@@ -33,7 +33,7 @@ impl Lowerer {
                 let mut statements = Vec::new();
                 if state.encode_target(context, value, encoder, span, &mut statements).is_some() {
                     statements.push(hir::Statement {
-                        kind: hir::StatementKind::Return { value: None },
+                        kind: hir::StatementKind::Return { value: state.unit_expression(span) },
                         span,
                     });
                 } else if state.diagnostics.len() == before {

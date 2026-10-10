@@ -49,16 +49,9 @@ impl BodyProjection<'_, '_> {
             StatementKind::LocalFunction(function) => {
                 DefaultStatementKindV1::LocalFunction(self.local_function(*function)?)
             }
-            StatementKind::Return { value } => DefaultStatementKindV1::Return(
-                value
-                    .as_ref()
-                    .map(|value| {
-                        self.expression(value)
-                            .map(OptionalDefaultExpressionV1::present)
-                    })
-                    .transpose()?
-                    .unwrap_or_else(OptionalDefaultExpressionV1::absent),
-            ),
+            StatementKind::Return { value } => {
+                DefaultStatementKindV1::Return(Box::new(self.expression(value)?))
+            }
             StatementKind::ValDecl { pattern, init } => DefaultStatementKindV1::ValDecl {
                 pattern: self.pattern(pattern)?,
                 init: Box::new(self.expression(init)?),

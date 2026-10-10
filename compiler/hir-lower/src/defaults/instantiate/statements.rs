@@ -29,9 +29,7 @@ impl Lowerer {
                 self.instantiate_default_local_function(*function, context),
             ),
             hir::StatementKind::Return { value } => hir::StatementKind::Return {
-                value: value
-                    .as_ref()
-                    .map(|value| self.instantiate_default_expr(value, context)),
+                value: self.instantiate_default_expr(value, context),
             },
             hir::StatementKind::ValDecl { pattern, init } => hir::StatementKind::ValDecl {
                 pattern: self.instantiate_default_pattern(pattern, context),

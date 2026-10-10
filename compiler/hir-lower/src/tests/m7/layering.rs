@@ -367,7 +367,7 @@ fn layering_is_relative_to_the_call_site_file() {
         .expect("core declares the write extern");
     let core_print = top_level_fn(&module, "print", &["T0"]);
     let body = body_of(&module, core_print);
-    let value = expression_statement(body, 0);
+    let value = return_value(&body.statements);
     let hir::ExprKind::Call {
         callee: hir::CallableTarget::Local(callee),
         ..

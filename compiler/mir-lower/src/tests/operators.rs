@@ -434,7 +434,7 @@ fn short_circuit_rhs_calls_stay_on_rhs_edges() {
         hir::Body {
             locals: Arena::new(),
             statements: vec![stmt(hir::StatementKind::Return {
-                value: Some(bool_lit(&h, true)),
+                value: bool_lit(&h, true),
             })],
         },
     );
@@ -519,7 +519,7 @@ fn nested_calls_are_normalized_left_to_right() {
         hir::Body {
             locals: Arena::new(),
             statements: vec![stmt(hir::StatementKind::Return {
-                value: Some(first_result),
+                value: first_result,
             })],
         },
     );
@@ -532,7 +532,7 @@ fn nested_calls_are_normalized_left_to_right() {
         hir::Body {
             locals: Arena::new(),
             statements: vec![stmt(hir::StatementKind::Return {
-                value: Some(second_result),
+                value: second_result,
             })],
         },
     );
@@ -547,7 +547,7 @@ fn nested_calls_are_normalized_left_to_right() {
         hir::Body {
             locals: outer_locals,
             statements: vec![stmt(hir::StatementKind::Return {
-                value: Some(local_ref(a, int)),
+                value: local_ref(a, int),
             })],
         },
     );

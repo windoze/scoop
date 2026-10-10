@@ -152,14 +152,13 @@ fn validate_terminator(
         mir::Terminator::Branch { cond, .. } => {
             validate_expr(module, roots, dependencies, function, cond)
         }
-        mir::Terminator::Return { value: Some(value) } => {
+        mir::Terminator::Return { value } => {
             validate_expr(module, roots, dependencies, function, value)
         }
         mir::Terminator::Throw { exception, .. } => {
             validate_expr(module, roots, dependencies, function, exception)
         }
         mir::Terminator::Goto(_)
-        | mir::Terminator::Return { value: None }
         | mir::Terminator::Rethrow { .. }
         | mir::Terminator::Resume
         | mir::Terminator::Trap { .. }

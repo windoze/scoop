@@ -190,7 +190,9 @@ impl Lowerer {
                     .can_fall_through()
             {
                 statements.push(hir::Statement {
-                    kind: hir::StatementKind::Return { value: None },
+                    kind: hir::StatementKind::Return {
+                        value: self.unit_expression(body.span),
+                    },
                     span: body.span,
                 });
             }

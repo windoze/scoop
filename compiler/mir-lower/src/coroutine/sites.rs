@@ -238,7 +238,7 @@ pub(super) fn rewrite_site(
         name: format!("coroutine.suspended.{}", site.state),
         statements: Vec::new(),
         terminator: mir::Terminator::Return {
-            value: Some(suspended_value(outer_step, outer_suspended)),
+            value: suspended_value(outer_step, outer_suspended),
         },
         unwind: None,
     });

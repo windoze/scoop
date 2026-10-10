@@ -72,7 +72,9 @@ fn lower_variant_primitives(
         &mut blocks,
         exit,
         Vec::new(),
-        mir::Terminator::Return { value: None },
+        mir::Terminator::Return {
+            value: mir::Expr::unit(),
+        },
         None,
     );
     let main = builder.user_fn_body(
@@ -229,7 +231,9 @@ fn typed_variant_primitives_lower_through_niche_layout() {
         &mut blocks,
         exit,
         Vec::new(),
-        mir::Terminator::Return { value: None },
+        mir::Terminator::Return {
+            value: mir::Expr::unit(),
+        },
         None,
     );
     let main = builder.user_fn_body(

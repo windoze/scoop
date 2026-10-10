@@ -113,7 +113,7 @@ fn recursive_fields_guard_payload_projection_and_evaluate_the_subject_once() {
         hir::Body {
             locals: producer_locals,
             statements: vec![stmt(hir::StatementKind::Return {
-                value: Some(local_ref(input, outer)),
+                value: local_ref(input, outer),
             })],
         },
     );
@@ -420,7 +420,7 @@ fn single_variant_final_arm_keeps_its_nested_boolean_literal_test() {
         hir::Body {
             locals: equality_locals,
             statements: vec![stmt(hir::StatementKind::Return {
-                value: Some(bool_lit(&h, true)),
+                value: bool_lit(&h, true),
             })],
         },
     );
@@ -686,7 +686,7 @@ fn pattern_tests_bindings_and_guard_preserve_source_order_and_evaluate_once() {
             hir::Body {
                 locals,
                 statements: vec![stmt(hir::StatementKind::Return {
-                    value: Some(bool_lit(h, true)),
+                    value: bool_lit(h, true),
                 })],
             },
         )
@@ -706,14 +706,14 @@ fn pattern_tests_bindings_and_guard_preserve_source_order_and_evaluate_once() {
         hir::Body {
             locals: Arena::new(),
             statements: vec![stmt(hir::StatementKind::Return {
-                value: Some(expr(
+                value: expr(
                     hir::ExprKind::TupleLiteral(vec![
                         bool_lit(&h, true),
                         bool_lit(&h, false),
                         int_lit(&h, 7),
                     ]),
                     tuple_ty,
-                )),
+                ),
             })],
         },
     );
@@ -727,7 +727,7 @@ fn pattern_tests_bindings_and_guard_preserve_source_order_and_evaluate_once() {
         hir::Body {
             locals: guard_locals,
             statements: vec![stmt(hir::StatementKind::Return {
-                value: Some(bool_lit(&h, true)),
+                value: bool_lit(&h, true),
             })],
         },
     );
@@ -870,7 +870,7 @@ fn ordinary_literal_patterns_call_the_selected_string_and_boolean_equality() {
                 locals: equals_locals,
                 statements: vec![hir::Statement {
                     kind: hir::StatementKind::Return {
-                        value: Some(bool_lit(&h, true)),
+                        value: bool_lit(&h, true),
                     },
                     span: SPAN,
                 }],

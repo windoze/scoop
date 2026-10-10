@@ -46,12 +46,16 @@ Module
         Type String
         Local arg0
       return
+        Type Unit
+        UnitLiteral
   fun print @fn1(message: String) -> Unit
     bb0 entry
       call extern0 @scoop_rt_write direct
         Type String
         Local message
       return
+        Type Unit
+        UnitLiteral
   fun println @fn2(message: String) -> Unit
     bb0 entry
       call extern0 @scoop_rt_write direct
@@ -61,12 +65,16 @@ Module
         Type String
         StringConst @str0
       return
+        Type Unit
+        UnitLiteral
   fun helper @fn3() -> Unit
     bb0 entry
       call @fn1 direct
         Type String
         StringConst @str1
       return
+        Type Unit
+        UnitLiteral
   fun main @fn4() -> Unit
     bb0 entry
       call @fn2 direct
@@ -74,6 +82,8 @@ Module
         StringConst @str2
       call @fn3 direct
       return
+        Type Unit
+        UnitLiteral
   fun Continuation.resume @fn5(this: Continuation<String>, value: String) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
@@ -120,6 +130,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn5 interface Continuation<String>[0]
         Type Continuation<String>
@@ -133,6 +145,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn6 interface Continuation<String>[1]
         Type Continuation<String>
@@ -144,6 +158,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -201,6 +217,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn9 interface Continuation<_ThrowableProtocol>[0]
         Type Continuation<_ThrowableProtocol>
@@ -214,6 +232,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn10 interface Continuation<_ThrowableProtocol>[1]
         Type Continuation<_ThrowableProtocol>
@@ -225,6 +245,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

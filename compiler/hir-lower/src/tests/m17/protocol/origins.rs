@@ -411,9 +411,7 @@ fn source_location_context_distinguishes_member_generic_and_suspend_bodies() {
         body.statements
             .iter()
             .find_map(|statement| match &statement.kind {
-                hir::concrete::StatementKind::Return { value: Some(value) } => {
-                    location_fields(value)
-                }
+                hir::concrete::StatementKind::Return { value } => location_fields(value),
                 hir::concrete::StatementKind::ValDecl { init, .. } => location_fields(init),
                 _ => None,
             })

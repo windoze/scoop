@@ -76,7 +76,9 @@ impl CoroutineRegistry {
         let suspended = blocks.alloc(mir::BasicBlock {
             name: "suspended".to_string(),
             statements: vec![switch.leave()],
-            terminator: mir::Terminator::Return { value: None },
+            terminator: mir::Terminator::Return {
+                value: mir::Expr::unit(),
+            },
             unwind: None,
         });
         let completed = blocks.alloc(mir::BasicBlock {
@@ -98,7 +100,9 @@ impl CoroutineRegistry {
                     pending: mir::CoroutinePendingContext::Root,
                 },
             )))],
-            terminator: mir::Terminator::Return { value: None },
+            terminator: mir::Terminator::Return {
+                value: mir::Expr::unit(),
+            },
             unwind: Some(switch.unwind),
         });
         let failed = blocks.alloc(mir::BasicBlock {
@@ -113,7 +117,9 @@ impl CoroutineRegistry {
                     pending: mir::CoroutinePendingContext::Root,
                 },
             )))],
-            terminator: mir::Terminator::Return { value: None },
+            terminator: mir::Terminator::Return {
+                value: mir::Expr::unit(),
+            },
             unwind: Some(switch.unwind),
         });
         let catch_pad = blocks.alloc(mir::BasicBlock {

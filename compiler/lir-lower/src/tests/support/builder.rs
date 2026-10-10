@@ -325,7 +325,9 @@ impl Builder {
     ) -> mir::FunctionId {
         let mut blocks = Arena::new();
         let terminator = if return_ty == mir::Type::Unit {
-            mir::Terminator::Return { value: None }
+            mir::Terminator::Return {
+                value: mir::Expr::unit(),
+            }
         } else {
             mir::Terminator::Unreachable
         };

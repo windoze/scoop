@@ -22,6 +22,15 @@ impl Lowerer {
         }
     }
 
+    pub(crate) fn unit_expression(&self, span: Span) -> hir::Expr {
+        hir::Expr {
+            kind: hir::ExprKind::UnitLiteral,
+            ty: self.unit,
+            span,
+            origin: self.expression_origin(span),
+        }
+    }
+
     pub(crate) fn lower_return(
         &mut self,
         value: Option<&ast::Expr>,
@@ -93,7 +102,9 @@ impl Lowerer {
                 }
             };
             out.push(hir::Statement {
-                kind: hir::StatementKind::Return { value },
+                kind: hir::StatementKind::Return {
+                    value: value.unwrap_or_else(|| self.unit_expression(span)),
+                },
                 span,
             });
             return Some(());

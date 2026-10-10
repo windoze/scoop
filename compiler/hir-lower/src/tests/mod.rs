@@ -364,7 +364,7 @@ fn return_value(statements: &[hir::Statement]) -> &hir::Expr {
         .iter()
         .rev()
         .find_map(|statement| match &statement.kind {
-            hir::StatementKind::Return { value: Some(value) } => Some(value),
+            hir::StatementKind::Return { value } => Some(value),
             _ => None,
         })
         .expect("a return with a value must exist")

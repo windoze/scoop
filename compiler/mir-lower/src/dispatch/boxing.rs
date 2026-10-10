@@ -307,13 +307,13 @@ impl Lowerer {
             smir::StatementKind::Expr(call)
         } else {
             smir::StatementKind::Return {
-                value: Some(self.adapt_variance_bridge(
+                value: self.adapt_variance_bridge(
                     module,
                     call,
                     &implementation_return,
                     module.exact_type_identities[implementation_result].id(),
                     &return_ty,
-                )),
+                ),
             }
         };
         let parameter_names = target_params

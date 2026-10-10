@@ -86,27 +86,9 @@ impl Concretizer<'_> {
             // This marker has no runtime semantics. Concrete local-function
             // entities are requested by direct calls/references instead.
             export::StatementKind::LocalFunction(_) => return,
-            export::StatementKind::Return { value } => {
-                let value = value
-                    .as_ref()
-                    .map(|value| self.lower_expr(value, substitution, locals));
-                let value = match value {
-                    Some(value)
-                        if matches!(self.types[value.ty].kind, concrete::TypeKind::Unit) =>
-                    {
-                        // A checked generic return may become Unit only after
-                        // substitution. Preserve its evaluation before restoring
-                        // the LocalConcrete HIR bare-Unit-return invariant.
-                        out.push(concrete::Statement {
-                            kind: concrete::StatementKind::Expr(value),
-                            span: source.span,
-                        });
-                        None
-                    }
-                    value => value,
-                };
-                concrete::StatementKind::Return { value }
-            }
+            export::StatementKind::Return { value } => concrete::StatementKind::Return {
+                value: self.lower_expr(value, substitution, locals),
+            },
             export::StatementKind::ValDecl { pattern, init } => {
                 let init = self.lower_expr(init, substitution, locals);
                 let pattern = self.lower_pattern(pattern, init.ty, substitution, locals);

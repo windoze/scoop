@@ -38,9 +38,7 @@ impl LocalFunctionCallPatcher<'_> {
                     self.expression(expr)
                 }
                 hir::StatementKind::Return { value } => {
-                    if let Some(value) = value {
-                        self.expression(value);
-                    }
+                    self.expression(value);
                 }
                 hir::StatementKind::LocalFunction(_)
                 | hir::StatementKind::Break { .. }

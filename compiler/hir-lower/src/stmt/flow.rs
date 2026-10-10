@@ -150,11 +150,8 @@ impl Flow<'_> {
             hir::StatementKind::ContextScope { value, body } => {
                 self.expression(value).then(self.statements(body))
             }
-            hir::StatementKind::Return { value } => value
-                .as_ref()
-                .map_or_else(HirControlOutcomes::fallthrough, |value| {
-                    self.expression(value)
-                })
+            hir::StatementKind::Return { value } => self
+                .expression(value)
                 .then(HirControlOutcomes::singleton(ControlOutcome::Return)),
             hir::StatementKind::Throw(_) => HirControlOutcomes::singleton(ControlOutcome::Throw),
             hir::StatementKind::Break { target } => {
@@ -309,7 +306,9 @@ mod tests {
     }
 
     fn return_statement() -> hir::Statement {
-        statement(hir::StatementKind::Return { value: None })
+        statement(hir::StatementKind::Return {
+            value: expression(),
+        })
     }
 
     fn throw_statement() -> hir::Statement {

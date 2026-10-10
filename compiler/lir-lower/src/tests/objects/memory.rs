@@ -80,7 +80,9 @@ fn class_allocation_and_initializer_store_fields() {
                     value: local_expr(s, mir::Type::String),
                 }),
             ],
-            mir::Terminator::Return { value: None },
+            mir::Terminator::Return {
+                value: mir::Expr::unit(),
+            },
         ),
     );
     let mut locals = Arena::new();

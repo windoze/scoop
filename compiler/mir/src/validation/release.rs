@@ -142,7 +142,9 @@ pub(super) fn validate_control_flow(
             block.terminator,
             Terminator::Goto(_)
                 | Terminator::Branch { .. }
-                | Terminator::Return { value: None }
+                | Terminator::Return {
+                    value: Expr { ty: Type::Unit, .. }
+                }
                 | Terminator::Unreachable
         )
     {

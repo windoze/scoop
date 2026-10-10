@@ -26,7 +26,7 @@ fn generic_identity_infers_type_arguments() {
 }
 
 #[test]
-fn generic_unit_return_preserves_call_before_bare_return() {
+fn generic_unit_return_preserves_complete_call_result() {
     let output = lower_user_output(file(vec![
         fun_expr(
             "identity",
@@ -67,16 +67,16 @@ fn generic_unit_return_preserves_call_before_bare_return() {
     let hir::concrete::FunctionKind::User(unit_body) = &unit.kind else {
         panic!("forward<Unit> has a user body")
     };
-    let (return_, before_return) = unit_body
-        .statements
-        .split_last()
-        .expect("forward<Unit> has a return");
-    let evaluate = before_return
-        .last()
-        .expect("forward<Unit> evaluates its result before returning");
-    let hir::concrete::StatementKind::Expr(value) = &evaluate.kind else {
-        panic!("the Unit-valued producer remains an expression statement")
+    let hir::concrete::StatementKind::Return { value } = &unit_body.statements.last().unwrap().kind
+    else {
+        panic!("the Unit-valued producer remains the complete return expression")
     };
+    assert!(
+        unit_body
+            .statements
+            .iter()
+            .all(|statement| !matches!(statement.kind, hir::concrete::StatementKind::Expr(_)))
+    );
     assert_eq!(value.ty, output.local.unit);
     let hir::concrete::ExprKind::Call {
         callee: hir::concrete::CallableTarget::Local(callee),
@@ -89,14 +89,6 @@ fn generic_unit_return_preserves_call_before_bare_return() {
         output.local.functions[output.local.callable_function(*callee)].name,
         "identity"
     );
-    assert!(matches!(
-        &return_.kind,
-        hir::concrete::StatementKind::Return { value: None }
-    ));
-    assert!(unit_body.statements.iter().all(|statement| !matches!(
-        &statement.kind,
-        hir::concrete::StatementKind::Return { value: Some(_) }
-    )));
 
     let int = forward(concrete_int_type(&output.local));
     let hir::concrete::FunctionKind::User(int_body) = &int.kind else {
@@ -104,7 +96,7 @@ fn generic_unit_return_preserves_call_before_bare_return() {
     };
     assert!(matches!(
         int_body.statements.last().map(|statement| &statement.kind),
-        Some(hir::concrete::StatementKind::Return { value: Some(_) })
+        Some(hir::concrete::StatementKind::Return { value: _ })
     ));
 }
 

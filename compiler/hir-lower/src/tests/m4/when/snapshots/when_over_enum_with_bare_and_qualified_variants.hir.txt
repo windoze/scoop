@@ -82,9 +82,9 @@ Module
         Local $receiver : T0
     val local3
       Local $argument.0 : String
-    Call write : Unit
-      Local $parameter.message : String
     return
+      Call write : Unit
+        Local $parameter.message : String
   fun println<T : ToString>(value: T0): Unit
     val local1
       Local value : T0

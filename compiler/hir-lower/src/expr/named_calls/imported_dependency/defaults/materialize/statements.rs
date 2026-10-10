@@ -35,10 +35,7 @@ impl Lowerer {
                 self.materialize_imported_default_expression(value, context)?,
             ),
             Kind::Return(value) => hir::StatementKind::Return {
-                value: value
-                    .as_ref()
-                    .map(|value| self.materialize_imported_default_expression(value, context))
-                    .transpose()?,
+                value: self.materialize_imported_default_expression(value, context)?,
             },
             Kind::ValDecl { pattern, init } => hir::StatementKind::ValDecl {
                 pattern: self.materialize_imported_default_pattern(pattern, context)?,

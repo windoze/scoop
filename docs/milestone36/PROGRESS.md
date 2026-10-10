@@ -14,7 +14,7 @@
 | R04 固定元数 intrinsic | 待实施 | 一元／二元、具名借用参数 |
 | R02 when | 待实施 | 有／无 subject 的完整分支 |
 | R03 MIR 临时态 | 待实施 | Cast、协程目标与 pending 留在 lowerer |
-| R07 return | 待实施 | 完整语义结果，Unit 保留真实值 |
+| R07 return | 已完成 | HIR／MIR 与导出模板必填返回值；Rust 2,899、正式 CLI 8 项通过 |
 | R05 窄身份 | 已完成 | FunctionTypeId 与 enum application 贯通生产／消费；Rust 710、正式 CLI 8 项通过 |
 | R06 nominal 表示 | 待实施 | declared payload 与 C/Scoop 窄引用 |
 | R10 core protocol | 已完成 | 生产／导入端具名 typed 字段；Rust 387、正式 CLI 6 项、产物成员字节对比通过 |
@@ -81,3 +81,13 @@ LIR 的 native borrowed 调用直接分为 Void、ElidedZst、DirectGcFree、Dir
 本机 fmt／workspace clippy 成功，HIR 68、HIR lower 288、slib 31，共 387 项相关测试通过。新增基础 protocol 与协程／迭代／Option／finally 组合 fixture，先用改动前的 CLI 生成并审阅 HIR/MIR golden，再用新实现普通复验，正常、移动及 minor GC 均通过。新编译的 core 和两个用例共 3,265 个非 manifest archive 成员，与基线逐字节相同；包含 metadata 和机器码成员，section 版本与 runtime ABI 不变。
 
 正式普通比较共 6 项、9 个配置、44 个进程、42 个 golden 通过，还包括导入 enum 模式、M35 组合产物的 debug/release 与删源后消费／链接、native-safe callback transition、缺省参数及协程中的源码位置。报告为 `r10-new-report.json`、`r10-regression-report.json`、`r10-locations-report.json`，字节比较记录为 `r10-byte-comparison.log`，均位于 `target/m36-validation`。本轮清理约 75 MiB 的已完成 fixture cases，保留共享缓存。
+
+## R07：完整语义返回值
+
+Export HIR、LocalConcrete HIR、structured MIR、最终 MIR 和已绑定导出模板的 Return 均必填结果表达式。源码 bare return 在语义入口形成具有定义位置的 Unit 常量；泛型替换为 Unit 后仍保留原调用作为返回表达式。CFG 先求值，再保存必要的非 Unit 结果并执行 cleanup；Nothing 求值终止当前路径，不制造正常返回值。遍历、内联、协程完成包装与默认模板消费均沿用完整表达式。
+
+wire 保留现有 tagged-map 编号与版本，旧 Absent 返回在绑定时转换为 Unit 常量，新增兼容测试验证结果类型与定义／求值位置。新产物使用已有 Present 分支。LIR 按 ABI 选择物理返回，对纯 Unit 常量无需生成无用指令；其他表达式照常求值，现有 LIR golden 保持不变。
+
+本机 fmt／workspace clippy 成功。受影响的 HIR 886、HIR lower 1,397、MIR 345、MIR lower 118、LIR lower 153，共 2,899 项 Rust 测试已覆盖；调整旧结构断言和审阅过的 golden 后，仅重跑此前失败的 58 项，全部通过。新增独立与泛型／闭包／finally 组合 fixture，覆盖 bare／显式／表达式函数 Unit 返回、Nothing、finally 替换结果、正常／移动／minor GC。
+
+正式普通比较共 8 项、10 个配置、29 个进程、28 个 golden 通过，包含现有返回路径、协程 finally 挂起恢复、M35 组合的 debug/release、删除源码后的产物消费与链接，以及 bare／错误类型／lambda return 精确诊断。报告为 `target/m36-validation/r07-verify-report.json`。本轮清理约 192 MiB 的已验证 fixture cases，保留共享缓存。其余正式 HIR/MIR golden 的表示变化在 M36 全部项目完成后统一更新并进行 Linux 全量验收，避免每批重复全量编译。

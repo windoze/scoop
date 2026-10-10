@@ -49,16 +49,15 @@ fn block_body_with_return_and_parameters() {
     assert!(dump.contains("Call add : Int"), "{dump}");
 }
 
-/// `return <unit value>` in a `Unit` function evaluates the value and
-/// lowers to a bare `return` (hir: `Return::value` is absent in `Unit`
-/// functions).
+/// A Unit return retains the checked producer expression and its effects.
 #[test]
-fn return_with_unit_value_is_a_bare_return() {
+fn return_with_unit_value_preserves_its_expression() {
     let file = file(vec![
         fun("main", vec![stmt(call("f", vec![]))]),
         fun("f", vec![ret(Some(call("println", vec![str_lit("x")])))]),
     ]);
     let module = lower_user(file).expect("Unit return with value must lower");
-    let expected = include_str!("snapshots/return_with_unit_value_is_a_bare_return.hir.txt");
+    let expected =
+        include_str!("snapshots/return_with_unit_value_preserves_its_expression.hir.txt");
     assert_eq!(hir::dump(&module), expected);
 }

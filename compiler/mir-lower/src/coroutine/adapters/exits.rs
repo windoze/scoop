@@ -67,13 +67,17 @@ pub(super) fn drive_exit_blocks(
                 pending: mir::CoroutinePendingContext::Root,
             }))),
         ],
-        terminator: mir::Terminator::Return { value: None },
+        terminator: mir::Terminator::Return {
+            value: mir::Expr::unit(),
+        },
         unwind: Some(switch.unwind),
     });
     let suspended = blocks.alloc(mir::BasicBlock {
         name: "suspended".to_string(),
         statements: vec![switch.leave()],
-        terminator: mir::Terminator::Return { value: None },
+        terminator: mir::Terminator::Return {
+            value: mir::Expr::unit(),
+        },
         unwind: None,
     });
     let failed = blocks.alloc(mir::BasicBlock {
@@ -97,7 +101,9 @@ pub(super) fn drive_exit_blocks(
                 pending: mir::CoroutinePendingContext::Root,
             }))),
         ],
-        terminator: mir::Terminator::Return { value: None },
+        terminator: mir::Terminator::Return {
+            value: mir::Expr::unit(),
+        },
         unwind: Some(switch.unwind),
     });
     let catch_pad = blocks.alloc(mir::BasicBlock {

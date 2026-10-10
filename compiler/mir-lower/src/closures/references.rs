@@ -273,7 +273,7 @@ impl Lowerer {
             let statement = if signature.return_type == mir::Type::Unit {
                 smir::StatementKind::Expr(call)
             } else {
-                smir::StatementKind::Return { value: Some(call) }
+                smir::StatementKind::Return { value: call }
             };
             statements.push(smir::Statement {
                 kind: statement,
@@ -281,7 +281,9 @@ impl Lowerer {
             });
             if signature.return_type == mir::Type::Unit {
                 statements.push(smir::Statement {
-                    kind: smir::StatementKind::Return { value: None },
+                    kind: smir::StatementKind::Return {
+                        value: smir::Expr::unit(),
+                    },
                     span: reference.span,
                 });
             }

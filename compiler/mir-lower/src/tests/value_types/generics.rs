@@ -22,7 +22,7 @@ fn params_and_return_translate() {
         int,
         hir::Body {
             locals,
-            statements: vec![stmt(hir::StatementKind::Return { value: Some(sum) })],
+            statements: vec![stmt(hir::StatementKind::Return { value: sum })],
         },
     );
     let main = h.user_fn(
@@ -51,7 +51,7 @@ fn params_and_return_translate() {
     assert!(matches!(
         &add_fn.body.blocks[add_fn.body.entry].terminator,
         mir::Terminator::Return {
-            value: Some(value)
+            value
         } if matches!(value.kind, mir::ExprKind::IntegerBinary {
             operation,
             ..
@@ -111,7 +111,7 @@ fn monomorphizes_generic_functions() {
     assert!(matches!(
         &int_instance.body.blocks[int_instance.body.entry].terminator,
         mir::Terminator::Return {
-            value: Some(value)
+            value
         } if matches!(value.kind, mir::ExprKind::Local(local) if local == x)
     ));
     assert_eq!(string_instance.params[0].ty, mir::Type::String);
@@ -290,7 +290,7 @@ fn nested_generic_calls_extend_the_worklist() {
         hir::Body {
             locals,
             statements: vec![stmt(hir::StatementKind::Return {
-                value: Some(generic_call(inner_t, vec![local_ref(x, t)], t)),
+                value: generic_call(inner_t, vec![local_ref(x, t)], t),
             })],
         },
     );
@@ -335,7 +335,7 @@ fn nested_generic_calls_extend_the_worklist() {
     assert!(matches!(
         &forward_i.body.blocks[forward_i.body.entry].terminator,
         mir::Terminator::Return {
-            value: Some(value)
+            value
         } if matches!(value.kind, mir::ExprKind::Local(local) if local == destination)
     ));
     assert_eq!(

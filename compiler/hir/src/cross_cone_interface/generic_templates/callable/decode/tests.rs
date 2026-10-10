@@ -13,8 +13,7 @@ use crate::{
     DecodedCanonicalExportGenericCallableBodiesV1, DefaultCallableDeclarationV1,
     DefaultExpressionKindV1, DefaultExpressionV1, DefaultStatementKindV1, DefaultStatementV1,
     GenericCallableBodiesResolutionError, GenericCallableBodyTableError,
-    GenericTemplatePredicatesV1, OptionalDefaultExpressionV1, TemplateLocalDefinitionV1,
-    TemplateLocalRecordV1,
+    GenericTemplatePredicatesV1, TemplateLocalDefinitionV1, TemplateLocalRecordV1,
 };
 
 #[test]
@@ -238,7 +237,7 @@ fn body(
         parameters,
         vec![
             DefaultStatementV1::try_new(
-                DefaultStatementKindV1::Return(OptionalDefaultExpressionV1::present(value)),
+                DefaultStatementKindV1::Return(Box::new(value)),
                 fixture.origin(),
             )
             .unwrap(),

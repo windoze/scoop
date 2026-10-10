@@ -49,6 +49,22 @@ impl DefaultExpressionV1 {
         })
     }
 
+    /// Interpret a legacy bare-return wire entry as its complete Unit value.
+    pub(crate) fn unit_at(definition_origin: crate::ExportDefinitionSourceV1) -> Self {
+        Self {
+            kind: DefaultExpressionKindV1::UnitLiteral,
+            result_type: SignatureTypeKey::Nominal(
+                scoop_identity::CoreBuiltinNominal::Unit
+                    .identity_record()
+                    .id(),
+            ),
+            evaluation_origin: scoop_identity::EvaluationOrigin::at_definition(
+                definition_origin.origin(),
+            ),
+            definition_origin,
+        }
+    }
+
     pub const fn kind(&self) -> &DefaultExpressionKindV1 {
         &self.kind
     }

@@ -55,7 +55,7 @@ pub enum DefaultStatementKindV1 {
     InitializationEnsure(PersistentInitializationUnitId),
     GenericDelegateEnsure(crate::DefaultGenericDelegateReferenceV1),
     LocalFunction(DefaultLocalFunctionV1),
-    Return(crate::OptionalDefaultExpressionV1),
+    Return(Box<DefaultExpressionV1>),
     ValDecl {
         pattern: DefaultPatternV1,
         init: Box<DefaultExpressionV1>,

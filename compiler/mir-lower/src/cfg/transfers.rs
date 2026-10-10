@@ -40,21 +40,13 @@ impl<'a> CfgLowerer<'a> {
 
     pub(super) fn prepare_return(
         &mut self,
-        value: Option<&smir::Expr>,
+        value: &smir::Expr,
         span: Span,
     ) -> Option<ReturnPayload> {
+        let value = self.lower_expr(value, span)?;
         if self.return_ty == mir::Type::Unit {
-            assert!(
-                value.is_none(),
-                "Unit returns are bare before MIR CFG lowering"
-            );
             return Some(ReturnPayload::Unit);
         }
-
-        let value = self.lower_expr(
-            value.expect("non-Unit returns carry a value before MIR CFG lowering"),
-            span,
-        )?;
         if self.normal_cleanups.is_empty() {
             return Some(ReturnPayload::Value(value));
         }
@@ -160,9 +152,11 @@ impl<'a> CfgLowerer<'a> {
     fn emit_transfer(&mut self, transfer: PendingTransfer) {
         let terminator = match transfer {
             PendingTransfer::Fallthrough(target) => mir::Terminator::Goto(target.block),
-            PendingTransfer::Return(ReturnPayload::Unit) => mir::Terminator::Return { value: None },
+            PendingTransfer::Return(ReturnPayload::Unit) => mir::Terminator::Return {
+                value: mir::Expr::unit(),
+            },
             PendingTransfer::Return(ReturnPayload::Value(value)) => {
-                mir::Terminator::Return { value: Some(value) }
+                mir::Terminator::Return { value }
             }
             PendingTransfer::Break(target) => mir::Terminator::Goto(target.block),
             PendingTransfer::Continue(target) => mir::Terminator::Goto(target.block),

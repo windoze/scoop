@@ -367,10 +367,9 @@ pub fn visit_block_exprs(block: &BasicBlock, visitor: &mut impl FnMut(&Expr)) {
     }
     match &block.terminator {
         Terminator::Branch { cond, .. } => visit_expr(cond, visitor),
-        Terminator::Return { value: Some(value) } => visit_expr(value, visitor),
+        Terminator::Return { value } => visit_expr(value, visitor),
         Terminator::Throw { exception, .. } => visit_expr(exception, visitor),
         Terminator::Goto(_)
-        | Terminator::Return { value: None }
         | Terminator::Rethrow { .. }
         | Terminator::Resume
         | Terminator::Trap { .. }

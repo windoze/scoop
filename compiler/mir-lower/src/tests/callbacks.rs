@@ -221,7 +221,7 @@ fn foreign_callback_adapter_uses_typed_status_and_argument_offsets() {
         hir::Body {
             locals: target_locals,
             statements: vec![stmt(hir::StatementKind::Return {
-                value: Some(local_ref(first, h.int)),
+                value: local_ref(first, h.int),
             })],
         },
     );
@@ -512,7 +512,7 @@ fn foreign_callback_adapter_uses_typed_status_and_argument_offsets() {
 }
 
 fn assert_callback_status(terminator: &mir::Terminator, expected: mir::ForeignCallbackStatus) {
-    let mir::Terminator::Return { value: Some(value) } = terminator else {
+    let mir::Terminator::Return { value } = terminator else {
         panic!("callback adapter exits with a status")
     };
     assert_eq!(
