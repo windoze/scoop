@@ -11,7 +11,7 @@
 | M35-3 跳转与 Elvis | 已完成 | return/throw 表达式与合法返回目标；Elvis 正常结果合并；23 个定向 CLI 用例严格通过 |
 | M35-4 完整尾随调用 | 已完成 | 分组/换行后缀、最后形参映射、所有调用入口；21 个新 CLI fixture 严格通过 |
 | M35-5 注解数组 | 已完成 | 静态数组、完整参数类型、共享读写与重导出；40 个定向 CLI fixture 严格通过 |
-| M35-6 组合与回归 | 本机完成，Linux 待验收 | 组合修复与本机完整回归已闭合；Rust 5,437 项、CLI 3,049 项通过，16 项不适用 |
+| M35-6 组合与回归 | 已完成 | Rust：Darwin 5,437／Linux 5,468 项；CLI：Darwin 3,049／GNU 344／musl 306 项通过，全部 131 个 M35 用例覆盖三个 target |
 
 ## 验证与构建目录
 
@@ -83,3 +83,13 @@ M35-1 开发验证：解析器 459 项及 1 项 doctest、HIR 模式 34 项与 M
 - 抽查并核对 AST 的尾随来源、HIR 的源码位置/when 表示、MIR 的正常路径结果赋值及 LIR 的局部编号变化。新增实现文件最长 244 行，新增测试文件最长 246 行，没有新增 TODO 或 unimplemented 占位。
 - 第六次清理 debug incremental，记录目录大小约 7.6 GiB；target 现约 31.8 GiB，保留已链接工具和依赖。前一次使用符号链接缓存的环境失败已终止，不计入正式验收；上述全量及复验均使用普通缓存目录。
 - 本机闭合后，将同一实现提交同步到 nuc12。Linux 选择 M35 新功能、变更源码的 fixture、实际 Darwin 迁移、MIR/LIR 变化与平台专用用例，共 600 项；GNU 适用 580 项，musl 适用 583 项，执行结果另行记录。
+
+## M35-6 Linux 收尾
+
+- 本机完成并提交后，在 nuc12 使用同一 `8400796d6` 构建 LLVM 22.1.2 配套 release 工具。fmt、workspace clippy、Rust 全工作区 5,468 项和公共 runner 44 项通过，见 [Rust Linux 记录](validation/rust-linux.json)。
+- 原 600 项作为候选清单保留；已在 Darwin 覆盖且无后端变化的前端位置与历史 core 布局不再跨 libc 重复构建。最终必验 177 项覆盖全部 M35、实际 MIR/LIR 变化、Linux 专用回归和迁移后的旧语义示例，见 [最终清单](validation/linux-focused-selection.json)。已完成的额外结果保留，未完成候选单列，不记为通过。
+- GNU 按最终通过来源去重为 344 项、354 variants、1,363 processes、1,479 次快照检查，另 20 项不适用；musl 为 306 项、317 variants、945 processes、537 次快照检查，另 17 项不适用。GNU 的 170 个适用必验项、musl 的 173 项全部通过，各含 131 个 M35 用例，没有未闭合失败，详见 [GNU](validation/cli-coverage-gnu.json) 与 [musl](validation/cli-coverage-musl.json)。
+- Linux 2,016 次实际规范化快照与 1,628 个最终文件逐份一致。每个 target 新增 40 份 M35 LIR、更新 19 份历史 LIR；GNU/musl 的实际输出相同，共有 AST/HIR/MIR 不变。musl 专项及目标预期先以 `4cb0ef8fc` 独立提交并同步回本机。
+- GNU 的 4 项配套 compiler 文件变化和 2 项原时限超时均定向闭合。随后 `/tmp` 用户配额影响的 GNU 5 项、musl 6 项移至实际磁盘目录，以原断言和时限全部通过；没有修改实现来绕过环境问题。
+- 保留报告与实际快照，清理结束批次的临时产物和专用缓存。旧 M33 临时输出清理约 16.3 GiB；tmpfs 占用降至约 1.85 GiB；最后一次 target 清理从约 22.6 GiB 降至 16.8 GiB，保留 CLI 与 Cargo 依赖。
+- GNU／musl 回归闭合、最终目标转储与清理记录以 `918365b54` 提交并同步回本机。完整范围、兼容版本、提交与环境复验见 [ACCEPTANCE.md](ACCEPTANCE.md)。

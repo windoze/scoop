@@ -1,6 +1,6 @@
 # M35 设计：when、Elvis 返回、尾随 lambda 与注解数组
 
-状态：实施中；当前进度与实际验证见 [PROGRESS.md](PROGRESS.md)。
+状态：2026-10-10 实施与验收完成；实际过程见 [PROGRESS.md](PROGRESS.md)，范围与结果见 [ACCEPTANCE.md](ACCEPTANCE.md)。
 
 日期：2026-10-10。
 
@@ -440,7 +440,7 @@ stage 继续只通过输入/输出 IR crate 通信。源码语义在前端确定
 
 实施完成门遵守仓库流程：每批代码先 `cargo fmt --all`、`cargo clippy --workspace --all-targets`，再执行适用 Rust 测试；最终运行 `cargo test --workspace`，构建 `scoop`、`scoopc`、`scoop-linker`，执行 runner 单元测试和 `python3 tests/run_fixtures.py --all`。Python 如有改动，先使用 AGENTS.md 指定版本的 ruff。复用现有 fixture schema 和 runner。
 
-Darwin/AArch64 执行完整适用验收；Linux GNU/musl 使用已有可用环境验证受影响的源码、产物、异常和 GC 组合。记录实际 target、profile、命令和执行结果，未运行的平台不记为通过。本设计不代表上述实现或验收已完成。
+Darwin/AArch64 执行完整适用验收；Linux GNU/musl 使用已有可用环境验证受影响的源码、产物、异常和 GC 组合。记录实际 target、profile、命令和执行结果，未运行的平台不记为通过。最终选择范围、去重覆盖与环境补验见 [ACCEPTANCE.md](ACCEPTANCE.md)。
 
 ## 11. Kotlin 规则参考
 

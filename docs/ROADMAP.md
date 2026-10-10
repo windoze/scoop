@@ -516,13 +516,14 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 - 已按设计分十批实施，迁移到 runtime ABI contract 12／metadata ABI 8，新 ABI 的 debug/release 保持互通，旧 ABI 产物明确拒绝并要求重建。完成三个 target 的源码／产物／链接／运行、独立 C compiler 互调、moving／多 mutator／并行 mark、真实扩容与内存归还，以及可复跑的分阶段性能报告；并发 GC、survivor、全程序优化、通用逃逸分析和 frame elision 留待后续。
 - 2026-10-10 总验收完成：Rust 工作区初跑 5,404 项中的 61 项失败均在两机定向闭合，后续最终 codegen 的 Darwin 363／GNU 378 项与公共 runner 44 项通过。正式 CLI 按实际运行来源去重，Darwin 2,904 项通过、16 项不适用；GNU 1,317 项通过、30 项不适用；musl 503 项通过，均无未闭合失败。Darwin 完整初跑与后续迁移、GNU／musl 受影响选择及严格复验分别记录，没有重复无关全量；两机共 28 组最终同机性能对照保存全部七轮样本与收益、回退。
 
-### M35 when、Elvis 返回、尾随 lambda 与注解数组（实施中，[设计](milestone35/DESIGN.md)，[实施记录](milestone35/PROGRESS.md)）
+### M35 when、Elvis 返回、尾随 lambda 与注解数组（已完成，[设计](milestone35/DESIGN.md)，[实施记录](milestone35/PROGRESS.md)，[验收](milestone35/ACCEPTANCE.md)）
 
 - 普通 when 与显式 case 模式共存；subject 声明/解构、路径 smart cast、多条件、guard、覆盖与正常落空。
 - return/throw 表达式与 Elvis 的正常结果合并，沿用异常、Context 与协程清理。
 - 尾随 lambda 的最后形参映射，覆盖 default、命名、vararg、泛型及普通调用入口。
 - 一维标量 annotation 数组及完整类型，贯通默认值、静态描述与跨 Cone 产物。
 - 每项功能独立 fixture 与组合验收，按批次验证和提交，最终完成正式 CLI 回归。
+- 2026-10-10 实现与验收完成：Darwin Rust 5,437 项、Linux Rust 5,468 项及两机公共 runner 44 项通过；正式 CLI 按实际来源去重，Darwin 3,049 项、GNU 344 项、musl 306 项通过，分别另有 16／20／17 项不适用。三个 target 均覆盖全部 131 个 M35 新用例；Linux 聚焦实际后端变化与平台组合，保留额外通过记录，未完成候选不计通过。HIR cross-cone interface／type semantics 为 72／29，runtime ABI 保持不变。
 
 ## 3. 备注
 
