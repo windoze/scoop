@@ -16,7 +16,7 @@ pub(crate) fn pat_wild() -> ast::Pattern {
 
 pub(crate) fn pat_lit(expr: Expr) -> ast::Pattern {
     ast::Pattern::Literal {
-        expr: Box::new(expr),
+        value: ast::LiteralPattern::from_expr(&expr).expect("test literal pattern syntax"),
         span: sp(),
     }
 }

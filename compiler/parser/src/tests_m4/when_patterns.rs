@@ -241,15 +241,15 @@ fn when_parenthesized_pattern_is_not_a_tuple() {
 #[test]
 fn when_unit_literal_patterns() {
     let when = when_with_arms("        case () -> { }\n");
-    let Pattern::Literal { expr, .. } = crate::tests::case_pattern(&when.arms[0]) else {
+    let Pattern::Literal { value, .. } = crate::tests::case_pattern(&when.arms[0]) else {
         panic!("expected a literal pattern");
     };
-    assert!(matches!(*expr.clone(), Expr::UnitLiteral { .. }));
+    assert!(matches!(value, scoop_ast::LiteralPattern::Unit));
     let when = when_with_arms("        case Unit -> { }\n");
-    let Pattern::Literal { expr, .. } = crate::tests::case_pattern(&when.arms[0]) else {
+    let Pattern::Literal { value, .. } = crate::tests::case_pattern(&when.arms[0]) else {
         panic!("expected a literal pattern");
     };
-    assert!(matches!(*expr.clone(), Expr::UnitLiteral { .. }));
+    assert!(matches!(value, scoop_ast::LiteralPattern::Unit));
 }
 
 #[test]
@@ -261,13 +261,13 @@ fn when_literal_patterns() {
         ("false", "bool"),
     ] {
         let when = when_with_arms(&format!("        case {source} -> {{ }}\n"));
-        let Pattern::Literal { expr, .. } = crate::tests::case_pattern(&when.arms[0]) else {
+        let Pattern::Literal { value, .. } = crate::tests::case_pattern(&when.arms[0]) else {
             panic!("expected a literal pattern");
         };
         match expect {
-            "int" => assert!(matches!(*expr.clone(), Expr::IntLiteral(_))),
-            "string" => assert!(matches!(*expr.clone(), Expr::StringLiteral { .. })),
-            _ => assert!(matches!(*expr.clone(), Expr::BoolLiteral { .. })),
+            "int" => assert!(matches!(value, scoop_ast::LiteralPattern::Integer { .. })),
+            "string" => assert!(matches!(value, scoop_ast::LiteralPattern::String(_))),
+            _ => assert!(matches!(value, scoop_ast::LiteralPattern::Boolean(_))),
         }
     }
 }

@@ -141,10 +141,14 @@ fn expression_annotation_and_pattern_share_the_syntax_model() {
     let StatementKind::When(when) = &body.statements[0].kind else {
         panic!("expected a when statement");
     };
-    let Pattern::Literal { expr, span } = crate::tests::case_pattern(&when.arms[0]) else {
+    let Pattern::Literal { value, span } = crate::tests::case_pattern(&when.arms[0]) else {
         panic!("expected an integer literal pattern");
     };
-    let Expr::IntLiteral(pattern) = &**expr else {
+    let scoop_ast::LiteralPattern::Integer {
+        value: pattern,
+        negated: false,
+    } = value
+    else {
         panic!("expected shared integer syntax in the pattern");
     };
     assert_eq!(pattern.magnitude, expression.magnitude);
@@ -165,26 +169,28 @@ fn patterns_accept_unary_minus_over_parenthesized_integer_literals() {
     };
     assert_eq!(when.arms.len(), 2);
     for arm in &when.arms {
-        let Pattern::Literal { expr, span } = crate::tests::case_pattern(arm) else {
+        let Pattern::Literal { value, span } = crate::tests::case_pattern(arm) else {
             panic!("expected a prefixed integer literal pattern");
         };
-        let Expr::Unary {
-            op,
-            operand,
-            span: expr_span,
-        } = &**expr
+        let scoop_ast::LiteralPattern::Integer {
+            value: literal,
+            negated: true,
+        } = value
         else {
             panic!("the sign remains explicit in AST");
         };
-        assert_eq!(*op, UnOp::Neg);
-        assert_eq!(*span, *expr_span);
+        assert_eq!(source.as_bytes()[span.start as usize], b'-');
+        assert_eq!(
+            &source[literal.span.start as usize..literal.span.end as usize],
+            "1u"
+        );
         assert!(matches!(
-            &**operand,
-            Expr::IntLiteral(IntegerLiteralSyntax {
+            literal,
+            IntegerLiteralSyntax {
                 magnitude: 1,
                 suffix: IntegerSuffix::Unsigned,
                 ..
-            })
+            }
         ));
     }
     assert!(scoop_ast::dump(&file).contains("arm -1u"));

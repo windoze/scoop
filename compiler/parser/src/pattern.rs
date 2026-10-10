@@ -12,7 +12,7 @@
 //! argument list (`E.V`) is a unit variant pattern, encoded as a positional
 //! pattern with no elements.
 
-use scoop_ast::{Diagnostic, Expr, FieldPattern, Ident, Pattern, Span};
+use scoop_ast::{Diagnostic, FieldPattern, Ident, LiteralPattern, Pattern, Span};
 
 use crate::lexer::TokenKind;
 use crate::parser::Parser;
@@ -37,54 +37,48 @@ impl Parser {
             TokenKind::Float(lexeme) => {
                 self.pos += 1;
                 Ok(Pattern::Literal {
-                    expr: Box::new(Expr::FloatLiteral(lexeme)),
+                    value: LiteralPattern::Float {
+                        value: lexeme,
+                        negated: false,
+                    },
                     span: token.span,
                 })
             }
             TokenKind::Int(lexeme) => {
                 self.pos += 1;
                 Ok(Pattern::Literal {
-                    expr: Box::new(Expr::IntLiteral(lexeme.with_span(token.span))),
+                    value: LiteralPattern::Integer {
+                        value: lexeme.with_span(token.span),
+                        negated: false,
+                    },
                     span: token.span,
                 })
             }
             TokenKind::Char(value) => {
                 self.pos += 1;
                 Ok(Pattern::Literal {
-                    expr: Box::new(Expr::CharLiteral {
-                        value,
-                        span: token.span,
-                    }),
+                    value: LiteralPattern::Char(value),
                     span: token.span,
                 })
             }
             TokenKind::Str(value) => {
                 self.pos += 1;
                 Ok(Pattern::Literal {
-                    expr: Box::new(Expr::StringLiteral {
-                        value,
-                        span: token.span,
-                    }),
+                    value: LiteralPattern::String(value),
                     span: token.span,
                 })
             }
             TokenKind::True => {
                 self.pos += 1;
                 Ok(Pattern::Literal {
-                    expr: Box::new(Expr::BoolLiteral {
-                        value: true,
-                        span: token.span,
-                    }),
+                    value: LiteralPattern::Boolean(true),
                     span: token.span,
                 })
             }
             TokenKind::False => {
                 self.pos += 1;
                 Ok(Pattern::Literal {
-                    expr: Box::new(Expr::BoolLiteral {
-                        value: false,
-                        span: token.span,
-                    }),
+                    value: LiteralPattern::Boolean(false),
                     span: token.span,
                 })
             }
@@ -103,33 +97,39 @@ impl Parser {
         &mut self,
         prefix: crate::lexer::Token,
     ) -> Result<Pattern, Diagnostic> {
-        debug_assert!(matches!(prefix.kind, TokenKind::Minus));
         self.pos += 1;
         let (literal, end) = self.parse_numeric_literal_pattern_operand()?;
         let span = Span::new(prefix.span.start, end);
         Ok(Pattern::Literal {
-            expr: Box::new(Expr::Unary {
-                op: scoop_ast::UnOp::Neg,
-                operand: Box::new(literal),
-                span,
-            }),
+            value: literal,
             span,
         })
     }
 
-    fn parse_numeric_literal_pattern_operand(&mut self) -> Result<(Expr, u32), Diagnostic> {
+    fn parse_numeric_literal_pattern_operand(
+        &mut self,
+    ) -> Result<(LiteralPattern, u32), Diagnostic> {
         let token = self.peek().clone();
         match token.kind {
             TokenKind::Int(lexeme) => {
                 self.pos += 1;
                 Ok((
-                    Expr::IntLiteral(lexeme.with_span(token.span)),
+                    LiteralPattern::Integer {
+                        value: lexeme.with_span(token.span),
+                        negated: true,
+                    },
                     token.span.end,
                 ))
             }
             TokenKind::Float(lexeme) => {
                 self.pos += 1;
-                Ok((Expr::FloatLiteral(lexeme), token.span.end))
+                Ok((
+                    LiteralPattern::Float {
+                        value: lexeme,
+                        negated: true,
+                    },
+                    token.span.end,
+                ))
             }
             TokenKind::LParen => {
                 self.pos += 1;
@@ -151,7 +151,7 @@ impl Parser {
         }
         if text == "Unit" {
             return Ok(Pattern::Literal {
-                expr: Box::new(Expr::UnitLiteral { span }),
+                value: LiteralPattern::Unit,
                 span,
             });
         }
@@ -275,7 +275,7 @@ impl Parser {
                         // Shorthand is exactly `field: field`, including the
                         // built-in Unit-literal classification of its RHS.
                         Pattern::Literal {
-                            expr: Box::new(Expr::UnitLiteral { span: field.span }),
+                            value: LiteralPattern::Unit,
                             span: field.span,
                         }
                     } else {
@@ -313,7 +313,7 @@ impl Parser {
             let close = self.bump();
             let span = Span::new(open.span.start, close.span.end);
             return Ok(Pattern::Literal {
-                expr: Box::new(Expr::UnitLiteral { span }),
+                value: LiteralPattern::Unit,
                 span,
             });
         }

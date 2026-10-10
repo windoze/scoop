@@ -154,31 +154,6 @@ fn literal_pattern_type_mismatch_is_an_error() {
 }
 
 #[test]
-fn non_literal_literal_pattern_is_an_error() {
-    let file = file(vec![fun(
-        "main",
-        vec![
-            val("t", tuple_lit(vec![int_lit(1)])),
-            when_stmt(
-                var("t"),
-                vec![
-                    arm(
-                        pat_tuple(vec![pat_lit(call("f", vec![]))], None),
-                        None,
-                        vec![],
-                    ),
-                    arm(pat_wild(), None, vec![]),
-                ],
-                None,
-            ),
-        ],
-    )]);
-    let errors = lower_user(file).expect_err("non-literal pattern must fail");
-    assert_eq!(errors.len(), 1);
-    assert_eq!(errors[0].message, "expected a literal pattern");
-}
-
-#[test]
 fn duplicate_binding_in_pattern_is_an_error() {
     let file = file(vec![fun(
         "main",

@@ -128,7 +128,7 @@ impl Lowerer {
                 Some(hir::Pattern::Binding { local })
             }
             ast::Pattern::Wildcard { .. } => Some(hir::Pattern::Wildcard),
-            ast::Pattern::Literal { expr, span } => {
+            ast::Pattern::Literal { value, span } => {
                 if !ctx.in_when {
                     self.error(
                         *span,
@@ -136,34 +136,25 @@ impl Lowerer {
                     );
                     return None;
                 }
-                if !is_literal_expr(expr) {
-                    // The parser only puts literals here; enforce it so
-                    // `hir::Pattern::Literal`'s invariant holds.
-                    self.error(*span, "expected a literal pattern".to_string());
-                    return None;
-                }
-                let prefixed_integer_literal = match &**expr {
-                    ast::Expr::Unary { op, operand, .. } => match &**operand {
-                        ast::Expr::IntLiteral(literal)
-                            if *op == ast::UnOp::Neg
-                                && matches!(
-                                    literal.suffix,
-                                    ast::IntegerSuffix::Unsigned | ast::IntegerSuffix::UnsignedLong
-                                ) =>
-                        {
-                            Some((*op, *literal))
-                        }
-                        _ => None,
-                    },
+                let prefixed_integer_literal = match value {
+                    ast::LiteralPattern::Integer {
+                        value,
+                        negated: true,
+                    } if matches!(
+                        value.suffix,
+                        ast::IntegerSuffix::Unsigned | ast::IntegerSuffix::UnsignedLong
+                    ) =>
+                    {
+                        Some(*value)
+                    }
                     _ => None,
                 };
-                let literal = if let Some((op, source)) = prefixed_integer_literal {
+                let literal = if let Some(source) = prefixed_integer_literal {
                     let mut value =
                         self.lower_integer_literal(source, Some(matched_ty), false, *span)?;
                     let Type::Integer(kind) = self.types[value.ty] else {
                         unreachable!("an integer literal has an integer type")
                     };
-                    debug_assert_eq!(op, ast::UnOp::Neg);
                     let operation = hir::NoGcIntegerOperation::UnaryMinus;
                     let intrinsic = hir::IntegerIntrinsicKind::NoGcOperation { kind, operation };
                     if !self.const_integer_operation_available(intrinsic) {
@@ -185,7 +176,7 @@ impl Lowerer {
                     value
                 } else {
                     let mut sink = Vec::new();
-                    self.lower_expr(expr, &mut sink, Some(matched_ty))?
+                    self.lower_expr(&value.to_expr(*span), &mut sink, Some(matched_ty))?
                 };
                 if !self.types_equal(literal.ty, matched_ty) {
                     let expected = self.type_name(matched_ty);
@@ -327,29 +318,5 @@ pub(super) fn is_irrefutable(pattern: &hir::Pattern) -> bool {
         hir::Pattern::Tuple(elements) => elements.iter().all(is_irrefutable),
         hir::Pattern::Struct { fields, .. } => fields.iter().all(|(_, sub)| is_irrefutable(sub)),
         hir::Pattern::Variant { .. } | hir::Pattern::Literal { .. } => false,
-    }
-}
-
-/// Whether an expression is a literal (patterns only match literals by
-/// equality; a negative number is unary minus over a literal).
-fn is_literal_expr(expr: &ast::Expr) -> bool {
-    match expr {
-        ast::Expr::IntLiteral(_)
-        | ast::Expr::StringLiteral { .. }
-        | ast::Expr::FloatLiteral(_)
-        | ast::Expr::CharLiteral { .. }
-        | ast::Expr::BoolLiteral { .. }
-        | ast::Expr::UnitLiteral { .. } => true,
-        ast::Expr::Unary {
-            op: ast::UnOp::Neg,
-            operand,
-            ..
-        } => {
-            matches!(
-                &**operand,
-                ast::Expr::IntLiteral(_) | ast::Expr::FloatLiteral(_)
-            )
-        }
-        _ => false,
     }
 }

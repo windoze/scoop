@@ -71,8 +71,10 @@ fn field_shorthand_preserves_the_unit_literal_classification() {
     };
     assert!(matches!(
         &*fields[0].subpattern,
-        Pattern::Literal { expr, .. }
-            if matches!(&**expr, Expr::UnitLiteral { .. })
+        Pattern::Literal {
+            value: scoop_ast::LiteralPattern::Unit,
+            ..
+        }
     ));
 }
 

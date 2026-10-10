@@ -1,0 +1,41 @@
+fun integer(value: Int): Int = when (value) {
+    case -((2147483648)) -> 1
+    case 0x2a -> 2
+    else -> 0
+}
+fun unsigned(value: UInt8): Int = when (value) {
+    case -(1u) -> 3
+    else -> 0
+}
+fun floating(value: Double): Int = when (value) {
+    case -((0.0)) -> 4
+    case 1.25e0 -> 5
+    else -> 0
+}
+fun character(value: Char): Int = when (value) {
+    case '界' -> 6
+    else -> 0
+}
+fun text(value: String): Int = when (value) {
+    case "scoop" -> 7
+    else -> 0
+}
+fun boolean(value: Boolean): Int = when (value) {
+    case true -> 8
+    case false -> 9
+}
+fun unit(value: Unit): Int = when (value) {
+    case () -> 10
+}
+fun main() {
+    println(integer(-2147483648))
+    println(integer(42))
+    println(unsigned(255u))
+    println(floating(0.0))
+    println(floating(1.25))
+    println(character('界'))
+    println(text("scoop"))
+    println(boolean(true))
+    println(boolean(false))
+    println(unit(Unit))
+}

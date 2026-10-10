@@ -420,25 +420,3 @@ fn literal_pattern_equality_plan_separates_every_integer_kind_from_ordinary_lite
         );
     }
 }
-
-#[test]
-fn unary_plus_is_not_an_integer_literal_pattern() {
-    let source = file(vec![fun(
-        "main",
-        vec![
-            val_ty("value", Some(ty_named("Int")), int_lit(1)),
-            when_stmt(
-                var("value"),
-                vec![arm(
-                    pat_lit(unary(ast::UnOp::Plus, int_lit(1))),
-                    None,
-                    Vec::new(),
-                )],
-                Some(Vec::new()),
-            ),
-        ],
-    )]);
-    let diagnostics = lower_user(source).expect_err("unary plus is not literal-pattern syntax");
-    assert_eq!(diagnostics.len(), 1);
-    assert_eq!(diagnostics[0].message, "expected a literal pattern");
-}
