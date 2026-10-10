@@ -82,7 +82,7 @@ impl Lowerer {
         let mut raw_argument = None;
         for argument in call.args {
             match &argument.name {
-                ast::CallArgumentName::Positional => {}
+                ast::CallArgumentName::Positional | ast::CallArgumentName::TrailingLambda => {}
                 ast::CallArgumentName::Named(name) if name.text == "raw" => {}
                 ast::CallArgumentName::Named(name) => {
                     self.error(

@@ -9,7 +9,7 @@
 | M35-1 规范与 case 迁移 | 已完成 | 显式 case；core/JSON/fixture/Rust 源码迁移；29 个定向 CLI fixture 与模式 Rust 测试通过 |
 | M35-2 普通 when | 已完成 | subject/解构、普通条件与 case、多条件短路、guard、smart cast、落空与覆盖；42 个 M35 CLI fixture 严格通过 |
 | M35-3 跳转与 Elvis | 已完成 | return/throw 表达式与合法返回目标；Elvis 正常结果合并；23 个定向 CLI 用例严格通过 |
-| M35-4 完整尾随调用 | 待实施 | 后缀、参数映射、全部调用入口 |
+| M35-4 完整尾随调用 | 已完成 | 分组/换行后缀、最后形参映射、所有调用入口；21 个新 CLI fixture 严格通过 |
 | M35-5 注解数组 | 待实施 | 静态值、完整类型、共享格式 |
 | M35-6 组合与回归 | 待实施 | 适用平台与正式 CLI 验收 |
 
@@ -48,3 +48,11 @@ M35-1 开发验证：解析器 459 项及 1 项 doctest、HIR 模式 34 项与 M
 - fmt 与 workspace clippy 通过；parser 466 项及 1 项 doctest、HIR m3 37 项、m11 24 项、m22 103 项、共享表达式 wire 11 项、slib profile 21 项通过。
 - 19 个新 fixture（5 组运行组合、14 个独立反例）与 4 个定向历史/when 回归共 23 项严格通过，26 个 variant、54 个进程、40 个 golden。覆盖提前返回跳过后续实参/default、数组/tuple、短路、Some/None 一次求值、Context/finally、挂起恢复、moving GC、跨库 debug/release 与去源码独立链接。详见 [jumps-darwin.json](validation/jumps-darwin.json)。
 - 第三次清理 debug incremental 7.8 GB，target 从 26.5 GB 降至 21.5 GB，保留依赖及 debug/release CLI。
+
+## M35-4 交付
+
+- AST 保留尾随 lambda 来源，解析器区分追加实参与分组后的返回值调用，支持省略圆括号、显式泛型与 suspend lambda。分号、return 换行、when 单语句 arm 边界保持；重复外置 lambda 给出明确诊断。
+- 每个候选把尾随 lambda 固定映射到最后形参，括号内实参沿用已有默认值、命名和 vararg 规则。函数值保持精确元数；成员、extension、safe call、super、构造、别名与 operator invoke 使用同一来源规则。HIR 决议后无需新增 MIR/ABI 字段。
+- 将表达式后缀、place 与尾随调用拆成独立模块，主 parser 表达式文件从约 600 行降至 270 行；新增模块均不超过 176 行。
+- fmt 与 workspace clippy 通过；parser 470 项及 1 项 doctest、参数映射 8 项、HIR m11 24 项通过。
+- 21 个新 CLI fixture 全部严格通过，共 22 个 variant、40 个进程步骤、28 个 golden。覆盖 16 个精确诊断反例、求值顺序、safe call、挂起成功/失败、moving/minor GC、debug/release 去源码跨库消费和独立链接。记录见 [trailing-darwin.json](validation/trailing-darwin.json)。

@@ -9,16 +9,18 @@ use crate::call_resolution::candidates::ArgumentMode;
 pub(crate) struct ArgumentShape<'a> {
     pub(crate) name: Option<&'a str>,
     pub(crate) spread: bool,
+    pub(crate) trailing: bool,
 }
 
 impl<'a> From<&'a ast::CallArgument> for ArgumentShape<'a> {
     fn from(argument: &'a ast::CallArgument) -> Self {
         Self {
             name: match &argument.name {
-                ast::CallArgumentName::Positional => None,
+                ast::CallArgumentName::Positional | ast::CallArgumentName::TrailingLambda => None,
                 ast::CallArgumentName::Named(name) => Some(&name.text),
             },
             spread: matches!(argument.spread, ast::SpreadSyntax::Spread(_)),
+            trailing: matches!(argument.name, ast::CallArgumentName::TrailingLambda),
         }
     }
 }
@@ -71,10 +73,33 @@ impl<D: Copy> CandidateArgumentMap<D> {
                 .iter()
                 .all(|parameter| matches!(parameter.calling, ParameterCalling::Required));
         let mut mapped: Vec<Option<ResolvedParameterInput<D>>> = vec![None; parameters.len()];
+        if let Some((index, _)) = arguments
+            .iter()
+            .enumerate()
+            .find(|(_, argument)| argument.trailing)
+        {
+            let Some(parameter) = parameters.last() else {
+                return Err(ArgumentShapeFailure::Arity {
+                    expected: 0,
+                    supplied: arguments.len(),
+                });
+            };
+            if matches!(parameter.calling, ParameterCalling::Vararg { .. }) {
+                return Err(ArgumentShapeFailure::TrailingForVararg {
+                    name: parameter.name.to_owned(),
+                });
+            }
+            mapped[parameters.len() - 1] = Some(ResolvedParameterInput::Explicit(
+                SourceInputId::from_index(index),
+            ));
+        }
         let mut next = 0;
         let mut named_only = mode == ArgumentMode::NamedOnly;
 
         for (source_index, argument) in arguments.iter().enumerate() {
+            if argument.trailing {
+                continue;
+            }
             let source = SourceInputId::from_index(source_index);
             match argument.name {
                 None => {
@@ -92,6 +117,11 @@ impl<D: Copy> CandidateArgumentMap<D> {
                     };
                     match &parameter.calling {
                         ParameterCalling::Required | ParameterCalling::Default(_) => {
+                            if mapped[next].is_some() {
+                                return Err(ArgumentShapeFailure::DuplicateParameter {
+                                    name: parameter.name.to_owned(),
+                                });
+                            }
                             if argument.spread {
                                 return Err(ArgumentShapeFailure::SpreadForRegular {
                                     name: parameter.name.to_owned(),

@@ -1,0 +1,85 @@
+class Node(val text: String)
+
+class Gate(var waiter: Continuation<Int>?) {
+    fun complete(value: Int) {
+        val continuation = waiter!!
+        waiter = None
+        continuation.resume(value)
+    }
+
+    fun fail() {
+        val continuation = waiter!!
+        waiter = None
+        continuation.resumeWithException(UnwrapException())
+    }
+}
+
+class Registration(val gate: Gate) : SuspendRegistration<Int> {
+    public final override fun register(continuation: Continuation<Int>) {
+        gate.waiter = Some(continuation)
+    }
+}
+
+suspend fun waitFor(gate: Gate): Int = suspendCoroutine(Registration(gate))
+
+suspend fun execute(prefix: Int = 1, action: suspend () -> Int): Int = prefix + action()
+
+class JumpTask(val gate: Gate, val label: String, val value: Int?) : SuspendTask<Int> {
+    public override suspend fun run(): Int {
+        val live = Node("root-" + label)
+        try {
+            return execute suspend {
+                val number = value ?: waitFor(gate)
+                println(live.text)
+                number
+            }
+        } catch (failure: UnwrapException) {
+            println("caught-" + label)
+            return 9
+        } finally {
+            println("finally-" + label)
+        }
+    }
+}
+
+class RecordingCompletion(val label: String) : Continuation<Int> {
+    public final override fun resume(value: Int) {
+        println(label + "-done")
+        println(value)
+    }
+
+    public final override fun resumeWithException(exception: Throwable) {
+        println(label + "-unexpected-failure")
+    }
+}
+
+fun makeGarbage() {
+    var index = 0
+    while (index < 1000) {
+        val garbage = Node("garbage-" + "node")
+        index = index + 1
+    }
+}
+
+fun collectAndMove() {
+    gcCollect()
+    makeGarbage()
+    gcCollect()
+}
+
+fun main() {
+    val normal = Gate(None)
+    startCoroutine(JumpTask(normal, "normal", None), RecordingCompletion("normal"))
+    println("normal-suspended")
+    collectAndMove()
+    normal.complete(42)
+
+    val failure = Gate(None)
+    startCoroutine(JumpTask(failure, "failure", None), RecordingCompletion("failure"))
+    println("failure-suspended")
+    collectAndMove()
+    failure.fail()
+
+    val present = Gate(None)
+    startCoroutine(JumpTask(present, "present", Some(43)), RecordingCompletion("present"))
+}

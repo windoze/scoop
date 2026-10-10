@@ -1,0 +1,755 @@
+Module
+  struct Payload (value: Int)
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum Option<Int>
+    Some(_0: Int)
+    None()
+  enum CoroutineStep<Payload>
+    Completed(value: Payload)
+    Suspended()
+  enum CoroutineSlot<Payload>
+    Empty()
+    Value(value: Payload)
+  class Host vtable=0 itables=0
+  class ListIterator<Int> vtable=0 itables=1
+  class IndexOutOfBoundsException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class box<Payload> vtable=0 itables=0
+  class box<Int> vtable=0 itables=0
+  interface List<Int> : Iterable<Int>
+  interface Iterable<Int>
+  interface Iterator<Int>
+  interface ToString
+  interface Hash
+  interface Equality<Int>
+  interface Continuation<Payload>
+  interface SuspendTask<Payload>
+  interface SuspendRegistration<Payload>
+  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn4 captures=0
+    bridge function_type1 -> @fn23 id=8e4721558cef57e950227ee284175e885659a91c25eccf7195b072975e6d2b53
+  closure cc1 $Closure$lambda1 type=function_type2 invoke=@fn6 captures=0
+    bridge function_type3 -> @fn24 id=6f4a652a8bbe40f66c4006995b745c64017d3ca138c3c796d942a8dd3e76db52
+  closure cc2 $Closure$lambda2 type=function_type0 invoke=@fn8 captures=0
+    bridge function_type1 -> @fn25 id=e63bd2ac6f0c6d680afa72f984062c12b51ce1244ff0006696b68428afca3704
+  closure cc3 $Closure$lambda3 type=function_type0 invoke=@fn9 captures=0
+    bridge function_type1 -> @fn26 id=12cb47e4bea15e6632c18d094f066c6401b8c359fec924729a908540756a8061
+  closure cc4 $Closure$lambda4 type=function_type0 invoke=@fn10 captures=0
+    bridge function_type1 -> @fn27 id=db508a0efdf026a282424d573fade954727c50f2c64f75d1ebeee3fd053da1f8
+  closure cc5 $Closure$lambda5 type=function_type4 invoke=@fn12 captures=2
+    bridge function_type1 -> @fn28 id=1f8ad367771a0b7f43f5358bba907507e69085e06f67393473b4f887a110c45a
+  generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
+  generated_exact_type get1 location=closure1 nominal_id=faf4fa67eacf8f9cb6465048b4e3336bd8fb6e523be436a717c979ae4f7911ae exact_id=1408a40909c7b69ea96b85da925f48f9653179ce1577c198c1b5fb2275b5958e
+  generated_exact_type get2 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
+  generated_exact_type get3 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
+  generated_exact_type get4 location=class7 nominal_id=b2d7700ac940c132a6b0e1507a52bd87cf76d75ba23cc93cc77caebca84f6e09 exact_id=648261a19c3cec43ef2eb134d2b6b2bcc05f77c07e9969144db25b36128b0d5c
+  generated_exact_type get5 location=enum3 nominal_id=f0da9f6de66f9f45be12a247a4dfc591932bfe027256ac724f17a6c9a4aaa1be exact_id=756909daebbe7e068d7bcabdc2da8f8fe17624d611fced0a074e4c665f82beb2
+  generated_exact_type get6 location=enum2 nominal_id=0a5af34ac320dd011bfef126cb392af7c25e9fa7769481449f150ab79f37030f exact_id=809091bfbc4ffd7f0dbb0c9b928cc456ed7b43ba7d0d7a272da0796627b196f4
+  generated_exact_type get7 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
+  generated_exact_type get8 location=closure0 nominal_id=919ea440fdddc5d92b383296e1a185d876c24c789eb9c00ebf2f9fb832c2a739 exact_id=8ce4c031ca822bc9566f4f31169f05ef017917afc033d28daf3ece2ee79935ad
+  generated_exact_type get9 location=closure5 nominal_id=f403773b2b3444e174d195e761af37311b061b0ff42fd4c827d24931aeb22133 exact_id=a01905cba0d921828c804627cf5952621f665f4bfcb97ce2801884a0dcba102b
+  generated_exact_type get10 location=closure3 nominal_id=0c715b56b8f3a526bfc4b7140000fc5d73a4b8bd3d7c0333742af9571d518a2c exact_id=b06fe5fb08a88db5a359f405d40cb25a5ea6d4bb196e7f2aefca77f543679fdc
+  generated_exact_type get11 location=closure2 nominal_id=91a303bd60ed7e4a2cc7975dd629cb648796b92e815f778e46d2c932e671f702 exact_id=e0dc7ff74dc7fc60954e577c72099fe9649d11f554d694dd5a7bb5a4b0a54917
+  generated_exact_type get12 location=class8 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_exact_type get13 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
+  generated_exact_type get14 location=closure4 nominal_id=9591f08ae8d4bae44f2a483f8107ada2d9058e955bc1f2af6dcb28c40453deae exact_id=f9f771ad93ea42dafaadea558c98a0800a15d93ca87e22da055d4d3160f36039
+  generated_callable gc0 function=@fn26 id=12cb47e4bea15e6632c18d094f066c6401b8c359fec924729a908540756a8061
+  generated_callable gc1 function=@fn28 id=1f8ad367771a0b7f43f5358bba907507e69085e06f67393473b4f887a110c45a
+  generated_callable gc2 function=@fn24 id=6f4a652a8bbe40f66c4006995b745c64017d3ca138c3c796d942a8dd3e76db52
+  generated_callable gc3 function=@fn23 id=8e4721558cef57e950227ee284175e885659a91c25eccf7195b072975e6d2b53
+  generated_callable gc4 function=@fn22 id=b825fcc8a79b1e634ef3ce7c61d0748b6d4bba73d6ab886b36b21525726d2ae8
+  generated_callable gc5 function=@fn27 id=db508a0efdf026a282424d573fade954727c50f2c64f75d1ebeee3fd053da1f8
+  generated_callable gc6 function=@fn25 id=e63bd2ac6f0c6d680afa72f984062c12b51ce1244ff0006696b68428afca3704
+  fun main @fn0() -> Unit
+    bb0 entry
+      val $dependency.argument.0: () -> Int
+        Type () -> Int
+        ClosureAlloc cc0 $Closure$lambda0
+      val $dependency.parameter.prefix: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.action: () -> Int
+        Type () -> Int
+        Local $dependency.argument.0
+      call $dependency.argument.0: Int = external0 direct
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+        Type () -> Int
+        Local $dependency.parameter.action
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+      val $parameter.value: Int
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+      val $inline.1.value: Int
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+      goto bb2
+    bb1 inline.cont.1
+      val $dependency.argument.0: Payload
+        Type Payload
+        Local $inline.1.result
+      val $dependency.argument.1: (Payload) -> Payload
+        Type (Payload) -> Payload
+        ClosureAlloc cc1 $Closure$lambda1
+      val $dependency.parameter.value: Payload
+        Type Payload
+        Local $dependency.argument.0
+      val $dependency.parameter.action: (Payload) -> Payload
+        Type (Payload) -> Payload
+        Local $dependency.argument.1
+      call $call.1: Payload = @fn7 direct
+        Type Payload
+        Local $dependency.parameter.value
+        Type (Payload) -> Payload
+        Local $dependency.parameter.action
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type Payload
+          Local $call.1
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $default.local.0: () -> Int
+        Type () -> Int
+        ClosureAlloc cc2 $Closure$lambda2
+      val $default.local.1: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $default.local.2: () -> Int
+        Type () -> Int
+        Local $default.local.0
+      call $dependency.parameter.value: Int = external0 direct
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+        Type () -> Int
+        Local $default.local.2
+      call $dependency.argument.0: Int = external1 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.argument.1: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.argument.2: () -> Int
+        Type () -> Int
+        ClosureAlloc cc3 $Closure$lambda3
+      val $dependency.parameter.values: Array<Int>
+        Type Array<Int>
+        ArrayAssembly Array<Int>
+          Element
+            Type Int
+            IntegerLiteral Int value=1 bits=0x00000001
+          Element
+            Type Int
+            IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.parameter.action: () -> Int
+        Type () -> Int
+        Local $dependency.argument.2
+      call $dependency.argument.0: Int = external2 direct
+        Type Array<Int>
+        Local $dependency.parameter.values
+        Type () -> Int
+        Local $dependency.parameter.action
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.argument.0: () -> Int
+        Type () -> Int
+        ClosureAlloc cc4 $Closure$lambda4
+      val $dependency.parameter.action: () -> Int
+        Type () -> Int
+        Local $dependency.argument.0
+      assign $new.2
+        Type Host
+        ClassAlloc Host
+      call external3 direct
+        Type Host
+        Local $new.2
+        Type () -> Int
+        Local $dependency.parameter.action
+      val $dependency.receiver: Host
+        Type Host
+        Local $new.2
+      call $dependency.argument.0: Int = external4 direct
+        Type Host
+        Local $dependency.receiver
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type Int
+        Local $dependency.parameter.value
+      return
+    bb2 inline.1.entry
+      assign $inline.1.result
+        Type Payload
+        StructInit Payload
+          Type Int
+          IntegerLiteral Int value=10 bits=0x0000000a
+      goto bb1
+  fun iterator @fn1(this: Array<Int>) -> Iterator<Int>
+    bb0 entry
+      val $dependency.local.1: List<Int>
+        Type List<Int>
+        Retype List<Int>
+          Type Array<Int>
+          Local this
+      val $dependency.local.2: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.local.3: Boolean
+        Type Boolean
+        BoolLiteral false
+      val $dependency.local.4: List<Int>
+        Type List<Int>
+        Local $dependency.local.1
+      val $dependency.local.5: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.local.6: Boolean
+        Type Boolean
+        BoolLiteral false
+      assign $new.1
+        Type ListIterator<Int>
+        ClassAlloc ListIterator<Int>
+      val $inline.1.this: ListIterator<Int>
+        Type ListIterator<Int>
+        Local $new.1
+      val $inline.1.source: List<Int>
+        Type List<Int>
+        Local $dependency.local.4
+      val $inline.1.index: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $inline.1.exhausted: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb2
+    bb1 inline.cont.1
+      return
+        Type Iterator<Int>
+        Retype Iterator<Int>
+          Type ListIterator<Int>
+          Local $new.1
+    bb2 inline.1.entry
+      field_set 0
+        Type ListIterator<Int>
+        Local $inline.1.this
+        Type List<Int>
+        Local $inline.1.source
+      field_set 1
+        Type ListIterator<Int>
+        Local $inline.1.this
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      field_set 2
+        Type ListIterator<Int>
+        Local $inline.1.this
+        Type Boolean
+        BoolLiteral false
+      goto bb1
+  fun get @fn2(this: Array<Int>, index: Long) -> Int
+    bb0 entry
+      val $dependency.local.2: Array<Int>
+        Type Array<Int>
+        Local this
+      val $dependency.local.3: Long
+        Type Long
+        Local index
+      val $dependency.local.4: Long
+        Type Long
+        Local $dependency.local.3
+      val $arr.1: Array<Int>
+        Type Array<Int>
+        Local $dependency.local.2
+      val $idx.2: Long
+        Type Long
+        Local $dependency.local.4
+      branch bb2 bb1
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb1 logic.rhs.1
+      assign $logic.1
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          ArrayLen Array<Int>
+            Type Array<Int>
+            Local $arr.1
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.1
+        Type Boolean
+        BoolLiteral true
+      goto bb3
+    bb3 logic.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $logic.1
+    bb4 if.then.4
+      assign $new.2
+        Type IndexOutOfBoundsException
+        ClassAlloc IndexOutOfBoundsException
+      call external7 direct
+        Type IndexOutOfBoundsException
+        Local $new.2
+      throw
+        Type IndexOutOfBoundsException
+        Local $new.2
+    bb5 if.merge.5
+      return
+        Type Int
+        ArrayGet Array<Int>
+          Type Array<Int>
+          Local $arr.1
+          Type Long
+          Local $idx.2
+  fun size @fn3(this: Array<Int>) -> Long
+    bb0 entry
+      val $dependency.local.1: Array<Int>
+        Type Array<Int>
+        Local this
+      return
+        Type Long
+        ArrayLen Array<Int>
+          Type Array<Int>
+          Local $dependency.local.1
+  fun $lambda.0 @fn4($closure: () -> Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=6 bits=0x00000006
+  fun println @fn5(value: Int) -> Unit
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      call $dependency.local.2: String = external5 direct
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external6 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str0
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external6 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun $lambda.1 @fn6($closure: (Payload) -> Payload, it: Payload) -> Payload
+    bb0 entry
+      return
+        Type Payload
+        Local it
+  fun transform @fn7(value: Payload, action: (Payload) -> Payload) -> Payload
+    bb0 entry
+      val $dependency.local.2: () -> Payload
+        Type () -> Payload
+        ClosureAlloc cc5 $Closure$lambda5
+          CaptureInit field=1
+            Type (Payload) -> Payload
+            Local action
+          CaptureInit field=0
+            Type Payload
+            Local value
+      val $dependency.local.3: () -> Payload
+        Type () -> Payload
+        Local $dependency.local.2
+      val $inline.1.action: () -> Payload
+        Type () -> Payload
+        Local $dependency.local.3
+      goto bb2
+    bb1 inline.cont.1
+      val $call.1: Payload
+        Type Payload
+        Local $inline.1.result
+      return
+        Type Payload
+        Local $call.1
+    bb2 inline.1.entry
+      call $inline.1.$call.1: Payload = @fn12 direct
+        Type () -> Payload
+        Local $inline.1.action
+      assign $inline.1.result
+        Type Payload
+        Local $inline.1.$call.1
+      goto bb1
+  fun $lambda @fn8($argument.0: () -> Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=11 bits=0x0000000b
+  fun $lambda.2 @fn9($closure: () -> Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=14 bits=0x0000000e
+  fun $lambda.3 @fn10($closure: () -> Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=17 bits=0x00000011
+  fun next @fn11(this: ListIterator<Int>) -> Option<Int>
+    bb0 entry
+      branch bb1 bb2
+        Type Boolean
+        FieldAccess 2
+          Type ListIterator<Int>
+          Local this
+    bb1 if.then.1
+      return
+        Type Option<Int>
+        VariantConstruct Option<Int> v1
+    bb2 if.merge.2
+      val $dependency.local.2: Long
+        Type Long
+        FieldAccess 1
+          Type ListIterator<Int>
+          Local this
+      call $dependency.local.3: Long = @fn14 interface List<Int>[2]
+        Type List<Int>
+        FieldAccess 0
+          Type ListIterator<Int>
+          Local this
+      val $dependency.local.4: Long
+        Type Long
+        Local $dependency.local.3
+      branch bb3 bb4
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Long result=Long
+            Type Long
+            Local $dependency.local.2
+            Type Long
+            Local $dependency.local.4
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb3 if.then.3
+      field_set 2
+        Type ListIterator<Int>
+        Local this
+        Type Boolean
+        BoolLiteral true
+      return
+        Type Option<Int>
+        VariantConstruct Option<Int> v1
+    bb4 if.merge.4
+      val $dependency.local.5: List<Int>
+        Type List<Int>
+        FieldAccess 0
+          Type ListIterator<Int>
+          Local this
+      val $dependency.local.6: Long
+        Type Long
+        FieldAccess 1
+          Type ListIterator<Int>
+          Local this
+      val $dependency.local.7: Long
+        Type Long
+        Local $dependency.local.6
+      call $dependency.local.1: Int = @fn15 interface List<Int>[1]
+        Type List<Int>
+        Local $dependency.local.5
+        Type Long
+        Local $dependency.local.7
+      val $dependency.local.8: Long
+        Type Long
+        FieldAccess 1
+          Type ListIterator<Int>
+          Local this
+      val $dependency.local.9: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.local.10: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      field_set 1
+        Type ListIterator<Int>
+        Local this
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.local.8
+          Type Long
+          IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.local.11: Int
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.12: Int
+        Type Int
+        Local $dependency.local.11
+      return
+        Type Option<Int>
+        VariantConstruct Option<Int> v0
+          Type Int
+          Local $dependency.local.12
+  fun $lambda @fn12($argument.0: () -> Payload) -> Payload
+    bb0 entry
+      call $call.1: Payload = <closure:function_type2> closure[function_type2]
+        Type (Payload) -> Payload
+        ClosureCapture cc5 1
+          Type () -> Payload
+          Local $argument.0
+        Type Payload
+        ClosureCapture cc5 0
+          Type () -> Payload
+          Local $argument.0
+      return
+        Type Payload
+        Local $call.1
+  fun execute @fn13(action: () -> Payload) -> Payload
+    bb0 entry
+      call $call.1: Payload = <closure:function_type4> closure[function_type4]
+        Type () -> Payload
+        Local action
+      return
+        Type Payload
+        Local $call.1
+  fun List.$get$size @fn14(this: List<Int>) -> Long
+    bb0 entry
+      trap "call to abstract method `List.$get$size`"
+  fun List.get @fn15(this: List<Int>, index: Long) -> Int
+    bb0 entry
+      trap "call to abstract method `List.get`"
+  fun Continuation.resume @fn16(this: Continuation<Payload>, value: Payload) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn17(this: Continuation<Payload>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn18(this: SuspendTask<Payload>, $completion: Continuation<Payload>) -> CoroutineStep<Payload>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn19(this: SuspendRegistration<Payload>, continuation: Continuation<Payload>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.ListIterator.$c0 @fn20(this: ListIterator<Int>, source: List<Int>, index: Long, exhausted: Boolean) -> Unit
+    bb0 entry
+      field_set 0
+        Type ListIterator<Int>
+        Local this
+        Type List<Int>
+        Local source
+      field_set 1
+        Type ListIterator<Int>
+        Local this
+        Type Long
+        Local index
+      field_set 2
+        Type ListIterator<Int>
+        Local this
+        Type Boolean
+        Local exhausted
+      return
+  fun ctor.Payload.$c0 @fn21(value: Int) -> Payload <no-gc>
+    bb0 entry
+      return
+        Type Payload
+        StructInit Payload
+          Type Int
+          Local value
+  fun startCoroutine<Payload> @fn22(task: SuspendTask<Payload>, completion: Continuation<Payload>) -> Unit
+    bb0 context.unwind
+      landing_pad cleanup=true
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb1 context.catch_unwind
+      landing_pad cleanup=true
+      end_catch
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb2 suspended
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb3 completed unwind bb0
+      call @fn16 interface Continuation<Payload>[0]
+        Type Continuation<Payload>
+        Local completion
+        Type Payload
+        EnumField v0 f0
+          Type CoroutineStep<Payload>
+          Local $step
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb4 failed unwind bb0
+      call @fn17 interface Continuation<Payload>[1]
+        Type Continuation<Payload>
+        Local completion
+        Type Throwable
+        Local $exception
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb5 body_failure unwind bb1
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb4
+    bb6 run unwind bb5
+      call $step: CoroutineStep<Payload> = @fn18 interface SuspendTask<Payload>[0]
+        Type SuspendTask<Payload>
+        Local task
+        Type Continuation<Payload>
+        Local completion
+      branch bb3 bb2
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Payload>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+    bb7 entry
+      val $child_context: internal<task-context>
+        Type internal<task-context>
+        ContextFork
+          Type internal<context-node>
+          ContextSnapshot
+      val $context_guard: internal<context-switch-guard>
+        Type internal<context-switch-guard>
+        ContextEnter
+          Type internal<task-context>
+          Local $child_context
+      goto bb6
+  fun function_bridge.$Closure$lambda0.() -> Any @fn23($source: () -> Int) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local $source
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda1.(Any) -> Any @fn24($source: (Payload) -> Payload, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Payload = <closure:function_type2> closure[function_type2]
+        Type (Payload) -> Payload
+        Local $source
+        Type Payload
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Payload
+          Local $call.1
+  fun function_bridge.$Closure$lambda2.() -> Any @fn25($source: () -> Int) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local $source
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda3.() -> Any @fn26($source: () -> Int) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local $source
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda4.() -> Any @fn27($source: () -> Int) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local $source
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda5.() -> Any @fn28($source: () -> Payload) -> Any
+    bb0 entry
+      call $call.1: Payload = <closure:function_type4> closure[function_type4]
+        Type () -> Payload
+        Local $source
+      return
+        Type Any
+        Box
+          Type Payload
+          Local $call.1
+  coroutine_step cs0 CoroutineStep<Payload> result=Payload
+  coroutine_slot cl0 CoroutineSlot<Payload> value=Payload
+  coroutine_start ct0 result=Payload function=fn22
+  coroutine_fn cf0 @fn18 source_return=Payload step=cs0 immediate
+  instance mi0 function=@fn1 <- iterator
+  instance mi1 function=@fn2 <- get
+  instance mi2 function=@fn3 <- size
+  instance mi3 function=@fn5 <- println
+  instance mi4 function=@fn7 <- transform
+  instance mi5 function=@fn11 <- next
+  instance mi6 function=@fn12 <- $lambda
+  instance mi7 function=@fn13 <- execute
+  instance mi8 function=@fn14 <- List.$get$size
+  instance mi9 function=@fn15 <- List.get
+  instance mi10 function=@fn16 <- Continuation.resume
+  instance mi11 function=@fn17 <- Continuation.resumeWithException
+  instance mi12 function=@fn18 <- SuspendTask.run
+  instance mi13 function=@fn19 <- SuspendRegistration.register
+  str @str0 "\n"
+  output executable @fn0

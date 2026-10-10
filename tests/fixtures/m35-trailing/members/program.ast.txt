@@ -1,0 +1,126 @@
+SourceFile
+  RootPackage
+  open class Base()
+    public fun calculate
+  class Child() : Base(<0 args>)
+    fun direct
+  interface DefaultView
+    fun calculate
+  class View(), DefaultView
+    fun direct
+  class Worker()
+    fun work
+  fun Worker.extension(value: Int = <expr>, action: () -> Int): Int
+    =
+      Binary Add
+        Var value
+        Call action
+  class Factory(val action: () -> Int)
+  typealias Alias = Factory
+  struct Built
+    field value: Int = <expr>
+    field action: () -> Int
+  class Callable()
+    operator fun invoke
+  object Namespace
+    fun make
+  fun narrowed(value: Any): Int
+    =
+      WhenExpression
+        Var value
+        conditions
+          is Worker
+          MethodCall work
+            Var value
+            Argument trailing
+              Lambda 2 suspend=false
+                parameters omitted
+                IntLiteral 10
+        else
+          IntLiteral 0
+  fun main()
+    Call println
+      MethodCall direct
+        Call Child
+    Call println
+      MethodCall direct
+        Call View
+    Call println
+      MethodCall work
+        Call Worker
+        Argument trailing
+          Lambda 3 suspend=false
+            parameters omitted
+            IntLiteral 5
+    Call println
+      MethodCall extension
+        Call Worker
+        Argument trailing
+          Lambda 4 suspend=false
+            parameters omitted
+            IntLiteral 6
+    Call println
+      MethodCall action
+        Call Factory
+          Argument trailing
+            Lambda 5 suspend=false
+              parameters omitted
+              IntLiteral 7
+    Call println
+      MethodCall action
+        Call Alias
+          Argument trailing
+            Lambda 6 suspend=false
+              parameters omitted
+              IntLiteral 8
+    val built
+      Call Built
+        Argument trailing
+          Lambda 7 suspend=false
+            parameters omitted
+            IntLiteral 9
+    Call println
+      Binary Add
+        FieldAccess value
+          Var built
+        MethodCall action
+          Var built
+    Call println
+      Call narrowed
+        Call Worker
+    val functions: Array<(() -> Int) -> Int>
+      ArrayLiteral
+        Lambda 8 suspend=false
+          param action: _
+          Call action
+    Call println
+      Invoke
+        Index
+          Var functions
+          IntLiteral 0
+        Argument trailing
+          Lambda 9 suspend=false
+            parameters omitted
+            IntLiteral 12
+    val callable
+      Call Callable
+    Call println
+      Call callable
+        Argument trailing
+          Lambda 10 suspend=false
+            parameters omitted
+            IntLiteral 13
+    Call println
+      Invoke
+        Call Callable
+        Argument trailing
+          Lambda 11 suspend=false
+            parameters omitted
+            IntLiteral 14
+    Call println
+      MethodCall make
+        Var Namespace
+        Argument trailing
+          Lambda 12 suspend=false
+            parameters omitted
+            IntLiteral 15

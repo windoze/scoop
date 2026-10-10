@@ -431,6 +431,8 @@ impl std::ops::DerefMut for CallArgument {
 pub enum CallArgumentName {
     Positional,
     Named(Ident),
+    /// The external lambda binds the candidate's final parameter.
+    TrailingLambda,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

@@ -1,0 +1,9 @@
+public fun run(prefix: Int = 1, action: () -> Int): Int = prefix + action()
+public fun <T> execute(action: () -> T): T = action()
+public fun <T> transform(value: T, action: (T) -> T): T = execute<T> { action(value) }
+public fun defaults(value: Int = run { 11 }): Int = value
+public fun visit(vararg values: Int, action: () -> Int): Int = values.size.toInt32() + action()
+public class Host public constructor(val action: () -> Int) {
+    public fun value(): Int = action()
+}
+public typealias Alias = Host

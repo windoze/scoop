@@ -8,6 +8,8 @@ use crate::defaults::DefaultArgumentSource;
 use scoop_ast::{self as ast, Span};
 use scoop_hir as hir;
 
+mod trailing;
+
 fn argument(name: Option<&str>, spread: bool) -> ast::CallArgument {
     let span = Span::new(0, 0);
     ast::CallArgument {

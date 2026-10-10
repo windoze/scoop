@@ -1,0 +1,106 @@
+SourceFile
+  RootPackage
+  var trace: String = <expr>
+  fun mark(label: String, value: Int): Int
+    assign trace
+      Binary Add
+        Var trace
+        Var label
+    return
+      Var value
+  class Worker()
+    fun run
+  fun receiver(): Worker
+    assign trace
+      Binary Add
+        Var trace
+        StringLiteral "r"
+    return
+      Call Worker
+  fun nothing(): Int
+    val value: Int?
+      Var None
+    return
+      Elvis
+        Var value
+        Throw
+          Call UnwrapException
+  fun main()
+    Call println
+      MethodCall run
+        Call receiver
+        Call mark
+          StringLiteral "a"
+          IntLiteral 2
+        Argument trailing
+          Lambda 0 suspend=false
+            parameters omitted
+            Call mark
+              StringLiteral "b"
+              IntLiteral 3
+    Call println
+      Var trace
+    assign trace
+      StringLiteral ""
+    Call println
+      MethodCall run
+        Call receiver
+        Argument trailing
+          Lambda 1 suspend=false
+            parameters omitted
+            Call mark
+              StringLiteral "b"
+              IntLiteral 3
+    Call println
+      Var trace
+    assign trace
+      StringLiteral ""
+    val missing: Worker?
+      Var None
+    val skipped
+      MethodCall ?run
+        Var missing
+        Call mark
+          StringLiteral "a"
+          IntLiteral 2
+        Argument trailing
+          Lambda 2 suspend=false
+            parameters omitted
+            Call mark
+              StringLiteral "b"
+              IntLiteral 3
+    Call println
+      Binary Eq
+        Var skipped
+        Var None
+    Call println
+      Var trace
+    val present: Worker?
+      Call Some
+        Call Worker
+    Call println
+      NullAssert
+        MethodCall ?run
+          Var present
+          Argument trailing
+            Lambda 3 suspend=false
+              parameters omitted
+              Call mark
+                StringLiteral "b"
+                IntLiteral 3
+    Call println
+      Var trace
+    try
+      Call println
+        MethodCall run
+          Call Worker
+          Argument trailing
+            Lambda 4 suspend=false
+              parameters omitted
+              Call nothing
+    catch failure: UnwrapException
+      Call println
+        StringLiteral "caught"
+    finally
+      Call println
+        StringLiteral "finally"

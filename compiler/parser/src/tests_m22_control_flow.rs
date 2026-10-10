@@ -205,8 +205,8 @@ fn malformed_for_headers_report_the_exact_missing_delimiter() {
         ),
         (
             "fun main() { for (item in items\n{} }",
-            "{",
-            "expected `)`, found `{`",
+            "}",
+            "expected `)`, found `}`",
         ),
         (
             "fun main() { for (item in items) consume(item) }",
@@ -217,7 +217,7 @@ fn malformed_for_headers_report_the_exact_missing_delimiter() {
 
     for (source, marker, expected) in cases {
         let (span, message) = err(source);
-        let start = (if marker == "{" {
+        let start = (if matches!(marker, "{" | "}") {
             source.rfind(marker).unwrap()
         } else {
             source.find(marker).unwrap()

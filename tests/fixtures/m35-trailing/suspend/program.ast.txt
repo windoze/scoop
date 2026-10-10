@@ -1,0 +1,86 @@
+SourceFile
+  RootPackage
+  class Node(val text: String)
+  class Gate(var waiter: Continuation<Int>?)
+    fun complete
+    fun fail
+  class Registration(val gate: Gate), SuspendRegistration<Int>
+    public fun register
+  suspend fun waitFor(gate: Gate): Int
+    =
+      Call suspendCoroutine
+        Call Registration
+          Var gate
+  suspend fun execute(prefix: Int = <expr>, action: suspend () -> Int): Int
+    =
+      Binary Add
+        Var prefix
+        Call action
+  class JumpTask(val gate: Gate, val label: String, val value: Int?), SuspendTask<Int>
+    public suspend fun run
+  class RecordingCompletion(val label: String), Continuation<Int>
+    public fun resume
+    public fun resumeWithException
+  fun makeGarbage()
+    var index
+      IntLiteral 0
+    while
+      Binary Lt
+        Var index
+        IntLiteral 1000
+      val garbage
+        Call Node
+          Binary Add
+            StringLiteral "garbage-"
+            StringLiteral "node"
+      assign index
+        Binary Add
+          Var index
+          IntLiteral 1
+  fun collectAndMove()
+    Call gcCollect
+    Call makeGarbage
+    Call gcCollect
+  fun main()
+    val normal
+      Call Gate
+        Var None
+    Call startCoroutine
+      Call JumpTask
+        Var normal
+        StringLiteral "normal"
+        Var None
+      Call RecordingCompletion
+        StringLiteral "normal"
+    Call println
+      StringLiteral "normal-suspended"
+    Call collectAndMove
+    MethodCall complete
+      Var normal
+      IntLiteral 42
+    val failure
+      Call Gate
+        Var None
+    Call startCoroutine
+      Call JumpTask
+        Var failure
+        StringLiteral "failure"
+        Var None
+      Call RecordingCompletion
+        StringLiteral "failure"
+    Call println
+      StringLiteral "failure-suspended"
+    Call collectAndMove
+    MethodCall fail
+      Var failure
+    val present
+      Call Gate
+        Var None
+    Call startCoroutine
+      Call JumpTask
+        Var present
+        StringLiteral "present"
+        Call Some
+          IntLiteral 43
+      Call RecordingCompletion
+        StringLiteral "present"

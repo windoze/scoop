@@ -360,6 +360,7 @@ fn dump_call_argument(argument: &CallArgument, indent: usize, out: &mut String) 
     let name = match &argument.name {
         CallArgumentName::Positional => String::new(),
         CallArgumentName::Named(name) => format!("{}=", name.text),
+        CallArgumentName::TrailingLambda => "trailing".to_string(),
     };
     let spread = if matches!(argument.spread, SpreadSyntax::Spread(_)) {
         "*"

@@ -146,3 +146,79 @@ fn throw_and_return_are_expressions_in_copy_update_values() {
         "fun f() { val a = record.{ value: optional ?: return }; val b = record.{ value: throw failure } }",
     );
 }
+
+#[test]
+fn trailing_arguments_keep_their_origin_and_generic_arguments() {
+    let file = ok("fun f() { run(prefix = 1) { it }; run<Int> { 2 }; target.run suspend { 3 } }");
+    let body = block_body(only_function(&file));
+    for statement in &body.statements {
+        let StatementKind::Expr(expr) = &statement.kind else {
+            panic!("call statement")
+        };
+        let args = match expr {
+            scoop_ast::Expr::Call(call) => &call.args,
+            scoop_ast::Expr::MethodCall { args, .. } => args,
+            _ => panic!("ordinary named call"),
+        };
+        assert!(matches!(
+            args.last().unwrap().name,
+            scoop_ast::CallArgumentName::TrailingLambda
+        ));
+    }
+    let StatementKind::Expr(scoop_ast::Expr::Call(call)) = &body.statements[1].kind else {
+        panic!("generic call")
+    };
+    assert_eq!(call.type_args.len(), 1);
+    let StatementKind::Expr(scoop_ast::Expr::MethodCall { args, .. }) = &body.statements[2].kind
+    else {
+        panic!("member call")
+    };
+    assert!(matches!(
+        args[0].expression,
+        scoop_ast::Expr::Lambda {
+            is_suspend: true,
+            ..
+        }
+    ));
+}
+
+#[test]
+fn grouping_selects_the_returned_callable_while_newlines_extend_the_call() {
+    let file =
+        ok("fun f() { (factory()) { 1 }; factory()\n { 2 }; factory(); { done() }; return\n {} }");
+    let body = block_body(only_function(&file));
+    assert!(matches!(
+        body.statements[0].kind,
+        StatementKind::Expr(scoop_ast::Expr::Invoke { .. })
+    ));
+    let StatementKind::Expr(scoop_ast::Expr::Call(call)) = &body.statements[1].kind else {
+        panic!("external lambda belongs to factory")
+    };
+    assert_eq!(call.args.len(), 1);
+    assert!(matches!(body.statements[3].kind, StatementKind::Block(_)));
+    assert!(matches!(
+        body.statements[4].kind,
+        StatementKind::Return { value: None }
+    ));
+}
+
+#[test]
+fn two_external_lambdas_require_an_explicit_call_boundary() {
+    let source = "fun f() { run {} {} }";
+    let (span, message) = err(source);
+    assert_eq!(&source[span.start as usize..span.end as usize], "{");
+    assert_eq!(
+        message,
+        "a call accepts only one trailing lambda; group the call to invoke its result"
+    );
+    ok("fun f() { (run {}) {} }");
+}
+
+#[test]
+fn single_statement_when_bodies_end_before_a_lambda_condition_on_the_next_line() {
+    let file = ok("fun f() { when { true -> run()\n { true }() -> other() } }");
+    let StatementKind::When(when) = &block_body(only_function(&file)).statements[0].kind else {
+        panic!("when statement")
+    };
+    assert_eq!(when.arms.len(), 2);
+}

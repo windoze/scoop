@@ -132,6 +132,7 @@ impl ResolvedConstFloatIntrinsic {
                     matches!(argument.spread, ast::SpreadSyntax::Plain)
                         && match &argument.name {
                             ast::CallArgumentName::Positional => true,
+                            ast::CallArgumentName::TrailingLambda => false,
                             ast::CallArgumentName::Named(found) => found.text == *name,
                         }
                 })

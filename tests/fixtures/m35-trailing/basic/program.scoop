@@ -1,0 +1,51 @@
+fun apply(prefix: Int = 1, action: (Int) -> Int): Int = action(prefix)
+fun choose(first: () -> Int = { 2 }, last: () -> Int): Int = first() + last()
+fun jump(first: Int = 1, middle: Int = 2, action: () -> Int): Int = first + middle + action()
+fun visit(vararg values: Int, action: () -> Int): Int = values.size.toInt32() + action()
+fun defaultVararg(vararg values: Int = [8], action: () -> Int): Int = values[0] + action()
+fun <T> transform(value: T, action: (T) -> T): T = action(value)
+fun <T> execute(action: () -> T): T = action()
+fun <T> identity(value: T): T = value
+fun factory(): (() -> Int) -> Int = { action -> action() + 1 }
+
+fun selected(prefix: Int = 1, action: () -> Int): Int = prefix + action()
+fun selected(action: () -> Int = { 0 }, suffix: String = "unused"): Int = 99
+fun overloaded(value: Int, action: (Int) -> Int): Int = action(value)
+fun overloaded(value: String, action: (String) -> Int): Int = action(value)
+
+struct Payload(val value: Int)
+
+fun main() {
+    println(apply { it + 1 })
+    println(apply(prefix = 3) { it + 1 })
+    println(apply(5) { it + 1 })
+    println(apply() { it + 1 })
+    println(choose { 3 })
+    println(choose({ 4 }) { 5 })
+    println(jump(middle = 10) { 20 })
+    val items: Array<Int> = [3, 4]
+    println(visit(1, *items) { 3 })
+    println(visit { 4 })
+    println(visit(values = [1, 2]) { 5 })
+    println(defaultVararg { 9 })
+    println(transform(Payload(7)) { it }.value)
+    println(execute<Int> { 13 })
+    val inferred: Int = execute { 14 }
+    println(inferred)
+    val callable = identity<() -> Int> { 15 }
+    println(callable())
+    val inferredCallable: () -> Int = identity { 16 }
+    println(inferredCallable())
+    val value: (Int, () -> Int) -> Int = { first, action -> first + action() }
+    println(value(2) { 3 })
+    println((value)(4) { 5 })
+    println((factory()) { 41 })
+    println(execute<Int>()
+        { 17 })
+    println(execute<Int>
+        { 18 })
+    factory(); { println("separate-block") }
+    println(selected { 19 })
+    println(overloaded(20) { it + 1 })
+    println(overloaded("abc") { it.length.toInt32() })
+}
