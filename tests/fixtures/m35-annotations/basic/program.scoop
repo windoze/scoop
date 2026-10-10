@@ -1,0 +1,44 @@
+typealias Texts = Array<String>
+typealias SignedBytes = Array<Byte>
+const val WORD: String = "雪"
+const val LETTER: Char = '😀'
+const val FLOAT: Float = -0f
+const val DOUBLE: Double = 0.1
+annotation class Tags(val names: Texts = [], val chars: Array<Char> = [LETTER],
+                      val flags: Array<Boolean> = [false, true, false])
+annotation class Numbers(
+    val i8: SignedBytes = [-128, 127], val i16: Array<Int16> = [-32768, 32767],
+    val i32: Array<Int> = [-2147483648, 2147483647],
+    val i64: Array<Long> = [-9223372036854775808, 9223372036854775807],
+    val u8: Array<UByte> = [0u, 255u], val u16: Array<UInt16> = [65535u],
+    val u32: Array<UInt> = [4294967295u], val u64: Array<ULong> = [18446744073709551615u],
+    val floats: Array<Float> = [FLOAT, 1.000000059604644775390625, 1e-45],
+    val doubles: Array<Double> = [DOUBLE, -0.0, 5e-324],
+)
+@Tags(["same", WORD, "same"], chars = ['A', LETTER, '雪',]) @Numbers
+struct Item<T>(@Tags val value: T)
+@Numbers(i8 = [], floats = [], doubles = [])
+enum Choice {
+    @Tags(chars = []) Empty,
+    Record(@Tags([WORD]) val value: Int),
+    Position(@Tags String)
+}
+var visits: Int = 0
+fun initialized(): Int { visits += 1; return visits }
+struct Probe<T>() {
+    public companion object {
+        public const val LABEL: String = "constant"
+        public val state: Int = initialized()
+    }
+}
+@Tags([Probe<Long>.Companion.LABEL])
+class Row(@Tags([WORD]) val value: Int) {
+    @Tags public val size: Int get() = value
+}
+fun main() {
+    val item = Item<Int>(7)
+    val row = Row(8)
+    val choice = Choice.Record(9)
+    if (item.value != 7 || row.size != 8 || visits != 0) { throw Throwable() }
+    println("annotations-arrays-ok")
+}

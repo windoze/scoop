@@ -10,7 +10,7 @@
 | M35-2 普通 when | 已完成 | subject/解构、普通条件与 case、多条件短路、guard、smart cast、落空与覆盖；42 个 M35 CLI fixture 严格通过 |
 | M35-3 跳转与 Elvis | 已完成 | return/throw 表达式与合法返回目标；Elvis 正常结果合并；23 个定向 CLI 用例严格通过 |
 | M35-4 完整尾随调用 | 已完成 | 分组/换行后缀、最后形参映射、所有调用入口；21 个新 CLI fixture 严格通过 |
-| M35-5 注解数组 | 待实施 | 静态值、完整类型、共享格式 |
+| M35-5 注解数组 | 已完成 | 静态数组、完整参数类型、共享读写与重导出；40 个定向 CLI fixture 严格通过 |
 | M35-6 组合与回归 | 待实施 | 适用平台与正式 CLI 验收 |
 
 ## 验证与构建目录
@@ -56,3 +56,12 @@ M35-1 开发验证：解析器 459 项及 1 项 doctest、HIR 模式 34 项与 M
 - 将表达式后缀、place 与尾随调用拆成独立模块，主 parser 表达式文件从约 600 行降至 270 行；新增模块均不超过 176 行。
 - fmt 与 workspace clippy 通过；parser 470 项及 1 项 doctest、参数映射 8 项、HIR m11 24 项通过。
 - 21 个新 CLI fixture 全部严格通过，共 22 个 variant、40 个进程步骤、28 个 golden。覆盖 16 个精确诊断反例、求值顺序、safe call、挂起成功/失败、moving/minor GC、debug/release 去源码跨库消费和独立链接。记录见 [trailing-darwin.json](validation/trailing-darwin.json)。
+
+## M35-5 交付
+
+- annotation class 接受合法标量的一维 core Array，普通 alias 展开后验证实际声明身份。数组支持空值、顺序/重复元素、尾逗号、位置/命名实参与默认值；元素沿用整数、浮点、Char、String、Boolean 与同类型 const 引用规则，并保存独立诊断位置。
+- 新增封闭的 CanonicalAnnotationValueV1 Scalar/Array 静态表示；普通 const 值域保持标量。参数改用完整 SignatureTypeKey，保留 Array generic owner 与元素身份。静态描述查询、声明/应用、默认值与 A→B→C 重导出共用完整数据，不创建运行期数组。
+- 共享 reader 在原边界校验类型、容器与元素 payload；外部类型引用复用既有 signature walker。仅 cross-cone interface 升至 72，type semantics 保持 29，MIR/LIR 与 runtime ABI 没有变化；格式向量与 profile 指纹已更新。
+- fmt 与 workspace clippy 通过。parser 471 项及 1 项 doctest、数组 HIR 2 项、原标量注解 2 项、静态描述 7 项、wire 2 项、annotation reader 4 项、profile 21 项通过。
+- 39 个新增 CLI fixture（含 35 个独立反例）及迁移后的 M29 MutableArray 反例，共 40 项严格通过。正例覆盖全部标量元素种类、空数组、默认值、实际 JSON 编解码、moving/minor GC、debug/release 去源码重导出和独立链接。缓存用例检查参数类型、默认值、元素内容变化引起的实际缓存键与产物变化，并验证暖缓存命中。详见 [annotations-darwin.json](validation/annotations-darwin.json)。
+- 第四次清理 debug incremental 约 9.5 GB，target 从约 31.4 GB 降至 24.6 GB；保留已构建 CLI 与依赖。严格验收只重跑修正的缓存用例，复用其余 39 项通过记录。

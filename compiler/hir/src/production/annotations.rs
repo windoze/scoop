@@ -5,7 +5,7 @@ use crate::{
     HirDefinitionSourceProjectionError, HirSignatureTypeMapper, HirSignatureTypeMappingError,
     NominalOwner, SourceAnnotationTarget,
 };
-use scoop_identity::{CanonicalIdentifier, SignatureTypeKey};
+use scoop_identity::CanonicalIdentifier;
 use std::fmt;
 
 impl CanonicalAnnotationsV1 {
@@ -25,12 +25,9 @@ impl CanonicalAnnotationsV1 {
                 .parameters
                 .iter()
                 .map(|parameter| {
-                    let signature = mapper
+                    let value_type = mapper
                         .map(parameter.value_type, &[])
                         .map_err(AnnotationProductionError::Type)?;
-                    let SignatureTypeKey::Nominal(value_type) = signature else {
-                        return Err(AnnotationProductionError::NonScalarType);
-                    };
                     Ok(AnnotationParameterV1 {
                         name: CanonicalIdentifier::new(&parameter.name)
                             .expect("source parameter names are canonical"),
@@ -119,7 +116,6 @@ pub enum AnnotationProductionError {
     Type(HirSignatureTypeMappingError),
     Origin(HirDefinitionSourceProjectionError),
     Table(AnnotationDataBuildError),
-    NonScalarType,
     ExtensionProperty,
 }
 impl fmt::Display for AnnotationProductionError {
@@ -128,9 +124,6 @@ impl fmt::Display for AnnotationProductionError {
             Self::Type(error) => error.fmt(formatter),
             Self::Origin(error) => error.fmt(formatter),
             Self::Table(error) => error.fmt(formatter),
-            Self::NonScalarType => {
-                formatter.write_str("annotation parameter must have a scalar nominal type")
-            }
             Self::ExtensionProperty => {
                 formatter.write_str("extension properties are not annotation targets")
             }

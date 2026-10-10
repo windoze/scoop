@@ -1,0 +1,3 @@
+enum Choice { A, B }
+annotation class Mark(val values: Array<Choice>)
+fun main() {}

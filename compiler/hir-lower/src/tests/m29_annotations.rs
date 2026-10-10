@@ -35,11 +35,13 @@ fn annotations_bind_constants_and_original_source_targets() {
     ));
     assert_eq!(
         nominal.annotations[0].arguments[0],
-        hir::CanonicalConstValueV1::String("stable".into())
+        hir::CanonicalAnnotationValueV1::Scalar(hir::CanonicalConstValueV1::String(
+            "stable".into()
+        ))
     );
     assert_eq!(
-        nominal.annotations[0].arguments[1].kind(),
-        hir::CanonicalConstValueKindV1::Boolean
+        nominal.annotations[0].arguments[1],
+        hir::CanonicalAnnotationValueV1::Scalar(hir::CanonicalConstValueV1::Boolean(true.into()))
     );
     assert_eq!(
         annotations
@@ -91,8 +93,12 @@ fn imported_annotations_keep_identity_and_normalized_default_arguments() {
             assert_eq!(
                 application.arguments,
                 vec![
-                    hir::CanonicalConstValueV1::String("consumer".into()),
-                    hir::CanonicalConstValueV1::String("default".into())
+                    hir::CanonicalAnnotationValueV1::Scalar(hir::CanonicalConstValueV1::String(
+                        "consumer".into()
+                    )),
+                    hir::CanonicalAnnotationValueV1::Scalar(hir::CanonicalConstValueV1::String(
+                        "default".into()
+                    ))
                 ]
             );
             assert_eq!(interface.annotations().declarations().len(), 2);

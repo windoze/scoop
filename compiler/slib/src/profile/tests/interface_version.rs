@@ -1,10 +1,10 @@
 use super::*;
 
 #[test]
-fn source_interface_v71_preserves_unreachable_expressions() {
+fn source_interface_v72_preserves_annotation_array_types_and_values() {
     assert_retired_version(
         hir_cross_cone_interface_capability(),
-        71,
+        72,
         MemberPurposeSet::COMPILE,
         &[
             ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG,

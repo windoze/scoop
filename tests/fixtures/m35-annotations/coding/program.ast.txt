@@ -1,0 +1,44 @@
+SourceFile
+  RootPackage
+  ImportExact Local scoop.json.Json
+  annotation class Tags(val names: Array<String> = [], val ids: Array<Int> = [1, 2, 1])
+    @Tags(["item", "data"])
+  struct Item
+    @Tags
+    @SerialName("id")
+    field value: Int
+    public companion object
+    @Tags
+  struct Envelope<T>
+    @Tags(["payload"])
+    field value: T
+  class EnvelopeEncoder<T>(val element: Encodable<T>), Encodable<Envelope<T>>
+  fun main()
+    val item
+      Call Item
+        IntLiteral 7
+    val encoded
+      MethodCall encode
+        Var Json
+        Var item
+        FieldAccess Companion
+          Var Item
+    Call println
+      Var encoded
+    val decoded
+      MethodCall decode<Item>
+        Var Json
+        Var encoded
+        FieldAccess Companion
+          Var Item
+    Call println
+      FieldAccess value
+        Var decoded
+    Call println
+      MethodCall encode
+        Var Json
+        Call Envelope<Item>
+          Var item
+        Call EnvelopeEncoder<Item>
+          FieldAccess Companion
+            Var Item

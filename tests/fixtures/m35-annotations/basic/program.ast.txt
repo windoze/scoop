@@ -1,0 +1,70 @@
+SourceFile
+  RootPackage
+  typealias Texts = Array<String>
+  typealias SignedBytes = Array<Byte>
+  val WORD: String <const> = <expr>
+  val LETTER: Char <const> = <expr>
+  val FLOAT: Float <const> = <expr>
+  val DOUBLE: Double <const> = <expr>
+  annotation class Tags(val names: Texts = [], val chars: Array<Char> = [LETTER], val flags: Array<Boolean> = [false, true, false])
+  annotation class Numbers(val i8: SignedBytes = [-128, 127], val i16: Array<Int16> = [-32768, 32767], val i32: Array<Int> = [-2147483648, 2147483647], val i64: Array<Long> = [-9223372036854775808, 9223372036854775807], val u8: Array<UByte> = [0u, 255u], val u16: Array<UInt16> = [65535u], val u32: Array<UInt> = [4294967295u], val u64: Array<ULong> = [18446744073709551615u], val floats: Array<Float> = [FLOAT, 1.000000059604644775390625, 1e-45], val doubles: Array<Double> = [DOUBLE, -0.0, 5e-324])
+    @Tags(["same", WORD, "same"], chars = ['A', LETTER, '雪'])
+    @Numbers
+  struct Item<T>
+    @Tags
+    field value: T
+    @Numbers(i8 = [], floats = [], doubles = [])
+  enum Choice
+    @Tags(chars = [])
+    Empty
+    Record <ctor>
+      @Tags([WORD])
+      value: Int
+    Position(@Tags String)
+  var visits: Int = <expr>
+  fun initialized(): Int
+    compound-assign Add
+      IntLiteral 1
+    return
+      Var visits
+  struct Probe<T>
+    public companion object
+      public const val LABEL: String <const> = <expr>
+        StringLiteral "constant"
+      public val state: Int = <expr>
+        Call initialized
+    @Tags([Probe<Long>.Companion.LABEL])
+  class Row(@Tags([WORD]) val value: Int)
+    @Tags
+    public val size: Int <computed>
+      get()
+        Var value
+  fun main()
+    val item
+      Call Item<Int>
+        IntLiteral 7
+    val row
+      Call Row
+        IntLiteral 8
+    val choice
+      MethodCall Record
+        Var Choice
+        IntLiteral 9
+    if
+      Binary Or
+        Binary Or
+          Binary Ne
+            FieldAccess value
+              Var item
+            IntLiteral 7
+          Binary Ne
+            FieldAccess size
+              Var row
+            IntLiteral 8
+        Binary Ne
+          Var visits
+          IntLiteral 0
+      throw
+        Call Throwable
+    Call println
+      StringLiteral "annotations-arrays-ok"

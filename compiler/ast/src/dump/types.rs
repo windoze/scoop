@@ -99,6 +99,14 @@ pub(super) fn dump_annotation_literal(value: &AnnotationLiteral) -> String {
             format!("{}{literal}", if *negative { "-" } else { "+" })
         }
         AnnotationLiteral::ConstReference(reference) => dump_constant_reference(reference),
+        AnnotationLiteral::Array(elements) => format!(
+            "[{}]",
+            elements
+                .iter()
+                .map(|element| dump_annotation_literal(&element.value))
+                .collect::<Vec<_>>()
+                .join(", ")
+        ),
     }
 }
 

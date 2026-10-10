@@ -1,0 +1,295 @@
+Module
+  struct Holder (value: Value<Int>)
+  struct Value<Int> (value: Int)
+  struct Middle (value: Int)
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<Holder>
+    Completed(value: Holder)
+    Suspended()
+  enum CoroutineSlot<Holder>
+    Empty()
+    Value(value: Holder)
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class box<Holder> vtable=0 itables=0
+  interface ToString
+  interface Hash
+  interface Equality<Int>
+  interface Continuation<Holder>
+  interface SuspendTask<Holder>
+  interface SuspendRegistration<Holder>
+  generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
+  generated_exact_type get1 location=enum2 nominal_id=219c5deecb91171183cd4865dcc2ffe48f3aac86c0f0554f4c41dfc0251f8dc0 exact_id=32f08808bcc776e9f905a15a72da7fc170281087a38e1b1e8c5050a2dfdf4e5f
+  generated_exact_type get2 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
+  generated_exact_type get3 location=class3 nominal_id=1c3e7308dd45ca6218523684d78b16b18de349c7fd856e0dd851127c1878c1f0 exact_id=4d431f66c5caa1f2cd03e754c39ebb31d2af8bd6d397c73acc001738e69ac419
+  generated_exact_type get4 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
+  generated_exact_type get5 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
+  generated_exact_type get6 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
+  generated_exact_type get7 location=enum1 nominal_id=7b1c40680fa1e28c3c93bf7cb6dd1691ef8e6a2a69307ee01ed408dc884415f2 exact_id=f2ef8ea0db11f398c6d6ba8daa844ff5e40f4ca341583c92ece9d6525b48f68b
+  generated_callable gc0 function=@fn10 id=6c711856d714ee66f0ef3ef457eb77bbd917fb697b49f945f627eb7484307857
+  fun Holder.equals @fn0(this: Holder, other: Holder) -> Boolean
+    bb0 entry
+      val $inline.1.this: Value<Int>
+        Type Value<Int>
+        FieldAccess 0
+          Type Holder
+          Local this
+      val $inline.1.other: Value<Int>
+        Type Value<Int>
+        FieldAccess 0
+          Type Holder
+          Local other
+      goto bb2
+    bb1 inline.cont.1
+      val $call.1: Boolean
+        Type Boolean
+        Local $inline.1.result
+      return
+        Type Boolean
+        Local $call.1
+    bb2 inline.1.entry
+      assign $inline.1.result
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          FieldAccess 0
+            Type Value<Int>
+            Local $inline.1.this
+          Type Int
+          FieldAccess 0
+            Type Value<Int>
+            Local $inline.1.other
+      goto bb1
+  fun $derived.equals.0 @fn1(this: Value<Int>, other: Value<Int>) -> Boolean
+    bb0 entry
+      return
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          FieldAccess 0
+            Type Value<Int>
+            Local this
+          Type Int
+          FieldAccess 0
+            Type Value<Int>
+            Local other
+  fun main @fn2() -> Unit
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $dependency.parameter.value: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $inline.3.value: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      goto bb4
+    bb1 inline.cont.1
+      val holder: Holder
+        Type Holder
+        Local $inline.1.result
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=8 bits=0x00000008
+      val $dependency.parameter.value: Int
+        Type Int
+        IntegerLiteral Int value=8 bits=0x00000008
+      call middle: Middle = external0 direct
+        Type Int
+        IntegerLiteral Int value=8 bits=0x00000008
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type Value<Int>
+          FieldAccess 0
+            Type Holder
+            Local holder
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn3 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type Middle
+          Local middle
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn3 direct
+        Type Int
+        Local $dependency.parameter.value
+      return
+    bb2 inline.1.entry
+      assign $inline.1.result
+        Type Holder
+        StructInit Holder
+          Type Value<Int>
+          Local $inline.1.value
+      goto bb1
+    bb3 inline.cont.3
+      val $argument.0: Value<Int>
+        Type Value<Int>
+        Local $inline.3.result
+      val $parameter.value: Value<Int>
+        Type Value<Int>
+        Local $argument.0
+      val $inline.1.value: Value<Int>
+        Type Value<Int>
+        Local $parameter.value
+      goto bb2
+    bb4 inline.3.entry
+      assign $inline.3.result
+        Type Value<Int>
+        StructInit Value<Int>
+          Type Int
+          IntegerLiteral Int value=7 bits=0x00000007
+      goto bb3
+  fun println @fn3(value: Int) -> Unit
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      call $dependency.local.2: String = external1 direct
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external2 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str0
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external2 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun Continuation.resume @fn4(this: Continuation<Holder>, value: Holder) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn5(this: Continuation<Holder>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn6(this: SuspendTask<Holder>, $completion: Continuation<Holder>) -> CoroutineStep<Holder>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn7(this: SuspendRegistration<Holder>, continuation: Continuation<Holder>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun ctor.Holder.$c0 @fn8(value: Value<Int>) -> Holder <no-gc>
+    bb0 entry
+      return
+        Type Holder
+        StructInit Holder
+          Type Value<Int>
+          Local value
+  fun ctor.Value.$c0 @fn9(value: Int) -> Value<Int> <no-gc>
+    bb0 entry
+      return
+        Type Value<Int>
+        StructInit Value<Int>
+          Type Int
+          Local value
+  fun startCoroutine<Holder> @fn10(task: SuspendTask<Holder>, completion: Continuation<Holder>) -> Unit
+    bb0 context.unwind
+      landing_pad cleanup=true
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb1 context.catch_unwind
+      landing_pad cleanup=true
+      end_catch
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb2 suspended
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb3 completed unwind bb0
+      call @fn4 interface Continuation<Holder>[0]
+        Type Continuation<Holder>
+        Local completion
+        Type Holder
+        EnumField v0 f0
+          Type CoroutineStep<Holder>
+          Local $step
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb4 failed unwind bb0
+      call @fn5 interface Continuation<Holder>[1]
+        Type Continuation<Holder>
+        Local completion
+        Type Throwable
+        Local $exception
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb5 body_failure unwind bb1
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb4
+    bb6 run unwind bb5
+      call $step: CoroutineStep<Holder> = @fn6 interface SuspendTask<Holder>[0]
+        Type SuspendTask<Holder>
+        Local task
+        Type Continuation<Holder>
+        Local completion
+      branch bb3 bb2
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Holder>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+    bb7 entry
+      val $child_context: internal<task-context>
+        Type internal<task-context>
+        ContextFork
+          Type internal<context-node>
+          ContextSnapshot
+      val $context_guard: internal<context-switch-guard>
+        Type internal<context-switch-guard>
+        ContextEnter
+          Type internal<task-context>
+          Local $child_context
+      goto bb6
+  coroutine_step cs0 CoroutineStep<Holder> result=Holder
+  coroutine_slot cl0 CoroutineSlot<Holder> value=Holder
+  coroutine_start ct0 result=Holder function=fn10
+  coroutine_fn cf0 @fn6 source_return=Holder step=cs0 immediate
+  instance mi0 function=@fn3 <- println
+  instance mi1 function=@fn4 <- Continuation.resume
+  instance mi2 function=@fn5 <- Continuation.resumeWithException
+  instance mi3 function=@fn6 <- SuspendTask.run
+  instance mi4 function=@fn7 <- SuspendRegistration.register
+  str @str0 "\n"
+  output executable @fn2

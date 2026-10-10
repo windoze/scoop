@@ -19,6 +19,9 @@ impl Parser {
     pub(in crate::decl) fn parse_annotation_value(
         &mut self,
     ) -> Result<(AnnotationLiteral, u32), Diagnostic> {
+        if matches!(self.peek().kind, TokenKind::LBracket) {
+            return self.parse_annotation_array();
+        }
         if matches!(self.peek().kind, TokenKind::Ident(_)) {
             let reference = self.parse_postfix()?;
             if !is_constant_path(&reference) {
@@ -67,6 +70,30 @@ impl Parser {
             }
         };
         Ok((value, end))
+    }
+
+    fn parse_annotation_array(&mut self) -> Result<(AnnotationLiteral, u32), Diagnostic> {
+        self.bump();
+        let mut elements = Vec::new();
+        while !matches!(self.peek().kind, TokenKind::RBracket) {
+            let start = self.peek().span.start;
+            let (value, end) = self.parse_annotation_value()?;
+            elements.push(scoop_ast::AnnotationArrayElement {
+                value,
+                span: scoop_ast::Span { start, end },
+            });
+            if !matches!(self.peek().kind, TokenKind::Comma) {
+                break;
+            }
+            self.bump();
+        }
+        let end = self
+            .expect("`]` after annotation array", |kind| {
+                matches!(kind, TokenKind::RBracket)
+            })?
+            .span
+            .end;
+        Ok((AnnotationLiteral::Array(elements), end))
     }
 }
 

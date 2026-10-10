@@ -101,6 +101,7 @@ mod m29_unit_encoding;
 mod m3;
 mod m33_atomics;
 mod m33_equality_split;
+mod m35_annotations;
 mod m4;
 mod m5;
 mod m6;

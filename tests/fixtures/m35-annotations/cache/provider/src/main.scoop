@@ -1,0 +1,4 @@
+public annotation class Tags(val values: Array<String> = ["one"])
+public annotation class Counts(val values: Array<Int> = [])
+@Tags(["original"]) @Counts
+public struct Item(val value: Int)

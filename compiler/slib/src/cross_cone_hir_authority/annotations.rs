@@ -1,13 +1,12 @@
 //! Annotation records are checked once against the already validated source interface.
 
 use super::{CanonicalCrossConeHirSurfaceAuthority, CrossConeHirNominalAuthorityError};
-use scoop_hir::{
-    AnnotationDeclarationV1, AnnotationTargetV1, CanonicalConstValueKindV1, IntrinsicTypeKind,
-    NominalSourceShapeV1, SourceNominalId,
-};
+use scoop_hir::{AnnotationDeclarationV1, AnnotationTargetV1};
 use scoop_identity::{IdentityReferenceError, PersistentAnnotationId, SourceDeclarationKey};
 use std::collections::BTreeMap;
 use std::fmt;
+
+mod types;
 
 type Error = CrossConeHirAnnotationError;
 
@@ -40,11 +39,9 @@ impl CanonicalCrossConeHirSurfaceAuthority<'_> {
                 if parameter
                     .default
                     .as_ref()
-                    .is_some_and(|value| value.kind() != *kind)
+                    .is_some_and(|value| !kind.accepts(value))
                 {
-                    return Err(Error::Invalid(
-                        "annotation default has a different scalar type",
-                    ));
+                    return Err(Error::Invalid("annotation default has a different type"));
                 }
             }
             parameter_kinds.insert(declaration.annotation, kinds);
@@ -75,11 +72,9 @@ impl CanonicalCrossConeHirSurfaceAuthority<'_> {
                 if kinds
                     .iter()
                     .zip(&application.arguments)
-                    .any(|(kind, value)| *kind != value.kind())
+                    .any(|(kind, value)| !kind.accepts(value))
                 {
-                    return Err(Error::Invalid(
-                        "annotation argument has a different scalar type",
-                    ));
+                    return Err(Error::Invalid("annotation argument has a different type"));
                 }
                 if application.definition_origin.origin().source().cone() != self.current {
                     return Err(Error::Invalid(
@@ -104,45 +99,6 @@ impl CanonicalCrossConeHirSurfaceAuthority<'_> {
             .annotations()
             .declaration(id)
             .ok_or(Error::Invalid("annotation reference has no declaration"))
-    }
-
-    fn annotation_parameter_kinds(
-        &self,
-        declaration: &AnnotationDeclarationV1,
-    ) -> Result<Vec<CanonicalConstValueKindV1>, Error> {
-        declaration
-            .parameters
-            .iter()
-            .map(|parameter| {
-                let id = SourceNominalId::Concrete(parameter.value_type);
-                let key = self.source_nominal_key(id).map_err(Error::Nominal)?;
-                let nominal = self
-                    .provider_interface(key.origin())
-                    .map_err(Error::Nominal)?
-                    .nominal_interfaces()
-                    .declaration(id)
-                    .ok_or(Error::Invalid(
-                        "annotation parameter has no nominal declaration",
-                    ))?;
-                let NominalSourceShapeV1::Intrinsic(representation) = nominal.source_shape() else {
-                    return Err(Error::Invalid(
-                        "annotation parameter is not a scalar intrinsic type",
-                    ));
-                };
-                match representation.family() {
-                    IntrinsicTypeKind::Boolean => Ok(CanonicalConstValueKindV1::Boolean),
-                    IntrinsicTypeKind::Integer(kind) => {
-                        Ok(CanonicalConstValueKindV1::Integer(kind))
-                    }
-                    IntrinsicTypeKind::Float(kind) => Ok(CanonicalConstValueKindV1::Float(kind)),
-                    IntrinsicTypeKind::Char => Ok(CanonicalConstValueKindV1::Char),
-                    IntrinsicTypeKind::String => Ok(CanonicalConstValueKindV1::String),
-                    _ => Err(Error::Invalid(
-                        "annotation parameter is not a scalar intrinsic type",
-                    )),
-                }
-            })
-            .collect()
     }
 }
 

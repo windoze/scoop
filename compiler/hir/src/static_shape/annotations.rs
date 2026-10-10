@@ -4,7 +4,7 @@ use scoop_identity::{DeclarationName, NominalDeclarationOwner, PersistentAnnotat
 #[derive(Clone, Copy)]
 pub struct StaticAnnotation<'a> {
     pub annotation: PersistentAnnotationId,
-    pub arguments: &'a [CanonicalConstValueV1],
+    pub arguments: &'a [CanonicalAnnotationValueV1],
 }
 
 impl<'a> StaticAnnotation<'a> {

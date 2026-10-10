@@ -1,7 +1,7 @@
 //! Resolved source annotations retained without runtime materialization.
 
 use crate::{
-    CanonicalConstValueV1, DeclaredVisibility, DefinitionOrigin, EnumVariantFieldRef,
+    CanonicalAnnotationValueV1, DeclaredVisibility, DefinitionOrigin, EnumVariantFieldRef,
     EnumVariantRef, NominalOwner, PropertyId, StructFieldRef, TypeId,
 };
 use scoop_identity::{CborIdentityRecord, PersistentAnnotationId, SourceDeclarationKey};
@@ -10,7 +10,7 @@ use scoop_identity::{CborIdentityRecord, PersistentAnnotationId, SourceDeclarati
 pub struct SourceAnnotationParameter {
     pub name: String,
     pub value_type: TypeId,
-    pub default: Option<CanonicalConstValueV1>,
+    pub default: Option<CanonicalAnnotationValueV1>,
 }
 
 #[derive(Clone, Debug)]
@@ -33,7 +33,7 @@ pub enum SourceAnnotationTarget {
 #[derive(Clone, Debug)]
 pub struct SourceAnnotationApplication {
     pub annotation: PersistentAnnotationId,
-    pub arguments: Vec<CanonicalConstValueV1>,
+    pub arguments: Vec<CanonicalAnnotationValueV1>,
     pub definition_origin: DefinitionOrigin,
 }
 

@@ -3,6 +3,7 @@
 use crate::{
     Lowerer, Owner, namespace::TopLevelTypeTarget, persistent_nominals::NominalIdentityInput,
 };
+mod arrays;
 mod binding;
 mod serialization;
 mod targets;

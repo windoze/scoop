@@ -1,0 +1,15 @@
+package consumer
+import bridge.Note
+import bridge.Derived
+import bridge.Value
+import bridge.Middle
+import bridge.WORD
+annotation class Local(val words: Array<String> = [WORD])
+@Local @Note @Derived
+public struct Holder(@Note([WORD]) val value: Value<Int>)
+fun main() {
+    val holder = Holder(Value<Int>(7))
+    val middle = Middle(8)
+    println(holder.value.value)
+    println(middle.value)
+}

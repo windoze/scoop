@@ -1,0 +1,17 @@
+import scoop.json.Json
+annotation class Tags(val names: Array<String> = [], val ids: Array<Int> = [1, 2, 1])
+@Tags(["item", "data"])
+struct Item(@Tags @SerialName("id") val value: Int) {
+    public companion object : Encodable<Item>, Decodable<Item>
+}
+@Tags
+struct Envelope<T>(@Tags(["payload"]) val value: T)
+class EnvelopeEncoder<T>(private val element: Encodable<T>) : Encodable<Envelope<T>>
+fun main() {
+    val item = Item(7)
+    val encoded = Json.encode(item, Item.Companion)
+    println(encoded)
+    val decoded = Json.decode<Item>(encoded, Item.Companion)
+    println(decoded.value)
+    println(Json.encode(Envelope<Item>(item), EnvelopeEncoder<Item>(Item.Companion)))
+}

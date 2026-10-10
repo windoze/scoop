@@ -310,7 +310,7 @@ bridge unit 是与 producer 无关的 recipe identity；实际 atom 使用 produ
 | 位置 / namespace | section 与 major |
 | --- | --- |
 | Manifest / `org.scoop-lang.manifest` | `single-cone-production/6` |
-| HIR / `org.scoop-lang.hir` | `identity-foundation/8`、`core-bootstrap-interface/14`、`cross-cone-interface/71`、`cross-cone-type-semantics/29` |
+| HIR / `org.scoop-lang.hir` | `identity-foundation/8`、`core-bootstrap-interface/14`、`cross-cone-interface/72`、`cross-cone-type-semantics/29` |
 | MIR / `org.scoop-lang.mir` | `identity-foundation/6`、`core-bootstrap-bridge/1`、`cross-cone-param-free-bridge/2`、`cross-cone-type-bridge/19` |
 | LIR / `org.scoop-lang.lir` | `identity-foundation/8`、`cross-cone-param-free-bridge/3`、`cross-cone-link-closure/1`、`cross-cone-layout-abi/15`、`cross-cone-layout-link-closure/8`、`cone-production/11`、`link-identity-closure/15`、`link-support/1` |
 
@@ -324,7 +324,7 @@ executable entry 的四种形态、main 的完整源码签名、root gateway 的
 
 operator equals 的成员签名、operator 标记、已绑定调用及必要的派生正文使用既有 callable、模板与 exact-type metadata。`Equality<T>.equalTo` 的显式 conformance、接口 slot、实现和分派适配使用普通 interface metadata；两者没有隐式关联，也不保存 Equality 专用的 core protocol 或条件接口规则。
 
-自 `core-bootstrap-interface/14` 起删除旧 Equality protocol 字段；自 `cross-cone-interface/68` 与 `cross-cone-type-semantics/26` 起移除统一方案添加的派生比较接口槽位声明，恢复普通源码接口实现。旧版本产物必须重建，不能把旧 Equality slot 当作新接口成员或独立 operator 使用。既有结构 operator 的生成身份和单态化格式保持不变。M34 后续编码扩展版本为 `cross-cone-interface/69`、`cross-cone-type-semantics/27`。M35 普通 when 增加可缺省 subject、Case/Predicate/Always 条件和显式 Fallthrough 后，版本升级为 `cross-cone-interface/70`、`cross-cone-type-semantics/28`；随后显式 Nothing/Unreachable 表达式增加为 `cross-cone-interface/71`、`cross-cone-type-semantics/29`。旧 body 编码必须重建。
+自 `core-bootstrap-interface/14` 起删除旧 Equality protocol 字段；自 `cross-cone-interface/68` 与 `cross-cone-type-semantics/26` 起移除统一方案添加的派生比较接口槽位声明，恢复普通源码接口实现。旧版本产物必须重建，不能把旧 Equality slot 当作新接口成员或独立 operator 使用。既有结构 operator 的生成身份和单态化格式保持不变。M34 后续编码扩展版本为 `cross-cone-interface/69`、`cross-cone-type-semantics/27`。M35 普通 when 增加可缺省 subject、Case/Predicate/Always 条件和显式 Fallthrough 后，版本升级为 `cross-cone-interface/70`、`cross-cone-type-semantics/28`；随后显式 Nothing/Unreachable 表达式增加为 `cross-cone-interface/71`、`cross-cone-type-semantics/29`。旧 body 编码必须重建。注解参数完整 signature key 与静态数组值随后将 `cross-cone-interface` 升至 72；type semantics、MIR/LIR 与 runtime ABI 在这一批保持原版本。
 
 派生 operator 使用既有 typed 生成身份和普通单态化／ODR 规则，所需的宿主、完整签名及字段调用在各自边界确定；没有源码声明的生成 callable 不伪装成 SourceFunctionId。导入的 operator 候选来自已保存的成员或派生签名，不借用 Equality slot。artifact-only 链接只消费已闭合的实现，不重新扫描字段或选择重载；普通接口 adapter 引用实际声明或继承的实现，不因值支持结构比较而新增 itable 项。
 
@@ -672,7 +672,7 @@ Context scope 在完整 value 求值与成功 push 后才生效。真实离开 s
 
 静态描述使用原声明、字段、variant、logical property、constructor/default 和 annotation 事实，不构造运行期 TypeInfo 或任意 CTFE。描述查询本身不触发物化、初始化或可见性扩张。
 
-annotation 声明使用独立 PersistentAnnotationId，参数保存完整 signature type key，应用保存实际 typed target 和按参数顺序补齐的静态值。注解值以封闭标量/数组表示保存；数组包含明确元素类型及有序标量元素，空数组不丢失类型，默认值与应用共用表示。CanonicalConstValueV1 保持标量用途。共享 reader 在既有边界检查类型引用与 tag/payload 一致性，不重放源码常量求值；具体格式版本随实际编码变更升级。名义类型字段保持原身份，generic 字段保留 binder；tuple 保留位置，class 保存真实 field/property/constructor 关联。
+annotation 声明使用独立 PersistentAnnotationId，参数保存完整 signature type key，应用保存实际 typed target 和按参数顺序补齐的静态值。注解值以封闭标量/数组表示保存；数组包含明确元素类型及有序标量元素，空数组不丢失类型，默认值与应用共用表示。CanonicalConstValueV1 保持标量用途。CanonicalAnnotationValueV1 的 Scalar 保存原标量值，Array 保存 CanonicalConstValueKindV1 元素种类及有序标量元素；实际 core Array 与元素的名义身份由参数的完整 signature key 保存。共享 reader 在既有边界检查类型引用与 tag/payload 一致性，不重放源码常量求值；具体格式版本随实际编码变更升级。名义类型字段保持原身份，generic 字段保留 binder；tuple 保留位置，class 保存真实 field/property/constructor 关联。
 
 HIR foundation field 35 保存 annotation declaration keys，共有源码接口 field 14 保存 annotation declarations 与有序 applications；实际 annotation 依赖使用 AnnotationDependency tag 11。NominalDeclarationDetails field 11 保存可选 primary constructor 及声明序参数到 property 的映射，普通参数为空，val/var 参数引用原 logical property。
 

@@ -1,0 +1,4 @@
+object Secrets { private const val NUMBER: Int = 1 }
+annotation class Mark(val values: Array<Int>)
+@Mark([1, Secrets.NUMBER]) struct Item()
+fun main() {}

@@ -1,2 +1,2 @@
-annotation class Label(val values: Array<Int>)
+annotation class Label(val values: MutableArray<Int>)
 fun main() {}

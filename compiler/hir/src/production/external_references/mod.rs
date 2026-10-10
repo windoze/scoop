@@ -89,7 +89,11 @@ impl CanonicalExternalHirReferencesV1 {
             )?;
         }
         surface::collect_constants(input, &mut accumulator)?;
-        for target in input.annotations.declaration_targets() {
+        for target in input
+            .annotations
+            .declaration_targets(&scoop_wire::WirePath::root().field(14))
+            .map_err(ExternalHirReferenceProductionError::Resource)?
+        {
             accumulator.observe(
                 target,
                 crate::ExternalHirReferenceRoleV1::AnnotationDependency,

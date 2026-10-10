@@ -1,0 +1,112 @@
+schema = 1
+name = "m35-annotations-cache"
+inputs = ["provider", "consumer"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["m35", "annotations", "cache", "stage-golden"]
+
+[vars]
+options = ["--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+
+[[steps]]
+name = "prepare"
+files = [
+  {copy = {from = "${fixture}/provider", to = "${work}/sources/provider"}},
+  {copy = {from = "${fixture}/consumer", to = "${work}/sources/consumer"}},
+]
+
+[[steps]]
+name = "baseline"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/consumer", {each = "${options}"}, "--emit", "all", "--dump-dir", "${work}/dump/baseline"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {file = "${work}/dump/baseline/${baseline.result.root.identity}/hir.txt", snapshot = "baseline.hir.txt"},
+]
+
+[[steps]]
+name = "warm"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/consumer", {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {actual = "${warm.result.observations.child_invocations}", equals = []},
+  {actual = "${warm.result.root.artifact_fingerprint}", equals = "${baseline.result.root.artifact_fingerprint}"},
+]
+
+[[steps]]
+name = "edit_default"
+files = [{replace = {path = "${work}/sources/provider/src/main.scoop", old = "[\"one\"]", new = "[\"two\"]"}}]
+
+[[steps]]
+name = "default"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/consumer", {each = "${options}"}, "--emit", "all", "--dump-dir", "${work}/dump/default"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {file = "${work}/dump/default/${default.result.root.identity}/hir.txt", snapshot = "default.hir.txt"},
+  {actual = "${default.result.observations.nodes.2.cache_key}", not_equals = "${baseline.result.observations.nodes.2.cache_key}"},
+  {actual = "${default.result.dependencies.1.artifact_fingerprint}", not_equals = "${baseline.result.dependencies.1.artifact_fingerprint}"},
+  {actual = "${default.result.root.artifact_fingerprint}", not_equals = "${baseline.result.root.artifact_fingerprint}"},
+]
+
+[[steps]]
+name = "edit_element"
+files = [{replace = {path = "${work}/sources/provider/src/main.scoop", old = "[\"original\"]", new = "[\"updated\"]"}}]
+
+[[steps]]
+name = "element"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/consumer", {each = "${options}"}, "--emit", "all", "--dump-dir", "${work}/dump/element"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {file = "${work}/dump/element/${element.result.root.identity}/hir.txt", snapshot = "element.hir.txt"},
+  {actual = "${element.result.observations.nodes.2.cache_key}", not_equals = "${default.result.observations.nodes.2.cache_key}"},
+  {actual = "${element.result.dependencies.1.artifact_fingerprint}", not_equals = "${default.result.dependencies.1.artifact_fingerprint}"},
+  {actual = "${element.result.root.artifact_fingerprint}", not_equals = "${default.result.root.artifact_fingerprint}"},
+]
+
+[[steps]]
+name = "edit_type"
+files = [{replace = {path = "${work}/sources/provider/src/main.scoop", old = "Array<Int>", new = "Array<Long>"}}]
+
+[[steps]]
+name = "type"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/consumer", {each = "${options}"}, "--emit", "all", "--dump-dir", "${work}/dump/type"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {file = "${work}/dump/type/${type.result.root.identity}/hir.txt", snapshot = "type.hir.txt"},
+  {actual = "${type.result.observations.nodes.2.cache_key}", not_equals = "${element.result.observations.nodes.2.cache_key}"},
+  {actual = "${type.result.dependencies.1.artifact_fingerprint}", not_equals = "${element.result.dependencies.1.artifact_fingerprint}"},
+  {actual = "${type.result.root.artifact_fingerprint}", not_equals = "${element.result.root.artifact_fingerprint}"},
+]
+
+[[steps]]
+name = "final_warm"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/consumer", {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {actual = "${final_warm.result.observations.child_invocations}", equals = []},
+  {actual = "${final_warm.result.root.artifact_fingerprint}", equals = "${type.result.root.artifact_fingerprint}"},
+]
+

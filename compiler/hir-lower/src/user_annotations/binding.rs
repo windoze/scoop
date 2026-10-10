@@ -32,12 +32,12 @@ impl Lowerer {
                 let Some(value_type) = self.resolve_type_ref(&parameter.ty) else {
                     continue;
                 };
-                if self.annotation_scalar_kind(value_type).is_none() {
-                    self.error(parameter.ty.span, "annotation parameter types are limited to Boolean, String, Char, fixed-width integers, Float and Double".into());
+                if !self.is_annotation_parameter_type(value_type) {
+                    self.error(parameter.ty.span, "annotation parameters require Boolean, String, Char, fixed-width integers, Float, Double, or a one-dimensional Array of these scalar types".into());
                     continue;
                 }
                 let default = if let Some(default) = &parameter.default {
-                    let Some(value) = self.annotation_constant(default, value_type, parameter.span)
+                    let Some(value) = self.annotation_value(default, value_type, parameter.span)
                     else {
                         continue;
                     };
@@ -88,9 +88,7 @@ impl Lowerer {
             .parameters
             .into_iter()
             .map(|parameter| {
-                let value_type = match self.imported_signature_type(
-                    &scoop_identity::SignatureTypeKey::Nominal(parameter.value_type),
-                ) {
+                let value_type = match self.imported_signature_type(&parameter.value_type) {
                     Ok(ty) => ty,
                     Err(error) => {
                         self.error(span, error.diagnostic("annotation parameter"));
@@ -194,7 +192,7 @@ impl Lowerer {
         &mut self,
         annotation: &ast::Annotation,
         parameters: &[hir::SourceAnnotationParameter],
-    ) -> Option<Vec<hir::CanonicalConstValueV1>> {
+    ) -> Option<Vec<hir::CanonicalAnnotationValueV1>> {
         let mut values = vec![None; parameters.len()];
         let mut used = HashSet::new();
         let mut failed = false;
@@ -227,11 +225,8 @@ impl Lowerer {
                 failed = true;
                 continue;
             }
-            values[index] = self.annotation_constant(
-                &argument.value,
-                parameters[index].value_type,
-                argument.span,
-            );
+            values[index] =
+                self.annotation_value(&argument.value, parameters[index].value_type, argument.span);
             failed |= values[index].is_none();
         }
         for (index, parameter) in parameters.iter().enumerate() {

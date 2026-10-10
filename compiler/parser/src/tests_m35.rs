@@ -222,3 +222,25 @@ fn single_statement_when_bodies_end_before_a_lambda_condition_on_the_next_line()
     };
     assert_eq!(when.arms.len(), 2);
 }
+
+#[test]
+fn annotation_arrays_keep_empty_values_and_individual_element_spans() {
+    use scoop_ast::AnnotationLiteral;
+    let source = "@Mark([], [-1, TEXT,], values = [\"雪\"]) fun main() {}";
+    let file = ok(source);
+    let arguments = &only_function(&file).annotations[0].args;
+    assert!(matches!(&arguments[0].value, AnnotationLiteral::Array(values) if values.is_empty()));
+    let AnnotationLiteral::Array(values) = &arguments[1].value else {
+        panic!("array")
+    };
+    assert_eq!(values.len(), 2);
+    for (value, expected) in values.iter().zip(["-1", "TEXT"]) {
+        assert_eq!(
+            &source[value.span.start as usize..value.span.end as usize],
+            expected
+        );
+    }
+    assert!(
+        matches!(&arguments[2].value, AnnotationLiteral::Array(values) if matches!(&values[0].value, AnnotationLiteral::String(value) if value == "雪"))
+    );
+}
