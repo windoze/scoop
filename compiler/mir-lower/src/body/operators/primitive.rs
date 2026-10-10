@@ -387,10 +387,7 @@ fn primitive_binary_values(
     smir::Expr::new(
         return_ty.clone(),
         smir::ExprKind::Call(smir::Call {
-            target: mir::CallTarget {
-                kind: mir::CallKind::Direct,
-                callee: mir::Callee::Runtime(function),
-            },
+            target: mir::CallTarget::Direct(mir::Callee::Runtime(function)),
             args: vec![lhs, rhs],
             return_ty,
         }),

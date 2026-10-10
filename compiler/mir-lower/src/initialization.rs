@@ -201,10 +201,7 @@ fn runtime_call(
     smir::Expr::new(
         return_ty.clone(),
         smir::ExprKind::Call(smir::Call {
-            target: mir::CallTarget {
-                kind: mir::CallKind::Direct,
-                callee: mir::Callee::Runtime(function),
-            },
+            target: mir::CallTarget::Direct(mir::Callee::Runtime(function)),
             args,
             return_ty,
         }),
@@ -219,10 +216,7 @@ fn direct_call(
     smir::Expr::new(
         return_ty.clone(),
         smir::ExprKind::Call(smir::Call {
-            target: mir::CallTarget {
-                kind: mir::CallKind::Direct,
-                callee: mir::Callee::User(function),
-            },
+            target: mir::CallTarget::Direct(mir::Callee::User(function)),
             args,
             return_ty,
         }),
@@ -240,10 +234,7 @@ fn initialization_cycle_call(
     smir::Expr::new(
         mir::Type::Unit,
         smir::ExprKind::Call(smir::Call {
-            target: mir::CallTarget {
-                kind: mir::CallKind::Direct,
-                callee,
-            },
+            target: mir::CallTarget::Direct(callee),
             args: vec![message],
             return_ty: mir::Type::Unit,
         }),

@@ -493,7 +493,9 @@ fn foreign_callback_adapter_uses_typed_status_and_argument_offsets() {
     }
 
     let (call, _) = statement_call(&invoke.statements[0]);
-    let offsets = call.args[1..]
+    assert!(matches!(call.target, mir::CallTarget::Closure { .. }));
+    let offsets = call
+        .args
         .iter()
         .map(callback_argument_offset)
         .collect::<Vec<_>>();

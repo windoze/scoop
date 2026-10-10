@@ -102,10 +102,7 @@ impl Lowerer {
         let call = smir::Expr::new(
             target.result.clone(),
             smir::ExprKind::Call(smir::Call {
-                target: mir::CallTarget {
-                    kind: mir::CallKind::Direct,
-                    callee: target.callee,
-                },
+                target: mir::CallTarget::Direct(target.callee),
                 args,
                 return_ty: target.result.clone(),
             }),

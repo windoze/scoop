@@ -778,6 +778,8 @@ Module
       resume
     bb26 try.end.26
       return
+        Type Unit
+        UnitLiteral
     bb27 try.body.27 unwind bb20
       call $call.16: Any = <closure:function_type0> closure[function_type0]
         Type (Int) -> Any
@@ -851,6 +853,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn11(value: String) -> Unit
     bb0 entry
       val $dependency.local.1: String
@@ -875,6 +879,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn12(value: Int) -> Unit
     bb0 entry
       val $dependency.local.1: Int
@@ -899,6 +905,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun isNone @fn13(value: Option<(Any) -> String>) -> Boolean
     bb0 entry
       val $when.1: Option<(Any) -> String>
@@ -1049,6 +1057,8 @@ Module
   fun init.Animal.$c0 @fn38(this: Animal) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.Dog.$c1 @fn39(this: Dog) -> Unit
     bb0 entry
       call @fn38 direct
@@ -1057,6 +1067,8 @@ Module
           Type Dog
           Local this
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Label.$c0 @fn40(text: String) -> Label <no-gc>
     bb0 entry
       return
@@ -1243,6 +1255,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn18 interface Continuation<Describable>[0]
         Type Continuation<Describable>
@@ -1256,6 +1270,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn19 interface Continuation<Describable>[1]
         Type Continuation<Describable>
@@ -1267,6 +1283,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -1324,6 +1342,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn26 interface Continuation<Dog>[0]
         Type Continuation<Dog>
@@ -1337,6 +1357,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn27 interface Continuation<Dog>[1]
         Type Continuation<Dog>
@@ -1348,6 +1370,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -1405,6 +1429,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn22 interface Continuation<Animal>[0]
         Type Continuation<Animal>
@@ -1418,6 +1444,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn23 interface Continuation<Animal>[1]
         Type Continuation<Animal>
@@ -1429,6 +1457,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -1486,6 +1516,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn14 interface Continuation<Label>[0]
         Type Continuation<Label>
@@ -1499,6 +1531,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn15 interface Continuation<Label>[1]
         Type Continuation<Label>
@@ -1510,6 +1544,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

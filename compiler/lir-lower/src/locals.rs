@@ -186,7 +186,7 @@ pub(super) fn address_taken(function: &mir::Function) -> HashSet<mir::LocalId> {
     }
 
     fn collect_call(call: &mir::Call, out: &mut HashSet<mir::LocalId>) {
-        for arg in &call.args {
+        for arg in call.operands() {
             collect_expr(arg, out);
         }
     }

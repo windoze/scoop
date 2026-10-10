@@ -7,7 +7,7 @@ pub(super) struct Storage {
     pub(super) snapshot: mir::Expr,
     pub(super) result: mir::Expr,
     pub(super) exception: mir::Expr,
-    closure: mir::Expr,
+    pub(super) closure: mir::Expr,
     arguments: mir::Expr,
 }
 
@@ -61,7 +61,7 @@ impl Storage {
     }
 
     pub(super) fn call_arguments(&self, signature: &mir::FunctionType) -> Vec<mir::Expr> {
-        let mut args = vec![self.closure.clone()];
+        let mut args = Vec::with_capacity(signature.parameter_types.len());
         let opaque_pointer = mir::Type::Ptr(Box::new(mir::Type::Unit));
         for (index, parameter) in signature.parameter_types.iter().enumerate() {
             let raw = mir::Expr::new(

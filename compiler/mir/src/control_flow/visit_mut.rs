@@ -8,7 +8,7 @@ pub fn visit_statement_exprs_mut(statement: &mut Statement, visitor: &mut impl F
             let call = match effect {
                 CallEffect::Unit(call) | CallEffect::Value { call, .. } => call,
             };
-            for argument in &mut call.args {
+            for argument in call.operands_mut() {
                 visit_expr_mut(argument, visitor);
             }
         }

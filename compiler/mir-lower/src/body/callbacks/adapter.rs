@@ -38,10 +38,9 @@ pub(super) fn build(
             statement(mir::StatementKind::Call(mir::CallEffect::Value {
                 destination: exception,
                 call: mir::Call {
-                    target: mir::CallTarget {
-                        kind: mir::CallKind::Direct,
-                        callee: mir::Callee::Runtime(mir::RuntimeFn::MaterializeException),
-                    },
+                    target: mir::CallTarget::Direct(mir::Callee::Runtime(
+                        mir::RuntimeFn::MaterializeException,
+                    )),
                     args: vec![mir::Expr::caught_exception()],
                     pending: mir::CoroutinePendingContext::Root,
                 },
@@ -58,11 +57,9 @@ pub(super) fn build(
     });
 
     let call = mir::Call {
-        target: mir::CallTarget {
-            kind: mir::CallKind::Closure {
-                function_type: managed_signature,
-            },
-            callee: mir::Callee::Closure(managed_signature),
+        target: mir::CallTarget::Closure {
+            function_type: managed_signature,
+            receiver: Box::new(storage.closure.clone()),
         },
         args: storage.call_arguments(signature),
         pending: mir::CoroutinePendingContext::Root,

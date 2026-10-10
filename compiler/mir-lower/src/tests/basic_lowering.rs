@@ -199,7 +199,7 @@ fn formatting_helpers_are_ordinary_extern_calls() {
         .iter()
         .map(|statement| {
             let (call, _) = statement_call(statement);
-            let mir::Callee::Extern(function) = call.target.callee else {
+            let mir::CallTarget::Direct(mir::Callee::Extern(function)) = call.target else {
                 panic!("formatting helpers must remain ordinary extern callees")
             };
             module.extern_functions[function].native_symbol.as_str()
@@ -364,14 +364,17 @@ fn gc_wrappers_use_explicit_raw_word_marshalling() {
     // `_pin(s)` produces the raw word used by `PinnedPtr(raw)`.
     let (call, pin_result) = statement_call(&entry_statements(body)[0]);
     assert!(matches!(
-        call.target.callee,
-        mir::Callee::Runtime(mir::RuntimeFn::Pin)
+        call.target,
+        mir::CallTarget::Direct(mir::Callee::Runtime(mir::RuntimeFn::Pin))
     ));
     assert!(matches!(call.args.as_slice(), [arg] if matches!(arg.kind, mir::ExprKind::Local(_))));
     let pin_result = pin_result.expect("_pin returns a raw word");
     let (constructor, wrapped) = statement_call(&entry_statements(body)[1]);
     let wrapped = wrapped.expect("PinnedPtr constructor returns the wrapper");
-    assert!(matches!(constructor.target.callee, mir::Callee::User(_)));
+    assert!(matches!(
+        constructor.target,
+        mir::CallTarget::Direct(mir::Callee::User(_))
+    ));
     assert!(matches!(constructor.args.as_slice(), [arg]
             if matches!(arg.kind, mir::ExprKind::Local(local) if local == pin_result)));
     assert_eq!(body.locals[wrapped].name, "ph");
@@ -380,8 +383,8 @@ fn gc_wrappers_use_explicit_raw_word_marshalling() {
     let (call, hidden) = statement_call(&entry_statements(body)[2]);
     let hidden = hidden.expect("_unpin produces the typed result");
     assert!(matches!(
-        call.target.callee,
-        mir::Callee::Runtime(mir::RuntimeFn::Unpin)
+        call.target,
+        mir::CallTarget::Direct(mir::Callee::Runtime(mir::RuntimeFn::Unpin))
     ));
     let [arg] = call.args.as_slice() else {
         panic!("unpin takes one argument")
@@ -395,20 +398,23 @@ fn gc_wrappers_use_explicit_raw_word_marshalling() {
     // shapes with their own runtime symbols and handle struct.
     let (call, handle_result) = statement_call(&entry_statements(body)[3]);
     assert!(matches!(
-        call.target.callee,
-        mir::Callee::Runtime(mir::RuntimeFn::GetHandle)
+        call.target,
+        mir::CallTarget::Direct(mir::Callee::Runtime(mir::RuntimeFn::GetHandle))
     ));
     let handle_result = handle_result.expect("getGcHandle returns a raw word");
     let (constructor, wrapped) = statement_call(&entry_statements(body)[4]);
     let wrapped = wrapped.expect("GcHandle constructor returns the wrapper");
-    assert!(matches!(constructor.target.callee, mir::Callee::User(_)));
+    assert!(matches!(
+        constructor.target,
+        mir::CallTarget::Direct(mir::Callee::User(_))
+    ));
     assert!(matches!(constructor.args.as_slice(), [arg]
             if matches!(arg.kind, mir::ExprKind::Local(local) if local == handle_result)));
     assert_eq!(body.locals[wrapped].name, "gh");
     let (call, _) = statement_call(&entry_statements(body)[5]);
     assert!(matches!(
-        call.target.callee,
-        mir::Callee::Runtime(mir::RuntimeFn::ReleaseHandle)
+        call.target,
+        mir::CallTarget::Direct(mir::Callee::Runtime(mir::RuntimeFn::ReleaseHandle))
     ));
     let [arg] = call.args.as_slice() else {
         panic!("releaseGcHandle takes one argument")
@@ -422,13 +428,13 @@ fn gc_wrappers_use_explicit_raw_word_marshalling() {
     let (call, destination) = statement_call(&entry_statements(body)[6]);
     assert!(destination.is_none());
     assert!(matches!(
-        call.target.callee,
-        mir::Callee::Runtime(mir::RuntimeFn::GcCollect)
+        call.target,
+        mir::CallTarget::Direct(mir::Callee::Runtime(mir::RuntimeFn::GcCollect))
     ));
     let (call, destination) = statement_call(&entry_statements(body)[7]);
     assert!(matches!(
-        call.target.callee,
-        mir::Callee::Runtime(mir::RuntimeFn::GcStats)
+        call.target,
+        mir::CallTarget::Direct(mir::Callee::Runtime(mir::RuntimeFn::GcStats))
     ));
     assert_eq!(
         destination,

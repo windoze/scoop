@@ -32,10 +32,7 @@ fn throw_outside_try_is_a_throw_instruction() {
             vec![call_value(
                 exception,
                 mir::Call {
-                    target: mir::CallTarget {
-                        kind: mir::CallKind::Direct,
-                        callee: mir::Callee::User(make),
-                    },
+                    target: mir::CallTarget::Direct(mir::Callee::User(make)),
                     args: Vec::new(),
                     pending: mir::CoroutinePendingContext::Root,
                 },

@@ -76,7 +76,7 @@
 //! receiver → `Interface`, value type → `Direct`; distinct source callables
 //! retain distinct typed identities even when their display names match. A direct
 //! `super` call carries a distinct HIR proof
-//! and always becomes `CallKind::Direct`. Every value type that reaches `Any` / an
+//! and always becomes `CallTarget::Direct`. Every value type that reaches `Any` / an
 //! interface (`Box`, `is`, `as`) gets a boxed `ClassDef` (`box<type>`):
 //! its vtable contains only ordinary virtual methods, and its itable
 //! slots point at adjust thunks that either unbox `this` for a value method or

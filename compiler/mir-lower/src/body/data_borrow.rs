@@ -40,12 +40,11 @@ impl BodyLowerer<'_> {
         let call = smir::Expr::new(
             result_ty.clone(),
             smir::ExprKind::Call(smir::Call {
-                target: mir::CallTarget {
-                    kind: mir::CallKind::Closure { function_type },
-                    callee: mir::Callee::Closure(function_type),
+                target: mir::CallTarget::Closure {
+                    function_type,
+                    receiver: Box::new(block),
                 },
                 args: vec![
-                    block,
                     borrow_operation(pointer_ty, Op::DataPointer(source), object.clone()),
                     borrow_operation(
                         mir::Type::Integer(mir::IntegerKind::SIGNED_64),

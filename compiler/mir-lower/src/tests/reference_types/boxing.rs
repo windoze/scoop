@@ -203,8 +203,8 @@ fn boxed_interface_implementations_dispatch_through_adjust_thunks() {
     assert_eq!(thunk.params[0].ty, mir::Type::Class(boxed_meta.class()));
     assert_eq!(thunk.params[0].name, "this");
     let (call, _) = statement_call(&entry_statements(&thunk.body)[0]);
-    assert!(matches!(call.target.kind, mir::CallKind::Direct));
-    let mir::Callee::User(impl_id) = call.target.callee else {
+    assert!(matches!(call.target, mir::CallTarget::Direct(_)));
+    let mir::CallTarget::Direct(mir::Callee::User(impl_id)) = call.target else {
         panic!("the thunk calls a user function")
     };
     assert_eq!(module.functions[impl_id].name, "S.describe");

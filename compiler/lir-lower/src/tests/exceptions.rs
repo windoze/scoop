@@ -183,10 +183,7 @@ fn managed_invoke_roots_have_complete_edge_roles_and_argument_coverage() {
     let caught = locals.alloc(local("caught", reference_ty.clone()));
     let sink = locals.alloc(local("sink", reference_ty.clone()));
     let call = mir::Call {
-        target: mir::CallTarget {
-            kind: mir::CallKind::Direct,
-            callee: mir::Callee::User(callee),
-        },
+        target: mir::CallTarget::Direct(mir::Callee::User(callee)),
         args: vec![
             local_expr(live_on_both_edges, reference_ty.clone()),
             local_expr(argument_only, reference_ty.clone()),

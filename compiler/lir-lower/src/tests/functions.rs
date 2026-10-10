@@ -80,10 +80,7 @@ fn function_signatures_params_and_calls() {
         vec![call_value(
             r,
             mir::Call {
-                target: mir::CallTarget {
-                    kind: mir::CallKind::Direct,
-                    callee: mir::Callee::User(add),
-                },
+                target: mir::CallTarget::Direct(mir::Callee::User(add)),
                 args: vec![int_expr(40), int_expr(2)],
                 pending: mir::CoroutinePendingContext::Root,
             },

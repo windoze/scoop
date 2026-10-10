@@ -98,10 +98,7 @@ fn class_allocation_and_initializer_store_fields() {
                 ),
             ),
             call_stmt(mir::Call {
-                target: mir::CallTarget {
-                    kind: mir::CallKind::Direct,
-                    callee: mir::Callee::User(ctor),
-                },
+                target: mir::CallTarget::Direct(mir::Callee::User(ctor)),
                 args: vec![
                     local_expr(p, mir::Type::Class(point)),
                     int_expr(1),

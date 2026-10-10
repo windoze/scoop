@@ -22,8 +22,8 @@ pub(super) fn drive_exit_blocks(
     frame_layout: FrameLayout,
     step_ty: &mir::Type,
     outer_continuation: mir::InterfaceId,
-    outer_resume: &mir::CallTarget,
-    outer_failure: &mir::CallTarget,
+    outer_resume: &crate::coroutine_registry::ProtocolMethod,
+    outer_failure: &crate::coroutine_registry::ProtocolMethod,
 ) -> DriveExitBlocks {
     let switch =
         crate::task_context::TaskSwitch::new(frame_layout.task_storage.core, locals, blocks);
@@ -48,22 +48,19 @@ pub(super) fn drive_exit_blocks(
                 frame_state(STATE_COMPLETED),
             ),
             statement(mir::StatementKind::Call(mir::CallEffect::Unit(mir::Call {
-                target: outer_resume.clone(),
-                args: vec![
-                    frame_field(
-                        adapter_frame(this, adapter, frame_class),
-                        frame_layout.completion.field_index(),
-                        completion_ty.clone(),
-                    ),
-                    mir::Expr::new(
-                        completed_value_ty,
-                        mir::ExprKind::EnumField {
-                            operand: Box::new(mir::Expr::local(step, step_ty.clone())),
-                            variant: completed_payload.variant().variant_index(),
-                            index: completed_payload.field_index(),
-                        },
-                    ),
-                ],
+                target: outer_resume.call(frame_field(
+                    adapter_frame(this, adapter, frame_class),
+                    frame_layout.completion.field_index(),
+                    completion_ty.clone(),
+                )),
+                args: vec![mir::Expr::new(
+                    completed_value_ty,
+                    mir::ExprKind::EnumField {
+                        operand: Box::new(mir::Expr::local(step, step_ty.clone())),
+                        variant: completed_payload.variant().variant_index(),
+                        index: completed_payload.field_index(),
+                    },
+                )],
                 pending: mir::CoroutinePendingContext::Root,
             }))),
         ],
@@ -89,15 +86,12 @@ pub(super) fn drive_exit_blocks(
                 frame_state(STATE_COMPLETED),
             ),
             statement(mir::StatementKind::Call(mir::CallEffect::Unit(mir::Call {
-                target: outer_failure.clone(),
-                args: vec![
-                    frame_field(
-                        adapter_frame(this, adapter, frame_class),
-                        frame_layout.completion.field_index(),
-                        completion_ty,
-                    ),
-                    mir::Expr::local(exception, throwable.clone()),
-                ],
+                target: outer_failure.call(frame_field(
+                    adapter_frame(this, adapter, frame_class),
+                    frame_layout.completion.field_index(),
+                    completion_ty,
+                )),
+                args: vec![mir::Expr::local(exception, throwable.clone())],
                 pending: mir::CoroutinePendingContext::Root,
             }))),
         ],
@@ -116,10 +110,9 @@ pub(super) fn drive_exit_blocks(
             statement(mir::StatementKind::Call(mir::CallEffect::Value {
                 destination: exception,
                 call: mir::Call {
-                    target: mir::CallTarget {
-                        kind: mir::CallKind::Direct,
-                        callee: mir::Callee::Runtime(mir::RuntimeFn::MaterializeException),
-                    },
+                    target: mir::CallTarget::Direct(mir::Callee::Runtime(
+                        mir::RuntimeFn::MaterializeException,
+                    )),
                     args: vec![mir::Expr::caught_exception()],
                     pending: mir::CoroutinePendingContext::Root,
                 },

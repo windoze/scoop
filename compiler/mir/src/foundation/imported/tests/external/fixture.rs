@@ -93,10 +93,7 @@ impl Fixture {
         let statements = &mut function.body.blocks[function.body.entry].statements;
         statements.push(Statement {
             kind: StatementKind::Call(CallEffect::Unit(Call {
-                target: CallTarget {
-                    kind: CallKind::Direct,
-                    callee: Callee::External(protocol),
-                },
+                target: CallTarget::Direct(Callee::External(protocol)),
                 args: Vec::new(),
                 pending: CoroutinePendingContext::Root,
             })),

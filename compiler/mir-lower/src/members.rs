@@ -428,10 +428,9 @@ impl Lowerer {
                         init: smir::Expr::new(
                             return_ty.clone(),
                             smir::ExprKind::Call(smir::Call {
-                                target: mir::CallTarget {
-                                    kind: mir::CallKind::Direct,
-                                    callee: mir::Callee::User(lowerer.struct_ctors[target]),
-                                },
+                                target: mir::CallTarget::Direct(mir::Callee::User(
+                                    lowerer.struct_ctors[target],
+                                )),
                                 args: call_args,
                                 return_ty: return_ty.clone(),
                             }),

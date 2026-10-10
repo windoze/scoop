@@ -791,7 +791,7 @@ fn start_coroutine_resumes_only_an_immediately_completed_task() {
     let launcher_entry = &launcher.body.blocks[launcher.body.entry];
     let (start, destination) = statement_call(&launcher_entry.statements[0]);
     assert!(destination.is_none(), "startCoroutine returns Unit");
-    let mir::Callee::User(helper_id) = start.target.callee else {
+    let mir::CallTarget::Direct(mir::Callee::User(helper_id)) = start.target else {
         panic!("startCoroutine lowers to its concrete guarded helper")
     };
     let start_metadata = module
@@ -841,10 +841,11 @@ fn start_coroutine_resumes_only_an_immediately_completed_task() {
     };
     let entry = &helper.body.blocks[run_block];
     let (run, step_local) = statement_call(&entry.statements[0]);
-    let mir::CallKind::Interface {
+    let mir::CallTarget::Interface {
         interface: task_interface,
         slot: 0,
-    } = run.target.kind
+        ..
+    } = run.target
     else {
         panic!("startCoroutine must invoke SuspendTask<T>.run through interface dispatch")
     };
@@ -853,7 +854,15 @@ fn start_coroutine_resumes_only_an_immediately_completed_task() {
         module.interfaces[task_interface].type_arguments,
         [mir::Type::Integer(mir::IntegerKind::SIGNED_32)]
     );
-    assert_eq!(run.args.len(), 2, "run receives task and hidden completion");
+    assert_eq!(
+        run.args.len(),
+        1,
+        "run receives its hidden completion after the receiver"
+    );
+    assert!(matches!(
+        run.target.receiver().unwrap().kind,
+        mir::ExprKind::Local(_)
+    ));
     let step_local = step_local.expect("run returns a CoroutineStep<T>");
     let mir::Terminator::Branch {
         then_block: completed,
@@ -878,10 +887,11 @@ fn start_coroutine_resumes_only_an_immediately_completed_task() {
     let completed_payload = step_metadata.completed_payload();
     let (resume, destination) = statement_call(&completed.statements[0]);
     assert!(destination.is_none(), "Continuation.resume returns Unit");
-    let mir::CallKind::Interface {
+    let mir::CallTarget::Interface {
         interface: continuation_interface,
         slot: 0,
-    } = resume.target.kind
+        ..
+    } = resume.target
     else {
         panic!("completed task must resume its outer continuation")
     };
@@ -889,9 +899,12 @@ fn start_coroutine_resumes_only_an_immediately_completed_task() {
         module.interfaces[continuation_interface].name,
         "Continuation"
     );
-    assert!(matches!(resume.args.as_slice(), [completion, field]
-            if matches!(completion.kind, mir::ExprKind::Local(_))
-                && matches!(&field.kind, mir::ExprKind::EnumField {
+    assert!(matches!(
+        resume.target.receiver().unwrap().kind,
+        mir::ExprKind::Local(_)
+    ));
+    assert!(matches!(resume.args.as_slice(), [field]
+            if matches!(&field.kind, mir::ExprKind::EnumField {
                     operand,
                     variant,
                     index
@@ -924,8 +937,7 @@ fn start_coroutine_resumes_only_an_immediately_completed_task() {
                 matches!(
                     &statement.kind,
                     mir::StatementKind::Call(mir::CallEffect::Value { call, .. })
-                        if call.target.callee
-                            == mir::Callee::Runtime(mir::RuntimeFn::MaterializeException)
+                        if matches!(call.target, mir::CallTarget::Direct(callee) if callee == mir::Callee::Runtime(mir::RuntimeFn::MaterializeException))
                 )
             })
     );

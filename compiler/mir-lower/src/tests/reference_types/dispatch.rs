@@ -54,20 +54,24 @@ fn method_calls_are_annotated_by_the_receiver_static_type() {
     .body;
     let call_kind = |index: usize| {
         let (call, _) = statement_call(&entry_statements(body)[index]);
-        // The receiver becomes argument 0 (`this`).
-        assert!(!call.args.is_empty());
-        &call.target.kind
+        assert_eq!(call.operands().count(), 1);
+        assert_eq!(call.target.receiver().is_some(), index < 2);
+        assert_eq!(call.args.len(), usize::from(index == 2));
+        &call.target
     };
     // Class receiver: virtual through its ordinary vtable.
-    assert!(matches!(call_kind(0), mir::CallKind::Virtual { slot: 0 }));
+    assert!(matches!(
+        call_kind(0),
+        mir::CallTarget::Virtual { slot: 0, .. }
+    ));
     // Interface receiver: the method's declaration index is the
     // itable slot.
     assert!(matches!(
         call_kind(1),
-        mir::CallKind::Interface { interface, slot: 1 } if *interface == la_arena::Idx::from_raw(0.into())
+        mir::CallTarget::Interface { interface, slot: 1, .. } if *interface == la_arena::Idx::from_raw(0.into())
     ));
     // Value type receiver: direct.
-    assert!(matches!(call_kind(2), mir::CallKind::Direct));
+    assert!(matches!(call_kind(2), mir::CallTarget::Direct(_)));
 
     let (method_id, method) = module
         .functions
@@ -186,9 +190,9 @@ fn final_methods_are_direct_while_final_overrides_keep_the_base_slot() {
     .body;
     let kind = |index: usize| {
         let (call, _) = statement_call(&entry_statements(body)[index]);
-        &call.target.kind
+        &call.target
     };
-    assert!(matches!(kind(0), mir::CallKind::Virtual { slot: 0 }));
-    assert!(matches!(kind(1), mir::CallKind::Direct));
-    assert!(matches!(kind(2), mir::CallKind::Direct));
+    assert!(matches!(kind(0), mir::CallTarget::Virtual { slot: 0, .. }));
+    assert!(matches!(kind(1), mir::CallTarget::Direct(_)));
+    assert!(matches!(kind(2), mir::CallTarget::Direct(_)));
 }

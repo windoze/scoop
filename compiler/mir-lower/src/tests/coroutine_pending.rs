@@ -122,7 +122,7 @@ fn materialized_exception_at(body: &mir::Body, target: mir::CoroutineUnwindTarge
             else {
                 return None;
             };
-            (call.target.callee == mir::Callee::Runtime(mir::RuntimeFn::MaterializeException))
+            (matches!(call.target, mir::CallTarget::Direct(callee) if callee == mir::Callee::Runtime(mir::RuntimeFn::MaterializeException)))
                 .then_some((index, *destination))
         })
         .unwrap_or_else(|| {
@@ -188,7 +188,7 @@ fn assert_per_scope_exception_storage(body: &mir::Body, minimum: usize) {
             else {
                 continue;
             };
-            if call.target.callee != mir::Callee::Runtime(mir::RuntimeFn::MaterializeException)
+            if !matches!(call.target, mir::CallTarget::Direct(callee) if callee == mir::Callee::Runtime(mir::RuntimeFn::MaterializeException))
                 || !body.locals[*destination]
                     .name
                     .starts_with("$coroutine_exception")

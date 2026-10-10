@@ -472,7 +472,7 @@ fn elvis_subject_and_rhs_are_each_emitted_once_on_their_own_edges() {
                 mir::CallEffect::Unit(call) => call,
                 mir::CallEffect::Value { call, .. } => call,
             };
-            let mir::Callee::User(callee) = call.target.callee else {
+            let mir::CallTarget::Direct(mir::Callee::User(callee)) = call.target else {
                 continue;
             };
             match module.functions[callee].name.as_str() {

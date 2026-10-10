@@ -148,14 +148,15 @@ impl BodyLowerer<'_> {
             ty: mir::Type::Function(target),
             local: closure,
         }];
-        let mut args = vec![smir::Expr::new(
+        let receiver = smir::Expr::new(
             mir::Type::Function(source),
             smir::ExprKind::ClosureCapture {
                 closure: Box::new(smir::Expr::local(closure, mir::Type::Function(target))),
                 class,
                 index: 0,
             },
-        )];
+        );
+        let mut args = Vec::with_capacity(target_signature.parameter_types.len());
         for (index, (target_ty, source_ty)) in target_signature
             .parameter_types
             .iter()
@@ -183,11 +184,9 @@ impl BodyLowerer<'_> {
         let call = smir::Expr::new(
             source_signature.return_type.clone(),
             smir::ExprKind::Call(smir::Call {
-                target: mir::CallTarget {
-                    kind: mir::CallKind::Closure {
-                        function_type: source,
-                    },
-                    callee: mir::Callee::Closure(source),
+                target: mir::CallTarget::Closure {
+                    function_type: source,
+                    receiver: Box::new(receiver),
                 },
                 args,
                 return_ty: source_signature.return_type.clone(),

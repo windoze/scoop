@@ -15,10 +15,7 @@ impl BodyLowerer<'_> {
         smir::Expr::new(
             return_ty.clone(),
             smir::ExprKind::Call(smir::Call {
-                target: mir::CallTarget {
-                    kind: mir::CallKind::Direct,
-                    callee: mir::Callee::External(callee),
-                },
+                target: mir::CallTarget::Direct(mir::Callee::External(callee)),
                 args: args.iter().map(|arg| self.lower_expr(arg)).collect(),
                 return_ty,
             }),
@@ -72,10 +69,21 @@ impl BodyLowerer<'_> {
                 },
             );
         }
-        let kind = match dispatch {
-            scoop_hir::ImportedDependencyDispatch::Direct => mir::CallKind::Direct,
+        let (target, arguments) = match dispatch {
+            scoop_hir::ImportedDependencyDispatch::Direct => (
+                mir::CallTarget::Direct(callee),
+                args.iter().map(|arg| self.lower_expr(arg)).collect(),
+            ),
             scoop_hir::ImportedDependencyDispatch::Virtual { slot } => {
-                mir::CallKind::Virtual { slot }
+                let (receiver, arguments) = self.imported_dispatch_operands(args);
+                (
+                    mir::CallTarget::Virtual {
+                        callee: mir::DispatchCallee::External(target.scoop_entry()),
+                        slot,
+                        receiver,
+                    },
+                    arguments,
+                )
             }
             scoop_hir::ImportedDependencyDispatch::Interface { interface, slot } => {
                 let ty = self
@@ -91,16 +99,36 @@ impl BodyLowerer<'_> {
                 let mir::Type::Interface(interface) = self.lower_type(ty) else {
                     unreachable!("an interface receiver retains its type kind")
                 };
-                mir::CallKind::Interface { interface, slot }
+                let (receiver, arguments) = self.imported_dispatch_operands(args);
+                (
+                    mir::CallTarget::Interface {
+                        callee: mir::DispatchCallee::External(target.scoop_entry()),
+                        interface,
+                        slot,
+                        receiver,
+                    },
+                    arguments,
+                )
             }
         };
         smir::Expr::new(
             return_ty.clone(),
             smir::ExprKind::Call(smir::Call {
-                target: mir::CallTarget { kind, callee },
-                args: args.iter().map(|arg| self.lower_expr(arg)).collect(),
+                target,
+                args: arguments,
                 return_ty,
             }),
         )
+    }
+    fn imported_dispatch_operands(
+        &mut self,
+        args: &[hir::Expr],
+    ) -> (Box<smir::Expr>, Vec<smir::Expr>) {
+        let (receiver, args) = args
+            .split_first()
+            .expect("a resolved imported method signature includes its receiver");
+        let receiver = Box::new(self.lower_expr(receiver));
+        let args = args.iter().map(|arg| self.lower_expr(arg)).collect();
+        (receiver, args)
     }
 }

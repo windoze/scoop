@@ -303,7 +303,7 @@ fn loop_header_poll_owns_while_condition_setup_and_the_backedge() {
         panic!("the condition side effect is emitted once in the loop header")
     };
     let (call, destination) = statement_call(setup);
-    let mir::Callee::User(callee) = call.target.callee else {
+    let mir::CallTarget::Direct(mir::Callee::User(callee)) = call.target else {
         panic!("the condition setup keeps its exact user-call target")
     };
     assert_eq!(module.functions[callee].name, "condition");
@@ -337,7 +337,7 @@ fn loop_header_poll_owns_while_condition_setup_and_the_backedge() {
                 mir::CallEffect::Unit(call) => call,
                 mir::CallEffect::Value { call, .. } => call,
             };
-            matches!(call.target.callee, mir::Callee::User(id) if module.functions[id].name == "condition")
+            matches!(call.target, mir::CallTarget::Direct(mir::Callee::User(id)) if module.functions[id].name == "condition")
         })
         .count();
     assert_eq!(setup_call_count, 1, "HIR condition setup is lowered once");
@@ -716,9 +716,8 @@ fn generic_unit_return_evaluates_result_before_finally() {
             (function.name == "produce" && function.return_ty == mir::Type::Unit).then_some(id)
         })
         .expect("produce<Unit> is lowered");
-    assert_eq!(
-        call.target.callee,
-        mir::Callee::Monomorphized(instance_id(&module, producer))
+    assert!(
+        matches!(call.target, mir::CallTarget::Direct(callee) if callee == mir::Callee::Monomorphized(instance_id(&module, producer)))
     );
     assert!(
         try_body.unwind.is_some(),

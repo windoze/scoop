@@ -50,9 +50,7 @@ struct DiscoveredSuspendSite {
 #[derive(Clone, Copy)]
 enum SuspendKind {
     Call,
-    Intrinsic {
-        register: mir::MonomorphizedFunctionId,
-    },
+    Intrinsic,
 }
 
 pub(super) fn transform(lowerer: &mut Lowerer, module: &hir::Module) {

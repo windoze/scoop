@@ -28,9 +28,8 @@ fn typed_string_concat_lowers_to_its_runtime_target() {
         .expect("test module is executable")]
     .body;
     let (call, destination) = statement_call(&entry_statements(body)[0]);
-    assert_eq!(
-        call.target.callee,
-        mir::Callee::Runtime(mir::RuntimeFn::StringConcat)
+    assert!(
+        matches!(call.target, mir::CallTarget::Direct(callee) if callee == mir::Callee::Runtime(mir::RuntimeFn::StringConcat))
     );
     let destination = destination.expect("String concatenation returns String");
     assert_eq!(body.locals[destination].name, "s");
@@ -195,9 +194,8 @@ fn typed_unary_and_string_compare_intrinsics_lower_without_name_lookup() {
         })
     ));
     let (compare, destination) = statement_call(&statements[3]);
-    assert_eq!(
-        compare.target.callee,
-        mir::Callee::Runtime(mir::RuntimeFn::StringCompare)
+    assert!(
+        matches!(compare.target, mir::CallTarget::Direct(callee) if callee == mir::Callee::Runtime(mir::RuntimeFn::StringCompare))
     );
     let destination = destination.expect("the runtime String compare returns Long");
     assert_eq!(
@@ -483,7 +481,9 @@ fn short_circuit_rhs_calls_stay_on_rhs_edges() {
     assert_eq!(rhs_blocks.len(), 2);
     for block in rhs_blocks {
         let (call, destination) = statement_call(&block.statements[0]);
-        assert_eq!(call.target.callee, mir::Callee::User(module.top_level[0]));
+        assert!(
+            matches!(call.target, mir::CallTarget::Direct(callee) if callee == mir::Callee::User(module.top_level[0]))
+        );
         assert!(destination.is_some());
     }
     assert!(body.blocks.iter().all(|(_, block)| {
@@ -581,20 +581,17 @@ fn nested_calls_are_normalized_left_to_right() {
 
     let (first_call, first_destination) = statement_call(&statements[0]);
     let first_destination = first_destination.expect("first returns Int");
-    assert_eq!(
-        first_call.target.callee,
-        mir::Callee::User(module.top_level[0])
+    assert!(
+        matches!(first_call.target, mir::CallTarget::Direct(callee) if callee == mir::Callee::User(module.top_level[0]))
     );
     let (second_call, second_destination) = statement_call(&statements[1]);
     let second_destination = second_destination.expect("second returns Int");
-    assert_eq!(
-        second_call.target.callee,
-        mir::Callee::User(module.top_level[1])
+    assert!(
+        matches!(second_call.target, mir::CallTarget::Direct(callee) if callee == mir::Callee::User(module.top_level[1]))
     );
     let (outer_call, outer_destination) = statement_call(&statements[2]);
-    assert_eq!(
-        outer_call.target.callee,
-        mir::Callee::User(module.top_level[2])
+    assert!(
+        matches!(outer_call.target, mir::CallTarget::Direct(callee) if callee == mir::Callee::User(module.top_level[2]))
     );
     assert!(matches!(outer_call.args.as_slice(), [first, second]
             if matches!(first.kind, mir::ExprKind::Local(local) if local == first_destination)

@@ -9,9 +9,9 @@ impl CoroutineRegistry {
         result: &mir::Type,
         task_interface: mir::InterfaceId,
         continuation_interface: mir::InterfaceId,
-        run: mir::CallTarget,
-        resume: mir::CallTarget,
-        resume_with_exception: mir::CallTarget,
+        run: crate::coroutine_registry::ProtocolMethod,
+        resume: crate::coroutine_registry::ProtocolMethod,
+        resume_with_exception: crate::coroutine_registry::ProtocolMethod,
         step_ty: &mir::Type,
         throwable: mir::Type,
         functions: &mut Arena<mir::Function>,
@@ -85,18 +85,18 @@ impl CoroutineRegistry {
             name: "completed".to_string(),
             statements: vec![statement(mir::StatementKind::Call(mir::CallEffect::Unit(
                 mir::Call {
-                    target: resume,
-                    args: vec![
-                        mir::Expr::local(completion, mir::Type::Interface(continuation_interface)),
-                        mir::Expr::new(
-                            result.clone(),
-                            mir::ExprKind::EnumField {
-                                operand: Box::new(mir::Expr::local(step, step_ty.clone())),
-                                variant: completed_payload.variant().variant_index(),
-                                index: completed_payload.field_index(),
-                            },
-                        ),
-                    ],
+                    target: resume.call(mir::Expr::local(
+                        completion,
+                        mir::Type::Interface(continuation_interface),
+                    )),
+                    args: vec![mir::Expr::new(
+                        result.clone(),
+                        mir::ExprKind::EnumField {
+                            operand: Box::new(mir::Expr::local(step, step_ty.clone())),
+                            variant: completed_payload.variant().variant_index(),
+                            index: completed_payload.field_index(),
+                        },
+                    )],
                     pending: mir::CoroutinePendingContext::Root,
                 },
             )))],
@@ -109,11 +109,11 @@ impl CoroutineRegistry {
             name: "failed".to_string(),
             statements: vec![statement(mir::StatementKind::Call(mir::CallEffect::Unit(
                 mir::Call {
-                    target: resume_with_exception,
-                    args: vec![
-                        mir::Expr::local(completion, mir::Type::Interface(continuation_interface)),
-                        mir::Expr::local(exception, throwable.clone()),
-                    ],
+                    target: resume_with_exception.call(mir::Expr::local(
+                        completion,
+                        mir::Type::Interface(continuation_interface),
+                    )),
+                    args: vec![mir::Expr::local(exception, throwable.clone())],
                     pending: mir::CoroutinePendingContext::Root,
                 },
             )))],
@@ -132,10 +132,9 @@ impl CoroutineRegistry {
                 statement(mir::StatementKind::Call(mir::CallEffect::Value {
                     destination: exception,
                     call: mir::Call {
-                        target: mir::CallTarget {
-                            kind: mir::CallKind::Direct,
-                            callee: mir::Callee::Runtime(mir::RuntimeFn::MaterializeException),
-                        },
+                        target: mir::CallTarget::Direct(mir::Callee::Runtime(
+                            mir::RuntimeFn::MaterializeException,
+                        )),
                         args: vec![mir::Expr::caught_exception()],
                         pending: mir::CoroutinePendingContext::Root,
                     },
@@ -151,14 +150,12 @@ impl CoroutineRegistry {
                 mir::CallEffect::Value {
                     destination: step,
                     call: mir::Call {
-                        target: run,
-                        args: vec![
-                            mir::Expr::local(task, mir::Type::Interface(task_interface)),
-                            mir::Expr::local(
-                                completion,
-                                mir::Type::Interface(continuation_interface),
-                            ),
-                        ],
+                        target: run
+                            .call(mir::Expr::local(task, mir::Type::Interface(task_interface))),
+                        args: vec![mir::Expr::local(
+                            completion,
+                            mir::Type::Interface(continuation_interface),
+                        )],
                         pending: mir::CoroutinePendingContext::Root,
                     },
                 },

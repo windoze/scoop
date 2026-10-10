@@ -485,7 +485,7 @@ pub(crate) enum LogicOp {
 
 #[derive(Debug, Clone)]
 pub(crate) struct Call {
-    pub(crate) target: mir::CallTarget,
+    pub(crate) target: mir::CallTarget<Expr>,
     pub(crate) args: Vec<Expr>,
     pub(crate) return_ty: mir::Type,
 }

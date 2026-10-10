@@ -178,7 +178,7 @@ fn recursive_fields_guard_payload_projection_and_evaluate_the_subject_once() {
             else {
                 return false;
             };
-            matches!(&call.target.callee, mir::Callee::User(function) if *function == producer)
+            matches!(&call.target, mir::CallTarget::Direct(mir::Callee::User(function)) if *function == producer)
         })
         .count();
     assert_eq!(subject_calls, 1, "the when subject call is emitted once");
@@ -515,7 +515,7 @@ fn single_variant_final_arm_keeps_its_nested_boolean_literal_test() {
             else {
                 return None;
             };
-            matches!(call.target.callee, mir::Callee::User(function) if function == equality)
+            matches!(call.target, mir::CallTarget::Direct(mir::Callee::User(function)) if function == equality)
                 .then_some((call, *destination))
         })
         .expect("the nested Boolean literal retains its selected equality call");
@@ -555,7 +555,7 @@ fn single_variant_final_arm_keeps_its_nested_boolean_literal_test() {
                     mir::CallEffect::Unit(call) => call,
                     mir::CallEffect::Value { call, .. } => call,
                 };
-                let mir::Callee::User(function) = call.target.callee else {
+                let mir::CallTarget::Direct(mir::Callee::User(function)) = call.target else {
                     return None;
                 };
                 Some(function)
@@ -794,7 +794,7 @@ fn pattern_tests_bindings_and_guard_preserve_source_order_and_evaluate_once() {
             let call = match effect {
                 mir::CallEffect::Value { call, .. } | mir::CallEffect::Unit(call) => call,
             };
-            let mir::Callee::User(function) = call.target.callee else {
+            let mir::CallTarget::Direct(mir::Callee::User(function)) = call.target else {
                 continue;
             };
             let name = module.functions[function].name.as_str();
@@ -834,8 +834,8 @@ fn pattern_tests_bindings_and_guard_preserve_source_order_and_evaluate_once() {
                     mir::CallEffect::Value { call, .. } | mir::CallEffect::Unit(call) => call,
                 };
                 matches!(
-                    call.target.callee,
-                    mir::Callee::User(function) if module.functions[function].name == expected
+                    call.target,
+                    mir::CallTarget::Direct(mir::Callee::User(function)) if module.functions[function].name == expected
                 )
             })
             .count();
@@ -916,8 +916,8 @@ fn ordinary_literal_patterns_call_the_selected_string_and_boolean_equality() {
                     .then(|| statement_call(statement))
             })
             .expect("ordinary literal pattern calls its HIR-selected equality target");
-        assert!(matches!(call.target.kind, mir::CallKind::Direct));
-        let mir::Callee::User(equals) = call.target.callee else {
+        assert!(matches!(call.target, mir::CallTarget::Direct(_)));
+        let mir::CallTarget::Direct(mir::Callee::User(equals)) = call.target else {
             panic!("the ordinary equality target is a user function");
         };
         assert_eq!(module.functions[equals].name, expected_name);

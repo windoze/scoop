@@ -5,6 +5,7 @@ mod lambdas;
 mod maybe_uninit;
 mod references;
 mod reuse;
+mod targets;
 use reuse::{ClosureDefinition, ClosureDefinitions};
 
 impl Lowerer {
@@ -15,87 +16,6 @@ impl Lowerer {
         self.declare_lambdas(module, &mut definitions);
         self.declare_anonymous(module, &mut definitions);
         self.declare_references(module, &mut definitions);
-    }
-
-    pub(super) fn lower_reference_callee(
-        &mut self,
-        module: &hir::Module,
-        callable: hir::CallableTarget,
-    ) -> mir::Callee {
-        let callable = match callable {
-            hir::CallableTarget::DerivedEquality(target) => {
-                return mir::Callee::External(crate::current::external_equality(
-                    &self.external_callables,
-                    module.imported_derived_equalities[target].0,
-                ));
-            }
-            hir::CallableTarget::Local(callable) => callable,
-            hir::CallableTarget::Imported(callee) => {
-                return mir::Callee::External(
-                    self.imported_dependency_callable_map[&callee].scoop_entry(),
-                );
-            }
-        };
-        let hir::Callable::Function(function) = callable;
-        self.instances.get(function).map_or_else(
-            || mir::Callee::User(self.function_map[&function]),
-            mir::Callee::Monomorphized,
-        )
-    }
-
-    pub(super) fn bound_reference_call_kind(
-        &mut self,
-        module: &hir::Module,
-        _receiver_ty: hir::TypeId,
-        callable: hir::CallableTarget,
-    ) -> mir::CallKind {
-        let callable = match callable {
-            hir::CallableTarget::DerivedEquality(_) => return mir::CallKind::Direct,
-            hir::CallableTarget::Local(callable) => callable,
-            hir::CallableTarget::Imported(callee) => {
-                return match module.imported_dependency_callables[callee].dispatch() {
-                    scoop_hir::ImportedDependencyDispatch::Direct => mir::CallKind::Direct,
-                    scoop_hir::ImportedDependencyDispatch::Virtual { slot } => {
-                        mir::CallKind::Virtual { slot }
-                    }
-                    scoop_hir::ImportedDependencyDispatch::Interface { interface, slot } => {
-                        let (id, _) = module
-                            .interfaces
-                            .iter()
-                            .find(|(_, declaration)| {
-                                declaration.origin.concrete_type_id() == Some(interface)
-                            })
-                            .expect("a bound dependency reference retains its interface receiver");
-                        mir::CallKind::Interface {
-                            interface: self.interfaces.mir_id(id),
-                            slot,
-                        }
-                    }
-                };
-            }
-        };
-        let function = module.callable_function(callable);
-        let declaration = &module.functions[function];
-        let method = declaration
-            .receiver
-            .method()
-            .expect("a bound member reference names method metadata");
-        match method.dispatch {
-            hir::MethodDispatch::Direct | hir::MethodDispatch::FinalOverride(_) => {
-                mir::CallKind::Direct
-            }
-            hir::MethodDispatch::Virtual(family) => {
-                let hir::TypeKind::Class(class) = module.types[method.owner].kind else {
-                    unreachable!("a virtual family belongs to a class method")
-                };
-                let slot = self.method_slots[&self.class_map[&class]][&family];
-                mir::CallKind::Virtual { slot }
-            }
-            hir::MethodDispatch::Interface { interface, slot } => mir::CallKind::Interface {
-                interface: self.interfaces.mir_id(interface),
-                slot: slot.into_raw(),
-            },
-        }
     }
 }
 

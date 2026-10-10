@@ -10,7 +10,7 @@
 | --- | --- | --- |
 | R11 parser 修饰符 | 已完成 | 合并存在性与源码 span；parser 474 + doc 1，正式 CLI 4 项通过 |
 | R12 literal pattern | 已完成 | 封闭字面量 payload；AST/parser 490、相关 HIR 135、正式 CLI 15 项通过 |
-| R01 调用目标 | 待实施 | 完整目标与必填 receiver |
+| R01 调用目标 | 已完成 | 完整调用分支、必填 receiver、完整去虚拟化改写；Rust 754、正式 CLI 8 项通过 |
 | R04 固定元数 intrinsic | 待实施 | 一元／二元、具名借用参数 |
 | R02 when | 待实施 | 有／无 subject 的完整分支 |
 | R03 MIR 临时态 | 待实施 | Cast、协程目标与 pending 留在 lowerer |
@@ -103,3 +103,15 @@ LIR 的 Scoop／C shell 分别返回窄引用，第二遍字段填充保留同�
 新增独立与组合 CLI 用例覆盖泛型字段、继承与 ZST、装箱、Float／Char、MaybeUninit、嵌套 packed/aligned C struct、typed pointer、callback，以及正常／移动／minor GC。正式普通比较共 8 项、9 个配置、30 个进程、28 个 golden 通过，包含 C 布局三项负例、已有 MaybeUninit debug/release 与跨库 source nominal 消费。选中旧 HIR/MIR golden 同步 R07 完整返回值；release LIR 的两条无存储 Unit aggregate 来自内联返回值的表示更新，布局和 ABI 不变。
 
 报告为 target/m36-validation/r06-verify-report.json，格式化、lint、Rust、快照生成及普通比较日志同目录保留。完成后清理过期测试可执行文件及用例工作目录，保留当前 CLI、库、sysroot 与编译缓存；清理明细见 r06-cleanup.log。Linux 对应 target 的新 C LIR golden 在最终完整验收时生成并复验。
+
+## R01：完整调用目标与 receiver
+
+structured MIR 与最终 MIR 的调用按 Direct、Virtual、Interface、Closure、FunctionBridge 保存完整目标；动态方法只接受本地、单态化或外部 Scoop 声明，函数签名身份不再重复。动态 receiver 必填并独立于普通实参，遍历与 liveness 始终先消费 receiver。CFG 在后续参数产生控制流时保存该值；去虚拟化一次构造完整 direct 调用，把已求值 receiver 放入首个逻辑实参。
+
+方法引用保存尚未绑定 receiver 的具体目标，在加载闭包捕获后直接形成调用。接口投影、动态函数 bridge、callback 和协程协议适配沿用同一必填 receiver；实参数量与普通引用、slot、ABI 检查保留。协程临时调用当前合并为完整分支，其移出最终 MIR 的工作由 R03 单独完成。
+
+LIR 调用主体为 214 行，动态调用 157 行、native 37 行、runtime 103 行；方法引用为 322 行、目标描述 159 行，MIR 调用 dump 独立为 92 行。本机 fmt／workspace clippy 成功；MIR 345、MIR lower 118、LIR lower 153、HIR lower 138，共 754 项相关 Rust 测试通过。两个沿用旧 receiver 索引的测试断言修正后，只复跑这两项。
+
+新增两个正式 CLI 用例覆盖五种调用、receiver 与参数副作用、Nothing、泛型方法引用、动态 suspend 函数转换、finally，以及在实参挂起期间替换外部 receiver 后恢复。debug/release、正常／移动／minor GC 均已运行通过。已审阅的旧 MIR golden 仅同步 R07 完整 Unit 返回，旧 LIR 保持不变。
+
+正式普通比较 8/8 通过，共 11 个配置、39 个进程、44 个 golden；还覆盖既有方法引用／方差／挂起函数值、callback、异常调用、精确诊断，以及跨库泛型方法引用的发布、删源消费与运行。报告为 target/m36-validation/r01-verify-report.json；旧 MIR 的全部差异已确认仅增加 Unit 返回值，旧 LIR 无变化。wire 与 runtime ABI 不变。本轮清理未使用的 incremental 缓存 2,689.5 MiB，保留当前工具和 fixture 缓存，明细见 r01-cleanup.log。

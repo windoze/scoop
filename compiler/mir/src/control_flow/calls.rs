@@ -155,36 +155,93 @@ impl CoroutinePendingSourceManagedThrow {
     }
 }
 
+/// A complete call destination. Dynamic targets own the receiver evaluated
+/// before their ordinary arguments. Structured MIR reuses this data with its
+/// own expression type until CFG operands have been materialized.
 #[derive(Debug, Clone)]
-pub struct CallTarget {
-    pub kind: CallKind,
-    /// Fully resolved callee.
-    pub callee: Callee,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum CallKind {
-    Direct,
-    /// vtable slot (load `td` from the receiver, load `vtable[slot]`).
+pub enum CallTarget<E = Expr> {
+    Direct(Callee),
     Virtual {
+        callee: DispatchCallee,
         slot: u32,
+        receiver: Box<E>,
     },
-    /// `slot` in the interface value's carried itable. The selected entry
-    /// receives the object component as its hidden receiver.
     Interface {
+        callee: DispatchCallee,
         interface: InterfaceId,
         slot: u32,
+        receiver: Box<E>,
     },
-    /// Managed function-value invocation. Argument 0 is the closure ref;
-    /// LIR loads its code pointer and calls it with the exact signature.
     Closure {
         function_type: FunctionTypeId,
+        receiver: Box<E>,
     },
-    /// Runtime-selected function-type bridge from the source closure's
-    /// TypeDescriptor table. Argument 0 is the source closure reference.
     FunctionBridge {
         function_type: FunctionTypeId,
+        receiver: Box<E>,
     },
+    /// The coroutine pass consumes this complete registration call before output.
+    CoroutineSuspend {
+        register: MonomorphizedFunctionId,
+        interface: InterfaceId,
+        slot: u32,
+        receiver: Box<E>,
+    },
+}
+
+impl<E> CallTarget<E> {
+    pub fn receiver(&self) -> Option<&E> {
+        match self {
+            Self::Direct(_) => None,
+            Self::Virtual { receiver, .. }
+            | Self::Interface { receiver, .. }
+            | Self::Closure { receiver, .. }
+            | Self::FunctionBridge { receiver, .. }
+            | Self::CoroutineSuspend { receiver, .. } => Some(receiver),
+        }
+    }
+
+    pub fn receiver_mut(&mut self) -> Option<&mut E> {
+        match self {
+            Self::Direct(_) => None,
+            Self::Virtual { receiver, .. }
+            | Self::Interface { receiver, .. }
+            | Self::Closure { receiver, .. }
+            | Self::FunctionBridge { receiver, .. }
+            | Self::CoroutineSuspend { receiver, .. } => Some(receiver),
+        }
+    }
+}
+
+impl Call {
+    pub fn operands(&self) -> impl Iterator<Item = &Expr> {
+        self.target.receiver().into_iter().chain(self.args.iter())
+    }
+
+    pub fn operands_mut(&mut self) -> impl Iterator<Item = &mut Expr> {
+        self.target
+            .receiver_mut()
+            .into_iter()
+            .chain(self.args.iter_mut())
+    }
+}
+
+/// A statically selected Scoop declaration whose slot is dynamically dispatched.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DispatchCallee {
+    User(FunctionId),
+    Monomorphized(MonomorphizedFunctionId),
+    External(ExternalCallableUseId),
+}
+
+impl From<DispatchCallee> for Callee {
+    fn from(value: DispatchCallee) -> Self {
+        match value {
+            DispatchCallee::User(id) => Self::User(id),
+            DispatchCallee::Monomorphized(id) => Self::Monomorphized(id),
+            DispatchCallee::External(id) => Self::External(id),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -195,20 +252,9 @@ pub enum Callee {
     Monomorphized(MonomorphizedFunctionId),
     /// A bodyless native declaration in the independent extern arena.
     Extern(ExternFunctionId),
-    /// A direct call to an external Scoop implementation. This id belongs
-    /// to the shared external-use arena, independently of local and native ids.
+    /// An external Scoop implementation in the shared external-use arena.
     External(ExternalCallableUseId),
-    /// Typed marker used only between CFG construction and the coroutine
-    /// state-machine pass. The final MIR handed to LIR contains no such
-    /// callee; `register` identifies the concrete protocol method shell.
-    CoroutineSuspend { register: MonomorphizedFunctionId },
-    /// There is no statically selected function; the exact signature is the
-    /// complete typed call target carried through CFG construction.
-    Closure(FunctionTypeId),
-    /// No source signature is statically known (an `Any`/interface cast).
-    /// The target signature selects one bridge-table entry at runtime.
-    FunctionBridge(FunctionTypeId),
-    /// A runtime function (see `RuntimeFn::symbol`).
+    /// A runtime function (see RuntimeFn::symbol).
     Runtime(RuntimeFn),
 }
 

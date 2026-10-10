@@ -142,10 +142,7 @@ impl<'a> CfgLowerer<'a> {
                     mir::Expr::new(receiver_ty.clone(), mir::ExprKind::Local(receiver)),
                 );
                 self.emit_lowered_call(
-                    mir::CallTarget {
-                        kind: mir::CallKind::Direct,
-                        callee: *initializer,
-                    },
+                    mir::CallTarget::Direct(*initializer),
                     args,
                     mir::Type::Unit,
                     None,

@@ -247,7 +247,8 @@ fn generic_structs_instantiate_per_argument_list() {
     assert_eq!(instance_of(lc).type_arguments, [mir::Type::String]);
     assert_eq!(instance_of(ld).name, "Box2");
     assert_eq!(instance_of(ld).type_arguments, [mir::Type::String]);
-    let mir::Callee::User(first_constructor) = first_constructor.target.callee else {
+    let mir::CallTarget::Direct(mir::Callee::User(first_constructor)) = first_constructor.target
+    else {
         panic!("a struct constructor is a direct user function")
     };
     let constructor_source = module
@@ -502,7 +503,7 @@ fn print_overloads_are_ordinary_calls() {
         .iter()
         .map(|statement| {
             let (call, _) = statement_call(statement);
-            let mir::Callee::User(id) = call.target.callee else {
+            let mir::CallTarget::Direct(mir::Callee::User(id)) = call.target else {
                 panic!("print/println calls must be ordinary user calls")
             };
             id

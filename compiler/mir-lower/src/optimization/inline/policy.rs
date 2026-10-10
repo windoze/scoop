@@ -4,12 +4,11 @@ use super::super::{
 };
 
 pub(super) fn local_target(module: &mir::Module, call: &mir::Call) -> Option<mir::FunctionId> {
-    if call.target.kind != mir::CallKind::Direct {
-        return None;
-    }
-    match call.target.callee {
-        mir::Callee::User(function) => Some(function),
-        mir::Callee::Monomorphized(instance) => Some(module.meta.instances[instance].function),
+    match call.target {
+        mir::CallTarget::Direct(mir::Callee::User(function)) => Some(function),
+        mir::CallTarget::Direct(mir::Callee::Monomorphized(instance)) => {
+            Some(module.meta.instances[instance].function)
+        }
         _ => None,
     }
 }
@@ -95,7 +94,10 @@ pub(super) fn blocks_cost<'a>(blocks: impl Iterator<Item = &'a mir::BasicBlock>)
             for statement in &block.statements {
                 cost += match &statement.kind {
                     mir::StatementKind::Call(effect) => {
-                        if super::super::call(effect).target.kind == mir::CallKind::Direct {
+                        if matches!(
+                            super::super::call(effect).target,
+                            mir::CallTarget::Direct(_)
+                        ) {
                             6
                         } else {
                             10
@@ -169,7 +171,7 @@ pub(super) fn worthwhile(
     let folds = cost < original && arguments.iter().any(|argument| argument.constant.is_some());
     let receiver = arguments.iter().any(|argument| argument.actual != ActualType::Unknown)
         && function.body.blocks.iter().any(|(_, block)| block.statements.iter().any(|statement| {
-            matches!(&statement.kind, mir::StatementKind::Call(effect) if super::super::call(effect).target.kind != mir::CallKind::Direct)
+            matches!(&statement.kind, mir::StatementKind::Call(effect) if !matches!(super::super::call(effect).target, mir::CallTarget::Direct(_)))
         }));
     let value_copy = function
         .params

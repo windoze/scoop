@@ -120,10 +120,7 @@ impl BodyLowerer<'_> {
             hir::ExprKind::StructConstructorCall { constructor, args } => {
                 let ctor = self.struct_ctors[constructor];
                 smir::ExprKind::Call(smir::Call {
-                    target: mir::CallTarget {
-                        kind: mir::CallKind::Direct,
-                        callee: mir::Callee::User(ctor),
-                    },
+                    target: mir::CallTarget::Direct(mir::Callee::User(ctor)),
                     args: args.iter().map(|arg| self.lower_expr(arg)).collect(),
                     return_ty: ty.clone(),
                 })
@@ -157,10 +154,7 @@ impl BodyLowerer<'_> {
                 lowered.push(self.lower_expr(receiver));
                 lowered.extend(args.iter().map(|arg| self.lower_expr(arg)));
                 smir::ExprKind::Call(smir::Call {
-                    target: mir::CallTarget {
-                        kind: mir::CallKind::Direct,
-                        callee,
-                    },
+                    target: mir::CallTarget::Direct(callee),
                     args: lowered,
                     return_ty: mir::Type::Unit,
                 })
@@ -250,10 +244,7 @@ impl BodyLowerer<'_> {
                 self.prelude.push(smir::StatementKind::Expr(smir::Expr::new(
                     mir::Type::Unit,
                     smir::ExprKind::Call(smir::Call {
-                        target: mir::CallTarget {
-                            kind: mir::CallKind::Direct,
-                            callee: ensure,
-                        },
+                        target: mir::CallTarget::Direct(ensure),
                         args: Vec::new(),
                         return_ty: mir::Type::Unit,
                     }),
@@ -623,13 +614,12 @@ impl BodyLowerer<'_> {
             } => {
                 self.contains_suspend_call |= self.module.function_types[*function_type].is_suspend;
                 let function_type = self.lower_function_type_id(*function_type);
-                let mut call_args = Vec::with_capacity(args.len() + 1);
-                call_args.push(self.lower_expr(callee));
-                call_args.extend(args.iter().map(|arg| self.lower_expr(arg)));
+                let receiver = Box::new(self.lower_expr(callee));
+                let call_args = args.iter().map(|arg| self.lower_expr(arg)).collect();
                 smir::ExprKind::Call(smir::Call {
-                    target: mir::CallTarget {
-                        kind: mir::CallKind::Closure { function_type },
-                        callee: mir::Callee::Closure(function_type),
+                    target: mir::CallTarget::Closure {
+                        function_type,
+                        receiver,
                     },
                     args: call_args,
                     return_ty: self.lower_type(expr.ty),

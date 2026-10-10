@@ -15,8 +15,8 @@ pub(super) fn rewrite_site(
     failure_value: mir::CoroutineFailureValueId,
     outer_step: &mir::Type,
     outer_continuation: mir::InterfaceId,
-    outer_resume: &mir::CallTarget,
-    outer_failure: &mir::CallTarget,
+    outer_resume: &crate::coroutine_registry::ProtocolMethod,
+    outer_failure: &crate::coroutine_registry::ProtocolMethod,
     source_name: &str,
     driver: mir::FunctionId,
     source: hir::CallableMaterialization,
@@ -104,7 +104,7 @@ pub(super) fn rewrite_site(
         ty: mir::Type::Class(adapter.class),
         mutable: false,
     });
-    let step_ty = callee_return_type(lowerer, call.target.callee);
+    let step_ty = callee_return_type(lowerer, &call.target);
     let completed_variant = lowerer
         .coroutines
         .step_metadata_for_type(&step_ty)

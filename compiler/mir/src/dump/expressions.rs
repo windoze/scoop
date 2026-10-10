@@ -1,5 +1,5 @@
 use super::super::*;
-use super::{function_ref, string_ref, type_name};
+use super::{string_ref, type_name};
 
 pub(super) fn dump_expr(
     module: &Module,
@@ -523,74 +523,5 @@ pub(super) fn dump_expr(
             ));
             dump_expr(module, locals, operand, indent + 1, out);
         }
-    }
-}
-
-pub(super) fn dump_call(
-    module: &Module,
-    locals: &Arena<Local>,
-    call: &Call,
-    destination: Option<LocalId>,
-    indent: usize,
-    out: &mut String,
-) {
-    let pad = "  ".repeat(indent);
-    let callee = match &call.target.callee {
-        Callee::User(id) => function_ref(*id),
-        Callee::Monomorphized(id) => function_ref(module.meta.instances[*id].function),
-        Callee::Extern(id) => format!(
-            "extern{} @{}",
-            id.into_raw(),
-            module.extern_functions[*id].native_symbol
-        ),
-        Callee::External(id) => {
-            format!("external{}", u32::from(id.into_raw()))
-        }
-        Callee::CoroutineSuspend { register } => format!(
-            "@coroutine_suspend[register={}]",
-            function_ref(module.meta.instances[*register].function)
-        ),
-        Callee::Closure(function_type) => {
-            format!(
-                "<closure:function_type{}>",
-                function_type.into_raw().into_u32()
-            )
-        }
-        Callee::FunctionBridge(function_type) => format!(
-            "<function_bridge:function_type{}>",
-            function_type.into_raw().into_u32()
-        ),
-        Callee::Runtime(function) => format!("@{}", function.symbol()),
-    };
-    let kind = match &call.target.kind {
-        CallKind::Direct => "direct".to_string(),
-        CallKind::Virtual { slot } => format!("virtual[{slot}]"),
-        CallKind::Interface { interface, slot } => {
-            format!(
-                "interface {}[{slot}]",
-                type_name(module, &Type::Interface(*interface))
-            )
-        }
-        CallKind::Closure { function_type } => {
-            format!(
-                "closure[function_type{}]",
-                function_type.into_raw().into_u32()
-            )
-        }
-        CallKind::FunctionBridge { function_type } => format!(
-            "function_bridge[function_type{}]",
-            function_type.into_raw().into_u32()
-        ),
-    };
-    match destination {
-        Some(local) => out.push_str(&format!(
-            "{pad}call {}: {} = {callee} {kind}\n",
-            locals[local].name,
-            type_name(module, &locals[local].ty)
-        )),
-        None => out.push_str(&format!("{pad}call {callee} {kind}\n")),
-    }
-    for arg in &call.args {
-        dump_expr(module, locals, arg, indent + 1, out);
     }
 }

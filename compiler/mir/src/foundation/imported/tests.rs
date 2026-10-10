@@ -7,7 +7,7 @@ use scoop_identity::{
 
 use super::*;
 use crate::{
-    BasicBlock, Body, Call, CallEffect, CallKind, CallTarget, Callee, ConeMirInput,
+    BasicBlock, Body, Call, CallEffect, CallTarget, Callee, ConeMirInput,
     CoreBootstrapBridgeSectionV1, CoroutinePendingContext, DependencyMirOutput,
     DependencyMirOutputError, EntryMirBridgeBranchV1, Function, GcEffect, MirMeta, MirOutput,
     Module, SourceSpan, Statement, StatementKind, StrongCallableBridgeSurfaceV1, Terminator, Type,
@@ -23,10 +23,7 @@ fn ordinary_module(callable: crate::ExternalCallableUse) -> Module {
         name: "entry".to_string(),
         statements: vec![Statement {
             kind: StatementKind::Call(CallEffect::Unit(Call {
-                target: CallTarget {
-                    kind: CallKind::Direct,
-                    callee: Callee::External(callable),
-                },
+                target: CallTarget::Direct(Callee::External(callable)),
                 args: Vec::new(),
                 pending: CoroutinePendingContext::Root,
             })),

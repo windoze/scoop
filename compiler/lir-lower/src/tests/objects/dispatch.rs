@@ -25,11 +25,12 @@ fn virtual_calls_load_the_vtable_and_call_indirect() {
         vec![call_value(
             r,
             mir::Call {
-                target: mir::CallTarget {
-                    kind: mir::CallKind::Virtual { slot: 0 },
-                    callee: mir::Callee::User(m),
+                target: mir::CallTarget::Virtual {
+                    slot: 0,
+                    callee: mir::DispatchCallee::User(m),
+                    receiver: Box::new(local_expr(p, mir::Type::Class(c))),
                 },
-                args: vec![local_expr(p, mir::Type::Class(c))],
+                args: vec![],
                 pending: mir::CoroutinePendingContext::Root,
             },
         )],
@@ -123,14 +124,13 @@ fn interface_calls_read_the_carried_itable() {
         vec![call_value(
             r,
             mir::Call {
-                target: mir::CallTarget {
-                    kind: mir::CallKind::Interface {
-                        interface: iface,
-                        slot: 1,
-                    },
-                    callee: mir::Callee::User(label),
+                target: mir::CallTarget::Interface {
+                    interface: iface,
+                    slot: 1,
+                    callee: mir::DispatchCallee::User(label),
+                    receiver: Box::new(local_expr(i, mir::Type::Interface(iface))),
                 },
-                args: vec![local_expr(i, mir::Type::Interface(iface))],
+                args: vec![],
                 pending: mir::CoroutinePendingContext::Root,
             },
         )],

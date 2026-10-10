@@ -90,10 +90,7 @@ impl BodyLowerer<'_> {
                         smir::Expr::new(
                             mir::Type::Boolean,
                             smir::ExprKind::Call(smir::Call {
-                                target: mir::CallTarget {
-                                    kind: mir::CallKind::Direct,
-                                    callee,
-                                },
+                                target: mir::CallTarget::Direct(callee),
                                 args: vec![self.accessed(root, path), self.lower_expr(value)],
                                 return_ty: mir::Type::Boolean,
                             }),

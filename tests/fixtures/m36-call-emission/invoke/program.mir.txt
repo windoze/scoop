@@ -190,6 +190,8 @@ Module
       resume
     bb7 try.end.7
       return
+        Type Unit
+        UnitLiteral
     bb8 try.body.8 unwind bb1
       val $receiver: Base
         Type Base
@@ -371,6 +373,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn6(value: String) -> Unit
     bb0 entry
       val $dependency.local.1: String
@@ -395,12 +399,16 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun Reader.read @fn7(this: Reader, value: Int) -> Int
     bb0 entry
       trap "call to abstract method `Reader.read`"
   fun init.Base.$c0 @fn8(this: Base) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.Derived.$c1 @fn9(this: Derived) -> Unit
     bb0 entry
       call @fn8 direct
@@ -409,6 +417,8 @@ Module
           Type Derived
           Local this
       return
+        Type Unit
+        UnitLiteral
   fun callback bridge for leaf @fn10($result: Ptr<Int>, $arg0: Ptr<Int>) -> Unit <no-gc>
     bb0 entry
       call $value: Int = @fn2 direct
@@ -423,6 +433,8 @@ Module
         Type Int
         Local $value
       return
+        Type Unit
+        UnitLiteral
   fun function_bridge.$Closure$lambda0.(Any) -> Any @fn11($source: (Int) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type0> closure[function_type0]

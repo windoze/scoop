@@ -597,6 +597,8 @@ Module
       resume
     bb7 try.end.7
       return
+        Type Unit
+        UnitLiteral
     bb8 try.body.8 unwind bb1
       call $dependency.argument.0: Int = <closure:function_type0> closure[function_type0]
         Type (Int) -> Int
@@ -665,6 +667,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun GenericMapper.choose @fn14(this: GenericMapper, value: String) -> String
     bb0 entry
       return
@@ -694,6 +698,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun Continuation.resume @fn16(this: Continuation<GenericMapper>, value: GenericMapper) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
@@ -820,6 +826,8 @@ Module
   fun init.BaseMapper.$c0 @fn31(this: BaseMapper) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.TimesTwo.$c1 @fn32(this: TimesTwo) -> Unit
     bb0 entry
       call @fn31 direct
@@ -828,6 +836,8 @@ Module
           Type TimesTwo
           Local this
       return
+        Type Unit
+        UnitLiteral
   fun init.PlusHundred.$c2 @fn33(this: PlusHundred) -> Unit
     bb0 entry
       call @fn31 direct
@@ -836,6 +846,8 @@ Module
           Type PlusHundred
           Local this
       return
+        Type Unit
+        UnitLiteral
   fun init.MapperFactory.$c3 @fn34(this: MapperFactory, calls: Int) -> Unit
     bb0 entry
       field_set 0
@@ -844,6 +856,8 @@ Module
         Type Int
         Local calls
       return
+        Type Unit
+        UnitLiteral
   fun init.PrefixMapper.$c4 @fn35(this: PrefixMapper, prefix: String) -> Unit
     bb0 entry
       field_set 0
@@ -852,15 +866,23 @@ Module
         Type String
         Local prefix
       return
+        Type Unit
+        UnitLiteral
   fun init.GenericMapper.$c5 @fn36(this: GenericMapper) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.OverloadedMapper.$c6 @fn37(this: OverloadedMapper) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.ThrowingMapper.$c7 @fn38(this: ThrowingMapper) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun ctor.ValueMapper.$c0 @fn39(offset: Int) -> ValueMapper <no-gc>
     bb0 entry
       return
@@ -890,6 +912,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn16 interface Continuation<GenericMapper>[0]
         Type Continuation<GenericMapper>
@@ -903,6 +927,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn17 interface Continuation<GenericMapper>[1]
         Type Continuation<GenericMapper>
@@ -914,6 +940,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

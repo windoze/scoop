@@ -679,10 +679,7 @@ fn final_validation_rejects_a_transient_pending_call_context() {
         .statements
         .push(Statement {
             kind: StatementKind::Call(CallEffect::Unit(Call {
-                target: CallTarget {
-                    kind: CallKind::Direct,
-                    callee: Callee::Runtime(RuntimeFn::GcCollect),
-                },
+                target: CallTarget::Direct(Callee::Runtime(RuntimeFn::GcCollect)),
                 args: Vec::new(),
                 pending: CoroutinePendingContext::Chain(NonEmptyCoroutinePendingChain::new(
                     CoroutinePendingSourceTransfer::Fallthrough(

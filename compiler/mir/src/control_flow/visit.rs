@@ -338,7 +338,7 @@ pub fn visit_block_exprs(block: &BasicBlock, visitor: &mut impl FnMut(&Expr)) {
                 let call = match effect {
                     CallEffect::Unit(call) | CallEffect::Value { call, .. } => call,
                 };
-                for argument in &call.args {
+                for argument in call.operands() {
                     visit_expr(argument, visitor);
                 }
             }

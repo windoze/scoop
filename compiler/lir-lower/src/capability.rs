@@ -120,22 +120,23 @@ fn validate_call(
     function: mir::FunctionId,
     call: &mir::Call,
 ) -> Result<(), StrongLirCapabilityError> {
-    match call.target.kind {
-        mir::CallKind::Interface { interface, .. } => {
+    match &call.target {
+        mir::CallTarget::Interface { interface, .. } => {
             require_descriptor(
                 module,
                 roots,
                 dependencies,
                 function,
-                &mir::Type::Interface(interface),
+                &mir::Type::Interface(*interface),
             )?;
         }
-        mir::CallKind::FunctionBridge { .. }
-        | mir::CallKind::Direct
-        | mir::CallKind::Virtual { .. }
-        | mir::CallKind::Closure { .. } => {}
+        mir::CallTarget::FunctionBridge { .. }
+        | mir::CallTarget::Direct(_)
+        | mir::CallTarget::Virtual { .. }
+        | mir::CallTarget::Closure { .. }
+        | mir::CallTarget::CoroutineSuspend { .. } => {}
     }
-    for argument in &call.args {
+    for argument in call.operands() {
         validate_expr(module, roots, dependencies, function, argument)?;
     }
     Ok(())

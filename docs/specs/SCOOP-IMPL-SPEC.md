@@ -137,6 +137,8 @@ MIR 控制流显式表示普通边、异常边、循环目标和 cleanup。Retur
 
 所有调用以互斥分支确定 direct、virtual、interface、closure 或 function bridge target；各分支仅保存允许的 callee，closure／bridge 签名只保存一次。动态 receiver 为必填值，不从可为空的实参列表恢复。super 不重新进入动态分派；方法 receiver 为完整值参数，value receiver 的可观察存储属于本次方法调用。
 
+structured MIR 与最终 MIR 的动态调用将 receiver 保存在对应目标分支，普通实参列表不再重复包含它；遍历、效果分析与 CFG 求值均先处理 receiver，再按顺序处理实参。virtual／interface 的静态声明目标只允许本地、单态化或外部 Scoop callable。已知 receiver 实际类型的去虚拟化先适配该值，再将其放入新 direct 调用的首个逻辑实参；closure／function bridge 直接消费各自唯一的函数签名身份。
+
 最终 MIR 仅保存已经完成的调用与表达式。待展开 Cast 留在 mir-lower 的 structured IR，协程临时 callee 和 pending cleanup chain 留在该 stage 的私有工作数据；成功输出不带这些标记，也不保存恒为 Root 的 pending 字段。Return 携带完整语义结果，物理 void／ZST 分类属于 LIR。
 
 `==` / `!=` 保存已选定的 operator callable；若它来自普通用户接口，则保留该接口 application、slot 与实际 implementation。派生结构比较降为普通 typed 成员调用和短路控制流；`Equality<T>.equalTo` 是独立的普通接口调用。bound 调用在单态化时映射到已确定的实现，不能重新按名字搜索 equals 或 equalTo。基本类型的精确 intrinsic 比较保持原运算与 effect；接口分派需要的适配正文同样是完整 typed callable，不能把 NoGc 直接实现误当成具有相同 effect 的 Managed slot 入口。

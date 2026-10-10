@@ -43,10 +43,7 @@ impl BodyLowerer<'_> {
         smir::Expr::new(
             return_ty.clone(),
             smir::ExprKind::Call(smir::Call {
-                target: mir::CallTarget {
-                    kind: mir::CallKind::Direct,
-                    callee,
-                },
+                target: mir::CallTarget::Direct(callee),
                 args: call_args,
                 return_ty,
             }),
@@ -241,10 +238,7 @@ impl BodyLowerer<'_> {
         smir::Expr::new(
             return_ty.clone(),
             smir::ExprKind::Call(smir::Call {
-                target: mir::CallTarget {
-                    kind: mir::CallKind::Direct,
-                    callee,
-                },
+                target: mir::CallTarget::Direct(callee),
                 args: args.iter().map(|arg| self.lower_expr(arg)).collect(),
                 return_ty,
             }),
@@ -288,8 +282,8 @@ impl BodyLowerer<'_> {
             return self.lower_maybe_uninit(*kind, operand, result_ty);
         }
         let callee = self.instances.get(function).map_or_else(
-            || mir::Callee::User(self.function_map[&function]),
-            mir::Callee::Monomorphized,
+            || mir::DispatchCallee::User(self.function_map[&function]),
+            mir::DispatchCallee::Monomorphized,
         );
         // The receiver's static type decides the dispatch kind.
         let receiver_class = match &module.types[receiver.ty].kind {
@@ -303,32 +297,39 @@ impl BodyLowerer<'_> {
             .method()
             .expect("a method call names method metadata")
             .dispatch;
-        let kind = match dispatch {
+        let receiver = self.lower_expr(receiver);
+        let mut call_args = Vec::with_capacity(args.len() + 1);
+        let target = match dispatch {
             hir::MethodDispatch::Direct | hir::MethodDispatch::FinalOverride(_) => {
-                mir::CallKind::Direct
+                call_args.push(receiver);
+                mir::CallTarget::Direct(callee.into())
             }
             hir::MethodDispatch::Virtual(family) => {
                 let class =
                     receiver_class.expect("a virtual family is called through a class receiver");
                 let slot = self.method_slots[&self.class_map[&class]][&family];
-                mir::CallKind::Virtual { slot }
+                mir::CallTarget::Virtual {
+                    callee,
+                    slot,
+                    receiver: Box::new(receiver),
+                }
             }
             hir::MethodDispatch::Interface { interface, slot } => {
                 let interface = self.interfaces.mir_id(interface);
-                mir::CallKind::Interface {
+                mir::CallTarget::Interface {
+                    callee,
                     interface,
                     slot: slot.into_raw(),
+                    receiver: Box::new(receiver),
                 }
             }
         };
-        let mut call_args = Vec::with_capacity(args.len() + 1);
-        call_args.push(self.lower_expr(receiver));
         call_args.extend(args.iter().map(|arg| self.lower_expr(arg)));
         let return_ty = self.lower_type(result_ty);
         smir::Expr::new(
             return_ty.clone(),
             smir::ExprKind::Call(smir::Call {
-                target: mir::CallTarget { kind, callee },
+                target,
                 args: call_args,
                 return_ty,
             }),

@@ -153,10 +153,7 @@ impl BodyLowerer<'_> {
         }
 
         let call = mir::Call {
-            target: mir::CallTarget {
-                kind: mir::CallKind::Direct,
-                callee: mir::Callee::User(source),
-            },
+            target: mir::CallTarget::Direct(mir::Callee::User(source)),
             args,
             pending: mir::CoroutinePendingContext::Root,
         };

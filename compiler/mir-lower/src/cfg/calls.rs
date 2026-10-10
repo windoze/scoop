@@ -7,14 +7,56 @@ impl CfgLowerer<'_> {
         destination: Option<mir::LocalId>,
         span: Span,
     ) -> Option<mir::Expr> {
+        let target = match &call.target {
+            mir::CallTarget::Direct(callee) => mir::CallTarget::Direct(*callee),
+            mir::CallTarget::Virtual {
+                callee,
+                slot,
+                receiver,
+            } => mir::CallTarget::Virtual {
+                callee: *callee,
+                slot: *slot,
+                receiver: self.lower_call_receiver(receiver, &call.args, span)?,
+            },
+            mir::CallTarget::Interface {
+                callee,
+                interface,
+                slot,
+                receiver,
+            } => mir::CallTarget::Interface {
+                callee: *callee,
+                interface: *interface,
+                slot: *slot,
+                receiver: self.lower_call_receiver(receiver, &call.args, span)?,
+            },
+            mir::CallTarget::Closure {
+                function_type,
+                receiver,
+            } => mir::CallTarget::Closure {
+                function_type: *function_type,
+                receiver: self.lower_call_receiver(receiver, &call.args, span)?,
+            },
+            mir::CallTarget::FunctionBridge {
+                function_type,
+                receiver,
+            } => mir::CallTarget::FunctionBridge {
+                function_type: *function_type,
+                receiver: self.lower_call_receiver(receiver, &call.args, span)?,
+            },
+            mir::CallTarget::CoroutineSuspend {
+                register,
+                interface,
+                slot,
+                receiver,
+            } => mir::CallTarget::CoroutineSuspend {
+                register: *register,
+                interface: *interface,
+                slot: *slot,
+                receiver: self.lower_call_receiver(receiver, &call.args, span)?,
+            },
+        };
         let args = self.lower_operands(call.args.iter(), span)?;
-        self.emit_lowered_call(
-            call.target.clone(),
-            args,
-            call.return_ty.clone(),
-            destination,
-            span,
-        )
+        self.emit_lowered_call(target, args, call.return_ty.clone(), destination, span)
     }
 
     pub(super) fn emit_lowered_call(

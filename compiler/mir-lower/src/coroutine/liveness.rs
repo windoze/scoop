@@ -161,22 +161,39 @@ fn suspend_effect(
         mir::CallEffect::Unit(call) => (call, None),
         mir::CallEffect::Value { destination, call } => (call, Some(*destination)),
     };
-    if let mir::Callee::CoroutineSuspend { register } = call.target.callee {
-        let result = destination
-            .map(|local| body.locals[local].ty.clone())
-            .unwrap_or(mir::Type::Unit);
-        return Some((
-            destination,
-            result,
-            SuspendKind::Intrinsic { register },
-            call.pending.clone(),
-        ));
-    }
-    let function = match call.target.callee {
-        mir::Callee::User(function) => function,
-        mir::Callee::Monomorphized(instance) => lowerer.instances.meta[instance].function,
-        mir::Callee::Closure(function_type) | mir::Callee::FunctionBridge(function_type) => {
-            let signature = &lowerer.shell.function_types[function_type];
+    let function = match &call.target {
+        mir::CallTarget::CoroutineSuspend { .. } => {
+            let result = destination
+                .map(|local| body.locals[local].ty.clone())
+                .unwrap_or(mir::Type::Unit);
+            return Some((
+                destination,
+                result,
+                SuspendKind::Intrinsic,
+                call.pending.clone(),
+            ));
+        }
+        mir::CallTarget::Direct(mir::Callee::User(function))
+        | mir::CallTarget::Virtual {
+            callee: mir::DispatchCallee::User(function),
+            ..
+        }
+        | mir::CallTarget::Interface {
+            callee: mir::DispatchCallee::User(function),
+            ..
+        } => *function,
+        mir::CallTarget::Direct(mir::Callee::Monomorphized(instance))
+        | mir::CallTarget::Virtual {
+            callee: mir::DispatchCallee::Monomorphized(instance),
+            ..
+        }
+        | mir::CallTarget::Interface {
+            callee: mir::DispatchCallee::Monomorphized(instance),
+            ..
+        } => lowerer.instances.meta[*instance].function,
+        mir::CallTarget::Closure { function_type, .. }
+        | mir::CallTarget::FunctionBridge { function_type, .. } => {
+            let signature = &lowerer.shell.function_types[*function_type];
             return signature.is_suspend.then(|| {
                 (
                     destination,
@@ -186,12 +203,20 @@ fn suspend_effect(
                 )
             });
         }
-        mir::Callee::External(external) => {
+        mir::CallTarget::Direct(mir::Callee::External(external))
+        | mir::CallTarget::Virtual {
+            callee: mir::DispatchCallee::External(external),
+            ..
+        }
+        | mir::CallTarget::Interface {
+            callee: mir::DispatchCallee::External(external),
+            ..
+        } => {
             let suspends = lowerer
                 .imported_dependency_callable_map
                 .values()
                 .any(|target| {
-                    target.external() == Some(external)
+                    target.external() == Some(*external)
                         && target.semantic_signature.effect() == scoop_identity::Effect::Suspend
                 });
             return suspends.then(|| {
@@ -205,9 +230,7 @@ fn suspend_effect(
                 )
             });
         }
-        mir::Callee::CoroutineSuspend { .. } | mir::Callee::Extern(_) | mir::Callee::Runtime(_) => {
-            return None;
-        }
+        mir::CallTarget::Direct(mir::Callee::Extern(_) | mir::Callee::Runtime(_)) => return None,
     };
     lowerer
         .coroutines
@@ -339,7 +362,7 @@ fn successors(block: &mir::BasicBlock) -> Vec<mir::BlockId> {
 }
 
 fn call_uses(call: &mir::Call, uses: &mut HashSet<mir::LocalId>) {
-    for arg in &call.args {
+    for arg in call.operands() {
         expr_uses(arg, uses);
     }
 }

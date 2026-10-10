@@ -1,29 +1,27 @@
 use super::*;
 
 impl FunctionLowerer<'_> {
-    pub(super) fn project_dispatch_receiver(
+    pub(super) fn project_interface_receiver(
         &mut self,
-        kind: &mir::CallKind,
-        args: &mut [lir::Value],
-        signature: &mut lir::ScoopAbiSignature,
-    ) -> StorageResult<()> {
-        if matches!(kind, mir::CallKind::Interface { .. }) {
-            args[0] = self.interface_component(args[0], 0);
-            let mut parameters = signature
+        receiver: lir::Value,
+        signature: &lir::ScoopAbiSignature,
+    ) -> StorageResult<(lir::Value, lir::ScoopAbiSignature)> {
+        let receiver = self.interface_component(receiver, 0);
+        let parameters = std::iter::once(lir::MANAGED_PTR).chain(
+            signature
                 .arguments()
                 .iter()
-                .map(|argument| argument.logical_storage_type().clone())
-                .collect::<Vec<_>>();
-            parameters[0] = lir::MANAGED_PTR;
-            *signature = abi::classify_signature(
-                self.context,
-                parameters,
-                signature.result().logical_storage_type().cloned(),
-                self.structs,
-                self.enums,
-            )?;
-        }
-        Ok(())
+                .skip(1)
+                .map(|argument| argument.logical_storage_type().clone()),
+        );
+        let signature = abi::classify_signature(
+            self.context,
+            parameters,
+            signature.result().logical_storage_type().cloned(),
+            self.structs,
+            self.enums,
+        )?;
+        Ok((receiver, signature))
     }
 
     pub(super) fn interface_component(&mut self, value: lir::Value, index: u32) -> lir::Value {
