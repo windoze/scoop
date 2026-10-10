@@ -17,7 +17,7 @@
 | R07 return | 待实施 | 完整语义结果，Unit 保留真实值 |
 | R05 窄身份 | 已完成 | FunctionTypeId 与 enum application 贯通生产／消费；Rust 710、正式 CLI 8 项通过 |
 | R06 nominal 表示 | 待实施 | declared payload 与 C/Scoop 窄引用 |
-| R10 core protocol | 待实施 | 具名 typed 字段，核对 wire 不变 |
+| R10 core protocol | 已完成 | 生产／导入端具名 typed 字段；Rust 387、正式 CLI 6 项、产物成员字节对比通过 |
 | R08 native 结果发布 | 已完成 | 六类完整返回分支、单一间接结果存储；Rust 197、正式 CLI 5 项通过 |
 | R09 codegen 调用 | 已完成 | 完整 callee 与调用准备分支；codegen 41、正式 CLI 5 项通过 |
 
@@ -71,3 +71,13 @@ LIR 的 native borrowed 调用直接分为 Void、ElidedZst、DirectGcFree、Dir
 本机 fmt／workspace clippy 成功；codegen 112、LIR 61、LIR lower 24，共 197 项相关测试通过。新增两项 CLI fixture 覆盖六种结果、void／ZST 副作用、泛型闭包、Option、finally、结果内部引用及 native 调用中的 GC；新 HIR/MIR/LIR golden 经生成和审阅后以普通比较复验。
 
 正式普通比较共 5 项、7 个配置、38 个进程、22 个 golden 通过，包含已有接口 native 调用和直接／间接移动根回归；正常、移动和 minor GC 均运行成功。报告为 `target/m36-validation/r08-new-report.json` 与 `r08-verify-report.json`。本轮清理已完成测试的五个旧可执行文件，释放约 262 MiB，保留当前 CLI、库及共享 sysroot。wire 与 runtime ABI 未改变。
+
+## R10：core protocol 的具名字段
+
+生产和导入端的八类 protocol 直接保存具名角色，使用对应的 nominal、callable、variant、field、slot、exact type 身份。移除语义数据中的通用 entry 数组和按位置解包 helper；整数类别直接映射固定字段。wire 仍使用原有 tag、字段编号和角色顺序，真实解码边界检查类别及引用后直接构造完整字段。owner、签名、dispatch 和成员关系检查接收相应字段，保留必要的普通引用合法性检查。
+
+按职责拆分生产、wire 和关系检查；新增模块均少于 400 行。测试构造器直接返回所构造的身份类别，删除重复的测试 owner 推导。增加 wire 角色类别不匹配的解码负例，不为已知字段新增运行期认证或重复分类。
+
+本机 fmt／workspace clippy 成功，HIR 68、HIR lower 288、slib 31，共 387 项相关测试通过。新增基础 protocol 与协程／迭代／Option／finally 组合 fixture，先用改动前的 CLI 生成并审阅 HIR/MIR golden，再用新实现普通复验，正常、移动及 minor GC 均通过。新编译的 core 和两个用例共 3,265 个非 manifest archive 成员，与基线逐字节相同；包含 metadata 和机器码成员，section 版本与 runtime ABI 不变。
+
+正式普通比较共 6 项、9 个配置、44 个进程、42 个 golden 通过，还包括导入 enum 模式、M35 组合产物的 debug/release 与删源后消费／链接、native-safe callback transition、缺省参数及协程中的源码位置。报告为 `r10-new-report.json`、`r10-regression-report.json`、`r10-locations-report.json`，字节比较记录为 `r10-byte-comparison.log`，均位于 `target/m36-validation`。本轮清理约 75 MiB 的已完成 fixture cases，保留共享缓存。

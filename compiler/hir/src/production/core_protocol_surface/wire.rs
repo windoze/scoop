@@ -1,11 +1,10 @@
 mod error;
-mod layout;
-use layout::*;
 mod references;
 mod relations;
 
 pub use error::CoreCompilerProtocolSurfaceValidationError;
-use references::validate_entry;
+use references::*;
+mod roles;
 
 use relations::validate_foundation_relations;
 
@@ -140,17 +139,6 @@ impl WireDecode for DecodedCoreProtocolEntryV1 {
     }
 }
 
-impl<const N: usize> WireEncode for CoreProtocolProductV1<N> {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(N as u64)?;
-        for (index, entry) in self.entries.iter().enumerate() {
-            encoder.field((index + 1) as u32)?;
-            entry.encode(encoder)?;
-        }
-        Ok(())
-    }
-}
-
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct DecodedCoreProtocolProductV1<const N: usize> {
     entries: [DecodedCoreProtocolEntryV1; N],
@@ -186,7 +174,12 @@ macro_rules! wire_protocol_product {
     ($name:ident, $decoded:ident, $count:ident) => {
         impl WireEncode for $name {
             fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-                self.0.encode(encoder)
+                encoder.map($count as u64)?;
+                for (index, entry) in self.wire_entries().iter().enumerate() {
+                    encoder.field((index + 1) as u32)?;
+                    entry.encode(encoder)?;
+                }
+                Ok(())
             }
         }
 
@@ -291,46 +284,16 @@ impl DecodedCoreCompilerProtocolSurfaceV1 {
         foundation: &CanonicalHirFoundation,
     ) -> Result<CoreCompilerProtocolSurfaceV1, CoreCompilerProtocolSurfaceValidationError> {
         let surface = CoreCompilerProtocolSurfaceV1 {
-            fundamental_types: CoreFundamentalTypeProtocolV1(validate_product(
-                self.fundamental_types.0,
-                &FUNDAMENTAL_LAYOUT,
-                foundation,
-            )?),
-            option_protocol: CoreOptionProtocolV1(validate_product(
-                self.option_protocol.0,
-                &OPTION_LAYOUT,
-                foundation,
-            )?),
-            iteration_protocol: CoreIterationProtocolV1(validate_product(
-                self.iteration_protocol.0,
-                &ITERATION_LAYOUT,
-                foundation,
-            )?),
-            exception_protocol: CoreExceptionProtocolV1(validate_product(
-                self.exception_protocol.0,
-                &EXCEPTION_LAYOUT,
-                foundation,
-            )?),
-            coroutine_protocol: CoreCoroutineProtocolV1(validate_product(
-                self.coroutine_protocol.0,
-                &COROUTINE_LAYOUT,
-                foundation,
-            )?),
-            ffi_protocol: CoreFfiProtocolV1(validate_product(
-                self.ffi_protocol.0,
-                &FFI_LAYOUT,
-                foundation,
-            )?),
-            foreign_callback_protocol: CoreForeignCallbackProtocolV1(validate_product(
-                self.foreign_callback_protocol.0,
-                &FOREIGN_CALLBACK_LAYOUT,
-                foundation,
-            )?),
-            source_location_protocol: CoreSourceLocationProtocolV1(validate_product(
-                self.source_location_protocol.0,
-                &SOURCE_LOCATION_LAYOUT,
-                foundation,
-            )?),
+            fundamental_types: self.fundamental_types.validate_against(foundation)?,
+            option_protocol: self.option_protocol.validate_against(foundation)?,
+            iteration_protocol: self.iteration_protocol.validate_against(foundation)?,
+            exception_protocol: self.exception_protocol.validate_against(foundation)?,
+            coroutine_protocol: self.coroutine_protocol.validate_against(foundation)?,
+            ffi_protocol: self.ffi_protocol.validate_against(foundation)?,
+            foreign_callback_protocol: self
+                .foreign_callback_protocol
+                .validate_against(foundation)?,
+            source_location_protocol: self.source_location_protocol.validate_against(foundation)?,
             program_arguments: self
                 .program_arguments
                 .validate_against(foundation)
@@ -392,47 +355,6 @@ impl WireDecode for DecodedCoreCompilerProtocolSurfaceV1 {
     }
 }
 
-fn validate_product<const N: usize>(
-    decoded: DecodedCoreProtocolProductV1<N>,
-    layout: &[ProtocolEntryKind; N],
-    foundation: &CanonicalHirFoundation,
-) -> Result<CoreProtocolProductV1<N>, CoreCompilerProtocolSurfaceValidationError> {
-    let entries = decoded
-        .entries
-        .into_iter()
-        .zip(layout)
-        .enumerate()
-        .map(|(index, (entry, expected))| {
-            let actual = entry_kind(&entry);
-            if actual != *expected {
-                return Err(CoreCompilerProtocolSurfaceValidationError::RoleKindMismatch { index });
-            }
-            validate_entry(entry, foundation)
-        })
-        .collect::<Result<Vec<_>, _>>()?;
-    Ok(CoreProtocolProductV1 {
-        entries: entries
-            .try_into()
-            .unwrap_or_else(|_| unreachable!("validated the fixed protocol product length")),
-    })
-}
-
-fn entry_kind(entry: &DecodedCoreProtocolEntryV1) -> ProtocolEntryKind {
-    match entry {
-        DecodedCoreProtocolEntryV1::Nominal(DecodedCoreProtocolNominalV1::Type(_)) => {
-            ProtocolEntryKind::Type
-        }
-        DecodedCoreProtocolEntryV1::Nominal(DecodedCoreProtocolNominalV1::GenericType(_)) => {
-            ProtocolEntryKind::GenericType
-        }
-        DecodedCoreProtocolEntryV1::Callable(_) => ProtocolEntryKind::Callable,
-        DecodedCoreProtocolEntryV1::EnumVariant(_) => ProtocolEntryKind::EnumVariant,
-        DecodedCoreProtocolEntryV1::EnumVariantField(_) => ProtocolEntryKind::EnumVariantField,
-        DecodedCoreProtocolEntryV1::DispatchSlot(_) => ProtocolEntryKind::DispatchSlot,
-        DecodedCoreProtocolEntryV1::ExactType(_) => ProtocolEntryKind::ExactType,
-    }
-}
-
 fn encode_value_sum(
     encoder: &mut Encoder,
     tag: u64,
@@ -459,3 +381,6 @@ fn require_sum_length(decoder: &Decoder<'_>, actual: u64, expected: u64) -> Resu
 fn wire_error(decoder: &Decoder<'_>, kind: WireErrorKind) -> WireError {
     WireError::new(kind, decoder.path().clone(), Some(decoder.position()))
 }
+
+#[cfg(test)]
+mod tests;

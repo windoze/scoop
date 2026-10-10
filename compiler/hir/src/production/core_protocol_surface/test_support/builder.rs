@@ -57,7 +57,7 @@ impl FixtureBuilder {
         id
     }
 
-    pub(super) fn concrete_nominal(&mut self, kind: SourceNominalKind) -> CoreProtocolEntryV1 {
+    pub(super) fn concrete_nominal(&mut self, kind: SourceNominalKind) -> PersistentTypeId {
         let record: TypeRecord = CborIdentityRecord::from_key(SourceDeclarationKey::nominal(
             site(self.origin, DefinitionOwnerChain::top_level()),
             self.name(),
@@ -71,10 +71,10 @@ impl FixtureBuilder {
             DefinitionOriginSubject::Type(id),
         ));
         self.types.push(record);
-        concrete_entry(id)
+        id
     }
 
-    pub(super) fn generic_nominal(&mut self, kind: SourceNominalKind) -> CoreProtocolEntryV1 {
+    pub(super) fn generic_nominal(&mut self, kind: SourceNominalKind) -> PersistentGenericTypeId {
         let record: GenericTypeRecord =
             CborIdentityRecord::from_key(SourceDeclarationKey::nominal(
                 site(self.origin, DefinitionOwnerChain::top_level()),
@@ -89,13 +89,13 @@ impl FixtureBuilder {
             DefinitionOriginSubject::GenericType(id),
         ));
         self.generic_types.push(record);
-        generic_entry(id)
+        id
     }
 
     pub(super) fn function(
         &mut self,
         effect: scoop_identity::Effect,
-    ) -> (CoreProtocolEntryV1, PersistentFunctionId) {
+    ) -> (CoreProtocolCallableV1, PersistentFunctionId) {
         let unit = CoreBuiltinNominal::Unit.identity_record().id();
         self.function_with_owner_signature(
             None,
@@ -107,7 +107,7 @@ impl FixtureBuilder {
         &mut self,
         owner: Option<DefinitionOwnerAtom>,
         signature: SignatureCallableShape,
-    ) -> (CoreProtocolEntryV1, PersistentFunctionId) {
+    ) -> (CoreProtocolCallableV1, PersistentFunctionId) {
         let record: FunctionRecord = CborIdentityRecord::from_key(SourceDeclarationKey::function(
             site(
                 self.origin,
@@ -128,10 +128,10 @@ impl FixtureBuilder {
         ));
         self.functions.push(record);
         (
-            CoreProtocolEntryV1::Callable(CoreProtocolCallableV1::for_test(
+            CoreProtocolCallableV1::for_test(
                 CoreProtocolCallableDefinitionV1::Function(id),
                 signature,
-            )),
+            ),
             id,
         )
     }
@@ -141,7 +141,7 @@ impl FixtureBuilder {
         owner: Option<DefinitionOwnerAtom>,
         own_type_parameter_count: u32,
         signature: SignatureCallableShape,
-    ) -> CoreProtocolEntryV1 {
+    ) -> CoreProtocolCallableV1 {
         let source = SourceDeclarationKey::function(
             site(
                 self.origin,
@@ -162,10 +162,10 @@ impl FixtureBuilder {
                 DefinitionOriginSubject::Function(id),
             ));
             self.functions.push(record);
-            CoreProtocolEntryV1::Callable(CoreProtocolCallableV1::for_test(
+            CoreProtocolCallableV1::for_test(
                 CoreProtocolCallableDefinitionV1::Function(id),
                 signature,
-            ))
+            )
         } else {
             let record: GenericFunctionRecord = CborIdentityRecord::from_key(source).unwrap();
             let id = record.id();
@@ -174,10 +174,10 @@ impl FixtureBuilder {
                 DefinitionOriginSubject::GenericFunction(id),
             ));
             self.generic_functions.push(record);
-            CoreProtocolEntryV1::Callable(CoreProtocolCallableV1::for_test(
+            CoreProtocolCallableV1::for_test(
                 CoreProtocolCallableDefinitionV1::GenericFunction(id),
                 signature,
-            ))
+            )
         }
     }
 
@@ -185,7 +185,7 @@ impl FixtureBuilder {
         &mut self,
         owner: PersistentTypeId,
         parameters: Vec<SignatureTypeKey>,
-    ) -> CoreProtocolEntryV1 {
+    ) -> CoreProtocolCallableV1 {
         let record: ConstructorRecord =
             CborIdentityRecord::from_key(SourceDeclarationKey::constructor(
                 site(
@@ -203,7 +203,7 @@ impl FixtureBuilder {
             DefinitionOriginSubject::Constructor(id),
         ));
         self.constructors.push(record);
-        CoreProtocolEntryV1::Callable(CoreProtocolCallableV1::for_test(
+        CoreProtocolCallableV1::for_test(
             CoreProtocolCallableDefinitionV1::Constructor(id),
             SignatureCallableShape::new(
                 scoop_identity::Effect::Ordinary,
@@ -211,7 +211,7 @@ impl FixtureBuilder {
                 parameters,
                 SignatureTypeKey::Nominal(owner),
             ),
-        ))
+        )
     }
 
     pub(super) fn concrete_enum_with_variants(&mut self, count: usize) -> EnumFixture {
@@ -272,12 +272,12 @@ impl FixtureBuilder {
         id
     }
 
-    pub(super) fn dispatch(&mut self, function: PersistentFunctionId) -> CoreProtocolEntryV1 {
+    pub(super) fn dispatch(&mut self, function: PersistentFunctionId) -> PersistentDispatchSlotId {
         let record: DispatchRecord =
             CborIdentityRecord::from_key(DispatchSlotKey::interface_method(function)).unwrap();
         let id = record.id();
         self.dispatch_slots.push(record);
-        CoreProtocolEntryV1::DispatchSlot(id)
+        id
     }
 
     pub(super) fn name(&mut self) -> CanonicalIdentifier {

@@ -16,7 +16,7 @@ fn protocol_surface_replays_core_and_ordinary_provider_contracts_identically() {
         let bytes = encode(&surface).unwrap();
         let validated = decode(&surface).validate_against(&foundation).unwrap();
         assert_eq!(encode(&validated).unwrap(), bytes);
-        let integer = concrete_entry(surface.fundamental_types.entries(), 1);
+        let integer = surface.fundamental_types.int8;
         foundation.set_definition_origins(vec![]).unwrap();
         assert_eq!(
             decode(&surface).validate_against(&foundation),
@@ -42,21 +42,20 @@ fn protocol_surface_preserves_role_signatures_and_rejects_substitute_providers()
         ),
     ] {
         let (mut surface, foundation) = test_support::standalone_at(origin);
-        let original = callable_entry_ref(surface.source_location_protocol.entries(), 1).clone();
-        surface.source_location_protocol.0.entries[1] =
-            CoreProtocolEntryV1::Callable(CoreProtocolCallableV1::for_test(
-                original.definition(),
-                SignatureCallableShape::new(
-                    Effect::Ordinary,
-                    None,
-                    vec![],
-                    SignatureTypeKey::Nominal(
-                        scoop_identity::CoreBuiltinNominal::Unit
-                            .identity_record()
-                            .id(),
-                    ),
+        let original = surface.source_location_protocol.current.clone();
+        surface.source_location_protocol.current = CoreProtocolCallableV1::for_test(
+            original.definition(),
+            SignatureCallableShape::new(
+                Effect::Ordinary,
+                None,
+                vec![],
+                SignatureTypeKey::Nominal(
+                    scoop_identity::CoreBuiltinNominal::Unit
+                        .identity_record()
+                        .id(),
                 ),
-            ));
+            ),
+        );
         assert_eq!(
             decode(&surface).validate_against(&foundation),
             Err(CoreCompilerProtocolSurfaceValidationError::Relation(
@@ -66,9 +65,8 @@ fn protocol_surface_preserves_role_signatures_and_rejects_substitute_providers()
             ))
         );
         let (substitute, _) = test_support::standalone_at(other);
-        let substitute = callable_entry_ref(substitute.source_location_protocol.entries(), 1);
-        surface.source_location_protocol.0.entries[1] =
-            CoreProtocolEntryV1::Callable(substitute.clone());
+        let substitute = &substitute.source_location_protocol.current;
+        surface.source_location_protocol.current = substitute.clone();
         let crate::CoreProtocolCallableDefinitionV1::Function(id) = substitute.definition() else {
             panic!("ordinary operation")
         };

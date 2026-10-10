@@ -18,50 +18,47 @@ pub(super) fn install_with_intrinsics_at(
 ) {
     let mut builder = FixtureBuilder::new(existing, origin);
 
-    let integers: [CoreProtocolEntryV1; 8] =
+    let integers: [PersistentTypeId; 8] =
         std::array::from_fn(|_| builder.concrete_nominal(SourceNominalKind::Struct));
     let boolean = builder.concrete_nominal(SourceNominalKind::Struct);
     let array = builder.generic_nominal(SourceNominalKind::Class);
     let mutable_array = builder.generic_nominal(SourceNominalKind::Class);
     let ptr = builder.generic_nominal(SourceNominalKind::Struct);
     let fun_ptr = builder.generic_nominal(SourceNominalKind::Struct);
-    let fundamental_types = CoreFundamentalTypeProtocolV1(product([
-        concrete_entry(CoreBuiltinNominal::Unit.identity_record().id()),
-        integers[0].clone(),
-        integers[1].clone(),
-        integers[2].clone(),
-        integers[3].clone(),
-        integers[4].clone(),
-        integers[5].clone(),
-        integers[6].clone(),
-        integers[7].clone(),
+    let fundamental_types = CoreFundamentalTypeProtocolV1 {
+        unit: CoreBuiltinNominal::Unit.identity_record().id(),
+        int8: integers[0],
+        int16: integers[1],
+        int32: integers[2],
+        int64: integers[3],
+        uint8: integers[4],
+        uint16: integers[5],
+        uint32: integers[6],
+        uint64: integers[7],
         boolean,
-        concrete_entry(builder.existing.string.id()),
+        string: builder.existing.string.id(),
         array,
         mutable_array,
-        ptr.clone(),
-        fun_ptr.clone(),
-        builder.concrete_nominal(SourceNominalKind::Struct),
-        builder.concrete_nominal(SourceNominalKind::Struct),
-        builder.concrete_nominal(SourceNominalKind::Struct),
-        builder.concrete_nominal(SourceNominalKind::Class),
-        builder.concrete_nominal(SourceNominalKind::Class),
-    ]));
+        ptr,
+        fun_ptr,
+        character: builder.concrete_nominal(SourceNominalKind::Struct),
+        float: builder.concrete_nominal(SourceNominalKind::Struct),
+        double: builder.concrete_nominal(SourceNominalKind::Struct),
+        any: builder.concrete_nominal(SourceNominalKind::Class),
+        nothing: builder.concrete_nominal(SourceNominalKind::Class),
+    };
 
-    let option_protocol = CoreOptionProtocolV1(product([
-        generic_entry(builder.existing.option.id()),
-        CoreProtocolEntryV1::EnumVariant(builder.existing.option_some.id()),
-        CoreProtocolEntryV1::EnumVariantField(builder.existing.option_some_payload.id()),
-        CoreProtocolEntryV1::EnumVariant(builder.existing.option_none.id()),
-    ]));
+    let option_protocol = CoreOptionProtocolV1 {
+        option: builder.existing.option.id(),
+        some: builder.existing.option_some.id(),
+        some_payload: builder.existing.option_some_payload.id(),
+        none: builder.existing.option_none.id(),
+    };
     let option_type = builder.existing.option.id();
     let string_type = builder.existing.string.id();
 
     let iterator = builder.generic_nominal(SourceNominalKind::Interface);
-    let iterator_id = match iterator {
-        CoreProtocolEntryV1::Nominal(CoreProtocolNominalV1::GenericType(id)) => id,
-        _ => unreachable!("the fixture iterator is generic"),
-    };
+    let iterator_id = iterator;
     let (next, next_id) = builder.function_with_owner_signature(
         Some(DefinitionOwnerAtom::GenericType(iterator_id)),
         SignatureCallableShape::new(
@@ -71,8 +68,11 @@ pub(super) fn install_with_intrinsics_at(
             signature_application(option_type, SignatureTypeKey::Binder { depth: 0, index: 0 }),
         ),
     );
-    let iteration_protocol =
-        CoreIterationProtocolV1(product([iterator, next, builder.dispatch(next_id)]));
+    let iteration_protocol = CoreIterationProtocolV1 {
+        iterator,
+        next,
+        next_dispatch: builder.dispatch(next_id),
+    };
 
     let exception_classes: [PersistentTypeId; 8] = std::array::from_fn(|_| builder.concrete_type());
     let exception_constructors = std::array::from_fn::<_, 8, _>(|index| {
@@ -97,28 +97,28 @@ pub(super) fn install_with_intrinsics_at(
             ),
         )
         .0;
-    let exception_protocol = CoreExceptionProtocolV1(product([
-        concrete_entry(exception_classes[0]),
-        exception_constructors[0].clone(),
-        concrete_entry(exception_classes[1]),
-        exception_constructors[1].clone(),
-        concrete_entry(exception_classes[2]),
-        exception_constructors[2].clone(),
-        concrete_entry(exception_classes[3]),
-        exception_constructors[3].clone(),
-        concrete_entry(exception_classes[4]),
-        exception_constructors[4].clone(),
-        concrete_entry(exception_classes[5]),
-        exception_constructors[5].clone(),
+    let exception_protocol = CoreExceptionProtocolV1 {
+        throwable: exception_classes[0],
+        throwable_constructor: exception_constructors[0].clone(),
+        unwrap_exception: exception_classes[1],
+        unwrap_exception_constructor: exception_constructors[1].clone(),
+        class_cast_exception: exception_classes[2],
+        class_cast_exception_constructor: exception_constructors[2].clone(),
+        arithmetic_exception: exception_classes[3],
+        arithmetic_exception_constructor: exception_constructors[3].clone(),
+        index_out_of_bounds_exception: exception_classes[4],
+        index_out_of_bounds_exception_constructor: exception_constructors[4].clone(),
+        illegal_state_exception: exception_classes[5],
+        illegal_state_exception_constructor: exception_constructors[5].clone(),
         initialization_cycle_thrower,
-        concrete_entry(exception_classes[6]),
-        exception_constructors[6].clone(),
-        concrete_entry(exception_classes[7]),
-        exception_constructors[7].clone(),
-    ]));
+        illegal_argument_exception: exception_classes[6],
+        illegal_argument_exception_constructor: exception_constructors[6].clone(),
+        missing_context_exception: exception_classes[7],
+        missing_context_exception_constructor: exception_constructors[7].clone(),
+    };
 
     let continuation = builder.generic_nominal(SourceNominalKind::Interface);
-    let continuation_id = generic_protocol_id(&continuation);
+    let continuation_id = continuation;
     let (resume, resume_id) = builder.function_with_owner_signature(
         Some(DefinitionOwnerAtom::GenericType(continuation_id)),
         SignatureCallableShape::new(
@@ -139,9 +139,7 @@ pub(super) fn install_with_intrinsics_at(
     );
     let suspend_task = builder.generic_nominal(SourceNominalKind::Interface);
     let (run, run_id) = builder.function_with_owner_signature(
-        Some(DefinitionOwnerAtom::GenericType(generic_protocol_id(
-            &suspend_task,
-        ))),
+        Some(DefinitionOwnerAtom::GenericType(suspend_task)),
         SignatureCallableShape::new(
             scoop_identity::Effect::Suspend,
             None,
@@ -151,9 +149,7 @@ pub(super) fn install_with_intrinsics_at(
     );
     let suspend_registration = builder.generic_nominal(SourceNominalKind::Interface);
     let (register, register_id) = builder.function_with_owner_signature(
-        Some(DefinitionOwnerAtom::GenericType(generic_protocol_id(
-            &suspend_registration,
-        ))),
+        Some(DefinitionOwnerAtom::GenericType(suspend_registration)),
         SignatureCallableShape::new(
             scoop_identity::Effect::Ordinary,
             None,
@@ -166,79 +162,81 @@ pub(super) fn install_with_intrinsics_at(
     );
     let (start, _) = builder.function(scoop_identity::Effect::Ordinary);
     let (suspend, _) = builder.function(scoop_identity::Effect::Suspend);
-    let mut coroutine_protocol = CoreCoroutineProtocolV1(product([
+    let mut coroutine_protocol = CoreCoroutineProtocolV1 {
         continuation,
-        resume,
-        builder.dispatch(resume_id),
-        resume_exception,
-        builder.dispatch(resume_exception_id),
+        continuation_resume: resume,
+        continuation_resume_dispatch: builder.dispatch(resume_id),
+        continuation_resume_with_exception: resume_exception,
+        continuation_resume_with_exception_dispatch: builder.dispatch(resume_exception_id),
         suspend_task,
-        run,
-        builder.dispatch(run_id),
+        suspend_task_run: run,
+        suspend_task_run_dispatch: builder.dispatch(run_id),
         suspend_registration,
-        register,
-        builder.dispatch(register_id),
-        start,
-        suspend,
-    ]));
+        suspend_registration_register: register,
+        suspend_registration_register_dispatch: builder.dispatch(register_id),
+        start_coroutine: start,
+        suspend_coroutine: suspend,
+    };
 
     let pinned = builder.generic_nominal(SourceNominalKind::Struct);
     let handle = builder.generic_nominal(SourceNominalKind::Struct);
-    let ffi_callables: [CoreProtocolEntryV1; 15] =
+    let ffi_callables: [CoreProtocolCallableV1; 15] =
         std::array::from_fn(|_| builder.function(scoop_identity::Effect::Ordinary).0);
-    let mut ffi_protocol = CoreFfiProtocolV1(product([
+    let mut ffi_protocol = CoreFfiProtocolV1 {
         ptr,
         fun_ptr,
-        pinned,
-        handle,
-        ffi_callables[0].clone(),
-        ffi_callables[1].clone(),
-        ffi_callables[2].clone(),
-        ffi_callables[3].clone(),
-        ffi_callables[4].clone(),
-        ffi_callables[5].clone(),
-        ffi_callables[6].clone(),
-        ffi_callables[7].clone(),
-        ffi_callables[8].clone(),
-        ffi_callables[9].clone(),
-        ffi_callables[10].clone(),
-        ffi_callables[11].clone(),
-        ffi_callables[12].clone(),
-        ffi_callables[13].clone(),
-        ffi_callables[14].clone(),
-    ]));
+        pinned_ptr: pinned,
+        gc_handle: handle,
+        ptr_to_ulong: ffi_callables[0].clone(),
+        ptr_cast: ffi_callables[1].clone(),
+        ptr_load: ffi_callables[2].clone(),
+        ptr_load_offset: ffi_callables[3].clone(),
+        ptr_store: ffi_callables[4].clone(),
+        ptr_store_offset: ffi_callables[5].clone(),
+        ptr_plus: ffi_callables[6].clone(),
+        ptr_minus: ffi_callables[7].clone(),
+        address_of: ffi_callables[8].clone(),
+        size_of: ffi_callables[9].clone(),
+        align_of: ffi_callables[10].clone(),
+        gc_pin_raw: ffi_callables[11].clone(),
+        gc_unpin_raw: ffi_callables[12].clone(),
+        gc_get_handle_raw: ffi_callables[13].clone(),
+        gc_release_handle_raw: ffi_callables[14].clone(),
+    };
 
     let callback = builder.generic_nominal(SourceNominalKind::Struct);
     let mode = builder.concrete_enum_with_variants(2);
     let state = builder.concrete_enum_with_variants(4);
     let option_id = builder.existing.option.id();
     let failure_exact = builder.exact_application(option_id, exception_classes[0]);
-    let callback_callables: [CoreProtocolEntryV1; 5] =
+    let callback_callables: [CoreProtocolCallableV1; 5] =
         std::array::from_fn(|_| builder.function(scoop_identity::Effect::Ordinary).0);
-    let mut foreign_callback_protocol = CoreForeignCallbackProtocolV1(product([
+    let mut foreign_callback_protocol = CoreForeignCallbackProtocolV1 {
         callback,
-        concrete_entry(mode.owner),
-        CoreProtocolEntryV1::EnumVariant(mode.variants[0]),
-        CoreProtocolEntryV1::EnumVariant(mode.variants[1]),
-        concrete_entry(state.owner),
-        CoreProtocolEntryV1::EnumVariant(state.variants[0]),
-        CoreProtocolEntryV1::EnumVariant(state.variants[1]),
-        CoreProtocolEntryV1::EnumVariant(state.variants[2]),
-        CoreProtocolEntryV1::EnumVariant(state.variants[3]),
-        CoreProtocolEntryV1::ExactType(failure_exact),
-        callback_callables[0].clone(),
-        callback_callables[1].clone(),
-        callback_callables[2].clone(),
-        callback_callables[3].clone(),
-        callback_callables[4].clone(),
-    ]));
+        mode: mode.owner,
+        reusable: mode.variants[0],
+        one_shot: mode.variants[1],
+        state: state.owner,
+        registered: state.variants[0],
+        active: state.variants[1],
+        completed: state.variants[2],
+        failed: state.variants[3],
+        failure_result: failure_exact,
+        register: callback_callables[0].clone(),
+        retain: callback_callables[1].clone(),
+        release: callback_callables[2].clone(),
+        query_state: callback_callables[3].clone(),
+        failure: callback_callables[4].clone(),
+    };
 
     let source_location = builder.concrete_nominal(SourceNominalKind::Struct);
     let current = builder.function(scoop_identity::Effect::Ordinary).0;
-    let mut source_location_protocol =
-        CoreSourceLocationProtocolV1(product([source_location, current]));
+    let mut source_location_protocol = CoreSourceLocationProtocolV1 {
+        location: source_location,
+        current,
+    };
 
-    let CoreProtocolEntryV1::Callable(program_arguments) = builder
+    let program_arguments = builder
         .function_with_owner_signature(
             None,
             SignatureCallableShape::new(
@@ -246,7 +244,7 @@ pub(super) fn install_with_intrinsics_at(
                 None,
                 Vec::new(),
                 SignatureTypeKey::NominalApplication {
-                    origin: generic_protocol_id(&fundamental_types.entries()[11]),
+                    origin: fundamental_types.array,
                     arguments: scoop_identity::NonEmptyVec::new(vec![SignatureTypeKey::Nominal(
                         string_type,
                     )])
@@ -254,10 +252,7 @@ pub(super) fn install_with_intrinsics_at(
                 },
             ),
         )
-        .0
-    else {
-        unreachable!("the fixture creates a source function")
-    };
+        .0;
     let signature_surface = CoreCompilerProtocolSurfaceV1 {
         program_arguments: program_arguments.clone(),
         fundamental_types: fundamental_types.clone(),
@@ -279,80 +274,107 @@ pub(super) fn install_with_intrinsics_at(
         })
         .map(|kind| {
             let callable = builder.operation(
-                fixture_operation_owner(kind, &fundamental_types),
+                expected_operation_owner(&signature_surface, kind),
                 operation_own_type_parameter_count(kind),
                 expected_operation_signature(&signature_surface, kind),
             );
-            (kind, callable_entry(callable))
+            (kind, callable)
         })
         .collect::<Vec<_>>();
 
-    coroutine_protocol.0.entries[11] =
+    coroutine_protocol.start_coroutine =
         operation_entry(&operations, IntrinsicFunctionKind::CoroutineStart);
-    coroutine_protocol.0.entries[12] =
+    coroutine_protocol.suspend_coroutine =
         operation_entry(&operations, IntrinsicFunctionKind::CoroutineSuspend);
-    for (index, kind) in [
+    for (callable, kind) in [
         (
-            4,
+            &mut ffi_protocol.ptr_to_ulong,
             IntrinsicFunctionKind::Pointer(crate::PointerIntrinsic::ToULong),
         ),
         (
-            5,
+            &mut ffi_protocol.ptr_cast,
             IntrinsicFunctionKind::Pointer(crate::PointerIntrinsic::Cast),
         ),
         (
-            6,
+            &mut ffi_protocol.ptr_load,
             IntrinsicFunctionKind::Pointer(crate::PointerIntrinsic::Load),
         ),
         (
-            7,
+            &mut ffi_protocol.ptr_load_offset,
             IntrinsicFunctionKind::Pointer(crate::PointerIntrinsic::LoadOffset),
         ),
         (
-            8,
+            &mut ffi_protocol.ptr_store,
             IntrinsicFunctionKind::Pointer(crate::PointerIntrinsic::Store),
         ),
         (
-            9,
+            &mut ffi_protocol.ptr_store_offset,
             IntrinsicFunctionKind::Pointer(crate::PointerIntrinsic::StoreOffset),
         ),
         (
-            10,
+            &mut ffi_protocol.ptr_plus,
             IntrinsicFunctionKind::Pointer(crate::PointerIntrinsic::Plus),
         ),
         (
-            11,
+            &mut ffi_protocol.ptr_minus,
             IntrinsicFunctionKind::Pointer(crate::PointerIntrinsic::Minus),
         ),
         (
-            12,
+            &mut ffi_protocol.address_of,
             IntrinsicFunctionKind::Pointer(crate::PointerIntrinsic::AddressOf),
         ),
         (
-            13,
+            &mut ffi_protocol.size_of,
             IntrinsicFunctionKind::Pointer(crate::PointerIntrinsic::SizeOf),
         ),
         (
-            14,
+            &mut ffi_protocol.align_of,
             IntrinsicFunctionKind::Pointer(crate::PointerIntrinsic::AlignOf),
         ),
-        (15, IntrinsicFunctionKind::GcPinRaw),
-        (16, IntrinsicFunctionKind::GcUnpinRaw),
-        (17, IntrinsicFunctionKind::GcGetHandleRaw),
-        (18, IntrinsicFunctionKind::GcReleaseHandleRaw),
+        (
+            &mut ffi_protocol.gc_pin_raw,
+            IntrinsicFunctionKind::GcPinRaw,
+        ),
+        (
+            &mut ffi_protocol.gc_unpin_raw,
+            IntrinsicFunctionKind::GcUnpinRaw,
+        ),
+        (
+            &mut ffi_protocol.gc_get_handle_raw,
+            IntrinsicFunctionKind::GcGetHandleRaw,
+        ),
+        (
+            &mut ffi_protocol.gc_release_handle_raw,
+            IntrinsicFunctionKind::GcReleaseHandleRaw,
+        ),
     ] {
-        ffi_protocol.0.entries[index] = operation_entry(&operations, kind);
+        *callable = operation_entry(&operations, kind);
     }
-    for (index, kind) in [
-        (10, IntrinsicFunctionKind::ForeignCallbackRegister),
-        (11, IntrinsicFunctionKind::ForeignCallbackRetain),
-        (12, IntrinsicFunctionKind::ForeignCallbackRelease),
-        (13, IntrinsicFunctionKind::ForeignCallbackState),
-        (14, IntrinsicFunctionKind::ForeignCallbackFailure),
+    for (callable, kind) in [
+        (
+            &mut foreign_callback_protocol.register,
+            IntrinsicFunctionKind::ForeignCallbackRegister,
+        ),
+        (
+            &mut foreign_callback_protocol.retain,
+            IntrinsicFunctionKind::ForeignCallbackRetain,
+        ),
+        (
+            &mut foreign_callback_protocol.release,
+            IntrinsicFunctionKind::ForeignCallbackRelease,
+        ),
+        (
+            &mut foreign_callback_protocol.query_state,
+            IntrinsicFunctionKind::ForeignCallbackState,
+        ),
+        (
+            &mut foreign_callback_protocol.failure,
+            IntrinsicFunctionKind::ForeignCallbackFailure,
+        ),
     ] {
-        foreign_callback_protocol.0.entries[index] = operation_entry(&operations, kind);
+        *callable = operation_entry(&operations, kind);
     }
-    source_location_protocol.0.entries[1] =
+    source_location_protocol.current =
         operation_entry(&operations, IntrinsicFunctionKind::CurrentSourceLocation);
 
     let surface = CoreCompilerProtocolSurfaceV1 {

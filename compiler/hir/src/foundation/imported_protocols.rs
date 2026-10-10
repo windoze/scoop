@@ -3,7 +3,6 @@
 mod import;
 mod roles;
 
-use import::import_product;
 pub use import::{CoreProtocolIdentityKind, CoreProtocolImportError};
 
 use scoop_identity::{
@@ -16,18 +15,10 @@ use scoop_identity::{
 use super::{ImportedHirFoundation, ImportedHirId, ImportedHirNominal};
 use crate::{
     COROUTINE_PROTOCOL_COUNT, CoreCompilerProtocolSurfaceV1, CoreProtocolCallableDefinitionV1,
-    CoreProtocolCallableV1, CoreProtocolEntryV1, CoreProtocolNominalV1, EXCEPTION_PROTOCOL_COUNT,
-    FFI_PROTOCOL_COUNT, FOREIGN_CALLBACK_PROTOCOL_COUNT, FUNDAMENTAL_TYPE_COUNT,
-    ITERATION_PROTOCOL_COUNT, IntegerKind, OPTION_PROTOCOL_COUNT, SOURCE_LOCATION_PROTOCOL_COUNT,
+    CoreProtocolCallableV1, EXCEPTION_PROTOCOL_COUNT, FFI_PROTOCOL_COUNT,
+    FOREIGN_CALLBACK_PROTOCOL_COUNT, FUNDAMENTAL_TYPE_COUNT, ITERATION_PROTOCOL_COUNT, IntegerKind,
+    OPTION_PROTOCOL_COUNT, SOURCE_LOCATION_PROTOCOL_COUNT,
 };
-
-/// Imported nominal identity in the HIR semantic session that owns the
-/// dependency artifact.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum ImportedCoreProtocolNominal {
-    Type(ImportedHirNominal<PersistentTypeId>),
-    GenericType(ImportedHirNominal<PersistentGenericTypeId>),
-}
 
 /// Imported callable declaration identity. The four source/generated domains
 /// remain distinct after import and cannot be substituted for one another.
@@ -62,49 +53,130 @@ impl ImportedCoreProtocolCallable {
     }
 }
 
-/// Closed imported subject sum used by all fixed-role compiler protocols.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum ImportedCoreProtocolEntry {
-    Nominal(ImportedCoreProtocolNominal),
-    Callable(ImportedCoreProtocolCallable),
-    EnumVariant(ImportedHirId<PersistentEnumVariantId>),
-    EnumVariantField(ImportedHirId<PersistentEnumVariantFieldId>),
-    DispatchSlot(ImportedHirId<PersistentDispatchSlotId>),
-    ExactType(ImportedHirId<PersistentExactTypeId>),
+#[derive(Clone, Debug)]
+pub struct ImportedCoreFundamentalTypeProtocol {
+    unit: ImportedHirNominal<PersistentTypeId>,
+    int8: ImportedHirNominal<PersistentTypeId>,
+    int16: ImportedHirNominal<PersistentTypeId>,
+    int32: ImportedHirNominal<PersistentTypeId>,
+    int64: ImportedHirNominal<PersistentTypeId>,
+    uint8: ImportedHirNominal<PersistentTypeId>,
+    uint16: ImportedHirNominal<PersistentTypeId>,
+    uint32: ImportedHirNominal<PersistentTypeId>,
+    uint64: ImportedHirNominal<PersistentTypeId>,
+    boolean: ImportedHirNominal<PersistentTypeId>,
+    string: ImportedHirNominal<PersistentTypeId>,
+    array: ImportedHirNominal<PersistentGenericTypeId>,
+    mutable_array: ImportedHirNominal<PersistentGenericTypeId>,
+    ptr: ImportedHirNominal<PersistentGenericTypeId>,
+    fun_ptr: ImportedHirNominal<PersistentGenericTypeId>,
+    character: ImportedHirNominal<PersistentTypeId>,
+    float: ImportedHirNominal<PersistentTypeId>,
+    double: ImportedHirNominal<PersistentTypeId>,
+    any: ImportedHirNominal<PersistentTypeId>,
+    nothing: ImportedHirNominal<PersistentTypeId>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
-struct ImportedCoreProtocolProduct<const N: usize> {
-    entries: [ImportedCoreProtocolEntry; N],
+#[derive(Clone, Debug)]
+pub struct ImportedCoreOptionProtocol {
+    option: ImportedHirNominal<PersistentGenericTypeId>,
+    some: ImportedHirId<PersistentEnumVariantId>,
+    some_payload: ImportedHirId<PersistentEnumVariantFieldId>,
+    none: ImportedHirId<PersistentEnumVariantId>,
 }
 
-macro_rules! imported_protocol_product {
-    ($name:ident, $count:ident) => {
-        #[derive(Clone, Debug)]
-        pub struct $name(ImportedCoreProtocolProduct<$count>);
-
-        impl $name {
-            const fn subject_count(&self) -> usize {
-                self.0.entries.len()
-            }
-        }
-    };
+#[derive(Clone, Debug)]
+pub struct ImportedCoreIterationProtocol {
+    iterator: ImportedHirNominal<PersistentGenericTypeId>,
+    next: ImportedCoreProtocolCallable,
+    next_dispatch: ImportedHirId<PersistentDispatchSlotId>,
 }
 
-imported_protocol_product!(ImportedCoreFundamentalTypeProtocol, FUNDAMENTAL_TYPE_COUNT);
-imported_protocol_product!(ImportedCoreOptionProtocol, OPTION_PROTOCOL_COUNT);
-imported_protocol_product!(ImportedCoreIterationProtocol, ITERATION_PROTOCOL_COUNT);
-imported_protocol_product!(ImportedCoreExceptionProtocol, EXCEPTION_PROTOCOL_COUNT);
-imported_protocol_product!(ImportedCoreCoroutineProtocol, COROUTINE_PROTOCOL_COUNT);
-imported_protocol_product!(ImportedCoreFfiProtocol, FFI_PROTOCOL_COUNT);
-imported_protocol_product!(
-    ImportedCoreForeignCallbackProtocol,
-    FOREIGN_CALLBACK_PROTOCOL_COUNT
-);
-imported_protocol_product!(
-    ImportedCoreSourceLocationProtocol,
-    SOURCE_LOCATION_PROTOCOL_COUNT
-);
+#[derive(Clone, Debug)]
+pub struct ImportedCoreExceptionProtocol {
+    throwable: ImportedHirNominal<PersistentTypeId>,
+    throwable_constructor: ImportedCoreProtocolCallable,
+    unwrap_exception: ImportedHirNominal<PersistentTypeId>,
+    unwrap_exception_constructor: ImportedCoreProtocolCallable,
+    class_cast_exception: ImportedHirNominal<PersistentTypeId>,
+    class_cast_exception_constructor: ImportedCoreProtocolCallable,
+    arithmetic_exception: ImportedHirNominal<PersistentTypeId>,
+    arithmetic_exception_constructor: ImportedCoreProtocolCallable,
+    index_out_of_bounds_exception: ImportedHirNominal<PersistentTypeId>,
+    index_out_of_bounds_exception_constructor: ImportedCoreProtocolCallable,
+    illegal_state_exception: ImportedHirNominal<PersistentTypeId>,
+    illegal_state_exception_constructor: ImportedCoreProtocolCallable,
+    initialization_cycle_thrower: ImportedCoreProtocolCallable,
+    illegal_argument_exception: ImportedHirNominal<PersistentTypeId>,
+    illegal_argument_exception_constructor: ImportedCoreProtocolCallable,
+    missing_context_exception: ImportedHirNominal<PersistentTypeId>,
+    missing_context_exception_constructor: ImportedCoreProtocolCallable,
+}
+
+#[derive(Clone, Debug)]
+pub struct ImportedCoreCoroutineProtocol {
+    continuation: ImportedHirNominal<PersistentGenericTypeId>,
+    continuation_resume: ImportedCoreProtocolCallable,
+    continuation_resume_dispatch: ImportedHirId<PersistentDispatchSlotId>,
+    continuation_resume_with_exception: ImportedCoreProtocolCallable,
+    continuation_resume_with_exception_dispatch: ImportedHirId<PersistentDispatchSlotId>,
+    suspend_task: ImportedHirNominal<PersistentGenericTypeId>,
+    suspend_task_run: ImportedCoreProtocolCallable,
+    suspend_task_run_dispatch: ImportedHirId<PersistentDispatchSlotId>,
+    suspend_registration: ImportedHirNominal<PersistentGenericTypeId>,
+    suspend_registration_register: ImportedCoreProtocolCallable,
+    suspend_registration_register_dispatch: ImportedHirId<PersistentDispatchSlotId>,
+    start_coroutine: ImportedCoreProtocolCallable,
+    suspend_coroutine: ImportedCoreProtocolCallable,
+}
+
+#[derive(Clone, Debug)]
+pub struct ImportedCoreFfiProtocol {
+    ptr: ImportedHirNominal<PersistentGenericTypeId>,
+    fun_ptr: ImportedHirNominal<PersistentGenericTypeId>,
+    pinned_ptr: ImportedHirNominal<PersistentGenericTypeId>,
+    gc_handle: ImportedHirNominal<PersistentGenericTypeId>,
+    ptr_to_ulong: ImportedCoreProtocolCallable,
+    ptr_cast: ImportedCoreProtocolCallable,
+    ptr_load: ImportedCoreProtocolCallable,
+    ptr_load_offset: ImportedCoreProtocolCallable,
+    ptr_store: ImportedCoreProtocolCallable,
+    ptr_store_offset: ImportedCoreProtocolCallable,
+    ptr_plus: ImportedCoreProtocolCallable,
+    ptr_minus: ImportedCoreProtocolCallable,
+    address_of: ImportedCoreProtocolCallable,
+    size_of: ImportedCoreProtocolCallable,
+    align_of: ImportedCoreProtocolCallable,
+    gc_pin_raw: ImportedCoreProtocolCallable,
+    gc_unpin_raw: ImportedCoreProtocolCallable,
+    gc_get_handle_raw: ImportedCoreProtocolCallable,
+    gc_release_handle_raw: ImportedCoreProtocolCallable,
+}
+
+#[derive(Clone, Debug)]
+pub struct ImportedCoreForeignCallbackProtocol {
+    callback: ImportedHirNominal<PersistentGenericTypeId>,
+    mode: ImportedHirNominal<PersistentTypeId>,
+    reusable: ImportedHirId<PersistentEnumVariantId>,
+    one_shot: ImportedHirId<PersistentEnumVariantId>,
+    state: ImportedHirNominal<PersistentTypeId>,
+    registered: ImportedHirId<PersistentEnumVariantId>,
+    active: ImportedHirId<PersistentEnumVariantId>,
+    completed: ImportedHirId<PersistentEnumVariantId>,
+    failed: ImportedHirId<PersistentEnumVariantId>,
+    failure_result: ImportedHirId<PersistentExactTypeId>,
+    register: ImportedCoreProtocolCallable,
+    retain: ImportedCoreProtocolCallable,
+    release: ImportedCoreProtocolCallable,
+    query_state: ImportedCoreProtocolCallable,
+    failure: ImportedCoreProtocolCallable,
+}
+
+#[derive(Clone, Debug)]
+pub struct ImportedCoreSourceLocationProtocol {
+    location: ImportedHirNominal<PersistentTypeId>,
+    current: ImportedCoreProtocolCallable,
+}
 
 /// Complete imported compiler-protocol references. Every persistent subject
 /// has already been resolved into the exact HIR identity session owned by the
@@ -132,38 +204,35 @@ impl ImportedCoreProtocols {
         protocols: &crate::CoreCompilerProtocolSurfaceV1,
     ) -> Result<Self, CoreProtocolImportError> {
         Ok(Self {
-            fundamental_types: ImportedCoreFundamentalTypeProtocol(import_product(
+            fundamental_types: ImportedCoreFundamentalTypeProtocol::import(
                 foundation,
-                protocols.fundamental_types().entries(),
-            )?),
-            option_protocol: ImportedCoreOptionProtocol(import_product(
+                protocols.fundamental_types(),
+            )?,
+            option_protocol: ImportedCoreOptionProtocol::import(
                 foundation,
-                protocols.option_protocol().entries(),
-            )?),
-            iteration_protocol: ImportedCoreIterationProtocol(import_product(
+                protocols.option_protocol(),
+            )?,
+            iteration_protocol: ImportedCoreIterationProtocol::import(
                 foundation,
-                protocols.iteration_protocol().entries(),
-            )?),
-            exception_protocol: ImportedCoreExceptionProtocol(import_product(
+                protocols.iteration_protocol(),
+            )?,
+            exception_protocol: ImportedCoreExceptionProtocol::import(
                 foundation,
-                protocols.exception_protocol().entries(),
-            )?),
-            coroutine_protocol: ImportedCoreCoroutineProtocol(import_product(
+                protocols.exception_protocol(),
+            )?,
+            coroutine_protocol: ImportedCoreCoroutineProtocol::import(
                 foundation,
-                protocols.coroutine_protocol().entries(),
-            )?),
-            ffi_protocol: ImportedCoreFfiProtocol(import_product(
+                protocols.coroutine_protocol(),
+            )?,
+            ffi_protocol: ImportedCoreFfiProtocol::import(foundation, protocols.ffi_protocol())?,
+            foreign_callback_protocol: ImportedCoreForeignCallbackProtocol::import(
                 foundation,
-                protocols.ffi_protocol().entries(),
-            )?),
-            foreign_callback_protocol: ImportedCoreForeignCallbackProtocol(import_product(
+                protocols.foreign_callback_protocol(),
+            )?,
+            source_location_protocol: ImportedCoreSourceLocationProtocol::import(
                 foundation,
-                protocols.foreign_callback_protocol().entries(),
-            )?),
-            source_location_protocol: ImportedCoreSourceLocationProtocol(import_product(
-                foundation,
-                protocols.source_location_protocol().entries(),
-            )?),
+                protocols.source_location_protocol(),
+            )?,
             program_arguments: import::import_callable(foundation, protocols.program_arguments())?,
         })
     }
@@ -201,14 +270,14 @@ impl ImportedCoreProtocols {
     }
 
     pub fn fixed_subject_count(&self) -> usize {
-        self.fundamental_types.subject_count()
-            + self.option_protocol.subject_count()
-            + self.iteration_protocol.subject_count()
-            + self.exception_protocol.subject_count()
-            + self.coroutine_protocol.subject_count()
-            + self.ffi_protocol.subject_count()
-            + self.foreign_callback_protocol.subject_count()
-            + self.source_location_protocol.subject_count()
+        FUNDAMENTAL_TYPE_COUNT
+            + OPTION_PROTOCOL_COUNT
+            + ITERATION_PROTOCOL_COUNT
+            + EXCEPTION_PROTOCOL_COUNT
+            + COROUTINE_PROTOCOL_COUNT
+            + FFI_PROTOCOL_COUNT
+            + FOREIGN_CALLBACK_PROTOCOL_COUNT
+            + SOURCE_LOCATION_PROTOCOL_COUNT
             + 1
     }
 }
@@ -234,76 +303,6 @@ impl ImportedHirFoundation {
     ) -> Result<ImportedCoreInputs, CoreProtocolImportError> {
         let protocols = ImportedCoreProtocols::import(self, interface)?;
         Ok(ImportedCoreInputs { protocols })
-    }
-}
-
-fn concrete_nominal<const N: usize>(
-    product: &ImportedCoreProtocolProduct<N>,
-    index: usize,
-) -> ImportedHirNominal<PersistentTypeId> {
-    match product.entries[index] {
-        ImportedCoreProtocolEntry::Nominal(ImportedCoreProtocolNominal::Type(id)) => id,
-        _ => unreachable!("an imported fixed protocol role retains its validated subject kind"),
-    }
-}
-
-fn generic_nominal<const N: usize>(
-    product: &ImportedCoreProtocolProduct<N>,
-    index: usize,
-) -> ImportedHirNominal<PersistentGenericTypeId> {
-    match product.entries[index] {
-        ImportedCoreProtocolEntry::Nominal(ImportedCoreProtocolNominal::GenericType(id)) => id,
-        _ => unreachable!("an imported fixed protocol role retains its validated subject kind"),
-    }
-}
-
-fn callable<const N: usize>(
-    product: &ImportedCoreProtocolProduct<N>,
-    index: usize,
-) -> &ImportedCoreProtocolCallable {
-    match &product.entries[index] {
-        ImportedCoreProtocolEntry::Callable(callable) => callable,
-        _ => unreachable!("an imported fixed protocol role retains its validated subject kind"),
-    }
-}
-
-fn enum_variant<const N: usize>(
-    product: &ImportedCoreProtocolProduct<N>,
-    index: usize,
-) -> ImportedHirId<PersistentEnumVariantId> {
-    match product.entries[index] {
-        ImportedCoreProtocolEntry::EnumVariant(id) => id,
-        _ => unreachable!("an imported fixed protocol role retains its validated subject kind"),
-    }
-}
-
-fn enum_variant_field<const N: usize>(
-    product: &ImportedCoreProtocolProduct<N>,
-    index: usize,
-) -> ImportedHirId<PersistentEnumVariantFieldId> {
-    match product.entries[index] {
-        ImportedCoreProtocolEntry::EnumVariantField(id) => id,
-        _ => unreachable!("an imported fixed protocol role retains its validated subject kind"),
-    }
-}
-
-fn dispatch_slot<const N: usize>(
-    product: &ImportedCoreProtocolProduct<N>,
-    index: usize,
-) -> ImportedHirId<PersistentDispatchSlotId> {
-    match product.entries[index] {
-        ImportedCoreProtocolEntry::DispatchSlot(id) => id,
-        _ => unreachable!("an imported fixed protocol role retains its validated subject kind"),
-    }
-}
-
-fn exact_type<const N: usize>(
-    product: &ImportedCoreProtocolProduct<N>,
-    index: usize,
-) -> ImportedHirId<PersistentExactTypeId> {
-    match product.entries[index] {
-        ImportedCoreProtocolEntry::ExactType(id) => id,
-        _ => unreachable!("an imported fixed protocol role retains its validated subject kind"),
     }
 }
 

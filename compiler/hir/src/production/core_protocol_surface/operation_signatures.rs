@@ -8,12 +8,12 @@ pub(super) fn expected_operation_signature(
     surface: &CoreCompilerProtocolSurfaceV1,
     kind: IntrinsicFunctionKind,
 ) -> SignatureCallableShape {
-    let fundamental = surface.fundamental_types.entries();
-    let unit = signature_concrete(fundamental, 0);
-    let long = signature_concrete(fundamental, 4);
-    let ulong = signature_concrete(fundamental, 8);
-    let boolean = signature_concrete(fundamental, 9);
-    let string = signature_concrete(fundamental, 10);
+    let fundamental = &surface.fundamental_types;
+    let unit = SignatureTypeKey::Nominal(fundamental.unit);
+    let long = SignatureTypeKey::Nominal(fundamental.int64);
+    let ulong = SignatureTypeKey::Nominal(fundamental.uint64);
+    let boolean = SignatureTypeKey::Nominal(fundamental.boolean);
+    let string = SignatureTypeKey::Nominal(fundamental.string);
     let binder = SignatureTypeKey::Binder { depth: 0, index: 0 };
 
     let (effect, parameters, result) = match kind {
@@ -56,12 +56,12 @@ pub(super) fn expected_operation_signature(
             }
         }
         IntrinsicFunctionKind::Char(kind) => {
-            let character = signature_concrete(fundamental, 15);
+            let character = SignatureTypeKey::Nominal(fundamental.character);
             match kind {
                 crate::CharIntrinsic::Code => (
                     Effect::Ordinary,
                     Vec::new(),
-                    signature_concrete(fundamental, 3),
+                    SignatureTypeKey::Nominal(fundamental.int32),
                 ),
                 crate::CharIntrinsic::FromCodeUnchecked => {
                     (Effect::Ordinary, Vec::new(), character)
@@ -79,54 +79,53 @@ pub(super) fn expected_operation_signature(
         IntrinsicFunctionKind::GcCollect => (Effect::Ordinary, Vec::new(), unit.clone()),
         IntrinsicFunctionKind::GcStats => (Effect::Ordinary, Vec::new(), ulong.clone()),
         IntrinsicFunctionKind::CoroutineStart => {
-            let coroutine = surface.coroutine_protocol.entries();
+            let coroutine = &surface.coroutine_protocol;
             (
                 Effect::Ordinary,
                 vec![
-                    signature_application(coroutine, 5, binder.clone()),
-                    signature_application(coroutine, 0, binder.clone()),
+                    signature_application(coroutine.suspend_task, binder.clone()),
+                    signature_application(coroutine.continuation, binder.clone()),
                 ],
                 unit.clone(),
             )
         }
         IntrinsicFunctionKind::CoroutineSuspend => {
-            let coroutine = surface.coroutine_protocol.entries();
+            let coroutine = &surface.coroutine_protocol;
             (
                 Effect::Suspend,
-                vec![signature_application(coroutine, 8, binder.clone())],
+                vec![signature_application(
+                    coroutine.suspend_registration,
+                    binder.clone(),
+                )],
                 binder.clone(),
             )
         }
         IntrinsicFunctionKind::CurrentSourceLocation => (
             Effect::Ordinary,
             Vec::new(),
-            signature_concrete(surface.source_location_protocol.entries(), 0),
+            SignatureTypeKey::Nominal(surface.source_location_protocol.location),
         ),
         IntrinsicFunctionKind::ForeignCallbackRegister => {
-            let callback = surface.foreign_callback_protocol.entries();
+            let callback = &surface.foreign_callback_protocol;
             (
                 Effect::Ordinary,
                 vec![
-                    signature_concrete(fundamental, 18),
+                    SignatureTypeKey::Nominal(fundamental.any),
                     long.clone(),
-                    signature_concrete(callback, 1),
+                    SignatureTypeKey::Nominal(callback.mode),
                 ],
-                signature_application(callback, 0, binder.clone()),
+                signature_application(callback.callback, binder.clone()),
             )
         }
         IntrinsicFunctionKind::ForeignCallbackRetain => {
-            let callback = signature_application(
-                surface.foreign_callback_protocol.entries(),
-                0,
-                binder.clone(),
-            );
+            let callback =
+                signature_application(surface.foreign_callback_protocol.callback, binder.clone());
             (Effect::Ordinary, vec![callback.clone()], callback)
         }
         IntrinsicFunctionKind::ForeignCallbackRelease => (
             Effect::Ordinary,
             vec![signature_application(
-                surface.foreign_callback_protocol.entries(),
-                0,
+                surface.foreign_callback_protocol.callback,
                 binder.clone(),
             )],
             unit.clone(),
@@ -134,23 +133,20 @@ pub(super) fn expected_operation_signature(
         IntrinsicFunctionKind::ForeignCallbackState => (
             Effect::Ordinary,
             vec![signature_application(
-                surface.foreign_callback_protocol.entries(),
-                0,
+                surface.foreign_callback_protocol.callback,
                 binder.clone(),
             )],
-            signature_concrete(surface.foreign_callback_protocol.entries(), 4),
+            SignatureTypeKey::Nominal(surface.foreign_callback_protocol.state),
         ),
         IntrinsicFunctionKind::ForeignCallbackFailure => (
             Effect::Ordinary,
             vec![signature_application(
-                surface.foreign_callback_protocol.entries(),
-                0,
+                surface.foreign_callback_protocol.callback,
                 binder,
             )],
             signature_application(
-                surface.option_protocol.entries(),
-                0,
-                signature_concrete(surface.exception_protocol.entries(), 0),
+                surface.option_protocol.option,
+                SignatureTypeKey::Nominal(surface.exception_protocol.throwable),
             ),
         ),
         IntrinsicFunctionKind::Integer(kind) => expected_integer_signature(fundamental, kind),
@@ -174,8 +170,8 @@ pub(super) fn expected_operation_signature(
         ) => (Effect::Ordinary, Vec::new(), long),
         IntrinsicFunctionKind::Array(kind) => {
             let result = match kind {
-                crate::ArrayIntrinsic::ToImmutable => 11,
-                crate::ArrayIntrinsic::ToMutable => 12,
+                crate::ArrayIntrinsic::ToImmutable => fundamental.array,
+                crate::ArrayIntrinsic::ToMutable => fundamental.mutable_array,
                 crate::ArrayIntrinsic::ImmutableLength | crate::ArrayIntrinsic::MutableLength => {
                     unreachable!("length is handled above")
                 }
@@ -183,17 +179,17 @@ pub(super) fn expected_operation_signature(
             (
                 Effect::Ordinary,
                 Vec::new(),
-                signature_application(fundamental, result, binder),
+                signature_application(result, binder),
             )
         }
         IntrinsicFunctionKind::DataBorrow(kind) => {
             let (source, element) = match kind {
                 crate::DataBorrowIntrinsic::Array => (
-                    signature_application(fundamental, 11, binder.clone()),
+                    signature_application(fundamental.array, binder.clone()),
                     binder,
                 ),
                 crate::DataBorrowIntrinsic::MutableArray => (
-                    signature_application(fundamental, 12, binder.clone()),
+                    signature_application(fundamental.mutable_array, binder.clone()),
                     binder,
                 ),
                 crate::DataBorrowIntrinsic::String => (
@@ -218,11 +214,11 @@ pub(super) fn expected_operation_signature(
 }
 
 fn expected_integer_signature(
-    fundamental: &[CoreProtocolEntryV1; FUNDAMENTAL_TYPE_COUNT],
+    fundamental: &CoreFundamentalTypeProtocolV1,
     intrinsic: crate::IntegerIntrinsicKind,
 ) -> (Effect, Vec<SignatureTypeKey>, SignatureTypeKey) {
-    let long = signature_concrete(fundamental, 4);
-    let boolean = signature_concrete(fundamental, 9);
+    let long = SignatureTypeKey::Nominal(fundamental.int64);
+    let boolean = SignatureTypeKey::Nominal(fundamental.boolean);
     match intrinsic {
         crate::IntegerIntrinsicKind::NoGcOperation { kind, operation } => {
             let owner = signature_integer(fundamental, kind);
@@ -259,12 +255,12 @@ fn expected_integer_signature(
 }
 
 fn expected_pointer_signature(
-    fundamental: &[CoreProtocolEntryV1; FUNDAMENTAL_TYPE_COUNT],
+    fundamental: &CoreFundamentalTypeProtocolV1,
     kind: crate::PointerIntrinsic,
 ) -> (Effect, Vec<SignatureTypeKey>, SignatureTypeKey) {
-    let unit = signature_concrete(fundamental, 0);
-    let long = signature_concrete(fundamental, 4);
-    let ulong = signature_concrete(fundamental, 8);
+    let unit = SignatureTypeKey::Nominal(fundamental.unit);
+    let long = SignatureTypeKey::Nominal(fundamental.int64);
+    let ulong = SignatureTypeKey::Nominal(fundamental.uint64);
     let binder = SignatureTypeKey::Binder { depth: 0, index: 0 };
     match kind {
         crate::PointerIntrinsic::ToULong
@@ -329,40 +325,18 @@ pub(super) fn operation_own_type_parameter_count(kind: IntrinsicFunctionKind) ->
 }
 
 fn signature_integer(
-    fundamental: &[CoreProtocolEntryV1; FUNDAMENTAL_TYPE_COUNT],
+    fundamental: &CoreFundamentalTypeProtocolV1,
     kind: crate::IntegerKind,
 ) -> SignatureTypeKey {
-    let index = crate::IntegerKind::ALL
-        .iter()
-        .position(|candidate| *candidate == kind)
-        .expect("every integer operation uses a canonical integer kind");
-    signature_concrete(fundamental, index + 1)
+    SignatureTypeKey::Nominal(fundamental.integer(kind))
 }
 
-fn signature_concrete<const N: usize>(
-    entries: &[CoreProtocolEntryV1; N],
-    index: usize,
-) -> SignatureTypeKey {
-    SignatureTypeKey::Nominal(concrete_entry(entries, index))
-}
-
-fn signature_application<const N: usize>(
-    entries: &[CoreProtocolEntryV1; N],
-    index: usize,
+fn signature_application(
+    origin: PersistentGenericTypeId,
     argument: SignatureTypeKey,
 ) -> SignatureTypeKey {
     SignatureTypeKey::NominalApplication {
-        origin: generic_entry(entries, index),
+        origin,
         arguments: NonEmptyVec::from_first(argument, []),
-    }
-}
-
-fn generic_entry<const N: usize>(
-    entries: &[CoreProtocolEntryV1; N],
-    index: usize,
-) -> PersistentGenericTypeId {
-    match entries[index] {
-        CoreProtocolEntryV1::Nominal(CoreProtocolNominalV1::GenericType(id)) => id,
-        _ => unreachable!("validated core protocol role has its fixed subject kind"),
     }
 }

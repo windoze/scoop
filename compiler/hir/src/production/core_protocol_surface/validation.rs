@@ -8,14 +8,14 @@ impl CoreCompilerProtocolSurfaceV1 {
     ) -> Result<(), CoreCompilerProtocolSurfaceRelationError> {
         // Fixed products must not repeat one subject under two roles.
         for entries in [
-            self.fundamental_types.entries().as_slice(),
-            self.option_protocol.entries().as_slice(),
-            self.iteration_protocol.entries().as_slice(),
-            self.exception_protocol.entries().as_slice(),
-            self.coroutine_protocol.entries().as_slice(),
-            self.ffi_protocol.entries().as_slice(),
-            self.foreign_callback_protocol.entries().as_slice(),
-            self.source_location_protocol.entries().as_slice(),
+            self.fundamental_types.wire_entries().as_slice(),
+            self.option_protocol.wire_entries().as_slice(),
+            self.iteration_protocol.wire_entries().as_slice(),
+            self.exception_protocol.wire_entries().as_slice(),
+            self.coroutine_protocol.wire_entries().as_slice(),
+            self.ffi_protocol.wire_entries().as_slice(),
+            self.foreign_callback_protocol.wire_entries().as_slice(),
+            self.source_location_protocol.wire_entries().as_slice(),
         ] {
             let mut entries = entries.to_vec();
             entries.sort_unstable();
@@ -25,38 +25,78 @@ impl CoreCompilerProtocolSurfaceV1 {
         }
         require_source_callables(
             CoreProtocolProductKindV1::Iteration,
-            self.iteration_protocol.entries(),
-            &[1],
+            &[(1, &self.iteration_protocol.next)],
         )?;
         require_constructor_callables(
             CoreProtocolProductKindV1::Exception,
-            self.exception_protocol.entries(),
-            &[1, 3, 5, 7, 9, 11],
+            &[
+                (1, &self.exception_protocol.throwable_constructor),
+                (3, &self.exception_protocol.unwrap_exception_constructor),
+                (5, &self.exception_protocol.class_cast_exception_constructor),
+                (7, &self.exception_protocol.arithmetic_exception_constructor),
+                (
+                    9,
+                    &self
+                        .exception_protocol
+                        .index_out_of_bounds_exception_constructor,
+                ),
+                (
+                    11,
+                    &self.exception_protocol.illegal_state_exception_constructor,
+                ),
+            ],
         )?;
         require_source_callables(
             CoreProtocolProductKindV1::Exception,
-            self.exception_protocol.entries(),
-            &[12],
+            &[(12, &self.exception_protocol.initialization_cycle_thrower)],
         )?;
         require_source_callables(
             CoreProtocolProductKindV1::Coroutine,
-            self.coroutine_protocol.entries(),
-            &[1, 3, 6, 9, 11, 12],
+            &[
+                (1, &self.coroutine_protocol.continuation_resume),
+                (
+                    3,
+                    &self.coroutine_protocol.continuation_resume_with_exception,
+                ),
+                (6, &self.coroutine_protocol.suspend_task_run),
+                (9, &self.coroutine_protocol.suspend_registration_register),
+                (11, &self.coroutine_protocol.start_coroutine),
+                (12, &self.coroutine_protocol.suspend_coroutine),
+            ],
         )?;
         require_source_callables(
             CoreProtocolProductKindV1::Ffi,
-            self.ffi_protocol.entries(),
-            &(4..FFI_PROTOCOL_COUNT).collect::<Vec<_>>(),
+            &[
+                (4, &self.ffi_protocol.ptr_to_ulong),
+                (5, &self.ffi_protocol.ptr_cast),
+                (6, &self.ffi_protocol.ptr_load),
+                (7, &self.ffi_protocol.ptr_load_offset),
+                (8, &self.ffi_protocol.ptr_store),
+                (9, &self.ffi_protocol.ptr_store_offset),
+                (10, &self.ffi_protocol.ptr_plus),
+                (11, &self.ffi_protocol.ptr_minus),
+                (12, &self.ffi_protocol.address_of),
+                (13, &self.ffi_protocol.size_of),
+                (14, &self.ffi_protocol.align_of),
+                (15, &self.ffi_protocol.gc_pin_raw),
+                (16, &self.ffi_protocol.gc_unpin_raw),
+                (17, &self.ffi_protocol.gc_get_handle_raw),
+                (18, &self.ffi_protocol.gc_release_handle_raw),
+            ],
         )?;
         require_source_callables(
             CoreProtocolProductKindV1::ForeignCallback,
-            self.foreign_callback_protocol.entries(),
-            &(10..FOREIGN_CALLBACK_PROTOCOL_COUNT).collect::<Vec<_>>(),
+            &[
+                (10, &self.foreign_callback_protocol.register),
+                (11, &self.foreign_callback_protocol.retain),
+                (12, &self.foreign_callback_protocol.release),
+                (13, &self.foreign_callback_protocol.query_state),
+                (14, &self.foreign_callback_protocol.failure),
+            ],
         )?;
         require_source_callables(
             CoreProtocolProductKindV1::SourceLocation,
-            self.source_location_protocol.entries(),
-            &[1],
+            &[(1, &self.source_location_protocol.current)],
         )?;
         Ok(())
     }
@@ -77,112 +117,108 @@ impl CoreCompilerProtocolSurfaceV1 {
     pub(super) fn fixed_intrinsic_callables(
         &self,
     ) -> [(IntrinsicFunctionKind, &CoreProtocolCallableV1); 23] {
-        let coroutine = self.coroutine_protocol.entries();
-        let ffi = self.ffi_protocol.entries();
-        let callback = self.foreign_callback_protocol.entries();
-        let location = self.source_location_protocol.entries();
+        let coroutine = &self.coroutine_protocol;
+        let ffi = &self.ffi_protocol;
+        let callback = &self.foreign_callback_protocol;
+        let location = &self.source_location_protocol;
         [
             (
                 IntrinsicFunctionKind::CoroutineStart,
-                callable_entry_ref(coroutine, 11),
+                &coroutine.start_coroutine,
             ),
             (
                 IntrinsicFunctionKind::CoroutineSuspend,
-                callable_entry_ref(coroutine, 12),
+                &coroutine.suspend_coroutine,
             ),
             (
                 IntrinsicFunctionKind::Pointer(crate::PointerIntrinsic::ToULong),
-                callable_entry_ref(ffi, 4),
+                &ffi.ptr_to_ulong,
             ),
             (
                 IntrinsicFunctionKind::Pointer(crate::PointerIntrinsic::Cast),
-                callable_entry_ref(ffi, 5),
+                &ffi.ptr_cast,
             ),
             (
                 IntrinsicFunctionKind::Pointer(crate::PointerIntrinsic::Load),
-                callable_entry_ref(ffi, 6),
+                &ffi.ptr_load,
             ),
             (
                 IntrinsicFunctionKind::Pointer(crate::PointerIntrinsic::LoadOffset),
-                callable_entry_ref(ffi, 7),
+                &ffi.ptr_load_offset,
             ),
             (
                 IntrinsicFunctionKind::Pointer(crate::PointerIntrinsic::Store),
-                callable_entry_ref(ffi, 8),
+                &ffi.ptr_store,
             ),
             (
                 IntrinsicFunctionKind::Pointer(crate::PointerIntrinsic::StoreOffset),
-                callable_entry_ref(ffi, 9),
+                &ffi.ptr_store_offset,
             ),
             (
                 IntrinsicFunctionKind::Pointer(crate::PointerIntrinsic::Plus),
-                callable_entry_ref(ffi, 10),
+                &ffi.ptr_plus,
             ),
             (
                 IntrinsicFunctionKind::Pointer(crate::PointerIntrinsic::Minus),
-                callable_entry_ref(ffi, 11),
+                &ffi.ptr_minus,
             ),
             (
                 IntrinsicFunctionKind::Pointer(crate::PointerIntrinsic::AddressOf),
-                callable_entry_ref(ffi, 12),
+                &ffi.address_of,
             ),
             (
                 IntrinsicFunctionKind::Pointer(crate::PointerIntrinsic::SizeOf),
-                callable_entry_ref(ffi, 13),
+                &ffi.size_of,
             ),
             (
                 IntrinsicFunctionKind::Pointer(crate::PointerIntrinsic::AlignOf),
-                callable_entry_ref(ffi, 14),
+                &ffi.align_of,
             ),
-            (IntrinsicFunctionKind::GcPinRaw, callable_entry_ref(ffi, 15)),
-            (
-                IntrinsicFunctionKind::GcUnpinRaw,
-                callable_entry_ref(ffi, 16),
-            ),
+            (IntrinsicFunctionKind::GcPinRaw, &ffi.gc_pin_raw),
+            (IntrinsicFunctionKind::GcUnpinRaw, &ffi.gc_unpin_raw),
             (
                 IntrinsicFunctionKind::GcGetHandleRaw,
-                callable_entry_ref(ffi, 17),
+                &ffi.gc_get_handle_raw,
             ),
             (
                 IntrinsicFunctionKind::GcReleaseHandleRaw,
-                callable_entry_ref(ffi, 18),
+                &ffi.gc_release_handle_raw,
             ),
             (
                 IntrinsicFunctionKind::ForeignCallbackRegister,
-                callable_entry_ref(callback, 10),
+                &callback.register,
             ),
             (
                 IntrinsicFunctionKind::ForeignCallbackRetain,
-                callable_entry_ref(callback, 11),
+                &callback.retain,
             ),
             (
                 IntrinsicFunctionKind::ForeignCallbackRelease,
-                callable_entry_ref(callback, 12),
+                &callback.release,
             ),
             (
                 IntrinsicFunctionKind::ForeignCallbackState,
-                callable_entry_ref(callback, 13),
+                &callback.query_state,
             ),
             (
                 IntrinsicFunctionKind::ForeignCallbackFailure,
-                callable_entry_ref(callback, 14),
+                &callback.failure,
             ),
             (
                 IntrinsicFunctionKind::CurrentSourceLocation,
-                callable_entry_ref(location, 1),
+                &location.current,
             ),
         ]
     }
 }
 
-fn require_source_callables<const N: usize>(
+fn require_source_callables(
     product: CoreProtocolProductKindV1,
-    entries: &[CoreProtocolEntryV1; N],
-    indices: &[usize],
+    callables: &[(usize, &CoreProtocolCallableV1)],
 ) -> Result<(), CoreCompilerProtocolSurfaceRelationError> {
-    for &index in indices {
+    for &(index, callable) in callables {
         if !matches!(
-            callable_entry_ref(entries, index).definition(),
+            callable.definition(),
             super::super::CoreProtocolCallableDefinitionV1::Function(_)
                 | super::super::CoreProtocolCallableDefinitionV1::GenericFunction(_)
         ) {
@@ -197,14 +233,13 @@ fn require_source_callables<const N: usize>(
     Ok(())
 }
 
-fn require_constructor_callables<const N: usize>(
+fn require_constructor_callables(
     product: CoreProtocolProductKindV1,
-    entries: &[CoreProtocolEntryV1; N],
-    indices: &[usize],
+    callables: &[(usize, &CoreProtocolCallableV1)],
 ) -> Result<(), CoreCompilerProtocolSurfaceRelationError> {
-    for &index in indices {
+    for &(index, callable) in callables {
         if !matches!(
-            callable_entry_ref(entries, index).definition(),
+            callable.definition(),
             super::super::CoreProtocolCallableDefinitionV1::Constructor(_)
                 | super::super::CoreProtocolCallableDefinitionV1::GeneratedCallable(_)
         ) {

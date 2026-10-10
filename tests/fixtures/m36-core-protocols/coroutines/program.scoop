@@ -1,0 +1,34 @@
+class Gate(var pending: Continuation<Int>?)
+class Registration(val gate: Gate): SuspendRegistration<Int> {
+    public override fun register(continuation: Continuation<Int>) {
+        gate.pending = Some(continuation)
+    }
+}
+class Task(val gate: Gate, val values: Array<Int>): SuspendTask<Int> {
+    public override suspend fun run(): Int {
+        try {
+            val offset = suspendCoroutine(Registration(gate))
+            var sum = offset
+            for (value in values) { sum = sum + value }
+            gcCollect()
+            return sum
+        } finally {
+            println("task-finally")
+        }
+    }
+}
+class Completion(var value: Int?): Continuation<Int> {
+    public override fun resume(result: Int) { value = Some(result) }
+    public override fun resumeWithException(exception: Throwable) { println("failed") }
+}
+fun main() {
+    val gate = Gate(None)
+    val completion = Completion(None)
+    startCoroutine(Task(gate, [1, 2, 3]), completion)
+    println(completion.value == None)
+    gcCollect()
+    val pending = gate.pending!!
+    gate.pending = None
+    pending.resume(10)
+    println(completion.value!!)
+}
