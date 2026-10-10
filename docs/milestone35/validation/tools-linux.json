@@ -1,0 +1,20 @@
+{
+  "revision": "8400796d6455e27bf95f5bf64a03fa2ec1bf88e5",
+  "tools": [
+    {
+      "name": "scoop",
+      "bytes": 17464880,
+      "sha256": "c71f1c834100ee25bd4400bcbf1d35e694605e2858571e2000e8a350dc8fbf93"
+    },
+    {
+      "name": "scoopc",
+      "bytes": 52966240,
+      "sha256": "25a8a8399fa84e1f694deaadd460b31052ab649f56b7540a11559fb076ed3aef"
+    },
+    {
+      "name": "scoop-link",
+      "bytes": 14394504,
+      "sha256": "156c6665472e31ede869277c7ee522d90c59ff94fb989e0ce5d4a3bd0b010eec"
+    }
+  ]
+}
