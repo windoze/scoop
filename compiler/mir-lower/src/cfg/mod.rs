@@ -16,23 +16,8 @@ struct UnwindTarget {
     pad: mir::BlockId,
     continuation: mir::BlockId,
     handles_in_function: bool,
-    context: CoroutinePendingContext,
+    context: CleanupContext,
     managed_exception: Option<mir::LocalId>,
-}
-
-#[derive(Clone, Default)]
-struct CoroutinePendingContext(Vec<mir::CoroutinePendingSourceTransfer>);
-
-impl CoroutinePendingContext {
-    fn with_transfer(&self, transfer: mir::CoroutinePendingSourceTransfer) -> Self {
-        let mut chain = self.0.clone();
-        chain.push(transfer);
-        Self(chain)
-    }
-
-    fn to_mir(&self) -> mir::CoroutinePendingContext {
-        mir::CoroutinePendingContext::from_transfers(self.0.clone()).unwrap_or_default()
-    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -81,21 +66,21 @@ enum NormalCleanup<'a> {
 struct ResumeTarget {
     block: mir::BlockId,
     cleanup_depth: CleanupDepth,
-    context: CoroutinePendingContext,
+    context: CleanupContext,
 }
 
 #[derive(Clone)]
 struct LoopExitTarget {
     block: mir::BlockId,
     cleanup_depth: CleanupDepth,
-    context: CoroutinePendingContext,
+    context: CleanupContext,
 }
 
 #[derive(Clone)]
 struct LoopHeaderTarget {
     block: mir::BlockId,
     cleanup_depth: CleanupDepth,
-    context: CoroutinePendingContext,
+    context: CleanupContext,
 }
 
 #[derive(Clone)]
@@ -138,51 +123,41 @@ impl PendingTransfer {
         }
     }
 
-    fn destination_context(&self) -> CoroutinePendingContext {
+    fn destination_context(&self) -> CleanupContext {
         match self {
             Self::Fallthrough(target) => target.context.clone(),
-            Self::Return(_) => CoroutinePendingContext::default(),
+            Self::Return(_) => CleanupContext::default(),
             Self::Break(target) => target.context.clone(),
             Self::Continue(target) => target.context.clone(),
             Self::ManagedThrow(transfer) => transfer
                 .unwind
                 .as_ref()
-                .map_or_else(CoroutinePendingContext::default, |target| {
-                    target.context.clone()
-                }),
+                .map_or_else(CleanupContext::default, |target| target.context.clone()),
         }
     }
 
-    fn source_transfer(&self) -> mir::CoroutinePendingSourceTransfer {
+    fn source_transfer(&self) -> CleanupTransfer {
         match self {
-            Self::Fallthrough(target) => mir::CoroutinePendingSourceTransfer::Fallthrough(
+            Self::Fallthrough(target) => CleanupTransfer::Fallthrough(
                 mir::CoroutineCleanupFallthroughTarget::new(target.block),
             ),
-            Self::Return(ReturnPayload::Unit) => {
-                mir::CoroutinePendingSourceTransfer::Return(mir::CoroutinePendingSourceReturn::Unit)
-            }
+            Self::Return(ReturnPayload::Unit) => CleanupTransfer::ReturnUnit,
             Self::Return(ReturnPayload::Value(value)) => {
-                mir::CoroutinePendingSourceTransfer::Return(
-                    mir::CoroutinePendingSourceReturn::value(value.clone())
-                        .expect("a pending return payload is an immutable stable local"),
-                )
+                CleanupTransfer::ReturnValue(cleanup_local(value))
             }
-            Self::Break(target) => mir::CoroutinePendingSourceTransfer::Break(
-                mir::CoroutineLoopExitTarget::new(target.block),
-            ),
-            Self::Continue(target) => mir::CoroutinePendingSourceTransfer::Continue(
-                mir::CoroutineLoopHeaderTarget::new(target.block),
-            ),
-            Self::ManagedThrow(transfer) => mir::CoroutinePendingSourceTransfer::ManagedThrow(
-                mir::CoroutinePendingSourceManagedThrow::checked(
-                    transfer.exception.clone(),
-                    transfer
-                        .unwind
-                        .as_ref()
-                        .map(|target| mir::CoroutineUnwindTarget::new(target.pad)),
-                )
-                .expect("a pending managed exception is an exact stable local"),
-            ),
+            Self::Break(target) => {
+                CleanupTransfer::Break(mir::CoroutineLoopExitTarget::new(target.block))
+            }
+            Self::Continue(target) => {
+                CleanupTransfer::Continue(mir::CoroutineLoopHeaderTarget::new(target.block))
+            }
+            Self::ManagedThrow(transfer) => CleanupTransfer::ManagedThrow {
+                exception: cleanup_local(&transfer.exception),
+                unwind: transfer
+                    .unwind
+                    .as_ref()
+                    .map(|target| mir::CoroutineUnwindTarget::new(target.pad)),
+            },
         }
     }
 }
@@ -192,12 +167,6 @@ pub(crate) struct LoweredBody {
     pub(crate) generated_values: Vec<GeneratedLocalValue>,
     /// Calls in structured evaluation order, with their locations in the emitted CFG.
     pub(crate) call_sites: Vec<CallSite>,
-}
-
-#[derive(Clone, Copy)]
-pub(crate) struct CallSite {
-    pub(crate) block: mir::BlockId,
-    pub(crate) statement: usize,
 }
 
 pub(crate) struct GeneratedLocalValue {
@@ -240,7 +209,7 @@ pub(crate) fn lower(
         normal_cleanups: Vec::new(),
         loop_targets: Vec::new(),
         loop_header_polls: Vec::new(),
-        active_pending: CoroutinePendingContext::default(),
+        active_pending: CleanupContext::default(),
         coroutine_eh,
         enums,
         classes,
@@ -291,7 +260,7 @@ struct CfgLowerer<'a> {
     normal_cleanups: Vec<NormalCleanup<'a>>,
     loop_targets: Vec<LoopTarget>,
     loop_header_polls: Vec<mir::LoopHeaderPollTarget>,
-    active_pending: CoroutinePendingContext,
+    active_pending: CleanupContext,
     coroutine_eh: Option<smir::CoroutineEhMode>,
     enums: &'a Arena<mir::EnumDef>,
     classes: &'a Arena<mir::ClassDef>,
@@ -306,6 +275,10 @@ impl CfgLowerer<'_> {
 }
 
 mod calls;
+mod pending;
+mod work;
+pub(crate) use pending::{CleanupContext, CleanupTransfer};
+pub(crate) use work::{CallSite, CallSiteKind, SuspendCall};
 mod control;
 mod expression;
 mod operands;
@@ -315,4 +288,11 @@ mod transfers;
 
 fn synthetic_span() -> Span {
     Span { start: 0, end: 0 }
+}
+
+fn cleanup_local(value: &mir::Expr) -> mir::LocalId {
+    let mir::ExprKind::Local(local) = value.kind else {
+        unreachable!("cleanup payloads were saved before entering the cleanup suffix")
+    };
+    local
 }

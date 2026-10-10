@@ -139,7 +139,6 @@ impl<'a> CfgLowerer<'a> {
                             mir::RuntimeFn::MaterializeException,
                         )),
                         args: vec![mir::Expr::caught_exception()],
-                        pending: self.call_pending_context(),
                     },
                 }),
                 catch.span,
@@ -441,7 +440,6 @@ impl<'a> CfgLowerer<'a> {
             .expect("coroutine EH targets own an exact managed exception local");
         self.enter(target.pad);
         let span = synthetic_span();
-        let pending = self.call_pending_context();
         self.push(
             mir::StatementKind::Eh(mir::EhStatement::LandingPad { cleanup: false }),
             span,
@@ -458,7 +456,6 @@ impl<'a> CfgLowerer<'a> {
                         mir::Type::Any,
                         mir::ExprKind::CaughtException,
                     )],
-                    pending,
                 },
             }),
             span,

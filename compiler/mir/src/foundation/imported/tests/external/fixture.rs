@@ -95,7 +95,6 @@ impl Fixture {
             kind: StatementKind::Call(CallEffect::Unit(Call {
                 target: CallTarget::Direct(Callee::External(protocol)),
                 args: Vec::new(),
-                pending: CoroutinePendingContext::Root,
             })),
             span: SourceSpan::new(0, 0).unwrap(),
         });

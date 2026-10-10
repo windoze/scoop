@@ -59,7 +59,6 @@ pub(super) fn protocol_error_block(
             statement(mir::StatementKind::Call(mir::CallEffect::Unit(mir::Call {
                 target: mir::CallTarget::Direct(initializer),
                 args: vec![mir::Expr::local(exception, mir::Type::Class(mir_class))],
-                pending: mir::CoroutinePendingContext::Root,
             }))),
         ],
         terminator: mir::Terminator::Throw {

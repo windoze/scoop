@@ -8,9 +8,9 @@ use scoop_identity::{
 use super::*;
 use crate::{
     BasicBlock, Body, Call, CallEffect, CallTarget, Callee, ConeMirInput,
-    CoreBootstrapBridgeSectionV1, CoroutinePendingContext, DependencyMirOutput,
-    DependencyMirOutputError, EntryMirBridgeBranchV1, Function, GcEffect, MirMeta, MirOutput,
-    Module, SourceSpan, Statement, StatementKind, StrongCallableBridgeSurfaceV1, Terminator, Type,
+    CoreBootstrapBridgeSectionV1, DependencyMirOutput, DependencyMirOutputError,
+    EntryMirBridgeBranchV1, Function, GcEffect, MirMeta, MirOutput, Module, SourceSpan, Statement,
+    StatementKind, StrongCallableBridgeSurfaceV1, Terminator, Type,
 };
 
 mod external;
@@ -25,7 +25,6 @@ fn ordinary_module(callable: crate::ExternalCallableUse) -> Module {
             kind: StatementKind::Call(CallEffect::Unit(Call {
                 target: CallTarget::Direct(Callee::External(callable)),
                 args: Vec::new(),
-                pending: CoroutinePendingContext::Root,
             })),
             span: SourceSpan::new(0, 0).unwrap(),
         }],

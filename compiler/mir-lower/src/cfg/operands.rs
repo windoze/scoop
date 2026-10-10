@@ -88,6 +88,7 @@ fn emits_cfg(expr: &smir::Expr) -> bool {
     use smir::ExprKind;
     match &expr.kind {
         ExprKind::Call(_)
+        | ExprKind::CoroutineSuspend { .. }
         | ExprKind::ClassNew { .. }
         | ExprKind::ShortCircuit { .. }
         | ExprKind::Unreachable

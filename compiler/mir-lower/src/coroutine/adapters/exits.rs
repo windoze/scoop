@@ -61,7 +61,6 @@ pub(super) fn drive_exit_blocks(
                         index: completed_payload.field_index(),
                     },
                 )],
-                pending: mir::CoroutinePendingContext::Root,
             }))),
         ],
         terminator: mir::Terminator::Return {
@@ -92,7 +91,6 @@ pub(super) fn drive_exit_blocks(
                     completion_ty,
                 )),
                 args: vec![mir::Expr::local(exception, throwable.clone())],
-                pending: mir::CoroutinePendingContext::Root,
             }))),
         ],
         terminator: mir::Terminator::Return {
@@ -114,7 +112,6 @@ pub(super) fn drive_exit_blocks(
                         mir::RuntimeFn::MaterializeException,
                     )),
                     args: vec![mir::Expr::caught_exception()],
-                    pending: mir::CoroutinePendingContext::Root,
                 },
             })),
             statement(mir::StatementKind::Eh(mir::EhStatement::EndCatch)),

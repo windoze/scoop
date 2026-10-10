@@ -48,21 +48,6 @@ pub(super) fn dump_call(
                 function_type.into_raw().into_u32()
             ),
         ),
-        CallTarget::CoroutineSuspend {
-            register,
-            interface,
-            slot,
-            ..
-        } => (
-            format!(
-                "@coroutine_suspend[register={}]",
-                function_ref(module.meta.instances[*register].function)
-            ),
-            format!(
-                "interface {}[{slot}]",
-                type_name(module, &Type::Interface(*interface))
-            ),
-        ),
     };
     match destination {
         Some(local) => out.push_str(&format!(

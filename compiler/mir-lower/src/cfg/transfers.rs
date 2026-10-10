@@ -240,11 +240,11 @@ impl<'a> CfgLowerer<'a> {
         self.route_transfer(PendingTransfer::Continue(target));
     }
 
-    pub(super) fn call_pending_context(&self) -> mir::CoroutinePendingContext {
+    pub(super) fn call_pending_context(&self) -> CleanupContext {
         if self.coroutine_eh.is_some() {
-            self.active_pending.to_mir()
+            self.active_pending.clone()
         } else {
-            mir::CoroutinePendingContext::Root
+            CleanupContext::default()
         }
     }
 }

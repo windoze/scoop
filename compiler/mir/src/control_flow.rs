@@ -810,12 +810,6 @@ pub enum ExprKind {
         operand: Box<Expr>,
         check_ty: Box<Type>,
     },
-    /// `as` (traps on failure) or `as?` (`optional`, result
-    /// `Option<T>`); the target type comes from context.
-    Cast {
-        operand: Box<Expr>,
-        optional: bool,
-    },
     /// `[e1, ...]`; `array_type` is the exact fully specialized intrinsic
     /// class application selected by HIR.
     /// Zeroed internal storage, reached only after the managed negative-size guard.

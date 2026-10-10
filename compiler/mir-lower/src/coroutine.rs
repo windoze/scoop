@@ -25,32 +25,38 @@ use sites::*;
 
 #[derive(Clone)]
 struct SuspendSite {
+    resume: ResumeSite,
+    kind: SuspendKind,
+}
+
+#[derive(Clone)]
+struct ResumeSite {
     block: mir::BlockId,
     statement: usize,
     destination: Option<mir::LocalId>,
     result: mir::Type,
-    kind: SuspendKind,
     live_after: Vec<mir::LocalId>,
-    pending: mir::CoroutinePendingContext,
+    pending: crate::cfg::CleanupContext,
     state: mir::CoroutineSuspendStateId,
     identity_path: hir::StructuralDefinitionPath,
 }
 
 #[derive(Clone)]
 struct DiscoveredSuspendSite {
+    order: usize,
     block: mir::BlockId,
     statement: usize,
     destination: Option<mir::LocalId>,
     result: mir::Type,
     kind: SuspendKind,
     live_after: Vec<mir::LocalId>,
-    pending: mir::CoroutinePendingContext,
+    pending: crate::cfg::CleanupContext,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 enum SuspendKind {
-    Call,
-    Intrinsic,
+    Call(mir::Call),
+    Intrinsic(crate::cfg::SuspendCall),
 }
 
 pub(super) fn transform(lowerer: &mut Lowerer, module: &hir::Module) {
@@ -62,27 +68,14 @@ pub(super) fn transform(lowerer: &mut Lowerer, module: &hir::Module) {
         .collect();
     for coroutine in coroutine_ids {
         let function = lowerer.coroutines.functions[coroutine].function;
-        let sites = analyze_sites(lowerer, function, &lowerer.functions[function].body);
-        clear_pending_contexts(&mut lowerer.functions[function].body);
+        let calls = lowerer.coroutines.take_call_sites(function);
+        let sites = analyze_sites(lowerer, &lowerer.functions[function].body, &calls);
         if sites.is_empty() {
             continue;
         }
         transform_function(lowerer, module, coroutine, sites);
     }
-}
-
-fn clear_pending_contexts(body: &mut mir::Body) {
-    for (_, block) in body.blocks.iter_mut() {
-        for statement in &mut block.statements {
-            let mir::StatementKind::Call(effect) = &mut statement.kind else {
-                continue;
-            };
-            let call = match effect {
-                mir::CallEffect::Unit(call) | mir::CallEffect::Value { call, .. } => call,
-            };
-            call.pending = mir::CoroutinePendingContext::Root;
-        }
-    }
+    lowerer.coroutines.pre_coroutine_call_sites.clear();
 }
 
 fn transform_function(
@@ -114,7 +107,8 @@ fn transform_function(
     let source_params = &old_params[..old_params.len() - 1];
     let mut saved = HashSet::new();
     saved.extend(source_params.iter().map(|param| param.local));
-    for site in &sites {
+    for planned in &sites {
+        let site = &planned.resume;
         saved.extend(
             site.live_after
                 .iter()
@@ -191,7 +185,6 @@ fn transform_function(
         protocol.continuation_resume_with_exception,
     );
 
-    sites.sort_by_key(|site| (raw(site.block), site.statement));
     sites.reverse();
     let mut resume_points = Vec::new();
     for site in sites {
@@ -377,43 +370,28 @@ struct GeneratedSite {
 }
 
 fn freeze_pending_context(
-    pending: mir::CoroutinePendingContext,
+    pending: crate::cfg::CleanupContext,
     saved_values: &HashMap<mir::LocalId, mir::CoroutineSavedValueId>,
 ) -> Vec<mir::CoroutinePendingTransfer> {
-    let mir::CoroutinePendingContext::Chain(chain) = pending else {
-        return Vec::new();
-    };
-    chain
-        .into_vec()
+    use crate::cfg::CleanupTransfer;
+    pending
+        .0
         .into_iter()
         .map(|transfer| match transfer {
-            mir::CoroutinePendingSourceTransfer::Fallthrough(target) => {
+            CleanupTransfer::Fallthrough(target) => {
                 mir::CoroutinePendingTransfer::Fallthrough(target)
             }
-            mir::CoroutinePendingSourceTransfer::Return(
-                mir::CoroutinePendingSourceReturn::Unit,
-            ) => mir::CoroutinePendingTransfer::Return(mir::CoroutineReturnTransfer::Unit),
-            mir::CoroutinePendingSourceTransfer::Return(
-                mir::CoroutinePendingSourceReturn::Value(value),
-            ) => mir::CoroutinePendingTransfer::Return(mir::CoroutineReturnTransfer::Saved(
-                *saved_values
-                    .get(&value.local())
-                    .expect("a pending return value is saved in its owner frame"),
-            )),
-            mir::CoroutinePendingSourceTransfer::Break(target) => {
-                mir::CoroutinePendingTransfer::Break(target)
+            CleanupTransfer::ReturnUnit => {
+                mir::CoroutinePendingTransfer::Return(mir::CoroutineReturnTransfer::Unit)
             }
-            mir::CoroutinePendingSourceTransfer::Continue(target) => {
-                mir::CoroutinePendingTransfer::Continue(target)
-            }
-            mir::CoroutinePendingSourceTransfer::ManagedThrow(throw_) => {
+            CleanupTransfer::ReturnValue(value) => mir::CoroutinePendingTransfer::Return(
+                mir::CoroutineReturnTransfer::Saved(saved_values[&value]),
+            ),
+            CleanupTransfer::Break(target) => mir::CoroutinePendingTransfer::Break(target),
+            CleanupTransfer::Continue(target) => mir::CoroutinePendingTransfer::Continue(target),
+            CleanupTransfer::ManagedThrow { exception, unwind } => {
                 mir::CoroutinePendingTransfer::ManagedThrow(
-                    mir::CoroutineManagedThrowTransfer::new(
-                        *saved_values
-                            .get(&throw_.exception_local())
-                            .expect("a pending managed Throwable is saved in its owner frame"),
-                        throw_.unwind(),
-                    ),
+                    mir::CoroutineManagedThrowTransfer::new(saved_values[&exception], unwind),
                 )
             }
         })

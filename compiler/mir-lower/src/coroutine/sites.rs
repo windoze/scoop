@@ -21,19 +21,18 @@ pub(super) fn rewrite_site(
     driver: mir::FunctionId,
     source: hir::CallableMaterialization,
     source_odr_group: Option<hir::OdrGroupId>,
-    site: SuspendSite,
+    planned: SuspendSite,
 ) -> GeneratedSite {
+    let SuspendSite { resume: site, kind } = planned;
     let parents = freeze_pending_context(site.pending.clone(), saved_values);
     let outer_suspended = lowerer
         .coroutines
         .step_metadata_for_type(outer_step)
         .suspended();
     let block = &mut body.blocks[site.block];
-    let suffix = block.statements.split_off(site.statement + 1);
-    let suspend_statement = block
-        .statements
-        .pop()
-        .expect("suspend site statement exists");
+    let removed = usize::from(matches!(kind, SuspendKind::Call(_)));
+    let suffix = block.statements.split_off(site.statement + removed);
+    block.statements.truncate(site.statement);
     let terminator = std::mem::replace(&mut block.terminator, mir::Terminator::Unreachable);
     let unwind = block.unwind;
     let post = body.blocks.alloc(mir::BasicBlock {
@@ -43,40 +42,36 @@ pub(super) fn rewrite_site(
         unwind,
     });
 
-    let (mut call, destination) = match suspend_statement.kind {
-        mir::StatementKind::Call(mir::CallEffect::Unit(call)) => (call, None),
-        mir::StatementKind::Call(mir::CallEffect::Value { destination, call }) => {
-            (call, Some(destination))
+    let destination = site.destination;
+    let mut call = match kind {
+        SuspendKind::Call(call) => call,
+        SuspendKind::Intrinsic(call) => {
+            return rewrite_intrinsic_site(
+                lowerer,
+                module,
+                body,
+                frame_local,
+                frame_class,
+                frame,
+                frame_layout,
+                frame_slots,
+                parents,
+                failure_slot.clone(),
+                failure_value,
+                outer_step,
+                outer_continuation,
+                outer_resume,
+                outer_failure,
+                source_name,
+                driver,
+                source,
+                source_odr_group,
+                site,
+                call,
+                post,
+                unwind,
+            );
         }
-        _ => unreachable!("suspend site is an explicit call effect"),
-    };
-    assert_eq!(destination, site.destination);
-    let SuspendKind::Call = site.kind else {
-        return rewrite_intrinsic_site(
-            lowerer,
-            module,
-            body,
-            frame_local,
-            frame_class,
-            frame,
-            frame_layout,
-            frame_slots,
-            parents,
-            failure_slot.clone(),
-            failure_value,
-            outer_step,
-            outer_continuation,
-            outer_resume,
-            outer_failure,
-            source_name,
-            driver,
-            source,
-            source_odr_group,
-            site,
-            call,
-            post,
-            unwind,
-        );
     };
 
     let adapter = generate_adapter(
@@ -297,7 +292,7 @@ pub(super) fn failure_resume_block(
     frame: mir::LocalId,
     frame_slots: &HashMap<mir::LocalId, FrameSlot>,
     failure_slot: FrameSlot,
-    site: &SuspendSite,
+    site: &ResumeSite,
     unwind: Option<mir::BlockId>,
 ) -> mir::BlockId {
     let mut statements = Vec::new();

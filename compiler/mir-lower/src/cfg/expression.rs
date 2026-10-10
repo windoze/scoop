@@ -294,6 +294,9 @@ impl<'a> CfgLowerer<'a> {
                 receiver: Box::new(self.lower_expr(receiver, span)?),
                 index: *index,
             },
+            smir::ExprKind::CoroutineSuspend { method, receiver } => {
+                return self.lower_suspend(*method, receiver, &expr.ty, None, span);
+            }
             smir::ExprKind::Call(call) => {
                 let value = self.lower_call(call, None, span)?;
                 if value.ty == expr.ty {

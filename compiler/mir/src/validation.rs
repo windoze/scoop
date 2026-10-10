@@ -132,12 +132,7 @@ fn validate_body(
                 | StatementKind::Call(CallEffect::Value { call, .. }) => Some(call),
                 _ => None,
             };
-            if call.is_some_and(|call| !call.pending.is_root()) {
-                return Err(MirValidationError {
-                    location: release::block_location(owner, block),
-                    kind: MirValidationErrorKind::NonRootCoroutinePendingContext,
-                });
-            }
+
             if let Some(call) = call
                 && let Err(kind) = validate_imported_call(module, call)
             {

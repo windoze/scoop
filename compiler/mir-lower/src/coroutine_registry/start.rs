@@ -97,7 +97,6 @@ impl CoroutineRegistry {
                             index: completed_payload.field_index(),
                         },
                     )],
-                    pending: mir::CoroutinePendingContext::Root,
                 },
             )))],
             terminator: mir::Terminator::Return {
@@ -114,7 +113,6 @@ impl CoroutineRegistry {
                         mir::Type::Interface(continuation_interface),
                     )),
                     args: vec![mir::Expr::local(exception, throwable.clone())],
-                    pending: mir::CoroutinePendingContext::Root,
                 },
             )))],
             terminator: mir::Terminator::Return {
@@ -136,7 +134,6 @@ impl CoroutineRegistry {
                             mir::RuntimeFn::MaterializeException,
                         )),
                         args: vec![mir::Expr::caught_exception()],
-                        pending: mir::CoroutinePendingContext::Root,
                     },
                 })),
                 statement(mir::StatementKind::Eh(mir::EhStatement::EndCatch)),
@@ -156,7 +153,6 @@ impl CoroutineRegistry {
                             completion,
                             mir::Type::Interface(continuation_interface),
                         )],
-                        pending: mir::CoroutinePendingContext::Root,
                     },
                 },
             ))],

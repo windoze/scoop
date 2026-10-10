@@ -139,7 +139,9 @@ MIR 控制流显式表示普通边、异常边、循环目标和 cleanup。Retur
 
 structured MIR 与最终 MIR 的动态调用将 receiver 保存在对应目标分支，普通实参列表不再重复包含它；遍历、效果分析与 CFG 求值均先处理 receiver，再按顺序处理实参。virtual／interface 的静态声明目标只允许本地、单态化或外部 Scoop callable。已知 receiver 实际类型的去虚拟化先适配该值，再将其放入新 direct 调用的首个逻辑实参；closure／function bridge 直接消费各自唯一的函数签名身份。
 
-最终 MIR 仅保存已经完成的调用与表达式。待展开 Cast 留在 mir-lower 的 structured IR，协程临时 callee 和 pending cleanup chain 留在该 stage 的私有工作数据；成功输出不带这些标记，也不保存恒为 Root 的 pending 字段。Return 携带完整语义结果，物理 void／ZST 分类属于 LIR。
+最终 MIR 仅保存已经完成的调用与表达式。语言 Cast 在 mir-lower 的私有正文构造过程中展开，最终表达式类别不保留 Cast。协程注册操作和 pending cleanup chain 留在该 stage 的私有工作数据；成功输出不带临时 callee，也不保存恒为 Root 的 pending 字段。Return 携带完整语义结果，物理 void／ZST 分类属于 LIR。
+
+CFG 的私有协程工作记录保留挂起操作的语义顺序、块内位置、receiver 与结果 local；尚未生成的注册调用不使用普通 callee 或空语句占位。协程变换把这些记录与已有 CFG 语句一起用于 liveness 和恢复分析，生成 continuation adapter 后直接形成完整接口调用。cleanup 中的待定 return／throw／break／continue 继续保留原值和目标，最终只输出引用实际 saved slots 与恢复入口的协程 metadata。
 
 `==` / `!=` 保存已选定的 operator callable；若它来自普通用户接口，则保留该接口 application、slot 与实际 implementation。派生结构比较降为普通 typed 成员调用和短路控制流；`Equality<T>.equalTo` 是独立的普通接口调用。bound 调用在单态化时映射到已确定的实现，不能重新按名字搜索 equals 或 equalTo。基本类型的精确 intrinsic 比较保持原运算与 effect；接口分派需要的适配正文同样是完整 typed callable，不能把 NoGc 直接实现误当成具有相同 effect 的 Managed slot 入口。
 

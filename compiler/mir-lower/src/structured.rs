@@ -362,6 +362,10 @@ pub(crate) enum ExprKind {
         index: u32,
     },
     Call(Call),
+    CoroutineSuspend {
+        method: crate::coroutine_registry::ProtocolMethod,
+        receiver: Box<Expr>,
+    },
     Box(Box<Expr>),
     Unbox(Box<Expr>),
     IsInstance {

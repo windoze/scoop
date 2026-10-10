@@ -305,7 +305,6 @@ impl<'a> FunctionLowerer<'a> {
             }
             // mir-lower expands `as` / `as?` into runtime checks plus
             // Option wrapping; the node never reaches LIR.
-            mir::ExprKind::Cast { .. } => unreachable!("mir-lower expands casts before LIR"),
             // The enum operations map onto the corresponding LIR
             // instructions; the concrete representation (niche pointer
             // or tagged union) is fixed by the `EnumDef`, so codegen

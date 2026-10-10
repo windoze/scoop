@@ -41,19 +41,12 @@ impl BodyLowerer<'_> {
             self.interfaces,
             protocol.suspend_registration_register,
         );
-        let target = mir::CallTarget::CoroutineSuspend {
-            register: method.function,
-            interface: method.interface,
-            slot: method.slot,
-            receiver: Box::new(self.lower_expr(registration)),
-        };
         smir::Expr::new(
-            result.clone(),
-            smir::ExprKind::Call(smir::Call {
-                target,
-                args: Vec::new(),
-                return_ty: result,
-            }),
+            result,
+            smir::ExprKind::CoroutineSuspend {
+                method,
+                receiver: Box::new(self.lower_expr(registration)),
+            },
         )
     }
 

@@ -31,7 +31,6 @@ fn virtual_calls_load_the_vtable_and_call_indirect() {
                     receiver: Box::new(local_expr(p, mir::Type::Class(c))),
                 },
                 args: vec![],
-                pending: mir::CoroutinePendingContext::Root,
             },
         )],
     );
@@ -131,7 +130,6 @@ fn interface_calls_read_the_carried_itable() {
                     receiver: Box::new(local_expr(i, mir::Type::Interface(iface))),
                 },
                 args: vec![],
-                pending: mir::CoroutinePendingContext::Root,
             },
         )],
     );

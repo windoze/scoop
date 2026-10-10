@@ -43,20 +43,63 @@ impl CfgLowerer<'_> {
                 function_type: *function_type,
                 receiver: self.lower_call_receiver(receiver, &call.args, span)?,
             },
-            mir::CallTarget::CoroutineSuspend {
-                register,
-                interface,
-                slot,
-                receiver,
-            } => mir::CallTarget::CoroutineSuspend {
-                register: *register,
-                interface: *interface,
-                slot: *slot,
-                receiver: self.lower_call_receiver(receiver, &call.args, span)?,
-            },
         };
         let args = self.lower_operands(call.args.iter(), span)?;
         self.emit_lowered_call(target, args, call.return_ty.clone(), destination, span)
+    }
+
+    pub(super) fn lower_suspend(
+        &mut self,
+        method: crate::coroutine_registry::ProtocolMethod,
+        receiver: &smir::Expr,
+        result: &mir::Type,
+        destination: Option<mir::LocalId>,
+        span: Span,
+    ) -> Option<mir::Expr> {
+        let receiver = Box::new(self.lower_expr(receiver, span)?);
+        if *result == mir::Type::Unit {
+            assert!(
+                destination.is_none(),
+                "Unit suspension has no value destination"
+            );
+            self.defer_suspend(SuspendCall {
+                method,
+                receiver,
+                destination: None,
+            });
+            Some(mir::Expr::unit())
+        } else {
+            let destination = destination.unwrap_or_else(|| {
+                self.new_hidden(
+                    "call",
+                    StructuralDefinitionSiteRole::SyntheticValue,
+                    SyntheticLocalRole::Temporary,
+                    result.clone(),
+                )
+            });
+            self.defer_suspend(SuspendCall {
+                method,
+                receiver,
+                destination: Some(destination),
+            });
+            if self.is_nothing(result) {
+                self.seal(mir::Terminator::Unreachable);
+                None
+            } else {
+                Some(mir::Expr::local(destination, result.clone()))
+            }
+        }
+    }
+
+    fn defer_suspend(&mut self, call: SuspendCall) {
+        let pending = self.call_pending_context();
+        self.ensure_unwind_context();
+        self.call_sites.push(CallSite {
+            block: self.current,
+            statement: self.blocks[self.current].statements.len(),
+            pending,
+            kind: CallSiteKind::Suspend(call),
+        });
     }
 
     pub(super) fn emit_lowered_call(
@@ -67,11 +110,7 @@ impl CfgLowerer<'_> {
         destination: Option<mir::LocalId>,
         span: Span,
     ) -> Option<mir::Expr> {
-        let normalized = mir::Call {
-            target,
-            args,
-            pending: self.call_pending_context(),
-        };
+        let normalized = mir::Call { target, args };
         if return_ty == mir::Type::Unit {
             assert!(
                 destination.is_none(),
@@ -105,10 +144,13 @@ impl CfgLowerer<'_> {
     }
 
     fn push_call(&mut self, effect: mir::CallEffect, span: Span) {
+        let pending = self.call_pending_context();
         self.ensure_unwind_context();
         self.call_sites.push(CallSite {
             block: self.current,
             statement: self.blocks[self.current].statements.len(),
+            pending,
+            kind: CallSiteKind::Call,
         });
         self.push(mir::StatementKind::Call(effect), span);
     }

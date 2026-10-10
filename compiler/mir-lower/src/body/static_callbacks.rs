@@ -155,7 +155,6 @@ impl BodyLowerer<'_> {
         let call = mir::Call {
             target: mir::CallTarget::Direct(mir::Callee::User(source)),
             args,
-            pending: mir::CoroutinePendingContext::Root,
         };
         let mut statements = Vec::new();
         if let Some(result_storage) = result_storage {

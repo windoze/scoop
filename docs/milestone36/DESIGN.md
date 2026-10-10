@@ -71,7 +71,7 @@ M36 收紧当前编译器实际使用的输入和 IR 数据结构，使必要内
 
 消费方的 [call lowering](../../compiler/lir-lower/src/function/call.rs) 遇到 CoroutineSuspend 时 `unreachable!`，[expression lowering](../../compiler/lir-lower/src/function/expression.rs) 遇到 Cast 时 `unreachable!`；[MIR 验证](../../compiler/mir/src/validation.rs) 检查 pending 已归 Root。
 
-建议将 Cast 保留在现有 [structured IR](../../compiler/mir-lower/src/structured.rs)，将协程临时目标和 pending chain 放入协程 pass 的私有输入或工作数据。最终 `scoop-mir` 只暴露可以交给 LIR 的调用和表达式，不为恒定为 Root 的状态保留一个可变枚举字段。
+核对实际生产路径后，语言 Cast 已在 mir-lower 私有正文构造中展开，因此删除最终 MIR 中未被生产的 Cast 类别；将协程注册操作和 pending chain 放入协程 pass 的私有输入或工作数据。最终 `scoop-mir` 只暴露可以交给 LIR 的调用和表达式，不为恒定为 Root 的状态保留一个可变枚举字段。
 
 实施前核对每个临时状态的真实生产者与消费时段；按需要局部拆分，不复制完整 MIR 或建立跨阶段通用状态机。协程正常/异常恢复、finally 的待定转移和 Context 清理必须保留。
 

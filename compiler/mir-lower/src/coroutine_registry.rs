@@ -5,7 +5,7 @@ mod start;
 pub(crate) use signatures::lowered_signature;
 
 /// An unbound protocol member whose receiver is supplied at each generated call.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub(crate) struct ProtocolMethod {
     pub(crate) function: mir::MonomorphizedFunctionId,
     pub(crate) interface: mir::InterfaceId,
@@ -148,9 +148,9 @@ impl CoroutineRegistry {
         );
     }
 
-    pub(super) fn call_sites(&self, function: mir::FunctionId) -> &[cfg::CallSite] {
+    pub(super) fn take_call_sites(&mut self, function: mir::FunctionId) -> Vec<cfg::CallSite> {
         self.pre_coroutine_call_sites
-            .get(&function)
+            .remove(&function)
             .expect("a coroutine source retains its structured-call order")
     }
 

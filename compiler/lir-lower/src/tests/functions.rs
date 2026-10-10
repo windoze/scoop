@@ -82,7 +82,6 @@ fn function_signatures_params_and_calls() {
             mir::Call {
                 target: mir::CallTarget::Direct(mir::Callee::User(add)),
                 args: vec![int_expr(40), int_expr(2)],
-                pending: mir::CoroutinePendingContext::Root,
             },
         )],
     );

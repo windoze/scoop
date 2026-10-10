@@ -42,7 +42,6 @@ pub(super) fn build(
                         mir::RuntimeFn::MaterializeException,
                     )),
                     args: vec![mir::Expr::caught_exception()],
-                    pending: mir::CoroutinePendingContext::Root,
                 },
             })),
             statement(mir::StatementKind::Eh(mir::EhStatement::EndCatch)),
@@ -62,7 +61,6 @@ pub(super) fn build(
             receiver: Box::new(storage.closure.clone()),
         },
         args: storage.call_arguments(signature),
-        pending: mir::CoroutinePendingContext::Root,
     };
     let mut success = Vec::new();
     if signature.return_type == mir::Type::Unit {

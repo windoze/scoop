@@ -13,7 +13,6 @@ fn push_external_call(module: &mut Module) -> (FunctionId, BlockId) {
             kind: StatementKind::Call(CallEffect::Unit(Call {
                 target: CallTarget::Direct(Callee::External(callable)),
                 args: Vec::new(),
-                pending: CoroutinePendingContext::Root,
             })),
             span: SourceSpan::new(0, 0).unwrap(),
         });

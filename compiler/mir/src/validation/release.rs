@@ -118,8 +118,7 @@ pub(super) fn validate_statement(
                 | CallTarget::Virtual { .. }
                 | CallTarget::Interface { .. }
                 | CallTarget::Closure { .. }
-                | CallTarget::FunctionBridge { .. }
-                | CallTarget::CoroutineSuspend { .. } => false,
+                | CallTarget::FunctionBridge { .. } => false,
             };
             if allowed {
                 Ok(())

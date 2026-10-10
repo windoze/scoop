@@ -133,8 +133,7 @@ fn validate_call(
         mir::CallTarget::FunctionBridge { .. }
         | mir::CallTarget::Direct(_)
         | mir::CallTarget::Virtual { .. }
-        | mir::CallTarget::Closure { .. }
-        | mir::CallTarget::CoroutineSuspend { .. } => {}
+        | mir::CallTarget::Closure { .. } => {}
     }
     for argument in call.operands() {
         validate_expr(module, roots, dependencies, function, argument)?;
@@ -271,7 +270,6 @@ fn expression_requirement(
         | mir::ExprKind::FieldAccess { .. }
         | mir::ExprKind::AtomicFieldLoad { .. }
         | mir::ExprKind::AtomicFieldCompareExchange { .. }
-        | mir::ExprKind::Cast { .. }
         | mir::ExprKind::Binary { .. }
         | mir::ExprKind::Unary { .. }
         | mir::ExprKind::IntegerUnary { .. }

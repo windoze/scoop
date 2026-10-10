@@ -81,7 +81,6 @@ pub(super) fn generate_failure_method(
                         adapter_frame(this, adapter, frame_class),
                         frame_state(failure_state(state)),
                     ],
-                    pending: mir::CoroutinePendingContext::Root,
                 },
             })),
         ],

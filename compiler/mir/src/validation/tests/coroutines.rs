@@ -4,7 +4,6 @@ mod signatures;
 
 struct CoroutineFixture {
     module: Module,
-    wrapper: FunctionId,
     driver: FunctionId,
     success_entry: BlockId,
     failure_entry: BlockId,
@@ -435,7 +434,6 @@ fn coroutine_fixture(continue_parent: bool) -> CoroutineFixture {
     install_generated_callables(&mut module);
     CoroutineFixture {
         module,
-        wrapper,
         driver,
         success_entry,
         failure_entry,
@@ -668,35 +666,6 @@ fn continuation_adapter_identity_must_retain_its_protocol_signatures() {
             ..
         })
     ));
-}
-
-#[test]
-fn final_validation_rejects_a_transient_pending_call_context() {
-    let mut fixture = coroutine_fixture(false);
-    let function = fixture.wrapper;
-    let block = fixture.module.functions[function].body.entry;
-    fixture.module.functions[function].body.blocks[block]
-        .statements
-        .push(Statement {
-            kind: StatementKind::Call(CallEffect::Unit(Call {
-                target: CallTarget::Direct(Callee::Runtime(RuntimeFn::GcCollect)),
-                args: Vec::new(),
-                pending: CoroutinePendingContext::Chain(NonEmptyCoroutinePendingChain::new(
-                    CoroutinePendingSourceTransfer::Fallthrough(
-                        CoroutineCleanupFallthroughTarget::new(block),
-                    ),
-                    Vec::new(),
-                )),
-            })),
-            span: SourceSpan::new(0, 0).unwrap(),
-        });
-    assert_eq!(
-        fixture.module.validate(),
-        Err(MirValidationError {
-            location: MirValidationLocation::FunctionBlock { function, block },
-            kind: MirValidationErrorKind::NonRootCoroutinePendingContext,
-        })
-    );
 }
 
 #[test]

@@ -72,9 +72,6 @@ impl<'a> FunctionLowerer<'a> {
                 &call.args,
                 result_ty,
             ),
-            mir::CallTarget::CoroutineSuspend { .. } => {
-                unreachable!("coroutine state-machine lowering removes suspend markers")
-            }
         }
     }
 

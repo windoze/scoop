@@ -58,7 +58,6 @@ pub enum MirValidationErrorKind {
     InvalidCoroutineMetadata {
         reason: &'static str,
     },
-    NonRootCoroutinePendingContext,
     InvalidExternalCallableReference {
         callable: ExternalCallableUseId,
     },
@@ -466,9 +465,6 @@ impl std::fmt::Display for MirValidationError {
             MirValidationErrorKind::InvalidCoroutineMetadata { reason } => {
                 formatter.write_str(reason)
             }
-            MirValidationErrorKind::NonRootCoroutinePendingContext => formatter.write_str(
-                "transient coroutine pending context remains after state-machine conversion",
-            ),
             MirValidationErrorKind::InvalidExternalCallableReference { callable } => write!(
                 formatter,
                 "external callable {} is missing from this MIR module",

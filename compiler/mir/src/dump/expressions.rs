@@ -304,10 +304,7 @@ pub(super) fn dump_expr(
             ));
             dump_expr(module, locals, operand, indent + 1, out);
         }
-        ExprKind::Cast { operand, optional } => {
-            out.push_str(&format!("{pad}Cast optional={optional}\n"));
-            dump_expr(module, locals, operand, indent + 1, out);
-        }
+
         ExprKind::ArrayAllocate { array_type, count } => {
             out.push_str(&format!(
                 "{pad}ArrayAllocate {}\n",

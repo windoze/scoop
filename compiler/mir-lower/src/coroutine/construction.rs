@@ -106,7 +106,6 @@ pub(super) fn wrapper_body(
                     mir::Expr::local(frame, mir::Type::Class(frame_class)),
                     frame_state(STATE_INITIAL),
                 ],
-                pending: mir::CoroutinePendingContext::Root,
             },
         },
     )));
@@ -441,8 +440,7 @@ pub(super) fn callee_return_type(lowerer: &Lowerer, target: &mir::CallTarget) ->
                 signature.return_type.clone()
             };
         }
-        mir::CallTarget::CoroutineSuspend { .. }
-        | mir::CallTarget::Direct(mir::Callee::Runtime(_)) => {
+        mir::CallTarget::Direct(mir::Callee::Runtime(_)) => {
             unreachable!("a source suspend call resolves to a hidden-ABI function")
         }
     };

@@ -13,7 +13,7 @@
 | R01 调用目标 | 已完成 | 完整调用分支、必填 receiver、完整去虚拟化改写；Rust 754、正式 CLI 8 项通过 |
 | R04 固定元数 intrinsic | 待实施 | 一元／二元、具名借用参数 |
 | R02 when | 待实施 | 有／无 subject 的完整分支 |
-| R03 MIR 临时态 | 待实施 | Cast、协程目标与 pending 留在 lowerer |
+| R03 MIR 临时态 | 已完成 | 最终 MIR 删除临时类别，私有 CFG 工作记录保留协程顺序；Rust 660、正式 CLI 8 项通过 |
 | R07 return | 已完成 | HIR／MIR 与导出模板必填返回值；Rust 2,899、正式 CLI 8 项通过 |
 | R05 窄身份 | 已完成 | FunctionTypeId 与 enum application 贯通生产／消费；Rust 710、正式 CLI 8 项通过 |
 | R06 nominal 表示 | 已完成 | declared payload、intrinsic 类别与 C/Scoop 窄引用；Rust 1,399、正式 CLI 8 项通过 |
@@ -115,3 +115,16 @@ LIR 调用主体为 214 行，动态调用 157 行、native 37 行、runtime 103
 新增两个正式 CLI 用例覆盖五种调用、receiver 与参数副作用、Nothing、泛型方法引用、动态 suspend 函数转换、finally，以及在实参挂起期间替换外部 receiver 后恢复。debug/release、正常／移动／minor GC 均已运行通过。已审阅的旧 MIR golden 仅同步 R07 完整 Unit 返回，旧 LIR 保持不变。
 
 正式普通比较 8/8 通过，共 11 个配置、39 个进程、44 个 golden；还覆盖既有方法引用／方差／挂起函数值、callback、异常调用、精确诊断，以及跨库泛型方法引用的发布、删源消费与运行。报告为 target/m36-validation/r01-verify-report.json；旧 MIR 的全部差异已确认仅增加 Unit 返回值，旧 LIR 无变化。wire 与 runtime ABI 不变。本轮清理未使用的 incremental 缓存 2,689.5 MiB，保留当前工具和 fixture 缓存，明细见 r01-cleanup.log。
+
+
+## R03：最终 MIR 与协程私有工作数据
+
+最终 MIR 删除未被生产的 Cast、临时协程调用目标与 call 上的 pending 字段。语言 cast 已由现有私有正文转换展开；协程注册在 structured MIR 和 CFG 工作记录中保存完整协议方法、receiver、插入位置与结果 local，不借用假 callee 或空语句。liveness 将普通语句与私有挂起操作按语义顺序合并，保留已经分析的完整调用供状态机生成使用，最终输出仅含真实接口调用。
+
+pending cleanup 只在 lowerer 保存稳定 local 与具体目标；生成 frame 时直接映射已保存的 slot。删除最终 MIR 的恒定 Root 验证和只构造该非法临时态的测试，保留真实 frame、signature、slot、引用、ABI 与 GC 检查。私有工作记录 30 行、cleanup 数据 27 行，liveness 主体 254 行，遍历 306 行、合并 69 行，没有复制完整 MIR 或新增跨阶段状态框架。
+
+本机 fmt／workspace clippy 成功；MIR 344、MIR lower 118、LIR lower 153、HIR lower 的协程／suspend／Context／cast 45，共 660 项相关 Rust 测试通过。合并迭代器收尾后只复验 MIR lower 118 项。新连续挂起与嵌套 cleanup fixture 先由 R01 CLI 生成基线，再用 R03 普通比较；debug/release、正常／移动／minor GC 的运行及 HIR/MIR/LIR 均保持一致，覆盖同步／异步恢复、异常替换待定返回、泛型结果、Context 与再次挂起。
+
+正式普通比较合计 8/8，共 14 个配置、49 个进程、53 个 golden 通过，还包含动态 receiver 在实参挂起期间被替换、旧 pending transfer chain、catch/finally、同步恢复、Context exit，以及 M35 跨库发布、删除源码后的产物消费和链接。旧快照仅同步 R05 的 enum application 身份、R06 的 declared payload 和 R07 的完整 Unit 返回；旧 LIR 无变化。wire 与 runtime ABI 不变。
+
+合并验收报告为 target/m36-validation/r03-verify-report.json，基线、Rust、快照审阅与分批报告同目录保留。收尾清理已完成的 fixture cases，保留当前 CLI、库、sysroot 与编译缓存，明细见 r03-cleanup.log。

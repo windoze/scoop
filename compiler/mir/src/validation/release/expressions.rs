@@ -104,7 +104,6 @@ pub(in crate::validation) fn validate_expression(
         | ExprKind::Box(_)
         | ExprKind::Unbox(_)
         | ExprKind::IsInstance { .. }
-        | ExprKind::Cast { .. }
         | ExprKind::ArrayAllocate { .. }
         | ExprKind::ArrayLiteral { .. }
         | ExprKind::ArrayAssembly { .. }

@@ -102,7 +102,6 @@ fn devirtualize(module: &mut mir::Module, selected: &mir::SelectedExternalMirSet
                                     args: std::iter::once(receiver)
                                         .chain(call.args.iter().cloned())
                                         .collect(),
-                                    pending: call.pending.clone(),
                                 }
                             },
                         });

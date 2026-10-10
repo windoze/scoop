@@ -322,7 +322,6 @@ fn dependency_input(
             } else {
                 Vec::new()
             },
-            pending: mir::CoroutinePendingContext::Root,
         }));
 
     let mir_output = mir::DependencyMirOutput::try_new(module, selected_mir).unwrap();

@@ -81,7 +81,6 @@ pub(super) fn generate_resume_method(
                             adapter_frame(this, adapter, frame_class),
                             frame_state(suspended_state(state)),
                         ],
-                        pending: mir::CoroutinePendingContext::Root,
                     },
                 },
             )));
