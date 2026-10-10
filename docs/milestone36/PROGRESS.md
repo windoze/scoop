@@ -170,3 +170,11 @@ wire 沿用已有可选 subject、条件与覆盖标签；原始解码数据在�
 新增 49 个 Rust 文件，最长 396 行；原有超过 500 行的文件没有增加超过 30 行，见 [长度检查](validation/file-lengths.json)。未新增依赖、TODO、todo! 或 unimplemented!。每批完成后清理用例工作目录，保留当前 CLI、共享 sysroot、缓存和报告；上述七批记录合计约 46.3 GB 的已清理逻辑文件大小，目录内可能存在硬链接，该数字不表示等量实际磁盘释放。
 
 Linux 的完整 Rust 初跑已正常退出：43 个测试目标、5,474 项通过，0 failed、0 ignored，公共 runner 44 项通过。该初跑采用 R04 完成时的源码及 Linux 测试构造器修正；默认参数引用修复的相关 29 项已定向通过，其中新增一项真实源码测试，最终覆盖为 5,475 项。最终源码的 fmt／workspace clippy、三个 release CLI 构建均通过，详见 [Linux Rust 记录](validation/rust-linux.json)。GNU 完整正式 CLI 与 musl 受影响范围继续执行，最终结果在验收完成后补入。
+
+## GNU fixture 可移植性修正
+
+GNU 目标快照初跑 176 项，175 项通过；新 C 布局 fixture 刻意将 8 字节对齐的内部类型放入 pack(2) 的外层结构，GCC 的 packed-not-aligned 警告被 -Werror 拦下。沿用已有 M23 C ABI 用例的局部 GCC diagnostic push/pop，仅包围这一刻意低对齐声明，保留布局和其他警告检查。C 源码先经 clang-format，并在 Clang／GCC 以 -Wall -Wextra -Werror 执行语法检查。
+
+目标审阅同时确认 call-targets/suspend、intrinsics/operands、intrinsics/borrows、when/flow 的八份 debug/release LIR 含平台 ABI 差异，改用 program.${profile}.${target}.lir.txt。既有 Darwin 输出逐字节保留；新增八份对应 GNU 输出及 C 布局的 GNU LIR。16 字节 enum 的物理 carrier、C byval 和含非自然对齐字段的 aggregate 传参／返回按实际 target 记录，HIR／MIR 保持共享。
+
+两平台分别以普通比较复验这五项：均为 5 项通过、9 个配置、38 个进程、27 次阶段快照检查；debug／release、正常／moving／minor GC 断言均保留。修正不涉及 Rust 源码或 ABI 规则，沿用已有 Rust 验证和配套 release CLI。实际初跑与补验见 [GNU 初跑](validation/gnu-snapshots-initial.json) 和 [可移植性记录](validation/target-fixture-portability.json)。其余 GNU 输出继续进入正式 --all 普通验收。
