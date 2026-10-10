@@ -41,8 +41,8 @@ enum ManagedPayload {
 }
 
 fun <T> isNone(value: T?): Boolean = when (value) {
-    Some(_) -> false
-    None -> true
+    case Some(_) -> false
+    case None -> true
 }
 
 fun main() {
@@ -92,8 +92,8 @@ fun main() {
                 }
                 gcCollect()
                 when (payloads[0]) {
-                    Text(saved) -> if (saved == text) { value } else { -100 }
-                    Empty -> -200
+                    case Text(saved) -> if (saved == text) { value } else { -100 }
+                    case Empty -> -200
                 }
             },
             1,

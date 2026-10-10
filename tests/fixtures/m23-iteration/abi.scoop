@@ -13,8 +13,8 @@ private fun readLarge(value: Large): Int = value.first.value + value.second.valu
 private fun readTuple(value: (Reference, Reference)): Int = value._1.value + value._2.value
 private fun readUnit(value: Unit): Int = 42
 private fun readPayload(value: Payload<Large>): Int = when (value) {
-    Data(inner) -> readLarge(inner)
-    Empty -> 0
+    case Data(inner) -> readLarge(inner)
+    case Empty -> 0
 }
 
 public fun result(): Int {

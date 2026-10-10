@@ -18,7 +18,7 @@ fun main() {
         catch (error: IllegalStateException) { first }
     gcCollect()
     check(result.get() == 22)
-    check(when (nativeOptional(None)) { Some(_) -> false; None -> true })
+    check(when (nativeOptional(None)) { case Some(_) -> false; case None -> true })
     check(nativeOptional(Some(first))!!.get() == 11)
     val empty: Empty = Item(33)
     check(nativeEmpty(empty) === empty)

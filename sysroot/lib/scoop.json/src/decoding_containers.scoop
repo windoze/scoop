@@ -12,8 +12,8 @@ internal class JsonKeyedDecoder(private val owner: JsonDecoder, private val memb
     private fun check() {
         if (ended) { throw DecodingException(owner.path, "container is already closed") }
         when (pending) {
-            Some(child) -> { child.requireComplete() }
-            None -> { return }
+            case Some(child) -> { child.requireComplete() }
+            case None -> { return }
         }
     }
 
@@ -38,8 +38,8 @@ internal class JsonKeyedDecoder(private val owner: JsonDecoder, private val memb
     public override fun required(name: String): Decoder {
         val result = optional(name)
         return when (result) {
-            Some(child) -> child
-            None -> { throw DecodingException(childPath(owner.path, name), "missing required field") }
+            case Some(child) -> child
+            case None -> { throw DecodingException(childPath(owner.path, name), "missing required field") }
         }
     }
 
@@ -65,8 +65,8 @@ internal class JsonUnkeyedDecoder(private val owner: JsonDecoder, private val el
     private fun check() {
         if (ended) { throw DecodingException(owner.path, "container is already closed") }
         when (pending) {
-            Some(child) -> { child.requireComplete() }
-            None -> { return }
+            case Some(child) -> { child.requireComplete() }
+            case None -> { return }
         }
     }
 

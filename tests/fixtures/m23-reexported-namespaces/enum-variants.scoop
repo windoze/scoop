@@ -6,8 +6,8 @@ import facade.nesting.Choice.*
 public fun <T> exercise(value: T, read: (T) -> Int): Int {
     val tagged: Choice<T> = Present<T>(value)
     return when (tagged) {
-        Present(item) -> if (read(item) == 42) { 42 } else { 0 }
-        Missing -> 0
+        case Present(item) -> if (read(item) == 42) { 42 } else { 0 }
+        case Missing -> 0
     }
 }
 

@@ -4,16 +4,16 @@ import upstream.enums.*
 public fun <T> exercise(seed: T, read: (T) -> Int): Int {
     val value: Choice<T> = Choice.Item(seed)
     val selected = when (value) {
-        Empty -> 1
-        Item(payload) -> read(payload)
-        Named { payload, .. } -> read(payload)
-        Defaults { payload, .. } -> read(payload)
+        case Empty -> 1
+        case Item(payload) -> read(payload)
+        case Named { payload, .. } -> read(payload)
+        case Defaults { payload, .. } -> read(payload)
     }
     if (selected != 42) { return 1 }
     if (read(select<T>(value, seed)) != 42) { return 2 }
     val defaulted: Choice<T> = Choice.Defaults(seed)
     return when (defaulted) {
-        Defaults { payload, amount } -> read(payload) + amount - 2
+        case Defaults { payload, amount } -> read(payload) + amount - 2
         else -> 3
     }
 }

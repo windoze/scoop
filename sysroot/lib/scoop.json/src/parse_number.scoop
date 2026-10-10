@@ -2,8 +2,8 @@ package scoop.json
 
 internal fun isJsonDigit(character: Option<Char>): Boolean {
     return when (character) {
-        Some(value) -> value >= '0' && value <= '9'
-        None -> false
+        case Some(value) -> value >= '0' && value <= '9'
+        case None -> false
     }
 }
 

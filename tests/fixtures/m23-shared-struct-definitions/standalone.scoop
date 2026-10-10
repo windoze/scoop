@@ -19,8 +19,8 @@ public fun <T> exercise(seed: T, read: (T) -> Int): Int {
     if (hasNext(base)) { return 2 }
     if (!hasNext(changed)) { return 6 }
     val tail: T = when (changed.next) {
-        Some(link) -> link.cell.value
-        None -> seed
+        case Some(link) -> link.cell.value
+        case None -> seed
     }
     if (read(tail) != 42) { return 3 }
     val reset = withoutNext(replace(changed, seed))

@@ -41,7 +41,7 @@ fun main() {
         println(storageThreads(callback.function, callback.context, callerAddress))
         println(tlsInitial == 33 && tlsZero == 34 && counter == 70)
         println(when (foreignCallbackState(callback)) {
-            ForeignCallbackState.Registered -> true
+            case ForeignCallbackState.Registered -> true
             else -> false
         })
         releaseForeignCallback(callback)

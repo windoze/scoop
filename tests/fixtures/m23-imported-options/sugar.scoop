@@ -30,7 +30,7 @@ public fun <T> exercise(value: T): Int {
     var caught: Int = 0
     try { force(absent<Int>()) } catch (error: UnwrapException) { caught = 2 }
     return when (nested) {
-        Some(Some(number)) -> number + caught
+        case Some(Some(number)) -> number + caught
         else -> 5
     }
 }

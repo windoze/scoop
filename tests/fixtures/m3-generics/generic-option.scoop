@@ -4,8 +4,8 @@ fun <T> unwrapOr(o: T?, fallback: T): T {
 
 fun <T> isPresent(o: T?): Boolean {
     return when (o) {
-        None -> false
-        Some(_) -> true
+        case None -> false
+        case Some(_) -> true
     }
 }
 

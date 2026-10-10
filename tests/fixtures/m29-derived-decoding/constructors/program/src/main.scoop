@@ -32,8 +32,8 @@ fun main() {
     check(Json.decode("{}", Row.Companion).total == 1L, 7)
     check(Json.decode("{\"values\":[1,2]}", Row.Companion).total == 2L, 8)
     val items = Json.decode("{\"Items\":{}}", Batches.Companion)
-    check(when (items) { Batches.Items(values) -> values[0L] == 9; else -> false }, 9)
+    check(when (items) { case Batches.Items(values) -> values[0L] == 9; else -> false }, 9)
     val omitted = Json.decode("{\"Omitted\":{\"values\":[1]}}", Batches.Companion)
-    check(when (omitted) { Batches.Omitted(values) -> values[0L] == 10; else -> false }, 10)
+    check(when (omitted) { case Batches.Omitted(values) -> values[0L] == 10; else -> false }, 10)
     println("constructors-ok")
 }

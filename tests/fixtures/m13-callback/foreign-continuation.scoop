@@ -49,8 +49,8 @@ class ForeignCompletion() : Continuation<Int> {
 }
 
 fun <T> isNone(value: T?): Boolean = when (value) {
-    Some(_) -> false
-    None -> true
+    case Some(_) -> false
+    case None -> true
 }
 
 fun main() {

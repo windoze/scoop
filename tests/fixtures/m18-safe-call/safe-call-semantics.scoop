@@ -36,8 +36,8 @@ class Service(val handler: Handler)
 
 fun printStringOption(value: String?) {
     when (value) {
-        Some(text) -> println(text)
-        None -> println("none")
+        case Some(text) -> println(text)
+        case None -> println("none")
     }
 }
 
@@ -65,14 +65,14 @@ fun main() {
 
     val nested: String?? = some?.nested()
     when (nested) {
-        Some(inner) -> printStringOption(inner)
-        None -> println("outer-none")
+        case Some(inner) -> printStringOption(inner)
+        case None -> println("outer-none")
     }
 
     val unitResult: Unit? = some?.touch()
     when (unitResult) {
-        Some(value) -> println("unit-some")
-        None -> println("unit-none")
+        case Some(value) -> println("unit-some")
+        case None -> println("unit-none")
     }
 
     val maybeService: Service? = Some(Service(Handler("field-")))
@@ -80,7 +80,7 @@ fun main() {
 
     val maybeFunction: ((Int) -> Int)? = Some({ value: Int -> value + 1 })
     when (maybeFunction?.invoke(41)) {
-        Some(value) -> println(value)
-        None -> println(0)
+        case Some(value) -> println(value)
+        case None -> println(0)
     }
 }

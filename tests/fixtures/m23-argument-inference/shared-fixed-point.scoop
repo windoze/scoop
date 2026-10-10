@@ -39,10 +39,10 @@ public fun result(): Int {
     val importedChoice = Choice.Data([], fun(value: Int): Int { return value })
     val local = localArrayOrSeed([], fun(value: Int): Int { return value })
     val external = arrayOrSeed([], fun(value: Int): Int { return value })
-    val fromChoice = when (choice) { Data(values, seed) -> seed(42) }
+    val fromChoice = when (choice) { case Data(values, seed) -> seed(42) }
     val fromImported = when (importedChoice) {
-        Data(values, seed) -> seed(42)
-        Empty -> 0
+        case Data(values, seed) -> seed(42)
+        case Empty -> 0
     }
     if (pair.seed(42) != 42 || reverse.seed(42) != 42 || importedPair.seed(42) != 42) { return 4 }
     if (fromChoice != 42 || fromImported != 42 || local(42) != 42 || external(42) != 42) { return 5 }

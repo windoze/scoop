@@ -4,8 +4,8 @@ public const val snow: Char = '\u96EA'
 public const val scalarOrder: Boolean = '雪' > 'A'
 public fun <T> mark(value: T, marker: Char = '🚀'): (T, Char) = (value, marker)
 public fun <T> classify(value: (Char?, T)): Int = when (value) {
-    (Some('雪'), _) -> 42
-    _ -> 0
+    case (Some('雪'), _) -> 42
+    case _ -> 0
 }
 public fun <T : ToString> characterText(value: T): String = value.toString()
 public fun defaultPattern(value: Int = classify((Some('雪'), 0))): Int = value

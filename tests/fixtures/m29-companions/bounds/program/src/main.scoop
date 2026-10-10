@@ -95,7 +95,7 @@ fun main() {
     check(Packet<Sample>.read() == 42)
     check(Packet<Sample>.Companion === Packet<Sample>.Companion && initializations == 1)
     val choice = Choice<Sample>.make(Sample(7))
-    check(when (choice) { Value(value) -> value.read() == 7 })
+    check(when (choice) { case Value(value) -> value.read() == 7 })
     check(Reader<Sample>.read(Sample(9)) == 9)
     val objectPacket = ObjectPacket<Child>.make(Child(13))
     check(ObjectPacket<Child>.read(objectPacket.item) == 13)

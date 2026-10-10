@@ -94,7 +94,7 @@ fun main() {
     printInts(boxed.values)
     val event = Event.Batch(6, 7)
     when (event) {
-        Batch(items) -> printInts(items)
+        case Batch(items) -> printInts(items)
     }
 
     val complete: (Array<Int>) -> Array<Int> = ::collect

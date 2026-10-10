@@ -31,7 +31,7 @@ public enum TupleChoice { Empty, Full((Long, Token, Long)) }
 @NoGC public fun tupleChoiceSum(value: (Long, Token, Long)): Long {
     val choice = TupleChoice.Full(value)
     return when (choice) {
-        Empty -> 0
-        Full(fields) -> fields._1 + fields._3
+        case Empty -> 0
+        case Full(fields) -> fields._1 + fields._3
     }
 }

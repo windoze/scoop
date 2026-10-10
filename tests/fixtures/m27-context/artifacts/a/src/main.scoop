@@ -70,8 +70,8 @@ public fun <T: ref> registerCallback(value: T, read: (T) -> Int): ForeignCallbac
         throw IllegalStateException()
     }
     if (when (foreignCallbackFailure(retained)) {
-        Some(_) -> true
-        None -> false
+        case Some(_) -> true
+        case None -> false
     }) { throw IllegalStateException() }
     retained
 }

@@ -11,12 +11,12 @@ fun main() {
     @Unsafe {
         val callback = foreignCallback<(Int, Ptr<Unit>) -> Int>(fun(mode: Int): Int {
             when (mode) {
-                -1 -> {
+                case -1 -> {
                     gcCollect()
                     expect(message.byteLength == 262144L)
                 }
-                0 -> { write(message); flushOutput() }
-                1 -> { writeError(message) }
+                case 0 -> { write(message); flushOutput() }
+                case 1 -> { writeError(message) }
                 else -> { write("pending"); flushOutput() }
             }
             return 37
@@ -24,7 +24,7 @@ fun main() {
         expect(blockedOutput(callback.function, callback.context, 0, message.byteLength) == 1)
         expect(blockedOutput(callback.function, callback.context, 1, message.byteLength) == 1)
         expect(blockedOutput(callback.function, callback.context, 2, 7L) == 1)
-        expect(when (foreignCallbackFailure(callback)) { Some(_) -> false; None -> true })
+        expect(when (foreignCallbackFailure(callback)) { case Some(_) -> false; case None -> true })
         releaseForeignCallback(callback)
     }
     println("output-concurrent-ok")

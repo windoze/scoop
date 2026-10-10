@@ -7,20 +7,20 @@ enum E {
 fun main() {
     val v = E.Num(42)
     when (v) {
-        Num(n) if (n > 100) -> println("big")
-        Num(n) -> println(n)
-        Pair(a, b) -> println(a + b)
-        Empty -> println("empty")
+        case Num(n) if (n > 100) -> println("big")
+        case Num(n) -> println(n)
+        case Pair(a, b) -> println(a + b)
+        case Empty -> println("empty")
     }
     val w = E.Pair(3, 4)
     when (w) {
-        Num(n) -> println(n)
-        Pair(a, _) if (a > 10) -> println("big pair")
+        case Num(n) -> println(n)
+        case Pair(a, _) if (a > 10) -> println("big pair")
         else -> println("other")
     }
     val e = E.Empty
     when (e) {
-        Empty -> println("empty")
+        case Empty -> println("empty")
         else -> println("not empty")
     }
 }

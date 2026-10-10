@@ -23,12 +23,12 @@ fun main() {
         val present: Ptr<Int>? = Some(pointer)
         val absent: Ptr<Int>? = None
         when (present) {
-            Some(value) -> println(value.load())
-            None -> println(0)
+            case Some(value) -> println(value.load())
+            case None -> println(0)
         }
         when (absent) {
-            Some(value) -> println(value.load())
-            None -> println(43)
+            case Some(value) -> println(value.load())
+            case None -> println(43)
         }
 
         free(pointer.cast<Unit>())

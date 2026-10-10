@@ -7,16 +7,16 @@ fun main() {
     val a = Box.Full(1)
     val b = Box.Full("s")
     when (a) {
-        Full(v) -> println(v)
-        Empty -> println("empty")
+        case Full(v) -> println(v)
+        case Empty -> println("empty")
     }
     when (b) {
-        Full(v) -> println(v)
-        Empty -> println("empty")
+        case Full(v) -> println(v)
+        case Empty -> println("empty")
     }
     val c: Box<Int> = Box.Empty
     when (c) {
-        Full(v) -> println(v)
-        Empty -> println("empty")
+        case Full(v) -> println(v)
+        case Empty -> println("empty")
     }
 }

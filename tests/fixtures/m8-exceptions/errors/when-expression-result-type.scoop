@@ -2,7 +2,7 @@ enum Choice { Left, Right }
 
 fun main() {
     val value: Int = when (Choice.Left) {
-        Left -> 1
-        Right -> "wrong"
+        case Left -> 1
+        case Right -> "wrong"
     }
 }

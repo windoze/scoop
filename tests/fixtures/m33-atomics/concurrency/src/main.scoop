@@ -10,8 +10,8 @@ fun together(action: (Int) -> Int): Int {
         try {
             val result = workers(callback.function, callback.context, 0, 4)
             when (foreignCallbackFailure(callback)) {
-                None -> {}
-                Some(_) -> { throw IllegalStateException() }
+                case None -> {}
+                case Some(_) -> { throw IllegalStateException() }
             }
             return result
         } finally {

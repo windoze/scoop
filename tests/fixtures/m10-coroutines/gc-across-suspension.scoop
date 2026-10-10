@@ -28,11 +28,11 @@ suspend fun middle(gate: Gate, payload: Payload): Int {
     val value = deepest(gate)
     println(marker)
     when (payload) {
-        Full(bundle) -> {
+        case Full(bundle) -> {
             println(bundle.text)
             println(bundle.node.name)
         }
-        Empty -> println("empty")
+        case Empty -> println("empty")
     }
     return value + 1
 }
@@ -48,11 +48,11 @@ class GcTask(val gate: Gate) : SuspendTask<Int> {
         println(node.name)
         println(bundle.text)
         when (payload) {
-            Full(saved) -> {
+            case Full(saved) -> {
                 println(saved.text)
                 println(saved.node.name)
             }
-            Empty -> println("empty")
+            case Empty -> println("empty")
         }
         return value + 1
     }

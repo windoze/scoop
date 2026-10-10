@@ -32,6 +32,6 @@ fun fail(): Nothing {
         println(first.value + second.value)
         println(scalar as Int)
         println(unit is Unit)
-        println(when (variant as Item) { Item.Value(value) -> value.value; Item.Empty -> 0L })
+        println(when (variant as Item) { case Item.Value(value) -> value.value; case Item.Empty -> 0L })
     }
 }

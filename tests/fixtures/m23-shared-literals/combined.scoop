@@ -8,8 +8,8 @@ private struct Local<T>(val enabled: Boolean, val label: String, val value: T?)
 public fun <T> exercise(value: T, read: (T) -> Int): Int {
     val local = Local(true, "hit", Some(value))
     val selected = when (local) {
-        Local(true, "hit", Some(item)) if (read(item) == 42) -> read(item)
-        Local(false, _, _) -> 0
+        case Local(true, "hit", Some(item)) if (read(item) == 42) -> read(item)
+        case Local(false, _, _) -> 0
         else -> -1
     }
     if (selected != 42) { return 1 }

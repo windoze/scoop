@@ -10,7 +10,7 @@ fun main() {
         "yes"
     } else { "no" }}"
     check(comment == "yes")
-    val pattern = f"${when ('雪') { '雪' -> "snow"; else -> "other" }}"
+    val pattern = f"${when ('雪') { case '雪' -> "snow"; else -> "other" }}"
     check(pattern == "snow")
     println(42)
 }

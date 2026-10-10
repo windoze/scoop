@@ -60,7 +60,7 @@ fun main() {
     println(structure.second)
     println(box.second)
     when (variant) {
-        Choice.Both(_, value) -> println(value)
+        case Choice.Both(_, value) -> println(value)
     }
     println(method.second)
     println(extension.second)

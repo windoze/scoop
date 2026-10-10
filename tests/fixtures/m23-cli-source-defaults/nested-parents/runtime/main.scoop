@@ -1,8 +1,8 @@
 fun verifyDefault(value: Boolean) { if (!value) { throw IllegalStateException() } }
 
 fun invokeChoice(value: NestedParentChoice): String = when (value) {
-    NestedParentChoice.First(callback) -> callback()
-    NestedParentChoice.Second(callback) -> callback()
+    case NestedParentChoice.First(callback) -> callback()
+    case NestedParentChoice.Second(callback) -> callback()
 }
 
 fun main() {

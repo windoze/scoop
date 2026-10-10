@@ -15,11 +15,11 @@ public fun <T> exercise(value: T): Int {
     val unit: ReverseShape = Some
     val reversed: ReverseShape = None(42)
     val restored = force(inferred)
-    if (when (saved) { Some(payload) -> false; None -> true }) { return 1 }
-    if (when (missing) { Some(a, b) -> true; None -> false }) { return 2 }
-    if (when (unit) { Some -> false; None(number) -> true }) { return 3 }
-    if (when (reversed) { Some -> true; None(number) -> number != 42 }) { return 4 }
-    return when (pair) { Some(a, b) -> a + b; None -> 5 }
+    if (when (saved) { case Some(payload) -> false; case None -> true }) { return 1 }
+    if (when (missing) { case Some(a, b) -> true; case None -> false }) { return 2 }
+    if (when (unit) { case Some -> false; case None(number) -> true }) { return 3 }
+    if (when (reversed) { case Some -> true; case None(number) -> number != 42 }) { return 4 }
+    return when (pair) { case Some(a, b) -> a + b; case None -> 5 }
 }
 
 public fun result(): Int = exercise<Int>(1)

@@ -6,7 +6,7 @@ public enum Parcel<T> { Empty, Item(T) }
 public fun result(): Int {
     val parcel = Parcel.Item(Number(42))
     return when (parcel) {
-        Empty -> 0
-        Item(number) -> number.value
+        case Empty -> 0
+        case Item(number) -> number.value
     }
 }

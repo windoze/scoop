@@ -4,8 +4,8 @@ enum Choice {
 }
 
 fun render(choice: Choice): String = when (choice) {
-    Number(value) -> if (value > 0) { "positive" } else { "zero" }
-    Empty -> "empty"
+    case Number(value) -> if (value > 0) { "positive" } else { "zero" }
+    case Empty -> "empty"
 }
 
 fun main() {

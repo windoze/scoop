@@ -60,12 +60,12 @@ fun current(): Measure = value
     check(holder.item.value() == 9)
     check(holder.pair.first.doubled() + holder.pair.second.value() == 51)
     check(values[0L].value() + values[1L].value() + values[2L].value() == 51)
-    check(when (envelope) { Full(value, n) -> value.value() + n; Empty -> 0 } == 24)
+    check(when (envelope) { case Full(value, n) -> value.value() + n; case Empty -> 0 } == 24)
     check(optional(Some(view))!! === view)
-    check(when (optional(None)) { Some(_) -> false; None -> true })
-    check(when (nested) { Some(None) -> true; Some(Some(_)) -> false; None -> false })
+    check(when (optional(None)) { case Some(_) -> false; case None -> true })
+    check(when (nested) { case Some(None) -> true; case Some(Some(_)) -> false; case None -> false })
     check(emptyOption!! === view)
-    check(when (("wrong" as Any) as? Measure) { Some(_) -> false; None -> true })
+    check(when (("wrong" as Any) as? Measure) { case Some(_) -> false; case None -> true })
     val captured: () -> Measure = { keep(view) }
     check(captured().doubled() == 42)
     val bound: () -> Int = view::doubled

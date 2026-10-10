@@ -1,7 +1,7 @@
 fun check(value: Boolean) { if (!value) { throw IllegalStateException() } }
 fun count(value: Batches<Int>): Long = when (value) {
-    Batches.Items(values) -> values.size
-    Batches.Defaulted(values) -> values.size
+    case Batches.Items(values) -> values.size
+    case Batches.Defaulted(values) -> values.size
 }
 fun main() {
     val values: Array<Int> = [3, 4]

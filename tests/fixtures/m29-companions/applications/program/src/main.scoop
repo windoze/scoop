@@ -88,7 +88,7 @@ fun main(): Unit {
     val emptyString: Any = Empty<String>.Companion
     check(emptyInteger !== emptyString && emptyInteger === Empty<Int>.Companion, 17)
     val choice = Choice<Int>.make(19)
-    check(when (choice) { Value(value) -> value == 19 }, 18)
+    check(when (choice) { case Value(value) -> value == 19 }, 18)
     val create: (Int) -> Box<Int> = Box<Int>.Companion::create
     check(create(20).value == 20 && first.cached!! == 20, 19)
     println("companions-ok")

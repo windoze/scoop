@@ -3,7 +3,7 @@ enum Color { Red, Green, Blue }
 fun main() {
     val c = Color.Red
     when (c) {
-        Red -> println("red")
-        Green -> println("green")
+        case Red -> println("red")
+        case Green -> println("green")
     }
 }

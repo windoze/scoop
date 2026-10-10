@@ -42,7 +42,7 @@ fun main() {
     val units = Json.decode("[null,null]", MutableArray<Unit>.decoder(UnitDecoder))
     check(units.size == 2L, 6)
     val optionalUnit = Json.decode("{\"Some\":[null]}", Option<Unit>.decoder(UnitDecoder))
-    check(when (optionalUnit) { Some(value) -> true; None -> false }, 7)
+    check(when (optionalUnit) { case Some(value) -> true; case None -> false }, 7)
     val functions = DecodeFunction<() -> Int>({ decoder ->
         val number = Int.Companion.decode(decoder)
         val function: () -> Int = { -> number }

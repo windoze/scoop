@@ -27,8 +27,8 @@ fun branched(flag: Boolean): Option<Animal> = if (flag) {
 }
 
 fun selected(switch: Switch): Choice<Animal> = when (switch) {
-    Switch.On -> Choice.Item(Cat())
-    Switch.Off -> Choice.Empty
+    case Switch.On -> Choice.Item(Cat())
+    case Switch.Off -> Choice.Empty
 }
 
 fun recovered(): Option<Animal> = try {
@@ -64,14 +64,14 @@ fun main() {
     println(reference.value.name)
     println(value.value.name)
     when (choice) {
-        Choice.Item(animal) -> println(animal.name)
-        Choice.Empty -> println("empty")
+        case Choice.Item(animal) -> println(animal.name)
+        case Choice.Empty -> println("empty")
     }
     println(returned()!!.name)
     println(branched(true)!!.name)
     when (selected(Switch.On)) {
-        Choice.Item(animal) -> println(animal.name)
-        Choice.Empty -> println("empty")
+        case Choice.Item(animal) -> println(animal.name)
+        case Choice.Empty -> println("empty")
     }
     println(recovered()!!.name)
     println(referenceLUB is RefBox<Cat>)

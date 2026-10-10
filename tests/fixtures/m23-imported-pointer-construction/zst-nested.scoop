@@ -15,12 +15,12 @@ public fun <T> exercise(value: T): Int {
         val absent: Option<Ptr<Int>> = None
         if (sizeOf<Option<Ptr<Int>>>() != sizeOf<Ptr<Int>>()) { return 2 }
         when (present) {
-            Some(pointer) -> pointer.store(pointer.load() + 2)
-            None -> { return 3 }
+            case Some(pointer) -> pointer.store(pointer.load() + 2)
+            case None -> { return 3 }
         }
         when (absent) {
-            Some(pointer) -> { return 4 }
-            None -> { return number }
+            case Some(pointer) -> { return 4 }
+            case None -> { return number }
         }
     }
 }

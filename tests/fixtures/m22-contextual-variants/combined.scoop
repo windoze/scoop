@@ -21,14 +21,14 @@ fun <T> choose(first: T, second: T): T = first
 fun Text(value: String): String = value
 
 fun tokenValue(value: Token): Int = when (value) {
-    Number(number) -> number
-    Text(number) -> number
-    Empty -> -1
+    case Number(number) -> number
+    case Text(number) -> number
+    case Empty -> -1
 }
 
 fun localValue(value: LocalOption): Int = when (value) {
-    Some(left, right) -> left + right
-    None -> 0
+    case Some(left, right) -> left + right
+    case None -> 0
 }
 
 fun localNonCallableDoesNotShadowCall(): Token {

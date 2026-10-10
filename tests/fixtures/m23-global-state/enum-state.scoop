@@ -10,13 +10,13 @@ public fun <T> exercise(value: T): Int {
     val allocated = Cell(0)
     if (allocated.number != 0) { return 1 }
     val cleared = when (stored) {
-        Empty -> true
-        Item(cell) -> false
+        case Empty -> true
+        case Item(cell) -> false
     }
     if (!cleared) { return 2 }
     return when (saved) {
-        Item(cell) -> cell.number
-        Empty -> 3
+        case Item(cell) -> cell.number
+        case Empty -> 3
     }
 }
 public fun result(): Int = exercise<Int>(0)

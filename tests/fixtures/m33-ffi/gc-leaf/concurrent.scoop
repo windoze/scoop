@@ -32,7 +32,7 @@ fun main() {
             }, 1, ForeignCallbackMode.Reusable
         )
         expect(runMany(callback.function, callback.context, 10, 4) == 46)
-        expect(when (foreignCallbackFailure(callback)) { Some(_) -> false; None -> true })
+        expect(when (foreignCallbackFailure(callback)) { case Some(_) -> false; case None -> true })
         releaseForeignCallback(callback)
     }
     println("gc-leaf-concurrent-ok")

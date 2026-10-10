@@ -7,14 +7,14 @@ private fun failure(): IllegalStateException = try {
 fun main() {
     val first = failure()
     val firstMessage = when (first.message) {
-        Some(value) -> value
-        None -> { throw IllegalStateException() }
+        case Some(value) -> value
+        case None -> { throw IllegalStateException() }
     }
     val allocated = Box(42L)
     val second = failure()
     val secondMessage = when (second.message) {
-        Some(value) -> value
-        None -> { throw IllegalStateException() }
+        case Some(value) -> value
+        case None -> { throw IllegalStateException() }
     }
     if (count() != 1 || firstMessage !== secondMessage) {
         throw IllegalStateException()

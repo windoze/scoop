@@ -16,11 +16,11 @@ fun emptyValue(): Empty { Counts.value += 1L; return Empty() }
     val count = benchCount()
     val kind = benchKind()
     val result = when (kind) {
-        0 -> scalarList(count)
-        1 -> interfaceList(count)
-        2 -> zeroSizeList(count)
-        3 -> lowOccupancy(count)
-        4 -> buildStrings(count)
+        case 0 -> scalarList(count)
+        case 1 -> interfaceList(count)
+        case 2 -> zeroSizeList(count)
+        case 3 -> lowOccupancy(count)
+        case 4 -> buildStrings(count)
         else -> jsonRoundTrip(count)
     }
     println(result)

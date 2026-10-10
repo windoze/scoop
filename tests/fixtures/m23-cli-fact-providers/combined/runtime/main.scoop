@@ -8,6 +8,6 @@ fun main() {
     verifyType(packet.meta._1 && packet.message == "payload" && packet.empty == Empty())
     verifyType(NothingStored((Empty(), Unit)) == NothingStored((Empty(), Unit)))
     val result = Result.Ready(packet)
-    verifyType(when (result) { Ready(value) -> value == packet; Missing -> false })
+    verifyType(when (result) { case Ready(value) -> value == packet; case Missing -> false })
     verifyType(holder().read())
 }

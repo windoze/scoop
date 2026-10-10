@@ -11,8 +11,8 @@ struct Tag(val v: Int) : Describable {
 }
 
 fun <T> isPresent(value: T?): Boolean = when (value) {
-    Some(_) -> true
-    None -> false
+    case Some(_) -> true
+    case None -> false
 }
 
 fun main() {

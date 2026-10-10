@@ -8,41 +8,41 @@ enum Text {
 
 fun partialOption(value: Int?) {
     when (value) {
-        Some(0) -> println("zero")
-        None -> println("none")
+        case Some(0) -> println("zero")
+        case None -> println("none")
     }
 }
 
 fun partialSingle(value: Only) {
     when (value) {
-        Value(true) -> println("true")
+        case Value(true) -> println("true")
     }
 }
 
 fun partialNested(value: (Int, Boolean)?) {
     when (value) {
-        Some((number, _)) if (number > 0) -> println("positive")
-        Some((0, _)) -> println("zero")
-        None -> println("none")
+        case Some((number, _)) if (number > 0) -> println("positive")
+        case Some((0, _)) -> println("zero")
+        case None -> println("none")
     }
 }
 
 fun partialPair(value: (Boolean, Boolean)) {
     when (value) {
-        (false, _) -> println("false")
-        (true, false) -> println("almost")
+        case (false, _) -> println("false")
+        case (true, false) -> println("almost")
     }
 }
 
 fun partialText(value: Text) {
     when (value) {
-        Value("") -> println("empty")
+        case Value("") -> println("empty")
     }
 }
 
 fun partialValue(value: Int?): Int = when (value) {
-    Some(0) -> 0
-    None -> 1
+    case Some(0) -> 0
+    case None -> 1
 }
 
 fun main() {}
@@ -53,6 +53,6 @@ enum OnlyTuple {
 
 fun partialOneTuple(value: OnlyTuple) {
     when (value) {
-        Value((true,)) -> println("true")
+        case Value((true,)) -> println("true")
     }
 }

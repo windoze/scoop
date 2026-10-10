@@ -55,7 +55,7 @@ public operator fun <T> ValueItems<T>.iterator(): ValueCursor<T> {
 public enum EnumCursor<T>: Iterator<T> {
     Items(Cursor<T>)
     public override fun next(): Option<T> = when (this) {
-        Items(inner) -> inner.next()
+        case Items(inner) -> inner.next()
     }
 }
 

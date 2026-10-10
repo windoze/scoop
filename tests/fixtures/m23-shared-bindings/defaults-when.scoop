@@ -7,18 +7,18 @@ public fun <T> exercise(seed: T, read: (T) -> Int): Int {
     if (read(matched<T>(pair)) != 42) { return 2 }
     if (patternBody<T>(pair, read) != 42) { return 3 }
     return when (pair) {
-        Pair { right: extra, left: value } -> read(value) + extra
+        case Pair { right: extra, left: value } -> read(value) + extra
     }
 }
 
 public fun result(): Int {
     val covered = when (Pair<Int?>(Some(40), 2)) {
-        Pair(Some(value), extra) -> value + extra
-        Pair(None, _) -> 1
+        case Pair(Some(value), extra) -> value + extra
+        case Pair(None, _) -> 1
     }
     if (covered != 42) { return 4 }
     val result = when (IntPair(40, 2)) {
-        IntPair(value, extra) if (extra == 2) -> value + extra
+        case IntPair(value, extra) if (extra == 2) -> value + extra
         else -> 1
     }
     return exercise<Int>(result, { item -> item })

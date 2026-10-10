@@ -13,13 +13,13 @@ struct Bundle(
 struct UnitBox(val Unit: Unit)
 
 fun classify(value: Signal): Int = when (value) {
-    Ready -> 1
-    Payload(number) -> number
+    case Ready -> 1
+    case Payload(number) -> number
 }
 
 fun optionValue(value: Int?): Int = when (value) {
-    None -> 0
-    Some(number) -> number
+    case None -> 0
+    case Some(number) -> number
 }
 
 fun plainBinding(): Int {

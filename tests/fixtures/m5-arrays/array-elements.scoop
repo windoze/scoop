@@ -9,8 +9,8 @@ fun main() {
     println(nested[0][1])
     val es = [E.One(1), E.Empty]
     when (es[0]) {
-        One(v) -> println(v)
-        Empty -> println("empty")
+        case One(v) -> println(v)
+        case Empty -> println("empty")
     }
     val opts: Array<Int?> = [Some(1), None]
     println(opts[0] ?: 9)

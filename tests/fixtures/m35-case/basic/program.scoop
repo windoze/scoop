@@ -1,0 +1,11 @@
+fun case(case: Int): Int = when (case) {
+    case 0 -> 10
+    case value -> value + 1
+}
+
+fun main() {
+    println(case(0))
+    println(case(4))
+    val (first, _) = (7, 8)
+    println(first)
+}

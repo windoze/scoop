@@ -3,8 +3,8 @@ package consumer.adapters
 import templates.adapters.*
 
 public fun <T> isNone(value: T?): Boolean = when (value) {
-    Some(_) -> false
-    None -> true
+    case Some(_) -> false
+    case None -> true
 }
 
 public fun <T> exercise(seed: T, read: (T) -> Int): Int {

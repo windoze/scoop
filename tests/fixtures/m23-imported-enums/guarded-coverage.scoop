@@ -1,3 +1,3 @@
 package consumer.enums
 import dependency.enums.Flag
-@NoGC public fun rejected(value: Flag): Long = when (value) { Off -> 0; On if (true) -> 1 }
+@NoGC public fun rejected(value: Flag): Long = when (value) { case Off -> 0; case On if (true) -> 1 }

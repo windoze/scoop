@@ -1,0 +1,62 @@
+SourceFile
+  RootPackage
+  struct Payload
+    field active: Boolean
+    field value: Int
+  enum Reply<T>
+    Item(T)
+    Empty
+  fun describe(value: Reply<Payload>): String
+    =
+      WhenExpression
+        Var value
+        arm Item(Payload{active: true, value: number}) if <guard>
+          StringLiteral "large"
+        arm Item(Payload{active: true, ..})
+          StringLiteral "small"
+        arm Item(Payload{active: false, ..})
+          StringLiteral "inactive"
+        arm Empty
+          StringLiteral "empty"
+  fun main()
+    Call println
+      Call describe
+        MethodCall Item
+          Var Reply
+          Call Payload
+            BoolLiteral true
+            IntLiteral 12
+    Call println
+      Call describe
+        MethodCall Item
+          Var Reply
+          Call Payload
+            BoolLiteral true
+            IntLiteral 2
+    Call println
+      Call describe
+        MethodCall Item
+          Var Reply
+          Call Payload
+            BoolLiteral false
+            IntLiteral 12
+    Call println
+      Call describe
+        FieldAccess Empty
+          Var Reply
+    val choice: Option<(Boolean, String)>
+      Call Some
+        TupleLiteral
+          BoolLiteral true
+          StringLiteral "nested"
+    when
+      Var choice
+      arm Some((true, text))
+        Call println
+          Var text
+      arm Some((false, _))
+        Call println
+          StringLiteral "false"
+      arm None
+        Call println
+          StringLiteral "none"

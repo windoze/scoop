@@ -8,6 +8,7 @@ use crate::lexer::{Token, TokenKind};
 use crate::parser::Parser;
 
 mod control_flow;
+mod when;
 
 impl Parser {
     pub(crate) fn parse_block(&mut self) -> Result<Block, Diagnostic> {

@@ -334,7 +334,7 @@ s3 = s3.{ f1: 84 }        // var 重绑定，不是原地修改
 
 ### 4.6 解构声明（destructuring）
 
-`val` / `var` 声明中可以使用解构模式一次绑定多个变量：
+`val` / `var` 声明中可以使用解构模式一次绑定多个变量；`when (val pattern [: Type] = expression)` 复用本节的不可失败 binding 规则，匹配对象仍为初始化后的完整值，求值与作用域见 5.5：
 
 ```
 struct S(val f1: Int, val f2: String)
@@ -402,17 +402,19 @@ val S { f1: x, f2: y, .. } = s
 
 ## 5. `when` 表达式扩展
 
-Kotlin 原有的`when`语法（等值匹配、类型匹配、区间、条件分支）原样保留。以下扩展对**enum、tuple与struct**生效。它们与4.6共享tuple/字段/rest结构语法，但这里使用可失败的match pattern，额外允许literal与enum variant递归出现在子模式中。class的`componentN`位置解构只属于4.6的binding位置，不进入match pattern或穷尽性判断。
+when 支持值、类型、成员关系与无 subject 的条件分支；显式 case 引入可失败模式，包括 **enum、tuple 与 struct** 的结构模式。它们与4.6共享tuple/字段/rest结构语法，但这里使用可失败的match pattern，额外允许literal与enum variant递归出现在子模式中。class的`componentN`位置解构只属于4.6的binding位置，不进入match pattern或穷尽性判断。
 
 `if`、`when` 与 `try` 都是表达式，也可在结果被丢弃的语句位置使用。作为值使用时，每个可正常结束的分支块以最后一个表达式的值作为该分支结果；空块或以非表达式语句结束的块结果为 `Unit`，以`return`/`throw`或8.7的`break`/`continue`结束的路径不参与结果类型合并。外层有期望类型时，每个正常分支结果必须是其子类型；否则取所有正常分支结果的唯一可表达最小上界，存在多个不可比较的最小共同上界时退化为 `Any`。依赖期望类型的分支结果可由其他分支先确定类型，分支检查顺序不影响结果。
 
 值位置的 `if` 必须有 `else`；结果被丢弃时可以省略。值位置的 `when` 必须穷尽。`try` 的结果由正常完成的 try body 与各 catch body 共同决定；`finally` 的结果值始终丢弃，但其中实际离开当前finally的`return`/`throw`/`break`/`continue`仍按第8章覆盖先前路径。
 
-**统一规则**：仅当 subject 的静态类型是 enum / struct / tuple 时，`when` 才按模式匹配解析（下称**模式 when**）；其余 `when` 一律保持 Kotlin 的表达式语义——分支条件是普通表达式（等值比较）、`is` 检查、`in` 区间等，穷尽性也遵循 Kotlin 自身规则（表达式形式须穷尽，语句形式不强制）。分支条件采用哪一种规则，由 subject 的静态类型确定。
+**语法分界**：普通 arm 使用表达式语义，只有以 `case pattern` 开头的 arm 使用模式语义并引入绑定。parser 不根据 subject 类型或符号是否已声明选择模式。`case` 仅在 arm 头部是上下文关键字；普通表达式以名为 case 的标识符开始时，使用 `(case)` 或 `(case())` 消除歧义。头部 `val pattern = expression` 是声明位置的 binding pattern，不加 case。
+
+同一 when 可以混用普通条件与 case。每个 case arm 只有一个模式，不支持逗号连接的模式 alternatives，也不能在一个头部混写模式与普通条件。case 内保留以下全部递归模式规则；普通表达式即使形似构造模式也只构造值并执行普通比较，不暗中引入绑定。
 
 模式when适用两条全局规则：
 
-- **穷尽性**：模式 when 无论作为语句还是表达式，都必须覆盖输入类型的全部可能值；无法静态确定穷尽时是编译错误，并给出至少一个稳定、可重新解析的未覆盖示例，也可显式加 `else`。带 guard 的分支不贡献覆盖，因为 guard 可能为 false。
+- **穷尽性**：含 case 的 when 无论作为语句还是表达式，都必须覆盖输入类型的全部可能值；无法静态确定穷尽时是编译错误，并给出至少一个稳定、可重新解析的未覆盖示例，也可显式加 `else`。带 guard 的分支不贡献覆盖，因为 guard 可能为 false。普通 when 的规则见 5.7。
 - **match中的绑定优先**：本条只适用于`when`的match pattern，不改变4.6的binding上下文。分支模式中的裸标识符不引用既有变量；只允许literal直接匹配值，匹配既有const须改用guard，限定名只用于enum variant。4.3的内建`Unit`/`()`首先按Unit literal分类；enum即使声明同名`Unit` variant，也必须以`E.Unit`或相应显式payload shape匹配。除此之外，enum subject下先按其exact type查询同名variant：命中unit variant时形成variant pattern，命中带payload的variant时报告缺少显式payload shape的错误，只有名称完全未命中时才建立匹配一切的新binding（效果同`else`）并给出非致命warning以避免拼写错误。相反，4.6中除`Unit`字面量外的普通裸标识符不执行这一步variant查询，即使名称相同也恒为新binding。
 
 穷尽性按以下typed constructor递归定义：
@@ -432,11 +434,11 @@ integer与floating literal pattern还允许unary minus直接作用于literal；�
 val v: E = ...
 
 when (v) {
-    SimpleVariant -> print("simple")
-    VariantWithValue(n) if (n > 42) -> print(n)   // 解构 + if 守卫
-    VariantWithValue(n) -> print(n)               // 上一分支的回退
-    CompositedVariant(_, s) -> print(s)           // _ 省略不关心的字段
-    VariantWithNamedField { f1, f2: renamedF2 } -> {
+    case SimpleVariant -> print("simple")
+    case VariantWithValue(n) if (n > 42) -> print(n)   // 解构 + if 守卫
+    case VariantWithValue(n) -> print(n)               // 上一分支的回退
+    case CompositedVariant(_, s) -> print(s)           // _ 省略不关心的字段
+    case VariantWithNamedField { f1, f2: renamedF2 } -> {
         print(f1)                                 // 按名绑定
         print(renamedF2)                          // 字段重命名绑定
     }
@@ -458,7 +460,7 @@ when (v) {
 val t = (1, 2, "hello")
 
 when (t) {
-    (x, _, s) if (x == 42) -> { print(x); print(s) }
+    case (x, _, s) if (x == 42) -> { print(x); print(s) }
     else -> { /* ... */ }
 }
 ```
@@ -478,14 +480,14 @@ struct S(val f1: Int, val f2: Int, val f3: Int)
 val s = S(1, 2, 3)
 
 when (s) {
-    S { f1: 0, .. } -> print("f1 is zero")              // 字面量匹配 + ..
-    S { f1, f2: y, .. } if (f1 == y) -> print("equal")  // 绑定 + 重命名 + 守卫
-    S { f1, .. } -> print(f1)                           // 兜底，穷尽
+    case S { f1: 0, .. } -> print("f1 is zero")              // 字面量匹配 + ..
+    case S { f1, f2: y, .. } if (f1 == y) -> print("equal")  // 绑定 + 重命名 + 守卫
+    case S { f1, .. } -> print(f1)                           // 兜底，穷尽
 }
 
 when (s) {
-    (x, 0, _) -> print("positional")   // 位置模式同样可用
-    (x, ..) -> print(x)
+    case (x, 0, _) -> print("positional")   // 位置模式同样可用
+    case (x, ..) -> print(x)
 }
 ```
 
@@ -494,12 +496,128 @@ when (s) {
 - struct 模式的形式与 4.6 的解构声明完全对齐：字段模式（可带类型名前缀）或位置模式；元素位可以是绑定名、字面量（等值匹配）、`_`、`..` 或嵌套模式，与 enum 变体模式、tuple 模式一致。
 - 字段模式未列出全部字段时必须以 `..` 结尾（同 4.6，与 Rust 一致）。
 - 被匹配值的静态类型就是该struct时，type前缀可省略（`(x, ..)`或`{ f1, .. }`均可）；多个struct arm可以通过字段子模式组合证明穷尽，不要求存在单个全wildcard arm。
-- struct 模式要求 subject 的静态类型就是该 struct（统一规则）。对父类型（`Any`、interface、装箱后的值等）的类型判断使用 Kotlin 的 `is` 分支（`is S -> ...`），智能转换后可在分支体内按 4.6 解构。
+- struct 模式要求 subject 的静态类型就是该 struct。对父类型（`Any`、interface、装箱后的值等）的类型判断使用 Kotlin 的 `is` 分支（`is S -> ...`），智能转换后可在分支体内按 4.6 解构。
 
-### 5.4 守卫（guard）
+### 5.4 守卫、分支体与 smart cast
 
-- enum 变体模式、tuple 模式与 struct 模式之后都可以跟 `if (condition)`；条件中可以使用该模式绑定的变量。
-- 守卫为假时继续匹配后续分支。
+有 subject 的单个普通条件或 `case` 可以接 `if expression`，括号可选；既支持 Kotlin 的 `is T if predicate -> ...`，也继续接受旧模式 guard 的 `if (predicate)`。
+
+```scoop
+when (val item = load()) {
+    is String if item.length > 0 -> println(item.length)
+    is String -> println("empty")
+    else if canRetry() -> retry()
+    else -> stop()
+}
+```
+
+先检查主条件，成功后才计算 guard；guard 为假继续后续 arm。guard 的结果必须是 Boolean，或按底类型规则没有正常结果。带逗号的多条件 arm 不允许附加 guard；无 subject 的条件使用 `&&` 表达联合条件。`else if condition` 是带 guard 的后备 arm，可以有多个；它们不能充当无条件 else，后面仍可有其他 arm 和最终 else。
+
+body 支持块或单个控制结构 body，包括表达式、赋值、`return`、`throw` 和当前循环内合法的 `break` / `continue`。块的结果和跳转规则沿用语言规范第 5 章与 8.7；块体不能被尾随 lambda parser 吞作条件表达式的一部分。
+
+smart cast 以当前执行路径已经建立的类型事实为依据：
+
+- `is T` 成功后，在 guard 和 body 中以 T 视图访问稳定 subject；case 绑定经 guard 中的类型检查后也适用。
+- 无 subject 的 `x is T && predicate(x)` 在右操作数及成功 body 中使用 T；`!`、`&&`、`||` 按各自的真假路径传播事实。
+- 多条件进入同一 body 时，仅保留所有成功入口共有的事实；不能把 `is A, is B` 当成同时满足 A 与 B。
+- 后续 arm 和 else 只能继承所有到达路径共有的事实。例如无 guard 的 `!is T` 失败能建立 T；`is T if check()` 失败既可能来自类型不匹配，也可能来自 guard 为假，不能一概断言“不属于 T”。
+- arm 内的临时类型视图在退出相应作用域后恢复，不改变声明的原始类型，也不把整个函数升级为全局数据流推断。
+
+可收窄对象包括不可变局部、参数、subject 的 `val` 绑定（含头部解构得到的叶 binding）及不可变模式绑定。叶 binding 以自身经过的类型检查建立事实，不因完整 subject 被收窄而自动推导新的字段类型。对可变局部、delegate、可能重新计算的属性/getter 不直接收窄原表达式；需要稳定视图时使用 `when (val x = expression)`。内部 subject 快照始终稳定，但快照的事实不能反推每次重新读取都可能变化的原属性。
+
+类型检查与成功转换使用现有 exact type、泛型单态化、接口、装箱和拆箱通道，不引入 JVM 式类型擦除规则或新的 runtime 检查协议。路径事实可同时记录已知类型约束；不为此新增用户可书写的 union/intersection type。`Option<T>` 仍不因 `isSome()` 或判空获得 payload smart cast。
+
+### 5.5 subject、局部声明与作用域
+
+支持三种入口：
+
+```scoop
+when (value) {
+    expected -> onEqual()
+    makeExpected() -> onComputedValue()
+    else -> onOther()
+}
+
+when {
+    ready && allowed -> start()
+    retries > 0 -> retry()
+    else -> stop()
+}
+
+when (val item = load()) {
+    is String -> println(item.length)
+    else -> println("other")
+}
+```
+
+有 subject 时，先求值 subject 且只求值一次，保存该值供后续所有条件使用。各 arm 按源码顺序尝试，进入第一个成功 arm 后结束本次 `when`，没有 fallthrough 到后续 arm 的语义。
+
+`when (val pattern [: Type] = expression)` 声明一个或多个不可变局部变量，复用语言规范 4.6 的 binding pattern。普通名字是最简单的 pattern；tuple/struct 位置解构、struct 字段与重命名、`_`、`..`、嵌套解构以及 class 的 component 位置解构，均按已有声明规则处理。可选类型标注约束初始化表达式的完整值，不是各叶 binding 的单独类型标注。Kotlin 本身的 subject 声明只接受单个名字；此处的解构是 Scoop 与既有局部声明保持一致的扩展。
+
+```scoop
+struct Point(val x: Int, val y: Int)
+
+fun describe(point: Point): String {
+    return when (val (x, y) = point) {
+        Point(0, 0) -> "origin"
+        case _ if x == y -> "diagonal"
+        else -> "other"
+    }
+}
+```
+
+头部解构只建立局部名字，**arm 的 subject 仍是初始化后保存的完整值**。上例匹配的是原 Point，不是 x、y 中的某个值，也不是重新构造的 tuple；普通值、is、in 和 case 条件都继续作用于该 Point。头部还可以写成 `val Point { x, y } = point`。若 arm 需要根据解构后的名字判断条件，使用 guard 或完整的嵌套无 subject when；普通 arm 不会因此改成 Boolean 谓词。
+
+求值顺序为：初始化表达式一次求值并按可选类型标注完成适配，保存为稳定 subject；按已有 binding 计划完成解构；随后才尝试第一个 arm。解构产生的投影或 component 调用不随 arm 重试。component 抛出时不尝试任何 arm，挂起后从原位置恢复；求值顺序、副作用与清理复用 4.6 的规则。
+
+所有头部 binding 在全部条件、guard、body 和 else 中可见，离开 `when` 即失效。初始化表达式使用外层作用域，不能引用这次声明中尚未建立的任何绑定；重复名字、遮蔽和嵌套作用域按已有局部声明规则处理，case 的 arm 内绑定仍属于更内层作用域。
+
+头部解构必须递归不可失败：`when (val Some(x) = option)`、`when (val (0, x) = pair)` 等仍为编译错误；需要可失败模式时放入 case arm。不可失败指没有模式不匹配分支，不排除 component 的正常异常或挂起行为。不接受 `var`、delegate 或 accessor。
+
+无 subject 时，每个普通条件都是 Boolean 表达式，遵循现有底类型子类型规则。`is T`、`in xs` 与 `case pattern` 都需要 subject，不能直接作为无 subject arm 的头部；应写完整的 `x is T` 或 `x in xs` 条件。
+
+### 5.6 普通条件
+
+| arm 头部 | 含义 |
+| --- | --- |
+| `expression` | 使用已保存的 subject 作为左操作数，执行 `subject == expression` |
+| `is T` / `!is T` | 对 subject 执行现有类型检查或其否定 |
+| `in expression` / `!in expression` | 执行现有 `expression.contains(subject)` 或其否定 |
+| `condition1, condition2` | 按源码顺序短路尝试，任一成功即选中这个 arm |
+| `else` | 到达这里时无条件选中；至多一个且必须最后 |
+
+多条件允许尾随逗号。条件表达式及其调用、异常或挂起行为只在执行到该条件时发生；不能预先计算后续 arm 的值、区间或集合。`in` 使用现有 `contains` 规则，不限于区间，也不要求为本特性新增 range 类型。
+
+任意合法表达式都可以作为 subject，包括 String、Boolean、class、interface、函数值和泛型值。具体条件仍必须能按普通规则通过类型检查：`Any` 可以接受 `is String` 条件，但当 x 的静态类型为 Any 时，`when (x) { y -> ... }` 不会因此获得不存在的 `Any.equals`。类、数组或函数值没有适用的成员 `operator equals` 时，普通值条件照常报错；需要 identity 判断可以使用无 subject 的 `when { x === y -> ... }`。
+
+值条件复用语言规范 11.11 的成员选择、参数适配、泛型 bound 和结构比较规则。既不交换左右操作数，也不使用 `Equality.equalTo`、地址比较或运行期动态方法作为 fallback。普通表达式的数字字面量与 contextual enum variant 可以使用比较目标提供的期望类型，但这不改变表达式与模式的语法分类。
+
+有 subject 时，`when (flag) { predicate() -> ... }` 比较两个 Boolean 值；不会把 `predicate()` 偷换为无 subject 的谓词条件。
+
+### 5.7 穷尽性与结果
+
+| 使用形式 | 是否必须穷尽 |
+| --- | --- |
+| 任意 `when` 用作值 | 必须 |
+| 含至少一个 `case` 的 when，用作语句 | 必须，保留 Scoop 模式 when 的既有要求 |
+| 不含 case，subject 为 Boolean 或 enum，包括 `Option<T>`，用作语句 | 必须，与现代 Kotlin 对 Boolean/enum 的要求一致 |
+| 其他普通 subject 或无 subject 的 when，用作语句 | 可以不穷尽；没有 arm 命中时正常继续 |
+
+头部的 val 解构是分支之前的声明，不是一个 arm，不贡献覆盖，也不使普通 when 自动归类为“含 case”。穷尽性始终针对保存的完整 subject 和实际 arm 计算。
+
+无 subject 的值形式必须有无条件 else；不把某个条件恰好写为 `true` 当作 else。无条件 else 覆盖剩余输入。任何带 guard 的 arm，包括 `else if`，都不贡献静态覆盖，即使 guard 看起来是常量真。
+
+case 继续使用现有递归 constructor matrix：variant payload、tuple/struct product、Boolean、Unit、定宽整数、Char、String 与 Float/Double 的覆盖规则不退化。缺失覆盖保留稳定、可重新解析的 witness；guard 不替代实际覆盖。Float/Double 继续采用 IEEE 相等语义，不能把 NaN 或正负零按位相等处理。
+
+普通条件只有具有确定语言语义的部分参与覆盖：Boolean 的字面量 `true` / `false`、可确定的内建标量 literal 比较，以及使用编译器已知结构相等的 enum unit variant 等，可以转成现有 checker 的覆盖事实。任意变量、const 引用、调用、`in` 条件或用户定义 equals 均不被当作构造器覆盖；不能由两个复杂 Boolean 常量表达式推导完备性。普通值条件仍以原表达式和已选 equals 执行，覆盖事实不改变求值行为。
+
+对于纯 unit enum，列出全部 variant 且比较使用既有派生语义时可以穷尽；如果用户覆盖了 equals，应使用 `case` 或 else，不能假设相等具有自反性。带 payload 的 enum 按结构 case 递归覆盖最直接，列出若干 payload 构造值不能自动覆盖整个 variant。
+
+普通 class/interface 的实现集合不是封闭集合，不能根据当前 Cone 中恰好出现的实现证明穷尽。现阶段不借 M35 实现 `sealed`，也不增加任意谓词、区间或类型逻辑的完备性证明器；不能从已有有限覆盖规则确定的剩余路径使用 else。
+
+正常结束的分支按现有规则产生尾值，空块或以非表达式语句结束的块产生 Unit。存在外层期望类型时，所有正常结果必须能适配该类型；否则取正常分支的唯一可表达最小上界，多个不可比较的最小上界退化为 Any。return/throw/break/continue 和 Nothing 求值没有正常结果，不参与值合并；所有路径均不正常结束时，整体为 Nothing。
+
+语句形式允许的落空是显式正常控制流，不是“证明不可达”，也不需要制造一个用于赋值的结果。不能为了省略 else 给值形式偷偷补 Unit。
 
 ---
 
@@ -574,15 +692,15 @@ enum Option<T> {
 
 ### 7.3 空安全运算符的语义
 
-- `a?.b`：脱糖为 `when (a) { Some(v) -> Some(v.b); None -> None }`（结果类型为 `Option<B>`，其中 `B` 是 `b` 的类型）。
-- `a?.f(args...)`：脱糖为 `when (a) { Some(v) -> Some(v.f(args...)); None -> None }`。receiver `a`先求值且只求值一次；只有运行期进入`Some`分支后才会求值显式实参、物化`vararg`、执行缺省表达式并进入callee。方法、extension与property-like `invoke`的选择均在payload静态类型上按第8章完成。
+- `a?.b`：脱糖为 `when (a) { case Some(v) -> Some(v.b); case None -> None }`（结果类型为 `Option<B>`，其中 `B` 是 `b` 的类型）。
+- `a?.f(args...)`：脱糖为 `when (a) { case Some(v) -> Some(v.f(args...)); case None -> None }`。receiver `a`先求值且只求值一次；只有运行期进入`Some`分支后才会求值显式实参、物化`vararg`、执行缺省表达式并进入callee。方法、extension与property-like `invoke`的选择均在payload静态类型上按第8章完成。
 - 安全调用**不展平**结果。若`f`返回`Option<R>`，`a?.f()`的类型是`Option<Option<R>>`；若返回`Unit`，结果是`Option<Unit>`。这遵守7.1的逐层`Option`语义，不采用Kotlin nullable type的幂等合并。
-- `a ?: b`：脱糖为 `when (a) { Some(v) -> v; None -> b }`。
+- `a ?: b`：脱糖为 `when (a) { case Some(v) -> v; case None -> b }`，按 5.7 合并正常分支结果。右侧 `return`、`throw` 或 Nothing 调用不贡献正常值，结果来自 Some 的 payload；普通右值使用期望类型适配或最小上界，不能要求 exact type 相等。左侧只求值一次，右侧仅在 None 路径执行。Elvis 右结合。
 - `a!!`：`a` 为 `Some` 时取值；为 `None` 时抛出核心库异常 `UnwrapException`。
 - 空安全表达式可以出现在`while`条件中；条件脱糖产生的临时绑定与其他条件求值步骤一起在每次条件检查时重新执行，不能提升到循环外。
 - 不支持 `a?.b = c` 形式的赋值：`a?.b` 的结果是临时 `Option`，对其赋值无意义。
 - `null` 字面量不存在；表示"无值"使用 `None`。
-- 取值使用 `when` 解构：`when (s) { Some(v) -> ...; None -> ... }`。对 `Option<T>` 不提供智能转换，`isSome()` 一类判断不会收窄类型。
+- 取值使用 `when` 解构：`when (s) { case Some(v) -> ...; case None -> ... }`。对 `Option<T>` 不提供智能转换，`isSome()` 一类判断不会收窄类型。
 
 ### 7.4 enum 布局与 `Option` niche 保证
 
@@ -820,12 +938,24 @@ context list 不参与 overload applicability、MSC、泛型推断、普通或 s
 
 #### 8.5.2 调用处实参映射
 
-- 调用实参有位置实参`expr`、命名实参`name = expr`、vararg展开实参`*expr`和命名vararg实参`name = expr` / `name = *expr`。尾随lambda是语法上位于圆括号之后的最后一个显式实参，进入同一映射与求值过程。
+- 调用实参有位置实参`expr`、命名实参`name = expr`、vararg展开实参`*expr`和命名vararg实参`name = expr` / `name = *expr`。尾随 lambda 是圆括号外的最后一个显式实参；括号内没有实参时可省略括号。它固定映射到候选的最后形参，不能向前搜索函数类型形参，最后形参不得为 vararg，并须能按普通 lambda 类型与泛型推断规则接收该值。
 - 实参到形参的映射针对每个overload候选独立完成。未知参数名、重复绑定、spread映射到非`vararg`、遗漏必需参数或多余实参都会使该候选不可应用；不能先按任意候选重排一份公共参数表。
-- 在尚未进入“仅命名实参”尾部时，第`i`个实参可以是映射到第`i`个形参的位置实参，也可以写出该形参本来的名字。某个命名实参一旦跳过声明位置、或通过名字绑定到其他位置，后续实参必须全部使用名字。默认参数不能在一串位置实参中间被隐式跳过。
-- 位置实参到达`vararg`位置后，后续未命名的普通/spread实参都属于该`vararg`；若其后还有其他形参，这些形参只能用命名实参提供。
+- 在尚未进入“仅命名实参”尾部时，第`i`个实参可以是映射到第`i`个形参的位置实参，也可以写出该形参本来的名字。某个命名实参一旦跳过声明位置、或通过名字绑定到其他位置，后续括号内实参必须全部使用名字；独立尾随 lambda 仍映射最后形参。默认参数不能在一串位置实参中间被隐式跳过。
+- 位置实参到达`vararg`位置后，后续未命名的普通/spread实参都属于该`vararg`；若其后还有其他形参，这些形参用命名实参提供，独立尾随 lambda 可以提供最后形参。
 - 命名实参直接映射到同名形参。对`vararg x: T`，`x = array`与`x = *array`都提供完整的`Array<T>`参数值，不能再为`x`提供其他元素；未命名位置中的多个普通元素和多个spread则可以混合。
-- 函数值调用不具有声明参数名、默认值或`vararg`调用约定，只接受与函数类型元数完全相同的位置实参；需要保留声明侧便利语义时必须显式创建适配lambda（见8.1.1）。
+- 函数值调用不具有声明参数名、默认值或`vararg`调用约定，只接受与函数类型元数完全相同的位置实参，最后位置可以使用尾随 lambda，其他位置必须完整提供；需要保留声明侧便利语义时必须显式创建适配lambda（见8.1.1）。
+
+最后形参若已由括号内实参提供，尾随 lambda 是重复绑定错误；前置必需参数不得省略。普通位置 lambda 不获得跳过默认值或 vararg 的能力。尾随写法不增加新的重载优先级。
+
+统一支持普通函数、成员、extension、super 成员、构造调用、别名/限定名、显式泛型调用、函数值和已有 operator invoke。示例包括 `f<T> { ... }`、`receiver.f { ... }`、`receiver?.f { ... }`、`Factory { ... }` 和 `functionValue { ... }`；各入口仍遵守原有名称与候选选择规则，不要求 callee 标记为 infix。
+
+函数值没有形参名、默认值或源码 vararg 约定，尾随 lambda 仍绑定函数类型的最后参数位置，其他位置必须完整提供。例如类型为 `(Int, () -> Unit) -> Unit` 的函数值支持 `value(1) { ... }`，不支持遗漏 Int 的 `value { ... }`。
+
+调用后缀必须保留分组边界：`factory() { ... }` 把 lambda 交给 factory 调用；`(factory()) { ... }` 调用 factory 返回的值。不能因 parser 擦除了圆括号，把第二种错误地追加到内部调用。显式泛型实参后的 `>` 也应认可后续 lambda，不再只认可 `(`。
+
+按 Kotlin 的调用后缀规则处理允许的换行，例如 `f()` 后换行再跟 lambda 仍可属于同一调用；不能一律要求 `{` 与 callee 同行。显式分号终止原表达式，return 等自身的换行规则保持有效。每次调用最多一个外置 lambda，连续两个块不能悄悄解释为调用返回值；需要该含义时显式分组或写出下一次调用。
+
+普通 `{ ... }` 与现有显式 `suspend { ... }` 都可以占据尾随位置，后者可写为 `f(...) suspend { ... }` 或 `f suspend { ... }`。普通 lambda 不会因为期望类型是挂起函数而自动变为 suspend。既有非 lambda 的 infix 调用、copy-update 块、控制结构块与 lambda body 的边界均须保留。
 
 #### 8.5.3 求值顺序与调用处实例化
 
@@ -878,6 +1008,36 @@ context list 不参与 overload applicability、MSC、泛型推断、普通或 s
 - 控制转移离开scope时，按从内到外执行所有应执行的catch结束动作和`finally`。finally正常完成后恢复原动作；只有实际离开当前finally的return/throw/break/continue才覆盖原动作，内部被处理的转移不覆盖。新动作继续执行尚未经过的外层cleanup，不能再次进入当前finally。挂起不是退出，不执行finally。
 
 `for (pattern in source)`严格遵守11.8的typed迭代协议；`source`、`iterator()`各求值一次，每轮只调用一次`next()`。每个`Some`建立新的只读binding scope，因此closure捕获对应轮次的值，而不是一个跨轮次覆写的隐藏mutable slot。pattern必须满足4.6的irrefutable binding规则。
+
+---
+
+### 8.8 跳转表达式
+
+```scoop
+fun describe(value: Int?): String {
+    val number = value ?: return "missing"
+    return number.toString()
+}
+
+fun consume(value: Int?) {
+    val number = value ?: return
+    println(number)
+}
+```
+
+return 在表达式位置具有 Nothing 类型。返回值按当前 callable 的返回类型检查，与 return 所处表达式的期望类型无关：上例 Elvis 的正常结果是 Int，而 `return "missing"` 返回 String。
+
+parser 在表达式入口接受 `return [expression]`，同时统一 `throw expression` 在单行 arm 和 Elvis 等表达式位置的处理。语句入口复用相同语义，不为 `?: return` 增加只识别这一段 token 的特殊规则。保留 Elvis 的右结合优先级。
+
+裸 return 仍受换行、分号、块结束或文件结束约束；表达式嵌套中还要正确处理 `)`、`]`、`,` 等结束位置，不能越过调用实参或数组元素边界吞入后续表达式。return/throw 的值表达式自身也可以先产生异常、挂起或无正常结果。
+
+允许返回的目标沿用现有 callable 规则：普通块体函数和匿名函数返回自身；lambda 内裸 return、没有返回目标的顶层/初始化/default 表达式、以及不允许显式 return 的表达式体函数均报错。尾随 lambda 不改变其 callable 边界。`return` 无值仅对允许返回 Unit 的目标成立；不新增 label 或跨 lambda 的 non-local return。
+
+复用现有 `ValueBlock`、完成性质及 return/throw 控制转移。HIR lowering 必须能区分“获得正常值”和“当前路径已经终止”；只在真正到达合并点的前驱上提供结果。不得为终止分支生成未初始化 local、Unit、零值、null、装箱或虚假的结果赋值。
+
+表达式嵌在 receiver、普通实参、数组/tuple 元素或其他短路运算中时，先前已发生的求值保留；发生跳转后，后续实参、default 和外层调用不再执行。类型检查仍检查源码中的合法性，不用运行期不会到达掩盖非法 return 目标。
+
+返回与异常继续走现有 finally、Context scope、native roots 和 coroutine 清理路径。suspend 函数执行 Elvis 右侧时可以挂起；挂起本身不等于完成返回。M35 不改变已有 break/continue 目标和清理规则，也不以新增其他跳转语法为验收前提。
 
 ---
 
@@ -1171,11 +1331,15 @@ public annotation class Description(val text: String)
 public struct Account(@Description("Stable identifier") val id: Long)
 ```
 
-- annotation class是编译期声明，具有普通名称、typed declaration identity、可见性和import规则；不是可实例化的runtime class，不具有继承、interface、泛型参数、body或成员函数。参数为`val`，类型限于Boolean、String、Char、现有定宽整数，以及Float/Double；无参数声明可省略括号。
-- 使用处采用`@Name(...)`或限定名称，沿普通符号解析选定实际声明。参数遵守位置/命名参数映射，可以有缺省常量；值限于上述类型的字面量、带符号数值字面量和已绑定的同类型`const val`。const val 的限定引用沿普通名称和完整宿主 application 规则，包括 `Box<Int>.Companion.NAME`；只读取已绑定的常量，不执行 singleton 初始化。不得执行任意函数、构造用户对象或把类型作为annotation值。整数范围、浮点字面量的目标精度与溢出、重复/缺失/未知参数及可见性错误在定义或使用处诊断；浮点常量以类型和原始位型保留，不用数值相等合并正负零或NaN。
+- annotation class是编译期声明，具有普通名称、typed declaration identity、可见性和import规则；不是可实例化的runtime class，不具有继承、interface、泛型参数、body或成员函数。参数为`val`，类型限于 Boolean、String、Char、现有定宽整数、Float/Double，以及以上标量作为元素的一维 Array<T>；无参数声明可省略括号。
+- 使用处采用`@Name(...)`或限定名称，沿普通符号解析选定实际声明。参数遵守位置/命名参数映射，可以有缺省常量；标量值限于上述类型的字面量、带符号数值字面量和已绑定的同类型 `const val`。数组值写作 `[...]`，可以为空，支持尾随逗号、默认值、命名或位置参数；元素逐个遵守同一标量规则并保存独立源码位置，保留顺序和重复值。元素的期望类型来自参数，包括空数组。const val 的限定引用沿普通名称和完整宿主 application 规则，包括 `Box<Int>.Companion.NAME`；只读取已绑定的常量，不执行 singleton 初始化。不得执行任意函数、构造用户对象或把类型作为annotation值。整数范围、浮点字面量的目标精度与溢出、重复/缺失/未知参数及可见性错误在定义或使用处诊断；浮点常量以类型和原始位型保留，不用数值相等合并正负零或NaN。
 - 自定义注解可标在名义类型、enum variant、struct/variant字段和class/interface的logical property上。主构造参数带`val`/`var`时注解属于该字段/property；普通值参数不因此成为可注解字段。不增加use-site target、可重复注解、注解继承、元注解执行或编译器插件API。同一target重复同一annotation声明是错误；不同注解按源码顺序保留。
 - 注解的参数按声明序正规化为typed常量，包含已补齐的缺省参数。泛型application保留原声明的注解；不因具体化产生新的annotation声明，也不把宿主注解复制到字段、派生类、accessor或backing storage。logical property与实际存储的关系遵守9.1.1、9.1.5。
 - 注解本身没有可执行副作用。普通用户注解仅进入9.6的静态描述；只有已规定语义的核心注解参与编译。导出的注解声明及应用保留实际类型/常量引用和必要依赖，读入`.slib`后不重新按短名称解释；这些数据不扩大普通源码可见性。
+
+数组参数按 alias 展开后的实际 core Array 身份与完整元素 application 判断，不按短名判断；不接受 MutableArray、多维数组、Array<Any>、Option/enum/用户对象元素、嵌套 annotation、spread、工厂调用或运行期表达式。数组默认值在声明处绑定，元素错误定位到实际元素。内建 annotation 的既有参数形状保持。
+
+注解数组是编译期静态数据，不调用 Array 构造器，不分配 managed 数组，也没有可观察的 identity。普通 const val 仍限标量，不因注解数组扩大值域。静态描述、默认值及跨 Cone 再次发布保存完整数组类型与有序标量元素，不要求消费者重新求值。
 
 ### 9.5 companion 与普通 codec 的编码、解码接口
 

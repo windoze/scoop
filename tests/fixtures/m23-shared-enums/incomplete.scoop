@@ -1,7 +1,7 @@
 import upstream.enums.Choice
 
 public fun reject(value: Choice<Int>): Int = when (value) {
-    Empty -> 0
-    Item(payload) -> payload
-    Named { payload, amount } -> payload + amount
+    case Empty -> 0
+    case Item(payload) -> payload
+    case Named { payload, amount } -> payload + amount
 }

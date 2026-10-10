@@ -29,7 +29,7 @@ fun main() {
     val pair = Json.decode("{\"Pair\":[\"pair\",2]}", Choice.Companion)
     check(Json.encode(pair, Choice.Companion) == "{\"Pair\":[\"pair\",2]}", 2)
     val named = Json.decode("{\"Named\":{}}", Choice.Companion)
-    check(when (named) { Choice.Named(value, ignored) -> value == 5 && ignored == 6; else -> false }, 3)
+    check(when (named) { case Choice.Named(value, ignored) -> value == 5 && ignored == 6; else -> false }, 3)
     check(Json.encode(named, Choice.Companion) == "{\"Named\":{\"v/~\":5}}", 4)
     val record = Json.decode("{\"Record\":{\"count\":4,\"value\":\"record\"}}", Choice.Companion)
     check(Json.encode(record, Choice.Companion) == "{\"Record\":{\"value\":\"record\",\"count\":4}}", 5)

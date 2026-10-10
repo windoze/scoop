@@ -119,12 +119,12 @@ private fun tasks() {
     collect(255)
     expect(secondDone.value == 42)
     expect(when (first.waiter) {
-        Some(_) -> true
-        None -> false
+        case Some(_) -> true
+        case None -> false
     })
     expect(when (second.waiter) {
-        Some(_) -> true
-        None -> false
+        case Some(_) -> true
+        case None -> false
     })
     val failed = Gate(256)
     val failedDone = Completion()
@@ -138,8 +138,8 @@ private fun tasks() {
     }
     expect(failedDone.value == 0)
     expect(when (failed.waiter) {
-        Some(_) -> true
-        None -> false
+        case Some(_) -> true
+        case None -> false
     })
 }
 

@@ -8,18 +8,18 @@ public enum Choice<T> {
 }
 
 public fun <T> select(value: Choice<T>, fallback: T, selected: T = when (value) {
-    Empty -> fallback
-    Item(payload) -> payload
-    Named { payload, .. } -> payload
-    Defaults { payload, .. } -> payload
+    case Empty -> fallback
+    case Item(payload) -> payload
+    case Named { payload, .. } -> payload
+    case Defaults { payload, .. } -> payload
 }): T = selected
 
 public fun <T> pack(value: T): Choice<T> = Choice.Item(value)
 public fun <T> score(value: Choice<T>, read: (T) -> Int): Int = when (value) {
-    Empty -> 0
-    Item(payload) -> read(payload)
-    Named { payload, amount } -> read(payload) + amount
-    Defaults { payload, amount } -> read(payload) + amount
+    case Empty -> 0
+    case Item(payload) -> read(payload)
+    case Named { payload, amount } -> read(payload) + amount
+    case Defaults { payload, amount } -> read(payload) + amount
 }
 
 public typealias IntChoice = Choice<Int>

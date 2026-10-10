@@ -31,5 +31,5 @@ fun main() {
     try { val value = Envelope.Value(fail()) }
     catch (error: IllegalStateException) { println("enum") }
     val absent = empty<Nothing>()
-    println(when (absent) { None -> true; Some(value) -> false })
+    println(when (absent) { case None -> true; case Some(value) -> false })
 }

@@ -83,8 +83,8 @@ class GenericTask(
         val choice = awaiter.awaitMember(ChoiceRegistration(choiceGate))
         println(pair.text)
         val selected = when (choice) {
-            Number(value) -> value
-            Text(text) -> 0
+            case Number(value) -> value
+            case Text(text) -> 0
         }
         return if (accepted) { number + pair.number + selected } else { 0 }
     }

@@ -88,8 +88,8 @@ class ControlTask(
             0
         }
         val selected = when (waitForChoice(whenChoiceGate)) {
-            Number(value) -> value + waitForInt(whenValueGate)
-            Empty -> 0
+            case Number(value) -> value + waitForInt(whenValueGate)
+            case Empty -> 0
         }
         var loopTotal = 0
         while (waitForBoolean(loopConditionGate)) {

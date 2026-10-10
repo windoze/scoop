@@ -2,8 +2,8 @@ import fixtures.characters.*
 
 const val localSnow: Char = snow
 fun matched(value: Char): Int = when (value) {
-    snow -> 42
-    _ -> 0
+    case snow -> 42
+    case _ -> 0
 }
 fun main() {
     val pair = mark("value")

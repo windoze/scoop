@@ -30,8 +30,8 @@ public fun <T> total(values: Iterable<T>, read: (T) -> Int): Int {
     var done = false
     while (!done) {
         when (iterator.next()) {
-            Some(value) -> { result = result + read(value) }
-            None -> { done = true }
+            case Some(value) -> { result = result + read(value) }
+            case None -> { done = true }
         }
     }
     return result

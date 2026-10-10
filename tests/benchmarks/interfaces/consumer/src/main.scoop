@@ -13,9 +13,9 @@ fun main() {
         val reader: Reader = cell
         begin()
         val value = when (selected) {
-            0 -> known(cell, iterations)
-            1 -> unknown(reader, iterations)
-            2 -> convertedOnce(cell, iterations)
+            case 0 -> known(cell, iterations)
+            case 1 -> unknown(reader, iterations)
+            case 2 -> convertedOnce(cell, iterations)
             else -> convertedEach(cell, iterations)
         }
         end()

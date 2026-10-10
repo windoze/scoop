@@ -31,7 +31,7 @@ fun worker(seed: Int, count: Long): Int {
         var round = 0
         while (round < 2) {
             check(workers(callback.function, callback.context, 1, 4) == count.toInt32() * 4 + 10)
-            check(when (foreignCallbackFailure(callback)) { None -> true; Some(_) -> false })
+            check(when (foreignCallbackFailure(callback)) { case None -> true; case Some(_) -> false })
             gcCollect()
             round += 1
         }

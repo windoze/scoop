@@ -11,14 +11,14 @@ public fun <T> exercise(value: T, read: (T) -> Int): Int {
     val copied = record.scalar.value
     val state: State<T> = Set(copied)
     val selected: Option<Scalar<T>> = when (state) {
-        Unset -> None
-        Set(item) -> Some(item)
+        case Unset -> None
+        case Set(item) -> Some(item)
     }
     val phantom: Phantom<Managed> = Phantom<Managed>()
     if (hidden(phantom) != 42) { return 1 }
     return when (selected) {
-        None -> 2
-        Some(item) -> read(item.value)
+        case None -> 2
+        case Some(item) -> read(item.value)
     }
 }
 

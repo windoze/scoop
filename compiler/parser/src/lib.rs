@@ -59,6 +59,8 @@ mod tests_m3;
 #[cfg(test)]
 mod tests_m30_floating;
 #[cfg(test)]
+mod tests_m35;
+#[cfg(test)]
 mod tests_m4;
 #[cfg(test)]
 mod tests_m5;

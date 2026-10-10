@@ -1,2 +1,2 @@
-fun classify(value: (Float, Boolean)): Int = when (value) { (0.0, _) -> 1; (_, false) -> 2 }
+fun classify(value: (Float, Boolean)): Int = when (value) { case (0.0, _) -> 1; case (_, false) -> 2 }
 fun main() {}

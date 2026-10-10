@@ -10,10 +10,10 @@ public fun result(): Int {
     if (left != right) { return 1 }
     if (left == Choice.Item(40)) { return 2 }
     val score = when (left) {
-        Renamed.Empty -> 3
-        Renamed.Item(payload) -> payload
-        Renamed.Named { amount, payload } -> payload + amount
-        Renamed.Defaults { payload, amount } -> payload + amount
+        case Renamed.Empty -> 3
+        case Renamed.Item(payload) -> payload
+        case Renamed.Named { amount, payload } -> payload + amount
+        case Renamed.Defaults { payload, amount } -> payload + amount
     }
     return exercise<Int>(score, { value -> value })
 }

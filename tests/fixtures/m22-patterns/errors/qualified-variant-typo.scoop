@@ -7,7 +7,7 @@ enum Signal {
 
 fun inspect(value: Signal) {
     when (value) {
-        Signal.Raedy -> println("misspelled")
+        case Signal.Raedy -> println("misspelled")
         else -> {}
     }
 }

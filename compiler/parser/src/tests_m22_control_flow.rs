@@ -172,7 +172,7 @@ fn value_if_may_use_a_direct_jump_as_its_terminating_branch() {
 #[test]
 fn when_single_statement_bodies_accept_loop_jumps() {
     let file = ok(
-        "fun main() {\n    while (ready) {\n        when (state) {\n            Done -> break\n            else -> continue;\n        }\n    }\n}\n",
+        "fun main() {\n    while (ready) {\n        when (state) {\n            case Done -> break\n            else -> continue;\n        }\n    }\n}\n",
     );
     let StatementKind::While(while_) = &block_body(only_function(&file)).statements[0].kind else {
         panic!("expected while");

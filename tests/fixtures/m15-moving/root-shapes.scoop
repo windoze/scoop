@@ -32,11 +32,11 @@ fun preserveThroughCalls(
         println(bundle.pair._1)
         println(bundle.pair._2.value)
         when (bundle.choice) {
-            Selected(node, label) -> {
+            case Selected(node, label) -> {
                 println(node.value)
                 println(label)
             }
-            Empty -> println("empty")
+            case Empty -> println("empty")
         }
         println(bundle.values[index])
         println(source.text())

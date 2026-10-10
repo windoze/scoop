@@ -134,7 +134,7 @@ fn expression_annotation_and_pattern_share_the_syntax_model() {
     assert_eq!(annotation.radix, expression.radix);
     assert_eq!(annotation.suffix, expression.suffix);
 
-    let file = ok("fun f(value: UInt) { when (value) { 0b10u -> {} } }");
+    let file = ok("fun f(value: UInt) { when (value) { case 0b10u -> {} } }");
     let FunctionBody::Block(body) = &only_function(&file).body else {
         panic!("expected a block body");
     };
@@ -155,7 +155,7 @@ fn expression_annotation_and_pattern_share_the_syntax_model() {
 
 #[test]
 fn patterns_accept_unary_minus_over_parenthesized_integer_literals() {
-    let source = "fun f(value: UInt) { when (value) { -1u -> {}; -((1u)) -> {} } }";
+    let source = "fun f(value: UInt) { when (value) { case -1u -> {}; case -((1u)) -> {} } }";
     let file = ok(source);
     let FunctionBody::Block(body) = &only_function(&file).body else {
         panic!("expected a block body");
@@ -196,7 +196,7 @@ fn patterns_accept_unary_minus_over_parenthesized_integer_literals() {
         ("+1", "expected pattern"),
         ("--1", "expected pattern"),
     ] {
-        let source = format!("fun f(value: Int) {{ when (value) {{ {invalid} -> {{}} }} }}");
+        let source = format!("fun f(value: Int) {{ when (value) {{ case {invalid} -> {{}} }} }}");
         let diagnostics =
             crate::parse(&source).expect_err("only a direct integer token may follow");
         assert!(

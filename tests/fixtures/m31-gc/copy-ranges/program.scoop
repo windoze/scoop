@@ -28,8 +28,8 @@ fun main() {
     val unboxed = boxed as Wide
     println(holder.value.first.value + holder.value.last.value)
     when (holder.envelope) {
-        Present(value) -> println(value.first.value + value.last.value)
-        Empty -> println(0L)
+        case Present(value) -> println(value.first.value + value.last.value)
+        case Empty -> println(0L)
     }
     println(copied[1L].first.value + copied[1L].last.value)
     println(unboxed.first.value + unboxed.last.value)

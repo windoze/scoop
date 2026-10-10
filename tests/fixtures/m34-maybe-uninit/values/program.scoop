@@ -61,7 +61,7 @@ fun <T> roundTrip(value: MaybeUninit<T>): MaybeUninit<T> {
     val none = MaybeUninit<String?>.initialized(None)
     check(roundTrip(none).assumeInit() == None, 7)
     val choice = MaybeUninit<Choice>.initialized(Choice.Number(55L))
-    check(when (roundTrip(choice).assumeInit()) { Choice.Empty -> false; Choice.Number(n) -> n == 55L }, 6)
+    check(when (roundTrip(choice).assumeInit()) { case Choice.Empty -> false; case Choice.Number(n) -> n == 55L }, 6)
     val empty = MaybeUninit<Empty>.initialized(sideEffect())
     empty.assumeInit()
     check(Counts.value == 1, 5)

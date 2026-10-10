@@ -8,8 +8,8 @@ enum Signal {
 fun consume(value: Signal): Int = 2
 
 fun describe(value: Signal): Int = when (value) {
-    Ready -> 1
-    Raedy -> consume(Raedy)
+    case Ready -> 1
+    case Raedy -> consume(Raedy)
 }
 
 fun main() {

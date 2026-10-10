@@ -20,7 +20,7 @@ fun refutableVariant(root: Root) {
 
 fun wrongGenericField(root: Root) {
     when (root) {
-        { pair: { left: { value: "wrong", .. }, .. }, .. } -> {}
+        case { pair: { left: { value: "wrong", .. }, .. }, .. } -> {}
         else -> {}
     }
 }

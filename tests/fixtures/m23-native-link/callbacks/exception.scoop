@@ -15,7 +15,7 @@ fun main() {
         val observer = retainForeignCallback(callback)
         println(joinNative(callback.function, callback.context, 7))
         println(when (foreignCallbackState(observer)) {
-            ForeignCallbackState.Failed -> true
+            case ForeignCallbackState.Failed -> true
             else -> false
         })
         val failure = foreignCallbackFailure(observer)!!

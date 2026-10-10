@@ -24,7 +24,7 @@ internal class JsonDecoder(private val value: JsonValue, public override val pat
     public override fun keyed(): KeyedDecodingContainer {
         select(false)
         return when (value) {
-            JsonValue.Record(members) -> JsonKeyedDecoder(this, members)
+            case JsonValue.Record(members) -> JsonKeyedDecoder(this, members)
             else -> { throw DecodingException(path, "expected an object") }
         }
     }
@@ -32,7 +32,7 @@ internal class JsonDecoder(private val value: JsonValue, public override val pat
     public override fun unkeyed(): UnkeyedDecodingContainer {
         select(false)
         return when (value) {
-            JsonValue.Sequence(elements) -> JsonUnkeyedDecoder(this, elements)
+            case JsonValue.Sequence(elements) -> JsonUnkeyedDecoder(this, elements)
             else -> { throw DecodingException(path, "expected an array") }
         }
     }
@@ -50,7 +50,7 @@ internal class JsonDecoder(private val value: JsonValue, public override val pat
     public override fun readBoolean(): Boolean {
         read()
         return when (value) {
-            JsonValue.BooleanValue(result) -> result
+            case JsonValue.BooleanValue(result) -> result
             else -> { throw DecodingException(path, "expected a Boolean") }
         }
     }
@@ -58,7 +58,7 @@ internal class JsonDecoder(private val value: JsonValue, public override val pat
     public override fun readString(): String {
         read()
         return when (value) {
-            JsonValue.Text(result) -> result
+            case JsonValue.Text(result) -> result
             else -> { throw DecodingException(path, "expected a String") }
         }
     }
@@ -66,7 +66,7 @@ internal class JsonDecoder(private val value: JsonValue, public override val pat
     public override fun readNull() {
         read()
         when (value) {
-            JsonValue.Null -> { return }
+            case JsonValue.Null -> { return }
             else -> { throw DecodingException(path, "expected null") }
         }
     }
@@ -74,7 +74,7 @@ internal class JsonDecoder(private val value: JsonValue, public override val pat
     private fun number(expected: String): String {
         read()
         return when (value) {
-            JsonValue.Number(text) -> text
+            case JsonValue.Number(text) -> text
             else -> { throw DecodingException(path, expected) }
         }
     }
@@ -103,15 +103,15 @@ internal class JsonDecoder(private val value: JsonValue, public override val pat
 
     public override fun readFloat(): Float {
         return when (parseFloat(number("expected a number"))) {
-            Some(result) -> result
-            None -> { throw DecodingException(path, "Float is out of range") }
+            case Some(result) -> result
+            case None -> { throw DecodingException(path, "Float is out of range") }
         }
     }
 
     public override fun readDouble(): Double {
         return when (parseDouble(number("expected a number"))) {
-            Some(result) -> result
-            None -> { throw DecodingException(path, "Double is out of range") }
+            case Some(result) -> result
+            case None -> { throw DecodingException(path, "Double is out of range") }
         }
     }
 }

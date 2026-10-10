@@ -44,15 +44,15 @@ internal fun readJsonString(parser: JsonParser, path: String): String {
         if (character == '\\') {
             val escaped = parser.take(path)
             when (escaped) {
-                '"' -> { result.add('"') }
-                '\\' -> { result.add('\\') }
-                '/' -> { result.add('/') }
-                'b' -> { result.add('\u{8}') }
-                'f' -> { result.add('\u{c}') }
-                'n' -> { result.add('\n') }
-                'r' -> { result.add('\r') }
-                't' -> { result.add('\t') }
-                'u' -> { result.add(readUnicodeEscape(parser, path)) }
+                case '"' -> { result.add('"') }
+                case '\\' -> { result.add('\\') }
+                case '/' -> { result.add('/') }
+                case 'b' -> { result.add('\u{8}') }
+                case 'f' -> { result.add('\u{c}') }
+                case 'n' -> { result.add('\n') }
+                case 'r' -> { result.add('\r') }
+                case 't' -> { result.add('\t') }
+                case 'u' -> { result.add(readUnicodeEscape(parser, path)) }
                 else -> { throw parser.error(path, "invalid string escape") }
             }
         } else { result.add(character) }

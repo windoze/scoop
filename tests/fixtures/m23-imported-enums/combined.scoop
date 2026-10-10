@@ -16,6 +16,6 @@ enum Wrapper { Empty, Wrapped(Choice, (Token, Token)) }
 @NoGC public fun test(): Long {
     val value = Carrier(make(53, 42), (Token(), Token()))
     val wrapped = Wrapper.Wrapped(relay(value.value), value.marker)
-    val total = when (wrapped) { Empty -> 0; Wrapped(choice, _) -> sum(choice) }
+    val total = when (wrapped) { case Empty -> 0; case Wrapped(choice, _) -> sum(choice) }
     return total + sum(relay(make(17, -29))) + flagValue(relayFlag(flag())) - 1
 }

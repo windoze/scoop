@@ -2,7 +2,7 @@ public fun observe(): (Boolean, String, String, Boolean) {
     val packet = Packet((true, "payload"))
     val cell = Cell(Envelope.Present(packet))
     val reader: Reader = cell
-    val present = when (cell.data) { Empty -> false; Present(value) -> value.pair._1 }
+    val present = when (cell.data) { case Empty -> false; case Present(value) -> value.pair._1 }
     return (present, reader.read(), capture(packet)(), matches(cell))
 }
 public fun observedMatch(value: Any): Boolean = matches(value)

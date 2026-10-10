@@ -5,7 +5,7 @@ use super::*;
 #[test]
 fn when_with_bare_and_prefixed_unit_variants_and_else() {
     let when = when_with_arms(
-        "        Red -> { print(\"r\") }\n        Color.Green -> { }\n        else -> { println(\"o\") }\n",
+        "        case Red -> { print(\"r\") }\n        case Color.Green -> { }\n        else -> { println(\"o\") }\n",
     );
     assert_eq!(when.arms.len(), 2);
     // A bare identifier is always a binding ("binding first"); HIR
@@ -33,7 +33,7 @@ fn when_with_bare_and_prefixed_unit_variants_and_else() {
 fn when_statement_dump() {
     assert_eq!(
         stmt_dump(
-            "when (c) {\n        Red -> { print(\"r\") }\n        else -> { println(\"o\") }\n    }"
+            "when (c) {\n        case Red -> { print(\"r\") }\n        else -> { println(\"o\") }\n    }"
         ),
         "when\n  Var c\n  arm Red\n    Call print\n      StringLiteral \"r\"\n  else\n    Call println\n      StringLiteral \"o\"\n"
     );
@@ -41,7 +41,7 @@ fn when_statement_dump() {
 
 #[test]
 fn when_arm_with_guard() {
-    let when = when_with_arms("        Some(x) if (x > 0) -> { println(x) }\n");
+    let when = when_with_arms("        case Some(x) if (x > 0) -> { println(x) }\n");
     assert_eq!(when.arms.len(), 1);
     let arm = &when.arms[0];
     let Pattern::Positional { path, elements, .. } = &arm.pattern else {
@@ -58,7 +58,7 @@ fn when_arm_with_guard() {
 fn when_guard_dump() {
     assert_eq!(
         stmt_dump(
-            "when (s) {\n        Some(x) if (x > 0) -> { println(x) }\n        None -> { }\n    }"
+            "when (s) {\n        case Some(x) if (x > 0) -> { println(x) }\n        case None -> { }\n    }"
         ),
         "when\n  Var s\n  arm Some(x) if <guard>\n    Call println\n      Var x\n  arm None\n"
     );
@@ -67,7 +67,9 @@ fn when_guard_dump() {
 #[test]
 fn literal_pattern_dump_is_source_shaped() {
     assert_eq!(
-        stmt_dump("when (value) {\n        Value((false,), 1, \"x\", ()) if (flag) -> { }\n    }"),
+        stmt_dump(
+            "when (value) {\n        case Value((false,), 1, \"x\", ()) if (flag) -> { }\n    }"
+        ),
         "when\n  Var value\n  arm Value((false,), 1, \"x\", ()) if <guard>\n"
     );
 }
@@ -76,8 +78,8 @@ fn literal_pattern_dump_is_source_shaped() {
 fn when_expression_dump_marks_guarded_arms() {
     let file = ok(
         "fun choose(value: Boolean, flag: Boolean): Int = when (value) {\n\
-             true if (flag) -> 1\n\
-             false -> 0\n\
+             case true if (flag) -> 1\n\
+             case false -> 0\n\
          }\n",
     );
     assert_eq!(
@@ -88,7 +90,7 @@ fn when_expression_dump_marks_guarded_arms() {
 
 #[test]
 fn when_positional_pattern_with_literal_and_wildcard() {
-    let when = when_with_arms("        Rect(0, _) -> { }\n");
+    let when = when_with_arms("        case Rect(0, _) -> { }\n");
     let Pattern::Positional { elements, rest, .. } = &when.arms[0].pattern else {
         panic!("expected a positional pattern");
     };
@@ -100,7 +102,7 @@ fn when_positional_pattern_with_literal_and_wildcard() {
 
 #[test]
 fn when_prefixed_variant_with_payload() {
-    let when = when_with_arms("        Option.Some(x) -> { }\n");
+    let when = when_with_arms("        case Option.Some(x) -> { }\n");
     let Pattern::Positional { path, elements, .. } = &when.arms[0].pattern else {
         panic!("expected a positional pattern");
     };
@@ -111,7 +113,7 @@ fn when_prefixed_variant_with_payload() {
 
 #[test]
 fn when_named_field_pattern_with_rename_and_rest() {
-    let when = when_with_arms("        Named { w, h: height, .. } -> { }\n");
+    let when = when_with_arms("        case Named { w, h: height, .. } -> { }\n");
     let Pattern::Named {
         path, fields, rest, ..
     } = &when.arms[0].pattern
@@ -136,7 +138,7 @@ fn when_named_field_pattern_with_rename_and_rest() {
 #[test]
 fn when_named_fields_accept_recursive_subpatterns() {
     let when = when_with_arms(
-        "        Named { literal: 0, wild: _, tuple: (x, _), nested: { value, .. }, variant: Some(y), .. } -> { }\n",
+        "        case Named { literal: 0, wild: _, tuple: (x, _), nested: { value, .. }, variant: Some(y), .. } -> { }\n",
     );
     let Pattern::Named { fields, .. } = &when.arms[0].pattern else {
         panic!("expected a named pattern");
@@ -157,7 +159,7 @@ fn when_named_fields_accept_recursive_subpatterns() {
 
 #[test]
 fn unprefixed_named_pattern_and_recursive_dump() {
-    let when = when_with_arms("        { child: { value, .. }, flag: false, .. } -> { }\n");
+    let when = when_with_arms("        case { child: { value, .. }, flag: false, .. } -> { }\n");
     let pattern = &when.arms[0].pattern;
     assert!(matches!(pattern, Pattern::Named { path, .. } if path.is_empty()));
     assert_eq!(
@@ -168,7 +170,7 @@ fn unprefixed_named_pattern_and_recursive_dump() {
 
 #[test]
 fn field_pattern_span_includes_recursive_rhs() {
-    let when = when_with_arms("        S { child: (x, _) } -> { }\n");
+    let when = when_with_arms("        case S { child: (x, _) } -> { }\n");
     let Pattern::Named { fields, .. } = &when.arms[0].pattern else {
         panic!("expected a named pattern");
     };
@@ -182,7 +184,7 @@ fn field_pattern_span_includes_recursive_rhs() {
 
 #[test]
 fn when_named_field_pattern_without_rest() {
-    let when = when_with_arms("        Point { x, y } -> { }\n");
+    let when = when_with_arms("        case Point { x, y } -> { }\n");
     let Pattern::Named { fields, rest, .. } = &when.arms[0].pattern else {
         panic!("expected a named pattern");
     };
@@ -192,7 +194,7 @@ fn when_named_field_pattern_without_rest() {
 
 #[test]
 fn when_tuple_pattern() {
-    let when = when_with_arms("        (x, 0, _) -> { }\n");
+    let when = when_with_arms("        case (x, 0, _) -> { }\n");
     let Pattern::Tuple { elements, rest, .. } = &when.arms[0].pattern else {
         panic!("expected a tuple pattern");
     };
@@ -205,7 +207,7 @@ fn when_tuple_pattern() {
 
 #[test]
 fn when_tuple_pattern_with_rest_in_the_middle() {
-    let when = when_with_arms("        (x, .., y) -> { }\n");
+    let when = when_with_arms("        case (x, .., y) -> { }\n");
     let Pattern::Tuple { elements, rest, .. } = &when.arms[0].pattern else {
         panic!("expected a tuple pattern");
     };
@@ -215,7 +217,7 @@ fn when_tuple_pattern_with_rest_in_the_middle() {
 
 #[test]
 fn when_tuple_pattern_with_only_rest() {
-    let when = when_with_arms("        (..) -> { }\n");
+    let when = when_with_arms("        case (..) -> { }\n");
     let Pattern::Tuple { elements, rest, .. } = &when.arms[0].pattern else {
         panic!("expected a tuple pattern");
     };
@@ -226,18 +228,18 @@ fn when_tuple_pattern_with_only_rest() {
 #[test]
 fn when_parenthesized_pattern_is_not_a_tuple() {
     // `(x)` mirrors the expression disambiguation: just `x`.
-    let when = when_with_arms("        (x) -> { }\n");
+    let when = when_with_arms("        case (x) -> { }\n");
     assert!(matches!(&when.arms[0].pattern, Pattern::Binding(name) if name.text == "x"));
 }
 
 #[test]
 fn when_unit_literal_patterns() {
-    let when = when_with_arms("        () -> { }\n");
+    let when = when_with_arms("        case () -> { }\n");
     let Pattern::Literal { expr, .. } = &when.arms[0].pattern else {
         panic!("expected a literal pattern");
     };
     assert!(matches!(*expr.clone(), Expr::UnitLiteral { .. }));
-    let when = when_with_arms("        Unit -> { }\n");
+    let when = when_with_arms("        case Unit -> { }\n");
     let Pattern::Literal { expr, .. } = &when.arms[0].pattern else {
         panic!("expected a literal pattern");
     };
@@ -252,7 +254,7 @@ fn when_literal_patterns() {
         ("true", "bool"),
         ("false", "bool"),
     ] {
-        let when = when_with_arms(&format!("        {source} -> {{ }}\n"));
+        let when = when_with_arms(&format!("        case {source} -> {{ }}\n"));
         let Pattern::Literal { expr, .. } = &when.arms[0].pattern else {
             panic!("expected a literal pattern");
         };
@@ -266,7 +268,7 @@ fn when_literal_patterns() {
 
 #[test]
 fn when_nested_patterns() {
-    let when = when_with_arms("        Some((a, b)) -> { }\n");
+    let when = when_with_arms("        case Some((a, b)) -> { }\n");
     let Pattern::Positional { elements, .. } = &when.arms[0].pattern else {
         panic!("expected a positional pattern");
     };
@@ -278,7 +280,7 @@ fn when_nested_patterns() {
     };
     assert_eq!(inner.len(), 2);
 
-    let when = when_with_arms("        Some(Some(x)) -> { }\n");
+    let when = when_with_arms("        case Some(Some(x)) -> { }\n");
     let Pattern::Positional { elements, .. } = &when.arms[0].pattern else {
         panic!("expected a positional pattern");
     };
@@ -290,13 +292,13 @@ fn when_nested_patterns() {
 
 #[test]
 fn when_statement_spans() {
-    let file = ok("fun main() {\n    when (s) {\n        Red -> { }\n    }\n}\n");
+    let file = ok("fun main() {\n    when (s) {\n        case Red -> { }\n    }\n}\n");
     let stmt = &block_body(only_function(&file)).statements[0];
-    assert_eq!(stmt.span, Span::new(17, 52));
+    assert_eq!(stmt.span, Span::new(17, 57));
     let StatementKind::When(when) = &stmt.kind else {
         panic!("expected a when statement");
     };
     assert_eq!(when.arms.len(), 1);
-    assert_eq!(when.arms[0].span, Span::new(36, 46));
+    assert_eq!(when.arms[0].span, Span::new(36, 51));
     assert!(when.else_body.is_none());
 }

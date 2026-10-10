@@ -12,19 +12,19 @@ enum Wrapper { Empty, Value(Choice, (Token, Token), Draft) }
 
 @NoGC public fun relay(value: Choice): Choice = value
 @NoGC public fun defaultScore(value: Choice = Choice.Pair(left = 11, marker = Token(), right = 31)): Long = sum(value)
-@NoGC public fun defaultFlag(value: Flag = Flag.On): Long = when (value) { Off -> 0; On -> 1 }
-@NoGC public fun defaultMarker(value: Marker = Marker.Only): Long = when (value) { Only -> 0 }
+@NoGC public fun defaultFlag(value: Flag = Flag.On): Long = when (value) { case Off -> 0; case On -> 1 }
+@NoGC public fun defaultMarker(value: Marker = Marker.Only): Long = when (value) { case Only -> 0 }
 
 @NoGC public fun test(): Long {
     val carrier = Carrier(Pair(left = 17, marker = Token(), right = -29), (Token(), Token()))
     val wrapped = Wrapper.Value(relay(carrier.value), carrier.markers, Defaults(47))
     return when (wrapped) {
-        Empty -> 0
-        Value(choice, _, draft) -> sum(choice) + when (draft) {
-            Absent -> 0
-            Position(left, _, right) -> left + right
-            Named { left, right, .. } -> left + right
-            Defaults { left, right, .. } -> left + right
+        case Empty -> 0
+        case Value(choice, _, draft) -> sum(choice) + when (draft) {
+            case Absent -> 0
+            case Position(left, _, right) -> left + right
+            case Named { left, right, .. } -> left + right
+            case Defaults { left, right, .. } -> left + right
         }
     }
 }

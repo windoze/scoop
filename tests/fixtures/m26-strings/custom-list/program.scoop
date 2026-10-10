@@ -6,7 +6,7 @@ class Characters : List<Char> {
         trace = trace + index.toString()
         if (fail && index == 1L) { throw IllegalStateException() }
         gcCollect()
-        return when (index) { 0L -> 'A'; 1L -> '雪'; else -> '🚀' }
+        return when (index) { case 0L -> 'A'; case 1L -> '雪'; else -> '🚀' }
     }
     public override operator fun iterator(): Iterator<Char> = ['A', '雪', '🚀'].iterator()
 }

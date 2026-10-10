@@ -6,7 +6,7 @@ fun main() {
     verifyType(marker.code() == 7 && value.code() == 7)
     verifyType(finiteHeld(finiteHolder(value)).text == "payload")
     val choice = FiniteChoice.Data(value)
-    verifyType(when (choice) { Empty -> false; Data(payload) -> payload == value })
+    verifyType(when (choice) { case Empty -> false; case Data(payload) -> payload == value })
     verifyType(hiddenValue() !is String)
     val erased: Any = choice
     verifyType((erased as FiniteChoice) == choice)
