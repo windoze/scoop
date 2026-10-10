@@ -119,47 +119,52 @@ SourceFile
   public suspend fun synchronous<T>(value: T): T
     =
       Call suspendCoroutine
-        Lambda 2 suspend=false
-          param continuation: Continuation<T>
-          MethodCall resume
-            Var continuation
-            Var value
+        Argument trailing
+          Lambda 2 suspend=false
+            param continuation: Continuation<T>
+            MethodCall resume
+              Var continuation
+              Var value
   public suspend fun synchronousFailure<T>(): T
     =
       Call suspendCoroutine
-        Lambda 3 suspend=false
-          param continuation: Continuation<T>
-          MethodCall resumeWithException
-            Var continuation
-            Call UnwrapException
+        Argument trailing
+          Lambda 3 suspend=false
+            param continuation: Continuation<T>
+            MethodCall resumeWithException
+              Var continuation
+              Call UnwrapException
   public suspend fun registrationFailure<T>(): T
     =
       Call suspendCoroutine
-        Lambda 4 suspend=false
-          param continuation: Continuation<T>
-          throw
-            Call UnwrapException
+        Argument trailing
+          Lambda 4 suspend=false
+            param continuation: Continuation<T>
+            throw
+              Call UnwrapException
   public suspend fun resumedThenThrows<T>(value: T): T
     =
       Call suspendCoroutine
-        Lambda 5 suspend=false
-          param continuation: Continuation<T>
-          MethodCall resume
-            Var continuation
-            Var value
-          throw
-            Call UnwrapException
+        Argument trailing
+          Lambda 5 suspend=false
+            param continuation: Continuation<T>
+            MethodCall resume
+              Var continuation
+              Var value
+            throw
+              Call UnwrapException
   public suspend fun resumedTwice<T>(value: T): T
     =
       Call suspendCoroutine
-        Lambda 6 suspend=false
-          param continuation: Continuation<T>
-          MethodCall resume
-            Var continuation
-            Var value
-          MethodCall resume
-            Var continuation
-            Var value
+        Argument trailing
+          Lambda 6 suspend=false
+            param continuation: Continuation<T>
+            MethodCall resume
+              Var continuation
+              Var value
+            MethodCall resume
+              Var continuation
+              Var value
   public fun recoveringFunction<T>(gate: Gate<T>, cleanup: Gate<Unit>, fallback: T, counter: Counter): suspend () -> T
     =
       Lambda 7 suspend=true

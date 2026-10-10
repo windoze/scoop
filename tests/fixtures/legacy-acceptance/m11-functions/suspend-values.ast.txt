@@ -20,12 +20,13 @@ SourceFile
         try
           val value
             Call suspendCoroutine
-              Lambda 0 suspend=false
-                param continuation: Continuation<Int>
-                assign .waiter
-                  Var gate
-                  Call Some
-                    Var continuation
+              Argument trailing
+                Lambda 0 suspend=false
+                  param continuation: Continuation<Int>
+                  assign .waiter
+                    Var gate
+                    Call Some
+                      Var continuation
           Call gcCollect
           Call println
             Var marker
@@ -108,47 +109,52 @@ SourceFile
   suspend fun synchronousValue(): Int
     =
       Call suspendCoroutine
-        Lambda 10 suspend=false
-          param continuation: Continuation<Int>
-          MethodCall resume
-            Var continuation
-            IntLiteral 51
+        Argument trailing
+          Lambda 10 suspend=false
+            param continuation: Continuation<Int>
+            MethodCall resume
+              Var continuation
+              IntLiteral 51
   suspend fun synchronousFailure(): Int
     =
       Call suspendCoroutine
-        Lambda 11 suspend=false
-          param continuation: Continuation<Int>
-          MethodCall resumeWithException
-            Var continuation
-            Call ArithmeticException
+        Argument trailing
+          Lambda 11 suspend=false
+            param continuation: Continuation<Int>
+            MethodCall resumeWithException
+              Var continuation
+              Call ArithmeticException
   suspend fun registrationFailure(): Int
     =
       Call suspendCoroutine
-        Lambda 12 suspend=false
-          param continuation: Continuation<Int>
-          throw
-            Call ArithmeticException
+        Argument trailing
+          Lambda 12 suspend=false
+            param continuation: Continuation<Int>
+            throw
+              Call ArithmeticException
   suspend fun resumedThenThrows(): Int
     =
       Call suspendCoroutine
-        Lambda 13 suspend=false
-          param continuation: Continuation<Int>
-          MethodCall resume
-            Var continuation
-            IntLiteral 52
-          throw
-            Call ArithmeticException
+        Argument trailing
+          Lambda 13 suspend=false
+            param continuation: Continuation<Int>
+            MethodCall resume
+              Var continuation
+              IntLiteral 52
+            throw
+              Call ArithmeticException
   suspend fun resumedTwice(): Int
     =
       Call suspendCoroutine
-        Lambda 14 suspend=false
-          param continuation: Continuation<Int>
-          MethodCall resume
-            Var continuation
-            IntLiteral 52
-          MethodCall resume
-            Var continuation
-            IntLiteral 53
+        Argument trailing
+          Lambda 14 suspend=false
+            param continuation: Continuation<Int>
+            MethodCall resume
+              Var continuation
+              IntLiteral 52
+            MethodCall resume
+              Var continuation
+              IntLiteral 53
   fun nestedTask(gate: Gate): suspend () -> Int
     =
       Lambda 17 suspend=true
@@ -157,12 +163,13 @@ SourceFile
           Lambda 16 suspend=true
             parameters omitted
             Call suspendCoroutine
-              Lambda 15 suspend=false
-                param continuation: Continuation<Int>
-                assign .waiter
-                  Var gate
-                  Call Some
-                    Var continuation
+              Argument trailing
+                Lambda 15 suspend=false
+                  param continuation: Continuation<Int>
+                  assign .waiter
+                    Var gate
+                    Call Some
+                      Var continuation
         val value
           Call inner
         Binary Add

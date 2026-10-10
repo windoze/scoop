@@ -8,12 +8,12 @@ SourceFile
       WhenExpression
         Var choice
         arm Number(value)
-          IfExpression
+          if
             Binary Gt
               Var value
               IntLiteral 0
             StringLiteral "positive"
-            else
+          else
             StringLiteral "zero"
         arm Empty
           StringLiteral "empty"

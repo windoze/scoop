@@ -88,12 +88,13 @@ SourceFile
     val values
       Call Array<String>
         IntLiteral 3L
-        Lambda 0 suspend=false
-          param index: _
-          InterpolatedString
-            Text "n"
-            Expression
-              Var index
+        Argument trailing
+          Lambda 0 suspend=false
+            param index: _
+            InterpolatedString
+              Text "n"
+              Expression
+                Var index
     val parts: MutableList<String>
       Call ArrayList<String>
     for value

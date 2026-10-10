@@ -288,8 +288,10 @@ Module
         Type Int
         Local $argument.0
       val $receiver: DefaultBase
-        Type DefaultChild
-        Local $receiver
+        Type DefaultBase
+        Retype DefaultBase
+          Type DefaultChild
+          Local $receiver
       call $dependency.receiver: Int = @fn2 direct
         Type DefaultBase
         Local $receiver

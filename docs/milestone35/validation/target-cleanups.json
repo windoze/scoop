@@ -1,0 +1,49 @@
+{
+  "schema": 1,
+  "note": "前三批保留实施记录中的近似测量；原始 du 记录使用 KiB，目录之间可能共享硬链接。",
+  "cleanups": [
+    {
+      "batch": "M35-1",
+      "source": "PROGRESS.md",
+      "removed_incremental_approx_gib": 13
+    },
+    {
+      "batch": "M35-2",
+      "source": "PROGRESS.md",
+      "removed_incremental_approx_gib": 9.2
+    },
+    {
+      "batch": "M35-3",
+      "source": "PROGRESS.md",
+      "removed_incremental_approx_gib": 7.8
+    },
+    {
+      "batch": "M35-5",
+      "host": "darwin",
+      "record": {
+        "before": 32916332,
+        "incremental_removed": 9945732,
+        "after": 25757080
+      }
+    },
+    {
+      "batch": "M35-6 combinations",
+      "host": "darwin",
+      "record": {
+        "before_target_kib": 28905904,
+        "removed_incremental_kib": 3170664,
+        "after_target_kib": 26999484
+      }
+    },
+    {
+      "batch": "M35-6 regression",
+      "host": "darwin",
+      "record": {
+        "time": "2026-10-10T19:11:12.486415+08:00",
+        "before_target_kib": 36970224,
+        "removed_incremental_kib": 7944644,
+        "after_target_kib": 33305892
+      }
+    }
+  ]
+}

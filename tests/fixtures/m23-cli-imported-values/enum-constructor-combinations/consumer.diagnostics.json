@@ -7,8 +7,8 @@
       "kind": "source",
       "cone": "05cabbd9ae2cefb58134bfe09ffee95776b195a5633dad003b0b2e4121add209",
       "path": "src/main.scoop",
-      "start": 972,
-      "end": 978
+      "start": 997,
+      "end": 1003
     },
     "notes": []
   },
@@ -20,8 +20,8 @@
       "kind": "source",
       "cone": "05cabbd9ae2cefb58134bfe09ffee95776b195a5633dad003b0b2e4121add209",
       "path": "src/main.scoop",
-      "start": 983,
-      "end": 988
+      "start": 1008,
+      "end": 1013
     },
     "notes": []
   }

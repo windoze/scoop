@@ -14,20 +14,20 @@ Module
     local %6 $dependency.parameter._1: enum1
     local %7 b: enum2
     local %8 c: enum2
-    local %9 $opt.0: enum1
-    local %10 $res.1: i32
+    local %9 opt: enum1
+    local %10 $result.0: i32
     local %11 $dependency.argument.0: i32
     local %12 $dependency.parameter.value: i32
-    local %13 $opt.2: enum1
-    local %14 $res.3: i32
+    local %13 opt: enum1
+    local %14 $result.1: i32
     local %15 $dependency.argument.0: i32
     local %16 $dependency.parameter.value: i32
-    local %17 $dependency.argument.0: i32
-    local %18 $dependency.parameter._1: i32
-    local %19 $opt.4: enum2
-    local %20 $res.5: enum1
-    local %21 $opt.6: enum1
-    local %22 $res.7: i32
+    local %17 opt: enum2
+    local %18 $dependency.argument.0: i32
+    local %19 $dependency.parameter._1: i32
+    local %20 $result.2: enum1
+    local %21 opt: enum1
+    local %22 $result.3: i32
     local %23 $dependency.argument.0: i32
     local %24 $dependency.parameter.value: i32
     local %25 $opt.1: enum2
@@ -105,17 +105,17 @@ Module
     store local15 -> local16
     call managed-void-target3 sp<managed-call:3> live=[] sig=void3 (i32) local-fn1(local16)
     t18 = aggregate () : {}
-    store local8 -> local19
-    t19 = variant_test e2 v0 local19 : i1
+    store local8 -> local17
+    t19 = variant_test e2 v0 local17 : i1
     cbr t19 then @if.then.13 else @if.else.14
   block if.then.13
-    t20 = variant_payload_project e2 v0 f0 local19 : enum1
+    t20 = variant_payload_project e2 v0 f0 local17 : enum1
     store t20 -> local20
     br @if.merge.15
   block if.else.14
-    store integer<Int>(0x00000003) -> local17
-    store local17 -> local18
-    t21 = enum_wrap e1 v0 (local18) : enum1
+    store integer<Int>(0x00000003) -> local18
+    store local18 -> local19
+    t21 = enum_wrap e1 v0 (local19) : enum1
     store t21 -> local20
     br @if.merge.15
   block if.merge.15

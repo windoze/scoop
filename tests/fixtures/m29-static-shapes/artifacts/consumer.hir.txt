@@ -370,10 +370,10 @@ intrinsic core_string String Concrete(PersistentTypeId([2, 82, 200, 101, 172, 20
   public property length: Long b380695314aea475138a1fdda6ba48f626ffb5dfcbb51f0e08623e57fb06d965 no-field
 any Any
 struct Parcel<T> GenericTemplate(PersistentGenericTypeId([208, 223, 89, 4, 243, 135, 200, 201, 19, 113, 162, 71, 95, 144, 19, 156, 169, 113, 76, 19, 154, 176, 103, 41, 11, 127, 243, 254, 8, 254, 234, 84]))
-  @Doc a0e0e00dd621a090de09890e14dd2ff973941eba7bb630bcd468475b4d277e7d [String("parcel"), Boolean(True)]
+  @Doc a0e0e00dd621a090de09890e14dd2ff973941eba7bb630bcd468475b4d277e7d [Scalar(String("parcel")), Scalar(Boolean(True))]
   parameter T: Any
   field value: T Field(PersistentFieldId([188, 21, 135, 33, 248, 191, 86, 62, 194, 21, 140, 219, 176, 214, 184, 49, 122, 87, 4, 7, 234, 146, 249, 31, 219, 66, 108, 17, 65, 253, 156, 125])) Declared
-    @Doc a0e0e00dd621a090de09890e14dd2ff973941eba7bb630bcd468475b4d277e7d [String("value"), Boolean(True)]
+    @Doc a0e0e00dd621a090de09890e14dd2ff973941eba7bb630bcd468475b4d277e7d [Scalar(String("value")), Scalar(Boolean(True))]
   field count: Int Field(PersistentFieldId([130, 124, 220, 8, 84, 203, 40, 201, 231, 234, 166, 159, 98, 190, 123, 129, 228, 118, 220, 164, 113, 246, 195, 215, 65, 90, 47, 252, 123, 82, 17, 153])) Declared
   public property value: T 4e35e0da7f1ee45e9058a4d18d73f217262362fed8380558158e5c41f869c835 no-field
   public property count: Int 63c83d20e129e8e128588ed112d76f2365b22ae6dcf7f91388e8eea06b19ff89 no-field
@@ -381,9 +381,9 @@ struct Parcel<T> GenericTemplate(PersistentGenericTypeId([208, 223, 89, 4, 243, 
     parameter value: T Field(Field(PersistentFieldId([188, 21, 135, 33, 248, 191, 86, 62, 194, 21, 140, 219, 176, 214, 184, 49, 122, 87, 4, 7, 234, 146, 249, 31, 219, 66, 108, 17, 65, 253, 156, 125])))
     parameter count: Int Field(Field(PersistentFieldId([130, 124, 220, 8, 84, 203, 40, 201, 231, 234, 166, 159, 98, 190, 123, 129, 228, 118, 220, 164, 113, 246, 195, 215, 65, 90, 47, 252, 123, 82, 17, 153]))) default parameter1
 struct Parcel<String> GenericTemplate(PersistentGenericTypeId([208, 223, 89, 4, 243, 135, 200, 201, 19, 113, 162, 71, 95, 144, 19, 156, 169, 113, 76, 19, 154, 176, 103, 41, 11, 127, 243, 254, 8, 254, 234, 84]))
-  @Doc a0e0e00dd621a090de09890e14dd2ff973941eba7bb630bcd468475b4d277e7d [String("parcel"), Boolean(True)]
+  @Doc a0e0e00dd621a090de09890e14dd2ff973941eba7bb630bcd468475b4d277e7d [Scalar(String("parcel")), Scalar(Boolean(True))]
   field value: String Field(PersistentFieldId([188, 21, 135, 33, 248, 191, 86, 62, 194, 21, 140, 219, 176, 214, 184, 49, 122, 87, 4, 7, 234, 146, 249, 31, 219, 66, 108, 17, 65, 253, 156, 125])) Declared
-    @Doc a0e0e00dd621a090de09890e14dd2ff973941eba7bb630bcd468475b4d277e7d [String("value"), Boolean(True)]
+    @Doc a0e0e00dd621a090de09890e14dd2ff973941eba7bb630bcd468475b4d277e7d [Scalar(String("value")), Scalar(Boolean(True))]
   field count: Int Field(PersistentFieldId([130, 124, 220, 8, 84, 203, 40, 201, 231, 234, 166, 159, 98, 190, 123, 129, 228, 118, 220, 164, 113, 246, 195, 215, 65, 90, 47, 252, 123, 82, 17, 153])) Declared
   public property value: String 4e35e0da7f1ee45e9058a4d18d73f217262362fed8380558158e5c41f869c835 no-field
   public property count: Int 63c83d20e129e8e128588ed112d76f2365b22ae6dcf7f91388e8eea06b19ff89 no-field
@@ -394,15 +394,15 @@ object Parcel.Factory<T> GenericTemplate(PersistentGenericTypeId([197, 204, 62, 
   parameter T: Any
   field visits: Int Field(PersistentFieldId([196, 17, 110, 213, 206, 222, 173, 112, 112, 231, 69, 98, 143, 175, 193, 67, 32, 206, 241, 130, 0, 230, 12, 211, 177, 183, 123, 189, 247, 54, 231, 22])) PropertyBacking(PersistentPropertyId([97, 17, 62, 195, 6, 188, 34, 218, 143, 49, 241, 7, 166, 195, 7, 80, 229, 26, 30, 183, 8, 127, 54, 22, 205, 68, 92, 51, 201, 34, 120, 175]))
   public property visits: Int 61113ec306bc22da8f31f107a6c30750e51a1eb7087f3616cd445c33c92278af stored c4116ed5cedead7070e745628fafc14320cef18200e60cd3b1b77bbdf736e716
-    @Doc a0e0e00dd621a090de09890e14dd2ff973941eba7bb630bcd468475b4d277e7d [String("counter"), Boolean(True)]
+    @Doc a0e0e00dd621a090de09890e14dd2ff973941eba7bb630bcd468475b4d277e7d [Scalar(String("counter")), Scalar(Boolean(True))]
 object Parcel.Factory<String> GenericTemplate(PersistentGenericTypeId([197, 204, 62, 50, 159, 232, 183, 254, 138, 163, 204, 183, 201, 66, 236, 72, 227, 227, 22, 191, 157, 229, 227, 15, 21, 3, 33, 106, 80, 90, 194, 39]))
   field visits: Int Field(PersistentFieldId([196, 17, 110, 213, 206, 222, 173, 112, 112, 231, 69, 98, 143, 175, 193, 67, 32, 206, 241, 130, 0, 230, 12, 211, 177, 183, 123, 189, 247, 54, 231, 22])) PropertyBacking(PersistentPropertyId([97, 17, 62, 195, 6, 188, 34, 218, 143, 49, 241, 7, 166, 195, 7, 80, 229, 26, 30, 183, 8, 127, 54, 22, 205, 68, 92, 51, 201, 34, 120, 175]))
   public property visits: Int 61113ec306bc22da8f31f107a6c30750e51a1eb7087f3616cd445c33c92278af stored c4116ed5cedead7070e745628fafc14320cef18200e60cd3b1b77bbdf736e716
-    @Doc a0e0e00dd621a090de09890e14dd2ff973941eba7bb630bcd468475b4d277e7d [String("counter"), Boolean(True)]
+    @Doc a0e0e00dd621a090de09890e14dd2ff973941eba7bb630bcd468475b4d277e7d [Scalar(String("counter")), Scalar(Boolean(True))]
 struct Parcel<Int> GenericTemplate(PersistentGenericTypeId([208, 223, 89, 4, 243, 135, 200, 201, 19, 113, 162, 71, 95, 144, 19, 156, 169, 113, 76, 19, 154, 176, 103, 41, 11, 127, 243, 254, 8, 254, 234, 84]))
-  @Doc a0e0e00dd621a090de09890e14dd2ff973941eba7bb630bcd468475b4d277e7d [String("parcel"), Boolean(True)]
+  @Doc a0e0e00dd621a090de09890e14dd2ff973941eba7bb630bcd468475b4d277e7d [Scalar(String("parcel")), Scalar(Boolean(True))]
   field value: Int Field(PersistentFieldId([188, 21, 135, 33, 248, 191, 86, 62, 194, 21, 140, 219, 176, 214, 184, 49, 122, 87, 4, 7, 234, 146, 249, 31, 219, 66, 108, 17, 65, 253, 156, 125])) Declared
-    @Doc a0e0e00dd621a090de09890e14dd2ff973941eba7bb630bcd468475b4d277e7d [String("value"), Boolean(True)]
+    @Doc a0e0e00dd621a090de09890e14dd2ff973941eba7bb630bcd468475b4d277e7d [Scalar(String("value")), Scalar(Boolean(True))]
   field count: Int Field(PersistentFieldId([130, 124, 220, 8, 84, 203, 40, 201, 231, 234, 166, 159, 98, 190, 123, 129, 228, 118, 220, 164, 113, 246, 195, 215, 65, 90, 47, 252, 123, 82, 17, 153])) Declared
   public property value: Int 4e35e0da7f1ee45e9058a4d18d73f217262362fed8380558158e5c41f869c835 no-field
   public property count: Int 63c83d20e129e8e128588ed112d76f2365b22ae6dcf7f91388e8eea06b19ff89 no-field
@@ -412,15 +412,15 @@ struct Parcel<Int> GenericTemplate(PersistentGenericTypeId([208, 223, 89, 4, 243
 object Parcel.Factory<Int> GenericTemplate(PersistentGenericTypeId([197, 204, 62, 50, 159, 232, 183, 254, 138, 163, 204, 183, 201, 66, 236, 72, 227, 227, 22, 191, 157, 229, 227, 15, 21, 3, 33, 106, 80, 90, 194, 39]))
   field visits: Int Field(PersistentFieldId([196, 17, 110, 213, 206, 222, 173, 112, 112, 231, 69, 98, 143, 175, 193, 67, 32, 206, 241, 130, 0, 230, 12, 211, 177, 183, 123, 189, 247, 54, 231, 22])) PropertyBacking(PersistentPropertyId([97, 17, 62, 195, 6, 188, 34, 218, 143, 49, 241, 7, 166, 195, 7, 80, 229, 26, 30, 183, 8, 127, 54, 22, 205, 68, 92, 51, 201, 34, 120, 175]))
   public property visits: Int 61113ec306bc22da8f31f107a6c30750e51a1eb7087f3616cd445c33c92278af stored c4116ed5cedead7070e745628fafc14320cef18200e60cd3b1b77bbdf736e716
-    @Doc a0e0e00dd621a090de09890e14dd2ff973941eba7bb630bcd468475b4d277e7d [String("counter"), Boolean(True)]
+    @Doc a0e0e00dd621a090de09890e14dd2ff973941eba7bb630bcd468475b4d277e7d [Scalar(String("counter")), Scalar(Boolean(True))]
 enum Choice<T> GenericTemplate(PersistentGenericTypeId([23, 122, 15, 136, 79, 26, 36, 248, 49, 86, 57, 130, 7, 204, 214, 231, 49, 72, 200, 83, 196, 35, 35, 111, 158, 180, 17, 49, 187, 189, 59, 30]))
   parameter T: Any
   variant Empty Unit 9d80ef4db9bde11af9c74d60255adb05b4692adb8702601a8246a85c690ef1bf
-    @Doc a0e0e00dd621a090de09890e14dd2ff973941eba7bb630bcd468475b4d277e7d [String("empty"), Boolean(True)]
+    @Doc a0e0e00dd621a090de09890e14dd2ff973941eba7bb630bcd468475b4d277e7d [Scalar(String("empty")), Scalar(Boolean(True))]
     constructor VariantConstructor(PersistentEnumVariantId([157, 128, 239, 77, 185, 189, 225, 26, 249, 199, 77, 96, 37, 90, 219, 5, 180, 105, 42, 219, 135, 2, 96, 26, 130, 70, 168, 92, 105, 14, 241, 191]))
   variant Named Constructor 2f11a39c19da738c8a272eea020eb02e24e9659caeaa56e8259edd19f6db159f
     field value: T VariantField(PersistentEnumVariantFieldId([7, 114, 150, 218, 104, 222, 79, 157, 111, 101, 213, 70, 91, 240, 53, 79, 31, 24, 44, 181, 130, 87, 122, 225, 203, 132, 246, 39, 250, 37, 116, 11])) Declared
-      @Doc a0e0e00dd621a090de09890e14dd2ff973941eba7bb630bcd468475b4d277e7d [String("payload"), Boolean(True)]
+      @Doc a0e0e00dd621a090de09890e14dd2ff973941eba7bb630bcd468475b4d277e7d [Scalar(String("payload")), Scalar(Boolean(True))]
     field count: Int VariantField(PersistentEnumVariantFieldId([134, 31, 204, 21, 90, 125, 195, 121, 111, 108, 92, 147, 237, 129, 91, 147, 179, 247, 113, 28, 165, 21, 45, 222, 189, 46, 94, 226, 137, 0, 57, 2])) Declared
     constructor VariantConstructor(PersistentEnumVariantId([47, 17, 163, 156, 25, 218, 115, 140, 138, 39, 46, 234, 2, 14, 176, 46, 36, 233, 101, 156, 174, 170, 86, 232, 37, 158, 221, 25, 246, 219, 21, 159]))
       parameter value: T Field(VariantField(PersistentEnumVariantFieldId([7, 114, 150, 218, 104, 222, 79, 157, 111, 101, 213, 70, 91, 240, 53, 79, 31, 24, 44, 181, 130, 87, 122, 225, 203, 132, 246, 39, 250, 37, 116, 11])))
@@ -437,11 +437,11 @@ enum Choice<T> GenericTemplate(PersistentGenericTypeId([23, 122, 15, 136, 79, 26
       parameter _2: Int Field(VariantField(PersistentEnumVariantFieldId([84, 55, 12, 107, 56, 85, 114, 75, 83, 215, 153, 171, 124, 36, 172, 82, 156, 237, 95, 51, 88, 126, 110, 249, 104, 179, 156, 136, 185, 68, 241, 207])))
 enum Choice<String> GenericTemplate(PersistentGenericTypeId([23, 122, 15, 136, 79, 26, 36, 248, 49, 86, 57, 130, 7, 204, 214, 231, 49, 72, 200, 83, 196, 35, 35, 111, 158, 180, 17, 49, 187, 189, 59, 30]))
   variant Empty Unit 9d80ef4db9bde11af9c74d60255adb05b4692adb8702601a8246a85c690ef1bf
-    @Doc a0e0e00dd621a090de09890e14dd2ff973941eba7bb630bcd468475b4d277e7d [String("empty"), Boolean(True)]
+    @Doc a0e0e00dd621a090de09890e14dd2ff973941eba7bb630bcd468475b4d277e7d [Scalar(String("empty")), Scalar(Boolean(True))]
     constructor VariantConstructor(PersistentEnumVariantId([157, 128, 239, 77, 185, 189, 225, 26, 249, 199, 77, 96, 37, 90, 219, 5, 180, 105, 42, 219, 135, 2, 96, 26, 130, 70, 168, 92, 105, 14, 241, 191]))
   variant Named Constructor 2f11a39c19da738c8a272eea020eb02e24e9659caeaa56e8259edd19f6db159f
     field value: String VariantField(PersistentEnumVariantFieldId([7, 114, 150, 218, 104, 222, 79, 157, 111, 101, 213, 70, 91, 240, 53, 79, 31, 24, 44, 181, 130, 87, 122, 225, 203, 132, 246, 39, 250, 37, 116, 11])) Declared
-      @Doc a0e0e00dd621a090de09890e14dd2ff973941eba7bb630bcd468475b4d277e7d [String("payload"), Boolean(True)]
+      @Doc a0e0e00dd621a090de09890e14dd2ff973941eba7bb630bcd468475b4d277e7d [Scalar(String("payload")), Scalar(Boolean(True))]
     field count: Int VariantField(PersistentEnumVariantFieldId([134, 31, 204, 21, 90, 125, 195, 121, 111, 108, 92, 147, 237, 129, 91, 147, 179, 247, 113, 28, 165, 21, 45, 222, 189, 46, 94, 226, 137, 0, 57, 2])) Declared
     constructor VariantConstructor(PersistentEnumVariantId([47, 17, 163, 156, 25, 218, 115, 140, 138, 39, 46, 234, 2, 14, 176, 46, 36, 233, 101, 156, 174, 170, 86, 232, 37, 158, 221, 25, 246, 219, 21, 159]))
       parameter value: String Field(VariantField(PersistentEnumVariantFieldId([7, 114, 150, 218, 104, 222, 79, 157, 111, 101, 213, 70, 91, 240, 53, 79, 31, 24, 44, 181, 130, 87, 122, 225, 203, 132, 246, 39, 250, 37, 116, 11])))
@@ -458,11 +458,11 @@ enum Choice<String> GenericTemplate(PersistentGenericTypeId([23, 122, 15, 136, 7
       parameter _2: Int Field(VariantField(PersistentEnumVariantFieldId([84, 55, 12, 107, 56, 85, 114, 75, 83, 215, 153, 171, 124, 36, 172, 82, 156, 237, 95, 51, 88, 126, 110, 249, 104, 179, 156, 136, 185, 68, 241, 207])))
 enum Choice<Int> GenericTemplate(PersistentGenericTypeId([23, 122, 15, 136, 79, 26, 36, 248, 49, 86, 57, 130, 7, 204, 214, 231, 49, 72, 200, 83, 196, 35, 35, 111, 158, 180, 17, 49, 187, 189, 59, 30]))
   variant Empty Unit 9d80ef4db9bde11af9c74d60255adb05b4692adb8702601a8246a85c690ef1bf
-    @Doc a0e0e00dd621a090de09890e14dd2ff973941eba7bb630bcd468475b4d277e7d [String("empty"), Boolean(True)]
+    @Doc a0e0e00dd621a090de09890e14dd2ff973941eba7bb630bcd468475b4d277e7d [Scalar(String("empty")), Scalar(Boolean(True))]
     constructor VariantConstructor(PersistentEnumVariantId([157, 128, 239, 77, 185, 189, 225, 26, 249, 199, 77, 96, 37, 90, 219, 5, 180, 105, 42, 219, 135, 2, 96, 26, 130, 70, 168, 92, 105, 14, 241, 191]))
   variant Named Constructor 2f11a39c19da738c8a272eea020eb02e24e9659caeaa56e8259edd19f6db159f
     field value: Int VariantField(PersistentEnumVariantFieldId([7, 114, 150, 218, 104, 222, 79, 157, 111, 101, 213, 70, 91, 240, 53, 79, 31, 24, 44, 181, 130, 87, 122, 225, 203, 132, 246, 39, 250, 37, 116, 11])) Declared
-      @Doc a0e0e00dd621a090de09890e14dd2ff973941eba7bb630bcd468475b4d277e7d [String("payload"), Boolean(True)]
+      @Doc a0e0e00dd621a090de09890e14dd2ff973941eba7bb630bcd468475b4d277e7d [Scalar(String("payload")), Scalar(Boolean(True))]
     field count: Int VariantField(PersistentEnumVariantFieldId([134, 31, 204, 21, 90, 125, 195, 121, 111, 108, 92, 147, 237, 129, 91, 147, 179, 247, 113, 28, 165, 21, 45, 222, 189, 46, 94, 226, 137, 0, 57, 2])) Declared
     constructor VariantConstructor(PersistentEnumVariantId([47, 17, 163, 156, 25, 218, 115, 140, 138, 39, 46, 234, 2, 14, 176, 46, 36, 233, 101, 156, 174, 170, 86, 232, 37, 158, 221, 25, 246, 219, 21, 159]))
       parameter value: Int Field(VariantField(PersistentEnumVariantFieldId([7, 114, 150, 218, 104, 222, 79, 157, 111, 101, 213, 70, 91, 240, 53, 79, 31, 24, 44, 181, 130, 87, 122, 225, 203, 132, 246, 39, 250, 37, 116, 11])))
@@ -530,14 +530,14 @@ class Row<T> GenericTemplate(PersistentGenericTypeId([110, 67, 164, 135, 27, 158
   field cached: String Field(PersistentFieldId([72, 10, 7, 109, 174, 22, 178, 130, 81, 200, 239, 209, 240, 175, 6, 114, 130, 192, 98, 189, 78, 76, 202, 97, 196, 161, 129, 232, 108, 26, 97, 116])) PropertyBacking(PersistentPropertyId([43, 176, 139, 34, 8, 9, 169, 209, 248, 24, 135, 80, 17, 230, 171, 32, 121, 5, 179, 167, 54, 184, 6, 136, 13, 45, 153, 173, 205, 52, 63, 127]))
   field copy: Slot<T> Field(PersistentFieldId([30, 203, 125, 70, 119, 46, 166, 239, 188, 7, 75, 111, 113, 10, 22, 22, 42, 58, 178, 110, 53, 148, 232, 7, 169, 174, 74, 39, 118, 247, 169, 190])) PropertyDelegate(PersistentPropertyId([34, 25, 230, 121, 230, 204, 163, 116, 123, 74, 117, 124, 100, 7, 108, 70, 51, 213, 178, 11, 72, 164, 130, 57, 187, 61, 224, 141, 121, 98, 201, 45]))
   public property value: T b301705c3f3ff69a18fe5f2bf5bb256a2f44762a97a35a7f6cd8b83c5859cc42 stored 40f4012aa2aa2d2e82f6cae9eb4ffc3ac42d082091753135a2815d9383b47eca
-    @Doc a0e0e00dd621a090de09890e14dd2ff973941eba7bb630bcd468475b4d277e7d [String("payload"), Boolean(True)]
+    @Doc a0e0e00dd621a090de09890e14dd2ff973941eba7bb630bcd468475b4d277e7d [Scalar(String("payload")), Scalar(Boolean(True))]
   public property count: Int eecb9112519397be9735dc68cd353098ba7ef30cf197edf55c0ee837c3e2ee78 stored 625d79eba6a36c1a26d389bc004459d923af78d1d6b813e1ee6120a43a9c809e
   private property cached: String 2bb08b220809a9d1f818875011e6ab207905b3a736b806880d2d99adcd343f7f stored 480a076dae16b28251c8efd1f0af067282c062bd4e4cca61c4a181e86c1a6174
-    @Doc a0e0e00dd621a090de09890e14dd2ff973941eba7bb630bcd468475b4d277e7d [String("stored"), Boolean(True)]
+    @Doc a0e0e00dd621a090de09890e14dd2ff973941eba7bb630bcd468475b4d277e7d [Scalar(String("stored")), Scalar(Boolean(True))]
   public property size: Long fe3f43ea95a28181c56b677630948de652eeb0b4ef0e401af4e17fe2b827d09b no-field
-    @Doc a0e0e00dd621a090de09890e14dd2ff973941eba7bb630bcd468475b4d277e7d [String("computed"), Boolean(True)]
+    @Doc a0e0e00dd621a090de09890e14dd2ff973941eba7bb630bcd468475b4d277e7d [Scalar(String("computed")), Scalar(Boolean(True))]
   public property copy: T 2219e679e6cca3747b4a757c64076c4633d5b20b48a48239bb3de08d7962c92d delegated 1ecb7d46772ea6efbc074b6f710a16162a3ab26e3594e807a9ae4a2776f7a9be
-    @Doc a0e0e00dd621a090de09890e14dd2ff973941eba7bb630bcd468475b4d277e7d [String("delegated"), Boolean(True)]
+    @Doc a0e0e00dd621a090de09890e14dd2ff973941eba7bb630bcd468475b4d277e7d [Scalar(String("delegated")), Scalar(Boolean(True))]
   constructor Constructor(PersistentConstructorId([214, 162, 171, 99, 53, 180, 179, 104, 144, 193, 247, 234, 116, 32, 66, 51, 169, 4, 108, 209, 103, 132, 106, 131, 240, 111, 141, 212, 45, 91, 114, 105]))
     parameter seed: Int Plain
     parameter value: T Property(PersistentPropertyId([179, 1, 112, 92, 63, 63, 246, 154, 24, 254, 95, 43, 245, 187, 37, 106, 47, 68, 118, 42, 151, 163, 90, 127, 108, 216, 184, 60, 88, 89, 204, 66]))
@@ -560,14 +560,14 @@ class Row<String> GenericTemplate(PersistentGenericTypeId([110, 67, 164, 135, 27
   field cached: String Field(PersistentFieldId([72, 10, 7, 109, 174, 22, 178, 130, 81, 200, 239, 209, 240, 175, 6, 114, 130, 192, 98, 189, 78, 76, 202, 97, 196, 161, 129, 232, 108, 26, 97, 116])) PropertyBacking(PersistentPropertyId([43, 176, 139, 34, 8, 9, 169, 209, 248, 24, 135, 80, 17, 230, 171, 32, 121, 5, 179, 167, 54, 184, 6, 136, 13, 45, 153, 173, 205, 52, 63, 127]))
   field copy: Slot<String> Field(PersistentFieldId([30, 203, 125, 70, 119, 46, 166, 239, 188, 7, 75, 111, 113, 10, 22, 22, 42, 58, 178, 110, 53, 148, 232, 7, 169, 174, 74, 39, 118, 247, 169, 190])) PropertyDelegate(PersistentPropertyId([34, 25, 230, 121, 230, 204, 163, 116, 123, 74, 117, 124, 100, 7, 108, 70, 51, 213, 178, 11, 72, 164, 130, 57, 187, 61, 224, 141, 121, 98, 201, 45]))
   public property value: String b301705c3f3ff69a18fe5f2bf5bb256a2f44762a97a35a7f6cd8b83c5859cc42 stored 40f4012aa2aa2d2e82f6cae9eb4ffc3ac42d082091753135a2815d9383b47eca
-    @Doc a0e0e00dd621a090de09890e14dd2ff973941eba7bb630bcd468475b4d277e7d [String("payload"), Boolean(True)]
+    @Doc a0e0e00dd621a090de09890e14dd2ff973941eba7bb630bcd468475b4d277e7d [Scalar(String("payload")), Scalar(Boolean(True))]
   public property count: Int eecb9112519397be9735dc68cd353098ba7ef30cf197edf55c0ee837c3e2ee78 stored 625d79eba6a36c1a26d389bc004459d923af78d1d6b813e1ee6120a43a9c809e
   private property cached: String 2bb08b220809a9d1f818875011e6ab207905b3a736b806880d2d99adcd343f7f stored 480a076dae16b28251c8efd1f0af067282c062bd4e4cca61c4a181e86c1a6174
-    @Doc a0e0e00dd621a090de09890e14dd2ff973941eba7bb630bcd468475b4d277e7d [String("stored"), Boolean(True)]
+    @Doc a0e0e00dd621a090de09890e14dd2ff973941eba7bb630bcd468475b4d277e7d [Scalar(String("stored")), Scalar(Boolean(True))]
   public property size: Long fe3f43ea95a28181c56b677630948de652eeb0b4ef0e401af4e17fe2b827d09b no-field
-    @Doc a0e0e00dd621a090de09890e14dd2ff973941eba7bb630bcd468475b4d277e7d [String("computed"), Boolean(True)]
+    @Doc a0e0e00dd621a090de09890e14dd2ff973941eba7bb630bcd468475b4d277e7d [Scalar(String("computed")), Scalar(Boolean(True))]
   public property copy: String 2219e679e6cca3747b4a757c64076c4633d5b20b48a48239bb3de08d7962c92d delegated 1ecb7d46772ea6efbc074b6f710a16162a3ab26e3594e807a9ae4a2776f7a9be
-    @Doc a0e0e00dd621a090de09890e14dd2ff973941eba7bb630bcd468475b4d277e7d [String("delegated"), Boolean(True)]
+    @Doc a0e0e00dd621a090de09890e14dd2ff973941eba7bb630bcd468475b4d277e7d [Scalar(String("delegated")), Scalar(Boolean(True))]
   constructor Constructor(PersistentConstructorId([214, 162, 171, 99, 53, 180, 179, 104, 144, 193, 247, 234, 116, 32, 66, 51, 169, 4, 108, 209, 103, 132, 106, 131, 240, 111, 141, 212, 45, 91, 114, 105]))
     parameter seed: Int Plain
     parameter value: String Property(PersistentPropertyId([179, 1, 112, 92, 63, 63, 246, 154, 24, 254, 95, 43, 245, 187, 37, 106, 47, 68, 118, 42, 151, 163, 90, 127, 108, 216, 184, 60, 88, 89, 204, 66]))

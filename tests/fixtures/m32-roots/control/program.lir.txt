@@ -80,19 +80,18 @@ Module
     t1 = aggregate () : {}
     ret
   fun @scoop$1$cb$73e7d41be75b46db366abdbe49e59a1b5d6c9f30726f2487c95f67e86fe6efce(i1) -> ptr<managed>
-    local %0 $result.2: ptr<managed>
-    local %1 $call.1: ptr<managed>
-    local %2 $call.2: ptr<managed>
+    local %0 $call.1: ptr<managed>
+    local %1 $call.2: ptr<managed>
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     cbr param0 then @if.then.1 else @if.else.2
   block if.then.1
     call managed-direct-target0 sp<managed-call:1> live=[] t0 = sig=direct0 () -> ptr<managed> local-fn0()
-    store t0 -> local1
+    store t0 -> local0
     unreachable
   block if.else.2
     call managed-direct-target1 sp<managed-call:0> live=[] t1 = sig=direct1 () -> ptr<managed> local-fn0()
-    store t1 -> local2
+    store t1 -> local1
     unreachable
   fun @scoop$1$cb$47126b556e3a53c5cc84ae7b5e3a87c385988f4b97304759530985b07a72419f() -> ptr<managed>
   block entry

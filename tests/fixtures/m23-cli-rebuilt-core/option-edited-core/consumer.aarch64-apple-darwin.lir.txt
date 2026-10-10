@@ -51,8 +51,8 @@ Module
     local %18 $result.0: i1
     local %19 payload: i32
     local %20 $result.1: i1
-    local %21 $opt.2: enum0
-    local %22 $res.3: i32
+    local %21 opt: enum0
+    local %22 $result.2: i32
     local %23 $dependency.receiver: i32
     local %24 $dependency.argument.0: i32
     local %25 $dependency.parameter.other: i32
@@ -71,8 +71,8 @@ Module
     local %38 $dependency.parameter.value: enum0
     local %39 error: ptr<managed>
     local %40 $dependency.receiver: i1
-    local %41 $opt.4: enum0
-    local %42 $res.5: i32
+    local %41 opt: enum0
+    local %42 $result.3: i32
     local %43 $dependency.argument.0: enum3
     local %44 $dependency.parameter.value: enum3
     local %45 $dependency.receiver: i32

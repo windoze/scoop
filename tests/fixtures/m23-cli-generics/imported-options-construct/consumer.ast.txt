@@ -30,10 +30,10 @@ SourceFile
       WhenExpression
         Var present
         arm Some(item)
-          WhenExpression
+          when
             Var deep
             arm Some(None)
-              WhenExpression
+              when
                 Var nested
                 arm Some(Some(inner))
                   Binary Add

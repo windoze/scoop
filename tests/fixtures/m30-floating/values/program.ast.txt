@@ -42,24 +42,26 @@ SourceFile
     val singles
       Call MutableArray<Float>
         IntLiteral 130L
-        Lambda 0 suspend=false
-          param i: _
-          if
-            Binary Eq
-              Binary Rem
-                Var i
-                IntLiteral 2L
-              IntLiteral 0L
-            Var single
-          else
-            Unary Neg
-              FloatLiteral 0f
+        Argument trailing
+          Lambda 0 suspend=false
+            param i: _
+            if
+              Binary Eq
+                Binary Rem
+                  Var i
+                  IntLiteral 2L
+                IntLiteral 0L
+              Var single
+            else
+              Unary Neg
+                FloatLiteral 0f
     val doubles
       Call Array<Double>
         IntLiteral 130L
-        Lambda 1 suspend=false
-          param i: _
-          Var wide
+        Argument trailing
+          Lambda 1 suspend=false
+            param i: _
+            Var wide
     val list
       Call ArrayList<Float>
     for value

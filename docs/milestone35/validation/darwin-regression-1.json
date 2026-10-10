@@ -1,0 +1,816 @@
+{
+  "schema": 1,
+  "complete": false,
+  "discovered": 3065,
+  "selected": 89,
+  "unselected": 2976,
+  "counts": {
+    "passed": 89
+  },
+  "variants": 91,
+  "processes": 516,
+  "stage_and_plan_goldens": 868,
+  "results": [
+    {
+      "name": "argument-inference-abi",
+      "status": "passed",
+      "seconds": 153.14048483304214,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": ""
+    },
+    {
+      "name": "argument-inference-arrays",
+      "status": "passed",
+      "seconds": 151.23605570895597,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": ""
+    },
+    {
+      "name": "argument-inference-callbacks",
+      "status": "passed",
+      "seconds": 151.82997379195876,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": ""
+    },
+    {
+      "name": "argument-inference-nominals",
+      "status": "passed",
+      "seconds": 141.01435666705947,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": ""
+    },
+    {
+      "name": "argument-inference-order",
+      "status": "passed",
+      "seconds": 150.1333080000477,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": ""
+    },
+    {
+      "name": "argument-inference-overloads",
+      "status": "passed",
+      "seconds": 139.82447329198476,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": ""
+    },
+    {
+      "name": "argument-inference-shared-fixed-point",
+      "status": "passed",
+      "seconds": 27.471919458941557,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": ""
+    },
+    {
+      "name": "argument-inference-shared-mapping",
+      "status": "passed",
+      "seconds": 24.170780459069647,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": ""
+    },
+    {
+      "name": "array-construction-abi",
+      "status": "passed",
+      "seconds": 21.799018583027646,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": ""
+    },
+    {
+      "name": "cli-edited-core-root-artifact-consumer",
+      "status": "passed",
+      "seconds": 93.77838324999902,
+      "variants": 1,
+      "processes": 6,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "cli-process-source-observations",
+      "status": "passed",
+      "seconds": 112.43109241698403,
+      "variants": 1,
+      "processes": 8,
+      "snapshots": 4,
+      "message": ""
+    },
+    {
+      "name": "core-dependencies-core-local",
+      "status": "passed",
+      "seconds": 96.47033512499183,
+      "variants": 1,
+      "processes": 5,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-base",
+      "status": "passed",
+      "seconds": 77.16921100008767,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-combined",
+      "status": "passed",
+      "seconds": 95.4311826248886,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-heap-zst-storage",
+      "status": "passed",
+      "seconds": 94.03426612506155,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-ordinary",
+      "status": "passed",
+      "seconds": 74.41839891695417,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-ordinary-consumer",
+      "status": "passed",
+      "seconds": 72.53773637500126,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-property-initialization-provider",
+      "status": "passed",
+      "seconds": 70.28446333308239,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-shared-abi-combined",
+      "status": "passed",
+      "seconds": 71.46474899991881,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-shared-abi-standalone",
+      "status": "passed",
+      "seconds": 66.24396820901893,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-shared-accessors-combined",
+      "status": "passed",
+      "seconds": 66.02462358295452,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-shared-accessors-standalone",
+      "status": "passed",
+      "seconds": 80.1035155840218,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-shared-aliases-combined",
+      "status": "passed",
+      "seconds": 81.84493754105642,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-shared-aliases-standalone",
+      "status": "passed",
+      "seconds": 82.64285633410327,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-shared-callables-combined",
+      "status": "passed",
+      "seconds": 94.68782433401793,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-shared-callables-standalone",
+      "status": "passed",
+      "seconds": 85.67889583308715,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-shared-constructors-combined",
+      "status": "passed",
+      "seconds": 105.30354266695213,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-shared-constructors-standalone",
+      "status": "passed",
+      "seconds": 88.60512208298314,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-shared-digests-combined",
+      "status": "passed",
+      "seconds": 97.31628941593226,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-shared-digests-standalone",
+      "status": "passed",
+      "seconds": 86.09275424992666,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-shared-dispatch-combined",
+      "status": "passed",
+      "seconds": 119.2226604160387,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-shared-dispatch-standalone",
+      "status": "passed",
+      "seconds": 106.89243704092223,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-shared-equality-combined",
+      "status": "passed",
+      "seconds": 118.21608362498228,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-shared-equality-standalone",
+      "status": "passed",
+      "seconds": 108.41601408401038,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-shared-init-abi-combined",
+      "status": "passed",
+      "seconds": 113.67298429098446,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-shared-init-abi-standalone",
+      "status": "passed",
+      "seconds": 103.22632512496784,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-shared-layouts-combined",
+      "status": "passed",
+      "seconds": 120.5969519589562,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-shared-layouts-standalone",
+      "status": "passed",
+      "seconds": 109.61001729196869,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-shared-lir-dispatch-combined",
+      "status": "passed",
+      "seconds": 122.17544875002932,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-shared-lir-dispatch-standalone",
+      "status": "passed",
+      "seconds": 112.33537849993445,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-shared-mir-combined",
+      "status": "passed",
+      "seconds": 116.6828922079876,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-shared-mir-standalone",
+      "status": "passed",
+      "seconds": 103.7424275840167,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-shared-objects-combined",
+      "status": "passed",
+      "seconds": 124.71196266706102,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-shared-objects-standalone",
+      "status": "passed",
+      "seconds": 109.22519608400762,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-shared-ordinary-combined",
+      "status": "passed",
+      "seconds": 120.73011429200415,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-shared-ordinary-standalone",
+      "status": "passed",
+      "seconds": 106.36522220901679,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-shared-production-combined",
+      "status": "passed",
+      "seconds": 122.62823041598313,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-shared-production-standalone",
+      "status": "passed",
+      "seconds": 111.01108508300968,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-shared-shapes-combined",
+      "status": "passed",
+      "seconds": 119.44934987497982,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-shared-shapes-standalone",
+      "status": "passed",
+      "seconds": 110.28925387503114,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-shared-td-combined",
+      "status": "passed",
+      "seconds": 132.7734747090144,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-shared-td-standalone",
+      "status": "passed",
+      "seconds": 120.82482616603374,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-shared-units-combined",
+      "status": "passed",
+      "seconds": 117.272596374969,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-shared-units-standalone",
+      "status": "passed",
+      "seconds": 112.86604824999813,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-layouts-standalone",
+      "status": "passed",
+      "seconds": 100.95975824992638,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-library-publication-core",
+      "status": "passed",
+      "seconds": 205.69757875008509,
+      "variants": 1,
+      "processes": 6,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-library-publication-ordinary",
+      "status": "passed",
+      "seconds": 63.93989266699646,
+      "variants": 1,
+      "processes": 8,
+      "snapshots": 12,
+      "message": ""
+    },
+    {
+      "name": "core-nominals-dispatch-varargs",
+      "status": "passed",
+      "seconds": 253.14341904199682,
+      "variants": 1,
+      "processes": 6,
+      "snapshots": 12,
+      "message": ""
+    },
+    {
+      "name": "core-nominals-nominal-varargs",
+      "status": "passed",
+      "seconds": 234.74785683304071,
+      "variants": 1,
+      "processes": 6,
+      "snapshots": 12,
+      "message": ""
+    },
+    {
+      "name": "core-nominals-storage-roots",
+      "status": "passed",
+      "seconds": 265.74533416703343,
+      "variants": 1,
+      "processes": 6,
+      "snapshots": 12,
+      "message": ""
+    },
+    {
+      "name": "core-operations-equality-combined",
+      "status": "passed",
+      "seconds": 151.58853608299978,
+      "variants": 1,
+      "processes": 5,
+      "snapshots": 4,
+      "message": ""
+    },
+    {
+      "name": "core-operations-members-equality-pattern-overflow",
+      "status": "passed",
+      "seconds": 3.910249250009656,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "core-operations-members-equality-patterns",
+      "status": "passed",
+      "seconds": 19.525344374938868,
+      "variants": 1,
+      "processes": 6,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "core-values-prelude",
+      "status": "passed",
+      "seconds": 138.56397570797708,
+      "variants": 1,
+      "processes": 5,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "coroutines-closure-finally",
+      "status": "passed",
+      "seconds": 111.2772822920233,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": ""
+    },
+    {
+      "name": "coroutines-failure-finally",
+      "status": "passed",
+      "seconds": 95.50123154197354,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": ""
+    },
+    {
+      "name": "coroutines-function-values",
+      "status": "passed",
+      "seconds": 109.16228679101914,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": ""
+    },
+    {
+      "name": "coroutines-immediate",
+      "status": "passed",
+      "seconds": 77.42702479206491,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": ""
+    },
+    {
+      "name": "coroutines-lifecycle",
+      "status": "passed",
+      "seconds": 159.22663487505633,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": ""
+    },
+    {
+      "name": "coroutines-suspension",
+      "status": "passed",
+      "seconds": 87.60068883304484,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": ""
+    },
+    {
+      "name": "coroutines-value-task",
+      "status": "passed",
+      "seconds": 91.4702025000006,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": ""
+    },
+    {
+      "name": "default-access-type-access-pointers",
+      "status": "passed",
+      "seconds": 161.78432579198852,
+      "variants": 1,
+      "processes": 5,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "default-properties-nominals",
+      "status": "passed",
+      "seconds": 52.41451050003525,
+      "variants": 1,
+      "processes": 6,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "evaluation-order-float-nothing-combined",
+      "status": "passed",
+      "seconds": 48.0452428329736,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 4,
+      "message": ""
+    },
+    {
+      "name": "evaluation-order-identity-control-flow",
+      "status": "passed",
+      "seconds": 44.15725329203997,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 4,
+      "message": ""
+    },
+    {
+      "name": "fact-providers-combined",
+      "status": "passed",
+      "seconds": 52.82292937499005,
+      "variants": 1,
+      "processes": 7,
+      "snapshots": 12,
+      "message": ""
+    },
+    {
+      "name": "finite-mir-types-combined",
+      "status": "passed",
+      "seconds": 243.2204085829435,
+      "variants": 1,
+      "processes": 6,
+      "snapshots": 12,
+      "message": ""
+    },
+    {
+      "name": "finite-mir-types-values",
+      "status": "passed",
+      "seconds": 151.12427312508225,
+      "variants": 1,
+      "processes": 5,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "function-adapters-dynamic",
+      "status": "passed",
+      "seconds": 72.14723333308939,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": ""
+    },
+    {
+      "name": "generic-arrays-abi",
+      "status": "passed",
+      "seconds": 78.21070287504699,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": ""
+    },
+    {
+      "name": "generic-arrays-basic",
+      "status": "passed",
+      "seconds": 65.21190158301033,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": ""
+    },
+    {
+      "name": "generic-arrays-bounds",
+      "status": "passed",
+      "seconds": 69.79082295892294,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": ""
+    },
+    {
+      "name": "generic-arrays-iteration",
+      "status": "passed",
+      "seconds": 63.4811543750111,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": ""
+    },
+    {
+      "name": "generic-arrays-order",
+      "status": "passed",
+      "seconds": 61.877172917011194,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": ""
+    },
+    {
+      "name": "generic-delegate-consumption-consumer",
+      "status": "passed",
+      "seconds": 55.39535012491979,
+      "variants": 1,
+      "processes": 14,
+      "snapshots": 14,
+      "message": ""
+    },
+    {
+      "name": "generic-shapes-nominals-combined",
+      "status": "passed",
+      "seconds": 52.53755683300551,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": ""
+    },
+    {
+      "name": "generic-shapes-nominals-standalone",
+      "status": "passed",
+      "seconds": 53.05638654192444,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": ""
+    },
+    {
+      "name": "global-state-enum-state",
+      "status": "passed",
+      "seconds": 57.61466158297844,
+      "variants": 1,
+      "processes": 12,
+      "snapshots": 14,
+      "message": ""
+    },
+    {
+      "name": "implicit-array-capability-combined",
+      "status": "passed",
+      "seconds": 43.240065291989595,
+      "variants": 1,
+      "processes": 6,
+      "snapshots": 8,
+      "message": ""
+    }
+  ]
+}

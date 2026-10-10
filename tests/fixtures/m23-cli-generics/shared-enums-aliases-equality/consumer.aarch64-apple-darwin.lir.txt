@@ -17,11 +17,11 @@ Module
     local %13 payload: i32
     local %14 amount: i32
     local %15 payload: i32
-    local %16 $dependency.receiver: i32
-    local %17 $dependency.argument.0: i32
-    local %18 $dependency.parameter.other: i32
-    local %19 payload: i32
-    local %20 amount: i32
+    local %16 payload: i32
+    local %17 amount: i32
+    local %18 $dependency.receiver: i32
+    local %19 $dependency.argument.0: i32
+    local %20 $dependency.parameter.other: i32
     local %21 $dependency.receiver: i32
     local %22 $dependency.argument.0: i32
     local %23 $dependency.parameter.other: i32
@@ -109,10 +109,10 @@ Module
     store t13 -> local15
     t14 = variant_payload_project e0 v2 f1 local33 : i32
     store t14 -> local14
-    store local15 -> local16
-    store local14 -> local17
-    store local17 -> local18
-    t15 = integer_Add<Int> local16, local18 : i32
+    store local15 -> local18
+    store local14 -> local19
+    store local19 -> local20
+    t15 = integer_Add<Int> local18, local20 : i32
     store t15 -> local24
     br @pattern.merge.13
   block pattern.else.12
@@ -123,11 +123,11 @@ Module
     br @pattern.merge.10
   block pattern.pass.14
     t17 = variant_payload_project e0 v3 f0 local34 : i32
-    store t17 -> local19
+    store t17 -> local16
     t18 = variant_payload_project e0 v3 f1 local34 : i32
-    store t18 -> local20
-    store local19 -> local21
-    store local20 -> local22
+    store t18 -> local17
+    store local16 -> local21
+    store local17 -> local22
     store local22 -> local23
     t19 = integer_Add<Int> local21, local23 : i32
     store t19 -> local24

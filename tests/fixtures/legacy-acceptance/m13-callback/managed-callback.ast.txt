@@ -130,12 +130,12 @@ SourceFile
                 Var payloads
                 IntLiteral 0
               arm Text(saved)
-                IfExpression
+                if
                   Binary Eq
                     Var saved
                     Var text
                   Var value
-                  else
+                else
                   Unary Neg
                     IntLiteral 100
               arm Empty

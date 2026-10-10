@@ -63,16 +63,16 @@ Module
   fun @scoop$1$cb$f376cc719215392d039b92216b27309fc9c61daabb073d0fe3cbe0c4a01f63eb(indirect<enum3 size=24 align=8 scan=none>) -> i64 <no-gc>
     local %0 left: i64
     local %1 right: i64
-    local %2 $dependency.receiver: i64
-    local %3 $dependency.argument.0: i64
-    local %4 $dependency.parameter.other: i64
-    local %5 left: i64
-    local %6 right: i64
-    local %7 $dependency.receiver: i64
-    local %8 $dependency.argument.0: i64
-    local %9 $dependency.parameter.other: i64
-    local %10 left: i64
-    local %11 right: i64
+    local %2 left: i64
+    local %3 right: i64
+    local %4 left: i64
+    local %5 right: i64
+    local %6 $dependency.receiver: i64
+    local %7 $dependency.argument.0: i64
+    local %8 $dependency.parameter.other: i64
+    local %9 $dependency.receiver: i64
+    local %10 $dependency.argument.0: i64
+    local %11 $dependency.parameter.other: i64
     local %12 $dependency.receiver: i64
     local %13 $dependency.argument.0: i64
     local %14 $dependency.parameter.other: i64
@@ -101,10 +101,10 @@ Module
     store t2 -> local0
     t3 = variant_payload_project e3 v1 f2 local18 : i64
     store t3 -> local1
-    store local0 -> local2
-    store local1 -> local3
-    store local3 -> local4
-    t4 = integer_Add<Long> local2, local4 : i64
+    store local0 -> local6
+    store local1 -> local7
+    store local7 -> local8
+    t4 = integer_Add<Long> local6, local8 : i64
     store t4 -> local15
     br @pattern.merge.6
   block pattern.else.5
@@ -115,13 +115,13 @@ Module
     br @pattern.merge.3
   block pattern.pass.7
     t6 = variant_payload_project e3 v2 f0 local19 : i64
-    store t6 -> local5
+    store t6 -> local2
     t7 = variant_payload_project e3 v2 f2 local19 : i64
-    store t7 -> local6
-    store local5 -> local7
-    store local6 -> local8
-    store local8 -> local9
-    t8 = integer_Add<Long> local7, local9 : i64
+    store t7 -> local3
+    store local2 -> local9
+    store local3 -> local10
+    store local10 -> local11
+    t8 = integer_Add<Long> local9, local11 : i64
     store t8 -> local15
     br @pattern.merge.9
   block pattern.else.8
@@ -132,11 +132,11 @@ Module
     br @pattern.merge.6
   block pattern.pass.10
     t10 = variant_payload_project e3 v3 f0 local20 : i64
-    store t10 -> local10
+    store t10 -> local4
     t11 = variant_payload_project e3 v3 f2 local20 : i64
-    store t11 -> local11
-    store local10 -> local12
-    store local11 -> local13
+    store t11 -> local5
+    store local4 -> local12
+    store local5 -> local13
     store local13 -> local14
     t12 = integer_Add<Long> local12, local14 : i64
     store t12 -> local15

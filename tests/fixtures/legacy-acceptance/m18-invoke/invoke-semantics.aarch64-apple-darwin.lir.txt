@@ -215,8 +215,8 @@ Module
     local %64 $argument.0: i32
     local %65 $argument.1: ptr<managed>
     local %66 $parameter.value: i32
-    local %67 $parameter.transform: ptr<managed>
-    local %68 $parameter.suffix: ptr<managed>
+    local %67 $parameter.suffix: ptr<managed>
+    local %68 $parameter.transform: ptr<managed>
     local %69 $dependency.argument.0: ptr<managed>
     local %70 $dependency.parameter.value: ptr<managed>
     local %71 collector: struct5 <logical-zst 58e8c0aa3b8bb3d08a8321eec94e4edccd1a97872613008c888dbd7c1563e4ae>
@@ -373,8 +373,8 @@ Module
     heap_store t29 +16 t30
     store t29 -> local65
     store local64 -> local66
-    store local65 -> local67
-    store global12 -> local68
+    store global12 -> local67
+    store local65 -> local68
     call managed-direct-target13 sp<managed-call:24> live=[local67:ptr<managed>@0, local68:ptr<managed>@0] t31 = sig=direct14 (elided-zst<struct4 size=0 align=1>, i32, ptr<managed>, ptr<managed>) -> ptr<managed> local-fn17(elided-zst local63, local66, local67, local68)
     store t31 -> local69
     store local69 -> local70
@@ -554,16 +554,16 @@ Module
     call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (i32) -> ptr<managed> external-fn0(local0)
     store t0 -> local1
     ret local1
-  fun @scoop$1$cb$23349eb6095b0f1da78ec2c45998aa950edc8f989c353947032aa59ad7a0e059(elided-zst<struct4 size=0 align=1>, i32, ptr<managed>, ptr<managed>) -> ptr<managed>
+  fun @scoop$1$cb$45003a3516f5c90c1a88a57ab98b44d75468b1647627957aa298721cee3d62ec(elided-zst<struct4 size=0 align=1>, i32, ptr<managed>, ptr<managed>) -> ptr<managed>
     local %0 $dependency.receiver: ptr<managed>
     local %1 $dependency.argument.0: ptr<managed>
     local %2 $dependency.parameter.other: ptr<managed>
     local %3 $call.1: ptr<managed>
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param2:ptr<managed>@0, param3:ptr<managed>@0]
-    call managed-direct-target0 sp<managed-call:0> live=[param2:ptr<managed>@0, param3:ptr<managed>@0] t0 = sig=direct0 (ptr<managed>, i32) -> ptr<managed> dispatch[Closure:2] param2(param2, param1)
+    call managed-direct-target0 sp<managed-call:0> live=[param2:ptr<managed>@0, param3:ptr<managed>@0] t0 = sig=direct0 (ptr<managed>, i32) -> ptr<managed> dispatch[Closure:2] param3(param3, param1)
     store t0 -> local0
-    store param3 -> local1
+    store param2 -> local1
     store local1 -> local2
     call managed-direct-target1 sp<managed-call:1> live=[local0:ptr<managed>@0, local2:ptr<managed>@0] t1 = sig=direct1 (ptr<managed>, ptr<managed>) -> ptr<managed> runtime @scoop_rt_string_concat(local0, local2)
     store t1 -> local3

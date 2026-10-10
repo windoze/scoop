@@ -382,21 +382,21 @@ Module
         VariantPayloadProject Option<Later> v0 f0
           Type Option<Later>
           Local $pattern.4
-      val $dependency.local.22: Choice<Later>
+      val $dependency.local.23: Choice<Later>
         Type Choice<Later>
         Local $dependency.local.20
-      val $dependency.local.23: Later
+      val $dependency.local.24: Later
         Type Later
         Local $dependency.local.21
-      val $dependency.local.24: Choice<Later>
+      val $dependency.local.25: Choice<Later>
         Type Choice<Later>
-        Local $dependency.local.22
-      val $dependency.local.25: Later
-        Type Later
         Local $dependency.local.23
+      val $dependency.local.26: Later
+        Type Later
+        Local $dependency.local.24
       val $when.5: Choice<Later>
         Type Choice<Later>
-        Local $dependency.local.24
+        Local $dependency.local.25
       val $pattern.subject.6: Choice<Later>
         Type Choice<Later>
         Local $when.5
@@ -417,9 +417,9 @@ Module
     bb7 pattern.merge.7
       goto bb3
     bb8 pattern.pass.8
-      assign $dependency.local.29
+      assign $dependency.local.30
         Type Later
-        Local $dependency.local.25
+        Local $dependency.local.26
       goto bb10
     bb9 pattern.else.9
       val $pattern.subject.7: Choice<Later>
@@ -431,29 +431,29 @@ Module
           Type Choice<Later>
           Local $pattern.subject.7
     bb10 pattern.merge.10
-      val $dependency.local.30: Later
-        Type Later
-        Local $dependency.local.29
-      call $call.1: Later = @fn7 direct
-        Type Choice<Later>
-        Local $dependency.local.24
-        Type Later
-        Local $dependency.local.25
+      val $dependency.local.31: Later
         Type Later
         Local $dependency.local.30
+      call $call.1: Later = @fn7 direct
+        Type Choice<Later>
+        Local $dependency.local.25
+        Type Later
+        Local $dependency.local.26
+        Type Later
+        Local $dependency.local.31
       assign $dependency.local.41
         Type Later
         Local $call.1
       goto bb7
     bb11 pattern.pass.11
-      val $dependency.local.26: Later
+      val $dependency.local.27: Later
         Type Later
         VariantPayloadProject Choice<Later> v1 f0
           Type Choice<Later>
           Local $pattern.subject.7
-      assign $dependency.local.29
+      assign $dependency.local.30
         Type Later
-        Local $dependency.local.26
+        Local $dependency.local.27
       goto bb13
     bb12 pattern.else.12
       val $pattern.subject.8: Choice<Later>
@@ -467,14 +467,14 @@ Module
     bb13 pattern.merge.13
       goto bb10
     bb14 pattern.pass.14
-      val $dependency.local.27: Later
+      val $dependency.local.28: Later
         Type Later
         VariantPayloadProject Choice<Later> v2 f0
           Type Choice<Later>
           Local $pattern.subject.8
-      assign $dependency.local.29
+      assign $dependency.local.30
         Type Later
-        Local $dependency.local.27
+        Local $dependency.local.28
       goto bb16
     bb15 pattern.else.15
       val $pattern.subject.9: Choice<Later>
@@ -488,14 +488,14 @@ Module
     bb16 pattern.merge.16
       goto bb13
     bb17 pattern.pass.17
-      val $dependency.local.28: Later
+      val $dependency.local.29: Later
         Type Later
         VariantPayloadProject Choice<Later> v3 f0
           Type Choice<Later>
           Local $pattern.subject.9
-      assign $dependency.local.29
+      assign $dependency.local.30
         Type Later
-        Local $dependency.local.28
+        Local $dependency.local.29
       goto bb19
     bb18 pattern.else.18
       unreachable
@@ -513,14 +513,14 @@ Module
           Type Option<Later>
           Local $pattern.11
     bb21 pattern.pass.21
-      val $dependency.local.31: Choice<Later>
+      val $dependency.local.22: Choice<Later>
         Type Choice<Later>
         VariantPayloadProject Carrier<Later> v1 f0
           Type Carrier<Later>
           Local $pattern.subject.10
       val $dependency.local.32: Choice<Later>
         Type Choice<Later>
-        Local $dependency.local.31
+        Local $dependency.local.22
       val $dependency.local.33: Later
         Type Later
         Local $dependency.local.19
@@ -936,21 +936,21 @@ Module
         VariantPayloadProject Option<Int> v0 f0
           Type Option<Int>
           Local $pattern.4
-      val $dependency.local.22: Choice<Int>
+      val $dependency.local.23: Choice<Int>
         Type Choice<Int>
         Local $dependency.local.20
-      val $dependency.local.23: Int
+      val $dependency.local.24: Int
         Type Int
         Local $dependency.local.21
-      val $dependency.local.24: Choice<Int>
+      val $dependency.local.25: Choice<Int>
         Type Choice<Int>
-        Local $dependency.local.22
-      val $dependency.local.25: Int
-        Type Int
         Local $dependency.local.23
+      val $dependency.local.26: Int
+        Type Int
+        Local $dependency.local.24
       val $when.5: Choice<Int>
         Type Choice<Int>
-        Local $dependency.local.24
+        Local $dependency.local.25
       val $pattern.subject.6: Choice<Int>
         Type Choice<Int>
         Local $when.5
@@ -971,9 +971,9 @@ Module
     bb7 pattern.merge.7
       goto bb3
     bb8 pattern.pass.8
-      assign $dependency.local.29
+      assign $dependency.local.30
         Type Int
-        Local $dependency.local.25
+        Local $dependency.local.26
       goto bb10
     bb9 pattern.else.9
       val $pattern.subject.7: Choice<Int>
@@ -985,29 +985,29 @@ Module
           Type Choice<Int>
           Local $pattern.subject.7
     bb10 pattern.merge.10
-      val $dependency.local.30: Int
-        Type Int
-        Local $dependency.local.29
-      call $call.1: Int = @fn9 direct
-        Type Choice<Int>
-        Local $dependency.local.24
-        Type Int
-        Local $dependency.local.25
+      val $dependency.local.31: Int
         Type Int
         Local $dependency.local.30
+      call $call.1: Int = @fn9 direct
+        Type Choice<Int>
+        Local $dependency.local.25
+        Type Int
+        Local $dependency.local.26
+        Type Int
+        Local $dependency.local.31
       assign $dependency.local.41
         Type Int
         Local $call.1
       goto bb7
     bb11 pattern.pass.11
-      val $dependency.local.26: Int
+      val $dependency.local.27: Int
         Type Int
         VariantPayloadProject Choice<Int> v1 f0
           Type Choice<Int>
           Local $pattern.subject.7
-      assign $dependency.local.29
+      assign $dependency.local.30
         Type Int
-        Local $dependency.local.26
+        Local $dependency.local.27
       goto bb13
     bb12 pattern.else.12
       val $pattern.subject.8: Choice<Int>
@@ -1021,14 +1021,14 @@ Module
     bb13 pattern.merge.13
       goto bb10
     bb14 pattern.pass.14
-      val $dependency.local.27: Int
+      val $dependency.local.28: Int
         Type Int
         VariantPayloadProject Choice<Int> v2 f0
           Type Choice<Int>
           Local $pattern.subject.8
-      assign $dependency.local.29
+      assign $dependency.local.30
         Type Int
-        Local $dependency.local.27
+        Local $dependency.local.28
       goto bb16
     bb15 pattern.else.15
       val $pattern.subject.9: Choice<Int>
@@ -1042,14 +1042,14 @@ Module
     bb16 pattern.merge.16
       goto bb13
     bb17 pattern.pass.17
-      val $dependency.local.28: Int
+      val $dependency.local.29: Int
         Type Int
         VariantPayloadProject Choice<Int> v3 f0
           Type Choice<Int>
           Local $pattern.subject.9
-      assign $dependency.local.29
+      assign $dependency.local.30
         Type Int
-        Local $dependency.local.28
+        Local $dependency.local.29
       goto bb19
     bb18 pattern.else.18
       unreachable
@@ -1067,14 +1067,14 @@ Module
           Type Option<Int>
           Local $pattern.11
     bb21 pattern.pass.21
-      val $dependency.local.31: Choice<Int>
+      val $dependency.local.22: Choice<Int>
         Type Choice<Int>
         VariantPayloadProject Carrier<Int> v1 f0
           Type Carrier<Int>
           Local $pattern.subject.10
       val $dependency.local.32: Choice<Int>
         Type Choice<Int>
-        Local $dependency.local.31
+        Local $dependency.local.22
       val $dependency.local.33: Int
         Type Int
         Local $dependency.local.19
@@ -1490,21 +1490,21 @@ Module
         VariantPayloadProject Option<Unit> v0 f0
           Type Option<Unit>
           Local $pattern.4
-      val $dependency.local.22: Choice<Unit>
+      val $dependency.local.23: Choice<Unit>
         Type Choice<Unit>
         Local $dependency.local.20
-      val $dependency.local.23: Unit
+      val $dependency.local.24: Unit
         Type Unit
         Local $dependency.local.21
-      val $dependency.local.24: Choice<Unit>
+      val $dependency.local.25: Choice<Unit>
         Type Choice<Unit>
-        Local $dependency.local.22
-      val $dependency.local.25: Unit
-        Type Unit
         Local $dependency.local.23
+      val $dependency.local.26: Unit
+        Type Unit
+        Local $dependency.local.24
       val $when.5: Choice<Unit>
         Type Choice<Unit>
-        Local $dependency.local.24
+        Local $dependency.local.25
       val $pattern.subject.6: Choice<Unit>
         Type Choice<Unit>
         Local $when.5
@@ -1525,9 +1525,9 @@ Module
     bb7 pattern.merge.7
       goto bb3
     bb8 pattern.pass.8
-      assign $dependency.local.29
+      assign $dependency.local.30
         Type Unit
-        Local $dependency.local.25
+        Local $dependency.local.26
       goto bb10
     bb9 pattern.else.9
       val $pattern.subject.7: Choice<Unit>
@@ -1539,29 +1539,29 @@ Module
           Type Choice<Unit>
           Local $pattern.subject.7
     bb10 pattern.merge.10
-      val $dependency.local.30: Unit
-        Type Unit
-        Local $dependency.local.29
-      call @fn11 direct
-        Type Choice<Unit>
-        Local $dependency.local.24
-        Type Unit
-        Local $dependency.local.25
+      val $dependency.local.31: Unit
         Type Unit
         Local $dependency.local.30
+      call @fn11 direct
+        Type Choice<Unit>
+        Local $dependency.local.25
+        Type Unit
+        Local $dependency.local.26
+        Type Unit
+        Local $dependency.local.31
       assign $dependency.local.41
         Type Unit
         UnitLiteral
       goto bb7
     bb11 pattern.pass.11
-      val $dependency.local.26: Unit
+      val $dependency.local.27: Unit
         Type Unit
         VariantPayloadProject Choice<Unit> v1 f0
           Type Choice<Unit>
           Local $pattern.subject.7
-      assign $dependency.local.29
+      assign $dependency.local.30
         Type Unit
-        Local $dependency.local.26
+        Local $dependency.local.27
       goto bb13
     bb12 pattern.else.12
       val $pattern.subject.8: Choice<Unit>
@@ -1575,14 +1575,14 @@ Module
     bb13 pattern.merge.13
       goto bb10
     bb14 pattern.pass.14
-      val $dependency.local.27: Unit
+      val $dependency.local.28: Unit
         Type Unit
         VariantPayloadProject Choice<Unit> v2 f0
           Type Choice<Unit>
           Local $pattern.subject.8
-      assign $dependency.local.29
+      assign $dependency.local.30
         Type Unit
-        Local $dependency.local.27
+        Local $dependency.local.28
       goto bb16
     bb15 pattern.else.15
       val $pattern.subject.9: Choice<Unit>
@@ -1596,14 +1596,14 @@ Module
     bb16 pattern.merge.16
       goto bb13
     bb17 pattern.pass.17
-      val $dependency.local.28: Unit
+      val $dependency.local.29: Unit
         Type Unit
         VariantPayloadProject Choice<Unit> v3 f0
           Type Choice<Unit>
           Local $pattern.subject.9
-      assign $dependency.local.29
+      assign $dependency.local.30
         Type Unit
-        Local $dependency.local.28
+        Local $dependency.local.29
       goto bb19
     bb18 pattern.else.18
       unreachable
@@ -1621,14 +1621,14 @@ Module
           Type Option<Unit>
           Local $pattern.11
     bb21 pattern.pass.21
-      val $dependency.local.31: Choice<Unit>
+      val $dependency.local.22: Choice<Unit>
         Type Choice<Unit>
         VariantPayloadProject Carrier<Unit> v1 f0
           Type Carrier<Unit>
           Local $pattern.subject.10
       val $dependency.local.32: Choice<Unit>
         Type Choice<Unit>
-        Local $dependency.local.31
+        Local $dependency.local.22
       val $dependency.local.33: Unit
         Type Unit
         Local $dependency.local.19

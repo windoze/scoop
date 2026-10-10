@@ -466,25 +466,25 @@ Module
         Unbox
           Type Any
           Local $cast.4
-      val $binding.subject.1: (Node, Node)
+      val $binding.subject.0: (Node, Node)
         Type (Node, Node)
         Local $ub.5
-      val $binding.projection.2: Node
+      val $binding.projection.1: Node
         Type Node
         FieldAccess 0
           Type (Node, Node)
-          Local $binding.subject.1
+          Local $binding.subject.0
       val first: Node
         Type Node
-        Local $binding.projection.2
-      val $binding.projection.3: Node
+        Local $binding.projection.1
+      val $binding.projection.2: Node
         Type Node
         FieldAccess 1
           Type (Node, Node)
-          Local $binding.subject.1
+          Local $binding.subject.0
       val second: Node
         Type Node
-        Local $binding.projection.3
+        Local $binding.projection.2
       val $dependency.receiver: Long
         Type Long
         FieldAccess 0
@@ -600,7 +600,7 @@ Module
         VariantPayloadProject Item v0 f0
           Type Item
           Local $pattern.subject.11
-      assign $result.4
+      assign $result.3
         Type Long
         FieldAccess 0
           Type Node
@@ -618,7 +618,7 @@ Module
     bb29 pattern.merge.29 unwind bb1
       val $dependency.argument.0: Long
         Type Long
-        Local $result.4
+        Local $result.3
       val $dependency.parameter.value: Long
         Type Long
         Local $dependency.argument.0
@@ -627,7 +627,7 @@ Module
         Local $dependency.parameter.value
       goto bb33
     bb30 pattern.pass.30 unwind bb1
-      assign $result.4
+      assign $result.3
         Type Long
         IntegerLiteral Long value=0 bits=0x0000000000000000
       goto bb32

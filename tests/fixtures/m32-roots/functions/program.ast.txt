@@ -98,9 +98,10 @@ SourceFile
     val generated
       Call Array<Nothing>
         IntLiteral 0L
-        Lambda 0 suspend=false
-          param _: _
-          Call fail
+        Argument trailing
+          Lambda 0 suspend=false
+            param _: _
+            Call fail
     Call println
       FieldAccess size
         Var generated

@@ -7,16 +7,20 @@ open class Animal(val name: String) {}
 
 class Dog : Animal("dog") {}
 
-fun branchReturn(flag: Boolean): Int = if (flag) {
-    return 11
-} else {
-    12
+fun branchReturn(flag: Boolean): Int {
+    return if (flag) {
+        return 11
+    } else {
+        12
+    }
 }
 
-fun finallyReturn(): Int = try {
-    1
-} finally {
-    return 13
+fun finallyReturn(): Int {
+    return try {
+        1
+    } finally {
+        return 13
+    }
 }
 
 fun main() {

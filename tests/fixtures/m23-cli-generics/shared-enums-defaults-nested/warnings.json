@@ -5,10 +5,10 @@
     "notes": [],
     "origin": {
       "cone": "7674a5471da3124d5962bac60825b64a9dc3019b2954a1ef113f84ad1da5e4c3",
-      "end": 231,
+      "end": 241,
       "kind": "source",
       "path": "src/main.scoop",
-      "start": 225
+      "start": 235
     },
     "severity": "warning"
   },
@@ -18,10 +18,10 @@
     "notes": [],
     "origin": {
       "cone": "7674a5471da3124d5962bac60825b64a9dc3019b2954a1ef113f84ad1da5e4c3",
-      "end": 296,
+      "end": 311,
       "kind": "source",
       "path": "src/main.scoop",
-      "start": 290
+      "start": 305
     },
     "severity": "warning"
   }

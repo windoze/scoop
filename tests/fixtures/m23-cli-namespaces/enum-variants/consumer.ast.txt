@@ -10,13 +10,13 @@ SourceFile
       WhenExpression
         Var tagged
         arm Present(item)
-          IfExpression
+          if
             Binary Eq
               Call read
                 Var item
               IntLiteral 42
             IntLiteral 42
-            else
+          else
             IntLiteral 0
         arm Missing
           IntLiteral 0

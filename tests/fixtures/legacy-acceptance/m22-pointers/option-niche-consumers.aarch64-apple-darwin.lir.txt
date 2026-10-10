@@ -10,8 +10,8 @@ Module
   enum Option niche(kind=raw,payload_variant=0)
   enum Option niche(kind=code,payload_variant=0)
   fun @scoop$1$cb$a98cb318573d51f85aa9ef80db0694057754b07455bbb3e34f001b32e423f84e(parts<enum2 [[2xi64]@0+16/8]>, i32) -> i32
-    local %0 $opt.0: enum2
-    local %1 $res.1: i32
+    local %0 opt: enum2
+    local %1 $result.0: i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     store param0 -> local0
@@ -27,8 +27,8 @@ Module
   block if.merge.3
     ret local1
   fun @scoop$1$cb$1e8f67b4089e779ee364358647aba2cb4da9424c220f6beb8f115429ea7754d7(enum0, ptr<managed>) -> ptr<managed>
-    local %0 $opt.2: enum0
-    local %1 $res.3: ptr<managed>
+    local %0 opt: enum0
+    local %1 $result.1: ptr<managed>
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:enum0@0, param1:ptr<managed>@0]
     store param0 -> local0

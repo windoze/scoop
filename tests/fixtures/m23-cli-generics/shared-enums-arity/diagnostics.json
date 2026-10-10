@@ -5,10 +5,10 @@
     "notes": [],
     "origin": {
       "cone": "e5bede29f9e8dba2095812f4b291c6633ee8da0837e2715bf13a96f8477e4b30",
-      "end": 113,
+      "end": 118,
       "kind": "source",
       "path": "src/main.scoop",
-      "start": 94
+      "start": 99
     },
     "severity": "error"
   }

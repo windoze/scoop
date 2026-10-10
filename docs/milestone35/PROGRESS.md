@@ -11,7 +11,7 @@
 | M35-3 跳转与 Elvis | 已完成 | return/throw 表达式与合法返回目标；Elvis 正常结果合并；23 个定向 CLI 用例严格通过 |
 | M35-4 完整尾随调用 | 已完成 | 分组/换行后缀、最后形参映射、所有调用入口；21 个新 CLI fixture 严格通过 |
 | M35-5 注解数组 | 已完成 | 静态数组、完整参数类型、共享读写与重导出；40 个定向 CLI fixture 严格通过 |
-| M35-6 组合与回归 | 进行中 | 多接口与捕获组合修复完成，10 项 CLI 严格通过；待本机全量及 Linux 验收 |
+| M35-6 组合与回归 | 本机完成，Linux 待验收 | 组合修复与本机完整回归已闭合；Rust 5,437 项、CLI 3,049 项通过，16 项不适用 |
 
 ## 验证与构建目录
 
@@ -73,3 +73,13 @@ M35-1 开发验证：解析器 459 项及 1 项 doctest、HIR 模式 34 项与 M
 - 局部默认值展开保留替换表达式的已知类型，修复接口视图丢失导致的指针/接口布局不一致。新增模块各不超过 130 行；不新增语言 intersection type、共享格式版本或 runtime ABI。
 - fmt 与 workspace clippy 通过；HIR 类型转换 64 项、闭包/引用 24 项、默认值相关 98 项通过。10 个独立/组合/反例 fixture 严格通过，11 个 variant、30 个进程步骤、24 个 golden；包括挂起成功/失败、moving/minor GC、跨库 debug/release 去源码消费和独立链接，见 [combinations-darwin.json](validation/combinations-darwin.json)。
 - 第五次清理 debug incremental 约 3.0 GB，target 从约 27.6 GB 降至 25.7 GB，保留依赖与已构建 CLI。
+
+## M35-6 本机完整回归
+
+- Rust 工作区覆盖 5,437 项，公共 fixture runner 44 项通过。初跑的两个失败分别是旧尾随 lambda 用例和添加 case 后的警告列号；修正后只定向复验，已通过的 crate 不再重跑。两项较重 driver 用例另以 release 测试二进制验证，重复通过不计入总数。fmt 与 workspace clippy 通过，见 [Rust 验证记录](validation/rust-darwin.json)。
+- 正式 `--all` 发现并执行 3,065 项：初跑 2,714 项通过、335 项需要迁移、16 项不适用。随后按未闭合结果选择 89、174、74、1 项，复用前面的通过记录；最终 3,049 项通过、16 项不适用，没有未闭合失败，覆盖 3,289 variants、14,568 processes、12,407 次阶段/链接计划快照检查。131 个 M35 新 fixture 在正式全量中全部严格通过。完整来源见 [CLI 覆盖记录](validation/cli-coverage-darwin.json)。
+- 快照迁移执行仍保留原有诊断、退出、stdout/stderr、运行、GC 和链接断言。保存每次实际规范化输出，随后对最终预期严格比较：四批共 2,727 次观测全部一致。最后一批涉及的 35 份共用快照没有变化，之前通过的其他 native 用例记录仍然有效。没有为了汇总全绿重新执行整个仓库。
+- 旧示例的迁移保留原测试目的：M23 的非末位 lambda 实参移回括号；M18 的泛型 invoke 将 lambda 参数放在最后，继续覆盖默认参数与尾随调用；M8 的显式 return 改用块体函数。两个 Array 反例保留主要类型错误，并更新另一构造候选对尾随重复绑定的诊断。其余诊断迁移仅改变 case 带来的源码位置。
+- 抽查并核对 AST 的尾随来源、HIR 的源码位置/when 表示、MIR 的正常路径结果赋值及 LIR 的局部编号变化。新增实现文件最长 244 行，新增测试文件最长 246 行，没有新增 TODO 或 unimplemented 占位。
+- 第六次清理 debug incremental，记录目录大小约 7.6 GiB；target 现约 31.8 GiB，保留已链接工具和依赖。前一次使用符号链接缓存的环境失败已终止，不计入正式验收；上述全量及复验均使用普通缓存目录。
+- 本机闭合后，将同一实现提交同步到 nuc12。Linux 选择 M35 新功能、变更源码的 fixture、实际 Darwin 迁移、MIR/LIR 变化与平台专用用例，共 600 项；GNU 适用 580 项，musl 适用 583 项，执行结果另行记录。

@@ -92,7 +92,7 @@ fn assert_publication_warning(request: SingleConeBuildRequest, output: &Path, te
         warning.message,
         "`Raedy` is a catch-all binding because `Signal` has no variant named `Raedy`; qualify an intended variant as `E.V`, or use `_` or an intentional binding name for a catch-all"
     );
-    assert!(warnings.render_human().contains(":8:5: warning:"));
+    assert!(warnings.render_human().contains(":8:10: warning:"));
     assert!(output.is_dir());
     assert_eq!(std::fs::read_dir(output).unwrap().count(), 0);
 }

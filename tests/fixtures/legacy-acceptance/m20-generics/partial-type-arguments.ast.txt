@@ -85,10 +85,11 @@ SourceFile
     val lambda: String
       Call apply<Int, _>
         IntLiteral 7
-        Lambda 0 suspend=false
-          param value: _
-          MethodCall toString
-            Var value
+        Argument trailing
+          Lambda 0 suspend=false
+            param value: _
+            MethodCall toString
+              Var value
     val reference
       Call apply<Int, _>
         IntLiteral 8

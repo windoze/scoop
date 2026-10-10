@@ -224,28 +224,28 @@ Module
         Type Int
         IntegerLiteral Int value=2 bits=0x00000002
     bb14 if.merge.14
-      call $opt.2: Option<Int> = @fn1 direct
+      call opt: Option<Int> = @fn1 direct
       branch bb15 bb16
         Type Boolean
         VariantTest Option<Int> v1
           Type Option<Int>
-          Local $opt.2
+          Local opt
     bb15 if.then.15
-      val $res.3: Int
+      assign $result.2
         Type Int
         VariantPayloadProject Option<Int> v1 f0
           Type Option<Int>
-          Local $opt.2
+          Local opt
       goto bb17
     bb16 if.else.16
-      val $res.3: Int
+      assign $result.2
         Type Int
         IntegerLiteral Int value=40 bits=0x00000028
       goto bb17
     bb17 if.merge.17
       val $dependency.receiver: Int
         Type Int
-        Local $res.3
+        Local $result.2
       val $dependency.argument.0: Int
         Type Int
         IntegerLiteral Int value=40 bits=0x00000028
@@ -388,28 +388,28 @@ Module
         Type Int
         IntegerLiteral Int value=4 bits=0x00000004
     bb33 if.merge.33
-      call $opt.4: Option<Int> = @fn1 direct
+      call opt: Option<Int> = @fn1 direct
       branch bb34 bb35
         Type Boolean
         VariantTest Option<Int> v1
           Type Option<Int>
-          Local $opt.4
+          Local opt
     bb34 if.then.34
-      val $res.5: Int
+      assign $result.3
         Type Int
         VariantPayloadProject Option<Int> v1 f0
           Type Option<Int>
-          Local $opt.4
+          Local opt
       goto bb36
     bb35 if.else.35
-      val $res.5: Int
+      assign $result.3
         Type Int
         IntegerLiteral Int value=0 bits=0x00000000
       goto bb36
     bb36 if.merge.36
       val $dependency.receiver: Int
         Type Int
-        Local $res.5
+        Local $result.3
       val $dependency.argument.0: Option<Cell>
         Type Option<Cell>
         Local cell
@@ -519,14 +519,14 @@ Module
           Type Option<Int>
           Local $dependency.local.2
     bb1 if.then.1
-      val $dependency.local.3: Int
+      assign $dependency.local.3
         Type Int
         VariantPayloadProject Option<Int> v1 f0
           Type Option<Int>
           Local $dependency.local.2
       goto bb3
     bb2 if.else.2
-      val $dependency.local.3: Int
+      assign $dependency.local.3
         Type Int
         Local value
       goto bb3

@@ -299,7 +299,7 @@ Module
       val $dependency.parameter.index: Long
         Type Long
         Local $dependency.argument.0
-      call $opt.0: Option<Int> = @fn14 direct
+      call opt: Option<Int> = @fn14 direct
         Type Array<Option<Int>>
         Local $dependency.receiver
         Type Long
@@ -308,7 +308,7 @@ Module
         Type Boolean
         VariantTest Option<Int> v0
           Type Option<Int>
-          Local $opt.0
+          Local opt
     bb4 pattern.pass.4
       val $dependency.argument.0: String
         Type String
@@ -325,21 +325,21 @@ Module
     bb6 pattern.merge.6
       goto bb3
     bb7 if.then.7
-      val $res.1: Int
+      assign $result.0
         Type Int
         VariantPayloadProject Option<Int> v0 f0
           Type Option<Int>
-          Local $opt.0
+          Local opt
       goto bb9
     bb8 if.else.8
-      val $res.1: Int
+      assign $result.0
         Type Int
         IntegerLiteral Int value=9 bits=0x00000009
       goto bb9
     bb9 if.merge.9
       val $dependency.argument.0: Int
         Type Int
-        Local $res.1
+        Local $result.0
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
@@ -355,7 +355,7 @@ Module
       val $dependency.parameter.index: Long
         Type Long
         Local $dependency.argument.0
-      call $opt.2: Option<Int> = @fn14 direct
+      call opt: Option<Int> = @fn14 direct
         Type Array<Option<Int>>
         Local $dependency.receiver
         Type Long
@@ -364,23 +364,23 @@ Module
         Type Boolean
         VariantTest Option<Int> v0
           Type Option<Int>
-          Local $opt.2
+          Local opt
     bb10 if.then.10
-      val $res.3: Int
+      assign $result.1
         Type Int
         VariantPayloadProject Option<Int> v0 f0
           Type Option<Int>
-          Local $opt.2
+          Local opt
       goto bb12
     bb11 if.else.11
-      val $res.3: Int
+      assign $result.1
         Type Int
         IntegerLiteral Int value=8 bits=0x00000008
       goto bb12
     bb12 if.merge.12
       val $dependency.argument.0: Int
         Type Int
-        Local $res.3
+        Local $result.1
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0

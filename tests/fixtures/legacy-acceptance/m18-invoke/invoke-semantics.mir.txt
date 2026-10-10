@@ -512,21 +512,21 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      val $parameter.transform: (Int) -> String
-        Type (Int) -> String
-        Local $argument.1
       val $parameter.suffix: String
         Type String
         StringConst @str12
+      val $parameter.transform: (Int) -> String
+        Type (Int) -> String
+        Local $argument.1
       call $dependency.argument.0: String = @fn17 direct
         Type Mapper
         Local $receiver
         Type Int
         Local $parameter.value
-        Type (Int) -> String
-        Local $parameter.transform
         Type String
         Local $parameter.suffix
+        Type (Int) -> String
+        Local $parameter.transform
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
@@ -808,7 +808,7 @@ Module
       return
         Type String
         Local $call.1
-  fun Mapper.invoke @fn17(this: Mapper, value: Int, transform: (Int) -> String, suffix: String) -> String
+  fun Mapper.invoke @fn17(this: Mapper, value: Int, suffix: String, transform: (Int) -> String) -> String
     bb0 entry
       call $dependency.receiver: String = <closure:function_type2> closure[function_type2]
         Type (Int) -> String
