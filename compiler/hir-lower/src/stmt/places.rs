@@ -111,7 +111,14 @@ impl Lowerer {
         sink: &mut Vec<hir::Statement>,
     ) -> hir::Expr {
         let ty = value.ty;
+        let views = self.smart_cast_receiver_views(&value);
         let local = self.alloc_hidden(label, ty);
+        if views.len() > 1 {
+            self.smart_casts.insert(
+                self.locals[local].binding,
+                views.into_iter().map(|view| view.ty).collect(),
+            );
+        }
         sink.push(hir::Statement {
             kind: hir::StatementKind::ValDecl {
                 pattern: hir::Pattern::Binding { local },
@@ -173,6 +180,7 @@ impl Lowerer {
                 }
                 let receiver =
                     self.lower_qualified_property_receiver(receiver, &name.text, sink)?;
+                let receiver = self.smart_cast_property_receiver(receiver, name).ok()?;
                 let receiver = self.materialize_place_expr(receiver, "place", *span, sink);
                 if let Some((property, owner, ty)) =
                     self.find_accessible_nominal_property(receiver.ty, &name.text)

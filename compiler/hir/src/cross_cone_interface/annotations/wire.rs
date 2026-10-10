@@ -50,8 +50,9 @@ impl DecodedCanonicalAnnotationsV1 {
                                 .name
                                 .validate()
                                 .map_err(AnnotationDataResolutionError::Name)?,
-                            value_type: resolver
-                                .resolve(parameter.value_type)
+                            value_type: parameter
+                                .value_type
+                                .resolve(resolver)
                                 .map_err(AnnotationDataResolutionError::Reference)?,
                             default: parameter.default,
                         })
@@ -145,7 +146,7 @@ impl WireDecode for DecodedCanonicalAnnotationsV1 {
     }
 }
 
-fn sequence<T: WireEncode>(
+pub(super) fn sequence<T: WireEncode>(
     encoder: &mut Encoder,
     values: &[T],
 ) -> Result<(), scoop_wire::cbor::EncodeError> {

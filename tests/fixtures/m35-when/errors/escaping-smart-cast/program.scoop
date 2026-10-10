@@ -1,0 +1,2 @@
+struct Box(val value: Int)
+fun main() { val item: Any = Box(1); when (item) { is Box -> println(item.value); else -> {} }; println(item.value) }

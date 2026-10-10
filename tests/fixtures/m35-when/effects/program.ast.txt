@@ -1,0 +1,95 @@
+SourceFile
+  RootPackage
+  class Node(val text: String)
+  class Store()
+    operator fun contains
+  fun subject(label: String): Node
+    Call println
+      Binary Add
+        StringLiteral "subject-"
+        Var label
+    return
+      Call Node
+        Var label
+  fun reject(): Boolean
+    Call println
+      StringLiteral "guard"
+    Call gcCollect
+    return
+      BoolLiteral false
+  fun stop(): Nothing
+    Call println
+      StringLiteral "stop"
+    throw
+      Call IllegalStateException
+  fun allAbort(): Int
+    =
+      WhenExpression
+        no subject
+        conditions
+          Call stop
+          IntLiteral 1
+        else
+          IntLiteral 2
+  fun main()
+    val store
+      Call Store
+    when
+      subject val node
+        Call subject
+          StringLiteral "match"
+      conditions if <guard>
+        in
+          Var store
+        Call println
+          StringLiteral "wrong"
+      conditions
+        is Node
+        Call println
+          FieldAccess text
+            Var node
+    try
+      when
+        Call subject
+          StringLiteral "boom"
+        conditions
+          in
+            Var store
+          Call println
+            StringLiteral "wrong"
+      Call println
+        StringLiteral "wrong"
+    catch error: IllegalStateException
+      Call println
+        StringLiteral "contains-caught"
+    finally
+      Call println
+        StringLiteral "contains-finally"
+    try
+      Call println
+        Call allAbort
+    catch error: IllegalStateException
+      Call println
+        StringLiteral "condition-caught"
+    finally
+      Call println
+        StringLiteral "condition-finally"
+    try
+      when
+        subject val node
+          Call subject
+            StringLiteral "live"
+        conditions if <guard>
+          is Node
+          Call println
+            FieldAccess text
+              Var node
+        else
+          Call println
+            StringLiteral "wrong"
+    catch error: IllegalStateException
+      Call println
+        StringLiteral "guard-caught"
+    finally
+      Call println
+        StringLiteral "guard-finally"

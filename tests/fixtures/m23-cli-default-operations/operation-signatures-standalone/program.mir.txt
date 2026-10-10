@@ -696,6 +696,11 @@ Module
       val $dependency.parameter.value: Empty
         Type Empty
         Local $new.8
+      call $equality.lhs: Empty = external17 direct
+        Type Samples
+        Local $dependency.receiver
+        Type Empty
+        Local $dependency.parameter.value
       val $dependency.receiver: Samples
         Type Samples
         Local samples
@@ -713,24 +718,44 @@ Module
         Local $dependency.receiver
         Type Empty
         Local $dependency.parameter.value
-      call $call.11: Empty = external17 direct
-        Type Samples
-        Local $dependency.receiver
-        Type Empty
-        Local $dependency.parameter.value
       val $argument.0: Boolean
         Type Boolean
         Binary RefNe
           Type Empty
-          Local $call.10
+          Local $equality.lhs
           Type Empty
-          Local $call.11
+          Local $call.10
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
       call @fn2 direct
         Type Boolean
         Local $parameter.value
+      val $dependency.receiver: Samples
+        Type Samples
+        Local samples
+      val $default.local.1: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $default.local.2: Int
+        Type Int
+        Local $default.local.1
+      assign $new.11
+        Type Required
+        ClassAlloc Required
+      call external18 direct
+        Type Required
+        Local $new.11
+        Type Int
+        Local $default.local.2
+      val $dependency.parameter.value: Required
+        Type Required
+        Local $new.11
+      call $equality.lhs: Required = external19 direct
+        Type Samples
+        Local $dependency.receiver
+        Type Required
+        Local $dependency.parameter.value
       val $dependency.receiver: Samples
         Type Samples
         Local samples
@@ -751,32 +776,7 @@ Module
       val $dependency.parameter.value: Required
         Type Required
         Local $new.12
-      val $dependency.receiver: Samples
-        Type Samples
-        Local samples
-      val $default.local.1: Int
-        Type Int
-        IntegerLiteral Int value=1 bits=0x00000001
-      val $default.local.2: Int
-        Type Int
-        Local $default.local.1
-      assign $new.13
-        Type Required
-        ClassAlloc Required
-      call external18 direct
-        Type Required
-        Local $new.13
-        Type Int
-        Local $default.local.2
-      val $dependency.parameter.value: Required
-        Type Required
-        Local $new.13
-      call $call.14: Required = external19 direct
-        Type Samples
-        Local $dependency.receiver
-        Type Required
-        Local $dependency.parameter.value
-      call $call.15: Required = external19 direct
+      call $call.13: Required = external19 direct
         Type Samples
         Local $dependency.receiver
         Type Required
@@ -785,9 +785,9 @@ Module
         Type Boolean
         Binary RefNe
           Type Required
-          Local $call.14
+          Local $equality.lhs
           Type Required
-          Local $call.15
+          Local $call.13
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
@@ -818,17 +818,24 @@ Module
           Element
             Type Int
             Local $default.local.3
-      assign $new.16
+      assign $new.14
         Type Variadic<Int>
         ClassAlloc Variadic<Int>
       call @fn30 direct
         Type Variadic<Int>
-        Local $new.16
+        Local $new.14
         Type Array<Int>
         Local $default.local.4
       val $dependency.parameter.value: Variadic<Int>
         Type Variadic<Int>
-        Local $new.16
+        Local $new.14
+      call $equality.lhs: Variadic<Int> = @fn13 direct
+        Type Samples
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.seed
+        Type Variadic<Int>
+        Local $dependency.parameter.value
       val $dependency.receiver: Samples
         Type Samples
         Local samples
@@ -853,95 +860,88 @@ Module
           Element
             Type Int
             Local $default.local.3
+      assign $new.15
+        Type Variadic<Int>
+        ClassAlloc Variadic<Int>
+      call @fn30 direct
+        Type Variadic<Int>
+        Local $new.15
+        Type Array<Int>
+        Local $default.local.4
+      val $dependency.parameter.value: Variadic<Int>
+        Type Variadic<Int>
+        Local $new.15
+      call $call.16: Variadic<Int> = @fn13 direct
+        Type Samples
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.seed
+        Type Variadic<Int>
+        Local $dependency.parameter.value
+      val $argument.0: Boolean
+        Type Boolean
+        Binary RefNe
+          Type Variadic<Int>
+          Local $equality.lhs
+          Type Variadic<Int>
+          Local $call.16
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn2 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.receiver: Samples
+        Type Samples
+        Local samples
+      val $default.local.1: Array<Int>
+        Type Array<Int>
+        ArrayLiteral Array<Int>
       assign $new.17
-        Type Variadic<Int>
-        ClassAlloc Variadic<Int>
-      call @fn30 direct
-        Type Variadic<Int>
+        Type DefaultVariadic<Int>
+        ClassAlloc DefaultVariadic<Int>
+      call @fn31 direct
+        Type DefaultVariadic<Int>
         Local $new.17
         Type Array<Int>
-        Local $default.local.4
-      val $dependency.parameter.value: Variadic<Int>
-        Type Variadic<Int>
+        Local $default.local.1
+      val $dependency.parameter.value: DefaultVariadic<Int>
+        Type DefaultVariadic<Int>
         Local $new.17
-      call $call.18: Variadic<Int> = @fn13 direct
+      call $equality.lhs: DefaultVariadic<Int> = @fn14 direct
         Type Samples
         Local $dependency.receiver
-        Type Int
-        Local $dependency.parameter.seed
-        Type Variadic<Int>
+        Type DefaultVariadic<Int>
         Local $dependency.parameter.value
-      call $call.19: Variadic<Int> = @fn13 direct
+      val $dependency.receiver: Samples
+        Type Samples
+        Local samples
+      val $default.local.1: Array<Int>
+        Type Array<Int>
+        ArrayLiteral Array<Int>
+      assign $new.18
+        Type DefaultVariadic<Int>
+        ClassAlloc DefaultVariadic<Int>
+      call @fn31 direct
+        Type DefaultVariadic<Int>
+        Local $new.18
+        Type Array<Int>
+        Local $default.local.1
+      val $dependency.parameter.value: DefaultVariadic<Int>
+        Type DefaultVariadic<Int>
+        Local $new.18
+      call $call.19: DefaultVariadic<Int> = @fn14 direct
         Type Samples
         Local $dependency.receiver
-        Type Int
-        Local $dependency.parameter.seed
-        Type Variadic<Int>
+        Type DefaultVariadic<Int>
         Local $dependency.parameter.value
       val $argument.0: Boolean
         Type Boolean
         Binary RefNe
-          Type Variadic<Int>
-          Local $call.18
-          Type Variadic<Int>
+          Type DefaultVariadic<Int>
+          Local $equality.lhs
+          Type DefaultVariadic<Int>
           Local $call.19
-      val $parameter.value: Boolean
-        Type Boolean
-        Local $argument.0
-      call @fn2 direct
-        Type Boolean
-        Local $parameter.value
-      val $dependency.receiver: Samples
-        Type Samples
-        Local samples
-      val $default.local.1: Array<Int>
-        Type Array<Int>
-        ArrayLiteral Array<Int>
-      assign $new.20
-        Type DefaultVariadic<Int>
-        ClassAlloc DefaultVariadic<Int>
-      call @fn31 direct
-        Type DefaultVariadic<Int>
-        Local $new.20
-        Type Array<Int>
-        Local $default.local.1
-      val $dependency.parameter.value: DefaultVariadic<Int>
-        Type DefaultVariadic<Int>
-        Local $new.20
-      val $dependency.receiver: Samples
-        Type Samples
-        Local samples
-      val $default.local.1: Array<Int>
-        Type Array<Int>
-        ArrayLiteral Array<Int>
-      assign $new.21
-        Type DefaultVariadic<Int>
-        ClassAlloc DefaultVariadic<Int>
-      call @fn31 direct
-        Type DefaultVariadic<Int>
-        Local $new.21
-        Type Array<Int>
-        Local $default.local.1
-      val $dependency.parameter.value: DefaultVariadic<Int>
-        Type DefaultVariadic<Int>
-        Local $new.21
-      call $call.22: DefaultVariadic<Int> = @fn14 direct
-        Type Samples
-        Local $dependency.receiver
-        Type DefaultVariadic<Int>
-        Local $dependency.parameter.value
-      call $call.23: DefaultVariadic<Int> = @fn14 direct
-        Type Samples
-        Local $dependency.receiver
-        Type DefaultVariadic<Int>
-        Local $dependency.parameter.value
-      val $argument.0: Boolean
-        Type Boolean
-        Binary RefNe
-          Type DefaultVariadic<Int>
-          Local $call.22
-          Type DefaultVariadic<Int>
-          Local $call.23
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0

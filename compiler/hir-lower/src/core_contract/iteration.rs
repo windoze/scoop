@@ -24,7 +24,7 @@ impl Lowerer {
                 &self.interfaces,
                 &self.interface_applications,
                 &self.interface_method_entities,
-                &self.functions,
+                self.functions.as_arena(),
                 &self.enums,
                 &self.enum_applications,
                 &self.types,

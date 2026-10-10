@@ -29,10 +29,11 @@ Module
     local %19 $dependency.parameter.other: i32
     local %20 $new.1: ptr<managed>
     local %21 $new.2: ptr<managed>
-    local %22 $new.3: ptr<managed>
+    local %22 $operand.3: ptr<managed>
     local %23 $new.4: ptr<managed>
     local %24 $new.5: ptr<managed>
-    local %25 $sc.1: struct0
+    local %25 $new.6: ptr<managed>
+    local %26 $sc.1: struct0
   block entry
     poll managed-void-target6 sp<managed-poll:0> live=[]
     store integer<Int>(0x00000025) -> local0
@@ -51,31 +52,32 @@ Module
     call managed-direct-target2 sp<managed-call:4> live=[local4:ptr<managed>@0] t4 = sig=direct2 (ptr<managed>) -> ptr<managed> local-fn1(local4)
     store t4 -> local5
     store local5 -> local6
-    call managed-indirect-target0 sp<managed-call:5> live=[local4:ptr<managed>@0, local6:ptr<managed>@0] local25 = sig=indirect0 (sret struct0 size=16 align=8 scan=refs[0, 8], ptr<managed>) local-fn13(local6)
-    store local25 -> local7
+    call managed-indirect-target0 sp<managed-call:5> live=[local4:ptr<managed>@0, local6:ptr<managed>@0] local26 = sig=indirect0 (sret struct0 size=16 align=8 scan=refs[0, 8], ptr<managed>) local-fn13(local6)
+    store local26 -> local7
     store local4 -> local8
     store integer<Int>(0x00000008) -> local9
     store local9 -> local10
-    call managed-direct-target3 sp<managed-call:6> live=[local4:ptr<managed>@0, local7:struct0@0+8, local8:ptr<managed>@0] t5 = sig=direct3 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td3, machine<byte-size>(ByteSize(24)))
-    store t5 -> local22
-    call managed-void-target2 sp<managed-call:7> live=[local4:ptr<managed>@0, local7:struct0@0+8, local8:ptr<managed>@0, local22:ptr<managed>@0] sig=void2 (ptr<managed>, i32) local-fn9(local22, local10)
+    store local8 -> local22
+    call managed-direct-target3 sp<managed-call:6> live=[local4:ptr<managed>@0, local7:struct0@0+8, local22:ptr<managed>@0] t5 = sig=direct3 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td3, machine<byte-size>(ByteSize(24)))
+    store t5 -> local23
+    call managed-void-target2 sp<managed-call:7> live=[local4:ptr<managed>@0, local7:struct0@0+8, local22:ptr<managed>@0, local23:ptr<managed>@0] sig=void2 (ptr<managed>, i32) local-fn9(local23, local10)
     t6 = aggregate () : {}
-    call managed-void-target3 sp<managed-call:8> live=[local4:ptr<managed>@0, local7:struct0@0+8, local8:ptr<managed>@0, local22:ptr<managed>@0] sig=void3 (ptr<managed>, ptr<managed>) local-fn2(local8, local22)
+    call managed-void-target3 sp<managed-call:8> live=[local4:ptr<managed>@0, local7:struct0@0+8, local22:ptr<managed>@0, local23:ptr<managed>@0] sig=void3 (ptr<managed>, ptr<managed>) local-fn2(local22, local23)
     t7 = aggregate () : {}
     store integer<Int>(0x00000001) -> local11
     store local11 -> local12
     call managed-direct-target4 sp<managed-call:9> live=[local4:ptr<managed>@0, local7:struct0@0+8] t8 = sig=direct4 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td3, machine<byte-size>(ByteSize(24)))
-    store t8 -> local23
-    call managed-void-target4 sp<managed-call:10> live=[local4:ptr<managed>@0, local7:struct0@0+8, local23:ptr<managed>@0] sig=void4 (ptr<managed>, i32) local-fn9(local23, local12)
+    store t8 -> local24
+    call managed-void-target4 sp<managed-call:10> live=[local4:ptr<managed>@0, local7:struct0@0+8, local24:ptr<managed>@0] sig=void4 (ptr<managed>, i32) local-fn9(local24, local12)
     t9 = aggregate () : {}
-    store local23 -> local13
+    store local24 -> local13
     store integer<Int>(0x00000002) -> local14
     store local14 -> local15
     call managed-direct-target5 sp<managed-call:11> live=[local4:ptr<managed>@0, local7:struct0@0+8] t10 = sig=direct5 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td3, machine<byte-size>(ByteSize(24)))
-    store t10 -> local24
-    call managed-void-target5 sp<managed-call:12> live=[local4:ptr<managed>@0, local7:struct0@0+8, local24:ptr<managed>@0] sig=void5 (ptr<managed>, i32) local-fn9(local24, local15)
+    store t10 -> local25
+    call managed-void-target5 sp<managed-call:12> live=[local4:ptr<managed>@0, local7:struct0@0+8, local25:ptr<managed>@0] sig=void5 (ptr<managed>, i32) local-fn9(local25, local15)
     t11 = aggregate () : {}
-    store local24 -> local16
+    store local25 -> local16
     t12 = extract local7, 0 : ptr<managed>
     t13 = heap_load t12 +16 : i32
     store t13 -> local17

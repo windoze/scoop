@@ -9,10 +9,16 @@ pub(crate) struct ResolvedImportedMemberProperty {
     getter: hir::ImportedCallableDeclaration,
     accessors: hir::PropertyAccessorsV1,
     storage: Option<hir::FieldRef>,
+    owner: hir::TypeId,
     pub(crate) value_type: hir::TypeId,
 }
 
 impl ResolvedImportedMemberProperty {
+    pub(crate) fn same_declaration(&self, other: &Self) -> bool {
+        self.owner == other.owner
+            && self.getter.interface().declaration() == other.getter.interface().declaration()
+    }
+
     pub(crate) fn has_setter(&self) -> bool {
         self.accessors.setter().is_some()
     }
@@ -107,6 +113,7 @@ impl Lowerer {
             getter,
             accessors,
             storage,
+            owner,
             value_type,
         }))
     }

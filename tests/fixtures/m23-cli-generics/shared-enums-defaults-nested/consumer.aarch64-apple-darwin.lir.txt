@@ -42,16 +42,16 @@ Module
     local %14 $parameter.fallback: i32
     local %15 choice: enum0
     local %16 payload: i32
-    local %17 $dependency.argument.0: enum0
-    local %18 $dependency.argument.1: i32
-    local %19 $dependency.parameter.value: enum0
-    local %20 $dependency.parameter.fallback: i32
-    local %21 $default.local.2: i32
-    local %22 $default.local.3: i32
-    local %23 $default.local.4: i32
-    local %24 $default.local.5: i32
-    local %25 $dependency.parameter.selected: i32
-    local %26 choice: enum0
+    local %17 choice: enum0
+    local %18 $dependency.argument.0: enum0
+    local %19 $dependency.argument.1: i32
+    local %20 $dependency.parameter.value: enum0
+    local %21 $dependency.parameter.fallback: i32
+    local %22 $default.local.2: i32
+    local %23 $default.local.3: i32
+    local %24 $default.local.4: i32
+    local %25 $default.local.5: i32
+    local %26 $dependency.parameter.selected: i32
     local %27 $dependency.argument.0: enum0
     local %28 $dependency.argument.1: i32
     local %29 $dependency.parameter.value: enum0
@@ -156,11 +156,11 @@ Module
     store t11 -> local15
     t12 = variant_payload_project e1 v0 f0 local55 : i32
     store t12 -> local16
-    store local15 -> local17
-    store local16 -> local18
-    store local17 -> local19
+    store local15 -> local18
+    store local16 -> local19
     store local18 -> local20
-    store local19 -> local56
+    store local19 -> local21
+    store local20 -> local56
     store local56 -> local57
     t13 = variant_test e0 v0 local57 : i1
     cbr t13 then @pattern.pass.8 else @pattern.else.9
@@ -171,22 +171,22 @@ Module
   block pattern.merge.7
     br @pattern.merge.3
   block pattern.pass.8
-    store local20 -> local24
+    store local21 -> local25
     br @pattern.merge.10
   block pattern.else.9
     store local56 -> local58
     t15 = variant_test e0 v1 local58 : i1
     cbr t15 then @pattern.pass.11 else @pattern.else.12
   block pattern.merge.10
-    store local24 -> local25
-    call managed-direct-target2 sp<managed-call:1> live=[param1:ptr<managed>@0, local38:ptr<managed>@0] t16 = sig=direct2 (parts<enum0 [[2xi64]@0+16/8]>, i32, i32) -> i32 local-fn3(local19, local20, local25)
+    store local25 -> local26
+    call managed-direct-target2 sp<managed-call:1> live=[param1:ptr<managed>@0, local38:ptr<managed>@0] t16 = sig=direct2 (parts<enum0 [[2xi64]@0+16/8]>, i32, i32) -> i32 local-fn3(local20, local21, local26)
     store t16 -> local75
     store local75 -> local36
     br @pattern.merge.7
   block pattern.pass.11
     t17 = variant_payload_project e0 v1 f0 local58 : i32
-    store t17 -> local21
-    store local21 -> local24
+    store t17 -> local22
+    store local22 -> local25
     br @pattern.merge.13
   block pattern.else.12
     store local56 -> local59
@@ -196,8 +196,8 @@ Module
     br @pattern.merge.10
   block pattern.pass.14
     t19 = variant_payload_project e0 v2 f0 local59 : i32
-    store t19 -> local22
-    store local22 -> local24
+    store t19 -> local23
+    store local23 -> local25
     br @pattern.merge.16
   block pattern.else.15
     store local56 -> local60
@@ -207,8 +207,8 @@ Module
     br @pattern.merge.13
   block pattern.pass.17
     t21 = variant_payload_project e0 v3 f0 local60 : i32
-    store t21 -> local23
-    store local23 -> local24
+    store t21 -> local24
+    store local24 -> local25
     br @pattern.merge.19
   block pattern.else.18
     unreachable
@@ -221,8 +221,8 @@ Module
     cbr t23 then @pattern.pass.21 else @pattern.else.22
   block pattern.pass.21
     t24 = variant_payload_project e2 v1 f0 local61 : enum0
-    store t24 -> local26
-    store local26 -> local27
+    store t24 -> local17
+    store local17 -> local27
     store local14 -> local28
     store local27 -> local29
     store local28 -> local30

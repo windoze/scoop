@@ -1,5 +1,5 @@
 use crate::{
-    DefaultCatchV1, DefaultTryV1, DefaultWhenArmV1, DefaultWhenFallbackV1,
+    DefaultCatchV1, DefaultTryV1, DefaultWhenArmV1, DefaultWhenConditionV1, DefaultWhenFallbackV1,
     DefaultWhenFallbackViewV1, DefaultWhenGuardV1, DefaultWhenV1, ExportDefinitionSourceV1,
     OptionalDefaultStatementListViewV1,
 };
@@ -27,7 +27,10 @@ where
         for arm in value.arms().iter().rev() {
             self.push_child(pending, BodyNode::WhenArm(arm))?;
         }
-        self.push_child(pending, BodyNode::Expression(value.subject()))
+        if let Some(subject) = value.subject() {
+            self.push_child(pending, BodyNode::Expression(subject))?;
+        }
+        Ok(())
     }
 
     pub(in super::super) fn process_when_arm<'body>(
@@ -45,13 +48,23 @@ where
                 },
             )?;
         }
-        self.push_child(
-            pending,
-            BodyNode::Pattern {
-                pattern: arm.pattern(),
-                definition_origin: arm.definition_origin(),
-            },
-        )?;
+        match arm.condition() {
+            DefaultWhenConditionV1::Case(pattern) => self.push_child(
+                pending,
+                BodyNode::Pattern {
+                    pattern,
+                    definition_origin: arm.definition_origin(),
+                },
+            )?,
+            DefaultWhenConditionV1::Predicate(predicate) => self.push_child(
+                pending,
+                BodyNode::WhenGuard {
+                    guard: predicate,
+                    definition_origin: arm.definition_origin(),
+                },
+            )?,
+            DefaultWhenConditionV1::Always => {}
+        }
         self.push_child(
             pending,
             BodyNode::Origin {
@@ -78,6 +91,7 @@ where
         pending: &mut Vec<WorkItem<'body>>,
     ) -> Result<(), M::Error> {
         match fallback.view() {
+            DefaultWhenFallbackViewV1::Fallthrough => Ok(()),
             DefaultWhenFallbackViewV1::Else(statements) => {
                 self.push_statements(pending, statements)
             }

@@ -1,0 +1,37 @@
+schema = 1
+name = "m35-when-suspend-subject"
+root = "program.scoop"
+inputs = ["program.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["m35", "when", "suspend", "gc", "stage-golden"]
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${root}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--emit", "all", "--dump-dir", "${work}/dump", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {file = "${work}/dump/${build.result.root.identity}/ast.txt", snapshot = "program.ast.txt"},
+  {file = "${work}/dump/${build.result.root.identity}/hir.txt", snapshot = "program.hir.txt"},
+  {file = "${work}/dump/${build.result.root.identity}/mir.txt", snapshot = "program.mir.txt"},
+  {file = "${work}/dump/${build.result.root.identity}/lir.txt", snapshot = "program.${target}.lir.txt"},
+]
+
+[[steps]]
+name = "run"
+argv = ["${build.result.output}"]
+exit = 0
+stdout = "subject-normal\nouter-1\ninner-1\ninner-2-enter\nnormal-suspended\ninner-2-exit\ninner-3\nouter-2\nfirst-normal\n42\nthird-normal\nlast-normal\nnormal-done\n42\nsubject-failure\nouter-1\ninner-1\ninner-2-enter\nfailure-suspended\ncaught-failure\nfailure-done\n0\n"
+stderr = ""
+
+[[steps]]
+name = "moving"
+argv = ["${build.result.output}"]
+env = {SCOOP_GC_STRESS_MOVE = "1"}
+exit = 0
+stdout = "subject-normal\nouter-1\ninner-1\ninner-2-enter\nnormal-suspended\ninner-2-exit\ninner-3\nouter-2\nfirst-normal\n42\nthird-normal\nlast-normal\nnormal-done\n42\nsubject-failure\nouter-1\ninner-1\ninner-2-enter\nfailure-suspended\ncaught-failure\nfailure-done\n0\n"
+stderr = ""

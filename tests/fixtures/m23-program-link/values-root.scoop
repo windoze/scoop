@@ -6,8 +6,8 @@ fun main() {
     val boxed: Any = array(wrap(keep(payload()))!!)[0]
     val packet = boxed as Packet
     when (packet) {
-        Missing -> { throw IllegalStateException() }
-        Data(references, copied) -> {
+        case Missing -> { throw IllegalStateException() }
+        case Data(references, copied) -> {
             println(references.text)
             println(references.nested._1)
             println(references.nested._3)

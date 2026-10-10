@@ -228,7 +228,8 @@ impl Lowerer {
             && signature.modifiers.operator == operator
             && signature.modifiers.is_infix == infix
             && self.source_function_name(function) == source_name
-            && hir::NoGcCallableRef::try_from_function(function, &self.functions).is_some();
+            && hir::NoGcCallableRef::try_from_function(function, self.functions.as_arena())
+                .is_some();
         if !valid {
             self.malformed_operator_intrinsic(function, operation.registry_key());
         }
@@ -254,7 +255,8 @@ impl Lowerer {
             && signature.modifiers.operator == Some(operator)
             && !signature.modifiers.is_infix
             && self.source_function_name(function) == source_name
-            && hir::ManagedCallableRef::try_from_function(function, &self.functions).is_some();
+            && hir::ManagedCallableRef::try_from_function(function, self.functions.as_arena())
+                .is_some();
         if !valid {
             self.malformed_operator_intrinsic(function, operation.registry_key());
         }
@@ -274,7 +276,8 @@ impl Lowerer {
             && signature.return_ty == self.integer_type(target)
             && signature.modifiers == hir::CallableModifiers::default()
             && self.source_function_name(function) == conversion_source_name(target)
-            && hir::NoGcCallableRef::try_from_function(function, &self.functions).is_some();
+            && hir::NoGcCallableRef::try_from_function(function, self.functions.as_arena())
+                .is_some();
         if !valid {
             self.malformed_operator_intrinsic(
                 function,

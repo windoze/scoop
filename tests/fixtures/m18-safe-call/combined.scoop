@@ -55,8 +55,8 @@ class SafeTask(
         return try {
             val result = maybe?.apply(makeSafeTransform(prefix))
             when (result) {
-                Some(value) -> value
-                None -> "safe-none"
+                case Some(value) -> value
+                case None -> "safe-none"
             }
         } catch (error: SafeFailure) {
             "safe-caught"

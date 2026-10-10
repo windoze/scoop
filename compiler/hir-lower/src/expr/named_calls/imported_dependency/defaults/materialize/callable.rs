@@ -5,7 +5,7 @@ impl Lowerer {
         &mut self,
         template: &crate::imported_generics::PreparedImportedGeneric,
     ) -> Result<hir::Body, ImportedDefaultMaterializationError> {
-        let saved_locals = std::mem::replace(&mut self.locals, template.locals.clone());
+        let saved_locals = std::mem::replace(&mut self.locals, template.locals.clone().into());
         let saved_parameters = match &template.type_parameters {
             hir::ImportedCallableTypeParameters::Declared(parameters) => Some(std::mem::replace(
                 &mut self.type_params_in_scope,
@@ -67,7 +67,7 @@ impl Lowerer {
             .iter()
             .map(|statement| self.materialize_imported_default_statement(statement, &mut context))
             .collect::<Result<Vec<_>, _>>();
-        let locals = std::mem::replace(&mut self.locals, saved_locals);
+        let locals = std::mem::replace(&mut self.locals, saved_locals).into_arena();
         if let Some(parameters) = saved_parameters {
             self.type_params_in_scope = parameters;
         }

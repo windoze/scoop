@@ -18,7 +18,7 @@ public fun result(): Int {
     val marker = Parcel.Item(Marker())
     val singleton = Parcel.Item(Singleton)
     return when (parcel) {
-        Empty -> 0
-        Item(pair) -> pair.first.value + pair.second.value
+        case Empty -> 0
+        case Item(pair) -> pair.first.value + pair.second.value
     }
 }

@@ -2061,6 +2061,11 @@ Module
           Type Boolean
           Local $dependency.receiver
     bb5 while.exit.5
+      val $place.receiver: Counter
+        Type Counter
+        ClosureCapture cc3 7
+          Type (Int) -> Int
+          Local $closure
       val $dependency.receiver: Int
         Type Int
         FieldAccess 0
@@ -2076,9 +2081,7 @@ Module
         IntegerLiteral Int value=1 bits=0x00000001
       field_set 0
         Type Counter
-        ClosureCapture cc3 7
-          Type (Int) -> Int
-          Local $closure
+        Local $place.receiver
         Type Int
         IntegerBinary add kind=Int
           Type Int

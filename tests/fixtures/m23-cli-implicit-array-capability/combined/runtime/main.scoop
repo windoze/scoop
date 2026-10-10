@@ -8,5 +8,5 @@ fun main() {
     verifyType(count("one", "two") == 1)
     val values = [3, 4]
     val batch = Batches.Items(1, *values, 5)
-    verifyType(when (batch) { Items(items) -> items.size == 4L && items[2] == 4 })
+    verifyType(when (batch) { case Items(items) -> items.size == 4L && items[2] == 4 })
 }

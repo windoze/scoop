@@ -1,0 +1,269 @@
+SourceFile
+  RootPackage
+  fun apply(prefix: Int = <expr>, action: (Int) -> Int): Int
+    =
+      Call action
+        Var prefix
+  fun choose(first: () -> Int = <expr>, last: () -> Int): Int
+    =
+      Binary Add
+        Call first
+        Call last
+  fun jump(first: Int = <expr>, middle: Int = <expr>, action: () -> Int): Int
+    =
+      Binary Add
+        Binary Add
+          Var first
+          Var middle
+        Call action
+  fun visit(vararg values: Int, action: () -> Int): Int
+    =
+      Binary Add
+        MethodCall toInt32
+          FieldAccess size
+            Var values
+        Call action
+  fun defaultVararg(vararg values: Int = <expr>, action: () -> Int): Int
+    =
+      Binary Add
+        Index
+          Var values
+          IntLiteral 0
+        Call action
+  fun transform<T>(value: T, action: (T) -> T): T
+    =
+      Call action
+        Var value
+  fun execute<T>(action: () -> T): T
+    =
+      Call action
+  fun identity<T>(value: T): T
+    =
+      Var value
+  fun factory(): (() -> Int) -> Int
+    =
+      Lambda 1 suspend=false
+        param action: _
+        Binary Add
+          Call action
+          IntLiteral 1
+  fun selected(prefix: Int = <expr>, action: () -> Int): Int
+    =
+      Binary Add
+        Var prefix
+        Call action
+  fun selected(action: () -> Int = <expr>, suffix: String = <expr>): Int
+    =
+      IntLiteral 99
+  fun overloaded(value: Int, action: (Int) -> Int): Int
+    =
+      Call action
+        Var value
+  fun overloaded(value: String, action: (String) -> Int): Int
+    =
+      Call action
+        Var value
+  struct Payload
+    field value: Int
+  fun main()
+    Call println
+      Call apply
+        Argument trailing
+          Lambda 3 suspend=false
+            parameters omitted
+            Binary Add
+              Var it
+              IntLiteral 1
+    Call println
+      Call apply
+        Argument prefix=
+          IntLiteral 3
+        Argument trailing
+          Lambda 4 suspend=false
+            parameters omitted
+            Binary Add
+              Var it
+              IntLiteral 1
+    Call println
+      Call apply
+        IntLiteral 5
+        Argument trailing
+          Lambda 5 suspend=false
+            parameters omitted
+            Binary Add
+              Var it
+              IntLiteral 1
+    Call println
+      Call apply
+        Argument trailing
+          Lambda 6 suspend=false
+            parameters omitted
+            Binary Add
+              Var it
+              IntLiteral 1
+    Call println
+      Call choose
+        Argument trailing
+          Lambda 7 suspend=false
+            parameters omitted
+            IntLiteral 3
+    Call println
+      Call choose
+        Lambda 8 suspend=false
+          parameters omitted
+          IntLiteral 4
+        Argument trailing
+          Lambda 9 suspend=false
+            parameters omitted
+            IntLiteral 5
+    Call println
+      Call jump
+        Argument middle=
+          IntLiteral 10
+        Argument trailing
+          Lambda 10 suspend=false
+            parameters omitted
+            IntLiteral 20
+    val items: Array<Int>
+      ArrayLiteral
+        IntLiteral 3
+        IntLiteral 4
+    Call println
+      Call visit
+        IntLiteral 1
+        Argument *
+          Var items
+        Argument trailing
+          Lambda 11 suspend=false
+            parameters omitted
+            IntLiteral 3
+    Call println
+      Call visit
+        Argument trailing
+          Lambda 12 suspend=false
+            parameters omitted
+            IntLiteral 4
+    Call println
+      Call visit
+        Argument values=
+          ArrayLiteral
+            IntLiteral 1
+            IntLiteral 2
+        Argument trailing
+          Lambda 13 suspend=false
+            parameters omitted
+            IntLiteral 5
+    Call println
+      Call defaultVararg
+        Argument trailing
+          Lambda 14 suspend=false
+            parameters omitted
+            IntLiteral 9
+    Call println
+      FieldAccess value
+        Call transform
+          Call Payload
+            IntLiteral 7
+          Argument trailing
+            Lambda 15 suspend=false
+              parameters omitted
+              Var it
+    Call println
+      Call execute<Int>
+        Argument trailing
+          Lambda 16 suspend=false
+            parameters omitted
+            IntLiteral 13
+    val inferred: Int
+      Call execute
+        Argument trailing
+          Lambda 17 suspend=false
+            parameters omitted
+            IntLiteral 14
+    Call println
+      Var inferred
+    val callable
+      Call identity<() -> Int>
+        Argument trailing
+          Lambda 18 suspend=false
+            parameters omitted
+            IntLiteral 15
+    Call println
+      Call callable
+    val inferredCallable: () -> Int
+      Call identity
+        Argument trailing
+          Lambda 19 suspend=false
+            parameters omitted
+            IntLiteral 16
+    Call println
+      Call inferredCallable
+    val value: (Int, () -> Int) -> Int
+      Lambda 20 suspend=false
+        param first: _
+        param action: _
+        Binary Add
+          Var first
+          Call action
+    Call println
+      Call value
+        IntLiteral 2
+        Argument trailing
+          Lambda 21 suspend=false
+            parameters omitted
+            IntLiteral 3
+    Call println
+      Invoke
+        Var value
+        IntLiteral 4
+        Argument trailing
+          Lambda 22 suspend=false
+            parameters omitted
+            IntLiteral 5
+    Call println
+      Invoke
+        Call factory
+        Argument trailing
+          Lambda 23 suspend=false
+            parameters omitted
+            IntLiteral 41
+    Call println
+      Call execute<Int>
+        Argument trailing
+          Lambda 24 suspend=false
+            parameters omitted
+            IntLiteral 17
+    Call println
+      Call execute<Int>
+        Argument trailing
+          Lambda 25 suspend=false
+            parameters omitted
+            IntLiteral 18
+    Call factory
+    block
+      Call println
+        StringLiteral "separate-block"
+    Call println
+      Call selected
+        Argument trailing
+          Lambda 26 suspend=false
+            parameters omitted
+            IntLiteral 19
+    Call println
+      Call overloaded
+        IntLiteral 20
+        Argument trailing
+          Lambda 27 suspend=false
+            parameters omitted
+            Binary Add
+              Var it
+              IntLiteral 1
+    Call println
+      Call overloaded
+        StringLiteral "abc"
+        Argument trailing
+          Lambda 28 suspend=false
+            parameters omitted
+            MethodCall toInt32
+              FieldAccess length
+                Var it

@@ -10,32 +10,32 @@ enum Shape {
 fun main() {
     val c = Color.Red
     when (c) {
-        Red -> println("red")
-        Green -> println("green")
-        Blue -> println("blue")
+        case Red -> println("red")
+        case Green -> println("green")
+        case Blue -> println("blue")
     }
     val s = Shape.Circle(5)
     when (s) {
-        Circle(r) -> println(r)
-        Rect(w, h) -> println(w + h)
-        Named { w, .. } -> println(w)
-        WithDefault(d) -> println(d)
+        case Circle(r) -> println(r)
+        case Rect(w, h) -> println(w + h)
+        case Named { w, .. } -> println(w)
+        case WithDefault(d) -> println(d)
     }
     val r = Shape.Rect(3, 4)
     when (r) {
-        Circle(x) -> println(x)
-        Rect(w, h) -> println(w + h)
-        Named { w, .. } -> println(w)
-        WithDefault(d) -> println(d)
+        case Circle(x) -> println(x)
+        case Rect(w, h) -> println(w + h)
+        case Named { w, .. } -> println(w)
+        case WithDefault(d) -> println(d)
     }
     val d = Shape.WithDefault()
     when (d) {
-        WithDefault(x) -> println(x)
+        case WithDefault(x) -> println(x)
         else -> println("other")
     }
     val d2 = Shape.WithDefault(3)
     when (d2) {
-        WithDefault(x) -> println(x)
+        case WithDefault(x) -> println(x)
         else -> println("other")
     }
 }

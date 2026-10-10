@@ -24,11 +24,11 @@ fun main() {
         println("reference"); return
     }
     val boundaries = Array<Int>(6L) { i -> when (i) {
-        0L -> 0
-        1L -> 127
-        2L -> 2047
-        3L -> 55295
-        4L -> 57344
+        case 0L -> 0
+        case 1L -> 127
+        case 2L -> 2047
+        case 3L -> 55295
+        case 4L -> 57344
         else -> 1114111
     } }
     for (number in boundaries) {

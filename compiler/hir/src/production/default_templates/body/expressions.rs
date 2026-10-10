@@ -110,6 +110,7 @@ impl BodyProjection<'_, '_> {
             ExprKind::BoolLiteral(value) => {
                 DefaultExpressionKindV1::BooleanLiteral((*value).into())
             }
+            ExprKind::Unreachable => DefaultExpressionKindV1::Unreachable,
             ExprKind::UnitLiteral => DefaultExpressionKindV1::UnitLiteral,
             ExprKind::TupleLiteral(elements) => {
                 DefaultExpressionKindV1::TupleLiteral(self.expressions(elements)?)

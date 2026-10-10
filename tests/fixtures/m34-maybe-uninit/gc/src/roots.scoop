@@ -23,11 +23,11 @@ fun captured(value: Int): () -> MaybeUninit<Rooted> {
     check(nativeInterface(reference).assumeInit().value() == 31, 43)
     check(nativeCollect(rooted).assumeInit().payload.number == 42, 42)
     check(nested.assumeInit().assumeInit().serial == 17L, 41)
-    check(when (none.assumeInit()) { None -> true; Some(_) -> false }, 40)
+    check(when (none.assumeInit()) { case None -> true; case Some(_) -> false }, 40)
     when (packet.assumeInit()) {
-        Packet.Empty -> { throw IllegalStateException() }
-        Packet.Number(value) -> { throw IllegalStateException() }
-        Packet.Data(value) -> { check(value.payload.number == 53, 39) }
+        case Packet.Empty -> { throw IllegalStateException() }
+        case Packet.Number(value) -> { throw IllegalStateException() }
+        case Packet.Data(value) -> { check(value.payload.number == 53, 39) }
     }
     check((boxed as MaybeUninit<Rooted>).assumeInit().payload.number == 42, 38)
     check(closure().assumeInit().payload.number == 64, 37)

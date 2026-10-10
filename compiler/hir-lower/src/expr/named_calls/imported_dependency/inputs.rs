@@ -58,7 +58,8 @@ impl<'a> ImportedCallArguments<'a> {
             Self::Lowered(arguments) => vec![
                 ArgumentShape {
                     name: None,
-                    spread: false
+                    spread: false,
+                    trailing: false
                 };
                 arguments.len()
             ],

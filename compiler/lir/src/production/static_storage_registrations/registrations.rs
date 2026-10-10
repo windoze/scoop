@@ -427,12 +427,8 @@ fn require_initial_artifacts(
     };
     expected.sort_unstable();
     let mut actual = foundation
-        .definition_atoms()
-        .iter()
-        .filter(|record| {
-            record.key().plan() == storage_definition
-                && record.key().role() != DefinitionAtomRole::Primary
-        })
+        .definition_atoms_for_plan(storage_definition)
+        .filter(|record| record.key().role() != DefinitionAtomRole::Primary)
         .map(|record| record.key().clone())
         .collect::<Vec<_>>();
     actual.sort_unstable();
@@ -453,8 +449,7 @@ fn require_atom(
     key: &ObjectDefinitionAtomKey,
 ) -> Result<ObjectDefinitionAtomId, StrongStaticStorageRegistrationPlanBuildError> {
     foundation
-        .definition_atoms()
-        .iter()
+        .definition_atoms_for_plan(key.plan())
         .find(|record| record.key() == key)
         .map(|record| record.id())
         .ok_or_else(|| {
@@ -477,11 +472,8 @@ fn require_primary_atom(
     definition: ObjectDefinitionPlanId,
 ) -> Result<ObjectDefinitionAtomId, StrongStaticStorageRegistrationPlanBuildError> {
     let atoms = foundation
-        .definition_atoms()
-        .iter()
-        .filter(|record| {
-            record.key().plan() == definition && record.key().role() == DefinitionAtomRole::Primary
-        })
+        .definition_atoms_for_plan(definition)
+        .filter(|record| record.key().role() == DefinitionAtomRole::Primary)
         .map(|record| record.id())
         .collect::<Vec<_>>();
     match atoms.as_slice() {

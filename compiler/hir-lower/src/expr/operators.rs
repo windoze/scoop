@@ -298,7 +298,7 @@ impl Lowerer {
             } else {
                 None
             };
-            self.lower_equality_rhs(lhs, rhs, sink, rhs_hint)?
+            self.lower_ordered_rhs(lhs, rhs, sink, rhs_hint, "$equality.lhs")?
         };
         self.lower_equality_operator(negate, lhs, rhs, symbol, span, sink)
     }
@@ -318,7 +318,7 @@ impl Lowerer {
         let narrowings = if self.diagnostics.len() == before {
             self.resolve_smart_casts(lhs_ast, rhs_outcome)
         } else {
-            Vec::new()
+            Default::default()
         };
         let mut rhs_setup = Vec::new();
         let rhs = self.with_smart_casts(narrowings, |this| {
@@ -413,7 +413,7 @@ impl Lowerer {
             "!=="
         };
         let lhs = self.lower_expr(lhs, sink, None)?;
-        let rhs = self.lower_expr(rhs, sink, None)?;
+        let (lhs, rhs) = self.lower_ordered_rhs(lhs, rhs, sink, None, "$equality.lhs")?;
         if !self.is_ref_ty(lhs.ty) || !self.is_ref_ty(rhs.ty) {
             self.error(
                 span,

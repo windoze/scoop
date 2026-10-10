@@ -46,8 +46,8 @@ fun main() {
             expect(current() == 9 && attachedThreads() == 1)
             expect(foreignCallbackState(callback) == ForeignCallbackState.Registered)
             expect(when (foreignCallbackFailure(callback)) {
-                Some(_) -> false
-                None -> true
+                case Some(_) -> false
+                case None -> true
             })
             releaseForeignCallback(callback)
         }

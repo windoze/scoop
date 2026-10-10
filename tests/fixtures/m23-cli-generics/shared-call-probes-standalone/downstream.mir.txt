@@ -1798,6 +1798,11 @@ Module
         Local $call.1
   fun $lambda @fn16($argument.0: (Int) -> Int, $argument.1: Int) -> Int
     bb0 entry
+      val $dependency.local.4: Counter
+        Type Counter
+        ClosureCapture cc6 0
+          Type (Int) -> Int
+          Local $argument.0
       call $dependency.local.1: Int = external2 direct
         Type Counter
         ClosureCapture cc6 0
@@ -1811,31 +1816,29 @@ Module
         Local $dependency.local.2
       call external4 direct
         Type Counter
-        ClosureCapture cc6 0
-          Type (Int) -> Int
-          Local $argument.0
+        Local $dependency.local.4
         Type Int
         IntegerBinary add kind=Int
           Type Int
           Local $dependency.local.1
           Type Int
           Local $dependency.local.3
-      val $dependency.local.4: Int
-        Type Int
-        Local $argument.1
       val $dependency.local.5: Int
         Type Int
-        IntegerLiteral Int value=1 bits=0x00000001
+        Local $argument.1
       val $dependency.local.6: Int
         Type Int
-        Local $dependency.local.5
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.local.7: Int
+        Type Int
+        Local $dependency.local.6
       return
         Type Int
         IntegerBinary add kind=Int
           Type Int
-          Local $dependency.local.4
+          Local $dependency.local.5
           Type Int
-          Local $dependency.local.6
+          Local $dependency.local.7
   fun choose @fn17(value: Int, operation: (Int) -> Int) -> Int
     bb0 entry
       call $call.1: Int = <closure:function_type7> closure[function_type7]
@@ -1955,6 +1958,11 @@ Module
           Local $dependency.local.3
   fun $lambda @fn27($argument.0: (Int) -> Int, $argument.1: Int) -> Int
     bb0 entry
+      val $dependency.local.4: Counter
+        Type Counter
+        ClosureCapture cc10 0
+          Type (Int) -> Int
+          Local $argument.0
       call $dependency.local.1: Int = external2 direct
         Type Counter
         ClosureCapture cc10 0
@@ -1968,31 +1976,29 @@ Module
         Local $dependency.local.2
       call external4 direct
         Type Counter
-        ClosureCapture cc10 0
-          Type (Int) -> Int
-          Local $argument.0
+        Local $dependency.local.4
         Type Int
         IntegerBinary add kind=Int
           Type Int
           Local $dependency.local.1
           Type Int
           Local $dependency.local.3
-      val $dependency.local.4: Int
-        Type Int
-        Local $argument.1
       val $dependency.local.5: Int
         Type Int
-        IntegerLiteral Int value=1 bits=0x00000001
+        Local $argument.1
       val $dependency.local.6: Int
         Type Int
-        Local $dependency.local.5
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.local.7: Int
+        Type Int
+        Local $dependency.local.6
       return
         Type Int
         IntegerBinary add kind=Int
           Type Int
-          Local $dependency.local.4
+          Local $dependency.local.5
           Type Int
-          Local $dependency.local.6
+          Local $dependency.local.7
   fun $anonymous @fn28($argument.0: (Int) -> Int, $argument.1: Int) -> Int
     bb0 entry
       val $dependency.local.1: Int
@@ -2100,6 +2106,11 @@ Module
           Local $dependency.local.3
   fun $lambda @fn37($argument.0: (Int) -> Int, $argument.1: Int) -> Int
     bb0 entry
+      val $dependency.local.4: Counter
+        Type Counter
+        ClosureCapture cc14 0
+          Type (Int) -> Int
+          Local $argument.0
       call $dependency.local.1: Int = external2 direct
         Type Counter
         ClosureCapture cc14 0
@@ -2113,31 +2124,29 @@ Module
         Local $dependency.local.2
       call external4 direct
         Type Counter
-        ClosureCapture cc14 0
-          Type (Int) -> Int
-          Local $argument.0
+        Local $dependency.local.4
         Type Int
         IntegerBinary add kind=Int
           Type Int
           Local $dependency.local.1
           Type Int
           Local $dependency.local.3
-      val $dependency.local.4: Int
-        Type Int
-        Local $argument.1
       val $dependency.local.5: Int
         Type Int
-        IntegerLiteral Int value=1 bits=0x00000001
+        Local $argument.1
       val $dependency.local.6: Int
         Type Int
-        Local $dependency.local.5
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.local.7: Int
+        Type Int
+        Local $dependency.local.6
       return
         Type Int
         IntegerBinary add kind=Int
           Type Int
-          Local $dependency.local.4
+          Local $dependency.local.5
           Type Int
-          Local $dependency.local.6
+          Local $dependency.local.7
   fun $anonymous @fn38($argument.0: (Int) -> Int, $argument.1: Int) -> Int
     bb0 entry
       val $dependency.local.1: Int

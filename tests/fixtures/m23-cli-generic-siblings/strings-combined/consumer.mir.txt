@@ -202,6 +202,9 @@ Module
       val second: Later
         Type Later
         Local $new.17
+      val $equality.lhs: String
+        Type String
+        Local label
       val $dependency.argument.0: Later
         Type Later
         Local second
@@ -215,7 +218,7 @@ Module
         Type Boolean
         Binary RefNe
           Type String
-          Local label
+          Local $equality.lhs
           Type String
           Local $call.18
     bb19 if.then.19

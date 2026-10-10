@@ -16,8 +16,8 @@ public fun <T> exercise(value: T): Int {
     val callback: (() -> Int)? = Some({ 42 })
     val allocated = Cell(0)
     val restored = force(held)
-    if (when (empty) { Some(marker) -> false; None -> true }) { return 1 }
-    if (when (missing) { Some(marker) -> true; None -> false }) { return 2 }
+    if (when (empty) { case Some(marker) -> false; case None -> true }) { return 1 }
+    if (when (missing) { case Some(marker) -> true; case None -> false }) { return 2 }
     val read = force(wide)
     val pair = force(tuple)
     if (force(callback)() != 42 || allocated.number != 0) { return 3 }

@@ -29,8 +29,8 @@ fun stack() {
         while (!empty) {
             val first = head.load(MemoryOrder.Acquire)
             when (first.next) {
-                None -> { empty = true }
-                Some(next) -> {
+                case None -> { empty = true }
+                case Some(next) -> {
                     if (head.compareAndSet(first, next, MemoryOrder.AcqRel, MemoryOrder.Acquire)) {
                         sum.fetchAdd(first.value, MemoryOrder.Relaxed)
                         count = count + 1

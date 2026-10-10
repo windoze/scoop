@@ -312,16 +312,19 @@ Module
         Local $call.1
   fun getValue @fn4(this: Slot<Int>, thisRef: Receiver<Int>) -> Int
     bb0 entry
-      call $call.1: Int = @fn7 direct
-        Type Receiver<Int>
-        Local thisRef
-      call $cast.1: Any = <closure:function_type2> closure[function_type2]
+      val $operand.1: (Int) -> Any
         Type (Int) -> Any
         FieldAccess 0
           Type Slot<Int>
           Local this
+      call $call.2: Int = @fn7 direct
+        Type Receiver<Int>
+        Local thisRef
+      call $cast.1: Any = <closure:function_type2> closure[function_type2]
+        Type (Int) -> Any
+        Local $operand.1
         Type Int
-        Local $call.1
+        Local $call.2
       branch bb1 bb2
         Type Boolean
         Unary BoolNot
@@ -330,15 +333,15 @@ Module
             Type Any
             Local $cast.1
     bb1 if.then.1
-      assign $new.2
+      assign $new.3
         Type ClassCastException
         ClassAlloc ClassCastException
       call external5 direct
         Type ClassCastException
-        Local $new.2
+        Local $new.3
       throw
         Type ClassCastException
-        Local $new.2
+        Local $new.3
     bb2 if.merge.2
       val $ub.2: Int
         Type Int

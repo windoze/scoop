@@ -1,8 +1,8 @@
 use super::super::{BodyNode, DefaultBodyReferenceVisitorV1, ReferenceWalker, ScheduledWork};
 use crate::{
     DefaultBodyProviderTypeSiteV1, DefaultCatchV1, DefaultTryV1, DefaultWhenArmV1,
-    DefaultWhenFallbackV1, DefaultWhenFallbackViewV1, DefaultWhenGuardV1, DefaultWhenV1,
-    ExportDefinitionSourceV1, OptionalDefaultStatementListViewV1,
+    DefaultWhenConditionV1, DefaultWhenFallbackV1, DefaultWhenFallbackViewV1, DefaultWhenGuardV1,
+    DefaultWhenV1, ExportDefinitionSourceV1, OptionalDefaultStatementListViewV1,
 };
 
 impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, V> {
@@ -22,7 +22,10 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
         for arm in value.arms().iter().rev() {
             self.push_child(pending, BodyNode::WhenArm(arm))?;
         }
-        self.push_child(pending, BodyNode::Expression(value.subject()))
+        if let Some(subject) = value.subject() {
+            self.push_child(pending, BodyNode::Expression(subject))?;
+        }
+        Ok(())
     }
 
     pub(in super::super) fn process_when_arm(
@@ -34,13 +37,19 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
         if let Some(guard) = arm.guard().as_ref() {
             self.push_child(pending, BodyNode::WhenGuard(guard))?;
         }
-        self.push_child(
-            pending,
-            BodyNode::Pattern {
-                pattern: arm.pattern(),
-                origin: arm.definition_origin(),
-            },
-        )
+        match arm.condition() {
+            DefaultWhenConditionV1::Case(pattern) => self.push_child(
+                pending,
+                BodyNode::Pattern {
+                    pattern,
+                    origin: arm.definition_origin(),
+                },
+            ),
+            DefaultWhenConditionV1::Predicate(predicate) => {
+                self.push_child(pending, BodyNode::WhenGuard(predicate))
+            }
+            DefaultWhenConditionV1::Always => Ok(()),
+        }
     }
 
     pub(in super::super) fn process_when_guard(
@@ -59,6 +68,7 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
         pending: &mut Vec<ScheduledWork<'body>>,
     ) -> Result<(), V::Error> {
         match fallback.view() {
+            DefaultWhenFallbackViewV1::Fallthrough => Ok(()),
             DefaultWhenFallbackViewV1::Else(statements) => {
                 self.push_statements(pending, statements)
             }

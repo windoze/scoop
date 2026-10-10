@@ -1,0 +1,34 @@
+open class Box(var value: Int) {
+    public open var computed: Int
+        get() = value
+        set(next) { value = next }
+}
+class Child(value: Int) : Box(value) {
+    public override var computed: Int
+        get() = value
+        set(next) { println("setter"); value = next }
+}
+
+fun main() {
+    val first: Box = Child(1)
+    val second: Box = Child(2)
+    var target = first
+    fun receiver(value: Box): Box { println("receiver"); return value }
+    receiver(target).computed = if (true) {
+        println("value")
+        target = second
+        gcCollect()
+        9
+    } else { 0 }
+    println(first.value)
+    println(second.value)
+    target = first
+    try {
+        receiver(target).value = try {
+            target = second
+            throw IllegalStateException()
+        } catch (e: IllegalStateException) { 7 }
+    } finally { println("finally") }
+    println(first.value)
+    println(second.value)
+}

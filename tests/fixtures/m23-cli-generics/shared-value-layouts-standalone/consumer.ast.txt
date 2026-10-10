@@ -33,7 +33,7 @@ SourceFile
       WhenExpression
         Var chain
         arm Next(reference)
-          WhenExpression
+          when
             FieldAccess value
               FieldAccess link
                 Var reference

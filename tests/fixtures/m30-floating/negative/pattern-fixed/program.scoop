@@ -1,2 +1,2 @@
-fun classify(value: Double): Int = when (value) { 0f -> 1; _ -> 2 }
+fun classify(value: Double): Int = when (value) { case 0f -> 1; case _ -> 2 }
 fun main() {}

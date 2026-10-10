@@ -21,7 +21,7 @@ public fun <T> exercise(seed: T, inspect: (T) -> Int): Int {
     tape.reset()
     val packet = Packet.Item(tape, second = tape.mark(2))
     val packed = when (packet) {
-        Item(_, first, second, parts) -> if (parts.size == 0) { first + second } else { 0 }
+        case Item(_, first, second, parts) -> if (parts.size == 0) { first + second } else { 0 }
     }
     if (packed != 5 || tape.log != 23) { return 7 }
     tape.reset()

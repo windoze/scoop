@@ -148,6 +148,10 @@ Module
   fun initializeLeft @fn4() -> Long
     bb0 entry
       call @fn3 direct
+      val $place.receiver: Attempts
+        Type Attempts
+        GlobalRead $singleton$Attempts
+      call @fn3 direct
       val $dependency.receiver: Long
         Type Long
         FieldAccess 0
@@ -159,10 +163,9 @@ Module
       val $dependency.parameter.other: Long
         Type Long
         Local $dependency.argument.0
-      call @fn3 direct
       field_set 0
         Type Attempts
-        GlobalRead $singleton$Attempts
+        Local $place.receiver
         Type Long
         IntegerBinary add kind=Long
           Type Long

@@ -180,7 +180,7 @@ SourceFile
       WhenExpression
         Var packet
         arm Item(_, first, second, parts)
-          IfExpression
+          if
             Binary Eq
               FieldAccess size
                 Var parts
@@ -188,7 +188,7 @@ SourceFile
             Binary Add
               Var first
               Var second
-            else
+          else
             IntLiteral 0
     if
       Binary Or

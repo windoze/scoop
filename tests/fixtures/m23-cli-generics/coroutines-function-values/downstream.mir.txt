@@ -2843,18 +2843,18 @@ Module
         Local $step
   fun register @fn64(this: Registration<Local>, continuation: Continuation<Local>) -> Unit
     bb0 entry
+      call $dependency.local.4: Gate<Local> = @fn67 direct
+        Type Registration<Local>
+        Local this
       val $dependency.local.2: Continuation<Local>
         Type Continuation<Local>
         Local continuation
       val $dependency.local.3: Continuation<Local>
         Type Continuation<Local>
         Local $dependency.local.2
-      call $call.1: Gate<Local> = @fn67 direct
-        Type Registration<Local>
-        Local this
       call @fn38 direct
         Type Gate<Local>
-        Local $call.1
+        Local $dependency.local.4
         Type Option<Continuation<Local>>
         VariantConstruct Option<Continuation<Local>> v0
           Type Continuation<Local>
@@ -2862,18 +2862,18 @@ Module
       return
   fun register @fn65(this: Registration<Int>, continuation: Continuation<Int>) -> Unit
     bb0 entry
+      call $dependency.local.4: Gate<Int> = @fn68 direct
+        Type Registration<Int>
+        Local this
       val $dependency.local.2: Continuation<Int>
         Type Continuation<Int>
         Local continuation
       val $dependency.local.3: Continuation<Int>
         Type Continuation<Int>
         Local $dependency.local.2
-      call $call.1: Gate<Int> = @fn68 direct
-        Type Registration<Int>
-        Local this
       call @fn47 direct
         Type Gate<Int>
-        Local $call.1
+        Local $dependency.local.4
         Type Option<Continuation<Int>>
         VariantConstruct Option<Continuation<Int>> v0
           Type Continuation<Int>
@@ -2881,18 +2881,18 @@ Module
       return
   fun register @fn66(this: Registration<Unit>, continuation: Continuation<Unit>) -> Unit
     bb0 entry
+      call $dependency.local.4: Gate<Unit> = @fn69 direct
+        Type Registration<Unit>
+        Local this
       val $dependency.local.2: Continuation<Unit>
         Type Continuation<Unit>
         Local continuation
       val $dependency.local.3: Continuation<Unit>
         Type Continuation<Unit>
         Local $dependency.local.2
-      call $call.1: Gate<Unit> = @fn69 direct
-        Type Registration<Unit>
-        Local this
       call @fn56 direct
         Type Gate<Unit>
-        Local $call.1
+        Local $dependency.local.4
         Type Option<Continuation<Unit>>
         VariantConstruct Option<Continuation<Unit>> v0
           Type Continuation<Unit>
@@ -4664,7 +4664,12 @@ Module
           Type machine<enum-tag>
           MachineScalarLiteral EnumTag(0)
     bb1 coroutine.post.1
-      call $call.1: Int = <closure:function_type0> closure[function_type0]
+      val $operand.1: Counter
+        Type Counter
+        ClosureCapture cc4 0
+          Type suspend () -> Local
+          Local $argument.0
+      call $call.2: Int = <closure:function_type0> closure[function_type0]
         Type (Local) -> Int
         ClosureCapture cc4 1
           Type suspend () -> Local
@@ -4675,11 +4680,9 @@ Module
           Local $argument.0
       call external2 direct
         Type Counter
-        ClosureCapture cc4 0
-          Type suspend () -> Local
-          Local $argument.0
+        Local $operand.1
         Type Int
-        Local $call.1
+        Local $call.2
       return
         Type CoroutineStep<Local>
         VariantConstruct CoroutineStep<Local> v0
@@ -6219,7 +6222,12 @@ Module
           Type machine<enum-tag>
           MachineScalarLiteral EnumTag(0)
     bb1 coroutine.post.1
-      call $call.1: Int = <closure:function_type2> closure[function_type2]
+      val $operand.1: Counter
+        Type Counter
+        ClosureCapture cc6 0
+          Type suspend () -> Int
+          Local $argument.0
+      call $call.2: Int = <closure:function_type2> closure[function_type2]
         Type (Int) -> Int
         ClosureCapture cc6 1
           Type suspend () -> Int
@@ -6230,11 +6238,9 @@ Module
           Local $argument.0
       call external2 direct
         Type Counter
-        ClosureCapture cc6 0
-          Type suspend () -> Int
-          Local $argument.0
+        Local $operand.1
         Type Int
-        Local $call.1
+        Local $call.2
       return
         Type CoroutineStep<Int>
         VariantConstruct CoroutineStep<Int> v0
@@ -7735,7 +7741,12 @@ Module
       val $dependency.local.0: Unit
         Type Unit
         UnitLiteral
-      call $call.1: Int = <closure:function_type3> closure[function_type3]
+      val $operand.1: Counter
+        Type Counter
+        ClosureCapture cc8 3
+          Type suspend () -> Unit
+          Local $argument.0
+      call $call.2: Int = <closure:function_type3> closure[function_type3]
         Type (Unit) -> Int
         ClosureCapture cc8 1
           Type suspend () -> Unit
@@ -7746,11 +7757,9 @@ Module
           Local $argument.0
       call external2 direct
         Type Counter
-        ClosureCapture cc8 3
-          Type suspend () -> Unit
-          Local $argument.0
+        Local $operand.1
         Type Int
-        Local $call.1
+        Local $call.2
       Type Unit
       Local $dependency.local.0
       return

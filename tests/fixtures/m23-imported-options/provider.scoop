@@ -3,15 +3,15 @@ package dependency.options
 public fun <T> wrap(value: T): T? = Some(value)
 public fun <T> absent(): T? = None
 public fun <T> restore(value: T?, fallback: T): T = when (value) {
-    Some(item) -> item
-    None -> fallback
+    case Some(item) -> item
+    case None -> fallback
 }
 public fun <T> nest(value: T): T?? = Some(Some(value))
 public fun <T> force(value: T?): T = value!!
 public fun <T> optionalDefault(fallback: T, value: T? = Some(fallback)): T = value ?: fallback
 public fun <T> noneDefault(fallback: T, value: T? = None): T = value ?: fallback
 public fun <T> nestedDefault(value: T, wrapped: T?? = Some(Some(value))): T = when (wrapped) {
-    Some(Some(item)) -> item
+    case Some(Some(item)) -> item
     else -> value
 }
 

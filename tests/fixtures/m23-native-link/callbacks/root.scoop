@@ -24,7 +24,7 @@ fun main() {
         )
         println(invokeNative(outer.function, outer.context, 40))
         println(when (foreignCallbackState(outer)) {
-            ForeignCallbackState.Registered -> true
+            case ForeignCallbackState.Registered -> true
             else -> false
         })
         releaseForeignCallback(outer)
@@ -35,7 +35,7 @@ fun main() {
         val observer = retainForeignCallback(oneShot)
         println(invokeNative(oneShot.function, oneShot.context, 40))
         println(when (foreignCallbackState(observer)) {
-            ForeignCallbackState.Completed -> true
+            case ForeignCallbackState.Completed -> true
             else -> false
         })
         releaseForeignCallback(observer)

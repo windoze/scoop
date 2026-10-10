@@ -106,6 +106,7 @@ pub(crate) enum ArgumentShapeFailure {
     SpreadForRegular { name: String },
     MissingRequired { name: String },
     MixedVarargInputs { name: String },
+    TrailingForVararg { name: String },
 }
 
 impl ArgumentShapeFailure {
@@ -135,6 +136,9 @@ impl ArgumentShapeFailure {
             }
             Self::MixedVarargInputs { name } => format!(
                 "vararg parameter `{name}` cannot mix a named whole-array argument with element inputs"
+            ),
+            Self::TrailingForVararg { name } => format!(
+                "trailing lambda cannot bind vararg parameter `{name}`; pass it inside parentheses"
             ),
         }
     }

@@ -17,10 +17,10 @@ public fun <T> cell(value: T): Cell<T> = Cell(value)
 public fun fromProvider(): Small = identity(NEGATIVE_ZERO)
 
 public fun patternDefault(value: Small = when (-0f) {
-    0f -> 1.000000059604644775390625000001
-    _ -> 0f
+    case 0f -> 1.000000059604644775390625000001
+    case _ -> 0f
 }): Small = value
 public fun arithmeticDefault(value: Small = 5.5f % 2f + 1f): Small = value
-public fun classify(value: Small): Int = when (value) { -0f -> 1; _ -> 2 }
+public fun classify(value: Small): Int = when (value) { case -0f -> 1; case _ -> 2 }
 public fun remainder(value: Small): Small = value % 2f
 public fun wideRemainder(value: Wide, divisor: Wide): Wide = value % divisor

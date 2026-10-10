@@ -72,7 +72,7 @@ pub(crate) fn build(
 
     hir::HirDispatchSlotIdentities::checked(
         hir::HirDispatchSlotIdentityInputs {
-            functions: &lowerer.functions,
+            functions: lowerer.functions.as_arena(),
             function_identities: functions,
             property_accessor_identities: accessors,
             interface_methods: &lowerer.interface_method_entities,

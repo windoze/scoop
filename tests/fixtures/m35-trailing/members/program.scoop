@@ -1,0 +1,47 @@
+open class Base {
+    public open fun calculate(value: Int = 1, action: () -> Int): Int = value + action()
+}
+class Child : Base() {
+    fun direct(): Int = super.calculate { 2 }
+}
+interface DefaultView {
+    fun calculate(action: () -> Int): Int = action()
+}
+class View : DefaultView {
+    fun direct(): Int = super<DefaultView>.calculate { 4 }
+}
+class Worker {
+    fun work(value: Int = 1, action: () -> Int): Int = value + action()
+}
+fun Worker.extension(value: Int = 2, action: () -> Int): Int = value + action()
+class Factory(val action: () -> Int)
+typealias Alias = Factory
+struct Built(val value: Int = 3, val action: () -> Int)
+
+class Callable {
+    operator fun invoke(prefix: Int = 1, action: () -> Int): Int = prefix + action()
+}
+object Namespace { fun make(action: () -> Int): Int = action() }
+
+fun narrowed(value: Any): Int = when (value) {
+    is Worker -> value.work { 10 }
+    else -> 0
+}
+
+fun main() {
+    println(Child().direct())
+    println(View().direct())
+    println(Worker().work { 5 })
+    println(Worker().extension { 6 })
+    println(Factory { 7 }.action())
+    println(Alias { 8 }.action())
+    val built = Built { 9 }
+    println(built.value + built.action())
+    println(narrowed(Worker()))
+    val functions: Array<(() -> Int) -> Int> = [{ action -> action() }]
+    println(functions[0] { 12 })
+    val callable = Callable()
+    println(callable { 13 })
+    println((Callable()) { 14 })
+    println(Namespace.make { 15 })
+}

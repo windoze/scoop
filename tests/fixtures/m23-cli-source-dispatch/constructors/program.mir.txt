@@ -404,6 +404,9 @@ Module
       call hidden: HiddenConstructors = external11 direct
         Type Companion
         Local $dependency.receiver
+      val $equality.lhs: HiddenConstructors
+        Type HiddenConstructors
+        Local hidden
       call external13 direct
       val $dependency.receiver: Companion
         Type Companion
@@ -415,7 +418,7 @@ Module
         Type Boolean
         Binary RefNe
           Type HiddenConstructors
-          Local hidden
+          Local $equality.lhs
           Type HiddenConstructors
           Local $call.8
       val $parameter.value: Boolean

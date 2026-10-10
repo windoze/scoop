@@ -90,14 +90,14 @@ Module
       val $receiver: Counter
         Type Counter
         Local counter
-      call $opt.0: Option<Boolean> = @fn0 direct
+      call opt: Option<Boolean> = @fn0 direct
         Type Counter
         Local $receiver
       branch bb3 bb4
         Type Boolean
         VariantTest Option<Boolean> v0
           Type Option<Boolean>
-          Local $opt.0
+          Local opt
     bb2 while.exit.2
       val $dependency.argument.0: Int
         Type Int
@@ -121,21 +121,21 @@ Module
         Local $dependency.parameter.value
       return
     bb3 if.then.3
-      val $res.1: Boolean
+      assign $result.0
         Type Boolean
         VariantPayloadProject Option<Boolean> v0 f0
           Type Option<Boolean>
-          Local $opt.0
+          Local opt
       goto bb5
     bb4 if.else.4
-      val $res.1: Boolean
+      assign $result.0
         Type Boolean
         BoolLiteral false
       goto bb5
     bb5 if.merge.5
       branch bb6 bb2
         Type Boolean
-        Local $res.1
+        Local $result.0
     bb6 while.body.6
       val $dependency.receiver: Int
         Type Int

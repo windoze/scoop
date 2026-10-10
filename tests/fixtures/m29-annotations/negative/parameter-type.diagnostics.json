@@ -1,11 +1,11 @@
 [
   {
     "code": "SCOOPC_HIR_ERROR",
-    "message": "annotation parameter types are limited to Boolean, String, Char, fixed-width integers, Float and Double",
+    "message": "annotation parameters require Boolean, String, Char, fixed-width integers, Float, Double, or a one-dimensional Array of these scalar types",
     "notes": [],
     "origin": {
       "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
-      "end": 45,
+      "end": 52,
       "kind": "source",
       "path": "main.scoop",
       "start": 35

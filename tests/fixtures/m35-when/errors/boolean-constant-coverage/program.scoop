@@ -1,0 +1,2 @@
+const val YES: Boolean = true
+fun main() { when (true) { YES -> {}; false -> {} } }

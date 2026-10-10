@@ -254,15 +254,17 @@ fn every_expression_variant_keeps_its_frozen_wire_tag() {
                 order: crate::AtomicLoadOrder::Acquire,
             },
         })),
+        DefaultExpressionKindV1::Unreachable,
     ];
 
-    assert_eq!(cases.len(), 59);
+    assert_eq!(cases.len(), 60);
     for (index, kind) in cases.into_iter().enumerate() {
         let expected_tag = match index {
             43 => 57,
             56 => 58,
             57 => 71,
             58 => 72,
+            59 => 74,
             _ => u64::try_from(index + 1).unwrap(),
         };
         let expression = expression(kind, &fixture);

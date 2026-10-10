@@ -131,6 +131,7 @@ impl Lowerer {
                         if matches!(argument.spread, ast::SpreadSyntax::Plain)
                             && match &argument.name {
                                 ast::CallArgumentName::Positional => true,
+                                ast::CallArgumentName::TrailingLambda => false,
                                 ast::CallArgumentName::Named(argument_name) => resolved
                                     .parameters
                                     .first()
@@ -203,6 +204,7 @@ impl Lowerer {
                 };
                 let named_argument_matches = match &argument.name {
                     ast::CallArgumentName::Positional => true,
+                    ast::CallArgumentName::TrailingLambda => false,
                     ast::CallArgumentName::Named(argument_name) => resolved
                         .parameters
                         .first()

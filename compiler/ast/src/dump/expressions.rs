@@ -30,6 +30,16 @@ pub(super) fn dump_expr(expr: &Expr, indent: usize, out: &mut String) {
         }
         Expr::IntLiteral(literal) => out.push_str(&format!("{pad}IntLiteral {literal}\n")),
         Expr::BoolLiteral { value, .. } => out.push_str(&format!("{pad}BoolLiteral {value}\n")),
+        Expr::Return { value, .. } => {
+            out.push_str(&format!("{pad}Return\n"));
+            if let Some(value) = value {
+                dump_expr(value, indent + 1, out);
+            }
+        }
+        Expr::Throw { value, .. } => {
+            out.push_str(&format!("{pad}Throw\n"));
+            dump_expr(value, indent + 1, out);
+        }
         Expr::UnitLiteral { .. } => out.push_str(&format!("{pad}UnitLiteral\n")),
         Expr::TupleLiteral { elements, .. } => {
             out.push_str(&format!("{pad}TupleLiteral\n"));
@@ -291,23 +301,7 @@ pub(super) fn dump_expr(expr: &Expr, indent: usize, out: &mut String) {
         }
         Expr::When(when) => {
             out.push_str(&format!("{pad}WhenExpression\n"));
-            dump_expr(&when.subject, indent + 1, out);
-            for arm in &when.arms {
-                out.push_str(&format!(
-                    "{pad}  arm {}{}\n",
-                    dump_pattern(&arm.pattern),
-                    if arm.guard.is_some() {
-                        " if <guard>"
-                    } else {
-                        ""
-                    }
-                ));
-                dump_block(&arm.body, indent + 2, out);
-            }
-            if let Some(else_body) = &when.else_body {
-                out.push_str(&format!("{pad}  else\n"));
-                dump_block(else_body, indent + 2, out);
-            }
+            super::dump_when(when, indent + 1, out);
         }
         Expr::Try(try_) => {
             out.push_str(&format!("{pad}TryExpression\n"));
@@ -366,6 +360,7 @@ fn dump_call_argument(argument: &CallArgument, indent: usize, out: &mut String) 
     let name = match &argument.name {
         CallArgumentName::Positional => String::new(),
         CallArgumentName::Named(name) => format!("{}=", name.text),
+        CallArgumentName::TrailingLambda => "trailing".to_string(),
     };
     let spread = if matches!(argument.spread, SpreadSyntax::Spread(_)) {
         "*"

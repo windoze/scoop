@@ -1,0 +1,55 @@
+interface Left { fun left(): Int }
+interface Right { fun right(): Int }
+class Both : Left, Right {
+    public override fun left(): Int = 3
+    public override fun right(): Int = 4
+}
+struct Payload(val number: Int, val label: String)
+fun withDefaults(base: Int = 10, action: () -> Int): Int = base + action()
+
+fun build(input: Any?): () -> Int {
+    val value = input ?: return { -1 }
+    when (value) {
+        is Left if value is Right -> {
+            fun local(left: Int = value.left()): Int = left + value.right()
+            val anonymous = fun(): Int { gcCollect(); return local() }
+            return { gcCollect(); withDefaults { anonymous() + value.right() } }
+        }
+        else -> return { 0 }
+    }
+}
+fun inside(value: Any): () -> Int = {
+    when (value) {
+        is Left if value is Right -> { gcCollect(); value.left() + value.right() }
+        else -> 0
+    }
+}
+fun boxed(value: Any): () -> Int {
+    when (value) {
+        is Payload -> return { gcCollect(); println(value.label); value.number }
+        else -> return { 0 }
+    }
+}
+fun <T> exact(input: Any, fallback: T): () -> T = when (input) {
+    is T -> ({ gcCollect(); input })
+    else -> ({ fallback })
+}
+class Construct(value: Any) {
+    val callback: () -> Int = when (value) {
+        is Payload -> ({ gcCollect(); value.number })
+        else -> ({ 0 })
+    }
+}
+fun main() {
+    val combined = build(Some(Both()))
+    gcCollect()
+    println(combined())
+    println(build(None)())
+    println(inside(Both())())
+    val payload = boxed(Payload(8, "boxed-live"))
+    gcCollect()
+    println(payload())
+    println(exact<Int>(9, 0)())
+    println(exact<String>("generic-live", "fallback")())
+    println(Construct(Payload(11, "constructor")).callback())
+}

@@ -444,6 +444,11 @@ Module
       goto bb10
   fun SavingRegistration.register @fn3(this: SavingRegistration, continuation: Continuation<Int>) -> Unit
     bb0 entry
+      val $place.receiver: Holder
+        Type Holder
+        FieldAccess 0
+          Type SavingRegistration
+          Local this
       val $dependency.argument.0: Continuation<Int>
         Type Continuation<Int>
         Local continuation
@@ -452,9 +457,7 @@ Module
         Local $dependency.argument.0
       field_set 0
         Type Holder
-        FieldAccess 0
-          Type SavingRegistration
-          Local this
+        Local $place.receiver
         Type Option<Continuation<Int>>
         VariantConstruct Option<Continuation<Int>> v0
           Type Continuation<Int>
@@ -487,6 +490,11 @@ Module
         Local $new.1
   fun SaveThenThrowRegistration.register @fn5(this: SaveThenThrowRegistration, continuation: Continuation<Int>) -> Unit
     bb0 entry
+      val $place.receiver: Holder
+        Type Holder
+        FieldAccess 0
+          Type SaveThenThrowRegistration
+          Local this
       val $dependency.argument.0: Continuation<Int>
         Type Continuation<Int>
         Local continuation
@@ -495,9 +503,7 @@ Module
         Local $dependency.argument.0
       field_set 0
         Type Holder
-        FieldAccess 0
-          Type SaveThenThrowRegistration
-          Local this
+        Local $place.receiver
         Type Option<Continuation<Int>>
         VariantConstruct Option<Continuation<Int>> v0
           Type Continuation<Int>

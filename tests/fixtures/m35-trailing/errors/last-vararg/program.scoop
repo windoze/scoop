@@ -1,0 +1,2 @@
+fun f(vararg actions: () -> Unit) {}
+fun main() { f {} }

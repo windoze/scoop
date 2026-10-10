@@ -33,22 +33,25 @@ impl Lowerer {
                 if self.local_delegate_plans.contains_key(&capture.binding) {
                     return self.local_delegate_read(storage, capture.binding, name.span);
                 }
-                return Some(storage);
+                return Some(self.smart_cast_read(storage, capture.binding, expected));
             }
-            if let Some(&(parameter, ty, _)) = self.constructor_params_in_scope.get(&name.text) {
-                return Some(hir::Expr {
+            if let Some(&(parameter, ty, binding)) =
+                self.constructor_params_in_scope.get(&name.text)
+            {
+                let source = hir::Expr {
                     kind: ExprKind::ConstructorParam(parameter),
                     ty,
                     span: name.span,
                     origin: self.expression_origin(name.span),
-                });
+                };
+                return Some(self.smart_cast_read(source, binding, expected));
             }
             if let Some(capture) = self.available_capture(&name.text) {
                 let storage = self.lower_capture(name)?;
                 if self.local_delegate_plans.contains_key(&capture.binding) {
                     return self.local_delegate_read(storage, capture.binding, name.span);
                 }
-                return Some(storage);
+                return Some(self.smart_cast_read(storage, capture.binding, expected));
             }
             if self.initialization_context.is_some()
                 && self.initializing_receiver_has_field(&name.text)
@@ -220,38 +223,13 @@ impl Lowerer {
             };
             return self.local_delegate_read(storage, binding, name.span);
         }
-        if let Some(&narrowed) = self.smart_casts.get(&local) {
-            if !self.types_equal(narrowed, declared) {
-                let local_expr = hir::Expr {
-                    kind: ExprKind::Local(local),
-                    ty: declared,
-                    span: name.span,
-                    origin: self.expression_origin(name.span),
-                };
-                if self.is_value_ty(narrowed) {
-                    // A boxed value narrowed to its value type unboxes.
-                    return Some(hir::Expr {
-                        kind: ExprKind::Unbox(Box::new(local_expr)),
-                        ty: narrowed,
-                        span: name.span,
-                        origin: self.expression_origin(name.span),
-                    });
-                }
-                // A reference narrowed to a subtype: zero-cost retype.
-                return Some(hir::Expr {
-                    kind: ExprKind::Local(local),
-                    ty: narrowed,
-                    span: name.span,
-                    origin: self.expression_origin(name.span),
-                });
-            }
-        }
-        Some(hir::Expr {
+        let source = hir::Expr {
             kind: ExprKind::Local(local),
             ty: declared,
             span: name.span,
             origin: self.expression_origin(name.span),
-        })
+        };
+        Some(self.smart_cast_read(source, binding, expected))
     }
 
     pub(crate) fn lower_named_value_target(
@@ -419,69 +397,5 @@ impl Lowerer {
             .ok()??;
         let receiver = self.lower_current_this(name.span)?;
         self.emit_imported_member_property_read(&property, receiver, name.span)
-    }
-
-    /// Smart-cast candidates established by `cond` evaluating to
-    /// `outcome` (milestone6 DESIGN.md 5.4): `x is T` in the true
-    /// branch, `x !is T` / `!(x is T)` in the false branch, and the
-    /// conjuncts of `&&` in the true branch. Anything else (including
-    /// `||`) establishes nothing in M6.
-    pub(crate) fn resolve_smart_casts(
-        &mut self,
-        cond: &ast::Expr,
-        outcome: bool,
-    ) -> Vec<(hir::LocalId, TypeId)> {
-        let mut candidates = Vec::new();
-        collect_smart_cast_candidates(cond, outcome, &mut candidates);
-        let mut result: Vec<(hir::LocalId, TypeId)> = Vec::new();
-        for (name, ty_ref) in candidates {
-            let Some(local) = self.scopes.lookup(&name.text) else {
-                continue;
-            };
-            // Only immutable locals can be narrowed (the condition is
-            // pure and the variable cannot change below it).
-            if self.locals[local].mutable {
-                continue;
-            }
-            if self
-                .local_delegate_plans
-                .contains_key(&self.locals[local].binding)
-            {
-                continue;
-            }
-            let Some(narrowed) = self.resolve_type_ref(ty_ref) else {
-                continue; // the condition's own lowering diagnoses this
-            };
-            let declared = self.locals[local].ty;
-            // Narrowing must go strictly downward.
-            if self.types_equal(narrowed, declared) || !self.is_subtype(narrowed, declared) {
-                continue;
-            }
-            if result.iter().any(|&(l, _)| l == local) {
-                continue; // first conjunct wins
-            }
-            result.push((local, narrowed));
-        }
-        result
-    }
-
-    /// Run `f` with additional smart-cast narrowings active, restoring
-    /// the previous set afterwards (narrowings never escape their
-    /// branch).
-    pub(crate) fn with_smart_casts<T>(
-        &mut self,
-        narrowings: Vec<(hir::LocalId, TypeId)>,
-        f: impl FnOnce(&mut Self) -> T,
-    ) -> T {
-        if narrowings.is_empty() {
-            return f(self);
-        }
-        let saved = self.smart_casts.clone();
-        for (local, ty) in narrowings {
-            self.smart_casts.insert(local, ty);
-        }
-        let result = f(self);
-        self.smart_casts = saved;
-        result
     }
 }

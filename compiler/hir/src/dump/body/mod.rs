@@ -204,18 +204,32 @@ pub(super) fn dump_statements(
             }
             StatementKind::When(when) => {
                 out.push_str(&format!("{pad}when\n"));
-                dump_expr(module, locals, &when.subject, indent + 1, out);
+                if let Some(subject) = &when.subject {
+                    dump_expr(module, locals, subject, indent + 1, out);
+                } else {
+                    out.push_str(&format!("{pad}  no subject\n"));
+                }
                 for arm in &when.arms {
                     out.push_str(&format!(
                         "{}  arm {}{}\n",
                         pad,
-                        dump_pattern(module, &arm.pattern),
+                        match &arm.condition {
+                            WhenCondition::Case(pattern) => dump_pattern(module, pattern),
+                            WhenCondition::Predicate(_) => "<predicate>".into(),
+                            WhenCondition::Always => "<fallback>".into(),
+                        },
                         if arm.guard.is_some() {
                             " if <guard>"
                         } else {
                             ""
                         }
                     ));
+                    if let WhenCondition::Predicate(predicate) = &arm.condition {
+                        out.push_str(&format!("{pad}    condition setup\n"));
+                        dump_statements(module, locals, &predicate.setup, indent + 3, out);
+                        out.push_str(&format!("{pad}    condition\n"));
+                        dump_expr(module, locals, &predicate.condition, indent + 3, out);
+                    }
                     if let Some(guard) = &arm.guard {
                         if !guard.setup.is_empty() {
                             out.push_str(&format!("{}    guard setup\n", pad));
@@ -227,6 +241,7 @@ pub(super) fn dump_statements(
                     dump_statements(module, locals, &arm.body, indent + 2, out);
                 }
                 match &when.fallback {
+                    WhenFallback::Fallthrough => out.push_str(&format!("{pad}  fallthrough\n")),
                     WhenFallback::Else(body) => {
                         out.push_str(&format!("{pad}  else\n"));
                         dump_statements(module, locals, body, indent + 2, out);

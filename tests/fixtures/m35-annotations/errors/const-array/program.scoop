@@ -1,0 +1,2 @@
+const val values: Array<Int> = [1]
+fun main() {}

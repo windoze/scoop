@@ -6,6 +6,8 @@ impl Lowerer {
             return false;
         }
         let operation = match expression {
+            ast::Expr::Return { .. } => "`return`",
+            ast::Expr::Throw { .. } => "`throw`",
             ast::Expr::This { .. } => "`this`",
             ast::Expr::SuperMethodCall { .. }
             | ast::Expr::QualifiedInterfaceSuperAccess { .. }

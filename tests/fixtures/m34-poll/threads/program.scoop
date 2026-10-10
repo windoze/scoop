@@ -33,7 +33,7 @@ fun wait(started: AtomicInt, done: AtomicBoolean, value: Value,
     val callback = foreignCallback<(Int, Ptr<Unit>) -> Int>(action, 1, ForeignCallbackMode.Reusable)
     try {
         check(workers(callback.function, callback.context, 0, 4) == 264)
-        check(when (foreignCallbackFailure(callback)) { None -> true; Some(_) -> false })
+        check(when (foreignCallbackFailure(callback)) { case None -> true; case Some(_) -> false })
     } finally { releaseForeignCallback(callback) }
     println("conditional poll threads")
 }

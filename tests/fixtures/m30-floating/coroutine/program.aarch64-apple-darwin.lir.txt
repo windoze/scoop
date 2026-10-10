@@ -530,24 +530,28 @@ Module
   fun @scoop$1$cb$35c07f31d90eb7a201ab274000710d136302c784d5b17c8199c4d5bafb4457eb(ptr<managed>, parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>) -> void
     local %0 $dependency.argument.0: interface{object,itab}
     local %1 $dependency.parameter._1: interface{object,itab}
+    local %2 $place.receiver: ptr<managed>
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0, param1:interface{object,itab}@0]
+    t0 = heap_load param0 +16 : ptr<managed>
+    store t0 -> local2
     store param1 -> local0
     store local0 -> local1
-    t0 = heap_load param0 +16 : ptr<managed>
     t1 = enum_wrap e0 v0 (local1) : enum0
-    heap_store t0 +16 t1
+    heap_store local2 +16 t1
     ret
   fun @scoop$1$cb$2c42408450041423cb3237664a8488e0a7aff932ae9bf36f7f1fa63aa214b22f(ptr<managed>, parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>) -> void
     local %0 $dependency.argument.0: interface{object,itab}
     local %1 $dependency.parameter._1: interface{object,itab}
+    local %2 $place.receiver: ptr<managed>
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0, param1:interface{object,itab}@0]
+    t0 = heap_load param0 +16 : ptr<managed>
+    store t0 -> local2
     store param1 -> local0
     store local0 -> local1
-    t0 = heap_load param0 +16 : ptr<managed>
     t1 = enum_wrap e1 v0 (local1) : enum1
-    heap_store t0 +16 t1
+    heap_store local2 +16 t1
     ret
   fun @scoop$1$cb$20ab57d9e3258ecb09dbffaa2a02f0c1b350aff18a11a3e9158142c39c5545a1(indirect<enum2 size=32 align=8 scan=refs[24]>, indirect<enum2 size=32 align=8 scan=refs[24]>) -> i1
     local %0 $left.0.0: struct2

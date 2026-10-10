@@ -100,6 +100,7 @@ pub enum DefaultExpressionKindV1 {
         conversion: crate::DefaultFloatConversionV1,
         operand: Box<DefaultExpressionV1>,
     },
+    Unreachable,
     UnitLiteral,
     TupleLiteral(Vec<DefaultExpressionV1>),
     StructInit {
@@ -483,6 +484,7 @@ fn validate_kind(kind: &DefaultExpressionKindV1) -> Result<(), DefaultExpression
         | DefaultExpressionKindV1::CharLiteral(_)
         | DefaultExpressionKindV1::FloatLiteral(_)
         | DefaultExpressionKindV1::BooleanLiteral(_)
+        | DefaultExpressionKindV1::Unreachable
         | DefaultExpressionKindV1::UnitLiteral
         | DefaultExpressionKindV1::VariantTest { .. }
         | DefaultExpressionKindV1::VariantPayloadProject { .. }

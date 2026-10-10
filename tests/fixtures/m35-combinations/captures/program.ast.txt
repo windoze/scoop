@@ -1,0 +1,161 @@
+SourceFile
+  RootPackage
+  interface Left
+    fun left
+  interface Right
+    fun right
+  class Both(), Left, Right
+    public fun left
+    public fun right
+  struct Payload
+    field number: Int
+    field label: String
+  fun withDefaults(base: Int = <expr>, action: () -> Int): Int
+    =
+      Binary Add
+        Var base
+        Call action
+  fun build(input: Any?): () -> Int
+    val value
+      Elvis
+        Var input
+        Return
+          Lambda 0 suspend=false
+            parameters omitted
+            Unary Neg
+              IntLiteral 1
+    when
+      Var value
+      conditions if <guard>
+        is Left
+        fun local(left: Int): Int
+          Binary Add
+            Var left
+            MethodCall right
+              Var value
+        val anonymous
+          AnonymousFunction 0 suspend=false return=Int
+            Call gcCollect
+            return
+              Call local
+        return
+          Lambda 2 suspend=false
+            parameters omitted
+            Call gcCollect
+            Call withDefaults
+              Argument trailing
+                Lambda 1 suspend=false
+                  parameters omitted
+                  Binary Add
+                    Call anonymous
+                    MethodCall right
+                      Var value
+      else
+        return
+          Lambda 3 suspend=false
+            parameters omitted
+            IntLiteral 0
+  fun inside(value: Any): () -> Int
+    =
+      Lambda 4 suspend=false
+        parameters omitted
+        when
+          Var value
+          conditions if <guard>
+            is Left
+            Call gcCollect
+            Binary Add
+              MethodCall left
+                Var value
+              MethodCall right
+                Var value
+          else
+            IntLiteral 0
+  fun boxed(value: Any): () -> Int
+    when
+      Var value
+      conditions
+        is Payload
+        return
+          Lambda 5 suspend=false
+            parameters omitted
+            Call gcCollect
+            Call println
+              FieldAccess label
+                Var value
+            FieldAccess number
+              Var value
+      else
+        return
+          Lambda 6 suspend=false
+            parameters omitted
+            IntLiteral 0
+  fun exact<T>(input: Any, fallback: T): () -> T
+    =
+      WhenExpression
+        Var input
+        conditions
+          is T
+          Lambda 7 suspend=false
+            parameters omitted
+            Call gcCollect
+            Var input
+        else
+          Lambda 8 suspend=false
+            parameters omitted
+            Var fallback
+  class Construct(value: Any)
+    val callback: () -> Int =
+      WhenExpression
+        Var value
+        conditions
+          is Payload
+          Lambda 9 suspend=false
+            parameters omitted
+            Call gcCollect
+            FieldAccess number
+              Var value
+        else
+          Lambda 10 suspend=false
+            parameters omitted
+            IntLiteral 0
+  fun main()
+    val combined
+      Call build
+        Call Some
+          Call Both
+    Call gcCollect
+    Call println
+      Call combined
+    Call println
+      Invoke
+        Call build
+          Var None
+    Call println
+      Invoke
+        Call inside
+          Call Both
+    val payload
+      Call boxed
+        Call Payload
+          IntLiteral 8
+          StringLiteral "boxed-live"
+    Call gcCollect
+    Call println
+      Call payload
+    Call println
+      Invoke
+        Call exact<Int>
+          IntLiteral 9
+          IntLiteral 0
+    Call println
+      Invoke
+        Call exact<String>
+          StringLiteral "generic-live"
+          StringLiteral "fallback"
+    Call println
+      MethodCall callback
+        Call Construct
+          Call Payload
+            IntLiteral 11
+            StringLiteral "constructor"

@@ -11,9 +11,9 @@ fun returned(): Signal = Ready
 fun pass(value: Signal): Signal = value
 
 fun score(value: Signal): Int = when (value) {
-    Ready -> 0
-    Value(number) -> number
-    Named(code, _) -> code
+    case Ready -> 0
+    case Value(number) -> number
+    case Named(code, _) -> code
 }
 
 fun main() {

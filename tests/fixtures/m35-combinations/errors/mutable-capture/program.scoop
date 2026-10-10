@@ -1,0 +1,8 @@
+class Item(val number: Int)
+fun main() {
+    var value: Any = Item(1)
+    when (value) {
+        is Item -> { val read = { value.number } }
+        else -> {}
+    }
+}

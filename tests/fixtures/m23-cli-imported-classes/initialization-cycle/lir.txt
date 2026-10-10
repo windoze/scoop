@@ -117,24 +117,26 @@ Module
     local %0 $dependency.receiver: i64
     local %1 $dependency.argument.0: i64
     local %2 $dependency.parameter.other: i64
-    local %3 $call.1: i64
+    local %3 $place.receiver: ptr<managed>
+    local %4 $call.1: i64
   block entry
     poll managed-void-target2 sp<managed-poll:0> live=[]
     call managed-void-target0 sp<managed-call:0> live=[] sig=void0 () local-fn3()
     t0 = aggregate () : {}
     t1 = global_load global0 : ptr<managed>
-    t2 = heap_load t1 +16 : i64
-    store t2 -> local0
+    store t1 -> local3
+    call managed-void-target1 sp<managed-call:1> live=[local3:ptr<managed>@0] sig=void1 () local-fn3()
+    t2 = aggregate () : {}
+    t3 = global_load global0 : ptr<managed>
+    t4 = heap_load t3 +16 : i64
+    store t4 -> local0
     store integer<Long>(0x0000000000000001) -> local1
     store local1 -> local2
-    call managed-void-target1 sp<managed-call:1> live=[] sig=void1 () local-fn3()
-    t3 = aggregate () : {}
-    t4 = global_load global0 : ptr<managed>
     t5 = integer_Add<Long> local0, local2 : i64
-    heap_store t4 +16 t5
+    heap_store local3 +16 t5
     call managed-direct-target0 sp<managed-call:2> live=[] t6 = sig=direct0 () -> i64 local-fn1()
-    store t6 -> local3
-    ret local3
+    store t6 -> local4
+    ret local4
   fun @scoop$1$cb$c2ebb1255dffecabead10f32f8faf156de8da45e1cec2d92cc52cfacd12c87bd() -> void
     local %0 $new.1: ptr<managed>
   block entry

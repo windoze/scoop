@@ -7,8 +7,8 @@
       "cone": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
       "path": "src/publication-warning.scoop",
       "kind": "source",
-      "start": 108,
-      "end": 113
+      "start": 118,
+      "end": 123
     },
     "severity": "warning"
   }

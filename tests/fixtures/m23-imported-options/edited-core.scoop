@@ -11,8 +11,8 @@ public fun <T> exercise(value: T): Int {
     val callback: () -> T? = { Some(value) }
     val read = reorderedForce(callback())
     val defaulted = reorderedDefault(value)
-    if (when (nested) { Some(Some(payload)) -> false; else -> true }) { return 1 }
-    if (when (missing) { Some(payload) -> true; None -> false }) { return 2 }
+    if (when (nested) { case Some(Some(payload)) -> false; else -> true }) { return 1 }
+    if (when (missing) { case Some(payload) -> true; case None -> false }) { return 2 }
     if ((stored ?: 40) != 40) { return 3 }
     stored = Some(40)
     val cell = reorderedWrap(Cell(2))

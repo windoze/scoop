@@ -298,10 +298,10 @@ impl Lowerer {
                         })?,
                 ))
             }
-            ReferenceCandidate::Member(declaration) => {
+            ReferenceCandidate::Member(declaration, _) => {
                 ImportedCallableCandidate::Declaration(declaration.clone())
             }
-            ReferenceCandidate::Local(_) => {
+            ReferenceCandidate::Local(..) => {
                 unreachable!("local references use their local declaration view")
             }
         };
@@ -379,6 +379,7 @@ impl Lowerer {
             type_args: application.type_args,
             ty: application.ty,
             own_type_param_count,
+            receiver: None,
         }))
     }
 }

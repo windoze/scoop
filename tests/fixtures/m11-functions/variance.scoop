@@ -24,8 +24,8 @@ fun failAny(value: Any): Int {
 fun <T> widen(op: (Any) -> T): (T) -> Any = op
 
 fun <T> isNone(value: T?): Boolean = when (value) {
-    Some(_) -> false
-    None -> true
+    case Some(_) -> false
+    case None -> true
 }
 
 fun returnNested(op: (Int) -> Any): (Any) -> Int = ::acceptAny

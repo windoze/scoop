@@ -68,7 +68,7 @@ fun main() {
         left = mark("variant-left", 5)
     )
     when (payload) {
-        Record(left, right) -> println(left + right)
+        case Record(left, right) -> println(left + right)
         else -> println(0)
     }
 

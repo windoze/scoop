@@ -176,6 +176,9 @@ Module
       call $call.1: Payload = @fn1 direct
         Type Payload
         Local $dependency.constructor.local.1
+      val $dependency.constructor.local.5: Trace
+        Type Trace
+        Local trace
       call $dependency.constructor.local.2: Int = external1 direct
         Type Trace
         Local trace
@@ -187,7 +190,7 @@ Module
         Local $dependency.constructor.local.3
       call external2 direct
         Type Trace
-        Local trace
+        Local $dependency.constructor.local.5
         Type Int
         IntegerBinary add kind=Int
           Type Int

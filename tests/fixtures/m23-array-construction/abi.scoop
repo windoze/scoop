@@ -9,8 +9,8 @@ private enum Payload<T> { Data(val value: T), Empty }
 
 private fun readLarge(value: Large): Int = value.first.number + value.second.number + value.third.number
 private fun readPayload(value: Payload<Large>): Int = when (value) {
-    Data(inner) -> readLarge(inner)
-    Empty -> 0
+    case Data(inner) -> readLarge(inner)
+    case Empty -> 0
 }
 private fun readUnit(value: Unit): Int = 42
 

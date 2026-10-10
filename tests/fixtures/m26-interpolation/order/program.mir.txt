@@ -65,6 +65,11 @@ Module
   generated_callable gc2 function=@fn40 id=fd3258bc1fb078d1ca03cf361ffd81e0c71a33ed1f46620b11b1fbbb78c5286e
   fun Value.toString @fn0(this: Value) -> String
     bb0 entry
+      val $place.receiver: Journal
+        Type Journal
+        FieldAccess 0
+          Type Value
+          Local this
       val $dependency.receiver: String
         Type String
         FieldAccess 0
@@ -101,9 +106,7 @@ Module
         Local $dependency.parameter.other
       field_set 0
         Type Journal
-        FieldAccess 0
-          Type Value
-          Local this
+        Local $place.receiver
         Type String
         Local $call.1
       call @scoop_rt_gc_collect direct

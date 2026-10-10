@@ -5,26 +5,6 @@ use crate::expr::named_calls::imported_dependency::{ImportedMemberReceiver, Impo
 mod fields;
 
 impl Lowerer {
-    /// Finish the left evaluation before any statements produced by the right.
-    pub(in crate::expr) fn lower_equality_rhs(
-        &mut self,
-        lhs: hir::Expr,
-        rhs: &ast::Expr,
-        sink: &mut Vec<hir::Statement>,
-        expected: Option<TypeId>,
-    ) -> Option<(hir::Expr, hir::Expr)> {
-        let mut rhs_sink = Vec::new();
-        let rhs = self.lower_expr(rhs, &mut rhs_sink, expected)?;
-        let lhs = if rhs_sink.is_empty() {
-            lhs
-        } else {
-            let span = lhs.span;
-            self.materialize_temporary("$equality.lhs".into(), lhs, span, sink)
-        };
-        sink.extend(rhs_sink);
-        Some((lhs, rhs))
-    }
-
     /// Resolve `==` / `!=` through the lhs static type's actual
     /// member operators. The operands arrive already lowered,
     /// preserving the language's left-to-right, exactly-once evaluation rule;
@@ -86,16 +66,7 @@ impl Lowerer {
         if let Some((function, application)) = structural_derived {
             debug_assert!(candidates.is_empty());
             self.check_call_effects(hir::Callable::Function(function), span);
-            let call = hir::Expr {
-                kind: ExprKind::MethodCall {
-                    receiver: Box::new(lhs),
-                    callee: hir::MethodCallee::DerivedEquality(application),
-                    args: vec![rhs],
-                },
-                ty: self.boolean,
-                span,
-                origin: self.expression_origin(span),
-            };
+            let call = self.lower_derived_equality_call(application, lhs, rhs, span, sink);
             return Some(if negate {
                 hir::Expr {
                     kind: ExprKind::Unary {
@@ -127,21 +98,17 @@ impl Lowerer {
             self.check_call_effects(hir::Callable::Function(function), span);
             let derived_callee = match derived {
                 Some((derived_function, application)) if function == derived_function => {
-                    Some(hir::MethodCallee::DerivedEquality(application))
+                    Some(application)
                 }
                 _ => None,
             };
-            let call = if let Some(callee) = derived_callee {
-                hir::Expr {
-                    kind: ExprKind::MethodCall {
-                        receiver: Box::new(lhs),
-                        callee,
-                        args: resolved.args,
-                    },
-                    ty: self.boolean,
-                    span,
-                    origin: self.expression_origin(span),
-                }
+            let call = if let Some(application) = derived_callee {
+                let other = resolved
+                    .args
+                    .into_iter()
+                    .next()
+                    .expect("equals has one argument");
+                self.lower_derived_equality_call(application, lhs, other, span, sink)
             } else if let Some(normalized) = self.normalize_primitive_method_call(
                 function,
                 lhs.clone(),

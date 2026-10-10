@@ -9,20 +9,13 @@
 //!
 //! Two cross-cutting mechanisms:
 //!
-//! **Desugaring sink.** `?.` and `?:` are expressions in the source
-//! but lower to statement-level control flow: HIR has no if-expression
-//! and `hir::StatementKind::ValDecl` always has an initializer, so the
-//! desugaring stores the receiver in a hidden `$opt.N` local (evaluated
-//! exactly once) and initializes a hidden `$res.N` result local *once
-//! per branch* of an `if`/`else` — this keeps the else operand lazily
-//! evaluated without needing an uninitialized declaration. An
-//! expression whose lowering needs such statements pushes them into
-//! `sink`, and the expression itself becomes a reference to `$res.N`.
-//! The caller (a statement lowering) drains `sink` into the enclosing
-//! statement list right before the statement that owns the expression,
-//! so sink statements execute exactly where the owning statement does.
-//! Loop conditions and `when` guards retain their setup explicitly so
-//! it executes at each condition/arm attempt rather than being hoisted.
+//! **Desugaring sink.** Structured control expressions append their ordered
+//! setup to the owning expression position. Only normally completing branches
+//! initialize a result local. A jump keeps its transfer in this setup and has
+//! an explicit Nothing-typed `Unreachable` result, with no fabricated value.
+//! Loop conditions and `when` guards retain setup locally so it executes at
+//! each attempt. Multi-operand lowering saves earlier values before a later
+//! operand's setup to preserve source evaluation order.
 //!
 //! **Expected-type hint.** `lower_expr` receives the type the context
 //! expects, when known: `val` annotations, assignment targets, function
@@ -73,6 +66,7 @@ mod imported_singletons;
 mod iteration;
 mod maybe_uninit;
 mod named_calls;
+mod ordering;
 pub(crate) use imported_properties::{
     ImportedDependencyExtensionPropertyProbe, ImportedExtensionPropertyTarget,
     ResolvedImportedMemberProperty,
@@ -87,9 +81,12 @@ mod characters;
 mod constructors;
 mod context;
 mod copy_updates;
+mod elvis;
 mod fields;
 mod floating;
+mod smart_casts;
 pub(crate) use floating::{float_literal_candidate_kinds, float_literal_default_kind};
+pub(crate) use smart_casts::SmartCastFacts;
 mod interpolation;
 mod members;
 mod names;
@@ -101,8 +98,8 @@ pub(crate) use support::{
 };
 mod type_checks;
 
+pub(crate) use analysis::expr_contains_return;
 use analysis::*;
-use support::*;
 
 pub(crate) struct NominalArguments {
     pub(crate) args: Vec<hir::Expr>,
@@ -251,6 +248,16 @@ impl Lowerer {
             return None;
         }
         let lowered = match expr {
+            ast::Expr::Return { value, span } => {
+                self.lower_return(value.as_deref(), *span, sink)?;
+                Some(self.unreachable_expression(*span))
+            }
+            ast::Expr::Throw { value, span } => {
+                let kind = self.lower_throw(value, sink)?;
+                sink.push(hir::Statement { kind, span: *span });
+                Some(self.unreachable_expression(*span))
+            }
+
             ast::Expr::TypeQualifier(reference) => {
                 self.resolve_type_ref(reference)?;
                 self.error(reference.span, "a type qualifier is not a value".into());
@@ -456,7 +463,9 @@ impl Lowerer {
                 span,
             } => self.lower_update(place, *op, *notation, *span, sink),
             ast::Expr::NullAssert { operand, span } => self.lower_null_assert(operand, *span, sink),
-            ast::Expr::Elvis { lhs, rhs, span } => self.lower_elvis(lhs, rhs, *span, sink),
+            ast::Expr::Elvis { lhs, rhs, span } => {
+                self.lower_elvis(lhs, rhs, *span, sink, expected)
+            }
             ast::Expr::This { span } => self.lower_this(*span),
             ast::Expr::MethodCall {
                 receiver,

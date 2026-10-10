@@ -4,6 +4,6 @@ enum Signal {
 }
 
 fun describe(value: Signal): Int = when (value) {
-    Ready -> 1
-    Raedy -> 2
+    case Ready -> 1
+    case Raedy -> 2
 }

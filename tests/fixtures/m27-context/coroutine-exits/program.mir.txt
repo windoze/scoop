@@ -637,13 +637,13 @@ Module
       field_set 7
         Type CoroutineFrame<catchAndThrow>
         Local $frame
-        Type CoroutineSlot<internal<context-mark>>
-        VariantConstruct CoroutineSlot<internal<context-mark>> v0
+        Type CoroutineSlot<Int>
+        VariantConstruct CoroutineSlot<Int> v0
       field_set 8
         Type CoroutineFrame<catchAndThrow>
         Local $frame
-        Type CoroutineSlot<Int>
-        VariantConstruct CoroutineSlot<Int> v0
+        Type CoroutineSlot<internal<context-mark>>
+        VariantConstruct CoroutineSlot<internal<context-mark>> v0
       field_set 9
         Type CoroutineFrame<catchAndThrow>
         Local $frame
@@ -685,7 +685,7 @@ Module
       val $dependency.parameter.other: Int
         Type Int
         Local $dependency.argument.0
-      val $shortCircuit.5: Boolean
+      val $shortCircuit.2: Boolean
         Type Boolean
         IntegerCompare equal operands=Int result=Boolean
           Type Int
@@ -694,14 +694,14 @@ Module
           Local $dependency.parameter.other
       goto bb3
     bb2 if.else.2
-      val $shortCircuit.5: Boolean
+      val $shortCircuit.2: Boolean
         Type Boolean
         BoolLiteral false
       goto bb3
     bb3 if.merge.3
       val $argument.0: Boolean
         Type Boolean
-        Local $shortCircuit.5
+        Local $shortCircuit.2
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
@@ -803,7 +803,7 @@ Module
       val $dependency.parameter.other: Int
         Type Int
         Local $dependency.argument.0
-      val $shortCircuit.6: Boolean
+      val $shortCircuit.3: Boolean
         Type Boolean
         IntegerCompare equal operands=Int result=Boolean
           Type Int
@@ -812,14 +812,14 @@ Module
           Local $dependency.parameter.other
       goto bb12
     bb11 if.else.11 unwind bb4
-      val $shortCircuit.6: Boolean
+      val $shortCircuit.3: Boolean
         Type Boolean
         BoolLiteral false
       goto bb12
     bb12 if.merge.12 unwind bb4
       val $argument.0: Boolean
         Type Boolean
-        Local $shortCircuit.6
+        Local $shortCircuit.3
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
@@ -914,7 +914,7 @@ Module
       val $dependency.parameter.other: Int
         Type Int
         Local $dependency.argument.0
-      val $shortCircuit.7: Boolean
+      val $shortCircuit.4: Boolean
         Type Boolean
         IntegerCompare equal operands=Int result=Boolean
           Type Int
@@ -923,14 +923,14 @@ Module
           Local $dependency.parameter.other
       goto bb23
     bb22 if.else.22 unwind bb15
-      val $shortCircuit.7: Boolean
+      val $shortCircuit.4: Boolean
         Type Boolean
         BoolLiteral false
       goto bb23
     bb23 if.merge.23 unwind bb15
       val $argument.0: Boolean
         Type Boolean
-        Local $shortCircuit.7
+        Local $shortCircuit.4
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
@@ -1083,7 +1083,7 @@ Module
       val $dependency.parameter.other: Int
         Type Int
         Local $dependency.argument.0
-      val $shortCircuit.8: Boolean
+      val $shortCircuit.5: Boolean
         Type Boolean
         IntegerCompare equal operands=Int result=Boolean
           Type Int
@@ -1092,14 +1092,14 @@ Module
           Local $dependency.parameter.other
       goto bb9
     bb8 if.else.8 unwind bb1
-      val $shortCircuit.8: Boolean
+      val $shortCircuit.5: Boolean
         Type Boolean
         BoolLiteral false
       goto bb9
     bb9 if.merge.9 unwind bb1
       val $argument.0: Boolean
         Type Boolean
-        Local $shortCircuit.8
+        Local $shortCircuit.5
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
@@ -1193,7 +1193,7 @@ Module
       val $dependency.parameter.other: Int
         Type Int
         Local $dependency.argument.0
-      val $shortCircuit.9: Boolean
+      val $shortCircuit.6: Boolean
         Type Boolean
         IntegerCompare equal operands=Int result=Boolean
           Type Int
@@ -1202,14 +1202,14 @@ Module
           Local $dependency.parameter.other
       goto bb12
     bb11 if.else.11 unwind bb1
-      val $shortCircuit.9: Boolean
+      val $shortCircuit.6: Boolean
         Type Boolean
         BoolLiteral false
       goto bb12
     bb12 if.merge.12 unwind bb1
       val $argument.0: Boolean
         Type Boolean
-        Local $shortCircuit.9
+        Local $shortCircuit.6
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
@@ -4549,7 +4549,7 @@ Module
       ContextRestore
         Type internal<context-mark>
         Local $context_mark.1
-      field_set 4
+      field_set 6
         Type CoroutineFrame<loopExits>
         Local $frame
         Type CoroutineSlot<internal<context-mark>>
@@ -4562,7 +4562,7 @@ Module
         Type CoroutineStep<Int>
         VariantConstruct CoroutineStep<Int> v0
           Type Int
-          Local $result.2
+          Local $result.1
     bb4 try.body.4 unwind bb1
       var count: Int
         Type Int
@@ -4610,7 +4610,7 @@ Module
       call @fn5 direct
         Type Boolean
         Local $parameter.value
-      assign $result.2
+      assign $result.1
         Type Int
         Local count
       goto bb14
@@ -4668,7 +4668,7 @@ Module
       ContextRestore
         Type internal<context-mark>
         Local $context_mark.2
-      field_set 6
+      field_set 4
         Type CoroutineFrame<loopExits>
         Local $frame
         Type CoroutineSlot<internal<context-mark>>
@@ -4701,14 +4701,14 @@ Module
         VariantConstruct CoroutineSlot<Int> v1
           Type Int
           Local count
-      field_set 4
+      field_set 6
         Type CoroutineFrame<loopExits>
         Local $frame
         Type CoroutineSlot<internal<context-mark>>
         VariantConstruct CoroutineSlot<internal<context-mark>> v1
           Type internal<context-mark>
           Local $context_mark.1
-      field_set 6
+      field_set 4
         Type CoroutineFrame<loopExits>
         Local $frame
         Type CoroutineSlot<internal<context-mark>>
@@ -4749,7 +4749,7 @@ Module
       ContextRestore
         Type internal<context-mark>
         Local $context_mark.2
-      field_set 6
+      field_set 4
         Type CoroutineFrame<loopExits>
         Local $frame
         Type CoroutineSlot<internal<context-mark>>
@@ -4760,7 +4760,7 @@ Module
       ContextRestore
         Type internal<context-mark>
         Local $context_mark.2
-      field_set 6
+      field_set 4
         Type CoroutineFrame<loopExits>
         Local $frame
         Type CoroutineSlot<internal<context-mark>>
@@ -4771,7 +4771,7 @@ Module
       ContextRestore
         Type internal<context-mark>
         Local $context_mark.1
-      field_set 4
+      field_set 6
         Type CoroutineFrame<loopExits>
         Local $frame
         Type CoroutineSlot<internal<context-mark>>
@@ -5086,14 +5086,14 @@ Module
         Type internal<context-mark>
         EnumField v1 f0
           Type CoroutineSlot<internal<context-mark>>
-          FieldAccess 4
+          FieldAccess 6
             Type CoroutineFrame<loopExits>
             Local $frame
       assign $context_mark.2
         Type internal<context-mark>
         EnumField v1 f0
           Type CoroutineSlot<internal<context-mark>>
-          FieldAccess 6
+          FieldAccess 4
             Type CoroutineFrame<loopExits>
             Local $frame
       assign $call.5
@@ -5123,14 +5123,14 @@ Module
         Type internal<context-mark>
         EnumField v1 f0
           Type CoroutineSlot<internal<context-mark>>
-          FieldAccess 4
+          FieldAccess 6
             Type CoroutineFrame<loopExits>
             Local $frame
       assign $context_mark.2
         Type internal<context-mark>
         EnumField v1 f0
           Type CoroutineSlot<internal<context-mark>>
-          FieldAccess 6
+          FieldAccess 4
             Type CoroutineFrame<loopExits>
             Local $frame
       throw unwind bb8
@@ -5623,7 +5623,7 @@ Module
       ContextRestore
         Type internal<context-mark>
         Local $context_mark.1
-      field_set 7
+      field_set 6
         Type CoroutineFrame<catchAndThrow>
         Local $frame
         Type CoroutineSlot<internal<context-mark>>
@@ -5699,7 +5699,7 @@ Module
         VariantConstruct CoroutineSlot<Gate> v1
           Type Gate
           Local gate
-      field_set 7
+      field_set 6
         Type CoroutineFrame<catchAndThrow>
         Local $frame
         Type CoroutineSlot<internal<context-mark>>
@@ -5820,7 +5820,7 @@ Module
       ContextRestore
         Type internal<context-mark>
         Local $context_mark.2
-      field_set 6
+      field_set 8
         Type CoroutineFrame<catchAndThrow>
         Local $frame
         Type CoroutineSlot<internal<context-mark>>
@@ -5868,14 +5868,14 @@ Module
         VariantConstruct CoroutineSlot<IllegalStateException> v1
           Type IllegalStateException
           Local failure
-      field_set 7
+      field_set 6
         Type CoroutineFrame<catchAndThrow>
         Local $frame
         Type CoroutineSlot<internal<context-mark>>
         VariantConstruct CoroutineSlot<internal<context-mark>> v1
           Type internal<context-mark>
           Local $context_mark.1
-      field_set 6
+      field_set 8
         Type CoroutineFrame<catchAndThrow>
         Local $frame
         Type CoroutineSlot<internal<context-mark>>
@@ -5916,7 +5916,7 @@ Module
       ContextRestore
         Type internal<context-mark>
         Local $context_mark.2
-      field_set 6
+      field_set 8
         Type CoroutineFrame<catchAndThrow>
         Local $frame
         Type CoroutineSlot<internal<context-mark>>
@@ -6193,21 +6193,21 @@ Module
         Type internal<context-mark>
         EnumField v1 f0
           Type CoroutineSlot<internal<context-mark>>
-          FieldAccess 7
+          FieldAccess 6
             Type CoroutineFrame<catchAndThrow>
             Local $frame
       assign $context_mark.2
         Type internal<context-mark>
         EnumField v1 f0
           Type CoroutineSlot<internal<context-mark>>
-          FieldAccess 6
+          FieldAccess 8
             Type CoroutineFrame<catchAndThrow>
             Local $frame
       assign $call.9
         Type Int
         EnumField v1 f0
           Type CoroutineSlot<Int>
-          FieldAccess 8
+          FieldAccess 7
             Type CoroutineFrame<catchAndThrow>
             Local $frame
       goto bb19
@@ -6223,14 +6223,14 @@ Module
         Type internal<context-mark>
         EnumField v1 f0
           Type CoroutineSlot<internal<context-mark>>
-          FieldAccess 7
+          FieldAccess 6
             Type CoroutineFrame<catchAndThrow>
             Local $frame
       assign $context_mark.2
         Type internal<context-mark>
         EnumField v1 f0
           Type CoroutineSlot<internal<context-mark>>
-          FieldAccess 6
+          FieldAccess 8
             Type CoroutineFrame<catchAndThrow>
             Local $frame
       throw unwind bb14
@@ -6511,7 +6511,7 @@ Module
         Type internal<context-mark>
         EnumField v1 f0
           Type CoroutineSlot<internal<context-mark>>
-          FieldAccess 7
+          FieldAccess 6
             Type CoroutineFrame<catchAndThrow>
             Local $frame
       assign $call.5
@@ -6534,7 +6534,7 @@ Module
         Type internal<context-mark>
         EnumField v1 f0
           Type CoroutineSlot<internal<context-mark>>
-          FieldAccess 7
+          FieldAccess 6
             Type CoroutineFrame<catchAndThrow>
             Local $frame
       throw unwind bb5
@@ -6704,7 +6704,7 @@ Module
             FieldAccess 0
               Type CoroutineAdapter<catchAndThrow>$2
               Local this
-      field_set 8
+      field_set 7
         Type CoroutineFrame<catchAndThrow>
         FieldAccess 0
           Type CoroutineAdapter<catchAndThrow>$2
@@ -11487,8 +11487,8 @@ Module
   coroutine_saved cv14 class=CoroutineFrame<catchAndThrow> field=4 slot=cl5 value=IllegalStateException
   coroutine_saved cv15 class=CoroutineFrame<catchAndThrow> field=5 slot=cl2 value=Int
   coroutine_saved cv16 class=CoroutineFrame<catchAndThrow> field=6 slot=cl1 value=internal<context-mark>
-  coroutine_saved cv17 class=CoroutineFrame<catchAndThrow> field=7 slot=cl1 value=internal<context-mark>
-  coroutine_saved cv18 class=CoroutineFrame<catchAndThrow> field=8 slot=cl2 value=Int
+  coroutine_saved cv17 class=CoroutineFrame<catchAndThrow> field=7 slot=cl2 value=Int
+  coroutine_saved cv18 class=CoroutineFrame<catchAndThrow> field=8 slot=cl1 value=internal<context-mark>
   coroutine_saved cv19 class=CoroutineFrame<$lambda.0> field=3 slot=cl6 value=suspend () -> Int
   coroutine_saved cv20 class=CoroutineFrame<$lambda.0> field=4 slot=cl0 value=Request
   coroutine_saved cv21 class=CoroutineFrame<$lambda.1> field=3 slot=cl2 value=Int

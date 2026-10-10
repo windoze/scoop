@@ -30,7 +30,7 @@ fun writeBarriers() {
     minorCollection()
     check(snapshot.load().serial == 5 && snapshot.load().payload.value == 55)
     when (packet.load()) {
-        Packet.Empty -> { throw IllegalStateException() }
-        Packet.Data(number, payload) -> { check(number == 6 && payload.value == 66) }
+        case Packet.Empty -> { throw IllegalStateException() }
+        case Packet.Data(number, payload) -> { check(number == 6 && payload.value == 66) }
     }
 }

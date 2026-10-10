@@ -6,13 +6,13 @@ var stored: Char = '界'
 fun <T> identity(value: T): T = value
 fun <T : ToString> display(value: T): String = value.toString()
 fun classify(value: (Char?, Char)): Int = when (value) {
-    (Some('雪'), 'A') -> 42
-    (None, _) -> 0
-    _ -> 1
+    case (Some('雪'), 'A') -> 42
+    case (None, _) -> 0
+    case _ -> 1
 }
 fun unpack(value: Symbol): Char = when (value) {
-    Mark(character) -> character
-    Empty -> '\u0000'
+    case Mark(character) -> character
+    case Empty -> '\u0000'
 }
 
 fun main() {

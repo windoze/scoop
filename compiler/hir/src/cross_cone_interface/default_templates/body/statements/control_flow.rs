@@ -3,38 +3,52 @@ use std::fmt;
 use scoop_identity::{LocalValueSelector, SignatureTypeKey};
 
 use super::DefaultStatementV1;
-use crate::{DefaultExpressionV1, DefaultPatternV1, ExportDefinitionSourceV1};
+use crate::{
+    DefaultExpressionV1, DefaultPatternV1, ExportDefinitionSourceV1, OptionalDefaultExpressionV1,
+};
 
 mod decoded;
 mod indexed;
 
 pub use decoded::{
     DecodedDefaultCatchV1, DecodedDefaultTryV1, DecodedDefaultWhenArmV1,
-    DecodedDefaultWhenFallbackV1, DecodedDefaultWhenGuardV1, DecodedDefaultWhenV1,
-    DecodedOptionalDefaultStatementListV1, DecodedOptionalDefaultWhenGuardV1,
+    DecodedDefaultWhenConditionV1, DecodedDefaultWhenFallbackV1, DecodedDefaultWhenGuardV1,
+    DecodedDefaultWhenV1, DecodedOptionalDefaultStatementListV1, DecodedOptionalDefaultWhenGuardV1,
     DefaultControlFlowResolutionError,
 };
 
 pub use indexed::{
     DefaultControlFlowIndexError, IndexedDefaultCatchV1, IndexedDefaultTryV1,
-    IndexedDefaultWhenArmV1, IndexedDefaultWhenFallbackV1, IndexedDefaultWhenGuardV1,
-    IndexedDefaultWhenV1, IndexedOptionalDefaultStatementListV1, IndexedOptionalDefaultWhenGuardV1,
+    IndexedDefaultWhenArmV1, IndexedDefaultWhenConditionV1, IndexedDefaultWhenFallbackV1,
+    IndexedDefaultWhenGuardV1, IndexedDefaultWhenV1, IndexedOptionalDefaultStatementListV1,
+    IndexedOptionalDefaultWhenGuardV1,
 };
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct DefaultWhenV1 {
-    subject: DefaultExpressionV1,
+    subject: OptionalDefaultExpressionV1,
     arms: Vec<DefaultWhenArmV1>,
     fallback: DefaultWhenFallbackV1,
 }
 
 impl DefaultWhenV1 {
     pub fn try_new(
-        subject: DefaultExpressionV1,
+        subject: OptionalDefaultExpressionV1,
         arms: Vec<DefaultWhenArmV1>,
         fallback: DefaultWhenFallbackV1,
     ) -> Result<Self, DefaultControlFlowBuildError> {
         require_len(arms.len(), DefaultControlFlowBuildError::TooManyWhenArms)?;
+        if subject.as_ref().is_none()
+            && (arms
+                .iter()
+                .any(|arm| matches!(arm.condition, DefaultWhenConditionV1::Case(_)))
+                || !matches!(
+                    fallback.view(),
+                    DefaultWhenFallbackViewV1::Else(_) | DefaultWhenFallbackViewV1::Fallthrough
+                ))
+        {
+            return Err(DefaultControlFlowBuildError::MissingWhenSubject);
+        }
         Ok(Self {
             subject,
             arms,
@@ -42,8 +56,8 @@ impl DefaultWhenV1 {
         })
     }
 
-    pub const fn subject(&self) -> &DefaultExpressionV1 {
-        &self.subject
+    pub fn subject(&self) -> Option<&DefaultExpressionV1> {
+        self.subject.as_ref()
     }
 
     pub fn arms(&self) -> &[DefaultWhenArmV1] {
@@ -57,7 +71,7 @@ impl DefaultWhenV1 {
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct DefaultWhenArmV1 {
-    pattern: DefaultPatternV1,
+    condition: DefaultWhenConditionV1,
     guard: OptionalDefaultWhenGuardV1,
     body: Vec<DefaultStatementV1>,
     definition_origin: ExportDefinitionSourceV1,
@@ -65,22 +79,22 @@ pub struct DefaultWhenArmV1 {
 
 impl DefaultWhenArmV1 {
     pub fn try_new(
-        pattern: DefaultPatternV1,
+        condition: DefaultWhenConditionV1,
         guard: OptionalDefaultWhenGuardV1,
         body: Vec<DefaultStatementV1>,
         definition_origin: ExportDefinitionSourceV1,
     ) -> Result<Self, DefaultControlFlowBuildError> {
         require_statements(&body)?;
         Ok(Self {
-            pattern,
+            condition,
             guard,
             body,
             definition_origin,
         })
     }
 
-    pub const fn pattern(&self) -> &DefaultPatternV1 {
-        &self.pattern
+    pub const fn condition(&self) -> &DefaultWhenConditionV1 {
+        &self.condition
     }
 
     pub const fn guard(&self) -> &OptionalDefaultWhenGuardV1 {
@@ -94,6 +108,13 @@ impl DefaultWhenArmV1 {
     pub const fn definition_origin(&self) -> &ExportDefinitionSourceV1 {
         &self.definition_origin
     }
+}
+
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub enum DefaultWhenConditionV1 {
+    Case(DefaultPatternV1),
+    Predicate(Box<DefaultWhenGuardV1>),
+    Always,
 }
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -148,6 +169,7 @@ pub struct DefaultWhenFallbackV1(DefaultWhenFallbackKindV1);
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 enum DefaultWhenFallbackKindV1 {
+    Fallthrough,
     Else(Vec<DefaultStatementV1>),
     IrrefutableArm {
         subject_type: SignatureTypeKey,
@@ -163,6 +185,7 @@ enum DefaultWhenFallbackKindV1 {
 
 #[derive(Clone, Copy, Debug)]
 pub enum DefaultWhenFallbackViewV1<'a> {
+    Fallthrough,
     Else(&'a [DefaultStatementV1]),
     IrrefutableArm {
         subject_type: &'a SignatureTypeKey,
@@ -177,6 +200,10 @@ pub enum DefaultWhenFallbackViewV1<'a> {
 }
 
 impl DefaultWhenFallbackV1 {
+    pub const fn fallthrough() -> Self {
+        Self(DefaultWhenFallbackKindV1::Fallthrough)
+    }
+
     pub fn try_else(
         statements: Vec<DefaultStatementV1>,
     ) -> Result<Self, DefaultControlFlowBuildError> {
@@ -204,6 +231,7 @@ impl DefaultWhenFallbackV1 {
 
     pub fn view(&self) -> DefaultWhenFallbackViewV1<'_> {
         match &self.0 {
+            DefaultWhenFallbackKindV1::Fallthrough => DefaultWhenFallbackViewV1::Fallthrough,
             DefaultWhenFallbackKindV1::Else(statements) => {
                 DefaultWhenFallbackViewV1::Else(statements)
             }
@@ -343,6 +371,7 @@ impl OptionalDefaultStatementListV1 {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum DefaultControlFlowBuildError {
+    MissingWhenSubject,
     TooManyStatements,
     TooManyWhenArms,
     TooManyCatches,
@@ -353,6 +382,9 @@ impl fmt::Display for DefaultControlFlowBuildError {
         match self {
             Self::TooManyStatements => {
                 formatter.write_str("default control-flow statement count exceeds u32")
+            }
+            Self::MissingWhenSubject => {
+                formatter.write_str("a case or exhaustiveness proof requires a when subject")
             }
             Self::TooManyWhenArms => formatter.write_str("default when arm count exceeds u32"),
             Self::TooManyCatches => formatter.write_str("default catch count exceeds u32"),

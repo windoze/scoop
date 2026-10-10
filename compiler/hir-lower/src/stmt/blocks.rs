@@ -131,11 +131,10 @@ impl Lowerer {
             .iter()
             .filter_map(|block| block.value.as_ref().map(|value| value.ty))
             .collect();
-        let result_ty = if value_types.is_empty() {
-            self.nothing_type()
-        } else {
-            expected.unwrap_or_else(|| self.least_upper_bound(&value_types))
-        };
+        if value_types.is_empty() {
+            return Some(self.unreachable_expression(span));
+        }
+        let result_ty = expected.unwrap_or_else(|| self.least_upper_bound(&value_types));
         for block in blocks.iter() {
             if let Some(value) = &block.value
                 && !self.is_subtype(value.ty, result_ty)
@@ -210,7 +209,7 @@ impl Lowerer {
                 self.resolve_smart_casts(&if_.cond, false),
             )
         } else {
-            (Vec::new(), Vec::new())
+            (Default::default(), Default::default())
         };
 
         let defer_then = expected.is_none() && self.value_block_requires_expected(&if_.then_block);

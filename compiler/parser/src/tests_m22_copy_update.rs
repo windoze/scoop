@@ -69,7 +69,6 @@ fn copy_update_rejects_statements_and_trailing_commas() {
     );
 
     for (statement, end) in [
-        ("throw error", 42),
         ("break", 42),
         ("continue", 45),
         ("for (item in items) {}", 40),

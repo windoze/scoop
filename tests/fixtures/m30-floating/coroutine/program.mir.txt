@@ -880,6 +880,11 @@ Module
       return
   fun Registration.register @fn12(this: Registration<Float>, continuation: Continuation<Float>) -> Unit
     bb0 entry
+      val $place.receiver: Gate<Float>
+        Type Gate<Float>
+        FieldAccess 0
+          Type Registration<Float>
+          Local this
       val $dependency.argument.0: Continuation<Float>
         Type Continuation<Float>
         Local continuation
@@ -888,9 +893,7 @@ Module
         Local $dependency.argument.0
       field_set 0
         Type Gate<Float>
-        FieldAccess 0
-          Type Registration<Float>
-          Local this
+        Local $place.receiver
         Type Option<Continuation<Float>>
         VariantConstruct Option<Continuation<Float>> v0
           Type Continuation<Float>
@@ -898,6 +901,11 @@ Module
       return
   fun Registration.register @fn13(this: Registration<Double>, continuation: Continuation<Double>) -> Unit
     bb0 entry
+      val $place.receiver: Gate<Double>
+        Type Gate<Double>
+        FieldAccess 0
+          Type Registration<Double>
+          Local this
       val $dependency.argument.0: Continuation<Double>
         Type Continuation<Double>
         Local continuation
@@ -906,9 +914,7 @@ Module
         Local $dependency.argument.0
       field_set 0
         Type Gate<Double>
-        FieldAccess 0
-          Type Registration<Double>
-          Local this
+        Local $place.receiver
         Type Option<Continuation<Double>>
         VariantConstruct Option<Continuation<Double>> v0
           Type Continuation<Double>

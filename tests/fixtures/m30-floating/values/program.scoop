@@ -13,7 +13,7 @@ fun floatBits(value: Float): UInt
 @Extern(lib = "fixture_native", name = "double_bits")
 fun doubleBits(value: Double): ULong
 fun <T> identity(value: T): T = value
-fun unpack(value: Reading): Float = when (value) { Value(number) -> number; Empty -> 0f }
+fun unpack(value: Reading): Float = when (value) { case Value(number) -> number; case Empty -> 0f }
 
 @Unsafe fun main() {
     val single = fromFloatBits(0xff800123U)

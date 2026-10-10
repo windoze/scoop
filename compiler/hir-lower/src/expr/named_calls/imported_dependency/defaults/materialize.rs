@@ -32,6 +32,7 @@ mod pointers;
 mod references;
 mod release;
 mod statements;
+mod variants;
 
 struct ImportedDefaultContext<'a> {
     owner: ImportedTemplateSource<'a>,

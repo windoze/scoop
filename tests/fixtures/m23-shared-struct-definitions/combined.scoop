@@ -17,8 +17,8 @@ public fun <T> exercise(seed: T, read: (T) -> Int): Int {
     if (hasNext(remote) || !hasNext(changed.remote)) { return 4 }
     if (first.apply(read) != second.apply(read)) { return 1 }
     val tail: T = when (changed.remote.next) {
-        Some(link) -> link.cell.value
-        None -> seed
+        case Some(link) -> link.cell.value
+        case None -> seed
     }
     if (read(tail) != 42) { return 2 }
     val factory: (T) -> Cell<T> = { value -> withoutNext(changed.remote.{ value: value }) }

@@ -55,6 +55,7 @@ enum IndexedDefaultExpressionKindV1<'a> {
         conversion: crate::DefaultFloatConversionV1,
         operand: Box<IndexedDefaultExpressionV1<'a>>,
     },
+    Unreachable,
     UnitLiteral,
     TupleLiteral(Vec<IndexedDefaultExpressionV1<'a>>),
     StructInit {
@@ -318,6 +319,7 @@ impl DefaultExpressionV1 {
             DefaultExpressionKindV1::CharLiteral(value) => {
                 IndexedDefaultExpressionKindV1::CharLiteral(*value)
             }
+            DefaultExpressionKindV1::Unreachable => IndexedDefaultExpressionKindV1::Unreachable,
             DefaultExpressionKindV1::UnitLiteral => IndexedDefaultExpressionKindV1::UnitLiteral,
             DefaultExpressionKindV1::TupleLiteral(elements) => {
                 IndexedDefaultExpressionKindV1::TupleLiteral(index_sequence(

@@ -91,9 +91,13 @@ fn parses_named_and_spread_arguments_in_source_order() {
     assert!(matches!(&call.args[3].name, CallArgumentName::Named(name) if name.text == "values"));
     assert!(matches!(call.args[3].spread, SpreadSyntax::Spread(_)));
     assert!(matches!(call.args[4].expression, Expr::Lambda { .. }));
+    assert!(matches!(
+        call.args[4].name,
+        CallArgumentName::TrailingLambda
+    ));
     assert_eq!(
         scoop_ast::dump(&file),
-        "SourceFile\n  RootPackage\n  fun main()\n    Call emit\n      IntLiteral 1\n      Argument suffix=\n        Call end\n      Argument *\n        Var middle\n      Argument values=*\n        Var whole\n      Lambda 0 suspend=false\n        parameters omitted\n        IntLiteral 0\n"
+        "SourceFile\n  RootPackage\n  fun main()\n    Call emit\n      IntLiteral 1\n      Argument suffix=\n        Call end\n      Argument *\n        Var middle\n      Argument values=*\n        Var whole\n      Argument trailing\n        Lambda 0 suspend=false\n          parameters omitted\n          IntLiteral 0\n"
     );
 }
 

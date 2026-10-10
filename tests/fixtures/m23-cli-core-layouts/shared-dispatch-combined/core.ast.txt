@@ -4,10 +4,11 @@ SourceFile
     private var storage: MutableArray<MaybeUninit<T>> = <expr>
       Call MutableArray<MaybeUninit<T>>
         Var initialCapacity
-        Lambda 0 suspend=false
-          param _: _
-          MethodCall uninit
-            TypeQualifier MaybeUninit<T>
+        Argument trailing
+          Lambda 0 suspend=false
+            param _: _
+            MethodCall uninit
+              TypeQualifier MaybeUninit<T>
     private var elementCount: Long = <expr>
       IntLiteral 0L
     public open override val size: Long <computed>
@@ -232,18 +233,19 @@ SourceFile
         Binary Add
           Var length
           IntLiteral 1L
-        Lambda 0 suspend=false
-          param index: _
-          if
-            Binary Eq
-              Var index
-              Var length
-            IntLiteral 0u
-          else
-            MethodCall toUInt8
-              Call coreStringByteAt
-                Var source
+        Argument trailing
+          Lambda 0 suspend=false
+            param index: _
+            if
+              Binary Eq
                 Var index
+                Var length
+              IntLiteral 0u
+            else
+              MethodCall toUInt8
+                Call coreStringByteAt
+                  Var source
+                  Var index
     return
       MethodCall withDataPointer<UInt8, R>
         Var bytes
@@ -1044,22 +1046,24 @@ SourceFile
     return
       Call Array<T>
         Var count
-        Lambda 0 suspend=false
-          param index: _
-          Index
-            This
-            Var index
+        Argument trailing
+          Lambda 0 suspend=false
+            param index: _
+            Index
+              This
+              Var index
   public fun List<T>.toMutableArray<T>(): MutableArray<T>
     val count
       Var size
     return
       Call MutableArray<T>
         Var count
-        Lambda 1 suspend=false
-          param index: _
-          Index
-            This
-            Var index
+        Argument trailing
+          Lambda 1 suspend=false
+            param index: _
+            Index
+              This
+              Var index
 SourceFile
   RootPackage
     @Intrinsic("core_maybe_uninit")

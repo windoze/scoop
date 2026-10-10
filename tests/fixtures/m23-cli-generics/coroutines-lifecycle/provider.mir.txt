@@ -494,18 +494,18 @@ Module
         Local $step
   fun Registration.register @fn13(this: Registration<DerivedResult>, continuation: Continuation<DerivedResult>) -> Unit
     bb0 entry
+      call $place.receiver: Gate<DerivedResult> = @fn15 direct
+        Type Registration<DerivedResult>
+        Local this
       val $dependency.argument.0: Continuation<DerivedResult>
         Type Continuation<DerivedResult>
         Local continuation
       val $dependency.parameter._1: Continuation<DerivedResult>
         Type Continuation<DerivedResult>
         Local $dependency.argument.0
-      call $call.1: Gate<DerivedResult> = @fn15 direct
-        Type Registration<DerivedResult>
-        Local this
       call @fn16 direct
         Type Gate<DerivedResult>
-        Local $call.1
+        Local $place.receiver
         Type Option<Continuation<DerivedResult>>
         VariantConstruct Option<Continuation<DerivedResult>> v0
           Type Continuation<DerivedResult>
@@ -513,18 +513,18 @@ Module
       return
   fun Registration.register @fn14(this: Registration<Long>, continuation: Continuation<Long>) -> Unit
     bb0 entry
+      call $place.receiver: Gate<Long> = @fn17 direct
+        Type Registration<Long>
+        Local this
       val $dependency.argument.0: Continuation<Long>
         Type Continuation<Long>
         Local continuation
       val $dependency.parameter._1: Continuation<Long>
         Type Continuation<Long>
         Local $dependency.argument.0
-      call $call.1: Gate<Long> = @fn17 direct
-        Type Registration<Long>
-        Local this
       call @fn18 direct
         Type Gate<Long>
-        Local $call.1
+        Local $place.receiver
         Type Option<Continuation<Long>>
         VariantConstruct Option<Continuation<Long>> v0
           Type Continuation<Long>

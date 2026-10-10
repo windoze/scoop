@@ -96,7 +96,7 @@ impl Lowerer {
         self.loop_targets = outer_loop_targets;
 
         hir::Body {
-            locals: std::mem::take(&mut self.locals),
+            locals: std::mem::take(&mut self.locals).into_arena(),
             statements: {
                 entry.extend(statements);
                 entry

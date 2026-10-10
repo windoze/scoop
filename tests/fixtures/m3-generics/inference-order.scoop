@@ -24,7 +24,7 @@ fun main() {
 
     val duo = Duo.Both(None, 9)
     when (duo) {
-        Both(_, value) -> println(value)
+        case Both(_, value) -> println(value)
     }
 
     println(pick(None, 10))

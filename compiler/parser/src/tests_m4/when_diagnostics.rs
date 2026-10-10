@@ -5,44 +5,46 @@ use super::*;
 #[test]
 fn when_rest_twice_in_positional_pattern() {
     let (span, message) =
-        err("fun main() {\n    when (s) {\n        V(a, .., ..) -> { }\n    }\n}\n");
-    assert_eq!(span, Span::new(45, 47));
+        err("fun main() {\n    when (s) {\n        case V(a, .., ..) -> { }\n    }\n}\n");
+    assert_eq!(span, Span::new(50, 52));
     assert_eq!(message, "`..` may appear at most once in a pattern");
 }
 
 #[test]
 fn when_rest_twice_in_tuple_pattern() {
     let (span, message) =
-        err("fun main() {\n    when (s) {\n        (a, .., b, ..) -> { }\n    }\n}\n");
-    assert_eq!(span, Span::new(47, 49));
+        err("fun main() {\n    when (s) {\n        case (a, .., b, ..) -> { }\n    }\n}\n");
+    assert_eq!(span, Span::new(52, 54));
     assert_eq!(message, "`..` may appear at most once in a pattern");
 }
 
 #[test]
 fn when_rest_must_be_last_in_field_pattern() {
     let (span, message) =
-        err("fun main() {\n    when (s) {\n        S { .., x } -> { }\n    }\n}\n");
-    assert_eq!(span, Span::new(44, 45));
+        err("fun main() {\n    when (s) {\n        case S { .., x } -> { }\n    }\n}\n");
+    assert_eq!(span, Span::new(49, 50));
     assert_eq!(message, "`..` must be the last element in a field pattern");
 }
 
 #[test]
 fn when_rest_twice_in_field_pattern() {
-    let (_, message) = err("fun main() {\n    when (s) {\n        S { .., .. } -> { }\n    }\n}\n");
+    let (_, message) =
+        err("fun main() {\n    when (s) {\n        case S { .., .. } -> { }\n    }\n}\n");
     assert_eq!(message, "`..` must be the last element in a field pattern");
 }
 
 #[test]
 fn when_wildcard_is_not_a_field_name() {
-    let (span, message) = err("fun main() {\n    when (s) {\n        S { _ } -> { }\n    }\n}\n");
-    assert_eq!(span, Span::new(40, 41));
+    let (span, message) =
+        err("fun main() {\n    when (s) {\n        case S { _ } -> { }\n    }\n}\n");
+    assert_eq!(span, Span::new(45, 46));
     assert_eq!(message, "`_` is not allowed in a field pattern");
 }
 
 #[test]
 fn malformed_recursive_field_rhs_recovers_to_later_declarations() {
     let source = "fun first() {\n    val { child: } = value\n}\n\
-                  fun second() {\n    when (value) {\n        S { child: } -> {}\n    }\n}\n\
+                  fun second() {\n    when (value) {\n        case S { child: } -> {}\n    }\n}\n\
                   fun main() {}\n";
     let diagnostics = crate::parse(source).expect_err("both malformed subpatterns must fail");
     assert_eq!(diagnostics.len(), 2);
@@ -64,8 +66,8 @@ fn malformed_recursive_field_rhs_recovers_to_later_declarations() {
 
 #[test]
 fn when_arm_needs_an_arrow() {
-    let (span, message) = err("fun main() {\n    when (s) {\n        Red\n    }\n}\n");
-    assert_eq!(span, Span::new(44, 45));
+    let (span, message) = err("fun main() {\n    when (s) {\n        case Red\n    }\n}\n");
+    assert_eq!(span, Span::new(49, 50));
     assert_eq!(message, "expected `->`, found `}`");
 }
 
@@ -78,16 +80,18 @@ fn when_else_must_be_the_last_arm() {
 }
 
 #[test]
-fn when_guard_must_be_parenthesized() {
-    let (span, message) = err("fun main() {\n    when (s) {\n        Red if x -> { }\n    }\n}\n");
-    assert_eq!(span, Span::new(43, 44));
-    assert_eq!(message, "expected `(`, found `x`");
+fn when_guard_parentheses_are_optional() {
+    let when = when_with_arms(
+        "case Red if x -> { }
+",
+    );
+    assert!(matches!(when.arms[0].guard, Some(Expr::Var(_))));
 }
 
 #[test]
 fn when_bare_rest_is_not_a_pattern() {
-    let (span, message) = err("fun main() {\n    when (s) {\n        .. -> { }\n    }\n}\n");
-    assert_eq!(span, Span::new(36, 38));
+    let (span, message) = err("fun main() {\n    when (s) {\n        case .. -> { }\n    }\n}\n");
+    assert_eq!(span, Span::new(41, 43));
     assert_eq!(message, "expected pattern, found `..`");
 }
 
@@ -95,7 +99,7 @@ fn when_bare_rest_is_not_a_pattern() {
 fn when_range_is_not_a_pattern() {
     // The `..` in the pattern position is the rest marker; a range
     // expression therefore cannot appear there (spec 4.6 disambiguation).
-    let (span, message) = err("fun main() {\n    when (s) {\n        1..4 -> { }\n    }\n}\n");
-    assert_eq!(span, Span::new(37, 39));
+    let (span, message) = err("fun main() {\n    when (s) {\n        case 1..4 -> { }\n    }\n}\n");
+    assert_eq!(span, Span::new(42, 44));
     assert_eq!(message, "expected `->`, found `..`");
 }

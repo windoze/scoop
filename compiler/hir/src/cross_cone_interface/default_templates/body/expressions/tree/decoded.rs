@@ -66,6 +66,7 @@ enum DecodedDefaultExpressionKindV1 {
         conversion: crate::DefaultFloatConversionV1,
         operand: Box<DecodedDefaultExpressionV1>,
     },
+    Unreachable,
     UnitLiteral,
     TupleLiteral(Vec<DecodedDefaultExpressionV1>),
     StructInit {

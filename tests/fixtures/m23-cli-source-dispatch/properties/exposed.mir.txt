@@ -128,22 +128,32 @@ Module
         Local this
         Type Int
         IntegerLiteral Int value=17 bits=0x00000011
-      call $call.1: Int = @fn3 direct
+      val $operand.1: Int
+        Type Int
+        FieldAccess 0
+          Type Store
+          Local this
+      call $call.2: Int = @fn3 direct
         Type Store
         Local this
-      call $call.2: Int = @fn4 direct
+      call $call.3: Int = @fn4 direct
         Type Store
         Local this
-      call $call.3: Int = @fn6 virtual[0]
+      call $call.4: Int = @fn6 virtual[0]
         Type Store
         Local this
-      call $call.4: Int = @fn8 direct
+      call $call.5: Int = @fn8 direct
         Type Store
         Local this
-      call $call.5: Int = @fn10 direct
+      val $operand.6: Int
+        Type Int
+        FieldAccess 1
+          Type Store
+          Local this
+      call $call.7: Int = @fn10 direct
         Type Store
         Local this
-      call $call.6: Int = @fn42 interface View[0]
+      call $call.8: Int = @fn42 interface View[0]
         Type View
         Retype View
           Type Store
@@ -152,11 +162,7 @@ Module
         Type (Int, Int, Int, Int, Int, Int, Int, Int)
         TupleLiteral
           Type Int
-          FieldAccess 0
-            Type Store
-            Local this
-          Type Int
-          Local $call.1
+          Local $operand.1
           Type Int
           Local $call.2
           Type Int
@@ -164,13 +170,13 @@ Module
           Type Int
           Local $call.4
           Type Int
-          FieldAccess 1
-            Type Store
-            Local this
-          Type Int
           Local $call.5
           Type Int
-          Local $call.6
+          Local $operand.6
+          Type Int
+          Local $call.7
+          Type Int
+          Local $call.8
   fun Store.$get$readonly @fn3(this: Store) -> Int
     bb0 entry
       return

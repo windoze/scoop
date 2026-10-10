@@ -24,7 +24,7 @@ enum RangeSignal {
 }
 
 fun classifyRangeSignal(signal: RangeSignal): Int = when (signal) {
-    Data {
+    case Data {
         payload: {
             entry: { payload: (node, label), .. },
             marker: (true, ordinal)
@@ -34,8 +34,8 @@ fun classifyRangeSignal(signal: RangeSignal): Int = when (signal) {
         println("range-match-" + label + "-" + node.text)
         ordinal
     }
-    Data { payload: _, enabled: _ } -> -99
-    End -> -100
+    case Data { payload: _, enabled: _ } -> -99
+    case End -> -100
 }
 
 fun <T> markArray(values: Array<T>): Array<T> {
@@ -107,14 +107,14 @@ internal class RangeEntryIterator(val inner: Iterator<Int>) : Iterator<Entry<Nod
     public final override fun next(): Option<Entry<Node>> {
         val next = inner.next()
         return when (next) {
-            Some(value) -> Some(Entry(
+            case Some(value) -> Some(Entry(
                 value.toInt64(),
                 (
                     Node("range-node-" + value.toString()),
                     "range-label-" + value.toString()
                 )
             ))
-            None -> None
+            case None -> None
         }
     }
 }

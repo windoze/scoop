@@ -41,9 +41,9 @@ fun sharedValues() {
             val saved = state.load()
             if (index % 8 == 0) { gcCollect() }
             when (saved) {
-                State.Empty -> {}
-                State.Single(number, payload) -> { check(number == payload.value) }
-                State.Pair(left, right) -> { check(left.value == right.value) }
+                case State.Empty -> {}
+                case State.Single(number, payload) -> { check(number == payload.value) }
+                case State.Pair(left, right) -> { check(left.value == right.value) }
             }
             val message = Published(0, 0)
             message.first = value

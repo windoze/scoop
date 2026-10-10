@@ -80,15 +80,15 @@ Module
     local %43 $dependency.receiver: ptr<managed>
     local %44 $dependency.argument.0: i64
     local %45 $dependency.parameter.index: i64
-    local %46 $opt.0: enum1
-    local %47 $res.1: i32
+    local %46 opt: enum1
+    local %47 $result.0: i32
     local %48 $dependency.argument.0: i32
     local %49 $dependency.parameter.value: i32
     local %50 $dependency.receiver: ptr<managed>
     local %51 $dependency.argument.0: i64
     local %52 $dependency.parameter.index: i64
-    local %53 $opt.2: enum1
-    local %54 $res.3: i32
+    local %53 opt: enum1
+    local %54 $result.1: i32
     local %55 $dependency.argument.0: i32
     local %56 $dependency.parameter.value: i32
     local %57 $when.1: enum0

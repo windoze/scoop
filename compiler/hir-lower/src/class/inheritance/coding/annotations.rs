@@ -25,7 +25,10 @@ impl Lowerer {
             .map_or_else(
                 || Some(name.into()),
                 |annotation| {
-                    let hir::CanonicalConstValueV1::String(value) = &annotation.arguments[0] else {
+                    let hir::CanonicalAnnotationValueV1::Scalar(
+                        hir::CanonicalConstValueV1::String(value),
+                    ) = &annotation.arguments[0]
+                    else {
                         unreachable!("SerialName has a String parameter")
                     };
                     Some(value.clone())
@@ -57,7 +60,9 @@ impl Lowerer {
             .map_or_else(
                 || Some(source_name.to_owned()),
                 |value| match &value.arguments[0] {
-                    hir::CanonicalConstValueV1::String(name) => Some(name.clone()),
+                    hir::CanonicalAnnotationValueV1::Scalar(
+                        hir::CanonicalConstValueV1::String(name),
+                    ) => Some(name.clone()),
                     _ => unreachable!("SerialName has a checked String argument"),
                 },
             )

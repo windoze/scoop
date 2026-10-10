@@ -1,0 +1,22 @@
+class Label(val text: String)
+
+fun <T> keep(value: T): T = value
+fun choose(operation: (Int) -> Int, seed: Int = 5): Int = operation(seed)
+fun choose(operation: (Int) -> String, seed: Int = 5): String = operation(seed)
+
+fun main() {
+    val label = Label("kept")
+    val chosen = choose({ value ->
+        fun render(prefix: String = label.text): String = prefix + keep(value).toString()
+        gcCollect()
+        render()
+    })
+    println(chosen)
+    println(choose(fun(value: Int): Int { return keep(value) + 1 }))
+    val seed = 9
+    println(choose(seed = seed, operation = { value ->
+        val nested = { keep(label.text) }
+        nested() + value.toString()
+    }))
+    println(label.text)
+}

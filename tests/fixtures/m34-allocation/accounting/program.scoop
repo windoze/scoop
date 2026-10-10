@@ -28,7 +28,7 @@ fun main() {
     var index = 0L
     var sum = 0
     while (index < values.size) {
-        sum += when (values[index]) { None -> 0; Some(value) -> value.value }
+        sum += when (values[index]) { case None -> 0; case Some(value) -> value.value }
         index += 1L
     }
     check(sum == 1024)

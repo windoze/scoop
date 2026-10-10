@@ -1,6 +1,6 @@
 use crate::{FloatLiteralSyntax, Ident, IntegerLiteralSyntax, Span, TypeRef, VisibilitySyntax};
 
-/// A static declaration with scalar parameters and no runtime constructor.
+/// A static declaration with constant parameters and no runtime constructor.
 #[derive(Debug, Clone, PartialEq)]
 pub struct AnnotationClassDecl {
     pub annotations: Vec<Annotation>,
@@ -56,4 +56,11 @@ pub enum AnnotationLiteral {
         literal: FloatLiteralSyntax,
     },
     ConstReference(Box<crate::Expr>),
+    Array(Vec<AnnotationArrayElement>),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct AnnotationArrayElement {
+    pub value: AnnotationLiteral,
+    pub span: Span,
 }

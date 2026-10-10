@@ -20,23 +20,23 @@ fun once(value: Event): Event {
 }
 
 fun classify(value: Event): Int = when (once(value)) {
-    Data {
+    case Data {
         envelope: { payload: { value: 0, flag: false }, marker: (_, _), .. },
         enabled: false
     } -> 10
-    Data {
+    case Data {
         enabled: false,
         envelope: { marker: (_, _), payload: { flag: false, value }, .. }
     } -> value
-    Data {
+    case Data {
         envelope: { payload: { value, flag: false }, marker: (_, _), .. },
         enabled: true
     } -> value + 100
-    Data {
+    case Data {
         enabled,
         envelope: { payload: { flag: true, value }, marker: (_, _), .. }
     } -> value + 200
-    Empty -> -1
+    case Empty -> -1
 }
 
 fun makeEnvelope(): Envelope<Leaf<Int>> {

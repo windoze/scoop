@@ -28,7 +28,7 @@ public fun <T> exercise(seed: T, inspect: (T) -> Int): Int {
     val holder = Holder<_>(seed)
     if (holder.apply<_>(2, { value, increment -> inspect(value) + increment }) != 44) { return 3 }
     val packet: Packet<T> = Packet.Item(seed)
-    if (when (packet) { Item(value) -> inspect(value); Missing -> 0 } != 42) { return 4 }
+    if (when (packet) { case Item(value) -> inspect(value); case Missing -> 0 } != 42) { return 4 }
     val identity: (T) -> T = { value -> value }
     if (inspect(map(identity, seed)) != 42) { return 5 }
     val mapped: Int = map<Int, _>({ value -> value + 1 }, 41)

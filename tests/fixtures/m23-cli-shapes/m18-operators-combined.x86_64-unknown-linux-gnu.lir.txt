@@ -94,13 +94,15 @@ Module
   fun @scoop$1$cb$a3ec52709090f753fdefd95ff1b8f5a679041ecac85444430c73128693d130d8(ptr<managed>, parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>) -> void
     local %0 $dependency.argument.0: interface{object,itab}
     local %1 $dependency.parameter._1: interface{object,itab}
+    local %2 $place.receiver: ptr<managed>
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0, param1:interface{object,itab}@0]
+    t0 = heap_load param0 +16 : ptr<managed>
+    store t0 -> local2
     store param1 -> local0
     store local0 -> local1
-    t0 = heap_load param0 +16 : ptr<managed>
     t1 = enum_wrap e0 v0 (local1) : enum0
-    heap_store t0 +16 t1
+    heap_store local2 +16 t1
     ret
   fun @scoop$1$cb$1ee07113a8eadb2efd073eef40eccc557d8c891153a6371455702dff96dcefd6(ptr<managed>, parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>) -> enum9
     local %0 $frame: ptr<managed>

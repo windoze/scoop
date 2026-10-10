@@ -1657,18 +1657,18 @@ Module
         Local $step
   fun register @fn34(this: Registration<Int>, continuation: Continuation<Int>) -> Unit
     bb0 entry
+      call $dependency.local.4: Gate<Int> = @fn36 direct
+        Type Registration<Int>
+        Local this
       val $dependency.local.2: Continuation<Int>
         Type Continuation<Int>
         Local continuation
       val $dependency.local.3: Continuation<Int>
         Type Continuation<Int>
         Local $dependency.local.2
-      call $call.1: Gate<Int> = @fn36 direct
-        Type Registration<Int>
-        Local this
       call @fn22 direct
         Type Gate<Int>
-        Local $call.1
+        Local $dependency.local.4
         Type Option<Continuation<Int>>
         VariantConstruct Option<Continuation<Int>> v0
           Type Continuation<Int>
@@ -1676,18 +1676,18 @@ Module
       return
   fun register @fn35(this: Registration<Unit>, continuation: Continuation<Unit>) -> Unit
     bb0 entry
+      call $dependency.local.4: Gate<Unit> = @fn37 direct
+        Type Registration<Unit>
+        Local this
       val $dependency.local.2: Continuation<Unit>
         Type Continuation<Unit>
         Local continuation
       val $dependency.local.3: Continuation<Unit>
         Type Continuation<Unit>
         Local $dependency.local.2
-      call $call.1: Gate<Unit> = @fn37 direct
-        Type Registration<Unit>
-        Local this
       call @fn30 direct
         Type Gate<Unit>
-        Local $call.1
+        Local $dependency.local.4
         Type Option<Continuation<Unit>>
         VariantConstruct Option<Continuation<Unit>> v0
           Type Continuation<Unit>

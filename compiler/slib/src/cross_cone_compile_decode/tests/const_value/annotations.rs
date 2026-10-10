@@ -1,7 +1,8 @@
 use super::*;
 use scoop_hir::{
     AnnotatedTargetV1, AnnotationApplicationV1, AnnotationDeclarationV1, AnnotationParameterV1,
-    AnnotationTargetV1, CanonicalAnnotationsV1, DeclaredVisibilityV1,
+    AnnotationTargetV1, CanonicalAnnotationValueV1::Scalar, CanonicalAnnotationsV1,
+    DeclaredVisibilityV1,
 };
 use scoop_identity::PersistentAnnotationId;
 
@@ -40,14 +41,14 @@ fn annotated(case: Case) -> ConstSurface {
             0,
         ))
         .unwrap();
-    let boolean = CanonicalConstValueV1::Boolean(CanonicalBooleanV1::True);
+    let boolean = Scalar(CanonicalConstValueV1::Boolean(CanonicalBooleanV1::True));
     let declaration = AnnotationDeclarationV1 {
         annotation: identity.id(),
         parameters: vec![AnnotationParameterV1 {
             name: CanonicalIdentifier::new("value").unwrap(),
-            value_type,
+            value_type: SignatureTypeKey::Nominal(value_type),
             default: Some(if matches!(case, Case::DefaultType) {
-                CanonicalConstValueV1::String("wrong".into())
+                Scalar(CanonicalConstValueV1::String("wrong".into()))
             } else {
                 boolean.clone()
             }),
@@ -66,7 +67,7 @@ fn annotated(case: Case) -> ConstSurface {
     };
     let arguments = match case {
         Case::Arity => vec![],
-        Case::ArgumentType => vec![CanonicalConstValueV1::String("wrong".into())],
+        Case::ArgumentType => vec![Scalar(CanonicalConstValueV1::String("wrong".into()))],
         _ => vec![boolean],
     };
     section.set_annotations(
@@ -108,7 +109,9 @@ fn annotation_wire_round_trip_preserves_the_actual_declaration_and_typed_values(
     );
     assert_eq!(
         annotations.targets()[0].annotations[0].arguments,
-        vec![CanonicalConstValueV1::Boolean(CanonicalBooleanV1::True)]
+        vec![Scalar(CanonicalConstValueV1::Boolean(
+            CanonicalBooleanV1::True
+        ))]
     );
 }
 
@@ -121,12 +124,9 @@ fn annotation_reader_rejects_mismatched_arguments_defaults_and_targets() {
         ),
         (
             Case::ArgumentType,
-            "annotation argument has a different scalar type",
+            "annotation argument has a different type",
         ),
-        (
-            Case::DefaultType,
-            "annotation default has a different scalar type",
-        ),
+        (Case::DefaultType, "annotation default has a different type"),
         (
             Case::GlobalTarget,
             "annotation target is not a retained source declaration",

@@ -100,6 +100,7 @@ impl Validator<'_> {
             | DefaultExpressionKindV1::CharLiteral(_)
             | DefaultExpressionKindV1::FloatLiteral(_)
             | DefaultExpressionKindV1::BooleanLiteral(_)
+            | DefaultExpressionKindV1::Unreachable
             | DefaultExpressionKindV1::UnitLiteral
             | DefaultExpressionKindV1::ReleaseFieldLoad { .. }
             | DefaultExpressionKindV1::GlobalRead(_)

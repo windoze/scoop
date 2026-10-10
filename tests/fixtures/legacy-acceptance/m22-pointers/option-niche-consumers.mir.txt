@@ -32,56 +32,56 @@ Module
   generated_exact_type get4 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
   fun taggedOr @fn0(value: Option<Int>, fallback: Int) -> Int
     bb0 entry
-      val $opt.0: Option<Int>
+      val opt: Option<Int>
         Type Option<Int>
         Local value
       branch bb1 bb2
         Type Boolean
         VariantTest Option<Int> v0
           Type Option<Int>
-          Local $opt.0
+          Local opt
     bb1 if.then.1
-      val $res.1: Int
+      assign $result.0
         Type Int
         VariantPayloadProject Option<Int> v0 f0
           Type Option<Int>
-          Local $opt.0
+          Local opt
       goto bb3
     bb2 if.else.2
-      val $res.1: Int
+      assign $result.0
         Type Int
         Local fallback
       goto bb3
     bb3 if.merge.3
       return
         Type Int
-        Local $res.1
+        Local $result.0
   fun managedOr @fn1(value: Option<String>, fallback: String) -> String
     bb0 entry
-      val $opt.2: Option<String>
+      val opt: Option<String>
         Type Option<String>
         Local value
       branch bb1 bb2
         Type Boolean
         VariantTest Option<String> v0
           Type Option<String>
-          Local $opt.2
+          Local opt
     bb1 if.then.1
-      val $res.3: String
+      assign $result.1
         Type String
         VariantPayloadProject Option<String> v0 f0
           Type Option<String>
-          Local $opt.2
+          Local opt
       goto bb3
     bb2 if.else.2
-      val $res.3: String
+      assign $result.1
         Type String
         Local fallback
       goto bb3
     bb3 if.merge.3
       return
         Type String
-        Local $res.3
+        Local $result.1
   fun requireRaw @fn2(value: Option<Ptr<Int>>) -> Ptr<Int>
     bb0 entry
       val $opt.1: Option<Ptr<Int>>

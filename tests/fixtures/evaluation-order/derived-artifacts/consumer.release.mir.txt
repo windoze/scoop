@@ -1,0 +1,2146 @@
+Module
+  struct Key (id: Int)
+  struct Box<Key> (value: Key)
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum Option<Char>
+    Some(_0: Char)
+    None()
+  enum Choice<Box<Key>>
+    Item(_0: Box<Key>)
+    Pair(_0: Box<Key>, _1: Box<Key>)
+    Empty()
+  enum Choice<Key>
+    Item(_0: Key)
+    Pair(_0: Key, _1: Key)
+    Empty()
+  enum CoroutineStep<Key>
+    Completed(value: Key)
+    Suspended()
+  enum CoroutineSlot<Key>
+    Empty()
+    Value(value: Key)
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class box<Key> vtable=0 itables=2
+  class box<Box<Key>> vtable=0 itables=0
+  interface Wide
+  interface Exact<Key>
+  interface ToString
+  interface Hash
+  interface Equality<Char>
+  interface Iterable<Char>
+  interface Iterator<Char>
+  interface Equality<String>
+  interface Continuation<Key>
+  interface SuspendTask<Key>
+  interface SuspendRegistration<Key>
+  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn13 captures=1
+    bridge function_type1 -> @fn26 id=27be69fa9a1ab186cbdcc093e22c54c8cdff445fd66b3179754d13030c3dbe23
+  closure cc1 $Closure$lambda1 type=function_type0 invoke=@fn14 captures=1
+    bridge function_type1 -> @fn27 id=1a3408e06e4bffb74a528cff2b087848bf0938a52427ee3b5b726e2a8969e161
+  generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
+  generated_exact_type get1 location=class3 nominal_id=449a1db0cd5e7fc19482164e41d1bb49c19003c54ea9daa1ab8d096e7779a86b exact_id=3691934a3b86225bed69d4da6cc055a71887b067b80bbf504ef1f230df1c9fc2
+  generated_exact_type get2 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
+  generated_exact_type get3 location=enum4 nominal_id=b86f241010df6362aff7140b603158edc7a968e4b4d8b11b37cd3236d74a341a exact_id=386e224938b930dfe6a05c4e979baa662fecc1766d22175a57d0a8abd40eab1b
+  generated_exact_type get4 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
+  generated_exact_type get5 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
+  generated_exact_type get6 location=closure0 nominal_id=113aa82f8fb3243ea1aa9b534954c617d808e5a722c84d87a8b25215d4408166 exact_id=98c8567bfa80216ddf91f0c4ba3bb1bd2188a3e99d71b31e3c04db9142e5f0a1
+  generated_exact_type get7 location=enum5 nominal_id=9e150c435ff45efbcf267ecdc0e553f6c23093402e0fdc8d68f1d0ce55f64c81 exact_id=998823fb948c640d4b3ee5d29811a5cd10e03e4be4ef1cf55bcc9f1cad5114fc
+  generated_exact_type get8 location=closure1 nominal_id=3f22f2205f0f6c87d5862db940c1733304f798791964dbde9863de1e59044bc5 exact_id=d573b1abb39ca67dbebfb9680d0b33da9b4f6f0bafab106cdd0c6b9381cd5430
+  generated_exact_type get9 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
+  generated_exact_type get10 location=class4 nominal_id=4ab51db847a4ceb86683ed16bdb0a13dd13fae065c4bcadad9d3e6c280c40e1d exact_id=fdfc16985bb2156d4bf2d6043109fa5349a3237969d7da0715337bfb7eb6bf59
+  generated_callable gc0 function=@fn27 id=1a3408e06e4bffb74a528cff2b087848bf0938a52427ee3b5b726e2a8969e161
+  generated_callable gc1 function=@fn25 id=1f049b4cc96f9b8e837837dcb785aa9b544f40fa627a3423d4704c1cc77253ce
+  generated_callable gc2 function=@fn26 id=27be69fa9a1ab186cbdcc093e22c54c8cdff445fd66b3179754d13030c3dbe23
+  generated_callable gc3 function=@fn23 id=58b043867c6aa4ee53fb6583e0c98a6e3b8d1a6df3f77e1d4f2507746d4b4e19
+  generated_callable gc4 function=@fn24 id=ad52f401e9fbd671ee3f0be34cfdbb9491db0f85d9eb4bfa1df17c952271a6a1
+  fun Key.equals @fn0(this: Key, other: Wide) -> Boolean
+    bb0 entry
+      return
+        Type Boolean
+        BoolLiteral false
+  fun Key.equals @fn1(this: Key, other: Key) -> Boolean
+    bb0 entry
+      return
+        Type Boolean
+        BoolLiteral true
+  fun check @fn2(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.receiver: Boolean
+        Type Boolean
+        Local value
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+    bb1 if.then.1
+      val $default.local.0: String
+        Type String
+        StringConst @str0
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.1
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $new.1
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.1
+    bb2 if.merge.2
+      return
+  fun main @fn3() -> Unit
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.id: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.105.id: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      goto bb106
+    bb1 logic.rhs.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Choice<Key> v0
+          Type Choice<Key>
+          Local $default.local.3
+    bb2 logic.short.2
+      assign $logic.1
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 logic.merge.3
+      goto bb7
+    bb4 logic.rhs.4
+      val $inline.95.this: Key
+        Type Key
+        VariantPayloadProject Choice<Key> v0 f0
+          Type Choice<Key>
+          Local $default.local.2
+      val $inline.95.other: Wide
+        Type Wide
+        Box
+          Type Key
+          VariantPayloadProject Choice<Key> v0 f0
+            Type Choice<Key>
+            Local $default.local.3
+      goto bb96
+    bb5 logic.short.5
+      assign $logic.2
+        Type Boolean
+        BoolLiteral false
+      goto bb6
+    bb6 logic.merge.6
+      assign $logic.1
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb7 logic.rhs.7
+      branch bb10 bb11
+        Type Boolean
+        VariantTest Choice<Key> v1
+          Type Choice<Key>
+          Local $default.local.2
+    bb8 logic.short.8
+      unreachable
+    bb9 logic.merge.9
+      goto bb19
+    bb10 logic.rhs.10
+      branch bb13 bb14
+        Type Boolean
+        VariantTest Choice<Key> v1
+          Type Choice<Key>
+          Local $default.local.3
+    bb11 logic.short.11
+      assign $logic.5
+        Type Boolean
+        BoolLiteral false
+      goto bb12
+    bb12 logic.merge.12
+      assign $logic.4
+        Type Boolean
+        BoolLiteral false
+      goto bb9
+    bb13 logic.rhs.13
+      val $inline.93.this: Key
+        Type Key
+        VariantPayloadProject Choice<Key> v1 f0
+          Type Choice<Key>
+          Local $default.local.2
+      val $inline.93.other: Wide
+        Type Wide
+        Box
+          Type Key
+          VariantPayloadProject Choice<Key> v1 f0
+            Type Choice<Key>
+            Local $default.local.3
+      goto bb94
+    bb14 logic.short.14
+      assign $logic.6
+        Type Boolean
+        BoolLiteral false
+      goto bb15
+    bb15 logic.merge.15
+      assign $logic.5
+        Type Boolean
+        BoolLiteral false
+      goto bb12
+    bb16 logic.rhs.16
+      unreachable
+    bb17 logic.short.17
+      assign $logic.8
+        Type Boolean
+        BoolLiteral false
+      goto bb18
+    bb18 logic.merge.18
+      assign $logic.6
+        Type Boolean
+        BoolLiteral false
+      goto bb15
+    bb19 logic.rhs.19
+      branch bb22 bb23
+        Type Boolean
+        VariantTest Choice<Key> v2
+          Type Choice<Key>
+          Local $default.local.2
+    bb20 logic.short.20
+      unreachable
+    bb21 logic.merge.21
+      val $dependency.parameter.same: Boolean
+        Type Boolean
+        Local $logic.10
+      val $inline.89.a: Choice<Key>
+        Type Choice<Key>
+        Local $dependency.parameter.a
+      val $inline.89.b: Choice<Key>
+        Type Choice<Key>
+        Local $dependency.parameter.b
+      val $inline.89.same: Boolean
+        Type Boolean
+        Local $dependency.parameter.same
+      goto bb90
+    bb22 logic.rhs.22
+      assign $logic.11
+        Type Boolean
+        VariantTest Choice<Key> v2
+          Type Choice<Key>
+          Local $default.local.3
+      goto bb24
+    bb23 logic.short.23
+      assign $logic.11
+        Type Boolean
+        BoolLiteral false
+      goto bb24
+    bb24 logic.merge.24
+      assign $logic.10
+        Type Boolean
+        Local $logic.11
+      goto bb21
+    bb25 logic.rhs.25
+      branch bb28 bb29
+        Type Boolean
+        VariantTest Choice<Key> v0
+          Type Choice<Key>
+          Local $default.local.3
+    bb26 logic.short.26
+      assign $logic.12
+        Type Boolean
+        BoolLiteral false
+      goto bb27
+    bb27 logic.merge.27
+      goto bb31
+    bb28 logic.rhs.28
+      val $inline.87.this: Key
+        Type Key
+        VariantPayloadProject Choice<Key> v0 f0
+          Type Choice<Key>
+          Local $default.local.2
+      val $inline.87.other: Wide
+        Type Wide
+        Box
+          Type Key
+          VariantPayloadProject Choice<Key> v0 f0
+            Type Choice<Key>
+            Local $default.local.3
+      goto bb88
+    bb29 logic.short.29
+      assign $logic.13
+        Type Boolean
+        BoolLiteral false
+      goto bb30
+    bb30 logic.merge.30
+      assign $logic.12
+        Type Boolean
+        BoolLiteral false
+      goto bb27
+    bb31 logic.rhs.31
+      branch bb34 bb35
+        Type Boolean
+        VariantTest Choice<Key> v1
+          Type Choice<Key>
+          Local $default.local.2
+    bb32 logic.short.32
+      unreachable
+    bb33 logic.merge.33
+      goto bb43
+    bb34 logic.rhs.34
+      branch bb37 bb38
+        Type Boolean
+        VariantTest Choice<Key> v1
+          Type Choice<Key>
+          Local $default.local.3
+    bb35 logic.short.35
+      assign $logic.16
+        Type Boolean
+        BoolLiteral false
+      goto bb36
+    bb36 logic.merge.36
+      assign $logic.15
+        Type Boolean
+        BoolLiteral false
+      goto bb33
+    bb37 logic.rhs.37
+      val $inline.85.this: Key
+        Type Key
+        VariantPayloadProject Choice<Key> v1 f0
+          Type Choice<Key>
+          Local $default.local.2
+      val $inline.85.other: Wide
+        Type Wide
+        Box
+          Type Key
+          VariantPayloadProject Choice<Key> v1 f0
+            Type Choice<Key>
+            Local $default.local.3
+      goto bb86
+    bb38 logic.short.38
+      assign $logic.17
+        Type Boolean
+        BoolLiteral false
+      goto bb39
+    bb39 logic.merge.39
+      assign $logic.16
+        Type Boolean
+        BoolLiteral false
+      goto bb36
+    bb40 logic.rhs.40
+      unreachable
+    bb41 logic.short.41
+      assign $logic.19
+        Type Boolean
+        BoolLiteral false
+      goto bb42
+    bb42 logic.merge.42
+      assign $logic.17
+        Type Boolean
+        BoolLiteral false
+      goto bb39
+    bb43 logic.rhs.43
+      branch bb46 bb47
+        Type Boolean
+        VariantTest Choice<Key> v2
+          Type Choice<Key>
+          Local $default.local.2
+    bb44 logic.short.44
+      unreachable
+    bb45 logic.merge.45
+      val $dependency.parameter.same: Boolean
+        Type Boolean
+        Local $logic.21
+      val $inline.81.a: Choice<Key>
+        Type Choice<Key>
+        Local $dependency.parameter.a
+      val $inline.81.b: Choice<Key>
+        Type Choice<Key>
+        Local $dependency.parameter.b
+      val $inline.81.same: Boolean
+        Type Boolean
+        Local $dependency.parameter.same
+      goto bb82
+    bb46 logic.rhs.46
+      assign $logic.22
+        Type Boolean
+        VariantTest Choice<Key> v2
+          Type Choice<Key>
+          Local $default.local.3
+      goto bb48
+    bb47 logic.short.47
+      assign $logic.22
+        Type Boolean
+        BoolLiteral false
+      goto bb48
+    bb48 logic.merge.48
+      assign $logic.21
+        Type Boolean
+        Local $logic.22
+      goto bb45
+    bb49 logic.rhs.49
+      branch bb52 bb53
+        Type Boolean
+        VariantTest Choice<Key> v0
+          Type Choice<Key>
+          Local $default.local.3
+    bb50 logic.short.50
+      assign $logic.23
+        Type Boolean
+        BoolLiteral false
+      goto bb51
+    bb51 logic.merge.51
+      goto bb55
+    bb52 logic.rhs.52
+      val $inline.79.this: Key
+        Type Key
+        VariantPayloadProject Choice<Key> v0 f0
+          Type Choice<Key>
+          Local $default.local.2
+      val $inline.79.other: Wide
+        Type Wide
+        Box
+          Type Key
+          VariantPayloadProject Choice<Key> v0 f0
+            Type Choice<Key>
+            Local $default.local.3
+      goto bb80
+    bb53 logic.short.53
+      assign $logic.24
+        Type Boolean
+        BoolLiteral false
+      goto bb54
+    bb54 logic.merge.54
+      assign $logic.23
+        Type Boolean
+        BoolLiteral false
+      goto bb51
+    bb55 logic.rhs.55
+      branch bb58 bb59
+        Type Boolean
+        VariantTest Choice<Key> v1
+          Type Choice<Key>
+          Local $default.local.2
+    bb56 logic.short.56
+      unreachable
+    bb57 logic.merge.57
+      goto bb67
+    bb58 logic.rhs.58
+      branch bb61 bb62
+        Type Boolean
+        VariantTest Choice<Key> v1
+          Type Choice<Key>
+          Local $default.local.3
+    bb59 logic.short.59
+      assign $logic.27
+        Type Boolean
+        BoolLiteral false
+      goto bb60
+    bb60 logic.merge.60
+      assign $logic.26
+        Type Boolean
+        BoolLiteral false
+      goto bb57
+    bb61 logic.rhs.61
+      val $inline.77.this: Key
+        Type Key
+        VariantPayloadProject Choice<Key> v1 f0
+          Type Choice<Key>
+          Local $default.local.2
+      val $inline.77.other: Wide
+        Type Wide
+        Box
+          Type Key
+          VariantPayloadProject Choice<Key> v1 f0
+            Type Choice<Key>
+            Local $default.local.3
+      goto bb78
+    bb62 logic.short.62
+      assign $logic.28
+        Type Boolean
+        BoolLiteral false
+      goto bb63
+    bb63 logic.merge.63
+      assign $logic.27
+        Type Boolean
+        BoolLiteral false
+      goto bb60
+    bb64 logic.rhs.64
+      unreachable
+    bb65 logic.short.65
+      assign $logic.30
+        Type Boolean
+        BoolLiteral false
+      goto bb66
+    bb66 logic.merge.66
+      assign $logic.28
+        Type Boolean
+        BoolLiteral false
+      goto bb63
+    bb67 logic.rhs.67
+      branch bb70 bb71
+        Type Boolean
+        VariantTest Choice<Key> v2
+          Type Choice<Key>
+          Local $default.local.2
+    bb68 logic.short.68
+      unreachable
+    bb69 logic.merge.69
+      val $dependency.parameter.same: Boolean
+        Type Boolean
+        Local $logic.32
+      val $inline.73.a: Choice<Key>
+        Type Choice<Key>
+        Local $dependency.parameter.a
+      val $inline.73.b: Choice<Key>
+        Type Choice<Key>
+        Local $dependency.parameter.b
+      val $inline.73.same: Boolean
+        Type Boolean
+        Local $dependency.parameter.same
+      goto bb74
+    bb70 logic.rhs.70
+      assign $logic.33
+        Type Boolean
+        VariantTest Choice<Key> v2
+          Type Choice<Key>
+          Local $default.local.3
+      goto bb72
+    bb71 logic.short.71
+      assign $logic.33
+        Type Boolean
+        BoolLiteral false
+      goto bb72
+    bb72 logic.merge.72
+      assign $logic.32
+        Type Boolean
+        Local $logic.33
+      goto bb69
+    bb73 inline.cont.73
+      val $dependency.receiver: Boolean
+        Type Boolean
+        Local $inline.73.result
+      val $argument.0: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn2 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: () -> Box<Key>
+        Type () -> Box<Key>
+        ClosureAlloc cc0 $Closure$lambda0
+          CaptureInit field=0
+            Type Box<Key>
+            Local a
+      val $dependency.argument.1: () -> Box<Key>
+        Type () -> Box<Key>
+        ClosureAlloc cc1 $Closure$lambda1
+          CaptureInit field=0
+            Type Box<Key>
+            Local a
+      val $dependency.parameter.a: () -> Box<Key>
+        Type () -> Box<Key>
+        Local $dependency.argument.0
+      val $dependency.parameter.b: () -> Box<Key>
+        Type () -> Box<Key>
+        Local $dependency.argument.1
+      call $dependency.receiver: Boolean = @fn15 direct
+        Type () -> Box<Key>
+        Local $dependency.parameter.a
+        Type () -> Box<Key>
+        Local $dependency.parameter.b
+      val $argument.0: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn2 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str1
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn16 direct
+        Type String
+        Local $dependency.parameter.value
+      return
+    bb74 inline.73.entry
+      assign $inline.73.result
+        Type Boolean
+        Local $inline.73.same
+      goto bb73
+    bb75 inline.cont.75
+      unreachable
+    bb76 inline.75.entry
+      unreachable
+    bb77 inline.cont.77
+      val $call.29: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb65
+    bb78 inline.77.entry
+      assign $inline.77.result
+        Type Boolean
+        BoolLiteral false
+      goto bb77
+    bb79 inline.cont.79
+      val $call.25: Boolean
+        Type Boolean
+        BoolLiteral false
+      assign $logic.24
+        Type Boolean
+        BoolLiteral false
+      goto bb54
+    bb80 inline.79.entry
+      assign $inline.79.result
+        Type Boolean
+        BoolLiteral false
+      goto bb79
+    bb81 inline.cont.81
+      val $argument.0: Boolean
+        Type Boolean
+        Local $inline.81.result
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn2 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: Key
+        Type Key
+        Local key
+      val $dependency.argument.1: Key
+        Type Key
+        Local key
+      val $dependency.parameter._1: Key
+        Type Key
+        Local $dependency.argument.0
+      val $dependency.parameter._2: Key
+        Type Key
+        Local $dependency.argument.1
+      val $dependency.argument.0: Choice<Key>
+        Type Choice<Key>
+        VariantConstruct Choice<Key> v1
+          Type Key
+          Local $dependency.parameter._1
+          Type Key
+          Local $dependency.parameter._2
+      val $dependency.argument.0: Key
+        Type Key
+        Local key
+      val $dependency.parameter._1: Key
+        Type Key
+        Local $dependency.argument.0
+      val $dependency.argument.1: Choice<Key>
+        Type Choice<Key>
+        VariantConstruct Choice<Key> v0
+          Type Key
+          Local $dependency.parameter._1
+      val $dependency.parameter.a: Choice<Key>
+        Type Choice<Key>
+        Local $dependency.argument.0
+      val $dependency.parameter.b: Choice<Key>
+        Type Choice<Key>
+        Local $dependency.argument.1
+      val $default.local.2: Choice<Key>
+        Type Choice<Key>
+        Local $dependency.parameter.a
+      val $default.local.3: Choice<Key>
+        Type Choice<Key>
+        Local $dependency.parameter.b
+      branch bb49 bb50
+        Type Boolean
+        VariantTest Choice<Key> v0
+          Type Choice<Key>
+          Local $default.local.2
+    bb82 inline.81.entry
+      assign $inline.81.result
+        Type Boolean
+        Local $inline.81.same
+      goto bb81
+    bb83 inline.cont.83
+      unreachable
+    bb84 inline.83.entry
+      unreachable
+    bb85 inline.cont.85
+      val $call.18: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb41
+    bb86 inline.85.entry
+      assign $inline.85.result
+        Type Boolean
+        BoolLiteral false
+      goto bb85
+    bb87 inline.cont.87
+      val $call.14: Boolean
+        Type Boolean
+        BoolLiteral false
+      assign $logic.13
+        Type Boolean
+        BoolLiteral false
+      goto bb30
+    bb88 inline.87.entry
+      assign $inline.87.result
+        Type Boolean
+        BoolLiteral false
+      goto bb87
+    bb89 inline.cont.89
+      val $dependency.receiver: Boolean
+        Type Boolean
+        Local $inline.89.result
+      val $argument.0: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn2 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: Choice<Key>
+        Type Choice<Key>
+        VariantConstruct Choice<Key> v2
+      val $dependency.argument.1: Choice<Key>
+        Type Choice<Key>
+        VariantConstruct Choice<Key> v2
+      val $dependency.parameter.a: Choice<Key>
+        Type Choice<Key>
+        Local $dependency.argument.0
+      val $dependency.parameter.b: Choice<Key>
+        Type Choice<Key>
+        Local $dependency.argument.1
+      val $default.local.2: Choice<Key>
+        Type Choice<Key>
+        Local $dependency.parameter.a
+      val $default.local.3: Choice<Key>
+        Type Choice<Key>
+        Local $dependency.parameter.b
+      branch bb25 bb26
+        Type Boolean
+        VariantTest Choice<Key> v0
+          Type Choice<Key>
+          Local $default.local.2
+    bb90 inline.89.entry
+      assign $inline.89.result
+        Type Boolean
+        Local $inline.89.same
+      goto bb89
+    bb91 inline.cont.91
+      unreachable
+    bb92 inline.91.entry
+      unreachable
+    bb93 inline.cont.93
+      val $call.7: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb17
+    bb94 inline.93.entry
+      assign $inline.93.result
+        Type Boolean
+        BoolLiteral false
+      goto bb93
+    bb95 inline.cont.95
+      val $call.3: Boolean
+        Type Boolean
+        BoolLiteral false
+      assign $logic.2
+        Type Boolean
+        BoolLiteral false
+      goto bb6
+    bb96 inline.95.entry
+      assign $inline.95.result
+        Type Boolean
+        BoolLiteral false
+      goto bb95
+    bb97 inline.cont.97
+      val $dependency.receiver: Boolean
+        Type Boolean
+        BoolLiteral false
+      val $argument.0: Boolean
+        Type Boolean
+        BoolLiteral true
+      val $parameter.value: Boolean
+        Type Boolean
+        BoolLiteral true
+      val $inline.109.value: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb110
+    bb98 inline.97.entry
+      assign $inline.97.result
+        Type Boolean
+        BoolLiteral false
+      goto bb97
+    bb99 inline.cont.99
+      val $dependency.parameter.same: Boolean
+        Type Boolean
+        BoolLiteral false
+      val $inline.97.a: Box<Key>
+        Type Box<Key>
+        Local $dependency.parameter.a
+      val $inline.97.b: Box<Key>
+        Type Box<Key>
+        Local $dependency.parameter.b
+      val $inline.97.same: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb98
+    bb100 inline.99.entry
+      assign $inline.99.result
+        Type Boolean
+        BoolLiteral false
+      goto bb99
+    bb101 inline.cont.101
+      val $argument.0: Boolean
+        Type Boolean
+        BoolLiteral true
+      val $parameter.value: Boolean
+        Type Boolean
+        BoolLiteral true
+      val $inline.112.value: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb113
+    bb102 inline.101.entry
+      val $inline.107.this: Key
+        Type Key
+        FieldAccess 0
+          Type Box<Key>
+          Local $inline.101.this
+      val $inline.107.other: Key
+        Type Key
+        FieldAccess 0
+          Type Box<Key>
+          Local $inline.101.other
+      goto bb108
+    bb103 inline.cont.103
+      val a: Box<Key>
+        Type Box<Key>
+        Local $inline.103.result
+      val $inline.101.this: Box<Key>
+        Type Box<Key>
+        Local a
+      val $inline.101.other: Box<Key>
+        Type Box<Key>
+        Local a
+      goto bb102
+    bb104 inline.103.entry
+      assign $inline.103.result
+        Type Box<Key>
+        StructInit Box<Key>
+          Type Key
+          Local $inline.103.value
+      goto bb103
+    bb105 inline.cont.105
+      val key: Key
+        Type Key
+        Local $inline.105.result
+      val $dependency.argument.0: Key
+        Type Key
+        Local key
+      val $dependency.parameter.value: Key
+        Type Key
+        Local $dependency.argument.0
+      val $inline.103.value: Key
+        Type Key
+        Local $dependency.parameter.value
+      goto bb104
+    bb106 inline.105.entry
+      assign $inline.105.result
+        Type Key
+        StructInit Key
+          Type Int
+          IntegerLiteral Int value=1 bits=0x00000001
+      goto bb105
+    bb107 inline.cont.107
+      val $inline.101.$call.1: Boolean
+        Type Boolean
+        BoolLiteral true
+      assign $inline.101.result
+        Type Boolean
+        BoolLiteral true
+      goto bb101
+    bb108 inline.107.entry
+      assign $inline.107.result
+        Type Boolean
+        BoolLiteral true
+      goto bb107
+    bb109 inline.cont.109
+      val $dependency.argument.0: Box<Key>
+        Type Box<Key>
+        Local a
+      val $dependency.parameter._1: Box<Key>
+        Type Box<Key>
+        Local $dependency.argument.0
+      val item: Choice<Box<Key>>
+        Type Choice<Box<Key>>
+        VariantConstruct Choice<Box<Key>> v0
+          Type Box<Key>
+          Local $dependency.parameter._1
+      call $argument.0: Boolean = @fn10 direct
+        Type Choice<Box<Key>>
+        Local item
+        Type Choice<Box<Key>>
+        Local item
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn2 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: Choice<Box<Key>>
+        Type Choice<Box<Key>>
+        Local item
+      val $dependency.argument.1: Choice<Box<Key>>
+        Type Choice<Box<Key>>
+        Local item
+      val $dependency.parameter.a: Choice<Box<Key>>
+        Type Choice<Box<Key>>
+        Local $dependency.argument.0
+      val $dependency.parameter.b: Choice<Box<Key>>
+        Type Choice<Box<Key>>
+        Local $dependency.argument.1
+      call $dependency.receiver: Boolean = @fn11 direct
+        Type Choice<Box<Key>>
+        Local $dependency.parameter.a
+        Type Choice<Box<Key>>
+        Local $dependency.parameter.b
+      val $argument.0: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn2 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: Choice<Box<Key>>
+        Type Choice<Box<Key>>
+        Local item
+      val $dependency.argument.1: Choice<Box<Key>>
+        Type Choice<Box<Key>>
+        VariantConstruct Choice<Box<Key>> v2
+      val $dependency.parameter.a: Choice<Box<Key>>
+        Type Choice<Box<Key>>
+        Local $dependency.argument.0
+      val $dependency.parameter.b: Choice<Box<Key>>
+        Type Choice<Box<Key>>
+        Local $dependency.argument.1
+      call $dependency.receiver: Boolean = @fn11 direct
+        Type Choice<Box<Key>>
+        Local $dependency.parameter.a
+        Type Choice<Box<Key>>
+        Local $dependency.parameter.b
+      val $argument.0: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn2 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: Choice<Box<Key>>
+        Type Choice<Box<Key>>
+        VariantConstruct Choice<Box<Key>> v2
+      val $dependency.argument.1: Choice<Box<Key>>
+        Type Choice<Box<Key>>
+        VariantConstruct Choice<Box<Key>> v2
+      val $dependency.parameter.a: Choice<Box<Key>>
+        Type Choice<Box<Key>>
+        Local $dependency.argument.0
+      val $dependency.parameter.b: Choice<Box<Key>>
+        Type Choice<Box<Key>>
+        Local $dependency.argument.1
+      call $argument.0: Boolean = @fn11 direct
+        Type Choice<Box<Key>>
+        Local $dependency.parameter.a
+        Type Choice<Box<Key>>
+        Local $dependency.parameter.b
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn2 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: Key
+        Type Key
+        Local key
+      val $dependency.parameter._1: Key
+        Type Key
+        Local $dependency.argument.0
+      val $dependency.argument.0: Choice<Key>
+        Type Choice<Key>
+        VariantConstruct Choice<Key> v0
+          Type Key
+          Local $dependency.parameter._1
+      val $dependency.argument.0: Key
+        Type Key
+        Local key
+      val $dependency.parameter._1: Key
+        Type Key
+        Local $dependency.argument.0
+      val $dependency.argument.1: Choice<Key>
+        Type Choice<Key>
+        VariantConstruct Choice<Key> v0
+          Type Key
+          Local $dependency.parameter._1
+      val $dependency.parameter.a: Choice<Key>
+        Type Choice<Key>
+        Local $dependency.argument.0
+      val $dependency.parameter.b: Choice<Key>
+        Type Choice<Key>
+        Local $dependency.argument.1
+      val $default.local.2: Choice<Key>
+        Type Choice<Key>
+        Local $dependency.parameter.a
+      val $default.local.3: Choice<Key>
+        Type Choice<Key>
+        Local $dependency.parameter.b
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Choice<Key> v0
+          Type Choice<Key>
+          Local $default.local.2
+    bb110 inline.109.entry
+      val $inline.109.$dependency.receiver: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb111
+    bb111 inline.109.if.merge.2
+      goto bb109
+    bb112 inline.cont.112
+      val $dependency.argument.0: Box<Key>
+        Type Box<Key>
+        Local a
+      val $dependency.argument.1: Box<Key>
+        Type Box<Key>
+        Local a
+      val $dependency.parameter.a: Box<Key>
+        Type Box<Key>
+        Local $dependency.argument.0
+      val $dependency.parameter.b: Box<Key>
+        Type Box<Key>
+        Local $dependency.argument.1
+      call $dependency.receiver: Boolean = @fn5 direct
+        Type Box<Key>
+        Local $dependency.parameter.a
+        Type Box<Key>
+        Local $dependency.parameter.b
+      val $argument.0: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn2 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: Box<Key>
+        Type Box<Key>
+        Local a
+      val $dependency.argument.1: Box<Key>
+        Type Box<Key>
+        Local a
+      val $dependency.parameter.a: Box<Key>
+        Type Box<Key>
+        Local $dependency.argument.0
+      val $dependency.parameter.b: Box<Key>
+        Type Box<Key>
+        Local $dependency.argument.1
+      call $argument.0: Boolean = @fn6 direct
+        Type Box<Key>
+        Local $dependency.parameter.a
+        Type Box<Key>
+        Local $dependency.parameter.b
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn2 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: Box<Key>
+        Type Box<Key>
+        Local a
+      val $dependency.argument.1: Box<Key>
+        Type Box<Key>
+        Local a
+      val $dependency.parameter.a: Box<Key>
+        Type Box<Key>
+        Local $dependency.argument.0
+      val $dependency.parameter.b: Box<Key>
+        Type Box<Key>
+        Local $dependency.argument.1
+      call $dependency.receiver: Boolean = @fn7 direct
+        Type Box<Key>
+        Local $dependency.parameter.a
+        Type Box<Key>
+        Local $dependency.parameter.b
+      val $argument.0: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn2 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: Key
+        Type Key
+        Local key
+      val $dependency.argument.1: Key
+        Type Key
+        Local key
+      val $dependency.parameter.a: Key
+        Type Key
+        Local $dependency.argument.0
+      val $dependency.parameter.b: Key
+        Type Key
+        Local $dependency.argument.1
+      call $dependency.receiver: Boolean = @fn8 direct
+        Type Key
+        Local $dependency.parameter.a
+        Type Key
+        Local $dependency.parameter.b
+      val $argument.0: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn2 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: Box<Key>
+        Type Box<Key>
+        Local a
+      val $dependency.argument.1: Box<Key>
+        Type Box<Key>
+        Local a
+      val $dependency.parameter.a: Box<Key>
+        Type Box<Key>
+        Local $dependency.argument.0
+      val $dependency.parameter.b: Box<Key>
+        Type Box<Key>
+        Local $dependency.argument.1
+      val $default.local.2: Box<Key>
+        Type Box<Key>
+        Local $dependency.parameter.a
+      val $default.local.3: Box<Key>
+        Type Box<Key>
+        Local $dependency.parameter.b
+      val $inline.99.this: Key
+        Type Key
+        FieldAccess 0
+          Type Box<Key>
+          Local $default.local.2
+      val $inline.99.other: Wide
+        Type Wide
+        Box
+          Type Key
+          FieldAccess 0
+            Type Box<Key>
+            Local $default.local.3
+      goto bb100
+    bb113 inline.112.entry
+      val $inline.112.$dependency.receiver: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb114
+    bb114 inline.112.if.merge.2
+      goto bb112
+  fun $derived.equals.0 @fn4(this: Box<Key>, other: Box<Key>) -> Boolean
+    bb0 entry
+      val $inline.1.this: Key
+        Type Key
+        FieldAccess 0
+          Type Box<Key>
+          Local this
+      val $inline.1.other: Key
+        Type Key
+        FieldAccess 0
+          Type Box<Key>
+          Local other
+      goto bb2
+    bb1 inline.cont.1
+      val $call.1: Boolean
+        Type Boolean
+        BoolLiteral true
+      return
+        Type Boolean
+        BoolLiteral true
+    bb2 inline.1.entry
+      assign $inline.1.result
+        Type Boolean
+        BoolLiteral true
+      goto bb1
+  fun wide @fn5(a: Box<Key>, b: Box<Key>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Box<Key>
+        Type Box<Key>
+        Local a
+      val $dependency.local.3: Box<Key>
+        Type Box<Key>
+        Local b
+      val $inline.1.this: Key
+        Type Key
+        FieldAccess 0
+          Type Box<Key>
+          Local $dependency.local.2
+      val $inline.1.other: Wide
+        Type Wide
+        Box
+          Type Key
+          FieldAccess 0
+            Type Box<Key>
+            Local $dependency.local.3
+      goto bb2
+    bb1 inline.cont.1
+      val $call.1: Boolean
+        Type Boolean
+        BoolLiteral false
+      return
+        Type Boolean
+        BoolLiteral false
+    bb2 inline.1.entry
+      assign $inline.1.result
+        Type Boolean
+        BoolLiteral false
+      goto bb1
+  fun exact @fn6(a: Box<Key>, b: Box<Key>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Box<Key>
+        Type Box<Key>
+        Local a
+      val $dependency.local.3: Box<Key>
+        Type Box<Key>
+        Local b
+      val $inline.1.this: Key
+        Type Key
+        FieldAccess 0
+          Type Box<Key>
+          Local $dependency.local.2
+      val $inline.1.other: Key
+        Type Key
+        FieldAccess 0
+          Type Box<Key>
+          Local $dependency.local.3
+      goto bb2
+    bb1 inline.cont.1
+      val $call.1: Boolean
+        Type Boolean
+        BoolLiteral true
+      return
+        Type Boolean
+        BoolLiteral true
+    bb2 inline.1.entry
+      assign $inline.1.result
+        Type Boolean
+        BoolLiteral true
+      goto bb1
+  fun named @fn7(a: Box<Key>, b: Box<Key>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Box<Key>
+        Type Box<Key>
+        Local a
+      val $dependency.local.3: Box<Key>
+        Type Box<Key>
+        Local b
+      val $dependency.local.4: Box<Key>
+        Type Box<Key>
+        Local $dependency.local.3
+      val $dependency.local.5: Box<Key>
+        Type Box<Key>
+        Local $dependency.local.2
+      val $dependency.local.6: Box<Key>
+        Type Box<Key>
+        Local $dependency.local.4
+      val $inline.1.this: Key
+        Type Key
+        FieldAccess 0
+          Type Box<Key>
+          Local $dependency.local.5
+      val $inline.1.other: Wide
+        Type Wide
+        Box
+          Type Key
+          FieldAccess 0
+            Type Box<Key>
+            Local $dependency.local.6
+      goto bb2
+    bb1 inline.cont.1
+      val $call.1: Boolean
+        Type Boolean
+        BoolLiteral false
+      return
+        Type Boolean
+        BoolLiteral false
+    bb2 inline.1.entry
+      assign $inline.1.result
+        Type Boolean
+        BoolLiteral false
+      goto bb1
+  fun tuple @fn8(a: Key, b: Key) -> Boolean
+    bb0 entry
+      val $dependency.local.4: Key
+        Type Key
+        Local a
+      val $dependency.local.2: Key
+        Type Key
+        Local a
+      val $dependency.local.3: Key
+        Type Key
+        Local $dependency.local.2
+      val $inline.10.value: Key
+        Type Key
+        Local $dependency.local.3
+      goto bb11
+    bb1 logic.rhs.1
+      unreachable
+    bb2 logic.short.2
+      assign $logic.2
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 logic.merge.3
+      return
+        Type Boolean
+        BoolLiteral false
+    bb4 inline.cont.4
+      unreachable
+    bb5 inline.4.entry
+      unreachable
+    bb6 inline.cont.6
+      val $call.1: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb2
+    bb7 inline.6.entry
+      assign $inline.6.result
+        Type Boolean
+        BoolLiteral false
+      goto bb6
+    bb8 inline.cont.8
+      val $dependency.local.9: Box<Key>
+        Type Box<Key>
+        Local $inline.8.result
+      val $dependency.local.11: (Key, Box<Key>)
+        Type (Key, Box<Key>)
+        Local $dependency.local.10
+      val $dependency.local.12: (Key, Box<Key>)
+        Type (Key, Box<Key>)
+        TupleLiteral
+          Type Key
+          Local $dependency.local.8
+          Type Box<Key>
+          Local $dependency.local.9
+      val $inline.6.this: Key
+        Type Key
+        FieldAccess 0
+          Type (Key, Box<Key>)
+          Local $dependency.local.11
+      val $inline.6.other: Wide
+        Type Wide
+        Box
+          Type Key
+          FieldAccess 0
+            Type (Key, Box<Key>)
+            Local $dependency.local.12
+      goto bb7
+    bb9 inline.8.entry
+      assign $inline.8.result
+        Type Box<Key>
+        StructInit Box<Key>
+          Type Key
+          Local $inline.8.value
+      goto bb8
+    bb10 inline.cont.10
+      val $dependency.local.5: Box<Key>
+        Type Box<Key>
+        Local $inline.10.result
+      val $dependency.local.10: (Key, Box<Key>)
+        Type (Key, Box<Key>)
+        TupleLiteral
+          Type Key
+          Local $dependency.local.4
+          Type Box<Key>
+          Local $dependency.local.5
+      val $dependency.local.8: Key
+        Type Key
+        Local b
+      val $dependency.local.6: Key
+        Type Key
+        Local b
+      val $dependency.local.7: Key
+        Type Key
+        Local $dependency.local.6
+      val $inline.8.value: Key
+        Type Key
+        Local $dependency.local.7
+      goto bb9
+    bb11 inline.10.entry
+      assign $inline.10.result
+        Type Box<Key>
+        StructInit Box<Key>
+          Type Key
+          Local $inline.10.value
+      goto bb10
+  fun defaultBox @fn9(a: Box<Key>, b: Box<Key>, same: Boolean) -> Boolean
+    bb0 entry
+      return
+        Type Boolean
+        Local same
+  fun $derived.equals.1 @fn10(this: Choice<Box<Key>>, other: Choice<Box<Key>>) -> Boolean
+    bb0 entry
+      val $when.1: Choice<Box<Key>>
+        Type Choice<Box<Key>>
+        Local this
+      val $pattern.subject.2: Choice<Box<Key>>
+        Type Choice<Box<Key>>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Choice<Box<Key>> v0
+          Type Choice<Box<Key>>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val $left.0.0: Box<Key>
+        Type Box<Key>
+        VariantPayloadProject Choice<Box<Key>> v0 f0
+          Type Choice<Box<Key>>
+          Local $pattern.subject.2
+      val $when.3: Choice<Box<Key>>
+        Type Choice<Box<Key>>
+        Local other
+      val $pattern.subject.4: Choice<Box<Key>>
+        Type Choice<Box<Key>>
+        Local $when.3
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Choice<Box<Key>> v0
+          Type Choice<Box<Key>>
+          Local $pattern.subject.4
+    bb2 pattern.else.2
+      val $pattern.subject.5: Choice<Box<Key>>
+        Type Choice<Box<Key>>
+        Local $when.1
+      branch bb7 bb8
+        Type Boolean
+        VariantTest Choice<Box<Key>> v1
+          Type Choice<Box<Key>>
+          Local $pattern.subject.5
+    bb3 pattern.merge.3
+      unreachable
+    bb4 pattern.pass.4
+      val $right.0.0: Box<Key>
+        Type Box<Key>
+        VariantPayloadProject Choice<Box<Key>> v0 f0
+          Type Choice<Box<Key>>
+          Local $pattern.subject.4
+      val $inline.26.this: Box<Key>
+        Type Box<Key>
+        Local $left.0.0
+      val $inline.26.other: Box<Key>
+        Type Box<Key>
+        Local $right.0.0
+      goto bb27
+    bb5 pattern.else.5
+      return
+        Type Boolean
+        BoolLiteral false
+    bb6 pattern.merge.6
+      unreachable
+    bb7 pattern.pass.7
+      val $left.1.0: Box<Key>
+        Type Box<Key>
+        VariantPayloadProject Choice<Box<Key>> v1 f0
+          Type Choice<Box<Key>>
+          Local $pattern.subject.5
+      val $left.1.1: Box<Key>
+        Type Box<Key>
+        VariantPayloadProject Choice<Box<Key>> v1 f1
+          Type Choice<Box<Key>>
+          Local $pattern.subject.5
+      val $when.6: Choice<Box<Key>>
+        Type Choice<Box<Key>>
+        Local other
+      val $pattern.subject.7: Choice<Box<Key>>
+        Type Choice<Box<Key>>
+        Local $when.6
+      branch bb10 bb11
+        Type Boolean
+        VariantTest Choice<Box<Key>> v1
+          Type Choice<Box<Key>>
+          Local $pattern.subject.7
+    bb8 pattern.else.8
+      val $pattern.subject.8: Choice<Box<Key>>
+        Type Choice<Box<Key>>
+        Local $when.1
+      branch bb16 bb17
+        Type Boolean
+        VariantTest Choice<Box<Key>> v2
+          Type Choice<Box<Key>>
+          Local $pattern.subject.8
+    bb9 pattern.merge.9
+      unreachable
+    bb10 pattern.pass.10
+      val $right.1.0: Box<Key>
+        Type Box<Key>
+        VariantPayloadProject Choice<Box<Key>> v1 f0
+          Type Choice<Box<Key>>
+          Local $pattern.subject.7
+      val $right.1.1: Box<Key>
+        Type Box<Key>
+        VariantPayloadProject Choice<Box<Key>> v1 f1
+          Type Choice<Box<Key>>
+          Local $pattern.subject.7
+      val $inline.24.this: Box<Key>
+        Type Box<Key>
+        Local $left.1.0
+      val $inline.24.other: Box<Key>
+        Type Box<Key>
+        Local $right.1.0
+      goto bb25
+    bb11 pattern.else.11
+      return
+        Type Boolean
+        BoolLiteral false
+    bb12 pattern.merge.12
+      unreachable
+    bb13 logic.rhs.13
+      val $inline.22.this: Box<Key>
+        Type Box<Key>
+        Local $left.1.1
+      val $inline.22.other: Box<Key>
+        Type Box<Key>
+        Local $right.1.1
+      goto bb23
+    bb14 logic.short.14
+      unreachable
+    bb15 logic.merge.15
+      return
+        Type Boolean
+        BoolLiteral true
+    bb16 pattern.pass.16
+      val $when.9: Choice<Box<Key>>
+        Type Choice<Box<Key>>
+        Local other
+      val $pattern.subject.10: Choice<Box<Key>>
+        Type Choice<Box<Key>>
+        Local $when.9
+      branch bb19 bb20
+        Type Boolean
+        VariantTest Choice<Box<Key>> v2
+          Type Choice<Box<Key>>
+          Local $pattern.subject.10
+    bb17 pattern.else.17
+      unreachable
+    bb18 pattern.merge.18
+      unreachable
+    bb19 pattern.pass.19
+      return
+        Type Boolean
+        BoolLiteral true
+    bb20 pattern.else.20
+      return
+        Type Boolean
+        BoolLiteral false
+    bb21 pattern.merge.21
+      unreachable
+    bb22 inline.cont.22
+      val $call.4: Boolean
+        Type Boolean
+        BoolLiteral true
+      assign $logic.3
+        Type Boolean
+        BoolLiteral true
+      goto bb15
+    bb23 inline.22.entry
+      val $inline.32.this: Key
+        Type Key
+        FieldAccess 0
+          Type Box<Key>
+          Local $inline.22.this
+      val $inline.32.other: Key
+        Type Key
+        FieldAccess 0
+          Type Box<Key>
+          Local $inline.22.other
+      goto bb33
+    bb24 inline.cont.24
+      val $call.2: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb13
+    bb25 inline.24.entry
+      val $inline.30.this: Key
+        Type Key
+        FieldAccess 0
+          Type Box<Key>
+          Local $inline.24.this
+      val $inline.30.other: Key
+        Type Key
+        FieldAccess 0
+          Type Box<Key>
+          Local $inline.24.other
+      goto bb31
+    bb26 inline.cont.26
+      val $call.1: Boolean
+        Type Boolean
+        BoolLiteral true
+      return
+        Type Boolean
+        BoolLiteral true
+    bb27 inline.26.entry
+      val $inline.28.this: Key
+        Type Key
+        FieldAccess 0
+          Type Box<Key>
+          Local $inline.26.this
+      val $inline.28.other: Key
+        Type Key
+        FieldAccess 0
+          Type Box<Key>
+          Local $inline.26.other
+      goto bb29
+    bb28 inline.cont.28
+      val $inline.26.$call.1: Boolean
+        Type Boolean
+        BoolLiteral true
+      assign $inline.26.result
+        Type Boolean
+        BoolLiteral true
+      goto bb26
+    bb29 inline.28.entry
+      assign $inline.28.result
+        Type Boolean
+        BoolLiteral true
+      goto bb28
+    bb30 inline.cont.30
+      val $inline.24.$call.1: Boolean
+        Type Boolean
+        BoolLiteral true
+      assign $inline.24.result
+        Type Boolean
+        BoolLiteral true
+      goto bb24
+    bb31 inline.30.entry
+      assign $inline.30.result
+        Type Boolean
+        BoolLiteral true
+      goto bb30
+    bb32 inline.cont.32
+      val $inline.22.$call.1: Boolean
+        Type Boolean
+        BoolLiteral true
+      assign $inline.22.result
+        Type Boolean
+        BoolLiteral true
+      goto bb22
+    bb33 inline.32.entry
+      assign $inline.32.result
+        Type Boolean
+        BoolLiteral true
+      goto bb32
+  fun choice @fn11(a: Choice<Box<Key>>, b: Choice<Box<Key>>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Choice<Box<Key>>
+        Type Choice<Box<Key>>
+        Local a
+      val $dependency.local.3: Choice<Box<Key>>
+        Type Choice<Box<Key>>
+        Local b
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Choice<Box<Key>> v0
+          Type Choice<Box<Key>>
+          Local $dependency.local.2
+    bb1 logic.rhs.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Choice<Box<Key>> v0
+          Type Choice<Box<Key>>
+          Local $dependency.local.3
+    bb2 logic.short.2
+      assign $logic.1
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 logic.merge.3
+      goto bb7
+    bb4 logic.rhs.4
+      val $inline.29.this: Key
+        Type Key
+        FieldAccess 0
+          Type Box<Key>
+          VariantPayloadProject Choice<Box<Key>> v0 f0
+            Type Choice<Box<Key>>
+            Local $dependency.local.2
+      val $inline.29.other: Wide
+        Type Wide
+        Box
+          Type Key
+          FieldAccess 0
+            Type Box<Key>
+            VariantPayloadProject Choice<Box<Key>> v0 f0
+              Type Choice<Box<Key>>
+              Local $dependency.local.3
+      goto bb30
+    bb5 logic.short.5
+      assign $logic.2
+        Type Boolean
+        BoolLiteral false
+      goto bb6
+    bb6 logic.merge.6
+      assign $logic.1
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb7 logic.rhs.7
+      branch bb10 bb11
+        Type Boolean
+        VariantTest Choice<Box<Key>> v1
+          Type Choice<Box<Key>>
+          Local $dependency.local.2
+    bb8 logic.short.8
+      unreachable
+    bb9 logic.merge.9
+      goto bb19
+    bb10 logic.rhs.10
+      branch bb13 bb14
+        Type Boolean
+        VariantTest Choice<Box<Key>> v1
+          Type Choice<Box<Key>>
+          Local $dependency.local.3
+    bb11 logic.short.11
+      assign $logic.5
+        Type Boolean
+        BoolLiteral false
+      goto bb12
+    bb12 logic.merge.12
+      assign $logic.4
+        Type Boolean
+        BoolLiteral false
+      goto bb9
+    bb13 logic.rhs.13
+      val $inline.27.this: Key
+        Type Key
+        FieldAccess 0
+          Type Box<Key>
+          VariantPayloadProject Choice<Box<Key>> v1 f0
+            Type Choice<Box<Key>>
+            Local $dependency.local.2
+      val $inline.27.other: Wide
+        Type Wide
+        Box
+          Type Key
+          FieldAccess 0
+            Type Box<Key>
+            VariantPayloadProject Choice<Box<Key>> v1 f0
+              Type Choice<Box<Key>>
+              Local $dependency.local.3
+      goto bb28
+    bb14 logic.short.14
+      assign $logic.6
+        Type Boolean
+        BoolLiteral false
+      goto bb15
+    bb15 logic.merge.15
+      assign $logic.5
+        Type Boolean
+        BoolLiteral false
+      goto bb12
+    bb16 logic.rhs.16
+      unreachable
+    bb17 logic.short.17
+      assign $logic.8
+        Type Boolean
+        BoolLiteral false
+      goto bb18
+    bb18 logic.merge.18
+      assign $logic.6
+        Type Boolean
+        BoolLiteral false
+      goto bb15
+    bb19 logic.rhs.19
+      branch bb22 bb23
+        Type Boolean
+        VariantTest Choice<Box<Key>> v2
+          Type Choice<Box<Key>>
+          Local $dependency.local.2
+    bb20 logic.short.20
+      unreachable
+    bb21 logic.merge.21
+      return
+        Type Boolean
+        Local $logic.10
+    bb22 logic.rhs.22
+      assign $logic.11
+        Type Boolean
+        VariantTest Choice<Box<Key>> v2
+          Type Choice<Box<Key>>
+          Local $dependency.local.3
+      goto bb24
+    bb23 logic.short.23
+      assign $logic.11
+        Type Boolean
+        BoolLiteral false
+      goto bb24
+    bb24 logic.merge.24
+      assign $logic.10
+        Type Boolean
+        Local $logic.11
+      goto bb21
+    bb25 inline.cont.25
+      unreachable
+    bb26 inline.25.entry
+      unreachable
+    bb27 inline.cont.27
+      val $call.7: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb17
+    bb28 inline.27.entry
+      assign $inline.27.result
+        Type Boolean
+        BoolLiteral false
+      goto bb27
+    bb29 inline.cont.29
+      val $call.3: Boolean
+        Type Boolean
+        BoolLiteral false
+      assign $logic.2
+        Type Boolean
+        BoolLiteral false
+      goto bb6
+    bb30 inline.29.entry
+      assign $inline.29.result
+        Type Boolean
+        BoolLiteral false
+      goto bb29
+  fun defaultChoice @fn12(a: Choice<Key>, b: Choice<Key>, same: Boolean) -> Boolean
+    bb0 entry
+      return
+        Type Boolean
+        Local same
+  fun $lambda.0 @fn13($closure: () -> Box<Key>) -> Box<Key>
+    bb0 entry
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str2
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn16 direct
+        Type String
+        Local $dependency.parameter.value
+      return
+        Type Box<Key>
+        ClosureCapture cc0 0
+          Type () -> Box<Key>
+          Local $closure
+  fun $lambda.1 @fn14($closure: () -> Box<Key>) -> Box<Key>
+    bb0 entry
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str3
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn16 direct
+        Type String
+        Local $dependency.parameter.value
+      return
+        Type Box<Key>
+        ClosureCapture cc1 0
+          Type () -> Box<Key>
+          Local $closure
+  fun evaluate @fn15(a: () -> Box<Key>, b: () -> Box<Key>) -> Boolean
+    bb0 entry
+      call $dependency.local.2: Box<Key> = <closure:function_type0> closure[function_type0]
+        Type () -> Box<Key>
+        Local a
+      call $dependency.local.3: Box<Key> = <closure:function_type0> closure[function_type0]
+        Type () -> Box<Key>
+        Local b
+      val $inline.1.this: Key
+        Type Key
+        FieldAccess 0
+          Type Box<Key>
+          Local $dependency.local.2
+      val $inline.1.other: Wide
+        Type Wide
+        Box
+          Type Key
+          FieldAccess 0
+            Type Box<Key>
+            Local $dependency.local.3
+      goto bb2
+    bb1 inline.cont.1
+      val $call.1: Boolean
+        Type Boolean
+        BoolLiteral false
+      return
+        Type Boolean
+        BoolLiteral false
+    bb2 inline.1.entry
+      assign $inline.1.result
+        Type Boolean
+        BoolLiteral false
+      goto bb1
+  fun println @fn16(value: String) -> Unit
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local value
+      call $dependency.local.2: String = external1 direct
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external2 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str4
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external2 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun Continuation.resume @fn17(this: Continuation<Key>, value: Key) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn18(this: Continuation<Key>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn19(this: SuspendTask<Key>, $completion: Continuation<Key>) -> CoroutineStep<Key>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn20(this: SuspendRegistration<Key>, continuation: Continuation<Key>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun ctor.Key.$c0 @fn21(id: Int) -> Key <no-gc>
+    bb0 entry
+      return
+        Type Key
+        StructInit Key
+          Type Int
+          Local id
+  fun ctor.Box.$c0 @fn22(value: Key) -> Box<Key> <no-gc>
+    bb0 entry
+      return
+        Type Box<Key>
+        StructInit Box<Key>
+          Type Key
+          Local value
+  fun startCoroutine<Key> @fn23(task: SuspendTask<Key>, completion: Continuation<Key>) -> Unit
+    bb0 context.unwind
+      landing_pad cleanup=true
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb1 context.catch_unwind
+      landing_pad cleanup=true
+      end_catch
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb2 suspended
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb3 completed unwind bb0
+      call @fn17 interface Continuation<Key>[0]
+        Type Continuation<Key>
+        Local completion
+        Type Key
+        EnumField v0 f0
+          Type CoroutineStep<Key>
+          Local $step
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb4 failed unwind bb0
+      call @fn18 interface Continuation<Key>[1]
+        Type Continuation<Key>
+        Local completion
+        Type Throwable
+        Local $exception
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb5 body_failure unwind bb1
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb4
+    bb6 run unwind bb5
+      call $step: CoroutineStep<Key> = @fn19 interface SuspendTask<Key>[0]
+        Type SuspendTask<Key>
+        Local task
+        Type Continuation<Key>
+        Local completion
+      branch bb3 bb2
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Key>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+    bb7 entry
+      val $child_context: internal<task-context>
+        Type internal<task-context>
+        ContextFork
+          Type internal<context-node>
+          ContextSnapshot
+      val $context_guard: internal<context-switch-guard>
+        Type internal<context-switch-guard>
+        ContextEnter
+          Type internal<task-context>
+          Local $child_context
+      goto bb6
+  fun thunk<Key> Wide.equals(Wide) @fn24(this: box<Key>, other: Wide) -> Boolean
+    bb0 entry
+      val $inline.1.this: Key
+        Type Key
+        Unbox
+          Type box<Key>
+          Local this
+      val $inline.1.other: Wide
+        Type Wide
+        Local other
+      goto bb2
+    bb1 inline.cont.1
+      val $call.1: Boolean
+        Type Boolean
+        BoolLiteral false
+      return
+        Type Boolean
+        BoolLiteral false
+    bb2 inline.1.entry
+      assign $inline.1.result
+        Type Boolean
+        BoolLiteral false
+      goto bb1
+  fun thunk<Key> Exact.equals(Key) @fn25(this: box<Key>, other: Key) -> Boolean
+    bb0 entry
+      val $inline.1.this: Key
+        Type Key
+        Unbox
+          Type box<Key>
+          Local this
+      val $inline.1.other: Key
+        Type Key
+        Local other
+      goto bb2
+    bb1 inline.cont.1
+      val $call.1: Boolean
+        Type Boolean
+        BoolLiteral true
+      return
+        Type Boolean
+        BoolLiteral true
+    bb2 inline.1.entry
+      assign $inline.1.result
+        Type Boolean
+        BoolLiteral true
+      goto bb1
+  fun function_bridge.$Closure$lambda0.() -> Any @fn26($source: () -> Box<Key>) -> Any
+    bb0 entry
+      call $call.1: Box<Key> = <closure:function_type0> closure[function_type0]
+        Type () -> Box<Key>
+        Local $source
+      return
+        Type Any
+        Box
+          Type Box<Key>
+          Local $call.1
+  fun function_bridge.$Closure$lambda1.() -> Any @fn27($source: () -> Box<Key>) -> Any
+    bb0 entry
+      call $call.1: Box<Key> = <closure:function_type0> closure[function_type0]
+        Type () -> Box<Key>
+        Local $source
+      return
+        Type Any
+        Box
+          Type Box<Key>
+          Local $call.1
+  coroutine_step cs0 CoroutineStep<Key> result=Key
+  coroutine_slot cl0 CoroutineSlot<Key> value=Key
+  coroutine_start ct0 result=Key function=fn23
+  coroutine_fn cf0 @fn19 source_return=Key step=cs0 immediate
+  instance mi0 function=@fn5 <- wide
+  instance mi1 function=@fn6 <- exact
+  instance mi2 function=@fn7 <- named
+  instance mi3 function=@fn8 <- tuple
+  instance mi4 function=@fn9 <- defaultBox
+  instance mi5 function=@fn11 <- choice
+  instance mi6 function=@fn12 <- defaultChoice
+  instance mi7 function=@fn15 <- evaluate
+  instance mi8 function=@fn16 <- println
+  instance mi9 function=@fn17 <- Continuation.resume
+  instance mi10 function=@fn18 <- Continuation.resumeWithException
+  instance mi11 function=@fn19 <- SuspendTask.run
+  instance mi12 function=@fn20 <- SuspendRegistration.register
+  str @str0 "illegal state"
+  str @str1 "derived bindings"
+  str @str2 "left"
+  str @str3 "right"
+  str @str4 "\n"
+  output executable @fn3

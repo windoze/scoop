@@ -1,0 +1,958 @@
+Module
+  struct Packet (count: Int, text: String)
+  enum Option<Char>
+    Some(_0: Char)
+    None()
+  class Product vtable=0 itables=0
+  class State vtable=0 itables=0
+  class box<Int> vtable=0 itables=0
+  interface ToString
+  interface Hash
+  interface Equality<Char>
+  interface Iterable<Char>
+  interface Iterator<Char>
+  interface Equality<String>
+  interface Equality<Int>
+  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn13 captures=2
+    bridge function_type1 -> @fn18 id=6c2dd5d2bc8de2046549d7586f5bd8a60b4093f956917d15a78fd1dc8ade338b
+  closure cc1 $Closure$lambda1 type=function_type0 invoke=@fn14 captures=0
+    bridge function_type1 -> @fn19 id=d5f76c971302aa1f82ebcd2302429519827c8e82c613d3085d837528f51d2ae7
+  generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
+  generated_exact_type get1 location=closure0 nominal_id=2fcc5dceba1f09c36d231287088079138d2c04817531ae31cc6d2cc1c02b5c0b exact_id=2302a5386d95a61953db931e029826819dc2e78ed627925872f2aaa8f36b4d72
+  generated_exact_type get2 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
+  generated_exact_type get3 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
+  generated_exact_type get4 location=closure1 nominal_id=4448086172d49813e9faf5f5f4482caeaf80ecd2eb94fc8b4e14e73f95c92706 exact_id=7f5f6914f0e48750cf712e99871e6a5837c62f0449c43604a094cca816ea92b8
+  generated_exact_type get5 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
+  generated_exact_type get6 location=class2 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_exact_type get7 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
+  generated_callable gc0 function=@fn18 id=6c2dd5d2bc8de2046549d7586f5bd8a60b4093f956917d15a78fd1dc8ade338b
+  generated_callable gc1 function=@fn19 id=d5f76c971302aa1f82ebcd2302429519827c8e82c613d3085d837528f51d2ae7
+  fun Packet.equals @fn0(this: Packet, other: Packet) -> Boolean
+    bb0 entry
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          FieldAccess 0
+            Type Packet
+            Local this
+          Type Int
+          FieldAccess 0
+            Type Packet
+            Local other
+    bb1 logic.rhs.1
+      call $call.2: Boolean = external0 direct
+        Type String
+        FieldAccess 1
+          Type Packet
+          Local this
+        Type String
+        FieldAccess 1
+          Type Packet
+          Local other
+      assign $logic.1
+        Type Boolean
+        Local $call.2
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.1
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 logic.merge.3
+      return
+        Type Boolean
+        Local $logic.1
+  fun Product.component1 @fn1(this: Product) -> Int
+    bb0 entry
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str0
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn8 direct
+        Type String
+        Local $dependency.parameter.value
+      return
+        Type Int
+        FieldAccess 0
+          Type Product
+          Local this
+  fun Product.component2 @fn2(this: Product) -> String
+    bb0 entry
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str1
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn8 direct
+        Type String
+        Local $dependency.parameter.value
+      return
+        Type String
+        FieldAccess 1
+          Type Product
+          Local this
+  fun Product.equals @fn3(this: Product, other: Product) -> Boolean
+    bb0 entry
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Product
+          Local this
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type Product
+          Local other
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+    bb1 if.then.1
+      val $dependency.receiver: String
+        Type String
+        FieldAccess 1
+          Type Product
+          Local this
+      val $dependency.argument.0: String
+        Type String
+        FieldAccess 1
+          Type Product
+          Local other
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $shortCircuit.24: Boolean = external0 direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      goto bb3
+    bb2 if.else.2
+      val $shortCircuit.24: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 if.merge.3
+      return
+        Type Boolean
+        Local $shortCircuit.24
+  fun State.shift @fn4(this: State) -> Int
+    bb0 entry
+      field_set 0
+        Type State
+        Local this
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+  fun pair @fn5() -> (Int, String)
+    bb0 entry
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str2
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn8 direct
+        Type String
+        Local $dependency.parameter.value
+      return
+        Type (Int, String)
+        TupleLiteral
+          Type Int
+          IntegerLiteral Int value=3 bits=0x00000003
+          Type String
+          StringConst @str3
+  fun packet @fn6() -> Packet
+    bb0 entry
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str4
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn8 direct
+        Type String
+        Local $dependency.parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+      val $argument.1: String
+        Type String
+        StringConst @str5
+      val $parameter.count: Int
+        Type Int
+        Local $argument.0
+      val $parameter.text: String
+        Type String
+        Local $argument.1
+      call $call.1: Packet = @fn17 direct
+        Type Int
+        Local $parameter.count
+        Type String
+        Local $parameter.text
+      return
+        Type Packet
+        Local $call.1
+  fun main @fn7() -> Unit
+    bb0 entry
+      call $when.subject.0: (Int, String) = @fn5 direct
+      val $binding.subject.1: (Int, String)
+        Type (Int, String)
+        Local $when.subject.0
+      val $binding.projection.2: Int
+        Type Int
+        FieldAccess 0
+          Type (Int, String)
+          Local $binding.subject.1
+      val number: Int
+        Type Int
+        Local $binding.projection.2
+      val $binding.projection.3: String
+        Type String
+        FieldAccess 1
+          Type (Int, String)
+          Local $binding.subject.1
+      val text: String
+        Type String
+        Local $binding.projection.3
+      val $when.1: (Int, String)
+        Type (Int, String)
+        Local $when.subject.0
+      call $call.1: Boolean = @fn9 direct
+        Type (Int, String)
+        Local $when.subject.0
+        Type (Int, String)
+        TupleLiteral
+          Type Int
+          Local number
+          Type String
+          Local text
+      branch bb1 bb2
+        Type Boolean
+        Local $call.1
+    bb1 if.then.1
+      val $dependency.argument.0: Int
+        Type Int
+        Local number
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn10 direct
+        Type Int
+        Local $dependency.parameter.value
+      goto bb3
+    bb2 if.else.2
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str6
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn8 direct
+        Type String
+        Local $dependency.parameter.value
+      goto bb3
+    bb3 if.merge.3
+      call $when.subject.4: Packet = @fn6 direct
+      val $binding.subject.5: Packet
+        Type Packet
+        Local $when.subject.4
+      val $binding.projection.6: Int
+        Type Int
+        FieldAccess 0
+          Type Packet
+          Local $binding.subject.5
+      val renamed: Int
+        Type Int
+        Local $binding.projection.6
+      val $binding.projection.7: String
+        Type String
+        FieldAccess 1
+          Type Packet
+          Local $binding.subject.5
+      val label: String
+        Type String
+        Local $binding.projection.7
+      val $when.2: Packet
+        Type Packet
+        Local $when.subject.4
+      val $equality.lhs: Packet
+        Type Packet
+        Local $when.subject.4
+      val $argument.0: Int
+        Type Int
+        Local renamed
+      val $argument.1: String
+        Type String
+        Local label
+      val $parameter.count: Int
+        Type Int
+        Local $argument.0
+      val $parameter.text: String
+        Type String
+        Local $argument.1
+      call $call.2: Packet = @fn17 direct
+        Type Int
+        Local $parameter.count
+        Type String
+        Local $parameter.text
+      call $call.3: Boolean = @fn0 direct
+        Type Packet
+        Local $equality.lhs
+        Type Packet
+        Local $call.2
+      branch bb4 bb5
+        Type Boolean
+        Local $call.3
+    bb4 if.then.4
+      val $dependency.argument.0: String
+        Type String
+        Local label
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn8 direct
+        Type String
+        Local $dependency.parameter.value
+      goto bb6
+    bb5 if.else.5
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str7
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn8 direct
+        Type String
+        Local $dependency.parameter.value
+      goto bb6
+    bb6 if.merge.6
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=5 bits=0x00000005
+      val $argument.1: String
+        Type String
+        StringConst @str8
+      val $parameter.count: Int
+        Type Int
+        Local $argument.0
+      val $parameter.text: String
+        Type String
+        Local $argument.1
+      assign $new.4
+        Type Product
+        ClassAlloc Product
+      call @fn15 direct
+        Type Product
+        Local $new.4
+        Type Int
+        Local $parameter.count
+        Type String
+        Local $parameter.text
+      val product: Product
+        Type Product
+        Local $new.4
+      val $when.subject.8: Product
+        Type Product
+        Local product
+      val $binding.subject.9: Product
+        Type Product
+        Local $when.subject.8
+      val $receiver: Product
+        Type Product
+        Local $binding.subject.9
+      call $binding.component.10: Int = @fn1 direct
+        Type Product
+        Local $receiver
+      val number: Int
+        Type Int
+        Local $binding.component.10
+      val $receiver: Product
+        Type Product
+        Local $binding.subject.9
+      call $binding.component.11: String = @fn2 direct
+        Type Product
+        Local $receiver
+      val text: String
+        Type String
+        Local $binding.component.11
+      val $when.3: Product
+        Type Product
+        Local $when.subject.8
+      call $call.5: Boolean = @fn3 direct
+        Type Product
+        Local $when.subject.8
+        Type Product
+        Local product
+      branch bb7 bb8
+        Type Boolean
+        Local $call.5
+    bb7 if.then.7
+      val $dependency.argument.0: Int
+        Type Int
+        Local number
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn10 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.argument.0: String
+        Type String
+        Local text
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn8 direct
+        Type String
+        Local $dependency.parameter.value
+      goto bb8
+    bb8 if.merge.8
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.6
+        Type State
+        ClassAlloc State
+      call @fn16 direct
+        Type State
+        Local $new.6
+        Type Int
+        Local $parameter.value
+      val state: State
+        Type State
+        Local $new.6
+      val $when.subject.12: Int
+        Type Int
+        FieldAccess 0
+          Type State
+          Local state
+      val $when.4: Int
+        Type Int
+        Local $when.subject.12
+      val $equality.lhs: Int
+        Type Int
+        Local $when.subject.12
+      val $receiver: State
+        Type State
+        Local state
+      val $dependency.receiver: Int
+        Type Int
+        Local $equality.lhs
+      call $dependency.argument.0: Int = @fn4 direct
+        Type State
+        Local $receiver
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb9 bb10
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+    bb9 if.then.9
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str9
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn8 direct
+        Type String
+        Local $dependency.parameter.value
+      goto bb10
+    bb10 if.merge.10
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type State
+          Local state
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn10 direct
+        Type Int
+        Local $dependency.parameter.value
+      val outer: Int
+        Type Int
+        IntegerLiteral Int value=6 bits=0x00000006
+      val $dependency.receiver: Int
+        Type Int
+        Local outer
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $when.subject.13: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val outer: Int
+        Type Int
+        Local $when.subject.13
+      val $when.5: Int
+        Type Int
+        Local $when.subject.13
+      val $dependency.receiver: Int
+        Type Int
+        Local outer
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb11 bb12
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+    bb11 if.then.11
+      val $dependency.argument.0: Int
+        Type Int
+        Local outer
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn10 direct
+        Type Int
+        Local $dependency.parameter.value
+      goto bb12
+    bb12 if.merge.12
+      val $dependency.argument.0: Int
+        Type Int
+        Local outer
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn10 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $when.subject.14: ((Int, Int), Int)
+        Type ((Int, Int), Int)
+        TupleLiteral
+          Type (Int, Int)
+          TupleLiteral
+            Type Int
+            IntegerLiteral Int value=8 bits=0x00000008
+            Type Int
+            IntegerLiteral Int value=9 bits=0x00000009
+          Type Int
+          IntegerLiteral Int value=10 bits=0x0000000a
+      val $binding.subject.15: ((Int, Int), Int)
+        Type ((Int, Int), Int)
+        Local $when.subject.14
+      val $binding.projection.16: (Int, Int)
+        Type (Int, Int)
+        FieldAccess 0
+          Type ((Int, Int), Int)
+          Local $binding.subject.15
+      val $binding.projection.17: Int
+        Type Int
+        FieldAccess 0
+          Type (Int, Int)
+          Local $binding.projection.16
+      val first: Int
+        Type Int
+        Local $binding.projection.17
+      val $binding.projection.18: Int
+        Type Int
+        FieldAccess 1
+          Type ((Int, Int), Int)
+          Local $binding.subject.15
+      val last: Int
+        Type Int
+        Local $binding.projection.18
+      val $when.6: ((Int, Int), Int)
+        Type ((Int, Int), Int)
+        Local $when.subject.14
+      call $call.7: Boolean = @fn12 direct
+        Type ((Int, Int), Int)
+        Local $when.subject.14
+        Type ((Int, Int), Int)
+        TupleLiteral
+          Type (Int, Int)
+          TupleLiteral
+            Type Int
+            IntegerLiteral Int value=8 bits=0x00000008
+            Type Int
+            IntegerLiteral Int value=9 bits=0x00000009
+          Type Int
+          IntegerLiteral Int value=10 bits=0x0000000a
+      branch bb13 bb14
+        Type Boolean
+        Local $call.7
+    bb13 if.then.13
+      assign $result.19
+        Type () -> Int
+        ClosureAlloc cc0 $Closure$lambda0
+          CaptureInit field=1
+            Type Int
+            Local first
+          CaptureInit field=0
+            Type Int
+            Local last
+      goto bb15
+    bb14 if.else.14
+      assign $result.19
+        Type () -> Int
+        ClosureAlloc cc1 $Closure$lambda1
+      goto bb15
+    bb15 if.merge.15
+      val closure: () -> Int
+        Type () -> Int
+        Local $result.19
+      call $dependency.argument.0: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local closure
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn10 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $when.subject.20: (Int, Int, Int)
+        Type (Int, Int, Int)
+        TupleLiteral
+          Type Int
+          IntegerLiteral Int value=11 bits=0x0000000b
+          Type Int
+          IntegerLiteral Int value=12 bits=0x0000000c
+          Type Int
+          IntegerLiteral Int value=13 bits=0x0000000d
+      val $binding.subject.21: (Int, Int, Int)
+        Type (Int, Int, Int)
+        Local $when.subject.20
+      val $binding.projection.22: Int
+        Type Int
+        FieldAccess 0
+          Type (Int, Int, Int)
+          Local $binding.subject.21
+      val first: Int
+        Type Int
+        Local $binding.projection.22
+      val $binding.projection.23: Int
+        Type Int
+        FieldAccess 2
+          Type (Int, Int, Int)
+          Local $binding.subject.21
+      val last: Int
+        Type Int
+        Local $binding.projection.23
+      val $when.7: (Int, Int, Int)
+        Type (Int, Int, Int)
+        Local $when.subject.20
+      branch bb16 bb17
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          FieldAccess 1
+            Type (Int, Int, Int)
+            Local $when.7
+          Type Int
+          IntegerLiteral Int value=12 bits=0x0000000c
+    bb16 pattern.pass.16
+      val $dependency.argument.0: Int
+        Type Int
+        Local first
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn10 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        Local last
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn10 direct
+        Type Int
+        Local $dependency.parameter.value
+      goto bb18
+    bb17 pattern.else.17
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str10
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn8 direct
+        Type String
+        Local $dependency.parameter.value
+      goto bb18
+    bb18 pattern.merge.18
+      return
+  fun println @fn8(value: String) -> Unit
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local value
+      call $dependency.local.2: String = external2 direct
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external3 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str11
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external3 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun $derived.equals.0 @fn9(this: (Int, String), other: (Int, String)) -> Boolean
+    bb0 entry
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          FieldAccess 0
+            Type (Int, String)
+            Local this
+          Type Int
+          FieldAccess 0
+            Type (Int, String)
+            Local other
+    bb1 logic.rhs.1
+      call $call.2: Boolean = external0 direct
+        Type String
+        FieldAccess 1
+          Type (Int, String)
+          Local this
+        Type String
+        FieldAccess 1
+          Type (Int, String)
+          Local other
+      assign $logic.1
+        Type Boolean
+        Local $call.2
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.1
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 logic.merge.3
+      return
+        Type Boolean
+        Local $logic.1
+  fun println @fn10(value: Int) -> Unit
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      call $dependency.local.2: String = external1 direct
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external3 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str12
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external3 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun $derived.equals.2 @fn11(this: (Int, Int), other: (Int, Int)) -> Boolean
+    bb0 entry
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          FieldAccess 0
+            Type (Int, Int)
+            Local this
+          Type Int
+          FieldAccess 0
+            Type (Int, Int)
+            Local other
+    bb1 logic.rhs.1
+      assign $logic.1
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          FieldAccess 1
+            Type (Int, Int)
+            Local this
+          Type Int
+          FieldAccess 1
+            Type (Int, Int)
+            Local other
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.1
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 logic.merge.3
+      return
+        Type Boolean
+        Local $logic.1
+  fun $derived.equals.3 @fn12(this: ((Int, Int), Int), other: ((Int, Int), Int)) -> Boolean
+    bb0 entry
+      call $call.1: Boolean = @fn11 direct
+        Type (Int, Int)
+        FieldAccess 0
+          Type ((Int, Int), Int)
+          Local this
+        Type (Int, Int)
+        FieldAccess 0
+          Type ((Int, Int), Int)
+          Local other
+      branch bb1 bb2
+        Type Boolean
+        Local $call.1
+    bb1 logic.rhs.1
+      assign $logic.2
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          FieldAccess 1
+            Type ((Int, Int), Int)
+            Local this
+          Type Int
+          FieldAccess 1
+            Type ((Int, Int), Int)
+            Local other
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.2
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 logic.merge.3
+      return
+        Type Boolean
+        Local $logic.2
+  fun $lambda.0 @fn13($closure: () -> Int) -> Int
+    bb0 entry
+      val $dependency.receiver: Int
+        Type Int
+        ClosureCapture cc0 1
+          Type () -> Int
+          Local $closure
+      val $dependency.argument.0: Int
+        Type Int
+        ClosureCapture cc0 0
+          Type () -> Int
+          Local $closure
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun $lambda.1 @fn14($closure: () -> Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+  fun init.Product.$c0 @fn15(this: Product, count: Int, text: String) -> Unit
+    bb0 entry
+      field_set 0
+        Type Product
+        Local this
+        Type Int
+        Local count
+      field_set 1
+        Type Product
+        Local this
+        Type String
+        Local text
+      return
+  fun init.State.$c1 @fn16(this: State, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type State
+        Local this
+        Type Int
+        Local value
+      return
+  fun ctor.Packet.$c0 @fn17(count: Int, text: String) -> Packet <no-gc>
+    bb0 entry
+      return
+        Type Packet
+        StructInit Packet
+          Type Int
+          Local count
+          Type String
+          Local text
+  fun function_bridge.$Closure$lambda0.() -> Any @fn18($source: () -> Int) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local $source
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda1.() -> Any @fn19($source: () -> Int) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local $source
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  instance mi0 function=@fn8 <- println
+  instance mi1 function=@fn10 <- println
+  str @str0 "component1"
+  str @str1 "component2"
+  str @str2 "pair"
+  str @str3 "three"
+  str @str4 "packet"
+  str @str5 "four"
+  str @str6 "wrong"
+  str @str7 "wrong"
+  str @str8 "five"
+  str @str9 "snapshot"
+  str @str10 "wrong"
+  str @str11 "\n"
+  str @str12 "\n"
+  output executable @fn7

@@ -408,15 +408,6 @@ Module
       val $dependency.parameter.index: Long
         Type Long
         Local $dependency.argument.0
-      val $dependency.receiver: MutableArray<Option<Node>>
-        Type MutableArray<Option<Node>>
-        Local roots
-      val $dependency.argument.0: Long
-        Type Long
-        Local index
-      val $dependency.parameter.index: Long
-        Type Long
-        Local $dependency.argument.0
       call $opt.9: Option<Node> = @fn8 direct
         Type MutableArray<Option<Node>>
         Local $dependency.receiver
@@ -466,6 +457,18 @@ Module
         Type UnwrapException
         Local $new.5
     bb18 if.merge.18
+      val $place.receiver: Node
+        Type Node
+        Local $uw.10
+      val $dependency.receiver: MutableArray<Option<Node>>
+        Type MutableArray<Option<Node>>
+        Local roots
+      val $dependency.argument.0: Long
+        Type Long
+        Local index
+      val $dependency.parameter.index: Long
+        Type Long
+        Local $dependency.argument.0
       call $call.6: Option<Node> = @fn8 direct
         Type MutableArray<Option<Node>>
         Local $dependency.receiver
@@ -473,7 +476,7 @@ Module
         Local $dependency.parameter.index
       field_set 1
         Type Node
-        Local $uw.10
+        Local $place.receiver
         Type Option<Node>
         Local $call.6
       goto bb15
@@ -646,28 +649,6 @@ Module
       val $dependency.parameter.index: Long
         Type Long
         Local $dependency.argument.0
-      val $dependency.receiver: MutableArray<Option<Node>>
-        Type MutableArray<Option<Node>>
-        Local roots
-      val $dependency.receiver: Long
-        Type Long
-        Local index
-      val $dependency.argument.0: Long
-        Type Long
-        IntegerLiteral Long value=1 bits=0x0000000000000001
-      val $dependency.parameter.other: Long
-        Type Long
-        IntegerLiteral Long value=1 bits=0x0000000000000001
-      val $dependency.argument.0: Long
-        Type Long
-        IntegerBinary add kind=Long
-          Type Long
-          Local $dependency.receiver
-          Type Long
-          IntegerLiteral Long value=1 bits=0x0000000000000001
-      val $dependency.parameter.index: Long
-        Type Long
-        Local $dependency.argument.0
       call $opt.13: Option<Node> = @fn8 direct
         Type MutableArray<Option<Node>>
         Local $dependency.receiver
@@ -745,6 +726,31 @@ Module
         Type UnwrapException
         Local $new.9
     bb32 if.merge.32
+      val $equality.lhs: Node
+        Type Node
+        Local $uw.16
+      val $dependency.receiver: MutableArray<Option<Node>>
+        Type MutableArray<Option<Node>>
+        Local roots
+      val $dependency.receiver: Long
+        Type Long
+        Local index
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.parameter.other: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.parameter.index: Long
+        Type Long
+        Local $dependency.argument.0
       call $opt.17: Option<Node> = @fn8 direct
         Type MutableArray<Option<Node>>
         Local $dependency.receiver
@@ -777,7 +783,7 @@ Module
         Type Boolean
         Binary RefEq
           Type Node
-          Local $uw.16
+          Local $equality.lhs
           Type Node
           Local $uw.18
       val $parameter.value: Boolean

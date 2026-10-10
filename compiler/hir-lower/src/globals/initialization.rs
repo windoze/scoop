@@ -166,7 +166,7 @@ impl Lowerer {
             self.pop_safety_context();
             self.pop_suspension_context();
             self.functions[pending.function].kind = FunctionKind::User(hir::Body {
-                locals: std::mem::take(&mut self.locals),
+                locals: std::mem::take(&mut self.locals).into_arena(),
                 statements,
             });
             debug_assert!(self.loop_targets.is_empty());

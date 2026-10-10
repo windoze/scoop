@@ -1,4 +1,4 @@
-use crate::{Expr, FunctionDecl, Ident, NonEmptyVec, Span, TypeRef};
+use crate::{Expr, FunctionDecl, Ident, NonEmptyVec, Span, TypeRef, When};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Block {
@@ -23,7 +23,7 @@ pub enum StatementKind {
     Return {
         value: Option<Expr>,
     },
-    /// Pattern `when` used in statement position (spec 5). Value position
+    /// `when` used in statement position (spec 5). Value position
     /// uses `Expr::When` with the same payload.
     When(When),
     /// `try { } catch (e: T) { } finally { }` (spec 11.7).
@@ -57,23 +57,6 @@ pub enum StatementKind {
 pub enum SafetyMode {
     Safe,
     Unsafe,
-}
-
-/// `when (subject) { arms... }` with an optional trailing `else`.
-#[derive(Debug, Clone, PartialEq)]
-pub struct When {
-    pub subject: Expr,
-    pub arms: Vec<WhenArm>,
-    pub else_body: Option<Block>,
-    pub span: Span,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct WhenArm {
-    pub pattern: Pattern,
-    pub guard: Option<Expr>,
-    pub body: Block,
-    pub span: Span,
 }
 
 /// A pattern (spec 4.6 / 5). Syntactically, enum variant patterns and

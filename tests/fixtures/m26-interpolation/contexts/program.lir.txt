@@ -213,26 +213,26 @@ Module
     local %121 $dependency.argument.0: ptr<managed>
     local %122 $dependency.parameter._1: ptr<managed>
     local %123 value: enum0
-    local %124 $stringBuilder.14: ptr<managed>
-    local %125 $dependency.receiver: ptr<managed>
-    local %126 $dependency.argument.0: i32
-    local %127 $dependency.parameter.part: i32
-    local %128 $dependency.receiver: ptr<managed>
-    local %129 $opt.15: enum0
-    local %130 $res.16: ptr<managed>
+    local %124 opt: enum0
+    local %125 $stringBuilder.14: ptr<managed>
+    local %126 $dependency.receiver: ptr<managed>
+    local %127 $dependency.argument.0: i32
+    local %128 $dependency.parameter.part: i32
+    local %129 $dependency.receiver: ptr<managed>
+    local %130 $result.15: ptr<managed>
     local %131 $dependency.receiver: ptr<managed>
     local %132 $dependency.argument.0: ptr<managed>
     local %133 $dependency.parameter.other: ptr<managed>
     local %134 $argument.0: i1
     local %135 $parameter.value: i1
     local %136 missing: enum0
-    local %137 $stringBuilder.17: ptr<managed>
-    local %138 $dependency.receiver: ptr<managed>
-    local %139 $dependency.argument.0: i32
-    local %140 $dependency.parameter.part: i32
-    local %141 $dependency.receiver: ptr<managed>
-    local %142 $opt.18: enum0
-    local %143 $res.19: ptr<managed>
+    local %137 opt: enum0
+    local %138 $stringBuilder.16: ptr<managed>
+    local %139 $dependency.receiver: ptr<managed>
+    local %140 $dependency.argument.0: i32
+    local %141 $dependency.parameter.part: i32
+    local %142 $dependency.receiver: ptr<managed>
+    local %143 $result.17: ptr<managed>
     local %144 $dependency.receiver: ptr<managed>
     local %145 $dependency.argument.0: ptr<managed>
     local %146 $dependency.parameter.other: ptr<managed>
@@ -275,8 +275,10 @@ Module
     local %183 $call.27: ptr<managed>
     local %184 $new.28: ptr<managed>
     local %185 $call.29: ptr<managed>
-    local %186 $new.30: ptr<managed>
-    local %187 $call.31: ptr<managed>
+    local %186 $call.30: ptr<managed>
+    local %187 $new.31: ptr<managed>
+    local %188 $call.32: ptr<managed>
+    local %189 $call.33: ptr<managed>
   block entry
     poll managed-void-target23 sp<managed-poll:0> live=[]
     call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 () -> ptr<managed> local-fn6()
@@ -502,11 +504,11 @@ Module
     store local121 -> local122
     t68 = enum_wrap e0 v0 (local122) : enum0
     store t68 -> local123
-    store local123 -> local129
-    t69 = variant_test e0 v0 local129 : i1
+    store local123 -> local124
+    t69 = variant_test e0 v0 local124 : i1
     br @if.then.19
   block if.then.19
-    t70 = variant_payload_project e0 v0 f0 local129 : ptr<managed>
+    t70 = variant_payload_project e0 v0 f0 local124 : ptr<managed>
     store t70 -> local130
     br @if.merge.21
   block if.merge.21
@@ -520,23 +522,24 @@ Module
     t77 = aggregate () : {}
     t78 = enum_wrap e0 v1 () : enum0
     store t78 -> local136
-    store local136 -> local142
-    t79 = variant_test e0 v0 local142 : i1
+    store local136 -> local137
+    t79 = variant_test e0 v0 local137 : i1
     br @if.else.23
   block if.else.23
     call managed-direct-target51 sp<managed-call:48> live=[] t81 = sig=direct51 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td13, machine<byte-size>(ByteSize(24)))
-    store t81 -> local186
-    call managed-void-target19 sp<managed-call:49> live=[local186:ptr<managed>@0] sig=void19 (ptr<managed>) external-fn0(local186)
+    store t81 -> local187
+    call managed-void-target19 sp<managed-call:49> live=[local187:ptr<managed>@0] sig=void19 (ptr<managed>) external-fn0(local187)
     t82 = aggregate () : {}
-    store local186 -> local137
-    store local137 -> local138
-    store integer<Int>(0x0000002a) -> local139
-    store local139 -> local140
-    call managed-direct-target52 sp<managed-call:50> live=[local137:ptr<managed>@0, local138:ptr<managed>@0] t83 = sig=direct52 (ptr<managed>, i32) -> ptr<managed> local-fn18(local138, local140)
-    store t83 -> local187
-    store local137 -> local141
-    call managed-direct-target53 sp<managed-call:51> live=[local141:ptr<managed>@0] t84 = sig=direct53 (ptr<managed>) -> ptr<managed> external-fn2(local141)
-    store t84 -> local143
+    store local187 -> local138
+    store local138 -> local139
+    store integer<Int>(0x0000002a) -> local140
+    store local140 -> local141
+    call managed-direct-target52 sp<managed-call:50> live=[local138:ptr<managed>@0, local139:ptr<managed>@0] t83 = sig=direct52 (ptr<managed>, i32) -> ptr<managed> local-fn18(local139, local141)
+    store t83 -> local188
+    store local138 -> local142
+    call managed-direct-target53 sp<managed-call:51> live=[local142:ptr<managed>@0] t84 = sig=direct53 (ptr<managed>) -> ptr<managed> external-fn2(local142)
+    store t84 -> local189
+    store local189 -> local143
     br @if.merge.24
   block if.merge.24
     store local143 -> local144
@@ -1414,7 +1417,7 @@ Module
     t2 = aggregate () : {}
     ret param0
   fun @scoop$1$cb$560cf20c391e219da11e3e20a79dfb20bcad6179f7ae8ce768d43c0b333a140c(ptr<managed>, i32) -> ptr<managed>
-    local %0 $stringBuilder.20: ptr<managed>
+    local %0 $stringBuilder.18: ptr<managed>
     local %1 $dependency.receiver: ptr<managed>
     local %2 $dependency.argument.0: ptr<managed>
     local %3 $dependency.parameter.part: ptr<managed>

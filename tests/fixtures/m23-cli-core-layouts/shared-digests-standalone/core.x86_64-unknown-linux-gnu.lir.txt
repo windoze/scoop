@@ -5877,14 +5877,16 @@ Module
     local %21 $parameter.other: i64
     local %22 $argument.0: i32
     local %23 $parameter._1: i32
-    local %24 $call.1: i64
+    local %24 $operand.1: i64
+    local %25 $call.2: i64
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
-    t0 = heap_load param0 +16 : ptr<managed>
-    call managed-direct-target0 sp<managed-call:0> live=[param0:ptr<managed>@0, t0:ptr<managed>@0] t1 = sig=direct0 (ptr<managed>) -> i64 local-fn86(t0)
-    store t1 -> local24
-    t2 = heap_load param0 +24 : i64
-    t3 = integer_compare_Equal<Long> t2, local24 : i1
+    t0 = heap_load param0 +24 : i64
+    store t0 -> local24
+    t1 = heap_load param0 +16 : ptr<managed>
+    call managed-direct-target0 sp<managed-call:0> live=[param0:ptr<managed>@0, t1:ptr<managed>@0] t2 = sig=direct0 (ptr<managed>) -> i64 local-fn86(t1)
+    store t2 -> local25
+    t3 = integer_compare_Equal<Long> local24, local25 : i1
     cbr t3 then @if.then.1 else @if.merge.2
   block if.then.1
     t4 = enum_wrap e5 v1 () : enum5

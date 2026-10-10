@@ -262,11 +262,8 @@ fn require_primary_atom(
     definition: ObjectDefinitionPlanId,
 ) -> Result<ObjectDefinitionAtomId, StrongImmortalObjectRegistrationPlanBuildError> {
     let atoms = foundation
-        .definition_atoms()
-        .iter()
-        .filter(|record| {
-            record.key().plan() == definition && record.key().role() == DefinitionAtomRole::Primary
-        })
+        .definition_atoms_for_plan(definition)
+        .filter(|record| record.key().role() == DefinitionAtomRole::Primary)
         .map(|record| record.id())
         .collect::<Vec<_>>();
     match atoms.as_slice() {

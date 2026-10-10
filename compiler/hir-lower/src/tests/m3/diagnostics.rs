@@ -284,19 +284,19 @@ fn elvis_on_non_option_is_an_error() {
 }
 
 #[test]
-fn elvis_right_hand_side_must_match() {
+fn elvis_normal_paths_must_match_the_expected_type() {
     let file = file(vec![fun(
         "main",
         vec![
             val_ty("a", Some(ty_nullable(ty_named("Int"))), some(int_lit(1))),
-            val("x", elvis(var("a"), str_lit("s"))),
+            val_ty("x", Some(ty_named("Int")), elvis(var("a"), str_lit("s"))),
         ],
     )]);
     let errors = lower_user(file).expect_err("elvis rhs mismatch must fail");
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
-        "right-hand side of `?:` must be of type Int, found String"
+        "Elvis branch result must be of type Int, found String"
     );
 }
 

@@ -5,13 +5,13 @@ internal fun writeJsonString(text: String, output: StringBuilder) {
     output.add('"')
     for (character in text) {
         when (character) {
-            '"' -> { output.add("\\\"") }
-            '\\' -> { output.add("\\\\") }
-            '\u{8}' -> { output.add("\\b") }
-            '\u{c}' -> { output.add("\\f") }
-            '\n' -> { output.add("\\n") }
-            '\r' -> { output.add("\\r") }
-            '\t' -> { output.add("\\t") }
+            case '"' -> { output.add("\\\"") }
+            case '\\' -> { output.add("\\\\") }
+            case '\u{8}' -> { output.add("\\b") }
+            case '\u{c}' -> { output.add("\\f") }
+            case '\n' -> { output.add("\\n") }
+            case '\r' -> { output.add("\\r") }
+            case '\t' -> { output.add("\\t") }
             else -> {
                 val code = character.code
                 if (code < 32) {
@@ -27,11 +27,11 @@ internal fun writeJsonString(text: String, output: StringBuilder) {
 
 internal fun writeJson(value: JsonValue, output: StringBuilder) {
     when (value) {
-        JsonValue.Null -> { output.add("null") }
-        JsonValue.BooleanValue(result) -> { output.add(result) }
-        JsonValue.Number(text) -> { output.add(text) }
-        JsonValue.Text(text) -> { writeJsonString(text, output) }
-        JsonValue.Record(members) -> {
+        case JsonValue.Null -> { output.add("null") }
+        case JsonValue.BooleanValue(result) -> { output.add(result) }
+        case JsonValue.Number(text) -> { output.add(text) }
+        case JsonValue.Text(text) -> { writeJsonString(text, output) }
+        case JsonValue.Record(members) -> {
             output.add('{')
             var first: Boolean = true
             for (member in members) {
@@ -43,7 +43,7 @@ internal fun writeJson(value: JsonValue, output: StringBuilder) {
             }
             output.add('}')
         }
-        JsonValue.Sequence(elements) -> {
+        case JsonValue.Sequence(elements) -> {
             output.add('[')
             var first: Boolean = true
             for (element in elements) {

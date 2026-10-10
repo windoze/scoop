@@ -899,16 +899,19 @@ Module
         Local $call.1
   fun getValue @fn10(this: Slot<Local>, thisRef: Receiver<Local>) -> Int
     bb0 entry
-      call $call.1: Local = @fn19 direct
-        Type Receiver<Local>
-        Local thisRef
-      call $cast.1: Any = <closure:function_type4> closure[function_type4]
+      val $operand.1: (Local) -> Any
         Type (Local) -> Any
         FieldAccess 0
           Type Slot<Local>
           Local this
+      call $call.2: Local = @fn19 direct
+        Type Receiver<Local>
+        Local thisRef
+      call $cast.1: Any = <closure:function_type4> closure[function_type4]
+        Type (Local) -> Any
+        Local $operand.1
         Type Local
-        Local $call.1
+        Local $call.2
       branch bb1 bb2
         Type Boolean
         Unary BoolNot
@@ -917,15 +920,15 @@ Module
             Type Any
             Local $cast.1
     bb1 if.then.1
-      assign $new.2
+      assign $new.3
         Type ClassCastException
         ClassAlloc ClassCastException
       call external6 direct
         Type ClassCastException
-        Local $new.2
+        Local $new.3
       throw
         Type ClassCastException
-        Local $new.2
+        Local $new.3
     bb2 if.merge.2
       val $ub.2: Int
         Type Int
@@ -1134,16 +1137,19 @@ Module
       unreachable
   fun getValue @fn13(this: Slot<Int>, thisRef: Receiver<Int>) -> Int
     bb0 entry
-      call $call.1: Int = @fn22 direct
-        Type Receiver<Int>
-        Local thisRef
-      call $cast.1: Any = <closure:function_type5> closure[function_type5]
+      val $operand.1: (Int) -> Any
         Type (Int) -> Any
         FieldAccess 0
           Type Slot<Int>
           Local this
+      call $call.2: Int = @fn22 direct
+        Type Receiver<Int>
+        Local thisRef
+      call $cast.1: Any = <closure:function_type5> closure[function_type5]
+        Type (Int) -> Any
+        Local $operand.1
         Type Int
-        Local $call.1
+        Local $call.2
       branch bb1 bb2
         Type Boolean
         Unary BoolNot
@@ -1152,15 +1158,15 @@ Module
             Type Any
             Local $cast.1
     bb1 if.then.1
-      assign $new.2
+      assign $new.3
         Type ClassCastException
         ClassAlloc ClassCastException
       call external6 direct
         Type ClassCastException
-        Local $new.2
+        Local $new.3
       throw
         Type ClassCastException
-        Local $new.2
+        Local $new.3
     bb2 if.merge.2
       val $ub.2: Int
         Type Int
@@ -1369,14 +1375,17 @@ Module
       unreachable
   fun getValue @fn16(this: Slot<Unit>, thisRef: Receiver<Unit>) -> Int
     bb0 entry
+      val $operand.1: (Unit) -> Any
+        Type (Unit) -> Any
+        FieldAccess 0
+          Type Slot<Unit>
+          Local this
       call @fn25 direct
         Type Receiver<Unit>
         Local thisRef
       call $cast.1: Any = <closure:function_type6> closure[function_type6]
         Type (Unit) -> Any
-        FieldAccess 0
-          Type Slot<Unit>
-          Local this
+        Local $operand.1
         Type Unit
         UnitLiteral
       branch bb1 bb2
@@ -1387,15 +1396,15 @@ Module
             Type Any
             Local $cast.1
     bb1 if.then.1
-      assign $new.1
+      assign $new.2
         Type ClassCastException
         ClassAlloc ClassCastException
       call external6 direct
         Type ClassCastException
-        Local $new.1
+        Local $new.2
       throw
         Type ClassCastException
-        Local $new.1
+        Local $new.2
     bb2 if.merge.2
       val $ub.2: Int
         Type Int

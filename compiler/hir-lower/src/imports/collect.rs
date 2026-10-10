@@ -433,7 +433,7 @@ impl Lowerer {
             diagnostic.file = error.file();
             self.diagnostics.push(diagnostic);
         }
-        self.imports = surface;
+        self.imports = surface.into();
     }
 
     /// Resolve source-only property/variant ids before body lookup consumes
@@ -469,17 +469,16 @@ impl Lowerer {
             );
         }
 
-        for binding in &mut self.imports.bindings {
+        let surface = &mut *self.imports;
+        for binding in &mut surface.bindings {
             binding.target = match binding.target {
-                CurrentUnitTarget::SourceProperty(id) => self
-                    .imports
+                CurrentUnitTarget::SourceProperty(id) => surface
                     .resolved_properties
                     .get(&id)
                     .copied()
                     .map(CurrentUnitTarget::Property)
                     .unwrap_or(CurrentUnitTarget::SourceProperty(id)),
-                CurrentUnitTarget::SourceVariant(id) => self
-                    .imports
+                CurrentUnitTarget::SourceVariant(id) => surface
                     .resolved_variants
                     .get(&id)
                     .copied()
@@ -555,9 +554,10 @@ impl Lowerer {
             );
         }
 
-        self.imports
+        let surface = &mut *self.imports;
+        surface
             .source_extension_properties
-            .retain(|source| self.imports.resolved_properties.contains_key(source));
+            .retain(|source| surface.resolved_properties.contains_key(source));
         self.imports.validate_frozen_scopes(self);
     }
 }

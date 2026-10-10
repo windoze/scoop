@@ -70,10 +70,10 @@
     "notes": [],
     "origin": {
       "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
-      "end": 513,
+      "end": 518,
       "kind": "source",
       "path": "main.scoop",
-      "start": 506
+      "start": 511
     },
     "severity": "error"
   },
@@ -83,10 +83,10 @@
     "notes": [],
     "origin": {
       "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
-      "end": 648,
+      "end": 653,
       "kind": "source",
       "path": "main.scoop",
-      "start": 641
+      "start": 646
     },
     "severity": "error"
   },
@@ -96,10 +96,10 @@
     "notes": [],
     "origin": {
       "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
-      "end": 676,
+      "end": 681,
       "kind": "source",
       "path": "main.scoop",
-      "start": 669
+      "start": 674
     },
     "severity": "error"
   }

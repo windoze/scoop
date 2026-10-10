@@ -205,7 +205,7 @@ fn when_branch_contextuality_is_classified_with_pattern_bindings_in_scope() {
                 val(
                     "result",
                     Expr::When(Box::new(ast::When {
-                        subject: var("input"),
+                        subject: ast::WhenSubject::Expression(var("input")),
                         arms: vec![
                             arm(pat_bind("Empty"), None, vec![stmt(var("None"))]),
                             arm(
@@ -222,7 +222,7 @@ fn when_branch_contextuality_is_classified_with_pattern_bindings_in_scope() {
                     "expected",
                     Some(ty_nullable(ty_named("Int"))),
                     Expr::When(Box::new(ast::When {
-                        subject: var("input"),
+                        subject: ast::WhenSubject::Expression(var("input")),
                         arms: vec![
                             arm(pat_bind("Empty"), None, vec![stmt(var("None"))]),
                             arm(

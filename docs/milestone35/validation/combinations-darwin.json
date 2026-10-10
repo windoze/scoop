@@ -1,0 +1,30 @@
+{
+  "target": "aarch64-apple-darwin",
+  "date": "2026-10-10",
+  "rust": {
+    "hir_m6": 64,
+    "hir_m11": 24,
+    "hir_default_tests": 98
+  },
+  "fixtures_passed": [
+    "m35-combinations-artifacts",
+    "m35-combinations-captures",
+    "m35-combinations-error-alternative-capture",
+    "m35-combinations-error-extension-ambiguity",
+    "m35-combinations-error-member-ambiguity",
+    "m35-combinations-error-mutable-capture",
+    "m35-combinations-error-property-ambiguity",
+    "m35-combinations-error-reference-ambiguity",
+    "m35-combinations-suspend",
+    "m35-combinations-views"
+  ],
+  "variants": 11,
+  "processes": 30,
+  "stage_goldens": 24,
+  "verification": "Strict diagnostics and stage golden comparison; conjunction/alternative path constraints, inherited interfaces, members/properties/extensions/invoke/references and ordinary ambiguity, property writes/updates, stable captures and default substitution, exact generic/boxed/constructor captures, suspension success/failure, moving/minor GC and source-free cross-Cone debug/release linking.",
+  "target_cleanup": {
+    "before_target_kib": 28905904,
+    "removed_incremental_kib": 3170664,
+    "after_target_kib": 26999484
+  }
+}

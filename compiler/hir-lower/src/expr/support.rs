@@ -1,13 +1,6 @@
 use super::*;
 use crate::{IntrinsicTypeOwner, Owner};
 
-/// The else half of a `?.` / `?:` desugaring: the statements evaluating
-/// the fallback (lazily, inside the branch), then the fallback value.
-pub(super) struct ElseBranch {
-    pub(super) statements: Vec<hir::Statement>,
-    pub(super) value: hir::Expr,
-}
-
 impl Lowerer {
     pub(crate) fn lower_integer_literal(
         &mut self,

@@ -18,42 +18,42 @@ enum Never {}
 fun impossible(value: Never): Int = when (value) {}
 
 fun optionValue(value: Int?): Int = when (value) {
-    Some(number) -> number
-    None -> -1
+    case Some(number) -> number
+    case None -> -1
 }
 
 fun nestedValue(value: Nested): Int = when (value) {
-    Item((number, flag)) if (flag) -> number
-    Item((number, _)) -> number + 100
-    Empty -> -1
+    case Item((number, flag)) if (flag) -> number
+    case Item((number, _)) -> number + 100
+    case Empty -> -1
 }
 
 fun booleanValue(value: BooleanBox): Int = when (value) {
-    Value(false) -> 0
-    Value(true) -> 1
+    case Value(false) -> 0
+    case Value(true) -> 1
 }
 
 fun pairValue(value: (Boolean, Boolean)): Int = when (value) {
-    (false, _) -> 10
-    (true, false) -> 20
-    (true, true) -> 30
+    case (false, _) -> 10
+    case (true, false) -> 20
+    case (true, true) -> 30
 }
 
 fun structuredValue(value: Structured): Int = when (value) {
-    Value(Flags(false, _), ()) -> 40
-    Value(Flags(true, _), Unit) -> 50
+    case Value(Flags(false, _), ()) -> 40
+    case Value(Flags(true, _), Unit) -> 50
 }
 
 fun explicitEmpty(value: BooleanBox) {
     when (value) {
-        Value(_) -> {}
+        case Value(_) -> {}
         else -> {}
     }
 }
 
 fun explicitFallback(value: Int?): Int = when (value) {
-    Some(0) -> 0
-    None -> 1
+    case Some(0) -> 0
+    case None -> 1
     else -> 2
 }
 

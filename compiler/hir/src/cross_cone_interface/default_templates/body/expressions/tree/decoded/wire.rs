@@ -79,6 +79,7 @@ impl WireEncode for DecodedDefaultExpressionKindV1 {
                 conversion,
                 operand,
             } => encode_two(encoder, 70, conversion, operand.as_ref()),
+            Self::Unreachable => encode_empty(encoder, 74),
             Self::UnitLiteral => encode_empty(encoder, 4),
             Self::TupleLiteral(elements) => encode_one(encoder, 5, &WireSequence(elements)),
             Self::StructInit {
@@ -301,6 +302,10 @@ impl WireDecode for DecodedDefaultExpressionKindV1 {
             2 => decode_one(decoder, fields, CanonicalIntegerConstantV1::decode)
                 .map(Self::IntegerLiteral),
             3 => decode_one(decoder, fields, CanonicalBooleanV1::decode).map(Self::BooleanLiteral),
+            74 => {
+                expect_sum_length(decoder, fields, 1)?;
+                Ok(Self::Unreachable)
+            }
             4 => {
                 expect_sum_length(decoder, fields, 1)?;
                 Ok(Self::UnitLiteral)

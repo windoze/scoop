@@ -27,11 +27,13 @@ impl Lowerer {
         };
         match kind {
             hir::IntegerIntrinsicKind::ManagedOperation { .. } => {
-                hir::ManagedCallableRef::try_from_function(function, &self.functions).is_some()
+                hir::ManagedCallableRef::try_from_function(function, self.functions.as_arena())
+                    .is_some()
             }
             hir::IntegerIntrinsicKind::NoGcOperation { .. }
             | hir::IntegerIntrinsicKind::Conversion { .. } => {
-                hir::NoGcCallableRef::try_from_function(function, &self.functions).is_some()
+                hir::NoGcCallableRef::try_from_function(function, self.functions.as_arena())
+                    .is_some()
             }
         }
     }

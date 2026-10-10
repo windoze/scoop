@@ -105,6 +105,7 @@ impl DecodedDefaultExpressionKindV1 {
                 operand: resolve_child(operand, resolver, locals, 70, 2)?,
             },
             Self::CharLiteral(value) => DefaultExpressionKindV1::CharLiteral(value),
+            Self::Unreachable => DefaultExpressionKindV1::Unreachable,
             Self::UnitLiteral => DefaultExpressionKindV1::UnitLiteral,
             Self::TupleLiteral(elements) => DefaultExpressionKindV1::TupleLiteral(
                 resolve_sequence(elements, resolver, locals, 5, 1)?,

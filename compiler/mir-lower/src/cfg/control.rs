@@ -142,15 +142,10 @@ impl<'a> CfgLowerer<'a> {
                 index,
                 value,
             } => {
-                let Some(array) = self.lower_expr(array, span) else {
+                let Some(values) = self.lower_operands([array, index, value], span) else {
                     return;
                 };
-                let Some(index) = self.lower_expr(index, span) else {
-                    return;
-                };
-                let Some(value) = self.lower_expr(value, span) else {
-                    return;
-                };
+                let [array, index, value] = values.try_into().expect("three store operands");
                 self.push(
                     mir::StatementKind::ArraySet {
                         array_type: *array_type,
@@ -166,10 +161,7 @@ impl<'a> CfgLowerer<'a> {
                 index,
                 value,
             } => {
-                let Some(object) = self.lower_expr(object, span) else {
-                    return;
-                };
-                let Some(value) = self.lower_expr(value, span) else {
+                let Some((object, value)) = self.lower_pair(object, value, span) else {
                     return;
                 };
                 self.push(

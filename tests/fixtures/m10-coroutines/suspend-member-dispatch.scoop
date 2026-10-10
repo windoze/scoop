@@ -42,7 +42,7 @@ enum EnumWorker {
     Waiting(Gate),
 
     final suspend fun work(): Int = when (this) {
-        Waiting(gate) -> waitFor(gate)
+        case Waiting(gate) -> waitFor(gate)
     }
 }
 

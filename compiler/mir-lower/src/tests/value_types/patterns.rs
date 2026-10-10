@@ -7,7 +7,7 @@ fn when_stmt(
     fallback: hir::WhenFallback,
 ) -> hir::Statement {
     stmt(hir::StatementKind::When(hir::When {
-        subject,
+        subject: Some(subject),
         arms,
         fallback,
     }))
@@ -15,7 +15,7 @@ fn when_stmt(
 
 fn arm(pattern: hir::Pattern, guard: Option<hir::Expr>, body: Vec<hir::Statement>) -> hir::WhenArm {
     hir::WhenArm {
-        pattern,
+        condition: hir::WhenCondition::Case(pattern),
         guard: guard.map(|condition| hir::WhenGuard {
             setup: Vec::new(),
             condition,

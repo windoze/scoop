@@ -44,7 +44,7 @@ Module
         VariantPayloadProject Option<Int> v0 f0
           Type Option<Int>
           Local $pattern.subject.2
-      assign $result.1
+      assign $result.0
         Type Int
         Local number
       goto bb3
@@ -60,9 +60,9 @@ Module
     bb3 pattern.merge.3
       return
         Type Int
-        Local $result.1
+        Local $result.0
     bb4 pattern.pass.4
-      assign $result.1
+      assign $result.0
         Type Int
         IntegerLiteral Int value=-1 bits=0xffffffff
       goto bb6
@@ -113,9 +113,9 @@ Module
     bb3 pattern.merge.3
       return
         Type Int
-        Local $result.2
+        Local $result.1
     bb4 if.then.4
-      assign $result.2
+      assign $result.1
         Type Int
         Local number
       goto bb6
@@ -147,7 +147,7 @@ Module
       val $dependency.parameter.other: Int
         Type Int
         Local $dependency.argument.0
-      assign $result.2
+      assign $result.1
         Type Int
         IntegerBinary add kind=Int
           Type Int
@@ -167,7 +167,7 @@ Module
     bb9 pattern.merge.9
       goto bb6
     bb10 pattern.pass.10
-      assign $result.2
+      assign $result.1
         Type Int
         IntegerLiteral Int value=-1 bits=0xffffffff
       goto bb12
@@ -192,7 +192,7 @@ Module
       val $dependency.parameter.other: Int
         Type Int
         Local $dependency.argument.0
-      assign $result.2
+      assign $result.1
         Type Int
         IntegerBinary add kind=Int
           Type Int
@@ -212,7 +212,7 @@ Module
     bb15 pattern.merge.15
       goto bb3
     bb16 pattern.pass.16
-      assign $result.2
+      assign $result.1
         Type Int
         IntegerLiteral Int value=-1 bits=0xffffffff
       goto bb18
@@ -245,7 +245,7 @@ Module
         Type Boolean
         Local $call.1
     bb2 pattern.pass.2
-      assign $result.3
+      assign $result.2
         Type Int
         IntegerLiteral Int value=0 bits=0x00000000
       goto bb4
@@ -261,7 +261,7 @@ Module
     bb4 pattern.merge.4
       return
         Type Int
-        Local $result.3
+        Local $result.2
     bb5 pattern.pass.5
       call $call.2: Boolean = external0 direct
         Type Boolean
@@ -274,7 +274,7 @@ Module
         Type Boolean
         Local $call.2
     bb6 pattern.pass.6
-      assign $result.3
+      assign $result.2
         Type Int
         IntegerLiteral Int value=1 bits=0x00000001
       goto bb8
@@ -298,7 +298,7 @@ Module
         Type Boolean
         Local $call.1
     bb1 pattern.pass.1
-      assign $result.4
+      assign $result.3
         Type Int
         IntegerLiteral Int value=10 bits=0x0000000a
       goto bb3
@@ -316,7 +316,7 @@ Module
     bb3 pattern.merge.3
       return
         Type Int
-        Local $result.4
+        Local $result.3
     bb4 pattern.pass.4
       call $call.3: Boolean = external0 direct
         Type Boolean
@@ -329,7 +329,7 @@ Module
         Type Boolean
         Local $call.3
     bb5 pattern.pass.5
-      assign $result.4
+      assign $result.3
         Type Int
         IntegerLiteral Int value=20 bits=0x00000014
       goto bb7
@@ -358,7 +358,7 @@ Module
         Type Boolean
         Local $call.5
     bb9 pattern.pass.9
-      assign $result.4
+      assign $result.3
         Type Int
         IntegerLiteral Int value=30 bits=0x0000001e
       goto bb11
@@ -393,7 +393,7 @@ Module
         Type Boolean
         Local $call.1
     bb2 pattern.pass.2
-      assign $result.5
+      assign $result.4
         Type Int
         IntegerLiteral Int value=40 bits=0x00000028
       goto bb4
@@ -409,7 +409,7 @@ Module
     bb4 pattern.merge.4
       return
         Type Int
-        Local $result.5
+        Local $result.4
     bb5 pattern.pass.5
       call $call.2: Boolean = external0 direct
         Type Boolean
@@ -424,7 +424,7 @@ Module
         Type Boolean
         Local $call.2
     bb6 pattern.pass.6
-      assign $result.5
+      assign $result.4
         Type Int
         IntegerLiteral Int value=50 bits=0x00000032
       goto bb8
@@ -473,7 +473,7 @@ Module
           Type Int
           IntegerLiteral Int value=0 bits=0x00000000
     bb2 pattern.pass.2
-      assign $result.6
+      assign $result.5
         Type Int
         IntegerLiteral Int value=0 bits=0x00000000
       goto bb4
@@ -489,14 +489,14 @@ Module
     bb4 pattern.merge.4
       return
         Type Int
-        Local $result.6
+        Local $result.5
     bb5 pattern.pass.5
-      assign $result.6
+      assign $result.5
         Type Int
         IntegerLiteral Int value=1 bits=0x00000001
       goto bb7
     bb6 pattern.else.6
-      assign $result.6
+      assign $result.5
         Type Int
         IntegerLiteral Int value=2 bits=0x00000002
       goto bb7

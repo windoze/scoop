@@ -714,6 +714,11 @@ Module
       return
   fun Registration.register @fn10(this: Registration, continuation: Continuation<Unit>) -> Unit
     bb0 entry
+      val $place.receiver: Gate
+        Type Gate
+        FieldAccess 0
+          Type Registration
+          Local this
       val $dependency.argument.0: Continuation<Unit>
         Type Continuation<Unit>
         Local continuation
@@ -722,9 +727,7 @@ Module
         Local $dependency.argument.0
       field_set 0
         Type Gate
-        FieldAccess 0
-          Type Registration
-          Local this
+        Local $place.receiver
         Type Option<Continuation<Unit>>
         VariantConstruct Option<Continuation<Unit>> v0
           Type Continuation<Unit>

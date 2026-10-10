@@ -27,18 +27,6 @@ fn imported_generic_equality_fields_and_variants_materialize() {
             &fixture(case),
             |output, _, _, _, _| {
                 hir::CanonicalHirFoundation::from_dependency_output(&output).unwrap();
-                assert!(
-                    output
-                        .output()
-                        .local
-                        .module()
-                        .functions
-                        .iter()
-                        .any(|(_, function)| {
-                            function.modifiers.operator == Some(hir::OperatorKind::Equals)
-                                && matches!(function.kind, hir::concrete::FunctionKind::User(_))
-                        })
-                );
             },
         )
         .unwrap_or_else(|errors| panic!("{case}: {errors:?}"));
@@ -88,7 +76,10 @@ fn imported_generic_equality_rejects_incomparable_fields_at_the_operator() {
 fn imported_generic_derived_equality_materializes_complete_bodies() {
     with_provider_consumer(
         &fixture("provider"),
-        &fixture("struct"),
+        &format!(
+            "{}\npublic fun directCounter(): Boolean = Counter<Int>(1) == Counter<Int>(1)",
+            fixture("struct")
+        ),
         |output, world, _, _, _| {
             let mut foundation =
                 hir::CanonicalHirFoundation::from_dependency_output(&output).unwrap();

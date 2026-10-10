@@ -34,7 +34,7 @@ checks = [
 name = "prepare_exposed"
 files = [
   {"copy" = {"from" = "${core.result.root.path}", "to" = "${work}/original-core.slib"}},
-  {"replace" = {"path" = "${work}/core-source/src/nominals.scoop", "old" = "public object Storage {", "new" = "public object Storage {\n    public fun flags(): (Boolean, Boolean) {\n        val empty = when (selected) {\n            Selection.Empty -> true\n            Selection.Present(value) -> value.flag\n        }\n        val absent = when (fields) { None -> true; Some(value) -> false }\n        return (empty, absent)\n    }"}},
+  {"replace" = {"path" = "${work}/core-source/src/nominals.scoop", "old" = "public object Storage {", "new" = "public object Storage {\n    public fun flags(): (Boolean, Boolean) {\n        val empty = when (selected) {\n            case Selection.Empty -> true\n            case Selection.Present(value) -> value.flag\n        }\n        val absent = when (fields) { case None -> true; case Some(value) -> false }\n        return (empty, absent)\n    }"}},
 ]
 checks = []
 

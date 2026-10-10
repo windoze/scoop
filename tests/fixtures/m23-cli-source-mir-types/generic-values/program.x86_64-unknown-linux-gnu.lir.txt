@@ -67,12 +67,13 @@ Module
     local %34 $pattern.subject.3: enum0
     local %35 $cast.4: ptr<managed>
     local %36 $ub.5: struct4
-    local %37 $call.1: struct0 <logical-zst ec7103ebd401701dfc89cb11f47d3f20acfc1fdb16b53539d7ab5e3fb5de1c96>
-    local %38 $call.2: i1
-    local %39 $new.3: ptr<managed>
-    local %40 $sc.1: struct4
-    local %41 $box.2: struct4
-    local %42 $box.3: struct4
+    local %37 $operand.1: struct0 <logical-zst ec7103ebd401701dfc89cb11f47d3f20acfc1fdb16b53539d7ab5e3fb5de1c96>
+    local %38 $call.2: struct0 <logical-zst ec7103ebd401701dfc89cb11f47d3f20acfc1fdb16b53539d7ab5e3fb5de1c96>
+    local %39 $call.3: i1
+    local %40 $new.4: ptr<managed>
+    local %41 $sc.1: struct4
+    local %42 $box.2: struct4
+    local %43 $box.3: struct4
   block entry
     poll managed-void-target5 sp<managed-poll:0> live=[]
     store integer<Int>(0x00000011) -> local0
@@ -120,10 +121,10 @@ Module
     t12 = aggregate () : {}
     store global1 -> local20
     store local20 -> local21
-    call no-gc-indirect-target0 local40 = sig=indirect0 (sret struct4 size=8 align=8 scan=refs[0], ptr<managed>) local-fn6(local21)
-    store local40 -> local22
-    store local22 -> local41
-    t13 = box_value td0, local41 scan=refs[0] sp<managed-call:3> live=[local41:struct4@0]
+    call no-gc-indirect-target0 local41 = sig=indirect0 (sret struct4 size=8 align=8 scan=refs[0], ptr<managed>) local-fn6(local21)
+    store local41 -> local22
+    store local22 -> local42
+    t13 = box_value td0, local42 scan=refs[0] sp<managed-call:3> live=[local42:struct4@0]
     store t13 -> local23
     store local23 -> local35
     call no-gc-direct-target2 t14 = sig=direct2 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local35, td0)
@@ -132,12 +133,13 @@ Module
   block pattern.pass.4
     t16 = variant_payload_project e0 v1 f0 local34 : struct1
     store t16 -> local16
-    call no-gc-elided-zst-target2 t17 = sig=elided-zst2 () -> elided-zst<struct0 size=0 align=1> external-fn1()
+    t17 = extract local16, 0 : struct0
     store t17 -> local37
-    t18 = extract local16, 0 : struct0
-    call managed-direct-target0 sp<managed-call:1> live=[] t19 = sig=direct3 (elided-zst<struct0 size=0 align=1>, elided-zst<struct0 size=0 align=1>) -> i1 external-fn5(elided-zst t18, elided-zst local37)
-    store t19 -> local38
-    store local38 -> local17
+    call no-gc-elided-zst-target2 t18 = sig=elided-zst2 () -> elided-zst<struct0 size=0 align=1> external-fn1()
+    store t18 -> local38
+    call managed-direct-target0 sp<managed-call:1> live=[] t19 = sig=direct3 (elided-zst<struct0 size=0 align=1>, elided-zst<struct0 size=0 align=1>) -> i1 external-fn5(elided-zst local37, elided-zst local38)
+    store t19 -> local39
+    store local39 -> local17
     br @pattern.merge.6
   block pattern.else.5
     unreachable
@@ -145,14 +147,14 @@ Module
     br @pattern.merge.3
   block if.then.7
     call managed-direct-target1 sp<managed-call:8> live=[] t20 = sig=direct4 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td9, machine<byte-size>(ByteSize(24)))
-    store t20 -> local39
-    call managed-void-target2 sp<managed-call:9> live=[local39:ptr<managed>@0] sig=void2 (ptr<managed>) external-fn4(local39)
+    store t20 -> local40
+    call managed-void-target2 sp<managed-call:9> live=[local40:ptr<managed>@0] sig=void2 (ptr<managed>) external-fn4(local40)
     t21 = aggregate () : {}
-    throw local39
+    throw local40
     unreachable
   block if.merge.8
-    unbox_value td0, local35 -> local42
-    store local42 -> local36
+    unbox_value td0, local35 -> local43
+    store local43 -> local36
     t22 = extract local36, 0 : ptr<managed>
     store t22 -> local24
     store global2 -> local25

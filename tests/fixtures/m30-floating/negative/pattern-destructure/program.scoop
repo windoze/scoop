@@ -1,2 +1,2 @@
-fun classify(value: Float): Int = when (value) { Float() -> 1 }
+fun classify(value: Float): Int = when (value) { case Float() -> 1 }
 fun main() {}

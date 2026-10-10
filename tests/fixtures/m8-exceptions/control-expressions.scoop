@@ -7,16 +7,20 @@ open class Animal(val name: String) {}
 
 class Dog : Animal("dog") {}
 
-fun branchReturn(flag: Boolean): Int = if (flag) {
-    return 11
-} else {
-    12
+fun branchReturn(flag: Boolean): Int {
+    return if (flag) {
+        return 11
+    } else {
+        12
+    }
 }
 
-fun finallyReturn(): Int = try {
-    1
-} finally {
-    return 13
+fun finallyReturn(): Int {
+    return try {
+        1
+    } finally {
+        return 13
+    }
 }
 
 fun main() {
@@ -49,16 +53,16 @@ fun main() {
 
     val input = Input.Number(7)
     val text = when (input) {
-        Number(value) -> {
+        case Number(value) -> {
             if (value > 0) { "positive" } else { "negative" }
         }
-        Empty -> "empty"
+        case Empty -> "empty"
     }
     println(text)
 
     val maybeWhen = when (input) {
-        Empty -> None
-        Number(value) -> Some(value)
+        case Empty -> None
+        case Number(value) -> Some(value)
     }
     println(maybeWhen!!)
 

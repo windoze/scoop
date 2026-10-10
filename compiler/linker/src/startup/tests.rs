@@ -86,6 +86,7 @@ fn checked(command: &mut Command) {
 }
 
 const SOURCE: &str = r#"
+#include <stddef.h>
 #include <stdint.h>
 const uint64_t image_a __asm__("scoop$test$image$a") = 11;
 const uint64_t image_b __asm__("scoop$test$image$b") = 22;

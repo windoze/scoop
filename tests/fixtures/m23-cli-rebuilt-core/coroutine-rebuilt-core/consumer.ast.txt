@@ -21,12 +21,13 @@ SourceFile
       Lambda 1 suspend=true
         parameters omitted
         Call rebuiltAwait<T>
-          Lambda 0 suspend=false
-            param continuation: Continuation<T>
-            assign .continuation
-              Var pending
-              Call Some
-                Var continuation
+          Argument trailing
+            Lambda 0 suspend=false
+              param continuation: Continuation<T>
+              assign .continuation
+                Var pending
+                Call Some
+                  Var continuation
       Var result
     if
       Binary Ne
@@ -62,12 +63,13 @@ SourceFile
       Lambda 3 suspend=true
         parameters omitted
         Call rebuiltAwait<T>
-          Lambda 2 suspend=false
-            param continuation: Continuation<T>
-            assign .continuation
-              Var failedPending
-              Call Some
-                Var continuation
+          Argument trailing
+            Lambda 2 suspend=false
+              param continuation: Continuation<T>
+              assign .continuation
+                Var failedPending
+                Call Some
+                  Var continuation
       Var failed
     if
       Binary Ne

@@ -1,0 +1,224 @@
+SourceFile
+  RootPackage
+  interface Root
+    fun root
+  interface Left : Root
+    fun left
+    fun choose
+    open val leftValue: Int <computed>
+  interface Right : Root
+    fun right
+    fun choose
+    operator fun invoke
+    open val rightValue: Int <computed>
+    open var stored: Int <computed>
+  class Both(), Left, Right
+    public open override val leftValue: Int <computed>
+      get()
+        IntLiteral 30
+    public open override val rightValue: Int <computed>
+      get()
+        IntLiteral 40
+    public open override var stored: Int = <expr>
+      IntLiteral 0
+    public fun root
+    public fun left
+    public fun right
+    public fun choose
+    public fun choose
+    public operator fun invoke
+  fun Left.leftExtra(): Int
+    =
+      Binary Add
+        Call left
+        IntLiteral 10
+  fun Right.rightExtra(): Int
+    =
+      Binary Add
+        Call right
+        IntLiteral 20
+  val Right.extensionValue: Int <computed>
+  var Right.extensionSlot: Int <computed>
+  fun takeLeft(value: Left): Int
+    =
+      MethodCall left
+        Var value
+  fun takeRight(value: Right): Int
+    =
+      MethodCall right
+        Var value
+  fun withDefaults(base: Int = <expr>, action: () -> Int): Int
+    =
+      Binary Add
+        Var base
+        Call action
+  fun inspect(value: Any)
+    when
+      no subject
+      conditions
+        Binary And
+          Is Left false
+            Var value
+          Is Right false
+            Var value
+        Call println
+          Binary Add
+            MethodCall left
+              Var value
+            MethodCall right
+              Var value
+        Call println
+          Binary Add
+            FieldAccess leftValue
+              Var value
+            FieldAccess rightValue
+              Var value
+        Call println
+          MethodCall choose
+            Var value
+            IntLiteral 2
+        Call println
+          MethodCall choose
+            Var value
+            StringLiteral "text"
+        Call println
+          MethodCall root
+            Var value
+        Call println
+          Binary Add
+            MethodCall leftExtra
+              Var value
+            MethodCall rightExtra
+              Var value
+        Call println
+          FieldAccess extensionValue
+            Var value
+        Call println
+          Binary Add
+            Call takeLeft
+              Var value
+            Call takeRight
+              Var value
+        Call println
+          Call value
+        val right: () -> Int
+          CallableReference 0 right
+            Var value
+        Call println
+          Call right
+        val extra: () -> Int
+          CallableReference 1 rightExtra
+            Var value
+        Call println
+          Call extra
+        val root: () -> Int
+          CallableReference 2 root
+            Var value
+        Call println
+          Call root
+        Call println
+          Call withDefaults
+            Argument trailing
+              Lambda 0 suspend=false
+                parameters omitted
+                Binary Add
+                  MethodCall left
+                    Var value
+                  MethodCall right
+                    Var value
+        assign .stored
+          Var value
+          IntLiteral 8
+        compound-assign Add
+          Var value
+          IntLiteral 2
+        Call println
+          FieldAccess stored
+            Var value
+        assign .extensionSlot
+          Var value
+          IntLiteral 20
+        compound-assign Add
+          Var value
+          IntLiteral 5
+        Call println
+          Update Postfix Increment
+            Place .extensionSlot
+              Var value
+        Call println
+          FieldAccess stored
+            Var value
+      else
+        Call println
+          StringLiteral "missing"
+  fun fromLeft(value: Left): Int
+    =
+      WhenExpression
+        Var value
+        conditions
+          is Right
+          Binary Add
+            MethodCall left
+              Var value
+            MethodCall right
+              Var value
+        else
+          IntLiteral 0
+  fun common(value: Any, flag: Boolean): Int
+    =
+      WhenExpression
+        no subject
+        conditions
+          Binary Or
+            Binary And
+              Binary And
+                Is Left false
+                  Var value
+                Is Right false
+                  Var value
+              Var flag
+            Binary And
+              Binary And
+                Is Right false
+                  Var value
+                Is Left false
+                  Var value
+              Unary Not
+                Var flag
+          Binary Add
+            MethodCall left
+              Var value
+            MethodCall right
+              Var value
+        else
+          IntLiteral 0
+  fun guarded(value: Any): Int
+    =
+      WhenExpression
+        Var value
+        conditions if <guard>
+          is Left
+          Binary Add
+            MethodCall left
+              Var value
+            MethodCall right
+              Var value
+        else
+          IntLiteral 0
+  fun main()
+    Call inspect
+      Call Both
+    Call println
+      Call fromLeft
+        Call Both
+    Call println
+      Call common
+        Call Both
+        BoolLiteral true
+    Call println
+      Call common
+        Call Both
+        BoolLiteral false
+    Call println
+      Call guarded
+        Call Both

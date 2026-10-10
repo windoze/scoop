@@ -8,8 +8,8 @@ fun main() {
         val pair = Pair(index, index + 1L)
         val choice = Choice.Value(pair)
         sum = sum + when (choice) {
-            Value(value) -> value.right - value.left
-            Empty -> 0L
+            case Value(value) -> value.right - value.left
+            case Empty -> 0L
         }
         index = index + 1L
     }

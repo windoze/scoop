@@ -27,7 +27,7 @@ Module
       val $dependency.parameter.number: Int
         Type Int
         Local $dependency.argument.0
-      call left: Counter<Int> = @fn4 direct
+      call left: Counter<Int> = @fn3 direct
         Type Int
         Local $dependency.parameter.number
       val $dependency.argument.0: Counter<Int>
@@ -39,7 +39,7 @@ Module
       val $dependency.parameter.number: Int
         Type Int
         Local $dependency.argument.0
-      call $dependency.argument.1: Counter<Int> = @fn4 direct
+      call $dependency.argument.1: Counter<Int> = @fn3 direct
         Type Int
         Local $dependency.parameter.number
       val $dependency.parameter.left: Counter<Int>
@@ -48,12 +48,24 @@ Module
       val $dependency.parameter.right: Counter<Int>
         Type Counter<Int>
         Local $dependency.argument.1
-      call $dependency.parameter.same: Boolean = @fn2 direct
+      val $default.local.2: Counter<Int>
         Type Counter<Int>
         Local $dependency.parameter.left
+      val $default.local.3: Counter<Int>
         Type Counter<Int>
         Local $dependency.parameter.right
-      call $dependency.receiver: Int = @fn3 direct
+      val $dependency.parameter.same: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          FieldAccess 0
+            Type Counter<Int>
+            Local $default.local.2
+          Type Int
+          FieldAccess 0
+            Type Counter<Int>
+            Local $default.local.3
+      call $dependency.receiver: Int = @fn2 direct
         Type Counter<Int>
         Local $dependency.parameter.left
         Type Counter<Int>
@@ -89,7 +101,7 @@ Module
       val $dependency.parameter.number: Int
         Type Int
         Local $dependency.argument.0
-      call $dependency.argument.1: Counter<Int> = @fn4 direct
+      call $dependency.argument.1: Counter<Int> = @fn3 direct
         Type Int
         Local $dependency.parameter.number
       val $dependency.argument.2: Boolean
@@ -104,7 +116,7 @@ Module
       val $dependency.parameter.same: Boolean
         Type Boolean
         Local $dependency.argument.2
-      call $dependency.receiver: Int = @fn3 direct
+      call $dependency.receiver: Int = @fn2 direct
         Type Counter<Int>
         Local $dependency.parameter.left
         Type Counter<Int>
@@ -140,7 +152,7 @@ Module
       val $dependency.parameter.number: Int
         Type Int
         Local $dependency.argument.0
-      call $dependency.argument.1: Counter<Int> = @fn4 direct
+      call $dependency.argument.1: Counter<Int> = @fn3 direct
         Type Int
         Local $dependency.parameter.number
       val $dependency.parameter.left: Counter<Int>
@@ -149,12 +161,24 @@ Module
       val $dependency.parameter.right: Counter<Int>
         Type Counter<Int>
         Local $dependency.argument.1
-      call $dependency.parameter.same: Boolean = @fn2 direct
+      val $default.local.2: Counter<Int>
         Type Counter<Int>
         Local $dependency.parameter.left
+      val $default.local.3: Counter<Int>
         Type Counter<Int>
         Local $dependency.parameter.right
-      call $call.1: Int = @fn3 direct
+      val $dependency.parameter.same: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          FieldAccess 0
+            Type Counter<Int>
+            Local $default.local.2
+          Type Int
+          FieldAccess 0
+            Type Counter<Int>
+            Local $default.local.3
+      call $call.1: Int = @fn2 direct
         Type Counter<Int>
         Local $dependency.parameter.left
         Type Counter<Int>
@@ -164,20 +188,7 @@ Module
       return
         Type Int
         Local $call.1
-  fun $derived.equals.1 @fn2(this: Counter<Int>, other: Counter<Int>) -> Boolean
-    bb0 entry
-      return
-        Type Boolean
-        IntegerCompare equal operands=Int result=Boolean
-          Type Int
-          FieldAccess 0
-            Type Counter<Int>
-            Local this
-          Type Int
-          FieldAccess 0
-            Type Counter<Int>
-            Local other
-  fun defaultCompare @fn3(left: Counter<Int>, right: Counter<Int>, same: Boolean) -> Int
+  fun defaultCompare @fn2(left: Counter<Int>, right: Counter<Int>, same: Boolean) -> Int
     bb0 entry
       branch bb1 bb2
         Type Boolean
@@ -190,7 +201,7 @@ Module
       return
         Type Int
         IntegerLiteral Int value=0 bits=0x00000000
-  fun ctor.Counter.$c0 @fn4(number: Int) -> Counter<Int> <no-gc>
+  fun ctor.Counter.$c0 @fn3(number: Int) -> Counter<Int> <no-gc>
     bb0 entry
       return
         Type Counter<Int>
@@ -198,5 +209,5 @@ Module
           Type Int
           Local number
   instance mi0 function=@fn1 <- exercise
-  instance mi1 function=@fn3 <- defaultCompare
+  instance mi1 function=@fn2 <- defaultCompare
   output library

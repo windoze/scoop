@@ -20,14 +20,14 @@ struct ManagedAggregate(
 
 @NoGC
 fun signalValue(value: Signal): Int = when (value) {
-    Ready -> 0
-    Payload(number) -> number
+    case Ready -> 0
+    case Payload(number) -> number
 }
 
 @NoGC
 fun optionValue(value: Int?): Int = when (value) {
-    None -> 0
-    Some(number) -> number
+    case None -> 0
+    case Some(number) -> number
 }
 
 @NoGC

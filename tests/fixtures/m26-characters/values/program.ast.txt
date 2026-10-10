@@ -37,13 +37,14 @@ SourceFile
     val array
       Call MutableArray<Char>
         IntLiteral 130L
-        Lambda 0 suspend=false
-          param i: _
-          MethodCall toChar
-            Binary Add
-              IntLiteral 65
-              MethodCall toInt32
-                Var i
+        Argument trailing
+          Lambda 0 suspend=false
+            param i: _
+            MethodCall toChar
+              Binary Add
+                IntLiteral 65
+                MethodCall toInt32
+                  Var i
     val list
       Call ArrayList<Char>
     for value

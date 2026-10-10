@@ -148,7 +148,9 @@ mod pipeline;
 mod properties;
 mod release;
 mod scope;
+mod shared;
 mod signatures;
+mod snapshot_arena;
 mod stmt;
 #[cfg(test)]
 mod tests;
@@ -175,6 +177,8 @@ use hir::{
 };
 use model::*;
 use scope::{LocalFunctionScopes, Scopes};
+use shared::Shared;
+use snapshot_arena::SnapshotArena;
 
 /// One defined-world source used by lowerer unit tests.
 #[cfg(test)]
@@ -505,8 +509,8 @@ pub fn concretize_output(
 pub(crate) struct Lowerer {
     core: CoreLoweringAuthority,
     dependencies: Option<hir::ImportedDependencySelectionPlan>,
-    pub(crate) source_contexts: Arena<hir::SourceContext>,
-    source_context_by_value: HashMap<hir::SourceContext, hir::SourceContextId>,
+    pub(crate) source_contexts: Shared<Arena<hir::SourceContext>>,
+    source_context_by_value: Shared<HashMap<hir::SourceContext, hir::SourceContextId>>,
     file_source_contexts: Vec<hir::SourceContextId>,
     /// Role-local structural paths for the definition owner currently being
     /// lowered. Nested callables replace this context and restore it on exit.
@@ -519,7 +523,7 @@ pub(crate) struct Lowerer {
     /// sites never fall back to a pass-local or arena-local ordinal.
     pub(crate) constructor_definition_paths:
         HashMap<class::ConstructorSource, definition_paths::DefinitionPathContext>,
-    pub(crate) imports: imports::CurrentUnitImports,
+    pub(crate) imports: Shared<imports::CurrentUnitImports>,
     /// Published once after every source callable signature is resolved.
     /// Rejected ids remain diagnostic-only and never enter body resolution.
     pub(crate) declaration_surface: declaration_surface::DeclarationSurface,
@@ -531,8 +535,8 @@ pub(crate) struct Lowerer {
     pub(crate) nominal_owners: HashMap<hir::SourceNominalId, Owner>,
     pub(crate) property_identity_records: HashMap<hir::PropertyId, hir::HirPropertyIdentity>,
     pub(crate) field_identity_builder: hir::HirFieldIdentityBuilder,
-    pub(crate) types: Arena<Type>,
-    pub(crate) function_types: Arena<hir::FunctionType>,
+    pub(crate) types: Shared<Arena<Type>>,
+    pub(crate) function_types: Shared<Arena<hir::FunctionType>>,
     pub(crate) lambdas: Arena<hir::Lambda>,
     pub(crate) anonymous_functions: Arena<hir::AnonymousFunction>,
     /// Generated callable body names are reserved before lowering their
@@ -566,24 +570,24 @@ pub(crate) struct Lowerer {
     pub(crate) bound_callable_refs: Arena<hir::BoundCallableRef>,
     pub(crate) function_coercions: Arena<hir::FunctionCoercion>,
     pub(crate) foreign_callback_registrations: Arena<hir::ForeignCallbackRegistration>,
-    pub(crate) source_parameter_interfaces: Vec<hir::ExportParameterInterface>,
-    pub(crate) export_default_exprs: Arena<hir::ExportDefaultExpr>,
-    pub(crate) default_local_value_scopes: Arena<defaults::PendingDefaultLocalScope>,
+    pub(crate) source_parameter_interfaces: Shared<Vec<hir::ExportParameterInterface>>,
+    pub(crate) export_default_exprs: Shared<Arena<hir::ExportDefaultExpr>>,
+    pub(crate) default_local_value_scopes: Shared<Arena<defaults::PendingDefaultLocalScope>>,
     pub(crate) loaded_default_expressions:
         HashMap<defaults::DefaultExpressionKey, std::sync::Arc<hir::DefaultExpression>>,
     pub(crate) export_default_sources: Arena<hir::ExportDefaultSource>,
     pub(crate) export_vararg_parameter_types: Arena<hir::ExportVarargParameterType>,
-    pub(crate) local_default_exprs: Arena<defaults::LocalDefaultExpr>,
+    pub(crate) local_default_exprs: Shared<Arena<defaults::LocalDefaultExpr>>,
     pub(crate) default_templates:
         HashMap<(defaults::SourceParameterOwner, u32), defaults::DefaultExprTemplateRef>,
-    pub(crate) default_preparation: defaults::DefaultPreparation,
+    pub(crate) default_preparation: Shared<defaults::DefaultPreparation>,
     /// True only while constructing a declaration-bound default template.
     /// Nested omissions remain definition-only until the outer template is
     /// instantiated at an actual call site.
     pub(crate) lowering_default_template: bool,
     pub(crate) function_coercion_by_types:
         HashMap<(hir::FunctionTypeId, hir::FunctionTypeId), hir::FunctionCoercionId>,
-    pub(crate) structs: Arena<StructDecl>,
+    pub(crate) structs: Shared<Arena<StructDecl>>,
     /// Source locations aligned with the checked source-field refs. Field
     /// resolution may reject individual AST entries, so raw source ordinals
     /// are not a valid substitute for this typed relation.
@@ -597,7 +601,7 @@ pub(crate) struct Lowerer {
     pub(crate) struct_applications: Arena<hir::StructApplication>,
     pub(crate) struct_application_by_key:
         HashMap<(hir::SourceNominalId, Vec<TypeId>), hir::StructApplicationId>,
-    pub(crate) enums: Arena<EnumDecl>,
+    pub(crate) enums: Shared<Arena<EnumDecl>>,
     pub(crate) loaded_enum_definitions: HashMap<hir::SourceNominalId, hir::LoadedEnumDefinition>,
     pub(crate) loaded_struct_definitions:
         HashMap<hir::SourceNominalId, hir::LoadedStructDefinition>,
@@ -610,7 +614,7 @@ pub(crate) struct Lowerer {
     pub(crate) enum_applications: Arena<hir::EnumApplication>,
     pub(crate) enum_application_by_key:
         HashMap<(hir::SourceNominalId, Vec<TypeId>), hir::EnumApplicationId>,
-    pub(crate) classes: Arena<ClassDecl>,
+    pub(crate) classes: Shared<Arena<ClassDecl>>,
     pub(crate) release_hooks: Arena<hir::ExportReleaseHook>,
     pub(crate) class_fields: Arena<hir::ClassField>,
     pub(crate) class_constructors: Arena<hir::ClassConstructor>,
@@ -622,14 +626,14 @@ pub(crate) struct Lowerer {
     pub(crate) class_applications: Arena<hir::ClassApplication>,
     pub(crate) class_application_by_key:
         HashMap<(hir::SourceNominalId, Vec<TypeId>), hir::ClassApplicationId>,
-    pub(crate) interfaces: Arena<InterfaceDecl>,
+    pub(crate) interfaces: Shared<Arena<InterfaceDecl>>,
     pub(crate) interface_applications: Arena<hir::InterfaceApplication>,
     pub(crate) interface_application_by_key:
         HashMap<(hir::SourceNominalId, Vec<TypeId>), hir::InterfaceApplicationId>,
-    pub(crate) functions: Arena<Function>,
+    pub(crate) functions: SnapshotArena<Function>,
     /// Typed source-declaration provenance. Display names cannot substitute
     /// for this relation because member and lifted-local names are decorated.
-    pub(crate) source_function_declarations: HashMap<FunctionId, SourceFunctionDeclaration>,
+    pub(crate) source_function_declarations: Shared<HashMap<FunctionId, SourceFunctionDeclaration>>,
     /// Complete source relation for every validated intrinsic kind. Duplicate
     /// declarations are diagnosed at insertion; core contract validation reads
     /// this map directly and never scans functions or compares names.
@@ -666,13 +670,13 @@ pub(crate) struct Lowerer {
     pub(crate) annotation_metadata: hir::SourceAnnotations,
     pub(crate) nested_annotations_by_owner:
         HashMap<(Owner, String), scoop_identity::PersistentAnnotationId>,
-    pub(crate) top_level_namespaces: namespace::TopLevelNamespaces,
+    pub(crate) top_level_namespaces: Shared<namespace::TopLevelNamespaces>,
     pub(crate) type_aliases: Arena<hir::TypeAliasDecl>,
     pub(crate) type_alias_resolution_stack: Vec<aliases::SourceTypeAliasId>,
     /// Generic definitions are separate HIR entities. Every function carries
     /// the matching typed id in `Function::genericity`, so this arena is never
     /// reverse-scanned and no parallel reverse map can drift out of sync.
-    pub(crate) generic_functions: Arena<GenericFunction>,
+    pub(crate) generic_functions: Shared<Arena<GenericFunction>>,
     pub(crate) method_applications: Arena<hir::MethodApplication>,
     pub(crate) method_application_by_key:
         HashMap<(FunctionId, hir::MethodOwnerApplication), hir::MethodApplicationId>,
@@ -694,7 +698,7 @@ pub(crate) struct Lowerer {
     derived_encoding_methods: Vec<(FunctionId, hir::SourceNominalId)>,
     derived_decoding_methods: Vec<(FunctionId, hir::SourceNominalId)>,
     invalid_override_methods: HashSet<FunctionId>,
-    pub(crate) top_level: Vec<FunctionId>,
+    pub(crate) top_level: Shared<Vec<FunctionId>>,
     pub(crate) unit: TypeId,
     /// Total lowering-time map for the eight canonical integer identities.
     /// Source spelling, width and signedness never need to be reconstructed
@@ -710,7 +714,7 @@ pub(crate) struct Lowerer {
     /// The file each top-level function was declared in, for the
     /// layering of overload resolution (user file → core implicit
     /// imports, milestone7 DESIGN.md 1.2).
-    pub(crate) function_files: HashMap<FunctionId, usize>,
+    pub(crate) function_files: Shared<HashMap<FunctionId, usize>>,
     /// Direct typed relation used after getter overload resolution; accessor
     /// function names are never parsed to recover a logical property.
     pub(crate) extension_property_by_getter: HashMap<FunctionId, hir::PropertyId>,
@@ -796,7 +800,7 @@ pub(crate) struct Lowerer {
     /// Resolved signatures of all functions (pass 2.5), consulted by
     /// call lowering and body lowering. Method signatures exclude the
     /// implicit `this` parameter.
-    pub(crate) signatures: HashMap<FunctionId, FnSig>,
+    pub(crate) signatures: imbl::HashMap<FunctionId, FnSig>,
     /// Type parameter names of the function or enum whose signature,
     /// variants or body is currently being lowered; empty elsewhere.
     pub(crate) type_params_in_scope: Vec<hir::TypeParamDecl>,
@@ -836,11 +840,9 @@ pub(crate) struct Lowerer {
     /// converted to typed field identities.
     pub(crate) initialization_context: Option<InitializationContext>,
     pub(crate) backing_field_context: Option<properties::BackingFieldContext>,
-    /// Active smart-cast narrowings (milestone6 DESIGN.md 5.4):
-    /// immutable local → narrowed type, valid within the branch that
-    /// established them. Saved and restored around branch lowering;
-    /// the declared type of a local never changes.
-    pub(crate) smart_casts: HashMap<hir::LocalId, TypeId>,
+    /// Path-local type constraints on immutable bindings, including captures.
+    /// A binding keeps its declared storage type; reads select a known view.
+    pub(crate) smart_casts: expr::SmartCastFacts,
     /// Index of the file currently being processed (diagnostics).
     pub(crate) current_file: usize,
     intrinsic_sources: Vec<SourceProvider>,
@@ -853,7 +855,7 @@ pub(crate) struct Lowerer {
     intrinsic_policy: IntrinsicDeclarationPolicy,
     /// Locals of the body currently being lowered (taken into the
     /// finished `hir::Body`).
-    pub(crate) locals: Arena<hir::Local>,
+    pub(crate) locals: SnapshotArena<hir::Local>,
     pub(crate) scopes: Scopes,
     pub(crate) local_function_scopes: LocalFunctionScopes,
     /// Lexically active loop targets in the current callable or detached

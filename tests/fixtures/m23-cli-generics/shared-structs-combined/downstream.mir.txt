@@ -385,14 +385,14 @@ Module
           Type Option<Later>
           Local $dependency.local.23
     bb5 if.then.5
-      val $dependency.local.24: Later
+      assign $dependency.local.24
         Type Later
         VariantPayloadProject Option<Later> v0 f0
           Type Option<Later>
           Local $dependency.local.23
       goto bb7
     bb6 if.else.6
-      val $dependency.local.24: Later
+      assign $dependency.local.24
         Type Later
         FieldAccess 0
           Type LocalCell<Later>
@@ -608,14 +608,14 @@ Module
           Type Option<Int>
           Local $dependency.local.23
     bb5 if.then.5
-      val $dependency.local.24: Int
+      assign $dependency.local.24
         Type Int
         VariantPayloadProject Option<Int> v0 f0
           Type Option<Int>
           Local $dependency.local.23
       goto bb7
     bb6 if.else.6
-      val $dependency.local.24: Int
+      assign $dependency.local.24
         Type Int
         FieldAccess 0
           Type LocalCell<Int>
@@ -831,14 +831,14 @@ Module
           Type Option<Unit>
           Local $dependency.local.23
     bb5 if.then.5
-      val $dependency.local.24: Unit
+      assign $dependency.local.24
         Type Unit
         VariantPayloadProject Option<Unit> v0 f0
           Type Option<Unit>
           Local $dependency.local.23
       goto bb7
     bb6 if.else.6
-      val $dependency.local.24: Unit
+      assign $dependency.local.24
         Type Unit
         FieldAccess 0
           Type LocalCell<Unit>

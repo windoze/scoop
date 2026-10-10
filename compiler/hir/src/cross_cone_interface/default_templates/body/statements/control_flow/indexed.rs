@@ -4,7 +4,7 @@ use scoop_identity::SignatureTypeKey;
 use scoop_wire::{Encoder, WireEncode};
 
 use super::{
-    DefaultCatchV1, DefaultTryV1, DefaultWhenArmV1, DefaultWhenFallbackV1,
+    DefaultCatchV1, DefaultTryV1, DefaultWhenArmV1, DefaultWhenConditionV1, DefaultWhenFallbackV1,
     DefaultWhenFallbackViewV1, DefaultWhenGuardV1, DefaultWhenV1, OptionalDefaultStatementListV1,
     OptionalDefaultStatementListViewV1, OptionalDefaultWhenGuardV1,
 };
@@ -17,17 +17,24 @@ use super::super::{DefaultStatementIndexError, DefaultStatementV1, IndexedDefaul
 
 #[derive(Debug)]
 pub struct IndexedDefaultWhenV1<'a> {
-    subject: IndexedDefaultExpressionV1<'a>,
+    subject: Option<IndexedDefaultExpressionV1<'a>>,
     arms: Vec<IndexedDefaultWhenArmV1<'a>>,
     fallback: IndexedDefaultWhenFallbackV1<'a>,
 }
 
 #[derive(Debug)]
 pub struct IndexedDefaultWhenArmV1<'a> {
-    pattern: IndexedDefaultPatternV1<'a>,
+    condition: IndexedDefaultWhenConditionV1<'a>,
     guard: IndexedOptionalDefaultWhenGuardV1<'a>,
     body: Vec<IndexedDefaultStatementV1<'a>>,
     definition_origin: &'a crate::ExportDefinitionSourceV1,
+}
+
+#[derive(Debug)]
+pub enum IndexedDefaultWhenConditionV1<'a> {
+    Case(IndexedDefaultPatternV1<'a>),
+    Predicate(IndexedDefaultWhenGuardV1<'a>),
+    Always,
 }
 
 #[derive(Debug)]
@@ -44,6 +51,7 @@ pub struct IndexedDefaultWhenGuardV1<'a> {
 
 #[derive(Debug)]
 pub enum IndexedDefaultWhenFallbackV1<'a> {
+    Fallthrough,
     Else(Vec<IndexedDefaultStatementV1<'a>>),
     IrrefutableArm {
         subject_type: &'a SignatureTypeKey,
@@ -76,120 +84,6 @@ pub struct IndexedDefaultCatchV1<'a> {
 pub enum IndexedOptionalDefaultStatementListV1<'a> {
     Absent,
     Present(Vec<IndexedDefaultStatementV1<'a>>),
-}
-
-impl DefaultWhenV1 {
-    pub fn index_locals<I>(
-        &self,
-        resolver: &mut I,
-    ) -> Result<IndexedDefaultWhenV1<'_>, DefaultControlFlowIndexError<I::Error>>
-    where
-        I: TemplateLocalIndexResolver,
-    {
-        let subject = self.subject.index_locals(resolver).map_err(|error| {
-            DefaultControlFlowIndexError::Expression {
-                context: "when subject",
-                error,
-            }
-        })?;
-        let mut arms = Vec::with_capacity(self.arms.len());
-        for (index, arm) in self.arms.iter().enumerate() {
-            arms.push(arm.index_locals(resolver, index)?);
-        }
-        Ok(IndexedDefaultWhenV1 {
-            subject,
-            arms,
-            fallback: self.fallback.index_locals(resolver)?,
-        })
-    }
-}
-
-impl DefaultWhenArmV1 {
-    fn index_locals<I>(
-        &self,
-        resolver: &mut I,
-        arm_index: usize,
-    ) -> Result<IndexedDefaultWhenArmV1<'_>, DefaultControlFlowIndexError<I::Error>>
-    where
-        I: TemplateLocalIndexResolver,
-    {
-        Ok(IndexedDefaultWhenArmV1 {
-            pattern: self
-                .pattern
-                .index_locals(resolver)
-                .map_err(|error| DefaultControlFlowIndexError::Pattern { arm_index, error })?,
-            guard: self.guard.index_locals(resolver)?,
-            body: index_statements(&self.body, resolver, "when arm body")?,
-            definition_origin: &self.definition_origin,
-        })
-    }
-}
-
-impl OptionalDefaultWhenGuardV1 {
-    pub fn index_locals<I>(
-        &self,
-        resolver: &mut I,
-    ) -> Result<IndexedOptionalDefaultWhenGuardV1<'_>, DefaultControlFlowIndexError<I::Error>>
-    where
-        I: TemplateLocalIndexResolver,
-    {
-        match self {
-            Self::Absent => Ok(IndexedOptionalDefaultWhenGuardV1::Absent),
-            Self::Present(guard) => guard
-                .index_locals(resolver)
-                .map(IndexedOptionalDefaultWhenGuardV1::Present),
-        }
-    }
-}
-
-impl DefaultWhenGuardV1 {
-    fn index_locals<I>(
-        &self,
-        resolver: &mut I,
-    ) -> Result<IndexedDefaultWhenGuardV1<'_>, DefaultControlFlowIndexError<I::Error>>
-    where
-        I: TemplateLocalIndexResolver,
-    {
-        Ok(IndexedDefaultWhenGuardV1 {
-            setup: index_statements(&self.setup, resolver, "when guard setup")?,
-            condition: self.condition.index_locals(resolver).map_err(|error| {
-                DefaultControlFlowIndexError::Expression {
-                    context: "when guard condition",
-                    error,
-                }
-            })?,
-        })
-    }
-}
-
-impl DefaultWhenFallbackV1 {
-    pub fn index_locals<I>(
-        &self,
-        resolver: &mut I,
-    ) -> Result<IndexedDefaultWhenFallbackV1<'_>, DefaultControlFlowIndexError<I::Error>>
-    where
-        I: TemplateLocalIndexResolver,
-    {
-        match self.view() {
-            DefaultWhenFallbackViewV1::Else(statements) => {
-                index_statements(statements, resolver, "when else")
-                    .map(IndexedDefaultWhenFallbackV1::Else)
-            }
-            DefaultWhenFallbackViewV1::IrrefutableArm { subject_type } => {
-                Ok(IndexedDefaultWhenFallbackV1::IrrefutableArm { subject_type })
-            }
-            DefaultWhenFallbackViewV1::PatternMatrix { subject_type } => {
-                Ok(IndexedDefaultWhenFallbackV1::PatternMatrix { subject_type })
-            }
-            DefaultWhenFallbackViewV1::EnumPatternMatrix {
-                subject_type,
-                owner_type,
-            } => Ok(IndexedDefaultWhenFallbackV1::EnumPatternMatrix {
-                subject_type,
-                owner_type,
-            }),
-        }
-    }
 }
 
 impl DefaultTryV1 {
@@ -248,65 +142,6 @@ impl OptionalDefaultStatementListV1 {
                 index_statements(statements, resolver, "optional body")
                     .map(IndexedOptionalDefaultStatementListV1::Present)
             }
-        }
-    }
-}
-
-impl WireEncode for IndexedDefaultWhenV1<'_> {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(3)?;
-        encoder.field(1)?;
-        self.subject.encode(encoder)?;
-        encoder.field(2)?;
-        encode_sequence(encoder, &self.arms)?;
-        encoder.field(3)?;
-        self.fallback.encode(encoder)
-    }
-}
-
-impl WireEncode for IndexedDefaultWhenArmV1<'_> {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(4)?;
-        encoder.field(1)?;
-        self.pattern.encode(encoder)?;
-        encoder.field(2)?;
-        self.guard.encode(encoder)?;
-        encoder.field(3)?;
-        encode_sequence(encoder, &self.body)?;
-        encoder.field(4)?;
-        self.definition_origin.encode(encoder)
-    }
-}
-
-impl WireEncode for IndexedOptionalDefaultWhenGuardV1<'_> {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        match self {
-            Self::Absent => encode_empty(encoder, 1),
-            Self::Present(guard) => encode_one(encoder, 2, guard),
-        }
-    }
-}
-
-impl WireEncode for IndexedDefaultWhenGuardV1<'_> {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(2)?;
-        encoder.field(1)?;
-        encode_sequence(encoder, &self.setup)?;
-        encoder.field(2)?;
-        self.condition.encode(encoder)
-    }
-}
-
-impl WireEncode for IndexedDefaultWhenFallbackV1<'_> {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        match self {
-            Self::Else(statements) => encode_one(encoder, 1, &WireSequence(statements)),
-            Self::IrrefutableArm { subject_type } => encode_one(encoder, 2, *subject_type),
-            Self::PatternMatrix { subject_type } => encode_one(encoder, 3, *subject_type),
-            Self::EnumPatternMatrix {
-                subject_type,
-                owner_type,
-            } => encode_two(encoder, 4, *subject_type, *owner_type),
         }
     }
 }
@@ -473,3 +308,5 @@ fn encode_tag(encoder: &mut Encoder, tag: u64) -> Result<(), scoop_wire::cbor::E
     encoder.field(0)?;
     encoder.unsigned(tag)
 }
+
+mod when;

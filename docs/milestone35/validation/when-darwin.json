@@ -1,0 +1,76 @@
+{
+  "target": "aarch64-apple-darwin",
+  "date": "2026-10-10",
+  "rust": {
+    "parser": 463,
+    "parser_doctests": 1,
+    "hir_m4_when": 34,
+    "hir_m22_context": 15,
+    "hir_m6": 64,
+    "hir_flow": 12,
+    "mir_patterns": 10,
+    "default_body": 96,
+    "slib_profile": 54
+  },
+  "fixtures_passed": [
+    "m35-case-basic",
+    "m35-case-combined",
+    "m35-case-missing-prefix",
+    "m35-when-artifacts",
+    "m35-when-effects",
+    "m35-when-error-alternative-smart-cast",
+    "m35-when-error-boolean-constant-coverage",
+    "m35-when-error-boolean-coverage",
+    "m35-when-error-case-alternatives",
+    "m35-when-error-case-class-subject",
+    "m35-when-error-class-equality",
+    "m35-when-error-contains-missing",
+    "m35-when-error-delegated-subject",
+    "m35-when-error-duplicate-binding",
+    "m35-when-error-duplicate-else",
+    "m35-when-error-else-not-last",
+    "m35-when-error-enum-coverage",
+    "m35-when-error-escaping-smart-cast",
+    "m35-when-error-getter-smart-cast",
+    "m35-when-error-guard-coverage",
+    "m35-when-error-guard-failure-smart-cast",
+    "m35-when-error-initializer-scope",
+    "m35-when-error-mixed-coverage",
+    "m35-when-error-multiple-guard",
+    "m35-when-error-mutable-smart-cast",
+    "m35-when-error-nonboolean-condition",
+    "m35-when-error-nonboolean-guard",
+    "m35-when-error-refutable-subject",
+    "m35-when-error-subject-scope",
+    "m35-when-error-subjectless-case",
+    "m35-when-error-subjectless-guard",
+    "m35-when-error-subjectless-in",
+    "m35-when-error-subjectless-is",
+    "m35-when-error-subjectless-value-coverage",
+    "m35-when-error-user-equality-coverage",
+    "m35-when-error-value-coverage",
+    "m35-when-error-var-subject",
+    "m35-when-error-wrong-subject-type",
+    "m35-when-ordinary",
+    "m35-when-smart-casts",
+    "m35-when-subjects",
+    "m35-when-suspend-subject"
+  ],
+  "verification": "All 42 M35 fixtures passed strict diagnostics and snapshot comparison after refreshing the existing case HIR representation. Ordinary conditions, subjects, smart casts, terminating conditions, finally, coroutine suspension, moving GC and source-free cross-Cone debug/release consumers ran. Historical HIR debug fields were mechanically migrated; full repository regression remains for final M35 acceptance.",
+  "interface_versions": {
+    "cross_cone_hir": 70,
+    "type_semantics": 28
+  },
+  "target_cleanup_gb": {
+    "before": 27,
+    "after": 18
+  },
+  "additional_regression": [
+    {
+      "name": "m26-characters-cross-cone",
+      "status": "passed",
+      "processes": 7,
+      "goldens": 6
+    }
+  ]
+}

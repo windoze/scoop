@@ -151,15 +151,15 @@ Module
     local %18 $dependency.local.20: enum1
     local %19 $dependency.local.21: ptr<managed>
     local %20 $dependency.local.22: enum1
-    local %21 $dependency.local.23: ptr<managed>
-    local %22 $dependency.local.24: enum1
-    local %23 $dependency.local.25: ptr<managed>
+    local %21 $dependency.local.23: enum1
+    local %22 $dependency.local.24: ptr<managed>
+    local %23 $dependency.local.25: enum1
     local %24 $dependency.local.26: ptr<managed>
     local %25 $dependency.local.27: ptr<managed>
     local %26 $dependency.local.28: ptr<managed>
     local %27 $dependency.local.29: ptr<managed>
     local %28 $dependency.local.30: ptr<managed>
-    local %29 $dependency.local.31: enum1
+    local %29 $dependency.local.31: ptr<managed>
     local %30 $dependency.local.32: enum1
     local %31 $dependency.local.33: ptr<managed>
     local %32 $dependency.local.34: enum1
@@ -263,11 +263,11 @@ Module
     store t11 -> local18
     t12 = variant_payload_project e3 v0 f0 local55 : ptr<managed>
     store t12 -> local19
-    store local18 -> local20
-    store local19 -> local21
-    store local20 -> local22
+    store local18 -> local21
+    store local19 -> local22
     store local21 -> local23
-    store local22 -> local56
+    store local22 -> local24
+    store local23 -> local56
     store local56 -> local57
     t13 = variant_test e1 v0 local57 : i1
     cbr t13 then @pattern.pass.8 else @pattern.else.9
@@ -278,23 +278,23 @@ Module
   block pattern.merge.7
     br @pattern.merge.3
   block pattern.pass.8
-    store local23 -> local27
+    store local24 -> local28
     br @pattern.merge.10
   block pattern.else.9
     store local56 -> local58
     t15 = variant_test e1 v1 local58 : i1
     cbr t15 then @pattern.pass.11 else @pattern.else.12
   block pattern.merge.10
-    store local27 -> local28
-    store local22 -> local80
-    call managed-direct-target2 sp<managed-call:1> live=[param1:ptr<managed>@0, local1:enum2@16+24+40+56, local16:enum2@16+24+40+56, local17:ptr<managed>@0, local23:ptr<managed>@0, local28:ptr<managed>@0, local41:ptr<managed>@0, local80:enum1@8+16+32] t16 = sig=direct2 (indirect<enum1 size=48 align=8 scan=refs[8, 16, 32]>, ptr<managed>, ptr<managed>) -> ptr<managed> local-fn7(indirect local80, local23, local28)
+    store local28 -> local29
+    store local23 -> local80
+    call managed-direct-target2 sp<managed-call:1> live=[param1:ptr<managed>@0, local1:enum2@16+24+40+56, local16:enum2@16+24+40+56, local17:ptr<managed>@0, local24:ptr<managed>@0, local29:ptr<managed>@0, local41:ptr<managed>@0, local80:enum1@8+16+32] t16 = sig=direct2 (indirect<enum1 size=48 align=8 scan=refs[8, 16, 32]>, ptr<managed>, ptr<managed>) -> ptr<managed> local-fn7(indirect local80, local24, local29)
     store t16 -> local75
     store local75 -> local39
     br @pattern.merge.7
   block pattern.pass.11
     t17 = variant_payload_project e1 v1 f0 local58 : ptr<managed>
-    store t17 -> local24
-    store local24 -> local27
+    store t17 -> local25
+    store local25 -> local28
     br @pattern.merge.13
   block pattern.else.12
     store local56 -> local59
@@ -304,8 +304,8 @@ Module
     br @pattern.merge.10
   block pattern.pass.14
     t19 = variant_payload_project e1 v2 f0 local59 : ptr<managed>
-    store t19 -> local25
-    store local25 -> local27
+    store t19 -> local26
+    store local26 -> local28
     br @pattern.merge.16
   block pattern.else.15
     store local56 -> local60
@@ -315,8 +315,8 @@ Module
     br @pattern.merge.13
   block pattern.pass.17
     t21 = variant_payload_project e1 v3 f0 local60 : ptr<managed>
-    store t21 -> local26
-    store local26 -> local27
+    store t21 -> local27
+    store local27 -> local28
     br @pattern.merge.19
   block pattern.else.18
     unreachable
@@ -329,8 +329,8 @@ Module
     cbr t23 then @pattern.pass.21 else @pattern.else.22
   block pattern.pass.21
     t24 = variant_payload_project e2 v1 f0 local61 : enum1
-    store t24 -> local29
-    store local29 -> local30
+    store t24 -> local20
+    store local20 -> local30
     store local17 -> local31
     store local30 -> local32
     store local31 -> local33
@@ -492,15 +492,15 @@ Module
     local %18 $dependency.local.20: enum4
     local %19 $dependency.local.21: i32
     local %20 $dependency.local.22: enum4
-    local %21 $dependency.local.23: i32
-    local %22 $dependency.local.24: enum4
-    local %23 $dependency.local.25: i32
+    local %21 $dependency.local.23: enum4
+    local %22 $dependency.local.24: i32
+    local %23 $dependency.local.25: enum4
     local %24 $dependency.local.26: i32
     local %25 $dependency.local.27: i32
     local %26 $dependency.local.28: i32
     local %27 $dependency.local.29: i32
     local %28 $dependency.local.30: i32
-    local %29 $dependency.local.31: enum4
+    local %29 $dependency.local.31: i32
     local %30 $dependency.local.32: enum4
     local %31 $dependency.local.33: i32
     local %32 $dependency.local.34: enum4
@@ -602,11 +602,11 @@ Module
     store t11 -> local18
     t12 = variant_payload_project e6 v0 f0 local55 : i32
     store t12 -> local19
-    store local18 -> local20
-    store local19 -> local21
-    store local20 -> local22
+    store local18 -> local21
+    store local19 -> local22
     store local21 -> local23
-    store local22 -> local56
+    store local22 -> local24
+    store local23 -> local56
     store local56 -> local57
     t13 = variant_test e4 v0 local57 : i1
     cbr t13 then @pattern.pass.8 else @pattern.else.9
@@ -617,22 +617,22 @@ Module
   block pattern.merge.7
     br @pattern.merge.3
   block pattern.pass.8
-    store local23 -> local27
+    store local24 -> local28
     br @pattern.merge.10
   block pattern.else.9
     store local56 -> local58
     t15 = variant_test e4 v1 local58 : i1
     cbr t15 then @pattern.pass.11 else @pattern.else.12
   block pattern.merge.10
-    store local27 -> local28
-    call managed-direct-target2 sp<managed-call:1> live=[param1:ptr<managed>@0, local41:ptr<managed>@0] t16 = sig=direct2 (parts<enum4 [[2xi64]@0+16/8]>, i32, i32) -> i32 local-fn9(local22, local23, local28)
+    store local28 -> local29
+    call managed-direct-target2 sp<managed-call:1> live=[param1:ptr<managed>@0, local41:ptr<managed>@0] t16 = sig=direct2 (parts<enum4 [[2xi64]@0+16/8]>, i32, i32) -> i32 local-fn9(local23, local24, local29)
     store t16 -> local75
     store local75 -> local39
     br @pattern.merge.7
   block pattern.pass.11
     t17 = variant_payload_project e4 v1 f0 local58 : i32
-    store t17 -> local24
-    store local24 -> local27
+    store t17 -> local25
+    store local25 -> local28
     br @pattern.merge.13
   block pattern.else.12
     store local56 -> local59
@@ -642,8 +642,8 @@ Module
     br @pattern.merge.10
   block pattern.pass.14
     t19 = variant_payload_project e4 v2 f0 local59 : i32
-    store t19 -> local25
-    store local25 -> local27
+    store t19 -> local26
+    store local26 -> local28
     br @pattern.merge.16
   block pattern.else.15
     store local56 -> local60
@@ -653,8 +653,8 @@ Module
     br @pattern.merge.13
   block pattern.pass.17
     t21 = variant_payload_project e4 v3 f0 local60 : i32
-    store t21 -> local26
-    store local26 -> local27
+    store t21 -> local27
+    store local27 -> local28
     br @pattern.merge.19
   block pattern.else.18
     unreachable
@@ -667,8 +667,8 @@ Module
     cbr t23 then @pattern.pass.21 else @pattern.else.22
   block pattern.pass.21
     t24 = variant_payload_project e5 v1 f0 local61 : enum4
-    store t24 -> local29
-    store local29 -> local30
+    store t24 -> local20
+    store local20 -> local30
     store local17 -> local31
     store local30 -> local32
     store local31 -> local33
@@ -829,15 +829,15 @@ Module
     local %18 $dependency.local.20: enum7
     local %19 $dependency.local.21: {} <logical-zst 1dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc>
     local %20 $dependency.local.22: enum7
-    local %21 $dependency.local.23: {} <logical-zst 1dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc>
-    local %22 $dependency.local.24: enum7
-    local %23 $dependency.local.25: {} <logical-zst 1dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc>
+    local %21 $dependency.local.23: enum7
+    local %22 $dependency.local.24: {} <logical-zst 1dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc>
+    local %23 $dependency.local.25: enum7
     local %24 $dependency.local.26: {} <logical-zst 1dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc>
     local %25 $dependency.local.27: {} <logical-zst 1dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc>
     local %26 $dependency.local.28: {} <logical-zst 1dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc>
     local %27 $dependency.local.29: {} <logical-zst 1dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc>
     local %28 $dependency.local.30: {} <logical-zst 1dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc>
-    local %29 $dependency.local.31: enum7
+    local %29 $dependency.local.31: {} <logical-zst 1dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc>
     local %30 $dependency.local.32: enum7
     local %31 $dependency.local.33: {} <logical-zst 1dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc>
     local %32 $dependency.local.34: enum7
@@ -937,11 +937,11 @@ Module
     store t12 -> local18
     t13 = variant_payload_project e9 v0 f0 local55 : {}
     store t13 -> local19
-    store local18 -> local20
-    store local19 -> local21
-    store local20 -> local22
+    store local18 -> local21
+    store local19 -> local22
     store local21 -> local23
-    store local22 -> local56
+    store local22 -> local24
+    store local23 -> local56
     store local56 -> local57
     t14 = variant_test e7 v0 local57 : i1
     cbr t14 then @pattern.pass.8 else @pattern.else.9
@@ -952,23 +952,23 @@ Module
   block pattern.merge.7
     br @pattern.merge.3
   block pattern.pass.8
-    store local23 -> local27
+    store local24 -> local28
     br @pattern.merge.10
   block pattern.else.9
     store local56 -> local58
     t16 = variant_test e7 v1 local58 : i1
     cbr t16 then @pattern.pass.11 else @pattern.else.12
   block pattern.merge.10
-    store local27 -> local28
-    call managed-void-target1 sp<managed-call:1> live=[param1:ptr<managed>@0, local41:ptr<managed>@0] sig=void1 (parts<enum7 [[2xi64]@0+16/8]>, elided-zst<{} size=0 align=1>, elided-zst<{} size=0 align=1>) local-fn11(local22, elided-zst local23, elided-zst local28)
+    store local28 -> local29
+    call managed-void-target1 sp<managed-call:1> live=[param1:ptr<managed>@0, local41:ptr<managed>@0] sig=void1 (parts<enum7 [[2xi64]@0+16/8]>, elided-zst<{} size=0 align=1>, elided-zst<{} size=0 align=1>) local-fn11(local23, elided-zst local24, elided-zst local29)
     t17 = aggregate () : {}
     t18 = aggregate () : {}
     store t18 -> local39
     br @pattern.merge.7
   block pattern.pass.11
     t19 = variant_payload_project e7 v1 f0 local58 : {}
-    store t19 -> local24
-    store local24 -> local27
+    store t19 -> local25
+    store local25 -> local28
     br @pattern.merge.13
   block pattern.else.12
     store local56 -> local59
@@ -978,8 +978,8 @@ Module
     br @pattern.merge.10
   block pattern.pass.14
     t21 = variant_payload_project e7 v2 f0 local59 : {}
-    store t21 -> local25
-    store local25 -> local27
+    store t21 -> local26
+    store local26 -> local28
     br @pattern.merge.16
   block pattern.else.15
     store local56 -> local60
@@ -989,8 +989,8 @@ Module
     br @pattern.merge.13
   block pattern.pass.17
     t23 = variant_payload_project e7 v3 f0 local60 : {}
-    store t23 -> local26
-    store local26 -> local27
+    store t23 -> local27
+    store local27 -> local28
     br @pattern.merge.19
   block pattern.else.18
     unreachable
@@ -1003,8 +1003,8 @@ Module
     cbr t25 then @pattern.pass.21 else @pattern.else.22
   block pattern.pass.21
     t26 = variant_payload_project e8 v1 f0 local61 : enum7
-    store t26 -> local29
-    store local29 -> local30
+    store t26 -> local20
+    store local20 -> local30
     store local17 -> local31
     store local30 -> local32
     store local31 -> local33

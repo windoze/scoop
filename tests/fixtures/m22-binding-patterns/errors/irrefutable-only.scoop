@@ -29,7 +29,7 @@ fun rejectExplicitPayloadVariant(signal: Signal) {
 
 fun rejectBarePayloadMatch(signal: Signal) {
     when (signal) {
-        Payload -> {}
+        case Payload -> {}
         else -> {}
     }
 }

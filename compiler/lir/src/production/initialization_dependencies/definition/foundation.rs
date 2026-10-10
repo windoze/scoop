@@ -88,17 +88,17 @@ fn artifact(
         return Err(Error::MissingSymbol(symbol));
     }
 
-    let mut primary = foundation.definition_atoms().iter().filter(|record| {
-        record.key().plan() == definition.id() && record.key().role() == DefinitionAtomRole::Primary
-    });
+    let mut primary = foundation
+        .definition_atoms_for_plan(definition.id())
+        .filter(|record| record.key().role() == DefinitionAtomRole::Primary);
     let primary = match (primary.next(), primary.next()) {
         (Some(record), None) => record.id(),
         _ => return Err(Error::PrimaryAtoms(definition.id())),
     };
 
-    let mut associated = foundation.definition_atoms().iter().filter(|record| {
-        record.key().plan() == definition.id() && record.key().role() != DefinitionAtomRole::Primary
-    });
+    let mut associated = foundation
+        .definition_atoms_for_plan(definition.id())
+        .filter(|record| record.key().role() != DefinitionAtomRole::Primary);
     match role {
         ArtifactRole::Registration => {
             let expected = ObjectDefinitionAtomKey::new(

@@ -56,6 +56,7 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
             | DefaultExpressionKindV1::CharLiteral(_)
             | DefaultExpressionKindV1::FloatLiteral(_)
             | DefaultExpressionKindV1::BooleanLiteral(_)
+            | DefaultExpressionKindV1::Unreachable
             | DefaultExpressionKindV1::UnitLiteral
             | DefaultExpressionKindV1::Local(_)
             | DefaultExpressionKindV1::Capture(_)

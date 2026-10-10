@@ -260,11 +260,8 @@ fn require_primary_atom(
     plan: ObjectDefinitionPlanId,
 ) -> Result<ObjectDefinitionAtomId, ParamFreeShapeSupportBuildError> {
     let atoms = foundation
-        .definition_atoms()
-        .iter()
-        .filter(|record| {
-            record.key().plan() == plan && record.key().role() == DefinitionAtomRole::Primary
-        })
+        .definition_atoms_for_plan(plan)
+        .filter(|record| record.key().role() == DefinitionAtomRole::Primary)
         .map(|record| record.id())
         .collect::<Vec<_>>();
     match atoms.as_slice() {

@@ -759,20 +759,20 @@ Module
         VariantConstruct Option<String> v0
           Type String
           Local $dependency.parameter._1
-      val $opt.15: Option<String>
+      val opt: Option<String>
         Type Option<String>
         Local value
       branch bb19 bb20
         Type Boolean
         VariantTest Option<String> v0
           Type Option<String>
-          Local $opt.15
+          Local opt
     bb19 if.then.19
-      val $res.16: String
+      assign $result.15
         Type String
         VariantPayloadProject Option<String> v0 f0
           Type Option<String>
-          Local $opt.15
+          Local opt
       goto bb21
     bb20 if.else.20
       assign $new.28
@@ -799,14 +799,17 @@ Module
       val $dependency.receiver: StringBuilder
         Type StringBuilder
         Local $stringBuilder.14
-      call $res.16: String = external2 direct
+      call $call.30: String = external2 direct
         Type StringBuilder
         Local $dependency.receiver
+      assign $result.15
+        Type String
+        Local $call.30
       goto bb21
     bb21 if.merge.21
       val $dependency.receiver: String
         Type String
-        Local $res.16
+        Local $result.15
       val $dependency.argument.0: String
         Type String
         StringConst @str18
@@ -827,56 +830,59 @@ Module
       val missing: Option<String>
         Type Option<String>
         VariantConstruct Option<String> v1
-      val $opt.18: Option<String>
+      val opt: Option<String>
         Type Option<String>
         Local missing
       branch bb22 bb23
         Type Boolean
         VariantTest Option<String> v0
           Type Option<String>
-          Local $opt.18
+          Local opt
     bb22 if.then.22
-      val $res.19: String
+      assign $result.17
         Type String
         VariantPayloadProject Option<String> v0 f0
           Type Option<String>
-          Local $opt.18
+          Local opt
       goto bb24
     bb23 if.else.23
-      assign $new.30
+      assign $new.31
         Type StringBuilder
         ClassAlloc StringBuilder
       call external0 direct
         Type StringBuilder
-        Local $new.30
-      val $stringBuilder.17: StringBuilder
+        Local $new.31
+      val $stringBuilder.16: StringBuilder
         Type StringBuilder
-        Local $new.30
+        Local $new.31
       val $dependency.receiver: StringBuilder
         Type StringBuilder
-        Local $stringBuilder.17
+        Local $stringBuilder.16
       val $dependency.argument.0: Int
         Type Int
         IntegerLiteral Int value=42 bits=0x0000002a
       val $dependency.parameter.part: Int
         Type Int
         Local $dependency.argument.0
-      call $call.31: StringBuilder = @fn18 direct
+      call $call.32: StringBuilder = @fn18 direct
         Type StringBuilder
         Local $dependency.receiver
         Type Int
         Local $dependency.parameter.part
       val $dependency.receiver: StringBuilder
         Type StringBuilder
-        Local $stringBuilder.17
-      call $res.19: String = external2 direct
+        Local $stringBuilder.16
+      call $call.33: String = external2 direct
         Type StringBuilder
         Local $dependency.receiver
+      assign $result.17
+        Type String
+        Local $call.33
       goto bb24
     bb24 if.merge.24
       val $dependency.receiver: String
         Type String
-        Local $res.19
+        Local $result.17
       val $dependency.argument.0: String
         Type String
         StringConst @str19
@@ -2296,12 +2302,12 @@ Module
       call external0 direct
         Type StringBuilder
         Local $new.1
-      val $stringBuilder.20: StringBuilder
+      val $stringBuilder.18: StringBuilder
         Type StringBuilder
         Local $new.1
       val $dependency.receiver: StringBuilder
         Type StringBuilder
-        Local $stringBuilder.20
+        Local $stringBuilder.18
       val $dependency.argument.0: String
         Type String
         StringConst @str22
@@ -2315,7 +2321,7 @@ Module
         Local $dependency.parameter.part
       val $dependency.receiver: StringBuilder
         Type StringBuilder
-        Local $stringBuilder.20
+        Local $stringBuilder.18
       val $dependency.argument.0: Int
         Type Int
         Local value
@@ -2329,7 +2335,7 @@ Module
         Local $dependency.parameter.part
       val $dependency.receiver: StringBuilder
         Type StringBuilder
-        Local $stringBuilder.20
+        Local $stringBuilder.18
       val $dependency.argument.0: String
         Type String
         StringConst @str23
@@ -2343,7 +2349,7 @@ Module
         Local $dependency.parameter.part
       val $dependency.receiver: StringBuilder
         Type StringBuilder
-        Local $stringBuilder.20
+        Local $stringBuilder.18
       call $call.5: String = external2 direct
         Type StringBuilder
         Local $dependency.receiver

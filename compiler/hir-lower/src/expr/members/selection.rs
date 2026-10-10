@@ -4,6 +4,8 @@ use crate::derived::DerivedEqualityCandidate;
 use crate::expr::named_calls::imported_dependency::ImportedMemberReceiver;
 use crate::overload::{CallArgumentProtocol, NamedCallReceiver, OverloadCall};
 
+mod views;
+
 impl Lowerer {
     #[allow(clippy::too_many_arguments)]
     pub(in crate::expr) fn probe_member_call_partition(
@@ -43,7 +45,7 @@ impl Lowerer {
                 Ok(candidates) => candidates,
                 Err(failure) => return PropertyExtensionInvokeOutcome::Failed(failure),
             };
-        let imported = imported
+        let mut imported = imported
             .into_iter()
             .map(|candidate| (candidate, receiver.clone()))
             .collect::<Vec<_>>();
@@ -81,8 +83,17 @@ impl Lowerer {
                 Ok(None) | Err(_) => {}
             }
         }
+        let views = if kind == MemberCallKind::Ordinary {
+            context.smart_cast_receiver_views(&receiver)
+        } else {
+            vec![receiver.clone()]
+        };
         let operator_set = required.operator == Some(hir::OperatorKind::Set);
-        if imported.is_empty() && imported_equality.is_none() && kind == MemberCallKind::Ordinary {
+        if views.len() == 1
+            && imported.is_empty()
+            && imported_equality.is_none()
+            && kind == MemberCallKind::Ordinary
+        {
             return context.probe_local_member_call_partition(
                 candidates,
                 &name.text,
@@ -91,6 +102,19 @@ impl Lowerer {
                 expected,
                 operator_set,
             );
+        }
+        let mut candidates = candidates
+            .into_iter()
+            .map(|candidate| (candidate, receiver.clone()))
+            .collect::<Vec<_>>();
+        if let Err(failure) = context.add_smart_cast_member_views(
+            &mut candidates,
+            &mut imported,
+            &views[1..],
+            name,
+            required,
+        ) {
+            return PropertyExtensionInvokeOutcome::Failed(failure);
         }
         let mut probes = Vec::new();
         let mut first_failure = None;
@@ -106,7 +130,7 @@ impl Lowerer {
             }
         }
         let mut suppressed = false;
-        for candidate in candidates {
+        for (candidate, receiver) in candidates {
             if context
                 .declaration_surface
                 .rejects_function(candidate.function)
@@ -177,7 +201,7 @@ impl Lowerer {
                 .commit_named_callable(*probe, &mut sink)
                 .and_then(|resolved| match kind {
                     MemberCallKind::Ordinary => {
-                        state.finish_resolved_method_call(resolved, call.span, &sink)
+                        state.finish_resolved_method_call(resolved, call.span, &mut sink)
                     }
                     MemberCallKind::DirectSuper => {
                         state.finish_resolved_super_method_call(resolved, &name.text, call.span)

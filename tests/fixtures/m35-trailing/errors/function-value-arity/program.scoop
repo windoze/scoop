@@ -1,0 +1,1 @@
+fun main() { val f: (Int, () -> Int) -> Int = { value, action -> value + action() }; f { 1 } }

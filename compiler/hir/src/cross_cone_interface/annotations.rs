@@ -1,23 +1,25 @@
 use std::collections::BTreeSet;
 use std::fmt;
 
-use crate::{CanonicalConstValueV1, DeclaredVisibilityV1, ExportDefinitionSourceV1};
-use scoop_identity::{CanonicalIdentifier, PersistentAnnotationId, PersistentTypeId};
+use crate::{DeclaredVisibilityV1, ExportDefinitionSourceV1};
+use scoop_identity::{CanonicalIdentifier, PersistentAnnotationId, SignatureTypeKey};
 
 mod source_targets;
 mod target;
+mod value;
 mod wire;
 pub use target::{AnnotationTargetV1, DecodedAnnotationTargetV1};
+pub use value::CanonicalAnnotationValueV1;
 pub use wire::{
     AnnotationDataResolutionError, AnnotationDataResolver, DecodedCanonicalAnnotationsV1,
 };
 
-/// Parameters contain the actual scalar type after source aliases are expanded.
+/// Parameters retain their complete type after source aliases are expanded.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct AnnotationParameterV1 {
     pub name: CanonicalIdentifier,
-    pub value_type: PersistentTypeId,
-    pub default: Option<CanonicalConstValueV1>,
+    pub value_type: SignatureTypeKey,
+    pub default: Option<CanonicalAnnotationValueV1>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -32,7 +34,7 @@ pub struct AnnotationDeclarationV1 {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct AnnotationApplicationV1 {
     pub annotation: PersistentAnnotationId,
-    pub arguments: Vec<CanonicalConstValueV1>,
+    pub arguments: Vec<CanonicalAnnotationValueV1>,
     pub definition_origin: ExportDefinitionSourceV1,
 }
 
@@ -108,23 +110,25 @@ impl CanonicalAnnotationsV1 {
 
     pub(crate) fn declaration_targets(
         &self,
-    ) -> impl Iterator<Item = crate::ExternalHirTargetV1> + '_ {
-        use crate::ExternalHirTargetV1;
-        self.declarations
-            .iter()
-            .flat_map(|declaration| {
-                declaration.parameters.iter().map(|parameter| {
-                    ExternalHirTargetV1::Nominal(scoop_identity::NominalDeclarationOwner::Concrete(
-                        parameter.value_type,
-                    ))
-                })
-            })
-            .chain(self.targets.iter().flat_map(|target| {
-                target
-                    .annotations
-                    .iter()
-                    .map(|application| ExternalHirTargetV1::Annotation(application.annotation))
-            }))
+        path: &scoop_wire::WirePath,
+    ) -> Result<Vec<crate::ExternalHirTargetV1>, scoop_wire::WireError> {
+        use crate::{ExternalHirTargetV1, SignatureNominalWalker};
+        let mut references = Vec::new();
+        for declaration in &self.declarations {
+            for parameter in &declaration.parameters {
+                let mut walker = SignatureNominalWalker::new(&parameter.value_type, path)?;
+                while let Some(owner) = walker.next(path)? {
+                    references.push(ExternalHirTargetV1::Nominal(owner));
+                }
+            }
+        }
+        references.extend(self.targets.iter().flat_map(|target| {
+            target
+                .annotations
+                .iter()
+                .map(|application| ExternalHirTargetV1::Annotation(application.annotation))
+        }));
+        Ok(references)
     }
 
     pub fn declarations(&self) -> &[AnnotationDeclarationV1] {

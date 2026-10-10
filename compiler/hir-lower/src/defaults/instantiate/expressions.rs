@@ -22,7 +22,8 @@ impl Lowerer {
             let mut value = context.locals[arena_index(local)].clone();
             value.span = source.span;
             value.origin = instantiate_origin(source.origin, context.evaluation);
-            return value;
+            let ty = self.instantiate_method_ty(source.ty, &context.bindings);
+            return self.known_type_read(value, ty);
         }
         if let hir::ExprKind::Capture(binding) = source.kind
             && let Some(value) = context.captures.get(&binding)
@@ -30,7 +31,26 @@ impl Lowerer {
             let mut value = value.clone();
             value.span = source.span;
             value.origin = instantiate_origin(source.origin, context.evaluation);
-            return value;
+            let ty = self.instantiate_method_ty(source.ty, &context.bindings);
+            return self.known_type_read(value, ty);
+        }
+        if let hir::ExprKind::MethodCall {
+            receiver,
+            callee: hir::MethodCallee::DerivedEquality(application),
+            args,
+        } = &source.kind
+            && self.type_contains_param(receiver.ty)
+        {
+            // Open nested derivations read prepared value fields. Expand them
+            // before any concrete owner can discard their bound field calls.
+            let receiver = self.instantiate_default_expr(receiver, context);
+            let other = self.instantiate_default_expr(&args[0], context);
+            return self.inline_derived_equality(
+                *application,
+                receiver,
+                other,
+                context.bindings.clone(),
+            );
         }
         let origin = instantiate_origin(source.origin, context.evaluation);
         let kind = match &source.kind {
@@ -84,6 +104,7 @@ impl Lowerer {
                 Box::new(self.instantiate_default_expr(value, context)),
             ),
             hir::ExprKind::BoolLiteral(value) => hir::ExprKind::BoolLiteral(*value),
+            hir::ExprKind::Unreachable => hir::ExprKind::Unreachable,
             hir::ExprKind::UnitLiteral => hir::ExprKind::UnitLiteral,
             hir::ExprKind::TupleLiteral(elements) => hir::ExprKind::TupleLiteral(
                 elements

@@ -712,30 +712,36 @@ Module
           Local $closure
   fun $lambda.3 @fn17($closure: () -> Int) -> Int
     bb0 entry
-      call $call.1: Int = <closure:function_type2> closure[function_type2]
+      val $operand.1: (Int) -> Int
+        Type (Int) -> Int
+        ClosureCapture cc5 2
+          Type () -> Int
+          Local $closure
+      call $call.2: Int = <closure:function_type2> closure[function_type2]
         Type () -> Int
         ClosureCapture cc5 1
           Type () -> Int
           Local $closure
       call $dependency.receiver: Int = <closure:function_type0> closure[function_type0]
         Type (Int) -> Int
+        Local $operand.1
+        Type Int
+        Local $call.2
+      val $operand.3: (Int) -> Int
+        Type (Int) -> Int
         ClosureCapture cc5 2
           Type () -> Int
           Local $closure
-        Type Int
-        Local $call.1
-      call $call.2: Int = <closure:function_type2> closure[function_type2]
+      call $call.4: Int = <closure:function_type2> closure[function_type2]
         Type () -> Int
         ClosureCapture cc5 3
           Type () -> Int
           Local $closure
       call $dependency.argument.0: Int = <closure:function_type0> closure[function_type0]
         Type (Int) -> Int
-        ClosureCapture cc5 2
-          Type () -> Int
-          Local $closure
+        Local $operand.3
         Type Int
-        Local $call.2
+        Local $call.4
       val $dependency.parameter.other: Int
         Type Int
         Local $dependency.argument.0
@@ -781,30 +787,36 @@ Module
           Local $closure
   fun $lambda.3 @fn20($closure: () -> Int) -> Int
     bb0 entry
-      call $call.1: Int = <closure:function_type2> closure[function_type2]
+      val $operand.1: (Int) -> Int
+        Type (Int) -> Int
+        ClosureCapture cc7 0
+          Type () -> Int
+          Local $closure
+      call $call.2: Int = <closure:function_type2> closure[function_type2]
         Type () -> Int
         ClosureCapture cc7 1
           Type () -> Int
           Local $closure
       call $dependency.receiver: Int = <closure:function_type0> closure[function_type0]
         Type (Int) -> Int
+        Local $operand.1
+        Type Int
+        Local $call.2
+      val $operand.3: (Int) -> Int
+        Type (Int) -> Int
         ClosureCapture cc7 0
           Type () -> Int
           Local $closure
-        Type Int
-        Local $call.1
-      call $call.2: Int = <closure:function_type2> closure[function_type2]
+      call $call.4: Int = <closure:function_type2> closure[function_type2]
         Type () -> Int
         ClosureCapture cc7 2
           Type () -> Int
           Local $closure
       call $dependency.argument.0: Int = <closure:function_type0> closure[function_type0]
         Type (Int) -> Int
-        ClosureCapture cc7 0
-          Type () -> Int
-          Local $closure
+        Local $operand.3
         Type Int
-        Local $call.2
+        Local $call.4
       val $dependency.parameter.other: Int
         Type Int
         Local $dependency.argument.0

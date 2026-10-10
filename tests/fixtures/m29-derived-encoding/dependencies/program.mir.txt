@@ -940,6 +940,11 @@ Module
         Local $place.5
         Type String
         Local $call.1
+      val $place.receiver: Source
+        Type Source
+        FieldAccess 0
+          Type TraceEncoder
+          Local this
       val $argument.0: Int
         Type Int
         IntegerLiteral Int value=9 bits=0x00000009
@@ -959,9 +964,7 @@ Module
         Local $parameter.text
       field_set 0
         Type Source
-        FieldAccess 0
-          Type TraceEncoder
-          Local this
+        Local $place.receiver
         Type Payload
         Local $call.2
       return

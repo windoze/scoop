@@ -1,0 +1,9 @@
+interface Left { fun left(): Int }
+interface Right { fun right(): Int }
+fun Left.extra(): Int = left()
+fun Right.extra(): Int = right()
+fun test(value: Any): Int = when {
+    value is Left && value is Right -> value.extra()
+    else -> 0
+}
+fun main() {}

@@ -12,6 +12,8 @@ use scoop_wire::{decode_canonical, encode};
 use super::*;
 use crate::{CanonicalLirFoundation, ConeLirFoundation, DecodedLirFoundation};
 
+mod atom_lookup;
+
 #[test]
 fn definition_plan_surface_has_a_fixed_wire_vector_and_validates() {
     let (surface, mut identities, foundation) = fixture();

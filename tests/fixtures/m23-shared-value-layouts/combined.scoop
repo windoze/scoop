@@ -18,11 +18,11 @@ public fun <T> exercise(seed: T, read: (T) -> Int): Int {
     val tail: Nested = Nested.End
     val nested = Nested.Next(Local(Reference(Link(tail))))
     val ended: Boolean = when (nested) {
-        Next(local) -> when (local.payload.link.value) {
-            End -> true
-            Next(next) -> false
+        case Next(local) -> when (local.payload.link.value) {
+            case End -> true
+            case Next(next) -> false
         }
-        End -> false
+        case End -> false
     }
     if (!ended) { return 2 }
     val receiver: Readable<T> = Local(Wrapper(seed)).payload

@@ -1,0 +1,73 @@
+enum Direction { Left, Right }
+
+class Key(val value: Int) {
+    operator fun equals(other: Key): Boolean {
+        println("equals")
+        return value == other.value
+    }
+}
+
+class Range(val low: Int, val high: Int) {
+    operator fun contains(value: Int): Boolean {
+        println(low)
+        return low <= value && value <= high
+    }
+}
+
+fun subject(): Int { println("subject"); return 3 }
+fun condition(value: Int): Int { println(value); return value }
+
+fun direction(value: Direction): Int = when (value) {
+    Left -> 1
+    Right -> 2
+}
+
+fun boolean(value: Boolean): Int = when (value) {
+    true -> 10
+    false -> 20
+}
+
+fun predicate(value: Int): String = when {
+    value == 1 -> "one"
+    value > 1 -> "many"
+    else -> "none"
+}
+
+fun jump(value: Int): Int {
+    val result = when (value) {
+        0 -> return 7
+        else -> 9
+    }
+    return result
+}
+
+fun main() {
+    when (subject()) {
+        condition(1), condition(3), condition(9), -> println("hit")
+        else -> println("miss")
+    }
+    when ("b") { "a", "b" -> println("string") }
+    when (Key(4)) { Key(4) -> println("key"); else -> println("wrong") }
+    when (4) {
+        in Range(1, 3) -> println("wrong")
+        !in Range(8, 10) -> println("contains")
+    }
+    println(direction(Direction.Right))
+    println(boolean(false))
+    println(predicate(2))
+    println(jump(0))
+    println(jump(1))
+    when (1) {
+        1 if false -> println("wrong")
+        else if false -> println("wrong")
+        else if true -> println("guarded else")
+    }
+    var index = 0
+    while (index < 4) {
+        index += 1
+        when (index) { 1 -> continue; 3 -> break; 2 -> println(index) }
+    }
+    when { false -> println("wrong") }
+    when (100) { 0 -> println("wrong") }
+    println("fallthrough")
+}

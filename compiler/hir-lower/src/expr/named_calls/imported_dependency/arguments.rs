@@ -70,6 +70,7 @@ mod tests {
         let arguments = ["second", "first"].map(|name| ArgumentShape {
             name: Some(name),
             spread: false,
+            trailing: false,
         });
         let mapping =
             ImportedArgumentMap::map(&parameters, &arguments, ArgumentMode::Mixed, false).unwrap();

@@ -1,0 +1,43 @@
+var trace: Int = 0
+
+fun mark(value: Int): Int { trace = trace * 10 + value; return value }
+fun outer(first: Int, second: Int, third: Int = mark(9)): Int {
+    return mark(8)
+}
+fun arguments(): Int { return outer(mark(1), return 2, mark(3)) }
+fun defaults(): Int { return outer(mark(1), return 3) }
+fun tuple(): Int { val ignored = (mark(1), return 4, mark(3)); return 0 }
+fun array(): Int { val ignored: Array<Int> = [mark(1), return 5, mark(3)]; return 0 }
+fun nestedReturn(): Int { return (return 6) }
+fun shortCircuit(): Int {
+    val skip = false && (return 99)
+    val skipOther = true || (return 99)
+    val taken = true && (return 7)
+    return 0
+}
+fun numeric(): Int { val ignored = mark(1) + (return 8); return 0 }
+fun receiver(value: Int?): Int {
+    val result = (value ?: return 9).toString()
+    return 0
+}
+fun brackets(value: Int?) { val ignored: Array<Int> = [value ?: return] }
+fun comma(value: Int?) { outer(value ?: return, mark(3)) }
+
+fun source(): Int? { mark(1); return Some(4) }
+fun rhs(): Int { mark(2); return 0 }
+fun once(): Int { return source() ?: rhs() }
+
+fun main() {
+    println(arguments()); println(trace); trace = 0
+    println(defaults()); println(trace); trace = 0
+    println(tuple()); println(trace); trace = 0
+    println(array()); println(trace); trace = 0
+    println(nestedReturn())
+    println(shortCircuit())
+    println(numeric()); println(trace); trace = 0
+    println(receiver(None))
+    brackets(None)
+    comma(None)
+    println(trace)
+    println(once()); println(trace)
+}

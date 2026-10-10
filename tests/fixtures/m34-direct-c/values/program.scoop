@@ -71,7 +71,7 @@ fun check(value: Boolean) { if (!value) { throw IllegalStateException() } }
     var number = 42
     val pointerResult = pointers(Pointers(Some(addressOf(number)), Some(function())))
     check(pointerResult.data!!.load() == 42)
-    check(when (pointerResult.function) { Some(_) -> true; None -> false })
+    check(when (pointerResult.function) { case Some(_) -> true; case None -> false })
     val character = letter(Letter('界', true, (-17).toInt16()))
     check(character.character == '界' && !character.flag && character.number == (-17).toInt16())
 }
@@ -91,7 +91,7 @@ fun check(value: Boolean) { if (!value) { throw IllegalStateException() } }
     check(result.x == 1.25 && result.n == 87L && retained.value == 91)
     val threaded = threads(Big(1L, 2L, 3L, 4L, 5L), callback.function, callback.context)
     check(threaded.a == 1L && threaded.e == 41L && retained.value == 91)
-    check(when (foreignCallbackFailure(callback)) { Some(_) -> false; None -> true })
+    check(when (foreignCallbackFailure(callback)) { case Some(_) -> false; case None -> true })
     releaseForeignCallback(callback)
 }
 fun main() {

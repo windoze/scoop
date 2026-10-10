@@ -80,30 +80,30 @@ Module
         Type UnwrapException
         Local $new.1
     bb3 if.merge.3
-      val $opt.0: Option<Int>
+      val opt: Option<Int>
         Type Option<Int>
         Local $uw.2
       branch bb4 bb5
         Type Boolean
         VariantTest Option<Int> v0
           Type Option<Int>
-          Local $opt.0
+          Local opt
     bb4 if.then.4
-      val $res.1: Int
+      assign $result.0
         Type Int
         VariantPayloadProject Option<Int> v0 f0
           Type Option<Int>
-          Local $opt.0
+          Local opt
       goto bb6
     bb5 if.else.5
-      val $res.1: Int
+      assign $result.0
         Type Int
         IntegerLiteral Int value=0 bits=0x00000000
       goto bb6
     bb6 if.merge.6
       val $dependency.argument.0: Int
         Type Int
-        Local $res.1
+        Local $result.0
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
@@ -136,50 +136,50 @@ Module
         Type UnwrapException
         Local $new.2
     bb9 if.merge.9
-      val $opt.2: Option<Int>
+      val opt: Option<Int>
         Type Option<Int>
         Local $uw.4
       branch bb10 bb11
         Type Boolean
         VariantTest Option<Int> v0
           Type Option<Int>
-          Local $opt.2
+          Local opt
     bb10 if.then.10
-      val $res.3: Int
+      assign $result.1
         Type Int
         VariantPayloadProject Option<Int> v0 f0
           Type Option<Int>
-          Local $opt.2
+          Local opt
       goto bb12
     bb11 if.else.11
-      val $res.3: Int
+      assign $result.1
         Type Int
         IntegerLiteral Int value=0 bits=0x00000000
       goto bb12
     bb12 if.merge.12
       val $dependency.argument.0: Int
         Type Int
-        Local $res.3
+        Local $result.1
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
       call @fn1 direct
         Type Int
         Local $dependency.parameter.value
-      val $opt.4: Option<Option<Int>>
+      val opt: Option<Option<Int>>
         Type Option<Option<Int>>
         Local c
       branch bb13 bb14
         Type Boolean
         VariantTest Option<Option<Int>> v0
           Type Option<Option<Int>>
-          Local $opt.4
+          Local opt
     bb13 if.then.13
-      val $res.5: Option<Int>
+      assign $result.2
         Type Option<Int>
         VariantPayloadProject Option<Option<Int>> v0 f0
           Type Option<Option<Int>>
-          Local $opt.4
+          Local opt
       goto bb15
     bb14 if.else.14
       val $dependency.argument.0: Int
@@ -188,37 +188,37 @@ Module
       val $dependency.parameter._1: Int
         Type Int
         Local $dependency.argument.0
-      val $res.5: Option<Int>
+      assign $result.2
         Type Option<Int>
         VariantConstruct Option<Int> v0
           Type Int
           Local $dependency.parameter._1
       goto bb15
     bb15 if.merge.15
-      val $opt.6: Option<Int>
+      val opt: Option<Int>
         Type Option<Int>
-        Local $res.5
+        Local $result.2
       branch bb16 bb17
         Type Boolean
         VariantTest Option<Int> v0
           Type Option<Int>
-          Local $opt.6
+          Local opt
     bb16 if.then.16
-      val $res.7: Int
+      assign $result.3
         Type Int
         VariantPayloadProject Option<Int> v0 f0
           Type Option<Int>
-          Local $opt.6
+          Local opt
       goto bb18
     bb17 if.else.17
-      val $res.7: Int
+      assign $result.3
         Type Int
         IntegerLiteral Int value=0 bits=0x00000000
       goto bb18
     bb18 if.merge.18
       val $dependency.argument.0: Int
         Type Int
-        Local $res.7
+        Local $result.3
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0

@@ -353,14 +353,14 @@ Module
           Type Option<Int>
           Local $dependency.local.26
     bb15 if.then.15
-      val $dependency.local.27: Int
+      assign $dependency.local.27
         Type Int
         VariantPayloadProject Option<Int> v1 f0
           Type Option<Int>
           Local $dependency.local.26
       goto bb17
     bb16 if.else.16
-      val $dependency.local.27: Int
+      assign $dependency.local.27
         Type Int
         IntegerLiteral Int value=40 bits=0x00000028
       goto bb17
@@ -517,14 +517,14 @@ Module
           Type Option<Int>
           Local $dependency.local.42
     bb34 if.then.34
-      val $dependency.local.43: Int
+      assign $dependency.local.43
         Type Int
         VariantPayloadProject Option<Int> v1 f0
           Type Option<Int>
           Local $dependency.local.42
       goto bb36
     bb35 if.else.35
-      val $dependency.local.43: Int
+      assign $dependency.local.43
         Type Int
         IntegerLiteral Int value=0 bits=0x00000000
       goto bb36
@@ -737,14 +737,14 @@ Module
           Type Option<Int>
           Local $dependency.local.26
     bb15 if.then.15
-      val $dependency.local.27: Int
+      assign $dependency.local.27
         Type Int
         VariantPayloadProject Option<Int> v1 f0
           Type Option<Int>
           Local $dependency.local.26
       goto bb17
     bb16 if.else.16
-      val $dependency.local.27: Int
+      assign $dependency.local.27
         Type Int
         IntegerLiteral Int value=40 bits=0x00000028
       goto bb17
@@ -901,14 +901,14 @@ Module
           Type Option<Int>
           Local $dependency.local.42
     bb34 if.then.34
-      val $dependency.local.43: Int
+      assign $dependency.local.43
         Type Int
         VariantPayloadProject Option<Int> v1 f0
           Type Option<Int>
           Local $dependency.local.42
       goto bb36
     bb35 if.else.35
-      val $dependency.local.43: Int
+      assign $dependency.local.43
         Type Int
         IntegerLiteral Int value=0 bits=0x00000000
       goto bb36
@@ -1025,14 +1025,14 @@ Module
           Type Option<Later>
           Local $dependency.local.2
     bb1 if.then.1
-      val $dependency.local.3: Later
+      assign $dependency.local.3
         Type Later
         VariantPayloadProject Option<Later> v1 f0
           Type Option<Later>
           Local $dependency.local.2
       goto bb3
     bb2 if.else.2
-      val $dependency.local.3: Later
+      assign $dependency.local.3
         Type Later
         Local value
       goto bb3
@@ -1154,14 +1154,14 @@ Module
           Type Option<Int>
           Local $dependency.local.2
     bb1 if.then.1
-      val $dependency.local.3: Int
+      assign $dependency.local.3
         Type Int
         VariantPayloadProject Option<Int> v1 f0
           Type Option<Int>
           Local $dependency.local.2
       goto bb3
     bb2 if.else.2
-      val $dependency.local.3: Int
+      assign $dependency.local.3
         Type Int
         Local value
       goto bb3

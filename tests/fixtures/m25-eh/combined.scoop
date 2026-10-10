@@ -53,11 +53,11 @@ fun main() {
         println(error.nested.pair._1)
         println(error.nested.pair._2)
         when (error.tagged) {
-            Present(first, second) -> {
+            case Present(first, second) -> {
                 println(first)
                 println(second)
             }
-            Empty -> println("empty")
+            case Empty -> println("empty")
         }
         println(error.values[0])
         println(error.values[1])

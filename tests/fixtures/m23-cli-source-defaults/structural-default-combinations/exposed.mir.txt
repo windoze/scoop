@@ -94,32 +94,35 @@ Module
     bb0 entry
       call $call.1: Point = @fn27 direct
       call $call.2: Point = @fn27 direct
-      call $call.3: Point = @fn27 direct
-      call $call.4: Point = @fn27 direct
-      call $parameter.equal: Boolean = @fn7 direct
+      val $operand.3: (Point, Point)
         Type (Point, Point)
         TupleLiteral
           Type Point
           Local $call.1
           Type Point
           Local $call.2
+      call $call.4: Point = @fn27 direct
+      call $call.5: Point = @fn27 direct
+      call $parameter.equal: Boolean = @fn7 direct
+        Type (Point, Point)
+        Local $operand.3
         Type (Point, Point)
         TupleLiteral
           Type Point
-          Local $call.3
-          Type Point
           Local $call.4
-      assign $new.5
+          Type Point
+          Local $call.5
+      assign $new.6
         Type Holder
         ClassAlloc Holder
       call @fn26 direct
         Type Holder
-        Local $new.5
+        Local $new.6
         Type Boolean
         Local $parameter.equal
       return
         Type Holder
-        Local $new.5
+        Local $new.6
   fun readStructuralHolder @fn5(value: Holder) -> Boolean
     bb0 entry
       return

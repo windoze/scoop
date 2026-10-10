@@ -38,7 +38,7 @@ SourceFile
       WhenExpression
         Var nested
         arm Next(local)
-          WhenExpression
+          when
             FieldAccess value
               FieldAccess link
                 FieldAccess payload

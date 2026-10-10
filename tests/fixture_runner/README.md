@@ -93,7 +93,7 @@ ABI、GC、相关符号及链接运行断言继续保留，不能用摘要归一
 `$$${name}` 表示字面 `$` 后接 name 的值。预检忽略已转义的引用；引用所得的值不再展开。
 
 每个进程必须声明 `exit` 或 `signal`（如 `"SIGABRT"`）之一，以及完整 stdout/stderr。
-stdin 默认空；cwd 默认 `${work}`；env 继承调用者并应用显式键；timeout 默认 120 秒。
+stdin 默认空；cwd 默认 `${work}`；env 继承调用者并应用显式键；timeout 默认 300 秒，以容纳 Linux 上完整的 core 冷构建。
 字节期望和 stdin 可写文本、`{hex = "..."}` 或 `{file = "expected.stdout"}`。
 stdout/stderr 也可显式声明 `{snapshot = "symbols.${target}.txt"}`，沿用 snapshot
 更新规则；正常验收仍比较完整原始字节。用于按目标保存实际对象/程序符号表。

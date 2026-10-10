@@ -28,8 +28,8 @@ fun main() {
             }, 1, ForeignCallbackMode.Reusable
         )
         run(worker.function, worker.context, collector.function, collector.context)
-        val failed = when (foreignCallbackFailure(worker)) { Some(_) -> true; None -> false }
-        val collectorFailed = when (foreignCallbackFailure(collector)) { Some(_) -> true; None -> false }
+        val failed = when (foreignCallbackFailure(worker)) { case Some(_) -> true; case None -> false }
+        val collectorFailed = when (foreignCallbackFailure(collector)) { case Some(_) -> true; case None -> false }
         releaseForeignCallback(worker)
         releaseForeignCallback(collector)
         if (failed || collectorFailed) { throw IllegalStateException() }

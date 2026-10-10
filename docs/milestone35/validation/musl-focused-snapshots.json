@@ -1,0 +1,52 @@
+{
+  "identical": 150,
+  "new": [],
+  "changed": [
+    "tests/fixtures/m23-cli-generics/imported-options-lexical/consumer.x86_64-unknown-linux-musl.lir.txt",
+    "tests/fixtures/m23-cli-generics/imported-options-static/consumer.x86_64-unknown-linux-musl.lir.txt",
+    "tests/fixtures/m23-cli-generics/imported-options-sugar/consumer.x86_64-unknown-linux-musl.lir.txt",
+    "tests/fixtures/m23-cli-generics/imported-options-sugar/downstream.x86_64-unknown-linux-musl.lir.txt",
+    "tests/fixtures/legacy-acceptance/m18-invoke/invoke-semantics.x86_64-unknown-linux-musl.lir.txt",
+    "tests/fixtures/legacy-acceptance/m22-control/while-header.x86_64-unknown-linux-musl.lir.txt",
+    "tests/fixtures/legacy-acceptance/m22-integers/representation-matrix.x86_64-unknown-linux-musl.lir.txt",
+    "tests/fixtures/legacy-acceptance/m22-patterns/when-exhaustiveness.x86_64-unknown-linux-musl.lir.txt",
+    "tests/fixtures/legacy-acceptance/m22-pointers/option-niche-consumers.x86_64-unknown-linux-musl.lir.txt",
+    "tests/fixtures/legacy-acceptance/m3-generics/generic-option.x86_64-unknown-linux-musl.lir.txt",
+    "tests/fixtures/legacy-acceptance/m3-generics/option-basics.x86_64-unknown-linux-musl.lir.txt",
+    "tests/fixtures/legacy-acceptance/m5-arrays/array-elements.x86_64-unknown-linux-musl.lir.txt",
+    "tests/fixtures/m27-context/callback-scopes/program.x86_64-unknown-linux-musl.lir.txt",
+    "tests/fixtures/m27-context/coroutine-exits/program.x86_64-unknown-linux-musl.lir.txt"
+  ],
+  "merged_paths": [
+    "tests/fixtures/m23-cli-generics/imported-options-lexical/consumer.x86_64-unknown-linux-musl.lir.txt",
+    "tests/fixtures/m23-cli-generics/imported-options-static/consumer.x86_64-unknown-linux-musl.lir.txt",
+    "tests/fixtures/m23-cli-generics/imported-options-sugar/consumer.x86_64-unknown-linux-musl.lir.txt",
+    "tests/fixtures/m23-cli-generics/imported-options-sugar/downstream.x86_64-unknown-linux-musl.lir.txt",
+    "tests/fixtures/legacy-acceptance/m18-invoke/invoke-semantics.x86_64-unknown-linux-musl.lir.txt",
+    "tests/fixtures/legacy-acceptance/m22-control/while-header.x86_64-unknown-linux-musl.lir.txt",
+    "tests/fixtures/legacy-acceptance/m22-integers/representation-matrix.x86_64-unknown-linux-musl.lir.txt",
+    "tests/fixtures/legacy-acceptance/m22-patterns/when-exhaustiveness.x86_64-unknown-linux-musl.lir.txt",
+    "tests/fixtures/legacy-acceptance/m22-pointers/option-niche-consumers.x86_64-unknown-linux-musl.lir.txt",
+    "tests/fixtures/legacy-acceptance/m3-generics/generic-option.x86_64-unknown-linux-musl.lir.txt",
+    "tests/fixtures/legacy-acceptance/m3-generics/option-basics.x86_64-unknown-linux-musl.lir.txt",
+    "tests/fixtures/legacy-acceptance/m5-arrays/array-elements.x86_64-unknown-linux-musl.lir.txt",
+    "tests/fixtures/m27-context/callback-scopes/program.x86_64-unknown-linux-musl.lir.txt",
+    "tests/fixtures/m27-context/coroutine-exits/program.x86_64-unknown-linux-musl.lir.txt"
+  ],
+  "changed_paths_identical_to_gnu": [
+    "tests/fixtures/m23-cli-generics/imported-options-lexical/consumer.x86_64-unknown-linux-musl.lir.txt",
+    "tests/fixtures/m23-cli-generics/imported-options-static/consumer.x86_64-unknown-linux-musl.lir.txt",
+    "tests/fixtures/m23-cli-generics/imported-options-sugar/consumer.x86_64-unknown-linux-musl.lir.txt",
+    "tests/fixtures/m23-cli-generics/imported-options-sugar/downstream.x86_64-unknown-linux-musl.lir.txt",
+    "tests/fixtures/legacy-acceptance/m18-invoke/invoke-semantics.x86_64-unknown-linux-musl.lir.txt",
+    "tests/fixtures/legacy-acceptance/m22-control/while-header.x86_64-unknown-linux-musl.lir.txt",
+    "tests/fixtures/legacy-acceptance/m22-integers/representation-matrix.x86_64-unknown-linux-musl.lir.txt",
+    "tests/fixtures/legacy-acceptance/m22-patterns/when-exhaustiveness.x86_64-unknown-linux-musl.lir.txt",
+    "tests/fixtures/legacy-acceptance/m22-pointers/option-niche-consumers.x86_64-unknown-linux-musl.lir.txt",
+    "tests/fixtures/legacy-acceptance/m3-generics/generic-option.x86_64-unknown-linux-musl.lir.txt",
+    "tests/fixtures/legacy-acceptance/m3-generics/option-basics.x86_64-unknown-linux-musl.lir.txt",
+    "tests/fixtures/legacy-acceptance/m5-arrays/array-elements.x86_64-unknown-linux-musl.lir.txt",
+    "tests/fixtures/m27-context/callback-scopes/program.x86_64-unknown-linux-musl.lir.txt",
+    "tests/fixtures/m27-context/coroutine-exits/program.x86_64-unknown-linux-musl.lir.txt"
+  ]
+}

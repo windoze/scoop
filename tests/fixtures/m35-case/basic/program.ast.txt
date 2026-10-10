@@ -1,0 +1,25 @@
+SourceFile
+  RootPackage
+  fun case(case: Int): Int
+    =
+      WhenExpression
+        Var case
+        arm 0
+          IntLiteral 10
+        arm value
+          Binary Add
+            Var value
+            IntLiteral 1
+  fun main()
+    Call println
+      Call case
+        IntLiteral 0
+    Call println
+      Call case
+        IntLiteral 4
+    val (first, _)
+      TupleLiteral
+        IntLiteral 7
+        IntLiteral 8
+    Call println
+      Var first

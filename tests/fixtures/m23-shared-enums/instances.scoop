@@ -11,7 +11,7 @@ private enum LocalChoice<T> {
 public fun <T> exercise(seed: T, read: (T) -> Int): Int {
     val local: LocalChoice<T> = LocalChoice.Pair(seed, Some(seed))
     val first = when (local) {
-        Pair(value, Some(other)) -> read(value) + read(other) - 42
+        case Pair(value, Some(other)) -> read(value) + read(other) - 42
         else -> 1
     }
     if (first != 42) { return 2 }
@@ -19,7 +19,7 @@ public fun <T> exercise(seed: T, read: (T) -> Int): Int {
     val alias: ReusedChoice<T> = pack(seed)
     val wrapped: LocalChoice<T> = LocalChoice.Box(original)
     val second = when (wrapped) {
-        Box(Choice.Item(value)) -> read(value)
+        case Box(Choice.Item(value)) -> read(value)
         else -> 3
     }
     if (second != 42) { return 4 }

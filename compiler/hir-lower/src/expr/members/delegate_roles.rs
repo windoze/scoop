@@ -151,7 +151,7 @@ impl Lowerer {
                 debug_assert!(sink.is_empty(), "delegate arguments are already lowered");
                 let callable = self.materialize_resolved_callee(&resolved);
                 let expression = if resolved.receiver.is_some() {
-                    self.finish_resolved_method_call(resolved, name.span, &sink)
+                    self.finish_resolved_method_call(resolved, name.span, &mut sink)
                 } else {
                     self.check_call_effects(callable, name.span);
                     Some(hir::Expr {

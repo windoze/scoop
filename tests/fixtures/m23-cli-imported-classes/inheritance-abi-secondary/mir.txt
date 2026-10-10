@@ -236,7 +236,12 @@ Module
           Local $dependency.receiver
           Type Long
           Local $dependency.parameter.other
-      call $call.2: Long = external5 direct
+      val $operand.2: OrderedParent
+        Type OrderedParent
+        Retype OrderedParent
+          Type Derived
+          Local this
+      call $call.3: Long = external5 direct
         Type MutableCell
         FieldAccess 2
           Type OrderedParent
@@ -245,11 +250,9 @@ Module
             Local this
       field_set 3
         Type OrderedParent
-        Retype OrderedParent
-          Type Derived
-          Local this
+        Local $operand.2
         Type Long
-        Local $call.2
+        Local $call.3
       val $old.1: Long
         Type Long
         FieldAccess 3

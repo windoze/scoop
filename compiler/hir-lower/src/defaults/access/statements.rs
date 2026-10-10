@@ -124,17 +124,28 @@ impl ReferenceCollector<'_> {
     }
 
     fn when(&mut self, value: &hir::When, origin: hir::DefinitionOrigin) {
-        self.expression(&value.subject);
+        if let Some(subject) = &value.subject {
+            self.expression(subject);
+        }
         for arm in &value.arms {
             let arm_origin = self.at(arm.span);
-            self.pattern(&arm.pattern, arm_origin);
-            if let Some(guard) = &arm.guard {
+            if let hir::WhenCondition::Case(pattern) = &arm.condition {
+                self.pattern(pattern, arm_origin);
+            }
+            for guard in match &arm.condition {
+                hir::WhenCondition::Predicate(condition) => Some(condition),
+                _ => None,
+            }
+            .into_iter()
+            .chain(arm.guard.iter())
+            {
                 self.statements(&guard.setup);
                 self.expression(&guard.condition);
             }
             self.statements(&arm.body);
         }
         match &value.fallback {
+            hir::WhenFallback::Fallthrough => {}
             hir::WhenFallback::Else(body) => self.statements(body),
             hir::WhenFallback::Impossible(hir::ExhaustivenessProof::IrrefutableArm {
                 subject_ty,

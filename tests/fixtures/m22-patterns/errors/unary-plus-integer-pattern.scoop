@@ -3,7 +3,7 @@
 fun main() {
     val value: Int = 1
     when (value) {
-        +1 -> {}
+        case +1 -> {}
         else -> {}
     }
 }

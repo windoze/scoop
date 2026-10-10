@@ -524,6 +524,7 @@ Module
     local %9 $dependency.local.10: i64
     local %10 $dependency.local.11: ptr<managed>
     local %11 $dependency.local.12: ptr<managed>
+    local %12 $call.1: ptr<managed>
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
     t0 = heap_load param0 +40 : i1
@@ -556,7 +557,7 @@ Module
     t12 = extract local4, 1 : ptr<metadata>
     t13 = extract local4, 0 : ptr<managed>
     call managed-direct-target1 sp<managed-call:1> live=[t13:ptr<managed>@0] t14 = sig=direct1 (ptr<managed>, i64) -> ptr<managed> dispatch[Interface:1] t12(t13, local6)
-    store t14 -> local0
+    store t14 -> local12
     unreachable
   fun @scoop$1$cb$3cf78198802539f30054ecccb1882cb2995ea567a3c1a716f0d5229a04ef3cea(parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>) -> i64
   block entry

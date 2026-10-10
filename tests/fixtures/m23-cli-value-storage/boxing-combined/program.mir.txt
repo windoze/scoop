@@ -176,14 +176,17 @@ Module
       call @fn5 direct
         Type Long
         Local $dependency.parameter.value
-      call $call.3: Empty = @fn7 direct
-      call $dependency.argument.0: Boolean = @fn0 direct
+      val $operand.3: Empty
         Type Empty
         FieldAccess 2
           Type References
           Local restored
+      call $call.4: Empty = @fn7 direct
+      call $dependency.argument.0: Boolean = @fn0 direct
         Type Empty
-        Local $call.3
+        Local $operand.3
+        Type Empty
+        Local $call.4
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0

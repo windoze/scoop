@@ -220,9 +220,7 @@ pub(super) fn require_image_atoms(
     expected.extend(support_keys.iter().cloned());
     expected.sort_unstable();
     let mut actual = foundation
-        .definition_atoms()
-        .iter()
-        .filter(|record| record.key().plan() == definition)
+        .definition_atoms_for_plan(definition)
         .map(|record| record.key().clone())
         .collect::<Vec<_>>();
     actual.sort_unstable();
@@ -232,8 +230,7 @@ pub(super) fn require_image_atoms(
 
     let atom_id = |key: &ObjectDefinitionAtomKey| {
         foundation
-            .definition_atoms()
-            .iter()
+            .definition_atoms_for_plan(key.plan())
             .find(|record| record.key() == key)
             .expect("the exact image atom set was validated")
             .id()

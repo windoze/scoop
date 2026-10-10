@@ -123,10 +123,20 @@ pub(in super::super) fn collect_statement_type_occurrences(
                 collect_statement_type_occurrences(lowerer, body, file, out);
             }
             hir::StatementKind::When(when) => {
-                collect_expr_type_occurrences(lowerer, &when.subject, out);
+                if let Some(subject) = &when.subject {
+                    collect_expr_type_occurrences(lowerer, subject, out);
+                }
                 for arm in &when.arms {
-                    collect_pattern_type_occurrences(lowerer, &arm.pattern, file, arm.span, out);
-                    if let Some(guard) = &arm.guard {
+                    if let hir::WhenCondition::Case(pattern) = &arm.condition {
+                        collect_pattern_type_occurrences(lowerer, pattern, file, arm.span, out);
+                    }
+                    for guard in match &arm.condition {
+                        hir::WhenCondition::Predicate(condition) => Some(condition),
+                        _ => None,
+                    }
+                    .into_iter()
+                    .chain(arm.guard.iter())
+                    {
                         collect_statement_type_occurrences(lowerer, &guard.setup, file, out);
                         collect_expr_type_occurrences(lowerer, &guard.condition, out);
                     }
@@ -240,6 +250,7 @@ pub(in super::super) fn collect_expr_type_occurrences(
         | ExprKind::CharLiteral(_)
         | ExprKind::FloatLiteral(_)
         | ExprKind::BoolLiteral(_)
+        | ExprKind::Unreachable
         | ExprKind::UnitLiteral
         | ExprKind::ConstructorReceiver
         | ExprKind::ConstructorParam(_)

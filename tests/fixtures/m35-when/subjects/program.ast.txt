@@ -1,0 +1,129 @@
+SourceFile
+  RootPackage
+  struct Packet
+    field count: Int
+    field text: String
+  class Product(val count: Int, val text: String)
+    operator fun component1
+    operator fun component2
+    operator fun equals
+  class State(var value: Int)
+    fun shift
+  fun pair(): (Int, String)
+    Call println
+      StringLiteral "pair"
+    return
+      TupleLiteral
+        IntLiteral 3
+        StringLiteral "three"
+  fun packet(): Packet
+    Call println
+      StringLiteral "packet"
+    return
+      Call Packet
+        IntLiteral 4
+        StringLiteral "four"
+  fun main()
+    when
+      subject val (number, text): (Int, String)
+        Call pair
+      conditions
+        TupleLiteral
+          Var number
+          Var text
+        Call println
+          Var number
+      else
+        Call println
+          StringLiteral "wrong"
+    when
+      subject val Packet{count: renamed, text: label}
+        Call packet
+      conditions
+        Call Packet
+          Var renamed
+          Var label
+        Call println
+          Var label
+      else
+        Call println
+          StringLiteral "wrong"
+    val product
+      Call Product
+        IntLiteral 5
+        StringLiteral "five"
+    when
+      subject val (number, text)
+        Var product
+      conditions
+        Var product
+        Call println
+          Var number
+        Call println
+          Var text
+    val state
+      Call State
+        IntLiteral 1
+    when
+      FieldAccess value
+        Var state
+      conditions
+        MethodCall shift
+          Var state
+        Call println
+          StringLiteral "snapshot"
+    Call println
+      FieldAccess value
+        Var state
+    val outer
+      IntLiteral 6
+    when
+      subject val outer
+        Binary Add
+          Var outer
+          IntLiteral 1
+      conditions
+        IntLiteral 7
+        Call println
+          Var outer
+    Call println
+      Var outer
+    val closure: () -> Int
+      WhenExpression
+        subject val ((first, _), last)
+          TupleLiteral
+            TupleLiteral
+              IntLiteral 8
+              IntLiteral 9
+            IntLiteral 10
+        conditions
+          TupleLiteral
+            TupleLiteral
+              IntLiteral 8
+              IntLiteral 9
+            IntLiteral 10
+          Lambda 0 suspend=false
+            parameters omitted
+            Binary Add
+              Var first
+              Var last
+        else
+          Lambda 1 suspend=false
+            parameters omitted
+            IntLiteral 0
+    Call println
+      Call closure
+    when
+      subject val (first, last, ..@1409)
+        TupleLiteral
+          IntLiteral 11
+          IntLiteral 12
+          IntLiteral 13
+      arm (_, 12, _)
+        Call println
+          Var first
+        Call println
+          Var last
+      else
+        Call println
+          StringLiteral "wrong"

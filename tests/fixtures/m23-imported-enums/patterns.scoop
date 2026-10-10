@@ -12,21 +12,21 @@ public typealias Selected = Choice
 
 @NoGC public fun relay(value: Choice): Choice = value
 @NoGC public fun score(value: Choice): Long = when (value) {
-    Selected.Empty -> 0
-    Selected.Pair { left, right, .. } if (left < 0) -> 0
-    Selected.Pair { left, right, .. } -> left + right
+    case Selected.Empty -> 0
+    case Selected.Pair { left, right, .. } if (left < 0) -> 0
+    case Selected.Pair { left, right, .. } -> left + right
 }
 @NoGC public fun packetScore(value: Packet): Long = when (value) {
-    Missing -> 0
-    Data((left, _, right), _) -> left + right
+    case Missing -> 0
+    case Data((left, _, right), _) -> left + right
 }
 @NoGC public fun flagScore(value: Flag): Long = when (value) {
-    Off -> 0
-    On -> 1
+    case Off -> 0
+    case On -> 1
 }
 @NoGC public fun defaultScore(value: Choice, result: Long = when (value) {
-    Empty -> 0
-    Pair { left, right, .. } -> left + right
+    case Empty -> 0
+    case Pair { left, right, .. } -> left + right
 }): Long = result
 
 @NoGC public fun test(): Long = score(relay(make(17, -29))) + packetScore(packet()) + defaultScore(empty()) + flagScore(flag()) - 1

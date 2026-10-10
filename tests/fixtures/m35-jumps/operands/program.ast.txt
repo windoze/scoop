@@ -1,0 +1,171 @@
+SourceFile
+  RootPackage
+  var trace: Int = <expr>
+  fun mark(value: Int): Int
+    assign trace
+      Binary Add
+        Binary Mul
+          Var trace
+          IntLiteral 10
+        Var value
+    return
+      Var value
+  fun outer(first: Int, second: Int, third: Int = <expr>): Int
+    return
+      Call mark
+        IntLiteral 8
+  fun arguments(): Int
+    return
+      Call outer
+        Call mark
+          IntLiteral 1
+        Return
+          IntLiteral 2
+        Call mark
+          IntLiteral 3
+  fun defaults(): Int
+    return
+      Call outer
+        Call mark
+          IntLiteral 1
+        Return
+          IntLiteral 3
+  fun tuple(): Int
+    val ignored
+      TupleLiteral
+        Call mark
+          IntLiteral 1
+        Return
+          IntLiteral 4
+        Call mark
+          IntLiteral 3
+    return
+      IntLiteral 0
+  fun array(): Int
+    val ignored: Array<Int>
+      ArrayLiteral
+        Call mark
+          IntLiteral 1
+        Return
+          IntLiteral 5
+        Call mark
+          IntLiteral 3
+    return
+      IntLiteral 0
+  fun nestedReturn(): Int
+    return
+      Return
+        IntLiteral 6
+  fun shortCircuit(): Int
+    val skip
+      Binary And
+        BoolLiteral false
+        Return
+          IntLiteral 99
+    val skipOther
+      Binary Or
+        BoolLiteral true
+        Return
+          IntLiteral 99
+    val taken
+      Binary And
+        BoolLiteral true
+        Return
+          IntLiteral 7
+    return
+      IntLiteral 0
+  fun numeric(): Int
+    val ignored
+      Binary Add
+        Call mark
+          IntLiteral 1
+        Return
+          IntLiteral 8
+    return
+      IntLiteral 0
+  fun receiver(value: Int?): Int
+    val result
+      MethodCall toString
+        Elvis
+          Var value
+          Return
+            IntLiteral 9
+    return
+      IntLiteral 0
+  fun brackets(value: Int?)
+    val ignored: Array<Int>
+      ArrayLiteral
+        Elvis
+          Var value
+          Return
+  fun comma(value: Int?)
+    Call outer
+      Elvis
+        Var value
+        Return
+      Call mark
+        IntLiteral 3
+  fun source(): Int?
+    Call mark
+      IntLiteral 1
+    return
+      Call Some
+        IntLiteral 4
+  fun rhs(): Int
+    Call mark
+      IntLiteral 2
+    return
+      IntLiteral 0
+  fun once(): Int
+    return
+      Elvis
+        Call source
+        Call rhs
+  fun main()
+    Call println
+      Call arguments
+    Call println
+      Var trace
+    assign trace
+      IntLiteral 0
+    Call println
+      Call defaults
+    Call println
+      Var trace
+    assign trace
+      IntLiteral 0
+    Call println
+      Call tuple
+    Call println
+      Var trace
+    assign trace
+      IntLiteral 0
+    Call println
+      Call array
+    Call println
+      Var trace
+    assign trace
+      IntLiteral 0
+    Call println
+      Call nestedReturn
+    Call println
+      Call shortCircuit
+    Call println
+      Call numeric
+    Call println
+      Var trace
+    assign trace
+      IntLiteral 0
+    Call println
+      Call receiver
+        Var None
+    Call brackets
+      Var None
+    Call comma
+      Var None
+    Call println
+      Var trace
+    Call println
+      Call once
+    Call println
+      Var trace

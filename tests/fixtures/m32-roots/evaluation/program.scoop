@@ -8,8 +8,8 @@ fun missingNode(): Node = fail()
 fun receiver() { missingNode().read(mark(9)) }
 
 fun guarded(value: Int): Int = when (value) {
-    1 if (fail()) -> 1
-    2 -> 2
+    case 1 if (fail()) -> 1
+    case 2 -> 2
     else -> 3
 }
 

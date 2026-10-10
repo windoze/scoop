@@ -6,10 +6,12 @@ mod calls;
 mod casts;
 mod coroutines;
 mod data_borrow;
+mod diverging;
 mod exceptions;
 mod expressions;
 mod function;
 mod imported_calls;
+mod known_reads;
 mod maybe_uninit;
 mod operators;
 mod patterns;
@@ -17,6 +19,7 @@ mod release;
 mod statements;
 mod static_callbacks;
 mod task_context;
+mod when;
 
 pub(super) use maybe_uninit::maybe_uninit_value;
 

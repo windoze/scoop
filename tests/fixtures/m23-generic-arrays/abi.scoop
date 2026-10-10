@@ -10,8 +10,8 @@ private enum Payload<T> { Data(val value: T), Empty }
 private fun readLarge(value: Large): Int = value.first.value + value.second.value + value.third.value
 private fun readTuple(value: (Reference, Reference)): Int = value._1.value + value._2.value
 private fun readPayload(value: Payload<Large>): Int = when (value) {
-    Data(inner) -> readLarge(inner)
-    Empty -> 0
+    case Data(inner) -> readLarge(inner)
+    case Empty -> 0
 }
 
 public fun <T> exercise(seed: T, read: (T) -> Int): Int = providerExercise<T>(seed, read)

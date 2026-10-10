@@ -287,6 +287,11 @@ Module
             Local $closure
   fun $lambda.6 @fn8($closure: () -> Int) -> Int
     bb0 entry
+      val $place.receiver: Counter
+        Type Counter
+        ClosureCapture cc1 0
+          Type () -> Int
+          Local $closure
       val $dependency.receiver: Int
         Type Int
         FieldAccess 0
@@ -302,9 +307,7 @@ Module
         Local $dependency.argument.0
       field_set 0
         Type Counter
-        ClosureCapture cc1 0
-          Type () -> Int
-          Local $closure
+        Local $place.receiver
         Type Int
         IntegerBinary add kind=Int
           Type Int

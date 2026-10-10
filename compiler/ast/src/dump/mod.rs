@@ -5,6 +5,9 @@ mod headers;
 mod patterns;
 mod statements;
 mod types;
+mod when;
+
+use when::dump_when;
 
 pub use declarations::dump;
 pub use patterns::dump_pattern;

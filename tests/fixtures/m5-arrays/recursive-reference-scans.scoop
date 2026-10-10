@@ -21,9 +21,9 @@ fun main() {
     gcCollect()
 
     when (items[0].payload) {
-        Text(value) -> println(value)
-        Number(value) -> println(value)
-        Empty -> println("missing")
+        case Text(value) -> println(value)
+        case Number(value) -> println(value)
+        case Empty -> println("missing")
     }
     println(items[0].tail)
     println(items[1].tail)

@@ -1,7 +1,7 @@
 use crate::{
     DefaultAssignTargetV1, DefaultPatternV1, DefaultPatternViewV1, DefaultStatementKindV1,
-    DefaultStatementV1, DefaultTryV1, DefaultWhenFallbackViewV1, DefaultWhenV1,
-    OptionalDefaultStatementListViewV1,
+    DefaultStatementV1, DefaultTryV1, DefaultWhenConditionV1, DefaultWhenFallbackViewV1,
+    DefaultWhenV1, OptionalDefaultStatementListViewV1,
 };
 
 use super::{
@@ -305,7 +305,9 @@ impl Validator<'_> {
         reachable: bool,
         region: Region,
     ) -> Result<Flow, ExportDefaultLocalDataFlowValidationError> {
-        self.validate_expression(value.subject(), &available, reachable)?;
+        if let Some(subject) = value.subject() {
+            self.validate_expression(subject, &available, reachable)?;
+        }
         let mut paths = Vec::new();
         scoop_wire::allocation::try_reserve(&mut paths, value.arms().len() + 1, self.path)
             .map_err(ExportDefaultLocalDataFlowValidationError::Resource)?;
@@ -315,8 +317,29 @@ impl Validator<'_> {
 
         for arm in value.arms() {
             let mut arm_available = self.copy_bits(&available)?;
-            let irrefutable = self.define_pattern(arm.pattern(), &mut arm_available)?;
-            let arm_reachable = next_reachable;
+            let (irrefutable, condition_falls_through) = match arm.condition() {
+                DefaultWhenConditionV1::Case(pattern) => {
+                    (self.define_pattern(pattern, &mut arm_available)?, true)
+                }
+                DefaultWhenConditionV1::Always => (true, true),
+                DefaultWhenConditionV1::Predicate(predicate) => {
+                    let flow = self.validate_statements(
+                        predicate.setup(),
+                        Flow::falling_through(arm_available),
+                        next_reachable,
+                        child,
+                    )?;
+                    self.validate_expression(
+                        predicate.condition(),
+                        &flow.available,
+                        next_reachable && flow.falls_through,
+                    )?;
+                    self.merge_abrupt_outcomes(&mut guard_abrupt, flow.abrupt)?;
+                    arm_available = flow.available;
+                    (false, flow.falls_through)
+                }
+            };
+            let arm_reachable = next_reachable && condition_falls_through;
             let (body_reachable, can_try_next, body_available, abrupt) =
                 if let Some(guard) = arm.guard().as_ref() {
                     let guard_flow = self.validate_statements(
@@ -354,10 +377,15 @@ impl Validator<'_> {
             if body_reachable {
                 paths.push(body);
             }
-            next_reachable &= can_try_next;
+            next_reachable &= condition_falls_through && can_try_next;
         }
 
         match value.fallback().view() {
+            DefaultWhenFallbackViewV1::Fallthrough => {
+                if next_reachable {
+                    paths.push(Flow::falling_through(self.copy_bits(&available)?));
+                }
+            }
             DefaultWhenFallbackViewV1::Else(statements) => {
                 let fallback_available = self.copy_bits(&available)?;
                 let fallback = self.validate_statements(

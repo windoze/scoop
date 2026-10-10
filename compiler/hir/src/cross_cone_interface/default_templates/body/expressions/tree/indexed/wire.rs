@@ -61,6 +61,7 @@ impl WireEncode for IndexedDefaultExpressionKindV1<'_> {
                 conversion,
                 operand,
             } => encode_two(encoder, 70, conversion, operand.as_ref()),
+            Self::Unreachable => encode_empty(encoder, 74),
             Self::UnitLiteral => encode_empty(encoder, 4),
             Self::TupleLiteral(elements) => encode_sequence_variant(encoder, 5, elements),
             Self::StructInit {

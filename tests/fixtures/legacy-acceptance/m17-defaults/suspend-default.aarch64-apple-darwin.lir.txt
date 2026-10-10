@@ -64,17 +64,19 @@ Module
     local %1 $dependency.parameter.value: ptr<managed>
     local %2 $dependency.argument.0: interface{object,itab}
     local %3 $dependency.parameter._1: interface{object,itab}
+    local %4 $place.receiver: ptr<managed>
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[param0:ptr<managed>@0, param1:interface{object,itab}@0]
     store global0 -> local0
     store local0 -> local1
     call managed-void-target0 sp<managed-call:0> live=[param0:ptr<managed>@0, param1:interface{object,itab}@0, local1:ptr<managed>@0] sig=void0 (ptr<managed>) local-fn11(local1)
     t0 = aggregate () : {}
+    t1 = heap_load param0 +16 : ptr<managed>
+    store t1 -> local4
     store param1 -> local2
     store local2 -> local3
-    t1 = heap_load param0 +16 : ptr<managed>
     t2 = enum_wrap e0 v0 (local3) : enum0
-    heap_store t1 +16 t2
+    heap_store local4 +16 t2
     ret
   fun @scoop$1$cb$72211a5fa897eda5dcf7180485bd2ada8f5d8dc6651ba77921085505ba9829d0(ptr<managed>, parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>) -> parts<enum3 [[2xi64]@0+16/8]>
     local %0 $frame: ptr<managed>

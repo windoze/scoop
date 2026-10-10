@@ -17,7 +17,7 @@ pub(crate) fn build(
     hir::HirCallbackRegistrationIdentities::from_registrations(
         hir::HirCallbackRegistrationIdentityInputs {
             registrations: &lowerer.foreign_callback_registrations,
-            functions: &lowerer.functions,
+            functions: lowerer.functions.as_arena(),
             lambdas: &lowerer.lambdas,
             anonymous_functions: &lowerer.anonymous_functions,
             local_functions: &lowerer.local_functions,

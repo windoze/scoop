@@ -24,7 +24,7 @@ fun main() {
             String.fromUtf8Unchecked(bytes) != "Z雪🚀\u0000") { println("byte-snapshot"); return }
     }
     val many = MutableArray<Char>(120L) { index ->
-        when (index % 4L) { 0L -> 'A'; 1L -> '雪'; 2L -> '🚀'; else -> '\u0000' }
+        when (index % 4L) { case 0L -> 'A'; case 1L -> '雪'; case 2L -> '🚀'; else -> '\u0000' }
     }
     val large = String.fromChars(many)
     val roundTrip = large.toCharArray()

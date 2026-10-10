@@ -72,7 +72,7 @@ pub(crate) fn when_stmt(
 ) -> Statement {
     Statement {
         kind: StatementKind::When(ast::When {
-            subject,
+            subject: ast::WhenSubject::Expression(subject),
             arms,
             else_body: else_body.map(block),
             span: sp(),
@@ -87,7 +87,7 @@ pub(crate) fn arm(
     body: Vec<Statement>,
 ) -> ast::WhenArm {
     ast::WhenArm {
-        pattern,
+        condition: ast::WhenArmCondition::Case(pattern),
         guard,
         body: block(body),
         span: sp(),

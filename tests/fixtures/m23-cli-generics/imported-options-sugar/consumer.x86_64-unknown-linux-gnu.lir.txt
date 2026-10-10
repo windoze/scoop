@@ -121,67 +121,67 @@ Module
     local %10 $dependency.receiver: i32
     local %11 $dependency.argument.0: i32
     local %12 $dependency.parameter.other: i32
-    local %13 $argument.0: i32
-    local %14 $parameter.value: i32
-    local %15 $opt.3: enum1
-    local %16 $res.4: i32
+    local %13 opt: enum1
+    local %14 $argument.0: i32
+    local %15 $parameter.value: i32
+    local %16 $result.3: i32
     local %17 $dependency.receiver: i32
     local %18 $dependency.argument.0: i32
     local %19 $dependency.parameter.other: i32
-    local %20 $shortCircuit.5: i1
+    local %20 $shortCircuit.4: i1
     local %21 $dependency.receiver: i32
     local %22 $dependency.argument.0: i32
     local %23 $dependency.parameter.other: i32
-    local %24 $shortCircuit.6: i1
+    local %24 $shortCircuit.5: i1
     local %25 $argument.0: i1
     local %26 $parameter.present: i1
-    local %27 $opt.7: enum2
+    local %27 $opt.6: enum2
     local %28 $argument.0: i32
     local %29 $parameter.value: i32
     local %30 $receiver: ptr<managed>
     local %31 $argument.0: i32
     local %32 $parameter.value: i32
-    local %33 $res.8: enum1
+    local %33 $res.7: enum1
     local %34 present: enum1
     local %35 $dependency.receiver: i32
     local %36 $dependency.argument.0: i32
     local %37 $dependency.parameter.other: i32
-    local %38 $opt.9: enum1
-    local %39 $res.10: i32
+    local %38 opt: enum1
+    local %39 $result.8: i32
     local %40 $dependency.receiver: i32
     local %41 $dependency.argument.0: i32
     local %42 $dependency.parameter.other: i32
-    local %43 $shortCircuit.11: i1
+    local %43 $shortCircuit.9: i1
     local %44 $argument.0: i1
     local %45 $parameter.present: i1
-    local %46 $opt.12: enum2
+    local %46 $opt.10: enum2
     local %47 $receiver: ptr<managed>
     local %48 $argument.0: i32
     local %49 $parameter.value: i32
     local %50 $parameter.value: i32
-    local %51 $res.13: enum1
+    local %51 $res.11: enum1
     local %52 defaulted: enum1
     local %53 $dependency.receiver: i32
     local %54 $dependency.argument.0: i32
     local %55 $dependency.parameter.other: i32
-    local %56 $opt.14: enum1
-    local %57 $res.15: i32
+    local %56 opt: enum1
+    local %57 $result.12: i32
     local %58 $dependency.receiver: i32
     local %59 $dependency.argument.0: i32
     local %60 $dependency.parameter.other: i32
-    local %61 $shortCircuit.16: i1
+    local %61 $shortCircuit.13: i1
     local %62 $argument.0: i1
     local %63 $parameter.present: i1
-    local %64 $opt.17: enum2
+    local %64 $opt.14: enum2
     local %65 $receiver: ptr<managed>
-    local %66 $res.18: enum3
+    local %66 $res.15: enum3
     local %67 nested: enum3
     local %68 $argument.0: i1
     local %69 $parameter.present: i1
-    local %70 $opt.19: enum2
-    local %71 $res.20: enum1
-    local %72 $opt.21: enum1
-    local %73 $res.22: i32
+    local %70 $opt.16: enum2
+    local %71 $res.17: enum1
+    local %72 opt: enum1
+    local %73 $result.18: i32
     local %74 $dependency.receiver: i32
     local %75 $dependency.argument.0: i32
     local %76 $dependency.parameter.other: i32
@@ -198,19 +198,20 @@ Module
     local %87 $dependency.receiver: i32
     local %88 $dependency.argument.0: i32
     local %89 $dependency.parameter.other: i32
-    local %90 $result.23: i32
+    local %90 $result.19: i32
     local %91 $when.1: enum3
     local %92 $pattern.subject.2: enum3
     local %93 $pattern.3: enum1
     local %94 $call.1: i32
     local %95 $call.2: i32
     local %96 $call.3: i32
-    local %97 $call.4: enum1
-    local %98 $call.5: i32
-    local %99 $catch.6: ptr<managed>
-    local %100 $sc.1: exception_record
-    local %101 $sc.2: ptr<raw>
-    local %102 $sc.3: ptr<managed>
+    local %97 $call.4: i32
+    local %98 $call.5: enum1
+    local %99 $call.6: i32
+    local %100 $catch.7: ptr<managed>
+    local %101 $sc.1: exception_record
+    local %102 $sc.2: ptr<raw>
+    local %103 $sc.3: ptr<managed>
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     call no-gc-void-target0 sig=void0 (i32) local-fn6(integer<Int>(0x00000000))
@@ -251,20 +252,21 @@ Module
     store true -> local20
     br @if.merge.6
   block if.else.5
-    store local9 -> local15
-    t11 = variant_test e1 v0 local15 : i1
+    store local9 -> local13
+    t11 = variant_test e1 v0 local13 : i1
     cbr t11 then @if.then.7 else @if.else.8
   block if.merge.6
     cbr local20 then @if.then.10 else @if.else.11
   block if.then.7
-    t12 = variant_payload_project e1 v0 f0 local15 : i32
+    t12 = variant_payload_project e1 v0 f0 local13 : i32
     store t12 -> local16
     br @if.merge.9
   block if.else.8
-    store integer<Int>(0x00000004) -> local13
-    store local13 -> local14
-    call managed-direct-target3 sp<managed-call:3> live=[] t13 = sig=direct4 (i32) -> i32 local-fn2(local14)
-    store t13 -> local16
+    store integer<Int>(0x00000004) -> local14
+    store local14 -> local15
+    call managed-direct-target3 sp<managed-call:3> live=[] t13 = sig=direct4 (i32) -> i32 local-fn2(local15)
+    store t13 -> local95
+    store local95 -> local16
     br @if.merge.9
   block if.merge.9
     store local16 -> local17
@@ -308,8 +310,8 @@ Module
     store t23 -> local31
     store local31 -> local32
     call managed-direct-target6 sp<managed-call:6> live=[local30:ptr<managed>@0] t24 = sig=direct8 (ptr<managed>, i32) -> i32 local-fn0(local30, local32)
-    store t24 -> local95
-    t25 = enum_wrap e1 v0 (local95) : enum1
+    store t24 -> local96
+    t25 = enum_wrap e1 v0 (local96) : enum1
     store t25 -> local33
     br @if.merge.17
   block if.else.16
@@ -368,8 +370,8 @@ Module
     call managed-direct-target8 sp<managed-call:8> live=[local47:ptr<managed>@0] t38 = sig=direct11 (i32) -> i32 local-fn2(local49)
     store t38 -> local50
     call managed-direct-target9 sp<managed-call:9> live=[local47:ptr<managed>@0] t39 = sig=direct12 (ptr<managed>, i32) -> i32 local-fn0(local47, local50)
-    store t39 -> local96
-    t40 = enum_wrap e1 v0 (local96) : enum1
+    store t39 -> local97
+    t40 = enum_wrap e1 v0 (local97) : enum1
     store t40 -> local51
     br @if.merge.28
   block if.else.27
@@ -422,8 +424,8 @@ Module
     t51 = variant_payload_project e2 v0 f0 local64 : ptr<managed>
     store t51 -> local65
     call managed-direct-target11 sp<managed-call:11> live=[local65:ptr<managed>@0] t52 = sig=direct15 (ptr<managed>) -> enum1 local-fn1(local65)
-    store t52 -> local97
-    t53 = enum_wrap e3 v0 (local97) : enum3
+    store t52 -> local98
+    t53 = enum_wrap e3 v0 (local98) : enum3
     store t53 -> local66
     br @if.merge.39
   block if.else.38
@@ -480,22 +482,22 @@ Module
     br @try.body.55
   block try.unwind.48
     (t67, t68) = landingpad : (exception_record, ptr<raw>)
-    store t67 -> local100
-    store t68 -> local101
+    store t67 -> local101
+    store t68 -> local102
     br @try.dispatch.49
   block try.dispatch.49
-    t69 = begin_catch local101 : ptr<managed>
-    store t69 -> local102
-    call no-gc-direct-target4 t70 = sig=direct18 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local102, external-td5)
+    t69 = begin_catch local102 : ptr<managed>
+    store t69 -> local103
+    call no-gc-direct-target4 t70 = sig=direct18 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local103, external-td5)
     cbr t70 then @try.catch.56 else @try.next.57
   block try.exit_pad.52
     (t73, t74) = cleanup_pad : (exception_record, ptr<raw>)
-    store t73 -> local100
-    store t74 -> local101
+    store t73 -> local101
+    store t74 -> local102
     br @try.exit_cleanup.53
   block try.exit_cleanup.53
     end_catch
-    resume local100
+    resume local101
   block try.end.54
     store local67 -> local91
     store local91 -> local92
@@ -505,9 +507,9 @@ Module
     invoke managed-direct-target14 sp<managed-invoke:0> roots=[] t76 = sig=direct19 () -> enum1 local-fn9() normal @invoke.normal.1 unwind @try.unwind.48
     br @invoke.normal.1
   block try.catch.56
-    call managed-direct-target16 sp<managed-call:14> live=[local102:ptr<managed>@0] t78 = sig=direct21 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(local102)
-    store t78 -> local99
-    store local99 -> local85
+    call managed-direct-target16 sp<managed-call:14> live=[local103:ptr<managed>@0] t78 = sig=direct21 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(local103)
+    store t78 -> local100
+    store local100 -> local85
     br @scope.58
   block try.next.57
     invoke no-gc-void-target3 sig=void3 () runtime @scoop_rt_rethrow() normal @rethrow.normal.3 unwind @try.exit_pad.52
@@ -543,7 +545,7 @@ Module
     invoke managed-direct-target15 sp<managed-invoke:1> roots=[] t77 = sig=direct20 (parts<enum1 [i64@0+8/8,i64@8+8/8]>) -> i32 local-fn8(local84) normal @invoke.normal.2 unwind @try.unwind.48
     br @invoke.normal.2
   block invoke.normal.2
-    store t77 -> local98
+    store t77 -> local99
     br @try.end.54
   block rethrow.normal.3
     unreachable

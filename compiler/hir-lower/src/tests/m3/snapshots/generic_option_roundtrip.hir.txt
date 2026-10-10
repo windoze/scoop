@@ -102,15 +102,15 @@ Module
       Local o : Option<T0>
     if
       IsSome : Boolean
-        Local $opt.0 : Option<T0>
-      val local3
+        Local opt : Option<T0>
+      assign $result.0
         Unwrap trap=false : T0
-          Local $opt.0 : Option<T0>
+          Local opt : Option<T0>
     else
-      val local3
+      assign $result.0
         Local fallback : T0
     return
-      Local $res.1 : T0
+      Local $result.0 : T0
   fun main(): Unit
     val local0
       IntegerLiteral 41 : Int

@@ -111,56 +111,57 @@ Module
     local %52 $parameter.payload: ptr<managed>
     local %53 $dependency.argument.0: struct0
     local %54 $dependency.parameter.value: struct0
-    local %55 $arr.1: ptr<managed>
-    local %56 $idx.2: i64
-    local %57 $value.3: struct1
-    local %58 $arr.4: ptr<managed>
-    local %59 $idx.5: i64
-    local %60 $value.6: struct1
-    local %61 $arr.7: ptr<managed>
-    local %62 $idx.8: i64
-    local %63 $value.9: struct1
-    local %64 $new.1: ptr<managed>
-    local %65 $logic.2: i1
-    local %66 $new.3: ptr<managed>
-    local %67 $new.4: ptr<managed>
-    local %68 $logic.5: i1
-    local %69 $new.6: ptr<managed>
-    local %70 $new.7: ptr<managed>
-    local %71 $logic.8: i1
-    local %72 $new.9: ptr<managed>
-    local %73 $new.10: ptr<managed>
-    local %74 $new.11: ptr<managed>
-    local %75 $inline.16.result: struct0
-    local %76 $inline.16.serial: i64
-    local %77 $inline.16.payload: ptr<managed>
-    local %78 $inline.18.this: ptr<managed>
-    local %79 $inline.18.number: i32
-    local %80 $inline.20.result: struct0
-    local %81 $inline.20.serial: i64
-    local %82 $inline.20.payload: ptr<managed>
-    local %83 $inline.22.this: ptr<managed>
-    local %84 $inline.22.number: i32
-    local %85 $inline.24.result: struct0
-    local %86 $inline.24.serial: i64
-    local %87 $inline.24.payload: ptr<managed>
-    local %88 $inline.26.this: ptr<managed>
-    local %89 $inline.26.number: i32
-    local %90 $inline.28.result: struct0
-    local %91 $inline.28.serial: i64
-    local %92 $inline.28.payload: ptr<managed>
-    local %93 $inline.30.this: ptr<managed>
-    local %94 $inline.30.number: i32
-    local %95 $inline.32.result: struct0
-    local %96 $inline.32.serial: i64
-    local %97 $inline.32.payload: ptr<managed>
-    local %98 $inline.34.this: ptr<managed>
-    local %99 $inline.34.number: i32
-    local %100 $maybe.1: struct1
-    local %101 $maybe.2: struct1
-    local %102 $maybe.3: struct1
-    local %103 $maybe.4: struct1
-    local %104 $maybe.5: struct1
+    local %55 $place.receiver: ptr<managed>
+    local %56 $arr.1: ptr<managed>
+    local %57 $idx.2: i64
+    local %58 $value.3: struct1
+    local %59 $arr.4: ptr<managed>
+    local %60 $idx.5: i64
+    local %61 $value.6: struct1
+    local %62 $arr.7: ptr<managed>
+    local %63 $idx.8: i64
+    local %64 $value.9: struct1
+    local %65 $new.1: ptr<managed>
+    local %66 $logic.2: i1
+    local %67 $new.3: ptr<managed>
+    local %68 $new.4: ptr<managed>
+    local %69 $logic.5: i1
+    local %70 $new.6: ptr<managed>
+    local %71 $new.7: ptr<managed>
+    local %72 $logic.8: i1
+    local %73 $new.9: ptr<managed>
+    local %74 $new.10: ptr<managed>
+    local %75 $new.11: ptr<managed>
+    local %76 $inline.16.result: struct0
+    local %77 $inline.16.serial: i64
+    local %78 $inline.16.payload: ptr<managed>
+    local %79 $inline.18.this: ptr<managed>
+    local %80 $inline.18.number: i32
+    local %81 $inline.20.result: struct0
+    local %82 $inline.20.serial: i64
+    local %83 $inline.20.payload: ptr<managed>
+    local %84 $inline.22.this: ptr<managed>
+    local %85 $inline.22.number: i32
+    local %86 $inline.24.result: struct0
+    local %87 $inline.24.serial: i64
+    local %88 $inline.24.payload: ptr<managed>
+    local %89 $inline.26.this: ptr<managed>
+    local %90 $inline.26.number: i32
+    local %91 $inline.28.result: struct0
+    local %92 $inline.28.serial: i64
+    local %93 $inline.28.payload: ptr<managed>
+    local %94 $inline.30.this: ptr<managed>
+    local %95 $inline.30.number: i32
+    local %96 $inline.32.result: struct0
+    local %97 $inline.32.serial: i64
+    local %98 $inline.32.payload: ptr<managed>
+    local %99 $inline.34.this: ptr<managed>
+    local %100 $inline.34.number: i32
+    local %101 $maybe.1: struct1
+    local %102 $maybe.2: struct1
+    local %103 $maybe.3: struct1
+    local %104 $maybe.4: struct1
+    local %105 $maybe.5: struct1
   block entry
     poll managed-void-target4 sp<managed-poll:0> live=[param0:ptr<managed>@0, param1:ptr<managed>@0]
     store param0 -> local8
@@ -169,210 +170,211 @@ Module
     store integer<Int>(0x0000000b) -> local0
     store integer<Int>(0x0000000b) -> local1
     call managed-direct-target0 sp<managed-call:0> live=[param0:ptr<managed>@0, param1:ptr<managed>@0, local8:ptr<managed>@0] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td24, machine<byte-size>(ByteSize(24)))
-    store t0 -> local64
-    store local64 -> local98
-    store integer<Int>(0x0000000b) -> local99
+    store t0 -> local65
+    store local65 -> local99
+    store integer<Int>(0x0000000b) -> local100
     br @inline.34.entry
   block logic.rhs.1
-    t1 = array_len array0 local55 : i64
+    t1 = array_len array0 local56 : i64
     t2 = integer_compare_GreaterOrEqual<Long> integer<Long>(0x0000000000000000), t1 : i1
-    store t2 -> local65
+    store t2 -> local66
     br @logic.merge.3
   block logic.merge.3
-    cbr local65 then @if.then.4 else @if.merge.5
+    cbr local66 then @if.then.4 else @if.merge.5
   block if.then.4
     call managed-direct-target1 sp<managed-call:10> live=[] t3 = sig=direct1 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td9, machine<byte-size>(ByteSize(24)))
-    store t3 -> local66
-    call managed-void-target0 sp<managed-call:11> live=[local66:ptr<managed>@0] sig=void0 (ptr<managed>) external-fn7(local66)
+    store t3 -> local67
+    call managed-void-target0 sp<managed-call:11> live=[local67:ptr<managed>@0] sig=void0 (ptr<managed>) external-fn7(local67)
     t4 = aggregate () : {}
-    throw local66
+    throw local67
     unreachable
   block if.merge.5
-    array_set array0 local55 integer<Long>(0x0000000000000000) local57
+    array_set array0 local56 integer<Long>(0x0000000000000000) local58
     store param0 -> local21
     store integer<Long>(0x0000000000000400) -> local22
     store integer<Long>(0x0000000000000016) -> local15
     store integer<Int>(0x00000016) -> local13
     store integer<Int>(0x00000016) -> local14
     call managed-direct-target2 sp<managed-call:1> live=[param0:ptr<managed>@0, param1:ptr<managed>@0, local21:ptr<managed>@0] t5 = sig=direct2 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td24, machine<byte-size>(ByteSize(24)))
-    store t5 -> local67
-    store local67 -> local93
-    store integer<Int>(0x00000016) -> local94
+    store t5 -> local68
+    store local68 -> local94
+    store integer<Int>(0x00000016) -> local95
     br @inline.30.entry
   block logic.rhs.6
-    t6 = array_len array0 local58 : i64
+    t6 = array_len array0 local59 : i64
     t7 = integer_compare_GreaterOrEqual<Long> integer<Long>(0x0000000000000400), t6 : i1
-    store t7 -> local68
+    store t7 -> local69
     br @logic.merge.8
   block logic.merge.8
-    cbr local68 then @if.then.9 else @if.merge.10
+    cbr local69 then @if.then.9 else @if.merge.10
   block if.then.9
     call managed-direct-target3 sp<managed-call:8> live=[] t8 = sig=direct3 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td9, machine<byte-size>(ByteSize(24)))
-    store t8 -> local69
-    call managed-void-target1 sp<managed-call:9> live=[local69:ptr<managed>@0] sig=void1 (ptr<managed>) external-fn7(local69)
+    store t8 -> local70
+    call managed-void-target1 sp<managed-call:9> live=[local70:ptr<managed>@0] sig=void1 (ptr<managed>) external-fn7(local70)
     t9 = aggregate () : {}
-    throw local69
+    throw local70
     unreachable
   block if.merge.10
-    array_set array0 local58 integer<Long>(0x0000000000000400) local60
+    array_set array0 local59 integer<Long>(0x0000000000000400) local61
     store param0 -> local34
     store integer<Long>(0x00000000000007ff) -> local35
     store integer<Long>(0x0000000000000021) -> local28
     store integer<Int>(0x00000021) -> local26
     store integer<Int>(0x00000021) -> local27
     call managed-direct-target4 sp<managed-call:2> live=[param1:ptr<managed>@0, local34:ptr<managed>@0] t10 = sig=direct4 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td24, machine<byte-size>(ByteSize(24)))
-    store t10 -> local70
-    store local70 -> local88
-    store integer<Int>(0x00000021) -> local89
+    store t10 -> local71
+    store local71 -> local89
+    store integer<Int>(0x00000021) -> local90
     br @inline.26.entry
   block logic.rhs.11
-    t11 = array_len array0 local61 : i64
+    t11 = array_len array0 local62 : i64
     t12 = integer_compare_GreaterOrEqual<Long> integer<Long>(0x00000000000007ff), t11 : i1
-    store t12 -> local71
+    store t12 -> local72
     br @logic.merge.13
   block logic.merge.13
-    cbr local71 then @if.then.14 else @if.merge.15
+    cbr local72 then @if.then.14 else @if.merge.15
   block if.then.14
     call managed-direct-target5 sp<managed-call:6> live=[] t13 = sig=direct5 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td9, machine<byte-size>(ByteSize(24)))
-    store t13 -> local72
-    call managed-void-target2 sp<managed-call:7> live=[local72:ptr<managed>@0] sig=void2 (ptr<managed>) external-fn7(local72)
+    store t13 -> local73
+    call managed-void-target2 sp<managed-call:7> live=[local73:ptr<managed>@0] sig=void2 (ptr<managed>) external-fn7(local73)
     t14 = aggregate () : {}
-    throw local72
+    throw local73
     unreachable
   block if.merge.15
-    array_set array0 local61 integer<Long>(0x00000000000007ff) local63
+    array_set array0 local62 integer<Long>(0x00000000000007ff) local64
     store integer<Long>(0x000000000000002c) -> local41
     store integer<Int>(0x0000002c) -> local39
     store integer<Int>(0x0000002c) -> local40
     call managed-direct-target6 sp<managed-call:3> live=[param1:ptr<managed>@0] t15 = sig=direct6 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td24, machine<byte-size>(ByteSize(24)))
-    store t15 -> local73
-    store local73 -> local83
-    store integer<Int>(0x0000002c) -> local84
+    store t15 -> local74
+    store local74 -> local84
+    store integer<Int>(0x0000002c) -> local85
     br @inline.22.entry
   block inline.cont.16
-    store local75 -> local53
+    store local76 -> local53
     store local53 -> local54
-    call managed-void-target3 sp<managed-call:5> live=[local54:struct0@8] sig=void3 () local-fn9()
-    t16 = aggregate () : {}
-    t17 = global_load global6 : ptr<managed>
-    local100 = maybe_uninit.initialized MaybeUninit local54 : struct1
-    heap_store t17 +16 local100
+    local101 = maybe_uninit.initialized MaybeUninit local54 : struct1
+    heap_store local55 +16 local101
     ret
   block inline.16.entry
-    t18 = aggregate (integer<Long>(0x0000000000000037), local77) : struct0
-    store t18 -> local75
+    t16 = aggregate (integer<Long>(0x0000000000000037), local78) : struct0
+    store t16 -> local76
     br @inline.cont.16
   block inline.cont.18
-    store local74 -> local50
+    store local75 -> local50
     store integer<Long>(0x0000000000000037) -> local51
     store local50 -> local52
-    store integer<Long>(0x0000000000000037) -> local76
-    store local52 -> local77
+    store integer<Long>(0x0000000000000037) -> local77
+    store local52 -> local78
     br @inline.16.entry
   block inline.18.entry
-    heap_store local78 +16 integer<Int>(0x00000037)
+    heap_store local79 +16 integer<Int>(0x00000037)
     br @inline.cont.18
   block inline.cont.20
-    store local80 -> local45
+    store local81 -> local45
     store local45 -> local46
-    local101 = maybe_uninit.initialized MaybeUninit local46 : struct1
-    heap_store param1 +16 local101
+    local102 = maybe_uninit.initialized MaybeUninit local46 : struct1
+    heap_store param1 +16 local102
+    call managed-void-target3 sp<managed-call:4> live=[] sig=void3 () local-fn9()
+    t17 = aggregate () : {}
+    t18 = global_load global6 : ptr<managed>
+    store t18 -> local55
     store integer<Long>(0x0000000000000037) -> local49
     store integer<Int>(0x00000037) -> local47
     store integer<Int>(0x00000037) -> local48
-    call managed-direct-target7 sp<managed-call:4> live=[] t19 = sig=direct7 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td24, machine<byte-size>(ByteSize(24)))
-    store t19 -> local74
-    store local74 -> local78
-    store integer<Int>(0x00000037) -> local79
+    call managed-direct-target7 sp<managed-call:5> live=[local55:ptr<managed>@0] t19 = sig=direct7 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td24, machine<byte-size>(ByteSize(24)))
+    store t19 -> local75
+    store local75 -> local79
+    store integer<Int>(0x00000037) -> local80
     br @inline.18.entry
   block inline.20.entry
-    t20 = aggregate (integer<Long>(0x000000000000002c), local82) : struct0
-    store t20 -> local80
+    t20 = aggregate (integer<Long>(0x000000000000002c), local83) : struct0
+    store t20 -> local81
     br @inline.cont.20
   block inline.cont.22
-    store local73 -> local42
+    store local74 -> local42
     store integer<Long>(0x000000000000002c) -> local43
     store local42 -> local44
-    store integer<Long>(0x000000000000002c) -> local81
-    store local44 -> local82
+    store integer<Long>(0x000000000000002c) -> local82
+    store local44 -> local83
     br @inline.20.entry
   block inline.22.entry
-    heap_store local83 +16 integer<Int>(0x0000002c)
+    heap_store local84 +16 integer<Int>(0x0000002c)
     br @inline.cont.22
   block inline.cont.24
-    store local85 -> local32
+    store local86 -> local32
     store local32 -> local33
-    local102 = maybe_uninit.initialized MaybeUninit local33 : struct1
-    store local102 -> local36
+    local103 = maybe_uninit.initialized MaybeUninit local33 : struct1
+    store local103 -> local36
     store integer<Long>(0x00000000000007ff) -> local37
     store local36 -> local38
-    store local34 -> local61
-    store integer<Long>(0x00000000000007ff) -> local62
-    store local38 -> local63
+    store local34 -> local62
+    store integer<Long>(0x00000000000007ff) -> local63
+    store local38 -> local64
     br @logic.rhs.11
   block inline.24.entry
-    t21 = aggregate (integer<Long>(0x0000000000000021), local87) : struct0
-    store t21 -> local85
+    t21 = aggregate (integer<Long>(0x0000000000000021), local88) : struct0
+    store t21 -> local86
     br @inline.cont.24
   block inline.cont.26
-    store local70 -> local29
+    store local71 -> local29
     store integer<Long>(0x0000000000000021) -> local30
     store local29 -> local31
-    store integer<Long>(0x0000000000000021) -> local86
-    store local31 -> local87
+    store integer<Long>(0x0000000000000021) -> local87
+    store local31 -> local88
     br @inline.24.entry
   block inline.26.entry
-    heap_store local88 +16 integer<Int>(0x00000021)
+    heap_store local89 +16 integer<Int>(0x00000021)
     br @inline.cont.26
   block inline.cont.28
-    store local90 -> local19
+    store local91 -> local19
     store local19 -> local20
-    local103 = maybe_uninit.initialized MaybeUninit local20 : struct1
-    store local103 -> local23
+    local104 = maybe_uninit.initialized MaybeUninit local20 : struct1
+    store local104 -> local23
     store integer<Long>(0x0000000000000400) -> local24
     store local23 -> local25
-    store local21 -> local58
-    store integer<Long>(0x0000000000000400) -> local59
-    store local25 -> local60
+    store local21 -> local59
+    store integer<Long>(0x0000000000000400) -> local60
+    store local25 -> local61
     br @logic.rhs.6
   block inline.28.entry
-    t22 = aggregate (integer<Long>(0x0000000000000016), local92) : struct0
-    store t22 -> local90
+    t22 = aggregate (integer<Long>(0x0000000000000016), local93) : struct0
+    store t22 -> local91
     br @inline.cont.28
   block inline.cont.30
-    store local67 -> local16
+    store local68 -> local16
     store integer<Long>(0x0000000000000016) -> local17
     store local16 -> local18
-    store integer<Long>(0x0000000000000016) -> local91
-    store local18 -> local92
+    store integer<Long>(0x0000000000000016) -> local92
+    store local18 -> local93
     br @inline.28.entry
   block inline.30.entry
-    heap_store local93 +16 integer<Int>(0x00000016)
+    heap_store local94 +16 integer<Int>(0x00000016)
     br @inline.cont.30
   block inline.cont.32
-    store local95 -> local6
+    store local96 -> local6
     store local6 -> local7
-    local104 = maybe_uninit.initialized MaybeUninit local7 : struct1
-    store local104 -> local10
+    local105 = maybe_uninit.initialized MaybeUninit local7 : struct1
+    store local105 -> local10
     store integer<Long>(0x0000000000000000) -> local11
     store local10 -> local12
-    store local8 -> local55
-    store integer<Long>(0x0000000000000000) -> local56
-    store local12 -> local57
+    store local8 -> local56
+    store integer<Long>(0x0000000000000000) -> local57
+    store local12 -> local58
     br @logic.rhs.1
   block inline.32.entry
-    t23 = aggregate (integer<Long>(0x000000000000000b), local97) : struct0
-    store t23 -> local95
+    t23 = aggregate (integer<Long>(0x000000000000000b), local98) : struct0
+    store t23 -> local96
     br @inline.cont.32
   block inline.cont.34
-    store local64 -> local3
+    store local65 -> local3
     store integer<Long>(0x000000000000000b) -> local4
     store local3 -> local5
-    store integer<Long>(0x000000000000000b) -> local96
-    store local5 -> local97
+    store integer<Long>(0x000000000000000b) -> local97
+    store local5 -> local98
     br @inline.32.entry
   block inline.34.entry
-    heap_store local98 +16 integer<Int>(0x0000000b)
+    heap_store local99 +16 integer<Int>(0x0000000b)
     br @inline.cont.34
   fun @scoop$1$cb$92f5e88f0a7f10cfeeb4da88f00c53e959db05903a9baaef967735c51724ca2c() -> void
     local %0 $argument.0: i64

@@ -81,12 +81,8 @@ impl StrongCallableRuntimeScanPlanSetV1 {
                 let body = body.id();
                 let plan = callable_definition_plan(foundation, body)?;
                 let actual = foundation
-                    .definition_atoms()
-                    .iter()
-                    .filter(|atom| {
-                        atom.key().plan() == plan
-                            && atom.key().role() == DefinitionAtomRole::RuntimeRecord
-                    })
+                    .definition_atoms_for_plan(plan)
+                    .filter(|atom| atom.key().role() == DefinitionAtomRole::RuntimeRecord)
                     .map(|atom| atom.id())
                     .collect::<Vec<_>>();
                 if !actual.is_empty() {

@@ -41,9 +41,9 @@ public fun <T> chosen(pair: Pair<T>, value: T = if (true) {
 } else { pair.left }): T = value
 
 public fun <T> matched(pair: Pair<T>, value: T = when (pair) {
-    Pair(selected, _) -> selected
+    case Pair(selected, _) -> selected
 }): T = value
 
 public fun <T> patternBody(pair: Pair<T>, read: (T) -> Int): Int = when (pair) {
-    Pair { left: value, right: extra } -> read(value) + extra
+    case Pair { left: value, right: extra } -> read(value) + extra
 }

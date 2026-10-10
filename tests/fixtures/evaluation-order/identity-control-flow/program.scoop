@@ -1,0 +1,22 @@
+class Ref()
+fun left(label: String, value: Ref): Ref { println(label); return value }
+fun fail(): Nothing { throw IllegalStateException() }
+
+fun main() {
+    val first = Ref()
+    val second = Ref()
+    var selected = first
+    println(selected === if (true) { selected = second; first } else { second })
+    println(selected !== if (true) { selected = first; second } else { first })
+    println(left("left", selected) === try {
+        println("right")
+        selected = second
+        gcCollect()
+        first
+    } finally { println("cleanup") })
+    try {
+        println(left("throw-left", first) !== try {
+            fail()
+        } finally { println("throw-right") })
+    } catch (e: IllegalStateException) { println("caught") }
+}

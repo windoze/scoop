@@ -4,7 +4,7 @@ public fun primary(): Counter {
     val value = RebuiltCounter(21).read()
     val flag = RebuiltFlag.Ready
     return when (flag) {
-        Ready -> Counter(RebuiltAlias(value).read())
-        Empty -> Counter(0)
+        case Ready -> Counter(RebuiltAlias(value).read())
+        case Empty -> Counter(0)
     }
 }

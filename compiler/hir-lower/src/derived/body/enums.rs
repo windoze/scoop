@@ -60,12 +60,12 @@ impl Lowerer {
             let equal = self.fold_conjunction(comparisons, self.boolean, span);
             let inner = hir::Statement {
                 kind: hir::StatementKind::When(hir::When {
-                    subject: other_expr.clone(),
+                    subject: Some(other_expr.clone()),
                     arms: vec![hir::WhenArm {
-                        pattern: hir::Pattern::Variant {
+                        condition: hir::WhenCondition::Case(hir::Pattern::Variant {
                             application: target,
                             fields: right_fields,
-                        },
+                        }),
                         guard: None,
                         body: vec![return_statement(equal, span)],
                         span,
@@ -78,10 +78,10 @@ impl Lowerer {
                 span,
             };
             arms.push(hir::WhenArm {
-                pattern: hir::Pattern::Variant {
+                condition: hir::WhenCondition::Case(hir::Pattern::Variant {
                     application: target,
                     fields: left_fields,
-                },
+                }),
                 guard: None,
                 body: vec![inner],
                 span,
@@ -89,7 +89,7 @@ impl Lowerer {
         }
         Ok(vec![hir::Statement {
             kind: hir::StatementKind::When(hir::When {
-                subject: this_expr,
+                subject: Some(this_expr),
                 arms,
                 fallback: hir::WhenFallback::Impossible(proof),
             }),

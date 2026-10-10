@@ -1935,18 +1935,18 @@ Module
       trap "call to abstract method `Continuation.resume`"
   fun register @fn58(this: Registration<Local>, continuation: Continuation<Local>) -> Unit
     bb0 entry
+      call $dependency.local.4: Gate<Local> = @fn61 direct
+        Type Registration<Local>
+        Local this
       val $dependency.local.2: Continuation<Local>
         Type Continuation<Local>
         Local continuation
       val $dependency.local.3: Continuation<Local>
         Type Continuation<Local>
         Local $dependency.local.2
-      call $call.1: Gate<Local> = @fn61 direct
-        Type Registration<Local>
-        Local this
       call @fn34 direct
         Type Gate<Local>
-        Local $call.1
+        Local $dependency.local.4
         Type Option<Continuation<Local>>
         VariantConstruct Option<Continuation<Local>> v0
           Type Continuation<Local>
@@ -1954,18 +1954,18 @@ Module
       return
   fun register @fn59(this: Registration<Int>, continuation: Continuation<Int>) -> Unit
     bb0 entry
+      call $dependency.local.4: Gate<Int> = @fn62 direct
+        Type Registration<Int>
+        Local this
       val $dependency.local.2: Continuation<Int>
         Type Continuation<Int>
         Local continuation
       val $dependency.local.3: Continuation<Int>
         Type Continuation<Int>
         Local $dependency.local.2
-      call $call.1: Gate<Int> = @fn62 direct
-        Type Registration<Int>
-        Local this
       call @fn45 direct
         Type Gate<Int>
-        Local $call.1
+        Local $dependency.local.4
         Type Option<Continuation<Int>>
         VariantConstruct Option<Continuation<Int>> v0
           Type Continuation<Int>
@@ -1973,18 +1973,18 @@ Module
       return
   fun register @fn60(this: Registration<Unit>, continuation: Continuation<Unit>) -> Unit
     bb0 entry
+      call $dependency.local.4: Gate<Unit> = @fn63 direct
+        Type Registration<Unit>
+        Local this
       val $dependency.local.2: Continuation<Unit>
         Type Continuation<Unit>
         Local continuation
       val $dependency.local.3: Continuation<Unit>
         Type Continuation<Unit>
         Local $dependency.local.2
-      call $call.1: Gate<Unit> = @fn63 direct
-        Type Registration<Unit>
-        Local this
       call @fn56 direct
         Type Gate<Unit>
-        Local $call.1
+        Local $dependency.local.4
         Type Option<Continuation<Unit>>
         VariantConstruct Option<Continuation<Unit>> v0
           Type Continuation<Unit>

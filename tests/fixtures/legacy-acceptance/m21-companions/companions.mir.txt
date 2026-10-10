@@ -307,6 +307,10 @@ Module
         Type Int
         Local $dependency.parameter.value
       call @fn28 direct
+      val $place.receiver: Box.Factory<Int>
+        Type Box.Factory<Int>
+        GlobalRead $singleton$Factory
+      call @fn28 direct
       val $dependency.receiver: Int
         Type Int
         FieldAccess 1
@@ -318,10 +322,9 @@ Module
       val $dependency.parameter.other: Int
         Type Int
         Local $dependency.argument.0
-      call @fn28 direct
       field_set 1
         Type Box.Factory<Int>
-        GlobalRead $singleton$Factory
+        Local $place.receiver
         Type Int
         IntegerBinary add kind=Int
           Type Int

@@ -89,7 +89,7 @@ class Process:
             raise EnvironmentError(f"cannot start {argv!r}: {error}") from error
 
     def finish(self, interrupted=None):
-        timeout = self.step.get("timeout", 120)
+        timeout = self.step.get("timeout", 300)
         while True:
             check_interrupted(interrupted)
             remaining = max(0.001, timeout - (time.monotonic() - self.started))

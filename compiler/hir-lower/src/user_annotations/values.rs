@@ -26,6 +26,16 @@ impl Lowerer {
         span: ast::Span,
     ) -> Option<hir::CanonicalConstValueV1> {
         let value = match value {
+            ast::AnnotationLiteral::Array(_) => {
+                self.error(
+                    span,
+                    format!(
+                        "annotation argument must be a scalar {}, found an array",
+                        self.type_name(ty)
+                    ),
+                );
+                return None;
+            }
             ast::AnnotationLiteral::Int(literal) => {
                 self.lower_integer_literal(*literal, Some(ty), false, span)?
             }

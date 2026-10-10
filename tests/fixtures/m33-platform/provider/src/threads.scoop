@@ -14,12 +14,12 @@ public fun spawn(action: () -> Int): Thread {
         val observer = retainForeignCallback(callback)
         val (thread, error) = spawnNative(callback.function, callback.context)
         when (thread) {
-            None -> {
+            case None -> {
                 releaseForeignCallback(callback)
                 releaseForeignCallback(observer)
                 throw IllegalStateException()
             }
-            Some(handle) -> { return Thread(handle, observer) }
+            case Some(handle) -> { return Thread(handle, observer) }
         }
     }
 }
@@ -30,8 +30,8 @@ public fun join(thread: Thread): Int {
         if (error != 0) { throw IllegalStateException() }
         try {
             when (foreignCallbackFailure(thread.observer)) {
-                None -> {}
-                Some(failure) -> { throw failure }
+                case None -> {}
+                case Some(failure) -> { throw failure }
             }
             if (foreignCallbackState(thread.observer) != ForeignCallbackState.Completed) {
                 throw IllegalStateException()

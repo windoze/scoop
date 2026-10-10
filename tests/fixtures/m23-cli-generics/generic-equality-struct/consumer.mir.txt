@@ -27,7 +27,7 @@ Module
       val $dependency.parameter.number: Int
         Type Int
         Local $dependency.argument.0
-      call left: Counter<Int> = @fn4 direct
+      call left: Counter<Int> = @fn3 direct
         Type Int
         Local $dependency.parameter.number
       val $dependency.argument.0: Int
@@ -36,7 +36,7 @@ Module
       val $dependency.parameter.number: Int
         Type Int
         Local $dependency.argument.0
-      call same: Counter<Int> = @fn4 direct
+      call same: Counter<Int> = @fn3 direct
         Type Int
         Local $dependency.parameter.number
       val $dependency.argument.0: Int
@@ -45,7 +45,7 @@ Module
       val $dependency.parameter.number: Int
         Type Int
         Local $dependency.argument.0
-      call other: Counter<Int> = @fn4 direct
+      call other: Counter<Int> = @fn3 direct
         Type Int
         Local $dependency.parameter.number
       val $dependency.argument.0: Counter<Int>
@@ -100,35 +100,53 @@ Module
         Type Int
         IntegerLiteral Int value=2 bits=0x00000002
     bb4 if.merge.4
-      call $call.2: Boolean = @fn3 direct
+      val $equality.this: Counter<Int>
         Type Counter<Int>
         Local left
+      val $equality.other: Counter<Int>
         Type Counter<Int>
         Local same
-      branch bb6 bb5
+      branch bb5 bb6
         Type Boolean
         Unary BoolNot
           Type Boolean
-          Local $call.2
-    bb5 logic.rhs.5
-      call $call.4: Boolean = @fn3 direct
-        Type Counter<Int>
-        Local left
-        Type Counter<Int>
-        Local other
-      assign $logic.3
-        Type Boolean
-        Local $call.4
-      goto bb7
-    bb6 logic.short.6
-      assign $logic.3
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            FieldAccess 0
+              Type Counter<Int>
+              Local $equality.this
+            Type Int
+            FieldAccess 0
+              Type Counter<Int>
+              Local $equality.other
+    bb5 if.then.5
+      val $shortCircuit.0: Boolean
         Type Boolean
         BoolLiteral true
       goto bb7
-    bb7 logic.merge.7
+    bb6 if.else.6
+      val $equality.this: Counter<Int>
+        Type Counter<Int>
+        Local left
+      val $equality.other: Counter<Int>
+        Type Counter<Int>
+        Local other
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          FieldAccess 0
+            Type Counter<Int>
+            Local $equality.this
+          Type Int
+          FieldAccess 0
+            Type Counter<Int>
+            Local $equality.other
+      goto bb7
+    bb7 if.merge.7
       branch bb8 bb9
         Type Boolean
-        Local $logic.3
+        Local $shortCircuit.0
     bb8 if.then.8
       return
         Type Int
@@ -139,28 +157,24 @@ Module
         IntegerLiteral Int value=42 bits=0x0000002a
   fun compareCounters @fn2(left: Counter<Int>, right: Counter<Int>) -> Boolean
     bb0 entry
-      call $call.1: Boolean = @fn3 direct
+      val $dependency.local.2: Counter<Int>
         Type Counter<Int>
         Local left
+      val $dependency.local.3: Counter<Int>
         Type Counter<Int>
         Local right
-      return
-        Type Boolean
-        Local $call.1
-  fun $derived.equals.0 @fn3(this: Counter<Int>, other: Counter<Int>) -> Boolean
-    bb0 entry
       return
         Type Boolean
         IntegerCompare equal operands=Int result=Boolean
           Type Int
           FieldAccess 0
             Type Counter<Int>
-            Local this
+            Local $dependency.local.2
           Type Int
           FieldAccess 0
             Type Counter<Int>
-            Local other
-  fun ctor.Counter.$c0 @fn4(number: Int) -> Counter<Int> <no-gc>
+            Local $dependency.local.3
+  fun ctor.Counter.$c0 @fn3(number: Int) -> Counter<Int> <no-gc>
     bb0 entry
       return
         Type Counter<Int>

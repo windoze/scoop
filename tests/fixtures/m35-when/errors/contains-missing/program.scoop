@@ -1,0 +1,2 @@
+class Bag
+fun main() { when (1) { in Bag() -> {} } }

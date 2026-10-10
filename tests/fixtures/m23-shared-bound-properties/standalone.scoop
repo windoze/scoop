@@ -9,8 +9,8 @@ public fun <T> exercise(value: T): Int {
     val fallback: T = defaultRead(box)
     val present: T? = optional(Some(box))
     val absent = when (optional<T, Remote<T>>(None)) {
-        None -> true
-        Some(_) -> false
+        case None -> true
+        case Some(_) -> false
     }
     if (!absent) { return 1 }
     val integer = Remote(1, 42)

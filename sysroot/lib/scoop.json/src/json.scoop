@@ -30,8 +30,8 @@ internal fun childPath(path: String, name: String): String {
     val result = StringBuilder().add(path).add("/")
     for (character in name) {
         when (character) {
-            '~' -> { result.add("~0") }
-            '/' -> { result.add("~1") }
+            case '~' -> { result.add("~0") }
+            case '/' -> { result.add("~1") }
             else -> { result.add(character) }
         }
     }

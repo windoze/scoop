@@ -248,10 +248,11 @@ SourceFile
     Call collectAndMove
     Call replayReaders
       Var readers
-      Lambda 4 suspend=false
-        param node: Node
-        FieldAccess text
-          Var node
+      Argument trailing
+        Lambda 4 suspend=false
+          param node: Node
+          FieldAccess text
+            Var node
     Call replayIterable
       Call UserIterable
         ArrayLiteral

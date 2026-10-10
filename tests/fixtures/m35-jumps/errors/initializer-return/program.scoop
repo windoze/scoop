@@ -1,0 +1,2 @@
+val result: Int = (return 1)
+fun main() {}

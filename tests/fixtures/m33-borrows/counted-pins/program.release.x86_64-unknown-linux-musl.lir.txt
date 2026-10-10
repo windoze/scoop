@@ -105,111 +105,113 @@ Module
     local %37 last: ptr<managed>
     local %38 $dependency.argument.0: struct2
     local %39 $dependency.parameter.h: struct2
-    local %40 $argument.0: i1
-    local %41 $parameter.value: i1
-    local %42 $dependency.receiver: i32
-    local %43 $dependency.argument.0: i32
-    local %44 $dependency.parameter.other: i32
-    local %45 $argument.0: i1
-    local %46 $parameter.value: i1
-    local %47 $new.1: ptr<managed>
-    local %48 $new.2: ptr<managed>
-    local %49 $call.3: ptr<managed>
-    local %50 $call.4: ptr<managed>
-    local %51 $inline.1.result: ptr<managed>
-    local %52 $inline.1.h: struct2
-    local %53 $inline.1.$dependency.local.1: i64
-    local %54 $inline.1.$dependency.local.2: i64
-    local %55 $inline.1.$call.1: ptr<managed>
-    local %56 $inline.3.result: ptr<managed>
-    local %57 $inline.3.p: struct1
-    local %58 $inline.3.$dependency.local.1: i64
-    local %59 $inline.3.$dependency.local.2: i64
-    local %60 $inline.3.$call.1: ptr<managed>
-    local %61 $inline.5.result: ptr<managed>
-    local %62 $inline.5.p: struct1
-    local %63 $inline.5.$dependency.local.1: i64
-    local %64 $inline.5.$dependency.local.2: i64
-    local %65 $inline.5.$call.1: ptr<managed>
-    local %66 $inline.7.result: struct1
-    local %67 $inline.7.v: ptr<managed>
-    local %68 $inline.7.$dependency.local.1: ptr<managed>
-    local %69 $inline.7.$dependency.local.2: ptr<managed>
-    local %70 $inline.7.$dependency.local.3: i64
-    local %71 $inline.7.$dependency.local.4: i64
-    local %72 $inline.7.$call.1: struct1
-    local %73 $inline.9.result: struct2
-    local %74 $inline.9.v: ptr<managed>
-    local %75 $inline.9.$dependency.local.1: ptr<managed>
-    local %76 $inline.9.$dependency.local.2: ptr<managed>
-    local %77 $inline.9.$dependency.local.3: i64
-    local %78 $inline.9.$dependency.local.4: i64
-    local %79 $inline.9.$call.1: struct2
-    local %80 $inline.11.result: ptr<managed>
-    local %81 $inline.11.p: struct1
-    local %82 $inline.11.$dependency.local.1: i64
-    local %83 $inline.11.$dependency.local.2: i64
-    local %84 $inline.11.$call.1: ptr<managed>
-    local %85 $inline.13.this: ptr<managed>
-    local %86 $inline.13.child: ptr<managed>
-    local %87 $inline.15.this: ptr<managed>
-    local %88 $inline.15.value: i32
-    local %89 $inline.17.result: struct2
-    local %90 $inline.17.raw: i64
-    local %91 $inline.19.result: struct1
-    local %92 $inline.19.raw: i64
+    local %40 $equality.lhs: ptr<managed>
+    local %41 $argument.0: i1
+    local %42 $parameter.value: i1
+    local %43 $dependency.receiver: i32
+    local %44 $dependency.argument.0: i32
+    local %45 $dependency.parameter.other: i32
+    local %46 $argument.0: i1
+    local %47 $parameter.value: i1
+    local %48 $new.1: ptr<managed>
+    local %49 $new.2: ptr<managed>
+    local %50 $call.3: ptr<managed>
+    local %51 $call.4: ptr<managed>
+    local %52 $inline.1.result: ptr<managed>
+    local %53 $inline.1.h: struct2
+    local %54 $inline.1.$dependency.local.1: i64
+    local %55 $inline.1.$dependency.local.2: i64
+    local %56 $inline.1.$call.1: ptr<managed>
+    local %57 $inline.3.result: ptr<managed>
+    local %58 $inline.3.p: struct1
+    local %59 $inline.3.$dependency.local.1: i64
+    local %60 $inline.3.$dependency.local.2: i64
+    local %61 $inline.3.$call.1: ptr<managed>
+    local %62 $inline.5.result: ptr<managed>
+    local %63 $inline.5.p: struct1
+    local %64 $inline.5.$dependency.local.1: i64
+    local %65 $inline.5.$dependency.local.2: i64
+    local %66 $inline.5.$call.1: ptr<managed>
+    local %67 $inline.7.result: struct1
+    local %68 $inline.7.v: ptr<managed>
+    local %69 $inline.7.$dependency.local.1: ptr<managed>
+    local %70 $inline.7.$dependency.local.2: ptr<managed>
+    local %71 $inline.7.$dependency.local.3: i64
+    local %72 $inline.7.$dependency.local.4: i64
+    local %73 $inline.7.$call.1: struct1
+    local %74 $inline.9.result: struct2
+    local %75 $inline.9.v: ptr<managed>
+    local %76 $inline.9.$dependency.local.1: ptr<managed>
+    local %77 $inline.9.$dependency.local.2: ptr<managed>
+    local %78 $inline.9.$dependency.local.3: i64
+    local %79 $inline.9.$dependency.local.4: i64
+    local %80 $inline.9.$call.1: struct2
+    local %81 $inline.11.result: ptr<managed>
+    local %82 $inline.11.p: struct1
+    local %83 $inline.11.$dependency.local.1: i64
+    local %84 $inline.11.$dependency.local.2: i64
+    local %85 $inline.11.$call.1: ptr<managed>
+    local %86 $inline.13.this: ptr<managed>
+    local %87 $inline.13.child: ptr<managed>
+    local %88 $inline.15.this: ptr<managed>
+    local %89 $inline.15.value: i32
+    local %90 $inline.17.result: struct2
+    local %91 $inline.17.raw: i64
+    local %92 $inline.19.result: struct1
+    local %93 $inline.19.raw: i64
   block entry
     poll managed-void-target9 sp<managed-poll:0> live=[]
     store integer<Int>(0x00000049) -> local0
     store integer<Int>(0x00000049) -> local1
     call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td16, machine<byte-size>(ByteSize(24)))
-    store t0 -> local47
-    store local47 -> local87
-    store integer<Int>(0x00000049) -> local88
+    store t0 -> local48
+    store local48 -> local88
+    store integer<Int>(0x00000049) -> local89
     br @inline.15.entry
   block inline.cont.1
-    store local51 -> local50
-    t1 = Eq local37, local50 : i1
-    store t1 -> local40
-    store local40 -> local41
-    call managed-void-target0 sp<managed-call:10> live=[local37:ptr<managed>@0] sig=void0 (i1) local-fn2(local41)
+    store local52 -> local51
+    t1 = Eq local40, local51 : i1
+    store t1 -> local41
+    store local41 -> local42
+    call managed-void-target0 sp<managed-call:10> live=[local37:ptr<managed>@0] sig=void0 (i1) local-fn2(local42)
     t2 = aggregate () : {}
     t3 = heap_load local37 +16 : ptr<managed>
     t4 = heap_load t3 +16 : i32
-    store t4 -> local42
-    store integer<Int>(0x00000049) -> local43
+    store t4 -> local43
     store integer<Int>(0x00000049) -> local44
-    t5 = integer_compare_Equal<Int> local42, integer<Int>(0x00000049) : i1
-    store t5 -> local45
-    store local45 -> local46
-    call managed-void-target1 sp<managed-call:11> live=[] sig=void1 (i1) local-fn2(local46)
+    store integer<Int>(0x00000049) -> local45
+    t5 = integer_compare_Equal<Int> local43, integer<Int>(0x00000049) : i1
+    store t5 -> local46
+    store local46 -> local47
+    call managed-void-target1 sp<managed-call:11> live=[] sig=void1 (i1) local-fn2(local47)
     t6 = aggregate () : {}
     ret
   block inline.1.entry
-    t7 = extract local52, 0 : i64
-    store t7 -> local53
-    store local53 -> local54
-    call no-gc-direct-target0 t8 = sig=direct1 (i64) -> ptr<managed> runtime @scoop_rt_release_handle(local54)
-    store t8 -> local55
-    store local55 -> local51
+    t7 = extract local53, 0 : i64
+    store t7 -> local54
+    store local54 -> local55
+    call no-gc-direct-target0 t8 = sig=direct1 (i64) -> ptr<managed> runtime @scoop_rt_release_handle(local55)
+    store t8 -> local56
+    store local56 -> local52
     br @inline.cont.1
   block inline.cont.3
-    store local56 -> local37
+    store local57 -> local37
+    store local37 -> local40
     store local22 -> local38
     store local38 -> local39
-    store local39 -> local52
+    store local39 -> local53
     br @inline.1.entry
   block inline.3.entry
-    t9 = extract local57, 0 : i64
-    store t9 -> local58
-    store local58 -> local59
-    call no-gc-direct-target1 t10 = sig=direct2 (i64) -> ptr<managed> runtime @scoop_rt_unpin(local59)
-    store t10 -> local60
-    store local60 -> local56
+    t9 = extract local58, 0 : i64
+    store t9 -> local59
+    store local59 -> local60
+    call no-gc-direct-target1 t10 = sig=direct2 (i64) -> ptr<managed> runtime @scoop_rt_unpin(local60)
+    store t10 -> local61
+    store local61 -> local57
     br @inline.cont.3
   block inline.cont.5
-    store local61 -> local49
-    t11 = Eq local49, local14 : i1
+    store local62 -> local50
+    t11 = Eq local50, local14 : i1
     store t11 -> local33
     store local33 -> local34
     call managed-void-target2 sp<managed-call:8> live=[] sig=void2 (i1) local-fn2(local34)
@@ -219,18 +221,18 @@ Module
     t14 = extract local6, 1 : struct1
     store t14 -> local35
     store local35 -> local36
-    store local36 -> local57
+    store local36 -> local58
     br @inline.3.entry
   block inline.5.entry
-    t15 = extract local62, 0 : i64
-    store t15 -> local63
-    store local63 -> local64
-    call no-gc-direct-target2 t16 = sig=direct3 (i64) -> ptr<managed> runtime @scoop_rt_unpin(local64)
-    store t16 -> local65
-    store local65 -> local61
+    t15 = extract local63, 0 : i64
+    store t15 -> local64
+    store local64 -> local65
+    call no-gc-direct-target2 t16 = sig=direct3 (i64) -> ptr<managed> runtime @scoop_rt_unpin(local65)
+    store t16 -> local66
+    store local66 -> local62
     br @inline.cont.5
   block inline.cont.7
-    store local66 -> local25
+    store local67 -> local25
     t17 = extract local25, 0 : i64
     store t17 -> local26
     t18 = extract local6, 1 : struct1
@@ -244,34 +246,34 @@ Module
     t21 = aggregate () : {}
     store local25 -> local31
     store local31 -> local32
-    store local32 -> local62
+    store local32 -> local63
     br @inline.5.entry
   block inline.7.entry
-    store local67 -> local68
     store local68 -> local69
-    call no-gc-direct-target3 t22 = sig=direct4 (ptr<managed>) -> i64 runtime @scoop_rt_pin(local69)
-    store t22 -> local70
-    store local70 -> local71
-    store local71 -> local92
+    store local69 -> local70
+    call no-gc-direct-target3 t22 = sig=direct4 (ptr<managed>) -> i64 runtime @scoop_rt_pin(local70)
+    store t22 -> local71
+    store local71 -> local72
+    store local72 -> local93
     br @inline.19.entry
   block inline.cont.9
-    store local73 -> local22
+    store local74 -> local22
     call managed-void-target5 sp<managed-call:6> live=[local14:ptr<managed>@0] sig=void5 () runtime @scoop_rt_gc_collect()
     t23 = aggregate () : {}
     store local14 -> local23
     store local23 -> local24
-    store local24 -> local67
+    store local24 -> local68
     br @inline.7.entry
   block inline.9.entry
-    store local74 -> local75
     store local75 -> local76
-    call no-gc-direct-target4 t24 = sig=direct5 (ptr<managed>) -> i64 runtime @scoop_rt_get_handle(local76)
-    store t24 -> local77
-    store local77 -> local78
-    store local78 -> local90
+    store local76 -> local77
+    call no-gc-direct-target4 t24 = sig=direct5 (ptr<managed>) -> i64 runtime @scoop_rt_get_handle(local77)
+    store t24 -> local78
+    store local78 -> local79
+    store local79 -> local91
     br @inline.17.entry
   block inline.cont.11
-    store local80 -> local14
+    store local81 -> local14
     t25 = heap_load local14 +16 : ptr<managed>
     t26 = heap_load t25 +16 : i32
     store t26 -> local15
@@ -284,18 +286,18 @@ Module
     t28 = aggregate () : {}
     store local14 -> local20
     store local20 -> local21
-    store local21 -> local74
+    store local21 -> local75
     br @inline.9.entry
   block inline.11.entry
-    t29 = extract local81, 0 : i64
-    store t29 -> local82
-    store local82 -> local83
-    call no-gc-direct-target5 t30 = sig=direct6 (i64) -> ptr<managed> runtime @scoop_rt_unpin(local83)
-    store t30 -> local84
-    store local84 -> local80
+    t29 = extract local82, 0 : i64
+    store t29 -> local83
+    store local83 -> local84
+    call no-gc-direct-target5 t30 = sig=direct6 (i64) -> ptr<managed> runtime @scoop_rt_unpin(local84)
+    store t30 -> local85
+    store local85 -> local81
     br @inline.cont.11
   block inline.cont.13
-    store local48 -> local4
+    store local49 -> local4
     store local4 -> local5
     call managed-direct-target1 sp<managed-call:2> live=[local5:ptr<managed>@0] t31 = sig=direct7 (ptr<managed>) -> struct0 local-fn8(local5)
     store t31 -> local6
@@ -316,37 +318,37 @@ Module
     t39 = extract local6, 0 : struct1
     store t39 -> local12
     store local12 -> local13
-    store local13 -> local81
+    store local13 -> local82
     br @inline.11.entry
   block inline.13.entry
-    heap_store local85 +16 local86
+    heap_store local86 +16 local87
     br @inline.cont.13
   block inline.cont.15
-    store local47 -> local2
+    store local48 -> local2
     store local2 -> local3
     call managed-direct-target2 sp<managed-call:1> live=[local3:ptr<managed>@0] t40 = sig=direct8 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td17, machine<byte-size>(ByteSize(24)))
-    store t40 -> local48
-    store local48 -> local85
-    store local3 -> local86
+    store t40 -> local49
+    store local49 -> local86
+    store local3 -> local87
     br @inline.13.entry
   block inline.15.entry
-    heap_store local87 +16 integer<Int>(0x00000049)
+    heap_store local88 +16 integer<Int>(0x00000049)
     br @inline.cont.15
   block inline.cont.17
-    store local89 -> local79
-    store local79 -> local73
+    store local90 -> local80
+    store local80 -> local74
     br @inline.cont.9
   block inline.17.entry
-    t41 = aggregate (local90) : struct2
-    store t41 -> local89
+    t41 = aggregate (local91) : struct2
+    store t41 -> local90
     br @inline.cont.17
   block inline.cont.19
-    store local91 -> local72
-    store local72 -> local66
+    store local92 -> local73
+    store local73 -> local67
     br @inline.cont.7
   block inline.19.entry
-    t42 = aggregate (local92) : struct1
-    store t42 -> local91
+    t42 = aggregate (local93) : struct1
+    store t42 -> local92
     br @inline.cont.19
   fun @scoop$1$cb$35277403a0294ac8e4f1882ac0de0898c55305963ee4cd288e453f6e105377d9() -> void
     local %0 $argument.0: i64

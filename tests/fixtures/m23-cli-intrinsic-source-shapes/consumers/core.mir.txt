@@ -10302,7 +10302,12 @@ Module
         Local $call.1
   fun StringIterator.next @fn134(this: StringIterator) -> Option<Char>
     bb0 entry
-      call $call.1: Long = @fn87 direct
+      val $operand.1: Long
+        Type Long
+        FieldAccess 1
+          Type StringIterator
+          Local this
+      call $call.2: Long = @fn87 direct
         Type String
         FieldAccess 0
           Type StringIterator
@@ -10311,11 +10316,9 @@ Module
         Type Boolean
         IntegerCompare equal operands=Long result=Boolean
           Type Long
-          FieldAccess 1
-            Type StringIterator
-            Local this
+          Local $operand.1
           Type Long
-          Local $call.1
+          Local $call.2
     bb1 if.then.1
       return
         Type Option<Char>

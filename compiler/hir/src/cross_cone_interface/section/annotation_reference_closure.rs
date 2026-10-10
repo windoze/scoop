@@ -23,7 +23,13 @@ impl CrossConeHirInterfaceSectionV1 {
             &path.clone().field(10),
         )?;
         validator.role = ExternalHirReferenceRoleV1::AnnotationDependency;
-        for (reference_index, target) in self.annotations().declaration_targets().enumerate() {
+        for (reference_index, target) in self
+            .annotations()
+            .declaration_targets(path)
+            .map_err(ExternalHirDefaultClosureValidationError::Resource)?
+            .into_iter()
+            .enumerate()
+        {
             validator.observe(
                 target,
                 ExternalHirDefaultUseSiteV1::Annotation { reference_index },

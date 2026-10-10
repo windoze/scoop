@@ -29,14 +29,14 @@ fun <T : ToString> render(value: T): String = value.toString()
 fun <T : Hash> equalValuesHaveEqualHashes(left: T, right: T): Boolean = left.hash() == right.hash()
 
 fun renderWidth(value: WidthValue): String = when (value) {
-    I8(number) -> number.toString()
-    I16(number) -> number.toString()
-    I32(number) -> number.toString()
-    I64(number) -> number.toString()
-    U8(number) -> number.toString()
-    U16(number) -> number.toString()
-    U32(number) -> number.toString()
-    U64(number) -> number.toString()
+    case I8(number) -> number.toString()
+    case I16(number) -> number.toString()
+    case I32(number) -> number.toString()
+    case I64(number) -> number.toString()
+    case U8(number) -> number.toString()
+    case U16(number) -> number.toString()
+    case U32(number) -> number.toString()
+    case U64(number) -> number.toString()
 }
 
 fun main() {

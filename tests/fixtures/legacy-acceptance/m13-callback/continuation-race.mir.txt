@@ -129,6 +129,11 @@ Module
         ForeignCallbackRegister fcb0 family=fcf0
           Type (Int) -> Int
           Local $dependency.parameter.callback
+      val $place.receiver: RaceGate
+        Type RaceGate
+        FieldAccess 0
+          Type RaceRegistration
+          Local this
       val $dependency.argument.0: ForeignCallback<(Int, Ptr<Unit>) -> Int>
         Type ForeignCallback<(Int, Ptr<Unit>) -> Int>
         Local callback
@@ -137,13 +142,16 @@ Module
         Local $dependency.argument.0
       field_set 1
         Type RaceGate
-        FieldAccess 0
-          Type RaceRegistration
-          Local this
+        Local $place.receiver
         Type Option<ForeignCallback<(Int, Ptr<Unit>) -> Int>>
         VariantConstruct Option<ForeignCallback<(Int, Ptr<Unit>) -> Int>> v0
           Type ForeignCallback<(Int, Ptr<Unit>) -> Int>
           Local $dependency.parameter._1
+      val $place.receiver: RaceGate
+        Type RaceGate
+        FieldAccess 0
+          Type RaceRegistration
+          Local this
       val $argument.0: FunPtr<(Int, Ptr<Unit>) -> Int>
         Type FunPtr<(Int, Ptr<Unit>) -> Int>
         FieldAccess 0
@@ -186,9 +194,7 @@ Module
         Local $dependency.argument.0
       field_set 0
         Type RaceGate
-        FieldAccess 0
-          Type RaceRegistration
-          Local this
+        Local $place.receiver
         Type Option<Ptr<Unit>>
         VariantConstruct Option<Ptr<Unit>> v0
           Type Ptr<Unit>

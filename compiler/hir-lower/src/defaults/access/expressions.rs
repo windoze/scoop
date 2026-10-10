@@ -125,6 +125,7 @@ impl ReferenceCollector<'_> {
             | hir::ExprKind::CharLiteral(_)
             | hir::ExprKind::FloatLiteral(_)
             | hir::ExprKind::BoolLiteral(_)
+            | hir::ExprKind::Unreachable
             | hir::ExprKind::UnitLiteral
             | hir::ExprKind::ConstructorReceiver
             | hir::ExprKind::ConstructorParam(_)

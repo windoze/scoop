@@ -1,0 +1,6 @@
+schema = 1
+[cone]
+group = "dev.m35"
+name = "jumps-provider"
+version = "0.1.0"
+kind = "library"

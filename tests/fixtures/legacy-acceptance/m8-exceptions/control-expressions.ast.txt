@@ -6,7 +6,7 @@ SourceFile
   open class Animal(val name: String)
   class Dog() : Animal(<1 args>)
   fun branchReturn(flag: Boolean): Int
-    =
+    return
       IfExpression
         Var flag
         return
@@ -14,7 +14,7 @@ SourceFile
         else
         IntLiteral 12
   fun finallyReturn(): Int
-    =
+    return
       TryExpression
         IntLiteral 1
         finally

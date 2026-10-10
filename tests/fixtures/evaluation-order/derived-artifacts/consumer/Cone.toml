@@ -1,0 +1,8 @@
+schema = 1
+[cone]
+group = "dev.review"
+name = "derived-consumer"
+version = "0.1.0"
+kind = "executable"
+[dependencies]
+"dev.review:derived-provider" = "0.1.0"

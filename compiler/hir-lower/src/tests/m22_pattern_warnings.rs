@@ -192,7 +192,7 @@ fn value_arm_classification_probe_does_not_duplicate_a_warning() {
                 val(
                     "result",
                     Expr::When(Box::new(ast::When {
-                        subject: var("input"),
+                        subject: ast::WhenSubject::Expression(var("input")),
                         arms: vec![
                             arm(
                                 pat_bind("First"),
@@ -232,7 +232,7 @@ fn failed_single_nominal_constructor_probe_does_not_leak_a_warning() {
                     struct_init(
                         "Box",
                         vec![Expr::When(Box::new(ast::When {
-                            subject: var("signal"),
+                            subject: ast::WhenSubject::Expression(var("signal")),
                             arms: vec![arm(
                                 pat_bind_at("Raedy", Span::new(60, 66)),
                                 None,

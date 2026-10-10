@@ -1,0 +1,2 @@
+fun f(action: () -> Int) {}
+fun main() { f suspend { 1 } }

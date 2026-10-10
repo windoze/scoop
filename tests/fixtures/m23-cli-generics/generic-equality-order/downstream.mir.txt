@@ -38,7 +38,7 @@ Module
   generated_exact_type get4 location=enum4 nominal_id=39091ccf2c27d3d2d5a60e4782f4f0002fad150d2f16d3e03b5b22bf3f124647 exact_id=7e3e57a509436790bbd6c955c9817a9dc3ec687a01a4f2f9ca94523929b65df0
   generated_exact_type get5 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
   generated_exact_type get6 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
-  generated_callable gc0 function=@fn38 id=9534eb65a449d677b0b356ba6e4ada06b90b2189c1d2a1594a43fa0593887f6a
+  generated_callable gc0 function=@fn34 id=9534eb65a449d677b0b356ba6e4ada06b90b2189c1d2a1594a43fa0593887f6a
   fun check @fn0() -> Int
     bb0 entry
       call $argument.0: Int = external0 direct
@@ -48,7 +48,7 @@ Module
       assign $new.1
         Type Later
         ClassAlloc Later
-      call @fn31 direct
+      call @fn27 direct
         Type Later
         Local $new.1
         Type Int
@@ -103,7 +103,7 @@ Module
       assign $new.2
         Type Later
         ClassAlloc Later
-      call @fn31 direct
+      call @fn27 direct
         Type Later
         Local $new.2
         Type Int
@@ -181,7 +181,7 @@ Module
       assign $new.1
         Type Trace<Later>
         ClassAlloc Trace<Later>
-      call @fn32 direct
+      call @fn28 direct
         Type Trace<Later>
         Local $new.1
         Type Int
@@ -216,7 +216,7 @@ Module
       assign $new.2
         Type Tracked<Later>
         ClassAlloc Tracked<Later>
-      call @fn33 direct
+      call @fn29 direct
         Type Tracked<Later>
         Local $new.2
         Type Later
@@ -257,7 +257,7 @@ Module
       assign $new.3
         Type Tracked<Later>
         ClassAlloc Tracked<Later>
-      call @fn33 direct
+      call @fn29 direct
         Type Tracked<Later>
         Local $new.3
         Type Later
@@ -298,7 +298,7 @@ Module
       assign $new.4
         Type Tracked<Later>
         ClassAlloc Tracked<Later>
-      call @fn33 direct
+      call @fn29 direct
         Type Tracked<Later>
         Local $new.4
         Type Later
@@ -330,7 +330,7 @@ Module
       val $dependency.local.38: Tracked<Later>
         Type Tracked<Later>
         Local $dependency.local.35
-      call $dependency.local.5: Wide<Tracked<Later>> = @fn36 direct
+      call $dependency.local.5: Wide<Tracked<Later>> = @fn32 direct
         Type Tracked<Later>
         Local $dependency.local.36
         Type Tracked<Later>
@@ -355,7 +355,7 @@ Module
       val $dependency.local.44: Tracked<Later>
         Type Tracked<Later>
         Local $dependency.local.41
-      call $dependency.local.6: Wide<Tracked<Later>> = @fn36 direct
+      call $dependency.local.6: Wide<Tracked<Later>> = @fn32 direct
         Type Tracked<Later>
         Local $dependency.local.42
         Type Tracked<Later>
@@ -424,208 +424,413 @@ Module
         Local $dependency.local.53
         Type Int
         IntegerLiteral Int value=0 bits=0x00000000
-      call $call.6: Boolean = @fn7 direct
+      val $dependency.local.54: Wide<Tracked<Later>>
         Type Wide<Tracked<Later>>
         Local $dependency.local.5
+      val $dependency.local.55: Wide<Tracked<Later>>
         Type Wide<Tracked<Later>>
         Local $dependency.local.5
+      call $call.6: Boolean = @fn3 direct
+        Type Tracked<Later>
+        FieldAccess 0
+          Type Wide<Tracked<Later>>
+          Local $dependency.local.54
+        Type Tracked<Later>
+        FieldAccess 0
+          Type Wide<Tracked<Later>>
+          Local $dependency.local.55
       branch bb6 bb7
+        Type Boolean
+        Local $call.6
+    bb6 logic.rhs.6
+      call $call.8: Boolean = @fn3 direct
+        Type Tracked<Later>
+        FieldAccess 1
+          Type Wide<Tracked<Later>>
+          Local $dependency.local.54
+        Type Tracked<Later>
+        FieldAccess 1
+          Type Wide<Tracked<Later>>
+          Local $dependency.local.55
+      assign $logic.7
+        Type Boolean
+        Local $call.8
+      goto bb8
+    bb7 logic.short.7
+      assign $logic.7
+        Type Boolean
+        BoolLiteral false
+      goto bb8
+    bb8 logic.merge.8
+      branch bb9 bb10
+        Type Boolean
+        Local $logic.7
+    bb9 logic.rhs.9
+      call $call.10: Boolean = @fn3 direct
+        Type Tracked<Later>
+        FieldAccess 2
+          Type Wide<Tracked<Later>>
+          Local $dependency.local.54
+        Type Tracked<Later>
+        FieldAccess 2
+          Type Wide<Tracked<Later>>
+          Local $dependency.local.55
+      assign $logic.9
+        Type Boolean
+        Local $call.10
+      goto bb11
+    bb10 logic.short.10
+      assign $logic.9
+        Type Boolean
+        BoolLiteral false
+      goto bb11
+    bb11 logic.merge.11
+      branch bb12 bb13
         Type Boolean
         Unary BoolNot
           Type Boolean
-          Local $call.6
-    bb6 if.then.6
-      val $dependency.local.57: Boolean
+          Local $logic.9
+    bb12 if.then.12
+      val $dependency.local.59: Boolean
         Type Boolean
         BoolLiteral true
-      goto bb8
-    bb7 if.else.7
-      call $dependency.local.54: Int = @fn5 direct
+      goto bb14
+    bb13 if.else.13
+      call $dependency.local.56: Int = @fn5 direct
         Type Trace<Later>
         Local $dependency.local.1
-      val $dependency.local.55: Int
+      val $dependency.local.57: Int
         Type Int
         IntegerLiteral Int value=123 bits=0x0000007b
-      val $dependency.local.56: Int
+      val $dependency.local.58: Int
         Type Int
-        Local $dependency.local.55
-      val $dependency.local.57: Boolean
+        Local $dependency.local.57
+      val $dependency.local.59: Boolean
         Type Boolean
         Unary BoolNot
           Type Boolean
           IntegerCompare equal operands=Int result=Boolean
             Type Int
-            Local $dependency.local.54
-            Type Int
             Local $dependency.local.56
-      goto bb8
-    bb8 if.merge.8
-      branch bb9 bb10
+            Type Int
+            Local $dependency.local.58
+      goto bb14
+    bb14 if.merge.14
+      branch bb15 bb16
         Type Boolean
-        Local $dependency.local.57
-    bb9 if.then.9
+        Local $dependency.local.59
+    bb15 if.then.15
       return
         Type Int
         IntegerLiteral Int value=2 bits=0x00000002
-    bb10 if.merge.10
-      val $dependency.local.58: Trace<Later>
+    bb16 if.merge.16
+      val $dependency.local.60: Trace<Later>
         Type Trace<Later>
         Local $dependency.local.1
       call @fn6 direct
         Type Trace<Later>
-        Local $dependency.local.58
+        Local $dependency.local.60
         Type Int
         IntegerLiteral Int value=0 bits=0x00000000
-      val $dependency.local.59: Tracked<Later>
-        Type Tracked<Later>
-        Local $dependency.local.2
-      val $dependency.local.60: Tracked<Later>
-        Type Tracked<Later>
-        Local $dependency.local.3
       val $dependency.local.61: Tracked<Later>
         Type Tracked<Later>
-        Local $dependency.local.59
+        Local $dependency.local.2
       val $dependency.local.62: Tracked<Later>
         Type Tracked<Later>
-        Local $dependency.local.60
-      call $dependency.local.65: Choice<Tracked<Later>> = @fn8 direct
-        Type Tracked<Later>
-        Local $dependency.local.61
-        Type Tracked<Later>
-        Local $dependency.local.62
+        Local $dependency.local.3
       val $dependency.local.63: Tracked<Later>
         Type Tracked<Later>
-        Local $dependency.local.2
+        Local $dependency.local.61
       val $dependency.local.64: Tracked<Later>
         Type Tracked<Later>
+        Local $dependency.local.62
+      call $dependency.local.67: Choice<Tracked<Later>> = @fn7 direct
+        Type Tracked<Later>
         Local $dependency.local.63
-      call $call.7: Choice<Tracked<Later>> = @fn10 direct
         Type Tracked<Later>
         Local $dependency.local.64
-      call $call.8: Boolean = @fn9 direct
-        Type Choice<Tracked<Later>>
+      val $dependency.local.65: Tracked<Later>
+        Type Tracked<Later>
+        Local $dependency.local.2
+      val $dependency.local.66: Tracked<Later>
+        Type Tracked<Later>
         Local $dependency.local.65
+      val $dependency.local.68: Choice<Tracked<Later>>
         Type Choice<Tracked<Later>>
-        Local $call.7
-      branch bb11 bb12
+        Local $dependency.local.67
+      call $dependency.local.69: Choice<Tracked<Later>> = @fn8 direct
+        Type Tracked<Later>
+        Local $dependency.local.66
+      branch bb17 bb18
         Type Boolean
-        Local $call.8
-    bb11 if.then.11
-      val $dependency.local.69: Boolean
+        VariantTest Choice<Tracked<Later>> v0
+          Type Choice<Tracked<Later>>
+          Local $dependency.local.68
+    bb17 logic.rhs.17
+      assign $logic.11
+        Type Boolean
+        VariantTest Choice<Tracked<Later>> v0
+          Type Choice<Tracked<Later>>
+          Local $dependency.local.69
+      goto bb19
+    bb18 logic.short.18
+      assign $logic.11
+        Type Boolean
+        BoolLiteral false
+      goto bb19
+    bb19 logic.merge.19
+      branch bb21 bb20
+        Type Boolean
+        Local $logic.11
+    bb20 logic.rhs.20
+      branch bb23 bb24
+        Type Boolean
+        VariantTest Choice<Tracked<Later>> v1
+          Type Choice<Tracked<Later>>
+          Local $dependency.local.68
+    bb21 logic.short.21
+      assign $logic.12
         Type Boolean
         BoolLiteral true
-      goto bb13
-    bb12 if.else.12
-      call $dependency.local.66: Int = @fn5 direct
+      goto bb22
+    bb22 logic.merge.22
+      branch bb30 bb29
+        Type Boolean
+        Local $logic.12
+    bb23 logic.rhs.23
+      branch bb26 bb27
+        Type Boolean
+        VariantTest Choice<Tracked<Later>> v1
+          Type Choice<Tracked<Later>>
+          Local $dependency.local.69
+    bb24 logic.short.24
+      assign $logic.13
+        Type Boolean
+        BoolLiteral false
+      goto bb25
+    bb25 logic.merge.25
+      assign $logic.12
+        Type Boolean
+        Local $logic.13
+      goto bb22
+    bb26 logic.rhs.26
+      call $call.15: Boolean = @fn3 direct
+        Type Tracked<Later>
+        VariantPayloadProject Choice<Tracked<Later>> v1 f0
+          Type Choice<Tracked<Later>>
+          Local $dependency.local.68
+        Type Tracked<Later>
+        VariantPayloadProject Choice<Tracked<Later>> v1 f0
+          Type Choice<Tracked<Later>>
+          Local $dependency.local.69
+      assign $logic.14
+        Type Boolean
+        Local $call.15
+      goto bb28
+    bb27 logic.short.27
+      assign $logic.14
+        Type Boolean
+        BoolLiteral false
+      goto bb28
+    bb28 logic.merge.28
+      assign $logic.13
+        Type Boolean
+        Local $logic.14
+      goto bb25
+    bb29 logic.rhs.29
+      branch bb32 bb33
+        Type Boolean
+        VariantTest Choice<Tracked<Later>> v2
+          Type Choice<Tracked<Later>>
+          Local $dependency.local.68
+    bb30 logic.short.30
+      assign $logic.16
+        Type Boolean
+        BoolLiteral true
+      goto bb31
+    bb31 logic.merge.31
+      branch bb41 bb42
+        Type Boolean
+        Local $logic.16
+    bb32 logic.rhs.32
+      branch bb35 bb36
+        Type Boolean
+        VariantTest Choice<Tracked<Later>> v2
+          Type Choice<Tracked<Later>>
+          Local $dependency.local.69
+    bb33 logic.short.33
+      assign $logic.17
+        Type Boolean
+        BoolLiteral false
+      goto bb34
+    bb34 logic.merge.34
+      assign $logic.16
+        Type Boolean
+        Local $logic.17
+      goto bb31
+    bb35 logic.rhs.35
+      call $call.19: Boolean = @fn3 direct
+        Type Tracked<Later>
+        VariantPayloadProject Choice<Tracked<Later>> v2 f0
+          Type Choice<Tracked<Later>>
+          Local $dependency.local.68
+        Type Tracked<Later>
+        VariantPayloadProject Choice<Tracked<Later>> v2 f0
+          Type Choice<Tracked<Later>>
+          Local $dependency.local.69
+      branch bb38 bb39
+        Type Boolean
+        Local $call.19
+    bb36 logic.short.36
+      assign $logic.18
+        Type Boolean
+        BoolLiteral false
+      goto bb37
+    bb37 logic.merge.37
+      assign $logic.17
+        Type Boolean
+        Local $logic.18
+      goto bb34
+    bb38 logic.rhs.38
+      call $call.21: Boolean = @fn3 direct
+        Type Tracked<Later>
+        VariantPayloadProject Choice<Tracked<Later>> v2 f1
+          Type Choice<Tracked<Later>>
+          Local $dependency.local.68
+        Type Tracked<Later>
+        VariantPayloadProject Choice<Tracked<Later>> v2 f1
+          Type Choice<Tracked<Later>>
+          Local $dependency.local.69
+      assign $logic.20
+        Type Boolean
+        Local $call.21
+      goto bb40
+    bb39 logic.short.39
+      assign $logic.20
+        Type Boolean
+        BoolLiteral false
+      goto bb40
+    bb40 logic.merge.40
+      assign $logic.18
+        Type Boolean
+        Local $logic.20
+      goto bb37
+    bb41 if.then.41
+      val $dependency.local.73: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb43
+    bb42 if.else.42
+      call $dependency.local.70: Int = @fn5 direct
         Type Trace<Later>
         Local $dependency.local.1
-      val $dependency.local.67: Int
+      val $dependency.local.71: Int
         Type Int
         IntegerLiteral Int value=0 bits=0x00000000
-      val $dependency.local.68: Int
+      val $dependency.local.72: Int
         Type Int
-        Local $dependency.local.67
-      val $dependency.local.69: Boolean
+        Local $dependency.local.71
+      val $dependency.local.73: Boolean
         Type Boolean
         Unary BoolNot
           Type Boolean
           IntegerCompare equal operands=Int result=Boolean
             Type Int
-            Local $dependency.local.66
+            Local $dependency.local.70
             Type Int
-            Local $dependency.local.68
-      goto bb13
-    bb13 if.merge.13
-      branch bb14 bb15
+            Local $dependency.local.72
+      goto bb43
+    bb43 if.merge.43
+      branch bb44 bb45
         Type Boolean
-        Local $dependency.local.69
-    bb14 if.then.14
+        Local $dependency.local.73
+    bb44 if.then.44
       return
         Type Int
         IntegerLiteral Int value=3 bits=0x00000003
-    bb15 if.merge.15
-      val $dependency.local.70: Tracked<Later>
-        Type Tracked<Later>
-        Local $dependency.local.2
-      val $dependency.local.71: Tracked<Later>
-        Type Tracked<Later>
-        Local $dependency.local.3
-      val $dependency.local.72: Tracked<Later>
-        Type Tracked<Later>
-        Local $dependency.local.70
-      val $dependency.local.73: Tracked<Later>
-        Type Tracked<Later>
-        Local $dependency.local.71
-      call $dependency.local.78: Choice<Tracked<Later>> = @fn8 direct
-        Type Tracked<Later>
-        Local $dependency.local.72
-        Type Tracked<Later>
-        Local $dependency.local.73
+    bb45 if.merge.45
       val $dependency.local.74: Tracked<Later>
         Type Tracked<Later>
         Local $dependency.local.2
       val $dependency.local.75: Tracked<Later>
         Type Tracked<Later>
-        Local $dependency.local.4
+        Local $dependency.local.3
       val $dependency.local.76: Tracked<Later>
         Type Tracked<Later>
         Local $dependency.local.74
       val $dependency.local.77: Tracked<Later>
         Type Tracked<Later>
         Local $dependency.local.75
-      call $dependency.local.79: Choice<Tracked<Later>> = @fn8 direct
+      call $dependency.local.82: Choice<Tracked<Later>> = @fn7 direct
         Type Tracked<Later>
         Local $dependency.local.76
         Type Tracked<Later>
         Local $dependency.local.77
-      val $dependency.local.80: Choice<Tracked<Later>>
-        Type Choice<Tracked<Later>>
+      val $dependency.local.78: Tracked<Later>
+        Type Tracked<Later>
+        Local $dependency.local.2
+      val $dependency.local.79: Tracked<Later>
+        Type Tracked<Later>
+        Local $dependency.local.4
+      val $dependency.local.80: Tracked<Later>
+        Type Tracked<Later>
         Local $dependency.local.78
-      val $dependency.local.81: Choice<Tracked<Later>>
-        Type Choice<Tracked<Later>>
+      val $dependency.local.81: Tracked<Later>
+        Type Tracked<Later>
         Local $dependency.local.79
-      call $call.9: Boolean = @fn11 direct
-        Type Choice<Tracked<Later>>
+      call $dependency.local.83: Choice<Tracked<Later>> = @fn7 direct
+        Type Tracked<Later>
         Local $dependency.local.80
-        Type Choice<Tracked<Later>>
+        Type Tracked<Later>
         Local $dependency.local.81
-      branch bb16 bb17
+      val $dependency.local.84: Choice<Tracked<Later>>
+        Type Choice<Tracked<Later>>
+        Local $dependency.local.82
+      val $dependency.local.85: Choice<Tracked<Later>>
+        Type Choice<Tracked<Later>>
+        Local $dependency.local.83
+      call $call.22: Boolean = @fn9 direct
+        Type Choice<Tracked<Later>>
+        Local $dependency.local.84
+        Type Choice<Tracked<Later>>
+        Local $dependency.local.85
+      branch bb46 bb47
         Type Boolean
-        Local $call.9
-    bb16 if.then.16
-      val $dependency.local.85: Boolean
+        Local $call.22
+    bb46 if.then.46
+      val $dependency.local.89: Boolean
         Type Boolean
         BoolLiteral true
-      goto bb18
-    bb17 if.else.17
-      call $dependency.local.82: Int = @fn5 direct
+      goto bb48
+    bb47 if.else.47
+      call $dependency.local.86: Int = @fn5 direct
         Type Trace<Later>
         Local $dependency.local.1
-      val $dependency.local.83: Int
+      val $dependency.local.87: Int
         Type Int
         IntegerLiteral Int value=12 bits=0x0000000c
-      val $dependency.local.84: Int
+      val $dependency.local.88: Int
         Type Int
-        Local $dependency.local.83
-      val $dependency.local.85: Boolean
+        Local $dependency.local.87
+      val $dependency.local.89: Boolean
         Type Boolean
         Unary BoolNot
           Type Boolean
           IntegerCompare equal operands=Int result=Boolean
             Type Int
-            Local $dependency.local.82
+            Local $dependency.local.86
             Type Int
-            Local $dependency.local.84
-      goto bb18
-    bb18 if.merge.18
-      branch bb19 bb20
+            Local $dependency.local.88
+      goto bb48
+    bb48 if.merge.48
+      branch bb49 bb50
         Type Boolean
-        Local $dependency.local.85
-    bb19 if.then.19
+        Local $dependency.local.89
+    bb49 if.then.49
       return
         Type Int
         IntegerLiteral Int value=4 bits=0x00000004
-    bb20 if.merge.20
+    bb50 if.merge.50
       return
         Type Int
         IntegerLiteral Int value=42 bits=0x0000002a
@@ -640,7 +845,7 @@ Module
       assign $new.1
         Type Trace<Int>
         ClassAlloc Trace<Int>
-      call @fn34 direct
+      call @fn30 direct
         Type Trace<Int>
         Local $new.1
         Type Int
@@ -675,7 +880,7 @@ Module
       assign $new.2
         Type Tracked<Int>
         ClassAlloc Tracked<Int>
-      call @fn35 direct
+      call @fn31 direct
         Type Tracked<Int>
         Local $new.2
         Type Int
@@ -716,7 +921,7 @@ Module
       assign $new.3
         Type Tracked<Int>
         ClassAlloc Tracked<Int>
-      call @fn35 direct
+      call @fn31 direct
         Type Tracked<Int>
         Local $new.3
         Type Int
@@ -757,7 +962,7 @@ Module
       assign $new.4
         Type Tracked<Int>
         ClassAlloc Tracked<Int>
-      call @fn35 direct
+      call @fn31 direct
         Type Tracked<Int>
         Local $new.4
         Type Int
@@ -789,7 +994,7 @@ Module
       val $dependency.local.38: Tracked<Int>
         Type Tracked<Int>
         Local $dependency.local.35
-      call $dependency.local.5: Wide<Tracked<Int>> = @fn37 direct
+      call $dependency.local.5: Wide<Tracked<Int>> = @fn33 direct
         Type Tracked<Int>
         Local $dependency.local.36
         Type Tracked<Int>
@@ -814,7 +1019,7 @@ Module
       val $dependency.local.44: Tracked<Int>
         Type Tracked<Int>
         Local $dependency.local.41
-      call $dependency.local.6: Wide<Tracked<Int>> = @fn37 direct
+      call $dependency.local.6: Wide<Tracked<Int>> = @fn33 direct
         Type Tracked<Int>
         Local $dependency.local.42
         Type Tracked<Int>
@@ -833,7 +1038,7 @@ Module
       val $dependency.local.48: Wide<Tracked<Int>>
         Type Wide<Tracked<Int>>
         Local $dependency.local.46
-      call $call.5: Boolean = @fn13 direct
+      call $call.5: Boolean = @fn11 direct
         Type Wide<Tracked<Int>>
         Local $dependency.local.47
         Type Wide<Tracked<Int>>
@@ -847,7 +1052,7 @@ Module
         BoolLiteral true
       goto bb3
     bb2 if.else.2
-      call $dependency.local.49: Int = @fn14 direct
+      call $dependency.local.49: Int = @fn12 direct
         Type Trace<Int>
         Local $dependency.local.1
       val $dependency.local.50: Int
@@ -878,219 +1083,427 @@ Module
       val $dependency.local.53: Trace<Int>
         Type Trace<Int>
         Local $dependency.local.1
-      call @fn15 direct
+      call @fn13 direct
         Type Trace<Int>
         Local $dependency.local.53
         Type Int
         IntegerLiteral Int value=0 bits=0x00000000
-      call $call.6: Boolean = @fn16 direct
+      val $dependency.local.54: Wide<Tracked<Int>>
         Type Wide<Tracked<Int>>
         Local $dependency.local.5
+      val $dependency.local.55: Wide<Tracked<Int>>
         Type Wide<Tracked<Int>>
         Local $dependency.local.5
+      call $call.6: Boolean = @fn10 direct
+        Type Tracked<Int>
+        FieldAccess 0
+          Type Wide<Tracked<Int>>
+          Local $dependency.local.54
+        Type Tracked<Int>
+        FieldAccess 0
+          Type Wide<Tracked<Int>>
+          Local $dependency.local.55
       branch bb6 bb7
+        Type Boolean
+        Local $call.6
+    bb6 logic.rhs.6
+      call $call.8: Boolean = @fn10 direct
+        Type Tracked<Int>
+        FieldAccess 1
+          Type Wide<Tracked<Int>>
+          Local $dependency.local.54
+        Type Tracked<Int>
+        FieldAccess 1
+          Type Wide<Tracked<Int>>
+          Local $dependency.local.55
+      assign $logic.7
+        Type Boolean
+        Local $call.8
+      goto bb8
+    bb7 logic.short.7
+      assign $logic.7
+        Type Boolean
+        BoolLiteral false
+      goto bb8
+    bb8 logic.merge.8
+      branch bb9 bb10
+        Type Boolean
+        Local $logic.7
+    bb9 logic.rhs.9
+      call $call.10: Boolean = @fn10 direct
+        Type Tracked<Int>
+        FieldAccess 2
+          Type Wide<Tracked<Int>>
+          Local $dependency.local.54
+        Type Tracked<Int>
+        FieldAccess 2
+          Type Wide<Tracked<Int>>
+          Local $dependency.local.55
+      assign $logic.9
+        Type Boolean
+        Local $call.10
+      goto bb11
+    bb10 logic.short.10
+      assign $logic.9
+        Type Boolean
+        BoolLiteral false
+      goto bb11
+    bb11 logic.merge.11
+      branch bb12 bb13
         Type Boolean
         Unary BoolNot
           Type Boolean
-          Local $call.6
-    bb6 if.then.6
-      val $dependency.local.57: Boolean
+          Local $logic.9
+    bb12 if.then.12
+      val $dependency.local.59: Boolean
         Type Boolean
         BoolLiteral true
-      goto bb8
-    bb7 if.else.7
-      call $dependency.local.54: Int = @fn14 direct
+      goto bb14
+    bb13 if.else.13
+      call $dependency.local.56: Int = @fn12 direct
         Type Trace<Int>
         Local $dependency.local.1
-      val $dependency.local.55: Int
+      val $dependency.local.57: Int
         Type Int
         IntegerLiteral Int value=123 bits=0x0000007b
-      val $dependency.local.56: Int
+      val $dependency.local.58: Int
         Type Int
-        Local $dependency.local.55
-      val $dependency.local.57: Boolean
+        Local $dependency.local.57
+      val $dependency.local.59: Boolean
         Type Boolean
         Unary BoolNot
           Type Boolean
           IntegerCompare equal operands=Int result=Boolean
             Type Int
-            Local $dependency.local.54
-            Type Int
             Local $dependency.local.56
-      goto bb8
-    bb8 if.merge.8
-      branch bb9 bb10
+            Type Int
+            Local $dependency.local.58
+      goto bb14
+    bb14 if.merge.14
+      branch bb15 bb16
         Type Boolean
-        Local $dependency.local.57
-    bb9 if.then.9
+        Local $dependency.local.59
+    bb15 if.then.15
       return
         Type Int
         IntegerLiteral Int value=2 bits=0x00000002
-    bb10 if.merge.10
-      val $dependency.local.58: Trace<Int>
+    bb16 if.merge.16
+      val $dependency.local.60: Trace<Int>
         Type Trace<Int>
         Local $dependency.local.1
-      call @fn15 direct
+      call @fn13 direct
         Type Trace<Int>
-        Local $dependency.local.58
+        Local $dependency.local.60
         Type Int
         IntegerLiteral Int value=0 bits=0x00000000
-      val $dependency.local.59: Tracked<Int>
-        Type Tracked<Int>
-        Local $dependency.local.2
-      val $dependency.local.60: Tracked<Int>
-        Type Tracked<Int>
-        Local $dependency.local.3
       val $dependency.local.61: Tracked<Int>
         Type Tracked<Int>
-        Local $dependency.local.59
+        Local $dependency.local.2
       val $dependency.local.62: Tracked<Int>
         Type Tracked<Int>
-        Local $dependency.local.60
-      call $dependency.local.65: Choice<Tracked<Int>> = @fn17 direct
-        Type Tracked<Int>
-        Local $dependency.local.61
-        Type Tracked<Int>
-        Local $dependency.local.62
+        Local $dependency.local.3
       val $dependency.local.63: Tracked<Int>
         Type Tracked<Int>
-        Local $dependency.local.2
+        Local $dependency.local.61
       val $dependency.local.64: Tracked<Int>
         Type Tracked<Int>
+        Local $dependency.local.62
+      call $dependency.local.67: Choice<Tracked<Int>> = @fn14 direct
+        Type Tracked<Int>
         Local $dependency.local.63
-      call $call.7: Choice<Tracked<Int>> = @fn19 direct
         Type Tracked<Int>
         Local $dependency.local.64
-      call $call.8: Boolean = @fn18 direct
-        Type Choice<Tracked<Int>>
+      val $dependency.local.65: Tracked<Int>
+        Type Tracked<Int>
+        Local $dependency.local.2
+      val $dependency.local.66: Tracked<Int>
+        Type Tracked<Int>
         Local $dependency.local.65
+      val $dependency.local.68: Choice<Tracked<Int>>
         Type Choice<Tracked<Int>>
-        Local $call.7
-      branch bb11 bb12
+        Local $dependency.local.67
+      call $dependency.local.69: Choice<Tracked<Int>> = @fn15 direct
+        Type Tracked<Int>
+        Local $dependency.local.66
+      branch bb17 bb18
         Type Boolean
-        Local $call.8
-    bb11 if.then.11
-      val $dependency.local.69: Boolean
+        VariantTest Choice<Tracked<Int>> v0
+          Type Choice<Tracked<Int>>
+          Local $dependency.local.68
+    bb17 logic.rhs.17
+      assign $logic.11
+        Type Boolean
+        VariantTest Choice<Tracked<Int>> v0
+          Type Choice<Tracked<Int>>
+          Local $dependency.local.69
+      goto bb19
+    bb18 logic.short.18
+      assign $logic.11
+        Type Boolean
+        BoolLiteral false
+      goto bb19
+    bb19 logic.merge.19
+      branch bb21 bb20
+        Type Boolean
+        Local $logic.11
+    bb20 logic.rhs.20
+      branch bb23 bb24
+        Type Boolean
+        VariantTest Choice<Tracked<Int>> v1
+          Type Choice<Tracked<Int>>
+          Local $dependency.local.68
+    bb21 logic.short.21
+      assign $logic.12
         Type Boolean
         BoolLiteral true
-      goto bb13
-    bb12 if.else.12
-      call $dependency.local.66: Int = @fn14 direct
+      goto bb22
+    bb22 logic.merge.22
+      branch bb30 bb29
+        Type Boolean
+        Local $logic.12
+    bb23 logic.rhs.23
+      branch bb26 bb27
+        Type Boolean
+        VariantTest Choice<Tracked<Int>> v1
+          Type Choice<Tracked<Int>>
+          Local $dependency.local.69
+    bb24 logic.short.24
+      assign $logic.13
+        Type Boolean
+        BoolLiteral false
+      goto bb25
+    bb25 logic.merge.25
+      assign $logic.12
+        Type Boolean
+        Local $logic.13
+      goto bb22
+    bb26 logic.rhs.26
+      call $call.15: Boolean = @fn10 direct
+        Type Tracked<Int>
+        VariantPayloadProject Choice<Tracked<Int>> v1 f0
+          Type Choice<Tracked<Int>>
+          Local $dependency.local.68
+        Type Tracked<Int>
+        VariantPayloadProject Choice<Tracked<Int>> v1 f0
+          Type Choice<Tracked<Int>>
+          Local $dependency.local.69
+      assign $logic.14
+        Type Boolean
+        Local $call.15
+      goto bb28
+    bb27 logic.short.27
+      assign $logic.14
+        Type Boolean
+        BoolLiteral false
+      goto bb28
+    bb28 logic.merge.28
+      assign $logic.13
+        Type Boolean
+        Local $logic.14
+      goto bb25
+    bb29 logic.rhs.29
+      branch bb32 bb33
+        Type Boolean
+        VariantTest Choice<Tracked<Int>> v2
+          Type Choice<Tracked<Int>>
+          Local $dependency.local.68
+    bb30 logic.short.30
+      assign $logic.16
+        Type Boolean
+        BoolLiteral true
+      goto bb31
+    bb31 logic.merge.31
+      branch bb41 bb42
+        Type Boolean
+        Local $logic.16
+    bb32 logic.rhs.32
+      branch bb35 bb36
+        Type Boolean
+        VariantTest Choice<Tracked<Int>> v2
+          Type Choice<Tracked<Int>>
+          Local $dependency.local.69
+    bb33 logic.short.33
+      assign $logic.17
+        Type Boolean
+        BoolLiteral false
+      goto bb34
+    bb34 logic.merge.34
+      assign $logic.16
+        Type Boolean
+        Local $logic.17
+      goto bb31
+    bb35 logic.rhs.35
+      call $call.19: Boolean = @fn10 direct
+        Type Tracked<Int>
+        VariantPayloadProject Choice<Tracked<Int>> v2 f0
+          Type Choice<Tracked<Int>>
+          Local $dependency.local.68
+        Type Tracked<Int>
+        VariantPayloadProject Choice<Tracked<Int>> v2 f0
+          Type Choice<Tracked<Int>>
+          Local $dependency.local.69
+      branch bb38 bb39
+        Type Boolean
+        Local $call.19
+    bb36 logic.short.36
+      assign $logic.18
+        Type Boolean
+        BoolLiteral false
+      goto bb37
+    bb37 logic.merge.37
+      assign $logic.17
+        Type Boolean
+        Local $logic.18
+      goto bb34
+    bb38 logic.rhs.38
+      call $call.21: Boolean = @fn10 direct
+        Type Tracked<Int>
+        VariantPayloadProject Choice<Tracked<Int>> v2 f1
+          Type Choice<Tracked<Int>>
+          Local $dependency.local.68
+        Type Tracked<Int>
+        VariantPayloadProject Choice<Tracked<Int>> v2 f1
+          Type Choice<Tracked<Int>>
+          Local $dependency.local.69
+      assign $logic.20
+        Type Boolean
+        Local $call.21
+      goto bb40
+    bb39 logic.short.39
+      assign $logic.20
+        Type Boolean
+        BoolLiteral false
+      goto bb40
+    bb40 logic.merge.40
+      assign $logic.18
+        Type Boolean
+        Local $logic.20
+      goto bb37
+    bb41 if.then.41
+      val $dependency.local.73: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb43
+    bb42 if.else.42
+      call $dependency.local.70: Int = @fn12 direct
         Type Trace<Int>
         Local $dependency.local.1
-      val $dependency.local.67: Int
+      val $dependency.local.71: Int
         Type Int
         IntegerLiteral Int value=0 bits=0x00000000
-      val $dependency.local.68: Int
+      val $dependency.local.72: Int
         Type Int
-        Local $dependency.local.67
-      val $dependency.local.69: Boolean
+        Local $dependency.local.71
+      val $dependency.local.73: Boolean
         Type Boolean
         Unary BoolNot
           Type Boolean
           IntegerCompare equal operands=Int result=Boolean
             Type Int
-            Local $dependency.local.66
+            Local $dependency.local.70
             Type Int
-            Local $dependency.local.68
-      goto bb13
-    bb13 if.merge.13
-      branch bb14 bb15
+            Local $dependency.local.72
+      goto bb43
+    bb43 if.merge.43
+      branch bb44 bb45
         Type Boolean
-        Local $dependency.local.69
-    bb14 if.then.14
+        Local $dependency.local.73
+    bb44 if.then.44
       return
         Type Int
         IntegerLiteral Int value=3 bits=0x00000003
-    bb15 if.merge.15
-      val $dependency.local.70: Tracked<Int>
-        Type Tracked<Int>
-        Local $dependency.local.2
-      val $dependency.local.71: Tracked<Int>
-        Type Tracked<Int>
-        Local $dependency.local.3
-      val $dependency.local.72: Tracked<Int>
-        Type Tracked<Int>
-        Local $dependency.local.70
-      val $dependency.local.73: Tracked<Int>
-        Type Tracked<Int>
-        Local $dependency.local.71
-      call $dependency.local.78: Choice<Tracked<Int>> = @fn17 direct
-        Type Tracked<Int>
-        Local $dependency.local.72
-        Type Tracked<Int>
-        Local $dependency.local.73
+    bb45 if.merge.45
       val $dependency.local.74: Tracked<Int>
         Type Tracked<Int>
         Local $dependency.local.2
       val $dependency.local.75: Tracked<Int>
         Type Tracked<Int>
-        Local $dependency.local.4
+        Local $dependency.local.3
       val $dependency.local.76: Tracked<Int>
         Type Tracked<Int>
         Local $dependency.local.74
       val $dependency.local.77: Tracked<Int>
         Type Tracked<Int>
         Local $dependency.local.75
-      call $dependency.local.79: Choice<Tracked<Int>> = @fn17 direct
+      call $dependency.local.82: Choice<Tracked<Int>> = @fn14 direct
         Type Tracked<Int>
         Local $dependency.local.76
         Type Tracked<Int>
         Local $dependency.local.77
-      val $dependency.local.80: Choice<Tracked<Int>>
-        Type Choice<Tracked<Int>>
+      val $dependency.local.78: Tracked<Int>
+        Type Tracked<Int>
+        Local $dependency.local.2
+      val $dependency.local.79: Tracked<Int>
+        Type Tracked<Int>
+        Local $dependency.local.4
+      val $dependency.local.80: Tracked<Int>
+        Type Tracked<Int>
         Local $dependency.local.78
-      val $dependency.local.81: Choice<Tracked<Int>>
-        Type Choice<Tracked<Int>>
+      val $dependency.local.81: Tracked<Int>
+        Type Tracked<Int>
         Local $dependency.local.79
-      call $call.9: Boolean = @fn20 direct
-        Type Choice<Tracked<Int>>
+      call $dependency.local.83: Choice<Tracked<Int>> = @fn14 direct
+        Type Tracked<Int>
         Local $dependency.local.80
-        Type Choice<Tracked<Int>>
+        Type Tracked<Int>
         Local $dependency.local.81
-      branch bb16 bb17
+      val $dependency.local.84: Choice<Tracked<Int>>
+        Type Choice<Tracked<Int>>
+        Local $dependency.local.82
+      val $dependency.local.85: Choice<Tracked<Int>>
+        Type Choice<Tracked<Int>>
+        Local $dependency.local.83
+      call $call.22: Boolean = @fn16 direct
+        Type Choice<Tracked<Int>>
+        Local $dependency.local.84
+        Type Choice<Tracked<Int>>
+        Local $dependency.local.85
+      branch bb46 bb47
         Type Boolean
-        Local $call.9
-    bb16 if.then.16
-      val $dependency.local.85: Boolean
+        Local $call.22
+    bb46 if.then.46
+      val $dependency.local.89: Boolean
         Type Boolean
         BoolLiteral true
-      goto bb18
-    bb17 if.else.17
-      call $dependency.local.82: Int = @fn14 direct
+      goto bb48
+    bb47 if.else.47
+      call $dependency.local.86: Int = @fn12 direct
         Type Trace<Int>
         Local $dependency.local.1
-      val $dependency.local.83: Int
+      val $dependency.local.87: Int
         Type Int
         IntegerLiteral Int value=12 bits=0x0000000c
-      val $dependency.local.84: Int
+      val $dependency.local.88: Int
         Type Int
-        Local $dependency.local.83
-      val $dependency.local.85: Boolean
+        Local $dependency.local.87
+      val $dependency.local.89: Boolean
         Type Boolean
         Unary BoolNot
           Type Boolean
           IntegerCompare equal operands=Int result=Boolean
             Type Int
-            Local $dependency.local.82
+            Local $dependency.local.86
             Type Int
-            Local $dependency.local.84
-      goto bb18
-    bb18 if.merge.18
-      branch bb19 bb20
+            Local $dependency.local.88
+      goto bb48
+    bb48 if.merge.48
+      branch bb49 bb50
         Type Boolean
-        Local $dependency.local.85
-    bb19 if.then.19
+        Local $dependency.local.89
+    bb49 if.then.49
       return
         Type Int
         IntegerLiteral Int value=4 bits=0x00000004
-    bb20 if.merge.20
+    bb50 if.merge.50
       return
         Type Int
         IntegerLiteral Int value=42 bits=0x0000002a
   fun equals @fn3(this: Tracked<Later>, other: Tracked<Later>) -> Boolean
     bb0 entry
-      call $call.1: Trace<Later> = @fn21 direct
+      call $dependency.local.8: Trace<Later> = @fn17 direct
+        Type Tracked<Later>
+        Local this
+      call $call.1: Trace<Later> = @fn17 direct
         Type Tracked<Later>
         Local this
       call $dependency.local.2: Int = @fn5 direct
@@ -1109,76 +1522,54 @@ Module
           Local $dependency.local.2
           Type Int
           Local $dependency.local.4
-      call $dependency.local.6: Int = @fn22 direct
+      call $dependency.local.6: Int = @fn18 direct
         Type Tracked<Later>
         Local this
       val $dependency.local.7: Int
         Type Int
         Local $dependency.local.6
-      call $call.2: Trace<Later> = @fn21 direct
-        Type Tracked<Later>
-        Local this
       call @fn6 direct
         Type Trace<Later>
-        Local $call.2
+        Local $dependency.local.8
         Type Int
         IntegerBinary add kind=Int
           Type Int
           Local $dependency.local.5
           Type Int
           Local $dependency.local.7
-      call $dependency.local.8: Int = @fn23 direct
+      call $dependency.local.9: Int = @fn19 direct
         Type Tracked<Later>
         Local this
-      call $dependency.local.9: Int = @fn23 direct
+      call $dependency.local.10: Int = @fn19 direct
         Type Tracked<Later>
         Local other
-      val $dependency.local.10: Int
+      val $dependency.local.11: Int
         Type Int
-        Local $dependency.local.9
+        Local $dependency.local.10
       return
         Type Boolean
         IntegerCompare equal operands=Int result=Boolean
           Type Int
-          Local $dependency.local.8
+          Local $dependency.local.9
           Type Int
-          Local $dependency.local.10
+          Local $dependency.local.11
   fun compareWide @fn4(left: Wide<Tracked<Later>>, right: Wide<Tracked<Later>>) -> Boolean
     bb0 entry
-      call $call.1: Boolean = @fn7 direct
+      val $dependency.local.2: Wide<Tracked<Later>>
         Type Wide<Tracked<Later>>
         Local left
+      val $dependency.local.3: Wide<Tracked<Later>>
         Type Wide<Tracked<Later>>
         Local right
-      return
-        Type Boolean
-        Local $call.1
-  fun visits @fn5(this: Trace<Later>) -> Int
-    bb0 entry
-      return
-        Type Int
-        FieldAccess 0
-          Type Trace<Later>
-          Local this
-  fun visits @fn6(this: Trace<Later>, value: Int) -> Unit
-    bb0 entry
-      field_set 0
-        Type Trace<Later>
-        Local this
-        Type Int
-        Local value
-      return
-  fun $derived.equals.0 @fn7(this: Wide<Tracked<Later>>, other: Wide<Tracked<Later>>) -> Boolean
-    bb0 entry
       call $call.1: Boolean = @fn3 direct
         Type Tracked<Later>
         FieldAccess 0
           Type Wide<Tracked<Later>>
-          Local this
+          Local $dependency.local.2
         Type Tracked<Later>
         FieldAccess 0
           Type Wide<Tracked<Later>>
-          Local other
+          Local $dependency.local.3
       branch bb1 bb2
         Type Boolean
         Local $call.1
@@ -1187,11 +1578,11 @@ Module
         Type Tracked<Later>
         FieldAccess 1
           Type Wide<Tracked<Later>>
-          Local this
+          Local $dependency.local.2
         Type Tracked<Later>
         FieldAccess 1
           Type Wide<Tracked<Later>>
-          Local other
+          Local $dependency.local.3
       assign $logic.2
         Type Boolean
         Local $call.3
@@ -1210,11 +1601,11 @@ Module
         Type Tracked<Later>
         FieldAccess 2
           Type Wide<Tracked<Later>>
-          Local this
+          Local $dependency.local.2
         Type Tracked<Later>
         FieldAccess 2
           Type Wide<Tracked<Later>>
-          Local other
+          Local $dependency.local.3
       assign $logic.4
         Type Boolean
         Local $call.5
@@ -1228,7 +1619,22 @@ Module
       return
         Type Boolean
         Local $logic.4
-  fun pair @fn8(first: Tracked<Later>, second: Tracked<Later>) -> Choice<Tracked<Later>>
+  fun visits @fn5(this: Trace<Later>) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type Trace<Later>
+          Local this
+  fun visits @fn6(this: Trace<Later>, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Trace<Later>
+        Local this
+        Type Int
+        Local value
+      return
+  fun pair @fn7(first: Tracked<Later>, second: Tracked<Later>) -> Choice<Tracked<Later>>
     bb0 entry
       val $dependency.local.2: Tracked<Later>
         Type Tracked<Later>
@@ -1249,171 +1655,7 @@ Module
           Local $dependency.local.4
           Type Tracked<Later>
           Local $dependency.local.5
-  fun $derived.equals.1 @fn9(this: Choice<Tracked<Later>>, other: Choice<Tracked<Later>>) -> Boolean
-    bb0 entry
-      val $when.1: Choice<Tracked<Later>>
-        Type Choice<Tracked<Later>>
-        Local this
-      val $pattern.subject.2: Choice<Tracked<Later>>
-        Type Choice<Tracked<Later>>
-        Local $when.1
-      branch bb1 bb2
-        Type Boolean
-        VariantTest Choice<Tracked<Later>> v0
-          Type Choice<Tracked<Later>>
-          Local $pattern.subject.2
-    bb1 pattern.pass.1
-      val $when.3: Choice<Tracked<Later>>
-        Type Choice<Tracked<Later>>
-        Local other
-      val $pattern.subject.4: Choice<Tracked<Later>>
-        Type Choice<Tracked<Later>>
-        Local $when.3
-      branch bb4 bb5
-        Type Boolean
-        VariantTest Choice<Tracked<Later>> v0
-          Type Choice<Tracked<Later>>
-          Local $pattern.subject.4
-    bb2 pattern.else.2
-      val $pattern.subject.5: Choice<Tracked<Later>>
-        Type Choice<Tracked<Later>>
-        Local $when.1
-      branch bb7 bb8
-        Type Boolean
-        VariantTest Choice<Tracked<Later>> v1
-          Type Choice<Tracked<Later>>
-          Local $pattern.subject.5
-    bb3 pattern.merge.3
-      unreachable
-    bb4 pattern.pass.4
-      return
-        Type Boolean
-        BoolLiteral true
-    bb5 pattern.else.5
-      return
-        Type Boolean
-        BoolLiteral false
-    bb6 pattern.merge.6
-      unreachable
-    bb7 pattern.pass.7
-      val $left.1.0: Tracked<Later>
-        Type Tracked<Later>
-        VariantPayloadProject Choice<Tracked<Later>> v1 f0
-          Type Choice<Tracked<Later>>
-          Local $pattern.subject.5
-      val $when.6: Choice<Tracked<Later>>
-        Type Choice<Tracked<Later>>
-        Local other
-      val $pattern.subject.7: Choice<Tracked<Later>>
-        Type Choice<Tracked<Later>>
-        Local $when.6
-      branch bb10 bb11
-        Type Boolean
-        VariantTest Choice<Tracked<Later>> v1
-          Type Choice<Tracked<Later>>
-          Local $pattern.subject.7
-    bb8 pattern.else.8
-      val $pattern.subject.8: Choice<Tracked<Later>>
-        Type Choice<Tracked<Later>>
-        Local $when.1
-      branch bb13 bb14
-        Type Boolean
-        VariantTest Choice<Tracked<Later>> v2
-          Type Choice<Tracked<Later>>
-          Local $pattern.subject.8
-    bb9 pattern.merge.9
-      unreachable
-    bb10 pattern.pass.10
-      val $right.1.0: Tracked<Later>
-        Type Tracked<Later>
-        VariantPayloadProject Choice<Tracked<Later>> v1 f0
-          Type Choice<Tracked<Later>>
-          Local $pattern.subject.7
-      call $call.1: Boolean = @fn3 direct
-        Type Tracked<Later>
-        Local $left.1.0
-        Type Tracked<Later>
-        Local $right.1.0
-      return
-        Type Boolean
-        Local $call.1
-    bb11 pattern.else.11
-      return
-        Type Boolean
-        BoolLiteral false
-    bb12 pattern.merge.12
-      unreachable
-    bb13 pattern.pass.13
-      val $left.2.0: Tracked<Later>
-        Type Tracked<Later>
-        VariantPayloadProject Choice<Tracked<Later>> v2 f0
-          Type Choice<Tracked<Later>>
-          Local $pattern.subject.8
-      val $left.2.1: Tracked<Later>
-        Type Tracked<Later>
-        VariantPayloadProject Choice<Tracked<Later>> v2 f1
-          Type Choice<Tracked<Later>>
-          Local $pattern.subject.8
-      val $when.9: Choice<Tracked<Later>>
-        Type Choice<Tracked<Later>>
-        Local other
-      val $pattern.subject.10: Choice<Tracked<Later>>
-        Type Choice<Tracked<Later>>
-        Local $when.9
-      branch bb16 bb17
-        Type Boolean
-        VariantTest Choice<Tracked<Later>> v2
-          Type Choice<Tracked<Later>>
-          Local $pattern.subject.10
-    bb14 pattern.else.14
-      unreachable
-    bb15 pattern.merge.15
-      unreachable
-    bb16 pattern.pass.16
-      val $right.2.0: Tracked<Later>
-        Type Tracked<Later>
-        VariantPayloadProject Choice<Tracked<Later>> v2 f0
-          Type Choice<Tracked<Later>>
-          Local $pattern.subject.10
-      val $right.2.1: Tracked<Later>
-        Type Tracked<Later>
-        VariantPayloadProject Choice<Tracked<Later>> v2 f1
-          Type Choice<Tracked<Later>>
-          Local $pattern.subject.10
-      call $call.2: Boolean = @fn3 direct
-        Type Tracked<Later>
-        Local $left.2.0
-        Type Tracked<Later>
-        Local $right.2.0
-      branch bb19 bb20
-        Type Boolean
-        Local $call.2
-    bb17 pattern.else.17
-      return
-        Type Boolean
-        BoolLiteral false
-    bb18 pattern.merge.18
-      unreachable
-    bb19 logic.rhs.19
-      call $call.4: Boolean = @fn3 direct
-        Type Tracked<Later>
-        Local $left.2.1
-        Type Tracked<Later>
-        Local $right.2.1
-      assign $logic.3
-        Type Boolean
-        Local $call.4
-      goto bb21
-    bb20 logic.short.20
-      assign $logic.3
-        Type Boolean
-        BoolLiteral false
-      goto bb21
-    bb21 logic.merge.21
-      return
-        Type Boolean
-        Local $logic.3
-  fun single @fn10(value: Tracked<Later>) -> Choice<Tracked<Later>>
+  fun single @fn8(value: Tracked<Later>) -> Choice<Tracked<Later>>
     bb0 entry
       val $dependency.local.1: Tracked<Later>
         Type Tracked<Later>
@@ -1426,22 +1668,177 @@ Module
         VariantConstruct Choice<Tracked<Later>> v1
           Type Tracked<Later>
           Local $dependency.local.2
-  fun compareChoices @fn11(left: Choice<Tracked<Later>>, right: Choice<Tracked<Later>>) -> Boolean
+  fun compareChoices @fn9(left: Choice<Tracked<Later>>, right: Choice<Tracked<Later>>) -> Boolean
     bb0 entry
-      call $call.1: Boolean = @fn9 direct
+      val $dependency.local.2: Choice<Tracked<Later>>
         Type Choice<Tracked<Later>>
         Local left
+      val $dependency.local.3: Choice<Tracked<Later>>
         Type Choice<Tracked<Later>>
         Local right
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Choice<Tracked<Later>> v0
+          Type Choice<Tracked<Later>>
+          Local $dependency.local.2
+    bb1 logic.rhs.1
+      assign $logic.1
+        Type Boolean
+        VariantTest Choice<Tracked<Later>> v0
+          Type Choice<Tracked<Later>>
+          Local $dependency.local.3
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.1
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 logic.merge.3
+      branch bb5 bb4
+        Type Boolean
+        Local $logic.1
+    bb4 logic.rhs.4
+      branch bb7 bb8
+        Type Boolean
+        VariantTest Choice<Tracked<Later>> v1
+          Type Choice<Tracked<Later>>
+          Local $dependency.local.2
+    bb5 logic.short.5
+      assign $logic.2
+        Type Boolean
+        BoolLiteral true
+      goto bb6
+    bb6 logic.merge.6
+      branch bb14 bb13
+        Type Boolean
+        Local $logic.2
+    bb7 logic.rhs.7
+      branch bb10 bb11
+        Type Boolean
+        VariantTest Choice<Tracked<Later>> v1
+          Type Choice<Tracked<Later>>
+          Local $dependency.local.3
+    bb8 logic.short.8
+      assign $logic.3
+        Type Boolean
+        BoolLiteral false
+      goto bb9
+    bb9 logic.merge.9
+      assign $logic.2
+        Type Boolean
+        Local $logic.3
+      goto bb6
+    bb10 logic.rhs.10
+      call $call.5: Boolean = @fn3 direct
+        Type Tracked<Later>
+        VariantPayloadProject Choice<Tracked<Later>> v1 f0
+          Type Choice<Tracked<Later>>
+          Local $dependency.local.2
+        Type Tracked<Later>
+        VariantPayloadProject Choice<Tracked<Later>> v1 f0
+          Type Choice<Tracked<Later>>
+          Local $dependency.local.3
+      assign $logic.4
+        Type Boolean
+        Local $call.5
+      goto bb12
+    bb11 logic.short.11
+      assign $logic.4
+        Type Boolean
+        BoolLiteral false
+      goto bb12
+    bb12 logic.merge.12
+      assign $logic.3
+        Type Boolean
+        Local $logic.4
+      goto bb9
+    bb13 logic.rhs.13
+      branch bb16 bb17
+        Type Boolean
+        VariantTest Choice<Tracked<Later>> v2
+          Type Choice<Tracked<Later>>
+          Local $dependency.local.2
+    bb14 logic.short.14
+      assign $logic.6
+        Type Boolean
+        BoolLiteral true
+      goto bb15
+    bb15 logic.merge.15
       return
         Type Boolean
-        Local $call.1
-  fun equals @fn12(this: Tracked<Int>, other: Tracked<Int>) -> Boolean
+        Local $logic.6
+    bb16 logic.rhs.16
+      branch bb19 bb20
+        Type Boolean
+        VariantTest Choice<Tracked<Later>> v2
+          Type Choice<Tracked<Later>>
+          Local $dependency.local.3
+    bb17 logic.short.17
+      assign $logic.7
+        Type Boolean
+        BoolLiteral false
+      goto bb18
+    bb18 logic.merge.18
+      assign $logic.6
+        Type Boolean
+        Local $logic.7
+      goto bb15
+    bb19 logic.rhs.19
+      call $call.9: Boolean = @fn3 direct
+        Type Tracked<Later>
+        VariantPayloadProject Choice<Tracked<Later>> v2 f0
+          Type Choice<Tracked<Later>>
+          Local $dependency.local.2
+        Type Tracked<Later>
+        VariantPayloadProject Choice<Tracked<Later>> v2 f0
+          Type Choice<Tracked<Later>>
+          Local $dependency.local.3
+      branch bb22 bb23
+        Type Boolean
+        Local $call.9
+    bb20 logic.short.20
+      assign $logic.8
+        Type Boolean
+        BoolLiteral false
+      goto bb21
+    bb21 logic.merge.21
+      assign $logic.7
+        Type Boolean
+        Local $logic.8
+      goto bb18
+    bb22 logic.rhs.22
+      call $call.11: Boolean = @fn3 direct
+        Type Tracked<Later>
+        VariantPayloadProject Choice<Tracked<Later>> v2 f1
+          Type Choice<Tracked<Later>>
+          Local $dependency.local.2
+        Type Tracked<Later>
+        VariantPayloadProject Choice<Tracked<Later>> v2 f1
+          Type Choice<Tracked<Later>>
+          Local $dependency.local.3
+      assign $logic.10
+        Type Boolean
+        Local $call.11
+      goto bb24
+    bb23 logic.short.23
+      assign $logic.10
+        Type Boolean
+        BoolLiteral false
+      goto bb24
+    bb24 logic.merge.24
+      assign $logic.8
+        Type Boolean
+        Local $logic.10
+      goto bb21
+  fun equals @fn10(this: Tracked<Int>, other: Tracked<Int>) -> Boolean
     bb0 entry
-      call $call.1: Trace<Int> = @fn24 direct
+      call $dependency.local.8: Trace<Int> = @fn20 direct
         Type Tracked<Int>
         Local this
-      call $dependency.local.2: Int = @fn14 direct
+      call $call.1: Trace<Int> = @fn20 direct
+        Type Tracked<Int>
+        Local this
+      call $dependency.local.2: Int = @fn12 direct
         Type Trace<Int>
         Local $call.1
       val $dependency.local.3: Int
@@ -1457,89 +1854,67 @@ Module
           Local $dependency.local.2
           Type Int
           Local $dependency.local.4
-      call $dependency.local.6: Int = @fn25 direct
+      call $dependency.local.6: Int = @fn21 direct
         Type Tracked<Int>
         Local this
       val $dependency.local.7: Int
         Type Int
         Local $dependency.local.6
-      call $call.2: Trace<Int> = @fn24 direct
-        Type Tracked<Int>
-        Local this
-      call @fn15 direct
+      call @fn13 direct
         Type Trace<Int>
-        Local $call.2
+        Local $dependency.local.8
         Type Int
         IntegerBinary add kind=Int
           Type Int
           Local $dependency.local.5
           Type Int
           Local $dependency.local.7
-      call $dependency.local.8: Int = @fn26 direct
+      call $dependency.local.9: Int = @fn22 direct
         Type Tracked<Int>
         Local this
-      call $dependency.local.9: Int = @fn26 direct
+      call $dependency.local.10: Int = @fn22 direct
         Type Tracked<Int>
         Local other
-      val $dependency.local.10: Int
+      val $dependency.local.11: Int
         Type Int
-        Local $dependency.local.9
+        Local $dependency.local.10
       return
         Type Boolean
         IntegerCompare equal operands=Int result=Boolean
           Type Int
-          Local $dependency.local.8
+          Local $dependency.local.9
           Type Int
-          Local $dependency.local.10
-  fun compareWide @fn13(left: Wide<Tracked<Int>>, right: Wide<Tracked<Int>>) -> Boolean
+          Local $dependency.local.11
+  fun compareWide @fn11(left: Wide<Tracked<Int>>, right: Wide<Tracked<Int>>) -> Boolean
     bb0 entry
-      call $call.1: Boolean = @fn16 direct
+      val $dependency.local.2: Wide<Tracked<Int>>
         Type Wide<Tracked<Int>>
         Local left
+      val $dependency.local.3: Wide<Tracked<Int>>
         Type Wide<Tracked<Int>>
         Local right
-      return
-        Type Boolean
-        Local $call.1
-  fun visits @fn14(this: Trace<Int>) -> Int
-    bb0 entry
-      return
-        Type Int
-        FieldAccess 0
-          Type Trace<Int>
-          Local this
-  fun visits @fn15(this: Trace<Int>, value: Int) -> Unit
-    bb0 entry
-      field_set 0
-        Type Trace<Int>
-        Local this
-        Type Int
-        Local value
-      return
-  fun $derived.equals.0 @fn16(this: Wide<Tracked<Int>>, other: Wide<Tracked<Int>>) -> Boolean
-    bb0 entry
-      call $call.1: Boolean = @fn12 direct
+      call $call.1: Boolean = @fn10 direct
         Type Tracked<Int>
         FieldAccess 0
           Type Wide<Tracked<Int>>
-          Local this
+          Local $dependency.local.2
         Type Tracked<Int>
         FieldAccess 0
           Type Wide<Tracked<Int>>
-          Local other
+          Local $dependency.local.3
       branch bb1 bb2
         Type Boolean
         Local $call.1
     bb1 logic.rhs.1
-      call $call.3: Boolean = @fn12 direct
+      call $call.3: Boolean = @fn10 direct
         Type Tracked<Int>
         FieldAccess 1
           Type Wide<Tracked<Int>>
-          Local this
+          Local $dependency.local.2
         Type Tracked<Int>
         FieldAccess 1
           Type Wide<Tracked<Int>>
-          Local other
+          Local $dependency.local.3
       assign $logic.2
         Type Boolean
         Local $call.3
@@ -1554,15 +1929,15 @@ Module
         Type Boolean
         Local $logic.2
     bb4 logic.rhs.4
-      call $call.5: Boolean = @fn12 direct
+      call $call.5: Boolean = @fn10 direct
         Type Tracked<Int>
         FieldAccess 2
           Type Wide<Tracked<Int>>
-          Local this
+          Local $dependency.local.2
         Type Tracked<Int>
         FieldAccess 2
           Type Wide<Tracked<Int>>
-          Local other
+          Local $dependency.local.3
       assign $logic.4
         Type Boolean
         Local $call.5
@@ -1576,7 +1951,22 @@ Module
       return
         Type Boolean
         Local $logic.4
-  fun pair @fn17(first: Tracked<Int>, second: Tracked<Int>) -> Choice<Tracked<Int>>
+  fun visits @fn12(this: Trace<Int>) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type Trace<Int>
+          Local this
+  fun visits @fn13(this: Trace<Int>, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Trace<Int>
+        Local this
+        Type Int
+        Local value
+      return
+  fun pair @fn14(first: Tracked<Int>, second: Tracked<Int>) -> Choice<Tracked<Int>>
     bb0 entry
       val $dependency.local.2: Tracked<Int>
         Type Tracked<Int>
@@ -1597,171 +1987,7 @@ Module
           Local $dependency.local.4
           Type Tracked<Int>
           Local $dependency.local.5
-  fun $derived.equals.1 @fn18(this: Choice<Tracked<Int>>, other: Choice<Tracked<Int>>) -> Boolean
-    bb0 entry
-      val $when.1: Choice<Tracked<Int>>
-        Type Choice<Tracked<Int>>
-        Local this
-      val $pattern.subject.2: Choice<Tracked<Int>>
-        Type Choice<Tracked<Int>>
-        Local $when.1
-      branch bb1 bb2
-        Type Boolean
-        VariantTest Choice<Tracked<Int>> v0
-          Type Choice<Tracked<Int>>
-          Local $pattern.subject.2
-    bb1 pattern.pass.1
-      val $when.3: Choice<Tracked<Int>>
-        Type Choice<Tracked<Int>>
-        Local other
-      val $pattern.subject.4: Choice<Tracked<Int>>
-        Type Choice<Tracked<Int>>
-        Local $when.3
-      branch bb4 bb5
-        Type Boolean
-        VariantTest Choice<Tracked<Int>> v0
-          Type Choice<Tracked<Int>>
-          Local $pattern.subject.4
-    bb2 pattern.else.2
-      val $pattern.subject.5: Choice<Tracked<Int>>
-        Type Choice<Tracked<Int>>
-        Local $when.1
-      branch bb7 bb8
-        Type Boolean
-        VariantTest Choice<Tracked<Int>> v1
-          Type Choice<Tracked<Int>>
-          Local $pattern.subject.5
-    bb3 pattern.merge.3
-      unreachable
-    bb4 pattern.pass.4
-      return
-        Type Boolean
-        BoolLiteral true
-    bb5 pattern.else.5
-      return
-        Type Boolean
-        BoolLiteral false
-    bb6 pattern.merge.6
-      unreachable
-    bb7 pattern.pass.7
-      val $left.1.0: Tracked<Int>
-        Type Tracked<Int>
-        VariantPayloadProject Choice<Tracked<Int>> v1 f0
-          Type Choice<Tracked<Int>>
-          Local $pattern.subject.5
-      val $when.6: Choice<Tracked<Int>>
-        Type Choice<Tracked<Int>>
-        Local other
-      val $pattern.subject.7: Choice<Tracked<Int>>
-        Type Choice<Tracked<Int>>
-        Local $when.6
-      branch bb10 bb11
-        Type Boolean
-        VariantTest Choice<Tracked<Int>> v1
-          Type Choice<Tracked<Int>>
-          Local $pattern.subject.7
-    bb8 pattern.else.8
-      val $pattern.subject.8: Choice<Tracked<Int>>
-        Type Choice<Tracked<Int>>
-        Local $when.1
-      branch bb13 bb14
-        Type Boolean
-        VariantTest Choice<Tracked<Int>> v2
-          Type Choice<Tracked<Int>>
-          Local $pattern.subject.8
-    bb9 pattern.merge.9
-      unreachable
-    bb10 pattern.pass.10
-      val $right.1.0: Tracked<Int>
-        Type Tracked<Int>
-        VariantPayloadProject Choice<Tracked<Int>> v1 f0
-          Type Choice<Tracked<Int>>
-          Local $pattern.subject.7
-      call $call.1: Boolean = @fn12 direct
-        Type Tracked<Int>
-        Local $left.1.0
-        Type Tracked<Int>
-        Local $right.1.0
-      return
-        Type Boolean
-        Local $call.1
-    bb11 pattern.else.11
-      return
-        Type Boolean
-        BoolLiteral false
-    bb12 pattern.merge.12
-      unreachable
-    bb13 pattern.pass.13
-      val $left.2.0: Tracked<Int>
-        Type Tracked<Int>
-        VariantPayloadProject Choice<Tracked<Int>> v2 f0
-          Type Choice<Tracked<Int>>
-          Local $pattern.subject.8
-      val $left.2.1: Tracked<Int>
-        Type Tracked<Int>
-        VariantPayloadProject Choice<Tracked<Int>> v2 f1
-          Type Choice<Tracked<Int>>
-          Local $pattern.subject.8
-      val $when.9: Choice<Tracked<Int>>
-        Type Choice<Tracked<Int>>
-        Local other
-      val $pattern.subject.10: Choice<Tracked<Int>>
-        Type Choice<Tracked<Int>>
-        Local $when.9
-      branch bb16 bb17
-        Type Boolean
-        VariantTest Choice<Tracked<Int>> v2
-          Type Choice<Tracked<Int>>
-          Local $pattern.subject.10
-    bb14 pattern.else.14
-      unreachable
-    bb15 pattern.merge.15
-      unreachable
-    bb16 pattern.pass.16
-      val $right.2.0: Tracked<Int>
-        Type Tracked<Int>
-        VariantPayloadProject Choice<Tracked<Int>> v2 f0
-          Type Choice<Tracked<Int>>
-          Local $pattern.subject.10
-      val $right.2.1: Tracked<Int>
-        Type Tracked<Int>
-        VariantPayloadProject Choice<Tracked<Int>> v2 f1
-          Type Choice<Tracked<Int>>
-          Local $pattern.subject.10
-      call $call.2: Boolean = @fn12 direct
-        Type Tracked<Int>
-        Local $left.2.0
-        Type Tracked<Int>
-        Local $right.2.0
-      branch bb19 bb20
-        Type Boolean
-        Local $call.2
-    bb17 pattern.else.17
-      return
-        Type Boolean
-        BoolLiteral false
-    bb18 pattern.merge.18
-      unreachable
-    bb19 logic.rhs.19
-      call $call.4: Boolean = @fn12 direct
-        Type Tracked<Int>
-        Local $left.2.1
-        Type Tracked<Int>
-        Local $right.2.1
-      assign $logic.3
-        Type Boolean
-        Local $call.4
-      goto bb21
-    bb20 logic.short.20
-      assign $logic.3
-        Type Boolean
-        BoolLiteral false
-      goto bb21
-    bb21 logic.merge.21
-      return
-        Type Boolean
-        Local $logic.3
-  fun single @fn19(value: Tracked<Int>) -> Choice<Tracked<Int>>
+  fun single @fn15(value: Tracked<Int>) -> Choice<Tracked<Int>>
     bb0 entry
       val $dependency.local.1: Tracked<Int>
         Type Tracked<Int>
@@ -1774,71 +2000,223 @@ Module
         VariantConstruct Choice<Tracked<Int>> v1
           Type Tracked<Int>
           Local $dependency.local.2
-  fun compareChoices @fn20(left: Choice<Tracked<Int>>, right: Choice<Tracked<Int>>) -> Boolean
+  fun compareChoices @fn16(left: Choice<Tracked<Int>>, right: Choice<Tracked<Int>>) -> Boolean
     bb0 entry
-      call $call.1: Boolean = @fn18 direct
+      val $dependency.local.2: Choice<Tracked<Int>>
         Type Choice<Tracked<Int>>
         Local left
+      val $dependency.local.3: Choice<Tracked<Int>>
         Type Choice<Tracked<Int>>
         Local right
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Choice<Tracked<Int>> v0
+          Type Choice<Tracked<Int>>
+          Local $dependency.local.2
+    bb1 logic.rhs.1
+      assign $logic.1
+        Type Boolean
+        VariantTest Choice<Tracked<Int>> v0
+          Type Choice<Tracked<Int>>
+          Local $dependency.local.3
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.1
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 logic.merge.3
+      branch bb5 bb4
+        Type Boolean
+        Local $logic.1
+    bb4 logic.rhs.4
+      branch bb7 bb8
+        Type Boolean
+        VariantTest Choice<Tracked<Int>> v1
+          Type Choice<Tracked<Int>>
+          Local $dependency.local.2
+    bb5 logic.short.5
+      assign $logic.2
+        Type Boolean
+        BoolLiteral true
+      goto bb6
+    bb6 logic.merge.6
+      branch bb14 bb13
+        Type Boolean
+        Local $logic.2
+    bb7 logic.rhs.7
+      branch bb10 bb11
+        Type Boolean
+        VariantTest Choice<Tracked<Int>> v1
+          Type Choice<Tracked<Int>>
+          Local $dependency.local.3
+    bb8 logic.short.8
+      assign $logic.3
+        Type Boolean
+        BoolLiteral false
+      goto bb9
+    bb9 logic.merge.9
+      assign $logic.2
+        Type Boolean
+        Local $logic.3
+      goto bb6
+    bb10 logic.rhs.10
+      call $call.5: Boolean = @fn10 direct
+        Type Tracked<Int>
+        VariantPayloadProject Choice<Tracked<Int>> v1 f0
+          Type Choice<Tracked<Int>>
+          Local $dependency.local.2
+        Type Tracked<Int>
+        VariantPayloadProject Choice<Tracked<Int>> v1 f0
+          Type Choice<Tracked<Int>>
+          Local $dependency.local.3
+      assign $logic.4
+        Type Boolean
+        Local $call.5
+      goto bb12
+    bb11 logic.short.11
+      assign $logic.4
+        Type Boolean
+        BoolLiteral false
+      goto bb12
+    bb12 logic.merge.12
+      assign $logic.3
+        Type Boolean
+        Local $logic.4
+      goto bb9
+    bb13 logic.rhs.13
+      branch bb16 bb17
+        Type Boolean
+        VariantTest Choice<Tracked<Int>> v2
+          Type Choice<Tracked<Int>>
+          Local $dependency.local.2
+    bb14 logic.short.14
+      assign $logic.6
+        Type Boolean
+        BoolLiteral true
+      goto bb15
+    bb15 logic.merge.15
       return
         Type Boolean
-        Local $call.1
-  fun trace @fn21(this: Tracked<Later>) -> Trace<Later>
+        Local $logic.6
+    bb16 logic.rhs.16
+      branch bb19 bb20
+        Type Boolean
+        VariantTest Choice<Tracked<Int>> v2
+          Type Choice<Tracked<Int>>
+          Local $dependency.local.3
+    bb17 logic.short.17
+      assign $logic.7
+        Type Boolean
+        BoolLiteral false
+      goto bb18
+    bb18 logic.merge.18
+      assign $logic.6
+        Type Boolean
+        Local $logic.7
+      goto bb15
+    bb19 logic.rhs.19
+      call $call.9: Boolean = @fn10 direct
+        Type Tracked<Int>
+        VariantPayloadProject Choice<Tracked<Int>> v2 f0
+          Type Choice<Tracked<Int>>
+          Local $dependency.local.2
+        Type Tracked<Int>
+        VariantPayloadProject Choice<Tracked<Int>> v2 f0
+          Type Choice<Tracked<Int>>
+          Local $dependency.local.3
+      branch bb22 bb23
+        Type Boolean
+        Local $call.9
+    bb20 logic.short.20
+      assign $logic.8
+        Type Boolean
+        BoolLiteral false
+      goto bb21
+    bb21 logic.merge.21
+      assign $logic.7
+        Type Boolean
+        Local $logic.8
+      goto bb18
+    bb22 logic.rhs.22
+      call $call.11: Boolean = @fn10 direct
+        Type Tracked<Int>
+        VariantPayloadProject Choice<Tracked<Int>> v2 f1
+          Type Choice<Tracked<Int>>
+          Local $dependency.local.2
+        Type Tracked<Int>
+        VariantPayloadProject Choice<Tracked<Int>> v2 f1
+          Type Choice<Tracked<Int>>
+          Local $dependency.local.3
+      assign $logic.10
+        Type Boolean
+        Local $call.11
+      goto bb24
+    bb23 logic.short.23
+      assign $logic.10
+        Type Boolean
+        BoolLiteral false
+      goto bb24
+    bb24 logic.merge.24
+      assign $logic.8
+        Type Boolean
+        Local $logic.10
+      goto bb21
+  fun trace @fn17(this: Tracked<Later>) -> Trace<Later>
     bb0 entry
       return
         Type Trace<Later>
         FieldAccess 1
           Type Tracked<Later>
           Local this
-  fun digit @fn22(this: Tracked<Later>) -> Int
+  fun digit @fn18(this: Tracked<Later>) -> Int
     bb0 entry
       return
         Type Int
         FieldAccess 3
           Type Tracked<Later>
           Local this
-  fun number @fn23(this: Tracked<Later>) -> Int
+  fun number @fn19(this: Tracked<Later>) -> Int
     bb0 entry
       return
         Type Int
         FieldAccess 2
           Type Tracked<Later>
           Local this
-  fun trace @fn24(this: Tracked<Int>) -> Trace<Int>
+  fun trace @fn20(this: Tracked<Int>) -> Trace<Int>
     bb0 entry
       return
         Type Trace<Int>
         FieldAccess 1
           Type Tracked<Int>
           Local this
-  fun digit @fn25(this: Tracked<Int>) -> Int
+  fun digit @fn21(this: Tracked<Int>) -> Int
     bb0 entry
       return
         Type Int
         FieldAccess 3
           Type Tracked<Int>
           Local this
-  fun number @fn26(this: Tracked<Int>) -> Int
+  fun number @fn22(this: Tracked<Int>) -> Int
     bb0 entry
       return
         Type Int
         FieldAccess 2
           Type Tracked<Int>
           Local this
-  fun Continuation.resume @fn27(this: Continuation<Later>, value: Later) -> Unit
+  fun Continuation.resume @fn23(this: Continuation<Later>, value: Later) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
-  fun Continuation.resumeWithException @fn28(this: Continuation<Later>, exception: Throwable) -> Unit
+  fun Continuation.resumeWithException @fn24(this: Continuation<Later>, exception: Throwable) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resumeWithException`"
-  fun SuspendTask.run @fn29(this: SuspendTask<Later>, $completion: Continuation<Later>) -> CoroutineStep<Later>
+  fun SuspendTask.run @fn25(this: SuspendTask<Later>, $completion: Continuation<Later>) -> CoroutineStep<Later>
     bb0 entry
       trap "call to abstract method `SuspendTask.run`"
-  fun SuspendRegistration.register @fn30(this: SuspendRegistration<Later>, continuation: Continuation<Later>) -> Unit
+  fun SuspendRegistration.register @fn26(this: SuspendRegistration<Later>, continuation: Continuation<Later>) -> Unit
     bb0 entry
       trap "call to abstract method `SuspendRegistration.register`"
-  fun init.Later.$c0 @fn31(this: Later, number: Int) -> Unit
+  fun init.Later.$c0 @fn27(this: Later, number: Int) -> Unit
     bb0 entry
       field_set 0
         Type Later
@@ -1846,7 +2224,7 @@ Module
         Type Int
         Local number
       return
-  fun init.Trace.$c0 @fn32(this: Trace<Later>, visits: Int) -> Unit
+  fun init.Trace.$c0 @fn28(this: Trace<Later>, visits: Int) -> Unit
     bb0 entry
       field_set 0
         Type Trace<Later>
@@ -1854,7 +2232,7 @@ Module
         Type Int
         Local visits
       return
-  fun init.Tracked.$c1 @fn33(this: Tracked<Later>, payload: Later, trace: Trace<Later>, number: Int, digit: Int) -> Unit
+  fun init.Tracked.$c1 @fn29(this: Tracked<Later>, payload: Later, trace: Trace<Later>, number: Int, digit: Int) -> Unit
     bb0 entry
       field_set 0
         Type Tracked<Later>
@@ -1877,7 +2255,7 @@ Module
         Type Int
         Local digit
       return
-  fun init.Trace.$c0 @fn34(this: Trace<Int>, visits: Int) -> Unit
+  fun init.Trace.$c0 @fn30(this: Trace<Int>, visits: Int) -> Unit
     bb0 entry
       field_set 0
         Type Trace<Int>
@@ -1885,7 +2263,7 @@ Module
         Type Int
         Local visits
       return
-  fun init.Tracked.$c1 @fn35(this: Tracked<Int>, payload: Int, trace: Trace<Int>, number: Int, digit: Int) -> Unit
+  fun init.Tracked.$c1 @fn31(this: Tracked<Int>, payload: Int, trace: Trace<Int>, number: Int, digit: Int) -> Unit
     bb0 entry
       field_set 0
         Type Tracked<Int>
@@ -1908,7 +2286,7 @@ Module
         Type Int
         Local digit
       return
-  fun ctor.Wide.$c2 @fn36(first: Tracked<Later>, second: Tracked<Later>, third: Tracked<Later>) -> Wide<Tracked<Later>> <no-gc>
+  fun ctor.Wide.$c2 @fn32(first: Tracked<Later>, second: Tracked<Later>, third: Tracked<Later>) -> Wide<Tracked<Later>> <no-gc>
     bb0 entry
       return
         Type Wide<Tracked<Later>>
@@ -1919,7 +2297,7 @@ Module
           Local second
           Type Tracked<Later>
           Local third
-  fun ctor.Wide.$c2 @fn37(first: Tracked<Int>, second: Tracked<Int>, third: Tracked<Int>) -> Wide<Tracked<Int>> <no-gc>
+  fun ctor.Wide.$c2 @fn33(first: Tracked<Int>, second: Tracked<Int>, third: Tracked<Int>) -> Wide<Tracked<Int>> <no-gc>
     bb0 entry
       return
         Type Wide<Tracked<Int>>
@@ -1930,7 +2308,7 @@ Module
           Local second
           Type Tracked<Int>
           Local third
-  fun startCoroutine<Later> @fn38(task: SuspendTask<Later>, completion: Continuation<Later>) -> Unit
+  fun startCoroutine<Later> @fn34(task: SuspendTask<Later>, completion: Continuation<Later>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -1953,7 +2331,7 @@ Module
         Local $context_guard
       return
     bb3 completed unwind bb0
-      call @fn27 interface Continuation<Later>[0]
+      call @fn23 interface Continuation<Later>[0]
         Type Continuation<Later>
         Local completion
         Type Later
@@ -1966,7 +2344,7 @@ Module
         Local $context_guard
       return
     bb4 failed unwind bb0
-      call @fn28 interface Continuation<Later>[1]
+      call @fn24 interface Continuation<Later>[1]
         Type Continuation<Later>
         Local completion
         Type Throwable
@@ -1985,7 +2363,7 @@ Module
       end_catch
       goto bb4
     bb6 run unwind bb5
-      call $step: CoroutineStep<Later> = @fn29 interface SuspendTask<Later>[0]
+      call $step: CoroutineStep<Later> = @fn25 interface SuspendTask<Later>[0]
         Type SuspendTask<Later>
         Local task
         Type Continuation<Later>
@@ -2013,32 +2391,32 @@ Module
       goto bb6
   coroutine_step cs0 CoroutineStep<Later> result=Later
   coroutine_slot cl0 CoroutineSlot<Later> value=Later
-  coroutine_start ct0 result=Later function=fn38
-  coroutine_fn cf0 @fn29 source_return=Later step=cs0 immediate
+  coroutine_start ct0 result=Later function=fn34
+  coroutine_fn cf0 @fn25 source_return=Later step=cs0 immediate
   instance mi0 function=@fn1 <- exercise
   instance mi1 function=@fn2 <- exercise
   instance mi2 function=@fn3 <- equals
   instance mi3 function=@fn4 <- compareWide
   instance mi4 function=@fn5 <- visits
   instance mi5 function=@fn6 <- visits
-  instance mi6 function=@fn8 <- pair
-  instance mi7 function=@fn10 <- single
-  instance mi8 function=@fn11 <- compareChoices
-  instance mi9 function=@fn12 <- equals
-  instance mi10 function=@fn13 <- compareWide
-  instance mi11 function=@fn14 <- visits
-  instance mi12 function=@fn15 <- visits
-  instance mi13 function=@fn17 <- pair
-  instance mi14 function=@fn19 <- single
-  instance mi15 function=@fn20 <- compareChoices
-  instance mi16 function=@fn21 <- trace
-  instance mi17 function=@fn22 <- digit
-  instance mi18 function=@fn23 <- number
-  instance mi19 function=@fn24 <- trace
-  instance mi20 function=@fn25 <- digit
-  instance mi21 function=@fn26 <- number
-  instance mi22 function=@fn27 <- Continuation.resume
-  instance mi23 function=@fn28 <- Continuation.resumeWithException
-  instance mi24 function=@fn29 <- SuspendTask.run
-  instance mi25 function=@fn30 <- SuspendRegistration.register
+  instance mi6 function=@fn7 <- pair
+  instance mi7 function=@fn8 <- single
+  instance mi8 function=@fn9 <- compareChoices
+  instance mi9 function=@fn10 <- equals
+  instance mi10 function=@fn11 <- compareWide
+  instance mi11 function=@fn12 <- visits
+  instance mi12 function=@fn13 <- visits
+  instance mi13 function=@fn14 <- pair
+  instance mi14 function=@fn15 <- single
+  instance mi15 function=@fn16 <- compareChoices
+  instance mi16 function=@fn17 <- trace
+  instance mi17 function=@fn18 <- digit
+  instance mi18 function=@fn19 <- number
+  instance mi19 function=@fn20 <- trace
+  instance mi20 function=@fn21 <- digit
+  instance mi21 function=@fn22 <- number
+  instance mi22 function=@fn23 <- Continuation.resume
+  instance mi23 function=@fn24 <- Continuation.resumeWithException
+  instance mi24 function=@fn25 <- SuspendTask.run
+  instance mi25 function=@fn26 <- SuspendRegistration.register
   output library

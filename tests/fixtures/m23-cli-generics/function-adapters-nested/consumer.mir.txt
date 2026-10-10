@@ -318,16 +318,19 @@ Module
         ClosureCapture cc1 1
           Type (Any) -> Ptr<Int>
           Local $argument.0
-      call $call.2: Int = @fn9 direct
-        Type Box<Int>
-        Local $dependency.local.1
-      call $dependency.local.5: Int = <closure:function_type0> closure[function_type0]
+      val $operand.2: (Int) -> Int
         Type (Int) -> Int
         ClosureCapture cc1 2
           Type (Any) -> Ptr<Int>
           Local $argument.0
+      call $call.3: Int = @fn9 direct
+        Type Box<Int>
+        Local $dependency.local.1
+      call $dependency.local.5: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local $operand.2
         Type Int
-        Local $call.2
+        Local $call.3
       val $dependency.local.6: Int
         Type Int
         Local $dependency.local.5

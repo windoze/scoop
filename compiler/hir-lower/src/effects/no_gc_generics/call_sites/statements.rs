@@ -68,10 +68,20 @@ impl Lowerer {
                     self.collect_generic_calls_in_statements(body, out);
                 }
                 hir::StatementKind::When(when) => {
-                    self.collect_generic_calls_in_expr(&when.subject, out);
+                    if let Some(subject) = &when.subject {
+                        self.collect_generic_calls_in_expr(subject, out);
+                    }
                     for arm in &when.arms {
-                        self.collect_generic_calls_in_pattern(&arm.pattern, out);
-                        if let Some(guard) = &arm.guard {
+                        if let hir::WhenCondition::Case(pattern) = &arm.condition {
+                            self.collect_generic_calls_in_pattern(pattern, out);
+                        }
+                        for guard in match &arm.condition {
+                            hir::WhenCondition::Predicate(condition) => Some(condition),
+                            _ => None,
+                        }
+                        .into_iter()
+                        .chain(arm.guard.iter())
+                        {
                             self.collect_generic_calls_in_statements(&guard.setup, out);
                             self.collect_generic_calls_in_expr(&guard.condition, out);
                         }

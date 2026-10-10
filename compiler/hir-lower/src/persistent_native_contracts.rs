@@ -12,7 +12,7 @@ pub(crate) fn build(
     core_types: hir::HirCoreTypeIdentityAuthority<'_>,
 ) -> Result<hir::HirSourceNativeContracts, PersistentSourceNativeContractError> {
     hir::HirSourceNativeContracts::from_declarations(hir::HirSourceNativeContractInputs {
-        functions: &lowerer.functions,
+        functions: lowerer.functions.as_arena(),
         extern_functions: &lowerer.extern_functions,
         globals: &lowerer.globals,
         properties: &lowerer.properties,

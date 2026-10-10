@@ -132,6 +132,7 @@ impl Concretizer<'_> {
                 )))
             }
             export::ExprKind::BoolLiteral(value) => concrete::ExprKind::BoolLiteral(*value),
+            export::ExprKind::Unreachable => concrete::ExprKind::Unreachable,
             export::ExprKind::UnitLiteral => concrete::ExprKind::UnitLiteral,
             export::ExprKind::TupleLiteral(elements) => concrete::ExprKind::TupleLiteral(
                 elements

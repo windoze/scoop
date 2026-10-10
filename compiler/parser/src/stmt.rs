@@ -8,6 +8,8 @@ use crate::lexer::{Token, TokenKind};
 use crate::parser::Parser;
 
 mod control_flow;
+mod jumps;
+mod when;
 
 impl Parser {
     pub(crate) fn parse_block(&mut self) -> Result<Block, Diagnostic> {
@@ -281,44 +283,6 @@ impl Parser {
                 init,
                 span,
             }),
-        })
-    }
-
-    /// `return <expr>?` — a bare `return` (for `Unit` functions) ends at a
-    /// newline, `;`, `}`, or end of file; anything else is the return value.
-    fn parse_return(&mut self) -> Result<Statement, Diagnostic> {
-        let keyword = self.bump(); // `return`
-        self.reject_jump_label(&keyword, "return")?;
-        let token = self.peek();
-        let has_value = !token.newline_before
-            && !matches!(
-                token.kind,
-                TokenKind::RBrace | TokenKind::Semicolon | TokenKind::Eof
-            );
-        let value = if has_value {
-            Some(self.parse_expr()?)
-        } else {
-            None
-        };
-        let end = value
-            .as_ref()
-            .map(|expr| expr.span().end)
-            .unwrap_or(keyword.span.end);
-        Ok(Statement {
-            span: Span::new(keyword.span.start, end),
-            kind: StatementKind::Return { value },
-        })
-    }
-
-    /// `throw <expr>` — the operand is a full expression running to the
-    /// end of the statement (`throw f(1) + 2` throws `f(1) + 2`).
-    fn parse_throw(&mut self) -> Result<Statement, Diagnostic> {
-        let keyword = self.bump(); // `throw`
-        let value = self.parse_expr()?;
-        let span = Span::new(keyword.span.start, value.span().end);
-        Ok(Statement {
-            span,
-            kind: StatementKind::Throw(value),
         })
     }
 

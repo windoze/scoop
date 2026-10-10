@@ -128,7 +128,8 @@ Module
     local %23 $dependency.argument.0: i64
     local %24 $dependency.parameter.other: i64
     local %25 $new.1: ptr<managed>
-    local %26 $call.2: i64
+    local %26 $operand.2: ptr<managed>
+    local %27 $call.3: i64
   block entry
     poll managed-void-target4 sp<managed-poll:0> live=[param0:ptr<managed>@0, param1:ptr<managed>@0]
     store param1 -> local0
@@ -162,10 +163,11 @@ Module
     t10 = integer_Add<Long> local11, local13 : i64
     call managed-void-target2 sp<managed-call:5> live=[param0:ptr<managed>@0, param1:ptr<managed>@0, local7:ptr<managed>@0] sig=void2 (ptr<managed>, i64) external-fn7(local7, t10)
     t11 = aggregate () : {}
+    store param0 -> local26
     t12 = heap_load param0 +32 : ptr<managed>
-    call managed-direct-target3 sp<managed-call:6> live=[param0:ptr<managed>@0, param1:ptr<managed>@0, t12:ptr<managed>@0] t13 = sig=direct3 (ptr<managed>) -> i64 external-fn5(t12)
-    store t13 -> local26
-    heap_store param0 +40 local26
+    call managed-direct-target3 sp<managed-call:6> live=[param0:ptr<managed>@0, param1:ptr<managed>@0, local26:ptr<managed>@0, t12:ptr<managed>@0] t13 = sig=direct3 (ptr<managed>) -> i64 external-fn5(t12)
+    store t13 -> local27
+    heap_store local26 +40 local27
     t14 = heap_load param0 +40 : i64
     store t14 -> local14
     store local14 -> local15

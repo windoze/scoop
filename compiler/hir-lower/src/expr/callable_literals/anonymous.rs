@@ -94,7 +94,7 @@ impl Lowerer {
         let outer_source_context = self.current_source_context;
         let outer_owner = self.current_owner;
         let outer_this = self.current_this.take();
-        let outer_smart_casts = std::mem::take(&mut self.smart_casts);
+        let outer_smart_casts = self.smart_casts.clone();
         self.capture_contexts.push(CaptureContext {
             available: capture_environment,
             captures: Vec::new(),
@@ -231,7 +231,7 @@ impl Lowerer {
                 access,
                 genericity: hir::FunctionGenericity::Plain,
                 kind: hir::FunctionKind::User(hir::Body {
-                    locals: std::mem::take(&mut self.locals),
+                    locals: std::mem::take(&mut self.locals).into_arena(),
                     statements,
                 }),
                 method: None,

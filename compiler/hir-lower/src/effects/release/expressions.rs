@@ -26,6 +26,7 @@ impl Lowerer {
             | E::CharLiteral(_)
             | E::FloatLiteral(_)
             | E::BoolLiteral(_)
+            | E::Unreachable
             | E::UnitLiteral
             | E::Local(_)
             | E::ConstructorParam(_)

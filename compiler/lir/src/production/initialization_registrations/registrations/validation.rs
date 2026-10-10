@@ -135,11 +135,8 @@ pub(super) fn require_primary_atom(
     definition: ObjectDefinitionPlanId,
 ) -> Result<ObjectDefinitionAtomId, StrongInitializationUnitRegistrationPlanBuildError> {
     let atoms = foundation
-        .definition_atoms()
-        .iter()
-        .filter(|record| {
-            record.key().plan() == definition && record.key().role() == DefinitionAtomRole::Primary
-        })
+        .definition_atoms_for_plan(definition)
+        .filter(|record| record.key().role() == DefinitionAtomRole::Primary)
         .map(|record| record.id())
         .collect::<Vec<_>>();
     match atoms.as_slice() {
@@ -161,11 +158,8 @@ pub(super) fn require_associated_atoms<const N: usize>(
 ) -> Result<[ObjectDefinitionAtomId; N], StrongInitializationUnitRegistrationPlanBuildError> {
     expected.sort_unstable();
     let mut records = foundation
-        .definition_atoms()
-        .iter()
-        .filter(|record| {
-            record.key().plan() == definition && record.key().role() != DefinitionAtomRole::Primary
-        })
+        .definition_atoms_for_plan(definition)
+        .filter(|record| record.key().role() != DefinitionAtomRole::Primary)
         .collect::<Vec<_>>();
     records.sort_unstable_by(|a, b| a.key().cmp(b.key()));
     let actual = records

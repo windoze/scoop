@@ -51,34 +51,34 @@ Module
     local %23 allocated: ptr<managed>
     local %24 $opt.0: enum2
     local %25 $res.1: enum0
-    local %26 $opt.2: enum0
-    local %27 $res.3: i32
+    local %26 opt: enum0
+    local %27 $result.2: i32
     local %28 $dependency.receiver: i32
     local %29 $dependency.argument.0: i32
     local %30 $dependency.parameter.other: i32
-    local %31 $opt.4: enum1
-    local %32 $res.5: ptr<managed>
+    local %31 opt: enum1
+    local %32 $result.3: ptr<managed>
     local %33 $dependency.receiver: ptr<managed>
     local %34 $dependency.argument.0: ptr<managed>
     local %35 $dependency.parameter.other: ptr<managed>
-    local %36 $shortCircuit.6: i1
-    local %37 $opt.7: enum1
-    local %38 $res.8: ptr<managed>
+    local %36 $shortCircuit.4: i1
+    local %37 opt: enum1
+    local %38 $result.5: ptr<managed>
     local %39 $dependency.receiver: ptr<managed>
     local %40 $dependency.argument.0: ptr<managed>
     local %41 $dependency.parameter.other: ptr<managed>
-    local %42 $opt.9: enum0
-    local %43 $res.10: i32
+    local %42 opt: enum0
+    local %43 $result.6: i32
     local %44 $dependency.receiver: i32
     local %45 $dependency.argument.0: i32
     local %46 $dependency.parameter.other: i32
-    local %47 $shortCircuit.11: i1
-    local %48 $opt.12: enum0
-    local %49 $res.13: i32
+    local %47 $shortCircuit.7: i1
+    local %48 opt: enum0
+    local %49 $result.8: i32
     local %50 $dependency.receiver: i32
     local %51 $dependency.argument.0: i32
     local %52 $dependency.parameter.other: i32
-    local %53 $shortCircuit.14: i1
+    local %53 $shortCircuit.9: i1
     local %54 $dependency.argument.0: enum0
     local %55 $dependency.parameter.value: enum0
     local %56 $dependency.receiver: i32

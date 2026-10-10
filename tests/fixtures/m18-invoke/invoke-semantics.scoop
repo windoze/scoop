@@ -27,8 +27,8 @@ struct Command() {
 struct Mapper() {
     operator fun <T> invoke(
         value: T,
-        transform: (T) -> String,
-        suffix: String = "!"
+        suffix: String = "!",
+        transform: (T) -> String
     ): String = transform(value) + suffix
 }
 

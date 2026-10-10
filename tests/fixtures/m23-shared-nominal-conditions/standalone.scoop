@@ -15,8 +15,8 @@ public fun <T> exercise(value: T, read: (T) -> Int): Int {
     val phantom: Scalar<Phantom<String>> = Scalar(Phantom<String>())
     if (hidden(phantom) != 42) { return 1 }
     return when (choice) {
-        Empty -> 2
-        Item(item) -> read(item)
+        case Empty -> 2
+        case Item(item) -> read(item)
     }
 }
 

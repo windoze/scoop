@@ -49,12 +49,14 @@ Module
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret true
   fun @scoop$1$cb$9f4f66fd61c4572fa7616da8cad457ec5d6a49acc03da44fbd004f671a8c5959(ptr<managed>) -> sret<{i32, i32, i32, i32, i32, i32, i32, i32} size=32 align=4 scan=none>
-    local %0 $call.1: i32
+    local %0 $operand.1: i32
     local %1 $call.2: i32
     local %2 $call.3: i32
     local %3 $call.4: i32
     local %4 $call.5: i32
-    local %5 $call.6: i32
+    local %5 $operand.6: i32
+    local %6 $call.7: i32
+    local %7 $call.8: i32
   block entry
     poll managed-void-target3 sp<managed-poll:0> live=[param0:ptr<managed>@0]
     heap_store param0 +16 integer<Int>(0x0000000b)
@@ -66,28 +68,30 @@ Module
     t3 = heap_load t2 +88 : ptr<metadata>
     call managed-void-target2 sp<managed-call:2> live=[param0:ptr<managed>@0] sig=void2 (ptr<managed>, i32) dispatch[Virtual:1] t3(param0, integer<Int>(0x00000011))
     t4 = aggregate () : {}
-    call managed-direct-target0 sp<managed-call:3> live=[param0:ptr<managed>@0] t5 = sig=direct0 (ptr<managed>) -> i32 local-fn3(param0)
+    t5 = heap_load param0 +16 : i32
     store t5 -> local0
-    call managed-direct-target1 sp<managed-call:4> live=[param0:ptr<managed>@0] t6 = sig=direct1 (ptr<managed>) -> i32 local-fn4(param0)
+    call managed-direct-target0 sp<managed-call:3> live=[param0:ptr<managed>@0] t6 = sig=direct0 (ptr<managed>) -> i32 local-fn3(param0)
     store t6 -> local1
-    t7 = heap_load param0 +0 : ptr<metadata>
-    t8 = heap_load t7 +88 : ptr<metadata>
-    call managed-direct-target2 sp<managed-call:5> live=[param0:ptr<managed>@0] t9 = sig=direct2 (ptr<managed>) -> i32 dispatch[Virtual:0] t8(param0)
-    store t9 -> local2
-    call managed-direct-target3 sp<managed-call:6> live=[param0:ptr<managed>@0] t10 = sig=direct3 (ptr<managed>) -> i32 local-fn8(param0)
+    call managed-direct-target1 sp<managed-call:4> live=[param0:ptr<managed>@0] t7 = sig=direct1 (ptr<managed>) -> i32 local-fn4(param0)
+    store t7 -> local2
+    t8 = heap_load param0 +0 : ptr<metadata>
+    t9 = heap_load t8 +88 : ptr<metadata>
+    call managed-direct-target2 sp<managed-call:5> live=[param0:ptr<managed>@0] t10 = sig=direct2 (ptr<managed>) -> i32 dispatch[Virtual:0] t9(param0)
     store t10 -> local3
-    call managed-direct-target4 sp<managed-call:7> live=[param0:ptr<managed>@0] t11 = sig=direct4 (ptr<managed>) -> i32 local-fn10(param0)
+    call managed-direct-target3 sp<managed-call:6> live=[param0:ptr<managed>@0] t11 = sig=direct3 (ptr<managed>) -> i32 local-fn8(param0)
     store t11 -> local4
-    t12 = heap_load param0 +0 : ptr<metadata>
-    call no-gc-direct-target0 t13 = sig=direct5 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t12, td0)
-    t14 = aggregate (param0, t13) : interface{object,itab}
-    t15 = extract t14, 1 : ptr<metadata>
-    t16 = extract t14, 0 : ptr<managed>
-    call managed-direct-target5 sp<managed-call:8> live=[param0:ptr<managed>@0, t16:ptr<managed>@0] t17 = sig=direct6 (ptr<managed>) -> i32 dispatch[Interface:0] t15(t16)
-    store t17 -> local5
-    t18 = heap_load param0 +16 : i32
-    t19 = heap_load param0 +20 : i32
-    t20 = aggregate (t18, local0, local1, local2, local3, t19, local4, local5) : {i32, i32, i32, i32, i32, i32, i32, i32}
+    t12 = heap_load param0 +20 : i32
+    store t12 -> local5
+    call managed-direct-target4 sp<managed-call:7> live=[param0:ptr<managed>@0] t13 = sig=direct4 (ptr<managed>) -> i32 local-fn10(param0)
+    store t13 -> local6
+    t14 = heap_load param0 +0 : ptr<metadata>
+    call no-gc-direct-target0 t15 = sig=direct5 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t14, td0)
+    t16 = aggregate (param0, t15) : interface{object,itab}
+    t17 = extract t16, 1 : ptr<metadata>
+    t18 = extract t16, 0 : ptr<managed>
+    call managed-direct-target5 sp<managed-call:8> live=[t18:ptr<managed>@0] t19 = sig=direct6 (ptr<managed>) -> i32 dispatch[Interface:0] t17(t18)
+    store t19 -> local7
+    t20 = aggregate (local0, local1, local2, local3, local4, local5, local6, local7) : {i32, i32, i32, i32, i32, i32, i32, i32}
     ret t20
   fun @scoop$1$cb$8108b167841e6ca10c49a78dae2cf040ea7491a3a0a1c913fd487a549c53317f(ptr<managed>) -> i32
   block entry

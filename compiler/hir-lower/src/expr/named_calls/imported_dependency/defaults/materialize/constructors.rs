@@ -108,7 +108,7 @@ impl Lowerer {
         let saved_locals = std::mem::take(&mut self.locals);
         let mut statements = Vec::new();
         let args = self.append_imported_constructor_fragment(template, fragment, &mut statements);
-        let locals = std::mem::replace(&mut self.locals, saved_locals);
+        let locals = std::mem::replace(&mut self.locals, saved_locals).into_arena();
         Ok(hir::ConstructorArguments {
             locals,
             statements,

@@ -64,7 +64,7 @@ fun main() {
 
     val unsignedMinusPattern: UInt8 = -1u
     when (unsignedMinusPattern) {
-        -((1u)) -> println("unsigned-minus-pattern")
+        case -((1u)) -> println("unsigned-minus-pattern")
         else -> println("unreachable")
     }
 
@@ -94,7 +94,7 @@ fun main() {
     }
     println(jointlyInferredIf)
     val jointlyInferredWhen = when (signed8) {
-        127 -> 1
+        case 127 -> 1
         else -> 2147483648
     }
     println(jointlyInferredWhen)

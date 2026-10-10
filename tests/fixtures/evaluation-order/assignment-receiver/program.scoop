@@ -1,0 +1,10 @@
+class Box(var value: Int)
+
+fun main() {
+    val first = Box(1)
+    val second = Box(2)
+    var target = first
+    target.value = if (true) { target = second; 9 } else { 0 }
+    println(first.value)
+    println(second.value)
+}

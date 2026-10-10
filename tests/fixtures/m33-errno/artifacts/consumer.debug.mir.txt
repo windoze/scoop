@@ -69,6 +69,11 @@ Module
   generated_callable gc2 function=@fn26 id=72d5001f6ce6951477f4bfcf47a1f22f841751a98f218313e02f0f287ef2e62a
   fun Registration.register @fn0(this: Registration, continuation: Continuation<Int>) -> Unit
     bb0 entry
+      val $place.receiver: Gate
+        Type Gate
+        FieldAccess 0
+          Type Registration
+          Local this
       val $dependency.argument.0: Continuation<Int>
         Type Continuation<Int>
         Local continuation
@@ -77,9 +82,7 @@ Module
         Local $dependency.argument.0
       field_set 0
         Type Gate
-        FieldAccess 0
-          Type Registration
-          Local this
+        Local $place.receiver
         Type Option<Continuation<Int>>
         VariantConstruct Option<Continuation<Int>> v0
           Type Continuation<Int>

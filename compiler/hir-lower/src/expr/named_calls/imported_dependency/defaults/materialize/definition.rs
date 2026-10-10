@@ -106,7 +106,7 @@ impl Lowerer {
                 .collect();
             Ok((statements, value, result_type, receiver, value_parameters))
         })();
-        let locals = std::mem::replace(&mut self.locals, saved_locals);
+        let locals = std::mem::replace(&mut self.locals, saved_locals).into_arena();
         self.type_params_in_scope = saved_parameters;
         let (statements, value, result_type, receiver, value_parameters) = result?;
         Ok(hir::DefaultExpression {

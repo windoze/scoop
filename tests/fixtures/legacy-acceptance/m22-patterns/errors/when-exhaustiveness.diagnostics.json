@@ -5,7 +5,7 @@
     "notes": [],
     "origin": {
       "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
-      "end": 191,
+      "end": 201,
       "kind": "source",
       "path": "main.scoop",
       "start": 104
@@ -18,10 +18,10 @@
     "notes": [],
     "origin": {
       "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
-      "end": 291,
+      "end": 306,
       "kind": "source",
       "path": "main.scoop",
-      "start": 232
+      "start": 242
     },
     "severity": "error"
   },
@@ -31,10 +31,10 @@
     "notes": [],
     "origin": {
       "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
-      "end": 500,
+      "end": 530,
       "kind": "source",
       "path": "main.scoop",
-      "start": 343
+      "start": 358
     },
     "severity": "error"
   },
@@ -44,10 +44,10 @@
     "notes": [],
     "origin": {
       "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
-      "end": 655,
+      "end": 695,
       "kind": "source",
       "path": "main.scoop",
-      "start": 553
+      "start": 583
     },
     "severity": "error"
   },
@@ -57,10 +57,10 @@
     "notes": [],
     "origin": {
       "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
-      "end": 752,
+      "end": 797,
       "kind": "source",
       "path": "main.scoop",
-      "start": 694
+      "start": 734
     },
     "severity": "error"
   },
@@ -70,10 +70,10 @@
     "notes": [],
     "origin": {
       "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
-      "end": 840,
+      "end": 895,
       "kind": "source",
       "path": "main.scoop",
-      "start": 793
+      "start": 838
     },
     "severity": "error"
   },
@@ -83,10 +83,10 @@
     "notes": [],
     "origin": {
       "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
-      "end": 1005,
+      "end": 1065,
       "kind": "source",
       "path": "main.scoop",
-      "start": 943
+      "start": 998
     },
     "severity": "error"
   }

@@ -139,23 +139,26 @@ Module
       call @fn37 direct
         Type Left
         Local $new.1
-      assign $new.2
+      val $operand.2: Base
+        Type Base
+        Retype Base
+          Type Left
+          Local $new.1
+      assign $new.3
         Type Right
         ClassAlloc Right
       call @fn38 direct
         Type Right
-        Local $new.2
+        Local $new.3
       val bases: Array<Base>
         Type Array<Base>
         ArrayLiteral Array<Base>
           Type Base
-          Retype Base
-            Type Left
-            Local $new.1
+          Local $operand.2
           Type Base
           Retype Base
             Type Right
-            Local $new.2
+            Local $new.3
       val $argument.0: Array<Base>
         Type Array<Base>
         Local bases
@@ -171,29 +174,32 @@ Module
       call @fn16 direct
         Type Long
         Local $dependency.parameter.value
-      assign $new.3
+      assign $new.4
         Type Cat
         ClassAlloc Cat
       call @fn39 direct
         Type Cat
-        Local $new.3
-      assign $new.4
+        Local $new.4
+      val $operand.5: Named
+        Type Named
+        Retype Named
+          Type Cat
+          Local $new.4
+      assign $new.6
         Type Dog
         ClassAlloc Dog
       call @fn40 direct
         Type Dog
-        Local $new.4
+        Local $new.6
       val named: Array<Named>
         Type Array<Named>
         ArrayLiteral Array<Named>
           Type Named
-          Retype Named
-            Type Cat
-            Local $new.3
+          Local $operand.5
           Type Named
           Retype Named
             Type Dog
-            Local $new.4
+            Local $new.6
       val $argument.0: Array<Named>
         Type Array<Named>
         Local named
@@ -209,19 +215,19 @@ Module
       call @fn17 direct
         Type String
         Local $dependency.parameter.value
-      assign $new.5
+      assign $new.7
         Type Left
         ClassAlloc Left
       call @fn37 direct
         Type Left
-        Local $new.5
+        Local $new.7
       val unrelated: Array<Any>
         Type Array<Any>
         ArrayLiteral Array<Any>
           Type Any
           Retype Any
             Type Left
-            Local $new.5
+            Local $new.7
           Type Any
           Retype Any
             Type String
@@ -247,14 +253,14 @@ Module
       val $parameter.text: String
         Type String
         Local $argument.0
-      call $call.6: Tag = @fn44 direct
+      call $call.8: Tag = @fn44 direct
         Type String
         Local $parameter.text
       val tag: Named
         Type Named
         Box
           Type Tag
-          Local $call.6
+          Local $call.8
       val $aggregate.0: Named
         Type Named
         Local tag
@@ -264,14 +270,14 @@ Module
       val $parameter.text: String
         Type String
         Local $argument.0
-      call $call.7: Tag = @fn44 direct
+      call $call.9: Tag = @fn44 direct
         Type String
         Local $parameter.text
       val $aggregate.1: Named
         Type Named
         Box
           Type Tag
-          Local $call.7
+          Local $call.9
       val explicitlyBoxed: Array<Named>
         Type Array<Named>
         ArrayLiteral Array<Named>

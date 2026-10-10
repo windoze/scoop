@@ -15,8 +15,8 @@ fun fromIf(flag: Boolean): Int {
 
 fun fromWhen(choice: Choice): Int {
     when (choice) {
-        Left -> { return 20 }
-        Right -> { return 21 }
+        case Left -> { return 20 }
+        case Right -> { return 21 }
     }
 }
 

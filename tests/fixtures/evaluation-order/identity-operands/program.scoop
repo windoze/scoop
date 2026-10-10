@@ -1,0 +1,7 @@
+class Ref()
+fun left(): Ref { println("left"); return Ref() }
+
+fun main() {
+    println(left() === if (true) { println("right"); Ref() } else { Ref() })
+    println(left() !== if (true) { println("right"); Ref() } else { Ref() })
+}

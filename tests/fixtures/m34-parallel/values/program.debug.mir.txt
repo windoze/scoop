@@ -369,6 +369,11 @@ Module
       val $dependency.parameter.index: Long
         Type Long
         Local $dependency.argument.0
+      call $place.receiver: Node = @fn8 direct
+        Type MutableArray<Node>
+        Local $dependency.receiver
+        Type Long
+        Local $dependency.parameter.index
       val $dependency.receiver: MutableArray<Node>
         Type MutableArray<Node>
         Local nodes
@@ -472,14 +477,9 @@ Module
       val $dependency.parameter._1: Node
         Type Node
         Local $dependency.argument.0
-      call $call.5: Node = @fn8 direct
-        Type MutableArray<Node>
-        Local $dependency.receiver
-        Type Long
-        Local $dependency.parameter.index
       field_set 1
         Type Node
-        Local $call.5
+        Local $place.receiver
         Type Option<Node>
         VariantConstruct Option<Node> v0
           Type Node
@@ -505,15 +505,15 @@ Module
           Local $dependency.parameter.other
       goto bb6
     bb17 if.then.17
-      assign $new.6
+      assign $new.5
         Type IllegalArgumentException
         ClassAlloc IllegalArgumentException
       call external5 direct
         Type IllegalArgumentException
-        Local $new.6
+        Local $new.5
       throw
         Type IllegalArgumentException
-        Local $new.6
+        Local $new.5
     bb18 if.merge.18
       val $array.11: MutableArray<Edge>
         Type MutableArray<Edge>
@@ -591,15 +591,15 @@ Module
           IntegerLiteral Long value=1 bits=0x0000000000000001
       goto bb19
     bb22 if.then.22
-      assign $new.7
+      assign $new.6
         Type IllegalArgumentException
         ClassAlloc IllegalArgumentException
       call external5 direct
         Type IllegalArgumentException
-        Local $new.7
+        Local $new.6
       throw
         Type IllegalArgumentException
-        Local $new.7
+        Local $new.6
     bb23 if.merge.23
       val $array.16: MutableArray<ULong>
         Type MutableArray<ULong>
@@ -631,7 +631,7 @@ Module
       val $dependency.parameter.index: Long
         Type Long
         Local $dependency.argument.0
-      call $call.8: Node = @fn8 direct
+      call $call.7: Node = @fn8 direct
         Type MutableArray<Node>
         Local $dependency.receiver
         Type Long
@@ -640,7 +640,7 @@ Module
         Type Value
         Retype Value
           Type Node
-          Local $call.8
+          Local $call.7
       val $parameter.initial: Value
         Type Value
         Local $argument.0
@@ -768,12 +768,12 @@ Module
       val $parameter.shared: Option<Node>
         Type Option<Node>
         Local $argument.2
-      assign $new.21
+      assign $new.20
         Type Node
         ClassAlloc Node
       call @fn48 direct
         Type Node
-        Local $new.21
+        Local $new.20
         Type Long
         Local $parameter.value
         Type Option<Node>
@@ -784,7 +784,7 @@ Module
         Type Value
         Retype Value
           Type Node
-          Local $new.21
+          Local $new.20
       val $dependency.parameter.value: Value
         Type Value
         Local $dependency.argument.0
@@ -806,6 +806,11 @@ Module
       val $dependency.parameter.index: Long
         Type Long
         Local $dependency.argument.0
+      call $place.receiver: Node = @fn8 direct
+        Type MutableArray<Node>
+        Local $dependency.receiver
+        Type Long
+        Local $dependency.parameter.index
       val $dependency.receiver: Long
         Type Long
         Local count
@@ -853,12 +858,12 @@ Module
       val $parameter.shared: Option<Node>
         Type Option<Node>
         Local $argument.2
-      assign $new.22
+      assign $new.21
         Type Node
         ClassAlloc Node
       call @fn48 direct
         Type Node
-        Local $new.22
+        Local $new.21
         Type Long
         Local $parameter.value
         Type Option<Node>
@@ -867,18 +872,13 @@ Module
         Local $parameter.shared
       val $dependency.argument.0: Node
         Type Node
-        Local $new.22
+        Local $new.21
       val $dependency.parameter._1: Node
         Type Node
         Local $dependency.argument.0
-      call $call.23: Node = @fn8 direct
-        Type MutableArray<Node>
-        Local $dependency.receiver
-        Type Long
-        Local $dependency.parameter.index
       field_set 2
         Type Node
-        Local $call.23
+        Local $place.receiver
         Type Option<Node>
         VariantConstruct Option<Node> v0
           Type Node
@@ -918,7 +918,7 @@ Module
       val $dependency.parameter.index: Long
         Type Long
         Local $dependency.argument.0
-      call $call.9: Edge = @fn14 direct
+      call $call.8: Edge = @fn14 direct
         Type Array<Edge>
         Local $dependency.receiver
         Type Long
@@ -927,7 +927,7 @@ Module
         Type Value
         FieldAccess 0
           Type Edge
-          Local $call.9
+          Local $call.8
       call $dependency.receiver: Long = @fn47 interface Value[0]
         Type Value
         Local $receiver
@@ -959,7 +959,7 @@ Module
       val $dependency.parameter.index: Long
         Type Long
         Local $dependency.argument.0
-      call $call.10: Edge = @fn14 direct
+      call $call.9: Edge = @fn14 direct
         Type Array<Edge>
         Local $dependency.receiver
         Type Long
@@ -968,7 +968,7 @@ Module
         Type (Option<Node>, Value)
         FieldAccess 1
           Type Edge
-          Local $call.10
+          Local $call.9
       val $binding.projection.2: Option<Node>
         Type Option<Node>
         FieldAccess 0
@@ -1001,15 +1001,15 @@ Module
           Local $opt.19
       goto bb32
     bb31 if.else.31
-      assign $new.11
+      assign $new.10
         Type UnwrapException
         ClassAlloc UnwrapException
       call external4 direct
         Type UnwrapException
-        Local $new.11
+        Local $new.10
       throw
         Type UnwrapException
-        Local $new.11
+        Local $new.10
     bb32 if.merge.32
       val $equality.lhs: Long
         Type Long
@@ -1055,15 +1055,15 @@ Module
           Type Long
           IntegerLiteral Long value=0 bits=0x0000000000000000
     bb33 if.then.33
-      assign $new.12
+      assign $new.11
         Type ArithmeticException
         ClassAlloc ArithmeticException
       call external3 direct
         Type ArithmeticException
-        Local $new.12
+        Local $new.11
       throw
         Type ArithmeticException
-        Local $new.12
+        Local $new.11
     bb34 if.merge.34
       branch bb35 bb36
         Type Boolean
@@ -1073,7 +1073,7 @@ Module
           Type Long
           IntegerLiteral Long value=-9223372036854775808 bits=0x8000000000000000
     bb35 logic.rhs.35
-      assign $logic.13
+      assign $logic.12
         Type Boolean
         IntegerCompare equal operands=Long result=Boolean
           Type Long
@@ -1082,14 +1082,14 @@ Module
           IntegerLiteral Long value=-1 bits=0xffffffffffffffff
       goto bb37
     bb36 logic.short.36
-      assign $logic.13
+      assign $logic.12
         Type Boolean
         BoolLiteral false
       goto bb37
     bb37 logic.merge.37
       branch bb38 bb39
         Type Boolean
-        Local $logic.13
+        Local $logic.12
     bb38 if.then.38
       assign $div.result.23
         Type Long
@@ -1174,7 +1174,7 @@ Module
       val $dependency.parameter.index: Long
         Type Long
         Local $dependency.argument.0
-      call $call.16: Node = @fn8 direct
+      call $call.15: Node = @fn8 direct
         Type MutableArray<Node>
         Local $dependency.receiver
         Type Long
@@ -1183,22 +1183,22 @@ Module
         Type Option<Node>
         FieldAccess 1
           Type Node
-          Local $call.16
+          Local $call.15
       branch bb52 bb53
         Type Boolean
         VariantTest Option<Node> v0
           Type Option<Node>
           Local $opt.27
     bb44 if.then.44
-      assign $new.14
+      assign $new.13
         Type ArithmeticException
         ClassAlloc ArithmeticException
       call external3 direct
         Type ArithmeticException
-        Local $new.14
+        Local $new.13
       throw
         Type ArithmeticException
-        Local $new.14
+        Local $new.13
     bb45 if.merge.45
       branch bb46 bb47
         Type Boolean
@@ -1208,7 +1208,7 @@ Module
           Type Long
           IntegerLiteral Long value=-9223372036854775808 bits=0x8000000000000000
     bb46 logic.rhs.46
-      assign $logic.15
+      assign $logic.14
         Type Boolean
         IntegerCompare equal operands=Long result=Boolean
           Type Long
@@ -1217,14 +1217,14 @@ Module
           IntegerLiteral Long value=-1 bits=0xffffffffffffffff
       goto bb48
     bb47 logic.short.47
-      assign $logic.15
+      assign $logic.14
         Type Boolean
         BoolLiteral false
       goto bb48
     bb48 logic.merge.48
       branch bb49 bb50
         Type Boolean
-        Local $logic.15
+        Local $logic.14
     bb49 if.then.49
       assign $div.result.26
         Type Long
@@ -1262,15 +1262,15 @@ Module
           Local $opt.27
       goto bb54
     bb53 if.else.53
-      assign $new.17
+      assign $new.16
         Type UnwrapException
         ClassAlloc UnwrapException
       call external4 direct
         Type UnwrapException
-        Local $new.17
+        Local $new.16
       throw
         Type UnwrapException
-        Local $new.17
+        Local $new.16
     bb54 if.merge.54
       val $opt.29: Option<Node>
         Type Option<Node>
@@ -1288,15 +1288,15 @@ Module
           Local $opt.29
       goto bb57
     bb56 if.else.56
-      assign $new.18
+      assign $new.17
         Type UnwrapException
         ClassAlloc UnwrapException
       call external4 direct
         Type UnwrapException
-        Local $new.18
+        Local $new.17
       throw
         Type UnwrapException
-        Local $new.18
+        Local $new.17
     bb57 if.merge.57
       branch bb58 bb59
         Type Boolean
@@ -1315,7 +1315,7 @@ Module
       val $dependency.parameter.index: Long
         Type Long
         Local $dependency.argument.0
-      call $call.19: Node = @fn8 direct
+      call $call.18: Node = @fn8 direct
         Type MutableArray<Node>
         Local $dependency.receiver
         Type Long
@@ -1324,7 +1324,7 @@ Module
         Type Option<Node>
         FieldAccess 2
           Type Node
-          Local $call.19
+          Local $call.18
       branch bb61 bb62
         Type Boolean
         VariantTest Option<Node> v0
@@ -1406,15 +1406,15 @@ Module
           Local $opt.31
       goto bb63
     bb62 if.else.62
-      assign $new.20
+      assign $new.19
         Type UnwrapException
         ClassAlloc UnwrapException
       call external4 direct
         Type UnwrapException
-        Local $new.20
+        Local $new.19
       throw
         Type UnwrapException
-        Local $new.20
+        Local $new.19
     bb63 if.merge.63
       val $shortCircuit.5: Boolean
         Type Boolean
@@ -1434,7 +1434,7 @@ Module
       val $dependency.parameter.index: Long
         Type Long
         Local $dependency.argument.0
-      call $call.24: Node = @fn8 direct
+      call $call.22: Node = @fn8 direct
         Type MutableArray<Node>
         Local $dependency.receiver
         Type Long
@@ -1443,7 +1443,7 @@ Module
         Type Option<Node>
         FieldAccess 2
           Type Node
-          Local $call.24
+          Local $call.22
       branch bb67 bb68
         Type Boolean
         VariantTest Option<Node> v0
@@ -1470,6 +1470,9 @@ Module
       val $dependency.parameter.p: PinnedPtr<Node>
         Type PinnedPtr<Node>
         Local $dependency.argument.0
+      call $equality.lhs: Node = @fn24 direct
+        Type PinnedPtr<Node>
+        Local $dependency.parameter.p
       val $dependency.receiver: MutableArray<Node>
         Type MutableArray<Node>
         Local nodes
@@ -1479,10 +1482,7 @@ Module
       val $dependency.parameter.index: Long
         Type Long
         Local $dependency.argument.0
-      call $call.26: Node = @fn24 direct
-        Type PinnedPtr<Node>
-        Local $dependency.parameter.p
-      call $call.27: Node = @fn8 direct
+      call $call.24: Node = @fn8 direct
         Type MutableArray<Node>
         Local $dependency.receiver
         Type Long
@@ -1491,9 +1491,9 @@ Module
         Type Boolean
         Binary RefEq
           Type Node
-          Local $call.26
+          Local $equality.lhs
           Type Node
-          Local $call.27
+          Local $call.24
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
@@ -1509,15 +1509,15 @@ Module
           Local $opt.33
       goto bb69
     bb68 if.else.68
-      assign $new.25
+      assign $new.23
         Type UnwrapException
         ClassAlloc UnwrapException
       call external4 direct
         Type UnwrapException
-        Local $new.25
+        Local $new.23
       throw
         Type UnwrapException
-        Local $new.25
+        Local $new.23
     bb69 if.merge.69
       val $equality.lhs: Long
         Type Long

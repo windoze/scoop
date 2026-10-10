@@ -208,7 +208,7 @@ Module
       val $callable.receiver: (String) -> Int
         Type (String) -> Int
         Local read
-      val $opt.0: Option<String>
+      val opt: Option<String>
         Type Option<String>
         FieldAccess 1
           Type RemoteCell<String>
@@ -217,16 +217,16 @@ Module
         Type Boolean
         VariantTest Option<String> v0
           Type Option<String>
-          Local $opt.0
+          Local opt
     bb3 if.then.3
-      val $res.1: String
+      assign $result.0
         Type String
         VariantPayloadProject Option<String> v0 f0
           Type Option<String>
-          Local $opt.0
+          Local opt
       goto bb5
     bb4 if.else.4
-      val $res.1: String
+      assign $result.0
         Type String
         Local value
       goto bb5
@@ -235,7 +235,7 @@ Module
         Type (String) -> Int
         Local $callable.receiver
         Type String
-        Local $res.1
+        Local $result.0
       val $dependency.argument.0: Int
         Type Int
         IntegerLiteral Int value=42 bits=0x0000002a
@@ -351,7 +351,7 @@ Module
       val $callable.receiver: (Unit) -> Int
         Type (Unit) -> Int
         Local read
-      val $opt.0: Option<Unit>
+      val opt: Option<Unit>
         Type Option<Unit>
         FieldAccess 1
           Type RemoteCell<Unit>
@@ -360,16 +360,16 @@ Module
         Type Boolean
         VariantTest Option<Unit> v0
           Type Option<Unit>
-          Local $opt.0
+          Local opt
     bb3 if.then.3
-      val $res.1: Unit
+      assign $result.0
         Type Unit
         VariantPayloadProject Option<Unit> v0 f0
           Type Option<Unit>
-          Local $opt.0
+          Local opt
       goto bb5
     bb4 if.else.4
-      val $res.1: Unit
+      assign $result.0
         Type Unit
         Local value
       goto bb5
@@ -378,7 +378,7 @@ Module
         Type (Unit) -> Int
         Local $callable.receiver
         Type Unit
-        Local $res.1
+        Local $result.0
       val $dependency.argument.0: Int
         Type Int
         IntegerLiteral Int value=42 bits=0x0000002a
@@ -494,7 +494,7 @@ Module
       val $callable.receiver: (Int) -> Int
         Type (Int) -> Int
         Local read
-      val $opt.0: Option<Int>
+      val opt: Option<Int>
         Type Option<Int>
         FieldAccess 1
           Type RemoteCell<Int>
@@ -503,16 +503,16 @@ Module
         Type Boolean
         VariantTest Option<Int> v0
           Type Option<Int>
-          Local $opt.0
+          Local opt
     bb3 if.then.3
-      val $res.1: Int
+      assign $result.0
         Type Int
         VariantPayloadProject Option<Int> v0 f0
           Type Option<Int>
-          Local $opt.0
+          Local opt
       goto bb5
     bb4 if.else.4
-      val $res.1: Int
+      assign $result.0
         Type Int
         Local value
       goto bb5
@@ -521,7 +521,7 @@ Module
         Type (Int) -> Int
         Local $callable.receiver
         Type Int
-        Local $res.1
+        Local $result.0
       val $dependency.argument.0: Int
         Type Int
         IntegerLiteral Int value=42 bits=0x0000002a

@@ -38,7 +38,11 @@ impl Lowerer {
             );
             return None;
         }
-        if !self.type_exposes_invoke(callee.ty, require_infix) {
+        if !self
+            .smart_cast_receiver_views(&callee)
+            .iter()
+            .any(|view| self.type_exposes_invoke(view.ty, require_infix))
+        {
             let found = self.type_name(callee.ty);
             self.error(call.span, format!("value of type {found} is not callable"));
             return None;
@@ -117,49 +121,29 @@ impl Lowerer {
         sink: &mut Vec<hir::Statement>,
         expected: Option<TypeId>,
     ) -> Option<hir::Expr> {
-        if let Some(local) = self.scopes.lookup(&call.callee.text) {
-            let binding = self.locals[local].binding;
-            let ty = self
+        let binding = self
+            .scopes
+            .lookup(&call.callee.text)
+            .map(|local| (self.locals[local].binding, self.locals[local].ty))
+            .or_else(|| {
+                self.available_capture(&call.callee.text)
+                    .map(|capture| (capture.binding, capture.ty))
+            })
+            .or_else(|| {
+                self.constructor_params_in_scope
+                    .get(&call.callee.text)
+                    .map(|&(_, ty, binding)| (binding, ty))
+            });
+        if let Some((binding, declared)) = binding {
+            let declared = self
                 .local_delegate_plans
                 .get(&binding)
-                .map(|plan| plan.property_ty)
-                .or_else(|| self.smart_casts.get(&local).copied())
-                .unwrap_or(self.locals[local].ty);
-            if self.type_exposes_invoke(ty, false) || matches!(self.types[ty], Type::FunPtr(_)) {
-                let callee = if self.local_delegate_plans.contains_key(&binding) {
-                    self.lower_var(&call.callee, sink, None)?
-                } else {
-                    hir::Expr {
-                        kind: ExprKind::Local(local),
-                        ty,
-                        span: call.callee.span,
-                        origin: self.expression_origin(call.callee.span),
-                    }
-                };
-                return self.lower_value_invoke(
-                    callee,
-                    CallSite {
-                        type_args: &call.type_args,
-                        args: &call.args,
-                        span: call.span,
-                    },
-                    sink,
-                    expected,
-                    false,
-                );
-            }
-        }
-        if let Some(capture) = self.available_capture(&call.callee.text) {
-            let ty = self
-                .local_delegate_plans
-                .get(&capture.binding)
-                .map_or(capture.ty, |plan| plan.property_ty);
-            if self.type_exposes_invoke(ty, false) || matches!(self.types[ty], Type::FunPtr(_)) {
-                let callee = if self.local_delegate_plans.contains_key(&capture.binding) {
-                    self.lower_var(&call.callee, sink, None)?
-                } else {
-                    self.lower_capture(&call.callee)?
-                };
+                .map_or(declared, |plan| plan.property_ty);
+            let views = self.smart_casts.get(&binding).cloned().unwrap_or_default();
+            if let Some(ty) = views.into_iter().chain([declared]).find(|&ty| {
+                self.type_exposes_invoke(ty, false) || matches!(self.types[ty], Type::FunPtr(_))
+            }) {
+                let callee = self.lower_var(&call.callee, sink, Some(ty))?;
                 return self.lower_value_invoke(
                     callee,
                     CallSite {

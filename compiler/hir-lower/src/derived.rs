@@ -14,6 +14,7 @@ use crate::{
 mod body;
 mod declarations;
 mod imported;
+mod inline;
 mod published;
 
 pub(crate) enum DerivedEqualityCandidate {

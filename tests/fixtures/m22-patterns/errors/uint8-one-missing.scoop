@@ -1,261 +1,261 @@
 // EXPECT-DIAGNOSTICS
 
 fun classify(value: UInt8): Int = when (value) {
-    0u -> 0
-    1u -> 0
-    2u -> 0
-    3u -> 0
-    4u -> 0
-    5u -> 0
-    6u -> 0
-    7u -> 0
-    8u -> 0
-    9u -> 0
-    10u -> 0
-    11u -> 0
-    12u -> 0
-    13u -> 0
-    14u -> 0
-    15u -> 0
-    16u -> 0
-    17u -> 0
-    18u -> 0
-    19u -> 0
-    20u -> 0
-    21u -> 0
-    22u -> 0
-    23u -> 0
-    24u -> 0
-    25u -> 0
-    26u -> 0
-    27u -> 0
-    28u -> 0
-    29u -> 0
-    30u -> 0
-    31u -> 0
-    32u -> 0
-    33u -> 0
-    34u -> 0
-    35u -> 0
-    36u -> 0
-    37u -> 0
-    38u -> 0
-    39u -> 0
-    40u -> 0
-    41u -> 0
-    42u -> 0
-    43u -> 0
-    44u -> 0
-    45u -> 0
-    46u -> 0
-    47u -> 0
-    48u -> 0
-    49u -> 0
-    50u -> 0
-    51u -> 0
-    52u -> 0
-    53u -> 0
-    54u -> 0
-    55u -> 0
-    56u -> 0
-    57u -> 0
-    58u -> 0
-    59u -> 0
-    60u -> 0
-    61u -> 0
-    62u -> 0
-    63u -> 0
-    64u -> 0
-    65u -> 0
-    66u -> 0
-    67u -> 0
-    68u -> 0
-    69u -> 0
-    70u -> 0
-    71u -> 0
-    72u -> 0
-    73u -> 0
-    74u -> 0
-    75u -> 0
-    76u -> 0
-    77u -> 0
-    78u -> 0
-    79u -> 0
-    80u -> 0
-    81u -> 0
-    82u -> 0
-    83u -> 0
-    84u -> 0
-    85u -> 0
-    86u -> 0
-    87u -> 0
-    88u -> 0
-    89u -> 0
-    90u -> 0
-    91u -> 0
-    92u -> 0
-    93u -> 0
-    94u -> 0
-    95u -> 0
-    96u -> 0
-    97u -> 0
-    98u -> 0
-    99u -> 0
-    100u -> 0
-    101u -> 0
-    102u -> 0
-    103u -> 0
-    104u -> 0
-    105u -> 0
-    106u -> 0
-    107u -> 0
-    108u -> 0
-    109u -> 0
-    110u -> 0
-    111u -> 0
-    112u -> 0
-    113u -> 0
-    114u -> 0
-    115u -> 0
-    116u -> 0
-    117u -> 0
-    118u -> 0
-    119u -> 0
-    120u -> 0
-    121u -> 0
-    122u -> 0
-    123u -> 0
-    124u -> 0
-    125u -> 0
-    126u -> 0
-    127u -> 0
-    128u -> 0
-    129u -> 0
-    130u -> 0
-    131u -> 0
-    132u -> 0
-    133u -> 0
-    134u -> 0
-    135u -> 0
-    136u -> 0
-    138u -> 0
-    139u -> 0
-    140u -> 0
-    141u -> 0
-    142u -> 0
-    143u -> 0
-    144u -> 0
-    145u -> 0
-    146u -> 0
-    147u -> 0
-    148u -> 0
-    149u -> 0
-    150u -> 0
-    151u -> 0
-    152u -> 0
-    153u -> 0
-    154u -> 0
-    155u -> 0
-    156u -> 0
-    157u -> 0
-    158u -> 0
-    159u -> 0
-    160u -> 0
-    161u -> 0
-    162u -> 0
-    163u -> 0
-    164u -> 0
-    165u -> 0
-    166u -> 0
-    167u -> 0
-    168u -> 0
-    169u -> 0
-    170u -> 0
-    171u -> 0
-    172u -> 0
-    173u -> 0
-    174u -> 0
-    175u -> 0
-    176u -> 0
-    177u -> 0
-    178u -> 0
-    179u -> 0
-    180u -> 0
-    181u -> 0
-    182u -> 0
-    183u -> 0
-    184u -> 0
-    185u -> 0
-    186u -> 0
-    187u -> 0
-    188u -> 0
-    189u -> 0
-    190u -> 0
-    191u -> 0
-    192u -> 0
-    193u -> 0
-    194u -> 0
-    195u -> 0
-    196u -> 0
-    197u -> 0
-    198u -> 0
-    199u -> 0
-    200u -> 0
-    201u -> 0
-    202u -> 0
-    203u -> 0
-    204u -> 0
-    205u -> 0
-    206u -> 0
-    207u -> 0
-    208u -> 0
-    209u -> 0
-    210u -> 0
-    211u -> 0
-    212u -> 0
-    213u -> 0
-    214u -> 0
-    215u -> 0
-    216u -> 0
-    217u -> 0
-    218u -> 0
-    219u -> 0
-    220u -> 0
-    221u -> 0
-    222u -> 0
-    223u -> 0
-    224u -> 0
-    225u -> 0
-    226u -> 0
-    227u -> 0
-    228u -> 0
-    229u -> 0
-    230u -> 0
-    231u -> 0
-    232u -> 0
-    233u -> 0
-    234u -> 0
-    235u -> 0
-    236u -> 0
-    237u -> 0
-    238u -> 0
-    239u -> 0
-    240u -> 0
-    241u -> 0
-    242u -> 0
-    243u -> 0
-    244u -> 0
-    245u -> 0
-    246u -> 0
-    247u -> 0
-    248u -> 0
-    249u -> 0
-    250u -> 0
-    251u -> 0
-    252u -> 0
-    253u -> 0
-    254u -> 0
-    255u -> 0
+    case 0u -> 0
+    case 1u -> 0
+    case 2u -> 0
+    case 3u -> 0
+    case 4u -> 0
+    case 5u -> 0
+    case 6u -> 0
+    case 7u -> 0
+    case 8u -> 0
+    case 9u -> 0
+    case 10u -> 0
+    case 11u -> 0
+    case 12u -> 0
+    case 13u -> 0
+    case 14u -> 0
+    case 15u -> 0
+    case 16u -> 0
+    case 17u -> 0
+    case 18u -> 0
+    case 19u -> 0
+    case 20u -> 0
+    case 21u -> 0
+    case 22u -> 0
+    case 23u -> 0
+    case 24u -> 0
+    case 25u -> 0
+    case 26u -> 0
+    case 27u -> 0
+    case 28u -> 0
+    case 29u -> 0
+    case 30u -> 0
+    case 31u -> 0
+    case 32u -> 0
+    case 33u -> 0
+    case 34u -> 0
+    case 35u -> 0
+    case 36u -> 0
+    case 37u -> 0
+    case 38u -> 0
+    case 39u -> 0
+    case 40u -> 0
+    case 41u -> 0
+    case 42u -> 0
+    case 43u -> 0
+    case 44u -> 0
+    case 45u -> 0
+    case 46u -> 0
+    case 47u -> 0
+    case 48u -> 0
+    case 49u -> 0
+    case 50u -> 0
+    case 51u -> 0
+    case 52u -> 0
+    case 53u -> 0
+    case 54u -> 0
+    case 55u -> 0
+    case 56u -> 0
+    case 57u -> 0
+    case 58u -> 0
+    case 59u -> 0
+    case 60u -> 0
+    case 61u -> 0
+    case 62u -> 0
+    case 63u -> 0
+    case 64u -> 0
+    case 65u -> 0
+    case 66u -> 0
+    case 67u -> 0
+    case 68u -> 0
+    case 69u -> 0
+    case 70u -> 0
+    case 71u -> 0
+    case 72u -> 0
+    case 73u -> 0
+    case 74u -> 0
+    case 75u -> 0
+    case 76u -> 0
+    case 77u -> 0
+    case 78u -> 0
+    case 79u -> 0
+    case 80u -> 0
+    case 81u -> 0
+    case 82u -> 0
+    case 83u -> 0
+    case 84u -> 0
+    case 85u -> 0
+    case 86u -> 0
+    case 87u -> 0
+    case 88u -> 0
+    case 89u -> 0
+    case 90u -> 0
+    case 91u -> 0
+    case 92u -> 0
+    case 93u -> 0
+    case 94u -> 0
+    case 95u -> 0
+    case 96u -> 0
+    case 97u -> 0
+    case 98u -> 0
+    case 99u -> 0
+    case 100u -> 0
+    case 101u -> 0
+    case 102u -> 0
+    case 103u -> 0
+    case 104u -> 0
+    case 105u -> 0
+    case 106u -> 0
+    case 107u -> 0
+    case 108u -> 0
+    case 109u -> 0
+    case 110u -> 0
+    case 111u -> 0
+    case 112u -> 0
+    case 113u -> 0
+    case 114u -> 0
+    case 115u -> 0
+    case 116u -> 0
+    case 117u -> 0
+    case 118u -> 0
+    case 119u -> 0
+    case 120u -> 0
+    case 121u -> 0
+    case 122u -> 0
+    case 123u -> 0
+    case 124u -> 0
+    case 125u -> 0
+    case 126u -> 0
+    case 127u -> 0
+    case 128u -> 0
+    case 129u -> 0
+    case 130u -> 0
+    case 131u -> 0
+    case 132u -> 0
+    case 133u -> 0
+    case 134u -> 0
+    case 135u -> 0
+    case 136u -> 0
+    case 138u -> 0
+    case 139u -> 0
+    case 140u -> 0
+    case 141u -> 0
+    case 142u -> 0
+    case 143u -> 0
+    case 144u -> 0
+    case 145u -> 0
+    case 146u -> 0
+    case 147u -> 0
+    case 148u -> 0
+    case 149u -> 0
+    case 150u -> 0
+    case 151u -> 0
+    case 152u -> 0
+    case 153u -> 0
+    case 154u -> 0
+    case 155u -> 0
+    case 156u -> 0
+    case 157u -> 0
+    case 158u -> 0
+    case 159u -> 0
+    case 160u -> 0
+    case 161u -> 0
+    case 162u -> 0
+    case 163u -> 0
+    case 164u -> 0
+    case 165u -> 0
+    case 166u -> 0
+    case 167u -> 0
+    case 168u -> 0
+    case 169u -> 0
+    case 170u -> 0
+    case 171u -> 0
+    case 172u -> 0
+    case 173u -> 0
+    case 174u -> 0
+    case 175u -> 0
+    case 176u -> 0
+    case 177u -> 0
+    case 178u -> 0
+    case 179u -> 0
+    case 180u -> 0
+    case 181u -> 0
+    case 182u -> 0
+    case 183u -> 0
+    case 184u -> 0
+    case 185u -> 0
+    case 186u -> 0
+    case 187u -> 0
+    case 188u -> 0
+    case 189u -> 0
+    case 190u -> 0
+    case 191u -> 0
+    case 192u -> 0
+    case 193u -> 0
+    case 194u -> 0
+    case 195u -> 0
+    case 196u -> 0
+    case 197u -> 0
+    case 198u -> 0
+    case 199u -> 0
+    case 200u -> 0
+    case 201u -> 0
+    case 202u -> 0
+    case 203u -> 0
+    case 204u -> 0
+    case 205u -> 0
+    case 206u -> 0
+    case 207u -> 0
+    case 208u -> 0
+    case 209u -> 0
+    case 210u -> 0
+    case 211u -> 0
+    case 212u -> 0
+    case 213u -> 0
+    case 214u -> 0
+    case 215u -> 0
+    case 216u -> 0
+    case 217u -> 0
+    case 218u -> 0
+    case 219u -> 0
+    case 220u -> 0
+    case 221u -> 0
+    case 222u -> 0
+    case 223u -> 0
+    case 224u -> 0
+    case 225u -> 0
+    case 226u -> 0
+    case 227u -> 0
+    case 228u -> 0
+    case 229u -> 0
+    case 230u -> 0
+    case 231u -> 0
+    case 232u -> 0
+    case 233u -> 0
+    case 234u -> 0
+    case 235u -> 0
+    case 236u -> 0
+    case 237u -> 0
+    case 238u -> 0
+    case 239u -> 0
+    case 240u -> 0
+    case 241u -> 0
+    case 242u -> 0
+    case 243u -> 0
+    case 244u -> 0
+    case 245u -> 0
+    case 246u -> 0
+    case 247u -> 0
+    case 248u -> 0
+    case 249u -> 0
+    case 250u -> 0
+    case 251u -> 0
+    case 252u -> 0
+    case 253u -> 0
+    case 254u -> 0
+    case 255u -> 0
 }
 
 fun main() {}

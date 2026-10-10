@@ -157,22 +157,23 @@ SourceFile
     val boundaries
       Call Array<Int>
         IntLiteral 6L
-        Lambda 0 suspend=false
-          param i: _
-          when
-            Var i
-            arm 0L
-              IntLiteral 0
-            arm 1L
-              IntLiteral 127
-            arm 2L
-              IntLiteral 2047
-            arm 3L
-              IntLiteral 55295
-            arm 4L
-              IntLiteral 57344
-            else
-              IntLiteral 1114111
+        Argument trailing
+          Lambda 0 suspend=false
+            param i: _
+            when
+              Var i
+              arm 0L
+                IntLiteral 0
+              arm 1L
+                IntLiteral 127
+              arm 2L
+                IntLiteral 2047
+              arm 3L
+                IntLiteral 55295
+              arm 4L
+                IntLiteral 57344
+              else
+                IntLiteral 1114111
     for number
       Var boundaries
       if

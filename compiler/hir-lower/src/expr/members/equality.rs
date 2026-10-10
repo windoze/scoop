@@ -72,9 +72,13 @@ impl Lowerer {
             return Err(Box::new(state));
         }
         let mut sink = Vec::new();
-        let Some((receiver, other)) =
-            state.lower_equality_rhs(receiver, &argument.expression, &mut sink, Some(owner))
-        else {
+        let Some((receiver, other)) = state.lower_ordered_rhs(
+            receiver,
+            &argument.expression,
+            &mut sink,
+            Some(owner),
+            "$equality.lhs",
+        ) else {
             return Err(Box::new(state));
         };
         if !state.is_subtype(other.ty, owner) {

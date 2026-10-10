@@ -17,8 +17,8 @@ public struct NativePair(val left: Int, val right: Int)
 public fun <T> make(value: T): Cell<T> = Cell(value, None)
 
 public fun <T> hasNext(value: Cell<T>): Boolean = when (value.next) {
-    Some(link) -> true
-    None -> false
+    case Some(link) -> true
+    case None -> false
 }
 
 public fun <T> replace(base: Cell<T>, value: T): Cell<T> = base.{ value: value }

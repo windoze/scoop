@@ -36,6 +36,7 @@ llvm-sys = "221"
 clap = { version = "4", features = ["derive"] }
 insta = { version = "1" }
 la-arena = { version = "0.3" }
+imbl = "7.0.2"
 object = { version = "0.37", default-features = false, features = ["read"] }
 yaxpeax-x86 = { version = "2.2.0", default-features = false }
 yaxpeax-arch = { version = "0.3.2", default-features = false }

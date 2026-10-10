@@ -1,6 +1,6 @@
 struct Packet(val single: Float, val wide: Double, val label: String)
 class Gate<T>(var waiter: Continuation<T>?) {
-    fun isWaiting(): Boolean = when (waiter) { Some(_) -> true; None -> false }
+    fun isWaiting(): Boolean = when (waiter) { case Some(_) -> true; case None -> false }
     fun complete(value: T) {
         val continuation = waiter!!
         waiter = None

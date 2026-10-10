@@ -1,0 +1,746 @@
+Module
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum Option<Char>
+    Some(_0: Char)
+    None()
+  class Node vtable=0 itables=0
+  class Store vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  interface ToString
+  interface Hash
+  interface Equality<Char>
+  interface Iterable<Char>
+  interface Iterator<Char>
+  interface Equality<String>
+  interface Equality<Int>
+  generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
+  generated_exact_type get1 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
+  generated_exact_type get2 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
+  generated_exact_type get3 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
+  generated_exact_type get4 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
+  fun Store.contains @fn0(this: Store, value: Node) -> Boolean
+    bb0 entry
+      call @scoop_rt_gc_collect direct
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str0
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type String
+        Local $dependency.parameter.value
+      val $dependency.receiver: String
+        Type String
+        FieldAccess 0
+          Type Node
+          Local value
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str1
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $call.1: Boolean = external1 direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      branch bb1 bb2
+        Type Boolean
+        Local $call.1
+    bb1 if.then.1
+      val $default.local.0: String
+        Type String
+        StringConst @str2
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.2
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $new.2
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.2
+    bb2 if.merge.2
+      val $dependency.receiver: String
+        Type String
+        FieldAccess 0
+          Type Node
+          Local value
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str3
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $call.3: Boolean = external1 direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      return
+        Type Boolean
+        Local $call.3
+  fun subject @fn1(label: String) -> Node
+    bb0 entry
+      val $dependency.receiver: String
+        Type String
+        StringConst @str4
+      val $dependency.argument.0: String
+        Type String
+        Local label
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $dependency.argument.0: String = @scoop_rt_string_concat direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type String
+        Local $dependency.parameter.value
+      val $argument.0: String
+        Type String
+        Local label
+      val $parameter.text: String
+        Type String
+        Local $argument.0
+      assign $new.1
+        Type Node
+        ClassAlloc Node
+      call @fn8 direct
+        Type Node
+        Local $new.1
+        Type String
+        Local $parameter.text
+      return
+        Type Node
+        Local $new.1
+  fun reject @fn2() -> Boolean
+    bb0 entry
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str5
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type String
+        Local $dependency.parameter.value
+      call @scoop_rt_gc_collect direct
+      return
+        Type Boolean
+        BoolLiteral false
+  fun stop @fn3() -> Nothing
+    bb0 entry
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str6
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type String
+        Local $dependency.parameter.value
+      val $default.local.0: String
+        Type String
+        StringConst @str7
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.1
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $new.1
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.1
+  fun allAbort @fn4() -> Int
+    bb0 entry
+      call $call.1: Nothing = @fn3 direct
+      unreachable
+  fun main @fn5() -> Unit
+    bb0 entry
+      assign $new.1
+        Type Store
+        ClassAlloc Store
+      call @fn9 direct
+        Type Store
+        Local $new.1
+      val store: Store
+        Type Store
+        Local $new.1
+      val $argument.0: String
+        Type String
+        StringConst @str8
+      val $parameter.label: String
+        Type String
+        Local $argument.0
+      call $when.subject.0: Node = @fn1 direct
+        Type String
+        Local $parameter.label
+      val node: Node
+        Type Node
+        Local $when.subject.0
+      val $when.1: Node
+        Type Node
+        Local $when.subject.0
+      val $receiver: Store
+        Type Store
+        Local store
+      val $argument.0: Node
+        Type Node
+        Local node
+      val $parameter.value: Node
+        Type Node
+        Local $argument.0
+      call $call.2: Boolean = @fn0 direct
+        Type Store
+        Local $receiver
+        Type Node
+        Local $parameter.value
+      branch bb1 bb2
+        Type Boolean
+        Local $call.2
+    bb1 if.then.1
+      call $call.3: Boolean = @fn2 direct
+      branch bb4 bb5
+        Type Boolean
+        Local $call.3
+    bb2 if.else.2
+      branch bb9 bb10
+        Type Boolean
+        IsInstance Node
+          Type Any
+          Retype Any
+            Type Node
+            Local node
+    bb3 if.merge.3
+      goto bb18
+    bb4 if.then.4
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str9
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type String
+        Local $dependency.parameter.value
+      goto bb6
+    bb5 if.else.5
+      branch bb7 bb8
+        Type Boolean
+        IsInstance Node
+          Type Any
+          Retype Any
+            Type Node
+            Local node
+    bb6 if.merge.6
+      goto bb3
+    bb7 if.then.7
+      val $dependency.argument.0: String
+        Type String
+        FieldAccess 0
+          Type Node
+          Local node
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type String
+        Local $dependency.parameter.value
+      goto bb8
+    bb8 if.merge.8
+      goto bb6
+    bb9 if.then.9
+      val $dependency.argument.0: String
+        Type String
+        FieldAccess 0
+          Type Node
+          Local node
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type String
+        Local $dependency.parameter.value
+      goto bb10
+    bb10 if.merge.10
+      goto bb3
+    bb11 try.unwind.11
+      landing_pad cleanup=false
+      goto bb12
+    bb12 try.dispatch.12
+      begin_catch
+      branch bb22 bb23
+        Type Boolean
+        IsInstance IllegalStateException
+          Type Any
+          CaughtException
+    bb13 try.handler_pad.13
+      landing_pad cleanup=true
+      goto bb14
+    bb14 try.handler_cleanup.14
+      end_catch
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str14
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type String
+        Local $dependency.parameter.value
+      resume
+    bb15 try.exit_pad.15
+      landing_pad cleanup=true
+      goto bb16
+    bb16 try.exit_cleanup.16
+      end_catch
+      resume
+    bb17 try.end.17
+      goto bb33
+    bb18 try.body.18 unwind bb11
+      val $argument.0: String
+        Type String
+        StringConst @str10
+      val $parameter.label: String
+        Type String
+        Local $argument.0
+      call $when.subject.1: Node = @fn1 direct
+        Type String
+        Local $parameter.label
+      val $when.2: Node
+        Type Node
+        Local $when.subject.1
+      val $receiver: Store
+        Type Store
+        Local store
+      val $argument.0: Node
+        Type Node
+        Local $when.subject.1
+      val $parameter.value: Node
+        Type Node
+        Local $argument.0
+      call $call.4: Boolean = @fn0 direct
+        Type Store
+        Local $receiver
+        Type Node
+        Local $parameter.value
+      branch bb19 bb20
+        Type Boolean
+        Local $call.4
+    bb19 if.then.19 unwind bb11
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str11
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type String
+        Local $dependency.parameter.value
+      goto bb20
+    bb20 if.merge.20 unwind bb11
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str12
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type String
+        Local $dependency.parameter.value
+      goto bb21
+    bb21 scope.21
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str14
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type String
+        Local $dependency.parameter.value
+      goto bb17
+    bb22 try.catch.22
+      call $catch.5: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val error: IllegalStateException
+        Type IllegalStateException
+        Retype IllegalStateException
+          Type Any
+          Local $catch.5
+      goto bb24
+    bb23 try.next.23 unwind bb15
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str14
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type String
+        Local $dependency.parameter.value
+      rethrow unwind bb15
+    bb24 scope.24 unwind bb13
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str13
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type String
+        Local $dependency.parameter.value
+      end_catch
+      goto bb25
+    bb25 scope.25
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str14
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type String
+        Local $dependency.parameter.value
+      goto bb17
+    bb26 try.unwind.26
+      landing_pad cleanup=false
+      goto bb27
+    bb27 try.dispatch.27
+      begin_catch
+      branch bb35 bb36
+        Type Boolean
+        IsInstance IllegalStateException
+          Type Any
+          CaughtException
+    bb28 try.handler_pad.28
+      landing_pad cleanup=true
+      goto bb29
+    bb29 try.handler_cleanup.29
+      end_catch
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str16
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type String
+        Local $dependency.parameter.value
+      resume
+    bb30 try.exit_pad.30
+      landing_pad cleanup=true
+      goto bb31
+    bb31 try.exit_cleanup.31
+      end_catch
+      resume
+    bb32 try.end.32
+      goto bb46
+    bb33 try.body.33 unwind bb26
+      call $dependency.argument.0: Int = @fn4 direct
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn7 direct
+        Type Int
+        Local $dependency.parameter.value
+      goto bb34
+    bb34 scope.34
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str16
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type String
+        Local $dependency.parameter.value
+      goto bb32
+    bb35 try.catch.35
+      call $catch.6: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val error: IllegalStateException
+        Type IllegalStateException
+        Retype IllegalStateException
+          Type Any
+          Local $catch.6
+      goto bb37
+    bb36 try.next.36 unwind bb30
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str16
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type String
+        Local $dependency.parameter.value
+      rethrow unwind bb30
+    bb37 scope.37 unwind bb28
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str15
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type String
+        Local $dependency.parameter.value
+      end_catch
+      goto bb38
+    bb38 scope.38
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str16
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type String
+        Local $dependency.parameter.value
+      goto bb32
+    bb39 try.unwind.39
+      landing_pad cleanup=false
+      goto bb40
+    bb40 try.dispatch.40
+      begin_catch
+      branch bb50 bb51
+        Type Boolean
+        IsInstance IllegalStateException
+          Type Any
+          CaughtException
+    bb41 try.handler_pad.41
+      landing_pad cleanup=true
+      goto bb42
+    bb42 try.handler_cleanup.42
+      end_catch
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str21
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type String
+        Local $dependency.parameter.value
+      resume
+    bb43 try.exit_pad.43
+      landing_pad cleanup=true
+      goto bb44
+    bb44 try.exit_cleanup.44
+      end_catch
+      resume
+    bb45 try.end.45
+      return
+    bb46 try.body.46 unwind bb39
+      val $argument.0: String
+        Type String
+        StringConst @str17
+      val $parameter.label: String
+        Type String
+        Local $argument.0
+      call $when.subject.2: Node = @fn1 direct
+        Type String
+        Local $parameter.label
+      val node: Node
+        Type Node
+        Local $when.subject.2
+      val $when.3: Node
+        Type Node
+        Local $when.subject.2
+      branch bb47 bb48
+        Type Boolean
+        IsInstance Node
+          Type Any
+          Retype Any
+            Type Node
+            Local node
+    bb47 if.then.47 unwind bb39
+      call $call.7: Nothing = @fn3 direct
+      unreachable
+    bb48 if.else.48 unwind bb39
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str19
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type String
+        Local $dependency.parameter.value
+      goto bb49
+    bb49 if.merge.49
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str21
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type String
+        Local $dependency.parameter.value
+      goto bb45
+    bb50 try.catch.50
+      call $catch.8: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val error: IllegalStateException
+        Type IllegalStateException
+        Retype IllegalStateException
+          Type Any
+          Local $catch.8
+      goto bb52
+    bb51 try.next.51 unwind bb43
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str21
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type String
+        Local $dependency.parameter.value
+      rethrow unwind bb43
+    bb52 scope.52 unwind bb41
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str20
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type String
+        Local $dependency.parameter.value
+      end_catch
+      goto bb53
+    bb53 scope.53
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str21
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type String
+        Local $dependency.parameter.value
+      goto bb45
+  fun println @fn6(value: String) -> Unit
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local value
+      call $dependency.local.2: String = external3 direct
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external4 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str22
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external4 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun println @fn7(value: Int) -> Unit
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      call $dependency.local.2: String = external2 direct
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external4 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str23
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external4 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun init.Node.$c0 @fn8(this: Node, text: String) -> Unit
+    bb0 entry
+      field_set 0
+        Type Node
+        Local this
+        Type String
+        Local text
+      return
+  fun init.Store.$c1 @fn9(this: Store) -> Unit
+    bb0 entry
+      return
+  instance mi0 function=@fn6 <- println
+  instance mi1 function=@fn7 <- println
+  str @str0 "contains"
+  str @str1 "boom"
+  str @str2 "illegal state"
+  str @str3 "match"
+  str @str4 "subject-"
+  str @str5 "guard"
+  str @str6 "stop"
+  str @str7 "illegal state"
+  str @str8 "match"
+  str @str9 "wrong"
+  str @str10 "boom"
+  str @str11 "wrong"
+  str @str12 "wrong"
+  str @str13 "contains-caught"
+  str @str14 "contains-finally"
+  str @str15 "condition-caught"
+  str @str16 "condition-finally"
+  str @str17 "live"
+  str @str18 "wrong"
+  str @str19 "wrong"
+  str @str20 "guard-caught"
+  str @str21 "guard-finally"
+  str @str22 "\n"
+  str @str23 "\n"
+  output executable @fn5

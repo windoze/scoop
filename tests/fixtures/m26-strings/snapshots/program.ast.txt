@@ -114,20 +114,21 @@ SourceFile
     val many
       Call MutableArray<Char>
         IntLiteral 120L
-        Lambda 0 suspend=false
-          param index: _
-          when
-            Binary Rem
-              Var index
-              IntLiteral 4L
-            arm 0L
-              CharLiteral 'A'
-            arm 1L
-              CharLiteral '雪'
-            arm 2L
-              CharLiteral '🚀'
-            else
-              CharLiteral '\0'
+        Argument trailing
+          Lambda 0 suspend=false
+            param index: _
+            when
+              Binary Rem
+                Var index
+                IntLiteral 4L
+              arm 0L
+                CharLiteral 'A'
+              arm 1L
+                CharLiteral '雪'
+              arm 2L
+                CharLiteral '🚀'
+              else
+                CharLiteral '\0'
     val large
       MethodCall fromChars
         Var String

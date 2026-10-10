@@ -287,6 +287,7 @@ impl Lowerer {
             },
             Kind::CharLiteral(value) => hir::ExprKind::CharLiteral((*value).into()),
             Kind::BooleanLiteral(value) => hir::ExprKind::BoolLiteral((*value).into()),
+            Kind::Unreachable => hir::ExprKind::Unreachable,
             Kind::UnitLiteral => hir::ExprKind::UnitLiteral,
             Kind::TupleLiteral(elements) => hir::ExprKind::TupleLiteral(
                 self.materialize_imported_default_expressions(elements, context)?,
@@ -462,6 +463,21 @@ impl Lowerer {
                     )?
                 }
             }
+            Kind::VariantTest { operand, variant } => hir::ExprKind::VariantTest {
+                operand: Box::new(self.materialize_imported_default_expression(operand, context)?),
+                variant: hir::EnumVariantApplication {
+                    owner: self.materialize_imported_default_type(variant.owner_type(), context)?,
+                    variant: variant.declaration(),
+                },
+            },
+            Kind::VariantPayloadProject { operand, field } => {
+                hir::ExprKind::VariantPayloadProject {
+                    operand: Box::new(
+                        self.materialize_imported_default_expression(operand, context)?,
+                    ),
+                    field: self.materialize_imported_variant_field(field, context)?,
+                }
+            }
             Kind::FieldAccess { receiver, field } => hir::ExprKind::FieldAccess {
                 receiver: Box::new(
                     self.materialize_imported_default_expression(receiver, context)?,
@@ -528,8 +544,6 @@ impl Lowerer {
             }
             | Kind::StructInit { .. }
             | Kind::ClassInit { .. }
-            | Kind::VariantTest { .. }
-            | Kind::VariantPayloadProject { .. }
             | Kind::DirectSuperMethodCall { .. } => {
                 return Err(ImportedDefaultMaterializationError::Plan(
                     "preflight admitted an unsupported dependency default operation".to_owned(),

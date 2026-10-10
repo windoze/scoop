@@ -114,30 +114,30 @@ Module
       return
   fun unwrapOr @fn1(o: Option<Int>, fallback: Int) -> Int
     bb0 entry
-      val $opt.0: Option<Int>
+      val opt: Option<Int>
         Type Option<Int>
         Local o
       branch bb1 bb2
         Type Boolean
         VariantTest Option<Int> v0
           Type Option<Int>
-          Local $opt.0
+          Local opt
     bb1 if.then.1
-      val $res.1: Int
+      assign $result.0
         Type Int
         VariantPayloadProject Option<Int> v0 f0
           Type Option<Int>
-          Local $opt.0
+          Local opt
       goto bb3
     bb2 if.else.2
-      val $res.1: Int
+      assign $result.0
         Type Int
         Local fallback
       goto bb3
     bb3 if.merge.3
       return
         Type Int
-        Local $res.1
+        Local $result.0
   fun println @fn2(value: Int) -> Unit
     bb0 entry
       val $dependency.local.1: Int
@@ -176,7 +176,7 @@ Module
           Type Option<String>
           Local $pattern.subject.2
     bb1 pattern.pass.1
-      assign $result.2
+      assign $result.1
         Type Boolean
         BoolLiteral false
       goto bb3
@@ -192,9 +192,9 @@ Module
     bb3 pattern.merge.3
       return
         Type Boolean
-        Local $result.2
+        Local $result.1
     bb4 pattern.pass.4
-      assign $result.2
+      assign $result.1
         Type Boolean
         BoolLiteral true
       goto bb6
@@ -240,7 +240,7 @@ Module
           Type Option<Int>
           Local $pattern.subject.2
     bb1 pattern.pass.1
-      assign $result.2
+      assign $result.1
         Type Boolean
         BoolLiteral false
       goto bb3
@@ -256,9 +256,9 @@ Module
     bb3 pattern.merge.3
       return
         Type Boolean
-        Local $result.2
+        Local $result.1
     bb4 pattern.pass.4
-      assign $result.2
+      assign $result.1
         Type Boolean
         BoolLiteral true
       goto bb6

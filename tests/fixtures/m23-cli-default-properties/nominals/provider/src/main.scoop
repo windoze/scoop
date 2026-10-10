@@ -21,7 +21,7 @@ public struct Packet<T>(val stored: T) : Reading<T> {
 }
 public enum Choice<T> : Reading<T> {
     Item(val stored: T),
-    public override val item: T get() = when (this) { Choice.Item(value) -> value }
+    public override val item: T get() = when (this) { case Choice.Item(value) -> value }
 }
 public object Singleton : Reading<Int> {
     public override val item: Int get() = 7

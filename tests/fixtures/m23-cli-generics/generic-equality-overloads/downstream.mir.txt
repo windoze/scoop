@@ -26,7 +26,7 @@ Module
   generated_exact_type get4 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
   generated_exact_type get5 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
   generated_exact_type get6 location=enum1 nominal_id=cdfa585ac2fa21df261c7864af10de9674041fb68ecf813c95a045d383555275 exact_id=f34ff5e4d33d430ff558f71c9c310c56fb3dd077fd2ee6ace47d57ceb35e50a0
-  generated_callable gc0 function=@fn18 id=356bfcb2ff87ea7897ceb6126a89b48a5ffadb063781b3a7150ff2c2d1531239
+  generated_callable gc0 function=@fn16 id=356bfcb2ff87ea7897ceb6126a89b48a5ffadb063781b3a7150ff2c2d1531239
   fun check @fn0() -> Int
     bb0 entry
       call $argument.0: Int = external0 direct
@@ -36,7 +36,7 @@ Module
       assign $new.1
         Type Later
         ClassAlloc Later
-      call @fn13 direct
+      call @fn11 direct
         Type Later
         Local $new.1
         Type Int
@@ -91,7 +91,7 @@ Module
       assign $new.2
         Type Later
         ClassAlloc Later
-      call @fn13 direct
+      call @fn11 direct
         Type Later
         Local $new.2
         Type Int
@@ -172,7 +172,7 @@ Module
       val $dependency.local.6: Int
         Type Int
         Local $dependency.local.4
-      call $dependency.local.1: Manual<Later> = @fn14 direct
+      call $dependency.local.1: Manual<Later> = @fn12 direct
         Type Later
         Local $dependency.local.5
         Type Int
@@ -195,7 +195,7 @@ Module
       val $dependency.local.12: Manual<Later>
         Type Manual<Later>
         Local $dependency.local.11
-      call $dependency.local.13: Manual<Later> = @fn14 direct
+      call $dependency.local.13: Manual<Later> = @fn12 direct
         Type Later
         Local $dependency.local.9
         Type Int
@@ -237,7 +237,7 @@ Module
       val $dependency.local.20: Manual<Later>
         Type Manual<Later>
         Local $dependency.local.19
-      call $dependency.local.21: Manual<Later> = @fn14 direct
+      call $dependency.local.21: Manual<Later> = @fn12 direct
         Type Later
         Local $dependency.local.17
         Type Int
@@ -266,7 +266,7 @@ Module
       val $dependency.local.25: Int
         Type Int
         Local $dependency.local.24
-      call $dependency.local.2: Different<Later> = @fn15 direct
+      call $dependency.local.2: Different<Later> = @fn13 direct
         Type Int
         Local $dependency.local.25
       val $dependency.local.28: Different<Later>
@@ -278,96 +278,111 @@ Module
       val $dependency.local.27: Int
         Type Int
         Local $dependency.local.26
-      call $call.2: Different<Later> = @fn15 direct
-        Type Int
-        Local $dependency.local.27
-      call $call.3: Boolean = @fn4 direct
+      val $dependency.local.29: Different<Later>
         Type Different<Later>
         Local $dependency.local.28
-        Type Different<Later>
-        Local $call.2
+      call $dependency.local.30: Different<Later> = @fn13 direct
+        Type Int
+        Local $dependency.local.27
       branch bb6 bb7
         Type Boolean
         Unary BoolNot
           Type Boolean
-          Local $call.3
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            FieldAccess 0
+              Type Different<Later>
+              Local $dependency.local.29
+            Type Int
+            FieldAccess 0
+              Type Different<Later>
+              Local $dependency.local.30
     bb6 if.then.6
-      val $dependency.local.32: Boolean
+      val $dependency.local.36: Boolean
         Type Boolean
         BoolLiteral true
       goto bb8
     bb7 if.else.7
-      val $dependency.local.31: Different<Later>
+      val $dependency.local.33: Different<Later>
         Type Different<Later>
         Local $dependency.local.2
-      val $dependency.local.29: Int
+      val $dependency.local.31: Int
         Type Int
         IntegerLiteral Int value=1 bits=0x00000001
-      val $dependency.local.30: Int
+      val $dependency.local.32: Int
         Type Int
-        Local $dependency.local.29
-      call $call.4: Different<Later> = @fn15 direct
-        Type Int
-        Local $dependency.local.30
-      call $dependency.local.32: Boolean = @fn4 direct
-        Type Different<Later>
         Local $dependency.local.31
+      val $dependency.local.34: Different<Later>
         Type Different<Later>
-        Local $call.4
+        Local $dependency.local.33
+      call $dependency.local.35: Different<Later> = @fn13 direct
+        Type Int
+        Local $dependency.local.32
+      val $dependency.local.36: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          FieldAccess 0
+            Type Different<Later>
+            Local $dependency.local.34
+          Type Int
+          FieldAccess 0
+            Type Different<Later>
+            Local $dependency.local.35
       goto bb8
     bb8 if.merge.8
       branch bb9 bb10
         Type Boolean
-        Local $dependency.local.32
+        Local $dependency.local.36
     bb9 if.then.9
       return
         Type Int
         IntegerLiteral Int value=2 bits=0x00000002
     bb10 if.merge.10
-      val $dependency.local.33: Different<Later>
-        Type Different<Later>
-        Local $dependency.local.2
-      val $dependency.local.34: Int
-        Type Int
-        IntegerLiteral Int value=42 bits=0x0000002a
-      val $dependency.local.35: Int
-        Type Int
-        Local $dependency.local.34
-      call $dependency.local.36: Boolean = @fn5 direct
-        Type Different<Later>
-        Local $dependency.local.33
-        Type Int
-        Local $dependency.local.35
-      branch bb11 bb12
-        Type Boolean
-        Unary BoolNot
-          Type Boolean
-          Local $dependency.local.36
-    bb11 if.then.11
-      val $dependency.local.40: Boolean
-        Type Boolean
-        BoolLiteral true
-      goto bb13
-    bb12 if.else.12
       val $dependency.local.37: Different<Later>
         Type Different<Later>
         Local $dependency.local.2
       val $dependency.local.38: Int
         Type Int
-        IntegerLiteral Int value=1 bits=0x00000001
+        IntegerLiteral Int value=42 bits=0x0000002a
       val $dependency.local.39: Int
         Type Int
         Local $dependency.local.38
-      call $dependency.local.40: Boolean = @fn5 direct
+      call $dependency.local.40: Boolean = @fn4 direct
         Type Different<Later>
         Local $dependency.local.37
         Type Int
         Local $dependency.local.39
+      branch bb11 bb12
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.local.40
+    bb11 if.then.11
+      val $dependency.local.44: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb13
+    bb12 if.else.12
+      val $dependency.local.41: Different<Later>
+        Type Different<Later>
+        Local $dependency.local.2
+      val $dependency.local.42: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.local.43: Int
+        Type Int
+        Local $dependency.local.42
+      call $dependency.local.44: Boolean = @fn4 direct
+        Type Different<Later>
+        Local $dependency.local.41
+        Type Int
+        Local $dependency.local.43
       goto bb13
     bb13 if.merge.13
       branch bb14 bb15
         Type Boolean
-        Local $dependency.local.40
+        Local $dependency.local.44
     bb14 if.then.14
       return
         Type Int
@@ -390,7 +405,7 @@ Module
       val $dependency.local.6: Int
         Type Int
         Local $dependency.local.4
-      call $dependency.local.1: Manual<Int> = @fn16 direct
+      call $dependency.local.1: Manual<Int> = @fn14 direct
         Type Int
         Local $dependency.local.5
         Type Int
@@ -413,7 +428,7 @@ Module
       val $dependency.local.12: Manual<Int>
         Type Manual<Int>
         Local $dependency.local.11
-      call $dependency.local.13: Manual<Int> = @fn16 direct
+      call $dependency.local.13: Manual<Int> = @fn14 direct
         Type Int
         Local $dependency.local.9
         Type Int
@@ -421,7 +436,7 @@ Module
       val $dependency.local.14: Manual<Int>
         Type Manual<Int>
         Local $dependency.local.13
-      call $call.1: Boolean = @fn6 direct
+      call $call.1: Boolean = @fn5 direct
         Type Manual<Int>
         Local $dependency.local.12
         Type Manual<Int>
@@ -455,7 +470,7 @@ Module
       val $dependency.local.20: Manual<Int>
         Type Manual<Int>
         Local $dependency.local.19
-      call $dependency.local.21: Manual<Int> = @fn16 direct
+      call $dependency.local.21: Manual<Int> = @fn14 direct
         Type Int
         Local $dependency.local.17
         Type Int
@@ -463,7 +478,7 @@ Module
       val $dependency.local.22: Manual<Int>
         Type Manual<Int>
         Local $dependency.local.21
-      call $dependency.local.23: Boolean = @fn6 direct
+      call $dependency.local.23: Boolean = @fn5 direct
         Type Manual<Int>
         Local $dependency.local.20
         Type Manual<Int>
@@ -484,7 +499,7 @@ Module
       val $dependency.local.25: Int
         Type Int
         Local $dependency.local.24
-      call $dependency.local.2: Different<Int> = @fn17 direct
+      call $dependency.local.2: Different<Int> = @fn15 direct
         Type Int
         Local $dependency.local.25
       val $dependency.local.28: Different<Int>
@@ -496,96 +511,111 @@ Module
       val $dependency.local.27: Int
         Type Int
         Local $dependency.local.26
-      call $call.2: Different<Int> = @fn17 direct
-        Type Int
-        Local $dependency.local.27
-      call $call.3: Boolean = @fn7 direct
+      val $dependency.local.29: Different<Int>
         Type Different<Int>
         Local $dependency.local.28
-        Type Different<Int>
-        Local $call.2
+      call $dependency.local.30: Different<Int> = @fn15 direct
+        Type Int
+        Local $dependency.local.27
       branch bb6 bb7
         Type Boolean
         Unary BoolNot
           Type Boolean
-          Local $call.3
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            FieldAccess 0
+              Type Different<Int>
+              Local $dependency.local.29
+            Type Int
+            FieldAccess 0
+              Type Different<Int>
+              Local $dependency.local.30
     bb6 if.then.6
-      val $dependency.local.32: Boolean
+      val $dependency.local.36: Boolean
         Type Boolean
         BoolLiteral true
       goto bb8
     bb7 if.else.7
-      val $dependency.local.31: Different<Int>
+      val $dependency.local.33: Different<Int>
         Type Different<Int>
         Local $dependency.local.2
-      val $dependency.local.29: Int
+      val $dependency.local.31: Int
         Type Int
         IntegerLiteral Int value=1 bits=0x00000001
-      val $dependency.local.30: Int
+      val $dependency.local.32: Int
         Type Int
-        Local $dependency.local.29
-      call $call.4: Different<Int> = @fn17 direct
-        Type Int
-        Local $dependency.local.30
-      call $dependency.local.32: Boolean = @fn7 direct
-        Type Different<Int>
         Local $dependency.local.31
+      val $dependency.local.34: Different<Int>
         Type Different<Int>
-        Local $call.4
+        Local $dependency.local.33
+      call $dependency.local.35: Different<Int> = @fn15 direct
+        Type Int
+        Local $dependency.local.32
+      val $dependency.local.36: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          FieldAccess 0
+            Type Different<Int>
+            Local $dependency.local.34
+          Type Int
+          FieldAccess 0
+            Type Different<Int>
+            Local $dependency.local.35
       goto bb8
     bb8 if.merge.8
       branch bb9 bb10
         Type Boolean
-        Local $dependency.local.32
+        Local $dependency.local.36
     bb9 if.then.9
       return
         Type Int
         IntegerLiteral Int value=2 bits=0x00000002
     bb10 if.merge.10
-      val $dependency.local.33: Different<Int>
-        Type Different<Int>
-        Local $dependency.local.2
-      val $dependency.local.34: Int
-        Type Int
-        IntegerLiteral Int value=42 bits=0x0000002a
-      val $dependency.local.35: Int
-        Type Int
-        Local $dependency.local.34
-      call $dependency.local.36: Boolean = @fn8 direct
-        Type Different<Int>
-        Local $dependency.local.33
-        Type Int
-        Local $dependency.local.35
-      branch bb11 bb12
-        Type Boolean
-        Unary BoolNot
-          Type Boolean
-          Local $dependency.local.36
-    bb11 if.then.11
-      val $dependency.local.40: Boolean
-        Type Boolean
-        BoolLiteral true
-      goto bb13
-    bb12 if.else.12
       val $dependency.local.37: Different<Int>
         Type Different<Int>
         Local $dependency.local.2
       val $dependency.local.38: Int
         Type Int
-        IntegerLiteral Int value=1 bits=0x00000001
+        IntegerLiteral Int value=42 bits=0x0000002a
       val $dependency.local.39: Int
         Type Int
         Local $dependency.local.38
-      call $dependency.local.40: Boolean = @fn8 direct
+      call $dependency.local.40: Boolean = @fn6 direct
         Type Different<Int>
         Local $dependency.local.37
         Type Int
         Local $dependency.local.39
+      branch bb11 bb12
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.local.40
+    bb11 if.then.11
+      val $dependency.local.44: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb13
+    bb12 if.else.12
+      val $dependency.local.41: Different<Int>
+        Type Different<Int>
+        Local $dependency.local.2
+      val $dependency.local.42: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.local.43: Int
+        Type Int
+        Local $dependency.local.42
+      call $dependency.local.44: Boolean = @fn6 direct
+        Type Different<Int>
+        Local $dependency.local.41
+        Type Int
+        Local $dependency.local.43
       goto bb13
     bb13 if.merge.13
       branch bb14 bb15
         Type Boolean
-        Local $dependency.local.40
+        Local $dependency.local.44
     bb14 if.then.14
       return
         Type Int
@@ -616,20 +646,7 @@ Module
           Local $dependency.local.2
           Type Int
           Local $dependency.local.4
-  fun $derived.equals.0 @fn4(this: Different<Later>, other: Different<Later>) -> Boolean
-    bb0 entry
-      return
-        Type Boolean
-        IntegerCompare equal operands=Int result=Boolean
-          Type Int
-          FieldAccess 0
-            Type Different<Later>
-            Local this
-          Type Int
-          FieldAccess 0
-            Type Different<Later>
-            Local other
-  fun equals @fn5(this: Different<Later>, other: Int) -> Boolean
+  fun equals @fn4(this: Different<Later>, other: Int) -> Boolean
     bb0 entry
       val $dependency.local.2: Int
         Type Int
@@ -649,7 +666,7 @@ Module
           Local $dependency.local.2
           Type Int
           Local $dependency.local.4
-  fun equals @fn6(this: Manual<Int>, other: Manual<Int>) -> Boolean
+  fun equals @fn5(this: Manual<Int>, other: Manual<Int>) -> Boolean
     bb0 entry
       val $dependency.local.2: Int
         Type Int
@@ -671,20 +688,7 @@ Module
           Local $dependency.local.2
           Type Int
           Local $dependency.local.4
-  fun $derived.equals.0 @fn7(this: Different<Int>, other: Different<Int>) -> Boolean
-    bb0 entry
-      return
-        Type Boolean
-        IntegerCompare equal operands=Int result=Boolean
-          Type Int
-          FieldAccess 0
-            Type Different<Int>
-            Local this
-          Type Int
-          FieldAccess 0
-            Type Different<Int>
-            Local other
-  fun equals @fn8(this: Different<Int>, other: Int) -> Boolean
+  fun equals @fn6(this: Different<Int>, other: Int) -> Boolean
     bb0 entry
       val $dependency.local.2: Int
         Type Int
@@ -704,19 +708,19 @@ Module
           Local $dependency.local.2
           Type Int
           Local $dependency.local.4
-  fun Continuation.resume @fn9(this: Continuation<Later>, value: Later) -> Unit
+  fun Continuation.resume @fn7(this: Continuation<Later>, value: Later) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
-  fun Continuation.resumeWithException @fn10(this: Continuation<Later>, exception: Throwable) -> Unit
+  fun Continuation.resumeWithException @fn8(this: Continuation<Later>, exception: Throwable) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resumeWithException`"
-  fun SuspendTask.run @fn11(this: SuspendTask<Later>, $completion: Continuation<Later>) -> CoroutineStep<Later>
+  fun SuspendTask.run @fn9(this: SuspendTask<Later>, $completion: Continuation<Later>) -> CoroutineStep<Later>
     bb0 entry
       trap "call to abstract method `SuspendTask.run`"
-  fun SuspendRegistration.register @fn12(this: SuspendRegistration<Later>, continuation: Continuation<Later>) -> Unit
+  fun SuspendRegistration.register @fn10(this: SuspendRegistration<Later>, continuation: Continuation<Later>) -> Unit
     bb0 entry
       trap "call to abstract method `SuspendRegistration.register`"
-  fun init.Later.$c0 @fn13(this: Later, number: Int) -> Unit
+  fun init.Later.$c0 @fn11(this: Later, number: Int) -> Unit
     bb0 entry
       field_set 0
         Type Later
@@ -724,7 +728,7 @@ Module
         Type Int
         Local number
       return
-  fun ctor.Manual.$c0 @fn14(payload: Later, number: Int) -> Manual<Later> <no-gc>
+  fun ctor.Manual.$c0 @fn12(payload: Later, number: Int) -> Manual<Later> <no-gc>
     bb0 entry
       return
         Type Manual<Later>
@@ -733,14 +737,14 @@ Module
           Local payload
           Type Int
           Local number
-  fun ctor.Different.$c1 @fn15(number: Int) -> Different<Later> <no-gc>
+  fun ctor.Different.$c1 @fn13(number: Int) -> Different<Later> <no-gc>
     bb0 entry
       return
         Type Different<Later>
         StructInit Different<Later>
           Type Int
           Local number
-  fun ctor.Manual.$c0 @fn16(payload: Int, number: Int) -> Manual<Int> <no-gc>
+  fun ctor.Manual.$c0 @fn14(payload: Int, number: Int) -> Manual<Int> <no-gc>
     bb0 entry
       return
         Type Manual<Int>
@@ -749,14 +753,14 @@ Module
           Local payload
           Type Int
           Local number
-  fun ctor.Different.$c1 @fn17(number: Int) -> Different<Int> <no-gc>
+  fun ctor.Different.$c1 @fn15(number: Int) -> Different<Int> <no-gc>
     bb0 entry
       return
         Type Different<Int>
         StructInit Different<Int>
           Type Int
           Local number
-  fun startCoroutine<Later> @fn18(task: SuspendTask<Later>, completion: Continuation<Later>) -> Unit
+  fun startCoroutine<Later> @fn16(task: SuspendTask<Later>, completion: Continuation<Later>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -779,7 +783,7 @@ Module
         Local $context_guard
       return
     bb3 completed unwind bb0
-      call @fn9 interface Continuation<Later>[0]
+      call @fn7 interface Continuation<Later>[0]
         Type Continuation<Later>
         Local completion
         Type Later
@@ -792,7 +796,7 @@ Module
         Local $context_guard
       return
     bb4 failed unwind bb0
-      call @fn10 interface Continuation<Later>[1]
+      call @fn8 interface Continuation<Later>[1]
         Type Continuation<Later>
         Local completion
         Type Throwable
@@ -811,7 +815,7 @@ Module
       end_catch
       goto bb4
     bb6 run unwind bb5
-      call $step: CoroutineStep<Later> = @fn11 interface SuspendTask<Later>[0]
+      call $step: CoroutineStep<Later> = @fn9 interface SuspendTask<Later>[0]
         Type SuspendTask<Later>
         Local task
         Type Continuation<Later>
@@ -839,16 +843,16 @@ Module
       goto bb6
   coroutine_step cs0 CoroutineStep<Later> result=Later
   coroutine_slot cl0 CoroutineSlot<Later> value=Later
-  coroutine_start ct0 result=Later function=fn18
-  coroutine_fn cf0 @fn11 source_return=Later step=cs0 immediate
+  coroutine_start ct0 result=Later function=fn16
+  coroutine_fn cf0 @fn9 source_return=Later step=cs0 immediate
   instance mi0 function=@fn1 <- exercise
   instance mi1 function=@fn2 <- exercise
   instance mi2 function=@fn3 <- equals
-  instance mi3 function=@fn5 <- equals
-  instance mi4 function=@fn6 <- equals
-  instance mi5 function=@fn8 <- equals
-  instance mi6 function=@fn9 <- Continuation.resume
-  instance mi7 function=@fn10 <- Continuation.resumeWithException
-  instance mi8 function=@fn11 <- SuspendTask.run
-  instance mi9 function=@fn12 <- SuspendRegistration.register
+  instance mi3 function=@fn4 <- equals
+  instance mi4 function=@fn5 <- equals
+  instance mi5 function=@fn6 <- equals
+  instance mi6 function=@fn7 <- Continuation.resume
+  instance mi7 function=@fn8 <- Continuation.resumeWithException
+  instance mi8 function=@fn9 <- SuspendTask.run
+  instance mi9 function=@fn10 <- SuspendRegistration.register
   output library

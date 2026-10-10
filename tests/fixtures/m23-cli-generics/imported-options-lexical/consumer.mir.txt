@@ -302,30 +302,30 @@ Module
         VariantConstruct Option<Int> v1
       goto bb18
     bb18 if.merge.18
-      val $opt.2: Option<Int>
+      val opt: Option<Int>
         Type Option<Int>
         Local $res.1
       branch bb19 bb20
         Type Boolean
         VariantTest Option<Int> v0
           Type Option<Int>
-          Local $opt.2
+          Local opt
     bb19 if.then.19
-      val $res.3: Int
+      assign $result.2
         Type Int
         VariantPayloadProject Option<Int> v0 f0
           Type Option<Int>
-          Local $opt.2
+          Local opt
       goto bb21
     bb20 if.else.20
-      val $res.3: Int
+      assign $result.2
         Type Int
         IntegerLiteral Int value=0 bits=0x00000000
       goto bb21
     bb21 if.merge.21
       val $dependency.receiver: Int
         Type Int
-        Local $res.3
+        Local $result.2
       val $dependency.argument.0: Int
         Type Int
         IntegerLiteral Int value=40 bits=0x00000028
@@ -342,39 +342,39 @@ Module
             Type Int
             Local $dependency.parameter.other
     bb22 if.then.22
-      val $shortCircuit.6: Boolean
+      val $shortCircuit.4: Boolean
         Type Boolean
         BoolLiteral true
       goto bb24
     bb23 if.else.23
-      val $opt.4: Option<String>
+      val opt: Option<String>
         Type Option<String>
         Local missing
       branch bb25 bb26
         Type Boolean
         VariantTest Option<String> v0
           Type Option<String>
-          Local $opt.4
+          Local opt
     bb24 if.merge.24
       branch bb28 bb29
         Type Boolean
-        Local $shortCircuit.6
+        Local $shortCircuit.4
     bb25 if.then.25
-      val $res.5: String
+      assign $result.3
         Type String
         VariantPayloadProject Option<String> v0 f0
           Type Option<String>
-          Local $opt.4
+          Local opt
       goto bb27
     bb26 if.else.26
-      val $res.5: String
+      assign $result.3
         Type String
         StringConst @str1
       goto bb27
     bb27 if.merge.27
       val $dependency.receiver: String
         Type String
-        Local $res.5
+        Local $result.3
       val $dependency.argument.0: String
         Type String
         StringConst @str2
@@ -386,7 +386,7 @@ Module
         Local $dependency.receiver
         Type String
         Local $dependency.parameter.other
-      val $shortCircuit.6: Boolean
+      val $shortCircuit.4: Boolean
         Type Boolean
         Unary BoolNot
           Type Boolean
@@ -397,30 +397,30 @@ Module
         Type Int
         IntegerLiteral Int value=1 bits=0x00000001
     bb29 if.merge.29
-      val $opt.7: Option<String>
+      val opt: Option<String>
         Type Option<String>
         Local present
       branch bb30 bb31
         Type Boolean
         VariantTest Option<String> v0
           Type Option<String>
-          Local $opt.7
+          Local opt
     bb30 if.then.30
-      val $res.8: String
+      assign $result.5
         Type String
         VariantPayloadProject Option<String> v0 f0
           Type Option<String>
-          Local $opt.7
+          Local opt
       goto bb32
     bb31 if.else.31
-      val $res.8: String
+      assign $result.5
         Type String
         StringConst @str3
       goto bb32
     bb32 if.merge.32
       val $dependency.receiver: String
         Type String
-        Local $res.8
+        Local $result.5
       val $dependency.argument.0: String
         Type String
         StringConst @str4
@@ -438,46 +438,46 @@ Module
           Type Boolean
           Local $call.4
     bb33 if.then.33
-      val $shortCircuit.11: Boolean
+      val $shortCircuit.7: Boolean
         Type Boolean
         BoolLiteral true
       goto bb35
     bb34 if.else.34
-      val $opt.9: Option<Int>
+      val opt: Option<Int>
         Type Option<Int>
         Local number
       branch bb36 bb37
         Type Boolean
         VariantTest Option<Int> v0
           Type Option<Int>
-          Local $opt.9
+          Local opt
     bb35 if.merge.35
       branch bb39 bb40
         Type Boolean
-        Local $shortCircuit.11
+        Local $shortCircuit.7
     bb36 if.then.36
-      val $res.10: Int
+      assign $result.6
         Type Int
         VariantPayloadProject Option<Int> v0 f0
           Type Option<Int>
-          Local $opt.9
+          Local opt
       goto bb38
     bb37 if.else.37
-      val $res.10: Int
+      assign $result.6
         Type Int
         IntegerLiteral Int value=0 bits=0x00000000
       goto bb38
     bb38 if.merge.38
       val $dependency.receiver: Int
         Type Int
-        Local $res.10
+        Local $result.6
       val $dependency.argument.0: Int
         Type Int
         IntegerLiteral Int value=2 bits=0x00000002
       val $dependency.parameter.other: Int
         Type Int
         Local $dependency.argument.0
-      val $shortCircuit.11: Boolean
+      val $shortCircuit.7: Boolean
         Type Boolean
         Unary BoolNot
           Type Boolean
@@ -488,46 +488,46 @@ Module
             Local $dependency.parameter.other
       goto bb35
     bb39 if.then.39
-      val $shortCircuit.14: Boolean
+      val $shortCircuit.9: Boolean
         Type Boolean
         BoolLiteral true
       goto bb41
     bb40 if.else.40
-      val $opt.12: Option<Int>
+      val opt: Option<Int>
         Type Option<Int>
         Local missingNumber
       branch bb42 bb43
         Type Boolean
         VariantTest Option<Int> v0
           Type Option<Int>
-          Local $opt.12
+          Local opt
     bb41 if.merge.41
       branch bb45 bb46
         Type Boolean
-        Local $shortCircuit.14
+        Local $shortCircuit.9
     bb42 if.then.42
-      val $res.13: Int
+      assign $result.8
         Type Int
         VariantPayloadProject Option<Int> v0 f0
           Type Option<Int>
-          Local $opt.12
+          Local opt
       goto bb44
     bb43 if.else.43
-      val $res.13: Int
+      assign $result.8
         Type Int
         IntegerLiteral Int value=3 bits=0x00000003
       goto bb44
     bb44 if.merge.44
       val $dependency.receiver: Int
         Type Int
-        Local $res.13
+        Local $result.8
       val $dependency.argument.0: Int
         Type Int
         IntegerLiteral Int value=3 bits=0x00000003
       val $dependency.parameter.other: Int
         Type Int
         Local $dependency.argument.0
-      val $shortCircuit.14: Boolean
+      val $shortCircuit.9: Boolean
         Type Boolean
         Unary BoolNot
           Type Boolean

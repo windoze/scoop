@@ -910,6 +910,11 @@ Module
       val $dependency.parameter.index: Long
         Type Long
         Local $dependency.argument.0
+      call $equality.lhs: Value = @fn17 direct
+        Type Array<Value>
+        Local $dependency.receiver
+        Type Long
+        Local $dependency.parameter.index
       val $dependency.receiver: MutableArray<Value>
         Type MutableArray<Value>
         Local values
@@ -919,12 +924,7 @@ Module
       val $dependency.parameter.index: Long
         Type Long
         Local $dependency.argument.0
-      call $call.9: Value = @fn17 direct
-        Type Array<Value>
-        Local $dependency.receiver
-        Type Long
-        Local $dependency.parameter.index
-      call $call.10: Value = @fn14 direct
+      call $call.9: Value = @fn14 direct
         Type MutableArray<Value>
         Local $dependency.receiver
         Type Long
@@ -933,9 +933,9 @@ Module
         Type Boolean
         Binary RefEq
           Type Value
-          Local $call.9
+          Local $equality.lhs
           Type Value
-          Local $call.10
+          Local $call.9
     bb22 if.then.22
       val $dependency.receiver: Array<Value>
         Type Array<Value>
@@ -946,6 +946,11 @@ Module
       val $dependency.parameter.index: Long
         Type Long
         Local $dependency.argument.0
+      call $equality.lhs: Value = @fn17 direct
+        Type Array<Value>
+        Local $dependency.receiver
+        Type Long
+        Local $dependency.parameter.index
       val $dependency.receiver: MutableArray<Value>
         Type MutableArray<Value>
         Local values
@@ -955,12 +960,7 @@ Module
       val $dependency.parameter.index: Long
         Type Long
         Local $dependency.argument.0
-      call $call.11: Value = @fn17 direct
-        Type Array<Value>
-        Local $dependency.receiver
-        Type Long
-        Local $dependency.parameter.index
-      call $call.12: Value = @fn14 direct
+      call $call.10: Value = @fn14 direct
         Type MutableArray<Value>
         Local $dependency.receiver
         Type Long
@@ -969,9 +969,9 @@ Module
         Type Boolean
         Binary RefEq
           Type Value
-          Local $call.11
+          Local $equality.lhs
           Type Value
-          Local $call.12
+          Local $call.10
       goto bb24
     bb23 if.else.23
       val $shortCircuit.1: Boolean
@@ -1068,15 +1068,15 @@ Module
           Type Long
           IntegerLiteral Long value=0 bits=0x0000000000000000
     bb25 if.then.25
-      assign $new.13
+      assign $new.11
         Type ArithmeticException
         ClassAlloc ArithmeticException
       call external4 direct
         Type ArithmeticException
-        Local $new.13
+        Local $new.11
       throw
         Type ArithmeticException
-        Local $new.13
+        Local $new.11
     bb26 if.merge.26
       branch bb27 bb28
         Type Boolean
@@ -1086,7 +1086,7 @@ Module
           Type Long
           IntegerLiteral Long value=-9223372036854775808 bits=0x8000000000000000
     bb27 logic.rhs.27
-      assign $logic.14
+      assign $logic.12
         Type Boolean
         IntegerCompare equal operands=Long result=Boolean
           Type Long
@@ -1095,14 +1095,14 @@ Module
           IntegerLiteral Long value=-1 bits=0xffffffffffffffff
       goto bb29
     bb28 logic.short.28
-      assign $logic.14
+      assign $logic.12
         Type Boolean
         BoolLiteral false
       goto bb29
     bb29 logic.merge.29
       branch bb30 bb31
         Type Boolean
-        Local $logic.14
+        Local $logic.12
     bb30 if.then.30
       assign $div.result.11
         Type Long
@@ -1143,14 +1143,14 @@ Module
       val $dependency.parameter.p: PinnedPtr<Node>
         Type PinnedPtr<Node>
         Local $dependency.argument.0
-      call $call.15: Node = @fn21 direct
+      call $call.13: Node = @fn21 direct
         Type PinnedPtr<Node>
         Local $dependency.parameter.p
       branch bb33 bb34
         Type Boolean
         Binary RefEq
           Type Node
-          Local $call.15
+          Local $call.13
           Type Node
           Local first
     bb33 if.then.33
@@ -1160,14 +1160,14 @@ Module
       val $dependency.parameter.p: PinnedPtr<Node>
         Type PinnedPtr<Node>
         Local $dependency.argument.0
-      call $call.16: Node = @fn21 direct
+      call $call.14: Node = @fn21 direct
         Type PinnedPtr<Node>
         Local $dependency.parameter.p
       val $shortCircuit.5: Boolean
         Type Boolean
         Binary RefEq
           Type Node
-          Local $call.16
+          Local $call.14
           Type Node
           Local last
       goto bb35

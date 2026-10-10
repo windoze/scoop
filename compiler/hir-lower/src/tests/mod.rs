@@ -101,6 +101,7 @@ mod m29_unit_encoding;
 mod m3;
 mod m33_atomics;
 mod m33_equality_split;
+mod m35_annotations;
 mod m4;
 mod m5;
 mod m6;
@@ -379,4 +380,11 @@ fn local_method_callable(module: &hir::Module, callee: hir::MethodCallee) -> hir
         panic!("expected a local method declaration")
     };
     callable
+}
+
+fn case_pattern(arm: &hir::WhenArm) -> &hir::Pattern {
+    match &arm.condition {
+        hir::WhenCondition::Case(pattern) => pattern,
+        _ => panic!("expected case arm"),
+    }
 }

@@ -21,7 +21,7 @@ impl Lowerer {
         let signature = self.function_types[function_type].clone();
         if let Some(argument) = args
             .iter()
-            .find(|argument| !matches!(argument.name, ast::CallArgumentName::Positional))
+            .find(|argument| matches!(argument.name, ast::CallArgumentName::Named(_)))
         {
             self.error(
                 argument.span,

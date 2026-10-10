@@ -1,0 +1,2 @@
+fun f(action: () -> Int): Int = action()
+fun main() { f { return 1 } }

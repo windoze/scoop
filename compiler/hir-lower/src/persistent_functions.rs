@@ -100,7 +100,7 @@ impl FunctionIdentityBuilder<'_> {
             .collect::<Result<Vec<_>, _>>()?;
         hir::HirFunctionIdentities::checked(
             hir::HirFunctionIdentityInputs {
-                functions: &self.lowerer.functions,
+                functions: self.lowerer.functions.as_arena(),
                 lambdas: &self.lowerer.lambdas,
                 anonymous_functions: &self.lowerer.anonymous_functions,
                 local_functions: &self.lowerer.local_functions,

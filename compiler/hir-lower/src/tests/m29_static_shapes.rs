@@ -1,6 +1,7 @@
 use super::*;
 use scoop_identity::SignatureTypeKey;
 
+mod annotation_arrays;
 mod classes;
 mod other_types;
 mod values;
@@ -78,7 +79,9 @@ fn annotation_text(
 ) -> String {
     let annotation = annotations.iter().next().unwrap();
     assert_eq!(annotation.name(module, world), "Label");
-    let hir::CanonicalConstValueV1::String(text) = &annotation.arguments[0] else {
+    let hir::CanonicalAnnotationValueV1::Scalar(hir::CanonicalConstValueV1::String(text)) =
+        &annotation.arguments[0]
+    else {
         panic!("Label has a string parameter")
     };
     text.clone()

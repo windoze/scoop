@@ -110,7 +110,7 @@ impl Lowerer {
                 })
                 .collect::<Result<Vec<_>, _>>()
         })();
-        let locals = std::mem::replace(&mut self.locals, saved_locals);
+        let locals = std::mem::replace(&mut self.locals, saved_locals).into_arena();
         self.type_params_in_scope = saved_parameters;
         Ok(hir::ExportReleaseHook {
             owner,

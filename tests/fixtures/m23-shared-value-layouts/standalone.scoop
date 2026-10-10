@@ -16,11 +16,11 @@ public fun <T> exercise(seed: T, read: (T) -> Int): Int {
     val tail: Chain = Chain.End
     val chain = Chain.Next(Reference(Link(tail)))
     val ended: Boolean = when (chain) {
-        Next(reference) -> when (reference.link.value) {
-            End -> true
-            Next(next) -> false
+        case Next(reference) -> when (reference.link.value) {
+            case End -> true
+            case Next(next) -> false
         }
-        End -> false
+        case End -> false
     }
     if (!ended) { return 2 }
     val receiver: Readable<T> = Wrapper(seed)

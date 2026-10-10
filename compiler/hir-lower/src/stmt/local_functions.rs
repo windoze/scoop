@@ -168,7 +168,7 @@ impl Lowerer {
         let outer_loop_targets = std::mem::take(&mut self.loop_targets);
         let outer_source_context = self.current_source_context;
         let outer_this = self.current_this.take();
-        let outer_smart_casts = std::mem::take(&mut self.smart_casts);
+        let outer_smart_casts = self.smart_casts.clone();
         self.capture_contexts.push(CaptureContext {
             available: capture_environment,
             captures: Vec::new(),
@@ -234,7 +234,9 @@ impl Lowerer {
                 ast::FunctionBody::Expr(expr) => {
                     let mut statements = Vec::new();
                     let mut sink = Vec::new();
-                    if let Some(value) = self.lower_expr(expr, &mut sink, Some(return_ty)) {
+                    if !self.reject_expression_body_return(expr)
+                        && let Some(value) = self.lower_expr(expr, &mut sink, Some(return_ty))
+                    {
                         if !self.is_subtype(value.ty, return_ty) {
                             let expected = self.type_name(return_ty);
                             let found = self.type_name(value.ty);
@@ -281,7 +283,7 @@ impl Lowerer {
                 });
             }
             abi_params.extend(params);
-            let body_locals = std::mem::take(&mut self.locals);
+            let body_locals = std::mem::take(&mut self.locals).into_arena();
             Some((statements, captures, abi_params, body_locals))
         };
         self.lowering_default_template = outer_default_template;

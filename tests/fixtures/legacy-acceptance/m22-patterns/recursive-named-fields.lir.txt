@@ -26,11 +26,11 @@ Module
     local %1 $parameter.value: enum0
     local %2 value: i32
     local %3 value: i32
-    local %4 $dependency.receiver: i32
-    local %5 $dependency.argument.0: i32
-    local %6 $dependency.parameter.other: i32
-    local %7 enabled: i1
-    local %8 value: i32
+    local %4 enabled: i1
+    local %5 value: i32
+    local %6 $dependency.receiver: i32
+    local %7 $dependency.argument.0: i32
+    local %8 $dependency.parameter.other: i32
     local %9 $dependency.receiver: i32
     local %10 $dependency.argument.0: i32
     local %11 $dependency.parameter.other: i32
@@ -129,10 +129,10 @@ Module
     t29 = extract t28, 1 : struct0
     t30 = extract t29, 0 : i32
     store t30 -> local3
-    store local3 -> local4
-    store integer<Int>(0x00000064) -> local5
-    store local5 -> local6
-    t31 = integer_Add<Int> local4, local6 : i32
+    store local3 -> local6
+    store integer<Int>(0x00000064) -> local7
+    store local7 -> local8
+    t31 = integer_Add<Int> local6, local8 : i32
     store t31 -> local12
     br @pattern.merge.16
   block pattern.else.15
@@ -152,10 +152,10 @@ Module
     t37 = variant_payload_project e0 v0 f0 local17 : struct1
     t38 = extract t37, 1 : struct0
     t39 = extract t38, 0 : i32
-    store t39 -> local8
+    store t39 -> local5
     t40 = variant_payload_project e0 v0 f1 local17 : i1
-    store t40 -> local7
-    store local8 -> local9
+    store t40 -> local4
+    store local5 -> local9
     store integer<Int>(0x000000c8) -> local10
     store local10 -> local11
     t41 = integer_Add<Int> local9, local11 : i32

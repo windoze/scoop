@@ -4,6 +4,8 @@ impl Parser {
     pub(super) fn parse_atom(&mut self) -> Result<Expr, Diagnostic> {
         let token = self.peek().clone();
         match token.kind {
+            TokenKind::Return => self.parse_return_expression(),
+            TokenKind::Ident(ref text) if text == "throw" => self.parse_throw_expression(),
             TokenKind::Suspend => {
                 self.pos += 1;
                 match self.peek().kind {
@@ -84,7 +86,7 @@ impl Parser {
                 // postfix loop turns it into a method call, and hir-lower
                 // resolves enum variant construction from that shape.
                 let type_args = self.parse_explicit_call_type_args()?;
-                if matches!(self.peek().kind, TokenKind::LParen) {
+                if matches!(self.peek().kind, TokenKind::LParen) || self.starts_trailing_lambda() {
                     return self.parse_call(ident, type_args);
                 }
                 Ok(Expr::Var(ident))
@@ -120,13 +122,13 @@ impl Parser {
         self.bump();
         let name = self.expect_ident("base method name after `super.`")?;
         let type_args = self.parse_explicit_call_type_args()?;
-        if !matches!(self.peek().kind, TokenKind::LParen) {
+        if !matches!(self.peek().kind, TokenKind::LParen) && !self.starts_trailing_lambda() {
             return Err(Diagnostic::at(
                 name.span,
                 "`super` only supports method calls, not field access",
             ));
         }
-        let (args, end) = self.parse_args()?;
+        let (args, end) = self.parse_call_inputs()?;
         Ok(Expr::SuperMethodCall {
             super_span,
             name,
@@ -147,8 +149,8 @@ impl Parser {
         })?;
         let name = self.expect_ident("interface member name after qualified `super`")?;
         let type_args = self.parse_explicit_call_type_args()?;
-        if matches!(self.peek().kind, TokenKind::LParen) {
-            let (args, end) = self.parse_args()?;
+        if matches!(self.peek().kind, TokenKind::LParen) || self.starts_trailing_lambda() {
+            let (args, end) = self.parse_call_inputs()?;
             return Ok(Expr::QualifiedInterfaceSuperMethodCall {
                 super_span,
                 qualifier,
@@ -202,7 +204,7 @@ impl Parser {
         callee: Ident,
         type_args: Vec<scoop_ast::CallTypeArgument>,
     ) -> Result<Expr, Diagnostic> {
-        let (args, end) = self.parse_args()?;
+        let (args, end) = self.parse_call_inputs()?;
         let span = Span::new(callee.span.start, end);
         Ok(Expr::Call(CallExpr {
             callee,
@@ -212,8 +214,8 @@ impl Parser {
         }))
     }
 
-    /// Parse `<T, ...>` only when it is immediately followed by a call
-    /// argument list. The speculative reset keeps ordinary `<` / `>` binary
+    /// Parse `<T, ...>` only when followed by a call argument list or
+    /// an external lambda. The speculative reset keeps ordinary `<` / `>` binary
     /// expressions unchanged.
     pub(super) fn parse_explicit_call_type_args(
         &mut self,
@@ -262,7 +264,9 @@ impl Parser {
             return Ok(Vec::new());
         }
         self.bump();
-        if !matches!(self.peek().kind, TokenKind::LParen) || self.peek().newline_before {
+        if !(matches!(self.peek().kind, TokenKind::LParen) && !self.peek().newline_before)
+            && !self.starts_trailing_lambda()
+        {
             if saw_infer {
                 return Err(Diagnostic::at(
                     self.tokens[start].span,

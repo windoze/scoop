@@ -425,13 +425,15 @@ Module
   fun @scoop$1$cb$0388a64b5513c25df18de121b12e5379d235c7983f3665907c30d9708df4246b(ptr<managed>, parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>) -> void
     local %0 $dependency.argument.0: interface{object,itab}
     local %1 $dependency.parameter._1: interface{object,itab}
+    local %2 $place.receiver: ptr<managed>
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0, param1:interface{object,itab}@0]
+    t0 = heap_load param0 +24 : ptr<managed>
+    store t0 -> local2
     store param1 -> local0
     store local0 -> local1
-    t0 = heap_load param0 +24 : ptr<managed>
     t1 = enum_wrap e0 v0 (local1) : enum0
-    heap_store t0 +16 t1
+    heap_store local2 +16 t1
     ret
   fun @scoop$1$cb$28de0ce528d8495fde1a50f53f475c057932bd1a8a3ea134eb32aaf8811571cd(ptr<managed>, parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>) -> parts<enum4 [i64@0+8/8,i64@8+8/8]>
     local %0 $frame: ptr<managed>
@@ -476,13 +478,15 @@ Module
   fun @scoop$1$cb$9deb82a81a14cb4544fdb36106fc62d0e4591fd879e568115e95fdbf06adde2b(ptr<managed>, parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>) -> void
     local %0 $dependency.argument.0: interface{object,itab}
     local %1 $dependency.parameter._1: interface{object,itab}
+    local %2 $place.receiver: ptr<managed>
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0, param1:interface{object,itab}@0]
+    t0 = heap_load param0 +24 : ptr<managed>
+    store t0 -> local2
     store param1 -> local0
     store local0 -> local1
-    t0 = heap_load param0 +24 : ptr<managed>
     t1 = enum_wrap e0 v0 (local1) : enum0
-    heap_store t0 +16 t1
+    heap_store local2 +16 t1
     ret
   fun @scoop$1$cb$eaeb0a9f3513bbd7bbce561ceafb546f1f501f066f246bf5eb299349bfd3b12c(ptr<managed>, parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>) -> parts<enum4 [i64@0+8/8,i64@8+8/8]>
     local %0 $frame: ptr<managed>

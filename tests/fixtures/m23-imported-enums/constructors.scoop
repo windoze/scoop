@@ -16,20 +16,20 @@ typealias Pick = Choice
 
 @NoGC public fun relay(value: Choice): Choice = value
 @NoGC public fun defaultScore(value: Choice = Pick.Pair(right = 31, marker = Token(), left = 11)): Long = sum(value)
-@NoGC public fun defaultFlag(value: Flag = Flag.On): Long = when (value) { Off -> 0; On -> 1 }
-@NoGC public fun defaultMarker(value: Marker = Marker.Only): Long = when (value) { Only -> 0 }
+@NoGC public fun defaultFlag(value: Flag = Flag.On): Long = when (value) { case Off -> 0; case On -> 1 }
+@NoGC public fun defaultMarker(value: Marker = Marker.Only): Long = when (value) { case Only -> 0 }
 
 @NoGC fun score(value: Draft): Long = when (value) {
-    Absent -> 0
-    Position(left, _, right) -> left + right
-    Named { left, right, .. } -> left + right
-    Defaults { left, right, .. } -> left + right
+    case Absent -> 0
+    case Position(left, _, right) -> left + right
+    case Named { left, right, .. } -> left + right
+    case Defaults { left, right, .. } -> left + right
 }
 
 @NoGC public fun test(): Long {
     val named = Renamed.Pair(right = -29, marker = Token(), left = 17)
     if (sum(relay(named)) != -12) { return 1 }
-    val difference = when (named) { Empty -> 0; Pair { left, right, .. } -> left - right }
+    val difference = when (named) { case Empty -> 0; case Pair { left, right, .. } -> left - right }
     if (difference != 46) { return 2 }
     if (score(Coordinates(47, Token(), 48)) != 95) { return 3 }
     if (score(Draft.Named(right = 42, marker = Token(), left = 53)) != 95) { return 4 }

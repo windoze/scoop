@@ -50,7 +50,7 @@ SourceFile
       WhenExpression
         Var packet
         arm Item(item)
-          WhenExpression
+          when
             Var named
             arm Named(n, amount)
               Binary Add

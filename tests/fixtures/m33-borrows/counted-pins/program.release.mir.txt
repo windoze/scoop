@@ -157,7 +157,7 @@ Module
         Type Boolean
         Binary RefEq
           Type Cell
-          Local last
+          Local $equality.lhs
           Type Cell
           Local $call.4
       val $parameter.value: Boolean
@@ -213,6 +213,9 @@ Module
       val last: Cell
         Type Cell
         Local $inline.3.result
+      val $equality.lhs: Cell
+        Type Cell
+        Local last
       val $dependency.argument.0: GcHandle<Cell>
         Type GcHandle<Cell>
         Local handle

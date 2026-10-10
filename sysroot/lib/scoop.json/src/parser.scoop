@@ -57,12 +57,12 @@ internal class JsonParser(text: String) {
         whitespace()
         if (current == None) { throw error(path, "expected a JSON value") }
         return when (current!!) {
-            'n' -> keyword("null", JsonValue.Null, path)
-            't' -> keyword("true", JsonValue.BooleanValue(true), path)
-            'f' -> keyword("false", JsonValue.BooleanValue(false), path)
-            '"' -> JsonValue.Text(readJsonString(this, path))
-            '{' -> record(path)
-            '[' -> sequence(path)
+            case 'n' -> keyword("null", JsonValue.Null, path)
+            case 't' -> keyword("true", JsonValue.BooleanValue(true), path)
+            case 'f' -> keyword("false", JsonValue.BooleanValue(false), path)
+            case '"' -> JsonValue.Text(readJsonString(this, path))
+            case '{' -> record(path)
+            case '[' -> sequence(path)
             else -> JsonValue.Number(readJsonNumber(this, path))
         }
     }

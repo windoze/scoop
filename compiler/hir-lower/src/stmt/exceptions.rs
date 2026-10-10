@@ -8,12 +8,9 @@ struct ValueCatch {
 }
 
 impl Lowerer {
-    /// `throw expr` (spec 11.7, milestone8 DESIGN.md 3.2): the operand
-    /// must be a subtype of the core `Throwable` class. `throw`
-    /// produces no value — M8 has no `Nothing` type, so it lowers to
-    /// the dedicated `Throw` statement, which downstream stages treat
-    /// as control flow that never falls through.
-    pub(super) fn lower_throw(
+    /// Throw operands retain their actual type and use the ordinary exception
+    /// transfer. An operand that cannot complete never reaches the transfer.
+    pub(crate) fn lower_throw(
         &mut self,
         expr: &ast::Expr,
         out: &mut Vec<hir::Statement>,

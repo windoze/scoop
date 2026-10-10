@@ -23,13 +23,13 @@ Module
   generated_exact_type get4 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
   generated_exact_type get5 location=enum2 nominal_id=13bfe31ef4692538315f14e6830531c8c54f86c68cf94da6a2a47082be17b7da exact_id=c8654f4eb2970521050a04ebd225433bf3721832728701d9130162d8b4617efa
   generated_exact_type get6 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
-  generated_callable gc0 function=@fn11 id=8ff4736e408c0dad7eec6cd83bbc55100825e824d4c2e27782daab1251df3d7c
+  generated_callable gc0 function=@fn9 id=8ff4736e408c0dad7eec6cd83bbc55100825e824d4c2e27782daab1251df3d7c
   fun concrete @fn0(left: Token<Unit>, right: Token<Unit>, unit: Unit) -> Boolean
     bb0 entry
       assign $new.1
         Type DerivedHost
         ClassAlloc DerivedHost
-      call @fn10 direct
+      call @fn8 direct
         Type DerivedHost
         Local $new.1
       val host: DerivedHost
@@ -50,12 +50,16 @@ Module
       val $parameter.right: Token<Unit>
         Type Token<Unit>
         Local $argument.1
-      call $parameter.value: Boolean = @fn1 direct
+      val $equality.this: Token<Unit>
         Type Token<Unit>
         Local $parameter.left
+      val $equality.other: Token<Unit>
         Type Token<Unit>
         Local $parameter.right
-      call $call.2: Boolean = @fn2 direct
+      val $parameter.value: Boolean
+        Type Boolean
+        BoolLiteral true
+      call $call.2: Boolean = @fn1 direct
         Type DerivedHost
         Local $receiver
         Type Token<Unit>
@@ -87,12 +91,39 @@ Module
       val $parameter.right: (Token<Unit>, Unit)
         Type (Token<Unit>, Unit)
         Local $argument.1
-      call $parameter.value: Boolean = @fn4 direct
+      val $equality.this: (Token<Unit>, Unit)
         Type (Token<Unit>, Unit)
         Local $parameter.left
+      val $equality.other: (Token<Unit>, Unit)
         Type (Token<Unit>, Unit)
         Local $parameter.right
-      call $call.3: Boolean = @fn5 direct
+      branch bb1 bb2
+        Type Boolean
+        BoolLiteral true
+    bb1 logic.rhs.1
+      call $call.4: Boolean = @fn2 direct
+        Type Unit
+        FieldAccess 1
+          Type (Token<Unit>, Unit)
+          Local $equality.this
+        Type Unit
+        FieldAccess 1
+          Type (Token<Unit>, Unit)
+          Local $equality.other
+      assign $logic.3
+        Type Boolean
+        Local $call.4
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.3
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 logic.merge.3
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $logic.3
+      call $call.5: Boolean = @fn3 direct
         Type DerivedHost
         Local $receiver
         Type (Token<Unit>, Unit)
@@ -103,80 +134,38 @@ Module
         Local $parameter.value
       return
         Type Boolean
-        Local $call.3
-  fun Token.equals @fn1(this: Token<Unit>, other: Token<Unit>) -> Boolean
-    bb0 entry
-      return
-        Type Boolean
-        BoolLiteral true
-  fun DerivedHost.nominal @fn2(this: DerivedHost, left: Token<Unit>, right: Token<Unit>, value: Boolean) -> Boolean
+        Local $call.5
+  fun DerivedHost.nominal @fn1(this: DerivedHost, left: Token<Unit>, right: Token<Unit>, value: Boolean) -> Boolean
     bb0 entry
       return
         Type Boolean
         Local value
-  fun $derived.equals.2 @fn3(this: Unit, other: Unit) -> Boolean
+  fun $derived.equals.2 @fn2(this: Unit, other: Unit) -> Boolean
     bb0 entry
       return
         Type Boolean
         BoolLiteral true
-  fun $derived.equals.5 @fn4(this: (Token<Unit>, Unit), other: (Token<Unit>, Unit)) -> Boolean
-    bb0 entry
-      call $call.1: Boolean = @fn1 direct
-        Type Token<Unit>
-        FieldAccess 0
-          Type (Token<Unit>, Unit)
-          Local this
-        Type Token<Unit>
-        FieldAccess 0
-          Type (Token<Unit>, Unit)
-          Local other
-      branch bb1 bb2
-        Type Boolean
-        Local $call.1
-    bb1 logic.rhs.1
-      call $call.3: Boolean = @fn3 direct
-        Type Unit
-        FieldAccess 1
-          Type (Token<Unit>, Unit)
-          Local this
-        Type Unit
-        FieldAccess 1
-          Type (Token<Unit>, Unit)
-          Local other
-      assign $logic.2
-        Type Boolean
-        Local $call.3
-      goto bb3
-    bb2 logic.short.2
-      assign $logic.2
-        Type Boolean
-        BoolLiteral false
-      goto bb3
-    bb3 logic.merge.3
-      return
-        Type Boolean
-        Local $logic.2
-  fun DerivedHost.tuple @fn5(this: DerivedHost, left: (Token<Unit>, Unit), right: (Token<Unit>, Unit), value: Boolean) -> Boolean
+  fun DerivedHost.tuple @fn3(this: DerivedHost, left: (Token<Unit>, Unit), right: (Token<Unit>, Unit), value: Boolean) -> Boolean
     bb0 entry
       return
         Type Boolean
         Local value
-  fun Continuation.resume @fn6(this: Continuation<DerivedHost>, value: DerivedHost) -> Unit
+  fun Continuation.resume @fn4(this: Continuation<DerivedHost>, value: DerivedHost) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
-  fun Continuation.resumeWithException @fn7(this: Continuation<DerivedHost>, exception: Throwable) -> Unit
+  fun Continuation.resumeWithException @fn5(this: Continuation<DerivedHost>, exception: Throwable) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resumeWithException`"
-  fun SuspendTask.run @fn8(this: SuspendTask<DerivedHost>, $completion: Continuation<DerivedHost>) -> CoroutineStep<DerivedHost>
+  fun SuspendTask.run @fn6(this: SuspendTask<DerivedHost>, $completion: Continuation<DerivedHost>) -> CoroutineStep<DerivedHost>
     bb0 entry
       trap "call to abstract method `SuspendTask.run`"
-  fun SuspendRegistration.register @fn9(this: SuspendRegistration<DerivedHost>, continuation: Continuation<DerivedHost>) -> Unit
+  fun SuspendRegistration.register @fn7(this: SuspendRegistration<DerivedHost>, continuation: Continuation<DerivedHost>) -> Unit
     bb0 entry
       trap "call to abstract method `SuspendRegistration.register`"
-  fun init.DerivedHost.$c0 @fn10(this: DerivedHost) -> Unit
+  fun init.DerivedHost.$c0 @fn8(this: DerivedHost) -> Unit
     bb0 entry
       return
-  fun startCoroutine<DerivedHost> @fn11(task: SuspendTask<DerivedHost>, completion: Continuation<DerivedHost>) -> Unit
+  fun startCoroutine<DerivedHost> @fn9(task: SuspendTask<DerivedHost>, completion: Continuation<DerivedHost>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -199,7 +188,7 @@ Module
         Local $context_guard
       return
     bb3 completed unwind bb0
-      call @fn6 interface Continuation<DerivedHost>[0]
+      call @fn4 interface Continuation<DerivedHost>[0]
         Type Continuation<DerivedHost>
         Local completion
         Type DerivedHost
@@ -212,7 +201,7 @@ Module
         Local $context_guard
       return
     bb4 failed unwind bb0
-      call @fn7 interface Continuation<DerivedHost>[1]
+      call @fn5 interface Continuation<DerivedHost>[1]
         Type Continuation<DerivedHost>
         Local completion
         Type Throwable
@@ -231,7 +220,7 @@ Module
       end_catch
       goto bb4
     bb6 run unwind bb5
-      call $step: CoroutineStep<DerivedHost> = @fn8 interface SuspendTask<DerivedHost>[0]
+      call $step: CoroutineStep<DerivedHost> = @fn6 interface SuspendTask<DerivedHost>[0]
         Type SuspendTask<DerivedHost>
         Local task
         Type Continuation<DerivedHost>
@@ -259,12 +248,12 @@ Module
       goto bb6
   coroutine_step cs0 CoroutineStep<DerivedHost> result=DerivedHost
   coroutine_slot cl0 CoroutineSlot<DerivedHost> value=DerivedHost
-  coroutine_start ct0 result=DerivedHost function=fn11
-  coroutine_fn cf0 @fn8 source_return=DerivedHost step=cs0 immediate
-  instance mi0 function=@fn2 <- DerivedHost.nominal
-  instance mi1 function=@fn5 <- DerivedHost.tuple
-  instance mi2 function=@fn6 <- Continuation.resume
-  instance mi3 function=@fn7 <- Continuation.resumeWithException
-  instance mi4 function=@fn8 <- SuspendTask.run
-  instance mi5 function=@fn9 <- SuspendRegistration.register
+  coroutine_start ct0 result=DerivedHost function=fn9
+  coroutine_fn cf0 @fn6 source_return=DerivedHost step=cs0 immediate
+  instance mi0 function=@fn1 <- DerivedHost.nominal
+  instance mi1 function=@fn3 <- DerivedHost.tuple
+  instance mi2 function=@fn4 <- Continuation.resume
+  instance mi3 function=@fn5 <- Continuation.resumeWithException
+  instance mi4 function=@fn6 <- SuspendTask.run
+  instance mi5 function=@fn7 <- SuspendRegistration.register
   output library

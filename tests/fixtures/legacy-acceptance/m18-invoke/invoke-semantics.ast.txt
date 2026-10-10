@@ -83,10 +83,11 @@ SourceFile
     Call println
       Call mapper<Int>
         IntLiteral 41
-        Lambda 1 suspend=false
-          param value: Int
-          MethodCall toString
-            Var value
+        Argument trailing
+          Lambda 1 suspend=false
+            param value: Int
+            MethodCall toString
+              Var value
     val collector
       Call Collector
     Call println

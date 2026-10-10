@@ -26,15 +26,17 @@ Module
     local %16 $dependency.receiver: i64
     local %17 $dependency.argument.0: i64
     local %18 $dependency.parameter.other: i64
-    local %19 $call.1: i64
+    local %19 $operand.1: ptr<managed>
+    local %20 $call.2: i64
   block entry
     poll managed-void-target5 sp<managed-poll:0> live=[param0:ptr<managed>@0]
     call managed-void-target0 sp<managed-call:0> live=[param0:ptr<managed>@0] sig=void0 (ptr<managed>, i64) local-fn2(param0, integer<Long>(0x000000000000000a))
     t0 = aggregate () : {}
     store param0 -> local0
-    call managed-direct-target0 sp<managed-call:1> live=[param0:ptr<managed>@0, local0:ptr<managed>@0] t1 = sig=direct0 (ptr<managed>) -> i64 local-fn1(param0)
-    store t1 -> local19
-    call managed-void-target1 sp<managed-call:2> live=[param0:ptr<managed>@0, local0:ptr<managed>@0] sig=void1 (ptr<managed>, i64) external-fn5(local0, local19)
+    store local0 -> local19
+    call managed-direct-target0 sp<managed-call:1> live=[param0:ptr<managed>@0, local19:ptr<managed>@0] t1 = sig=direct0 (ptr<managed>) -> i64 local-fn1(param0)
+    store t1 -> local20
+    call managed-void-target1 sp<managed-call:2> live=[param0:ptr<managed>@0, local19:ptr<managed>@0] sig=void1 (ptr<managed>, i64) external-fn5(local19, local20)
     t2 = aggregate () : {}
     call managed-direct-target1 sp<managed-call:3> live=[param0:ptr<managed>@0] t3 = sig=direct1 (ptr<managed>) -> i64 external-fn6(param0)
     store t3 -> local1

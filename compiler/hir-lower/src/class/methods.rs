@@ -239,6 +239,6 @@ impl Lowerer {
             });
         }
         self.functions[id].params = params;
-        std::mem::take(&mut self.locals)
+        std::mem::take(&mut self.locals).into_arena()
     }
 }

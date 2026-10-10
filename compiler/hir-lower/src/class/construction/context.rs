@@ -105,7 +105,7 @@ impl Lowerer {
         self.push_safety_context(safety);
         let mut statements = Vec::new();
         let value = lower(self, &mut statements);
-        let locals = std::mem::take(&mut self.locals);
+        let locals = std::mem::take(&mut self.locals).into_arena();
 
         self.pop_safety_context();
         self.pop_suspension_context();

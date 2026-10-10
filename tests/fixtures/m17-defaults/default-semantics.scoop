@@ -61,12 +61,12 @@ fun main() {
 
     val choice = Choice.Value()
     when (choice) {
-        Value(value) -> println(value)
+        case Value(value) -> println(value)
     }
 
     val supplied = Choice.Value(31)
     when (supplied) {
-        Value(value) -> println(value)
+        case Value(value) -> println(value)
     }
 
     val values: Array<Int> = empty()

@@ -204,12 +204,8 @@ fn build_registration(
         );
     }
     let primary_atoms = foundation
-        .definition_atoms()
-        .iter()
-        .filter(|record| {
-            record.key().plan() == definition.id()
-                && record.key().role() == DefinitionAtomRole::Primary
-        })
+        .definition_atoms_for_plan(definition.id())
+        .filter(|record| record.key().role() == DefinitionAtomRole::Primary)
         .map(|record| record.id())
         .collect::<Vec<_>>();
     let primary_atom = match primary_atoms.as_slice() {

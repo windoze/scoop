@@ -1,0 +1,70 @@
+val initialized: Int = (fun(): Int {
+    val missing: Int? = None
+    return missing ?: return 22
+})()
+
+interface Numbered { fun number(): Int }
+class NumberBox(val value: Int) : Numbered {
+    public override fun number(): Int = value
+}
+
+fun describe(value: Int?): String {
+    val number = value ?: return "missing"
+    return number.toString()
+}
+
+fun consume(value: Int?) {
+    val number = value ?: return
+    println(number)
+}
+
+fun fail(): Nothing { throw UnwrapException() }
+fun throwing(value: Int?): Int = value ?: throw UnwrapException()
+fun never(value: Int?): Int = value ?: fail()
+
+fun widen(value: NumberBox?, other: Numbered): Numbered = value ?: other
+fun inferred(value: Int?): Any {
+    val result = value ?: "missing"
+    return result
+}
+fun <T> fallback(value: T?, other: T): T = value ?: other
+
+fun chain(first: Int?, second: Int?): String {
+    val number = first ?: second ?: return "empty"
+    return number.toString()
+}
+
+fun anonymous(value: Int?): Int {
+    val callable = fun(): Int {
+        val number = value ?: return 19
+        return number + 1
+    }
+    return callable()
+}
+
+fun local(value: Int?): Int {
+    fun choose(): Int { val number = value ?: return 21; return number }
+    return choose()
+}
+
+fun main() {
+    println(describe(Some(7)))
+    println(describe(None))
+    consume(None)
+    consume(Some(8))
+    println(throwing(Some(9)))
+    try { println(throwing(None)) } catch (failure: UnwrapException) { println("thrown") }
+    try { println(never(None)) } catch (failure: UnwrapException) { println("never") }
+    println(widen(None, NumberBox(10)).number())
+    println(widen(Some(NumberBox(11)), NumberBox(12)).number())
+    println(inferred(None) is String)
+    println(inferred(Some(13)) is Int)
+    println(fallback<Int>(None, 14))
+    println(fallback<String>(Some("present"), "other"))
+    println(chain(None, Some(15)))
+    println(chain(None, None))
+    println(anonymous(None))
+    println(anonymous(Some(19)))
+    println(local(None))
+    println(initialized)
+}

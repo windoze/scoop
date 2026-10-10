@@ -80,24 +80,7 @@ fn dump_statement(statement: &Statement, indent: usize, out: &mut String) {
         }
         StatementKind::When(when) => {
             out.push_str(&format!("{pad}when\n"));
-            dump_expr(&when.subject, indent + 1, out);
-            for arm in &when.arms {
-                out.push_str(&format!(
-                    "{}  arm {}{}\n",
-                    pad,
-                    dump_pattern(&arm.pattern),
-                    if arm.guard.is_some() {
-                        " if <guard>"
-                    } else {
-                        ""
-                    }
-                ));
-                dump_block(&arm.body, indent + 2, out);
-            }
-            if let Some(else_body) = &when.else_body {
-                out.push_str(&format!("{pad}  else\n"));
-                dump_block(else_body, indent + 2, out);
-            }
+            super::dump_when(when, indent + 1, out);
         }
         StatementKind::Assign(assign) => {
             match (assign.op, &assign.target) {

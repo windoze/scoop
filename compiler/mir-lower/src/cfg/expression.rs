@@ -5,6 +5,18 @@ impl<'a> CfgLowerer<'a> {
     /// calls in source evaluation order as explicit effect statements.
     pub(super) fn lower_expr(&mut self, expr: &smir::Expr, span: Span) -> Option<mir::Expr> {
         let kind = match &expr.kind {
+            smir::ExprKind::Unreachable => {
+                self.seal(mir::Terminator::Unreachable);
+                return None;
+            }
+
+            smir::ExprKind::Diverging { prefix, terminal } => {
+                for value in prefix {
+                    let value = self.lower_expr(value, span)?;
+                    self.push(mir::StatementKind::Expr(value), span);
+                }
+                return self.lower_expr(terminal, span);
+            }
             smir::ExprKind::MaybeUninit { wrapper, operation } => {
                 let operation = match operation {
                     mir::MaybeUninitOperation::Uninit => mir::MaybeUninitOperation::Uninit,
@@ -61,12 +73,15 @@ impl<'a> CfgLowerer<'a> {
                 operation,
                 lhs,
                 rhs,
-            } => mir::ExprKind::FloatBinary {
-                kind: *kind,
-                operation: *operation,
-                lhs: Box::new(self.lower_expr(lhs, span)?),
-                rhs: Box::new(self.lower_expr(rhs, span)?),
-            },
+            } => {
+                let (lhs, rhs) = self.lower_pair(lhs, rhs, span)?;
+                mir::ExprKind::FloatBinary {
+                    kind: *kind,
+                    operation: *operation,
+                    lhs: Box::new(lhs),
+                    rhs: Box::new(rhs),
+                }
+            }
             smir::ExprKind::FloatConversion {
                 conversion,
                 operand,
@@ -83,26 +98,17 @@ impl<'a> CfgLowerer<'a> {
             }
             smir::ExprKind::BoolLiteral(value) => mir::ExprKind::BoolLiteral(*value),
             smir::ExprKind::UnitLiteral => mir::ExprKind::UnitLiteral,
-            smir::ExprKind::TupleLiteral(elements) => mir::ExprKind::TupleLiteral(
-                elements
-                    .iter()
-                    .map(|element| self.lower_expr(element, span))
-                    .collect::<Option<Vec<_>>>()?,
-            ),
+            smir::ExprKind::TupleLiteral(elements) => {
+                mir::ExprKind::TupleLiteral(self.lower_operands(elements.iter(), span)?)
+            }
             smir::ExprKind::StructInit { struct_id, args } => mir::ExprKind::StructInit {
                 struct_id: *struct_id,
-                args: args
-                    .iter()
-                    .map(|arg| self.lower_expr(arg, span))
-                    .collect::<Option<Vec<_>>>()?,
+                args: self.lower_operands(args.iter(), span)?,
             },
             smir::ExprKind::StructConstruct { struct_id, fields } => {
                 mir::ExprKind::StructConstruct {
                     struct_id: *struct_id,
-                    fields: fields
-                        .iter()
-                        .map(|field| self.lower_expr(field, span))
-                        .collect::<Option<Vec<_>>>()?,
+                    fields: self.lower_operands(fields.iter(), span)?,
                 }
             }
             smir::ExprKind::ClassNew {
@@ -111,10 +117,7 @@ impl<'a> CfgLowerer<'a> {
                 initializer,
                 args,
             } => {
-                let mut args = args
-                    .iter()
-                    .map(|arg| self.lower_expr(arg, span))
-                    .collect::<Option<Vec<_>>>()?;
+                let mut args = self.lower_operands(args.iter(), span)?;
                 let receiver_ty = mir::Type::Class(*class_id);
                 let receiver = self.new_hidden(
                     "new",
@@ -162,18 +165,18 @@ impl<'a> CfgLowerer<'a> {
                 }
                 return Some(mir::Expr::new(receiver_ty, mir::ExprKind::Local(receiver)));
             }
-            smir::ExprKind::ClosureAlloc { class, captures } => mir::ExprKind::ClosureAlloc {
-                class: *class,
-                captures: captures
-                    .iter()
-                    .map(|capture| {
-                        Some(mir::ClosureCaptureInit::new(
-                            capture.field,
-                            self.lower_expr(&capture.value, span)?,
-                        ))
-                    })
-                    .collect::<Option<Vec<_>>>()?,
-            },
+            smir::ExprKind::ClosureAlloc { class, captures } => {
+                let values =
+                    self.lower_operands(captures.iter().map(|capture| &capture.value), span)?;
+                mir::ExprKind::ClosureAlloc {
+                    class: *class,
+                    captures: captures
+                        .iter()
+                        .zip(values)
+                        .map(|(capture, value)| mir::ClosureCaptureInit::new(capture.field, value))
+                        .collect(),
+                }
+            }
             smir::ExprKind::ClosureCapture {
                 closure,
                 class,
@@ -205,39 +208,57 @@ impl<'a> CfgLowerer<'a> {
                 pointer,
                 pointee,
                 offset,
-            } => mir::ExprKind::PtrLoad {
-                pointer: Box::new(self.lower_expr(pointer, span)?),
-                pointee: pointee.clone(),
-                offset: match offset {
-                    Some(offset) => Some(Box::new(self.lower_expr(offset, span)?)),
-                    None => None,
-                },
-            },
+            } => {
+                let (pointer, offset) = match offset {
+                    Some(offset) => {
+                        let (pointer, offset) = self.lower_pair(pointer, offset, span)?;
+                        (pointer, Some(Box::new(offset)))
+                    }
+                    None => (self.lower_expr(pointer, span)?, None),
+                };
+                mir::ExprKind::PtrLoad {
+                    pointer: Box::new(pointer),
+                    pointee: pointee.clone(),
+                    offset,
+                }
+            }
             smir::ExprKind::PtrStore {
                 pointer,
                 pointee,
                 offset,
                 value,
-            } => mir::ExprKind::PtrStore {
-                pointer: Box::new(self.lower_expr(pointer, span)?),
-                pointee: pointee.clone(),
-                offset: match offset {
-                    Some(offset) => Some(Box::new(self.lower_expr(offset, span)?)),
-                    None => None,
-                },
-                value: Box::new(self.lower_expr(value, span)?),
-            },
+            } => {
+                let mut values = self
+                    .lower_operands(
+                        std::iter::once(pointer.as_ref())
+                            .chain(offset.as_deref())
+                            .chain(std::iter::once(value.as_ref())),
+                        span,
+                    )?
+                    .into_iter();
+                mir::ExprKind::PtrStore {
+                    pointer: Box::new(values.next().expect("pointer operand")),
+                    pointee: pointee.clone(),
+                    offset: offset
+                        .as_ref()
+                        .map(|_| Box::new(values.next().expect("offset operand"))),
+                    value: Box::new(values.next().expect("stored value operand")),
+                }
+            }
             smir::ExprKind::PtrOffset {
                 pointer,
                 pointee,
                 offset,
                 subtract,
-            } => mir::ExprKind::PtrOffset {
-                pointer: Box::new(self.lower_expr(pointer, span)?),
-                pointee: pointee.clone(),
-                offset: Box::new(self.lower_expr(offset, span)?),
-                subtract: *subtract,
-            },
+            } => {
+                let (pointer, offset) = self.lower_pair(pointer, offset, span)?;
+                mir::ExprKind::PtrOffset {
+                    pointer: Box::new(pointer),
+                    pointee: pointee.clone(),
+                    offset: Box::new(offset),
+                    subtract: *subtract,
+                }
+            }
             smir::ExprKind::AddressOf { local, pointee } => mir::ExprKind::AddressOf {
                 local: *local,
                 pointee: pointee.clone(),
@@ -308,34 +329,44 @@ impl<'a> CfgLowerer<'a> {
                 elements,
             } => mir::ExprKind::ArrayLiteral {
                 array_type: *array_type,
-                elements: elements
-                    .iter()
-                    .map(|element| self.lower_expr(element, span))
-                    .collect::<Option<Vec<_>>>()?,
+                elements: self.lower_operands(elements.iter(), span)?,
             },
-            smir::ExprKind::ArrayAssembly { array_type, parts } => mir::ExprKind::ArrayAssembly {
-                array_type: *array_type,
-                parts: parts
-                    .iter()
-                    .map(|part| match part {
-                        smir::ArrayAssemblyPart::Element(value) => Some(
-                            mir::ArrayAssemblyPart::Element(self.lower_expr(value, span)?),
-                        ),
-                        smir::ArrayAssemblyPart::CopyArray(value) => Some(
-                            mir::ArrayAssemblyPart::CopyArray(self.lower_expr(value, span)?),
-                        ),
-                    })
-                    .collect::<Option<Vec<_>>>()?,
-            },
+            smir::ExprKind::ArrayAssembly { array_type, parts } => {
+                let values = self.lower_operands(
+                    parts.iter().map(|part| match part {
+                        smir::ArrayAssemblyPart::Element(value)
+                        | smir::ArrayAssemblyPart::CopyArray(value) => value,
+                    }),
+                    span,
+                )?;
+                mir::ExprKind::ArrayAssembly {
+                    array_type: *array_type,
+                    parts: parts
+                        .iter()
+                        .zip(values)
+                        .map(|(part, value)| match part {
+                            smir::ArrayAssemblyPart::Element(_) => {
+                                mir::ArrayAssemblyPart::Element(value)
+                            }
+                            smir::ArrayAssemblyPart::CopyArray(_) => {
+                                mir::ArrayAssemblyPart::CopyArray(value)
+                            }
+                        })
+                        .collect(),
+                }
+            }
             smir::ExprKind::ArrayGet {
                 array_type,
                 array,
                 index,
-            } => mir::ExprKind::ArrayGet {
-                array_type: *array_type,
-                array: Box::new(self.lower_expr(array, span)?),
-                index: Box::new(self.lower_expr(index, span)?),
-            },
+            } => {
+                let (array, index) = self.lower_pair(array, index, span)?;
+                mir::ExprKind::ArrayGet {
+                    array_type: *array_type,
+                    array: Box::new(array),
+                    index: Box::new(index),
+                }
+            }
             smir::ExprKind::ArrayLen {
                 array_type,
                 operand,
@@ -355,11 +386,12 @@ impl<'a> CfgLowerer<'a> {
             smir::ExprKind::AtomicNew(initial) => {
                 mir::ExprKind::AtomicNew(Box::new(self.lower_expr(initial, span)?))
             }
-            smir::ExprKind::Atomic(atomic) => mir::ExprKind::Atomic(Box::new(
-                atomic
-                    .try_map(|value| self.lower_expr(value, span).ok_or(()))
-                    .ok()?,
-            )),
+            smir::ExprKind::Atomic(atomic) => {
+                let mut values = self.lower_operands(atomic.operands(), span)?.into_iter();
+                mir::ExprKind::Atomic(Box::new(
+                    atomic.map(|_| values.next().expect("atomic operand")),
+                ))
+            }
             smir::ExprKind::ShortCircuit {
                 op: smir::LogicOp::And,
                 lhs,
@@ -371,8 +403,7 @@ impl<'a> CfgLowerer<'a> {
                 rhs,
             } => return self.lower_short_circuit(lhs, rhs, true, span),
             smir::ExprKind::Binary { op, lhs, rhs } => {
-                let lhs = self.lower_expr(lhs, span)?;
-                let rhs = self.lower_expr(rhs, span)?;
+                let (lhs, rhs) = self.lower_pair(lhs, rhs, span)?;
                 mir::ExprKind::Binary {
                     op: *op,
                     lhs: Box::new(lhs),
@@ -391,47 +422,62 @@ impl<'a> CfgLowerer<'a> {
                 operation,
                 lhs,
                 rhs,
-            } => mir::ExprKind::IntegerBinary {
-                operation: *operation,
-                lhs: Box::new(self.lower_expr(lhs, span)?),
-                rhs: Box::new(self.lower_expr(rhs, span)?),
-            },
+            } => {
+                let (lhs, rhs) = self.lower_pair(lhs, rhs, span)?;
+                mir::ExprKind::IntegerBinary {
+                    operation: *operation,
+                    lhs: Box::new(lhs),
+                    rhs: Box::new(rhs),
+                }
+            }
             smir::ExprKind::SafeIntegerDivRem {
                 operation,
                 lhs,
                 rhs,
-            } => mir::ExprKind::SafeIntegerDivRem {
-                operation: *operation,
-                lhs: Box::new(self.lower_expr(lhs, span)?),
-                rhs: Box::new(self.lower_expr(rhs, span)?),
-            },
+            } => {
+                let (lhs, rhs) = self.lower_pair(lhs, rhs, span)?;
+                mir::ExprKind::SafeIntegerDivRem {
+                    operation: *operation,
+                    lhs: Box::new(lhs),
+                    rhs: Box::new(rhs),
+                }
+            }
             smir::ExprKind::IntegerCompare {
                 operation,
                 lhs,
                 rhs,
-            } => mir::ExprKind::IntegerCompare {
-                operation: *operation,
-                lhs: Box::new(self.lower_expr(lhs, span)?),
-                rhs: Box::new(self.lower_expr(rhs, span)?),
-            },
+            } => {
+                let (lhs, rhs) = self.lower_pair(lhs, rhs, span)?;
+                mir::ExprKind::IntegerCompare {
+                    operation: *operation,
+                    lhs: Box::new(lhs),
+                    rhs: Box::new(rhs),
+                }
+            }
             smir::ExprKind::IntegerCompareTo {
                 operation,
                 lhs,
                 rhs,
-            } => mir::ExprKind::IntegerCompareTo {
-                operation: *operation,
-                lhs: Box::new(self.lower_expr(lhs, span)?),
-                rhs: Box::new(self.lower_expr(rhs, span)?),
-            },
+            } => {
+                let (lhs, rhs) = self.lower_pair(lhs, rhs, span)?;
+                mir::ExprKind::IntegerCompareTo {
+                    operation: *operation,
+                    lhs: Box::new(lhs),
+                    rhs: Box::new(rhs),
+                }
+            }
             smir::ExprKind::IntegerShift {
                 operation,
                 value,
                 count,
-            } => mir::ExprKind::IntegerShift {
-                operation: *operation,
-                value: Box::new(self.lower_expr(value, span)?),
-                count: Box::new(self.lower_expr(count, span)?),
-            },
+            } => {
+                let (value, count) = self.lower_pair(value, count, span)?;
+                mir::ExprKind::IntegerShift {
+                    operation: *operation,
+                    value: Box::new(value),
+                    count: Box::new(count),
+                }
+            }
             smir::ExprKind::IntegerConversion {
                 conversion,
                 operand,
@@ -442,10 +488,7 @@ impl<'a> CfgLowerer<'a> {
             smir::ExprKind::VariantConstruct { variant, fields } => {
                 mir::ExprKind::VariantConstruct {
                     variant: *variant,
-                    fields: fields
-                        .iter()
-                        .map(|field| self.lower_expr(field, span))
-                        .collect::<Option<Vec<_>>>()?,
+                    fields: self.lower_operands(fields.iter(), span)?,
                 }
             }
             smir::ExprKind::VariantTest { operand, variant } => {
@@ -471,157 +514,5 @@ impl<'a> CfgLowerer<'a> {
         } else {
             Some(value)
         }
-    }
-
-    pub(super) fn lower_short_circuit(
-        &mut self,
-        lhs: &smir::Expr,
-        rhs: &smir::Expr,
-        short_value: bool,
-        span: Span,
-    ) -> Option<mir::Expr> {
-        let lhs = self.lower_expr(lhs, span)?;
-        let rhs_block = self.new_block("logic.rhs");
-        let short_block = self.new_block("logic.short");
-        let merge = self.new_block("logic.merge");
-        let (then_block, else_block) = if short_value {
-            (short_block, rhs_block)
-        } else {
-            (rhs_block, short_block)
-        };
-        self.seal(mir::Terminator::Branch {
-            cond: lhs,
-            then_block,
-            else_block,
-        });
-
-        let result = self.new_hidden(
-            "logic",
-            StructuralDefinitionSiteRole::SyntheticValue,
-            SyntheticLocalRole::Temporary,
-            mir::Type::Boolean,
-        );
-        self.enter(short_block);
-        self.push(
-            mir::StatementKind::Assign {
-                local: result,
-                value: mir::Expr::new(mir::Type::Boolean, mir::ExprKind::BoolLiteral(short_value)),
-            },
-            span,
-        );
-        self.seal(mir::Terminator::Goto(merge));
-
-        self.enter(rhs_block);
-        if let Some(rhs) = self.lower_expr(rhs, span) {
-            self.push(
-                mir::StatementKind::Assign {
-                    local: result,
-                    value: rhs,
-                },
-                span,
-            );
-            self.seal(mir::Terminator::Goto(merge));
-        }
-
-        self.enter(merge);
-        Some(mir::Expr::new(
-            mir::Type::Boolean,
-            mir::ExprKind::Local(result),
-        ))
-    }
-
-    pub(super) fn lower_call(
-        &mut self,
-        call: &smir::Call,
-        destination: Option<mir::LocalId>,
-        span: Span,
-    ) -> Option<mir::Expr> {
-        let args = call
-            .args
-            .iter()
-            .map(|arg| self.lower_expr(arg, span))
-            .collect::<Option<Vec<_>>>()?;
-        self.emit_lowered_call(
-            call.target.clone(),
-            args,
-            call.return_ty.clone(),
-            destination,
-            span,
-        )
-    }
-
-    fn emit_lowered_call(
-        &mut self,
-        target: mir::CallTarget,
-        args: Vec<mir::Expr>,
-        return_ty: mir::Type,
-        destination: Option<mir::LocalId>,
-        span: Span,
-    ) -> Option<mir::Expr> {
-        let normalized = mir::Call {
-            target,
-            args,
-            pending: self.call_pending_context(),
-        };
-        if return_ty == mir::Type::Unit {
-            assert!(
-                destination.is_none(),
-                "Unit calls do not have MIR destinations"
-            );
-            self.push_call(mir::CallEffect::Unit(normalized), span);
-            Some(mir::Expr::new(mir::Type::Unit, mir::ExprKind::UnitLiteral))
-        } else {
-            let destination = destination.unwrap_or_else(|| {
-                self.new_hidden(
-                    "call",
-                    StructuralDefinitionSiteRole::SyntheticValue,
-                    SyntheticLocalRole::Temporary,
-                    return_ty.clone(),
-                )
-            });
-            self.push_call(
-                mir::CallEffect::Value {
-                    destination,
-                    call: normalized,
-                },
-                span,
-            );
-            if self.is_nothing(&return_ty) {
-                self.seal(mir::Terminator::Unreachable);
-                None
-            } else {
-                Some(mir::Expr::new(return_ty, mir::ExprKind::Local(destination)))
-            }
-        }
-    }
-
-    fn push_call(&mut self, effect: mir::CallEffect, span: Span) {
-        self.ensure_unwind_context();
-        self.call_sites.push(CallSite {
-            block: self.current,
-            statement: self.blocks[self.current].statements.len(),
-        });
-        self.push(mir::StatementKind::Call(effect), span);
-    }
-
-    pub(super) fn new_hidden(
-        &mut self,
-        prefix: &str,
-        site_role: StructuralDefinitionSiteRole,
-        role: SyntheticLocalRole,
-        ty: mir::Type,
-    ) -> mir::LocalId {
-        self.hidden_count += 1;
-        let local = self.locals.alloc(mir::Local {
-            name: format!("${prefix}.{}", self.hidden_count),
-            ty,
-            mutable: false,
-        });
-        self.generated_values.push(GeneratedLocalValue {
-            local,
-            site_role,
-            role,
-        });
-        local
     }
 }

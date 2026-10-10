@@ -87,7 +87,7 @@ pub enum AssignTarget {
 
 #[derive(Debug, Clone)]
 pub struct When {
-    pub subject: Expr,
+    pub subject: Option<Expr>,
     pub arms: Vec<WhenArm>,
     pub fallback: WhenFallback,
 }
@@ -96,6 +96,8 @@ pub struct When {
 #[derive(Debug, Clone)]
 pub enum WhenFallback {
     Else(Vec<Statement>),
+    /// A permitted statement-position fallthrough.
+    Fallthrough,
     Impossible(ExhaustivenessProof),
 }
 
@@ -118,10 +120,20 @@ pub enum ExhaustivenessProof {
 
 #[derive(Debug, Clone)]
 pub struct WhenArm {
-    pub pattern: Pattern,
+    pub condition: WhenCondition,
     pub guard: Option<WhenGuard>,
     pub body: Vec<Statement>,
     pub span: Span,
+}
+
+/// Ordinary predicates retain their ordered local setup; multiple source
+/// conditions use the existing short-circuit Boolean control flow.
+#[derive(Debug, Clone)]
+pub enum WhenCondition {
+    Case(Pattern),
+    Predicate(WhenGuard),
+    /// The primary condition of a guarded fallback.
+    Always,
 }
 
 #[derive(Debug, Clone)]
@@ -177,6 +189,8 @@ pub struct Expr {
 
 #[derive(Debug, Clone)]
 pub enum ExprKind {
+    /// No normal value exists at this control-flow position.
+    Unreachable,
     MaybeUninit(MaybeUninitOperation<Box<Expr>>),
     ContextLookup {
         declaration: String,

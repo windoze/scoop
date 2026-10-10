@@ -119,6 +119,7 @@ impl Lowerer {
             type_args: application.type_args,
             ty: application.ty,
             own_type_param_count,
+            receiver: None,
         }))
     }
 }

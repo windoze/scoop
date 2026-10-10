@@ -49,28 +49,30 @@ Module
     local %0 $parameter.equal: i1
     local %1 $call.1: struct0 <logical-zst 71626f0136f99f37d853374ce80836fc8039cb3d19b8aa5fc10f523cdc6d20d2>
     local %2 $call.2: struct0 <logical-zst 71626f0136f99f37d853374ce80836fc8039cb3d19b8aa5fc10f523cdc6d20d2>
-    local %3 $call.3: struct0 <logical-zst 71626f0136f99f37d853374ce80836fc8039cb3d19b8aa5fc10f523cdc6d20d2>
+    local %3 $operand.3: {struct0, struct0} <logical-zst 99b6545df5255519c42ba8dd45ee687283a8a1877364876ce112571083cf1448>
     local %4 $call.4: struct0 <logical-zst 71626f0136f99f37d853374ce80836fc8039cb3d19b8aa5fc10f523cdc6d20d2>
-    local %5 $new.5: ptr<managed>
+    local %5 $call.5: struct0 <logical-zst 71626f0136f99f37d853374ce80836fc8039cb3d19b8aa5fc10f523cdc6d20d2>
+    local %6 $new.6: ptr<managed>
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
     call no-gc-elided-zst-target0 t0 = sig=elided-zst0 () -> elided-zst<struct0 size=0 align=1> local-fn27()
     store t0 -> local1
     call no-gc-elided-zst-target1 t1 = sig=elided-zst1 () -> elided-zst<struct0 size=0 align=1> local-fn27()
     store t1 -> local2
-    call no-gc-elided-zst-target2 t2 = sig=elided-zst2 () -> elided-zst<struct0 size=0 align=1> local-fn27()
+    t2 = aggregate (local1, local2) : {struct0, struct0}
     store t2 -> local3
-    call no-gc-elided-zst-target3 t3 = sig=elided-zst3 () -> elided-zst<struct0 size=0 align=1> local-fn27()
+    call no-gc-elided-zst-target2 t3 = sig=elided-zst2 () -> elided-zst<struct0 size=0 align=1> local-fn27()
     store t3 -> local4
-    t4 = aggregate (local1, local2) : {struct0, struct0}
-    t5 = aggregate (local3, local4) : {struct0, struct0}
-    call managed-direct-target0 sp<managed-call:0> live=[] t6 = sig=direct0 (elided-zst<{struct0, struct0} size=0 align=1>, elided-zst<{struct0, struct0} size=0 align=1>) -> i1 local-fn7(elided-zst t4, elided-zst t5)
+    call no-gc-elided-zst-target3 t4 = sig=elided-zst3 () -> elided-zst<struct0 size=0 align=1> local-fn27()
+    store t4 -> local5
+    t5 = aggregate (local4, local5) : {struct0, struct0}
+    call managed-direct-target0 sp<managed-call:0> live=[] t6 = sig=direct0 (elided-zst<{struct0, struct0} size=0 align=1>, elided-zst<{struct0, struct0} size=0 align=1>) -> i1 local-fn7(elided-zst local3, elided-zst t5)
     store t6 -> local0
     call managed-direct-target1 sp<managed-call:1> live=[] t7 = sig=direct1 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td13, machine<byte-size>(ByteSize(24)))
-    store t7 -> local5
-    call managed-void-target0 sp<managed-call:2> live=[local5:ptr<managed>@0] sig=void0 (ptr<managed>, i1) local-fn26(local5, local0)
+    store t7 -> local6
+    call managed-void-target0 sp<managed-call:2> live=[local6:ptr<managed>@0] sig=void0 (ptr<managed>, i1) local-fn26(local6, local0)
     t8 = aggregate () : {}
-    ret local5
+    ret local6
   fun @scoop$1$cb$52703ac21a79f31797b62944767f39459446d4eea7eee9e767274f5eb31b0c9e(ptr<managed>) -> i1
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]

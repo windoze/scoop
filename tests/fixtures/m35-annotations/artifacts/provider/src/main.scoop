@@ -1,0 +1,7 @@
+package metadata
+public const val WORD: String = "provider-word"
+public typealias Words = Array<String>
+public annotation class Tags(val words: Words = [WORD, WORD], val bytes: Array<Int8> = [-128, 127], val flags: Array<Boolean> = [])
+private annotation class Hidden(val values: Array<Char> = ['雪', '😀'])
+@Tags @Hidden
+public struct Value<T>(@Tags([]) @Hidden val value: T)

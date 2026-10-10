@@ -23,7 +23,7 @@ public fun combined(): Boolean {
         keep = run()
     }
     when ((run(), run())) {
-        (_, _) if (run()) -> { run() }
+        case (_, _) if (run()) -> { run() }
         else -> { run() }
     }
     val holder = Holder()

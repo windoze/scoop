@@ -97,14 +97,14 @@ fun main() {
                     if (index == 2) {
                         expect(foreignCallbackState(observer) == ForeignCallbackState.Failed)
                         expect(when (foreignCallbackFailure(observer)) {
-                            Some(error) -> error is CompletionError
-                            None -> false
+                            case Some(error) -> error is CompletionError
+                            case None -> false
                         })
                     } else {
                         expect(foreignCallbackState(observer) == ForeignCallbackState.Completed)
                         expect(when (foreignCallbackFailure(observer)) {
-                            Some(_) -> false
-                            None -> true
+                            case Some(_) -> false
+                            case None -> true
                         })
                     }
                     releaseForeignCallback(observer)

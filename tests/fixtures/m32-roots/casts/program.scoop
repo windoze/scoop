@@ -7,7 +7,7 @@ fun main() {
     println(operand() is Nothing)
     println(operand() !is Nothing)
     val empty: Nothing? = operand() as? Nothing
-    println(when (empty) { None -> true; Some(value) -> false })
+    println(when (empty) { case None -> true; case Some(value) -> false })
     try { val impossible = operand() as Nothing }
     catch (error: ClassCastException) { println("cast") }
 }

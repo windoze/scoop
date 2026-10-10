@@ -19,8 +19,8 @@ class Node(val value: Long, var next: Node?)
     var index = 0L
     var result = 0L
     while (index < kept.size) { result += kept[index].value; index += 1L }
-    val first = when (firstPin) { Some(value) -> unpin(value); None -> kept[0L] }
-    val last = when (lastPin) { Some(value) -> unpin(value); None -> kept[63L] }
+    val first = when (firstPin) { case Some(value) -> unpin(value); case None -> kept[0L] }
+    val last = when (lastPin) { case Some(value) -> unpin(value); case None -> kept[63L] }
     if (!(first === kept[0L]) || !(last === kept[63L])) { throw IllegalStateException() }
     return result
 }

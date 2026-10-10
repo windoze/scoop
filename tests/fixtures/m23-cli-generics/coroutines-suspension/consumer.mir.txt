@@ -1979,18 +1979,18 @@ Module
       trap "call to abstract method `Continuation.resume`"
   fun register @fn52(this: Registration<Large>, continuation: Continuation<Large>) -> Unit
     bb0 entry
+      call $dependency.local.4: Gate<Large> = @fn54 direct
+        Type Registration<Large>
+        Local this
       val $dependency.local.2: Continuation<Large>
         Type Continuation<Large>
         Local continuation
       val $dependency.local.3: Continuation<Large>
         Type Continuation<Large>
         Local $dependency.local.2
-      call $call.1: Gate<Large> = @fn54 direct
-        Type Registration<Large>
-        Local this
       call @fn39 direct
         Type Gate<Large>
-        Local $call.1
+        Local $dependency.local.4
         Type Option<Continuation<Large>>
         VariantConstruct Option<Continuation<Large>> v0
           Type Continuation<Large>
@@ -1998,18 +1998,18 @@ Module
       return
   fun register @fn53(this: Registration<Payload<Node>>, continuation: Continuation<Payload<Node>>) -> Unit
     bb0 entry
+      call $dependency.local.4: Gate<Payload<Node>> = @fn55 direct
+        Type Registration<Payload<Node>>
+        Local this
       val $dependency.local.2: Continuation<Payload<Node>>
         Type Continuation<Payload<Node>>
         Local continuation
       val $dependency.local.3: Continuation<Payload<Node>>
         Type Continuation<Payload<Node>>
         Local $dependency.local.2
-      call $call.1: Gate<Payload<Node>> = @fn55 direct
-        Type Registration<Payload<Node>>
-        Local this
       call @fn50 direct
         Type Gate<Payload<Node>>
-        Local $call.1
+        Local $dependency.local.4
         Type Option<Continuation<Payload<Node>>>
         VariantConstruct Option<Continuation<Payload<Node>>> v0
           Type Continuation<Payload<Node>>

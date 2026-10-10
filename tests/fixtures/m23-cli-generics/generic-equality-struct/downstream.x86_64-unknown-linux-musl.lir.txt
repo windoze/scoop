@@ -37,7 +37,7 @@ Module
     store local0 -> local1
     call managed-direct-target1 sp<managed-call:1> live=[] t1 = sig=direct1 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td3, machine<byte-size>(ByteSize(24)))
     store t1 -> local21
-    call managed-void-target0 sp<managed-call:2> live=[local21:ptr<managed>@0] sig=void0 (ptr<managed>, i32) local-fn11(local21, local1)
+    call managed-void-target0 sp<managed-call:2> live=[local21:ptr<managed>@0] sig=void0 (ptr<managed>, i32) local-fn9(local21, local1)
     t2 = aggregate () : {}
     store local21 -> local2
     store local2 -> local3
@@ -60,7 +60,7 @@ Module
     store local11 -> local12
     call managed-direct-target4 sp<managed-call:5> live=[local2:ptr<managed>@0] t7 = sig=direct4 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td3, machine<byte-size>(ByteSize(24)))
     store t7 -> local22
-    call managed-void-target1 sp<managed-call:6> live=[local2:ptr<managed>@0, local22:ptr<managed>@0] sig=void1 (ptr<managed>, i32) local-fn11(local22, local12)
+    call managed-void-target1 sp<managed-call:6> live=[local2:ptr<managed>@0, local22:ptr<managed>@0] sig=void1 (ptr<managed>, i32) local-fn9(local22, local12)
     t8 = aggregate () : {}
     store local22 -> local13
     t9 = heap_load local2 +16 : i32
@@ -107,23 +107,25 @@ Module
     local %15 $dependency.local.16: struct0
     local %16 $dependency.local.17: struct0
     local %17 $dependency.local.18: struct0
-    local %18 $call.1: i1
-    local %19 $call.2: i1
-    local %20 $logic.3: i1
-    local %21 $call.4: i1
+    local %18 $dependency.local.19: struct0
+    local %19 $dependency.local.20: struct0
+    local %20 $dependency.local.21: struct0
+    local %21 $dependency.local.22: struct0
+    local %22 $dependency.local.23: i1
+    local %23 $call.1: i1
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     store integer<Int>(0x0000002a) -> local3
     store local3 -> local4
-    call no-gc-direct-target0 t0 = sig=direct0 (i32) -> struct0 local-fn12(local4)
+    call no-gc-direct-target0 t0 = sig=direct0 (i32) -> struct0 local-fn10(local4)
     store t0 -> local0
     store integer<Int>(0x0000002a) -> local5
     store local5 -> local6
-    call no-gc-direct-target1 t1 = sig=direct1 (i32) -> struct0 local-fn12(local6)
+    call no-gc-direct-target1 t1 = sig=direct1 (i32) -> struct0 local-fn10(local6)
     store t1 -> local1
     store integer<Int>(0x00000001) -> local7
     store local7 -> local8
-    call no-gc-direct-target2 t2 = sig=direct2 (i32) -> struct0 local-fn12(local8)
+    call no-gc-direct-target2 t2 = sig=direct2 (i32) -> struct0 local-fn10(local8)
     store t2 -> local2
     store local0 -> local9
     store local1 -> local10
@@ -141,25 +143,31 @@ Module
     store local14 -> local16
     store local15 -> local17
     call managed-direct-target1 sp<managed-call:1> live=[] t5 = sig=direct4 (parts<struct0 [i32@0+4/4]>, parts<struct0 [i32@0+4/4]>) -> i1 local-fn3(local16, local17)
-    store t5 -> local18
-    cbr local18 then @if.then.3 else @if.merge.4
+    store t5 -> local23
+    cbr local23 then @if.then.3 else @if.merge.4
   block if.then.3
     ret integer<Int>(0x00000002)
   block if.merge.4
-    call managed-direct-target2 sp<managed-call:2> live=[] t6 = sig=direct5 (parts<struct0 [i32@0+4/4]>, parts<struct0 [i32@0+4/4]>) -> i1 local-fn4(local0, local1)
-    store t6 -> local19
-    t7 = Not local19 : i1
-    cbr t7 then @logic.short.6 else @logic.rhs.5
-  block logic.rhs.5
-    call managed-direct-target3 sp<managed-call:3> live=[] t8 = sig=direct6 (parts<struct0 [i32@0+4/4]>, parts<struct0 [i32@0+4/4]>) -> i1 local-fn4(local0, local2)
-    store t8 -> local21
-    store local21 -> local20
-    br @logic.merge.7
-  block logic.short.6
-    store true -> local20
-    br @logic.merge.7
-  block logic.merge.7
-    cbr local20 then @if.then.8 else @if.merge.9
+    store local0 -> local18
+    store local1 -> local19
+    t6 = extract local18, 0 : i32
+    t7 = extract local19, 0 : i32
+    t8 = integer_compare_Equal<Int> t6, t7 : i1
+    t9 = Not t8 : i1
+    cbr t9 then @if.then.5 else @if.else.6
+  block if.then.5
+    store true -> local22
+    br @if.merge.7
+  block if.else.6
+    store local0 -> local20
+    store local2 -> local21
+    t10 = extract local20, 0 : i32
+    t11 = extract local21, 0 : i32
+    t12 = integer_compare_Equal<Int> t10, t11 : i1
+    store t12 -> local22
+    br @if.merge.7
+  block if.merge.7
+    cbr local22 then @if.then.8 else @if.merge.9
   block if.then.8
     ret integer<Int>(0x00000003)
   block if.merge.9
@@ -183,29 +191,31 @@ Module
     local %15 $dependency.local.16: struct1
     local %16 $dependency.local.17: struct1
     local %17 $dependency.local.18: struct1
-    local %18 $call.1: i1
-    local %19 $call.2: i1
-    local %20 $logic.3: i1
-    local %21 $call.4: i1
+    local %18 $dependency.local.19: struct1
+    local %19 $dependency.local.20: struct1
+    local %20 $dependency.local.21: struct1
+    local %21 $dependency.local.22: struct1
+    local %22 $dependency.local.23: i1
+    local %23 $call.1: i1
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     store integer<Int>(0x0000002a) -> local3
     store local3 -> local4
-    call no-gc-direct-target0 t0 = sig=direct0 (i32) -> struct1 local-fn13(local4)
+    call no-gc-direct-target0 t0 = sig=direct0 (i32) -> struct1 local-fn11(local4)
     store t0 -> local0
     store integer<Int>(0x0000002a) -> local5
     store local5 -> local6
-    call no-gc-direct-target1 t1 = sig=direct1 (i32) -> struct1 local-fn13(local6)
+    call no-gc-direct-target1 t1 = sig=direct1 (i32) -> struct1 local-fn11(local6)
     store t1 -> local1
     store integer<Int>(0x00000001) -> local7
     store local7 -> local8
-    call no-gc-direct-target2 t2 = sig=direct2 (i32) -> struct1 local-fn13(local8)
+    call no-gc-direct-target2 t2 = sig=direct2 (i32) -> struct1 local-fn11(local8)
     store t2 -> local2
     store local0 -> local9
     store local1 -> local10
     store local9 -> local11
     store local10 -> local12
-    call managed-direct-target0 sp<managed-call:0> live=[] t3 = sig=direct3 (parts<struct1 [i32@0+4/4]>, parts<struct1 [i32@0+4/4]>) -> i1 local-fn5(local11, local12)
+    call managed-direct-target0 sp<managed-call:0> live=[] t3 = sig=direct3 (parts<struct1 [i32@0+4/4]>, parts<struct1 [i32@0+4/4]>) -> i1 local-fn4(local11, local12)
     store t3 -> local13
     t4 = Not local13 : i1
     cbr t4 then @if.then.1 else @if.merge.2
@@ -216,56 +226,56 @@ Module
     store local2 -> local15
     store local14 -> local16
     store local15 -> local17
-    call managed-direct-target1 sp<managed-call:1> live=[] t5 = sig=direct4 (parts<struct1 [i32@0+4/4]>, parts<struct1 [i32@0+4/4]>) -> i1 local-fn5(local16, local17)
-    store t5 -> local18
-    cbr local18 then @if.then.3 else @if.merge.4
+    call managed-direct-target1 sp<managed-call:1> live=[] t5 = sig=direct4 (parts<struct1 [i32@0+4/4]>, parts<struct1 [i32@0+4/4]>) -> i1 local-fn4(local16, local17)
+    store t5 -> local23
+    cbr local23 then @if.then.3 else @if.merge.4
   block if.then.3
     ret integer<Int>(0x00000002)
   block if.merge.4
-    call managed-direct-target2 sp<managed-call:2> live=[] t6 = sig=direct5 (parts<struct1 [i32@0+4/4]>, parts<struct1 [i32@0+4/4]>) -> i1 local-fn6(local0, local1)
-    store t6 -> local19
-    t7 = Not local19 : i1
-    cbr t7 then @logic.short.6 else @logic.rhs.5
-  block logic.rhs.5
-    call managed-direct-target3 sp<managed-call:3> live=[] t8 = sig=direct6 (parts<struct1 [i32@0+4/4]>, parts<struct1 [i32@0+4/4]>) -> i1 local-fn6(local0, local2)
-    store t8 -> local21
-    store local21 -> local20
-    br @logic.merge.7
-  block logic.short.6
-    store true -> local20
-    br @logic.merge.7
-  block logic.merge.7
-    cbr local20 then @if.then.8 else @if.merge.9
+    store local0 -> local18
+    store local1 -> local19
+    t6 = extract local18, 0 : i32
+    t7 = extract local19, 0 : i32
+    t8 = integer_compare_Equal<Int> t6, t7 : i1
+    t9 = Not t8 : i1
+    cbr t9 then @if.then.5 else @if.else.6
+  block if.then.5
+    store true -> local22
+    br @if.merge.7
+  block if.else.6
+    store local0 -> local20
+    store local2 -> local21
+    t10 = extract local20, 0 : i32
+    t11 = extract local21, 0 : i32
+    t12 = integer_compare_Equal<Int> t10, t11 : i1
+    store t12 -> local22
+    br @if.merge.7
+  block if.merge.7
+    cbr local22 then @if.then.8 else @if.merge.9
   block if.then.8
     ret integer<Int>(0x00000003)
   block if.merge.9
     ret integer<Int>(0x0000002a)
   fun @scoop$1$cb$42e4c9680b15ed1476641a66132306119f683f595b85656f87502f97bc116fd9(parts<struct0 [i32@0+4/4]>, parts<struct0 [i32@0+4/4]>) -> i1
-    local %0 $call.1: i1
+    local %0 $dependency.local.2: struct0
+    local %1 $dependency.local.3: struct0
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
-    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (parts<struct0 [i32@0+4/4]>, parts<struct0 [i32@0+4/4]>) -> i1 local-fn4(param0, param1)
-    store t0 -> local0
-    ret local0
-  fun @scoop$1$cb$7bee74da4d99206b7a0e858b66558ec213edcf40856f4bd5613674b82caf5fa2(parts<struct0 [i32@0+4/4]>, parts<struct0 [i32@0+4/4]>) -> i1
-  block entry
-    poll managed-void-target0 sp<managed-poll:0> live=[]
-    t0 = extract param0, 0 : i32
-    t1 = extract param1, 0 : i32
+    store param0 -> local0
+    store param1 -> local1
+    t0 = extract local0, 0 : i32
+    t1 = extract local1, 0 : i32
     t2 = integer_compare_Equal<Int> t0, t1 : i1
     ret t2
   fun @scoop$1$cb$8161dc5a2783b259e6456b986764ecf34cdb85af1eca7284d9ab6bd9e103d98a(parts<struct1 [i32@0+4/4]>, parts<struct1 [i32@0+4/4]>) -> i1
-    local %0 $call.1: i1
+    local %0 $dependency.local.2: struct1
+    local %1 $dependency.local.3: struct1
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
-    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (parts<struct1 [i32@0+4/4]>, parts<struct1 [i32@0+4/4]>) -> i1 local-fn6(param0, param1)
-    store t0 -> local0
-    ret local0
-  fun @scoop$1$cb$415699539ad175478cb96fce6134404ccaf59ca0bdc270aac415b04022cde122(parts<struct1 [i32@0+4/4]>, parts<struct1 [i32@0+4/4]>) -> i1
-  block entry
-    poll managed-void-target0 sp<managed-poll:0> live=[]
-    t0 = extract param0, 0 : i32
-    t1 = extract param1, 0 : i32
+    store param0 -> local0
+    store param1 -> local1
+    t0 = extract local0, 0 : i32
+    t1 = extract local1, 0 : i32
     t2 = integer_compare_Equal<Int> t0, t1 : i1
     ret t2
   fun @scoop$1$cb$b3cc02730ed6e3485ed103bd32ffe22adc5c5f0d8f081a3d0f2d1784f8c6d1d2(parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>, ptr<managed>) -> void

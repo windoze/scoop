@@ -932,16 +932,19 @@ Module
         Local $parameter.condition
         Type Int
         Local $parameter.code
+      call @fn31 direct
+      val $place.receiver: Box.Factory<Int>
+        Type Box.Factory<Int>
+        GlobalRead $singleton$Factory
       val $dependency.argument.0: Int
         Type Int
         IntegerLiteral Int value=10 bits=0x0000000a
       val $dependency.parameter._1: Int
         Type Int
         Local $dependency.argument.0
-      call @fn31 direct
       call @fn26 direct
         Type Box.Factory<Int>
-        GlobalRead $singleton$Factory
+        Local $place.receiver
         Type Option<Int>
         VariantConstruct Option<Int> v0
           Type Int
@@ -1002,16 +1005,19 @@ Module
         Local $parameter.condition
         Type Int
         Local $parameter.code
+      call @fn31 direct
+      val $place.receiver: Box.Factory<Int>
+        Type Box.Factory<Int>
+        GlobalRead $singleton$Factory
       val $dependency.argument.0: Int
         Type Int
         IntegerLiteral Int value=11 bits=0x0000000b
       val $dependency.parameter._1: Int
         Type Int
         Local $dependency.argument.0
-      call @fn31 direct
       call @fn26 direct
         Type Box.Factory<Int>
-        GlobalRead $singleton$Factory
+        Local $place.receiver
         Type Option<Int>
         VariantConstruct Option<Int> v0
           Type Int

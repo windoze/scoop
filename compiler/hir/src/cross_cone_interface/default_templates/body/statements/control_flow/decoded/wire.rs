@@ -18,7 +18,7 @@ impl WireDecode for DecodedDefaultWhenV1 {
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(3)?;
         Ok(Self {
-            subject: decoder.field(1, DecodedDefaultExpressionV1::decode)?,
+            subject: decoder.field(1, DecodedOptionalDefaultExpressionV1::decode)?,
             arms: decoder.field(2, |decoder| {
                 decoder.decode_array(|decoder, _| DecodedDefaultWhenArmV1::decode(decoder))
             })?,
@@ -31,7 +31,7 @@ impl WireEncode for DecodedDefaultWhenArmV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.map(4)?;
         encoder.field(1)?;
-        self.pattern.encode(encoder)?;
+        self.condition.encode(encoder)?;
         encoder.field(2)?;
         self.guard.encode(encoder)?;
         encoder.field(3)?;
@@ -45,11 +45,47 @@ impl WireDecode for DecodedDefaultWhenArmV1 {
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         decoder.expect_map(4)?;
         Ok(Self {
-            pattern: decoder.field(1, DecodedDefaultPatternV1::decode)?,
+            condition: decoder.field(1, DecodedDefaultWhenConditionV1::decode)?,
             guard: decoder.field(2, DecodedOptionalDefaultWhenGuardV1::decode)?,
             body: decoder.field(3, decode_statements)?,
             definition_origin: decoder.field(4, DecodedExportDefinitionSourceV1::decode)?,
         })
+    }
+}
+
+impl WireEncode for DecodedDefaultWhenConditionV1 {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        match self {
+            Self::Case(pattern) => encode_one(encoder, 1, pattern),
+            Self::Predicate(predicate) => encode_one(encoder, 2, predicate.as_ref()),
+            Self::Always => encode_empty(encoder, 3),
+        }
+    }
+}
+
+impl WireDecode for DecodedDefaultWhenConditionV1 {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
+        let fields = decoder.map()?;
+        let tag = decoder.field(0, Decoder::unsigned)?;
+        match tag {
+            1 => {
+                expect_sum_length(decoder, fields, 2)?;
+                decoder
+                    .field(1, DecodedDefaultPatternV1::decode)
+                    .map(Self::Case)
+            }
+            2 => {
+                expect_sum_length(decoder, fields, 2)?;
+                decoder
+                    .field(1, DecodedDefaultWhenGuardV1::decode)
+                    .map(|predicate| Self::Predicate(Box::new(predicate)))
+            }
+            3 => {
+                expect_sum_length(decoder, fields, 1)?;
+                Ok(Self::Always)
+            }
+            tag => Err(wire_error(decoder, WireErrorKind::UnknownTag { tag })),
+        }
     }
 }
 
@@ -106,6 +142,7 @@ impl WireDecode for DecodedDefaultWhenGuardV1 {
 impl WireEncode for DecodedDefaultWhenFallbackV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         match self {
+            Self::Fallthrough => encode_empty(encoder, 5),
             Self::Else(statements) => encode_one(encoder, 1, &WireSequence(statements)),
             Self::IrrefutableArm { subject_type } => encode_one(encoder, 2, subject_type),
             Self::PatternMatrix { subject_type } => encode_one(encoder, 3, subject_type),
@@ -144,6 +181,10 @@ impl WireDecode for DecodedDefaultWhenFallbackV1 {
                     subject_type: decoder.field(1, DecodedSignatureTypeKey::decode)?,
                     owner_type: decoder.field(2, DecodedSignatureTypeKey::decode)?,
                 })
+            }
+            5 => {
+                expect_sum_length(decoder, fields, 1)?;
+                Ok(Self::Fallthrough)
             }
             tag => Err(wire_error(decoder, WireErrorKind::UnknownTag { tag })),
         }

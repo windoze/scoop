@@ -36,7 +36,7 @@ Module
       val $parameter.number: Int
         Type Int
         Local $argument.1
-      call first: LocalKey<Int> = @fn6 direct
+      call first: LocalKey<Int> = @fn4 direct
         Type Int
         Local $parameter.payload
         Type Int
@@ -53,7 +53,7 @@ Module
       val $parameter.number: Int
         Type Int
         Local $argument.1
-      call same: LocalKey<Int> = @fn6 direct
+      call same: LocalKey<Int> = @fn4 direct
         Type Int
         Local $parameter.payload
         Type Int
@@ -70,7 +70,7 @@ Module
       val $parameter.number: Int
         Type Int
         Local $argument.1
-      call other: LocalKey<Int> = @fn6 direct
+      call other: LocalKey<Int> = @fn4 direct
         Type Int
         Local $parameter.payload
         Type Int
@@ -87,7 +87,7 @@ Module
       val $dependency.parameter.last: Int
         Type Int
         Local $dependency.argument.1
-      call $dependency.argument.0: Payload<LocalKey<Int>> = @fn7 direct
+      call $dependency.argument.0: Payload<LocalKey<Int>> = @fn5 direct
         Type LocalKey<Int>
         Local $dependency.parameter.data
         Type Int
@@ -101,7 +101,7 @@ Module
       val $dependency.parameter.tag: Int
         Type Int
         Local $dependency.argument.1
-      call left: Nested<LocalKey<Int>> = @fn8 direct
+      call left: Nested<LocalKey<Int>> = @fn6 direct
         Type Payload<LocalKey<Int>>
         Local $dependency.parameter.inner
         Type Int
@@ -118,7 +118,7 @@ Module
       val $dependency.parameter.last: Int
         Type Int
         Local $dependency.argument.1
-      call $dependency.argument.0: Payload<LocalKey<Int>> = @fn7 direct
+      call $dependency.argument.0: Payload<LocalKey<Int>> = @fn5 direct
         Type LocalKey<Int>
         Local $dependency.parameter.data
         Type Int
@@ -132,7 +132,7 @@ Module
       val $dependency.parameter.tag: Int
         Type Int
         Local $dependency.argument.1
-      call right: Nested<LocalKey<Int>> = @fn8 direct
+      call right: Nested<LocalKey<Int>> = @fn6 direct
         Type Payload<LocalKey<Int>>
         Local $dependency.parameter.inner
         Type Int
@@ -154,37 +154,99 @@ Module
         Local $dependency.parameter.left
         Type Nested<LocalKey<Int>>
         Local $dependency.parameter.right
-      branch bb2 bb1
+      branch bb1 bb2
         Type Boolean
         Unary BoolNot
           Type Boolean
           Local $dependency.receiver
-    bb1 logic.rhs.1
-      call $call.2: Boolean = @fn5 direct
-        Type Nested<LocalKey<Int>>
-        Local left
-        Type Nested<LocalKey<Int>>
-        Local right
-      assign $logic.1
-        Type Boolean
-        Unary BoolNot
-          Type Boolean
-          Local $call.2
-      goto bb3
-    bb2 logic.short.2
-      assign $logic.1
+    bb1 if.then.1
+      val $shortCircuit.0: Boolean
         Type Boolean
         BoolLiteral true
       goto bb3
-    bb3 logic.merge.3
+    bb2 if.else.2
+      val $equality.this: Nested<LocalKey<Int>>
+        Type Nested<LocalKey<Int>>
+        Local left
+      val $equality.other: Nested<LocalKey<Int>>
+        Type Nested<LocalKey<Int>>
+        Local right
+      call $call.1: Boolean = @fn2 direct
+        Type LocalKey<Int>
+        FieldAccess 0
+          Type Payload<LocalKey<Int>>
+          FieldAccess 0
+            Type Nested<LocalKey<Int>>
+            Local $equality.this
+        Type LocalKey<Int>
+        FieldAccess 0
+          Type Payload<LocalKey<Int>>
+          FieldAccess 0
+            Type Nested<LocalKey<Int>>
+            Local $equality.other
       branch bb4 bb5
         Type Boolean
-        Local $logic.1
-    bb4 if.then.4
+        Local $call.1
+    bb3 if.merge.3
+      branch bb10 bb11
+        Type Boolean
+        Local $shortCircuit.0
+    bb4 logic.rhs.4
+      assign $logic.2
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          FieldAccess 1
+            Type Payload<LocalKey<Int>>
+            FieldAccess 0
+              Type Nested<LocalKey<Int>>
+              Local $equality.this
+          Type Int
+          FieldAccess 1
+            Type Payload<LocalKey<Int>>
+            FieldAccess 0
+              Type Nested<LocalKey<Int>>
+              Local $equality.other
+      goto bb6
+    bb5 logic.short.5
+      assign $logic.2
+        Type Boolean
+        BoolLiteral false
+      goto bb6
+    bb6 logic.merge.6
+      branch bb7 bb8
+        Type Boolean
+        Local $logic.2
+    bb7 logic.rhs.7
+      assign $logic.3
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          FieldAccess 1
+            Type Nested<LocalKey<Int>>
+            Local $equality.this
+          Type Int
+          FieldAccess 1
+            Type Nested<LocalKey<Int>>
+            Local $equality.other
+      goto bb9
+    bb8 logic.short.8
+      assign $logic.3
+        Type Boolean
+        BoolLiteral false
+      goto bb9
+    bb9 logic.merge.9
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $logic.3
+      goto bb3
+    bb10 if.then.10
       return
         Type Int
         IntegerLiteral Int value=1 bits=0x00000001
-    bb5 if.merge.5
+    bb11 if.merge.11
       val $equality.lhs: Nested<LocalKey<Int>>
         Type Nested<LocalKey<Int>>
         Local left
@@ -200,7 +262,7 @@ Module
       val $dependency.parameter.last: Int
         Type Int
         Local $dependency.argument.1
-      call $dependency.argument.0: Payload<LocalKey<Int>> = @fn7 direct
+      call $dependency.argument.0: Payload<LocalKey<Int>> = @fn5 direct
         Type LocalKey<Int>
         Local $dependency.parameter.data
         Type Int
@@ -214,71 +276,83 @@ Module
       val $dependency.parameter.tag: Int
         Type Int
         Local $dependency.argument.1
-      call $call.3: Nested<LocalKey<Int>> = @fn8 direct
+      val $equality.this: Nested<LocalKey<Int>>
+        Type Nested<LocalKey<Int>>
+        Local $equality.lhs
+      call $equality.other: Nested<LocalKey<Int>> = @fn6 direct
         Type Payload<LocalKey<Int>>
         Local $dependency.parameter.inner
         Type Int
         Local $dependency.parameter.tag
-      call $call.4: Boolean = @fn5 direct
-        Type Nested<LocalKey<Int>>
-        Local $equality.lhs
-        Type Nested<LocalKey<Int>>
-        Local $call.3
-      branch bb6 bb7
+      call $call.4: Boolean = @fn2 direct
+        Type LocalKey<Int>
+        FieldAccess 0
+          Type Payload<LocalKey<Int>>
+          FieldAccess 0
+            Type Nested<LocalKey<Int>>
+            Local $equality.this
+        Type LocalKey<Int>
+        FieldAccess 0
+          Type Payload<LocalKey<Int>>
+          FieldAccess 0
+            Type Nested<LocalKey<Int>>
+            Local $equality.other
+      branch bb12 bb13
         Type Boolean
         Local $call.4
-    bb6 if.then.6
-      return
-        Type Int
-        IntegerLiteral Int value=2 bits=0x00000002
-    bb7 if.merge.7
-      val $equality.lhs: Nested<LocalKey<Int>>
-        Type Nested<LocalKey<Int>>
-        Local left
-      val $dependency.argument.0: LocalKey<Int>
-        Type LocalKey<Int>
-        Local same
-      val $dependency.argument.1: Int
-        Type Int
-        IntegerLiteral Int value=3 bits=0x00000003
-      val $dependency.parameter.data: LocalKey<Int>
-        Type LocalKey<Int>
-        Local $dependency.argument.0
-      val $dependency.parameter.last: Int
-        Type Int
-        Local $dependency.argument.1
-      call $dependency.argument.0: Payload<LocalKey<Int>> = @fn7 direct
-        Type LocalKey<Int>
-        Local $dependency.parameter.data
-        Type Int
-        Local $dependency.parameter.last
-      val $dependency.argument.1: Int
-        Type Int
-        IntegerLiteral Int value=3 bits=0x00000003
-      val $dependency.parameter.inner: Payload<LocalKey<Int>>
-        Type Payload<LocalKey<Int>>
-        Local $dependency.argument.0
-      val $dependency.parameter.tag: Int
-        Type Int
-        Local $dependency.argument.1
-      call $call.5: Nested<LocalKey<Int>> = @fn8 direct
-        Type Payload<LocalKey<Int>>
-        Local $dependency.parameter.inner
-        Type Int
-        Local $dependency.parameter.tag
-      call $call.6: Boolean = @fn5 direct
-        Type Nested<LocalKey<Int>>
-        Local $equality.lhs
-        Type Nested<LocalKey<Int>>
-        Local $call.5
-      branch bb8 bb9
+    bb12 logic.rhs.12
+      assign $logic.5
         Type Boolean
-        Local $call.6
-    bb8 if.then.8
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          FieldAccess 1
+            Type Payload<LocalKey<Int>>
+            FieldAccess 0
+              Type Nested<LocalKey<Int>>
+              Local $equality.this
+          Type Int
+          FieldAccess 1
+            Type Payload<LocalKey<Int>>
+            FieldAccess 0
+              Type Nested<LocalKey<Int>>
+              Local $equality.other
+      goto bb14
+    bb13 logic.short.13
+      assign $logic.5
+        Type Boolean
+        BoolLiteral false
+      goto bb14
+    bb14 logic.merge.14
+      branch bb15 bb16
+        Type Boolean
+        Local $logic.5
+    bb15 logic.rhs.15
+      assign $logic.6
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          FieldAccess 1
+            Type Nested<LocalKey<Int>>
+            Local $equality.this
+          Type Int
+          FieldAccess 1
+            Type Nested<LocalKey<Int>>
+            Local $equality.other
+      goto bb17
+    bb16 logic.short.16
+      assign $logic.6
+        Type Boolean
+        BoolLiteral false
+      goto bb17
+    bb17 logic.merge.17
+      branch bb18 bb19
+        Type Boolean
+        Local $logic.6
+    bb18 if.then.18
       return
         Type Int
-        IntegerLiteral Int value=3 bits=0x00000003
-    bb9 if.merge.9
+        IntegerLiteral Int value=2 bits=0x00000002
+    bb19 if.merge.19
       val $equality.lhs: Nested<LocalKey<Int>>
         Type Nested<LocalKey<Int>>
         Local left
@@ -287,45 +361,210 @@ Module
         Local same
       val $dependency.argument.1: Int
         Type Int
-        IntegerLiteral Int value=2 bits=0x00000002
+        IntegerLiteral Int value=3 bits=0x00000003
       val $dependency.parameter.data: LocalKey<Int>
         Type LocalKey<Int>
         Local $dependency.argument.0
       val $dependency.parameter.last: Int
         Type Int
         Local $dependency.argument.1
-      call $dependency.argument.0: Payload<LocalKey<Int>> = @fn7 direct
+      call $dependency.argument.0: Payload<LocalKey<Int>> = @fn5 direct
         Type LocalKey<Int>
         Local $dependency.parameter.data
         Type Int
         Local $dependency.parameter.last
       val $dependency.argument.1: Int
         Type Int
-        IntegerLiteral Int value=4 bits=0x00000004
+        IntegerLiteral Int value=3 bits=0x00000003
       val $dependency.parameter.inner: Payload<LocalKey<Int>>
         Type Payload<LocalKey<Int>>
         Local $dependency.argument.0
       val $dependency.parameter.tag: Int
         Type Int
         Local $dependency.argument.1
-      call $call.7: Nested<LocalKey<Int>> = @fn8 direct
+      val $equality.this: Nested<LocalKey<Int>>
+        Type Nested<LocalKey<Int>>
+        Local $equality.lhs
+      call $equality.other: Nested<LocalKey<Int>> = @fn6 direct
         Type Payload<LocalKey<Int>>
         Local $dependency.parameter.inner
         Type Int
         Local $dependency.parameter.tag
-      call $call.8: Boolean = @fn5 direct
-        Type Nested<LocalKey<Int>>
-        Local $equality.lhs
-        Type Nested<LocalKey<Int>>
+      call $call.7: Boolean = @fn2 direct
+        Type LocalKey<Int>
+        FieldAccess 0
+          Type Payload<LocalKey<Int>>
+          FieldAccess 0
+            Type Nested<LocalKey<Int>>
+            Local $equality.this
+        Type LocalKey<Int>
+        FieldAccess 0
+          Type Payload<LocalKey<Int>>
+          FieldAccess 0
+            Type Nested<LocalKey<Int>>
+            Local $equality.other
+      branch bb20 bb21
+        Type Boolean
         Local $call.7
-      branch bb10 bb11
+    bb20 logic.rhs.20
+      assign $logic.8
         Type Boolean
-        Local $call.8
-    bb10 if.then.10
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          FieldAccess 1
+            Type Payload<LocalKey<Int>>
+            FieldAccess 0
+              Type Nested<LocalKey<Int>>
+              Local $equality.this
+          Type Int
+          FieldAccess 1
+            Type Payload<LocalKey<Int>>
+            FieldAccess 0
+              Type Nested<LocalKey<Int>>
+              Local $equality.other
+      goto bb22
+    bb21 logic.short.21
+      assign $logic.8
+        Type Boolean
+        BoolLiteral false
+      goto bb22
+    bb22 logic.merge.22
+      branch bb23 bb24
+        Type Boolean
+        Local $logic.8
+    bb23 logic.rhs.23
+      assign $logic.9
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          FieldAccess 1
+            Type Nested<LocalKey<Int>>
+            Local $equality.this
+          Type Int
+          FieldAccess 1
+            Type Nested<LocalKey<Int>>
+            Local $equality.other
+      goto bb25
+    bb24 logic.short.24
+      assign $logic.9
+        Type Boolean
+        BoolLiteral false
+      goto bb25
+    bb25 logic.merge.25
+      branch bb26 bb27
+        Type Boolean
+        Local $logic.9
+    bb26 if.then.26
+      return
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+    bb27 if.merge.27
+      val $equality.lhs: Nested<LocalKey<Int>>
+        Type Nested<LocalKey<Int>>
+        Local left
+      val $dependency.argument.0: LocalKey<Int>
+        Type LocalKey<Int>
+        Local same
+      val $dependency.argument.1: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.parameter.data: LocalKey<Int>
+        Type LocalKey<Int>
+        Local $dependency.argument.0
+      val $dependency.parameter.last: Int
+        Type Int
+        Local $dependency.argument.1
+      call $dependency.argument.0: Payload<LocalKey<Int>> = @fn5 direct
+        Type LocalKey<Int>
+        Local $dependency.parameter.data
+        Type Int
+        Local $dependency.parameter.last
+      val $dependency.argument.1: Int
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+      val $dependency.parameter.inner: Payload<LocalKey<Int>>
+        Type Payload<LocalKey<Int>>
+        Local $dependency.argument.0
+      val $dependency.parameter.tag: Int
+        Type Int
+        Local $dependency.argument.1
+      val $equality.this: Nested<LocalKey<Int>>
+        Type Nested<LocalKey<Int>>
+        Local $equality.lhs
+      call $equality.other: Nested<LocalKey<Int>> = @fn6 direct
+        Type Payload<LocalKey<Int>>
+        Local $dependency.parameter.inner
+        Type Int
+        Local $dependency.parameter.tag
+      call $call.10: Boolean = @fn2 direct
+        Type LocalKey<Int>
+        FieldAccess 0
+          Type Payload<LocalKey<Int>>
+          FieldAccess 0
+            Type Nested<LocalKey<Int>>
+            Local $equality.this
+        Type LocalKey<Int>
+        FieldAccess 0
+          Type Payload<LocalKey<Int>>
+          FieldAccess 0
+            Type Nested<LocalKey<Int>>
+            Local $equality.other
+      branch bb28 bb29
+        Type Boolean
+        Local $call.10
+    bb28 logic.rhs.28
+      assign $logic.11
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          FieldAccess 1
+            Type Payload<LocalKey<Int>>
+            FieldAccess 0
+              Type Nested<LocalKey<Int>>
+              Local $equality.this
+          Type Int
+          FieldAccess 1
+            Type Payload<LocalKey<Int>>
+            FieldAccess 0
+              Type Nested<LocalKey<Int>>
+              Local $equality.other
+      goto bb30
+    bb29 logic.short.29
+      assign $logic.11
+        Type Boolean
+        BoolLiteral false
+      goto bb30
+    bb30 logic.merge.30
+      branch bb31 bb32
+        Type Boolean
+        Local $logic.11
+    bb31 logic.rhs.31
+      assign $logic.12
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          FieldAccess 1
+            Type Nested<LocalKey<Int>>
+            Local $equality.this
+          Type Int
+          FieldAccess 1
+            Type Nested<LocalKey<Int>>
+            Local $equality.other
+      goto bb33
+    bb32 logic.short.32
+      assign $logic.12
+        Type Boolean
+        BoolLiteral false
+      goto bb33
+    bb33 logic.merge.33
+      branch bb34 bb35
+        Type Boolean
+        Local $logic.12
+    bb34 if.then.34
       return
         Type Int
         IntegerLiteral Int value=4 bits=0x00000004
-    bb11 if.merge.11
+    bb35 if.merge.35
       return
         Type Int
         IntegerLiteral Int value=42 bits=0x0000002a
@@ -353,25 +592,25 @@ Module
           Local $dependency.parameter.other
   fun compareNested @fn3(left: Nested<LocalKey<Int>>, right: Nested<LocalKey<Int>>) -> Boolean
     bb0 entry
-      call $call.1: Boolean = @fn5 direct
+      val $dependency.local.2: Nested<LocalKey<Int>>
         Type Nested<LocalKey<Int>>
         Local left
+      val $dependency.local.3: Nested<LocalKey<Int>>
         Type Nested<LocalKey<Int>>
         Local right
-      return
-        Type Boolean
-        Local $call.1
-  fun $derived.equals.0 @fn4(this: Payload<LocalKey<Int>>, other: Payload<LocalKey<Int>>) -> Boolean
-    bb0 entry
       call $call.1: Boolean = @fn2 direct
         Type LocalKey<Int>
         FieldAccess 0
           Type Payload<LocalKey<Int>>
-          Local this
+          FieldAccess 0
+            Type Nested<LocalKey<Int>>
+            Local $dependency.local.2
         Type LocalKey<Int>
         FieldAccess 0
           Type Payload<LocalKey<Int>>
-          Local other
+          FieldAccess 0
+            Type Nested<LocalKey<Int>>
+            Local $dependency.local.3
       branch bb1 bb2
         Type Boolean
         Local $call.1
@@ -382,11 +621,15 @@ Module
           Type Int
           FieldAccess 1
             Type Payload<LocalKey<Int>>
-            Local this
+            FieldAccess 0
+              Type Nested<LocalKey<Int>>
+              Local $dependency.local.2
           Type Int
           FieldAccess 1
             Type Payload<LocalKey<Int>>
-            Local other
+            FieldAccess 0
+              Type Nested<LocalKey<Int>>
+              Local $dependency.local.3
       goto bb3
     bb2 logic.short.2
       assign $logic.2
@@ -394,46 +637,32 @@ Module
         BoolLiteral false
       goto bb3
     bb3 logic.merge.3
-      return
+      branch bb4 bb5
         Type Boolean
         Local $logic.2
-  fun $derived.equals.1 @fn5(this: Nested<LocalKey<Int>>, other: Nested<LocalKey<Int>>) -> Boolean
-    bb0 entry
-      call $call.1: Boolean = @fn4 direct
-        Type Payload<LocalKey<Int>>
-        FieldAccess 0
-          Type Nested<LocalKey<Int>>
-          Local this
-        Type Payload<LocalKey<Int>>
-        FieldAccess 0
-          Type Nested<LocalKey<Int>>
-          Local other
-      branch bb1 bb2
-        Type Boolean
-        Local $call.1
-    bb1 logic.rhs.1
-      assign $logic.2
+    bb4 logic.rhs.4
+      assign $logic.3
         Type Boolean
         IntegerCompare equal operands=Int result=Boolean
           Type Int
           FieldAccess 1
             Type Nested<LocalKey<Int>>
-            Local this
+            Local $dependency.local.2
           Type Int
           FieldAccess 1
             Type Nested<LocalKey<Int>>
-            Local other
-      goto bb3
-    bb2 logic.short.2
-      assign $logic.2
+            Local $dependency.local.3
+      goto bb6
+    bb5 logic.short.5
+      assign $logic.3
         Type Boolean
         BoolLiteral false
-      goto bb3
-    bb3 logic.merge.3
+      goto bb6
+    bb6 logic.merge.6
       return
         Type Boolean
-        Local $logic.2
-  fun ctor.LocalKey.$c0 @fn6(payload: Int, number: Int) -> LocalKey<Int> <no-gc>
+        Local $logic.3
+  fun ctor.LocalKey.$c0 @fn4(payload: Int, number: Int) -> LocalKey<Int> <no-gc>
     bb0 entry
       return
         Type LocalKey<Int>
@@ -442,7 +671,7 @@ Module
           Local payload
           Type Int
           Local number
-  fun ctor.Payload.$c1 @fn7(data: LocalKey<Int>, last: Int) -> Payload<LocalKey<Int>> <no-gc>
+  fun ctor.Payload.$c1 @fn5(data: LocalKey<Int>, last: Int) -> Payload<LocalKey<Int>> <no-gc>
     bb0 entry
       return
         Type Payload<LocalKey<Int>>
@@ -451,7 +680,7 @@ Module
           Local data
           Type Int
           Local last
-  fun ctor.Nested.$c0 @fn8(inner: Payload<LocalKey<Int>>, tag: Int) -> Nested<LocalKey<Int>> <no-gc>
+  fun ctor.Nested.$c0 @fn6(inner: Payload<LocalKey<Int>>, tag: Int) -> Nested<LocalKey<Int>> <no-gc>
     bb0 entry
       return
         Type Nested<LocalKey<Int>>

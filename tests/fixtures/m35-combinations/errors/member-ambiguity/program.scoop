@@ -1,0 +1,7 @@
+interface Left { fun choose(value: Int): Int }
+interface Right { fun choose(value: Int): Int }
+fun test(value: Any): Int = when {
+    value is Left && value is Right -> value.choose(1)
+    else -> 0
+}
+fun main() {}

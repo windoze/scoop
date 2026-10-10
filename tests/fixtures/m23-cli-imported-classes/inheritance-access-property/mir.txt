@@ -35,16 +35,19 @@ Module
       val $place.0: Derived
         Type Derived
         Local this
-      call $call.1: Long = @fn1 direct
-        Type Derived
-        Local this
-      call external5 direct
+      val $operand.1: AccessParent
         Type AccessParent
         Retype AccessParent
           Type Derived
           Local $place.0
+      call $call.2: Long = @fn1 direct
+        Type Derived
+        Local this
+      call external5 direct
+        Type AccessParent
+        Local $operand.1
         Type Long
-        Local $call.1
+        Local $call.2
       call $old.1: Long = external6 direct
         Type AccessParent
         Retype AccessParent
