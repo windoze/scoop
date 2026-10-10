@@ -202,10 +202,28 @@ impl Lowerer {
         value: &hir::DefaultWhenV1,
         context: &mut ImportedDefaultContext<'_>,
     ) -> Result<hir::When, ImportedDefaultMaterializationError> {
-        let subject = self.materialize_imported_default_expression(value.subject(), context)?;
+        let subject = value
+            .subject()
+            .map(|subject| self.materialize_imported_default_expression(subject, context))
+            .transpose()?;
         let mut arms = Vec::with_capacity(value.arms().len());
         for arm in value.arms() {
-            let pattern = self.materialize_imported_default_pattern(arm.pattern(), context)?;
+            let condition = match arm.condition() {
+                hir::DefaultWhenConditionV1::Case(pattern) => hir::WhenCondition::Case(
+                    self.materialize_imported_default_pattern(pattern, context)?,
+                ),
+                hir::DefaultWhenConditionV1::Predicate(condition) => {
+                    hir::WhenCondition::Predicate(hir::WhenGuard {
+                        setup: self
+                            .materialize_imported_default_statements(condition.setup(), context)?,
+                        condition: self.materialize_imported_default_expression(
+                            condition.condition(),
+                            context,
+                        )?,
+                    })
+                }
+                hir::DefaultWhenConditionV1::Always => hir::WhenCondition::Always,
+            };
             let guard = if let Some(guard) = arm.guard().as_ref() {
                 Some(hir::WhenGuard {
                     setup: self.materialize_imported_default_statements(guard.setup(), context)?,
@@ -218,13 +236,14 @@ impl Lowerer {
             let body = self.materialize_imported_default_statements(arm.body(), context)?;
             let span = self.imported_statement_span(arm.definition_origin(), context)?;
             arms.push(hir::WhenArm {
-                pattern,
+                condition,
                 guard,
                 body,
                 span,
             });
         }
         let fallback = match value.fallback().view() {
+            hir::DefaultWhenFallbackViewV1::Fallthrough => hir::WhenFallback::Fallthrough,
             hir::DefaultWhenFallbackViewV1::Else(body) => hir::WhenFallback::Else(
                 self.materialize_imported_default_statements(body, context)?,
             ),

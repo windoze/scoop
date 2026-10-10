@@ -11,7 +11,7 @@ fn if_expr(condition: Expr, then_value: Expr, else_value: Expr) -> Expr {
 
 fn when_expr(subject: Expr, arms: Vec<ast::WhenArm>) -> Expr {
     Expr::When(Box::new(ast::When {
-        subject,
+        subject: ast::WhenSubject::Expression(subject),
         arms,
         else_body: None,
         span: sp(),
@@ -20,7 +20,7 @@ fn when_expr(subject: Expr, arms: Vec<ast::WhenArm>) -> Expr {
 
 fn when_expr_with_else(subject: Expr, arms: Vec<ast::WhenArm>, else_value: Expr) -> Expr {
     Expr::When(Box::new(ast::When {
-        subject,
+        subject: ast::WhenSubject::Expression(subject),
         arms,
         else_body: Some(block(vec![stmt(else_value)])),
         span: sp(),

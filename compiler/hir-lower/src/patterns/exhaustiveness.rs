@@ -28,12 +28,12 @@ impl Lowerer {
         &mut self,
         span: Span,
         subject_ty: hir::TypeId,
-        arms: &[hir::WhenArm],
+        patterns: &[hir::Pattern],
+        has_guard: bool,
     ) -> Option<hir::ExhaustivenessProof> {
-        let matrix: Matrix = arms
+        let matrix: Matrix = patterns
             .iter()
-            .filter(|arm| arm.guard.is_none())
-            .map(|arm| vec![arm.pattern.clone()])
+            .map(|pattern| vec![pattern.clone()])
             .collect();
 
         if let Some(witness) = self.missing_witness(&[subject_ty], &matrix) {
@@ -42,10 +42,8 @@ impl Lowerer {
                 .next()
                 .expect("a non-exhaustive one-column matrix has one witness")
                 .render();
-            let guard_note = arms
-                .iter()
-                .any(|arm| arm.guard.is_some())
-                .then_some("; guarded arms do not contribute to exhaustiveness");
+            let guard_note =
+                has_guard.then_some("; guarded arms do not contribute to exhaustiveness");
             self.error(
                 span,
                 format!(
@@ -56,21 +54,13 @@ impl Lowerer {
             return None;
         }
 
-        if arms
-            .iter()
-            .any(|arm| arm.guard.is_none() && super::is_irrefutable(&arm.pattern))
-        {
+        if patterns.iter().any(super::is_irrefutable) {
             return Some(hir::ExhaustivenessProof::IrrefutableArm { subject_ty });
         }
-        match self.types[subject_ty] {
-            Type::Enum(_) => Some(hir::ExhaustivenessProof::EnumPatternMatrix { subject_ty }),
-            Type::Tuple(_) | Type::Struct(_) | Type::Integer(_) => {
-                Some(hir::ExhaustivenessProof::PatternMatrix { subject_ty })
-            }
-            _ => {
-                unreachable!("a source pattern when has an enum, tuple, struct, or integer subject")
-            }
-        }
+        Some(match self.types[subject_ty] {
+            Type::Enum(_) => hir::ExhaustivenessProof::EnumPatternMatrix { subject_ty },
+            _ => hir::ExhaustivenessProof::PatternMatrix { subject_ty },
+        })
     }
 
     fn missing_witness(&mut self, types: &[hir::TypeId], matrix: &Matrix) -> Option<Vec<Witness>> {

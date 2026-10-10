@@ -513,7 +513,7 @@ when (val item = load()) {
 
 先检查主条件，成功后才计算 guard；guard 为假继续后续 arm。guard 的结果必须是 Boolean，或按底类型规则没有正常结果。带逗号的多条件 arm 不允许附加 guard；无 subject 的条件使用 `&&` 表达联合条件。`else if condition` 是带 guard 的后备 arm，可以有多个；它们不能充当无条件 else，后面仍可有其他 arm 和最终 else。
 
-body 支持块或单个控制结构 body，包括表达式、赋值、`return`、`throw` 和当前循环内合法的 `break` / `continue`。块的结果和跳转规则沿用语言规范第 5 章与 8.7；块体不能被尾随 lambda parser 吞作条件表达式的一部分。
+body 支持块或单个控制结构 body，包括表达式、赋值、`return`、`throw` 和当前循环内合法的 `break` / `continue`。块的结果和跳转规则沿用语言规范第 5 章与 8.7；块体不能被尾随 lambda parser 吞作条件表达式的一部分。单语句 arm 的换行结束当前表达式，下一行的 `is` / `!is` / `in` / `!in` 或带符号值可开始新 arm；括号内的表达式和已经写出、仍等待右操作数的运算符允许跨行。
 
 smart cast 以当前执行路径已经建立的类型事实为依据：
 

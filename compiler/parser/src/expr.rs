@@ -82,6 +82,9 @@ impl Parser {
     fn parse_binary(&mut self, min_precedence: u8) -> Result<Expr, Diagnostic> {
         let mut lhs = self.parse_unary()?;
         loop {
+            if self.at_arm_body_newline() {
+                break;
+            }
             if !self.peek().newline_before
                 && matches!(self.peek().kind, TokenKind::Break | TokenKind::Continue)
             {

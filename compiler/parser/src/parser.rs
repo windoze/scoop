@@ -15,6 +15,8 @@ use crate::lexer::{Token, TokenKind, lex};
 pub(crate) fn parse_file(source: &str) -> Result<SourceFile, Vec<Diagnostic>> {
     let (tokens, lexical_diagnostics) = lex(source);
     let mut parser = Parser {
+        expression_nesting: Parser::expression_nesting(&tokens),
+        arm_body_nesting: None,
         tokens,
         pos: 0,
         diagnostics: Vec::new(),
@@ -197,6 +199,8 @@ impl DelimiterBalance {
 
 pub(crate) struct Parser {
     pub(crate) tokens: Vec<Token>,
+    pub(crate) expression_nesting: Vec<usize>,
+    pub(crate) arm_body_nesting: Option<usize>,
     pub(crate) pos: usize,
     pub(crate) diagnostics: Vec<Diagnostic>,
     pub(crate) next_lambda_id: u32,

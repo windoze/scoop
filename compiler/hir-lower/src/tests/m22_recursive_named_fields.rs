@@ -91,7 +91,8 @@ fn recursive_named_fields_lower_by_exact_type_in_declaration_order() {
         fun("main", vec![]),
     ]);
     let module = lower_user(source).expect("recursive field patterns must lower");
-    let hir::Pattern::Struct { fields, .. } = &function_when(&module, "check").arms[0].pattern
+    let hir::Pattern::Struct { fields, .. } =
+        case_pattern(&function_when(&module, "check").arms[0])
     else {
         panic!("outer pattern must resolve to a struct")
     };
@@ -172,7 +173,8 @@ fn generic_named_field_subpatterns_use_instantiated_field_types() {
         fun("main", vec![]),
     ]);
     let module = lower_user(source).expect("generic field type must be instantiated");
-    let hir::Pattern::Struct { fields, .. } = &function_when(&module, "check").arms[0].pattern
+    let hir::Pattern::Struct { fields, .. } =
+        case_pattern(&function_when(&module, "check").arms[0])
     else {
         panic!("Box field pattern must resolve to a struct")
     };

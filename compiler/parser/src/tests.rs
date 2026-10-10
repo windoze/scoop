@@ -384,3 +384,10 @@ fn statements_on_one_line_need_semicolon() {
         "expected `;` or newline after statement, found `val`"
     );
 }
+
+pub(super) fn case_pattern(arm: &scoop_ast::WhenArm) -> &scoop_ast::Pattern {
+    let scoop_ast::WhenArmCondition::Case(pattern) = &arm.condition else {
+        panic!("expected a case arm");
+    };
+    pattern
+}

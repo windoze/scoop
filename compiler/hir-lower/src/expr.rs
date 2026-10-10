@@ -90,6 +90,7 @@ mod context;
 mod copy_updates;
 mod fields;
 mod floating;
+mod smart_casts;
 pub(crate) use floating::{float_literal_candidate_kinds, float_literal_default_kind};
 mod interpolation;
 mod members;

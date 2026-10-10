@@ -68,9 +68,17 @@ impl Lowerer {
                     self.release_statements(body, values, facts);
                 }
                 hir::StatementKind::When(when) => {
-                    self.release_expression(&when.subject, values, facts);
+                    if let Some(subject) = &when.subject {
+                        self.release_expression(subject, values, facts);
+                    }
                     for arm in &when.arms {
-                        if let Some(guard) = &arm.guard {
+                        for guard in match &arm.condition {
+                            hir::WhenCondition::Predicate(condition) => Some(condition),
+                            _ => None,
+                        }
+                        .into_iter()
+                        .chain(arm.guard.iter())
+                        {
                             self.release_statements(&guard.setup, values, facts);
                             self.release_expression(&guard.condition, values, facts);
                         }

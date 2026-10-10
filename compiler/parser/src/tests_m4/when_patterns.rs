@@ -10,14 +10,16 @@ fn when_with_bare_and_prefixed_unit_variants_and_else() {
     assert_eq!(when.arms.len(), 2);
     // A bare identifier is always a binding ("binding first"); HIR
     // resolves it to the unit variant.
-    assert!(matches!(&when.arms[0].pattern, Pattern::Binding(name) if name.text == "Red"));
+    assert!(
+        matches!(crate::tests::case_pattern(&when.arms[0]), Pattern::Binding(name) if name.text == "Red")
+    );
     // `Color.Green` is a unit variant pattern with a type prefix.
     let Pattern::Positional {
         path,
         elements,
         rest,
         ..
-    } = &when.arms[1].pattern
+    } = crate::tests::case_pattern(&when.arms[1])
     else {
         panic!("expected a positional pattern");
     };
@@ -44,7 +46,7 @@ fn when_arm_with_guard() {
     let when = when_with_arms("        case Some(x) if (x > 0) -> { println(x) }\n");
     assert_eq!(when.arms.len(), 1);
     let arm = &when.arms[0];
-    let Pattern::Positional { path, elements, .. } = &arm.pattern else {
+    let Pattern::Positional { path, elements, .. } = crate::tests::case_pattern(arm) else {
         panic!("expected a positional pattern");
     };
     assert_eq!(path.len(), 1);
@@ -91,7 +93,8 @@ fn when_expression_dump_marks_guarded_arms() {
 #[test]
 fn when_positional_pattern_with_literal_and_wildcard() {
     let when = when_with_arms("        case Rect(0, _) -> { }\n");
-    let Pattern::Positional { elements, rest, .. } = &when.arms[0].pattern else {
+    let Pattern::Positional { elements, rest, .. } = crate::tests::case_pattern(&when.arms[0])
+    else {
         panic!("expected a positional pattern");
     };
     assert_eq!(elements.len(), 2);
@@ -103,7 +106,8 @@ fn when_positional_pattern_with_literal_and_wildcard() {
 #[test]
 fn when_prefixed_variant_with_payload() {
     let when = when_with_arms("        case Option.Some(x) -> { }\n");
-    let Pattern::Positional { path, elements, .. } = &when.arms[0].pattern else {
+    let Pattern::Positional { path, elements, .. } = crate::tests::case_pattern(&when.arms[0])
+    else {
         panic!("expected a positional pattern");
     };
     let names: Vec<&str> = path.iter().map(|ident| ident.text.as_str()).collect();
@@ -116,7 +120,7 @@ fn when_named_field_pattern_with_rename_and_rest() {
     let when = when_with_arms("        case Named { w, h: height, .. } -> { }\n");
     let Pattern::Named {
         path, fields, rest, ..
-    } = &when.arms[0].pattern
+    } = crate::tests::case_pattern(&when.arms[0])
     else {
         panic!("expected a named pattern");
     };
@@ -140,7 +144,7 @@ fn when_named_fields_accept_recursive_subpatterns() {
     let when = when_with_arms(
         "        case Named { literal: 0, wild: _, tuple: (x, _), nested: { value, .. }, variant: Some(y), .. } -> { }\n",
     );
-    let Pattern::Named { fields, .. } = &when.arms[0].pattern else {
+    let Pattern::Named { fields, .. } = crate::tests::case_pattern(&when.arms[0]) else {
         panic!("expected a named pattern");
     };
     assert_eq!(fields.len(), 5);
@@ -160,7 +164,7 @@ fn when_named_fields_accept_recursive_subpatterns() {
 #[test]
 fn unprefixed_named_pattern_and_recursive_dump() {
     let when = when_with_arms("        case { child: { value, .. }, flag: false, .. } -> { }\n");
-    let pattern = &when.arms[0].pattern;
+    let pattern = crate::tests::case_pattern(&when.arms[0]);
     assert!(matches!(pattern, Pattern::Named { path, .. } if path.is_empty()));
     assert_eq!(
         scoop_ast::dump_pattern(pattern),
@@ -171,7 +175,7 @@ fn unprefixed_named_pattern_and_recursive_dump() {
 #[test]
 fn field_pattern_span_includes_recursive_rhs() {
     let when = when_with_arms("        case S { child: (x, _) } -> { }\n");
-    let Pattern::Named { fields, .. } = &when.arms[0].pattern else {
+    let Pattern::Named { fields, .. } = crate::tests::case_pattern(&when.arms[0]) else {
         panic!("expected a named pattern");
     };
     let field = &fields[0];
@@ -185,7 +189,7 @@ fn field_pattern_span_includes_recursive_rhs() {
 #[test]
 fn when_named_field_pattern_without_rest() {
     let when = when_with_arms("        case Point { x, y } -> { }\n");
-    let Pattern::Named { fields, rest, .. } = &when.arms[0].pattern else {
+    let Pattern::Named { fields, rest, .. } = crate::tests::case_pattern(&when.arms[0]) else {
         panic!("expected a named pattern");
     };
     assert_eq!(fields.len(), 2);
@@ -195,7 +199,7 @@ fn when_named_field_pattern_without_rest() {
 #[test]
 fn when_tuple_pattern() {
     let when = when_with_arms("        case (x, 0, _) -> { }\n");
-    let Pattern::Tuple { elements, rest, .. } = &when.arms[0].pattern else {
+    let Pattern::Tuple { elements, rest, .. } = crate::tests::case_pattern(&when.arms[0]) else {
         panic!("expected a tuple pattern");
     };
     assert_eq!(elements.len(), 3);
@@ -208,7 +212,7 @@ fn when_tuple_pattern() {
 #[test]
 fn when_tuple_pattern_with_rest_in_the_middle() {
     let when = when_with_arms("        case (x, .., y) -> { }\n");
-    let Pattern::Tuple { elements, rest, .. } = &when.arms[0].pattern else {
+    let Pattern::Tuple { elements, rest, .. } = crate::tests::case_pattern(&when.arms[0]) else {
         panic!("expected a tuple pattern");
     };
     assert_eq!(elements.len(), 2);
@@ -218,7 +222,7 @@ fn when_tuple_pattern_with_rest_in_the_middle() {
 #[test]
 fn when_tuple_pattern_with_only_rest() {
     let when = when_with_arms("        case (..) -> { }\n");
-    let Pattern::Tuple { elements, rest, .. } = &when.arms[0].pattern else {
+    let Pattern::Tuple { elements, rest, .. } = crate::tests::case_pattern(&when.arms[0]) else {
         panic!("expected a tuple pattern");
     };
     assert!(elements.is_empty());
@@ -229,18 +233,20 @@ fn when_tuple_pattern_with_only_rest() {
 fn when_parenthesized_pattern_is_not_a_tuple() {
     // `(x)` mirrors the expression disambiguation: just `x`.
     let when = when_with_arms("        case (x) -> { }\n");
-    assert!(matches!(&when.arms[0].pattern, Pattern::Binding(name) if name.text == "x"));
+    assert!(
+        matches!(crate::tests::case_pattern(&when.arms[0]), Pattern::Binding(name) if name.text == "x")
+    );
 }
 
 #[test]
 fn when_unit_literal_patterns() {
     let when = when_with_arms("        case () -> { }\n");
-    let Pattern::Literal { expr, .. } = &when.arms[0].pattern else {
+    let Pattern::Literal { expr, .. } = crate::tests::case_pattern(&when.arms[0]) else {
         panic!("expected a literal pattern");
     };
     assert!(matches!(*expr.clone(), Expr::UnitLiteral { .. }));
     let when = when_with_arms("        case Unit -> { }\n");
-    let Pattern::Literal { expr, .. } = &when.arms[0].pattern else {
+    let Pattern::Literal { expr, .. } = crate::tests::case_pattern(&when.arms[0]) else {
         panic!("expected a literal pattern");
     };
     assert!(matches!(*expr.clone(), Expr::UnitLiteral { .. }));
@@ -255,7 +261,7 @@ fn when_literal_patterns() {
         ("false", "bool"),
     ] {
         let when = when_with_arms(&format!("        case {source} -> {{ }}\n"));
-        let Pattern::Literal { expr, .. } = &when.arms[0].pattern else {
+        let Pattern::Literal { expr, .. } = crate::tests::case_pattern(&when.arms[0]) else {
             panic!("expected a literal pattern");
         };
         match expect {
@@ -269,7 +275,7 @@ fn when_literal_patterns() {
 #[test]
 fn when_nested_patterns() {
     let when = when_with_arms("        case Some((a, b)) -> { }\n");
-    let Pattern::Positional { elements, .. } = &when.arms[0].pattern else {
+    let Pattern::Positional { elements, .. } = crate::tests::case_pattern(&when.arms[0]) else {
         panic!("expected a positional pattern");
     };
     let Pattern::Tuple {
@@ -281,7 +287,7 @@ fn when_nested_patterns() {
     assert_eq!(inner.len(), 2);
 
     let when = when_with_arms("        case Some(Some(x)) -> { }\n");
-    let Pattern::Positional { elements, .. } = &when.arms[0].pattern else {
+    let Pattern::Positional { elements, .. } = crate::tests::case_pattern(&when.arms[0]) else {
         panic!("expected a positional pattern");
     };
     let Pattern::Positional { path, .. } = &elements[0] else {

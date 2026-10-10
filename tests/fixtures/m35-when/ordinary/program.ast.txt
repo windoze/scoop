@@ -1,0 +1,178 @@
+SourceFile
+  RootPackage
+  enum Direction
+    Left
+    Right
+  class Key(val value: Int)
+    operator fun equals
+  class Range(val low: Int, val high: Int)
+    operator fun contains
+  fun subject(): Int
+    Call println
+      StringLiteral "subject"
+    return
+      IntLiteral 3
+  fun condition(value: Int): Int
+    Call println
+      Var value
+    return
+      Var value
+  fun direction(value: Direction): Int
+    =
+      WhenExpression
+        Var value
+        conditions
+          Var Left
+          IntLiteral 1
+        conditions
+          Var Right
+          IntLiteral 2
+  fun boolean(value: Boolean): Int
+    =
+      WhenExpression
+        Var value
+        conditions
+          BoolLiteral true
+          IntLiteral 10
+        conditions
+          BoolLiteral false
+          IntLiteral 20
+  fun predicate(value: Int): String
+    =
+      WhenExpression
+        no subject
+        conditions
+          Binary Eq
+            Var value
+            IntLiteral 1
+          StringLiteral "one"
+        conditions
+          Binary Gt
+            Var value
+            IntLiteral 1
+          StringLiteral "many"
+        else
+          StringLiteral "none"
+  fun jump(value: Int): Int
+    val result
+      WhenExpression
+        Var value
+        conditions
+          IntLiteral 0
+          return
+            IntLiteral 7
+        else
+          IntLiteral 9
+    return
+      Var result
+  fun main()
+    when
+      Call subject
+      conditions
+        Call condition
+          IntLiteral 1
+        Call condition
+          IntLiteral 3
+        Call condition
+          IntLiteral 9
+        Call println
+          StringLiteral "hit"
+      else
+        Call println
+          StringLiteral "miss"
+    when
+      StringLiteral "b"
+      conditions
+        StringLiteral "a"
+        StringLiteral "b"
+        Call println
+          StringLiteral "string"
+    when
+      Call Key
+        IntLiteral 4
+      conditions
+        Call Key
+          IntLiteral 4
+        Call println
+          StringLiteral "key"
+      else
+        Call println
+          StringLiteral "wrong"
+    when
+      IntLiteral 4
+      conditions
+        in
+          Call Range
+            IntLiteral 1
+            IntLiteral 3
+        Call println
+          StringLiteral "wrong"
+      conditions
+        !in
+          Call Range
+            IntLiteral 8
+            IntLiteral 10
+        Call println
+          StringLiteral "contains"
+    Call println
+      Call direction
+        FieldAccess Right
+          Var Direction
+    Call println
+      Call boolean
+        BoolLiteral false
+    Call println
+      Call predicate
+        IntLiteral 2
+    Call println
+      Call jump
+        IntLiteral 0
+    Call println
+      Call jump
+        IntLiteral 1
+    when
+      IntLiteral 1
+      conditions if <guard>
+        IntLiteral 1
+        Call println
+          StringLiteral "wrong"
+      else if <guard>
+        Call println
+          StringLiteral "wrong"
+      else if <guard>
+        Call println
+          StringLiteral "guarded else"
+    var index
+      IntLiteral 0
+    while
+      Binary Lt
+        Var index
+        IntLiteral 4
+      compound-assign Add
+        IntLiteral 1
+      when
+        Var index
+        conditions
+          IntLiteral 1
+          continue
+        conditions
+          IntLiteral 3
+          break
+        conditions
+          IntLiteral 2
+          Call println
+            Var index
+    when
+      no subject
+      conditions
+        BoolLiteral false
+        Call println
+          StringLiteral "wrong"
+    when
+      IntLiteral 100
+      conditions
+        IntLiteral 0
+        Call println
+          StringLiteral "wrong"
+    Call println
+      StringLiteral "fallthrough"

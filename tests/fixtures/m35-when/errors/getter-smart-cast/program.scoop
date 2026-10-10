@@ -1,0 +1,3 @@
+struct Box(val value: Int)
+class Holder(val item: Any)
+fun main() { val holder = Holder(Box(1)); when (holder.item) { is Box -> println(holder.item.value); else -> {} } }

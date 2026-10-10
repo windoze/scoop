@@ -2,9 +2,10 @@
 
 use crate::{
     DefaultAssignTargetV1, DefaultCatchV1, DefaultStatementKindV1, DefaultStatementV1,
-    DefaultTryV1, DefaultWhenArmV1, DefaultWhenFallbackV1, DefaultWhenGuardV1, DefaultWhenV1,
-    ExhaustivenessProof, OptionalDefaultExpressionV1, OptionalDefaultStatementListV1,
-    OptionalDefaultWhenGuardV1, Statement, StatementKind, WhenFallback,
+    DefaultTryV1, DefaultWhenArmV1, DefaultWhenConditionV1, DefaultWhenFallbackV1,
+    DefaultWhenGuardV1, DefaultWhenV1, ExhaustivenessProof, OptionalDefaultExpressionV1,
+    OptionalDefaultStatementListV1, OptionalDefaultWhenGuardV1, Statement, StatementKind,
+    WhenFallback,
 };
 
 use super::BodyProjection;
@@ -155,7 +156,15 @@ impl BodyProjection<'_, '_> {
         &mut self,
         when: &crate::When,
     ) -> Result<DefaultWhenV1, super::super::DefaultBodyProjectionError> {
-        let subject = self.expression(&when.subject)?;
+        let subject = when
+            .subject
+            .as_ref()
+            .map(|subject| {
+                self.expression(subject)
+                    .map(OptionalDefaultExpressionV1::present)
+            })
+            .transpose()?
+            .unwrap_or(OptionalDefaultExpressionV1::Absent);
 
         let mut arms = Vec::with_capacity(when.arms.len());
         for arm in &when.arms {
@@ -171,7 +180,21 @@ impl BodyProjection<'_, '_> {
             };
             arms.push(
                 DefaultWhenArmV1::try_new(
-                    self.pattern(&arm.pattern)?,
+                    match &arm.condition {
+                        crate::WhenCondition::Case(pattern) => {
+                            DefaultWhenConditionV1::Case(self.pattern(pattern)?)
+                        }
+                        crate::WhenCondition::Predicate(predicate) => {
+                            DefaultWhenConditionV1::Predicate(Box::new(
+                                DefaultWhenGuardV1::try_new(
+                                    self.statements(&predicate.setup)?,
+                                    self.expression(&predicate.condition)?,
+                                )
+                                .map_err(super::super::DefaultBodyProjectionError::ControlFlow)?,
+                            ))
+                        }
+                        crate::WhenCondition::Always => DefaultWhenConditionV1::Always,
+                    },
                     guard,
                     self.statements(&arm.body)?,
                     self.span_origin(arm.span)?,
@@ -188,6 +211,7 @@ impl BodyProjection<'_, '_> {
         fallback: &WhenFallback,
     ) -> Result<DefaultWhenFallbackV1, super::super::DefaultBodyProjectionError> {
         Ok(match fallback {
+            WhenFallback::Fallthrough => DefaultWhenFallbackV1::fallthrough(),
             WhenFallback::Else(body) => DefaultWhenFallbackV1::try_else(self.statements(body)?)
                 .map_err(super::super::DefaultBodyProjectionError::ControlFlow)?,
             WhenFallback::Impossible(ExhaustivenessProof::IrrefutableArm { subject_ty }) => {

@@ -64,9 +64,19 @@ impl<'a> Traversal<'a> {
                         self.push(Item::Expression(&guard.condition))?;
                         self.statements(&guard.setup)?;
                     }
-                    self.push(Item::Pattern(&arm.pattern))?;
+                    match &arm.condition {
+                        WhenCondition::Case(pattern) => self.push(Item::Pattern(pattern))?,
+                        WhenCondition::Predicate(predicate) => {
+                            self.push(Item::Expression(&predicate.condition))?;
+                            self.statements(&predicate.setup)?;
+                        }
+                        WhenCondition::Always => {}
+                    }
                 }
-                self.push(Item::Expression(&when.subject))
+                if let Some(subject) = &when.subject {
+                    self.push(Item::Expression(subject))?;
+                }
+                Ok(())
             }
             StatementKind::Try(value) => {
                 if let Some(body) = &value.finally_body {

@@ -1,0 +1,96 @@
+SourceFile
+  RootPackage
+  class Node(val text: String)
+  class Gate(var waiter: Continuation<Int>?)
+    fun complete
+    fun fail
+  class Registration(val gate: Gate), SuspendRegistration<Int>
+    public fun register
+  suspend fun waitFor(gate: Gate): Int
+    =
+      Call suspendCoroutine
+        Call Registration
+          Var gate
+  class Inner(val gate: Gate, val first: Node, val third: Node)
+    operator fun component1
+    operator suspend fun component2
+    operator fun component3
+  class Outer(val inner: Inner, val last: Node)
+    operator fun component1
+    operator fun component2
+  fun makeOuter(gate: Gate, label: String): Outer
+    Call println
+      Binary Add
+        StringLiteral "subject-"
+        Var label
+    return
+      Call Outer
+        Call Inner
+          Var gate
+          Call Node
+            Binary Add
+              StringLiteral "first-"
+              Var label
+          Call Node
+            Binary Add
+              StringLiteral "third-"
+              Var label
+        Call Node
+          Binary Add
+            StringLiteral "last-"
+            Var label
+  class BindingTask(val gate: Gate, val label: String), SuspendTask<Int>
+    public suspend fun run
+  class RecordingCompletion(val label: String), Continuation<Int>
+    public fun resume
+    public fun resumeWithException
+  fun makeGarbage()
+    var index
+      IntLiteral 0
+    while
+      Binary Lt
+        Var index
+        IntLiteral 1000
+      val garbage
+        Call Node
+          Binary Add
+            StringLiteral "garbage-"
+            StringLiteral "node"
+      assign index
+        Binary Add
+          Var index
+          IntLiteral 1
+  fun collectAndMove()
+    Call gcCollect
+    Call makeGarbage
+    Call gcCollect
+  fun main()
+    val normalGate
+      Call Gate
+        Var None
+    Call startCoroutine
+      Call BindingTask
+        Var normalGate
+        StringLiteral "normal"
+      Call RecordingCompletion
+        StringLiteral "normal"
+    Call println
+      StringLiteral "normal-suspended"
+    Call collectAndMove
+    MethodCall complete
+      Var normalGate
+      IntLiteral 42
+    val failureGate
+      Call Gate
+        Var None
+    Call startCoroutine
+      Call BindingTask
+        Var failureGate
+        StringLiteral "failure"
+      Call RecordingCompletion
+        StringLiteral "failure"
+    Call println
+      StringLiteral "failure-suspended"
+    Call collectAndMove
+    MethodCall fail
+      Var failureGate

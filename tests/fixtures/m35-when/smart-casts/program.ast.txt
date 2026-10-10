@@ -1,0 +1,164 @@
+SourceFile
+  RootPackage
+  interface Named
+    fun label
+  class Person(val name: String), Named
+    public fun label
+  struct Count
+    field value: Int
+  fun classify(input: Any): String
+    =
+      WhenExpression
+        Var input
+        conditions if <guard>
+          is Person
+          MethodCall label
+            Var input
+        conditions
+          !is Count
+          StringLiteral "other"
+        else
+          Binary Add
+            StringLiteral "count-"
+            MethodCall toString
+              FieldAccess value
+                Var input
+  fun logical(input: Any): String
+    =
+      WhenExpression
+        no subject
+        conditions
+          Binary Or
+            Binary And
+              Is Person false
+                Var input
+              Binary Eq
+                FieldAccess name
+                  Var input
+                StringLiteral "Ada"
+            Binary And
+              Is Person false
+                Var input
+              Binary Eq
+                FieldAccess name
+                  Var input
+                StringLiteral "Lin"
+          FieldAccess name
+            Var input
+        conditions
+          Binary And
+            Unary Not
+              Is Count true
+                Var input
+            Binary Gt
+              FieldAccess value
+                Var input
+              IntLiteral 0
+          StringLiteral "positive"
+        else
+          StringLiteral "unknown"
+  fun guarded(input: Option<Any>): Int
+    =
+      WhenExpression
+        Var input
+        arm Some(value) if <guard>
+          FieldAccess value
+            Var value
+        arm Some(_)
+          Unary Neg
+            IntLiteral 1
+        arm None
+          Unary Neg
+            IntLiteral 2
+  fun exact<T>(input: Any, fallback: T): T
+    =
+      WhenExpression
+        Var input
+        conditions
+          is T
+          Var input
+        else
+          Var fallback
+  fun main()
+    Call println
+      Call classify
+        Call Person
+          StringLiteral "Ada"
+    Call println
+      Call classify
+        Call Person
+          StringLiteral "Grace"
+    Call println
+      Call classify
+        Call Count
+          IntLiteral 4
+    Call println
+      Call logical
+        Call Person
+          StringLiteral "Lin"
+    Call println
+      Call logical
+        Call Count
+          IntLiteral 2
+    Call println
+      Call logical
+        IntLiteral 0
+    Call println
+      Call guarded
+        Call Some
+          Call Count
+            IntLiteral 5
+    Call println
+      Call guarded
+        Call Some
+          StringLiteral "other"
+    Call println
+      Call guarded
+        Var None
+    Call println
+      Call exact<Int>
+        IntLiteral 6
+        IntLiteral 0
+    Call println
+      Call exact<String>
+        StringLiteral "typed"
+        StringLiteral "fallback"
+    when
+      subject val stable: Any
+        Call Person
+          StringLiteral "subject val"
+      conditions
+        is Person
+        Call println
+          FieldAccess name
+            Var stable
+      else
+        Call println
+          StringLiteral "wrong"
+    when
+      subject val (value, _)
+        TupleLiteral
+          Cast Any optional=false
+            Call Count
+              IntLiteral 7
+          IntLiteral 0
+      arm _ if <guard>
+        Call println
+          FieldAccess value
+            Var value
+      else
+        Call println
+          StringLiteral "wrong"
+    val input: Any
+      Call Person
+        StringLiteral "interface"
+    when
+      Var input
+      conditions
+        is Named
+        Call println
+          MethodCall label
+            Var input
+      else
+        Call println
+          StringLiteral "wrong"

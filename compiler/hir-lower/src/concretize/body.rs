@@ -293,12 +293,36 @@ impl Concretizer<'_> {
         locals: &[concrete::LocalId],
         loops: &mut LoopRemap,
     ) -> concrete::When {
-        let subject = self.lower_expr(&source.subject, substitution, locals);
+        let subject = source
+            .subject
+            .as_ref()
+            .map(|subject| self.lower_expr(subject, substitution, locals));
         let arms = source
             .arms
             .iter()
             .map(|arm| concrete::WhenArm {
-                pattern: self.lower_pattern(&arm.pattern, subject.ty, substitution, locals),
+                condition: match &arm.condition {
+                    export::WhenCondition::Case(pattern) => {
+                        concrete::WhenCondition::Case(self.lower_pattern(
+                            pattern,
+                            subject.as_ref().expect("a case has a subject").ty,
+                            substitution,
+                            locals,
+                        ))
+                    }
+                    export::WhenCondition::Predicate(condition) => {
+                        concrete::WhenCondition::Predicate(concrete::WhenGuard {
+                            setup: self.lower_statements(
+                                &condition.setup,
+                                substitution,
+                                locals,
+                                loops,
+                            ),
+                            condition: self.lower_expr(&condition.condition, substitution, locals),
+                        })
+                    }
+                    export::WhenCondition::Always => concrete::WhenCondition::Always,
+                },
                 guard: arm.guard.as_ref().map(|guard| concrete::WhenGuard {
                     setup: self.lower_statements(&guard.setup, substitution, locals, loops),
                     condition: self.lower_expr(&guard.condition, substitution, locals),
@@ -308,6 +332,7 @@ impl Concretizer<'_> {
             })
             .collect();
         let fallback = match &source.fallback {
+            export::WhenFallback::Fallthrough => concrete::WhenFallback::Fallthrough,
             export::WhenFallback::Else(body) => concrete::WhenFallback::Else(
                 self.lower_statements(body, substitution, locals, loops),
             ),
@@ -316,7 +341,8 @@ impl Concretizer<'_> {
                     export::ExhaustivenessProof::IrrefutableArm { subject_ty } => {
                         let subject_ty = self.lower_type(*subject_ty, substitution);
                         assert_eq!(
-                            subject_ty, subject.ty,
+                            subject_ty,
+                            subject.as_ref().expect("coverage describes a subject").ty,
                             "the checked irrefutable proof must match its concrete subject",
                         );
                         concrete::ExhaustivenessProof::IrrefutableArm { subject_ty }
@@ -324,7 +350,8 @@ impl Concretizer<'_> {
                     export::ExhaustivenessProof::PatternMatrix { subject_ty } => {
                         let subject_ty = self.lower_type(*subject_ty, substitution);
                         assert_eq!(
-                            subject_ty, subject.ty,
+                            subject_ty,
+                            subject.as_ref().expect("coverage describes a subject").ty,
                             "the checked pattern-matrix proof must match its concrete subject",
                         );
                         concrete::ExhaustivenessProof::PatternMatrix { subject_ty }
@@ -335,7 +362,8 @@ impl Concretizer<'_> {
                             unreachable!("an enum matrix retains its complete enum subject")
                         };
                         assert_eq!(
-                            subject_ty, subject.ty,
+                            subject_ty,
+                            subject.as_ref().expect("coverage describes a subject").ty,
                             "the checked enum proof must match its concrete subject",
                         );
                         concrete::ExhaustivenessProof::EnumPatternMatrix {

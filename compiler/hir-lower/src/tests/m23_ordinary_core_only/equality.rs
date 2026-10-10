@@ -1,4 +1,5 @@
 use super::*;
+use crate::tests::case_pattern;
 use scoop_hir as hir;
 
 fn fixture(name: &str) -> String {
@@ -46,7 +47,7 @@ fn imported_integer_literal_patterns_keep_complete_equality_plans() {
                 value,
                 equality: hir::LiteralPatternEquality::Integer { kind },
                 ..
-            } = &when.arms[0].pattern
+            } = case_pattern(&when.arms[0])
             else {
                 panic!("integer literal pattern carries its normalized equality");
             };

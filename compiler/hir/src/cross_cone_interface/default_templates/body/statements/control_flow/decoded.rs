@@ -4,12 +4,13 @@ use scoop_identity::{DecodedSignatureTypeKey, SourceOriginResolutionError};
 
 use super::{
     DefaultCatchV1, DefaultControlFlowBuildError, DefaultTryV1, DefaultWhenArmV1,
-    DefaultWhenFallbackV1, DefaultWhenGuardV1, DefaultWhenV1, OptionalDefaultStatementListV1,
-    OptionalDefaultWhenGuardV1,
+    DefaultWhenConditionV1, DefaultWhenFallbackV1, DefaultWhenGuardV1, DefaultWhenV1,
+    OptionalDefaultStatementListV1, OptionalDefaultWhenGuardV1,
 };
 use crate::{
     DecodedDefaultExpressionV1, DecodedDefaultPatternV1, DecodedExportDefinitionSourceV1,
-    DefaultExpressionResolutionError, DefaultPatternResolutionError, TemplateLocalSelectorResolver,
+    DecodedOptionalDefaultExpressionV1, DefaultExpressionResolutionError,
+    DefaultPatternResolutionError, OptionalDefaultExpressionV1, TemplateLocalSelectorResolver,
 };
 
 use super::super::{
@@ -18,17 +19,24 @@ use super::super::{
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DecodedDefaultWhenV1 {
-    subject: DecodedDefaultExpressionV1,
+    subject: DecodedOptionalDefaultExpressionV1,
     arms: Vec<DecodedDefaultWhenArmV1>,
     fallback: DecodedDefaultWhenFallbackV1,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DecodedDefaultWhenArmV1 {
-    pattern: DecodedDefaultPatternV1,
+    condition: DecodedDefaultWhenConditionV1,
     guard: DecodedOptionalDefaultWhenGuardV1,
     body: Vec<DecodedDefaultStatementV1>,
     definition_origin: DecodedExportDefinitionSourceV1,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum DecodedDefaultWhenConditionV1 {
+    Case(DecodedDefaultPatternV1),
+    Predicate(Box<DecodedDefaultWhenGuardV1>),
+    Always,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -45,6 +53,7 @@ pub struct DecodedDefaultWhenGuardV1 {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum DecodedDefaultWhenFallbackV1 {
+    Fallthrough,
     Else(Vec<DecodedDefaultStatementV1>),
     IrrefutableArm {
         subject_type: DecodedSignatureTypeKey,
@@ -77,171 +86,6 @@ pub struct DecodedDefaultCatchV1 {
 pub enum DecodedOptionalDefaultStatementListV1 {
     Absent,
     Present(Vec<DecodedDefaultStatementV1>),
-}
-
-impl DecodedDefaultWhenV1 {
-    pub fn resolve<R, L, E>(
-        self,
-        resolver: &mut R,
-        locals: &mut L,
-    ) -> Result<DefaultWhenV1, DefaultControlFlowResolutionError<E, L::Error>>
-    where
-        R: DefaultStatementReferenceResolver<E>,
-        L: TemplateLocalSelectorResolver,
-    {
-        require_count(
-            self.arms.len(),
-            DefaultControlFlowBuildError::TooManyWhenArms,
-        )?;
-        let subject = self.subject.resolve(resolver, locals).map_err(|error| {
-            DefaultControlFlowResolutionError::Expression {
-                context: "when subject",
-                error,
-            }
-        })?;
-        let mut arms = Vec::with_capacity(self.arms.len());
-        for (index, arm) in self.arms.into_iter().enumerate() {
-            arms.push(arm.resolve(resolver, locals, index)?);
-        }
-        DefaultWhenV1::try_new(subject, arms, self.fallback.resolve(resolver, locals)?)
-            .map_err(DefaultControlFlowResolutionError::Shape)
-    }
-}
-
-impl DecodedDefaultWhenArmV1 {
-    fn resolve<R, L, E>(
-        self,
-        resolver: &mut R,
-        locals: &mut L,
-        arm_index: usize,
-    ) -> Result<DefaultWhenArmV1, DefaultControlFlowResolutionError<E, L::Error>>
-    where
-        R: DefaultStatementReferenceResolver<E>,
-        L: TemplateLocalSelectorResolver,
-    {
-        require_statement_count(self.body.len())?;
-        let pattern = self
-            .pattern
-            .resolve(resolver, locals)
-            .map_err(|error| DefaultControlFlowResolutionError::Pattern { arm_index, error })?;
-        let guard = self.guard.resolve(resolver, locals, arm_index)?;
-        let body = resolve_statements(
-            self.body,
-            resolver,
-            locals,
-            StatementContext::WhenArm { arm_index },
-        )?;
-        let definition_origin = self.definition_origin.resolve(resolver).map_err(|error| {
-            DefaultControlFlowResolutionError::DefinitionOrigin {
-                context: OriginContext::WhenArm { arm_index },
-                error,
-            }
-        })?;
-        DefaultWhenArmV1::try_new(pattern, guard, body, definition_origin)
-            .map_err(DefaultControlFlowResolutionError::Shape)
-    }
-}
-
-impl DecodedOptionalDefaultWhenGuardV1 {
-    fn resolve<R, L, E>(
-        self,
-        resolver: &mut R,
-        locals: &mut L,
-        arm_index: usize,
-    ) -> Result<OptionalDefaultWhenGuardV1, DefaultControlFlowResolutionError<E, L::Error>>
-    where
-        R: DefaultStatementReferenceResolver<E>,
-        L: TemplateLocalSelectorResolver,
-    {
-        match self {
-            Self::Absent => Ok(OptionalDefaultWhenGuardV1::absent()),
-            Self::Present(guard) => (*guard)
-                .resolve(resolver, locals, arm_index)
-                .map(OptionalDefaultWhenGuardV1::present),
-        }
-    }
-}
-
-impl DecodedDefaultWhenGuardV1 {
-    fn resolve<R, L, E>(
-        self,
-        resolver: &mut R,
-        locals: &mut L,
-        arm_index: usize,
-    ) -> Result<DefaultWhenGuardV1, DefaultControlFlowResolutionError<E, L::Error>>
-    where
-        R: DefaultStatementReferenceResolver<E>,
-        L: TemplateLocalSelectorResolver,
-    {
-        require_statement_count(self.setup.len())?;
-        let setup = resolve_statements(
-            self.setup,
-            resolver,
-            locals,
-            StatementContext::WhenGuard { arm_index },
-        )?;
-        let condition = self.condition.resolve(resolver, locals).map_err(|error| {
-            DefaultControlFlowResolutionError::Expression {
-                context: "when guard condition",
-                error,
-            }
-        })?;
-        DefaultWhenGuardV1::try_new(setup, condition)
-            .map_err(DefaultControlFlowResolutionError::Shape)
-    }
-}
-
-impl DecodedDefaultWhenFallbackV1 {
-    fn resolve<R, L, E>(
-        self,
-        resolver: &mut R,
-        locals: &mut L,
-    ) -> Result<DefaultWhenFallbackV1, DefaultControlFlowResolutionError<E, L::Error>>
-    where
-        R: DefaultStatementReferenceResolver<E>,
-        L: TemplateLocalSelectorResolver,
-    {
-        match self {
-            Self::Else(statements) => {
-                require_statement_count(statements.len())?;
-                let statements =
-                    resolve_statements(statements, resolver, locals, StatementContext::WhenElse)?;
-                DefaultWhenFallbackV1::try_else(statements)
-                    .map_err(DefaultControlFlowResolutionError::Shape)
-            }
-            Self::IrrefutableArm { subject_type } => subject_type
-                .resolve(resolver)
-                .map(DefaultWhenFallbackV1::irrefutable_arm)
-                .map_err(|error| DefaultControlFlowResolutionError::Type {
-                    context: "when irrefutable subject",
-                    error,
-                }),
-            Self::PatternMatrix { subject_type } => subject_type
-                .resolve(resolver)
-                .map(DefaultWhenFallbackV1::pattern_matrix)
-                .map_err(|error| DefaultControlFlowResolutionError::Type {
-                    context: "when pattern-matrix subject",
-                    error,
-                }),
-            Self::EnumPatternMatrix {
-                subject_type,
-                owner_type,
-            } => Ok(DefaultWhenFallbackV1::enum_pattern_matrix(
-                subject_type.resolve(resolver).map_err(|error| {
-                    DefaultControlFlowResolutionError::Type {
-                        context: "when enum-pattern subject",
-                        error,
-                    }
-                })?,
-                owner_type.resolve(resolver).map_err(|error| {
-                    DefaultControlFlowResolutionError::Type {
-                        context: "when enum-pattern owner",
-                        error,
-                    }
-                })?,
-            )),
-        }
-    }
 }
 
 impl DecodedDefaultTryV1 {
@@ -494,3 +338,5 @@ where
 }
 
 mod wire;
+
+mod when;

@@ -24,7 +24,7 @@ fn if_expr(then_value: Expr, else_value: Expr) -> Expr {
 
 fn when_expr(first: Expr, second: Expr) -> Expr {
     Expr::When(Box::new(ast::When {
-        subject: field(var("Choice"), "First"),
+        subject: ast::WhenSubject::Expression(field(var("Choice"), "First")),
         arms: vec![
             arm(pat_bind("First"), None, vec![stmt(first)]),
             arm(pat_bind("Second"), None, vec![stmt(second)]),

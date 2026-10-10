@@ -87,9 +87,17 @@ impl Lowerer {
                     self.collect_no_gc_statement_violations(body, out, requirements);
                 }
                 hir::StatementKind::When(when) => {
-                    self.collect_no_gc_expr_violations(&when.subject, out, requirements);
+                    if let Some(subject) = &when.subject {
+                        self.collect_no_gc_expr_violations(subject, out, requirements);
+                    }
                     for arm in &when.arms {
-                        if let Some(guard) = &arm.guard {
+                        for guard in match &arm.condition {
+                            hir::WhenCondition::Predicate(condition) => Some(condition),
+                            _ => None,
+                        }
+                        .into_iter()
+                        .chain(arm.guard.iter())
+                        {
                             self.collect_no_gc_statement_violations(
                                 &guard.setup,
                                 out,

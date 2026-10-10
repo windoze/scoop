@@ -427,7 +427,7 @@ fn alias_qualified_patterns_preserve_the_exact_generic_application() {
         .expect("alias-qualified enum patterns");
     assert_eq!(when.arms.len(), 2);
     for arm in &when.arms {
-        let hir::Pattern::Variant { application, .. } = &arm.pattern else {
+        let hir::Pattern::Variant { application, .. } = case_pattern(arm) else {
             panic!("each IntChoice arm must be a variant pattern")
         };
         let hir::Type::Enum(owner) = module.types[application.owner] else {

@@ -3,21 +3,16 @@ use super::*;
 // --- negative: when ---
 
 #[test]
-fn when_subject_must_be_patternable() {
-    let file = file(vec![fun(
+fn scalar_case_subject_is_patternable() {
+    let source = file(vec![fun(
         "main",
         vec![when_stmt(
-            str_lit("not patternable"),
+            str_lit("scalar"),
             vec![arm(pat_wild(), None, vec![])],
             None,
         )],
     )]);
-    let errors = lower_user(file).expect_err("String subject must fail");
-    assert_eq!(errors.len(), 1);
-    assert_eq!(
-        errors[0].message,
-        "`when` subject must be an enum, tuple, struct or fixed-width integer, found String"
-    );
+    lower_user(source).expect("String is a scalar pattern subject");
 }
 
 #[test]

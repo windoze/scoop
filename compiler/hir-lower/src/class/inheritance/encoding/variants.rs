@@ -42,10 +42,10 @@ impl Lowerer {
             }
             self.end_coding_container(payload, span, &mut body)?;
             arms.push(hir::WhenArm {
-                pattern: hir::Pattern::Variant {
+                condition: hir::WhenCondition::Case(hir::Pattern::Variant {
                     application: variant.application,
                     fields: patterns,
-                },
+                }),
                 guard: None,
                 body,
                 span,
@@ -53,7 +53,7 @@ impl Lowerer {
         }
         sink.push(hir::Statement {
             kind: hir::StatementKind::When(hir::When {
-                subject: value,
+                subject: Some(value),
                 arms,
                 fallback: hir::WhenFallback::Impossible(
                     hir::ExhaustivenessProof::EnumPatternMatrix {

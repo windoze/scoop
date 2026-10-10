@@ -142,7 +142,7 @@ fn literal_payload_does_not_cover_the_whole_variant() {
 #[test]
 fn value_when_requires_irrefutable_variant_payload_coverage() {
     let when = ast::Expr::When(Box::new(ast::When {
-        subject: var("o"),
+        subject: ast::WhenSubject::Expression(var("o")),
         arms: vec![
             arm(
                 pat_pos(&["Some"], vec![pat_lit(int_lit(0))], None),

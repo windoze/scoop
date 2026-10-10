@@ -80,11 +80,12 @@ fn when_else_must_be_the_last_arm() {
 }
 
 #[test]
-fn when_guard_must_be_parenthesized() {
-    let (span, message) =
-        err("fun main() {\n    when (s) {\n        case Red if x -> { }\n    }\n}\n");
-    assert_eq!(span, Span::new(48, 49));
-    assert_eq!(message, "expected `(`, found `x`");
+fn when_guard_parentheses_are_optional() {
+    let when = when_with_arms(
+        "case Red if x -> { }
+",
+    );
+    assert!(matches!(when.arms[0].guard, Some(Expr::Var(_))));
 }
 
 #[test]

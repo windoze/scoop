@@ -1,48 +1,5 @@
 use super::*;
 
-/// Collect the `x is T` facts established by `cond` evaluating to
-/// `outcome` (see `resolve_smart_casts`).
-pub(super) fn collect_smart_cast_candidates<'a>(
-    cond: &'a ast::Expr,
-    outcome: bool,
-    out: &mut Vec<(&'a ast::Ident, &'a ast::TypeRef)>,
-) {
-    match cond {
-        // `x is T` holds exactly when the check is not negated and the
-        // condition is true (or it is negated and the condition is
-        // false).
-        ast::Expr::Is {
-            operand,
-            ty,
-            negated,
-            ..
-        } => {
-            if outcome == !negated {
-                if let ast::Expr::Var(name) = &**operand {
-                    out.push((name, ty));
-                }
-            }
-        }
-        ast::Expr::Unary {
-            op: ast::UnOp::Not,
-            operand,
-            ..
-        } => collect_smart_cast_candidates(operand, !outcome, out),
-        // `a && b` is true only when both hold; a false conjunction
-        // establishes nothing (M6: no `||` support).
-        ast::Expr::Binary {
-            op: ast::BinOp::And,
-            lhs,
-            rhs,
-            ..
-        } if outcome => {
-            collect_smart_cast_candidates(lhs, true, out);
-            collect_smart_cast_candidates(rhs, true, out);
-        }
-        _ => {}
-    }
-}
-
 pub(super) fn block_contains_return(block: &ast::Block) -> bool {
     block.statements.iter().any(statement_contains_return)
 }
@@ -73,9 +30,20 @@ fn statement_contains_return(statement: &ast::Statement) -> bool {
             block_contains_return(block)
         }
         ast::StatementKind::When(when) => {
-            expr_contains_return(&when.subject)
+            when.subject.initializer().is_some_and(expr_contains_return)
                 || when.arms.iter().any(|arm| {
-                    arm.guard.as_ref().is_some_and(expr_contains_return)
+                    (match &arm.condition {
+                        ast::WhenArmCondition::Conditions(conditions) => {
+                            conditions.iter().any(|condition| match condition {
+                                ast::WhenCondition::Expression(expr) => expr_contains_return(expr),
+                                ast::WhenCondition::In { collection, .. } => {
+                                    expr_contains_return(collection)
+                                }
+                                ast::WhenCondition::Is { .. } => false,
+                            })
+                        }
+                        ast::WhenArmCondition::Case(_) | ast::WhenArmCondition::Else => false,
+                    }) || arm.guard.as_ref().is_some_and(expr_contains_return)
                         || block_contains_return(&arm.body)
                 })
                 || when.else_body.as_ref().is_some_and(block_contains_return)
@@ -162,9 +130,20 @@ fn expr_contains_return(expr: &ast::Expr) -> bool {
                 || if_.else_block.as_ref().is_some_and(block_contains_return)
         }
         ast::Expr::When(when) => {
-            expr_contains_return(&when.subject)
+            when.subject.initializer().is_some_and(expr_contains_return)
                 || when.arms.iter().any(|arm| {
-                    arm.guard.as_ref().is_some_and(expr_contains_return)
+                    (match &arm.condition {
+                        ast::WhenArmCondition::Conditions(conditions) => {
+                            conditions.iter().any(|condition| match condition {
+                                ast::WhenCondition::Expression(expr) => expr_contains_return(expr),
+                                ast::WhenCondition::In { collection, .. } => {
+                                    expr_contains_return(collection)
+                                }
+                                ast::WhenCondition::Is { .. } => false,
+                            })
+                        }
+                        ast::WhenArmCondition::Case(_) | ast::WhenArmCondition::Else => false,
+                    }) || arm.guard.as_ref().is_some_and(expr_contains_return)
                         || block_contains_return(&arm.body)
                 })
                 || when.else_body.as_ref().is_some_and(block_contains_return)

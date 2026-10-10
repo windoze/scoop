@@ -1,0 +1,1 @@
+fun main() { when (var value = 1) { else -> {} } }

@@ -18,6 +18,7 @@ mod release;
 mod statements;
 mod static_callbacks;
 mod task_context;
+mod when;
 
 pub(super) use maybe_uninit::maybe_uninit_value;
 

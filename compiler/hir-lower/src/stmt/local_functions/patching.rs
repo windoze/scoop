@@ -91,10 +91,20 @@ impl LocalFunctionCallPatcher<'_> {
                     self.statements(body);
                 }
                 hir::StatementKind::When(when) => {
-                    self.expression(&mut when.subject);
+                    if let Some(subject) = &mut when.subject {
+                        self.expression(subject);
+                    }
                     for arm in &mut when.arms {
-                        self.pattern(&mut arm.pattern);
-                        if let Some(guard) = &mut arm.guard {
+                        if let hir::WhenCondition::Case(pattern) = &mut arm.condition {
+                            self.pattern(pattern);
+                        }
+                        for guard in match &mut arm.condition {
+                            hir::WhenCondition::Predicate(condition) => Some(condition),
+                            _ => None,
+                        }
+                        .into_iter()
+                        .chain(arm.guard.iter_mut())
+                        {
                             self.statements(&mut guard.setup);
                             self.expression(&mut guard.condition);
                         }
