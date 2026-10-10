@@ -12,8 +12,8 @@ use crate::{
     DefaultEnumVariantFieldRefV1, DefaultEnumVariantRefV1, DefaultExpressionV1, DefaultFieldRefV1,
     DefaultIntegerArgumentsV1, DefaultLambdaV1, DefaultLiteralEqualityV1, DefaultLocalFunctionV1,
     DefaultMethodCalleeV1, DefaultPatternV1, DefaultStatementV1, DefaultTemplateProviderShapeV1,
-    DefaultTryV1, DefaultWhenArmV1, DefaultWhenFallbackV1, DefaultWhenGuardV1, DefaultWhenV1,
-    ExportDefaultBodyV1, ExportDefinitionSourceV1, NominalInterfaceShapeAuthority,
+    DefaultTryV1, DefaultWhenArmRefV1, DefaultWhenFallbackViewV1, DefaultWhenGuardV1,
+    DefaultWhenV1, ExportDefaultBodyV1, ExportDefinitionSourceV1, NominalInterfaceShapeAuthority,
 };
 
 mod expression;

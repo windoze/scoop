@@ -1,3 +1,4 @@
+mod when;
 use scoop_hir as hir;
 use scoop_identity::LocalValueSelector;
 
@@ -192,79 +193,6 @@ impl Lowerer {
                 ))
             }
         }
-    }
-
-    fn materialize_imported_default_when(
-        &mut self,
-        value: &hir::DefaultWhenV1,
-        context: &mut ImportedDefaultContext<'_>,
-    ) -> Result<hir::When, ImportedDefaultMaterializationError> {
-        let subject = value
-            .subject()
-            .map(|subject| self.materialize_imported_default_expression(subject, context))
-            .transpose()?;
-        let mut arms = Vec::with_capacity(value.arms().len());
-        for arm in value.arms() {
-            let condition = match arm.condition() {
-                hir::DefaultWhenConditionV1::Case(pattern) => hir::WhenCondition::Case(
-                    self.materialize_imported_default_pattern(pattern, context)?,
-                ),
-                hir::DefaultWhenConditionV1::Predicate(condition) => {
-                    hir::WhenCondition::Predicate(hir::WhenGuard {
-                        setup: self
-                            .materialize_imported_default_statements(condition.setup(), context)?,
-                        condition: self.materialize_imported_default_expression(
-                            condition.condition(),
-                            context,
-                        )?,
-                    })
-                }
-                hir::DefaultWhenConditionV1::Always => hir::WhenCondition::Always,
-            };
-            let guard = if let Some(guard) = arm.guard().as_ref() {
-                Some(hir::WhenGuard {
-                    setup: self.materialize_imported_default_statements(guard.setup(), context)?,
-                    condition: self
-                        .materialize_imported_default_expression(guard.condition(), context)?,
-                })
-            } else {
-                None
-            };
-            let body = self.materialize_imported_default_statements(arm.body(), context)?;
-            let span = self.imported_statement_span(arm.definition_origin(), context)?;
-            arms.push(hir::WhenArm {
-                condition,
-                guard,
-                body,
-                span,
-            });
-        }
-        let fallback = match value.fallback().view() {
-            hir::DefaultWhenFallbackViewV1::Fallthrough => hir::WhenFallback::Fallthrough,
-            hir::DefaultWhenFallbackViewV1::Else(body) => hir::WhenFallback::Else(
-                self.materialize_imported_default_statements(body, context)?,
-            ),
-            hir::DefaultWhenFallbackViewV1::IrrefutableArm { subject_type } => {
-                hir::WhenFallback::Impossible(hir::ExhaustivenessProof::IrrefutableArm {
-                    subject_ty: self.materialize_imported_default_type(subject_type, context)?,
-                })
-            }
-            hir::DefaultWhenFallbackViewV1::PatternMatrix { subject_type } => {
-                hir::WhenFallback::Impossible(hir::ExhaustivenessProof::PatternMatrix {
-                    subject_ty: self.materialize_imported_default_type(subject_type, context)?,
-                })
-            }
-            hir::DefaultWhenFallbackViewV1::EnumPatternMatrix { subject_type, .. } => {
-                hir::WhenFallback::Impossible(hir::ExhaustivenessProof::EnumPatternMatrix {
-                    subject_ty: self.materialize_imported_default_type(subject_type, context)?,
-                })
-            }
-        };
-        Ok(hir::When {
-            subject,
-            arms,
-            fallback,
-        })
     }
 
     pub(super) fn materialize_imported_default_type(

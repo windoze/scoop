@@ -85,26 +85,26 @@ pub(in super::super) fn collect_statement_types(
                 collect_statement_types(lowerer, body, out);
             }
             hir::StatementKind::When(when) => {
-                if let Some(subject) = &when.subject {
+                if let Some(subject) = when.subject() {
                     collect_expr_types(lowerer, subject, out);
                 }
-                for arm in &when.arms {
-                    if let hir::WhenCondition::Case(pattern) = &arm.condition {
+                for arm in when.arms() {
+                    if let hir::WhenConditionRef::Case(pattern) = arm.condition {
                         collect_pattern_types(lowerer, pattern, out);
                     }
-                    for guard in match &arm.condition {
-                        hir::WhenCondition::Predicate(condition) => Some(condition),
+                    for guard in match arm.condition {
+                        hir::WhenConditionRef::Predicate(condition) => Some(condition),
                         _ => None,
                     }
                     .into_iter()
-                    .chain(arm.guard.iter())
+                    .chain(arm.guard)
                     {
                         collect_statement_types(lowerer, &guard.setup, out);
                         collect_expr_types(lowerer, &guard.condition, out);
                     }
-                    collect_statement_types(lowerer, &arm.body, out);
+                    collect_statement_types(lowerer, arm.body, out);
                 }
-                if let hir::WhenFallback::Else(body) = &when.fallback {
+                if let hir::WhenFallbackRef::Else(body) = when.fallback() {
                     collect_statement_types(lowerer, body, out);
                 }
             }

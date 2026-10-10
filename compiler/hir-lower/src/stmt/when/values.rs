@@ -12,8 +12,69 @@ impl Lowerer {
         expected: Option<TypeId>,
     ) -> Option<hir::Expr> {
         let mut subject_sink = Vec::new();
-        let subject = self.lower_when_subject(when, &mut subject_sink)?;
-        let (heads, else_reachable) = self.prepare_when_arms(when, subject.as_ref())?;
+        let lowered = match self.lower_when_subject(when, &mut subject_sink)? {
+            Some(subject) => {
+                let (heads, reachable) = self.prepare_when_arms(when, |this, arm, reachable| {
+                    this.prepare_when_head(arm, reachable, |this| {
+                        this.subject_primary(arm, &subject)
+                    })
+                })?;
+                self.lower_when_value_arms(
+                    when,
+                    heads,
+                    reachable,
+                    expected,
+                    |this, heads, arms, else_body| {
+                        let fallback =
+                            this.subject_when_fallback(when, &subject, &heads, else_body, true)?;
+                        Some(hir::When::Subject {
+                            subject: subject.value,
+                            arms: attach_bodies(when, heads, arms),
+                            fallback,
+                        })
+                    },
+                )?
+            }
+            None => {
+                let (heads, reachable) = self.prepare_when_arms(when, |this, arm, reachable| {
+                    this.prepare_when_head(arm, reachable, |this| this.conditional_primary(arm))
+                })?;
+                self.lower_when_value_arms(
+                    when,
+                    heads,
+                    reachable,
+                    expected,
+                    |this, heads, arms, else_body| {
+                        let fallback = this.conditional_when_fallback(when, else_body, true)?;
+                        Some(hir::When::Conditions {
+                            arms: attach_bodies(when, heads, arms),
+                            fallback,
+                        })
+                    },
+                )?
+            }
+        };
+        sink.extend(subject_sink);
+        sink.push(hir::Statement {
+            span: when.span,
+            kind: hir::StatementKind::When(lowered.0),
+        });
+        Some(lowered.1)
+    }
+
+    fn lower_when_value_arms<C>(
+        &mut self,
+        when: &ast::When,
+        heads: Vec<ArmHead<C>>,
+        else_reachable: bool,
+        expected: Option<TypeId>,
+        finish: impl FnOnce(
+            &mut Self,
+            Vec<ArmHead<C>>,
+            Vec<ValueArm>,
+            Option<Vec<hir::Statement>>,
+        ) -> Option<hir::When>,
+    ) -> Option<(hir::When, hir::Expr)> {
         let defer_else = when
             .else_body
             .as_ref()
@@ -139,40 +200,14 @@ impl Lowerer {
         if !else_reachable && let Some(else_value) = else_value.as_mut() {
             else_value.discard_value();
         }
-        let fallback = self.when_fallback(
-            when,
-            subject.as_ref(),
-            &heads,
-            else_value.map(|body| body.statements),
-            true,
-        )?;
-        let arms = arms
-            .into_iter()
-            .zip(heads)
-            .zip(&when.arms)
-            .map(|((arm, head), source)| hir::WhenArm {
-                condition: head.condition,
-                guard: head.guard,
-                body: arm.body.statements,
-                span: source.span,
-            })
-            .collect();
-        sink.extend(subject_sink);
-        sink.push(hir::Statement {
-            span: when.span,
-            kind: hir::StatementKind::When(hir::When {
-                subject: subject.map(|subject| subject.value),
-                arms,
-                fallback,
-            }),
-        });
-        Some(result)
+        let when = finish(self, heads, arms, else_value.map(|body| body.statements))?;
+        Some((when, result))
     }
 
-    fn lower_value_arm(
+    fn lower_value_arm<C>(
         &mut self,
         arm: &ast::WhenArm,
-        head: &ArmHead,
+        head: &ArmHead<C>,
         expected: Option<TypeId>,
     ) -> Option<ValueArm> {
         self.in_when_arm(head, |this| {
@@ -180,4 +215,21 @@ impl Lowerer {
                 .map(|body| ValueArm { body })
         })
     }
+}
+
+fn attach_bodies<C>(
+    when: &ast::When,
+    heads: Vec<ArmHead<C>>,
+    arms: Vec<ValueArm>,
+) -> Vec<hir::WhenArm<C>> {
+    arms.into_iter()
+        .zip(heads)
+        .zip(&when.arms)
+        .map(|((arm, head), source)| hir::WhenArm {
+            condition: head.condition,
+            guard: head.guard,
+            body: arm.body.statements,
+            span: source.span,
+        })
+        .collect()
 }

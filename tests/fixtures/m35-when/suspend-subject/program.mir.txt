@@ -140,6 +140,8 @@ Module
         Type Int
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun Gate.fail @fn1(this: Gate) -> Unit
     bb0 entry
       val $opt.1: Option<Continuation<Int>>
@@ -201,6 +203,8 @@ Module
         Type Throwable
         Local $dependency.parameter.exception
       return
+        Type Unit
+        UnitLiteral
   fun Registration.register @fn2(this: Registration, continuation: Continuation<Int>) -> Unit
     bb0 entry
       val $place.receiver: Gate
@@ -222,6 +226,8 @@ Module
           Type Continuation<Int>
           Local $dependency.parameter._1
       return
+        Type Unit
+        UnitLiteral
   fun Inner.component1 @fn3(this: Inner) -> Node
     bb0 entry
       val $dependency.argument.0: String
@@ -430,6 +436,8 @@ Module
         Type Int
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun RecordingCompletion.resumeWithException @fn10(this: RecordingCompletion, exception: Throwable) -> Unit
     bb0 entry
       val $dependency.receiver: String
@@ -455,6 +463,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun waitFor @fn11(gate: Gate, $completion: Continuation<Int>) -> CoroutineStep<Int>
     bb0 entry
       val $frame: CoroutineFrame<waitFor>
@@ -681,6 +691,8 @@ Module
           IntegerLiteral Long value=0 bits=0x0000000000000000
     bb2 while.exit.2
       return
+        Type Unit
+        UnitLiteral
     bb3 while.body.3
       val $dependency.receiver: String
         Type String
@@ -733,6 +745,8 @@ Module
       call @fn13 direct
       call @scoop_rt_gc_collect direct
       return
+        Type Unit
+        UnitLiteral
   fun main @fn15() -> Unit
     bb0 entry
       val $argument.0: Option<Continuation<Int>>
@@ -924,6 +938,8 @@ Module
         Type Gate
         Local $receiver
       return
+        Type Unit
+        UnitLiteral
   fun Continuation.resume @fn16(this: Continuation<Int>, value: Int) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
@@ -954,6 +970,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn19(value: Int) -> Unit
     bb0 entry
       val $dependency.local.1: Int
@@ -978,6 +996,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun SuspendTask.run @fn20(this: SuspendTask<Int>, $completion: Continuation<Int>) -> CoroutineStep<Int>
     bb0 entry
       trap "call to abstract method `SuspendTask.run`"
@@ -992,6 +1012,8 @@ Module
         Type String
         Local text
       return
+        Type Unit
+        UnitLiteral
   fun init.Gate.$c1 @fn23(this: Gate, waiter: Option<Continuation<Int>>) -> Unit
     bb0 entry
       field_set 0
@@ -1000,6 +1022,8 @@ Module
         Type Option<Continuation<Int>>
         Local waiter
       return
+        Type Unit
+        UnitLiteral
   fun init.Registration.$c2 @fn24(this: Registration, gate: Gate) -> Unit
     bb0 entry
       field_set 0
@@ -1008,6 +1032,8 @@ Module
         Type Gate
         Local gate
       return
+        Type Unit
+        UnitLiteral
   fun init.Inner.$c3 @fn25(this: Inner, gate: Gate, first: Node, third: Node) -> Unit
     bb0 entry
       field_set 0
@@ -1026,6 +1052,8 @@ Module
         Type Node
         Local third
       return
+        Type Unit
+        UnitLiteral
   fun init.Outer.$c4 @fn26(this: Outer, inner: Inner, last: Node) -> Unit
     bb0 entry
       field_set 0
@@ -1039,6 +1067,8 @@ Module
         Type Node
         Local last
       return
+        Type Unit
+        UnitLiteral
   fun init.BindingTask.$c5 @fn27(this: BindingTask, gate: Gate, label: String) -> Unit
     bb0 entry
       field_set 0
@@ -1052,6 +1082,8 @@ Module
         Type String
         Local label
       return
+        Type Unit
+        UnitLiteral
   fun init.RecordingCompletion.$c6 @fn28(this: RecordingCompletion, label: String) -> Unit
     bb0 entry
       field_set 0
@@ -1060,6 +1092,8 @@ Module
         Type String
         Local label
       return
+        Type Unit
+        UnitLiteral
   fun Inner.component2$drive @fn29($frame: CoroutineFrame<Inner.component2>, $dispatch_state: machine<coroutine-frame-state>) -> CoroutineStep<Int>
     bb0 entry
       val $dependency.argument.0: String
@@ -1298,12 +1332,16 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 suspended
       Type Unit
       ContextLeave
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 failed unwind bb1
       atomic_store_release kind=coroutine-frame-state field=0
         Type CoroutineFrame<Inner.component2>
@@ -1326,6 +1364,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb6 body_failure unwind bb2
       landing_pad cleanup=false
       begin_catch
@@ -1467,12 +1507,16 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 suspended
       Type Unit
       ContextLeave
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 failed unwind bb1
       atomic_store_release kind=coroutine-frame-state field=0
         Type CoroutineFrame<Inner.component2>
@@ -1495,6 +1539,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb6 body_failure unwind bb2
       landing_pad cleanup=false
       begin_catch
@@ -2125,12 +2171,16 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 suspended
       Type Unit
       ContextLeave
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 failed unwind bb1
       atomic_store_release kind=coroutine-frame-state field=0
         Type CoroutineFrame<BindingTask.run>
@@ -2153,6 +2203,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb6 body_failure unwind bb2
       landing_pad cleanup=false
       begin_catch
@@ -2294,12 +2346,16 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 suspended
       Type Unit
       ContextLeave
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 failed unwind bb1
       atomic_store_release kind=coroutine-frame-state field=0
         Type CoroutineFrame<BindingTask.run>
@@ -2322,6 +2378,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb6 body_failure unwind bb2
       landing_pad cleanup=false
       begin_catch
@@ -2823,12 +2881,16 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 suspended
       Type Unit
       ContextLeave
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 failed unwind bb1
       atomic_store_release kind=coroutine-frame-state field=0
         Type CoroutineFrame<waitFor>
@@ -2851,6 +2913,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb6 body_failure unwind bb2
       landing_pad cleanup=false
       begin_catch
@@ -2956,6 +3020,8 @@ Module
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(LatchedSuccess)
       return
+        Type Unit
+        UnitLiteral
     bb12 entry
       val $adapter_claim: machine<coroutine-adapter-state>
         Type machine<coroutine-adapter-state>
@@ -3023,12 +3089,16 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 suspended
       Type Unit
       ContextLeave
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 failed unwind bb1
       atomic_store_release kind=coroutine-frame-state field=0
         Type CoroutineFrame<waitFor>
@@ -3051,6 +3121,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb6 body_failure unwind bb2
       landing_pad cleanup=false
       begin_catch
@@ -3156,6 +3228,8 @@ Module
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(LatchedFailure)
       return
+        Type Unit
+        UnitLiteral
     bb12 entry
       val $adapter_claim: machine<coroutine-adapter-state>
         Type machine<coroutine-adapter-state>

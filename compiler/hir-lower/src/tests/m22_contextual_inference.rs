@@ -223,12 +223,17 @@ fn unreachable_when_arms_and_else_do_not_enter_the_result_lub() {
         .expect("the value when must remain as structured HIR");
     assert!(
         matches!(
-            when.arms[1].body.last().map(|statement| &statement.kind),
+            when.arms()
+                .nth(1)
+                .expect("when arm")
+                .body
+                .last()
+                .map(|statement| &statement.kind),
             Some(hir::StatementKind::Expr(_))
         ),
         "the discarded value of an unreachable arm must still be evaluated"
     );
-    let hir::WhenFallback::Else(else_body) = &when.fallback else {
+    let hir::WhenFallbackRef::Else(else_body) = when.fallback() else {
         panic!("the explicit else branch must remain in HIR");
     };
     assert!(

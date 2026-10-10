@@ -1,5 +1,8 @@
 use super::*;
+
+mod when;
 use crate::{FloatBinaryOperator, FloatKind, FloatUnaryOperator, HirFloatConversion};
+pub use when::*;
 
 mod type_uses;
 use crate::{ArrayAccessKind, PrimitiveBinaryKind, PrimitiveUnaryKind};
@@ -81,63 +84,6 @@ pub enum AssignTarget {
         receiver: Box<Expr>,
         field: FieldRef,
     },
-}
-
-#[derive(Debug, Clone)]
-pub struct When {
-    pub subject: Option<Expr>,
-    pub arms: Vec<WhenArm>,
-    pub fallback: WhenFallback,
-}
-
-/// Local-concrete counterpart of the checked Export HIR fallback edge.
-#[derive(Debug, Clone)]
-pub enum WhenFallback {
-    Else(Vec<Statement>),
-    /// A permitted statement-position fallthrough.
-    Fallthrough,
-    Impossible(ExhaustivenessProof),
-}
-
-/// A fully instantiated exhaustiveness witness.
-#[derive(Debug, Clone)]
-pub enum ExhaustivenessProof {
-    IrrefutableArm {
-        subject_ty: TypeId,
-    },
-    /// A tuple, struct, or exact integer domain is covered by the complete
-    /// recursive pattern matrix.
-    PatternMatrix {
-        subject_ty: TypeId,
-    },
-    EnumPatternMatrix {
-        subject_ty: TypeId,
-        enum_id: EnumId,
-    },
-}
-
-#[derive(Debug, Clone)]
-pub struct WhenArm {
-    pub condition: WhenCondition,
-    pub guard: Option<WhenGuard>,
-    pub body: Vec<Statement>,
-    pub span: Span,
-}
-
-/// Ordinary predicates retain their ordered local setup; multiple source
-/// conditions use the existing short-circuit Boolean control flow.
-#[derive(Debug, Clone)]
-pub enum WhenCondition {
-    Case(Pattern),
-    Predicate(WhenGuard),
-    /// The primary condition of a guarded fallback.
-    Always,
-}
-
-#[derive(Debug, Clone)]
-pub struct WhenGuard {
-    pub setup: Vec<Statement>,
-    pub condition: Expr,
 }
 
 #[derive(Debug, Clone)]

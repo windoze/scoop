@@ -4,6 +4,7 @@ use super::*;
 
 mod conditions;
 mod coverage;
+mod primary;
 mod subject;
 mod values;
 
@@ -14,8 +15,8 @@ struct Subject {
 
 /// A checked head retains its bindings while result inference may postpone
 /// the body. Conditions are resolved once, in source order.
-struct ArmHead {
-    condition: hir::WhenCondition,
+struct ArmHead<C = hir::WhenCondition> {
+    condition: C,
     guard: Option<hir::WhenGuard>,
     scope: Scopes,
     facts: SmartCastFacts,
@@ -24,6 +25,8 @@ struct ArmHead {
     body_reachable: bool,
 }
 
+type LoweredStatementArms<C> = (Vec<hir::WhenArm<C>>, Vec<ArmHead<C>>);
+
 impl Lowerer {
     pub(super) fn lower_when(
         &mut self,
@@ -31,39 +34,64 @@ impl Lowerer {
         out: &mut Vec<hir::Statement>,
     ) -> Option<hir::StatementKind> {
         self.in_when_scope(|this| {
-            let subject = this.lower_when_subject(when, out)?;
-            let mut heads = Vec::with_capacity(when.arms.len());
-            let mut arms = Vec::with_capacity(when.arms.len());
-            let mut reachable = true;
-            let mut valid = true;
-            for arm in &when.arms {
-                this.push_scope();
-                let head = this.prepare_when_head(arm, subject.as_ref(), &mut reachable);
-                this.pop_scope();
-                let Some(head) = head else {
-                    valid = false;
-                    continue;
-                };
-                let body = this.in_when_arm(&head, |this| this.lower_block(&arm.body));
-                arms.push(hir::WhenArm {
-                    condition: head.condition.clone(),
-                    guard: head.guard.clone(),
-                    body,
-                    span: arm.span,
-                });
-                heads.push(head);
-            }
-            let else_body = when.else_body.as_ref().map(|body| this.lower_block(body));
-            if !valid {
-                return None;
-            }
-            let fallback = this.when_fallback(when, subject.as_ref(), &heads, else_body, false)?;
-            Some(hir::StatementKind::When(hir::When {
-                subject: subject.map(|subject| subject.value),
-                arms,
-                fallback,
-            }))
+            let result = match this.lower_when_subject(when, out)? {
+                Some(subject) => {
+                    let prepared = this.lower_statement_arms(when, |this, arm, reachable| {
+                        this.prepare_when_head(arm, reachable, |this| {
+                            this.subject_primary(arm, &subject)
+                        })
+                    });
+                    let else_body = when.else_body.as_ref().map(|body| this.lower_block(body));
+                    let (arms, heads) = prepared?;
+                    let fallback =
+                        this.subject_when_fallback(when, &subject, &heads, else_body, false)?;
+                    hir::When::Subject {
+                        subject: subject.value,
+                        arms,
+                        fallback,
+                    }
+                }
+                None => {
+                    let prepared = this.lower_statement_arms(when, |this, arm, reachable| {
+                        this.prepare_when_head(arm, reachable, |this| this.conditional_primary(arm))
+                    });
+                    let else_body = when.else_body.as_ref().map(|body| this.lower_block(body));
+                    let (arms, _) = prepared?;
+                    let fallback = this.conditional_when_fallback(when, else_body, false)?;
+                    hir::When::Conditions { arms, fallback }
+                }
+            };
+            Some(hir::StatementKind::When(result))
         })
+    }
+
+    fn lower_statement_arms<C: Clone>(
+        &mut self,
+        when: &ast::When,
+        mut prepare: impl FnMut(&mut Self, &ast::WhenArm, &mut bool) -> Option<ArmHead<C>>,
+    ) -> Option<LoweredStatementArms<C>> {
+        let mut heads = Vec::with_capacity(when.arms.len());
+        let mut arms = Vec::with_capacity(when.arms.len());
+        let mut reachable = true;
+        let mut valid = true;
+        for arm in &when.arms {
+            self.push_scope();
+            let head = prepare(self, arm, &mut reachable);
+            self.pop_scope();
+            let Some(head) = head else {
+                valid = false;
+                continue;
+            };
+            let body = self.in_when_arm(&head, |this| this.lower_block(&arm.body));
+            arms.push(hir::WhenArm {
+                condition: head.condition.clone(),
+                guard: head.guard.clone(),
+                body,
+                span: arm.span,
+            });
+            heads.push(head);
+        }
+        valid.then_some((arms, heads))
     }
 
     pub(crate) fn lower_when_expression(
@@ -84,7 +112,7 @@ impl Lowerer {
         result
     }
 
-    fn in_when_arm<T>(&mut self, head: &ArmHead, f: impl FnOnce(&mut Self) -> T) -> T {
+    fn in_when_arm<C, T>(&mut self, head: &ArmHead<C>, f: impl FnOnce(&mut Self) -> T) -> T {
         let scope = std::mem::replace(&mut self.scopes, head.scope.clone());
         let facts = std::mem::replace(&mut self.smart_casts, head.facts.clone());
         self.local_function_scopes.push();
@@ -95,17 +123,17 @@ impl Lowerer {
         result
     }
 
-    fn prepare_when_arms(
+    fn prepare_when_arms<C>(
         &mut self,
         when: &ast::When,
-        subject: Option<&Subject>,
-    ) -> Option<(Vec<ArmHead>, bool)> {
+        mut prepare: impl FnMut(&mut Self, &ast::WhenArm, &mut bool) -> Option<ArmHead<C>>,
+    ) -> Option<(Vec<ArmHead<C>>, bool)> {
         let mut heads = Vec::with_capacity(when.arms.len());
         let mut reachable = true;
         let mut valid = true;
         for arm in &when.arms {
             self.push_scope();
-            let head = self.prepare_when_head(arm, subject, &mut reachable);
+            let head = prepare(self, arm, &mut reachable);
             self.pop_scope();
             match head {
                 Some(head) => heads.push(head),
@@ -115,10 +143,10 @@ impl Lowerer {
         valid.then_some((heads, reachable))
     }
 
-    fn when_fallback(
+    fn subject_when_fallback(
         &mut self,
         when: &ast::When,
-        subject: Option<&Subject>,
+        subject: &Subject,
         heads: &[ArmHead],
         else_body: Option<Vec<hir::Statement>>,
         value_position: bool,
@@ -126,16 +154,6 @@ impl Lowerer {
         if let Some(body) = else_body {
             return Some(hir::WhenFallback::Else(body));
         }
-        let Some(subject) = subject else {
-            if value_position {
-                self.error(
-                    when.span,
-                    "non-exhaustive when: a subjectless value when requires `else`".into(),
-                );
-                return None;
-            }
-            return Some(hir::WhenFallback::Fallthrough);
-        };
         let has_case = heads
             .iter()
             .any(|head| matches!(head.condition, hir::WhenCondition::Case(_)));
@@ -153,5 +171,23 @@ impl Lowerer {
         let guarded = heads.iter().any(|head| head.guard.is_some());
         self.prove_exhaustiveness(when.span, subject.value.ty, &patterns, guarded)
             .map(hir::WhenFallback::Impossible)
+    }
+    fn conditional_when_fallback(
+        &mut self,
+        when: &ast::When,
+        else_body: Option<Vec<hir::Statement>>,
+        value_position: bool,
+    ) -> Option<hir::WhenFallback<std::convert::Infallible>> {
+        if let Some(body) = else_body {
+            Some(hir::WhenFallback::Else(body))
+        } else if value_position {
+            self.error(
+                when.span,
+                "non-exhaustive when: a subjectless value when requires `else`".into(),
+            );
+            None
+        } else {
+            Some(hir::WhenFallback::Fallthrough)
+        }
     }
 }

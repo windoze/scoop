@@ -320,6 +320,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb19 inline.cont.19
       val $call.6: Boolean
         Type Boolean
@@ -504,6 +506,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun pick @fn3(flag: Boolean, value: String, other: String) -> String
     bb0 entry
       val $dependency.local.3: Boolean
@@ -589,6 +593,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun identity @fn5(value: Payload) -> Payload
     bb0 entry
       goto bb2

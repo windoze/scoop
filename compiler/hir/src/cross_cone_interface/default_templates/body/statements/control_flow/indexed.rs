@@ -4,7 +4,7 @@ use scoop_identity::SignatureTypeKey;
 use scoop_wire::{Encoder, WireEncode};
 
 use super::{
-    DefaultCatchV1, DefaultTryV1, DefaultWhenArmV1, DefaultWhenConditionV1, DefaultWhenFallbackV1,
+    DefaultCatchV1, DefaultTryV1, DefaultWhenArmRefV1, DefaultWhenConditionV1,
     DefaultWhenFallbackViewV1, DefaultWhenGuardV1, DefaultWhenV1, OptionalDefaultStatementListV1,
     OptionalDefaultStatementListViewV1, OptionalDefaultWhenGuardV1,
 };

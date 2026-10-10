@@ -307,7 +307,7 @@ impl Validator<'_> {
             self.validate_expression(subject, &available, reachable)?;
         }
         let mut paths = Vec::new();
-        scoop_wire::allocation::try_reserve(&mut paths, value.arms().len() + 1, self.path)
+        scoop_wire::allocation::try_reserve(&mut paths, value.arm_count() + 1, self.path)
             .map_err(ExportDefaultLocalDataFlowValidationError::Resource)?;
         let mut guard_abrupt = AbruptOutcomes::default();
         let mut next_reachable = reachable;
@@ -378,7 +378,7 @@ impl Validator<'_> {
             next_reachable &= condition_falls_through && can_try_next;
         }
 
-        match value.fallback().view() {
+        match value.fallback() {
             DefaultWhenFallbackViewV1::Fallthrough => {
                 if next_reachable {
                     paths.push(Flow::falling_through(self.copy_bits(&available)?));

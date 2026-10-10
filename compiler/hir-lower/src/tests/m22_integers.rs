@@ -303,7 +303,7 @@ fn unsigned_unary_minus_uses_the_typed_wrapping_operation_and_pattern_constant()
         })
         .expect("main contains a when statement");
     assert!(matches!(
-        case_pattern(&when.arms[0]),
+        case_pattern(when.arms().next().expect("when arm")),
         hir::Pattern::Literal {
             value: hir::Expr {
                 kind: hir::ExprKind::IntegerLiteral(hir::HirIntegerConstant::Unsigned8(255)),
@@ -380,7 +380,9 @@ fn literal_pattern_equality_plan_separates_every_integer_kind_from_ordinary_lite
         .statements
         .iter()
         .filter_map(|statement| match &statement.kind {
-            hir::StatementKind::When(when) => Some(case_pattern(&when.arms[0])),
+            hir::StatementKind::When(when) => {
+                Some(case_pattern(when.arms().next().expect("when arm")))
+            }
             _ => None,
         })
         .collect::<Vec<_>>();

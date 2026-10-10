@@ -29,13 +29,13 @@ pub(in super::super) enum BodyNode<'a> {
         value: &'a DefaultWhenV1,
         definition_origin: &'a ExportDefinitionSourceV1,
     },
-    WhenArm(&'a DefaultWhenArmV1),
+    WhenArm(DefaultWhenArmRefV1<'a>),
     WhenGuard {
         guard: &'a DefaultWhenGuardV1,
         definition_origin: &'a ExportDefinitionSourceV1,
     },
     WhenFallback {
-        fallback: &'a DefaultWhenFallbackV1,
+        fallback: DefaultWhenFallbackViewV1<'a>,
         definition_origin: &'a ExportDefinitionSourceV1,
     },
     Try {

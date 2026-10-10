@@ -12,7 +12,7 @@
 | R12 literal pattern | 已完成 | 封闭字面量 payload；AST/parser 490、相关 HIR 135、正式 CLI 15 项通过 |
 | R01 调用目标 | 已完成 | 完整调用分支、必填 receiver、完整去虚拟化改写；Rust 754、正式 CLI 8 项通过 |
 | R04 固定元数 intrinsic | 待实施 | 一元／二元、具名借用参数 |
-| R02 when | 待实施 | 有／无 subject 的完整分支 |
+| R02 when | 已完成 | subject／纯条件分支与唯一覆盖类型来源；Rust 1,346、正式 CLI 11 项通过 |
 | R03 MIR 临时态 | 已完成 | 最终 MIR 删除临时类别，私有 CFG 工作记录保留协程顺序；Rust 660、正式 CLI 8 项通过 |
 | R07 return | 已完成 | HIR／MIR 与导出模板必填返回值；Rust 2,899、正式 CLI 8 项通过 |
 | R05 窄身份 | 已完成 | FunctionTypeId 与 enum application 贯通生产／消费；Rust 710、正式 CLI 8 项通过 |
@@ -128,3 +128,15 @@ pending cleanup 只在 lowerer 保存稳定 local 与具体目标；生成 frame
 正式普通比较合计 8/8，共 14 个配置、49 个进程、53 个 golden 通过，还包含动态 receiver 在实参挂起期间被替换、旧 pending transfer chain、catch/finally、同步恢复、Context exit，以及 M35 跨库发布、删除源码后的产物消费和链接。旧快照仅同步 R05 的 enum application 身份、R06 的 declared payload 和 R07 的完整 Unit 返回；旧 LIR 无变化。wire 与 runtime ABI 不变。
 
 合并验收报告为 target/m36-validation/r03-verify-report.json，基线、Rust、快照审阅与分批报告同目录保留。收尾清理已完成的 fixture cases，保留当前 CLI、库、sysroot 与编译缓存，明细见 r03-cleanup.log。
+
+## R02：完整 when 与覆盖信息
+
+Export／LocalConcrete HIR 及已绑定默认模板区分 Subject 与 Conditions。纯条件 arm 不允许 case，fallback 的覆盖类型使用 Infallible 排除；有 subject 的覆盖只记录类别，类型来自同一个 subject。共享 arm 保存 guard、正文与位置，遍历提供只读借用视图；必要的局部可变遍历只修改相应分支内部字段。前端保留 subject 单次快照、条件与 guard 短路、模式绑定、smart cast、诊断顺序、Nothing 与合法落空。
+
+wire 沿用已有可选 subject、条件与覆盖标签；原始解码数据在绑定时一次形成完整结构。旧覆盖类型须与真实 subject 一致后才丢弃重复字段；新增三组解码测试覆盖无 subject 的 case／覆盖和覆盖类型冲突。默认模板引用仍按原站点与顺序遍历，具体化、MIR lower 和导入消费不再重新分类 subject 或解包不可能的 case。
+
+按职责拆出 when 数据、主条件、具体化、模板投影／绑定与 MIR 条件模块；新增模块最长 276 行。本机 fmt／workspace clippy 无警告通过，HIR 888、MIR lower 118、前端 when／模式／默认参数／enum／Context 专项 340，共 1,346 项 Rust 测试通过。
+
+新增独立与挂起／泛型／闭包／Context／finally 组合 fixture 先用 R03 CLI 生成基线。R02 的四份 MIR、四份 LIR 与基线逐字节一致；HIR 只改变完整分支表示。正式普通比较 11/11 通过，共 14 个配置、44 个进程、40 个 golden，包含 M35 when 的 effects、subject、smart cast、挂起、跨库发布与删除源码后消费，以及四项精确诊断负例。debug/release、正常／移动／minor GC 均通过；旧 MIR 差异仅同步 R07 的 Unit 返回值，旧 LIR 不变。
+
+报告为 target/m36-validation/r02-verify-report.json，快照审阅记录为 r02-golden-review.log。wire 版本与 runtime ABI 不变。清理已完成的 fixture cases，保留当前 CLI、共享 sysroot、缓存及验收报告；明细见 r02-cleanup.log。

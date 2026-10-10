@@ -47,7 +47,7 @@ fn imported_integer_literal_patterns_keep_complete_equality_plans() {
                 value,
                 equality: hir::LiteralPatternEquality::Integer { kind },
                 ..
-            } = case_pattern(&when.arms[0])
+            } = case_pattern(when.arms().next().expect("when arm"))
             else {
                 panic!("integer literal pattern carries its normalized equality");
             };

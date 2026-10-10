@@ -6,8 +6,8 @@ fn when_stmt(
     arms: Vec<hir::WhenArm>,
     fallback: hir::WhenFallback,
 ) -> hir::Statement {
-    stmt(hir::StatementKind::When(hir::When {
-        subject: Some(subject),
+    stmt(hir::StatementKind::When(hir::When::Subject {
+        subject,
         arms,
         fallback,
     }))
@@ -73,9 +73,7 @@ fn when_lowers_to_a_decision_sequence() {
                             ))],
                         ),
                     ],
-                    hir::WhenFallback::Impossible(hir::ExhaustivenessProof::EnumPatternMatrix {
-                        subject_ty: option_int,
-                    }),
+                    hir::WhenFallback::Impossible(hir::ExhaustivenessProof::EnumPatternMatrix),
                 ),
             ],
         },
@@ -308,9 +306,7 @@ fn final_refutable_arm_keeps_its_test_and_only_the_proven_false_edge_is_unreacha
                     if explicit_else {
                         hir::WhenFallback::Else(Vec::new())
                     } else {
-                        hir::WhenFallback::Impossible(hir::ExhaustivenessProof::EnumPatternMatrix {
-                            subject_ty: option_int,
-                        })
+                        hir::WhenFallback::Impossible(hir::ExhaustivenessProof::EnumPatternMatrix)
                     },
                 )],
             },
@@ -584,9 +580,7 @@ fn zero_arm_impossible_when_terminates_with_unreachable() {
             statements: vec![when_stmt(
                 local_ref(subject, never_ty),
                 Vec::new(),
-                hir::WhenFallback::Impossible(hir::ExhaustivenessProof::EnumPatternMatrix {
-                    subject_ty: never_ty,
-                }),
+                hir::WhenFallback::Impossible(hir::ExhaustivenessProof::EnumPatternMatrix),
             )],
         },
     );

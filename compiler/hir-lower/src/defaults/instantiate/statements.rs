@@ -1,3 +1,4 @@
+mod when;
 use super::*;
 
 impl Lowerer {
@@ -102,84 +103,9 @@ impl Lowerer {
                 );
                 hir::StatementKind::Continue { target: mapped }
             }
-            hir::StatementKind::When(when) => hir::StatementKind::When(hir::When {
-                subject: when
-                    .subject
-                    .as_ref()
-                    .map(|subject| self.instantiate_default_expr(subject, context)),
-                arms: when
-                    .arms
-                    .iter()
-                    .map(|arm| hir::WhenArm {
-                        condition: match &arm.condition {
-                            hir::WhenCondition::Case(pattern) => hir::WhenCondition::Case(
-                                self.instantiate_default_pattern(pattern, context),
-                            ),
-                            hir::WhenCondition::Predicate(condition) => {
-                                hir::WhenCondition::Predicate(hir::WhenGuard {
-                                    setup: condition
-                                        .setup
-                                        .iter()
-                                        .map(|statement| {
-                                            self.instantiate_default_statement(statement, context)
-                                        })
-                                        .collect(),
-                                    condition: self
-                                        .instantiate_default_expr(&condition.condition, context),
-                                })
-                            }
-                            hir::WhenCondition::Always => hir::WhenCondition::Always,
-                        },
-                        guard: arm.guard.as_ref().map(|guard| hir::WhenGuard {
-                            setup: guard
-                                .setup
-                                .iter()
-                                .map(|statement| {
-                                    self.instantiate_default_statement(statement, context)
-                                })
-                                .collect(),
-                            condition: self.instantiate_default_expr(&guard.condition, context),
-                        }),
-                        body: arm
-                            .body
-                            .iter()
-                            .map(|statement| self.instantiate_default_statement(statement, context))
-                            .collect(),
-                        span: context.statement_span,
-                    })
-                    .collect(),
-                fallback: match &when.fallback {
-                    hir::WhenFallback::Fallthrough => hir::WhenFallback::Fallthrough,
-                    hir::WhenFallback::Else(body) => hir::WhenFallback::Else(
-                        body.iter()
-                            .map(|statement| self.instantiate_default_statement(statement, context))
-                            .collect(),
-                    ),
-                    hir::WhenFallback::Impossible(proof) => {
-                        let proof = match proof {
-                            hir::ExhaustivenessProof::IrrefutableArm { subject_ty } => {
-                                hir::ExhaustivenessProof::IrrefutableArm {
-                                    subject_ty: self
-                                        .instantiate_method_ty(*subject_ty, &context.bindings),
-                                }
-                            }
-                            hir::ExhaustivenessProof::PatternMatrix { subject_ty } => {
-                                hir::ExhaustivenessProof::PatternMatrix {
-                                    subject_ty: self
-                                        .instantiate_method_ty(*subject_ty, &context.bindings),
-                                }
-                            }
-                            hir::ExhaustivenessProof::EnumPatternMatrix { subject_ty } => {
-                                hir::ExhaustivenessProof::EnumPatternMatrix {
-                                    subject_ty: self
-                                        .instantiate_method_ty(*subject_ty, &context.bindings),
-                                }
-                            }
-                        };
-                        hir::WhenFallback::Impossible(proof)
-                    }
-                },
-            }),
+            hir::StatementKind::When(when) => {
+                hir::StatementKind::When(self.instantiate_default_when(when, context))
+            }
             hir::StatementKind::Try(value) => hir::StatementKind::Try(hir::Try {
                 body: value
                     .body

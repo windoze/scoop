@@ -371,6 +371,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun pick @fn1(flag: Boolean, value: Int, other: Int) -> Int
     bb0 entry
       val $dependency.local.3: Boolean
@@ -456,6 +458,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun pick @fn3(flag: Boolean, value: String, other: String) -> String
     bb0 entry
       val $dependency.local.3: Boolean
@@ -541,6 +545,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun identity @fn5(value: Payload) -> Payload
     bb0 entry
       branch bb1 bb2

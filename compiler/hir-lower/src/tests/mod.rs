@@ -382,9 +382,9 @@ fn local_method_callable(module: &hir::Module, callee: hir::MethodCallee) -> hir
     callable
 }
 
-fn case_pattern(arm: &hir::WhenArm) -> &hir::Pattern {
-    match &arm.condition {
-        hir::WhenCondition::Case(pattern) => pattern,
+fn case_pattern(arm: hir::WhenArmRef<'_>) -> &hir::Pattern {
+    match arm.condition {
+        hir::WhenConditionRef::Case(pattern) => pattern,
         _ => panic!("expected case arm"),
     }
 }

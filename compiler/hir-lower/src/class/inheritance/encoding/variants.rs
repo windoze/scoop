@@ -53,13 +53,11 @@ impl Lowerer {
             });
         }
         sink.push(hir::Statement {
-            kind: hir::StatementKind::When(hir::When {
-                subject: Some(value),
+            kind: hir::StatementKind::When(hir::When::Subject {
+                subject: value,
                 arms,
                 fallback: hir::WhenFallback::Impossible(
-                    hir::ExhaustivenessProof::EnumPatternMatrix {
-                        subject_ty: context.target,
-                    },
+                    hir::ExhaustivenessProof::EnumPatternMatrix,
                 ),
             }),
             span,

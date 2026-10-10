@@ -8,8 +8,8 @@ use crate::{
     DefaultBoundCallableRefV1, DefaultCallableRefV1, DefaultCallableReferenceV1, DefaultCaptureV1,
     DefaultCatchV1, DefaultExpressionV1, DefaultIntegerArgumentsV1, DefaultLambdaV1,
     DefaultLiteralEqualityV1, DefaultLocalFunctionV1, DefaultMethodCalleeV1, DefaultPatternV1,
-    DefaultStatementV1, DefaultTryV1, DefaultWhenArmV1, DefaultWhenFallbackV1, DefaultWhenGuardV1,
-    DefaultWhenV1, ExportDefaultBodyV1, ExportDefinitionSourceV1,
+    DefaultStatementV1, DefaultTryV1, DefaultWhenArmRefV1, DefaultWhenFallbackViewV1,
+    DefaultWhenGuardV1, DefaultWhenV1, ExportDefaultBodyV1, ExportDefinitionSourceV1,
 };
 use scoop_identity::{PersistentObjectValueId, PersistentPropertyId, SignatureTypeKey};
 #[derive(Clone, Copy)]
@@ -77,10 +77,10 @@ pub(in super::super) enum BodyNode<'a> {
         value: &'a DefaultWhenV1,
         origin: &'a ExportDefinitionSourceV1,
     },
-    WhenArm(&'a DefaultWhenArmV1),
+    WhenArm(DefaultWhenArmRefV1<'a>),
     WhenGuard(&'a DefaultWhenGuardV1),
     WhenFallback {
-        fallback: &'a DefaultWhenFallbackV1,
+        fallback: DefaultWhenFallbackViewV1<'a>,
         origin: &'a ExportDefinitionSourceV1,
     },
     Try(&'a DefaultTryV1),

@@ -1067,8 +1067,8 @@ fn pattern_decision_with_two_abrupt_arms_keeps_its_merge_unreachable() {
                     condition_setup: Vec::new(),
                     cond: bool_lit(&h, true),
                     body: vec![
-                        stmt(hir::StatementKind::When(hir::When {
-                            subject: Some(local_ref(subject, option_boolean)),
+                        stmt(hir::StatementKind::When(hir::When::Subject {
+                            subject: local_ref(subject, option_boolean),
                             arms: vec![hir::WhenArm {
                                 condition: hir::WhenCondition::Case(hir::Pattern::Variant {
                                     application: h.enum_variant_ref(option_application, 0),

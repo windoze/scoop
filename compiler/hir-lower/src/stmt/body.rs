@@ -54,11 +54,10 @@ impl Lowerer {
                     };
                 }
                 hir::StatementKind::When(mut when) => {
-                    for arm in &mut when.arms {
-                        arm.body =
-                            self.adapt_inferred_returns(std::mem::take(&mut arm.body), target);
+                    for arm in when.arms_mut() {
+                        *arm.body = self.adapt_inferred_returns(std::mem::take(arm.body), target);
                     }
-                    if let hir::WhenFallback::Else(body) = &mut when.fallback {
+                    if let Some(body) = when.else_body_mut() {
                         *body = self.adapt_inferred_returns(std::mem::take(body), target);
                     }
                     statement.kind = hir::StatementKind::When(when);

@@ -1,3 +1,4 @@
+mod when;
 use super::*;
 mod expression;
 mod pattern;
@@ -265,102 +266,6 @@ impl Concretizer<'_> {
                     field,
                 }
             }
-        }
-    }
-
-    pub(super) fn lower_when(
-        &mut self,
-        source: &export::When,
-        substitution: &[concrete::TypeId],
-        locals: &[concrete::LocalId],
-        loops: &mut LoopRemap,
-    ) -> concrete::When {
-        let subject = source
-            .subject
-            .as_ref()
-            .map(|subject| self.lower_expr(subject, substitution, locals));
-        let arms = source
-            .arms
-            .iter()
-            .map(|arm| concrete::WhenArm {
-                condition: match &arm.condition {
-                    export::WhenCondition::Case(pattern) => {
-                        concrete::WhenCondition::Case(self.lower_pattern(
-                            pattern,
-                            subject.as_ref().expect("a case has a subject").ty,
-                            substitution,
-                            locals,
-                        ))
-                    }
-                    export::WhenCondition::Predicate(condition) => {
-                        concrete::WhenCondition::Predicate(concrete::WhenGuard {
-                            setup: self.lower_statements(
-                                &condition.setup,
-                                substitution,
-                                locals,
-                                loops,
-                            ),
-                            condition: self.lower_expr(&condition.condition, substitution, locals),
-                        })
-                    }
-                    export::WhenCondition::Always => concrete::WhenCondition::Always,
-                },
-                guard: arm.guard.as_ref().map(|guard| concrete::WhenGuard {
-                    setup: self.lower_statements(&guard.setup, substitution, locals, loops),
-                    condition: self.lower_expr(&guard.condition, substitution, locals),
-                }),
-                body: self.lower_statements(&arm.body, substitution, locals, loops),
-                span: arm.span,
-            })
-            .collect();
-        let fallback = match &source.fallback {
-            export::WhenFallback::Fallthrough => concrete::WhenFallback::Fallthrough,
-            export::WhenFallback::Else(body) => concrete::WhenFallback::Else(
-                self.lower_statements(body, substitution, locals, loops),
-            ),
-            export::WhenFallback::Impossible(proof) => {
-                let proof = match proof {
-                    export::ExhaustivenessProof::IrrefutableArm { subject_ty } => {
-                        let subject_ty = self.lower_type(*subject_ty, substitution);
-                        assert_eq!(
-                            subject_ty,
-                            subject.as_ref().expect("coverage describes a subject").ty,
-                            "the checked irrefutable proof must match its concrete subject",
-                        );
-                        concrete::ExhaustivenessProof::IrrefutableArm { subject_ty }
-                    }
-                    export::ExhaustivenessProof::PatternMatrix { subject_ty } => {
-                        let subject_ty = self.lower_type(*subject_ty, substitution);
-                        assert_eq!(
-                            subject_ty,
-                            subject.as_ref().expect("coverage describes a subject").ty,
-                            "the checked pattern-matrix proof must match its concrete subject",
-                        );
-                        concrete::ExhaustivenessProof::PatternMatrix { subject_ty }
-                    }
-                    export::ExhaustivenessProof::EnumPatternMatrix { subject_ty } => {
-                        let subject_ty = self.lower_type(*subject_ty, substitution);
-                        let concrete::TypeKind::Enum(enum_id) = self.types[subject_ty].kind else {
-                            unreachable!("an enum matrix retains its complete enum subject")
-                        };
-                        assert_eq!(
-                            subject_ty,
-                            subject.as_ref().expect("coverage describes a subject").ty,
-                            "the checked enum proof must match its concrete subject",
-                        );
-                        concrete::ExhaustivenessProof::EnumPatternMatrix {
-                            subject_ty,
-                            enum_id,
-                        }
-                    }
-                };
-                concrete::WhenFallback::Impossible(proof)
-            }
-        };
-        concrete::When {
-            subject,
-            arms,
-            fallback,
         }
     }
 }

@@ -63,7 +63,7 @@ M36 收紧当前编译器实际使用的输入和 IR 数据结构，使必要内
 
 建议区分有 subject 与纯条件两种 when。有 subject 的分支必填 subject，允许普通谓词和 case；纯条件分支只保存允许的谓词/后备条件。依赖模式匹配的覆盖信息归入有 subject 的结构，所需类型从实际 subject 的完整数据取得，避免独立记录互相矛盾的 subject 状态。
 
-共用 arm body、guard 或控制流实现时复用现有 helper，不复制整套 when lowering。保持 subject 快照一次、条件和 guard 顺序、guard 失败继续后续 arm、合法语句落空，以及 Nothing 路径不提供结果的语义。
+实施采用有 subject 与纯条件的完整分支，共享 arm 的 guard、正文与位置；覆盖类别不另存可从 subject 取得的类型或 enum 身份。导出模板在原有格式绑定边界归一化，wire 标签保持不变。共用 arm body、guard 或控制流实现时复用现有 helper，不复制整套 when lowering。保持 subject 快照一次、条件和 guard 顺序、guard 失败继续后续 arm、合法语句落空，以及 Nothing 路径不提供结果的语义。
 
 ### 2.3 R03：最终 MIR 不携带 lowering 临时态
 

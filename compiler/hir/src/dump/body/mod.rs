@@ -3,6 +3,7 @@ use super::*;
 mod calls;
 mod expr;
 mod variants;
+mod when;
 use calls::{callable_target_name, lexical_function_name, method_callee_name};
 use expr::dump_expr;
 use variants::{enum_field_name, enum_variant_names};
@@ -200,71 +201,7 @@ pub(super) fn dump_statements(
                 out.push_str(&format!("{pad}throw\n"));
                 dump_expr(module, locals, expr, indent + 1, out);
             }
-            StatementKind::When(when) => {
-                out.push_str(&format!("{pad}when\n"));
-                if let Some(subject) = &when.subject {
-                    dump_expr(module, locals, subject, indent + 1, out);
-                } else {
-                    out.push_str(&format!("{pad}  no subject\n"));
-                }
-                for arm in &when.arms {
-                    out.push_str(&format!(
-                        "{}  arm {}{}\n",
-                        pad,
-                        match &arm.condition {
-                            WhenCondition::Case(pattern) => dump_pattern(module, pattern),
-                            WhenCondition::Predicate(_) => "<predicate>".into(),
-                            WhenCondition::Always => "<fallback>".into(),
-                        },
-                        if arm.guard.is_some() {
-                            " if <guard>"
-                        } else {
-                            ""
-                        }
-                    ));
-                    if let WhenCondition::Predicate(predicate) = &arm.condition {
-                        out.push_str(&format!("{pad}    condition setup\n"));
-                        dump_statements(module, locals, &predicate.setup, indent + 3, out);
-                        out.push_str(&format!("{pad}    condition\n"));
-                        dump_expr(module, locals, &predicate.condition, indent + 3, out);
-                    }
-                    if let Some(guard) = &arm.guard {
-                        if !guard.setup.is_empty() {
-                            out.push_str(&format!("{}    guard setup\n", pad));
-                            dump_statements(module, locals, &guard.setup, indent + 3, out);
-                        }
-                        out.push_str(&format!("{}    guard condition\n", pad));
-                        dump_expr(module, locals, &guard.condition, indent + 3, out);
-                    }
-                    dump_statements(module, locals, &arm.body, indent + 2, out);
-                }
-                match &when.fallback {
-                    WhenFallback::Fallthrough => out.push_str(&format!("{pad}  fallthrough\n")),
-                    WhenFallback::Else(body) => {
-                        out.push_str(&format!("{pad}  else\n"));
-                        dump_statements(module, locals, body, indent + 2, out);
-                    }
-                    WhenFallback::Impossible(ExhaustivenessProof::IrrefutableArm {
-                        subject_ty,
-                    }) => out.push_str(&format!(
-                        "{pad}  impossible <irrefutable {}>\n",
-                        type_name(module, *subject_ty),
-                    )),
-                    WhenFallback::Impossible(ExhaustivenessProof::PatternMatrix { subject_ty }) => {
-                        out.push_str(&format!(
-                            "{pad}  impossible <pattern matrix for {}>\n",
-                            type_name(module, *subject_ty),
-                        ))
-                    }
-                    WhenFallback::Impossible(ExhaustivenessProof::EnumPatternMatrix {
-                        subject_ty,
-                        ..
-                    }) => out.push_str(&format!(
-                        "{pad}  impossible <enum pattern matrix for {}>\n",
-                        type_name(module, *subject_ty),
-                    )),
-                }
-            }
+            StatementKind::When(when) => when::dump_when(module, locals, when, indent, out),
         }
     }
 }

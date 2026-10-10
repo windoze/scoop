@@ -85,16 +85,16 @@ impl Lowerer {
                     self.collect_no_gc_statement_violations(body, out, requirements);
                 }
                 hir::StatementKind::When(when) => {
-                    if let Some(subject) = &when.subject {
+                    if let Some(subject) = when.subject() {
                         self.collect_no_gc_expr_violations(subject, out, requirements);
                     }
-                    for arm in &when.arms {
-                        for guard in match &arm.condition {
-                            hir::WhenCondition::Predicate(condition) => Some(condition),
+                    for arm in when.arms() {
+                        for guard in match arm.condition {
+                            hir::WhenConditionRef::Predicate(condition) => Some(condition),
                             _ => None,
                         }
                         .into_iter()
-                        .chain(arm.guard.iter())
+                        .chain(arm.guard)
                         {
                             self.collect_no_gc_statement_violations(
                                 &guard.setup,
@@ -103,9 +103,9 @@ impl Lowerer {
                             );
                             self.collect_no_gc_expr_violations(&guard.condition, out, requirements);
                         }
-                        self.collect_no_gc_statement_violations(&arm.body, out, requirements);
+                        self.collect_no_gc_statement_violations(arm.body, out, requirements);
                     }
-                    if let hir::WhenFallback::Else(body) = &when.fallback {
+                    if let hir::WhenFallbackRef::Else(body) = when.fallback() {
                         self.collect_no_gc_statement_violations(body, out, requirements);
                     }
                 }
