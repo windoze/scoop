@@ -2,6 +2,8 @@
 
 use super::*;
 
+mod native;
+
 #[derive(Clone, Copy)]
 pub(in crate::function) enum LoweredCallDestination {
     Managed(lir::ManagedCallDestination),
@@ -300,67 +302,6 @@ impl<'a> FunctionLowerer<'a> {
                 }
             }
         }
-    }
-
-    pub(in crate::function) fn native_call_site(
-        &mut self,
-        destination: NativeCallDestination,
-        call: PendingTypedCall,
-    ) -> StorageResult<lir::CallSite> {
-        Ok(match destination {
-            NativeCallDestination::C(destination, mode) => {
-                assert_eq!(
-                    call.result_scan(&self.call_targets),
-                    &lir::RefScan::None,
-                    "native-safe C ABI results must be GC-free"
-                );
-                let call = bind_typed_call(&mut self.call_targets.c_targets, destination, call);
-                if self.callable_body.release_owner().is_some() {
-                    lir::CallSite::ReleaseNativeLeaf(lir::ReleaseNativeLeafCallSite { call })
-                } else if mode == lir::CAbiCallMode::GcLeaf {
-                    lir::CallSite::NativeGcLeaf(lir::NativeGcLeafCallSite { call })
-                } else {
-                    lir::CallSite::NativeSafe(lir::NativeSafeCallSite {
-                        call,
-                        safepoint: self.new_safepoint(lir::SafepointSiteRole::NativeSafeTransition),
-                        roots: lir::NativeSafeRootSet::default(),
-                    })
-                }
-            }
-            NativeCallDestination::Borrowed(destination) => {
-                let result_scan = call.result_scan(&self.call_targets).clone();
-                let result = match lir::NonEmptyRefScan::new(result_scan) {
-                    None => lir::NativeBorrowedResultRoot::GcFree,
-                    Some(_) => {
-                        let storage = match &call {
-                            PendingTypedCall::Void { .. } | PendingTypedCall::ElidedZst { .. } => {
-                                unreachable!("void native call cannot have a result root")
-                            }
-                            PendingTypedCall::Direct { signature, .. } => {
-                                let ty = self.call_targets.direct_signatures[*signature]
-                                    .result()
-                                    .storage_type()
-                                    .clone();
-                                self.new_hidden_local(ty)?
-                            }
-                            PendingTypedCall::IndirectResult { storage, .. } => *storage,
-                        };
-                        lir::NativeBorrowedResultRoot::Rooted { storage }
-                    }
-                };
-                let call = bind_typed_call(
-                    &mut self.call_targets.native_borrowed_targets,
-                    destination,
-                    call,
-                );
-                let call = self.call_targets.bind_native_borrowed_call(call, result);
-                lir::CallSite::NativeBorrowed(lir::NativeBorrowedCallSite {
-                    call,
-                    safepoint: self.new_safepoint(lir::SafepointSiteRole::NativeBorrowedTransition),
-                    roots: lir::NativeBorrowedRootSet::default(),
-                })
-            }
-        })
     }
 
     pub(in crate::function) fn invoke_site(

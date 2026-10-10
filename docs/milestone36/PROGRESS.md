@@ -18,7 +18,7 @@
 | R05 窄身份 | 已完成 | FunctionTypeId 与 enum application 贯通生产／消费；Rust 710、正式 CLI 8 项通过 |
 | R06 nominal 表示 | 待实施 | declared payload 与 C/Scoop 窄引用 |
 | R10 core protocol | 待实施 | 具名 typed 字段，核对 wire 不变 |
-| R08 native 结果发布 | 待实施 | 按返回约定构造调用与 root |
+| R08 native 结果发布 | 已完成 | 六类完整返回分支、单一间接结果存储；Rust 197、正式 CLI 5 项通过 |
 | R09 codegen 调用 | 已完成 | 完整 callee 与调用准备分支；codegen 41、正式 CLI 5 项通过 |
 
 ## 验证与工作区约定
@@ -63,3 +63,11 @@ AST 使用 `LiteralPattern`，数值分别保存原始 literal 与负号，Char�
 本机 fmt／workspace clippy 成功，codegen statepoint／invoke／GCLeaf／native／callback／C ABI 相关测试 40 项及 aggregate ABI 发射测试 1 项通过。新增 invoke fixture 覆盖 local／virtual／interface／closure 与 try/catch/finally；native 组合覆盖 native-safe／GCLeaf／native-borrowed、调用内 GC、返回后读取参数和结果，以及移动／minor GC。
 
 正式普通比较共 5 项、7 个配置、32 个进程、22 个 golden 通过，包括已有 suspend 函数值、Scoop ABI 直接／间接含引用结果、并发 callback/native-safe transition 用例。新 HIR/MIR golden 经生成、审阅后普通复验，旧 golden 保持一致。报告为 `target/m36-validation/r09-verify-report.json`，wire 与 runtime ABI 未改变。
+
+## R08：NativeBorrowed 结果发布
+
+LIR 的 native borrowed 调用直接分为 Void、ElidedZst、DirectGcFree、DirectRooted、IndirectResultGcFree、IndirectResultRooted 六类，目标 ID 与返回类别一致。rooted 分支持有非空 scan；间接返回只保存一个 storage，调用与根发布从同一字段投影。删除独立结果描述、宽调用组合及其一致性断言。lowerer 在真实签名边界构造完整分支，共用的 call view 保持后端发射方式不变。
+
+本机 fmt／workspace clippy 成功；codegen 112、LIR 61、LIR lower 24，共 197 项相关测试通过。新增两项 CLI fixture 覆盖六种结果、void／ZST 副作用、泛型闭包、Option、finally、结果内部引用及 native 调用中的 GC；新 HIR/MIR/LIR golden 经生成和审阅后以普通比较复验。
+
+正式普通比较共 5 项、7 个配置、38 个进程、22 个 golden 通过，包含已有接口 native 调用和直接／间接移动根回归；正常、移动和 minor GC 均运行成功。报告为 `target/m36-validation/r08-new-report.json` 与 `r08-verify-report.json`。本轮清理已完成测试的五个旧可执行文件，释放约 262 MiB，保留当前 CLI、库及共享 sysroot。wire 与 runtime ABI 未改变。

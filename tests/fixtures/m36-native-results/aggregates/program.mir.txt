@@ -1,0 +1,485 @@
+Module
+  extern ef0 wide @m36_result_wide() -> Wide <abi=scoop managed lib=m36_results>
+  extern ef1 boxed @m36_result_boxed(String) -> BoxedWide <abi=scoop managed lib=m36_results>
+  struct Wide (first: Long, second: Long, third: Long)
+  struct BoxedWide (text: String, left: Long, right: Long)
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum Option<Char>
+    Some(_0: Char)
+    None()
+  enum Option<BoxedWide>
+    Some(_0: BoxedWide)
+    None()
+  enum CoroutineStep<BoxedWide>
+    Completed(value: BoxedWide)
+    Suspended()
+  enum CoroutineSlot<BoxedWide>
+    Empty()
+    Value(value: BoxedWide)
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class box<BoxedWide> vtable=0 itables=0
+  interface ToString
+  interface Hash
+  interface Equality<Long>
+  interface Equality<Char>
+  interface Iterable<Char>
+  interface Iterator<Char>
+  interface Equality<String>
+  interface Continuation<BoxedWide>
+  interface SuspendTask<BoxedWide>
+  interface SuspendRegistration<BoxedWide>
+  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn4 captures=0
+    bridge function_type1 -> @fn14 id=0d15cd9a99d0a0b9482991a66e6f7bbbcfbf33af55bccffb75d4d8dc91056a7a
+  generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
+  generated_exact_type get1 location=enum3 nominal_id=542b59b06190c586fd40ea5c1b22d113b9a066990fce8be2b6223e98885bb9b2 exact_id=1efe21ed6c3ca48047687682af1874355f9aefe86aa2019a371f97f6022acf05
+  generated_exact_type get2 location=closure0 nominal_id=2fcc5dceba1f09c36d231287088079138d2c04817531ae31cc6d2cc1c02b5c0b exact_id=2302a5386d95a61953db931e029826819dc2e78ed627925872f2aaa8f36b4d72
+  generated_exact_type get3 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
+  generated_exact_type get4 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
+  generated_exact_type get5 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
+  generated_exact_type get6 location=class3 nominal_id=51fd95cff49d5cae2e5f1821f32282a00d2c16e2d56b99caff0c601dff74fde1 exact_id=8ac6a0ea1f58702f5655cd60d02e0cef417024b4d7203b0d0524df1e2356085d
+  generated_exact_type get7 location=enum4 nominal_id=c5d57d44744cdb0fd6397ab53286ed3ba401970c66381dee6d2db8ca0726ddd8 exact_id=9d33537051484395955a3fb8511ccec319d7f9bcac62dfffe4478b1bcd2434ba
+  generated_exact_type get8 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
+  generated_callable gc0 function=@fn14 id=0d15cd9a99d0a0b9482991a66e6f7bbbcfbf33af55bccffb75d4d8dc91056a7a
+  generated_callable gc1 function=@fn13 id=8ba1b07bdba2df7fcf51b87beefb151c4fcf5217bcefe3e7dc385f57537465c7
+  fun wide @fn0() -> Wide
+    bb0 entry
+      call $call.1: Wide = extern0 @m36_result_wide direct
+      return
+        Type Wide
+        Local $call.1
+  fun boxed @fn1(arg0: String) -> BoxedWide
+    bb0 entry
+      call $call.1: BoxedWide = extern1 @m36_result_boxed direct
+        Type String
+        Local arg0
+      return
+        Type BoxedWide
+        Local $call.1
+  fun main @fn2() -> Unit
+    bb0 entry
+      call values: Wide = extern0 @m36_result_wide direct
+      val $dependency.receiver: Long
+        Type Long
+        FieldAccess 0
+          Type Wide
+          Local values
+      val $dependency.argument.0: Long
+        Type Long
+        FieldAccess 1
+          Type Wide
+          Local values
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.receiver: Long
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      val $dependency.argument.0: Long
+        Type Long
+        FieldAccess 2
+          Type Wide
+          Local values
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      call @fn3 direct
+        Type Long
+        Local $dependency.parameter.value
+      goto bb6
+    bb1 try.unwind.1
+      landing_pad cleanup=false
+      goto bb2
+    bb2 try.dispatch.2
+      begin_catch
+      goto bb13
+    bb3 try.exit_pad.3
+      landing_pad cleanup=true
+      goto bb4
+    bb4 try.exit_cleanup.4
+      end_catch
+      resume
+    bb5 try.end.5
+      return
+    bb6 try.body.6 unwind bb1
+      val $dependency.receiver: String
+        Type String
+        StringConst @str0
+      val $dependency.receiver: Long
+        Type Long
+        FieldAccess 0
+          Type Wide
+          Local values
+      call $dependency.argument.0: String = external0 direct
+        Type Long
+        Local $dependency.receiver
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $argument.0: String = @scoop_rt_string_concat direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      val $argument.1: (String) -> BoxedWide
+        Type (String) -> BoxedWide
+        ClosureAlloc cc0 $Closure$lambda0
+      val $parameter.value: String
+        Type String
+        Local $argument.0
+      val $parameter.transform: (String) -> BoxedWide
+        Type (String) -> BoxedWide
+        Local $argument.1
+      call produced: BoxedWide = @fn5 direct
+        Type String
+        Local $parameter.value
+        Type (String) -> BoxedWide
+        Local $parameter.transform
+      val $dependency.argument.0: BoxedWide
+        Type BoxedWide
+        Local produced
+      val $dependency.parameter._1: BoxedWide
+        Type BoxedWide
+        Local $dependency.argument.0
+      val optional: Option<BoxedWide>
+        Type Option<BoxedWide>
+        VariantConstruct Option<BoxedWide> v0
+          Type BoxedWide
+          Local $dependency.parameter._1
+      call @scoop_rt_gc_collect direct
+      val $when.1: Option<BoxedWide>
+        Type Option<BoxedWide>
+        Local optional
+      val $pattern.subject.2: Option<BoxedWide>
+        Type Option<BoxedWide>
+        Local $when.1
+      branch bb7 bb8
+        Type Boolean
+        VariantTest Option<BoxedWide> v0
+          Type Option<BoxedWide>
+          Local $pattern.subject.2
+    bb7 pattern.pass.7 unwind bb1
+      val value: BoxedWide
+        Type BoxedWide
+        VariantPayloadProject Option<BoxedWide> v0 f0
+          Type Option<BoxedWide>
+          Local $pattern.subject.2
+      val $dependency.argument.0: String
+        Type String
+        FieldAccess 0
+          Type BoxedWide
+          Local value
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type String
+        Local $dependency.parameter.value
+      val $dependency.receiver: Long
+        Type Long
+        FieldAccess 1
+          Type BoxedWide
+          Local value
+      val $dependency.argument.0: Long
+        Type Long
+        FieldAccess 2
+          Type BoxedWide
+          Local value
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      call @fn3 direct
+        Type Long
+        Local $dependency.parameter.value
+      goto bb9
+    bb8 pattern.else.8 unwind bb1
+      val $pattern.subject.3: Option<BoxedWide>
+        Type Option<BoxedWide>
+        Local $when.1
+      branch bb10 bb11
+        Type Boolean
+        VariantTest Option<BoxedWide> v1
+          Type Option<BoxedWide>
+          Local $pattern.subject.3
+    bb9 pattern.merge.9
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str2
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type String
+        Local $dependency.parameter.value
+      goto bb5
+    bb10 pattern.pass.10 unwind bb1
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str1
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type String
+        Local $dependency.parameter.value
+      goto bb12
+    bb11 pattern.else.11 unwind bb1
+      unreachable
+    bb12 pattern.merge.12 unwind bb1
+      goto bb9
+    bb13 scope.13 unwind bb3
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str2
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type String
+        Local $dependency.parameter.value
+      rethrow unwind bb3
+  fun println @fn3(value: Long) -> Unit
+    bb0 entry
+      val $dependency.local.1: Long
+        Type Long
+        Local value
+      call $dependency.local.2: String = external0 direct
+        Type Long
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external2 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str3
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external2 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun $lambda.0 @fn4($closure: (String) -> BoxedWide, text: String) -> BoxedWide
+    bb0 entry
+      val $argument.0: String
+        Type String
+        Local text
+      val $parameter.value: String
+        Type String
+        Local $argument.0
+      call $call.1: BoxedWide = extern1 @m36_result_boxed direct
+        Type String
+        Local $parameter.value
+      return
+        Type BoxedWide
+        Local $call.1
+  fun apply @fn5(value: String, transform: (String) -> BoxedWide) -> BoxedWide
+    bb0 entry
+      call $call.1: BoxedWide = <closure:function_type0> closure[function_type0]
+        Type (String) -> BoxedWide
+        Local transform
+        Type String
+        Local value
+      return
+        Type BoxedWide
+        Local $call.1
+  fun println @fn6(value: String) -> Unit
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local value
+      call $dependency.local.2: String = external1 direct
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external2 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str4
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external2 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun Continuation.resume @fn7(this: Continuation<BoxedWide>, value: BoxedWide) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn8(this: Continuation<BoxedWide>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn9(this: SuspendTask<BoxedWide>, $completion: Continuation<BoxedWide>) -> CoroutineStep<BoxedWide>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn10(this: SuspendRegistration<BoxedWide>, continuation: Continuation<BoxedWide>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun ctor.Wide.$c0 @fn11(first: Long, second: Long, third: Long) -> Wide <no-gc>
+    bb0 entry
+      return
+        Type Wide
+        StructInit Wide
+          Type Long
+          Local first
+          Type Long
+          Local second
+          Type Long
+          Local third
+  fun ctor.BoxedWide.$c1 @fn12(text: String, left: Long, right: Long) -> BoxedWide <no-gc>
+    bb0 entry
+      return
+        Type BoxedWide
+        StructInit BoxedWide
+          Type String
+          Local text
+          Type Long
+          Local left
+          Type Long
+          Local right
+  fun startCoroutine<BoxedWide> @fn13(task: SuspendTask<BoxedWide>, completion: Continuation<BoxedWide>) -> Unit
+    bb0 context.unwind
+      landing_pad cleanup=true
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb1 context.catch_unwind
+      landing_pad cleanup=true
+      end_catch
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb2 suspended
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb3 completed unwind bb0
+      call @fn7 interface Continuation<BoxedWide>[0]
+        Type Continuation<BoxedWide>
+        Local completion
+        Type BoxedWide
+        EnumField v0 f0
+          Type CoroutineStep<BoxedWide>
+          Local $step
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb4 failed unwind bb0
+      call @fn8 interface Continuation<BoxedWide>[1]
+        Type Continuation<BoxedWide>
+        Local completion
+        Type Throwable
+        Local $exception
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb5 body_failure unwind bb1
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb4
+    bb6 run unwind bb5
+      call $step: CoroutineStep<BoxedWide> = @fn9 interface SuspendTask<BoxedWide>[0]
+        Type SuspendTask<BoxedWide>
+        Local task
+        Type Continuation<BoxedWide>
+        Local completion
+      branch bb3 bb2
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<BoxedWide>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+    bb7 entry
+      val $child_context: internal<task-context>
+        Type internal<task-context>
+        ContextFork
+          Type internal<context-node>
+          ContextSnapshot
+      val $context_guard: internal<context-switch-guard>
+        Type internal<context-switch-guard>
+        ContextEnter
+          Type internal<task-context>
+          Local $child_context
+      goto bb6
+  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn14($source: (String) -> BoxedWide, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: BoxedWide = <closure:function_type0> closure[function_type0]
+        Type (String) -> BoxedWide
+        Local $source
+        Type String
+        Retype String
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type BoxedWide
+          Local $call.1
+  coroutine_step cs0 CoroutineStep<BoxedWide> result=BoxedWide
+  coroutine_slot cl0 CoroutineSlot<BoxedWide> value=BoxedWide
+  coroutine_start ct0 result=BoxedWide function=fn13
+  coroutine_fn cf0 @fn9 source_return=BoxedWide step=cs0 immediate
+  instance mi0 function=@fn3 <- println
+  instance mi1 function=@fn5 <- apply
+  instance mi2 function=@fn6 <- println
+  instance mi3 function=@fn7 <- Continuation.resume
+  instance mi4 function=@fn8 <- Continuation.resumeWithException
+  instance mi5 function=@fn9 <- SuspendTask.run
+  instance mi6 function=@fn10 <- SuspendRegistration.register
+  str @str0 "result"
+  str @str1 "missing"
+  str @str2 "finished"
+  str @str3 "\n"
+  str @str4 "\n"
+  output executable @fn2

@@ -211,27 +211,37 @@ fn native_calls_publish_roots_transition_and_reload() {
     let mut borrowed_temps = Arena::default();
     let result = borrowed_temps.alloc(Temp { ty: MANAGED_PTR });
     let mut borrowed_targets = CallTargets::default();
-    let mut borrowed_site = direct_site(
-        &mut borrowed_targets,
-        TestCallProtocol::NativeBorrowed {
-            safepoint: 2,
+    let scan = scoop_lir::NonEmptyRefScan::new(RefScan::References(vec![0])).unwrap();
+    let signature = borrowed_targets
+        .direct_signatures
+        .alloc(DirectCallSignature::new(
+            plain_scoop_signature(vec![MANAGED_PTR], MANAGED_PTR)
+                .arguments()
+                .to_vec(),
+            abi_value_with_layout(MANAGED_PTR, 8, 8, scan.as_ref_scan().clone()),
+            scoop_lir::CallingConvention::Cdecl,
+        ));
+    let target = borrowed_targets
+        .native_borrowed_targets
+        .direct
+        .alloc(scoop_lir::CallTarget {
             destination: scoop_lir::NativeBorrowedCallDestination::extern_function(borrowed),
-            result: NativeBorrowedResultRoot::Rooted {
-                storage: result_root,
-            },
+            signature,
+        });
+    let borrowed_site = CallSite::NativeBorrowed(scoop_lir::NativeBorrowedCallSite {
+        call: scoop_lir::NativeBorrowedTypedCall::DirectRooted {
+            target,
+            out: result,
+            args: vec![scoop_lir::AbiCallArgument::Direct(Value::Param(0))],
+            storage: result_root,
+            scan: scan.clone(),
         },
-        vec![MANAGED_PTR],
-        (MANAGED_PTR, RefScan::References(vec![0])),
-        result,
-        vec![Value::Param(0)],
-    );
-    let CallSite::NativeBorrowed(site) = &mut borrowed_site else {
-        unreachable!()
-    };
-    site.roots = scoop_lir::NativeBorrowedRootSet::new(vec![scoop_lir::CallerRoot {
-        source: scoop_lir::CallerRootSource::Param(0),
-        scan: scoop_lir::NonEmptyRefScan::new(RefScan::References(vec![0])).unwrap(),
-    }]);
+        safepoint: test_safepoint(2),
+        roots: scoop_lir::NativeBorrowedRootSet::new(vec![scoop_lir::CallerRoot {
+            source: scoop_lir::CallerRootSource::Param(0),
+            scan,
+        }]),
+    });
     let mut borrowed_blocks = Arena::default();
     let borrowed_entry = borrowed_blocks.alloc(BasicBlock {
         name: "entry".to_string(),
