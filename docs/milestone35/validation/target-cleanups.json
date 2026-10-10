@@ -44,6 +44,195 @@
         "removed_incremental_kib": 7944644,
         "after_target_kib": 33305892
       }
+    },
+    {
+      "batch": "M35-6 Linux old fixture cleanup",
+      "host": "linux",
+      "record": {
+        "platform": "linux",
+        "timestamp": "2026-10-10T12:02:38.130883+00:00",
+        "removed_path": "target/m33-linux/source/tmp/m33",
+        "before_target_kib": 34514476,
+        "removed_directory_kib": 17043428,
+        "reason": "Unused M33 fixture output; excludes the old source copy and registered worktrees.",
+        "note": "An initial removal stopped at read-only snapshot directories; these measurements cover the remaining output.",
+        "after_target_kib": 17471048
+      }
+    },
+    {
+      "batch": "M35-6 Linux tmpfs quota recovery",
+      "host": "linux",
+      "record": {
+        "timestamp": "2026-10-10T13:26:52.062417+00:00",
+        "kind": "fixture-output cleanup and cache relocation",
+        "before_tmp": {
+          "total": 32780890112,
+          "used": 26183004160,
+          "free": 6597885952
+        },
+        "preserved_caches": [
+          {
+            "source": "/tmp/scoop-m35-linux-gnu-focused/cache",
+            "destination": "/home/chenxu/repos/scoop/target/m35-linux-validation/gnu-seed/cache"
+          },
+          {
+            "source": "/tmp/scoop-m35-linux-musl-m35/cache",
+            "destination": "/home/chenxu/repos/scoop/target/m35-linux-validation/musl-seed/cache"
+          }
+        ],
+        "removed": [
+          {
+            "path": "/tmp/scoop-m35-linux-gnu/cases",
+            "directory_kib": 9369064
+          },
+          {
+            "path": "/tmp/scoop-m35-linux-gnu/cache",
+            "directory_kib": 2386796
+          },
+          {
+            "path": "/tmp/scoop-m35-linux-gnu/sysroot",
+            "directory_kib": 712
+          },
+          {
+            "path": "/tmp/scoop-m35-linux-musl/cases",
+            "directory_kib": 1212232
+          },
+          {
+            "path": "/tmp/scoop-m35-linux-musl/cache",
+            "directory_kib": 159552
+          },
+          {
+            "path": "/tmp/scoop-m35-linux-musl/sysroot",
+            "directory_kib": 712
+          },
+          {
+            "path": "/tmp/scoop-m35-linux-musl-m35/cases",
+            "directory_kib": 268000
+          },
+          {
+            "path": "/tmp/scoop-m35-linux-musl-m35/cache",
+            "directory_kib": 251632
+          },
+          {
+            "path": "/tmp/scoop-m35-linux-musl-m35/sysroot",
+            "directory_kib": 712
+          },
+          {
+            "path": "/tmp/scoop-m35-linux-musl-negative/cases",
+            "directory_kib": 2966460
+          },
+          {
+            "path": "/tmp/scoop-m35-linux-musl-negative/cache",
+            "directory_kib": 258748
+          },
+          {
+            "path": "/tmp/scoop-m35-linux-musl-negative/sysroot",
+            "directory_kib": 712
+          },
+          {
+            "path": "/tmp/scoop-m35-linux-gnu-focused/cases",
+            "directory_kib": 868172
+          },
+          {
+            "path": "/tmp/scoop-m35-linux-gnu-focused/cache",
+            "directory_kib": 2386508
+          },
+          {
+            "path": "/tmp/scoop-m35-linux-gnu-focused/sysroot",
+            "directory_kib": 712
+          },
+          {
+            "path": "/tmp/scoop-m35-linux-musl-focused/cases",
+            "directory_kib": 764236
+          },
+          {
+            "path": "/tmp/scoop-m35-linux-musl-focused/cache",
+            "directory_kib": 338544
+          },
+          {
+            "path": "/tmp/scoop-m35-linux-musl-focused/sysroot",
+            "directory_kib": 712
+          },
+          {
+            "path": "/tmp/scoop-m35-linux-gnu-repair/cases",
+            "directory_kib": 148564
+          },
+          {
+            "path": "/tmp/scoop-m35-linux-gnu-repair/cache",
+            "directory_kib": 2238000
+          },
+          {
+            "path": "/tmp/scoop-m35-linux-gnu-repair/sysroot",
+            "directory_kib": 712
+          },
+          {
+            "path": "/tmp/scoop-m35-linux-musl-setup/cases",
+            "directory_kib": 624
+          },
+          {
+            "path": "/tmp/scoop-m35-linux-musl-setup/cache",
+            "directory_kib": 10752
+          },
+          {
+            "path": "/tmp/scoop-m35-linux-musl-setup/sysroot",
+            "directory_kib": 712
+          }
+        ],
+        "after_tmp": {
+          "total": 32780890112,
+          "used": 1982251008,
+          "free": 30798639104
+        },
+        "note": "Directory measurements can share hard links; tmpfs usage is measured separately. Future retries use real disk directories, with no symlink cache."
+      }
+    },
+    {
+      "batch": "M35-6 Linux final cleanup",
+      "host": "linux",
+      "record": {
+        "timestamp": "2026-10-10T13:41:02.499338+00:00",
+        "before_target_kib": 23731316,
+        "removed": [
+          {
+            "path": "target/m35-linux-validation/gnu-seed",
+            "directory_kib": 2388220
+          },
+          {
+            "path": "target/m35-linux-validation/musl-seed",
+            "directory_kib": 252052
+          },
+          {
+            "path": "target/m35-linux-validation/tmp",
+            "directory_kib": 4
+          },
+          {
+            "path": "target/m35-linux-validation/gnu-quota-repair/cases",
+            "directory_kib": 287892
+          },
+          {
+            "path": "target/m35-linux-validation/gnu-quota-repair/cache",
+            "directory_kib": 2476384
+          },
+          {
+            "path": "target/m35-linux-validation/gnu-quota-repair/sysroot",
+            "directory_kib": 780
+          },
+          {
+            "path": "target/m35-linux-validation/musl-quota-repair/cases",
+            "directory_kib": 382768
+          },
+          {
+            "path": "target/m35-linux-validation/musl-quota-repair/cache",
+            "directory_kib": 301976
+          },
+          {
+            "path": "target/m35-linux-validation/musl-quota-repair/sysroot",
+            "directory_kib": 780
+          }
+        ],
+        "after_target_kib": 17640460,
+        "retained": "Paired CLI and Cargo dependencies; all reports and normalized snapshot evidence."
+      }
     }
   ]
 }

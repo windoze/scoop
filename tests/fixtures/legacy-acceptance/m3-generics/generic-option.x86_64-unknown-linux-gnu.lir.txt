@@ -75,8 +75,8 @@ Module
     t10 = aggregate () : {}
     ret
   fun @scoop$1$cb$c98a1fd41187823ecb50eddccf5078438d928b670c54d5786c5567cac106ffb8(parts<enum0 [i64@0+8/8,i64@8+8/8]>, i32) -> i32
-    local %0 $opt.0: enum0
-    local %1 $res.1: i32
+    local %0 opt: enum0
+    local %1 $result.0: i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     store param0 -> local0
@@ -111,7 +111,7 @@ Module
     t2 = aggregate () : {}
     ret
   fun @scoop$1$cb$ed8a9673695de244b83e24528c6e0a2edcfcc0abce84d18e022d0d44ede6a71b(enum1) -> i1
-    local %0 $result.2: i1
+    local %0 $result.1: i1
     local %1 $when.1: enum1
     local %2 $pattern.subject.2: enum1
     local %3 $pattern.subject.3: enum1
@@ -157,7 +157,7 @@ Module
     t2 = aggregate () : {}
     ret
   fun @scoop$1$cb$c105c837b1f0be59ad3c8cc2ceaf9a4d183690de02ada0b5991b650b2e29bb9c(parts<enum0 [i64@0+8/8,i64@8+8/8]>) -> i1
-    local %0 $result.2: i1
+    local %0 $result.1: i1
     local %1 $when.1: enum0
     local %2 $pattern.subject.2: enum0
     local %3 $pattern.subject.3: enum0

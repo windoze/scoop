@@ -1,0 +1,88 @@
+{
+  "started": "2026-10-10T12:03:12.321055+00:00",
+  "revision": "8400796d6455e27bf95f5bf64a03fa2ec1bf88e5",
+  "profile": "release",
+  "test_threads": 4,
+  "commands": [
+    {
+      "argv": [
+        "python3",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "tests/fixture_runner/tests"
+      ],
+      "exit": 0,
+      "seconds": 0.2798460869817063,
+      "log": "/tmp/scoop-m35-linux-runner-unit.log"
+    },
+    {
+      "argv": [
+        "cargo",
+        "test",
+        "--workspace",
+        "--release",
+        "--no-fail-fast"
+      ],
+      "exit": 0,
+      "seconds": 4419.525092500029,
+      "log": "/tmp/scoop-m35-linux-rust.log"
+    }
+  ],
+  "workspace_coverage": {
+    "passed": 5468,
+    "failed": 0,
+    "ignored": 0
+  },
+  "test_targets": 43,
+  "fixture_runner_unit_tests": {
+    "passed": 44,
+    "failed": 0,
+    "log": "/tmp/scoop-m35-linux-runner-unit.log"
+  },
+  "build_and_lint": {
+    "started": "2026-10-10T11:56:32.111400+00:00",
+    "revision": "8400796d6455e27bf95f5bf64a03fa2ec1bf88e5",
+    "llvm_sys_221_prefix": "/usr/lib/llvm-22",
+    "cargo_incremental": "0",
+    "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+    "commands": [
+      {
+        "argv": [
+          "cargo",
+          "fmt",
+          "--all"
+        ],
+        "exit": 0,
+        "seconds": 5.55036434403155
+      },
+      {
+        "argv": [
+          "cargo",
+          "clippy",
+          "--workspace",
+          "--all-targets"
+        ],
+        "exit": 0,
+        "seconds": 23.91953876899788
+      },
+      {
+        "argv": [
+          "cargo",
+          "build",
+          "--release",
+          "-p",
+          "scoop",
+          "-p",
+          "scoopc",
+          "-p",
+          "scoop-linker",
+          "--bins"
+        ],
+        "exit": 0,
+        "seconds": 73.88243352697464
+      }
+    ]
+  }
+}

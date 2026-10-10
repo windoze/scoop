@@ -14,8 +14,8 @@ Module
   fun @scoop$1$cb$8dbffcea424a589f789dd0a166f4fbd96bf8e8ac82fe65b345795ac335da4f21() -> i32 <no-gc>
     local %0 $dependency.argument.0: i32
     local %1 $dependency.parameter._1: i32
-    local %2 $opt.0: enum0
-    local %3 $res.1: i32
+    local %2 opt: enum0
+    local %3 $result.0: i32
   block entry
     store integer<Int>(0x00000028) -> local0
     store local0 -> local1
@@ -36,19 +36,19 @@ Module
   block if.merge.3
     ret local3
   fun @scoop$1$cb$8234c4892629e2bf426500301a7151d56ad82ae1a74a955bd2451c1738f5981f() -> i32
-    local %0 $opt.13: enum0
-    local %1 $res.14: i32
+    local %0 opt: enum0
+    local %1 $result.9: i32
     local %2 $dependency.receiver: i32
     local %3 $dependency.argument.0: i32
     local %4 $dependency.parameter.other: i32
-    local %5 $opt.15: enum1
-    local %6 $res.16: enum0
-    local %7 $opt.17: enum0
-    local %8 $res.18: i32
+    local %5 $opt.10: enum1
+    local %6 $res.11: enum0
+    local %7 opt: enum0
+    local %8 $result.12: i32
     local %9 $dependency.receiver: i32
     local %10 $dependency.argument.0: i32
     local %11 $dependency.parameter.other: i32
-    local %12 $shortCircuit.19: i1
+    local %12 $shortCircuit.13: i1
     local %13 $argument.0: i32
     local %14 $parameter.value: i32
     local %15 $call.1: i32
@@ -145,19 +145,19 @@ Module
     local %0 $dependency.argument.0: i32
     local %1 $dependency.parameter.value: i32
     local %2 held: enum0
-    local %3 $opt.2: enum0
-    local %4 $res.3: i32
+    local %3 opt: enum0
+    local %4 $result.1: i32
     local %5 $dependency.receiver: i32
     local %6 $dependency.argument.0: i32
     local %7 $dependency.parameter.other: i32
-    local %8 $opt.4: enum1
-    local %9 $res.5: enum0
-    local %10 $opt.6: enum0
-    local %11 $res.7: i32
+    local %8 $opt.2: enum1
+    local %9 $res.3: enum0
+    local %10 opt: enum0
+    local %11 $result.4: i32
     local %12 $dependency.receiver: i32
     local %13 $dependency.argument.0: i32
     local %14 $dependency.parameter.other: i32
-    local %15 $shortCircuit.8: i1
+    local %15 $shortCircuit.5: i1
     local %16 first: i32
     local %17 $argument.0: i32
     local %18 $parameter.number: i32
@@ -166,10 +166,10 @@ Module
     local %21 $argument.0: i32
     local %22 $parameter.number: i32
     local %23 allocated: ptr<managed>
-    local %24 $opt.9: enum1
-    local %25 $res.10: enum0
-    local %26 $opt.11: enum0
-    local %27 $res.12: i32
+    local %24 $opt.6: enum1
+    local %25 $res.7: enum0
+    local %26 opt: enum0
+    local %27 $result.8: i32
     local %28 $dependency.receiver: i32
     local %29 $dependency.argument.0: i32
     local %30 $dependency.parameter.other: i32

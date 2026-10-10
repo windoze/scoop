@@ -88,8 +88,8 @@ Module
     local %6 $dependency.receiver: i32
     local %7 $dependency.argument.0: i32
     local %8 $dependency.parameter.other: i32
-    local %9 $opt.0: enum0
-    local %10 $res.1: ptr<managed>
+    local %9 opt: enum0
+    local %10 $result.0: ptr<managed>
     local %11 $callable.receiver: ptr<managed>
     local %12 $dependency.receiver: i32
     local %13 $dependency.argument.0: i32
@@ -183,8 +183,8 @@ Module
     local %6 $dependency.receiver: i32
     local %7 $dependency.argument.0: i32
     local %8 $dependency.parameter.other: i32
-    local %9 $opt.0: enum1
-    local %10 $res.1: {} <logical-zst 1dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc>
+    local %9 opt: enum1
+    local %10 $result.0: {} <logical-zst 1dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc>
     local %11 $callable.receiver: ptr<managed>
     local %12 $dependency.receiver: i32
     local %13 $dependency.argument.0: i32
@@ -277,8 +277,8 @@ Module
     local %6 $dependency.receiver: i32
     local %7 $dependency.argument.0: i32
     local %8 $dependency.parameter.other: i32
-    local %9 $opt.0: enum2
-    local %10 $res.1: i32
+    local %9 opt: enum2
+    local %10 $result.0: i32
     local %11 $callable.receiver: ptr<managed>
     local %12 $dependency.receiver: i32
     local %13 $dependency.argument.0: i32

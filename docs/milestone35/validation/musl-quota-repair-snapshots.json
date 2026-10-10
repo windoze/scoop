@@ -1,0 +1,11 @@
+{
+  "identical": 75,
+  "changed": [
+    "tests/fixtures/m23-cli-generics/shared-enums-aliases-equality/consumer.x86_64-unknown-linux-musl.lir.txt",
+    "tests/fixtures/m23-cli-generics/shared-enums-qualified/consumer.x86_64-unknown-linux-musl.lir.txt",
+    "tests/fixtures/m23-cli-generics/shared-structs-combined/consumer.x86_64-unknown-linux-musl.lir.txt",
+    "tests/fixtures/m23-cli-generics/shared-structs-standalone/consumer.x86_64-unknown-linux-musl.lir.txt",
+    "tests/fixtures/m23-cli-rebuilt-core/option-edited-core/consumer.x86_64-unknown-linux-musl.lir.txt"
+  ],
+  "note": "All changed target LIR is identical to independently verified GNU output; shared files are unchanged."
+}

@@ -35,8 +35,8 @@ Module
     local %2 counter: ptr<managed>
     local %3 iterations: i32
     local %4 $receiver: ptr<managed>
-    local %5 $opt.0: enum0
-    local %6 $res.1: i1
+    local %5 opt: enum0
+    local %6 $result.0: i1
     local %7 $dependency.receiver: i32
     local %8 $dependency.argument.0: i32
     local %9 $dependency.parameter.other: i32
