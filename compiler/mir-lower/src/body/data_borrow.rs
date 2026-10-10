@@ -5,27 +5,18 @@ use super::*;
 impl BodyLowerer<'_> {
     pub(super) fn lower_data_borrow(
         &mut self,
-        kind: hir::DataBorrowIntrinsic,
-        args: &[hir::Expr],
+        borrow: &hir::DataBorrow,
         result_ty: hir::TypeId,
     ) -> smir::Expr {
         use mir::DataBorrowOperationKind as Op;
-        let [object, block] = args else {
-            unreachable!("a checked data borrow has an object and a callback")
-        };
-        let span = object.span;
-        let object = self.borrow_argument(object, "borrow_object");
-        let block = self.borrow_argument(block, "borrow_block");
-        let mir::Type::Function(function_type) = block.ty else {
-            unreachable!("a checked data borrow has an ordinary function callback")
-        };
-        let source = match kind {
-            hir::DataBorrowIntrinsic::String => mir::BorrowDataSource::String,
-            hir::DataBorrowIntrinsic::Array | hir::DataBorrowIntrinsic::MutableArray => {
-                let mir::Type::Class(class) = object.ty else {
-                    unreachable!("a checked array borrow has an exact array class")
-                };
-                mir::BorrowDataSource::Array(class)
+        let span = borrow.object.span;
+        let object = self.borrow_argument(&borrow.object, "borrow_object");
+        let block = self.borrow_argument(&borrow.block, "borrow_block");
+        let function_type = self.lower_function_type_id(borrow.function_type);
+        let source = match borrow.source {
+            hir::BorrowDataSource::String => mir::BorrowDataSource::String,
+            hir::BorrowDataSource::Array(class) => {
+                mir::BorrowDataSource::Array(self.class_map[&class])
             }
         };
         let frame_ty = mir::Type::Ptr(Box::new(mir::Type::Unit));

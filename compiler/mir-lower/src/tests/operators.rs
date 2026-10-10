@@ -46,28 +46,28 @@ fn typed_primitive_intrinsics_map_to_primitive_mir_ops() {
     // statement sequence — see
     // `division_by_zero_throws_arithmetic_exception`.
     let cases = [
-        (hir::IntegerKind::SIGNED_32, hir::NoGcIntegerOperation::Add),
-        (hir::IntegerKind::SIGNED_32, hir::NoGcIntegerOperation::Sub),
-        (hir::IntegerKind::SIGNED_32, hir::NoGcIntegerOperation::Mul),
+        (hir::IntegerKind::SIGNED_32, hir::IntegerBinaryOperator::Add),
+        (hir::IntegerKind::SIGNED_32, hir::IntegerBinaryOperator::Sub),
+        (hir::IntegerKind::SIGNED_32, hir::IntegerBinaryOperator::Mul),
         (
             hir::IntegerKind::SIGNED_32,
-            hir::NoGcIntegerOperation::CompareTo,
+            hir::IntegerBinaryOperator::CompareTo,
         ),
         (
             hir::IntegerKind::UNSIGNED_32,
-            hir::NoGcIntegerOperation::Add,
+            hir::IntegerBinaryOperator::Add,
         ),
         (
             hir::IntegerKind::UNSIGNED_32,
-            hir::NoGcIntegerOperation::Sub,
+            hir::IntegerBinaryOperator::Sub,
         ),
         (
             hir::IntegerKind::UNSIGNED_32,
-            hir::NoGcIntegerOperation::Mul,
+            hir::IntegerBinaryOperator::Mul,
         ),
         (
             hir::IntegerKind::UNSIGNED_32,
-            hir::NoGcIntegerOperation::CompareTo,
+            hir::IntegerBinaryOperator::CompareTo,
         ),
     ];
     for (kind, operation) in cases {
@@ -128,14 +128,14 @@ fn typed_unary_and_string_compare_intrinsics_lower_without_name_lookup() {
     let int_inc = integer_unary(
         &mut h,
         hir::IntegerKind::SIGNED_32,
-        hir::NoGcIntegerOperation::Inc,
+        hir::IntegerUnaryOperator::Inc,
         int_one,
     );
     let uint_two = integer_lit(&h, hir::IntegerKind::UNSIGNED_32, 2);
     let uint_dec = integer_unary(
         &mut h,
         hir::IntegerKind::UNSIGNED_32,
-        hir::NoGcIntegerOperation::Dec,
+        hir::IntegerUnaryOperator::Dec,
         uint_two,
     );
     let main = h.user_fn(
@@ -271,7 +271,7 @@ fn shifts_mask_long_counts_then_convert_to_the_operand_kind() {
         statements.push(expr_stmt(integer_binary(
             &mut h,
             kind,
-            hir::NoGcIntegerOperation::Shl,
+            hir::IntegerBinaryOperator::Shl,
             value,
             count,
         )));

@@ -100,7 +100,7 @@ pub(in super::super) enum BodyNode<'a> {
         assembly: &'a DefaultArrayAssemblyV1,
         definition_origin: &'a ExportDefinitionSourceV1,
     },
-    IntegerArguments(&'a DefaultIntegerArgumentsV1),
+    IntegerArguments(&'a DefaultIntegerExpressionV1),
     Origin {
         source: &'a ExportDefinitionSourceV1,
         site: DefaultBodyOriginSiteV1,

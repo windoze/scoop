@@ -285,14 +285,11 @@ fn unsigned_unary_minus_uses_the_typed_wrapping_operation_and_pattern_constant()
     let body = main_body(&module);
     assert!(matches!(
         local_init(body, "runtime").kind,
-        hir::ExprKind::IntegerOperation {
-            operation: hir::IntegerOperation::NoGc {
-                kind: hir::IntegerKind::UNSIGNED_32,
-                operation: hir::NoGcIntegerOperation::UnaryMinus,
-                ..
-            },
+        hir::ExprKind::IntegerOperation(hir::IntegerExpression::Unary {
+            kind: hir::IntegerKind::UNSIGNED_32,
+            operation: hir::IntegerUnaryOperator::UnaryMinus,
             ..
-        }
+        })
     ));
     let when = body
         .statements

@@ -343,4 +343,8 @@ pub enum DefaultExpressionResolutionError<E, L> {
     },
     Record(DefaultExpressionBuildError),
     ArrayAssembly(DefaultArrayAssemblyBuildError),
+    IntegerOperationArity {
+        expected: crate::IntegerOperationArity,
+        actual: crate::IntegerOperationArity,
+    },
 }

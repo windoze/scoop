@@ -70,7 +70,7 @@ pub use body::{
     DefaultExpressionIndexError, DefaultExpressionKindV1, DefaultExpressionReferenceResolver,
     DefaultExpressionResolutionError, DefaultExpressionV1, DefaultFieldRefResolutionError,
     DefaultFieldRefV1, DefaultFieldReferenceResolver, DefaultForeignCallbackOperationV1,
-    DefaultGenericDelegateReferenceV1, DefaultIntegerArgumentsV1, DefaultIntegerDivRemV1,
+    DefaultGenericDelegateReferenceV1, DefaultIntegerDivRemV1, DefaultIntegerExpressionV1,
     DefaultIntegerKindV1, DefaultIntegerOperationV1, DefaultLambdaV1,
     DefaultLexicalCallableBuildError, DefaultLexicalCallableIndexError,
     DefaultLexicalCallableResolutionError, DefaultLiteralEqualityResolutionError,

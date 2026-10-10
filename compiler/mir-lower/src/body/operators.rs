@@ -1,8 +1,7 @@
 use super::*;
 
-mod characters;
-mod floating;
 mod primitive;
+mod references;
 
 impl BodyLowerer<'_> {
     pub(super) fn lower_binary(

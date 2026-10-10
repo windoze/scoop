@@ -211,9 +211,7 @@ pub(super) fn check_runtime_layout(module: &concrete::Module) -> Result<(), Vec<
             concrete::ExprKind::Cast { optional: false, .. } if !cast_layout => "runtime cast failure constructor",
             concrete::ExprKind::Index { .. } | concrete::ExprKind::ArraySet { .. }
                 if !bounds_layout => "array bounds exception constructor",
-            concrete::ExprKind::IntegerOperation {
-                operation: concrete::IntegerOperation::Managed { .. }, ..
-            } if !arithmetic_layout => "integer division exception constructor",
+            concrete::ExprKind::IntegerOperation(ref operation) if operation.is_managed() && !arithmetic_layout => "integer division exception constructor",
             concrete::ExprKind::CallableReference(id) if !arithmetic_layout && matches!(
                 module.callable_references[id].target,
                 concrete::CallableReferenceTarget::BoundIntrinsic { intrinsic, .. }

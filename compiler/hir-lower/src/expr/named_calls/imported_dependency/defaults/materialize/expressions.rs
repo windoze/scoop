@@ -521,7 +521,7 @@ impl Lowerer {
             }
             kind @ (Kind::PrimitiveBinary { .. }
             | Kind::PrimitiveUnary { .. }
-            | Kind::IntegerOperation { .. }
+            | Kind::IntegerOperation(_)
             | Kind::IntegerConversion { .. }
             | Kind::Binary { .. }
             | Kind::Unary { .. }) => self.materialize_imported_default_operator(kind, context)?,

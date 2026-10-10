@@ -328,15 +328,11 @@ impl LocalFunctionCallPatcher<'_> {
                 self.expression(lhs);
                 self.expression(rhs);
             }
-            hir::ExprKind::IntegerOperation { arguments, .. } => match arguments {
-                hir::HirIntegerOperationArguments::Unary(operand) => {
+            hir::ExprKind::IntegerOperation(operation) => {
+                for operand in operation.operands_mut() {
                     self.expression(operand);
                 }
-                hir::HirIntegerOperationArguments::Binary { lhs, rhs } => {
-                    self.expression(lhs);
-                    self.expression(rhs);
-                }
-            },
+            }
             hir::ExprKind::IntegerConversion { operand, .. }
             | hir::ExprKind::FloatUnary { operand, .. }
             | hir::ExprKind::FloatConversion { operand, .. } => {

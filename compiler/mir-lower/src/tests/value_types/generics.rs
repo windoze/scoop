@@ -11,7 +11,7 @@ fn params_and_return_translate() {
     let sum = integer_binary(
         &mut h,
         hir::IntegerKind::SIGNED_32,
-        hir::NoGcIntegerOperation::Add,
+        hir::IntegerBinaryOperator::Add,
         local_ref(x, int),
         local_ref(y, int),
     );

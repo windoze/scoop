@@ -414,10 +414,7 @@ pub enum ExprKind {
     /// A compiler-recognized integer member after ordinary call resolution.
     /// The registry entry retains the exact operand kind and an effect-refined
     /// source target; source intrinsic text is no longer representable.
-    IntegerOperation {
-        operation: HirIntegerOperation,
-        arguments: HirIntegerOperationArguments,
-    },
+    IntegerOperation(HirIntegerOperation),
     IntegerConversion {
         conversion: HirIntegerConversion,
         operand: Box<Expr>,
@@ -461,11 +458,7 @@ pub enum StringConstantOwner<P> {
     Property(P),
 }
 
-#[derive(Debug, Clone)]
-pub enum HirIntegerOperationArguments {
-    Unary(Box<Expr>),
-    Binary { lhs: Box<Expr>, rhs: Box<Expr> },
-}
+pub type HirIntegerOperation = IntegerExpression<Box<Expr>>;
 
 #[derive(Debug, Clone)]
 pub struct ArrayAssembly {

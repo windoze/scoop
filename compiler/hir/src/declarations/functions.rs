@@ -361,7 +361,6 @@ impl ManagedCallableRef {
     }
 }
 
-pub type HirIntegerOperation = IntegerOperation;
 pub type HirIntegerConversion = IntegerConversion;
 
 #[cfg(test)]

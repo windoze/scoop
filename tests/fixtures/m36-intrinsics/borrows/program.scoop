@@ -1,0 +1,37 @@
+fun check(value: Boolean) { if (!value) { throw IllegalStateException() } }
+fun objectValue(): Array<Int> { println("object"); return [21, 22] }
+fun callback(): (Ptr<Int>, Long) -> String {
+    println("block")
+    return fun(pointer: Ptr<Int>, count: Long): String {
+        @Unsafe { gcCollect(); check(count == 2L && pointer.load() == 21) }
+        return "result"
+    }
+}
+fun stop(): Nothing { println("stop"); throw IllegalStateException() }
+@Unsafe fun <T : value> first(values: Array<T>): T =
+    values.withDataPointer(fun(pointer: Ptr<T>, count: Long): T {
+        @Unsafe { gcCollect(); check(count > 0L); return pointer.load() }
+    })
+@Unsafe fun main() {
+    check(objectValue().withDataPointer(callback()) == "result")
+    check(first([31]) == 31)
+    val units = MutableArray<Unit>(2L) { _ -> Unit }
+    units.withDataPointer(fun(pointer: Ptr<Unit>, count: Long) {
+        @Unsafe { gcCollect(); check(count == 2L); pointer.store(Unit); val loaded = pointer.load() }
+    })
+    val text = "A" + "界"
+    text.withUtf8Bytes() { pointer: Ptr<UInt8>, count: Long ->
+        @Unsafe { gcCollect(); check(count == 4L && pointer.load() == 65u) }
+    }
+    val values = MutableArray<Int>(1L) { _ -> 6 }
+    try {
+        values.withDataPointer<Int, Unit>() { pointer: Ptr<Int>, _: Long ->
+            @Unsafe { gcCollect(); pointer.store(7); throw IllegalStateException() }
+        }
+    } catch (error: IllegalStateException) { println("cleanup") }
+    gcCollect()
+    check(values[0L] == 7)
+    try { objectValue().withDataPointer<Int, Unit>(stop()) }
+    catch (error: IllegalStateException) { println("block-exit") }
+    println("borrows-ok")
+}

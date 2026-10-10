@@ -169,11 +169,11 @@ impl Lowerer {
                     self.collect_generic_calls_in_expr(&capture.source, out);
                 }
             }
-            ExprKind::IntegerOperation { arguments, .. } => match arguments {
-                hir::HirIntegerOperationArguments::Unary(operand) => {
+            ExprKind::IntegerOperation(arguments) => match arguments {
+                hir::IntegerExpression::Unary { operand, .. } => {
                     self.collect_generic_calls_in_expr(operand, out);
                 }
-                hir::HirIntegerOperationArguments::Binary { lhs, rhs } => {
+                hir::IntegerExpression::Binary { lhs, rhs, .. } => {
                     self.collect_generic_calls_in_expr(lhs, out);
                     self.collect_generic_calls_in_expr(rhs, out);
                 }

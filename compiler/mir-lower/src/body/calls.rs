@@ -193,9 +193,6 @@ impl BodyLowerer<'_> {
             hir::IntrinsicFunctionKind::MaybeUninit(kind) => {
                 return self.lower_maybe_uninit(kind, args.first(), result_ty);
             }
-            hir::IntrinsicFunctionKind::DataBorrow(kind) => {
-                return self.lower_data_borrow(kind, args, result_ty);
-            }
             hir::IntrinsicFunctionKind::GcPinRaw => mir::RuntimeFn::Pin,
             hir::IntrinsicFunctionKind::GcUnpinRaw => mir::RuntimeFn::Unpin,
             hir::IntrinsicFunctionKind::GcGetHandleRaw => mir::RuntimeFn::GetHandle,
@@ -206,7 +203,8 @@ impl BodyLowerer<'_> {
             | hir::IntrinsicFunctionKind::CoroutineSuspend => {
                 unreachable!("coroutine intrinsics are lowered through the typed protocol")
             }
-            hir::IntrinsicFunctionKind::Float(_)
+            hir::IntrinsicFunctionKind::DataBorrow(_)
+            | hir::IntrinsicFunctionKind::Float(_)
             | hir::IntrinsicFunctionKind::Char(_)
             | hir::IntrinsicFunctionKind::Integer(_)
             | hir::IntrinsicFunctionKind::Array(_)

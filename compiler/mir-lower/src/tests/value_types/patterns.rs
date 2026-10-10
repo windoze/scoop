@@ -615,7 +615,7 @@ fn a_failed_guard_falls_through_to_the_next_arm() {
     let compared = integer_binary(
         &mut h,
         hir::IntegerKind::SIGNED_32,
-        hir::NoGcIntegerOperation::CompareTo,
+        hir::IntegerBinaryOperator::CompareTo,
         local_ref(x, int),
         local_ref(threshold, int),
     );

@@ -393,11 +393,11 @@ pub(in super::super) fn collect_expr_types(
             collect_expr_types(lowerer, lhs, out);
             collect_expr_types(lowerer, rhs, out);
         }
-        ExprKind::IntegerOperation { arguments, .. } => match arguments {
-            hir::HirIntegerOperationArguments::Unary(operand) => {
+        ExprKind::IntegerOperation(arguments) => match arguments {
+            hir::IntegerExpression::Unary { operand, .. } => {
                 collect_expr_types(lowerer, operand, out)
             }
-            hir::HirIntegerOperationArguments::Binary { lhs, rhs } => {
+            hir::IntegerExpression::Binary { lhs, rhs, .. } => {
                 collect_expr_types(lowerer, lhs, out);
                 collect_expr_types(lowerer, rhs, out);
             }

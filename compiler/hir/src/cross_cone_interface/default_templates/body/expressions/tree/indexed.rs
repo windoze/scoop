@@ -4,7 +4,7 @@ use scoop_identity::{CallableTemplateOrigin, SignatureTypeKey};
 
 use super::{
     DefaultArrayAssemblyPartV1, DefaultArrayAssemblyV1, DefaultExpressionKindV1,
-    DefaultExpressionV1, DefaultIntegerArgumentsV1, OptionalDefaultExpressionV1,
+    DefaultExpressionV1, DefaultIntegerExpressionV1, OptionalDefaultExpressionV1,
 };
 use crate::{
     CanonicalBooleanV1, CanonicalIntegerConstantV1, DefaultArrayAccessKindV1,
@@ -204,7 +204,7 @@ enum IndexedDefaultExpressionKindV1<'a> {
         operand: Box<IndexedDefaultExpressionV1<'a>>,
     },
     IntegerOperation {
-        operation: &'a DefaultIntegerOperationV1,
+        operation: DefaultIntegerOperationV1,
         arguments: IndexedDefaultIntegerArgumentsV1<'a>,
     },
     IntegerConversion {
@@ -636,13 +636,12 @@ impl DefaultExpressionV1 {
                     operand: index_child(operand, resolver, 48, 2)?,
                 }
             }
-            DefaultExpressionKindV1::IntegerOperation {
-                operation,
-                arguments,
-            } => IndexedDefaultExpressionKindV1::IntegerOperation {
-                operation,
-                arguments: index_integer_arguments(arguments, resolver)?,
-            },
+            DefaultExpressionKindV1::IntegerOperation(operation) => {
+                IndexedDefaultExpressionKindV1::IntegerOperation {
+                    operation: operation.descriptor().into(),
+                    arguments: index_integer_arguments(operation, resolver)?,
+                }
+            }
             DefaultExpressionKindV1::IntegerConversion {
                 source_kind,
                 target_kind,
@@ -840,17 +839,17 @@ where
 }
 
 fn index_integer_arguments<'a, I>(
-    arguments: &'a DefaultIntegerArgumentsV1,
+    arguments: &'a DefaultIntegerExpressionV1,
     resolver: &mut I,
 ) -> Result<IndexedDefaultIntegerArgumentsV1<'a>, DefaultExpressionIndexError<I::Error>>
 where
     I: TemplateLocalIndexResolver,
 {
     match arguments {
-        DefaultIntegerArgumentsV1::Unary(operand) => {
+        DefaultIntegerExpressionV1::Unary { operand, .. } => {
             index_child(operand, resolver, 49, 2).map(IndexedDefaultIntegerArgumentsV1::Unary)
         }
-        DefaultIntegerArgumentsV1::Binary { lhs, rhs } => {
+        DefaultIntegerExpressionV1::Binary { lhs, rhs, .. } => {
             Ok(IndexedDefaultIntegerArgumentsV1::Binary {
                 lhs: index_sequence_child(lhs, resolver, 49, 2, 0)?,
                 rhs: index_sequence_child(rhs, resolver, 49, 2, 1)?,

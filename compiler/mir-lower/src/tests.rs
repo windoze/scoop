@@ -597,56 +597,44 @@ fn primitive_unary(
     )
 }
 
-fn integer_operation(
-    h: &mut Harness,
-    kind: hir::IntegerKind,
-    operation: hir::NoGcIntegerOperation,
-    arguments: hir::HirIntegerOperationArguments,
-) -> hir::Expr {
-    let owner = h.integer(kind);
-    let result_ty = match operation {
-        hir::NoGcIntegerOperation::CompareTo => h.long,
-        hir::NoGcIntegerOperation::Equals => h.boolean,
-        _ => owner,
-    };
-    expr(
-        hir::ExprKind::IntegerOperation {
-            operation: hir::IntegerOperation::NoGc { kind, operation },
-            arguments,
-        },
-        result_ty,
-    )
-}
-
 fn integer_binary(
     h: &mut Harness,
     kind: hir::IntegerKind,
-    operation: hir::NoGcIntegerOperation,
+    operation: hir::IntegerBinaryOperator,
     lhs: hir::Expr,
     rhs: hir::Expr,
 ) -> hir::Expr {
-    integer_operation(
-        h,
-        kind,
-        operation,
-        hir::HirIntegerOperationArguments::Binary {
+    let owner = h.integer(kind);
+    let result_ty = match operation {
+        hir::IntegerBinaryOperator::CompareTo => h.long,
+        hir::IntegerBinaryOperator::Equals => h.boolean,
+        _ => owner,
+    };
+    expr(
+        hir::ExprKind::IntegerOperation(hir::IntegerExpression::Binary {
+            kind,
+            operation,
             lhs: Box::new(lhs),
             rhs: Box::new(rhs),
-        },
+        }),
+        result_ty,
     )
 }
 
 fn integer_unary(
     h: &mut Harness,
     kind: hir::IntegerKind,
-    operation: hir::NoGcIntegerOperation,
+    operation: hir::IntegerUnaryOperator,
     operand: hir::Expr,
 ) -> hir::Expr {
-    integer_operation(
-        h,
-        kind,
-        operation,
-        hir::HirIntegerOperationArguments::Unary(Box::new(operand)),
+    let ty = h.integer(kind);
+    expr(
+        hir::ExprKind::IntegerOperation(hir::IntegerExpression::Unary {
+            kind,
+            operation,
+            operand: Box::new(operand),
+        }),
+        ty,
     )
 }
 
@@ -657,17 +645,11 @@ fn integer_div_rem(
     lhs: hir::Expr,
     rhs: hir::Expr,
 ) -> hir::Expr {
-    let owner = h.integer(kind);
-    expr(
-        hir::ExprKind::IntegerOperation {
-            operation: hir::IntegerOperation::Managed { kind, operation },
-            arguments: hir::HirIntegerOperationArguments::Binary {
-                lhs: Box::new(lhs),
-                rhs: Box::new(rhs),
-            },
-        },
-        owner,
-    )
+    let operation = match operation {
+        hir::IntegerDivRem::Div => hir::IntegerBinaryOperator::Div,
+        hir::IntegerDivRem::Rem => hir::IntegerBinaryOperator::Rem,
+    };
+    integer_binary(h, kind, operation, lhs, rhs)
 }
 
 fn integer_conversion(

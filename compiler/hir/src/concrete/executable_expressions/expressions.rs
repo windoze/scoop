@@ -9,6 +9,7 @@ impl<'a> Traversal<'a> {
                 }
                 Ok(())
             }
+            ExprKind::DataBorrow(borrow) => self.pair(&borrow.object, &borrow.block),
             ExprKind::Atomic(atomic) => {
                 for operand in atomic.operands().rev() {
                     self.push(Item::Expression(operand))?;
@@ -87,9 +88,11 @@ impl<'a> Traversal<'a> {
                 index: rhs,
                 ..
             } => self.pair(lhs, rhs),
-            ExprKind::IntegerOperation { arguments, .. } => match arguments {
-                HirIntegerOperationArguments::Unary(value) => self.push(Item::Expression(value)),
-                HirIntegerOperationArguments::Binary { lhs, rhs } => self.pair(lhs, rhs),
+            ExprKind::IntegerOperation(arguments) => match arguments {
+                IntegerExpression::Unary { operand: value, .. } => {
+                    self.push(Item::Expression(value))
+                }
+                IntegerExpression::Binary { lhs, rhs, .. } => self.pair(lhs, rhs),
             },
             ExprKind::PtrLoad { pointer, offset } => {
                 if let Some(offset) = offset {

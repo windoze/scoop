@@ -80,7 +80,7 @@ fn typed_and_builtin_unary_operators_map_to_mir_unops() {
     let negation = integer_unary(
         &mut h,
         hir::IntegerKind::SIGNED_32,
-        hir::NoGcIntegerOperation::UnaryMinus,
+        hir::IntegerUnaryOperator::UnaryMinus,
         one,
     );
     let main = h.user_fn(

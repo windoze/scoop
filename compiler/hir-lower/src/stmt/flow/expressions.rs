@@ -104,11 +104,9 @@ impl Flow<'_> {
                 hir::ArrayAssemblyPart::Element(value)
                 | hir::ArrayAssemblyPart::CopyArray(value) => complete(value),
             }),
-            E::IntegerOperation { arguments, .. } => match arguments {
-                hir::HirIntegerOperationArguments::Unary(operand) => complete(operand),
-                hir::HirIntegerOperationArguments::Binary { lhs, rhs } => {
-                    complete(lhs) && complete(rhs)
-                }
+            E::IntegerOperation(arguments) => match arguments {
+                hir::IntegerExpression::Unary { operand, .. } => complete(operand),
+                hir::IntegerExpression::Binary { lhs, rhs, .. } => complete(lhs) && complete(rhs),
             },
             E::ContextLookup(_)
             | E::StringLiteral { .. }

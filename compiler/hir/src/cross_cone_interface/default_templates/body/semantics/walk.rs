@@ -10,7 +10,7 @@ use crate::{
     DefaultBoundCallableRefV1, DefaultBoundCallableSourceV1, DefaultCallableRefV1,
     DefaultCallableReferenceV1, DefaultCaptureV1, DefaultCatchV1, DefaultConstructorRefV1,
     DefaultEnumVariantFieldRefV1, DefaultEnumVariantRefV1, DefaultExpressionV1, DefaultFieldRefV1,
-    DefaultIntegerArgumentsV1, DefaultLambdaV1, DefaultLiteralEqualityV1, DefaultLocalFunctionV1,
+    DefaultIntegerExpressionV1, DefaultLambdaV1, DefaultLiteralEqualityV1, DefaultLocalFunctionV1,
     DefaultMethodCalleeV1, DefaultPatternV1, DefaultStatementV1, DefaultTemplateProviderShapeV1,
     DefaultTryV1, DefaultWhenArmRefV1, DefaultWhenFallbackViewV1, DefaultWhenGuardV1,
     DefaultWhenV1, ExportDefaultBodyV1, ExportDefinitionSourceV1, NominalInterfaceShapeAuthority,

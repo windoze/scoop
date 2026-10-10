@@ -631,10 +631,12 @@ impl BodyLowerer<'_> {
             hir::ExprKind::PrimitiveUnary { kind, operand } => {
                 return self.lower_primitive_unary(*kind, operand);
             }
-            hir::ExprKind::IntegerOperation {
-                operation,
-                arguments,
-            } => return self.lower_integer_operation(operation, arguments, expr.span),
+            hir::ExprKind::DataBorrow(borrow) => {
+                return self.lower_data_borrow(borrow, expr.ty);
+            }
+            hir::ExprKind::IntegerOperation(operation) => {
+                return self.lower_integer_operation(operation, expr.span);
+            }
             hir::ExprKind::IntegerConversion {
                 conversion,
                 operand,

@@ -1,3 +1,6 @@
+mod data_borrow;
+pub use data_borrow::*;
+
 use super::*;
 
 mod when;
@@ -318,10 +321,8 @@ pub enum ExprKind {
         kind: PrimitiveUnaryKind,
         operand: Box<Expr>,
     },
-    IntegerOperation {
-        operation: HirIntegerOperation,
-        arguments: HirIntegerOperationArguments,
-    },
+    IntegerOperation(HirIntegerOperation),
+    DataBorrow(DataBorrow),
     IntegerConversion {
         conversion: HirIntegerConversion,
         operand: Box<Expr>,
@@ -344,11 +345,7 @@ pub enum ExprKind {
     },
 }
 
-#[derive(Debug, Clone)]
-pub enum HirIntegerOperationArguments {
-    Unary(Box<Expr>),
-    Binary { lhs: Box<Expr>, rhs: Box<Expr> },
-}
+pub type HirIntegerOperation = IntegerExpression<Box<Expr>>;
 
 #[derive(Debug, Clone)]
 pub struct ArrayAssembly {

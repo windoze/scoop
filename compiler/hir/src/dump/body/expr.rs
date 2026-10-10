@@ -413,11 +413,8 @@ pub(super) fn dump_expr(
             out.push_str(&format!("{pad}PrimitiveUnary {kind:?} : {ty}\n"));
             dump_expr(module, locals, operand, indent + 1, out);
         }
-        ExprKind::IntegerOperation {
-            operation,
-            arguments,
-        } => {
-            match operation {
+        ExprKind::IntegerOperation(arguments) => {
+            match arguments.descriptor() {
                 IntegerOperation::NoGc { kind, operation } => out.push_str(&format!(
                     "{pad}IntegerOperation {}.{} <no-gc> : {ty}\n",
                     kind.registry_key(),
@@ -429,14 +426,8 @@ pub(super) fn dump_expr(
                     operation.registry_key()
                 )),
             }
-            match arguments {
-                HirIntegerOperationArguments::Unary(operand) => {
-                    dump_expr(module, locals, operand, indent + 1, out);
-                }
-                HirIntegerOperationArguments::Binary { lhs, rhs } => {
-                    dump_expr(module, locals, lhs, indent + 1, out);
-                    dump_expr(module, locals, rhs, indent + 1, out);
-                }
+            for operand in arguments.operands() {
+                dump_expr(module, locals, operand, indent + 1, out);
             }
         }
         ExprKind::IntegerConversion {

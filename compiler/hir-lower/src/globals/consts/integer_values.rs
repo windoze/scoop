@@ -147,21 +147,19 @@ fn evaluate_hir_integer_constant_inner(
             (value.kind() == conversion.source)
                 .then(|| convert_integer_constant(value, conversion.target_kind))
         }
-        hir::ExprKind::IntegerOperation {
-            operation,
-            arguments,
-        } => {
+        hir::ExprKind::IntegerOperation(arguments) => {
+            let operation = arguments.descriptor();
             let (left, right) = match arguments {
-                hir::HirIntegerOperationArguments::Unary(operand) => (
+                hir::IntegerExpression::Unary { operand, .. } => (
                     evaluate_hir_integer_constant_inner(operand, setup, visiting)?,
                     None,
                 ),
-                hir::HirIntegerOperationArguments::Binary { lhs, rhs } => (
+                hir::IntegerExpression::Binary { lhs, rhs, .. } => (
                     evaluate_hir_integer_constant_inner(lhs, setup, visiting)?,
                     Some(evaluate_hir_integer_constant_inner(rhs, setup, visiting)?),
                 ),
             };
-            match operation {
+            match &operation {
                 hir::IntegerOperation::NoGc {
                     kind, operation, ..
                 } if left.kind() == *kind => {

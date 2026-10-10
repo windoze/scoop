@@ -3,6 +3,7 @@ use super::*;
 mod anonymous;
 mod lambdas;
 mod maybe_uninit;
+pub(crate) mod primitive;
 mod references;
 mod reuse;
 mod targets;

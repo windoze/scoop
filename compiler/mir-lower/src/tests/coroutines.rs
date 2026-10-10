@@ -175,7 +175,7 @@ fn suspend_call_generates_a_liveness_based_frame_and_resume_point() {
     let sum = integer_binary(
         &mut h,
         hir::IntegerKind::SIGNED_32,
-        hir::NoGcIntegerOperation::Add,
+        hir::IntegerBinaryOperator::Add,
         local_ref(value, int),
         increment,
     );

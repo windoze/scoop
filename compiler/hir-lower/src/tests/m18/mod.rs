@@ -561,14 +561,11 @@ fn overloadable_expressions_select_only_typed_operator_roles() {
     assert_eq!(direct_method_name(&module, operand), "Bag.contains");
     assert!(matches!(
         local_init(body, "remainder").kind,
-        hir::ExprKind::IntegerOperation {
-            operation: hir::IntegerOperation::Managed {
-                kind: hir::IntegerKind::SIGNED_32,
-                operation: hir::IntegerDivRem::Rem,
-                ..
-            },
+        hir::ExprKind::IntegerOperation(hir::IntegerExpression::Binary {
+            kind: hir::IntegerKind::SIGNED_32,
+            operation: hir::IntegerBinaryOperator::Rem,
             ..
-        }
+        })
     ));
 }
 
@@ -606,14 +603,11 @@ fn core_operator_winners_normalize_to_closed_typed_intrinsics() {
     let body = function_body(&module, "main");
     assert!(matches!(
         local_init(body, "positive").kind,
-        hir::ExprKind::IntegerOperation {
-            operation: hir::IntegerOperation::NoGc {
-                kind: hir::IntegerKind::SIGNED_32,
-                operation: hir::NoGcIntegerOperation::UnaryPlus,
-                ..
-            },
+        hir::ExprKind::IntegerOperation(hir::IntegerExpression::Unary {
+            kind: hir::IntegerKind::SIGNED_32,
+            operation: hir::IntegerUnaryOperator::UnaryPlus,
             ..
-        }
+        })
     ));
     assert!(matches!(
         local_init(body, "negative").kind,
@@ -628,47 +622,38 @@ fn core_operator_winners_normalize_to_closed_typed_intrinsics() {
         }
     ));
     for (name, operation) in [
-        ("sum", hir::NoGcIntegerOperation::Add),
-        ("difference", hir::NoGcIntegerOperation::Sub),
-        ("product", hir::NoGcIntegerOperation::Mul),
+        ("sum", hir::IntegerBinaryOperator::Add),
+        ("difference", hir::IntegerBinaryOperator::Sub),
+        ("product", hir::IntegerBinaryOperator::Mul),
     ] {
         assert!(matches!(
             &local_init(body, name).kind,
-            hir::ExprKind::IntegerOperation {
-                operation: hir::IntegerOperation::NoGc {
+            hir::ExprKind::IntegerOperation(hir::IntegerExpression::Binary {
                     kind: hir::IntegerKind::SIGNED_32,
                     operation: actual,
                     ..
-                },
-                ..
-            } if *actual == operation
+                }) if *actual == operation
         ));
     }
     assert!(matches!(
         local_init(body, "equal").kind,
-        hir::ExprKind::IntegerOperation {
-            operation: hir::IntegerOperation::NoGc {
-                kind: hir::IntegerKind::SIGNED_32,
-                operation: hir::NoGcIntegerOperation::Equals,
-                ..
-            },
+        hir::ExprKind::IntegerOperation(hir::IntegerExpression::Binary {
+            kind: hir::IntegerKind::SIGNED_32,
+            operation: hir::IntegerBinaryOperator::Equals,
             ..
-        }
+        })
     ));
     for (name, operation) in [
-        ("quotient", hir::IntegerDivRem::Div),
-        ("remainder", hir::IntegerDivRem::Rem),
+        ("quotient", hir::IntegerBinaryOperator::Div),
+        ("remainder", hir::IntegerBinaryOperator::Rem),
     ] {
         assert!(matches!(
             &local_init(body, name).kind,
-            hir::ExprKind::IntegerOperation {
-                operation: hir::IntegerOperation::Managed {
+            hir::ExprKind::IntegerOperation(hir::IntegerExpression::Binary {
                     kind: hir::IntegerKind::SIGNED_32,
                     operation: actual,
                     ..
-                },
-                ..
-            } if *actual == operation
+                }) if *actual == operation
         ));
     }
     assert!(matches!(
@@ -683,14 +668,11 @@ fn core_operator_winners_normalize_to_closed_typed_intrinsics() {
     };
     assert!(matches!(
         &lhs.kind,
-        hir::ExprKind::IntegerOperation {
-            operation: hir::IntegerOperation::NoGc {
-                kind: hir::IntegerKind::SIGNED_32,
-                operation: hir::NoGcIntegerOperation::CompareTo,
-                ..
-            },
+        hir::ExprKind::IntegerOperation(hir::IntegerExpression::Binary {
+            kind: hir::IntegerKind::SIGNED_32,
+            operation: hir::IntegerBinaryOperator::CompareTo,
             ..
-        }
+        })
     ));
     let hir::ExprKind::Binary { lhs, .. } = &local_init(body, "text_ordered").kind else {
         panic!("comparison must compare a typed compareTo result")

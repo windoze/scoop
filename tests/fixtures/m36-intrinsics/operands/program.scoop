@@ -1,0 +1,41 @@
+fun check(value: Boolean) { if (!value) { throw IllegalStateException() } }
+fun left(): Int { println("left"); return 12 }
+fun right(): Int { println("right"); return 3 }
+fun stop(): Nothing { println("stop"); throw IllegalStateException() }
+fun <T> through(value: T, transform: (T) -> Int): Int = transform(value) / 2
+
+fun operations() {
+    check(left() + right() == 15)
+    check(left() / right() == 4)
+    check(left() % right() == 0)
+    check(-12 == (-12).unaryPlus())
+    check(12.inc() == 13 && 12.dec() == 11 && 12.inv() == -13)
+    check((3 shl 65L) == 6 && (-8 shr 1L) == -4 && (-1 ushr 31L) == 1)
+    check(255u.toUInt8() + 1u.toUInt8() == 0u.toUInt8())
+    val negate: () -> Int = 12::unaryMinus
+    val add: (Int) -> Int = 12::plus
+    val divide: (Int) -> Int = 12::div
+    val convert: () -> Long = 12::toInt64
+    val bit: () -> Boolean = true::not
+    val floating: (Double) -> Double = 1.5::plus
+    val code: Int = 'A'.code
+    val narrow: () -> Int = 1.5::toInt32
+    val compare: (Char) -> Long = 'A'::compareTo
+    gcCollect()
+    check(negate() == -12 && add(3) == 15 && divide(3) == 4)
+    check(convert() == 12L && !bit() && floating(2.0) == 3.5)
+    check(code == 65 && narrow() == 1 && compare('B') < 0L)
+    check(through(Some(8), fun(value: Option<Int>): Int { return when (value) {
+        case Some(item) -> item
+        case None -> 0
+    } }) == 4)
+    try { divide(0) } catch (error: ArithmeticException) { println("zero") }
+}
+
+fun main() {
+    operations()
+    try { val value = left() + stop() } catch (error: IllegalStateException) { println("add-exit") }
+    try { val value = left() / stop() } catch (error: IllegalStateException) { println("div-exit") }
+    try { val value = left() % stop() } catch (error: IllegalStateException) { println("rem-exit") }
+    println("operands-ok")
+}

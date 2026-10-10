@@ -179,14 +179,11 @@ fn derived_equality_normalizes_integer_field_winners_before_concretization() {
     for comparison in [lhs.as_ref(), rhs.as_ref()] {
         assert!(matches!(
             comparison.kind,
-            hir::ExprKind::IntegerOperation {
-                operation: hir::IntegerOperation::NoGc {
-                    kind: hir::IntegerKind::SIGNED_32,
-                    operation: hir::NoGcIntegerOperation::Equals,
-                    ..
-                },
+            hir::ExprKind::IntegerOperation(hir::IntegerExpression::Binary {
+                kind: hir::IntegerKind::SIGNED_32,
+                operation: hir::IntegerBinaryOperator::Equals,
                 ..
-            }
+            })
         ));
     }
 
@@ -218,14 +215,11 @@ fn derived_equality_normalizes_integer_field_winners_before_concretization() {
     for comparison in [lhs.as_ref(), rhs.as_ref()] {
         assert!(matches!(
             comparison.kind,
-            hir::concrete::ExprKind::IntegerOperation {
-                operation: hir::IntegerOperation::NoGc {
-                    kind: hir::IntegerKind::SIGNED_32,
-                    operation: hir::NoGcIntegerOperation::Equals,
-                    ..
-                },
+            hir::concrete::ExprKind::IntegerOperation(hir::IntegerExpression::Binary {
+                kind: hir::IntegerKind::SIGNED_32,
+                operation: hir::IntegerBinaryOperator::Equals,
                 ..
-            }
+            })
         ));
     }
 }

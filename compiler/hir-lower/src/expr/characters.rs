@@ -27,20 +27,16 @@ impl Lowerer {
                     ty: int,
                     kind: ExprKind::CharCode(Box::new(operand)),
                 };
-                ExprKind::IntegerOperation {
-                    operation: hir::IntegerOperation::NoGc {
-                        kind: hir::IntegerKind::SIGNED_32,
-                        operation: if intrinsic == hir::CharIntrinsic::Equals {
-                            hir::NoGcIntegerOperation::Equals
-                        } else {
-                            hir::NoGcIntegerOperation::CompareTo
-                        },
+                ExprKind::IntegerOperation(hir::IntegerExpression::Binary {
+                    kind: hir::IntegerKind::SIGNED_32,
+                    operation: if intrinsic == hir::CharIntrinsic::Equals {
+                        hir::IntegerBinaryOperator::Equals
+                    } else {
+                        hir::IntegerBinaryOperator::CompareTo
                     },
-                    arguments: hir::HirIntegerOperationArguments::Binary {
-                        lhs: Box::new(code(receiver)),
-                        rhs: Box::new(code(rhs.clone())),
-                    },
-                }
+                    lhs: Box::new(code(receiver)),
+                    rhs: Box::new(code(rhs.clone())),
+                })
             }
         };
         hir::Expr {

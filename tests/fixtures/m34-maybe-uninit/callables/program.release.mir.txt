@@ -63,12 +63,16 @@ Module
         Type Counts
         Local $new.1
       return
+        Type Unit
+        UnitLiteral
     bb2 inline.1.entry
       field_set 0
         Type Counts
         Local $inline.1.this
         Type Int
         IntegerLiteral Int value=0 bits=0x00000000
+      Type Unit
+      UnitLiteral
       goto bb1
   fun $init$ensure$0 @fn1() -> Unit
     bb0 entry
@@ -94,6 +98,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -201,6 +207,8 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun companion @fn3() -> Companion<Int>
     bb0 entry
       call @fn1 direct
@@ -345,6 +353,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb2 inline.1.entry
       assign $inline.1.result
         Type MaybeUninit<Int>
@@ -466,7 +476,11 @@ Module
         Type Companion<Int>
         Local $new.1
       return
+        Type Unit
+        UnitLiteral
     bb2 inline.1.entry
+      Type Unit
+      UnitLiteral
       goto bb1
   fun Companion$initialize$Ensure @fn6() -> Unit
     bb0 entry
@@ -492,6 +506,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -597,6 +613,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun Companion$initialize$Initializer @fn9() -> Unit
     bb0 entry
       assign $new.1
@@ -611,7 +629,11 @@ Module
         Type Companion<String>
         Local $new.1
       return
+        Type Unit
+        UnitLiteral
     bb2 inline.1.entry
+      Type Unit
+      UnitLiteral
       goto bb1
   fun Companion$initialize$Ensure @fn10() -> Unit
     bb0 entry
@@ -637,6 +659,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -736,12 +760,18 @@ Module
         Type Int
         IntegerLiteral Int value=0 bits=0x00000000
       return
+        Type Unit
+        UnitLiteral
   fun init.Companion.$c0 @fn15(this: Companion<Int>) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.Companion.$c0 @fn16(this: Companion<String>) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun function_bridge.$Closure$reference0.() -> Any @fn17($source: () -> MaybeUninit<Int>) -> Any
     bb0 entry
       call $call.1: MaybeUninit<Int> = <closure:function_type0> closure[function_type0]

@@ -1,3 +1,4 @@
+use super::primitive::PrimitiveReference;
 use super::targets::ReferenceDefinition;
 use super::*;
 
@@ -91,7 +92,7 @@ impl Lowerer {
             let definition = match (maybe_intrinsic, &reference.target) {
                 (Some(kind), _) => ReferenceDefinition::MaybeUninit(kind),
                 (None, hir::CallableReferenceTarget::BoundIntrinsic { intrinsic, .. }) => {
-                    ReferenceDefinition::Primitive(*intrinsic)
+                    ReferenceDefinition::Primitive(PrimitiveReference::classify(*intrinsic))
                 }
                 (None, hir::CallableReferenceTarget::Named(callee)) => {
                     ReferenceDefinition::Direct(self.lower_reference_callee(module, *callee).into())
@@ -134,20 +135,6 @@ impl Lowerer {
                 ty: closure_ty,
                 local: closure,
             }];
-            let mut source_args = Vec::with_capacity(signature.parameter_types.len());
-            for (index, ty) in signature.parameter_types.iter().cloned().enumerate() {
-                let local = locals.alloc(mir::Local {
-                    name: format!("arg{index}"),
-                    ty: ty.clone(),
-                    mutable: false,
-                });
-                params.push(mir::Param {
-                    name: format!("arg{index}"),
-                    ty: ty.clone(),
-                    local,
-                });
-                source_args.push(smir::Expr::local(local, ty));
-            }
             let function = self.functions.alloc(mir::Function {
                 gc_effect: mir::GcEffect::Managed,
                 name: format!("$reference.{}", id.into_raw()),
@@ -203,6 +190,8 @@ impl Lowerer {
             let materialization = *reference.identity.materialization();
             let (call, mut statements) = match definition {
                 ReferenceDefinition::Bound(target) => {
+                    let source_args =
+                        reference_arguments(&signature.parameter_types, &mut locals, &mut params);
                     let call =
                         target.bind(load_receiver(), source_args, signature.return_type.clone());
                     (
@@ -211,6 +200,8 @@ impl Lowerer {
                     )
                 }
                 ReferenceDefinition::Direct(callee) => {
+                    let source_args =
+                        reference_arguments(&signature.parameter_types, &mut locals, &mut params);
                     let captures = reference.captures.iter().map(|capture| {
                         captured(self.closure_capture_indices[&(class, capture.binding)])
                     });
@@ -225,9 +216,7 @@ impl Lowerer {
                     )
                 }
                 ReferenceDefinition::Primitive(intrinsic) => {
-                    let args = std::iter::once(load_receiver())
-                        .chain(source_args)
-                        .collect();
+                    let receiver = load_receiver();
                     let mut lowerer = self.body_lowerer(
                         module,
                         function,
@@ -235,12 +224,28 @@ impl Lowerer {
                         mir::ImmortalObjectOwner::Callable(materialization),
                     );
                     lowerer.locals = locals;
-                    let call = lowerer.lower_primitive_member_values(
-                        intrinsic,
-                        args,
-                        &signature.return_type,
-                        reference.span,
-                    );
+                    let call = match intrinsic {
+                        PrimitiveReference::Unary(operation) => lowerer.unary_reference_value(
+                            operation,
+                            receiver,
+                            &signature.return_type,
+                        ),
+                        PrimitiveReference::Binary(operation) => {
+                            let rhs = reference_parameter(
+                                0,
+                                &signature.parameter_types[0],
+                                &mut lowerer.locals,
+                                &mut params,
+                            );
+                            lowerer.binary_reference_value(
+                                operation,
+                                receiver,
+                                rhs,
+                                &signature.return_type,
+                                reference.span,
+                            )
+                        }
+                    };
                     locals = lowerer.locals;
                     let statements = lowerer
                         .prelude
@@ -253,13 +258,22 @@ impl Lowerer {
                     (call, statements)
                 }
                 ReferenceDefinition::MaybeUninit(kind) => {
-                    let args = receiver
-                        .map(|_| load_receiver())
-                        .into_iter()
-                        .chain(source_args)
-                        .collect();
+                    let operation = match kind {
+                        hir::MaybeUninitIntrinsic::Uninit => mir::MaybeUninitOperation::Uninit,
+                        hir::MaybeUninitIntrinsic::Initialized => {
+                            mir::MaybeUninitOperation::Initialized(Box::new(reference_parameter(
+                                0,
+                                &signature.parameter_types[0],
+                                &mut locals,
+                                &mut params,
+                            )))
+                        }
+                        hir::MaybeUninitIntrinsic::AssumeInit => {
+                            mir::MaybeUninitOperation::AssumeInit(Box::new(load_receiver()))
+                        }
+                    };
                     (
-                        maybe_uninit::reference_value(kind, args, signature.return_type.clone()),
+                        crate::body::maybe_uninit_value(signature.return_type.clone(), operation),
                         Vec::new(),
                     )
                 }
@@ -319,4 +333,36 @@ impl Lowerer {
             self.reference_closures.insert(id, class);
         }
     }
+}
+
+fn reference_parameter(
+    index: usize,
+    ty: &mir::Type,
+    locals: &mut Arena<mir::Local>,
+    params: &mut Vec<mir::Param>,
+) -> smir::Expr {
+    let name = format!("arg{index}");
+    let local = locals.alloc(mir::Local {
+        name: name.clone(),
+        ty: ty.clone(),
+        mutable: false,
+    });
+    params.push(mir::Param {
+        name,
+        ty: ty.clone(),
+        local,
+    });
+    smir::Expr::local(local, ty.clone())
+}
+
+fn reference_arguments(
+    types: &[mir::Type],
+    locals: &mut Arena<mir::Local>,
+    params: &mut Vec<mir::Param>,
+) -> Vec<smir::Expr> {
+    types
+        .iter()
+        .enumerate()
+        .map(|(index, ty)| reference_parameter(index, ty, locals, params))
+        .collect()
 }

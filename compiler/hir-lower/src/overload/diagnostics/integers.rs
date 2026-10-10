@@ -152,7 +152,7 @@ fn collect_integer_literal_kinds(
         _ => None,
     };
     match &expression.kind {
-        hir::ExprKind::IntegerLiteral(_) | hir::ExprKind::IntegerOperation { .. } => {
+        hir::ExprKind::IntegerLiteral(_) | hir::ExprKind::IntegerOperation(_) => {
             if let Some(kind) = integer_kind() {
                 kinds.push(kind);
             }

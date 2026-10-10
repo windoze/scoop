@@ -389,11 +389,8 @@ impl Lowerer {
                 self.collect_no_gc_expr_violations(lhs, out, requirements);
                 self.collect_no_gc_expr_violations(rhs, out, requirements);
             }
-            ExprKind::IntegerOperation {
-                operation,
-                arguments,
-            } => {
-                if matches!(operation, hir::IntegerOperation::Managed { .. }) {
+            ExprKind::IntegerOperation(arguments) => {
+                if arguments.is_managed() {
                     out.push((
                         expr.span,
                         "integer division is not allowed in `@NoGC` code because it may throw"
@@ -401,10 +398,10 @@ impl Lowerer {
                     ));
                 }
                 match arguments {
-                    hir::HirIntegerOperationArguments::Unary(operand) => {
+                    hir::IntegerExpression::Unary { operand, .. } => {
                         self.collect_no_gc_expr_violations(operand, out, requirements);
                     }
-                    hir::HirIntegerOperationArguments::Binary { lhs, rhs } => {
+                    hir::IntegerExpression::Binary { lhs, rhs, .. } => {
                         self.collect_no_gc_expr_violations(lhs, out, requirements);
                         self.collect_no_gc_expr_violations(rhs, out, requirements);
                     }

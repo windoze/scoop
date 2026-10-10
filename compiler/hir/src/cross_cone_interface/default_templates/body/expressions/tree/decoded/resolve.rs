@@ -1,10 +1,12 @@
+mod integer;
+
 use std::fmt;
 
 use scoop_identity::PersistentIdResolver;
 
 use super::super::{
     DefaultArrayAssemblyBuildError, DefaultArrayAssemblyPartV1, DefaultArrayAssemblyV1,
-    DefaultExpressionKindV1, DefaultExpressionV1, DefaultIntegerArgumentsV1,
+    DefaultExpressionKindV1, DefaultExpressionV1, DefaultIntegerExpressionV1,
     OptionalDefaultExpressionV1,
 };
 use super::{
@@ -444,10 +446,11 @@ impl DecodedDefaultExpressionKindV1 {
             Self::IntegerOperation {
                 operation,
                 arguments,
-            } => DefaultExpressionKindV1::IntegerOperation {
-                operation,
-                arguments: arguments.resolve(resolver, locals)?,
-            },
+            } => DefaultExpressionKindV1::IntegerOperation(arguments.resolve_operation(
+                operation.into(),
+                resolver,
+                locals,
+            )?),
             Self::IntegerConversion {
                 source_kind,
                 target_kind,
@@ -519,27 +522,6 @@ impl DecodedDefaultArrayAssemblyV1 {
         let result_type = resolve_type(self.result_type, resolver, 39, 3)?;
         DefaultArrayAssemblyV1::try_new(element_type, parts, result_type)
             .map_err(DefaultExpressionResolutionError::ArrayAssembly)
-    }
-}
-
-impl DecodedDefaultIntegerArgumentsV1 {
-    fn resolve<R, L, E>(
-        self,
-        resolver: &mut R,
-        locals: &mut L,
-    ) -> Result<DefaultIntegerArgumentsV1, DefaultExpressionResolutionError<E, L::Error>>
-    where
-        R: DefaultExpressionReferenceResolver<E>,
-        L: TemplateLocalSelectorResolver,
-    {
-        match self {
-            Self::Unary(operand) => resolve_child(operand, resolver, locals, 49, 2)
-                .map(DefaultIntegerArgumentsV1::Unary),
-            Self::Binary { lhs, rhs } => Ok(DefaultIntegerArgumentsV1::Binary {
-                lhs: resolve_indexed_child(lhs, resolver, locals, 49, 2, 0)?,
-                rhs: resolve_indexed_child(rhs, resolver, locals, 49, 2, 1)?,
-            }),
-        }
     }
 }
 
@@ -796,6 +778,10 @@ impl<E: fmt::Display, L: fmt::Display> fmt::Display for DefaultExpressionResolut
             ),
             Self::Record(error) => error.fmt(formatter),
             Self::ArrayAssembly(error) => error.fmt(formatter),
+            Self::IntegerOperationArity { expected, actual } => write!(
+                formatter,
+                "integer operation requires {expected:?} operands, found {actual:?}"
+            ),
         }
     }
 }

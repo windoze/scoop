@@ -45,10 +45,7 @@ impl ValidatedCrossConeSemanticClosure {
                 );
                 arithmetic_required |= matches!(
                     occurrence.expression.kind,
-                    concrete::ExprKind::IntegerOperation {
-                        operation: concrete::IntegerOperation::Managed { .. },
-                        ..
-                    }
+                    concrete::ExprKind::IntegerOperation(ref operation) if operation.is_managed()
                 );
                 bounds_required |= matches!(
                     occurrence.expression.kind,

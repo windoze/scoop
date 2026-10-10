@@ -4,8 +4,8 @@ mod calls;
 mod support;
 
 use crate::{
-    CanonicalBooleanV1, DefaultExpressionKindV1, DefaultExpressionV1, DefaultIntegerArgumentsV1,
-    DefaultStringOwnerV1, Expr, ExprKind, HirIntegerOperationArguments, StringConstantOwner,
+    CanonicalBooleanV1, DefaultExpressionKindV1, DefaultExpressionV1, DefaultStringOwnerV1, Expr,
+    ExprKind, StringConstantOwner,
 };
 
 use super::BodyProjection;
@@ -393,23 +393,9 @@ impl BodyProjection<'_, '_> {
                 kind: (*kind).into(),
                 operand: Box::new(self.expression(operand)?),
             },
-            ExprKind::IntegerOperation {
-                operation,
-                arguments,
-            } => DefaultExpressionKindV1::IntegerOperation {
-                operation: (*operation).into(),
-                arguments: match arguments {
-                    HirIntegerOperationArguments::Unary(operand) => {
-                        DefaultIntegerArgumentsV1::unary(self.expression(operand)?)
-                    }
-                    HirIntegerOperationArguments::Binary { lhs, rhs } => {
-                        DefaultIntegerArgumentsV1::binary(
-                            self.expression(lhs)?,
-                            self.expression(rhs)?,
-                        )
-                    }
-                },
-            },
+            ExprKind::IntegerOperation(operation) => DefaultExpressionKindV1::IntegerOperation(
+                operation.try_map(|operand| self.expression(operand).map(Box::new))?,
+            ),
             ExprKind::IntegerConversion {
                 conversion,
                 operand,

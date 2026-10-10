@@ -19,7 +19,7 @@ pub use tree::{
     DefaultArrayAssemblyBuildError, DefaultArrayAssemblyPartV1, DefaultArrayAssemblyV1,
     DefaultExpressionBuildError, DefaultExpressionIndexError, DefaultExpressionKindV1,
     DefaultExpressionReferenceResolver, DefaultExpressionResolutionError, DefaultExpressionV1,
-    DefaultIntegerArgumentsV1, IndexedDefaultExpressionV1, OptionalDefaultExpressionV1,
+    DefaultIntegerExpressionV1, IndexedDefaultExpressionV1, OptionalDefaultExpressionV1,
 };
 
 #[cfg(test)]

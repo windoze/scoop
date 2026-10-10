@@ -11,7 +11,7 @@
 | R11 parser 修饰符 | 已完成 | 合并存在性与源码 span；parser 474 + doc 1，正式 CLI 4 项通过 |
 | R12 literal pattern | 已完成 | 封闭字面量 payload；AST/parser 490、相关 HIR 135、正式 CLI 15 项通过 |
 | R01 调用目标 | 已完成 | 完整调用分支、必填 receiver、完整去虚拟化改写；Rust 754、正式 CLI 8 项通过 |
-| R04 固定元数 intrinsic | 待实施 | 一元／二元、具名借用参数 |
+| R04 固定元数 intrinsic | 已完成 | 完整一元／二元、固定形参方法引用、具名借用；Rust 1,246、正式 CLI 11 项通过 |
 | R02 when | 已完成 | subject／纯条件分支与唯一覆盖类型来源；Rust 1,346、正式 CLI 11 项通过 |
 | R03 MIR 临时态 | 已完成 | 最终 MIR 删除临时类别，私有 CFG 工作记录保留协程顺序；Rust 660、正式 CLI 8 项通过 |
 | R07 return | 已完成 | HIR／MIR 与导出模板必填返回值；Rust 2,899、正式 CLI 8 项通过 |
@@ -140,3 +140,17 @@ wire 沿用已有可选 subject、条件与覆盖标签；原始解码数据在�
 新增独立与挂起／泛型／闭包／Context／finally 组合 fixture 先用 R03 CLI 生成基线。R02 的四份 MIR、四份 LIR 与基线逐字节一致；HIR 只改变完整分支表示。正式普通比较 11/11 通过，共 14 个配置、44 个进程、40 个 golden，包含 M35 when 的 effects、subject、smart cast、挂起、跨库发布与删除源码后消费，以及四项精确诊断负例。debug/release、正常／移动／minor GC 均通过；旧 MIR 差异仅同步 R07 的 Unit 返回值，旧 LIR 不变。
 
 报告为 target/m36-validation/r02-verify-report.json，快照审阅记录为 r02-golden-review.log。wire 版本与 runtime ABI 不变。清理已完成的 fixture cases，保留当前 CLI、共享 sysroot、缓存及验收报告；明细见 r02-cleanup.log。
+
+## R04：完整固定元数操作与数据借用
+
+整数表达式的一元／二元分支分别使用窄操作类别和必填操作数，div/rem 只能携带 lhs/rhs。Export HIR、LocalConcrete HIR 与绑定默认模板共用这一完整 payload；遍历、效果分析、默认参数实例化、具体化与 MIR 消费不再重新组合独立的操作和参数形态。wire 保留原有标签与顺序，在实际解码绑定处检查元数后构造完整表达式；18 种操作的字节往返和三种非法元数组合均有测试。
+
+方法引用根据已决议的一元／二元／MaybeUninit 操作直接建立所需形参，再调用固定参数的 lowering 接口。数据借用在具体化边界从实例逻辑形参取得对象类别及 FunctionTypeId，形成具名 object／block；无正文源码 intrinsic 复用已保存的 source parameter interface，导入实例使用模板签名。MIR 不再从可能为 Nothing 的实参类型猜测对象或回调类别，也不解包任意参数列表。整数、借用与回调的有序求值、终止传播、异常清理和 GC 保活保持原有规则。
+
+新增整数模型 232 行，借用数据 21 行、具体化 94 行，方法引用分类 90 行、固定参数操作 94 行；整数 lowering 缩至 320 行。既有长文件随迁移缩减，没有复制整套 IR 或增加通用状态框架。本机 fmt／workspace clippy 无警告通过，HIR 890、MIR lower 118、前端整数／浮点／字符／引用／默认参数／借用专项 238，共 1,246 项不同的 Rust 测试通过。
+
+两个新 CLI 用例覆盖运算副作用与 Nothing、除零、方法引用、泛型 when、Array／MutableArray／String 借用、回调异常清理和 GC。四份新 MIR、四份新 LIR 与 R02 基线逐字节一致。正式普通比较 11/11 通过，共 16 个配置、64 个进程、54 个 golden，包含源码 intrinsic 的 core 构建、跨库泛型与默认参数、删源消费和链接、debug/release、正常／移动／minor GC，以及参数元数、unsafe、回调类别与 GC 效果的精确诊断负例。
+
+旧 HIR 同步完整表达式和先前表示变化；旧 MIR 除完整 Unit 返回外，移除三次无用的 Unit 借用结果读取，异常边不变。两份 release LIR 的差异仅为内联完整返回产生的七条空 Unit aggregate 及临时值重编号。wire 版本与 runtime ABI 不变。
+
+一项复验遇到上轮只读产物残留，清理用例目录后单独复验通过；合并报告为 target/m36-validation/r04-verify-report.json，原始报告和 r04-golden-review.log 同目录保存。本轮清理约 410 MiB 的已完成 fixture cases 和 104 MiB 的过期测试可执行文件，保留共享缓存；最终批量验证使用优化构建的配套 CLI。本机公共 fixture runner 44 项亦已通过。

@@ -1,8 +1,9 @@
+use super::primitive::PrimitiveReference;
 use super::*;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) enum ReferenceDefinition {
-    Primitive(scoop_hir::PrimitiveMemberIntrinsic),
+    Primitive(PrimitiveReference),
     MaybeUninit(hir::MaybeUninitIntrinsic),
     Direct(mir::Callee),
     Bound(BoundReferenceTarget),
