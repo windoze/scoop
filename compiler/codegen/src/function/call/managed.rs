@@ -1,59 +1,15 @@
 use super::*;
 
+mod arguments;
 mod invoke;
+mod preparation;
 mod validation;
 
-impl<'ctx> FnEmitter<'_, 'ctx> {
-    fn physical_call_arguments(
-        &self,
-        destination: scoop_lir::CallDestination,
-        arguments: &[scoop_lir::AbiCallArgument],
-        signature: &scoop_lir::ScoopAbiSignature,
-        result: &TypedCallResult<'_>,
-        live: Option<&MaterializedStatepointLive<'ctx>>,
-    ) -> Result<Vec<BasicValueEnum<'ctx>>, CodegenError> {
-        let mut values = Vec::with_capacity(
-            arguments.len() + usize::from(matches!(result, TypedCallResult::Indirect { .. })),
-        );
-        if let TypedCallResult::Indirect { storage, .. } = result {
-            values.push(self.local_pointer(*storage)?.into());
-        }
-        for (index, (argument, convention)) in
-            arguments.iter().zip(signature.arguments()).enumerate()
-        {
-            match *argument {
-                scoop_lir::AbiCallArgument::ElidedZst(_) => {}
-                scoop_lir::AbiCallArgument::Direct(logical) => {
-                    let value = self.typed_call_argument_value(logical, live)?;
-                    if let scoop_lir::AbiArgument::Direct(scoop_lir::AbiDirectValue::DirectParts(
-                        parts,
-                    )) = convention
-                    {
-                        let mut physical = self.outgoing_parts(parts, value)?;
-                        if parts.coercion() == scoop_lir::AbiCoercion::interface()
-                            && let Some(object) =
-                                live.and_then(|live| live.interface_object(logical))
-                        {
-                            physical[0] = object.into();
-                        }
-                        values.extend(physical);
-                    } else {
-                        values.push(value);
-                    }
-                }
-                scoop_lir::AbiCallArgument::Indirect(storage) => {
-                    values.push(
-                        self.c_indirect_argument_pointer(destination, index, storage.local())?
-                            .into(),
-                    );
-                }
-            }
-        }
-        Ok(values)
-    }
+use preparation::CallPreparation;
 
+impl<'ctx> FnEmitter<'_, 'ctx> {
     /// Emit one typed direct/dispatch call. The protocol-specific LIR sum owns
-    /// destination, safepoint/root plan and physical call independently; this
+    /// destination, safepoint/root plan and physical call together; this
     /// routine receives one already-consistent arm and never infers an effect.
     pub(in crate::function) fn emit_typed_call(
         &mut self,
@@ -117,18 +73,6 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             invoke.is_some(),
         )?;
 
-        let managed_live = match &protocol {
-            CallProtocol::Managed { safepoint, live } => {
-                Some(self.materialize_statepoint_live(live, *safepoint)?)
-            }
-            CallProtocol::ManagedInvoke { .. }
-            | CallProtocol::NoGc
-            | CallProtocol::NativeGcLeaf
-            | CallProtocol::ReleaseNativeLeaf
-            | CallProtocol::NativeSafe { .. }
-            | CallProtocol::NativeBorrowed { .. } => None,
-        };
-
         // Allocation is the one codegen-expanded runtime primitive. Its typed
         // identity selects the expansion; its symbol is not inspected.
         if destination
@@ -142,7 +86,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     self.function.symbol()
                 )));
             };
-            let CallProtocol::Managed { safepoint, live: _ } = &protocol else {
+            let CallProtocol::Managed { safepoint, live } = &protocol else {
                 return Err(CodegenError(format!(
                     "typed allocation @{} is not a managed call",
                     self.function.symbol()
@@ -159,12 +103,8 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 .iter()
                 .map(|argument| argument.logical_value())
                 .collect::<Vec<_>>();
-            self.managed_alloc(
-                out,
-                &logical_args,
-                *safepoint,
-                managed_live.expect("managed allocation prepared its live set"),
-            )?;
+            let live = self.materialize_statepoint_live(live, *safepoint)?;
+            self.managed_alloc(out, &logical_args, *safepoint, live)?;
             return Ok(());
         }
 
@@ -176,77 +116,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             &signature,
         )?;
 
-        let native = match &protocol {
-            CallProtocol::NativeSafe { roots, .. } => {
-                if result_scan(&result) != &RefScan::None {
-                    return Err(CodegenError(format!(
-                        "native-safe call @{} has a managed result",
-                        self.function.symbol()
-                    )));
-                }
-                Some((NativeTransitionKind::Safe, roots.as_slice(), None))
-            }
-            CallProtocol::NativeBorrowed {
-                roots,
-                result: publication,
-                ..
-            } => {
-                let result_root = match *publication {
-                    scoop_lir::NativeBorrowedResultPublication::DirectRooted { storage, scan }
-                    | scoop_lir::NativeBorrowedResultPublication::IndirectResultRooted {
-                        storage,
-                        scan,
-                    } => {
-                        let llvm_ty = basic_ty(
-                            self.context,
-                            self.structs,
-                            self.enums,
-                            self.managed_address_space,
-                            self.function.locals[storage].ty(),
-                        )?;
-                        let pointer = self.local_pointer(storage)?;
-                        self.builder
-                            .build_store(pointer, llvm_ty.const_zero())
-                            .map_err(|error| {
-                                CodegenError(format!("zero native result: {error}"))
-                            })?;
-                        Some((pointer, llvm_ty, scan.as_ref_scan()))
-                    }
-                    scoop_lir::NativeBorrowedResultPublication::Void
-                    | scoop_lir::NativeBorrowedResultPublication::ElidedZst
-                    | scoop_lir::NativeBorrowedResultPublication::DirectGcFree
-                    | scoop_lir::NativeBorrowedResultPublication::IndirectResultGcFree => None,
-                };
-                Some((
-                    NativeTransitionKind::Borrowed,
-                    roots.as_slice(),
-                    result_root,
-                ))
-            }
-            CallProtocol::Managed { .. } => None,
-            CallProtocol::ManagedInvoke { roots, .. } => {
-                let _ = roots;
-                None
-            }
-            CallProtocol::NoGc | CallProtocol::NativeGcLeaf | CallProtocol::ReleaseNativeLeaf => {
-                None
-            }
-        };
-        let native_result_storage = native.and_then(|(_, _, result)| result);
-        let transition = if let Some((kind, roots, _)) = native {
-            let safepoint = protocol
-                .safepoint()
-                .expect("native protocol always carries a safepoint id");
-            self.publish_native_roots(
-                roots,
-                native_result_storage.map(|(storage, _, scan)| (storage, scan)),
-                kind,
-                safepoint,
-            )
-            .map(Some)?
-        } else {
-            None
-        };
+        let preparation = self.prepare_call_protocol(&protocol, &result)?;
 
         // A native handshake may relocate the published roots. Materialize
         // arguments afterwards, and coerce each GC-free aggregate only once.
@@ -255,11 +125,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             call.args(),
             &signature,
             &result,
-            if native.is_some() {
-                None
-            } else {
-                managed_live.as_ref()
-            },
+            preparation.managed_live(),
         )?;
 
         let apply_scoop_abi_attributes = match destination {
@@ -272,15 +138,8 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             ),
             scoop_lir::CallDestination::Runtime(_) => false,
         };
-        let callee = match destination {
-            scoop_lir::CallDestination::Dispatch { .. } => None,
-            _ => Some(self.typed_callee(
-                destination,
-                fn_ty,
-                &signature,
-                apply_scoop_abi_attributes,
-            )?),
-        };
+        let callee =
+            self.prepare_callee(destination, fn_ty, &signature, apply_scoop_abi_attributes)?;
         if let Some((normal, unwind)) = invoke {
             return self.emit_typed_invoke(
                 destination,
@@ -295,16 +154,8 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 unwind,
             );
         }
-        let direct_value = if native.is_some() {
-            let actual_callee = match destination {
-                scoop_lir::CallDestination::Dispatch { table, slot } => {
-                    self.dispatch_function_pointer(table, slot)?
-                }
-                _ => callee
-                    .expect("direct destination has a typed callee")
-                    .as_global_value()
-                    .as_pointer_value(),
-            };
+        let direct_value = if matches!(&preparation, CallPreparation::Native(_)) {
+            let actual_callee = self.prepared_callee_pointer(callee)?;
             let arguments = call_args
                 .iter()
                 .copied()
@@ -347,8 +198,8 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 | TypedCallResult::Indirect { .. } => None,
             }
         } else {
-            let call = match destination {
-                scoop_lir::CallDestination::Dispatch { table, slot } => {
+            let call = match callee {
+                PreparedCallee::Dispatch { table, slot } => {
                     let pointer = self.dispatch_function_pointer(table, slot)?;
                     let arguments = call_args
                         .iter()
@@ -359,18 +210,14 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                         .build_indirect_call(fn_ty, pointer, &arguments, "typed_call")
                         .map_err(|error| CodegenError(format!("typed dispatch call: {error}")))?
                 }
-                _ => {
+                PreparedCallee::Direct(function) => {
                     let arguments = call_args
                         .iter()
                         .copied()
                         .map(Into::into)
                         .collect::<Vec<_>>();
                     self.builder
-                        .build_call(
-                            callee.expect("direct destination has a callee"),
-                            &arguments,
-                            "typed_call",
-                        )
+                        .build_call(function, &arguments, "typed_call")
                         .map_err(|error| CodegenError(format!("typed direct call: {error}")))?
                 }
             };
@@ -411,35 +258,16 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             (_, value) => value,
         };
 
-        if let (Some(live), CallProtocol::Managed { safepoint, .. }) = (managed_live, &protocol) {
-            self.restore_statepoint_live(live, *safepoint)?;
-        }
-
-        if let (Some(value), TypedCallResult::Direct { .. }, Some((storage, _, _))) =
-            (direct_value, &result, native_result_storage)
-        {
-            self.builder
-                .build_store(storage, value)
-                .map_err(|error| CodegenError(format!("store native result: {error}")))?;
-        }
-        let mut rooted_native_result = None;
-        if let Some(transition) = transition {
-            let (kind, roots, _) = native.expect("a native transition has its typed protocol");
-            self.leave_native_transition(&transition, kind)?;
-            let reloaded_roots =
-                self.reload_published_roots(roots.iter().map(|root| root.source))?;
-            if let Some((storage, ty, _)) = native_result_storage {
-                rooted_native_result = Some(
-                    self.builder
-                        .build_load(ty, storage, "native_result_reload")
-                        .map_err(|error| {
-                            CodegenError(format!("reload rooted native result: {error}"))
-                        })?,
-                );
+        let rooted_native_result = match preparation {
+            CallPreparation::Managed { live, safepoint } => {
+                self.restore_statepoint_live(live, safepoint)?;
+                None
             }
-            self.pop_native_roots(transition)?;
-            self.restore_reloaded_roots(reloaded_roots)?;
-        }
+            CallPreparation::Native(native) => {
+                self.finish_prepared_native(native, &result, direct_value)?
+            }
+            CallPreparation::Ordinary => None,
+        };
 
         match result {
             TypedCallResult::ElidedZst { out, value } => {
@@ -453,8 +281,12 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 self.temps.insert(out, ty.const_zero());
             }
             TypedCallResult::Direct { out, .. } => {
-                let value = rooted_native_result
-                    .unwrap_or_else(|| direct_value.expect("direct typed call produced a value"));
+                let value = rooted_native_result.or(direct_value).ok_or_else(|| {
+                    CodegenError(format!(
+                        "typed call @{} produced no direct value",
+                        self.function.symbol()
+                    ))
+                })?;
                 self.temps.insert(out, value);
             }
             TypedCallResult::Indirect { storage, .. } => {

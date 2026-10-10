@@ -1,0 +1,34 @@
+interface Reader {
+    fun read(value: Int): Int
+}
+
+open class Base {
+    open fun read(value: Int): Int = value + 1
+}
+
+class Derived : Base(), Reader {
+    override fun read(value: Int): Int {
+        if (value < 0) { throw IllegalStateException() }
+        return value + 2
+    }
+}
+
+@NoGC
+fun leaf(value: Int): Int = value + 1
+
+fun main() {
+    val base: Base = Derived()
+    val reader: Reader = Derived()
+    val closure: (Int) -> Int = { value -> leaf(value) }
+    try {
+        println(base.read(10))
+        println(reader.read(20))
+        println(closure(30))
+        println(leaf(40))
+        println(base.read(-1))
+    } catch (error: IllegalStateException) {
+        println("caught")
+    } finally {
+        println("cleanup")
+    }
+}

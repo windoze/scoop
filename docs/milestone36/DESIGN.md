@@ -121,7 +121,7 @@ Unit 与 Nothing 必须继续区分：正常 Unit 返回具有语义值；终止
 
 现状：[emit_typed_invoke](../../compiler/codegen/src/function/call/managed/invoke.rs) 接收 destination 与独立的 `Option<FunctionValue>`，直接调用分支需要 `expect`。[typed call emission](../../compiler/codegen/src/function/call/managed.rs) 还依赖 native、transition、safepoint 等相关 Option 同时存在。
 
-当前调用路径已经维持这些关系，不能据此认定存在源码触发的 panic。建议使用 codegen 局部的完整 callee 分支，例如 Direct 携带 FunctionValue、Dispatch 携带分派所需数据；准备好的 native transition 同时保存其 safepoint、roots 与 frame。后续消费具体分支，避免先拆散再恢复关联。
+当前调用路径已经维持这些关系，不能据此认定存在源码触发的 panic。建议使用 codegen 局部的完整 callee 分支，例如 Direct 携带 FunctionValue、Dispatch 携带分派所需数据；native transition 的准备分支一并取得 safepoint 与 roots，发射入口握手后保留退出所需的 roots、frame 与结果存储。后续消费具体分支，避免先拆散再恢复关联；已消费且后续不再使用的状态不必额外保存。
 
 保持现有 LIR 的调用分类，复用已有准备步骤，不另建平行调用实现。LLVM builder、后端验证或目标发射的实际失败继续返回现有错误，不能假定它们都能由 Rust 类型提前排除。
 

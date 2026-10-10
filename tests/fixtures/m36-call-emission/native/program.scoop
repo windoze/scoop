@@ -1,0 +1,30 @@
+@Extern(lib = "m36_emission", name = "m36_move", abi = "scoop")
+fun move(value: String): String
+
+@Extern(lib = "m36_emission", name = "m36_safe")
+fun safe(value: Int): Int
+
+@GCLeaf @Extern(lib = "m36_emission", name = "m36_leaf")
+fun leaf(value: Int): Int
+
+class Holder(val text: String)
+
+fun round(value: Int): String {
+    val held = Holder("value" + value.toString())
+    val result = move(held.text)
+    @Unsafe {
+        println(safe(value))
+        println(leaf(value))
+    }
+    gcCollect()
+    return result + ":" + held.text
+}
+
+fun main() {
+    val call: (Int) -> String = ::round
+    try {
+        println(call(7))
+    } finally {
+        println("done")
+    }
+}

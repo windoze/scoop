@@ -19,7 +19,7 @@
 | R06 nominal 表示 | 待实施 | declared payload 与 C/Scoop 窄引用 |
 | R10 core protocol | 待实施 | 具名 typed 字段，核对 wire 不变 |
 | R08 native 结果发布 | 待实施 | 按返回约定构造调用与 root |
-| R09 codegen 调用 | 待实施 | 完整 callee、native transition |
+| R09 codegen 调用 | 已完成 | 完整 callee 与调用准备分支；codegen 41、正式 CLI 5 项通过 |
 
 ## 验证与工作区约定
 
@@ -53,3 +53,13 @@ AST 使用 `LiteralPattern`，数值分别保存原始 literal 与负号，Char�
 本机 fmt／workspace clippy 成功；选择 enum、function、callback、default、M11、M12、M14、类型别名、M29、Option、variant 的相关测试，HIR 250、HIR lower 443、MIR lower 17，共 710 项通过。正式三个 CLI 已重建。新增函数值／函数指针 fixture 与泛型 enum／默认值／闭包组合 fixture，HIR/MIR golden 生成并审阅后以普通比较复验。
 
 正式普通比较共 8 项、11 个配置、44 个进程、56 个 golden 通过，包含旧 FFI 指针、类型别名、派生相等、导入 enum 模式，以及 M35 trailing／组合产物的 debug/release 交叉构建、删除源码后的产物消费与重新链接、正常／移动／minor GC 运行。既有 golden 无变化，wire 和 runtime ABI 不变。报告保存在 `target/m36-validation/r05-regression-report.json` 与 `r05-verify-report.json`。验证完成后清理约 212 MiB 的 fixture cases，保留共用 sysroot 与缓存。
+
+## R09：codegen 完整调用准备
+
+`PreparedCallee` 的 Direct 分支持有 LLVM function，Dispatch 分支持有 table／slot；普通 call、native call 和 invoke 均消费这一完整目标，不再要求独立的 function Option。`CallPreparation` 区分 managed live set、已准备的 native transition 与无需准备的调用。native 分支从同一协议取得 safepoint 和 roots，在入口握手处消费 safepoint，随后一起保留 roots、transition、frame 与可能存在的结果存储；退出及 reload 不再通过多个相关 Option 恢复关系。同步明确 spec：已消费且后续不用的状态不为满足形式要求而冗余保存。
+
+调用发射文件从 473 行降至 305 行；参数处理、callee 准备及 transition 准备分别放入 51、109、142 行的职责模块。LLVM builder／实际发射失败仍返回既有错误。
+
+本机 fmt／workspace clippy 成功，codegen statepoint／invoke／GCLeaf／native／callback／C ABI 相关测试 40 项及 aggregate ABI 发射测试 1 项通过。新增 invoke fixture 覆盖 local／virtual／interface／closure 与 try/catch/finally；native 组合覆盖 native-safe／GCLeaf／native-borrowed、调用内 GC、返回后读取参数和结果，以及移动／minor GC。
+
+正式普通比较共 5 项、7 个配置、32 个进程、22 个 golden 通过，包括已有 suspend 函数值、Scoop ABI 直接／间接含引用结果、并发 callback/native-safe transition 用例。新 HIR/MIR golden 经生成、审阅后普通复验，旧 golden 保持一致。报告为 `target/m36-validation/r09-verify-report.json`，wire 与 runtime ABI 未改变。

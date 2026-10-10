@@ -245,7 +245,7 @@ LIR metadata 保存完整 value/instance/element layout、Scoop/C ABI、scan、T
 
 codegen 的语义输入只有当前 Cone 的完整 LIR；Scoop producer 消费 LIR target/backend，generated-C producer 消费 LIR target/C toolchain。输出可以有多个对象，物理分片数量与文件名不是 Cone 或实体身份。
 
-codegen 保留 LIR 已分类的数据关系：direct callee 携带实际 LLVM function，dispatch 携带对应分派数据；准备好的 native transition 同时保存 safepoint、roots 与 frame，不拆成需要彼此同步的可选参数。LLVM builder、对象及目标发射的实际失败继续走后端错误路径。
+codegen 保留 LIR 已分类的数据关系：direct callee 携带实际 LLVM function，dispatch 携带对应分派数据；native transition 的准备分支一并取得 safepoint 与 roots，发射入口握手后保留退出所需的 roots、frame 与结果存储，不拆成需要彼此同步的可选参数，也不额外保存已消费且后续不再使用的状态。LLVM builder、对象及目标发射的实际失败继续走后端错误路径。
 
 managed 单槽写屏障按运行时规范 3.6 内联读取四级 page map 与 region prefix，再原子置脏；这段计算没有 safepoint，不保留跨 safepoint 的 region metadata。runtime ABI 数据符号 PageMap 使用 tag 32，旧单 arena CardTable 的 tag 6 退役；PageMap 的 32768-byte／8-byte 对齐数据合同和新符号进入现有 registry fingerprint。范围写屏障保持既有 NoGC 入口，由 runtime 逐映射标记完整范围。
 
