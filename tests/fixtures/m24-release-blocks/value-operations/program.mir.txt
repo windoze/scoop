@@ -246,6 +246,8 @@ Module
         Type Int
         Local arg0
       return
+        Type Unit
+        UnitLiteral
   fun count @fn7() -> Int
     bb0 entry
       call $call.1: Int = extern1 @m24_release_count direct
@@ -337,6 +339,8 @@ Module
         Type RecursiveOwner
         Local $new.2
       return
+        Type Unit
+        UnitLiteral
   fun main @fn10() -> Unit
     bb0 entry
       call @fn9 direct
@@ -350,6 +354,8 @@ Module
         Type Int
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun equals @fn11(this: Ptr<Node>, other: Ptr<Node>) -> Boolean
     bb0 entry
       val $dependency.local.2: Ptr<Node>
@@ -418,6 +424,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun Continuation.resume @fn14(this: Continuation<Parts>, value: Parts) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
@@ -450,6 +458,8 @@ Module
         Type Node
         Local node
       return
+        Type Unit
+        UnitLiteral
   fun init.Owner.$c1 @fn23(this: Owner, parts: Parts) -> Unit
     bb0 entry
       field_set 0
@@ -458,6 +468,8 @@ Module
         Type Parts
         Local parts
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Parts.$c0 @fn24(first: Int, second: Int) -> Parts <no-gc>
     bb0 entry
       return
@@ -490,6 +502,8 @@ Module
         Type Int
         Local $value
       return
+        Type Unit
+        UnitLiteral
   fun callback bridge for odd @fn27($result: Ptr<Int>, $arg0: Ptr<Int>) -> Unit <no-gc>
     bb0 entry
       call $value: Int = @fn8 direct
@@ -504,6 +518,8 @@ Module
         Type Int
         Local $value
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<Parts> @fn28(task: SuspendTask<Parts>, completion: Continuation<Parts>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -526,6 +542,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn14 interface Continuation<Parts>[0]
         Type Continuation<Parts>
@@ -539,6 +557,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn15 interface Continuation<Parts>[1]
         Type Continuation<Parts>
@@ -550,6 +570,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -607,6 +629,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn18 interface Continuation<Node>[0]
         Type Continuation<Node>
@@ -620,6 +644,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn19 interface Continuation<Node>[1]
         Type Continuation<Node>
@@ -631,6 +657,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -672,6 +700,8 @@ Module
         Type Node
         ReleaseFieldLoad RecursiveOwner.field0
       return
+        Type Unit
+        UnitLiteral
   release_hook rh1 Owner <no-gc>
     bb0 entry
       val $receiver: Parts
@@ -816,6 +846,8 @@ Module
         Type Int
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb3 while.body.3
       val $old.3: Int
         Type Int

@@ -2024,11 +2024,9 @@ Module
         Local value
   fun first @fn30(this: Pair<Unit, Int>) -> Unit
     bb0 entry
-      Type Unit
-      FieldAccess 0
-        Type Pair<Unit, Int>
-        Local this
       return
+        Type Unit
+        UnitLiteral
   fun second @fn31(this: Pair<Unit, Int>) -> Int
     bb0 entry
       return
@@ -2075,9 +2073,9 @@ Module
         Local $call.1
   fun $lambda @fn34($argument.0: (Unit) -> Unit, $argument.1: Unit) -> Unit
     bb0 entry
-      Type Unit
-      Local $argument.1
       return
+        Type Unit
+        UnitLiteral
   fun map @fn35(operation: (Unit) -> Unit, value: Unit) -> Unit
     bb0 entry
       call <closure:function_type10> closure[function_type10]
@@ -2086,6 +2084,8 @@ Module
         Type Unit
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun $lambda @fn36($argument.0: (Int) -> Int, $argument.1: Int) -> Int
     bb0 entry
       val $dependency.local.1: Int
@@ -2181,11 +2181,9 @@ Module
           Local this
   fun value @fn41(this: Holder<Unit>) -> Unit
     bb0 entry
-      Type Unit
-      FieldAccess 0
-        Type Holder<Unit>
-        Local this
       return
+        Type Unit
+        UnitLiteral
   fun Continuation.resume @fn42(this: Continuation<Later>, value: Later) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
@@ -2206,9 +2204,13 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Empty.$c0 @fn47(this: Empty<Later>) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.Pair.$c1 @fn48(this: Pair<Later, Int>, first: Later, second: Int) -> Unit
     bb0 entry
       field_set 0
@@ -2222,6 +2224,8 @@ Module
         Type Int
         Local second
       return
+        Type Unit
+        UnitLiteral
   fun init.Holder.$c2 @fn49(this: Holder<Later>, value: Later) -> Unit
     bb0 entry
       field_set 0
@@ -2230,9 +2234,13 @@ Module
         Type Later
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Empty.$c0 @fn50(this: Empty<String>) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.Pair.$c1 @fn51(this: Pair<String, Int>, first: String, second: Int) -> Unit
     bb0 entry
       field_set 0
@@ -2246,6 +2254,8 @@ Module
         Type Int
         Local second
       return
+        Type Unit
+        UnitLiteral
   fun init.Holder.$c2 @fn52(this: Holder<String>, value: String) -> Unit
     bb0 entry
       field_set 0
@@ -2254,9 +2264,13 @@ Module
         Type String
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Empty.$c0 @fn53(this: Empty<Unit>) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.Pair.$c1 @fn54(this: Pair<Unit, Int>, first: Unit, second: Int) -> Unit
     bb0 entry
       field_set 0
@@ -2270,6 +2284,8 @@ Module
         Type Int
         Local second
       return
+        Type Unit
+        UnitLiteral
   fun init.Holder.$c2 @fn55(this: Holder<Unit>, value: Unit) -> Unit
     bb0 entry
       field_set 0
@@ -2278,6 +2294,8 @@ Module
         Type Unit
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<Later> @fn56(task: SuspendTask<Later>, completion: Continuation<Later>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -2300,6 +2318,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn42 interface Continuation<Later>[0]
         Type Continuation<Later>
@@ -2313,6 +2333,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn43 interface Continuation<Later>[1]
         Type Continuation<Later>
@@ -2324,6 +2346,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

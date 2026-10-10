@@ -118,6 +118,8 @@ Module
         Type Mixed
         Local $new.4
       return
+        Type Unit
+        UnitLiteral
   fun Continuation.resume @fn2(this: Continuation<Mixed>, value: Mixed) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
@@ -135,10 +137,14 @@ Module
       call $call.1: Int = @fn0 direct
       call $call.2: Int = @fn0 direct
       return
+        Type Unit
+        UnitLiteral
   fun init.Mixed.$c3 @fn7(this: Mixed, value: Boolean) -> Unit
     bb0 entry
       call $call.1: Int = @fn0 direct
       return
+        Type Unit
+        UnitLiteral
   fun init.Box.$c0 @fn8(this: Box<Int>, value: Int) -> Unit
     bb0 entry
       field_set 0
@@ -148,6 +154,8 @@ Module
         Local value
       call $call.1: Int = @fn0 direct
       return
+        Type Unit
+        UnitLiteral
   fun init.Box.$c1 @fn9(this: Box<Int>, value: Int, count: Int) -> Unit
     bb0 entry
       val $argument.0: Int
@@ -163,6 +171,8 @@ Module
         Local $parameter.value
       call $call.1: Int = @fn0 direct
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Pair.$c1 @fn10(value: Int) -> Pair<Int>
     bb0 entry
       val $argument.0: Int
@@ -215,6 +225,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn2 interface Continuation<Mixed>[0]
         Type Continuation<Mixed>
@@ -228,6 +240,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn3 interface Continuation<Mixed>[1]
         Type Continuation<Mixed>
@@ -239,6 +253,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

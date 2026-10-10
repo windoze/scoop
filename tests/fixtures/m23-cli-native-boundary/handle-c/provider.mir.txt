@@ -32,6 +32,8 @@ Module
         Type GcHandle<Any>
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun ctor.GcHandle.$c0 @fn2(raw: ULong) -> GcHandle<Any> <no-gc>
     bb0 entry
       return

@@ -85,6 +85,8 @@ Module
       unreachable
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun argc @fn2() -> Int <no-gc>
     bb0 entry
       call $call.1: Int = extern0 @scoop_rt_program_argc direct
@@ -119,6 +121,8 @@ Module
         Type String
         Local $dependency.parameter.message
       return
+        Type Unit
+        UnitLiteral
     bb2 inline.1.entry
       val $inline.1.$dependency.receiver: Boolean
         Type Boolean
@@ -140,6 +144,8 @@ Module
         IntegerLiteral Int value=99 bits=0x00000063
       unreachable
     bb4 inline.1.if.merge.2
+      Type Unit
+      UnitLiteral
       goto bb1
     bb5 inline.cont.5
       val $argument.0: Int
@@ -189,6 +195,8 @@ Module
         IntegerLiteral Int value=99 bits=0x00000063
       unreachable
     bb8 inline.5.if.merge.2
+      Type Unit
+      UnitLiteral
       goto bb5
     bb9 inline.cont.9
       val $argument.0: Int
@@ -233,6 +241,8 @@ Module
         IntegerLiteral Int value=99 bits=0x00000063
       unreachable
     bb12 inline.9.if.merge.2
+      Type Unit
+      UnitLiteral
       goto bb9
     bb13 inline.cont.13
       val $argument.0: Int
@@ -277,6 +287,8 @@ Module
         IntegerLiteral Int value=99 bits=0x00000063
       unreachable
     bb16 inline.13.if.merge.2
+      Type Unit
+      UnitLiteral
       goto bb13
     bb17 inline.cont.17
       val $dependency.argument.0: Int
@@ -339,6 +351,8 @@ Module
         IntegerLiteral Int value=99 bits=0x00000063
       unreachable
     bb24 inline.21.if.merge.2
+      Type Unit
+      UnitLiteral
       goto bb21
     bb25 inline.cont.25
       val $dependency.receiver: Int
@@ -381,6 +395,8 @@ Module
         Type Int
         Local $call.1
       return
+        Type Unit
+        UnitLiteral
     bb2 inline.1.entry
       call $inline.1.$call.1: Int = extern0 @scoop_rt_program_argc direct
       assign $inline.1.result
@@ -411,6 +427,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -493,6 +511,8 @@ Module
       global_assign eagerCount
         Type Int
         Local $inline.20.$call.1
+      Type Unit
+      UnitLiteral
       goto bb20
     bb23 inline.22.entry unwind bb4
       call $inline.22.$call.1: Int = extern0 @scoop_rt_program_argc direct
@@ -653,6 +673,8 @@ Module
         Type Int
         Local $value
       return
+        Type Unit
+        UnitLiteral
   instance mi0 function=@fn0 <- equalTo
   instance mi1 function=@fn9 <- equals
   str @str0 "unit-main\n"

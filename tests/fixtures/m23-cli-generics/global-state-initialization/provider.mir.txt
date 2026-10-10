@@ -115,6 +115,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun reset @fn2() -> Unit
     bb0 entry
       call @fn12 direct
@@ -127,6 +129,8 @@ Module
         Type Int
         IntegerLiteral Int value=40 bits=0x00000028
       return
+        Type Unit
+        UnitLiteral
   fun count @fn3() -> Int
     bb0 entry
       call $call.1: Int = @fn11 direct
@@ -294,6 +298,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun $get$internalCounter @fn13() -> Int <no-gc>
     bb0 entry
       return
@@ -305,6 +311,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun $get$enabled @fn15() -> Boolean <no-gc>
     bb0 entry
       return
@@ -326,6 +334,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun $get$guarded @fn19() -> Int <no-gc>
     bb0 entry
       return
@@ -337,6 +347,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun $get$offset @fn21() -> Int <no-gc>
     bb0 entry
       return
@@ -353,6 +365,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun $get$writes @fn24() -> Int <no-gc>
     bb0 entry
       return
@@ -364,6 +378,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun $get$order @fn26() -> Int <no-gc>
     bb0 entry
       return
@@ -375,6 +391,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun $get$tracked @fn28() -> Int
     bb0 entry
       call $old.23: Int = @fn22 direct
@@ -474,6 +492,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun $get$initializations @fn30() -> Int <no-gc>
     bb0 entry
       return
@@ -485,6 +505,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun $init$body$2 @fn32() -> Unit
     bb0 entry
       val $argument.0: Int
@@ -500,6 +522,8 @@ Module
         Type Cell
         Local $call.1
       return
+        Type Unit
+        UnitLiteral
   fun $init$ensure$2 @fn33() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -524,6 +548,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -613,6 +639,8 @@ Module
           Type Cell
           Local $call.1
       return
+        Type Unit
+        UnitLiteral
   fun $init$ensure$3 @fn36() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -637,6 +665,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -790,6 +820,8 @@ Module
         Type Triple
         Local $call.4
       return
+        Type Unit
+        UnitLiteral
   fun $init$ensure$4 @fn39() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -814,6 +846,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -901,6 +935,8 @@ Module
         Type Triple
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun $get$emptyBuilds @fn42() -> Int <no-gc>
     bb0 entry
       return
@@ -912,6 +948,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun $init$body$5 @fn44() -> Unit
     bb0 entry
       call $call.1: Empty = @fn8 direct
@@ -919,6 +957,8 @@ Module
         Type Empty
         Local $call.1
       return
+        Type Unit
+        UnitLiteral
   fun $init$ensure$5 @fn45() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -943,6 +983,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -1030,6 +1072,8 @@ Module
         Type Empty
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun $init$body$6 @fn48() -> Unit
     bb0 entry
       val $argument.0: Int
@@ -1050,6 +1094,8 @@ Module
         Type Cell
         Local $new.1
       return
+        Type Unit
+        UnitLiteral
   fun $init$ensure$6 @fn49() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -1074,6 +1120,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -1161,6 +1209,8 @@ Module
         Type Cell
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun $init$body$7 @fn52() -> Unit
     bb0 entry
       val $argument.0: Int
@@ -1181,6 +1231,8 @@ Module
         Type PlainSlot
         Local $new.1
       return
+        Type Unit
+        UnitLiteral
   fun $init$ensure$7 @fn53() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -1205,6 +1257,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -1301,6 +1355,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun $get$builds @fn56() -> Int <no-gc>
     bb0 entry
       return
@@ -1312,6 +1368,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun $get$failures @fn58() -> Int <no-gc>
     bb0 entry
       return
@@ -1323,6 +1381,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun advance @fn60(value: Int) -> Int
     bb0 entry
       call $old.6: Int = @fn11 direct
@@ -1478,6 +1538,8 @@ Module
         Type Int
         Local number
       return
+        Type Unit
+        UnitLiteral
   fun init.PlainSlot.$c2 @fn79(this: PlainSlot, value: Int) -> Unit
     bb0 entry
       field_set 0
@@ -1486,6 +1548,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Failed.$c4 @fn80(this: Failed) -> Unit
     bb0 entry
       call external0 direct
@@ -1494,6 +1558,8 @@ Module
           Type Failed
           Local this
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Triple.$c0 @fn81(first: Cell, second: Cell, third: Cell) -> Triple <no-gc>
     bb0 entry
       return
@@ -1532,6 +1598,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn66 interface Continuation<Triple>[0]
         Type Continuation<Triple>
@@ -1545,6 +1613,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn67 interface Continuation<Triple>[1]
         Type Continuation<Triple>
@@ -1556,6 +1626,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -1613,6 +1685,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn70 interface Continuation<Empty>[0]
         Type Continuation<Empty>
@@ -1626,6 +1700,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn71 interface Continuation<Empty>[1]
         Type Continuation<Empty>
@@ -1637,6 +1713,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -1694,6 +1772,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn62 interface Continuation<Cell>[0]
         Type Continuation<Cell>
@@ -1707,6 +1787,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn63 interface Continuation<Cell>[1]
         Type Continuation<Cell>
@@ -1718,6 +1800,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -1775,6 +1859,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn74 interface Continuation<Failed>[0]
         Type Continuation<Failed>
@@ -1788,6 +1874,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn75 interface Continuation<Failed>[1]
         Type Continuation<Failed>
@@ -1799,6 +1887,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

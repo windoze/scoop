@@ -1085,6 +1085,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun $adapter.(Any) -> FunPtr<(Long) -> Long>.(FunPtr<(Long) -> Long>) -> Any @fn18($closure: (FunPtr<(Long) -> Long>) -> Any, arg0: FunPtr<(Long) -> Long>) -> Any
     bb0 entry
       call $call.1: FunPtr<(Long) -> Long> = <closure:function_type5> closure[function_type5]
@@ -1137,6 +1139,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn13 interface Continuation<Local>[0]
         Type Continuation<Local>
@@ -1150,6 +1154,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn14 interface Continuation<Local>[1]
         Type Continuation<Local>
@@ -1161,6 +1167,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

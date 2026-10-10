@@ -45,6 +45,8 @@ Module
     bb0 entry
       call extern0 @verify_finished direct
       return
+        Type Unit
+        UnitLiteral
   fun perform @fn2() -> Unit
     bb0 entry
       call @fn5 direct
@@ -96,6 +98,8 @@ Module
     bb2 if.merge.2
       call extern0 @verify_finished direct
       return
+        Type Unit
+        UnitLiteral
   fun exchangeHandles @fn3(arg0: NativeHandles, arg1: Ptr<GcHandle<Any>>, arg2: Option<FunPtr<(GcHandle<Any>) -> GcHandle<Any>>>) -> NativeHandles
     bb0 entry
       call $call.1: NativeHandles = extern1 @exchange_handles direct
@@ -200,6 +204,8 @@ Module
           Type NativeHandles
           Local result
       return
+        Type Unit
+        UnitLiteral
   fun equals @fn6(this: Ptr<GcHandle<Any>>, other: Ptr<GcHandle<Any>>) -> Boolean
     bb0 entry
       val $dependency.local.2: Ptr<GcHandle<Any>>
@@ -274,6 +280,8 @@ Module
         Type GcHandle<Any>
         Local $value
       return
+        Type Unit
+        UnitLiteral
   instance mi0 function=@fn0 <- equalTo
   instance mi1 function=@fn6 <- equals
   str @str0 "illegal state"

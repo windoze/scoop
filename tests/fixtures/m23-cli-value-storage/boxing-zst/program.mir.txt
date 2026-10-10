@@ -171,6 +171,8 @@ Module
         Type Boolean
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun println @fn3(value: Int) -> Unit
     bb0 entry
       val $dependency.local.1: Int
@@ -195,6 +197,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn4(value: Boolean) -> Unit
     bb0 entry
       val $dependency.local.1: Boolean
@@ -219,6 +223,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun $derived.equals.1 @fn5(this: Unit, other: Unit) -> Boolean
     bb0 entry
       return

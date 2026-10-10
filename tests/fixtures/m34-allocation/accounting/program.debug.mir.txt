@@ -87,6 +87,8 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun fill @fn1(values: MutableArray<Option<Node>>) -> Unit
     bb0 entry
       var index: Long
@@ -116,6 +118,8 @@ Module
           IntegerLiteral Long value=0 bits=0x0000000000000000
     bb2 while.exit.2
       return
+        Type Unit
+        UnitLiteral
     bb3 while.body.3
       val $dependency.receiver: MutableArray<Option<Node>>
         Type MutableArray<Option<Node>>
@@ -262,6 +266,8 @@ Module
           IntegerLiteral Long value=0 bits=0x0000000000000000
     bb2 while.exit.2
       return
+        Type Unit
+        UnitLiteral
     bb3 while.body.3
       val $dependency.receiver: MutableArray<Option<Node>>
         Type MutableArray<Option<Node>>
@@ -592,6 +598,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb8 while.body.8
       val $old.2: Int
         Type Int
@@ -825,6 +833,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun next @fn9(this: ListIterator<Option<Node>>) -> Option<Option<Node>>
     bb0 entry
       branch bb1 bb2
@@ -946,6 +956,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c0 @fn17(this: ListIterator<Option<Node>>, source: List<Option<Node>>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -964,6 +976,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<Node> @fn18(task: SuspendTask<Node>, completion: Continuation<Node>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -986,6 +1000,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn12 interface Continuation<Node>[0]
         Type Continuation<Node>
@@ -999,6 +1015,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn13 interface Continuation<Node>[1]
         Type Continuation<Node>
@@ -1010,6 +1028,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

@@ -276,6 +276,8 @@ Module
         Type Int
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun $lambda.5 @fn7($closure: () -> Int) -> Int
     bb0 entry
       return
@@ -404,6 +406,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn14(value: String) -> Unit
     bb0 entry
       val $dependency.local.1: String
@@ -428,6 +432,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun $lambda.2 @fn15($closure: () -> Int) -> Int
     bb0 entry
       return
@@ -443,6 +449,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Label.$c0 @fn17(text: String) -> Label <no-gc>
     bb0 entry
       return

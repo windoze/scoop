@@ -207,6 +207,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun $extension.$get$foreign @fn3(this: Receiver<Int>) -> Int
     bb0 entry
       call @fn6 direct
@@ -264,6 +266,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun $init$body$0 @fn5() -> Unit
     bb0 entry
       assign $new.1
@@ -279,6 +283,8 @@ Module
         Type OrderedSlot<Int>
         Local $call.2
       return
+        Type Unit
+        UnitLiteral
   fun $init$ensure$0 @fn6() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -303,6 +309,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -500,9 +508,13 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Starter.$c0 @fn10(this: Starter<Int>) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.OrderedSlot.$c2 @fn11(this: OrderedSlot<Int>, payload: Payload) -> Unit
     bb0 entry
       field_set 0
@@ -511,6 +523,8 @@ Module
         Type Payload
         Local payload
       return
+        Type Unit
+        UnitLiteral
   instance mi0 function=@fn1 <- exercise
   instance mi1 function=@fn2 <- $extension.$set$foreign
   instance mi2 function=@fn3 <- $extension.$get$foreign

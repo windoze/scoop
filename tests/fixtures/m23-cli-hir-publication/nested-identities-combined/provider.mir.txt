@@ -24,4 +24,6 @@ Module
   fun init.NestedBinderHost.$c0 @fn2(this: NestedBinderHost<Int>) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   output library

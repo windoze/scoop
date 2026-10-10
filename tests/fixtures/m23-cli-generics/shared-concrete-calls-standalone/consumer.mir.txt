@@ -126,14 +126,14 @@ Module
         Local value
   fun identity @fn3(value: Unit) -> Unit
     bb0 entry
-      Type Unit
-      Local value
       return
+        Type Unit
+        UnitLiteral
   fun localIdentity @fn4(value: Unit) -> Unit
     bb0 entry
-      Type Unit
-      Local value
       return
+        Type Unit
+        UnitLiteral
   fun identity @fn5(value: Int) -> Int
     bb0 entry
       return

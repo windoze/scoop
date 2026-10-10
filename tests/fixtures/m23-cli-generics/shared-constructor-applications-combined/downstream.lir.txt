@@ -1088,12 +1088,10 @@ Module
   fun @scoop$1$cb$3849be6e80526e73ef1e4825cddd1449f3f31d462e6945c66e6d449aa02c8638(ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
-    t0 = zst_value exact=1dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc align 1 : {}
     ret
   fun @scoop$1$cb$bcfcbfd3f32d24f9eb6d23de15ba390bdeaeda6b2c70af503c0431327d8dc8aa(ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
-    t0 = zst_value exact=1dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc align 1 : {}
     ret
   fun @scoop$1$cb$43b4981622937726abe2143a1076f057dee374bf23cb5885fd19c90737656d20(elided-zst<{} size=0 align=1>, ptr<managed>) -> void
   block entry
@@ -1118,7 +1116,6 @@ Module
     store integer<Int>(0x00000000) -> local2
     call no-gc-direct-target0 t4 = sig=direct0 (elided-zst<{} size=0 align=1>, i32) -> struct6 local-fn56(elided-zst local1, local2)
     store t4 -> local3
-    t5 = extract local3, 0 : {}
     ret
   fun @scoop$1$cb$2fbb1078f7f383ff4de08d565afd2f9ddbf4073f504c83cfd9e567c2b55e641e(ptr<managed>) -> i32
   block entry
@@ -1167,7 +1164,6 @@ Module
   fun @scoop$1$cb$444e20a428bebe41e75a69f97e2bd171dc8cdf757403caab98dc7421ada84225(ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
-    t0 = zst_value exact=1dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc align 1 : {}
     ret
   fun @scoop$1$cb$187e689f85b0f42af60eb38148048924b9a8ce8ab4b9a12ccfce7a0cb6d61f42(ptr<managed>) -> i32
   block entry

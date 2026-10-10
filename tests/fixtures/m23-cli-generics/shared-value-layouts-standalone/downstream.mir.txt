@@ -875,11 +875,9 @@ Module
       trap "call to abstract method `Readable.get`"
   fun get @fn12(this: Wrapper<Unit>) -> Unit
     bb0 entry
-      Type Unit
-      FieldAccess 0
-        Type Wrapper<Unit>
-        Local this
       return
+        Type Unit
+        UnitLiteral
   fun Readable.get @fn13(this: Readable<Unit>) -> Unit
     bb0 entry
       trap "call to abstract method `Readable.get`"
@@ -903,6 +901,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Link.$c1 @fn19(this: Link<Chain>, value: Chain) -> Unit
     bb0 entry
       field_set 0
@@ -911,6 +911,8 @@ Module
         Type Chain
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Phantom.$c0 @fn20() -> Phantom<Empty> <no-gc>
     bb0 entry
       return
@@ -966,6 +968,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn14 interface Continuation<Later>[0]
         Type Continuation<Later>
@@ -979,6 +983,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn15 interface Continuation<Later>[1]
         Type Continuation<Later>
@@ -990,6 +996,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -1053,6 +1061,8 @@ Module
           Type box<Wrapper<Unit>>
           Local this
       return
+        Type Unit
+        UnitLiteral
   fun function_bridge.$Closure$lambda0.(Any) -> Any @fn29($source: (Later) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type0> closure[function_type0]

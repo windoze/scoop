@@ -115,6 +115,8 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun grow @fn5(count: Long, stress: Boolean) -> MutableArray<Item>
     bb0 entry
       val $argument.0: Long
@@ -423,6 +425,8 @@ Module
         Local $inline.23.this
         Type Long
         Local $inline.23.value
+      Type Unit
+      UnitLiteral
       goto bb23
   fun exercise @fn6(count: Long, stress: Boolean) -> Long
     bb0 entry
@@ -994,6 +998,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun iterator @fn8(this: MutableArray<Item>) -> Iterator<Item>
     bb0 entry
       val $dependency.local.1: List<Item>
@@ -1054,6 +1060,8 @@ Module
         Local $inline.1.this
         Type Boolean
         BoolLiteral false
+      Type Unit
+      UnitLiteral
       goto bb1
   fun get @fn9(this: MutableArray<Item>, index: Long) -> Item
     bb0 entry
@@ -1155,6 +1163,8 @@ Module
         Local $inline.1.this
         Type Long
         Local $inline.1.value
+      Type Unit
+      UnitLiteral
       goto bb1
   fun $lambda.1 @fn12($closure: (Long) -> Item, index: Long) -> Item
     bb0 entry
@@ -1266,6 +1276,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun next @fn14(this: ListIterator<Item>) -> Option<Item>
     bb0 entry
       branch bb1 bb2
@@ -1387,6 +1399,8 @@ Module
         Type Long
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c0 @fn22(this: ListIterator<Item>, source: List<Item>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -1405,6 +1419,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<Item> @fn23(task: SuspendTask<Item>, completion: Continuation<Item>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -1427,6 +1443,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn17 interface Continuation<Item>[0]
         Type Continuation<Item>
@@ -1440,6 +1458,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn18 interface Continuation<Item>[1]
         Type Continuation<Item>
@@ -1451,6 +1471,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

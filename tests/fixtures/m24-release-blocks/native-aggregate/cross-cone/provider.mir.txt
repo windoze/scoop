@@ -135,6 +135,8 @@ Module
         Type Wide
         Local arg0
       return
+        Type Unit
+        UnitLiteral
   fun Continuation.resume @fn4(this: Continuation<Wide>, value: Wide) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
@@ -180,6 +182,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn4 interface Continuation<Wide>[0]
         Type Continuation<Wide>
@@ -193,6 +197,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn5 interface Continuation<Wide>[1]
         Type Continuation<Wide>
@@ -204,6 +210,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

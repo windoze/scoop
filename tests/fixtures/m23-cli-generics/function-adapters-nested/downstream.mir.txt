@@ -1071,11 +1071,9 @@ Module
           Local this
   fun value @fn23(this: Box<Unit>) -> Unit
     bb0 entry
-      Type Unit
-      FieldAccess 0
-        Type Box<Unit>
-        Local this
       return
+        Type Unit
+        UnitLiteral
   fun Continuation.resume @fn24(this: Continuation<Local>, value: Local) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
@@ -1096,6 +1094,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Box.$c0 @fn29(this: Box<Local>, value: Local) -> Unit
     bb0 entry
       field_set 0
@@ -1104,6 +1104,8 @@ Module
         Type Local
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Box.$c0 @fn30(this: Box<Int>, value: Int) -> Unit
     bb0 entry
       field_set 0
@@ -1112,6 +1114,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Box.$c0 @fn31(this: Box<Unit>, value: Unit) -> Unit
     bb0 entry
       field_set 0
@@ -1120,6 +1124,8 @@ Module
         Type Unit
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun $dynamic_adapter.((Any) -> Ptr<Int>) -> (Ptr<Int>) -> Any @fn32($closure: ((Any) -> Ptr<Int>) -> (Ptr<Int>) -> Any, arg0: (Any) -> Ptr<Int>) -> (Ptr<Int>) -> Any
     bb0 entry
       call $call.1: Any = <function_bridge:function_type1> function_bridge[function_type1]
@@ -1193,6 +1199,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn24 interface Continuation<Local>[0]
         Type Continuation<Local>
@@ -1206,6 +1214,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn25 interface Continuation<Local>[1]
         Type Continuation<Local>
@@ -1217,6 +1227,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

@@ -171,28 +171,31 @@ Module
     cbr t24 then @if.then.1 else @if.else.2
   block inline.4.entry
     heap_store local28 +16 local29
+    t25 = aggregate () : {}
     br @inline.cont.4
   block inline.cont.6
     store local25 -> local1
     store local0 -> local2
     store local2 -> local3
-    call managed-direct-target2 sp<managed-call:2> live=[local0:ptr<managed>@0, local1:ptr<managed>@0, local3:ptr<managed>@0] t25 = sig=direct2 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td11, machine<byte-size>(ByteSize(24)))
-    store t25 -> local26
+    call managed-direct-target2 sp<managed-call:2> live=[local0:ptr<managed>@0, local1:ptr<managed>@0, local3:ptr<managed>@0] t26 = sig=direct2 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td11, machine<byte-size>(ByteSize(24)))
+    store t26 -> local26
     store local26 -> local28
     store local3 -> local29
     br @inline.4.entry
   block inline.6.entry
     heap_store local30 +16 integer<Int>(0x00000000)
+    t27 = aggregate () : {}
     br @inline.cont.6
   block inline.cont.8
     store local24 -> local0
-    call managed-direct-target3 sp<managed-call:1> live=[local0:ptr<managed>@0] t26 = sig=direct3 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td10, machine<byte-size>(ByteSize(24)))
-    store t26 -> local25
+    call managed-direct-target3 sp<managed-call:1> live=[local0:ptr<managed>@0] t28 = sig=direct3 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td10, machine<byte-size>(ByteSize(24)))
+    store t28 -> local25
     store local25 -> local30
     br @inline.6.entry
   block inline.8.entry
-    t27 = enum_wrap e0 v1 () : enum0
-    heap_store local31 +16 t27
+    t29 = enum_wrap e0 v1 () : enum0
+    heap_store local31 +16 t29
+    t30 = aggregate () : {}
     br @inline.cont.8
   fun @scoop$1$cb$7337d8e2b2b1c94d8436ce8ba95aae3dc32241a89224c4760165669054eeec71(i32, i32, i32) -> i32 <no-gc>
     local %0 $call.1: i32
@@ -706,6 +709,7 @@ Module
     cbr t58 then @if.then.1 else @if.else.2
   block inline.25.entry
     heap_store local135 +16 integer<Int>(0x0000002a)
+    t59 = aggregate () : {}
     br @inline.cont.25
   fun @scoop$1$cb$636bcb3d3aaf86d7ba26634fadddc1902d1e2ec719e225165eaca52e0f16949f(parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>, i32) -> void
   block entry

@@ -55,6 +55,8 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun main @fn2() -> Unit
     bb0 entry
       call $call.1: SeedReader = @fn4 direct
@@ -143,6 +145,8 @@ Module
         Type Boolean
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun DomainSeed.choose @fn3(this: DomainSeed<Int>, seed: Int, value: Int) -> Int
     bb0 entry
       trap "call to abstract method `DomainSeed.choose`"

@@ -439,6 +439,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Local.$c0 @fn22(this: Local<Int>, value: Int) -> Unit
     bb0 entry
       field_set 0
@@ -447,6 +449,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun callback bridge for nativeNumber @fn23($result: Ptr<Int>, $arg0: Ptr<Int>) -> Unit <no-gc>
     bb0 entry
       call $value: Int = @fn0 direct
@@ -461,6 +465,8 @@ Module
         Type Int
         Local $value
       return
+        Type Unit
+        UnitLiteral
   fun function_bridge.$Closure$lambda0.(Any) -> Any @fn24($source: (Int) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type0> closure[function_type0]

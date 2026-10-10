@@ -139,6 +139,8 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun main @fn3() -> Unit
     bb0 entry
       val $dependency.argument.0: Int
@@ -844,6 +846,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun hash @fn4(this: Key<String>) -> Long
     bb0 entry
       val $dependency.local.1: Int
@@ -1169,6 +1173,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun equals @fn22(this: Key<String>, other: Key<String>) -> Boolean
     bb0 entry
       val $dependency.local.2: Int
@@ -1281,6 +1287,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn27 interface Continuation<Local>[0]
         Type Continuation<Local>
@@ -1294,6 +1302,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn28 interface Continuation<Local>[1]
         Type Continuation<Local>
@@ -1305,6 +1315,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

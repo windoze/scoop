@@ -388,6 +388,8 @@ Module
       resume
     bb7 try.end.7
       return
+        Type Unit
+        UnitLiteral
     bb8 try.body.8 unwind bb1
       call @fn3 direct
       goto bb7
@@ -444,6 +446,8 @@ Module
       resume
     bb7 try.end.7
       return
+        Type Unit
+        UnitLiteral
     bb8 try.body.8 unwind bb1
       call @fn4 direct
       goto bb7
@@ -750,6 +754,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun List.$get$size @fn8(this: List<String>) -> Long
     bb0 entry
       trap "call to abstract method `List.$get$size`"
@@ -800,6 +806,8 @@ Module
         Type Array<String>
         Local values
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c0 @fn11(this: ListIterator<String>, source: List<String>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -818,6 +826,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun ctor.NestedPayload.$c0 @fn12(label: String, pair: (String, String)) -> NestedPayload <no-gc>
     bb0 entry
       return

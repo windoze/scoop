@@ -555,29 +555,30 @@ Module
     br @try.body.24
   block inline.33.entry
     heap_store local156 +16 integer<Int>(0x00000049)
+    t46 = aggregate () : {}
     br @inline.cont.33
   block inline.cont.35
     store local158 -> local61
     store local61 -> local62
-    call native-borrowed-direct-target2 sp<native-borrowed:3> roots=[] t46 = sig=direct9 (parts<struct5 [[2xi64]@0+16/8]>) -> struct5 extern7(local62)
-    store t46 -> local63
-    t47 = extract local55, 0 : i8
-    store t47 -> local65
+    call native-borrowed-direct-target2 sp<native-borrowed:3> roots=[] t47 = sig=direct9 (parts<struct5 [[2xi64]@0+16/8]>) -> struct5 extern7(local62)
+    store t47 -> local63
+    t48 = extract local55, 0 : i8
+    store t48 -> local65
     store integer<Int>(0x00000001) -> local64
     store local65 -> local66
     store integer<Int8>(0x01) -> local67
     store integer<Int8>(0x01) -> local68
-    t48 = integer_compare_Equal<Int8> local66, integer<Int8>(0x01) : i1
-    cbr t48 then @if.then.7 else @if.else.8
+    t49 = integer_compare_Equal<Int8> local66, integer<Int8>(0x01) : i1
+    cbr t49 then @if.then.7 else @if.else.8
   block inline.35.entry
-    t49 = aggregate (integer<Int8>(0x07), integer<Long>(0x000000000000005b)) : struct5
-    store t49 -> local158
+    t50 = aggregate (integer<Int8>(0x07), integer<Long>(0x000000000000005b)) : struct5
+    store t50 -> local158
     br @inline.cont.35
   block inline.cont.37
     store local161 -> local53
     store local53 -> local54
-    call native-borrowed-direct-target3 sp<native-borrowed:2> roots=[] t50 = sig=direct10 (parts<struct4 [i64@0+3/1]>) -> struct4 extern6(local54)
-    store t50 -> local55
+    call native-borrowed-direct-target3 sp<native-borrowed:2> roots=[] t51 = sig=direct10 (parts<struct4 [i64@0+3/1]>) -> struct4 extern6(local54)
+    store t51 -> local55
     store integer<Int>(0x00000007) -> local56
     store integer<Int8>(0x07) -> local57
     store integer<Long>(0x000000000000005b) -> local58
@@ -587,32 +588,32 @@ Module
     store integer<Long>(0x000000000000005b) -> local160
     br @inline.35.entry
   block inline.37.entry
-    t51 = aggregate (integer<Int8>(0x01), integer<Int8>(0x02), integer<Int8>(0x03)) : struct4
-    store t51 -> local161
+    t52 = aggregate (integer<Int8>(0x01), integer<Int8>(0x02), integer<Int8>(0x03)) : struct4
+    store t52 -> local161
     br @inline.cont.37
   block inline.cont.39
     store local165 -> local17
     store local17 -> local18
-    call native-borrowed-direct-target4 sp<native-borrowed:1> roots=[] t52 = sig=direct11 (parts<struct3 [[2xf32]@0+8/4]>) -> struct3 extern5(local18)
-    store t52 -> local19
-    t53 = extract local12, 0 : f64
-    store t53 -> local20
+    call native-borrowed-direct-target4 sp<native-borrowed:1> roots=[] t53 = sig=direct11 (parts<struct3 [[2xf32]@0+8/4]>) -> struct3 extern5(local18)
+    store t53 -> local19
+    t54 = extract local12, 0 : f64
+    store t54 -> local20
     store local20 -> local21
-    call native-gc-leaf-direct-target6 t54 = sig=direct12 (f64) -> i64 extern3(local21)
-    store t54 -> local22
+    call native-gc-leaf-direct-target6 t55 = sig=direct12 (f64) -> i64 extern3(local21)
+    store t55 -> local22
     store integer<ULong>(0x7ff0000000000123) -> local23
     store integer<ULong>(0x7ff0000000000123) -> local24
-    t55 = integer_compare_Equal<ULong> local22, integer<ULong>(0x7ff0000000000123) : i1
-    cbr t55 then @if.then.1 else @if.else.2
+    t56 = integer_compare_Equal<ULong> local22, integer<ULong>(0x7ff0000000000123) : i1
+    cbr t56 then @if.then.1 else @if.else.2
   block inline.39.entry
-    t56 = aggregate (local166, local167) : struct3
-    store t56 -> local165
+    t57 = aggregate (local166, local167) : struct3
+    store t57 -> local165
     br @inline.cont.39
   block inline.cont.41
     store local168 -> local10
     store local10 -> local11
-    call native-borrowed-direct-target5 sp<native-borrowed:0> roots=[] t57 = sig=direct13 (parts<struct2 [[2xi64]@0+16/8]>) -> struct2 extern4(local11)
-    store t57 -> local12
+    call native-borrowed-direct-target5 sp<native-borrowed:0> roots=[] t58 = sig=direct13 (parts<struct2 [[2xi64]@0+16/8]>) -> struct2 extern4(local11)
+    store t58 -> local12
     store local2 -> local13
     store f32(0x80000000) -> local14
     store local13 -> local15
@@ -621,8 +622,8 @@ Module
     store local16 -> local167
     br @inline.39.entry
   block inline.41.entry
-    t58 = aggregate (local169, integer<Long>(0x000000000000002a)) : struct2
-    store t58 -> local168
+    t59 = aggregate (local169, integer<Long>(0x000000000000002a)) : struct2
+    store t59 -> local168
     br @inline.cont.41
   block invoke.normal.1
     t43 = aggregate () : {}

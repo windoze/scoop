@@ -70,6 +70,8 @@ Module
         Type Int
         Local arg2
       return
+        Type Unit
+        UnitLiteral
   fun main @fn2() -> Unit
     bb0 entry
       val captured: String
@@ -160,6 +162,8 @@ Module
         Type ForeignCallback<(Ptr<Unit>, Int) -> Unit>
         Local $dependency.parameter.callback
       return
+        Type Unit
+        UnitLiteral
   fun equals @fn3(this: Ptr<Unit>, other: Ptr<Unit>) -> Boolean
     bb0 entry
       val $dependency.local.2: Ptr<Unit>
@@ -205,6 +209,8 @@ Module
         Type Int
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun println @fn5(value: Boolean) -> Unit
     bb0 entry
       val $dependency.local.1: Boolean
@@ -229,6 +235,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn6(value: String) -> Unit
     bb0 entry
       val $dependency.local.1: String
@@ -253,6 +261,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn7(value: Int) -> Unit
     bb0 entry
       val $dependency.local.1: Int
@@ -277,6 +287,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun foreign callback adapter 0 @fn8($closure: (Int) -> Unit, $snapshot: internal<context-node>, $result: Ptr<Unit>, $arguments: Ptr<Ptr<Unit>>, $exception: Ptr<Throwable>) -> machine<foreign-callback-status>
     bb0 context.unwind
       landing_pad cleanup=true

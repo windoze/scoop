@@ -1000,19 +1000,19 @@ Module
         Local $call.1
   fun identity @fn15(value: Unit) -> Unit
     bb0 entry
-      Type Unit
-      Local value
       return
+        Type Unit
+        UnitLiteral
   fun choose @fn16(value: Unit, copy: Unit) -> Unit
     bb0 entry
-      Type Unit
-      Local copy
       return
+        Type Unit
+        UnitLiteral
   fun localDefault @fn17(value: Unit, copy: Unit) -> Unit
     bb0 entry
-      Type Unit
-      Local copy
       return
+        Type Unit
+        UnitLiteral
   fun $lambda @fn18($argument.0: () -> Unit) -> Unit
     bb0 entry
       val $dependency.local.0: Unit
@@ -1041,12 +1041,16 @@ Module
         Type Unit
         Local $dependency.local.4
       return
+        Type Unit
+        UnitLiteral
   fun relay @fn19(value: Unit, callback: () -> Unit) -> Unit
     bb0 entry
       call <closure:function_type7> closure[function_type7]
         Type () -> Unit
         Local callback
       return
+        Type Unit
+        UnitLiteral
   fun local @fn20($argument.0: Unit) -> Unit
     bb0 entry
       val $dependency.local.1: Unit
@@ -1065,6 +1069,8 @@ Module
         Type Unit
         Local $dependency.local.3
       return
+        Type Unit
+        UnitLiteral
   fun identity @fn21(value: String) -> String
     bb0 entry
       return
@@ -1225,6 +1231,8 @@ Module
         Type Unit
         Local $dependency.local.2
       return
+        Type Unit
+        UnitLiteral
   fun $extension.echo @fn35(this: String) -> String
     bb0 entry
       val $dependency.local.1: String
@@ -1273,6 +1281,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<Later> @fn42(task: SuspendTask<Later>, completion: Continuation<Later>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -1295,6 +1305,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn37 interface Continuation<Later>[0]
         Type Continuation<Later>
@@ -1308,6 +1320,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn38 interface Continuation<Later>[1]
         Type Continuation<Later>
@@ -1319,6 +1333,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

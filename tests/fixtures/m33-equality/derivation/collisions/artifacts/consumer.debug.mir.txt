@@ -315,6 +315,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun equals @fn1(this: Generic<Int>, other: Generic<Int>) -> Boolean
     bb0 entry
       return
@@ -344,6 +346,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Generic.$c0 @fn3(value: Int) -> Generic<Int> <no-gc>
     bb0 entry
       return

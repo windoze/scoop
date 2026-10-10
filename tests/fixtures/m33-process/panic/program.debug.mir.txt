@@ -107,6 +107,8 @@ Module
         Type Long
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb5 while.body.5
       call $array_value.5: Int = <closure:function_type0> closure[function_type0]
         Type (Long) -> Int
@@ -268,6 +270,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun next @fn6(this: ListIterator<Int>) -> Option<Int>
     bb0 entry
       branch bb1 bb2
@@ -387,6 +391,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun function_bridge.$Closure$lambda0.(Any) -> Any @fn10($source: (Long) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type0> closure[function_type0]

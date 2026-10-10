@@ -322,33 +322,35 @@ Module
     br @inline.11.entry
   block inline.13.entry
     heap_store local86 +16 local87
+    t40 = aggregate () : {}
     br @inline.cont.13
   block inline.cont.15
     store local48 -> local2
     store local2 -> local3
-    call managed-direct-target2 sp<managed-call:1> live=[local3:ptr<managed>@0] t40 = sig=direct8 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td17, machine<byte-size>(ByteSize(24)))
-    store t40 -> local49
+    call managed-direct-target2 sp<managed-call:1> live=[local3:ptr<managed>@0] t41 = sig=direct8 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td17, machine<byte-size>(ByteSize(24)))
+    store t41 -> local49
     store local49 -> local86
     store local3 -> local87
     br @inline.13.entry
   block inline.15.entry
     heap_store local88 +16 integer<Int>(0x00000049)
+    t42 = aggregate () : {}
     br @inline.cont.15
   block inline.cont.17
     store local90 -> local80
     store local80 -> local74
     br @inline.cont.9
   block inline.17.entry
-    t41 = aggregate (local91) : struct2
-    store t41 -> local90
+    t43 = aggregate (local91) : struct2
+    store t43 -> local90
     br @inline.cont.17
   block inline.cont.19
     store local92 -> local73
     store local73 -> local67
     br @inline.cont.7
   block inline.19.entry
-    t42 = aggregate (local93) : struct1
-    store t42 -> local92
+    t44 = aggregate (local93) : struct1
+    store t44 -> local92
     br @inline.cont.19
   fun @scoop$1$cb$35277403a0294ac8e4f1882ac0de0898c55305963ee4cd288e453f6e105377d9() -> void
     local %0 $argument.0: i64
@@ -705,24 +707,26 @@ Module
     br @inline.5.entry
   block inline.cont.5
     store local38 -> local37
+    t21 = aggregate () : {}
     br @inline.cont.3
   block inline.5.entry
-    t21 = extract local39, 0 : i64
-    store t21 -> local40
+    t22 = extract local39, 0 : i64
+    store t22 -> local40
     store local40 -> local41
-    call no-gc-direct-target0 t22 = sig=direct6 (i64) -> ptr<managed> runtime @scoop_rt_unpin(local41)
-    store t22 -> local42
+    call no-gc-direct-target0 t23 = sig=direct6 (i64) -> ptr<managed> runtime @scoop_rt_unpin(local41)
+    store t23 -> local42
     store local42 -> local38
     br @inline.cont.5
   block inline.cont.7
     store local43 -> local33
+    t24 = aggregate () : {}
     br @inline.cont.1
   block inline.7.entry
-    t23 = extract local44, 0 : i64
-    store t23 -> local45
+    t25 = extract local44, 0 : i64
+    store t25 -> local45
     store local45 -> local46
-    call no-gc-direct-target1 t24 = sig=direct7 (i64) -> ptr<managed> runtime @scoop_rt_unpin(local46)
-    store t24 -> local47
+    call no-gc-direct-target1 t26 = sig=direct7 (i64) -> ptr<managed> runtime @scoop_rt_unpin(local46)
+    store t26 -> local47
     store local47 -> local43
     br @inline.cont.7
   fun @scoop$1$cb$a59ba8328a87a3c09df1111305261ccbca23796630e0ce6dea24e3ae106f48ca() -> void
@@ -941,6 +945,7 @@ Module
     heap_store local7 +16 local8
     heap_store local7 +32 integer<Long>(0x0000000000000000)
     heap_store local7 +40 false
+    t7 = aggregate () : {}
     br @inline.cont.1
   fun @scoop$1$cb$85ab884770513af39c9fc74432f7f5036bc0b52e89e712a1d352fefd05c586c4(ptr<managed>, i64) -> i8
     local %0 $dependency.local.2: ptr<managed>

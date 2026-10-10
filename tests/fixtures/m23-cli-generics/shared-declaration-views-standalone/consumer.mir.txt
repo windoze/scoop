@@ -111,6 +111,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun select @fn3(value: Int) -> Int
     bb0 entry
       val $dependency.receiver: Int
@@ -1201,6 +1203,8 @@ Module
         Type Int
         IntegerLiteral Int value=0 bits=0x00000000
       return
+        Type Unit
+        UnitLiteral
   fun init.Box.$c1 @fn34(this: Box<Int>, value: Int, counter: Counter) -> Unit
     bb0 entry
       field_set 0
@@ -1214,6 +1218,8 @@ Module
         Type Counter
         Local counter
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c0 @fn35(this: ListIterator<Int>, source: List<Int>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -1232,6 +1238,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<Counter> @fn36(task: SuspendTask<Counter>, completion: Continuation<Counter>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -1254,6 +1262,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn21 interface Continuation<Counter>[0]
         Type Continuation<Counter>
@@ -1267,6 +1277,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn22 interface Continuation<Counter>[1]
         Type Continuation<Counter>
@@ -1278,6 +1290,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

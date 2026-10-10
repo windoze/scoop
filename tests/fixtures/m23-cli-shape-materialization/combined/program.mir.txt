@@ -56,6 +56,8 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun main @fn1() -> Unit
     bb0 entry
       val $dependency.argument.0: Int
@@ -308,6 +310,8 @@ Module
         Type Boolean
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   str @str0 "illegal state"
   str @str1 "payload"
   str @str2 "payload"

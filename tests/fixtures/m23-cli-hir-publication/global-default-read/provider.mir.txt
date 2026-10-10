@@ -33,6 +33,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun $get$threadDefaultValue @fn5() -> Int <no-gc>
     bb0 entry
       return
@@ -44,4 +46,6 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   output library

@@ -398,6 +398,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   instance mi0 function=@fn3 <- Iterable.iterator
   instance mi1 function=@fn4 <- Iterator.next
   instance mi2 function=@fn5 <- iterator

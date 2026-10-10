@@ -139,6 +139,8 @@ Module
         Type String
         StringConst @str0
       return
+        Type Unit
+        UnitLiteral
   fun Box.read @fn2(this: Box<Pair>) -> Pair
     bb0 entry
       return
@@ -184,6 +186,8 @@ Module
         Type Long
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Box.$c0 @fn11(this: Box<Pair>, item: Pair) -> Unit
     bb0 entry
       field_set 0
@@ -192,6 +196,8 @@ Module
         Type Pair
         Local item
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Pair.$c0 @fn12(first: Long, second: Long) -> Pair <no-gc>
     bb0 entry
       return
@@ -223,6 +229,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn5 interface Continuation<Pair>[0]
         Type Continuation<Pair>
@@ -236,6 +244,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn6 interface Continuation<Pair>[1]
         Type Continuation<Pair>
@@ -247,6 +257,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

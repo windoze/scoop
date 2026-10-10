@@ -643,6 +643,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Carrier.$c1 @fn17(this: Carrier<Scalar<Later>>, scalar: Scalar<Scalar<Later>>) -> Unit
     bb0 entry
       field_set 0
@@ -651,6 +653,8 @@ Module
         Type Scalar<Scalar<Later>>
         Local scalar
       return
+        Type Unit
+        UnitLiteral
   fun init.Carrier.$c1 @fn18(this: Carrier<Scalar<Unit>>, scalar: Scalar<Scalar<Unit>>) -> Unit
     bb0 entry
       field_set 0
@@ -659,6 +663,8 @@ Module
         Type Scalar<Scalar<Unit>>
         Local scalar
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Later.$c0 @fn19(value: Int) -> Later <no-gc>
     bb0 entry
       return
@@ -728,6 +734,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn12 interface Continuation<Later>[0]
         Type Continuation<Later>
@@ -741,6 +749,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn13 interface Continuation<Later>[1]
         Type Continuation<Later>
@@ -752,6 +762,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

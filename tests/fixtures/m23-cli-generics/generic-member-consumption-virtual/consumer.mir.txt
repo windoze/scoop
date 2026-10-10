@@ -124,6 +124,8 @@ Module
         Type Int
         Local other
       return
+        Type Unit
+        UnitLiteral
   fun init.VirtualBox.$c1 @fn7(this: VirtualBox<Int>, value: Int) -> Unit
     bb0 entry
       field_set 0
@@ -132,6 +134,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   instance mi0 function=@fn1 <- read
   instance mi1 function=@fn2 <- read
   instance mi2 function=@fn3 <- inheritedRead

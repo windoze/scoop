@@ -307,6 +307,8 @@ Module
         Type Int
         IntegerLiteral Int value=2 bits=0x00000002
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Pair.$c0 @fn17(left: Int, right: Int) -> Pair <no-gc>
     bb0 entry
       return
@@ -338,6 +340,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn12 interface Continuation<Storage>[0]
         Type Continuation<Storage>
@@ -351,6 +355,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn13 interface Continuation<Storage>[1]
         Type Continuation<Storage>
@@ -362,6 +368,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -419,6 +427,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn4 interface Continuation<Pair>[0]
         Type Continuation<Pair>
@@ -432,6 +442,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn5 interface Continuation<Pair>[1]
         Type Continuation<Pair>
@@ -443,6 +455,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -500,6 +514,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn8 interface Continuation<Choice>[0]
         Type Continuation<Choice>
@@ -513,6 +529,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn9 interface Continuation<Choice>[1]
         Type Continuation<Choice>
@@ -524,6 +542,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

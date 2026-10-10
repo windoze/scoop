@@ -769,6 +769,8 @@ Module
         Type Int
         Local number
       return
+        Type Unit
+        UnitLiteral
   fun init.LocalHolder.$c1 @fn18(this: LocalHolder<Int>, value: Int) -> Unit
     bb0 entry
       field_set 0
@@ -777,6 +779,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Holder.$c0 @fn19(this: Holder<Int>, value: Int) -> Unit
     bb0 entry
       field_set 0
@@ -785,6 +789,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c1 @fn20(this: ListIterator<Int>, source: List<Int>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -803,6 +809,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   instance mi0 function=@fn10 <- iterator
   instance mi1 function=@fn11 <- get
   instance mi2 function=@fn12 <- size

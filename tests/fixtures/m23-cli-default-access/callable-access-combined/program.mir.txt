@@ -118,9 +118,13 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun unitValue @fn2() -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun main @fn3() -> Unit
     bb0 entry
       call host: CallableHost<Int> = @fn4 direct
@@ -1102,6 +1106,8 @@ Module
         Type Boolean
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun callableHost @fn4() -> CallableHost<Int>
     bb0 entry
       assign $new.1
@@ -1167,6 +1173,8 @@ Module
         Type Int
         Local next
       return
+        Type Unit
+        UnitLiteral
   fun setter @fn12(this: CallableHost<Int>, source: CallableCell<Int>, seed: Int, value: Int) -> Int
     bb0 entry
       return
@@ -1412,9 +1420,13 @@ Module
   fun init.IntReader.$c0 @fn53(this: IntReader) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.CallableHost.$c1 @fn54(this: CallableHost<Int>) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.CallableCell.$c2 @fn55(this: CallableCell<Int>, backing: Int) -> Unit
     bb0 entry
       field_set 0
@@ -1423,9 +1435,13 @@ Module
         Type Int
         Local backing
       return
+        Type Unit
+        UnitLiteral
   fun init.CallableBase.$c3 @fn56(this: CallableBase<Int>) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun ctor.CallableValue.$c0 @fn57() -> CallableValue<Int> <no-gc>
     bb0 entry
       return
@@ -1453,6 +1469,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn42 interface Continuation<IntReader>[0]
         Type Continuation<IntReader>
@@ -1466,6 +1484,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn43 interface Continuation<IntReader>[1]
         Type Continuation<IntReader>
@@ -1477,6 +1497,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

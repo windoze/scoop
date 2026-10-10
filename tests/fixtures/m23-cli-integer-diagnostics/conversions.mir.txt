@@ -174,6 +174,8 @@ Module
         Type UInt8
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun println @fn1(value: Int) -> Unit
     bb0 entry
       val $dependency.local.1: Int
@@ -198,6 +200,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun choose @fn2(value: Int, fallback: Int) -> Int
     bb0 entry
       return
@@ -227,6 +231,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn4(value: UInt8) -> Unit
     bb0 entry
       val $dependency.local.1: UInt8
@@ -251,6 +257,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   instance mi0 function=@fn1 <- println
   instance mi1 function=@fn2 <- choose
   instance mi2 function=@fn3 <- println

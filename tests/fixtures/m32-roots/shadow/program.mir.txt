@@ -209,6 +209,8 @@ Module
       resume
     bb11 try.end.11
       return
+        Type Unit
+        UnitLiteral
     bb12 try.body.12 unwind bb5
       call $call.5: Nothing = @fn1 direct
       unreachable
@@ -262,6 +264,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn4(value: Boolean) -> Unit
     bb0 entry
       val $dependency.local.1: Boolean
@@ -286,6 +290,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn5(value: String) -> Unit
     bb0 entry
       val $dependency.local.1: String
@@ -310,6 +316,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun init.Any.$c0 @fn6(this: Any, value: Int) -> Unit
     bb0 entry
       field_set 0
@@ -318,6 +326,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Nothing.$c1 @fn7(this: Nothing, value: Int) -> Unit
     bb0 entry
       field_set 0
@@ -326,6 +336,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   instance mi0 function=@fn3 <- println
   instance mi1 function=@fn4 <- println
   instance mi2 function=@fn5 <- println

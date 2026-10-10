@@ -803,7 +803,6 @@ Module
   fun @scoop$1$cb$c36b811a724a69dc40b9e220aba5ec81c332bf6e4215f1e8e974035734546023(ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
-    t0 = zst_value exact=1dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc align 1 : {}
     ret
   fun @scoop$1$cb$1ef9a4a1816100ce09dc7c78ad6b4542785b0e6c66ac5426ad01424c1be584c3(ptr<managed>) -> i32
   block entry

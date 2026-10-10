@@ -328,6 +328,8 @@ Module
         Type Int
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun $local.11.read @fn10($capture.this: LocalSnapshot) -> Int
     bb0 entry
       return
@@ -445,6 +447,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun $local.2.choose @fn14(value: Int) -> Int
     bb0 entry
       val $dependency.receiver: Int
@@ -588,6 +592,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun $local.10.inner @fn22($capture.base: Int, value: Int) -> Int
     bb0 entry
       val $dependency.receiver: Int

@@ -501,6 +501,8 @@ Module
         Local $inline.1.this
         Type Boolean
         BoolLiteral false
+      Type Unit
+      UnitLiteral
       goto bb1
   fun get @fn6(this: MutableArray<UInt8>, index: Long) -> UInt8
     bb0 entry
@@ -895,6 +897,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun thunk<Ptr<UInt8>> Equality.equalTo(Ptr<UInt8>) @fn17(this: box<Ptr<UInt8>>, other: Ptr<UInt8>) -> Boolean
     bb0 entry
       val $inline.1.this: Ptr<UInt8>

@@ -350,6 +350,8 @@ Module
         Type Long
         Local $value
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<Carrier> @fn11(task: SuspendTask<Carrier>, completion: Continuation<Carrier>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -372,6 +374,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn5 interface Continuation<Carrier>[0]
         Type Continuation<Carrier>
@@ -385,6 +389,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn6 interface Continuation<Carrier>[1]
         Type Continuation<Carrier>
@@ -396,6 +402,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

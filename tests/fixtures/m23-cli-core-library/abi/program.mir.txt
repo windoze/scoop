@@ -7,6 +7,8 @@ Module
   fun token @fn0() -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun main @fn1() -> Unit
     bb0 entry
       call @fn0 direct
@@ -55,5 +57,7 @@ Module
         Type String
         Local $dependency.parameter.text
       return
+        Type Unit
+        UnitLiteral
   str @str0 "mixed ABI"
   output executable @fn1

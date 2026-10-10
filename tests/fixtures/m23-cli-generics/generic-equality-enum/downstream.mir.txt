@@ -2732,6 +2732,8 @@ Module
         Type Int
         Local number
       return
+        Type Unit
+        UnitLiteral
   fun init.Key.$c0 @fn20(this: Key<Later>, payload: Later, number: Int) -> Unit
     bb0 entry
       field_set 0
@@ -2745,6 +2747,8 @@ Module
         Type Int
         Local number
       return
+        Type Unit
+        UnitLiteral
   fun init.Key.$c0 @fn21(this: Key<Int>, payload: Int, number: Int) -> Unit
     bb0 entry
       field_set 0
@@ -2758,6 +2762,8 @@ Module
         Type Int
         Local number
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<Later> @fn22(task: SuspendTask<Later>, completion: Continuation<Later>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -2780,6 +2786,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn15 interface Continuation<Later>[0]
         Type Continuation<Later>
@@ -2793,6 +2801,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn16 interface Continuation<Later>[1]
         Type Continuation<Later>
@@ -2804,6 +2814,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

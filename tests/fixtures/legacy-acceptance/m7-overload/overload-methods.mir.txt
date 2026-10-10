@@ -78,6 +78,8 @@ Module
         Type Int
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun println @fn4(value: Int) -> Unit
     bb0 entry
       val $dependency.local.1: Int
@@ -102,9 +104,13 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun init.A.$c0 @fn5(this: A) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.B.$c1 @fn6(this: B) -> Unit
     bb0 entry
       call @fn5 direct
@@ -113,6 +119,8 @@ Module
           Type B
           Local this
       return
+        Type Unit
+        UnitLiteral
   instance mi0 function=@fn4 <- println
   str @str0 "x"
   str @str1 "\n"

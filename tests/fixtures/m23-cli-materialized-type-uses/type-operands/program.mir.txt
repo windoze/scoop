@@ -53,6 +53,8 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun main @fn1() -> Unit
     bb0 entry
       val narrow: Int8
@@ -125,6 +127,8 @@ Module
         Type Boolean
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   str @str0 "illegal state"
   str @str1 "text"
   output executable @fn1

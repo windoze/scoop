@@ -82,6 +82,8 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun verifyPointer @fn1(pointer: Ptr<UInt8>, length: Long) -> Unit
     bb0 entry
       val $dependency.receiver: Long
@@ -258,6 +260,8 @@ Module
         Type Boolean
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun main @fn2() -> Unit
     bb0 entry
       val $argument.0: Long
@@ -341,6 +345,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb5 while.body.5
       call $array_value.5: UInt8 = <closure:function_type0> closure[function_type0]
         Type (Long) -> UInt8
@@ -544,6 +550,8 @@ Module
         Type Long
         Local $parameter.length
       return
+        Type Unit
+        UnitLiteral
   fun $extension.withDataPointer @fn11(this: MutableArray<UInt8>, block: (Ptr<UInt8>, Long) -> Unit) -> Unit
     bb0 entry
       val $dependency.local.2: MutableArray<UInt8>
@@ -583,9 +591,9 @@ Module
       end_catch
       resume
     bb5 try.end.5
-      Type Unit
-      Local $borrow_result.4
       return
+        Type Unit
+        UnitLiteral
     bb6 try.body.6 unwind bb1
       call <closure:function_type2> closure[function_type2]
         Type (Ptr<UInt8>, Long) -> Unit
@@ -638,6 +646,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun equals @fn13(this: Ptr<UInt8>, other: Ptr<UInt8>) -> Boolean
     bb0 entry
       val $dependency.local.2: Ptr<UInt8>
@@ -779,6 +789,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun thunk<Ptr<UInt8>> Equality.equalTo(Ptr<UInt8>) @fn18(this: box<Ptr<UInt8>>, other: Ptr<UInt8>) -> Boolean
     bb0 entry
       call $call.1: Boolean = @fn3 direct

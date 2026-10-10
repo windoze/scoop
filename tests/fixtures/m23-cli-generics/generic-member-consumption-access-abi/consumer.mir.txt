@@ -331,20 +331,18 @@ Module
         Type Large
         Local next
       return
+        Type Unit
+        UnitLiteral
   fun secret @fn4(this: ProtectedBox<Unit>) -> Unit
     bb0 entry
-      Type Unit
-      FieldAccess 0
-        Type ProtectedBox<Unit>
-        Local this
       return
+        Type Unit
+        UnitLiteral
   fun state @fn5(this: ProtectedBox<Unit>) -> Unit
     bb0 entry
-      Type Unit
-      FieldAccess 1
-        Type ProtectedBox<Unit>
-        Local this
       return
+        Type Unit
+        UnitLiteral
   fun state @fn6(this: ProtectedBox<Unit>, next: Unit) -> Unit
     bb0 entry
       field_set 1
@@ -353,6 +351,8 @@ Module
         Type Unit
         Local next
       return
+        Type Unit
+        UnitLiteral
   fun Derived.replace @fn7(this: Derived<Unit>, next: Unit) -> Unit
     bb0 entry
       val $place.0: Derived<Unit>
@@ -374,6 +374,8 @@ Module
         Type ProtectedBox<Unit>
         Local $dependency.receiver
       return
+        Type Unit
+        UnitLiteral
   fun Derived.replace @fn8(this: Derived<Large>, next: Large) -> Large
     bb0 entry
       val $place.0: Derived<Large>
@@ -429,6 +431,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Derived.$c1 @fn18(this: Derived<Large>, value: Large) -> Unit
     bb0 entry
       val $dependency.argument.0: Large
@@ -445,6 +449,8 @@ Module
         Type Large
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun init.Derived.$c1 @fn19(this: Derived<Unit>, value: Unit) -> Unit
     bb0 entry
       val $dependency.argument.0: Unit
@@ -461,6 +467,8 @@ Module
         Type Unit
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun init.ProtectedMiddle.$c0 @fn20(this: ProtectedMiddle<Large>, value: Large) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Large
@@ -477,6 +485,8 @@ Module
         Type Large
         Local $dependency.constructor.local.1
       return
+        Type Unit
+        UnitLiteral
   fun init.ProtectedMiddle.$c0 @fn21(this: ProtectedMiddle<Unit>, value: Unit) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Unit
@@ -493,6 +503,8 @@ Module
         Type Unit
         Local $dependency.constructor.local.1
       return
+        Type Unit
+        UnitLiteral
   fun init.ProtectedBox.$c1 @fn22(this: ProtectedBox<Large>, stored: Large) -> Unit
     bb0 entry
       field_set 0
@@ -511,6 +523,8 @@ Module
         Type Large
         Local stored
       return
+        Type Unit
+        UnitLiteral
   fun init.ProtectedBox.$c1 @fn23(this: ProtectedBox<Unit>, stored: Unit) -> Unit
     bb0 entry
       field_set 0
@@ -529,6 +543,8 @@ Module
         Type Unit
         Local stored
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Large.$c0 @fn24(first: Reference, second: Reference, third: Reference) -> Large <no-gc>
     bb0 entry
       return
@@ -562,6 +578,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn9 interface Continuation<Large>[0]
         Type Continuation<Large>
@@ -575,6 +593,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn10 interface Continuation<Large>[1]
         Type Continuation<Large>
@@ -586,6 +606,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -643,6 +665,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn13 interface Continuation<Reference>[0]
         Type Continuation<Reference>
@@ -656,6 +680,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn14 interface Continuation<Reference>[1]
         Type Continuation<Reference>
@@ -667,6 +693,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

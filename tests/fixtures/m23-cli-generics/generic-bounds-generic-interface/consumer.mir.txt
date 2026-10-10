@@ -191,6 +191,8 @@ Module
         Type Int
         Local payload
       return
+        Type Unit
+        UnitLiteral
   fun ctor.GenericValue.$c1 @fn9(payload: Int, number: Int) -> GenericValue<Int> <no-gc>
     bb0 entry
       return

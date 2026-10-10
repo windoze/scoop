@@ -706,6 +706,8 @@ Module
       resume
     bb7 try.end.7
       return
+        Type Unit
+        UnitLiteral
     bb8 try.body.8 unwind bb1
       call $dependency.argument.0: Int = <closure:function_type6> closure[function_type6]
         Type (Int) -> Int
@@ -790,6 +792,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun $extension.keep @fn16(this: String) -> String
     bb0 entry
       return
@@ -819,6 +823,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun $extension.echo @fn18(this: String, value: String) -> String
     bb0 entry
       return
@@ -946,6 +952,8 @@ Module
         Type String
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.MutableName.$c1 @fn36(this: MutableName, value: String) -> Unit
     bb0 entry
       field_set 0
@@ -954,6 +962,8 @@ Module
         Type String
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.ReceiverFactory.$c2 @fn37(this: ReceiverFactory, calls: Int) -> Unit
     bb0 entry
       field_set 0
@@ -962,9 +972,13 @@ Module
         Type Int
         Local calls
       return
+        Type Unit
+        UnitLiteral
   fun init.ThrowingExtension.$c3 @fn38(this: ThrowingExtension) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Offset.$c0 @fn39(amount: Int) -> Offset <no-gc>
     bb0 entry
       return
@@ -994,6 +1008,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn19 interface Continuation<Offset>[0]
         Type Continuation<Offset>
@@ -1007,6 +1023,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn20 interface Continuation<Offset>[1]
         Type Continuation<Offset>
@@ -1018,6 +1036,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -1075,6 +1095,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn23 interface Continuation<MutableName>[0]
         Type Continuation<MutableName>
@@ -1088,6 +1110,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn24 interface Continuation<MutableName>[1]
         Type Continuation<MutableName>
@@ -1099,6 +1123,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

@@ -479,6 +479,8 @@ Module
         Type LocalBase<Unit>
         Local $dependency.local.2
       return
+        Type Unit
+        UnitLiteral
   fun readClass @fn12(value: Child<Unit>) -> Unit
     bb0 entry
       val $dependency.local.1: Child<Unit>
@@ -490,6 +492,8 @@ Module
           Type Child<Unit>
           Local $dependency.local.1
       return
+        Type Unit
+        UnitLiteral
   fun readBase @fn13(source: LocalBase<Later>) -> Later
     bb0 entry
       return
@@ -522,17 +526,17 @@ Module
         Local $call.1
   fun readBase @fn17(source: LocalBase<Unit>) -> Unit
     bb0 entry
-      Type Unit
-      FieldAccess 0
-        Type LocalBase<Unit>
-        Local source
       return
+        Type Unit
+        UnitLiteral
   fun read @fn18(this: Base<Unit>) -> Unit
     bb0 entry
       call @fn21 direct
         Type Base<Unit>
         Local this
       return
+        Type Unit
+        UnitLiteral
   fun value @fn19(this: Base<Later>) -> Later
     bb0 entry
       return
@@ -549,11 +553,9 @@ Module
           Local this
   fun value @fn21(this: Base<Unit>) -> Unit
     bb0 entry
-      Type Unit
-      FieldAccess 0
-        Type Base<Unit>
-        Local this
       return
+        Type Unit
+        UnitLiteral
   fun Continuation.resume @fn22(this: Continuation<Later>, value: Later) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
@@ -574,6 +576,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.LocalChild.$c0 @fn27(this: LocalChild<Later>, value: Later) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Later
@@ -590,6 +594,8 @@ Module
         Type Later
         Local $dependency.constructor.local.1
       return
+        Type Unit
+        UnitLiteral
   fun init.Child.$c1 @fn28(this: Child<Later>, value: Later) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Later
@@ -606,6 +612,8 @@ Module
         Type Later
         Local $dependency.constructor.local.1
       return
+        Type Unit
+        UnitLiteral
   fun init.LocalChild.$c0 @fn29(this: LocalChild<Int>, value: Int) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Int
@@ -622,6 +630,8 @@ Module
         Type Int
         Local $dependency.constructor.local.1
       return
+        Type Unit
+        UnitLiteral
   fun init.Child.$c1 @fn30(this: Child<Int>, value: Int) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Int
@@ -638,6 +648,8 @@ Module
         Type Int
         Local $dependency.constructor.local.1
       return
+        Type Unit
+        UnitLiteral
   fun init.LocalChild.$c0 @fn31(this: LocalChild<Unit>, value: Unit) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Unit
@@ -654,6 +666,8 @@ Module
         Type Unit
         Local $dependency.constructor.local.1
       return
+        Type Unit
+        UnitLiteral
   fun init.Child.$c1 @fn32(this: Child<Unit>, value: Unit) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Unit
@@ -670,6 +684,8 @@ Module
         Type Unit
         Local $dependency.constructor.local.1
       return
+        Type Unit
+        UnitLiteral
   fun init.LocalBase.$c2 @fn33(this: LocalBase<Later>, value: Later) -> Unit
     bb0 entry
       field_set 0
@@ -678,6 +694,8 @@ Module
         Type Later
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Base.$c3 @fn34(this: Base<Later>, value: Later) -> Unit
     bb0 entry
       field_set 0
@@ -686,6 +704,8 @@ Module
         Type Later
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.LocalBase.$c2 @fn35(this: LocalBase<Int>, value: Int) -> Unit
     bb0 entry
       field_set 0
@@ -694,6 +714,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Base.$c3 @fn36(this: Base<Int>, value: Int) -> Unit
     bb0 entry
       field_set 0
@@ -702,6 +724,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.LocalBase.$c2 @fn37(this: LocalBase<Unit>, value: Unit) -> Unit
     bb0 entry
       field_set 0
@@ -710,6 +734,8 @@ Module
         Type Unit
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Base.$c3 @fn38(this: Base<Unit>, value: Unit) -> Unit
     bb0 entry
       field_set 0
@@ -718,6 +744,8 @@ Module
         Type Unit
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<Later> @fn39(task: SuspendTask<Later>, completion: Continuation<Later>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -740,6 +768,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn22 interface Continuation<Later>[0]
         Type Continuation<Later>
@@ -753,6 +783,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn23 interface Continuation<Later>[1]
         Type Continuation<Later>
@@ -764,6 +796,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

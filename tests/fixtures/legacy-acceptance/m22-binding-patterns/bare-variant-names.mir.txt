@@ -319,6 +319,8 @@ Module
         Type Int
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun lambdaBinding @fn4() -> Int
     bb0 entry
       val unpack: ((Option<Int>, Signal)) -> Int
@@ -372,9 +374,9 @@ Module
       val value: Unit
         Type Unit
         Local $binding.projection.12
-      Type Unit
-      Local value
       return
+        Type Unit
+        UnitLiteral
   fun main @fn6() -> Unit
     bb0 entry
       call $dependency.argument.0: Int = @fn2 direct
@@ -394,6 +396,8 @@ Module
         Local $dependency.parameter.value
       call @fn5 direct
       return
+        Type Unit
+        UnitLiteral
   fun println @fn7(value: Int) -> Unit
     bb0 entry
       val $dependency.local.1: Int
@@ -418,6 +422,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun $lambda.0 @fn8($closure: ((Option<Int>, Signal)) -> Int, $arg.0: (Option<Int>, Signal)) -> Int
     bb0 entry
       val $binding.projection.9: Option<Int>
@@ -514,6 +520,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn9 interface Continuation<Signal>[0]
         Type Continuation<Signal>
@@ -527,6 +535,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn10 interface Continuation<Signal>[1]
         Type Continuation<Signal>
@@ -538,6 +548,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

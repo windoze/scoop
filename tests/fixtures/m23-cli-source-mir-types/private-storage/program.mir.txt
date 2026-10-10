@@ -51,6 +51,8 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun main @fn1() -> Unit
     bb0 entry
       call $dependency.receiver: Int = external1 direct
@@ -118,6 +120,8 @@ Module
         Type Boolean
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun $derived.equals.0 @fn2(this: Parcel<String>, other: Parcel<String>) -> Boolean
     bb0 entry
       val $when.1: Parcel<String>

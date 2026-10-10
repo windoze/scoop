@@ -536,6 +536,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun $extension.extensionTracked @fn5(this: ExtensionTrace<Int>, next: Int) -> Unit
     bb0 entry
       call $dependency.local.2: Int = @fn3 direct
@@ -575,6 +577,8 @@ Module
         Type Int
         Local next
       return
+        Type Unit
+        UnitLiteral
   fun value @fn6(this: ExtensionTrace<Int>) -> Int
     bb0 entry
       return
@@ -629,6 +633,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.ExtensionTrace.$c0 @fn9(this: ExtensionTrace<Int>, value: Int, order: Int) -> Unit
     bb0 entry
       field_set 0
@@ -642,6 +648,8 @@ Module
         Type Int
         Local order
       return
+        Type Unit
+        UnitLiteral
   instance mi0 function=@fn3 <- order
   instance mi1 function=@fn4 <- order
   instance mi2 function=@fn5 <- $extension.extensionTracked

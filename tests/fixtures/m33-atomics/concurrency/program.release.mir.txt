@@ -217,6 +217,8 @@ Module
     bb0 entry
       call extern1 @m13_callback_barrier direct
       return
+        Type Unit
+        UnitLiteral
   fun check @fn3(value: Boolean) -> Unit
     bb0 entry
       val $dependency.receiver: Boolean
@@ -252,6 +254,8 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun together @fn4(action: (Int) -> Int) -> Int
     bb0 entry
       val $dependency.argument.0: (Int) -> Int
@@ -432,6 +436,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun stack @fn6() -> Unit
     bb0 entry
       val $argument.0: Int
@@ -492,6 +498,8 @@ Module
         Type Boolean
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb4 inline.cont.4
       val sentinel: Link
         Type Link
@@ -661,6 +669,8 @@ Module
         Local $inline.4.this
         Type Option<Link>
         Local $inline.4.next
+      Type Unit
+      UnitLiteral
       goto bb4
   fun sharedValues @fn7() -> Unit
     bb0 entry
@@ -871,6 +881,8 @@ Module
         Type Boolean
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb12 inline.cont.12
       val $array_value.5: Int
         Type Int
@@ -998,6 +1010,8 @@ Module
         Local $inline.14.this
         Type Int
         IntegerLiteral Int value=1 bits=0x00000001
+      Type Unit
+      UnitLiteral
       goto bb14
     bb16 inline.cont.16
       val state: Atomic<State>
@@ -1047,6 +1061,8 @@ Module
         Local $inline.16.this
         Type State
         Local $inline.16.initial
+      Type Unit
+      UnitLiteral
       goto bb16
     bb18 inline.cont.18
       val tuple: Atomic<(Int, Long, Payload)>
@@ -1087,6 +1103,8 @@ Module
         Local $inline.18.this
         Type (Int, Long, Payload)
         Local $inline.18.initial
+      Type Unit
+      UnitLiteral
       goto bb18
     bb20 inline.cont.20
       val $aggregate.2: Payload
@@ -1120,6 +1138,8 @@ Module
         Local $inline.20.this
         Type Int
         IntegerLiteral Int value=0 bits=0x00000000
+      Type Unit
+      UnitLiteral
       goto bb20
     bb22 inline.cont.22
       val snapshot: Atomic<Snapshot>
@@ -1166,6 +1186,8 @@ Module
         Local $inline.22.this
         Type Snapshot
         Local $inline.22.initial
+      Type Unit
+      UnitLiteral
       goto bb22
     bb24 inline.cont.24
       val $dependency.argument.0: Snapshot
@@ -1224,6 +1246,8 @@ Module
         Local $inline.26.this
         Type Int
         IntegerLiteral Int value=0 bits=0x00000000
+      Type Unit
+      UnitLiteral
       goto bb26
     bb28 inline.cont.28
       val plain: Counter
@@ -1254,6 +1278,8 @@ Module
         Local $inline.28.this
         Type Int
         IntegerLiteral Int value=0 bits=0x00000000
+      Type Unit
+      UnitLiteral
       goto bb28
   fun equals @fn8(this: Ptr<Unit>, other: Ptr<Unit>) -> Boolean
     bb0 entry
@@ -1301,6 +1327,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun $lambda.0 @fn10($closure: (Int) -> Int, worker: Int) -> Int
     bb0 entry
       call extern1 @m13_callback_barrier direct
@@ -1565,6 +1593,8 @@ Module
         Local $inline.17.this
         Type Option<Link>
         Local $inline.17.next
+      Type Unit
+      UnitLiteral
       goto bb17
   fun $lambda.1 @fn11($closure: (Int) -> Int, worker: Int) -> Int
     bb0 entry
@@ -1858,6 +1888,8 @@ Module
         Local $inline.1.this
         Type Boolean
         BoolLiteral false
+      Type Unit
+      UnitLiteral
       goto bb1
   fun get @fn13(this: MutableArray<Int>, index: Long) -> Int
     bb0 entry
@@ -2886,6 +2918,8 @@ Module
         Local $inline.48.this
         Type Int
         IntegerLiteral Int value=0 bits=0x00000000
+      Type Unit
+      UnitLiteral
       goto bb48
     bb50 inline.cont.50
       val $dependency.argument.0: Snapshot
@@ -3007,6 +3041,8 @@ Module
         Local $inline.52.this
         Type Int
         Local $inline.52.value
+      Type Unit
+      UnitLiteral
       goto bb52
     bb54 inline.cont.54
       val $dependency.receiver: Int
@@ -3267,6 +3303,8 @@ Module
         Type Boolean
         BoolLiteral false
       return
+        Type Unit
+        UnitLiteral
     bb3 while.body.3
       val $dependency.local.13: Int
         Type Int
@@ -3612,6 +3650,8 @@ Module
         Type Boolean
         BoolLiteral false
       return
+        Type Unit
+        UnitLiteral
     bb3 while.body.3
       val $dependency.local.13: Int
         Type Int
@@ -3832,6 +3872,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Link.$c0 @fn46(this: Link, value: Int, next: Option<Link>) -> Unit
     bb0 entry
       field_set 0
@@ -3845,6 +3887,8 @@ Module
         Type Option<Link>
         Local next
       return
+        Type Unit
+        UnitLiteral
   fun init.Counter.$c2 @fn47(this: Counter, value: Int) -> Unit
     bb0 entry
       field_set 0
@@ -3853,6 +3897,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Published.$c3 @fn48(this: Published, first: Int, second: Int) -> Unit
     bb0 entry
       field_set 0
@@ -3866,6 +3912,8 @@ Module
         Type Int
         Local second
       return
+        Type Unit
+        UnitLiteral
   fun init.Atomic.$c0 @fn49(this: Atomic<Snapshot>, initial: Snapshot) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Boolean
@@ -3887,6 +3935,8 @@ Module
         Type Snapshot
         Local initial
       return
+        Type Unit
+        UnitLiteral
   fun init.Atomic.$c0 @fn50(this: Atomic<(Int, Long, Payload)>, initial: (Int, Long, Payload)) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Boolean
@@ -3908,6 +3958,8 @@ Module
         Type (Int, Long, Payload)
         Local initial
       return
+        Type Unit
+        UnitLiteral
   fun init.Atomic.$c0 @fn51(this: Atomic<State>, initial: State) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Boolean
@@ -3929,6 +3981,8 @@ Module
         Type State
         Local initial
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c1 @fn52(this: ListIterator<Int>, source: List<Int>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -3947,6 +4001,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Snapshot.$c0 @fn53(first: Int, second: Int, payload: Payload) -> Snapshot <no-gc>
     bb0 entry
       return
@@ -4055,6 +4111,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn41 interface Continuation<Published>[0]
         Type Continuation<Published>
@@ -4068,6 +4126,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn42 interface Continuation<Published>[1]
         Type Continuation<Published>
@@ -4079,6 +4139,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -4136,6 +4198,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn33 interface Continuation<State>[0]
         Type Continuation<State>
@@ -4149,6 +4213,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn34 interface Continuation<State>[1]
         Type Continuation<State>
@@ -4160,6 +4226,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -4217,6 +4285,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn25 interface Continuation<Snapshot>[0]
         Type Continuation<Snapshot>
@@ -4230,6 +4300,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn26 interface Continuation<Snapshot>[1]
         Type Continuation<Snapshot>
@@ -4241,6 +4313,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -4298,6 +4372,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn29 interface Continuation<Payload>[0]
         Type Continuation<Payload>
@@ -4311,6 +4387,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn30 interface Continuation<Payload>[1]
         Type Continuation<Payload>
@@ -4322,6 +4400,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -4379,6 +4459,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn37 interface Continuation<Link>[0]
         Type Continuation<Link>
@@ -4392,6 +4474,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn38 interface Continuation<Link>[1]
         Type Continuation<Link>
@@ -4403,6 +4487,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

@@ -380,7 +380,6 @@ Module
     t0 = local_address local0 : ptr
     store t0 -> local1
     store local1 -> local2
-    t1 = zst_value exact=1dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc align 1 : {}
     ret
   fun @scoop$1$cb$a76e04cb4cdf99311d5355e2febfcb730242da789ae571f58a59f0b30cd1cd7a(ptr<managed>) -> i64
     local %0 $dependency.local.0: ptr<managed>

@@ -59,6 +59,8 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun main @fn1() -> Unit
     bb0 entry
       call value: Envelope = external1 direct
@@ -311,6 +313,8 @@ Module
         Type Boolean
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun exercise @fn2(this: Envelope, value: Int, other: Argument) -> (Int, Argument)
     bb0 entry
       val $dependency.local.4: Int
@@ -939,6 +943,8 @@ Module
         Type Int
         Local replacement
       return
+        Type Unit
+        UnitLiteral
   fun helper @fn25(this: Box<Int>, item: Int) -> Int
     bb0 entry
       return
@@ -964,6 +970,8 @@ Module
         Type String
         Local replacement
       return
+        Type Unit
+        UnitLiteral
   fun helper @fn29(this: Box<String>, item: String) -> String
     bb0 entry
       return
@@ -1049,6 +1057,8 @@ Module
         Type Int
         Local stored
       return
+        Type Unit
+        UnitLiteral
   fun init.Box.$c0 @fn41(this: Box<String>, stored: String) -> Unit
     bb0 entry
       field_set 0
@@ -1057,6 +1067,8 @@ Module
         Type String
         Local stored
       return
+        Type Unit
+        UnitLiteral
   fun init.Reader.$c1 @fn42(this: Reader<Int>, stored: Int) -> Unit
     bb0 entry
       field_set 0
@@ -1065,6 +1077,8 @@ Module
         Type Int
         Local stored
       return
+        Type Unit
+        UnitLiteral
   fun init.Reader.$c1 @fn43(this: Reader<String>, stored: String) -> Unit
     bb0 entry
       field_set 0
@@ -1073,6 +1087,8 @@ Module
         Type String
         Local stored
       return
+        Type Unit
+        UnitLiteral
   instance mi0 function=@fn2 <- exercise
   instance mi1 function=@fn3 <- exercise
   instance mi2 function=@fn4 <- view

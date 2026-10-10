@@ -99,6 +99,8 @@ Module
         Type Boolean
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun println @fn2(value: String) -> Unit
     bb0 entry
       val $dependency.local.1: String
@@ -123,6 +125,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn3(value: Boolean) -> Unit
     bb0 entry
       val $dependency.local.1: Boolean
@@ -147,6 +151,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun init.MovingBase.$c0 @fn4(this: MovingBase, base: String) -> Unit
     bb0 entry
       field_set 0
@@ -195,6 +201,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun init.MovingDerived.$c1 @fn5(this: MovingDerived, seed: String) -> Unit
     bb0 entry
       val $dependency.receiver: String
@@ -253,6 +261,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun init.MovingDerived.$c2 @fn6(this: MovingDerived, seed: String, secondary: String) -> Unit
     bb0 entry
       val $argument.0: String
@@ -301,6 +311,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   instance mi0 function=@fn2 <- println
   instance mi1 function=@fn3 <- println
   str @str0 "seed"

@@ -55,6 +55,8 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun main @fn1() -> Unit
     bb0 entry
       val $dependency.argument.0: Int
@@ -639,6 +641,8 @@ Module
         Type Boolean
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun accessValues @fn2(seed: Int, cell: AccessCell<Int>, choice: AccessChoice<Int>, packet: AccessPacket<Int>, field: Int, pair: (Int, Int), tuple: Int, singleton: AccessRegistry, sum: Int) -> Int
     bb0 entry
       return
@@ -681,6 +685,8 @@ Module
         Type Int
         Local stored
       return
+        Type Unit
+        UnitLiteral
   fun init.AccessCell.$c0 @fn9(this: AccessCell<String>, stored: String) -> Unit
     bb0 entry
       field_set 0
@@ -689,6 +695,8 @@ Module
         Type String
         Local stored
       return
+        Type Unit
+        UnitLiteral
   fun ctor.AccessPacket.$c1 @fn10(first: Int) -> AccessPacket<Int> <no-gc>
     bb0 entry
       return

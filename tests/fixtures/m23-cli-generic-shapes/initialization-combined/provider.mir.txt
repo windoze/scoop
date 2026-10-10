@@ -166,6 +166,8 @@ Module
         Type Int
         Local number
       return
+        Type Unit
+        UnitLiteral
   fun init.Alternate.$c5 @fn13(this: Alternate<Payload>, value: Payload) -> Unit
     bb0 entry
       val $argument.0: Payload
@@ -188,6 +190,8 @@ Module
         Type Int
         Local $parameter.adjustment
       return
+        Type Unit
+        UnitLiteral
   fun init.Holder.$c8 @fn14(this: Holder<Payload>, value: Payload) -> Unit
     bb0 entry
       val $argument.0: Payload
@@ -228,6 +232,8 @@ Module
         Type Payload
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun init.Alternate.$c4 @fn15(this: Alternate<Payload>, value: Payload, adjustment: Int) -> Unit
     bb0 entry
       val $argument.0: Payload
@@ -308,6 +314,8 @@ Module
           Type Int
           Local $dependency.parameter.other
       return
+        Type Unit
+        UnitLiteral
   fun init.Cell.$c7 @fn16(this: Cell<Payload>, value: Payload) -> Unit
     bb0 entry
       field_set 0
@@ -316,6 +324,8 @@ Module
         Type Payload
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Base.$c1 @fn17(this: Base<Payload>, item: Payload) -> Unit
     bb0 entry
       field_set 0
@@ -349,6 +359,8 @@ Module
           Type Int
           Local $dependency.parameter.other
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<Payload> @fn18(task: SuspendTask<Payload>, completion: Continuation<Payload>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -371,6 +383,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn8 interface Continuation<Payload>[0]
         Type Continuation<Payload>
@@ -384,6 +398,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn9 interface Continuation<Payload>[1]
         Type Continuation<Payload>
@@ -395,6 +411,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

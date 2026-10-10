@@ -10,10 +10,14 @@ Module
     bb0 entry
       call extern0 @m33_shutdown_start_attached direct
       return
+        Type Unit
+        UnitLiteral
   fun registerAtExit @fn1() -> Unit
     bb0 entry
       call extern1 @m33_shutdown_register_atexit direct
       return
+        Type Unit
+        UnitLiteral
   fun main @fn2() -> Int
     bb0 entry
       call extern1 @m33_shutdown_register_atexit direct

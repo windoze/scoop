@@ -80,6 +80,8 @@ Module
         Type () -> String
         Local $call.7
       return
+        Type Unit
+        UnitLiteral
   fun genericReference @fn2(seed: Int, value: () -> String) -> () -> String
     bb0 entry
       return

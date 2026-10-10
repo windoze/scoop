@@ -123,9 +123,9 @@ Module
         Local value
   fun scalar @fn5(value: Unit) -> Unit <no-gc>
     bb0 entry
-      Type Unit
-      Local value
       return
+        Type Unit
+        UnitLiteral
   fun $lambda.0 @fn6($closure: (Int) -> Int, value: Int) -> Int
     bb0 entry
       return
@@ -232,6 +232,8 @@ Module
         Type Int
         Local $value
       return
+        Type Unit
+        UnitLiteral
   fun function_bridge.$Closure$lambda0.(Any) -> Any @fn14($source: (Int) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type0> closure[function_type0]

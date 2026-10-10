@@ -87,6 +87,8 @@ Module
         Type Int
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun $get$counter @fn2() -> Int <no-gc>
     bb0 entry
       return
@@ -98,6 +100,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun construct @fn4(value: Int, ignored: Phantom<String>) -> Native<Int> <no-gc>
     bb0 entry
       val $argument.0: Int
@@ -151,6 +155,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun identity @fn7(value: Int) -> Int <no-gc>
     bb0 entry
       return
@@ -200,6 +206,8 @@ Module
         Type Int
         Local $value
       return
+        Type Unit
+        UnitLiteral
   instance mi0 function=@fn4 <- construct
   instance mi1 function=@fn5 <- code
   instance mi2 function=@fn6 <- println

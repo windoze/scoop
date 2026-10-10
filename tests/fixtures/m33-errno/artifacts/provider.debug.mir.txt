@@ -129,6 +129,8 @@ Module
     bb0 entry
       call extern3 @m33_errno_disturb direct
       return
+        Type Unit
+        UnitLiteral
   fun record @fn5(arg0: Int, arg1: Int) -> Unit
     bb0 entry
       call extern4 @m33_errno_record direct
@@ -137,6 +139,8 @@ Module
         Type Int
         Local arg1
       return
+        Type Unit
+        UnitLiteral
   fun released @fn6() -> Int <no-gc>
     bb0 entry
       call $call.1: Int = extern5 @m33_errno_released direct
@@ -248,6 +252,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn9 interface Continuation<Pair>[0]
         Type Continuation<Pair>
@@ -261,6 +267,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn10 interface Continuation<Pair>[1]
         Type Continuation<Pair>
@@ -272,6 +280,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

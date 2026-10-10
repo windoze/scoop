@@ -211,6 +211,8 @@ Module
         Type Int
         Local next
       return
+        Type Unit
+        UnitLiteral
   fun $extension.extensionTracked @fn4(this: ExtensionTrace<Int>) -> Int
     bb0 entry
       call $dependency.local.1: Int = @fn7 direct
@@ -289,6 +291,8 @@ Module
         Type Later
         Local next
       return
+        Type Unit
+        UnitLiteral
   fun $extension.extensionTracked @fn6(this: ExtensionTrace<Later>) -> Later
     bb0 entry
       call $dependency.local.1: Int = @fn11 direct
@@ -343,6 +347,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun value @fn9(this: ExtensionTrace<Int>, value: Int) -> Unit
     bb0 entry
       field_set 0
@@ -351,6 +357,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun value @fn10(this: ExtensionTrace<Int>) -> Int
     bb0 entry
       return
@@ -373,6 +381,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun value @fn13(this: ExtensionTrace<Later>, value: Later) -> Unit
     bb0 entry
       field_set 0
@@ -381,6 +391,8 @@ Module
         Type Later
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun value @fn14(this: ExtensionTrace<Later>) -> Later
     bb0 entry
       return
@@ -408,6 +420,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.ExtensionTrace.$c0 @fn20(this: ExtensionTrace<Int>, value: Int, order: Int) -> Unit
     bb0 entry
       field_set 0
@@ -421,6 +435,8 @@ Module
         Type Int
         Local order
       return
+        Type Unit
+        UnitLiteral
   fun init.ExtensionTrace.$c0 @fn21(this: ExtensionTrace<Later>, value: Later, order: Int) -> Unit
     bb0 entry
       field_set 0
@@ -434,6 +450,8 @@ Module
         Type Int
         Local order
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<Later> @fn22(task: SuspendTask<Later>, completion: Continuation<Later>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -456,6 +474,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn15 interface Continuation<Later>[0]
         Type Continuation<Later>
@@ -469,6 +489,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn16 interface Continuation<Later>[1]
         Type Continuation<Later>
@@ -480,6 +502,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

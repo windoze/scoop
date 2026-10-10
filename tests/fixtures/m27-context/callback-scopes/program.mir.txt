@@ -114,6 +114,8 @@ Module
         Type Int
         Local arg2
       return
+        Type Unit
+        UnitLiteral
   fun current @fn2() -> Int
     bb0 entry
       val $context_binding.1: internal<context-binding-ref>
@@ -224,6 +226,8 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun reader @fn5(captured: () -> Int) -> ForeignCallback<(Ptr<Unit>, Int) -> Unit>
     bb0 entry
       val $argument.0: Int
@@ -1448,6 +1452,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb74 try.body.74 unwind bb69
       val $argument.0: FunPtr<(Ptr<Unit>, Int) -> Unit>
         Type FunPtr<(Ptr<Unit>, Int) -> Unit>
@@ -1677,6 +1683,8 @@ Module
         Type Boolean
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb9 try.body.9 unwind bb4
       call @scoop_rt_gc_collect direct
       call $equality.lhs: Int = @fn2 direct
@@ -1752,6 +1760,8 @@ Module
         Type Boolean
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun $lambda.3 @fn12($closure: (Int) -> Unit, value: Int) -> Unit
     bb0 entry
       call $dependency.receiver: Int = @fn2 direct
@@ -1775,6 +1785,8 @@ Module
         Type Boolean
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun $lambda.4 @fn13($closure: (Int) -> Unit, value: Int) -> Unit
     bb0 entry
       call $dependency.receiver: Int = @fn2 direct
@@ -1851,6 +1863,8 @@ Module
         Type Boolean
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb6 try.body.6 unwind bb1
       val $argument.0: FunPtr<(Ptr<Unit>, Int) -> Unit>
         Type FunPtr<(Ptr<Unit>, Int) -> Unit>
@@ -2102,6 +2116,8 @@ Module
         Type Boolean
         BoolLiteral true
       return
+        Type Unit
+        UnitLiteral
   fun println @fn16(value: String) -> Unit
     bb0 entry
       val $dependency.local.1: String
@@ -2126,6 +2142,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun init.Request.$c0 @fn17(this: Request, id: Int) -> Unit
     bb0 entry
       field_set 0
@@ -2134,6 +2152,8 @@ Module
         Type Int
         Local id
       return
+        Type Unit
+        UnitLiteral
   fun init.Lease.$c1 @fn18(this: Lease) -> Unit
     bb0 entry
       field_set 0
@@ -2147,6 +2167,8 @@ Module
         Type Boolean
         BoolLiteral false
       return
+        Type Unit
+        UnitLiteral
   fun foreign callback adapter 0 @fn19($closure: (Int) -> Unit, $snapshot: internal<context-node>, $result: Ptr<Unit>, $arguments: Ptr<Ptr<Unit>>, $exception: Ptr<Throwable>) -> machine<foreign-callback-status>
     bb0 context.unwind
       landing_pad cleanup=true

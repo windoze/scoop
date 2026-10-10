@@ -1092,6 +1092,8 @@ Module
         Type Boolean
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun println @fn8(value: Boolean) -> Unit
     bb0 entry
       val $dependency.local.1: Boolean
@@ -1116,6 +1118,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun $derived.equals.2 @fn9(this: (Float, Double), other: (Float, Double)) -> Boolean
     bb0 entry
       branch bb1 bb2

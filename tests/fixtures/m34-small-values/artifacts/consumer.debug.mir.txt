@@ -66,6 +66,8 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun dispatch @fn1(value: Transform, argument: Mixed) -> Mixed
     bb0 entry
       val $dependency.receiver: Transform
@@ -498,6 +500,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb17 try.body.17 unwind bb10
       call $call.4: Mixed = <closure:function_type0> closure[function_type0]
         Type (Mixed) -> Mixed
@@ -623,6 +627,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun $reference.0 @fn5($closure: (Mixed) -> Mixed, arg0: Mixed) -> Mixed
     bb0 entry
       call $call.1: Mixed = external3 direct

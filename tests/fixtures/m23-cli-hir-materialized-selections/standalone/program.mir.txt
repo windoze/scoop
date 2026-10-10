@@ -46,6 +46,8 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun main @fn1() -> Unit
     bb0 entry
       val $dependency.argument.0: Int
@@ -134,5 +136,7 @@ Module
         Local $parameter.value
       call external3 direct
       return
+        Type Unit
+        UnitLiteral
   str @str0 "illegal state"
   output executable @fn1

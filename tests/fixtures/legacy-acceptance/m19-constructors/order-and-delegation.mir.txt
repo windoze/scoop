@@ -120,6 +120,8 @@ Module
         Type Int
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun println @fn2(value: String) -> Unit
     bb0 entry
       val $dependency.local.1: String
@@ -144,6 +146,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn3(value: Int) -> Unit
     bb0 entry
       val $dependency.local.1: Int
@@ -168,6 +172,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun init.Base.$c0 @fn4(this: Base, base: Int) -> Unit
     bb0 entry
       field_set 0
@@ -220,6 +226,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun init.Base.$c1 @fn5(this: Base, text: String) -> Unit
     bb0 entry
       val $argument.0: String
@@ -266,6 +274,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun init.Derived.$c2 @fn6(this: Derived, seed: Int, own: Int) -> Unit
     bb0 entry
       val $argument.0: String
@@ -341,6 +351,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun init.Derived.$c3 @fn7(this: Derived, seed: Int, label: String) -> Unit
     bb0 entry
       val $argument.0: Int
@@ -392,6 +404,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun init.Derived.$c4 @fn8(this: Derived) -> Unit
     bb0 entry
       val $argument.0: String
@@ -437,6 +451,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun init.Alternate.$c5 @fn9(this: Alternate, value: Int) -> Unit
     bb0 entry
       val $argument.0: String
@@ -524,6 +540,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun init.Alternate.$c6 @fn10(this: Alternate) -> Unit
     bb0 entry
       val $argument.0: String
@@ -561,6 +579,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Count.$c0 @fn11(value: Int) -> Count <no-gc>
     bb0 entry
       return

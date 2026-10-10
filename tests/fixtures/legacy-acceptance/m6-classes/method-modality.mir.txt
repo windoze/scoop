@@ -139,6 +139,8 @@ Module
         Type Int
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun println @fn7(value: Int) -> Unit
     bb0 entry
       val $dependency.local.1: Int
@@ -163,9 +165,13 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun init.Base.$c0 @fn8(this: Base) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.Middle.$c1 @fn9(this: Middle) -> Unit
     bb0 entry
       call @fn8 direct
@@ -174,6 +180,8 @@ Module
           Type Middle
           Local this
       return
+        Type Unit
+        UnitLiteral
   fun init.Leaf.$c2 @fn10(this: Leaf) -> Unit
     bb0 entry
       call @fn9 direct
@@ -182,6 +190,8 @@ Module
           Type Leaf
           Local this
       return
+        Type Unit
+        UnitLiteral
   instance mi0 function=@fn7 <- println
   str @str0 "\n"
   output executable @fn6

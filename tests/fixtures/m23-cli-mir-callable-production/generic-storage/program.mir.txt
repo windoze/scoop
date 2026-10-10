@@ -50,6 +50,8 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun main @fn1() -> Unit
     bb0 entry
       val $dependency.argument.0: Int
@@ -172,6 +174,8 @@ Module
         Type Boolean
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun $derived.equals.0 @fn2(this: Payload<Int>, other: Payload<Int>) -> Boolean
     bb0 entry
       return

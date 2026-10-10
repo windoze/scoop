@@ -108,6 +108,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun result @fn3() -> Int
     bb0 entry
       val $argument.0: Int
@@ -950,6 +952,8 @@ Module
         Type Int
         Local digits
       return
+        Type Unit
+        UnitLiteral
   fun init.Built.$c3 @fn29(this: Built<Int, String>, value: Int, trace: Trace, flag: Boolean) -> Unit
     bb0 entry
       val $argument.0: Int
@@ -986,6 +990,8 @@ Module
         Type Int
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun init.Built.$c2 @fn30(this: Built<Int, Int>, value: Int, trace: Trace) -> Unit
     bb0 entry
       val $argument.0: Int
@@ -1129,6 +1135,8 @@ Module
         Type Int
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun init.Terminal.$c4 @fn31(this: Terminal<Int, Unit>, value: Int, trace: Trace) -> Unit
     bb0 entry
       val $argument.0: Int
@@ -1194,6 +1202,8 @@ Module
         Type Int
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun init.Terminal.$c5 @fn32(this: Terminal<Int, String>, value: Int, trace: Trace, flag: Boolean) -> Unit
     bb0 entry
       val $argument.0: Int
@@ -1230,6 +1240,8 @@ Module
         Type Int
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun init.Current.$c6 @fn33(this: Current<Int, Unit>, value: Int, trace: Trace) -> Unit
     bb0 entry
       val $argument.0: Int
@@ -1273,6 +1285,8 @@ Module
         Type Int
         Local $call.1
       return
+        Type Unit
+        UnitLiteral
   fun init.Built.$c2 @fn34(this: Built<Int, String>, value: Int, trace: Trace) -> Unit
     bb0 entry
       val $argument.0: Int
@@ -1416,6 +1430,8 @@ Module
         Type Int
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun init.Base.$c1 @fn35(this: Base<Int, Int>, value: Int, trace: Trace) -> Unit
     bb0 entry
       field_set 0
@@ -1443,6 +1459,8 @@ Module
         Type Int
         Local $call.1
       return
+        Type Unit
+        UnitLiteral
   fun init.Base.$c1 @fn36(this: Base<Int, Unit>, value: Int, trace: Trace) -> Unit
     bb0 entry
       field_set 0
@@ -1470,6 +1488,8 @@ Module
         Type Int
         Local $call.1
       return
+        Type Unit
+        UnitLiteral
   fun init.Terminal.$c4 @fn37(this: Terminal<Int, String>, value: Int, trace: Trace) -> Unit
     bb0 entry
       val $argument.0: Int
@@ -1535,6 +1555,8 @@ Module
         Type Int
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun init.Base.$c1 @fn38(this: Base<Int, String>, value: Int, trace: Trace) -> Unit
     bb0 entry
       field_set 0
@@ -1562,6 +1584,8 @@ Module
         Type Int
         Local $call.1
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Pair.$c1 @fn39(value: Int, trace: Trace) -> Pair<Int, Unit>
     bb0 entry
       val $argument.0: Int
@@ -1665,6 +1689,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn24 interface Continuation<Trace>[0]
         Type Continuation<Trace>
@@ -1678,6 +1704,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn25 interface Continuation<Trace>[1]
         Type Continuation<Trace>
@@ -1689,6 +1717,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

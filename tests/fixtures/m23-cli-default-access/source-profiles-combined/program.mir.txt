@@ -53,6 +53,8 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun main @fn1() -> Unit
     bb0 entry
       call $dependency.receiver: Child = external3 direct
@@ -208,6 +210,8 @@ Module
         Type Boolean
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun defaultEnvelope @fn2() -> Envelope<Int>
     bb0 entry
       assign $new.1
@@ -356,6 +360,8 @@ Module
   fun init.Envelope.$c0 @fn5(this: Envelope<Int>) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   instance mi0 function=@fn2 <- defaultEnvelope
   instance mi1 function=@fn3 <- checkConfined
   str @str0 "illegal state"

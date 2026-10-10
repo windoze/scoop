@@ -154,6 +154,8 @@ Module
           Type Int
           Local $dependency.constructor.local.2
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Pair.$c0 @fn5(first: Int, second: Int) -> Pair<Int> <no-gc>
     bb0 entry
       return

@@ -48,6 +48,8 @@ Module
         Type Int
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun $init$body$0 @fn3() -> Unit
     bb0 entry
       assign $new.1
@@ -60,6 +62,8 @@ Module
         Type Left.Companion
         Local $new.1
       return
+        Type Unit
+        UnitLiteral
   fun $init$ensure$0 @fn4() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -84,6 +88,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -170,6 +176,8 @@ Module
         Type Right.Companion
         Local $new.1
       return
+        Type Unit
+        UnitLiteral
   fun $init$ensure$1 @fn6() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -194,6 +202,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -292,12 +302,18 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun init.Left.$c0 @fn8(this: Left) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.Right.$c1 @fn9(this: Right) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.Left.Companion.$c2 @fn10(this: Left.Companion) -> Unit
     bb0 entry
       call $call.1: Int = @fn1 direct
@@ -307,6 +323,8 @@ Module
         Type Int
         Local $call.1
       return
+        Type Unit
+        UnitLiteral
   fun init.Right.Companion.$c3 @fn11(this: Right.Companion) -> Unit
     bb0 entry
       call $call.1: Int = @fn0 direct
@@ -316,6 +334,8 @@ Module
         Type Int
         Local $call.1
       return
+        Type Unit
+        UnitLiteral
   instance mi0 function=@fn7 <- println
   str @str0 "\n"
   output executable @fn2

@@ -685,6 +685,8 @@ Module
         Type UnkeyedEncodingContainer
         Local $dependency.receiver
       return
+        Type Unit
+        UnitLiteral
   fun iterator @fn3(this: Array<(Int, Node)>) -> Iterator<(Int, Node)>
     bb0 entry
       val $dependency.local.1: List<(Int, Node)>
@@ -865,6 +867,8 @@ Module
         Type UnkeyedEncodingContainer
         Local $dependency.receiver
       return
+        Type Unit
+        UnitLiteral
   fun PairCodec.encode @fn7(this: PairCodec, value: (Int, String), encoder: Encoder) -> Unit
     bb0 entry
       val __coding_value: Encoder
@@ -982,6 +986,8 @@ Module
         Type UnkeyedEncodingContainer
         Local $dependency.receiver
       return
+        Type Unit
+        UnitLiteral
   fun PairCodec.decode @fn8(this: PairCodec, decoder: Decoder) -> (Int, String)
     bb0 entry
       val __coding_value: Decoder
@@ -1206,6 +1212,8 @@ Module
         Type UnkeyedEncodingContainer
         Local $dependency.receiver
       return
+        Type Unit
+        UnitLiteral
   fun NestedCodec.decode @fn10(this: NestedCodec, decoder: Decoder) -> ((Int, String), Unit)
     bb0 entry
       val __coding_value: Decoder
@@ -1913,6 +1921,8 @@ Module
         Type UnkeyedEncodingContainer
         Local $dependency.receiver
       return
+        Type Unit
+        UnitLiteral
   fun Element.Companion.encode @fn12(this: Element.Companion, value: Element, encoder: Encoder) -> Unit
     bb0 entry
       call $old.1: Int = @fn39 direct
@@ -2007,6 +2017,8 @@ Module
         Type Encoder
         Local $dependency.parameter.encoder
       return
+        Type Unit
+        UnitLiteral
   fun Record.Companion.encode @fn13(this: Record.Companion, value: Record, encoder: Encoder) -> Unit
     bb0 entry
       val __coding_value: Encoder
@@ -2103,6 +2115,8 @@ Module
         Type KeyedEncodingContainer
         Local $dependency.receiver
       return
+        Type Unit
+        UnitLiteral
   fun Record.Companion.decode @fn14(this: Record.Companion, decoder: Decoder) -> Record
     bb0 entry
       val __coding_value: Decoder
@@ -2320,6 +2334,8 @@ Module
         Type KeyedEncodingContainer
         Local $dependency.receiver
       return
+        Type Unit
+        UnitLiteral
   fun $init$body$0 @fn16() -> Unit
     bb0 entry
       assign $new.1
@@ -2332,6 +2348,8 @@ Module
         Type Triple
         Local $new.1
       return
+        Type Unit
+        UnitLiteral
   fun $init$ensure$0 @fn17() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -2356,6 +2374,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -3129,6 +3149,8 @@ Module
         Type Int
         Local $parameter.code
       return
+        Type Unit
+        UnitLiteral
     bb17 while.body.17
       call $array_value.5: (Int, Unit) = <closure:function_type7> closure[function_type7]
         Type (Long) -> (Int, Unit)
@@ -3162,6 +3184,8 @@ Module
         Type Labels
         Local $new.1
       return
+        Type Unit
+        UnitLiteral
   fun $init$ensure$1 @fn20() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -3186,6 +3210,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -3263,6 +3289,8 @@ Module
   fun noop @fn21() -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun dynamicCases @fn22() -> Unit
     bb0 entry
       val $argument.0: (Int, String)
@@ -4042,6 +4070,8 @@ Module
         Type Int
         Local $parameter.code
       return
+        Type Unit
+        UnitLiteral
     bb15 while.body.15
       call $array_value.15: (Int, Node) = <closure:function_type12> closure[function_type12]
         Type (Long) -> (Int, Node)
@@ -4115,6 +4145,8 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun $init$body$2 @fn24() -> Unit
     bb0 entry
       assign $new.1
@@ -4127,6 +4159,8 @@ Module
         Type Single
         Local $new.1
       return
+        Type Unit
+        UnitLiteral
   fun $init$ensure$2 @fn25() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -4151,6 +4185,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -4237,6 +4273,8 @@ Module
         Type PairCodec
         Local $new.1
       return
+        Type Unit
+        UnitLiteral
   fun $init$ensure$3 @fn27() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -4261,6 +4299,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -4347,6 +4387,8 @@ Module
         Type NestedCodec
         Local $new.1
       return
+        Type Unit
+        UnitLiteral
   fun $init$ensure$4 @fn29() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -4371,6 +4413,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -4457,6 +4501,8 @@ Module
         Type Twelve
         Local $new.1
       return
+        Type Unit
+        UnitLiteral
   fun $init$ensure$5 @fn31() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -4481,6 +4527,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -5449,6 +5497,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb8 while.body.8
       call $array_value.5: (Int, String) = <closure:function_type11> closure[function_type11]
         Type (Long) -> (Int, String)
@@ -5482,6 +5532,8 @@ Module
         Type Element.Companion
         Local $new.1
       return
+        Type Unit
+        UnitLiteral
   fun $init$ensure$6 @fn34() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -5506,6 +5558,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -5592,6 +5646,8 @@ Module
         Type Record.Companion
         Local $new.1
       return
+        Type Unit
+        UnitLiteral
   fun $init$ensure$7 @fn36() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -5616,6 +5672,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -5702,6 +5760,8 @@ Module
         Type Node.Companion
         Local $new.1
       return
+        Type Unit
+        UnitLiteral
   fun $init$ensure$8 @fn38() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -5726,6 +5786,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -5811,6 +5873,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun Encodable.encode @fn41(this: Encodable<Element>, value: Element, encoder: Encoder) -> Unit
     bb0 entry
       trap "call to abstract method `Encodable.encode`"
@@ -6038,6 +6102,8 @@ Module
         Type UnkeyedEncodingContainer
         Local $dependency.receiver
       return
+        Type Unit
+        UnitLiteral
   fun encode @fn48(this: EncodeFunction<(Int, String)>, value: (Int, String), encoder: Encoder) -> Unit
     bb0 entry
       call <closure:function_type0> closure[function_type0]
@@ -6050,6 +6116,8 @@ Module
         Type Encoder
         Local encoder
       return
+        Type Unit
+        UnitLiteral
   fun Encodable.encode @fn49(this: Encodable<(Int, String)>, value: (Int, String), encoder: Encoder) -> Unit
     bb0 entry
       trap "call to abstract method `Encodable.encode`"
@@ -6282,6 +6350,8 @@ Module
         Type UnkeyedEncodingContainer
         Local $dependency.receiver
       return
+        Type Unit
+        UnitLiteral
   fun $lambda.9 @fn56($closure: (Decoder) -> (Int, String), __codec_argument_0: Decoder) -> (Int, String)
     bb0 entry
       val __coding_value: Decoder
@@ -6491,6 +6561,8 @@ Module
         Type UnkeyedEncodingContainer
         Local $dependency.receiver
       return
+        Type Unit
+        UnitLiteral
   fun encode @fn58(this: EncodeFunction<(Int, Node)>, value: (Int, Node), encoder: Encoder) -> Unit
     bb0 entry
       call <closure:function_type4> closure[function_type4]
@@ -6503,6 +6575,8 @@ Module
         Type Encoder
         Local encoder
       return
+        Type Unit
+        UnitLiteral
   fun encoder @fn59(this: Companion<(Int, Node)>, element: Encodable<(Int, Node)>) -> Encodable<Array<(Int, Node)>>
     bb0 entry
       val $dependency.local.2: Encodable<(Int, Node)>
@@ -6539,6 +6613,8 @@ Module
         Type Companion<(Int, Node)>
         Local $new.1
       return
+        Type Unit
+        UnitLiteral
   fun Companion$initialize$Ensure @fn62() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -6563,6 +6639,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -6752,6 +6830,8 @@ Module
         Type UnkeyedEncodingContainer
         Local $dependency.receiver
       return
+        Type Unit
+        UnitLiteral
   fun iterator @fn64(this: MutableArray<(Int, Unit)>) -> Iterator<(Int, Unit)>
     bb0 entry
       val $dependency.local.1: List<(Int, Unit)>
@@ -7153,6 +7233,8 @@ Module
         Type MaybeUninit<(Int, Unit)>
         Local $value.3
       return
+        Type Unit
+        UnitLiteral
   fun add @fn74(this: ArrayList<(Int, Unit)>, value: (Int, Unit)) -> Unit
     bb0 entry
       val $dependency.local.2: ArrayList<(Int, Unit)>
@@ -7263,6 +7345,8 @@ Module
           Type Long
           Local $dependency.local.12
       return
+        Type Unit
+        UnitLiteral
   fun add @fn75(this: ArrayList<(Int, Unit)>, index: Long, value: (Int, Unit)) -> Unit
     bb0 entry
       val $dependency.local.4: Long
@@ -7578,6 +7662,8 @@ Module
           Type Long
           Local $dependency.local.38
       return
+        Type Unit
+        UnitLiteral
   fun removeAt @fn76(this: ArrayList<(Int, Unit)>, index: Long) -> (Int, Unit)
     bb0 entry
       val $dependency.local.5: ArrayList<(Int, Unit)>
@@ -7889,6 +7975,8 @@ Module
         Type Long
         IntegerLiteral Long value=0 bits=0x0000000000000000
       return
+        Type Unit
+        UnitLiteral
     bb3 while.body.3
       val $dependency.local.5: MutableArray<MaybeUninit<(Int, Unit)>>
         Type MutableArray<MaybeUninit<(Int, Unit)>>
@@ -8093,6 +8181,8 @@ Module
         Type UnkeyedEncodingContainer
         Local $dependency.receiver
       return
+        Type Unit
+        UnitLiteral
   fun encodeBound @fn79(value: (Element, Element), codec: Encodable<(Element, Element)>) -> String
     bb0 entry
       call external69 direct
@@ -8133,6 +8223,8 @@ Module
         Type Encoder
         Local encoder
       return
+        Type Unit
+        UnitLiteral
   fun encode @fn81(this: Json, value: (Element, Element), codec: Encodable<(Element, Element)>) -> String
     bb0 entry
       val $dependency.local.4: String
@@ -8239,6 +8331,8 @@ Module
         Type Encoder
         Local encoder
       return
+        Type Unit
+        UnitLiteral
   fun encode @fn84(this: Json, value: (Element, Unit), codec: Encodable<(Element, Unit)>) -> String
     bb0 entry
       val $dependency.local.4: String
@@ -8608,6 +8702,8 @@ Module
         Type UnkeyedEncodingContainer
         Local $dependency.receiver
       return
+        Type Unit
+        UnitLiteral
   fun encode @fn91(this: Json, value: (MutableArray<(Int, Unit)>, ArrayList<(Int, Unit)>), codec: Encodable<(MutableArray<(Int, Unit)>, ArrayList<(Int, Unit)>)>) -> String
     bb0 entry
       val $dependency.local.4: String
@@ -8678,6 +8774,8 @@ Module
         Type Companion<(Int, Unit)>
         Local $new.1
       return
+        Type Unit
+        UnitLiteral
   fun Companion$initialize$Ensure @fn93() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -8702,6 +8800,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -8788,6 +8888,8 @@ Module
         Type Companion<(Int, Unit)>
         Local $new.1
       return
+        Type Unit
+        UnitLiteral
   fun Companion$initialize$Ensure @fn95() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -8812,6 +8914,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -9001,6 +9105,8 @@ Module
         Type UnkeyedEncodingContainer
         Local $dependency.receiver
       return
+        Type Unit
+        UnitLiteral
   fun iterator @fn97(this: Array<(Int, Opaque)>) -> Iterator<(Int, Opaque)>
     bb0 entry
       val $dependency.local.1: List<(Int, Opaque)>
@@ -9338,6 +9444,8 @@ Module
         Type UnkeyedEncodingContainer
         Local $dependency.receiver
       return
+        Type Unit
+        UnitLiteral
   fun dynamic @fn104(value: (Int, String), codec: Any, expected: String, code: Int) -> Unit
     bb0 entry
       val $argument.0: (Int, String)
@@ -9451,6 +9559,8 @@ Module
       goto bb2
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun dynamic @fn105(value: ((Int, Unit), Boolean), codec: Any, expected: String, code: Int) -> Unit
     bb0 entry
       val $argument.0: ((Int, Unit), Boolean)
@@ -9564,6 +9674,8 @@ Module
       goto bb2
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun PairEncoder.encode @fn106(this: PairEncoder<Label, Int>, value: (Label, Int), encoder: Encoder) -> Unit
     bb0 entry
       val __coding_value: Encoder
@@ -9679,6 +9791,8 @@ Module
         Type UnkeyedEncodingContainer
         Local $dependency.receiver
       return
+        Type Unit
+        UnitLiteral
   fun dynamic @fn107(value: (Label, Int), codec: Any, expected: String, code: Int) -> Unit
     bb0 entry
       val $argument.0: (Label, Int)
@@ -9792,6 +9906,8 @@ Module
       goto bb2
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun erase @fn108(value: (Any, Int)) -> Any
     bb0 entry
       return
@@ -9980,6 +10096,8 @@ Module
       goto bb2
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun $lambda.3 @fn117($closure: (Long) -> (Int, Node), $arg.0: Long) -> (Int, Node)
     bb0 entry
       val $dependency.argument.0: Option<String>
@@ -10112,6 +10230,8 @@ Module
       goto bb2
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun Companion$initialize$Initializer @fn119() -> Unit
     bb0 entry
       assign $new.1
@@ -10124,6 +10244,8 @@ Module
         Type Companion<(Int, String)>
         Local $new.1
       return
+        Type Unit
+        UnitLiteral
   fun Companion$initialize$Ensure @fn120() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -10148,6 +10270,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -10337,6 +10461,8 @@ Module
         Type UnkeyedEncodingContainer
         Local $dependency.receiver
       return
+        Type Unit
+        UnitLiteral
   fun encode @fn122(this: Json, value: (Int), codec: Encodable<(Int)>) -> String
     bb0 entry
       val $dependency.local.4: String
@@ -10568,6 +10694,8 @@ Module
         Type UnkeyedEncodingContainer
         Local $dependency.receiver
       return
+        Type Unit
+        UnitLiteral
   fun encode @fn125(this: Json, value: (Unit, Unit), codec: Encodable<(Unit, Unit)>) -> String
     bb0 entry
       val $dependency.local.4: String
@@ -10741,6 +10869,8 @@ Module
         Type UnkeyedEncodingContainer
         Local $dependency.receiver
       return
+        Type Unit
+        UnitLiteral
   fun encode @fn127(this: Json, value: ((Int, String), (Boolean, Char)), codec: Encodable<((Int, String), (Boolean, Char))>) -> String
     bb0 entry
       val $dependency.local.4: String
@@ -11394,6 +11524,8 @@ Module
         Type UnkeyedEncodingContainer
         Local $dependency.receiver
       return
+        Type Unit
+        UnitLiteral
   fun encode @fn138(this: Json, value: (Option<(Int, Unit)>, Array<(Int, String)>), codec: Encodable<(Option<(Int, Unit)>, Array<(Int, String)>)>) -> String
     bb0 entry
       val $dependency.local.4: String
@@ -11476,6 +11608,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun Companion$initialize$Initializer @fn140() -> Unit
     bb0 entry
       assign $new.1
@@ -11488,6 +11622,8 @@ Module
         Type Companion<(Int, Unit)>
         Local $new.1
       return
+        Type Unit
+        UnitLiteral
   fun Companion$initialize$Ensure @fn141() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -11512,6 +11648,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -11627,6 +11765,8 @@ Module
         Type Encoder
         Local $dependency.local.8
       return
+        Type Unit
+        UnitLiteral
   fun next @fn146(this: ListIterator<(Int, Unit)>) -> Option<(Int, Unit)>
     bb0 entry
       branch bb1 bb2
@@ -11884,6 +12024,8 @@ Module
         Local $new.1
     bb5 if.merge.5
       return
+        Type Unit
+        UnitLiteral
   fun ensureRoom @fn149(this: ArrayList<(Int, Unit)>) -> Unit
     bb0 entry
       branch bb1 bb2
@@ -11944,6 +12086,8 @@ Module
           IntegerLiteral Long value=0 bits=0x0000000000000000
     bb3 if.then.3
       return
+        Type Unit
+        UnitLiteral
     bb4 if.merge.4
       branch bb5 bb6
         Type Boolean
@@ -12089,6 +12233,8 @@ Module
         Type MutableArray<MaybeUninit<(Int, Unit)>>
         Local $dependency.local.6
       return
+        Type Unit
+        UnitLiteral
     bb15 while.body.15
       call $array_value.5: MaybeUninit<(Int, Unit)> = <closure:function_type13> closure[function_type13]
         Type (Long) -> MaybeUninit<(Int, Unit)>
@@ -12400,6 +12546,8 @@ Module
         Type MaybeUninit<JsonMember>
         Local $value.3
       return
+        Type Unit
+        UnitLiteral
   fun add @fn157(this: ArrayList<JsonMember>, value: JsonMember) -> Unit
     bb0 entry
       val $dependency.local.2: ArrayList<JsonMember>
@@ -12510,6 +12658,8 @@ Module
           Type Long
           Local $dependency.local.12
       return
+        Type Unit
+        UnitLiteral
   fun add @fn158(this: ArrayList<JsonMember>, index: Long, value: JsonMember) -> Unit
     bb0 entry
       val $dependency.local.4: Long
@@ -12825,6 +12975,8 @@ Module
           Type Long
           Local $dependency.local.38
       return
+        Type Unit
+        UnitLiteral
   fun removeAt @fn159(this: ArrayList<JsonMember>, index: Long) -> JsonMember
     bb0 entry
       val $dependency.local.5: ArrayList<JsonMember>
@@ -13136,6 +13288,8 @@ Module
         Type Long
         IntegerLiteral Long value=0 bits=0x0000000000000000
       return
+        Type Unit
+        UnitLiteral
     bb3 while.body.3
       val $dependency.local.5: MutableArray<MaybeUninit<JsonMember>>
         Type MutableArray<MaybeUninit<JsonMember>>
@@ -13515,6 +13669,8 @@ Module
         Type MaybeUninit<JsonValue>
         Local $value.3
       return
+        Type Unit
+        UnitLiteral
   fun add @fn168(this: ArrayList<JsonValue>, value: JsonValue) -> Unit
     bb0 entry
       val $dependency.local.2: ArrayList<JsonValue>
@@ -13625,6 +13781,8 @@ Module
           Type Long
           Local $dependency.local.12
       return
+        Type Unit
+        UnitLiteral
   fun add @fn169(this: ArrayList<JsonValue>, index: Long, value: JsonValue) -> Unit
     bb0 entry
       val $dependency.local.4: Long
@@ -13940,6 +14098,8 @@ Module
           Type Long
           Local $dependency.local.38
       return
+        Type Unit
+        UnitLiteral
   fun removeAt @fn170(this: ArrayList<JsonValue>, index: Long) -> JsonValue
     bb0 entry
       val $dependency.local.5: ArrayList<JsonValue>
@@ -14251,6 +14411,8 @@ Module
         Type Long
         IntegerLiteral Long value=0 bits=0x0000000000000000
       return
+        Type Unit
+        UnitLiteral
     bb3 while.body.3
       val $dependency.local.5: MutableArray<MaybeUninit<JsonValue>>
         Type MutableArray<MaybeUninit<JsonValue>>
@@ -14458,6 +14620,8 @@ Module
         Type UnkeyedEncodingContainer
         Local $dependency.receiver
       return
+        Type Unit
+        UnitLiteral
   fun Encodable.encode @fn174(this: Encodable<(Element, Unit)>, value: (Element, Unit), encoder: Encoder) -> Unit
     bb0 entry
       trap "call to abstract method `Encodable.encode`"
@@ -14496,6 +14660,8 @@ Module
         Type Encoder
         Local $dependency.local.8
       return
+        Type Unit
+        UnitLiteral
   fun encode @fn177(this: ArrayListEncoder<(Int, Unit)>, value: ArrayList<(Int, Unit)>, encoder: Encoder) -> Unit
     bb0 entry
       val $dependency.local.3: List<(Int, Unit)>
@@ -14528,6 +14694,8 @@ Module
         Type Encoder
         Local $dependency.local.8
       return
+        Type Unit
+        UnitLiteral
   fun Encodable.encode @fn178(this: Encodable<MutableArray<(Int, Unit)>>, value: MutableArray<(Int, Unit)>, encoder: Encoder) -> Unit
     bb0 entry
       trap "call to abstract method `Encodable.encode`"
@@ -14905,6 +15073,8 @@ Module
         Type Encoder
         Local $dependency.local.8
       return
+        Type Unit
+        UnitLiteral
   fun erase @fn192(value: Array<(Int, String)>) -> Any
     bb0 entry
       return
@@ -15068,6 +15238,8 @@ Module
         Type KeyedEncodingContainer
         Local $dependency.local.23
       return
+        Type Unit
+        UnitLiteral
     bb4 pattern.pass.4
       val $dependency.local.4: (Int, Unit)
         Type (Int, Unit)
@@ -15175,6 +15347,8 @@ Module
         Type UnkeyedEncodingContainer
         Local $dependency.local.18
       return
+        Type Unit
+        UnitLiteral
     bb3 while.body.3
       val $dependency.local.11: (Int, Node)
         Type (Int, Node)
@@ -15533,6 +15707,8 @@ Module
         Local $new.1
     bb5 if.merge.5
       return
+        Type Unit
+        UnitLiteral
   fun ensureRoom @fn218(this: ArrayList<JsonMember>) -> Unit
     bb0 entry
       branch bb1 bb2
@@ -15593,6 +15769,8 @@ Module
           IntegerLiteral Long value=0 bits=0x0000000000000000
     bb3 if.then.3
       return
+        Type Unit
+        UnitLiteral
     bb4 if.merge.4
       branch bb5 bb6
         Type Boolean
@@ -15738,6 +15916,8 @@ Module
         Type MutableArray<MaybeUninit<JsonMember>>
         Local $dependency.local.6
       return
+        Type Unit
+        UnitLiteral
     bb15 while.body.15
       call $array_value.5: MaybeUninit<JsonMember> = <closure:function_type14> closure[function_type14]
         Type (Long) -> MaybeUninit<JsonMember>
@@ -16016,6 +16196,8 @@ Module
         Local $new.1
     bb5 if.merge.5
       return
+        Type Unit
+        UnitLiteral
   fun ensureRoom @fn222(this: ArrayList<JsonValue>) -> Unit
     bb0 entry
       branch bb1 bb2
@@ -16076,6 +16258,8 @@ Module
           IntegerLiteral Long value=0 bits=0x0000000000000000
     bb3 if.then.3
       return
+        Type Unit
+        UnitLiteral
     bb4 if.merge.4
       branch bb5 bb6
         Type Boolean
@@ -16221,6 +16405,8 @@ Module
         Type MutableArray<MaybeUninit<JsonValue>>
         Local $dependency.local.6
       return
+        Type Unit
+        UnitLiteral
     bb15 while.body.15
       call $array_value.5: MaybeUninit<JsonValue> = <closure:function_type15> closure[function_type15]
         Type (Long) -> MaybeUninit<JsonValue>
@@ -16282,6 +16468,8 @@ Module
         Type UnkeyedEncodingContainer
         Local $dependency.local.18
       return
+        Type Unit
+        UnitLiteral
     bb3 while.body.3
       val $dependency.local.11: (Int, Unit)
         Type (Int, Unit)
@@ -16375,6 +16563,8 @@ Module
         Type UnkeyedEncodingContainer
         Local $dependency.local.18
       return
+        Type Unit
+        UnitLiteral
     bb3 while.body.3
       val $dependency.local.11: (Int, String)
         Type (Int, String)
@@ -16684,6 +16874,8 @@ Module
         Type Long
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun receiver<Labels> LabelEncoder.encode @fn282(this: Labels, value: Label, encoder: Encoder) -> Unit
     bb0 entry
       call @fn281 direct
@@ -16696,6 +16888,8 @@ Module
         Type Encoder
         Local encoder
       return
+        Type Unit
+        UnitLiteral
   fun receiver<Labels> Encodable.encode @fn283(this: Labels, value: Label, encoder: Encoder) -> Unit
     bb0 entry
       call @fn281 direct
@@ -16708,6 +16902,8 @@ Module
         Type Encoder
         Local encoder
       return
+        Type Unit
+        UnitLiteral
   fun $reference.0 @fn284($closure: ((Element, Element), Encoder) -> Unit, arg0: (Element, Element), arg1: Encoder) -> Unit
     bb0 entry
       call @fn63 direct
@@ -16720,10 +16916,14 @@ Module
         Type Encoder
         Local arg1
       return
+        Type Unit
+        UnitLiteral
   fun $reference.1 @fn285($closure: () -> Unit) -> Unit
     bb0 entry
       call @fn21 direct
       return
+        Type Unit
+        UnitLiteral
   fun $reference.2 @fn286($closure: ((Element, Unit), Encoder) -> Unit, arg0: (Element, Unit), arg1: Encoder) -> Unit
     bb0 entry
       call @fn173 direct
@@ -16736,9 +16936,13 @@ Module
         Type Encoder
         Local arg1
       return
+        Type Unit
+        UnitLiteral
   fun init.Triple.$c3 @fn287(this: Triple) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.Node.$c1 @fn288(this: Node, children: Array<(Int, Node)>) -> Unit
     bb0 entry
       field_set 0
@@ -16747,30 +16951,48 @@ Module
         Type Array<(Int, Node)>
         Local children
       return
+        Type Unit
+        UnitLiteral
   fun init.Labels.$c4 @fn289(this: Labels) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.Single.$c5 @fn290(this: Single) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.PairCodec.$c6 @fn291(this: PairCodec) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.NestedCodec.$c7 @fn292(this: NestedCodec) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.Twelve.$c8 @fn293(this: Twelve) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.Element.Companion.$c9 @fn294(this: Element.Companion) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.Record.Companion.$c10 @fn295(this: Record.Companion) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.Node.Companion.$c11 @fn296(this: Node.Companion) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c7 @fn297(this: ListIterator<(Int, Node)>, source: List<(Int, Node)>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -16789,6 +17011,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.EncodeFunction.$c5 @fn298(this: EncodeFunction<(Int, String)>, body: ((Int, String), Encoder) -> Unit) -> Unit
     bb0 entry
       field_set 0
@@ -16797,6 +17021,8 @@ Module
         Type ((Int, String), Encoder) -> Unit
         Local body
       return
+        Type Unit
+        UnitLiteral
   fun init.DecodeFunction.$c6 @fn299(this: DecodeFunction<(Int, String)>, body: (Decoder) -> (Int, String)) -> Unit
     bb0 entry
       field_set 0
@@ -16805,6 +17031,8 @@ Module
         Type (Decoder) -> (Int, String)
         Local body
       return
+        Type Unit
+        UnitLiteral
   fun init.EncodeFunction.$c5 @fn300(this: EncodeFunction<(Int, Node)>, body: ((Int, Node), Encoder) -> Unit) -> Unit
     bb0 entry
       field_set 0
@@ -16813,6 +17041,8 @@ Module
         Type ((Int, Node), Encoder) -> Unit
         Local body
       return
+        Type Unit
+        UnitLiteral
   fun init.PairEncoder.$c2 @fn301(this: PairEncoder<Element, Element>, first: Encodable<Element>, second: Encodable<Element>) -> Unit
     bb0 entry
       field_set 0
@@ -16826,6 +17056,8 @@ Module
         Type Encodable<Element>
         Local second
       return
+        Type Unit
+        UnitLiteral
   fun init.Captured.$c0 @fn302(this: Captured<(Element, Element)>, write: ((Element, Element), Encoder) -> Unit) -> Unit
     bb0 entry
       field_set 0
@@ -16834,6 +17066,8 @@ Module
         Type ((Element, Element), Encoder) -> Unit
         Local write
       return
+        Type Unit
+        UnitLiteral
   fun init.Captured.$c0 @fn303(this: Captured<(Element, Unit)>, write: ((Element, Unit), Encoder) -> Unit) -> Unit
     bb0 entry
       field_set 0
@@ -16842,6 +17076,8 @@ Module
         Type ((Element, Unit), Encoder) -> Unit
         Local write
       return
+        Type Unit
+        UnitLiteral
   fun init.ArrayList.$c0 @fn304(this: ArrayList<(Int, Unit)>, initialCapacity: Long) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Long
@@ -16909,6 +17145,8 @@ Module
         Type Long
         IntegerLiteral Long value=0 bits=0x0000000000000000
       return
+        Type Unit
+        UnitLiteral
     bb5 while.body.5
       call $array_value.5: MaybeUninit<(Int, Unit)> = <closure:function_type13> closure[function_type13]
         Type (Long) -> MaybeUninit<(Int, Unit)>
@@ -16943,6 +17181,8 @@ Module
         Type Encodable<Unit>
         Local second
       return
+        Type Unit
+        UnitLiteral
   fun init.PairEncoder.$c2 @fn306(this: PairEncoder<MutableArray<(Int, Unit)>, ArrayList<(Int, Unit)>>, first: Encodable<MutableArray<(Int, Unit)>>, second: Encodable<ArrayList<(Int, Unit)>>) -> Unit
     bb0 entry
       field_set 0
@@ -16956,6 +17196,8 @@ Module
         Type Encodable<ArrayList<(Int, Unit)>>
         Local second
       return
+        Type Unit
+        UnitLiteral
   fun init.PairEncoder.$c2 @fn307(this: PairEncoder<Int, String>, first: Encodable<Int>, second: Encodable<String>) -> Unit
     bb0 entry
       field_set 0
@@ -16969,6 +17211,8 @@ Module
         Type Encodable<String>
         Local second
       return
+        Type Unit
+        UnitLiteral
   fun init.PairEncoder.$c2 @fn308(this: PairEncoder<(Int, Unit), Boolean>, first: Encodable<(Int, Unit)>, second: Encodable<Boolean>) -> Unit
     bb0 entry
       field_set 0
@@ -16982,6 +17226,8 @@ Module
         Type Encodable<Boolean>
         Local second
       return
+        Type Unit
+        UnitLiteral
   fun init.PairEncoder.$c2 @fn309(this: PairEncoder<Label, Int>, first: Encodable<Label>, second: Encodable<Int>) -> Unit
     bb0 entry
       field_set 0
@@ -16995,6 +17241,8 @@ Module
         Type Encodable<Int>
         Local second
       return
+        Type Unit
+        UnitLiteral
   fun init.PairEncoder.$c2 @fn310(this: PairEncoder<Unit, Unit>, first: Encodable<Unit>, second: Encodable<Unit>) -> Unit
     bb0 entry
       field_set 0
@@ -17008,6 +17256,8 @@ Module
         Type Encodable<Unit>
         Local second
       return
+        Type Unit
+        UnitLiteral
   fun init.PairEncoder.$c2 @fn311(this: PairEncoder<Boolean, Char>, first: Encodable<Boolean>, second: Encodable<Char>) -> Unit
     bb0 entry
       field_set 0
@@ -17021,6 +17271,8 @@ Module
         Type Encodable<Char>
         Local second
       return
+        Type Unit
+        UnitLiteral
   fun init.PairEncoder.$c2 @fn312(this: PairEncoder<(Int, String), (Boolean, Char)>, first: Encodable<(Int, String)>, second: Encodable<(Boolean, Char)>) -> Unit
     bb0 entry
       field_set 0
@@ -17034,6 +17286,8 @@ Module
         Type Encodable<(Boolean, Char)>
         Local second
       return
+        Type Unit
+        UnitLiteral
   fun init.PairEncoder.$c2 @fn313(this: PairEncoder<Option<(Int, Unit)>, Array<(Int, String)>>, first: Encodable<Option<(Int, Unit)>>, second: Encodable<Array<(Int, String)>>) -> Unit
     bb0 entry
       field_set 0
@@ -17047,6 +17301,8 @@ Module
         Type Encodable<Array<(Int, String)>>
         Local second
       return
+        Type Unit
+        UnitLiteral
   fun init.ArrayEncoder.$c10 @fn314(this: ArrayEncoder<(Int, Node)>, element: Encodable<(Int, Node)>) -> Unit
     bb0 entry
       field_set 0
@@ -17055,9 +17311,13 @@ Module
         Type Encodable<(Int, Node)>
         Local element
       return
+        Type Unit
+        UnitLiteral
   fun init.Companion.$c3 @fn315(this: Companion<(Int, Node)>) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c7 @fn316(this: ListIterator<(Int, Unit)>, source: List<(Int, Unit)>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -17076,6 +17336,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c7 @fn317(this: ListIterator<MaybeUninit<(Int, Unit)>>, source: List<MaybeUninit<(Int, Unit)>>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -17094,6 +17356,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.PairEncoder.$c2 @fn318(this: PairEncoder<Element, Unit>, first: Encodable<Element>, second: Encodable<Unit>) -> Unit
     bb0 entry
       field_set 0
@@ -17107,6 +17371,8 @@ Module
         Type Encodable<Unit>
         Local second
       return
+        Type Unit
+        UnitLiteral
   fun init.MutableArrayEncoder.$c8 @fn319(this: MutableArrayEncoder<(Int, Unit)>, element: Encodable<(Int, Unit)>) -> Unit
     bb0 entry
       field_set 0
@@ -17115,6 +17381,8 @@ Module
         Type Encodable<(Int, Unit)>
         Local element
       return
+        Type Unit
+        UnitLiteral
   fun init.ArrayListEncoder.$c9 @fn320(this: ArrayListEncoder<(Int, Unit)>, element: Encodable<(Int, Unit)>) -> Unit
     bb0 entry
       field_set 0
@@ -17123,12 +17391,18 @@ Module
         Type Encodable<(Int, Unit)>
         Local element
       return
+        Type Unit
+        UnitLiteral
   fun init.Companion.$c1 @fn321(this: Companion<(Int, Unit)>) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.Companion.$c2 @fn322(this: Companion<(Int, Unit)>) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c7 @fn323(this: ListIterator<(Int, Opaque)>, source: List<(Int, Opaque)>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -17147,6 +17421,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c7 @fn324(this: ListIterator<(Int, String)>, source: List<(Int, String)>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -17165,6 +17441,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.ArrayEncoder.$c10 @fn325(this: ArrayEncoder<(Int, String)>, element: Encodable<(Int, String)>) -> Unit
     bb0 entry
       field_set 0
@@ -17173,9 +17451,13 @@ Module
         Type Encodable<(Int, String)>
         Local element
       return
+        Type Unit
+        UnitLiteral
   fun init.Companion.$c3 @fn326(this: Companion<(Int, String)>) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.OptionEncoder.$c11 @fn327(this: OptionEncoder<(Int, Unit)>, element: Encodable<(Int, Unit)>) -> Unit
     bb0 entry
       field_set 0
@@ -17184,9 +17466,13 @@ Module
         Type Encodable<(Int, Unit)>
         Local element
       return
+        Type Unit
+        UnitLiteral
   fun init.Companion.$c4 @fn328(this: Companion<(Int, Unit)>) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c7 @fn329(this: ListIterator<MaybeUninit<JsonMember>>, source: List<MaybeUninit<JsonMember>>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -17205,6 +17491,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c7 @fn330(this: ListIterator<JsonMember>, source: List<JsonMember>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -17223,6 +17511,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c7 @fn331(this: ListIterator<MaybeUninit<JsonValue>>, source: List<MaybeUninit<JsonValue>>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -17241,6 +17531,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c7 @fn332(this: ListIterator<JsonValue>, source: List<JsonValue>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -17259,6 +17551,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Element.$c0 @fn333(value: Int) -> Element <no-gc>
     bb0 entry
       return
@@ -17305,6 +17599,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn265 interface Continuation<Node>[0]
         Type Continuation<Node>
@@ -17318,6 +17614,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn266 interface Continuation<Node>[1]
         Type Continuation<Node>
@@ -17329,6 +17627,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -17386,6 +17686,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn277 interface Continuation<Node.Companion>[0]
         Type Continuation<Node.Companion>
@@ -17399,6 +17701,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn278 interface Continuation<Node.Companion>[1]
         Type Continuation<Node.Companion>
@@ -17410,6 +17714,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -17467,6 +17773,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn273 interface Continuation<Record.Companion>[0]
         Type Continuation<Record.Companion>
@@ -17480,6 +17788,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn274 interface Continuation<Record.Companion>[1]
         Type Continuation<Record.Companion>
@@ -17491,6 +17801,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -17548,6 +17860,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn269 interface Continuation<Element.Companion>[0]
         Type Continuation<Element.Companion>
@@ -17561,6 +17875,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn270 interface Continuation<Element.Companion>[1]
         Type Continuation<Element.Companion>
@@ -17572,6 +17888,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -17629,6 +17947,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn257 interface Continuation<Label>[0]
         Type Continuation<Label>
@@ -17642,6 +17962,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn258 interface Continuation<Label>[1]
         Type Continuation<Label>
@@ -17653,6 +17975,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -17710,6 +18034,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn253 interface Continuation<Opaque>[0]
         Type Continuation<Opaque>
@@ -17723,6 +18049,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn254 interface Continuation<Opaque>[1]
         Type Continuation<Opaque>
@@ -17734,6 +18062,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -17791,6 +18121,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn249 interface Continuation<Element>[0]
         Type Continuation<Element>
@@ -17804,6 +18136,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn250 interface Continuation<Element>[1]
         Type Continuation<Element>
@@ -17815,6 +18149,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -17872,6 +18208,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn261 interface Continuation<Record>[0]
         Type Continuation<Record>
@@ -17885,6 +18223,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn262 interface Continuation<Record>[1]
         Type Continuation<Record>
@@ -17896,6 +18236,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

@@ -952,13 +952,9 @@ Module
         Type IndexOutOfBoundsException
         Local $new.2
     bb5 if.merge.5
-      Type Unit
-      ArrayGet Array<Unit>
-        Type Array<Unit>
-        Local $arr.1
-        Type Long
-        Local $idx.2
       return
+        Type Unit
+        UnitLiteral
   fun size @fn12(this: Array<Unit>) -> Long
     bb0 entry
       val $dependency.local.1: Array<Unit>
@@ -3362,9 +3358,9 @@ Module
           Type Option<Unit>
           Local $pattern.subject.3
     bb3 pattern.merge.3
-      Type Unit
-      Local $dependency.local.3
       return
+        Type Unit
+        UnitLiteral
     bb4 pattern.pass.4
       assign $dependency.local.3
         Type Unit
@@ -3376,9 +3372,9 @@ Module
       goto bb3
   fun identity @fn55(value: Unit) -> Unit
     bb0 entry
-      Type Unit
-      Local value
       return
+        Type Unit
+        UnitLiteral
   fun viaReference @fn56(action: (Unit) -> Unit, seed: Unit) -> Unit
     bb0 entry
       call <closure:function_type6> closure[function_type6]
@@ -3387,6 +3383,8 @@ Module
         Type Unit
         Local seed
       return
+        Type Unit
+        UnitLiteral
   fun choiceOrSeed @fn57(value: Choice<Unit>, seed: Unit) -> Unit
     bb0 entry
       val $when.1: Choice<Unit>
@@ -3442,9 +3440,9 @@ Module
           Type Choice<Unit>
           Local $pattern.subject.3
     bb3 pattern.merge.3
-      Type Unit
-      Local $dependency.local.8
       return
+        Type Unit
+        UnitLiteral
     bb4 pattern.pass.4
       assign $dependency.local.8
         Type Unit
@@ -3474,6 +3472,8 @@ Module
         Type Unit
         Local $dependency.local.6
       return
+        Type Unit
+        UnitLiteral
   fun empty @fn59() -> Array<Unit>
     bb0 entry
       return
@@ -3522,9 +3522,9 @@ Module
         UnitLiteral
       goto bb3
     bb3 if.merge.3
-      Type Unit
-      Local $dependency.local.8
       return
+        Type Unit
+        UnitLiteral
   fun applyTo @fn61(action: (Unit) -> Int, seed: Unit) -> Int
     bb0 entry
       call $call.1: Int = <closure:function_type3> closure[function_type3]
@@ -3706,6 +3706,8 @@ Module
         Type Unit
         Local arg0
       return
+        Type Unit
+        UnitLiteral
   fun init.Reference.$c0 @fn79(this: Reference, number: Int) -> Unit
     bb0 entry
       field_set 0
@@ -3714,6 +3716,8 @@ Module
         Type Int
         Local number
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c2 @fn80(this: ListIterator<Large>, source: List<Large>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -3732,6 +3736,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c2 @fn81(this: ListIterator<Array<Large>>, source: List<Array<Large>>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -3750,6 +3756,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c2 @fn82(this: ListIterator<Unit>, source: List<Unit>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -3768,6 +3776,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.Host.$c1 @fn83(this: Host<Large>, value: Large) -> Unit
     bb0 entry
       field_set 0
@@ -3776,6 +3786,8 @@ Module
         Type Large
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Host.$c1 @fn84(this: Host<Payload<Large>>, value: Payload<Large>) -> Unit
     bb0 entry
       field_set 0
@@ -3784,6 +3796,8 @@ Module
         Type Payload<Large>
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Host.$c1 @fn85(this: Host<Unit>, value: Unit) -> Unit
     bb0 entry
       field_set 0
@@ -3792,6 +3806,8 @@ Module
         Type Unit
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c2 @fn86(this: ListIterator<Payload<Large>>, source: List<Payload<Large>>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -3810,6 +3826,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Large.$c0 @fn87(first: Reference, second: Reference, third: Reference) -> Large <no-gc>
     bb0 entry
       return
@@ -3870,6 +3888,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn65 interface Continuation<Large>[0]
         Type Continuation<Large>
@@ -3883,6 +3903,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn66 interface Continuation<Large>[1]
         Type Continuation<Large>
@@ -3894,6 +3916,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -3951,6 +3975,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn69 interface Continuation<Reference>[0]
         Type Continuation<Reference>
@@ -3964,6 +3990,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn70 interface Continuation<Reference>[1]
         Type Continuation<Reference>
@@ -3975,6 +4003,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

@@ -344,6 +344,8 @@ Module
         Type Boolean
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun println @fn3(value: Boolean) -> Unit
     bb0 entry
       val $dependency.local.1: Boolean
@@ -368,6 +370,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun $derived.equals.2 @fn4(this: (Int, String), other: (Int, String)) -> Boolean
     bb0 entry
       branch bb1 bb2
@@ -428,6 +432,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Point.$c0 @fn6(x: Int, y: Int) -> Point <no-gc>
     bb0 entry
       return

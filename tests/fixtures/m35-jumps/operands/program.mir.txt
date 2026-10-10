@@ -245,6 +245,8 @@ Module
       goto bb3
     bb2 if.else.2
       return
+        Type Unit
+        UnitLiteral
     bb3 if.merge.3
       val $aggregate.0: Int
         Type Int
@@ -255,6 +257,8 @@ Module
           Type Int
           Local $aggregate.0
       return
+        Type Unit
+        UnitLiteral
   fun comma @fn11(value: Option<Int>) -> Unit
     bb0 entry
       val opt: Option<Int>
@@ -274,6 +278,8 @@ Module
       goto bb3
     bb2 if.else.2
       return
+        Type Unit
+        UnitLiteral
     bb3 if.merge.3
       val $argument.0: Int
         Type Int
@@ -310,6 +316,8 @@ Module
         Type Int
         Local $parameter.third
       return
+        Type Unit
+        UnitLiteral
   fun source @fn12() -> Option<Int>
     bb0 entry
       val $argument.0: Int
@@ -527,6 +535,8 @@ Module
         Type Int
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun $get$trace @fn16() -> Int <no-gc>
     bb0 entry
       return
@@ -538,6 +548,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun iterator @fn18(this: Array<Int>) -> Iterator<Int>
     bb0 entry
       val $dependency.local.1: List<Int>
@@ -673,6 +685,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun next @fn22(this: ListIterator<Int>) -> Option<Int>
     bb0 entry
       branch bb1 bb2
@@ -792,6 +806,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   instance mi0 function=@fn18 <- iterator
   instance mi1 function=@fn19 <- get
   instance mi2 function=@fn20 <- size

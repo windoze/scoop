@@ -17,6 +17,8 @@ Module
     bb0 entry
       call extern0 @verify_finished direct
       return
+        Type Unit
+        UnitLiteral
   fun perform @fn1() -> Unit
     bb0 entry
       call @fn3 direct
@@ -80,6 +82,8 @@ Module
     bb2 if.merge.2
       call extern0 @verify_finished direct
       return
+        Type Unit
+        UnitLiteral
   fun handleRoundTrip @fn2(arg0: GcHandle<Any>) -> GcHandle<Any>
     bb0 entry
       call $call.1: GcHandle<Any> = extern1 @handle_round_trip direct
@@ -106,6 +110,8 @@ Module
         Type GcHandle<Any>
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun $derived.equals.0 @fn4(this: GcHandle<Any>, other: GcHandle<Any>) -> Boolean
     bb0 entry
       return

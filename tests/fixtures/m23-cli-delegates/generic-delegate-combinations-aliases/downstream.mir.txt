@@ -419,6 +419,8 @@ Module
         Type FlatSlot<(Int, Boolean)>
         Local $call.1
       return
+        Type Unit
+        UnitLiteral
   fun extension:Receiver<T0>:flat$ensure @fn6() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -443,6 +445,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -585,6 +589,8 @@ Module
         Type FlatSlot<(Later, Boolean)>
         Local $call.1
       return
+        Type Unit
+        UnitLiteral
   fun extension:Receiver<T0>:flat$ensure @fn9() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -609,6 +615,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -703,6 +711,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Receiver.$c0 @fn15(this: Receiver<(Int, Boolean)>, value: (Int, Boolean)) -> Unit
     bb0 entry
       field_set 0
@@ -711,6 +721,8 @@ Module
         Type (Int, Boolean)
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Receiver.$c0 @fn16(this: Receiver<(Later, Boolean)>, value: (Later, Boolean)) -> Unit
     bb0 entry
       field_set 0
@@ -719,6 +731,8 @@ Module
         Type (Later, Boolean)
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun ctor.FlatSlot.$c1 @fn17(first: Long, second: Long, third: Long) -> FlatSlot<(Int, Boolean)> <no-gc>
     bb0 entry
       return
@@ -763,6 +777,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn10 interface Continuation<Later>[0]
         Type Continuation<Later>
@@ -776,6 +792,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn11 interface Continuation<Later>[1]
         Type Continuation<Later>
@@ -787,6 +805,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

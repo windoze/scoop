@@ -1368,6 +1368,8 @@ Module
         Type Int
         Local second
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c2 @fn33(this: ListIterator<() -> Int>, source: List<() -> Int>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -1386,6 +1388,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c2 @fn34(this: ListIterator<Pair<Int>>, source: List<Pair<Int>>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -1404,6 +1408,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c2 @fn35(this: ListIterator<Pieces<Int>>, source: List<Pieces<Int>>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -1422,6 +1428,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Pair.$c0 @fn36(left: Int, right: Int) -> Pair<Int> <no-gc>
     bb0 entry
       return

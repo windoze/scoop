@@ -122,6 +122,8 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun main @fn1() -> Unit
     bb0 entry
       call external15 direct
@@ -305,6 +307,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb14 try.body.14 unwind bb7
       val $dependency.argument.0: String
         Type String
@@ -465,6 +469,8 @@ Module
         Local $inline.1.this
         Type Boolean
         BoolLiteral false
+      Type Unit
+      UnitLiteral
       goto bb1
   fun get @fn3(this: Array<UInt8>, index: Long) -> UInt8
     bb0 entry
@@ -678,6 +684,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun next @fn9(this: ListIterator<UInt8>) -> Option<UInt8>
     bb0 entry
       branch bb1 bb2
@@ -1130,6 +1138,8 @@ Module
         Local $inline.1.this
         Type Boolean
         BoolLiteral false
+      Type Unit
+      UnitLiteral
       goto bb1
   fun get @fn15(this: MutableArray<UInt8>, index: Long) -> UInt8
     bb0 entry
@@ -1435,6 +1445,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Result.$c0 @fn27(text: String, count: Long) -> Result <no-gc>
     bb0 entry
       return
@@ -1466,6 +1478,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn22 interface Continuation<Result>[0]
         Type Continuation<Result>
@@ -1479,6 +1493,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn23 interface Continuation<Result>[1]
         Type Continuation<Result>
@@ -1490,6 +1506,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

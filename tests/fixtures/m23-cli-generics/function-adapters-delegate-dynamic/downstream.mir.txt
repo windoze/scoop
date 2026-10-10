@@ -1030,6 +1030,8 @@ Module
         Type Slot<Local>
         Local $dependency.local.14
       return
+        Type Unit
+        UnitLiteral
     bb4 if.then.4
       assign $new.2
         Type ClassCastException
@@ -1086,6 +1088,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -1294,6 +1298,8 @@ Module
         Type Slot<Int>
         Local $dependency.local.14
       return
+        Type Unit
+        UnitLiteral
     bb4 if.then.4
       assign $new.2
         Type ClassCastException
@@ -1350,6 +1356,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -1558,6 +1566,8 @@ Module
         Type Slot<Unit>
         Local $dependency.local.14
       return
+        Type Unit
+        UnitLiteral
     bb4 if.then.4
       assign $new.2
         Type ClassCastException
@@ -1614,6 +1624,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -1766,11 +1778,9 @@ Module
           IntegerLiteral Int value=0 bits=0x00000000
   fun value @fn25(this: Receiver<Unit>) -> Unit
     bb0 entry
-      Type Unit
-      FieldAccess 0
-        Type Receiver<Unit>
-        Local this
       return
+        Type Unit
+        UnitLiteral
   fun $lambda @fn26($argument.0: (Any) -> Int, $argument.1: Any) -> Int
     bb0 entry
       call $dependency.local.1: Int = external4 direct
@@ -1822,6 +1832,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Receiver.$c0 @fn33(this: Receiver<Local>, value: Local) -> Unit
     bb0 entry
       field_set 0
@@ -1830,6 +1842,8 @@ Module
         Type Local
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Receiver.$c0 @fn34(this: Receiver<Int>, value: Int) -> Unit
     bb0 entry
       field_set 0
@@ -1838,6 +1852,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Receiver.$c0 @fn35(this: Receiver<Unit>, value: Unit) -> Unit
     bb0 entry
       field_set 0
@@ -1846,6 +1862,8 @@ Module
         Type Unit
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Slot.$c1 @fn36(this: Slot<Local>, action: (Local) -> Any) -> Unit
     bb0 entry
       field_set 0
@@ -1854,6 +1872,8 @@ Module
         Type (Local) -> Any
         Local action
       return
+        Type Unit
+        UnitLiteral
   fun init.Slot.$c1 @fn37(this: Slot<Int>, action: (Int) -> Any) -> Unit
     bb0 entry
       field_set 0
@@ -1862,6 +1882,8 @@ Module
         Type (Int) -> Any
         Local action
       return
+        Type Unit
+        UnitLiteral
   fun init.Slot.$c1 @fn38(this: Slot<Unit>, action: (Unit) -> Any) -> Unit
     bb0 entry
       field_set 0
@@ -1870,6 +1892,8 @@ Module
         Type (Unit) -> Any
         Local action
       return
+        Type Unit
+        UnitLiteral
   fun $dynamic_adapter.(Local) -> Any @fn39($closure: (Local) -> Any, arg0: Local) -> Any
     bb0 entry
       call $call.1: Any = <function_bridge:function_type1> function_bridge[function_type1]
@@ -1934,6 +1958,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn28 interface Continuation<Local>[0]
         Type Continuation<Local>
@@ -1947,6 +1973,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn29 interface Continuation<Local>[1]
         Type Continuation<Local>
@@ -1958,6 +1986,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

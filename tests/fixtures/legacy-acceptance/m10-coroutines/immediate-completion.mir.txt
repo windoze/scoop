@@ -105,6 +105,8 @@ Module
         Type Int
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun RecordingCompletion.resumeWithException @fn2(this: RecordingCompletion, exception: Throwable) -> Unit
     bb0 entry
       val $dependency.argument.0: String
@@ -117,6 +119,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun immediateValue @fn3($completion: Continuation<Int>) -> CoroutineStep<Int>
     bb0 entry
       return
@@ -144,6 +148,8 @@ Module
         Type Continuation<Int>
         Local $dependency.parameter.completion
       return
+        Type Unit
+        UnitLiteral
   fun main @fn5() -> Unit
     bb0 entry
       assign $new.1
@@ -189,6 +195,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun println @fn6(value: Int) -> Unit
     bb0 entry
       val $dependency.local.1: Int
@@ -213,6 +221,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn7(value: String) -> Unit
     bb0 entry
       val $dependency.local.1: String
@@ -237,6 +247,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun Continuation.resume @fn8(this: Continuation<Int>, value: Int) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
@@ -252,9 +264,13 @@ Module
   fun init.ImmediateTask.$c0 @fn12(this: ImmediateTask) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.RecordingCompletion.$c1 @fn13(this: RecordingCompletion) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun ImmediateTask.run$drive @fn14($frame: CoroutineFrame<ImmediateTask.run>, $dispatch_state: machine<coroutine-frame-state>) -> CoroutineStep<Int>
     bb0 entry
       atomic_store_release kind=coroutine-frame-state field=0
@@ -475,12 +491,16 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 suspended
       Type Unit
       ContextLeave
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 failed unwind bb1
       atomic_store_release kind=coroutine-frame-state field=0
         Type CoroutineFrame<ImmediateTask.run>
@@ -503,6 +523,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb6 body_failure unwind bb2
       landing_pad cleanup=false
       begin_catch
@@ -644,12 +666,16 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 suspended
       Type Unit
       ContextLeave
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 failed unwind bb1
       atomic_store_release kind=coroutine-frame-state field=0
         Type CoroutineFrame<ImmediateTask.run>
@@ -672,6 +698,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb6 body_failure unwind bb2
       landing_pad cleanup=false
       begin_catch

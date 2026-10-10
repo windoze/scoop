@@ -127,14 +127,20 @@ Module
         Type Ptr<Unit>
         Local arg1
       return
+        Type Unit
+        UnitLiteral
   fun holdCallback @fn3() -> Unit
     bb0 entry
       call extern1 @m33_shutdown_hold direct
       return
+        Type Unit
+        UnitLiteral
   fun registerAtExit @fn4() -> Unit
     bb0 entry
       call extern2 @m33_shutdown_register_atexit direct
       return
+        Type Unit
+        UnitLiteral
   fun main @fn5() -> Int
     bb0 entry
       val $argument.0: String

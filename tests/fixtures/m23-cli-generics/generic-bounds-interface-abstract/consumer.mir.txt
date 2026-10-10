@@ -154,9 +154,13 @@ Module
         Type Int
         Local payload
       return
+        Type Unit
+        UnitLiteral
   fun init.AbstractReader.$c1 @fn8(this: AbstractReader<Int>) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun function_bridge.$Closure$reference0.() -> Any @fn9($source: () -> Int) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type0> closure[function_type0]

@@ -1600,7 +1600,6 @@ Module
     store local1 -> local2
     call managed-direct-target0 sp<managed-call:0> live=[local0:ptr<managed>@0] t1 = sig=direct0 (ptr<managed>, i32) -> i32 external-fn2(local0, local2)
     store t1 -> local3
-    t2 = zst_value exact=1dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc align 1 : {}
     ret
   fun @scoop$1$cb$f099181a7cb4c78fef15e789bb388600d3b34a2fb73eefe35ccf81a65ee5d26f(parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>, ptr<managed>) -> void
   block entry

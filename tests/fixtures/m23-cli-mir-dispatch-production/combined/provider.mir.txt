@@ -339,6 +339,8 @@ Module
         Type Singleton
         Local $new.1
       return
+        Type Unit
+        UnitLiteral
   fun $init$ensure$0 @fn10() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -363,6 +365,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -449,6 +453,8 @@ Module
         Type OtherSingleton
         Local $new.1
       return
+        Type Unit
+        UnitLiteral
   fun $init$ensure$1 @fn12() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -473,6 +479,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -850,6 +858,8 @@ Module
         Type Token
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun receiver<Derived> Diamond.echo @fn88(this: Derived, value: Token) -> Token
     bb0 entry
       call $call.1: Token = @fn77 direct
@@ -925,6 +935,8 @@ Module
   fun init.Base.$c0 @fn94(this: Base) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.Derived.$c1 @fn95(this: Derived) -> Unit
     bb0 entry
       call @fn94 direct
@@ -933,9 +945,13 @@ Module
           Type Derived
           Local this
       return
+        Type Unit
+        UnitLiteral
   fun init.Pending.$c2 @fn96(this: Pending) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.Singleton.$c5 @fn97(this: Singleton) -> Unit
     bb0 entry
       call @fn94 direct
@@ -944,6 +960,8 @@ Module
           Type Singleton
           Local this
       return
+        Type Unit
+        UnitLiteral
   fun init.OtherSingleton.$c6 @fn98(this: OtherSingleton) -> Unit
     bb0 entry
       call @fn94 direct
@@ -952,9 +970,13 @@ Module
           Type OtherSingleton
           Local this
       return
+        Type Unit
+        UnitLiteral
   fun init.PendingMutable.$c3 @fn99(this: PendingMutable) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.Hidden.$c4 @fn100(this: Hidden) -> Unit
     bb0 entry
       call @fn94 direct
@@ -963,6 +985,8 @@ Module
           Type Hidden
           Local this
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Token.$c0 @fn101() -> Token <no-gc>
     bb0 entry
       return
@@ -995,6 +1019,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn58 interface Continuation<Pending>[0]
         Type Continuation<Pending>
@@ -1008,6 +1034,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn59 interface Continuation<Pending>[1]
         Type Continuation<Pending>
@@ -1019,6 +1047,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -1076,6 +1106,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn42 interface Continuation<Default>[0]
         Type Continuation<Default>
@@ -1089,6 +1121,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn43 interface Continuation<Default>[1]
         Type Continuation<Default>
@@ -1100,6 +1134,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -1157,6 +1193,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn22 interface Continuation<Diamond>[0]
         Type Continuation<Diamond>
@@ -1170,6 +1208,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn23 interface Continuation<Diamond>[1]
         Type Continuation<Diamond>
@@ -1181,6 +1221,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -1238,6 +1280,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn66 interface Continuation<OtherSingleton>[0]
         Type Continuation<OtherSingleton>
@@ -1251,6 +1295,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn67 interface Continuation<OtherSingleton>[1]
         Type Continuation<OtherSingleton>
@@ -1262,6 +1308,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -1319,6 +1367,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn30 interface Continuation<Root>[0]
         Type Continuation<Root>
@@ -1332,6 +1382,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn31 interface Continuation<Root>[1]
         Type Continuation<Root>
@@ -1343,6 +1395,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -1400,6 +1454,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn62 interface Continuation<Singleton>[0]
         Type Continuation<Singleton>
@@ -1413,6 +1469,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn63 interface Continuation<Singleton>[1]
         Type Continuation<Singleton>
@@ -1424,6 +1482,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -1481,6 +1541,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn34 interface Continuation<Right>[0]
         Type Continuation<Right>
@@ -1494,6 +1556,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn35 interface Continuation<Right>[1]
         Type Continuation<Right>
@@ -1505,6 +1569,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -1562,6 +1628,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn46 interface Continuation<Mutable>[0]
         Type Continuation<Mutable>
@@ -1575,6 +1643,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn47 interface Continuation<Mutable>[1]
         Type Continuation<Mutable>
@@ -1586,6 +1656,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -1643,6 +1715,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn14 interface Continuation<Token>[0]
         Type Continuation<Token>
@@ -1656,6 +1730,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn15 interface Continuation<Token>[1]
         Type Continuation<Token>
@@ -1667,6 +1743,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -1724,6 +1802,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn50 interface Continuation<Base>[0]
         Type Continuation<Base>
@@ -1737,6 +1817,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn51 interface Continuation<Base>[1]
         Type Continuation<Base>
@@ -1748,6 +1830,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -1805,6 +1889,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn18 interface Continuation<Value>[0]
         Type Continuation<Value>
@@ -1818,6 +1904,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn19 interface Continuation<Value>[1]
         Type Continuation<Value>
@@ -1829,6 +1917,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -1886,6 +1976,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn54 interface Continuation<Derived>[0]
         Type Continuation<Derived>
@@ -1899,6 +1991,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn55 interface Continuation<Derived>[1]
         Type Continuation<Derived>
@@ -1910,6 +2004,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -1967,6 +2063,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn70 interface Continuation<PendingMutable>[0]
         Type Continuation<PendingMutable>
@@ -1980,6 +2078,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn71 interface Continuation<PendingMutable>[1]
         Type Continuation<PendingMutable>
@@ -1991,6 +2091,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -2048,6 +2150,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn26 interface Continuation<Left>[0]
         Type Continuation<Left>
@@ -2061,6 +2165,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn27 interface Continuation<Left>[1]
         Type Continuation<Left>
@@ -2072,6 +2178,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -2129,6 +2237,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn38 interface Continuation<Choice>[0]
         Type Continuation<Choice>
@@ -2142,6 +2252,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn39 interface Continuation<Choice>[1]
         Type Continuation<Choice>
@@ -2153,6 +2265,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

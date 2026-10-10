@@ -301,6 +301,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun iterator @fn7(this: Array<Base>) -> Iterator<Base>
     bb0 entry
       val $dependency.local.1: List<Base>
@@ -658,6 +660,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn17(value: String) -> Unit
     bb0 entry
       val $dependency.local.1: String
@@ -682,6 +686,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun next @fn18(this: ListIterator<Base>) -> Option<Base>
     bb0 entry
       branch bb1 bb2
@@ -1015,6 +1021,8 @@ Module
   fun init.Base.$c0 @fn36(this: Base) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.Left.$c1 @fn37(this: Left) -> Unit
     bb0 entry
       call @fn36 direct
@@ -1023,6 +1031,8 @@ Module
           Type Left
           Local this
       return
+        Type Unit
+        UnitLiteral
   fun init.Right.$c2 @fn38(this: Right) -> Unit
     bb0 entry
       call @fn36 direct
@@ -1031,12 +1041,18 @@ Module
           Type Right
           Local this
       return
+        Type Unit
+        UnitLiteral
   fun init.Cat.$c3 @fn39(this: Cat) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.Dog.$c4 @fn40(this: Dog) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c0 @fn41(this: ListIterator<Base>, source: List<Base>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -1055,6 +1071,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c0 @fn42(this: ListIterator<Named>, source: List<Named>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -1073,6 +1091,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c0 @fn43(this: ListIterator<Any>, source: List<Any>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -1091,6 +1111,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Tag.$c0 @fn44(text: String) -> Tag <no-gc>
     bb0 entry
       return
@@ -1120,6 +1142,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn31 interface Continuation<Base>[0]
         Type Continuation<Base>
@@ -1133,6 +1157,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn32 interface Continuation<Base>[1]
         Type Continuation<Base>
@@ -1144,6 +1170,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -1201,6 +1229,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn27 interface Continuation<Named>[0]
         Type Continuation<Named>
@@ -1214,6 +1244,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn28 interface Continuation<Named>[1]
         Type Continuation<Named>
@@ -1225,6 +1257,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

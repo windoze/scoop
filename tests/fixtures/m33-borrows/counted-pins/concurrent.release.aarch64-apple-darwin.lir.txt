@@ -214,6 +214,7 @@ Module
     cbr t19 then @pattern.pass.1 else @pattern.else.2
   block inline.7.entry
     heap_store local41 +16 integer<Int>(0x00001ca3)
+    t20 = aggregate () : {}
     br @inline.cont.7
   fun @scoop$1$cb$9f05b3865f9d292f41b4d9e9406eb8edd6ef8d76602387d2166c11f7add07a0f(ptr<raw>, ptr<raw>) -> i1
     local %0 $dependency.local.2: ptr<raw>

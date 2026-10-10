@@ -38,6 +38,8 @@ Module
   fun init.EmptyStorage.$c0 @fn4(this: EmptyStorage) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<EmptyStorage> @fn5(task: SuspendTask<EmptyStorage>, completion: Continuation<EmptyStorage>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -60,6 +62,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn0 interface Continuation<EmptyStorage>[0]
         Type Continuation<EmptyStorage>
@@ -73,6 +77,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn1 interface Continuation<EmptyStorage>[1]
         Type Continuation<EmptyStorage>
@@ -84,6 +90,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

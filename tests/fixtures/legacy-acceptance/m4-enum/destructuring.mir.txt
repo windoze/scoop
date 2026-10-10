@@ -199,6 +199,8 @@ Module
         Type Int
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun println @fn1(value: Int) -> Unit
     bb0 entry
       val $dependency.local.1: Int
@@ -223,6 +225,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun ctor.S.$c0 @fn2(f1: Int, f2: Int, f3: Int) -> S <no-gc>
     bb0 entry
       return

@@ -206,6 +206,8 @@ Module
         Type Envelope
         Local data
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Packet.$c0 @fn8(pair: (Boolean, String)) -> Packet <no-gc>
     bb0 entry
       return

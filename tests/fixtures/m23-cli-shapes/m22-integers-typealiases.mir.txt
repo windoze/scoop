@@ -348,6 +348,8 @@ Module
         Type Int
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun Container.Factory.makeInt @fn2(this: Container.Factory<Int>, value: Int) -> Container<Int>
     bb0 entry
       val $argument.0: Int
@@ -396,6 +398,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn5(value: String) -> Unit
     bb0 entry
       val $dependency.local.1: String
@@ -420,6 +424,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun $init$body$0 @fn6() -> Unit
     bb0 entry
       assign $new.1
@@ -432,6 +438,8 @@ Module
         Type Container.Factory<Int>
         Local $new.1
       return
+        Type Unit
+        UnitLiteral
   fun $init$ensure$0 @fn7() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -456,6 +464,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -558,6 +568,8 @@ Module
         Type String
         Local text
       return
+        Type Unit
+        UnitLiteral
   fun init.Container.$c0 @fn14(this: Container<String>, value: String) -> Unit
     bb0 entry
       field_set 0
@@ -566,6 +578,8 @@ Module
         Type String
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Container.$c0 @fn15(this: Container<Int>, value: Int) -> Unit
     bb0 entry
       field_set 0
@@ -574,9 +588,13 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Container.Factory.$c2 @fn16(this: Container.Factory<Int>) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Slot.$c0 @fn17(value: Int) -> Slot<Int> <no-gc>
     bb0 entry
       return
@@ -606,6 +624,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn8 interface Continuation<Container.Tag>[0]
         Type Continuation<Container.Tag>
@@ -619,6 +639,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn9 interface Continuation<Container.Tag>[1]
         Type Continuation<Container.Tag>
@@ -630,6 +652,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

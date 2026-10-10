@@ -533,6 +533,8 @@ Module
         Type Int
         Local $dependency.constructor.local.4
       return
+        Type Unit
+        UnitLiteral
   fun init.Shell.$c0 @fn15(this: Shell<Int, String>, value: Int, flag: Boolean) -> Unit
     bb0 entry
       branch bb1 bb2
@@ -614,6 +616,8 @@ Module
         Type Int
         Local $dependency.constructor.local.4
       return
+        Type Unit
+        UnitLiteral
   fun init.Current.$c0 @fn16(this: Current<Int, Unit>, value: Int) -> Unit
     bb0 entry
       val $dependency.argument.0: Int
@@ -638,6 +642,8 @@ Module
         Type Boolean
         Local $dependency.parameter.flag
       return
+        Type Unit
+        UnitLiteral
   fun init.Base.$c2 @fn17(this: Base<Int, Unit>, value: Int) -> Unit
     bb0 entry
       field_set 0
@@ -646,6 +652,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Base.$c2 @fn18(this: Base<Int, String>, value: Int) -> Unit
     bb0 entry
       field_set 0
@@ -654,6 +662,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Carrier.$c1 @fn19(value: Shell<Int, Unit>) -> Carrier<Shell<Int, Unit>, String> <no-gc>
     bb0 entry
       return

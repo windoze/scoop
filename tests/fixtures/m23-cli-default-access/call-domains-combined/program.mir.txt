@@ -61,6 +61,8 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun main @fn1() -> Unit
     bb0 entry
       call diamond: DomainDiamond<Int> = @fn10 direct
@@ -443,6 +445,8 @@ Module
         Type Boolean
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun choose @fn2(this: DomainDiamond<Int>, seed: (Int, Int), value: (Int, Int)) -> (Int, Int)
     bb0 entry
       return
@@ -595,6 +599,8 @@ Module
   fun init.DomainDiamond.$c1 @fn21(this: DomainDiamond<Int>) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.DomainChild.$c2 @fn22(this: DomainChild<Int>) -> Unit
     bb0 entry
       call @fn26 direct
@@ -603,6 +609,8 @@ Module
           Type DomainChild<Int>
           Local this
       return
+        Type Unit
+        UnitLiteral
   fun init.DomainUnusedChild.$c3 @fn23(this: DomainUnusedChild<Int>) -> Unit
     bb0 entry
       call @fn27 direct
@@ -611,6 +619,8 @@ Module
           Type DomainUnusedChild<Int>
           Local this
       return
+        Type Unit
+        UnitLiteral
   fun init.DomainUnusedChild.$c3 @fn24(this: DomainUnusedChild<String>) -> Unit
     bb0 entry
       call @fn28 direct
@@ -619,18 +629,28 @@ Module
           Type DomainUnusedChild<String>
           Local this
       return
+        Type Unit
+        UnitLiteral
   fun init.Inner.$c4 @fn25(this: Inner<String>) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.DomainBase.$c5 @fn26(this: DomainBase<(Int, Int)>) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.DomainUnused.$c6 @fn27(this: DomainUnused<(Int, Int)>) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.DomainUnused.$c6 @fn28(this: DomainUnused<(String, String)>) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun ctor.DomainValue.$c0 @fn29() -> DomainValue<Int> <no-gc>
     bb0 entry
       return

@@ -603,6 +603,8 @@ Module
         Local $parameter.value
       call once: Boolean = @fn13 direct
       return
+        Type Unit
+        UnitLiteral
   fun callback bridge for equalInt8 @fn25($result: Ptr<Boolean>, $arg0: Ptr<Int8>) -> Unit <no-gc>
     bb0 entry
       call $value: Boolean = @fn0 direct
@@ -617,6 +619,8 @@ Module
         Type Boolean
         Local $value
       return
+        Type Unit
+        UnitLiteral
   fun callback bridge for equalInt16 @fn26($result: Ptr<Boolean>, $arg0: Ptr<Int16>) -> Unit <no-gc>
     bb0 entry
       call $value: Boolean = @fn1 direct
@@ -631,6 +635,8 @@ Module
         Type Boolean
         Local $value
       return
+        Type Unit
+        UnitLiteral
   fun callback bridge for equalInt @fn27($result: Ptr<Boolean>, $arg0: Ptr<Int>) -> Unit <no-gc>
     bb0 entry
       call $value: Boolean = @fn2 direct
@@ -645,6 +651,8 @@ Module
         Type Boolean
         Local $value
       return
+        Type Unit
+        UnitLiteral
   fun callback bridge for equalLong @fn28($result: Ptr<Boolean>, $arg0: Ptr<Long>) -> Unit <no-gc>
     bb0 entry
       call $value: Boolean = @fn3 direct
@@ -659,6 +667,8 @@ Module
         Type Boolean
         Local $value
       return
+        Type Unit
+        UnitLiteral
   fun callback bridge for equalUInt8 @fn29($result: Ptr<Boolean>, $arg0: Ptr<UInt8>) -> Unit <no-gc>
     bb0 entry
       call $value: Boolean = @fn4 direct
@@ -673,6 +683,8 @@ Module
         Type Boolean
         Local $value
       return
+        Type Unit
+        UnitLiteral
   fun callback bridge for equalUInt16 @fn30($result: Ptr<Boolean>, $arg0: Ptr<UInt16>) -> Unit <no-gc>
     bb0 entry
       call $value: Boolean = @fn5 direct
@@ -687,6 +699,8 @@ Module
         Type Boolean
         Local $value
       return
+        Type Unit
+        UnitLiteral
   fun callback bridge for equalUInt @fn31($result: Ptr<Boolean>, $arg0: Ptr<UInt>) -> Unit <no-gc>
     bb0 entry
       call $value: Boolean = @fn6 direct
@@ -701,6 +715,8 @@ Module
         Type Boolean
         Local $value
       return
+        Type Unit
+        UnitLiteral
   fun callback bridge for equalULong @fn32($result: Ptr<Boolean>, $arg0: Ptr<ULong>) -> Unit <no-gc>
     bb0 entry
       call $value: Boolean = @fn7 direct
@@ -715,6 +731,8 @@ Module
         Type Boolean
         Local $value
       return
+        Type Unit
+        UnitLiteral
   fun callback bridge for combinedEquality @fn33($result: Ptr<Boolean>, $arg0: Ptr<UInt8>) -> Unit <no-gc>
     bb0 entry
       call $value: Boolean = @fn22 direct
@@ -729,4 +747,6 @@ Module
         Type Boolean
         Local $value
       return
+        Type Unit
+        UnitLiteral
   output executable @fn24

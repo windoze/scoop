@@ -139,6 +139,8 @@ Module
         Type Int
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun println @fn4(value: Int) -> Unit
     bb0 entry
       val $dependency.local.1: Int
@@ -163,6 +165,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun callback bridge for increment @fn5($result: Ptr<Int>, $arg0: Ptr<Int>) -> Unit <no-gc>
     bb0 entry
       call $value: Int = @fn0 direct
@@ -177,6 +181,8 @@ Module
         Type Int
         Local $value
       return
+        Type Unit
+        UnitLiteral
   fun callback bridge for first @fn6($result: Ptr<Int>, $arg0: Ptr<Int>) -> Unit <no-gc>
     bb0 entry
       call $value: Int = @fn1 direct
@@ -191,6 +197,8 @@ Module
         Type Int
         Local $value
       return
+        Type Unit
+        UnitLiteral
   fun callback bridge for second @fn7($result: Ptr<Int>, $arg0: Ptr<Int>) -> Unit <no-gc>
     bb0 entry
       call $value: Int = @fn2 direct
@@ -205,6 +213,8 @@ Module
         Type Int
         Local $value
       return
+        Type Unit
+        UnitLiteral
   instance mi0 function=@fn4 <- println
   str @str0 "\n"
   output executable @fn3

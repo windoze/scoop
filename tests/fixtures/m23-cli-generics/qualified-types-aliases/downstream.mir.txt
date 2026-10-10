@@ -287,6 +287,8 @@ Module
         Type Int
         Local number
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Box.$c0 @fn6(value: Int) -> Box<Int> <no-gc>
     bb0 entry
       return

@@ -51,6 +51,8 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun main @fn1() -> Unit
     bb0 entry
       val $dependency.argument.0: Any
@@ -255,6 +257,8 @@ Module
         Type Boolean
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun dormant @fn2(value: Any, result: Int) -> Int
     bb0 entry
       return

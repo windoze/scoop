@@ -3120,48 +3120,38 @@ Module
         Type Built<Unit, String>
         Local this
       return
+        Type Unit
+        UnitLiteral
   fun retained @fn24(this: Built<Unit, String>) -> Unit
     bb0 entry
-      Type Unit
-      FieldAccess 3
-        Type Built<Unit, String>
-        Local this
       return
+        Type Unit
+        UnitLiteral
   fun output @fn25(this: Built<Unit, String>) -> Unit
     bb0 entry
-      Type Unit
-      FieldAccess 4
-        Type Built<Unit, String>
-        Local this
       return
+        Type Unit
+        UnitLiteral
   fun value @fn26(this: Base<Unit, Int>) -> Unit
     bb0 entry
-      Type Unit
-      FieldAccess 0
-        Type Base<Unit, Int>
-        Local this
       return
+        Type Unit
+        UnitLiteral
   fun copied @fn27(this: Terminal<Unit, Unit>) -> Unit
     bb0 entry
-      Type Unit
-      FieldAccess 2
-        Type Terminal<Unit, Unit>
-        Local this
       return
+        Type Unit
+        UnitLiteral
   fun value @fn28(this: Base<Unit, String>) -> Unit
     bb0 entry
-      Type Unit
-      FieldAccess 0
-        Type Base<Unit, String>
-        Local this
       return
+        Type Unit
+        UnitLiteral
   fun value @fn29(this: Base<Unit, Unit>) -> Unit
     bb0 entry
-      Type Unit
-      FieldAccess 0
-        Type Base<Unit, Unit>
-        Local this
       return
+        Type Unit
+        UnitLiteral
   fun delegated @fn30(this: Built<Int, String>) -> Int
     bb0 entry
       call $call.1: Int = @fn40 direct
@@ -3232,11 +3222,9 @@ Module
           Local this
   fun getValue @fn39(this: Reader<Unit, String>, thisRef: Built<Unit, String>) -> Unit
     bb0 entry
-      Type Unit
-      FieldAccess 0
-        Type Reader<Unit, String>
-        Local this
       return
+        Type Unit
+        UnitLiteral
   fun getValue @fn40(this: Reader<Int, String>, thisRef: Built<Int, String>) -> Int
     bb0 entry
       return
@@ -3322,6 +3310,8 @@ Module
           Type () -> Unit
           Local $argument.0
       return
+        Type Unit
+        UnitLiteral
   fun $lambda @fn52($argument.0: () -> Unit) -> Unit
     bb0 entry
       call @fn54 direct
@@ -3330,16 +3320,18 @@ Module
           Type () -> Unit
           Local $argument.0
       return
+        Type Unit
+        UnitLiteral
   fun copy @fn53($capture.0: Unit) -> Unit
     bb0 entry
-      Type Unit
-      Local $capture.0
       return
+        Type Unit
+        UnitLiteral
   fun copy @fn54($capture.0: Unit) -> Unit
     bb0 entry
-      Type Unit
-      Local $capture.0
       return
+        Type Unit
+        UnitLiteral
   fun read @fn55($capture.0: Int) -> Int
     bb0 entry
       return
@@ -3458,6 +3450,8 @@ Module
           Type () -> Unit
           Local $argument.0
       return
+        Type Unit
+        UnitLiteral
   fun $lambda @fn72($argument.0: () -> Unit) -> Unit
     bb0 entry
       call @fn74 direct
@@ -3466,16 +3460,18 @@ Module
           Type () -> Unit
           Local $argument.0
       return
+        Type Unit
+        UnitLiteral
   fun copy @fn73($capture.0: Unit) -> Unit
     bb0 entry
-      Type Unit
-      Local $capture.0
       return
+        Type Unit
+        UnitLiteral
   fun copy @fn74($capture.0: Unit) -> Unit
     bb0 entry
-      Type Unit
-      Local $capture.0
       return
+        Type Unit
+        UnitLiteral
   fun read @fn75($capture.0: Int) -> Int
     bb0 entry
       return
@@ -3536,6 +3532,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Built.$c1 @fn86(this: Built<Later, String>, value: Later, trace: Trace, flag: Boolean) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Later
@@ -3572,6 +3570,8 @@ Module
         Type Int
         Local $dependency.constructor.local.2
       return
+        Type Unit
+        UnitLiteral
   fun init.Built.$c2 @fn87(this: Built<Later, Int>, value: Later, trace: Trace) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Later
@@ -3715,6 +3715,8 @@ Module
         Type Int
         Local $dependency.constructor.local.4
       return
+        Type Unit
+        UnitLiteral
   fun init.Terminal.$c3 @fn88(this: Terminal<Later, Unit>, value: Later, trace: Trace) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Later
@@ -3780,6 +3782,8 @@ Module
         Type Int
         Local $dependency.constructor.local.2
       return
+        Type Unit
+        UnitLiteral
   fun init.Terminal.$c4 @fn89(this: Terminal<Later, String>, value: Later, trace: Trace, flag: Boolean) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Later
@@ -3816,6 +3820,8 @@ Module
         Type Int
         Local $dependency.constructor.local.2
       return
+        Type Unit
+        UnitLiteral
   fun init.Current.$c5 @fn90(this: Current<Later, Unit>, value: Later, trace: Trace) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Later
@@ -3859,6 +3865,8 @@ Module
         Type Int
         Local $call.1
       return
+        Type Unit
+        UnitLiteral
   fun init.Built.$c1 @fn91(this: Built<String, String>, value: String, trace: Trace, flag: Boolean) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: String
@@ -3895,6 +3903,8 @@ Module
         Type Int
         Local $dependency.constructor.local.2
       return
+        Type Unit
+        UnitLiteral
   fun init.Built.$c2 @fn92(this: Built<String, Int>, value: String, trace: Trace) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: String
@@ -4038,6 +4048,8 @@ Module
         Type Int
         Local $dependency.constructor.local.4
       return
+        Type Unit
+        UnitLiteral
   fun init.Terminal.$c3 @fn93(this: Terminal<String, Unit>, value: String, trace: Trace) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: String
@@ -4103,6 +4115,8 @@ Module
         Type Int
         Local $dependency.constructor.local.2
       return
+        Type Unit
+        UnitLiteral
   fun init.Terminal.$c4 @fn94(this: Terminal<String, String>, value: String, trace: Trace, flag: Boolean) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: String
@@ -4139,6 +4153,8 @@ Module
         Type Int
         Local $dependency.constructor.local.2
       return
+        Type Unit
+        UnitLiteral
   fun init.Current.$c5 @fn95(this: Current<String, Unit>, value: String, trace: Trace) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: String
@@ -4182,6 +4198,8 @@ Module
         Type Int
         Local $call.1
       return
+        Type Unit
+        UnitLiteral
   fun init.Built.$c1 @fn96(this: Built<Unit, String>, value: Unit, trace: Trace, flag: Boolean) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Unit
@@ -4218,6 +4236,8 @@ Module
         Type Int
         Local $dependency.constructor.local.2
       return
+        Type Unit
+        UnitLiteral
   fun init.Built.$c2 @fn97(this: Built<Unit, Int>, value: Unit, trace: Trace) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Unit
@@ -4361,6 +4381,8 @@ Module
         Type Int
         Local $dependency.constructor.local.4
       return
+        Type Unit
+        UnitLiteral
   fun init.Terminal.$c3 @fn98(this: Terminal<Unit, Unit>, value: Unit, trace: Trace) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Unit
@@ -4426,6 +4448,8 @@ Module
         Type Int
         Local $dependency.constructor.local.2
       return
+        Type Unit
+        UnitLiteral
   fun init.Terminal.$c4 @fn99(this: Terminal<Unit, String>, value: Unit, trace: Trace, flag: Boolean) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Unit
@@ -4462,6 +4486,8 @@ Module
         Type Int
         Local $dependency.constructor.local.2
       return
+        Type Unit
+        UnitLiteral
   fun init.Current.$c5 @fn100(this: Current<Unit, Unit>, value: Unit, trace: Trace) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Unit
@@ -4505,6 +4531,8 @@ Module
         Type Int
         Local $call.1
       return
+        Type Unit
+        UnitLiteral
   fun init.Built.$c1 @fn101(this: Built<Int, String>, value: Int, trace: Trace, flag: Boolean) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Int
@@ -4541,6 +4569,8 @@ Module
         Type Int
         Local $dependency.constructor.local.2
       return
+        Type Unit
+        UnitLiteral
   fun init.Built.$c2 @fn102(this: Built<Int, Int>, value: Int, trace: Trace) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Int
@@ -4684,6 +4714,8 @@ Module
         Type Int
         Local $dependency.constructor.local.4
       return
+        Type Unit
+        UnitLiteral
   fun init.Terminal.$c3 @fn103(this: Terminal<Int, Unit>, value: Int, trace: Trace) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Int
@@ -4749,6 +4781,8 @@ Module
         Type Int
         Local $dependency.constructor.local.2
       return
+        Type Unit
+        UnitLiteral
   fun init.Terminal.$c4 @fn104(this: Terminal<Int, String>, value: Int, trace: Trace, flag: Boolean) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Int
@@ -4785,6 +4819,8 @@ Module
         Type Int
         Local $dependency.constructor.local.2
       return
+        Type Unit
+        UnitLiteral
   fun init.Current.$c5 @fn105(this: Current<Int, Unit>, value: Int, trace: Trace) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Int
@@ -4828,6 +4864,8 @@ Module
         Type Int
         Local $call.1
       return
+        Type Unit
+        UnitLiteral
   fun init.Built.$c2 @fn106(this: Built<Later, String>, value: Later, trace: Trace) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Later
@@ -4971,6 +5009,8 @@ Module
         Type Int
         Local $dependency.constructor.local.4
       return
+        Type Unit
+        UnitLiteral
   fun init.Base.$c8 @fn107(this: Base<Later, Int>, value: Later, trace: Trace) -> Unit
     bb0 entry
       field_set 0
@@ -4998,6 +5038,8 @@ Module
         Type Int
         Local $call.1
       return
+        Type Unit
+        UnitLiteral
   fun init.Base.$c8 @fn108(this: Base<Later, Unit>, value: Later, trace: Trace) -> Unit
     bb0 entry
       field_set 0
@@ -5025,6 +5067,8 @@ Module
         Type Int
         Local $call.1
       return
+        Type Unit
+        UnitLiteral
   fun init.Terminal.$c3 @fn109(this: Terminal<Later, String>, value: Later, trace: Trace) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Later
@@ -5090,6 +5134,8 @@ Module
         Type Int
         Local $dependency.constructor.local.2
       return
+        Type Unit
+        UnitLiteral
   fun init.Built.$c2 @fn110(this: Built<String, String>, value: String, trace: Trace) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: String
@@ -5233,6 +5279,8 @@ Module
         Type Int
         Local $dependency.constructor.local.4
       return
+        Type Unit
+        UnitLiteral
   fun init.Base.$c8 @fn111(this: Base<String, Int>, value: String, trace: Trace) -> Unit
     bb0 entry
       field_set 0
@@ -5260,6 +5308,8 @@ Module
         Type Int
         Local $call.1
       return
+        Type Unit
+        UnitLiteral
   fun init.Base.$c8 @fn112(this: Base<String, Unit>, value: String, trace: Trace) -> Unit
     bb0 entry
       field_set 0
@@ -5287,6 +5337,8 @@ Module
         Type Int
         Local $call.1
       return
+        Type Unit
+        UnitLiteral
   fun init.Terminal.$c3 @fn113(this: Terminal<String, String>, value: String, trace: Trace) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: String
@@ -5352,6 +5404,8 @@ Module
         Type Int
         Local $dependency.constructor.local.2
       return
+        Type Unit
+        UnitLiteral
   fun init.Built.$c2 @fn114(this: Built<Unit, String>, value: Unit, trace: Trace) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Unit
@@ -5495,6 +5549,8 @@ Module
         Type Int
         Local $dependency.constructor.local.4
       return
+        Type Unit
+        UnitLiteral
   fun init.Base.$c8 @fn115(this: Base<Unit, Int>, value: Unit, trace: Trace) -> Unit
     bb0 entry
       field_set 0
@@ -5522,6 +5578,8 @@ Module
         Type Int
         Local $call.1
       return
+        Type Unit
+        UnitLiteral
   fun init.Base.$c8 @fn116(this: Base<Unit, Unit>, value: Unit, trace: Trace) -> Unit
     bb0 entry
       field_set 0
@@ -5549,6 +5607,8 @@ Module
         Type Int
         Local $call.1
       return
+        Type Unit
+        UnitLiteral
   fun init.Terminal.$c3 @fn117(this: Terminal<Unit, String>, value: Unit, trace: Trace) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Unit
@@ -5614,6 +5674,8 @@ Module
         Type Int
         Local $dependency.constructor.local.2
       return
+        Type Unit
+        UnitLiteral
   fun init.Built.$c2 @fn118(this: Built<Int, String>, value: Int, trace: Trace) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Int
@@ -5757,6 +5819,8 @@ Module
         Type Int
         Local $dependency.constructor.local.4
       return
+        Type Unit
+        UnitLiteral
   fun init.Base.$c8 @fn119(this: Base<Int, Int>, value: Int, trace: Trace) -> Unit
     bb0 entry
       field_set 0
@@ -5784,6 +5848,8 @@ Module
         Type Int
         Local $call.1
       return
+        Type Unit
+        UnitLiteral
   fun init.Base.$c8 @fn120(this: Base<Int, Unit>, value: Int, trace: Trace) -> Unit
     bb0 entry
       field_set 0
@@ -5811,6 +5877,8 @@ Module
         Type Int
         Local $call.1
       return
+        Type Unit
+        UnitLiteral
   fun init.Terminal.$c3 @fn121(this: Terminal<Int, String>, value: Int, trace: Trace) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Int
@@ -5876,6 +5944,8 @@ Module
         Type Int
         Local $dependency.constructor.local.2
       return
+        Type Unit
+        UnitLiteral
   fun init.Base.$c8 @fn122(this: Base<Later, String>, value: Later, trace: Trace) -> Unit
     bb0 entry
       field_set 0
@@ -5903,6 +5973,8 @@ Module
         Type Int
         Local $call.1
       return
+        Type Unit
+        UnitLiteral
   fun init.Base.$c8 @fn123(this: Base<String, String>, value: String, trace: Trace) -> Unit
     bb0 entry
       field_set 0
@@ -5930,6 +6002,8 @@ Module
         Type Int
         Local $call.1
       return
+        Type Unit
+        UnitLiteral
   fun init.Base.$c8 @fn124(this: Base<Unit, String>, value: Unit, trace: Trace) -> Unit
     bb0 entry
       field_set 0
@@ -5957,6 +6031,8 @@ Module
         Type Int
         Local $call.1
       return
+        Type Unit
+        UnitLiteral
   fun init.Base.$c8 @fn125(this: Base<Int, String>, value: Int, trace: Trace) -> Unit
     bb0 entry
       field_set 0
@@ -5984,6 +6060,8 @@ Module
         Type Int
         Local $call.1
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Pair.$c0 @fn126(value: Later, trace: Trace) -> Pair<Later, Unit>
     bb0 entry
       val $dependency.constructor.local.3: Later
@@ -6330,6 +6408,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn81 interface Continuation<Later>[0]
         Type Continuation<Later>
@@ -6343,6 +6423,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn82 interface Continuation<Later>[1]
         Type Continuation<Later>
@@ -6354,6 +6436,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

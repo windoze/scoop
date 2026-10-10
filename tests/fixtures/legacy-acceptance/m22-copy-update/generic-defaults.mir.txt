@@ -65,6 +65,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun printTextCell @fn3(cell: Cell<String>) -> Unit
     bb0 entry
       val $dependency.argument.0: String
@@ -90,6 +92,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun main @fn4() -> Unit
     bb0 entry
       val $argument.0: Int
@@ -362,6 +366,8 @@ Module
         Type Cell<String>
         Local $parameter.cell
       return
+        Type Unit
+        UnitLiteral
   fun println @fn5(value: Int) -> Unit
     bb0 entry
       val $dependency.local.1: Int
@@ -386,6 +392,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn6(value: String) -> Unit
     bb0 entry
       val $dependency.local.1: String
@@ -410,6 +418,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun replaceBox @fn7(box: Box<Int>, value: Int) -> Box<Int>
     bb0 entry
       val $copy.base.2: Box<Int>

@@ -572,6 +572,8 @@ Module
         Type Later
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun BaseReader.$get$value @fn10(this: BaseReader<Later>) -> Later
     bb0 entry
       trap "call to abstract method `BaseReader.$get$value`"
@@ -611,6 +613,8 @@ Module
         Type Later
         Local next
       return
+        Type Unit
+        UnitLiteral
   fun MutableReader.replace @fn16(this: MutableReader<Later>, value: Later) -> Unit
     bb0 entry
       trap "call to abstract method `MutableReader.replace`"
@@ -647,6 +651,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun BaseReader.$get$value @fn22(this: BaseReader<Int>) -> Int
     bb0 entry
       trap "call to abstract method `BaseReader.$get$value`"
@@ -686,6 +692,8 @@ Module
         Type Int
         Local next
       return
+        Type Unit
+        UnitLiteral
   fun MutableReader.replace @fn28(this: MutableReader<Int>, value: Int) -> Unit
     bb0 entry
       trap "call to abstract method `MutableReader.replace`"
@@ -712,6 +720,8 @@ Module
         Type BaseReader<Unit>
         Local $dependency.local.1
       return
+        Type Unit
+        UnitLiteral
   fun replace @fn33(this: BaseReader<Unit>, value: Unit) -> Unit
     bb0 entry
       call @fn35 virtual[4]
@@ -720,6 +730,8 @@ Module
         Type Unit
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun BaseReader.$get$value @fn34(this: BaseReader<Unit>) -> Unit
     bb0 entry
       trap "call to abstract method `BaseReader.$get$value`"
@@ -735,20 +747,18 @@ Module
         Type MutableReader<Unit>
         Local $dependency.local.1
       return
+        Type Unit
+        UnitLiteral
   fun stored @fn37(this: ReaderBox<Unit>) -> Unit
     bb0 entry
-      Type Unit
-      FieldAccess 0
-        Type ReaderBox<Unit>
-        Local this
       return
+        Type Unit
+        UnitLiteral
   fun value @fn38(this: ReaderBox<Unit>) -> Unit
     bb0 entry
-      Type Unit
-      FieldAccess 0
-        Type ReaderBox<Unit>
-        Local this
       return
+        Type Unit
+        UnitLiteral
   fun value @fn39(this: ReaderBox<Unit>, next: Unit) -> Unit
     bb0 entry
       field_set 0
@@ -757,6 +767,8 @@ Module
         Type Unit
         Local next
       return
+        Type Unit
+        UnitLiteral
   fun MutableReader.replace @fn40(this: MutableReader<Unit>, value: Unit) -> Unit
     bb0 entry
       trap "call to abstract method `MutableReader.replace`"
@@ -766,6 +778,8 @@ Module
         Type MutableReader<Unit>
         Local this
       return
+        Type Unit
+        UnitLiteral
   fun MutableReader.$get$value @fn42(this: MutableReader<Unit>) -> Unit
     bb0 entry
       trap "call to abstract method `MutableReader.$get$value`"
@@ -809,6 +823,8 @@ Module
           Type BaseReader<Unit>
           Local this
       return
+        Type Unit
+        UnitLiteral
   fun receiver<ReaderBox> MutableReader.again @fn50(this: ReaderBox<Later>) -> Later
     bb0 entry
       call $call.1: Later = @fn12 direct
@@ -837,6 +853,8 @@ Module
           Type ReaderBox<Unit>
           Local this
       return
+        Type Unit
+        UnitLiteral
   fun $reference.0 @fn53($closure: (Later) -> Int, arg0: Later) -> Int
     bb0 entry
       call $call.1: Int = @fn0 direct
@@ -871,6 +889,8 @@ Module
         Type Later
         Local arg0
       return
+        Type Unit
+        UnitLiteral
   fun $reference.4 @fn57($closure: () -> Later) -> Later
     bb0 entry
       call $call.1: Later = @fn17 interface MutableReader<Later>[1]
@@ -891,6 +911,8 @@ Module
         Type Int
         Local arg0
       return
+        Type Unit
+        UnitLiteral
   fun $reference.6 @fn59($closure: () -> Int) -> Int
     bb0 entry
       call $call.1: Int = @fn29 interface MutableReader<Int>[1]
@@ -911,6 +933,8 @@ Module
         Type Unit
         Local arg0
       return
+        Type Unit
+        UnitLiteral
   fun $reference.8 @fn61($closure: () -> Unit) -> Unit
     bb0 entry
       call @fn41 interface MutableReader<Unit>[1]
@@ -919,6 +943,8 @@ Module
           Type () -> Unit
           Local $closure
       return
+        Type Unit
+        UnitLiteral
   fun init.Later.$c0 @fn62(this: Later, number: Int) -> Unit
     bb0 entry
       field_set 0
@@ -927,6 +953,8 @@ Module
         Type Int
         Local number
       return
+        Type Unit
+        UnitLiteral
   fun init.ReaderBox.$c0 @fn63(this: ReaderBox<Later>, item: Later) -> Unit
     bb0 entry
       call @fn66 direct
@@ -940,6 +968,8 @@ Module
         Type Later
         Local item
       return
+        Type Unit
+        UnitLiteral
   fun init.ReaderBox.$c0 @fn64(this: ReaderBox<Int>, item: Int) -> Unit
     bb0 entry
       call @fn67 direct
@@ -953,6 +983,8 @@ Module
         Type Int
         Local item
       return
+        Type Unit
+        UnitLiteral
   fun init.ReaderBox.$c0 @fn65(this: ReaderBox<Unit>, item: Unit) -> Unit
     bb0 entry
       call @fn68 direct
@@ -966,15 +998,23 @@ Module
         Type Unit
         Local item
       return
+        Type Unit
+        UnitLiteral
   fun init.BaseReader.$c1 @fn66(this: BaseReader<Later>) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.BaseReader.$c1 @fn67(this: BaseReader<Int>) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.BaseReader.$c1 @fn68(this: BaseReader<Unit>) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<Later> @fn69(task: SuspendTask<Later>, completion: Continuation<Later>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -997,6 +1037,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn43 interface Continuation<Later>[0]
         Type Continuation<Later>
@@ -1010,6 +1052,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn44 interface Continuation<Later>[1]
         Type Continuation<Later>
@@ -1021,6 +1065,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

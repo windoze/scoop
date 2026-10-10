@@ -162,6 +162,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun relayKeep @fn2(value: Cell) -> Cell
     bb0 entry
       val $dependency.local.1: Cell
@@ -235,6 +237,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun keep @fn5(value: Cell) -> Cell
     bb0 entry
       val $dependency.local.3: Int
@@ -344,6 +348,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   instance mi0 function=@fn2 <- relayKeep
   instance mi1 function=@fn4 <- println
   instance mi2 function=@fn5 <- keep

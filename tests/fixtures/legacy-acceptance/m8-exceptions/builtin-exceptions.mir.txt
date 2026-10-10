@@ -320,6 +320,8 @@ Module
       resume
     bb48 try.end.48
       return
+        Type Unit
+        UnitLiteral
     bb49 try.body.49 unwind bb42
       val $dependency.receiver: Int
         Type Int
@@ -565,6 +567,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn5(value: String) -> Unit
     bb0 entry
       val $dependency.local.1: String
@@ -589,6 +593,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun next @fn6(this: ListIterator<Int>) -> Option<Int>
     bb0 entry
       branch bb1 bb2
@@ -708,6 +714,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   instance mi0 function=@fn1 <- iterator
   instance mi1 function=@fn2 <- get
   instance mi2 function=@fn3 <- size

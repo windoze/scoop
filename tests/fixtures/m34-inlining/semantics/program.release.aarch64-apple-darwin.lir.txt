@@ -64,21 +64,22 @@ Module
     ret param0
   block inline.1.entry
     global_store global7, local6
+    t0 = aggregate () : {}
     br @inline.cont.1
   block inline.cont.3
     store local7 -> local0
     store integer<Int>(0x0000000a) -> local1
     store integer<Int>(0x0000000a) -> local2
-    t0 = integer_Multiply<Int> local0, integer<Int>(0x0000000a) : i32
-    store t0 -> local3
+    t1 = integer_Multiply<Int> local0, integer<Int>(0x0000000a) : i32
+    store t1 -> local3
     store param0 -> local4
     store local4 -> local5
-    t1 = integer_Add<Int> local3, local5 : i32
-    store t1 -> local6
+    t2 = integer_Add<Int> local3, local5 : i32
+    store t2 -> local6
     br @inline.1.entry
   block inline.3.entry
-    t2 = global_load global7 : i32
-    store t2 -> local7
+    t3 = global_load global7 : i32
+    store t3 -> local7
     br @inline.cont.3
   fun @scoop$1$cb$31682ec20e02ff9d165b5553d9125eca3d79b84574a1ab0832f576bee59acfef(i32, i32) -> i32
   block entry
@@ -223,6 +224,7 @@ Module
     ret local2
   block inline.1.entry
     heap_store local4 +16 local5
+    t2 = aggregate () : {}
     br @inline.cont.1
   fun @scoop$1$cb$b9a9af6cd01ced405a39f7ce4d9d7f43e0085fd0d335d2f2641bfdaf6e64ee05(i32) -> ptr<managed>
   block entry
@@ -1014,113 +1016,117 @@ Module
     br @try.body.69
   block inline.80.entry
     heap_store local192 +16 integer<Int>(0x0000001e)
+    t91 = aggregate () : {}
     br @inline.cont.80
   block inline.cont.82
     store local194 -> local128
     store local122 -> local129
     store local129 -> local130
-    t91 = heap_load local128 +16 : i32
-    store t91 -> local131
+    t92 = heap_load local128 +16 : i32
+    store t92 -> local131
     store local131 -> local132
-    t92 = integer_Add<Int> local130, local132 : i32
-    store t92 -> local122
+    t93 = integer_Add<Int> local130, local132 : i32
+    store t93 -> local122
     store local121 -> local133
     store local133 -> local134
     store integer<Int>(0x00000001) -> local135
     store integer<Int>(0x00000001) -> local136
-    t93 = integer_Add<Int> local134, integer<Int>(0x00000001) : i32
-    store t93 -> local121
+    t94 = integer_Add<Int> local134, integer<Int>(0x00000001) : i32
+    store t94 -> local121
     br @while.cond.47
   block inline.82.entry
     store local195 -> local196
     store local196 -> local197
-    call managed-direct-target16 sp<managed-call:29> live=[local90:ptr<managed>@0] t94 = sig=direct19 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td13, machine<byte-size>(ByteSize(24)))
-    store t94 -> local199
+    call managed-direct-target16 sp<managed-call:29> live=[local90:ptr<managed>@0] t95 = sig=direct19 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td13, machine<byte-size>(ByteSize(24)))
+    store t95 -> local199
     store local199 -> local268
     store local197 -> local269
     br @inline.138.entry
   block inline.cont.84
     store local188 -> local152
-    call no-gc-direct-target3 t95 = sig=direct20 () -> ptr<managed> runtime @scoop_rt_context_current()
-    call managed-direct-target17 sp<managed-call:23> live=[local90:ptr<managed>@0, local152:ptr<managed>@0, t95:ptr<managed>@0] t96 = sig=direct21 (ptr<raw>, ptr<managed>, ptr<metadata>) -> ptr<managed> runtime @scoop_rt_context_push(context-cell<1b9b009d6f3a70e46af3fb13aef5a144b18cbd59d2e534404382ab51f0ae4d77>, local152, external-td2)
-    t97 = aggregate (t95, t96) : {ptr<managed>, ptr<managed>}
-    store t97 -> local181
+    call no-gc-direct-target3 t96 = sig=direct20 () -> ptr<managed> runtime @scoop_rt_context_current()
+    call managed-direct-target17 sp<managed-call:23> live=[local90:ptr<managed>@0, local152:ptr<managed>@0, t96:ptr<managed>@0] t97 = sig=direct21 (ptr<raw>, ptr<managed>, ptr<metadata>) -> ptr<managed> runtime @scoop_rt_context_push(context-cell<1b9b009d6f3a70e46af3fb13aef5a144b18cbd59d2e534404382ab51f0ae4d77>, local152, external-td2)
+    t98 = aggregate (t96, t97) : {ptr<managed>, ptr<managed>}
+    store t98 -> local181
     br @try.body.55
   block inline.84.entry
     heap_store local200 +16 integer<Int>(0x00000014)
+    t99 = aggregate () : {}
     br @inline.cont.84
   block inline.cont.86
     store local202 -> local144
     call managed-void-target16 sp<managed-call:19> live=[local90:ptr<managed>@0, local144:ptr<managed>@0] sig=void24 () runtime @scoop_rt_gc_collect()
-    t98 = aggregate () : {}
-    call managed-direct-target18 sp<managed-call:20> live=[local90:ptr<managed>@0, local144:ptr<managed>@0] t99 = sig=direct22 (ptr<managed>, i32) -> i32 local-fn21(local144, integer<Int>(0x00000006))
-    store t99 -> local145
+    t100 = aggregate () : {}
+    call managed-direct-target18 sp<managed-call:20> live=[local90:ptr<managed>@0, local144:ptr<managed>@0] t101 = sig=direct22 (ptr<managed>, i32) -> i32 local-fn21(local144, integer<Int>(0x00000006))
+    store t101 -> local145
     store integer<Int>(0x0000000c) -> local146
     store integer<Int>(0x0000000c) -> local147
-    t100 = integer_compare_Equal<Int> local145, integer<Int>(0x0000000c) : i1
-    store t100 -> local148
+    t102 = integer_compare_Equal<Int> local145, integer<Int>(0x0000000c) : i1
+    store t102 -> local148
     store local148 -> local149
     call managed-void-target17 sp<managed-call:21> live=[local90:ptr<managed>@0] sig=void25 (i1) local-fn0(local149)
-    t101 = aggregate () : {}
+    t103 = aggregate () : {}
     store integer<Int>(0x00000014) -> local150
     store integer<Int>(0x00000014) -> local151
-    call managed-direct-target19 sp<managed-call:22> live=[local90:ptr<managed>@0] t102 = sig=direct23 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td13, machine<byte-size>(ByteSize(24)))
-    store t102 -> local188
+    call managed-direct-target19 sp<managed-call:22> live=[local90:ptr<managed>@0] t104 = sig=direct23 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td13, machine<byte-size>(ByteSize(24)))
+    store t104 -> local188
     store local188 -> local200
     store integer<Int>(0x00000014) -> local201
     br @inline.84.entry
   block inline.86.entry
-    call managed-direct-target20 sp<managed-call:18> live=[local90:ptr<managed>@0] t103 = sig=direct24 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td17, machine<byte-size>(ByteSize(32)))
-    t104 = function_address @scoop$1$cb$a9e201c4fb6b5a243521b159283c3eb5d66198b3910661d8cbf5bd432e5ab7e4 : ptr
-    heap_store t103 +16 t104
-    heap_store t103 +24 integer<Int>(0x00000005)
-    store t103 -> local202
+    call managed-direct-target20 sp<managed-call:18> live=[local90:ptr<managed>@0] t105 = sig=direct24 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td17, machine<byte-size>(ByteSize(32)))
+    t106 = function_address @scoop$1$cb$a9e201c4fb6b5a243521b159283c3eb5d66198b3910661d8cbf5bd432e5ab7e4 : ptr
+    heap_store t105 +16 t106
+    heap_store t105 +24 integer<Int>(0x00000005)
+    store t105 -> local202
     br @inline.cont.86
   block inline.cont.88
     store local204 -> local111
     store integer<Int>(0x00000001) -> local112
     store integer<Int>(0x00000001) -> local113
-    t105 = integer_compare_Equal<Int> local111, integer<Int>(0x00000001) : i1
-    store t105 -> local114
+    t107 = integer_compare_Equal<Int> local111, integer<Int>(0x00000001) : i1
+    store t107 -> local114
     br @if.merge.43
   block inline.88.entry
-    t106 = global_load global8 : i32
-    store t106 -> local204
+    t108 = global_load global8 : i32
+    store t108 -> local204
     br @inline.cont.88
   block inline.cont.90
     br @try.end.31
   block inline.90.entry
     global_store global8, local205
+    t109 = aggregate () : {}
     br @inline.cont.90
   block inline.cont.92
     store local206 -> local104
     store local104 -> local105
     store integer<Int>(0x00000001) -> local106
     store integer<Int>(0x00000001) -> local107
-    t107 = integer_Add<Int> local105, integer<Int>(0x00000001) : i32
-    store t107 -> local205
+    t110 = integer_Add<Int> local105, integer<Int>(0x00000001) : i32
+    store t110 -> local205
     br @inline.90.entry
   block inline.92.entry
-    t108 = global_load global8 : i32
-    store t108 -> local206
+    t111 = global_load global8 : i32
+    store t111 -> local206
     br @inline.cont.92
   block inline.cont.94
     invoke no-gc-void-target8 sig=void26 () runtime @scoop_rt_rethrow() normal @rethrow.normal.16 unwind @try.exit_pad.29
     br @rethrow.normal.16
   block inline.94.entry
     global_store global8, local207
+    t112 = aggregate () : {}
     br @inline.cont.94
   block inline.cont.96
     store local208 -> local104
     store local104 -> local105
     store integer<Int>(0x00000001) -> local106
     store integer<Int>(0x00000001) -> local107
-    t109 = integer_Add<Int> local105, integer<Int>(0x00000001) : i32
-    store t109 -> local207
+    t113 = integer_Add<Int> local105, integer<Int>(0x00000001) : i32
+    store t113 -> local207
     br @inline.94.entry
   block inline.96.entry
-    t110 = global_load global8 : i32
-    store t110 -> local208
+    t114 = global_load global8 : i32
+    store t114 -> local208
     br @inline.cont.96
   block inline.102.entry
     invoke no-gc-void-target9 sig=void27 (ptr<managed>) runtime @scoop_rt_throw(local211) normal @throw.normal.17 unwind @try.unwind.25
@@ -1129,28 +1135,29 @@ Module
     resume local270
   block inline.104.entry
     global_store global8, local212
+    t115 = aggregate () : {}
     br @inline.cont.104
   block inline.cont.106
     store local213 -> local104
     store local104 -> local105
     store integer<Int>(0x00000001) -> local106
     store integer<Int>(0x00000001) -> local107
-    t111 = integer_Add<Int> local105, integer<Int>(0x00000001) : i32
-    store t111 -> local212
+    t116 = integer_Add<Int> local105, integer<Int>(0x00000001) : i32
+    store t116 -> local212
     br @inline.104.entry
   block inline.106.entry
-    t112 = global_load global8 : i32
-    store t112 -> local213
+    t117 = global_load global8 : i32
+    store t117 -> local213
     br @inline.cont.106
   block inline.cont.108
     store local214 -> local77
     store integer<Int>(0x00000033) -> local78
     store integer<Int>(0x00000033) -> local79
-    t113 = integer_compare_Equal<Int> local77, integer<Int>(0x00000033) : i1
-    cbr t113 then @if.then.22 else @if.else.23
+    t118 = integer_compare_Equal<Int> local77, integer<Int>(0x00000033) : i1
+    cbr t118 then @if.then.22 else @if.else.23
   block inline.108.entry
-    t114 = local_address local215 : ptr
-    store t114 -> local218
+    t119 = local_address local215 : ptr
+    store t119 -> local218
     store integer<Int>(0x00000033) -> local216
     store integer<Int>(0x00000033) -> local217
     store integer<Int>(0x00000033) -> local267
@@ -1159,36 +1166,36 @@ Module
     store local221 -> local70
     store integer<Int>(0x00000063) -> local71
     store integer<Int>(0x00000063) -> local72
-    t115 = integer_compare_Equal<Int> local70, integer<Int>(0x00000063) : i1
-    store t115 -> local73
+    t120 = integer_compare_Equal<Int> local70, integer<Int>(0x00000063) : i1
+    store t120 -> local73
     store local73 -> local74
     call managed-void-target18 sp<managed-call:9> live=[] sig=void28 (i1) local-fn0(local74)
-    t116 = aggregate () : {}
+    t121 = aggregate () : {}
     store local47 -> local75
     store local75 -> local76
     store local76 -> local215
     br @inline.108.entry
   block inline.110.entry
-    t117 = local_address local222 : ptr
-    store t117 -> local223
+    t122 = local_address local222 : ptr
+    store t122 -> local223
     store local223 -> local224
     store integer<Int>(0x00000063) -> local225
     store integer<Int>(0x00000063) -> local226
     raw_store local224 integer<Int>(0x00000063) align 4
-    t118 = aggregate () : {}
+    t123 = aggregate () : {}
     store local222 -> local221
     br @inline.cont.110
   block inline.cont.112
     store local227 -> local50
-    t119 = extract local50, 0 : i32
-    store t119 -> local51
+    t124 = extract local50, 0 : i32
+    store t124 -> local51
     store integer<Int>(0x00000007) -> local52
     store integer<Int>(0x00000007) -> local53
-    t120 = integer_compare_Equal<Int> local51, integer<Int>(0x00000007) : i1
-    cbr t120 then @if.then.13 else @if.else.14
+    t125 = integer_compare_Equal<Int> local51, integer<Int>(0x00000007) : i1
+    cbr t125 then @if.then.13 else @if.else.14
   block inline.112.entry
-    t121 = local_address local228 : ptr
-    store t121 -> local233
+    t126 = local_address local228 : ptr
+    store t126 -> local233
     store integer<Int>(0x00000007) -> local229
     store integer<Int>(0x00000008) -> local230
     store integer<Int>(0x00000007) -> local231
@@ -1203,8 +1210,8 @@ Module
     store local49 -> local228
     br @inline.112.entry
   block inline.114.entry
-    t122 = aggregate (integer<Int>(0x00000009)) : struct1
-    store t122 -> local236
+    t127 = aggregate (integer<Int>(0x00000009)) : struct1
+    store t127 -> local236
     br @inline.cont.114
   block inline.cont.116
     store local238 -> local44
@@ -1213,94 +1220,94 @@ Module
     store integer<Int>(0x00000009) -> local237
     br @inline.114.entry
   block inline.116.entry
-    t123 = aggregate (integer<Int>(0x00000003), integer<Int>(0x00000004)) : struct0
-    store t123 -> local238
+    t128 = aggregate (integer<Int>(0x00000003), integer<Int>(0x00000004)) : struct0
+    store t128 -> local238
     br @inline.cont.116
   block inline.cont.118
     store local241 -> local177
-    t124 = variant_test e2 v0 local177 : i1
-    cbr t124 then @if.then.10 else @if.else.11
+    t129 = variant_test e2 v0 local177 : i1
+    cbr t129 then @if.then.10 else @if.else.11
   block inline.118.entry
     cbr local243 then @inline.118.if.then.1 else @inline.118.if.merge.2
   block inline.118.if.then.1
     store integer<Int>(0x00000008) -> local244
     store integer<Int>(0x00000008) -> local245
-    t125 = enum_wrap e2 v0 (integer<Int>(0x00000008)) : enum2
-    store t125 -> local241
+    t130 = enum_wrap e2 v0 (integer<Int>(0x00000008)) : enum2
+    store t130 -> local241
     br @inline.cont.118
   block inline.118.if.merge.2
     store integer<Int>(0x00000008) -> local246
     store integer<Int>(0xfffffff8) -> local247
     store integer<Int>(0xfffffff8) -> local248
-    t126 = enum_wrap e2 v0 (integer<Int>(0xfffffff8)) : enum2
-    store t126 -> local241
+    t131 = enum_wrap e2 v0 (integer<Int>(0xfffffff8)) : enum2
+    store t131 -> local241
     br @inline.cont.118
   block inline.cont.122
     store local249 -> local27
     store integer<Int>(0x00000000) -> local28
     store integer<Int>(0x00000000) -> local29
-    t127 = integer_compare_Equal<Int> local27, integer<Int>(0x00000000) : i1
-    store t127 -> local31
+    t132 = integer_compare_Equal<Int> local27, integer<Int>(0x00000000) : i1
+    store t132 -> local31
     store integer<Int>(0x00000008) -> local32
     store local31 -> local33
     store integer<Int>(0x00000008) -> local242
     store local33 -> local243
     br @inline.118.entry
   block inline.122.entry
-    t128 = global_load global7 : i32
-    store t128 -> local249
+    t133 = global_load global7 : i32
+    store t133 -> local249
     br @inline.cont.122
   block inline.cont.124
     store local250 -> local175
-    t129 = variant_test e2 v0 local175 : i1
-    cbr t129 then @if.then.4 else @if.else.5
+    t134 = variant_test e2 v0 local175 : i1
+    cbr t134 then @if.then.4 else @if.else.5
   block inline.124.entry
     cbr local252 then @inline.124.if.then.1 else @inline.124.if.merge.2
   block inline.124.if.then.1
     store integer<Int>(0x00000007) -> local253
     store integer<Int>(0x00000007) -> local254
-    t130 = enum_wrap e2 v0 (integer<Int>(0x00000007)) : enum2
-    store t130 -> local250
+    t135 = enum_wrap e2 v0 (integer<Int>(0x00000007)) : enum2
+    store t135 -> local250
     br @inline.cont.124
   block inline.124.if.merge.2
     store integer<Int>(0x00000007) -> local255
     store integer<Int>(0xfffffff9) -> local256
     store integer<Int>(0xfffffff9) -> local257
-    t131 = enum_wrap e2 v0 (integer<Int>(0xfffffff9)) : enum2
-    store t131 -> local250
+    t136 = enum_wrap e2 v0 (integer<Int>(0xfffffff9)) : enum2
+    store t136 -> local250
     br @inline.cont.124
   block inline.cont.128
     store local258 -> local17
     store integer<Int>(0x0000000c) -> local18
     store integer<Int>(0x0000000c) -> local19
-    t132 = integer_compare_Equal<Int> local17, integer<Int>(0x0000000c) : i1
-    store t132 -> local21
+    t137 = integer_compare_Equal<Int> local17, integer<Int>(0x0000000c) : i1
+    store t137 -> local21
     store integer<Int>(0x00000007) -> local22
     store local21 -> local23
     store integer<Int>(0x00000007) -> local251
     store local23 -> local252
     br @inline.124.entry
   block inline.128.entry
-    t133 = global_load global7 : i32
-    store t133 -> local258
+    t138 = global_load global7 : i32
+    store t138 -> local258
     br @inline.cont.128
   block inline.cont.130
     store local259 -> local11
     store integer<Int>(0x0000000c) -> local12
     store integer<Int>(0x0000000c) -> local13
-    t134 = integer_compare_Equal<Int> local11, integer<Int>(0x0000000c) : i1
-    store t134 -> local14
+    t139 = integer_compare_Equal<Int> local11, integer<Int>(0x0000000c) : i1
+    store t139 -> local14
     br @if.merge.3
   block inline.130.entry
-    t135 = global_load global7 : i32
-    store t135 -> local259
+    t140 = global_load global7 : i32
+    store t140 -> local259
     br @inline.cont.130
   block inline.cont.132
     store local260 -> local8
     store integer<Int>(0x00000001) -> local9
     store integer<Int>(0x00000001) -> local10
-    t136 = integer_compare_Equal<Int> local8, integer<Int>(0x00000001) : i1
-    cbr t136 then @if.then.1 else @if.else.2
+    t141 = integer_compare_Equal<Int> local8, integer<Int>(0x00000001) : i1
+    cbr t141 then @if.then.1 else @if.else.2
   block inline.132.entry
     store local261 -> local260
     br @inline.cont.132
@@ -1308,33 +1315,34 @@ Module
     store local263 -> local234
     store local234 -> local235
     raw_store local233 local235 align 4
-    t137 = aggregate () : {}
+    t142 = aggregate () : {}
     store local228 -> local227
     br @inline.cont.112
   block inline.134.entry
-    t138 = aggregate (integer<Int>(0x00000007), integer<Int>(0x00000008)) : struct0
-    store t138 -> local263
+    t143 = aggregate (integer<Int>(0x00000007), integer<Int>(0x00000008)) : struct0
+    store t143 -> local263
     br @inline.cont.134
   block inline.cont.136
     store local266 -> local219
     store local219 -> local220
     raw_store local218 local220 align 4
-    t139 = aggregate () : {}
-    t140 = extract local215, 0 : i32
-    store t140 -> local214
+    t144 = aggregate () : {}
+    t145 = extract local215, 0 : i32
+    store t145 -> local214
     br @inline.cont.108
   block inline.136.entry
-    t141 = aggregate (integer<Int>(0x00000033)) : struct1
-    store t141 -> local266
+    t146 = aggregate (integer<Int>(0x00000033)) : struct1
+    store t146 -> local266
     br @inline.cont.136
   block inline.cont.138
     store local199 -> local198
     call managed-void-target19 sp<managed-call:30> live=[local90:ptr<managed>@0, local198:ptr<managed>@0] sig=void29 () runtime @scoop_rt_gc_collect()
-    t142 = aggregate () : {}
+    t147 = aggregate () : {}
     store local198 -> local194
     br @inline.cont.82
   block inline.138.entry
     heap_store local268 +16 local269
+    t148 = aggregate () : {}
     br @inline.cont.138
   block invoke.normal.1
     store t34 -> local179

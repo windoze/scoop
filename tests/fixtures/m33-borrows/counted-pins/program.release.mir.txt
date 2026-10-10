@@ -90,6 +90,8 @@ Module
         Type Int
         Local arg0
       return
+        Type Unit
+        UnitLiteral
   fun released @fn1() -> Int <no-gc>
     bb0 entry
       call $call.1: Int = extern1 @counted_pin_released direct
@@ -131,6 +133,8 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun references @fn3() -> Unit
     bb0 entry
       val $argument.0: Int
@@ -193,6 +197,8 @@ Module
         Type Boolean
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb2 inline.1.entry
       val $inline.1.$dependency.local.1: ULong
         Type ULong
@@ -494,6 +500,8 @@ Module
         Local $inline.13.this
         Type Child
         Local $inline.13.child
+      Type Unit
+      UnitLiteral
       goto bb13
     bb15 inline.cont.15
       val $argument.0: Child
@@ -518,6 +526,8 @@ Module
         Local $inline.15.this
         Type Int
         IntegerLiteral Int value=73 bits=0x00000049
+      Type Unit
+      UnitLiteral
       goto bb15
     bb17 inline.cont.17
       val $inline.9.$call.1: GcHandle<Cell>
@@ -752,6 +762,8 @@ Module
         Type Boolean
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb17 inline.cont.17
       val second: MutableArray<UInt8>
         Type MutableArray<UInt8>
@@ -870,6 +882,8 @@ Module
         Type Owner
         Local $inline.1.result
       return
+        Type Unit
+        UnitLiteral
     bb2 inline.1.entry
       val $inline.1.$dependency.local.1: ULong
         Type ULong
@@ -991,6 +1005,8 @@ Module
         Type Boolean
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb2 inline.1.entry
       val $inline.1.$dependency.argument.0: PinnedPtr<Owner>
         Type PinnedPtr<Owner>
@@ -1051,6 +1067,8 @@ Module
       val $inline.3.$call.1: Owner
         Type Owner
         Local $inline.5.result
+      Type Unit
+      UnitLiteral
       goto bb3
     bb6 inline.5.entry
       val $inline.5.$dependency.local.1: ULong
@@ -1072,6 +1090,8 @@ Module
       val $inline.1.$call.1: Owner
         Type Owner
         Local $inline.7.result
+      Type Unit
+      UnitLiteral
       goto bb1
     bb8 inline.7.entry
       val $inline.7.$dependency.local.1: ULong
@@ -1104,6 +1124,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun twice @fn8(value: Cell) -> Pins<Cell>
     bb0 entry
       val $dependency.argument.0: Cell
@@ -1383,6 +1405,8 @@ Module
         Local $inline.1.this
         Type Boolean
         BoolLiteral false
+      Type Unit
+      UnitLiteral
       goto bb1
   fun get @fn14(this: MutableArray<UInt8>, index: Long) -> UInt8
     bb0 entry
@@ -1768,6 +1792,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun next @fn22(this: ListIterator<UInt8>) -> Option<UInt8>
     bb0 entry
       branch bb1 bb2
@@ -1977,6 +2003,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Cell.$c1 @fn40(this: Cell, child: Child) -> Unit
     bb0 entry
       field_set 0
@@ -1985,6 +2013,8 @@ Module
         Type Child
         Local child
       return
+        Type Unit
+        UnitLiteral
   fun init.Owner.$c2 @fn41(this: Owner, value: Int) -> Unit
     bb0 entry
       field_set 0
@@ -1993,6 +2023,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c2 @fn42(this: ListIterator<UInt8>, source: List<UInt8>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -2011,6 +2043,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Pins.$c0 @fn43(first: PinnedPtr<Cell>, second: PinnedPtr<Cell>) -> Pins<Cell> <no-gc>
     bb0 entry
       return
@@ -2088,6 +2122,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn31 interface Continuation<Cell>[0]
         Type Continuation<Cell>
@@ -2101,6 +2137,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn32 interface Continuation<Cell>[1]
         Type Continuation<Cell>
@@ -2112,6 +2150,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -2169,6 +2209,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn35 interface Continuation<Owner>[0]
         Type Continuation<Owner>
@@ -2182,6 +2224,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn36 interface Continuation<Owner>[1]
         Type Continuation<Owner>
@@ -2193,6 +2237,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -2250,6 +2296,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn27 interface Continuation<Child>[0]
         Type Continuation<Child>
@@ -2263,6 +2311,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn28 interface Continuation<Child>[1]
         Type Continuation<Child>
@@ -2274,6 +2324,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -2335,6 +2387,8 @@ Module
         Type Int
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   coroutine_step cs0 CoroutineStep<Cell> result=Cell
   coroutine_step cs1 CoroutineStep<Owner> result=Owner
   coroutine_step cs2 CoroutineStep<Child> result=Child

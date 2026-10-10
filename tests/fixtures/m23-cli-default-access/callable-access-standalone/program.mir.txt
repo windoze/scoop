@@ -45,6 +45,8 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun main @fn1() -> Unit
     bb0 entry
       call $dependency.parameter.value: Int = external1 direct
@@ -122,6 +124,8 @@ Module
         Type Boolean
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun callableDefault @fn2(value: Int) -> Int
     bb0 entry
       return

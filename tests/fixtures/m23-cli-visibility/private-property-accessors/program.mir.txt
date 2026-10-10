@@ -81,6 +81,8 @@ Module
         Type Owner<Int>
         Local owner
       return
+        Type Unit
+        UnitLiteral
   fun Owner.$get$value @fn2(this: Owner<Int>) -> Int
     bb0 entry
       return
@@ -113,6 +115,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun View.$get$cache @fn9(this: View<Int>) -> Int
     bb0 entry
       call $call.1: Int = @fn14 interface View<Int>[2]
@@ -124,6 +128,8 @@ Module
   fun View.$set$cache @fn10(this: View<Int>, value: Int) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun View.readSecret @fn11(this: View<Int>) -> Int
     bb0 entry
       call $call.1: Int = @fn7 direct
@@ -140,6 +146,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun View.$get$current @fn13(this: View<Int>) -> Int
     bb0 entry
       call $call.1: Int = @fn9 direct
@@ -171,6 +179,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun receiver<Implement> View.$get$current @fn17(this: Implement) -> Int
     bb0 entry
       call $call.1: Int = @fn13 direct
@@ -184,6 +194,8 @@ Module
   fun init.Implement.$c0 @fn18(this: Implement) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.Owner.$c1 @fn19(this: Owner<Int>, current: Int) -> Unit
     bb0 entry
       field_set 0
@@ -192,6 +204,8 @@ Module
         Type Int
         Local current
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<Implement> @fn20(task: SuspendTask<Implement>, completion: Continuation<Implement>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -214,6 +228,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn3 interface Continuation<Implement>[0]
         Type Continuation<Implement>
@@ -227,6 +243,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn4 interface Continuation<Implement>[1]
         Type Continuation<Implement>
@@ -238,6 +256,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

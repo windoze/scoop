@@ -765,6 +765,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun thunk<Ptr<UInt8>> Equality.equalTo(Ptr<UInt8>) @fn17(this: box<Ptr<UInt8>>, other: Ptr<UInt8>) -> Boolean
     bb0 entry
       call $call.1: Boolean = @fn8 direct

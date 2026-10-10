@@ -209,6 +209,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun equalTo @fn5(this: Ptr<Int>, other: Ptr<Int>) -> Boolean
     bb0 entry
       val $dependency.local.2: Ptr<Int>
@@ -252,6 +254,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn7(value: String) -> Unit
     bb0 entry
       val $dependency.local.1: String
@@ -276,6 +280,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun equals @fn8(this: Ptr<Int>, other: Ptr<Int>) -> Boolean
     bb0 entry
       val $dependency.local.2: Ptr<Int>

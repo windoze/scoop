@@ -10,6 +10,8 @@ Module
   fun inspect @fn0(value: DeferredTypeOnly<Int>) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun main @fn1() -> Unit
     bb0 entry
       val $argument.0: Int
@@ -39,6 +41,8 @@ Module
         Type Int
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun init.DeferredHolder.$c0 @fn2(this: DeferredHolder<Int>, value: Int) -> Unit
     bb0 entry
       field_set 0
@@ -47,6 +51,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun ctor.DeferredData.$c0 @fn3(value: Int) -> DeferredData<Int> <no-gc>
     bb0 entry
       return

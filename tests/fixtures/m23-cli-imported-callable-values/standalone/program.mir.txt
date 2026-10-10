@@ -58,5 +58,7 @@ Module
         Local $new.2
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   str @str0 "illegal state"
   output executable @fn0

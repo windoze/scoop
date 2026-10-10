@@ -43,4 +43,6 @@ Module
         Type Int
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   output executable @fn0

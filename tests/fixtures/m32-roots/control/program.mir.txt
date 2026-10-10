@@ -101,6 +101,8 @@ Module
         Type Int
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun both @fn4(flag: Boolean) -> Nothing
     bb0 entry
       branch bb1 bb2
@@ -447,6 +449,8 @@ Module
         Type Int
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb44 try.body.44 unwind bb37
       val $argument.0: Boolean
         Type Boolean
@@ -508,6 +512,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn12(value: Int) -> Unit
     bb0 entry
       val $dependency.local.1: Int
@@ -532,6 +538,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   instance mi0 function=@fn11 <- println
   instance mi1 function=@fn12 <- println
   str @str0 "fail"

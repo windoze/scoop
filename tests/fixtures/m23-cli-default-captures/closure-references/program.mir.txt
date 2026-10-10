@@ -404,6 +404,8 @@ Module
         Local $new.10
     bb16 if.merge.16
       return
+        Type Unit
+        UnitLiteral
   fun copy @fn3($capture.0: Int) -> Int
     bb0 entry
       return

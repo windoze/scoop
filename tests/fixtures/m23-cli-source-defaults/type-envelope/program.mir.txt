@@ -112,6 +112,8 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun main @fn4() -> Unit
     bb0 entry
       assign $new.1
@@ -296,6 +298,8 @@ Module
         Type Boolean
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun $lambda.0 @fn5($closure: () -> String) -> String
     bb0 entry
       return
@@ -342,6 +346,8 @@ Module
   fun init.TypeEnvelopeHost.$c0 @fn14(this: TypeEnvelopeHost) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<TypeEnvelopeHost> @fn15(task: SuspendTask<TypeEnvelopeHost>, completion: Continuation<TypeEnvelopeHost>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -364,6 +370,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn10 interface Continuation<TypeEnvelopeHost>[0]
         Type Continuation<TypeEnvelopeHost>
@@ -377,6 +385,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn11 interface Continuation<TypeEnvelopeHost>[1]
         Type Continuation<TypeEnvelopeHost>
@@ -388,6 +398,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

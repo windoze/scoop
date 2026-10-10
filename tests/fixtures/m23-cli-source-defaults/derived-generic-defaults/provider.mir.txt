@@ -165,6 +165,8 @@ Module
   fun init.DerivedHost.$c0 @fn8(this: DerivedHost) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<DerivedHost> @fn9(task: SuspendTask<DerivedHost>, completion: Continuation<DerivedHost>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -187,6 +189,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn4 interface Continuation<DerivedHost>[0]
         Type Continuation<DerivedHost>
@@ -200,6 +204,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn5 interface Continuation<DerivedHost>[1]
         Type Continuation<DerivedHost>
@@ -211,6 +217,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

@@ -74,6 +74,8 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun main @fn1() -> Unit
     bb0 entry
       val $dependency.argument.0: Int
@@ -585,6 +587,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun make @fn2(value: Snapshot, cell: Atomic<Snapshot>) -> Atomic<Snapshot>
     bb0 entry
       return
@@ -827,6 +831,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun exchange @fn11(this: Atomic<Snapshot>, value: Snapshot) -> Snapshot
     bb0 entry
       var $dependency.local.2: Int
@@ -1176,6 +1182,8 @@ Module
         Type Snapshot
         Local initial
       return
+        Type Unit
+        UnitLiteral
   fun init.Atomic.$c0 @fn16(this: Atomic<(Int, Payload)>, initial: (Int, Payload)) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Boolean
@@ -1197,6 +1205,8 @@ Module
         Type (Int, Payload)
         Local initial
       return
+        Type Unit
+        UnitLiteral
   fun function_bridge.$Closure$lambda0.(Any) -> Any @fn17($source: (Payload) -> Payload, arg0: Any) -> Any
     bb0 entry
       call $call.1: Payload = <closure:function_type2> closure[function_type2]

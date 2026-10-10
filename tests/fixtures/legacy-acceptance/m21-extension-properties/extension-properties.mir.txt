@@ -260,6 +260,8 @@ Module
         Type Int
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun $extension.$get$current @fn2(this: Counter) -> Int
     bb0 entry
       return
@@ -275,6 +277,8 @@ Module
         Type Int
         Local next
       return
+        Type Unit
+        UnitLiteral
   fun $extension.$get$action @fn4(this: Counter) -> Action
     bb0 entry
       assign $new.1
@@ -310,6 +314,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun Continuation.resume @fn6(this: Continuation<Counter>, value: Counter) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
@@ -330,9 +336,13 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Action.$c1 @fn11(this: Action) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<Counter> @fn12(task: SuspendTask<Counter>, completion: Continuation<Counter>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -355,6 +365,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn6 interface Continuation<Counter>[0]
         Type Continuation<Counter>
@@ -368,6 +380,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn7 interface Continuation<Counter>[1]
         Type Continuation<Counter>
@@ -379,6 +393,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

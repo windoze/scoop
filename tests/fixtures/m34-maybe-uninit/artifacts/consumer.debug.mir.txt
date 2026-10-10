@@ -67,6 +67,8 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun main @fn1() -> Unit
     bb0 entry
       val $dependency.parameter.value: MaybeUninit<Int>
@@ -447,6 +449,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun storage @fn2(value: MaybeUninit<Int>) -> MaybeUninit<Int>
     bb0 entry
       return
@@ -540,6 +544,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun $reference.0 @fn7($closure: (MaybeUninit<Pair>) -> MaybeUninit<Pair>, arg0: MaybeUninit<Pair>) -> MaybeUninit<Pair>
     bb0 entry
       call $call.1: MaybeUninit<Pair> = external2 direct

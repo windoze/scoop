@@ -104,6 +104,8 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun main @fn3() -> Unit
     bb0 entry
       val $dependency.argument.0: Int
@@ -181,6 +183,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb3 inline.cont.3
       val $dependency.receiver: Int
         Type Int
@@ -599,6 +603,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun ctor.LocalReading.$c0 @fn7(base: Int) -> LocalReading <no-gc>
     bb0 entry
       return

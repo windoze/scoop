@@ -131,6 +131,8 @@ Module
         Type LocalBroad<Int>
         Local $new.1
       return
+        Type Unit
+        UnitLiteral
   fun $init$ensure$0 @fn6() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -155,6 +157,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -246,6 +250,8 @@ Module
         Type LocalSpecific<Int>
         Local $new.1
       return
+        Type Unit
+        UnitLiteral
   fun $init$ensure$1 @fn9() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -270,6 +276,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -352,6 +360,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.LocalBroad.$c0 @fn11(this: LocalBroad<Int>) -> Unit
     bb0 entry
       call @fn13 direct
@@ -360,6 +370,8 @@ Module
           Type LocalBroad<Int>
           Local this
       return
+        Type Unit
+        UnitLiteral
   fun init.LocalSpecific.$c1 @fn12(this: LocalSpecific<Int>) -> Unit
     bb0 entry
       call external0 direct
@@ -368,9 +380,13 @@ Module
           Type LocalSpecific<Int>
           Local this
       return
+        Type Unit
+        UnitLiteral
   fun init.SpecificBase.$c0 @fn13(this: SpecificBase<Int>) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   instance mi0 function=@fn1 <- exercise
   instance mi1 function=@fn2 <- $extension.$get$inheritedSpecific
   instance mi2 function=@fn3 <- $extension.$get$localSpecific

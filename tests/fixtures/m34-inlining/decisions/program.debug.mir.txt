@@ -54,6 +54,8 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun medium @fn1(value: Int) -> Int
     bb0 entry
       val $dependency.receiver: Int
@@ -1039,6 +1041,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun println @fn23(value: String) -> Unit
     bb0 entry
       val $dependency.local.1: String
@@ -1063,6 +1067,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   instance mi0 function=@fn23 <- println
   str @str0 "illegal state"
   str @str1 "inlined decisions"

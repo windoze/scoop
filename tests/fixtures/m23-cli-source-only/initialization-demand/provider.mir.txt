@@ -143,6 +143,8 @@ Module
         Type DeferredRegistry
         Local $new.1
       return
+        Type Unit
+        UnitLiteral
   fun $init$ensure$0 @fn6() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -167,6 +169,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -253,6 +257,8 @@ Module
         Type ReadyRegistry
         Local $new.1
       return
+        Type Unit
+        UnitLiteral
   fun $init$ensure$1 @fn8() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -277,6 +283,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -363,6 +371,8 @@ Module
         Type ReadyHost.ReadyFactory
         Local $new.1
       return
+        Type Unit
+        UnitLiteral
   fun $init$ensure$2 @fn10() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -387,6 +397,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -474,6 +486,8 @@ Module
         Type Int
         Local $call.1
       return
+        Type Unit
+        UnitLiteral
   fun $init$ensure$3 @fn12() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -498,6 +512,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -656,9 +672,13 @@ Module
   fun init.DeferredRegistry.$c2 @fn39(this: DeferredRegistry) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.ReadyHost.$c1 @fn40(this: ReadyHost) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.ReadyRegistry.$c3 @fn41(this: ReadyRegistry) -> Unit
     bb0 entry
       call @fn10 direct
@@ -684,6 +704,8 @@ Module
           Type Int
           Local $dependency.parameter.other
       return
+        Type Unit
+        UnitLiteral
   fun init.ReadyHost.ReadyFactory.$c4 @fn42(this: ReadyHost.ReadyFactory) -> Unit
     bb0 entry
       field_set 0
@@ -692,6 +714,8 @@ Module
         Type Int
         IntegerLiteral Int value=6 bits=0x00000006
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<ReadyHost.ReadyFactory> @fn43(task: SuspendTask<ReadyHost.ReadyFactory>, completion: Continuation<ReadyHost.ReadyFactory>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -714,6 +738,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn34 interface Continuation<ReadyHost.ReadyFactory>[0]
         Type Continuation<ReadyHost.ReadyFactory>
@@ -727,6 +753,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn35 interface Continuation<ReadyHost.ReadyFactory>[1]
         Type Continuation<ReadyHost.ReadyFactory>
@@ -738,6 +766,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -795,6 +825,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn18 interface Continuation<DeferredSuspend>[0]
         Type Continuation<DeferredSuspend>
@@ -808,6 +840,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn19 interface Continuation<DeferredSuspend>[1]
         Type Continuation<DeferredSuspend>
@@ -819,6 +853,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -876,6 +912,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn22 interface Continuation<DeferredRegistry>[0]
         Type Continuation<DeferredRegistry>
@@ -889,6 +927,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn23 interface Continuation<DeferredRegistry>[1]
         Type Continuation<DeferredRegistry>
@@ -900,6 +940,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -957,6 +999,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn26 interface Continuation<ReadyHost>[0]
         Type Continuation<ReadyHost>
@@ -970,6 +1014,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn27 interface Continuation<ReadyHost>[1]
         Type Continuation<ReadyHost>
@@ -981,6 +1027,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -1038,6 +1086,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn30 interface Continuation<ReadyRegistry>[0]
         Type Continuation<ReadyRegistry>
@@ -1051,6 +1101,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn31 interface Continuation<ReadyRegistry>[1]
         Type Continuation<ReadyRegistry>
@@ -1062,6 +1114,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

@@ -162,6 +162,8 @@ Module
           Type Int
           Local $dependency.parameter.other
       return
+        Type Unit
+        UnitLiteral
   fun Indexed.value @fn2(this: Indexed) -> Int
     bb0 entry
       return
@@ -421,6 +423,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
     bb9 inline.cont.9
       val $dependency.receiver: Long
         Type Long
@@ -469,6 +473,8 @@ Module
       global_assign events
         Type Int
         Local $inline.1.value
+      Type Unit
+      UnitLiteral
       goto bb1
     bb3 inline.cont.3
       val $dependency.receiver: Int
@@ -625,6 +631,8 @@ Module
           Local $inline.7.$dependency.receiver
           Type Int
           Local $inline.7.$dependency.parameter.other
+      Type Unit
+      UnitLiteral
       goto bb7
     bb10 inline.cont.10
       val $old.2: Int
@@ -759,6 +767,8 @@ Module
       global_assign events
         Type Int
         IntegerLiteral Int value=0 bits=0x00000000
+      Type Unit
+      UnitLiteral
       goto bb13
     bb15 inline.cont.15
       val table: Indexed
@@ -774,6 +784,8 @@ Module
         Local $inline.15.this
         Type Int
         IntegerLiteral Int value=10 bits=0x0000000a
+      Type Unit
+      UnitLiteral
       goto bb15
   fun $get$events @fn8() -> Int <no-gc>
     bb0 entry
@@ -786,6 +798,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun iterator @fn10(this: Array<Long>) -> Iterator<Long>
     bb0 entry
       val $dependency.local.1: List<Long>
@@ -846,6 +860,8 @@ Module
         Local $inline.1.this
         Type Boolean
         BoolLiteral false
+      Type Unit
+      UnitLiteral
       goto bb1
   fun get @fn11(this: Array<Long>, index: Long) -> Long
     bb0 entry
@@ -1052,6 +1068,8 @@ Module
         Type Int
         IntegerLiteral Int value=10 bits=0x0000000a
       return
+        Type Unit
+        UnitLiteral
   fun init.Grid.$c1 @fn25(this: Grid) -> Unit
     bb0 entry
       field_set 0
@@ -1060,6 +1078,8 @@ Module
         Type Int
         IntegerLiteral Int value=20 bits=0x00000014
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c0 @fn26(this: ListIterator<Long>, source: List<Long>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -1078,6 +1098,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<Indexed> @fn27(task: SuspendTask<Indexed>, completion: Continuation<Indexed>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -1100,6 +1122,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn16 interface Continuation<Indexed>[0]
         Type Continuation<Indexed>
@@ -1113,6 +1137,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn17 interface Continuation<Indexed>[1]
         Type Continuation<Indexed>
@@ -1124,6 +1150,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -1181,6 +1209,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn20 interface Continuation<Grid>[0]
         Type Continuation<Grid>
@@ -1194,6 +1224,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn21 interface Continuation<Grid>[1]
         Type Continuation<Grid>
@@ -1205,6 +1237,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

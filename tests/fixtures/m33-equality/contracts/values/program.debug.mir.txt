@@ -353,6 +353,8 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun direct @fn10(integer: Int, character: Char, floating: Float, key: Key) -> Boolean <no-gc>
     bb0 entry
       val $dependency.receiver: Int
@@ -1151,6 +1153,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun verify @fn12(value: Int8) -> Unit
     bb0 entry
       val $argument.0: Int8
@@ -1261,6 +1265,8 @@ Module
         Type Boolean
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun verify @fn13(value: Int16) -> Unit
     bb0 entry
       val $argument.0: Int16
@@ -1371,6 +1377,8 @@ Module
         Type Boolean
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun verify @fn14(value: Int) -> Unit
     bb0 entry
       val $argument.0: Int
@@ -1481,6 +1489,8 @@ Module
         Type Boolean
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun verify @fn15(value: Long) -> Unit
     bb0 entry
       val $argument.0: Long
@@ -1591,6 +1601,8 @@ Module
         Type Boolean
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun verify @fn16(value: UInt8) -> Unit
     bb0 entry
       val $argument.0: UInt8
@@ -1701,6 +1713,8 @@ Module
         Type Boolean
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun verify @fn17(value: UInt16) -> Unit
     bb0 entry
       val $argument.0: UInt16
@@ -1811,6 +1825,8 @@ Module
         Type Boolean
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun verify @fn18(value: UInt) -> Unit
     bb0 entry
       val $argument.0: UInt
@@ -1921,6 +1937,8 @@ Module
         Type Boolean
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun verify @fn19(value: ULong) -> Unit
     bb0 entry
       val $argument.0: ULong
@@ -2031,6 +2049,8 @@ Module
         Type Boolean
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun verify @fn20(value: Boolean) -> Unit
     bb0 entry
       val $argument.0: Boolean
@@ -2141,6 +2161,8 @@ Module
         Type Boolean
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun verify @fn21(value: Char) -> Unit
     bb0 entry
       val $argument.0: Char
@@ -2251,6 +2273,8 @@ Module
         Type Boolean
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun verify @fn22(value: String) -> Unit
     bb0 entry
       val $argument.0: String
@@ -2361,6 +2385,8 @@ Module
         Type Boolean
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun verify @fn23(value: Float) -> Unit
     bb0 entry
       val $argument.0: Float
@@ -2471,6 +2497,8 @@ Module
         Type Boolean
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun verify @fn24(value: Double) -> Unit
     bb0 entry
       val $argument.0: Double
@@ -2581,6 +2609,8 @@ Module
         Type Boolean
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun verify @fn25(value: Unit) -> Unit
     bb0 entry
       val $argument.0: Unit
@@ -2691,6 +2721,8 @@ Module
         Type Boolean
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun verify @fn26(value: Key) -> Unit
     bb0 entry
       val $argument.0: Key
@@ -2801,6 +2833,8 @@ Module
         Type Boolean
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun verify @fn27(value: LibraryOnly) -> Unit
     bb0 entry
       val $argument.0: LibraryOnly
@@ -2911,6 +2945,8 @@ Module
         Type Boolean
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun verify @fn28(value: Split) -> Unit
     bb0 entry
       val $argument.0: Split
@@ -3021,6 +3057,8 @@ Module
         Type Boolean
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun keyMatch @fn29(left: Key, right: Key) -> Boolean
     bb0 entry
       val $dependency.receiver: Key
@@ -3138,6 +3176,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun same @fn34(left: Int8, right: Int8) -> Boolean
     bb0 entry
       val $dependency.receiver: Int8
@@ -3515,6 +3555,8 @@ Module
         Type Int
         Local visits
       return
+        Type Unit
+        UnitLiteral
   fun init.Ordered.$c1 @fn78(this: Ordered, value: Int, trace: Trace) -> Unit
     bb0 entry
       field_set 0
@@ -3528,12 +3570,18 @@ Module
         Type Trace
         Local trace
       return
+        Type Unit
+        UnitLiteral
   fun init.LibraryOnly.$c2 @fn79(this: LibraryOnly) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.Split.$c3 @fn80(this: Split) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Key.$c0 @fn81(value: Int) -> Key <no-gc>
     bb0 entry
       return
@@ -3563,6 +3611,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn73 interface Continuation<Split>[0]
         Type Continuation<Split>
@@ -3576,6 +3626,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn74 interface Continuation<Split>[1]
         Type Continuation<Split>
@@ -3587,6 +3639,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -3644,6 +3698,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn65 interface Continuation<Key>[0]
         Type Continuation<Key>
@@ -3657,6 +3713,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn66 interface Continuation<Key>[1]
         Type Continuation<Key>
@@ -3668,6 +3726,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -3725,6 +3785,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn69 interface Continuation<LibraryOnly>[0]
         Type Continuation<LibraryOnly>
@@ -3738,6 +3800,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn70 interface Continuation<LibraryOnly>[1]
         Type Continuation<LibraryOnly>
@@ -3749,6 +3813,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

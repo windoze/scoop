@@ -1490,43 +1490,43 @@ Module
         Local $call.1
   fun $lambda @fn25($argument.0: () -> Unit) -> Unit
     bb0 entry
-      Type Unit
-      ClosureCapture cc10 0
-        Type () -> Unit
-        Local $argument.0
       return
+        Type Unit
+        UnitLiteral
   fun generic @fn26(value: Unit, next: () -> Unit) -> Unit
     bb0 entry
       call <closure:function_type9> closure[function_type9]
         Type () -> Unit
         Local next
       return
+        Type Unit
+        UnitLiteral
   fun $anonymous @fn27($argument.0: () -> Unit) -> Unit
     bb0 entry
-      Type Unit
-      ClosureCapture cc18 0
-        Type () -> Unit
-        Local $argument.0
       return
+        Type Unit
+        UnitLiteral
   fun anonymous @fn28(value: Unit, next: () -> Unit) -> Unit
     bb0 entry
       call <closure:function_type9> closure[function_type9]
         Type () -> Unit
         Local next
       return
+        Type Unit
+        UnitLiteral
   fun $lambda @fn29($argument.0: () -> Unit) -> Unit
     bb0 entry
-      Type Unit
-      ClosureCapture cc11 0
-        Type () -> Unit
-        Local $argument.0
       return
+        Type Unit
+        UnitLiteral
   fun chained @fn30(value: Unit, first: () -> Unit, second: () -> Unit) -> Unit
     bb0 entry
       call <closure:function_type9> closure[function_type9]
         Type () -> Unit
         Local second
       return
+        Type Unit
+        UnitLiteral
   fun $lambda @fn31($argument.0: () -> Unit) -> Unit
     bb0 entry
       val $dependency.local.0: Unit
@@ -1541,12 +1541,16 @@ Module
         Type Unit
         Local $dependency.local.1
       return
+        Type Unit
+        UnitLiteral
   fun nested @fn32(value: Unit, next: () -> Unit) -> Unit
     bb0 entry
       call <closure:function_type9> closure[function_type9]
         Type () -> Unit
         Local next
       return
+        Type Unit
+        UnitLiteral
   fun $lambda @fn33($argument.0: () -> Wide) -> Wide
     bb0 entry
       return
@@ -1628,9 +1632,9 @@ Module
         Local $argument.0
   fun keep @fn43($argument.0: Unit) -> Unit
     bb0 entry
-      Type Unit
-      Local $argument.0
       return
+        Type Unit
+        UnitLiteral
   fun keep @fn44($argument.0: Wide) -> Wide
     bb0 entry
       return
@@ -1700,6 +1704,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Wide.$c0 @fn58(text: String, value: Int, extra: Long) -> Wide <no-gc>
     bb0 entry
       return
@@ -1747,6 +1753,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn45 interface Continuation<Wide>[0]
         Type Continuation<Wide>
@@ -1760,6 +1768,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn46 interface Continuation<Wide>[1]
         Type Continuation<Wide>
@@ -1771,6 +1781,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -1828,6 +1840,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn49 interface Continuation<Later>[0]
         Type Continuation<Later>
@@ -1841,6 +1855,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn50 interface Continuation<Later>[1]
         Type Continuation<Later>
@@ -1852,6 +1868,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

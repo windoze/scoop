@@ -361,6 +361,8 @@ Module
         Local $inline.1.this
         Type Trace
         Local $inline.1.trace
+      Type Unit
+      UnitLiteral
       goto bb1
   fun check @fn9(value: Boolean) -> Unit
     bb0 entry
@@ -397,6 +399,8 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun direct @fn10(integer: Int, character: Char, floating: Float, key: Key) -> Boolean <no-gc>
     bb0 entry
       val $dependency.receiver: Int
@@ -711,6 +715,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb2 inline.1.entry
       val $inline.1.$dependency.receiver: Int
         Type Int
@@ -750,6 +756,8 @@ Module
         Local $inline.3.this
         Type Trace
         Local $inline.3.trace
+      Type Unit
+      UnitLiteral
       goto bb3
     bb5 inline.cont.5
       val trace: Trace
@@ -939,6 +947,8 @@ Module
         Local $inline.5.this
         Type Int
         IntegerLiteral Int value=0 bits=0x00000000
+      Type Unit
+      UnitLiteral
       goto bb5
     bb7 inline.cont.7
       val $argument.1: Key
@@ -1308,6 +1318,8 @@ Module
         Local split
       goto bb20
     bb22 inline.21.entry
+      Type Unit
+      UnitLiteral
       goto bb21
     bb23 inline.cont.23
       val $argument.0: LibraryOnly
@@ -1327,6 +1339,8 @@ Module
         Local $new.2
       goto bb22
     bb24 inline.23.entry
+      Type Unit
+      UnitLiteral
       goto bb23
     bb25 inline.cont.25
       val $argument.0: Key
@@ -1375,6 +1389,8 @@ Module
         BoolLiteral true
       goto bb29
     bb29 inline.27.if.merge.2
+      Type Unit
+      UnitLiteral
       goto bb27
     bb30 inline.cont.30
       val $argument.0: Int
@@ -1402,6 +1418,8 @@ Module
         BoolLiteral true
       goto bb32
     bb32 inline.30.if.merge.2
+      Type Unit
+      UnitLiteral
       goto bb30
   fun verify @fn12(value: Int8) -> Unit
     bb0 entry
@@ -1458,6 +1476,8 @@ Module
         Type Boolean
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb3 inline.cont.3
       val $argument.0: Boolean
         Type Boolean
@@ -1593,6 +1613,8 @@ Module
         Type Boolean
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb3 inline.cont.3
       val $argument.0: Boolean
         Type Boolean
@@ -1728,6 +1750,8 @@ Module
         Type Boolean
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb3 inline.cont.3
       val $argument.0: Boolean
         Type Boolean
@@ -1863,6 +1887,8 @@ Module
         Type Boolean
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb3 inline.cont.3
       val $argument.0: Boolean
         Type Boolean
@@ -1998,6 +2024,8 @@ Module
         Type Boolean
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb3 inline.cont.3
       val $argument.0: Boolean
         Type Boolean
@@ -2133,6 +2161,8 @@ Module
         Type Boolean
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb3 inline.cont.3
       val $argument.0: Boolean
         Type Boolean
@@ -2268,6 +2298,8 @@ Module
         Type Boolean
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb3 inline.cont.3
       val $argument.0: Boolean
         Type Boolean
@@ -2403,6 +2435,8 @@ Module
         Type Boolean
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb3 inline.cont.3
       val $argument.0: Boolean
         Type Boolean
@@ -2538,6 +2572,8 @@ Module
         Type Boolean
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb3 inline.cont.3
       val $argument.0: Boolean
         Type Boolean
@@ -2728,6 +2764,8 @@ Module
         Type Boolean
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun verify @fn22(value: String) -> Unit
     bb0 entry
       val $argument.0: String
@@ -2783,6 +2821,8 @@ Module
         Type Boolean
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb3 inline.cont.3
       val $argument.0: Boolean
         Type Boolean
@@ -2973,6 +3013,8 @@ Module
         Type Boolean
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun verify @fn24(value: Double) -> Unit
     bb0 entry
       val $argument.0: Double
@@ -3083,6 +3125,8 @@ Module
         Type Boolean
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun verify @fn25(value: Unit) -> Unit
     bb0 entry
       val $argument.0: Unit
@@ -3138,6 +3182,8 @@ Module
         Type Boolean
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb3 inline.cont.3
       val $argument.0: Boolean
         Type Boolean
@@ -3308,6 +3354,8 @@ Module
         Type Boolean
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb4 inline.3.entry
       call $inline.3.$call.1: Boolean = @fn1 direct
         Type Key
@@ -3526,15 +3574,21 @@ Module
         BoolLiteral true
       goto bb13
     bb13 inline.11.if.merge.2
+      Type Unit
+      UnitLiteral
       goto bb11
     bb14 inline.cont.14
       return
+        Type Unit
+        UnitLiteral
     bb15 inline.14.entry
       val $inline.14.$dependency.receiver: Boolean
         Type Boolean
         BoolLiteral true
       goto bb16
     bb16 inline.14.if.merge.2
+      Type Unit
+      UnitLiteral
       goto bb14
     bb17 inline.cont.17
       val view: Equality<LibraryOnly>
@@ -3566,6 +3620,8 @@ Module
         BoolLiteral true
       goto bb19
     bb19 inline.17.if.merge.2
+      Type Unit
+      UnitLiteral
       goto bb17
   fun verify @fn28(value: Split) -> Unit
     bb0 entry
@@ -3725,15 +3781,21 @@ Module
         BoolLiteral true
       goto bb13
     bb13 inline.11.if.merge.2
+      Type Unit
+      UnitLiteral
       goto bb11
     bb14 inline.cont.14
       return
+        Type Unit
+        UnitLiteral
     bb15 inline.14.entry
       val $inline.14.$dependency.receiver: Boolean
         Type Boolean
         BoolLiteral true
       goto bb16
     bb16 inline.14.if.merge.2
+      Type Unit
+      UnitLiteral
       goto bb14
     bb17 inline.cont.17
       val view: Equality<Split>
@@ -3765,6 +3827,8 @@ Module
         BoolLiteral true
       goto bb19
     bb19 inline.17.if.merge.2
+      Type Unit
+      UnitLiteral
       goto bb17
   fun keyMatch @fn29(left: Key, right: Key) -> Boolean
     bb0 entry
@@ -3917,6 +3981,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun same @fn34(left: Int8, right: Int8) -> Boolean
     bb0 entry
       val $dependency.receiver: Int8
@@ -4316,6 +4382,8 @@ Module
         Type Int
         Local visits
       return
+        Type Unit
+        UnitLiteral
   fun init.Ordered.$c1 @fn78(this: Ordered, value: Int, trace: Trace) -> Unit
     bb0 entry
       field_set 0
@@ -4329,12 +4397,18 @@ Module
         Type Trace
         Local trace
       return
+        Type Unit
+        UnitLiteral
   fun init.LibraryOnly.$c2 @fn79(this: LibraryOnly) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.Split.$c3 @fn80(this: Split) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Key.$c0 @fn81(value: Int) -> Key <no-gc>
     bb0 entry
       return
@@ -4364,6 +4438,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn73 interface Continuation<Split>[0]
         Type Continuation<Split>
@@ -4377,6 +4453,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn74 interface Continuation<Split>[1]
         Type Continuation<Split>
@@ -4388,6 +4466,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -4445,6 +4525,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn65 interface Continuation<Key>[0]
         Type Continuation<Key>
@@ -4458,6 +4540,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn66 interface Continuation<Key>[1]
         Type Continuation<Key>
@@ -4469,6 +4553,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -4526,6 +4612,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn69 interface Continuation<LibraryOnly>[0]
         Type Continuation<LibraryOnly>
@@ -4539,6 +4627,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn70 interface Continuation<LibraryOnly>[1]
         Type Continuation<LibraryOnly>
@@ -4550,6 +4640,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

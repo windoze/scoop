@@ -66,6 +66,8 @@ Module
         Type Long
         Local arg0
       return
+        Type Unit
+        UnitLiteral
   fun fail @fn3() -> Long
     bb0 entry
       call $old.1: Int = @fn11 direct
@@ -137,6 +139,8 @@ Module
         Type Broken
         Local $new.1
       return
+        Type Unit
+        UnitLiteral
   fun $init$ensure$0 @fn5() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -161,6 +165,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -247,6 +253,8 @@ Module
         Type Unused
         Local $new.1
       return
+        Type Unit
+        UnitLiteral
   fun $init$ensure$1 @fn7() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -271,6 +279,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -378,6 +388,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun Continuation.resume @fn13(this: Continuation<Box>, value: Box) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
@@ -410,6 +422,8 @@ Module
         Type Long
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Fault.$c1 @fn22(this: Fault, payload: Box) -> Unit
     bb0 entry
       call external0 direct
@@ -423,6 +437,8 @@ Module
         Type Box
         Local payload
       return
+        Type Unit
+        UnitLiteral
   fun init.Broken.$c2 @fn23(this: Broken) -> Unit
     bb0 entry
       call $call.1: Long = @fn3 direct
@@ -432,6 +448,8 @@ Module
         Type Long
         Local $call.1
       return
+        Type Unit
+        UnitLiteral
   fun init.Unused.$c3 @fn24(this: Unused) -> Unit
     bb0 entry
       branch bb1 bb2
@@ -481,6 +499,8 @@ Module
         Type Long
         Local $result.0
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<Box> @fn25(task: SuspendTask<Box>, completion: Continuation<Box>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -503,6 +523,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn13 interface Continuation<Box>[0]
         Type Continuation<Box>
@@ -516,6 +538,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn14 interface Continuation<Box>[1]
         Type Continuation<Box>
@@ -527,6 +551,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -584,6 +610,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn17 interface Continuation<Fault>[0]
         Type Continuation<Fault>
@@ -597,6 +625,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn18 interface Continuation<Fault>[1]
         Type Continuation<Fault>
@@ -608,6 +638,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

@@ -30,6 +30,8 @@ Module
         Type Long
         Local arg0
       return
+        Type Unit
+        UnitLiteral
   fun ready @fn1(marker: Long, value: Long) -> Long
     bb0 entry
       val $argument.0: Long
@@ -125,6 +127,8 @@ Module
         Type Long
         Local $call.1
       return
+        Type Unit
+        UnitLiteral
   fun $init$ensure$0 @fn5() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -149,6 +153,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -250,6 +256,8 @@ Module
         Type Long
         Local $call.1
       return
+        Type Unit
+        UnitLiteral
   fun $init$ensure$1 @fn8() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -274,6 +282,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -375,6 +385,8 @@ Module
         Type Long
         Local $call.1
       return
+        Type Unit
+        UnitLiteral
   fun $init$ensure$2 @fn11() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -399,6 +411,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -500,6 +514,8 @@ Module
         Type Long
         Local $call.1
       return
+        Type Unit
+        UnitLiteral
   fun $init$ensure$3 @fn14() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -524,6 +540,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -625,6 +643,8 @@ Module
         Type Long
         Local $call.1
       return
+        Type Unit
+        UnitLiteral
   fun $init$ensure$4 @fn17() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -649,6 +669,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -736,6 +758,8 @@ Module
         Type Long
         Local $call.1
       return
+        Type Unit
+        UnitLiteral
   fun $init$ensure$5 @fn20() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -760,6 +784,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -848,4 +874,6 @@ Module
         Type Long
         Local value
       return
+        Type Unit
+        UnitLiteral
   output library

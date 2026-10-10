@@ -941,11 +941,9 @@ Module
         Local $call.1
   fun $lambda @fn17($argument.0: () -> Unit) -> Unit
     bb0 entry
-      Type Unit
-      ClosureCapture cc5 0
-        Type () -> Unit
-        Local $argument.0
       return
+        Type Unit
+        UnitLiteral
   fun $extension.readItem @fn18(this: Base<Unit>) -> Unit
     bb0 entry
       call $dependency.local.1: Item<Unit> = @fn28 direct
@@ -955,6 +953,8 @@ Module
         Type Item<Unit>
         Local $dependency.local.1
       return
+        Type Unit
+        UnitLiteral
   fun $extension.readAction @fn19(this: Host<Unit>) -> Unit
     bb0 entry
       call $call.1: () -> Unit = @fn30 direct
@@ -964,6 +964,8 @@ Module
         Type () -> Unit
         Local $call.1
       return
+        Type Unit
+        UnitLiteral
   fun $extension.referenceItem @fn20(this: Host<Unit>) -> () -> Unit
     bb0 entry
       call $call.1: Item<Unit> = @fn28 direct
@@ -988,6 +990,8 @@ Module
         Type Item<Unit>
         Local $dependency.local.1
       return
+        Type Unit
+        UnitLiteral
   fun item @fn22(this: Base<Later>) -> Item<Later>
     bb0 entry
       return
@@ -1045,6 +1049,8 @@ Module
         Type Item<Unit>
         Local this
       return
+        Type Unit
+        UnitLiteral
   fun action @fn30(this: Host<Unit>) -> () -> Unit
     bb0 entry
       return
@@ -1068,11 +1074,9 @@ Module
           Local this
   fun value @fn33(this: Item<Unit>) -> Unit
     bb0 entry
-      Type Unit
-      FieldAccess 0
-        Type Item<Unit>
-        Local this
       return
+        Type Unit
+        UnitLiteral
   fun Continuation.resume @fn34(this: Continuation<Later>, value: Later) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
@@ -1113,6 +1117,8 @@ Module
           Type () -> Unit
           Local $closure
       return
+        Type Unit
+        UnitLiteral
   fun init.Later.$c0 @fn41(this: Later, value: Int) -> Unit
     bb0 entry
       field_set 0
@@ -1121,6 +1127,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Item.$c0 @fn42(this: Item<Later>, value: Later) -> Unit
     bb0 entry
       field_set 0
@@ -1129,6 +1137,8 @@ Module
         Type Later
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Host.$c1 @fn43(this: Host<Later>, item: Item<Later>, action: () -> Later) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Item<Later>
@@ -1150,6 +1160,8 @@ Module
         Type () -> Later
         Local action
       return
+        Type Unit
+        UnitLiteral
   fun init.Local.$c2 @fn44(this: Local<Later>, item: Item<Later>) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Item<Later>
@@ -1166,6 +1178,8 @@ Module
         Type Item<Later>
         Local $dependency.constructor.local.1
       return
+        Type Unit
+        UnitLiteral
   fun init.Item.$c0 @fn45(this: Item<String>, value: String) -> Unit
     bb0 entry
       field_set 0
@@ -1174,6 +1188,8 @@ Module
         Type String
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Host.$c1 @fn46(this: Host<String>, item: Item<String>, action: () -> String) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Item<String>
@@ -1195,6 +1211,8 @@ Module
         Type () -> String
         Local action
       return
+        Type Unit
+        UnitLiteral
   fun init.Local.$c2 @fn47(this: Local<String>, item: Item<String>) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Item<String>
@@ -1211,6 +1229,8 @@ Module
         Type Item<String>
         Local $dependency.constructor.local.1
       return
+        Type Unit
+        UnitLiteral
   fun init.Item.$c0 @fn48(this: Item<Unit>, value: Unit) -> Unit
     bb0 entry
       field_set 0
@@ -1219,6 +1239,8 @@ Module
         Type Unit
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Host.$c1 @fn49(this: Host<Unit>, item: Item<Unit>, action: () -> Unit) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Item<Unit>
@@ -1240,6 +1262,8 @@ Module
         Type () -> Unit
         Local action
       return
+        Type Unit
+        UnitLiteral
   fun init.Local.$c2 @fn50(this: Local<Unit>, item: Item<Unit>) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Item<Unit>
@@ -1256,6 +1280,8 @@ Module
         Type Item<Unit>
         Local $dependency.constructor.local.1
       return
+        Type Unit
+        UnitLiteral
   fun init.Base.$c3 @fn51(this: Base<Later>, item: Item<Later>) -> Unit
     bb0 entry
       field_set 0
@@ -1264,6 +1290,8 @@ Module
         Type Item<Later>
         Local item
       return
+        Type Unit
+        UnitLiteral
   fun init.Base.$c3 @fn52(this: Base<String>, item: Item<String>) -> Unit
     bb0 entry
       field_set 0
@@ -1272,6 +1300,8 @@ Module
         Type Item<String>
         Local item
       return
+        Type Unit
+        UnitLiteral
   fun init.Base.$c3 @fn53(this: Base<Unit>, item: Item<Unit>) -> Unit
     bb0 entry
       field_set 0
@@ -1280,6 +1310,8 @@ Module
         Type Item<Unit>
         Local item
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<Later> @fn54(task: SuspendTask<Later>, completion: Continuation<Later>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -1302,6 +1334,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn34 interface Continuation<Later>[0]
         Type Continuation<Later>
@@ -1315,6 +1349,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn35 interface Continuation<Later>[1]
         Type Continuation<Later>
@@ -1326,6 +1362,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

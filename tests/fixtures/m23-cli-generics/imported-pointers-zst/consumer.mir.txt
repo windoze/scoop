@@ -325,11 +325,9 @@ Module
       val $dependency.local.2: Ptr<Unit>
         Type Ptr<Unit>
         Local $dependency.local.1
-      Type Unit
-      PtrLoad Unit
-        Type Ptr<Unit>
-        Local $dependency.local.2
       return
+        Type Unit
+        UnitLiteral
   fun equals @fn5(this: Ptr<Unit>, other: Ptr<Unit>) -> Boolean
     bb0 entry
       val $dependency.local.2: Ptr<Unit>
@@ -372,6 +370,8 @@ Module
         Type Int
         Local calls
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<Counter> @fn11(task: SuspendTask<Counter>, completion: Continuation<Counter>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -394,6 +394,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn6 interface Continuation<Counter>[0]
         Type Continuation<Counter>
@@ -407,6 +409,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn7 interface Continuation<Counter>[1]
         Type Continuation<Counter>
@@ -418,6 +422,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

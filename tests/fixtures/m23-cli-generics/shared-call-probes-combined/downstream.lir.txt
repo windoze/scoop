@@ -1184,7 +1184,6 @@ Module
   fun @scoop$1$cb$79ac43a7c966ebd891f9f145727b793cee1e63c56e68a096efe5fb09650b99ad(ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
-    t0 = zst_value exact=1dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc align 1 : {}
     ret
   fun @scoop$1$cb$bdbd74ee1d2adb6ff40703c028ff0e5f5e41f58a6ca729b60d657a187568583d(ptr<managed>) -> i32
   block entry
@@ -1284,7 +1283,6 @@ Module
   fun @scoop$1$cb$d67eb1cbae465cf07a266ccc463fcfd6200567b737c7d31de1d3193a26cbe3f6(ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
-    t0 = zst_value exact=1dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc align 1 : {}
     ret
   fun @scoop$1$cb$5b45f97a4abbef02c6053ac4f7ebb1ab9e9bb4b32e41d1708ed744431046c4e0(parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>, ptr<managed>) -> void
   block entry

@@ -1689,6 +1689,7 @@ Module
     br @inline.21.entry
   block inline.23.entry
     heap_store local84 +16 integer<Int>(0x0000005b)
+    t31 = aggregate () : {}
     br @inline.cont.23
   fun @scoop$1$cb$a59ba8328a87a3c09df1111305261ccbca23796630e0ce6dea24e3ae106f48ca() -> void
     local %0 $dependency.argument.0: ptr<managed>
@@ -1915,6 +1916,7 @@ Module
     br @inline.1.entry
   block inline.3.entry
     heap_store local36 +16 local37
+    t12 = aggregate () : {}
     br @inline.cont.3
   fun @scoop$1$cb$43be1945af2e9ba3587bf2ead706ac7563f8181567977803f1aaa99bf055da0f(ptr<managed>) -> void
     local %0 $dependency.local.1: ptr<managed>

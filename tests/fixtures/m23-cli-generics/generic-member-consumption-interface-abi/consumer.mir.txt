@@ -237,11 +237,9 @@ Module
           Local $dependency.parameter.other
   fun get @fn1(this: InterfaceCell<Unit>) -> Unit
     bb0 entry
-      Type Unit
-      FieldAccess 0
-        Type InterfaceCell<Unit>
-        Local this
       return
+        Type Unit
+        UnitLiteral
   fun read @fn2(this: Reader<Unit>) -> Unit
     bb0 entry
       val $dependency.local.1: Reader<Unit>
@@ -253,6 +251,8 @@ Module
           Type Reader<Unit>
           Local $dependency.local.1
       return
+        Type Unit
+        UnitLiteral
   fun get @fn3(this: InterfaceCell<Large>) -> Large
     bb0 entry
       return
@@ -311,6 +311,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Large.$c0 @fn16(first: Reference, second: Reference, third: Reference) -> Large <no-gc>
     bb0 entry
       return
@@ -358,6 +360,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn7 interface Continuation<Large>[0]
         Type Continuation<Large>
@@ -371,6 +375,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn8 interface Continuation<Large>[1]
         Type Continuation<Large>
@@ -382,6 +388,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -439,6 +447,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn11 interface Continuation<Reference>[0]
         Type Continuation<Reference>
@@ -452,6 +462,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn12 interface Continuation<Reference>[1]
         Type Continuation<Reference>
@@ -463,6 +475,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -506,6 +520,8 @@ Module
           Type box<InterfaceCell<Unit>>
           Local this
       return
+        Type Unit
+        UnitLiteral
   fun thunk<InterfaceCell<Unit>> Reader.read() @fn22(this: box<InterfaceCell<Unit>>) -> Unit
     bb0 entry
       call @fn2 direct
@@ -514,6 +530,8 @@ Module
           Type box<InterfaceCell<Unit>>
           Local this
       return
+        Type Unit
+        UnitLiteral
   fun thunk<InterfaceCell<Unit>> Readable.get() @fn23(this: box<InterfaceCell<Unit>>) -> Unit
     bb0 entry
       call @fn1 direct
@@ -522,6 +540,8 @@ Module
           Type box<InterfaceCell<Unit>>
           Local this
       return
+        Type Unit
+        UnitLiteral
   fun thunk<InterfaceCell<Large>> Reader.get() @fn24(this: box<InterfaceCell<Large>>) -> Large
     bb0 entry
       call $call.1: Large = @fn3 direct

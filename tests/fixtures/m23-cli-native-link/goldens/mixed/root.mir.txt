@@ -96,6 +96,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun println @fn1(value: Int) -> Unit
     bb0 entry
       val $dependency.local.1: Int
@@ -120,6 +122,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun shared @fn2(marker: Marker, value: Int) -> Int
     bb0 entry
       val $dependency.local.2: Int
@@ -174,6 +178,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Marker.$c0 @fn4(text: String) -> Marker <no-gc>
     bb0 entry
       return

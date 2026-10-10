@@ -109,6 +109,8 @@ Module
         Type Ptr<Unit>
         Local arg1
       return
+        Type Unit
+        UnitLiteral
   fun main @fn2() -> Unit
     bb0 entry
       val $dependency.receiver: String
@@ -649,6 +651,8 @@ Module
         Type (Ptr<UInt8>, Long) -> Unit
         Local $dependency.local.28
       return
+        Type Unit
+        UnitLiteral
     bb10 while.body.10
       call $array_value.5: UInt8 = <closure:function_type6> closure[function_type6]
         Type (Long) -> UInt8
@@ -832,6 +836,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun iterator @fn14(this: MutableArray<UInt8>) -> Iterator<UInt8>
     bb0 entry
       val $dependency.local.1: List<UInt8>
@@ -1026,6 +1032,8 @@ Module
           Type Ptr<UInt8>
           Local $dependency.local.2
       return
+        Type Unit
+        UnitLiteral
   fun $extension.withDataPointer @fn20(this: MutableArray<UInt8>, block: (Ptr<UInt8>, Long) -> Unit) -> Unit
     bb0 entry
       val $dependency.local.2: MutableArray<UInt8>
@@ -1065,9 +1073,9 @@ Module
       end_catch
       resume
     bb5 try.end.5
-      Type Unit
-      Local $borrow_result.4
       return
+        Type Unit
+        UnitLiteral
     bb6 try.body.6 unwind bb1
       call <closure:function_type7> closure[function_type7]
         Type (Ptr<UInt8>, Long) -> Unit
@@ -1338,6 +1346,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c0 @fn29(this: ListIterator<UInt8>, source: List<UInt8>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -1356,6 +1366,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun foreign callback adapter 0 @fn30($closure: (Int) -> Int, $snapshot: internal<context-node>, $result: Ptr<Int>, $arguments: Ptr<Ptr<Unit>>, $exception: Ptr<Throwable>) -> machine<foreign-callback-status>
     bb0 context.unwind
       landing_pad cleanup=true

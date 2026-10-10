@@ -88,6 +88,8 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun main @fn1() -> Unit
     bb0 entry
       call values: Combinations = external1 direct
@@ -706,6 +708,8 @@ Module
         Type ForeignCallback<(Ptr<Unit>) -> Unit>
         Local $dependency.parameter.callback
       return
+        Type Unit
+        UnitLiteral
   fun iterator @fn2(this: Array<Int>) -> Iterator<Int>
     bb0 entry
       val $dependency.local.1: List<Int>
@@ -1300,6 +1304,8 @@ Module
   fun $lambda.0 @fn28($closure: () -> Unit) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun callback @fn29(this: Combinations, seed: ForeignCallback<(Ptr<Unit>) -> Unit>, value: ForeignCallback<(Ptr<Unit>) -> Unit>) -> ForeignCallback<(Ptr<Unit>) -> Unit>
     bb0 entry
       return
@@ -1569,6 +1575,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c4 @fn39(this: ListIterator<(Int, Ptr<Int>)>, source: List<(Int, Ptr<Int>)>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -1587,6 +1595,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Array.$c0 @fn40(value: Int) -> Array<Int> <no-gc>
     bb0 entry
       return

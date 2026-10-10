@@ -168,5 +168,7 @@ Module
         Local $new.3
     bb11 if.merge.11
       return
+        Type Unit
+        UnitLiteral
   str @str0 "illegal state"
   output executable @fn0

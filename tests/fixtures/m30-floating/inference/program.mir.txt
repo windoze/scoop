@@ -1011,6 +1011,8 @@ Module
         Type Boolean
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun iterator @fn9(this: Array<Float>) -> Iterator<Float>
     bb0 entry
       val $dependency.local.1: List<Float>
@@ -1146,6 +1148,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun same @fn13(first: Float, second: Float) -> Float
     bb0 entry
       return
@@ -1285,6 +1289,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Cell.$c0 @fn21(value: Float) -> Cell<Float> <no-gc>
     bb0 entry
       return

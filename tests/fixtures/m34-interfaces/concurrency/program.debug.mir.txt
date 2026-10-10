@@ -116,6 +116,8 @@ Module
     bb0 entry
       call extern1 @m13_callback_barrier direct
       return
+        Type Unit
+        UnitLiteral
   fun check @fn5(value: Boolean) -> Unit
     bb0 entry
       val $dependency.receiver: Boolean
@@ -151,6 +153,8 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun main @fn6() -> Unit
     bb0 entry
       val $argument.0: Int
@@ -275,6 +279,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb6 try.body.6 unwind bb1
       val $argument.0: FunPtr<(Int, Ptr<Unit>) -> Int>
         Type FunPtr<(Int, Ptr<Unit>) -> Int>
@@ -966,6 +972,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun Continuation.resume @fn10(this: Continuation<Value>, value: Value) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
@@ -989,6 +997,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Second.$c1 @fn16(this: Second, padding: String, value: Int) -> Unit
     bb0 entry
       field_set 0
@@ -1002,6 +1012,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun foreign callback adapter 0 @fn17($closure: (Int) -> Int, $snapshot: internal<context-node>, $result: Ptr<Int>, $arguments: Ptr<Ptr<Unit>>, $exception: Ptr<Throwable>) -> machine<foreign-callback-status>
     bb0 context.unwind
       landing_pad cleanup=true
@@ -1099,6 +1111,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn10 interface Continuation<Value>[0]
         Type Continuation<Value>
@@ -1112,6 +1126,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn11 interface Continuation<Value>[1]
         Type Continuation<Value>
@@ -1123,6 +1139,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

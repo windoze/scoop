@@ -372,23 +372,25 @@ Module
     br @inline.31.entry
   block inline.33.entry
     heap_store local91 +16 integer<Int>(0x00000002)
+    t25 = aggregate () : {}
     br @inline.cont.33
   block inline.cont.35
     store local56 -> local13
     store integer<Int>(0x00000002) -> local11
     store integer<Int>(0x00000002) -> local12
-    call managed-direct-target5 sp<managed-call:3> live=[local13:ptr<managed>@0] t25 = sig=direct5 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td14, machine<byte-size>(ByteSize(24)))
-    store t25 -> local57
+    call managed-direct-target5 sp<managed-call:3> live=[local13:ptr<managed>@0] t26 = sig=direct5 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td14, machine<byte-size>(ByteSize(24)))
+    store t26 -> local57
     store local57 -> local91
     store integer<Int>(0x00000002) -> local92
     br @inline.33.entry
   block inline.35.entry
     heap_store local93 +16 integer<Int>(0x00000001)
+    t27 = aggregate () : {}
     br @inline.cont.35
   block inline.cont.37
     store local95 -> local8
-    t26 = Not local8 : i1
-    cbr t26 then @if.then.1 else @if.else.2
+    t28 = Not local8 : i1
+    cbr t28 then @if.then.1 else @if.else.2
   block inline.37.entry
     store local96 -> local104
     store local97 -> local105
@@ -402,83 +404,85 @@ Module
     br @inline.37.entry
   block inline.39.entry
     heap_store local99 +16 integer<Int>(0x00000001)
+    t29 = aggregate () : {}
     br @inline.cont.39
   block inline.cont.41
     store local54 -> local4
     store integer<Int>(0x00000001) -> local2
     store integer<Int>(0x00000001) -> local3
-    call managed-direct-target6 sp<managed-call:1> live=[local4:ptr<managed>@0] t27 = sig=direct6 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td14, machine<byte-size>(ByteSize(24)))
-    store t27 -> local55
+    call managed-direct-target6 sp<managed-call:1> live=[local4:ptr<managed>@0] t30 = sig=direct6 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td14, machine<byte-size>(ByteSize(24)))
+    store t30 -> local55
     store local55 -> local99
     store integer<Int>(0x00000001) -> local100
     br @inline.39.entry
   block inline.41.entry
     heap_store local101 +16 integer<Int>(0x00000001)
+    t31 = aggregate () : {}
     br @inline.cont.41
   block inline.cont.43
     store local103 -> local98
     store local98 -> local95
     br @inline.cont.37
   block inline.43.entry
-    t28 = heap_load local104 +16 : i32
-    store t28 -> local106
-    t29 = heap_load local105 +16 : i32
-    store t29 -> local107
+    t32 = heap_load local104 +16 : i32
+    store t32 -> local106
+    t33 = heap_load local105 +16 : i32
+    store t33 -> local107
     store local107 -> local108
-    t30 = integer_compare_Equal<Int> local106, local108 : i1
-    store t30 -> local103
+    t34 = integer_compare_Equal<Int> local106, local108 : i1
+    store t34 -> local103
     br @inline.cont.43
   block inline.cont.45
     store local109 -> local90
     store local90 -> local87
     br @inline.cont.31
   block inline.45.entry
-    t31 = heap_load local110 +16 : i32
-    store t31 -> local112
-    t32 = heap_load local111 +16 : i32
-    store t32 -> local113
+    t35 = heap_load local110 +16 : i32
+    store t35 -> local112
+    t36 = heap_load local111 +16 : i32
+    store t36 -> local113
     store local113 -> local114
-    t33 = integer_compare_Equal<Int> local112, local114 : i1
-    store t33 -> local109
+    t37 = integer_compare_Equal<Int> local112, local114 : i1
+    store t37 -> local109
     br @inline.cont.45
   block inline.cont.47
     store local115 -> local82
     store local82 -> local79
     br @inline.cont.25
   block inline.47.entry
-    t34 = extract local116, 0 : i32
-    store t34 -> local118
-    t35 = extract local117, 0 : i32
-    store t35 -> local119
+    t38 = extract local116, 0 : i32
+    store t38 -> local118
+    t39 = extract local117, 0 : i32
+    store t39 -> local119
     store local119 -> local120
-    t36 = integer_compare_Equal<Int> local118, local120 : i1
-    store t36 -> local115
+    t40 = integer_compare_Equal<Int> local118, local120 : i1
+    store t40 -> local115
     br @inline.cont.47
   block inline.cont.49
     store local121 -> local74
     store local74 -> local71
     br @inline.cont.19
   block inline.49.entry
-    t37 = extract local122, 0 : i32
-    store t37 -> local124
-    t38 = extract local123, 0 : i32
-    store t38 -> local125
+    t41 = extract local122, 0 : i32
+    store t41 -> local124
+    t42 = extract local123, 0 : i32
+    store t42 -> local125
     store local125 -> local126
-    t39 = integer_compare_Equal<Int> local124, local126 : i1
-    store t39 -> local121
+    t43 = integer_compare_Equal<Int> local124, local126 : i1
+    store t43 -> local121
     br @inline.cont.49
   block inline.cont.51
     store local127 -> local66
     store local66 -> local63
     br @inline.cont.13
   block inline.51.entry
-    t40 = extract local128, 0 : i32
-    store t40 -> local130
-    t41 = extract local129, 0 : i32
-    store t41 -> local131
+    t44 = extract local128, 0 : i32
+    store t44 -> local130
+    t45 = extract local129, 0 : i32
+    store t45 -> local131
     store local131 -> local132
-    t42 = integer_compare_Equal<Int> local130, local132 : i1
-    store t42 -> local127
+    t46 = integer_compare_Equal<Int> local130, local132 : i1
+    store t46 -> local127
     br @inline.cont.51
   fun @scoop$1$cb$1cdf6d73eb2628dacd42c19e3f9ede94b7410a51c93435f05a5867262ebf265c(ptr<managed>, ptr<managed>) -> i1
     local %0 $call.1: i1

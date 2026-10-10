@@ -293,6 +293,8 @@ Module
   fun first @fn2(this: Remote<Int>) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun second @fn3(this: Remote<Int>) -> Int
     bb0 entry
       return
@@ -1685,13 +1687,9 @@ Module
         Type IndexOutOfBoundsException
         Local $new.2
     bb5 if.merge.5
-      Type Unit
-      ArrayGet Array<Unit>
-        Type Array<Unit>
-        Local $arr.1
-        Type Long
-        Local $idx.2
       return
+        Type Unit
+        UnitLiteral
   fun size @fn29(this: Array<Unit>) -> Long
     bb0 entry
       val $dependency.local.1: Array<Unit>
@@ -1796,13 +1794,9 @@ Module
         Type IndexOutOfBoundsException
         Local $new.2
     bb5 if.merge.5
-      Type Unit
-      ArrayGet MutableArray<Unit>
-        Type MutableArray<Unit>
-        Local $arr.1
-        Type Long
-        Local $idx.2
       return
+        Type Unit
+        UnitLiteral
   fun size @fn32(this: MutableArray<Unit>) -> Long
     bb0 entry
       val $dependency.local.1: MutableArray<Unit>
@@ -1844,14 +1838,14 @@ Module
       trap "call to abstract method `View.$get$second`"
   fun choose @fn36(this: View<Unit, Unit>, next: Unit) -> Unit
     bb0 entry
-      Type Unit
-      Local next
       return
+        Type Unit
+        UnitLiteral
   fun choose @fn37(this: Swap<Unit, Unit>, next: Unit) -> Unit
     bb0 entry
-      Type Unit
-      Local next
       return
+        Type Unit
+        UnitLiteral
   fun peer @fn38(this: View<Unit, Unit>, other: View<Unit, Unit>) -> View<Unit, Unit>
     bb0 entry
       return
@@ -2469,6 +2463,8 @@ Module
   fun first @fn60(this: Remote<String>) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun second @fn61(this: Remote<String>) -> String
     bb0 entry
       return
@@ -2577,13 +2573,13 @@ Module
   fun first @fn63(this: Remote<Unit>) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun second @fn64(this: Remote<Unit>) -> Unit
     bb0 entry
-      Type Unit
-      FieldAccess 0
-        Type Remote<Unit>
-        Local this
       return
+        Type Unit
+        UnitLiteral
   fun next @fn65(this: ListIterator<Pair<Int, Unit>>) -> Option<Pair<Int, Unit>>
     bb0 entry
       branch bb1 bb2
@@ -2682,6 +2678,8 @@ Module
   fun first @fn66(this: Remote<Pair<Int, Unit>>) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun second @fn67(this: Remote<Pair<Int, Unit>>) -> Pair<Int, Unit>
     bb0 entry
       return
@@ -2926,6 +2924,8 @@ Module
         Type Unit
         Local next
       return
+        Type Unit
+        UnitLiteral
   fun receiver<Remote> Swap.same @fn87(this: Remote<Unit>, other: Swap<Unit, Unit>) -> Swap<Unit, Unit>
     bb0 entry
       call $call.1: Swap<Unit, Unit> = @fn34 direct
@@ -2948,6 +2948,8 @@ Module
         Type Unit
         Local next
       return
+        Type Unit
+        UnitLiteral
   fun receiver<Remote> Swap.peer @fn89(this: Remote<Pair<Int, Unit>>, other: View<Unit, Pair<Int, Unit>>) -> View<Unit, Pair<Int, Unit>>
     bb0 entry
       call $call.1: View<Unit, Pair<Int, Unit>> = @fn50 direct
@@ -3004,6 +3006,8 @@ Module
         Type Int
         Local second
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c2 @fn94(this: ListIterator<String>, source: List<String>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -3022,6 +3026,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.Remote.$c0 @fn95(this: Remote<String>, second: String) -> Unit
     bb0 entry
       field_set 0
@@ -3030,6 +3036,8 @@ Module
         Type String
         Local second
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c2 @fn96(this: ListIterator<Unit>, source: List<Unit>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -3048,6 +3056,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.Remote.$c0 @fn97(this: Remote<Unit>, second: Unit) -> Unit
     bb0 entry
       field_set 0
@@ -3056,6 +3066,8 @@ Module
         Type Unit
         Local second
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c2 @fn98(this: ListIterator<Pair<Int, Unit>>, source: List<Pair<Int, Unit>>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -3074,6 +3086,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.Remote.$c0 @fn99(this: Remote<Pair<Int, Unit>>, second: Pair<Int, Unit>) -> Unit
     bb0 entry
       field_set 0
@@ -3082,6 +3096,8 @@ Module
         Type Pair<Int, Unit>
         Local second
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c2 @fn100(this: ListIterator<Int>, source: List<Int>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -3100,6 +3116,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Pair.$c1 @fn101(first: Int, second: Unit) -> Pair<Int, Unit> <no-gc>
     bb0 entry
       return

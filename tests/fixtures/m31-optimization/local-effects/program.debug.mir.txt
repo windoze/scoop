@@ -85,6 +85,8 @@ Module
         Type Int
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun aliases @fn2(input: Int) -> Int
     bb0 entry
       var value: Int
@@ -653,6 +655,8 @@ Module
         Type Int
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun $get$effects @fn7() -> Int <no-gc>
     bb0 entry
       return
@@ -664,6 +668,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun equalTo @fn9(this: Ptr<Int>, other: Ptr<Int>) -> Boolean
     bb0 entry
       val $dependency.local.2: Ptr<Int>
@@ -707,6 +713,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn11(value: Long) -> Unit
     bb0 entry
       val $dependency.local.1: Long
@@ -731,6 +739,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun equals @fn12(this: Ptr<Int>, other: Ptr<Int>) -> Boolean
     bb0 entry
       val $dependency.local.2: Ptr<Int>
@@ -773,6 +783,8 @@ Module
         Type Int
         Local number
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<Item> @fn18(task: SuspendTask<Item>, completion: Continuation<Item>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -795,6 +807,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn13 interface Continuation<Item>[0]
         Type Continuation<Item>
@@ -808,6 +822,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn14 interface Continuation<Item>[1]
         Type Continuation<Item>
@@ -819,6 +835,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

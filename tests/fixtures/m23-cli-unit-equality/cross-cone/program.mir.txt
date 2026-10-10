@@ -13,6 +13,8 @@ Module
   fun unitValue @fn0() -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun main @fn1() -> Unit
     bb0 entry
       call @fn0 direct
@@ -153,6 +155,8 @@ Module
         Local $new.3
     bb6 if.merge.6
       return
+        Type Unit
+        UnitLiteral
   fun $derived.equals.0 @fn2(this: Unit, other: Unit) -> Boolean
     bb0 entry
       return

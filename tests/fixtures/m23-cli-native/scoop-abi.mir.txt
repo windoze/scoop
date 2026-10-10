@@ -47,6 +47,8 @@ Module
         Type String
         Local arg0
       return
+        Type Unit
+        UnitLiteral
   fun nativeRootRoundTrip @fn1(arg0: String, arg1: NativeNode) -> String
     bb0 entry
       call $call.1: String = extern1 @native_root_round_trip direct
@@ -203,6 +205,8 @@ Module
         Type Long
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun stringify @fn4(value: Int) -> String
     bb0 entry
       val $dependency.receiver: Int
@@ -238,6 +242,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn6(value: Long) -> Unit
     bb0 entry
       val $dependency.local.1: Long
@@ -262,6 +268,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun Continuation.resume @fn7(this: Continuation<NativeNode>, value: NativeNode) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
@@ -287,6 +295,8 @@ Module
         Type Option<NativeNode>
         Local right
       return
+        Type Unit
+        UnitLiteral
   fun ctor.ManagedAggregate.$c0 @fn12(value: String, left: Long, right: Long) -> ManagedAggregate <no-gc>
     bb0 entry
       return
@@ -320,6 +330,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn7 interface Continuation<NativeNode>[0]
         Type Continuation<NativeNode>
@@ -333,6 +345,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn8 interface Continuation<NativeNode>[1]
         Type Continuation<NativeNode>
@@ -344,6 +358,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

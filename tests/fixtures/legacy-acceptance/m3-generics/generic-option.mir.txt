@@ -112,6 +112,8 @@ Module
         Type Boolean
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun unwrapOr @fn1(o: Option<Int>, fallback: Int) -> Int
     bb0 entry
       val opt: Option<Int>
@@ -162,6 +164,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun isPresent @fn3(o: Option<String>) -> Boolean
     bb0 entry
       val $when.1: Option<String>
@@ -226,6 +230,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun isPresent @fn5(o: Option<Int>) -> Boolean
     bb0 entry
       val $when.1: Option<Int>

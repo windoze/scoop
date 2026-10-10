@@ -135,6 +135,8 @@ Module
       resume
     bb7 try.end.7
       return
+        Type Unit
+        UnitLiteral
     bb8 try.body.8 unwind bb1
       goto bb16
     bb9 try.unwind.9 unwind bb1
@@ -264,6 +266,8 @@ Module
       resume
     bb7 try.end.7
       return
+        Type Unit
+        UnitLiteral
     bb8 try.body.8 unwind bb1
       goto bb16
     bb9 try.unwind.9 unwind bb1
@@ -558,6 +562,8 @@ Module
       resume
     bb7 try.end.7
       return
+        Type Unit
+        UnitLiteral
     bb8 try.body.8 unwind bb1
       call @fn3 direct
       goto bb7
@@ -611,6 +617,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn6(value: Int) -> Unit
     bb0 entry
       val $dependency.local.1: Int
@@ -635,6 +643,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   instance mi0 function=@fn5 <- println
   instance mi1 function=@fn6 <- println
   str @str0 "return-finally"

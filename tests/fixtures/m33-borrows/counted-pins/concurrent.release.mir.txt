@@ -152,6 +152,8 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun main @fn3() -> Unit
     bb0 entry
       val $argument.0: Int
@@ -239,6 +241,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb4 pattern.pass.4
       assign $result.1
         Type Boolean
@@ -359,6 +363,8 @@ Module
         Local $inline.7.this
         Type Int
         IntegerLiteral Int value=7331 bits=0x00001ca3
+      Type Unit
+      UnitLiteral
       goto bb7
   fun equals @fn4(this: Ptr<Unit>, other: Ptr<Unit>) -> Boolean
     bb0 entry
@@ -800,6 +806,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun pin @fn7(v: Cell) -> PinnedPtr<Cell>
     bb0 entry
       val $dependency.local.1: Cell
@@ -868,6 +876,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun ctor.PinnedPtr.$c0 @fn14(raw: ULong) -> PinnedPtr<Cell> <no-gc>
     bb0 entry
       return
@@ -972,6 +982,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn9 interface Continuation<Cell>[0]
         Type Continuation<Cell>
@@ -985,6 +997,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn10 interface Continuation<Cell>[1]
         Type Continuation<Cell>
@@ -996,6 +1010,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

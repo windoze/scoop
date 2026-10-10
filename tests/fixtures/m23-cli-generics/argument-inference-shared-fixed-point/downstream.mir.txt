@@ -2214,13 +2214,9 @@ Module
         Type IndexOutOfBoundsException
         Local $new.2
     bb5 if.merge.5
-      Type Unit
-      ArrayGet Array<Unit>
-        Type Array<Unit>
-        Local $arr.1
-        Type Long
-        Local $idx.2
       return
+        Type Unit
+        UnitLiteral
   fun size @fn39(this: Array<Unit>) -> Long
     bb0 entry
       val $dependency.local.1: Array<Unit>
@@ -2279,9 +2275,9 @@ Module
         UnitLiteral
       goto bb3
     bb3 if.merge.3
-      Type Unit
-      Local $dependency.local.8
       return
+        Type Unit
+        UnitLiteral
   fun empty @fn42() -> Array<Unit>
     bb0 entry
       return
@@ -2330,14 +2326,14 @@ Module
         UnitLiteral
       goto bb3
     bb3 if.merge.3
-      Type Unit
-      Local $dependency.local.8
       return
+        Type Unit
+        UnitLiteral
   fun identity @fn44(value: Unit) -> Unit
     bb0 entry
-      Type Unit
-      Local value
       return
+        Type Unit
+        UnitLiteral
   fun localReference @fn45(action: (Unit) -> Unit, seed: Unit) -> Unit
     bb0 entry
       call <closure:function_type5> closure[function_type5]
@@ -2346,11 +2342,13 @@ Module
         Type Unit
         Local seed
       return
+        Type Unit
+        UnitLiteral
   fun localIdentity @fn46(value: Unit) -> Unit
     bb0 entry
-      Type Unit
-      Local value
       return
+        Type Unit
+        UnitLiteral
   fun viaReference @fn47(action: (Unit) -> Unit, seed: Unit) -> Unit
     bb0 entry
       call <closure:function_type5> closure[function_type5]
@@ -2359,6 +2357,8 @@ Module
         Type Unit
         Local seed
       return
+        Type Unit
+        UnitLiteral
   fun $lambda @fn48($argument.0: (Unit) -> Unit, $argument.1: Unit) -> Unit
     bb0 entry
       val $dependency.local.1: Unit
@@ -2371,6 +2371,8 @@ Module
         Type Unit
         Local $dependency.local.2
       return
+        Type Unit
+        UnitLiteral
   fun transform @fn49(this: LocalHost<Unit>, action: (Unit) -> Unit, seed: Unit) -> Unit
     bb0 entry
       call <closure:function_type5> closure[function_type5]
@@ -2379,6 +2381,8 @@ Module
         Type Unit
         Local seed
       return
+        Type Unit
+        UnitLiteral
   fun $lambda @fn50($argument.0: (Unit) -> Unit, $argument.1: Unit) -> Unit
     bb0 entry
       val $dependency.local.1: Unit
@@ -2391,6 +2395,8 @@ Module
         Type Unit
         Local $dependency.local.2
       return
+        Type Unit
+        UnitLiteral
   fun transform @fn51(this: Host<Unit>, action: (Unit) -> Unit, seed: Unit) -> Unit
     bb0 entry
       call <closure:function_type5> closure[function_type5]
@@ -2399,6 +2405,8 @@ Module
         Type Unit
         Local seed
       return
+        Type Unit
+        UnitLiteral
   fun next @fn52(this: ListIterator<Later>) -> Option<Later>
     bb0 entry
       branch bb1 bb2
@@ -2811,24 +2819,32 @@ Module
         Type Unit
         Local arg0
       return
+        Type Unit
+        UnitLiteral
   fun $reference.12 @fn77($closure: (Unit) -> Unit, arg0: Unit) -> Unit
     bb0 entry
       call @fn46 direct
         Type Unit
         Local arg0
       return
+        Type Unit
+        UnitLiteral
   fun $reference.13 @fn78($closure: (Unit) -> Unit, arg0: Unit) -> Unit
     bb0 entry
       call @fn44 direct
         Type Unit
         Local arg0
       return
+        Type Unit
+        UnitLiteral
   fun $reference.14 @fn79($closure: (Unit) -> Unit, arg0: Unit) -> Unit
     bb0 entry
       call @fn46 direct
         Type Unit
         Local arg0
       return
+        Type Unit
+        UnitLiteral
   fun init.Later.$c0 @fn80(this: Later, number: Int) -> Unit
     bb0 entry
       field_set 0
@@ -2837,6 +2853,8 @@ Module
         Type Int
         Local number
       return
+        Type Unit
+        UnitLiteral
   fun init.LocalHost.$c2 @fn81(this: LocalHost<Later>, value: Later) -> Unit
     bb0 entry
       field_set 0
@@ -2845,6 +2863,8 @@ Module
         Type Later
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Host.$c3 @fn82(this: Host<Later>, value: Later) -> Unit
     bb0 entry
       field_set 0
@@ -2853,6 +2873,8 @@ Module
         Type Later
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.LocalHost.$c2 @fn83(this: LocalHost<Int>, value: Int) -> Unit
     bb0 entry
       field_set 0
@@ -2861,6 +2883,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Host.$c3 @fn84(this: Host<Int>, value: Int) -> Unit
     bb0 entry
       field_set 0
@@ -2869,6 +2893,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.LocalHost.$c2 @fn85(this: LocalHost<Unit>, value: Unit) -> Unit
     bb0 entry
       field_set 0
@@ -2877,6 +2903,8 @@ Module
         Type Unit
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Host.$c3 @fn86(this: Host<Unit>, value: Unit) -> Unit
     bb0 entry
       field_set 0
@@ -2885,6 +2913,8 @@ Module
         Type Unit
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c4 @fn87(this: ListIterator<Later>, source: List<Later>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -2903,6 +2933,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c4 @fn88(this: ListIterator<Int>, source: List<Int>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -2921,6 +2953,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c4 @fn89(this: ListIterator<Unit>, source: List<Unit>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -2939,6 +2973,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun ctor.LocalPair.$c0 @fn90(values: Array<Later>, seed: Later) -> LocalPair<Later> <no-gc>
     bb0 entry
       return
@@ -3015,6 +3051,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn61 interface Continuation<Later>[0]
         Type Continuation<Later>
@@ -3028,6 +3066,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn62 interface Continuation<Later>[1]
         Type Continuation<Later>
@@ -3039,6 +3079,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

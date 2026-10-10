@@ -70,6 +70,8 @@ Module
         Type Int
         Local handle
       return
+        Type Unit
+        UnitLiteral
   release_hook rh0 Owner <no-gc>
     bb0 entry
       val $dependency.release.local.1: Int
@@ -97,6 +99,8 @@ Module
         Type Int
         Local $dependency.release.local.6
       return
+        Type Unit
+        UnitLiteral
   instance mi0 function=@fn2 <- keep
   instance mi1 function=@fn3 <- first
   output library

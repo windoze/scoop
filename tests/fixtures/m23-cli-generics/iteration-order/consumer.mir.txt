@@ -1650,6 +1650,8 @@ Module
   fun init.FailingSource.$c0 @fn21(this: FailingSource) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.Sequence.$c0 @fn22(this: Sequence<Int>, values: Array<Int>) -> Unit
     bb0 entry
       field_set 0
@@ -1658,6 +1660,8 @@ Module
         Type Array<Int>
         Local values
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c1 @fn23(this: ListIterator<Int>, source: List<Int>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -1676,6 +1680,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c1 @fn24(this: ListIterator<Cursor<Int>>, source: List<Cursor<Int>>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -1694,6 +1700,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.Cursor.$c2 @fn25(this: Cursor<Int>, values: Array<Int>) -> Unit
     bb0 entry
       field_set 0
@@ -1707,6 +1715,8 @@ Module
         Type Long
         IntegerLiteral Long value=0 bits=0x0000000000000000
       return
+        Type Unit
+        UnitLiteral
   instance mi0 function=@fn3 <- iterator
   instance mi1 function=@fn4 <- get
   instance mi2 function=@fn5 <- size

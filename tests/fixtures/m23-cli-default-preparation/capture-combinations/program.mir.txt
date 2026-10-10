@@ -368,6 +368,8 @@ Module
         Type () -> String
         Local $call.13
       return
+        Type Unit
+        UnitLiteral
   fun $local.5.copy @fn5($capture.seed: String) -> String
     bb0 entry
       return

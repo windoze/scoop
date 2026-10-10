@@ -173,6 +173,8 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun churn @fn3(worker: Int) -> Int
     bb0 entry
       val $argument.0: Long
@@ -599,6 +601,8 @@ Module
         Local $inline.32.this
         Type Int
         Local $inline.32.value
+      Type Unit
+      UnitLiteral
       goto bb32
     bb34 inline.cont.34
       val $dependency.argument.0: Long
@@ -704,6 +708,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb6 try.body.6 unwind bb1
       var round: Int
         Type Int
@@ -966,6 +972,8 @@ Module
         Local $inline.1.this
         Type Boolean
         BoolLiteral false
+      Type Unit
+      UnitLiteral
       goto bb1
   fun get @fn7(this: MutableArray<Option<Node>>, index: Long) -> Option<Node>
     bb0 entry
@@ -1082,6 +1090,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun next @fn12(this: ListIterator<Option<Node>>) -> Option<Option<Node>>
     bb0 entry
       branch bb1 bb2
@@ -1203,6 +1213,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c0 @fn20(this: ListIterator<Option<Node>>, source: List<Option<Node>>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -1221,6 +1233,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun foreign callback adapter 0 @fn21($closure: (Int) -> Int, $snapshot: internal<context-node>, $result: Ptr<Int>, $arguments: Ptr<Ptr<Unit>>, $exception: Ptr<Throwable>) -> machine<foreign-callback-status>
     bb0 context.unwind
       landing_pad cleanup=true
@@ -1318,6 +1332,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn15 interface Continuation<Node>[0]
         Type Continuation<Node>
@@ -1331,6 +1347,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn16 interface Continuation<Node>[1]
         Type Continuation<Node>
@@ -1342,6 +1360,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

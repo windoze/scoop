@@ -1362,11 +1362,9 @@ Module
         Local $call.1
   fun read @fn19(this: Cell<Unit>) -> Unit
     bb0 entry
-      Type Unit
-      FieldAccess 0
-        Type Cell<Unit>
-        Local this
       return
+        Type Unit
+        UnitLiteral
   fun apply @fn20(this: Readable<Unit>, action: (Unit) -> Int) -> Int
     bb0 entry
       val $dependency.local.3: (Unit) -> Int
@@ -1388,11 +1386,9 @@ Module
         Local $call.1
   fun LocalCell.read @fn21(this: LocalCell<Unit>) -> Unit
     bb0 entry
-      Type Unit
-      FieldAccess 0
-        Type LocalCell<Unit>
-        Local this
       return
+        Type Unit
+        UnitLiteral
   fun make @fn22(value: Unit) -> Cell<Unit>
     bb0 entry
       val $dependency.local.1: Unit
@@ -1653,6 +1649,8 @@ Module
         Type Cell<String>
         Local cell
       return
+        Type Unit
+        UnitLiteral
   fun init.Link.$c0 @fn36(this: Link<Unit>, cell: Cell<Unit>) -> Unit
     bb0 entry
       field_set 0
@@ -1661,6 +1659,8 @@ Module
         Type Cell<Unit>
         Local cell
       return
+        Type Unit
+        UnitLiteral
   fun init.Link.$c0 @fn37(this: Link<Int>, cell: Cell<Int>) -> Unit
     bb0 entry
       field_set 0
@@ -1669,6 +1669,8 @@ Module
         Type Cell<Int>
         Local cell
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Cell.$c1 @fn38(value: Int, next: Option<Link<Int>>) -> Cell<Int> <no-gc>
     bb0 entry
       return
@@ -1775,6 +1777,8 @@ Module
           Type box<LocalCell<Unit>>
           Local this
       return
+        Type Unit
+        UnitLiteral
   fun thunk<LocalCell<Unit>> Readable.apply((Unit) -> Int) @fn49(this: box<LocalCell<Unit>>, action: (Unit) -> Int) -> Int
     bb0 entry
       call $call.1: Int = @fn20 direct
@@ -1795,6 +1799,8 @@ Module
           Type box<Cell<Unit>>
           Local this
       return
+        Type Unit
+        UnitLiteral
   fun thunk<Cell<Unit>> Readable.apply((Unit) -> Int) @fn51(this: box<Cell<Unit>>, action: (Unit) -> Int) -> Int
     bb0 entry
       call $call.1: Int = @fn20 direct

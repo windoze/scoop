@@ -1870,11 +1870,9 @@ Module
         Local fallback
   fun read @fn27(this: Cell<Unit>) -> Unit
     bb0 entry
-      Type Unit
-      FieldAccess 0
-        Type Cell<Unit>
-        Local this
       return
+        Type Unit
+        UnitLiteral
   fun apply @fn28(this: Readable<Unit>, action: (Unit) -> Int) -> Int
     bb0 entry
       val $dependency.local.3: (Unit) -> Int
@@ -2009,9 +2007,9 @@ Module
           Local $dependency.local.5
           Type Int
           Local $dependency.local.7
-      Type Unit
-      Local value
       return
+        Type Unit
+        UnitLiteral
   fun hasNext @fn33(value: Cell<Unit>) -> Boolean
     bb0 entry
       val $when.1: Option<Link<Unit>>
@@ -2117,6 +2115,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Link.$c0 @fn45(this: Link<Later>, cell: Cell<Later>) -> Unit
     bb0 entry
       field_set 0
@@ -2125,6 +2125,8 @@ Module
         Type Cell<Later>
         Local cell
       return
+        Type Unit
+        UnitLiteral
   fun init.Link.$c0 @fn46(this: Link<Int>, cell: Cell<Int>) -> Unit
     bb0 entry
       field_set 0
@@ -2133,6 +2135,8 @@ Module
         Type Cell<Int>
         Local cell
       return
+        Type Unit
+        UnitLiteral
   fun init.Link.$c0 @fn47(this: Link<Unit>, cell: Cell<Unit>) -> Unit
     bb0 entry
       field_set 0
@@ -2141,6 +2145,8 @@ Module
         Type Cell<Unit>
         Local cell
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Cell.$c1 @fn48(value: Later, next: Option<Link<Later>>) -> Cell<Later> <no-gc>
     bb0 entry
       return
@@ -2190,6 +2196,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn40 interface Continuation<Later>[0]
         Type Continuation<Later>
@@ -2203,6 +2211,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn41 interface Continuation<Later>[1]
         Type Continuation<Later>
@@ -2214,6 +2224,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -2301,6 +2313,8 @@ Module
           Type box<Cell<Unit>>
           Local this
       return
+        Type Unit
+        UnitLiteral
   fun thunk<Cell<Unit>> Readable.apply((Unit) -> Int) @fn57(this: box<Cell<Unit>>, action: (Unit) -> Int) -> Int
     bb0 entry
       call $call.1: Int = @fn28 direct

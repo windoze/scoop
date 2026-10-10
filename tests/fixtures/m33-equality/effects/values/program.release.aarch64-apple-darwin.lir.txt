@@ -449,6 +449,7 @@ Module
     store true -> local115
     br @inline.25.if.merge.2
   block inline.25.if.merge.2
+    t47 = aggregate () : {}
     br @inline.cont.25
   fun @scoop$1$cb$cc265ff34ce2a58d06a7673116c73334be2bb8d716d6a9fa2b7d00ab3343179f(parts<struct0 [i64@0+4/4]>) -> i32
     local %0 $receiver: struct0

@@ -78,6 +78,8 @@ Module
         Type Int
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun read @fn4(value: Shown) -> Int
     bb0 entry
       val $receiver: Shown
@@ -113,6 +115,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun read @fn6(value: Base) -> Int
     bb0 entry
       val $receiver: Base
@@ -130,6 +134,8 @@ Module
   fun init.Base.$c0 @fn8(this: Base) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.Derived.$c1 @fn9(this: Derived) -> Unit
     bb0 entry
       call @fn8 direct
@@ -138,6 +144,8 @@ Module
           Type Derived
           Local this
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Shown.$c0 @fn10(value: Int) -> Shown <no-gc>
     bb0 entry
       return

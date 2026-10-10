@@ -64,6 +64,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun select @fn3(value: Int) -> Int
     bb0 entry
       val $dependency.receiver: Int
@@ -102,6 +104,8 @@ Module
         Type Int
         IntegerLiteral Int value=0 bits=0x00000000
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<Counter> @fn9(task: SuspendTask<Counter>, completion: Continuation<Counter>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -124,6 +128,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn4 interface Continuation<Counter>[0]
         Type Continuation<Counter>
@@ -137,6 +143,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn5 interface Continuation<Counter>[1]
         Type Continuation<Counter>
@@ -148,6 +156,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

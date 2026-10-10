@@ -243,6 +243,8 @@ Module
         Type Int
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun iterator @fn3(this: Array<Int>) -> Iterator<Int>
     bb0 entry
       val $dependency.local.1: List<Int>
@@ -383,6 +385,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun nested @fn8(maybe: Option<Option<Int>>, value: Int) -> Int
     bb0 entry
       return
@@ -517,6 +521,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Pair.$c0 @fn15(maybe: Option<Int>, value: Int) -> Pair<Int> <no-gc>
     bb0 entry
       return

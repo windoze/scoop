@@ -1632,6 +1632,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun function_bridge.$Closure$lambda0.() -> Any @fn21($source: () -> Array<Int>) -> Any
     bb0 entry
       call $call.1: Array<Int> = <closure:function_type2> closure[function_type2]

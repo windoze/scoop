@@ -120,6 +120,8 @@ Module
         Type Int
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun println @fn5(value: Int) -> Unit
     bb0 entry
       val $dependency.local.1: Int
@@ -144,6 +146,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun Continuation.resume @fn6(this: Continuation<VisibleValue>, value: VisibleValue) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
@@ -174,9 +178,13 @@ Module
   fun init.VisibleValueImpl.$c0 @fn15(this: VisibleValueImpl) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.VisibleBase.$c1 @fn16(this: VisibleBase) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.VisibleDerived.$c2 @fn17(this: VisibleDerived) -> Unit
     bb0 entry
       call @fn16 direct
@@ -185,6 +193,8 @@ Module
           Type VisibleDerived
           Local this
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<VisibleValue> @fn18(task: SuspendTask<VisibleValue>, completion: Continuation<VisibleValue>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -207,6 +217,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn6 interface Continuation<VisibleValue>[0]
         Type Continuation<VisibleValue>
@@ -220,6 +232,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn7 interface Continuation<VisibleValue>[1]
         Type Continuation<VisibleValue>
@@ -231,6 +245,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -288,6 +304,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn10 interface Continuation<VisibleBase>[0]
         Type Continuation<VisibleBase>
@@ -301,6 +319,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn11 interface Continuation<VisibleBase>[1]
         Type Continuation<VisibleBase>
@@ -312,6 +332,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

@@ -342,6 +342,8 @@ Module
         Type Int
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun init.LocalChild.$c2 @fn20(this: LocalChild, value: Int) -> Unit
     bb0 entry
       val $argument.0: Int
@@ -358,6 +360,8 @@ Module
         Type Int
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun init.InheritedLocalChild.$c3 @fn21(this: InheritedLocalChild, value: Int) -> Unit
     bb0 entry
       val $argument.0: Int
@@ -374,6 +378,8 @@ Module
         Type Int
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun init.PrivateChild.$c4 @fn22(this: PrivateChild, value: Int) -> Unit
     bb0 entry
       val $dependency.argument.0: Int
@@ -390,6 +396,8 @@ Module
         Type Int
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun init.Base.$c0 @fn23(this: Base<Int>, value: Int) -> Unit
     bb0 entry
       field_set 0
@@ -398,6 +406,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.LocalBase.$c1 @fn24(this: LocalBase<Int>, value: Int) -> Unit
     bb0 entry
       field_set 0
@@ -406,6 +416,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<InheritedLocalChild> @fn25(task: SuspendTask<InheritedLocalChild>, completion: Continuation<InheritedLocalChild>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -428,6 +440,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn15 interface Continuation<InheritedLocalChild>[0]
         Type Continuation<InheritedLocalChild>
@@ -441,6 +455,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn16 interface Continuation<InheritedLocalChild>[1]
         Type Continuation<InheritedLocalChild>
@@ -452,6 +468,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -509,6 +527,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn11 interface Continuation<LocalChild>[0]
         Type Continuation<LocalChild>
@@ -522,6 +542,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn12 interface Continuation<LocalChild>[1]
         Type Continuation<LocalChild>
@@ -533,6 +555,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -590,6 +614,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn7 interface Continuation<Child>[0]
         Type Continuation<Child>
@@ -603,6 +629,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn8 interface Continuation<Child>[1]
         Type Continuation<Child>
@@ -614,6 +642,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

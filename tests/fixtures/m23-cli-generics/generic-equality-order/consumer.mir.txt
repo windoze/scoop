@@ -826,6 +826,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun pair @fn6(first: Tracked<Int>, second: Tracked<Int>) -> Choice<Tracked<Int>>
     bb0 entry
       val $dependency.local.2: Tracked<Int>
@@ -1051,6 +1053,8 @@ Module
         Type Int
         Local visits
       return
+        Type Unit
+        UnitLiteral
   fun init.Tracked.$c1 @fn13(this: Tracked<Int>, payload: Int, trace: Trace<Int>, number: Int, digit: Int) -> Unit
     bb0 entry
       field_set 0
@@ -1074,6 +1078,8 @@ Module
         Type Int
         Local digit
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Wide.$c2 @fn14(first: Tracked<Int>, second: Tracked<Int>, third: Tracked<Int>) -> Wide<Tracked<Int>> <no-gc>
     bb0 entry
       return

@@ -1008,6 +1008,8 @@ Module
         Type Pieces<Unit>
         Local this
       return
+        Type Unit
+        UnitLiteral
   fun component2 @fn18(this: Pieces<Unit>) -> Int
     bb0 entry
       call $dependency.local.1: Int = external2 direct
@@ -1045,11 +1047,9 @@ Module
         Local $call.1
   fun component1 @fn19(this: LocalPieces<Unit>) -> Unit
     bb0 entry
-      Type Unit
-      FieldAccess 0
-        Type LocalPieces<Unit>
-        Local this
       return
+        Type Unit
+        UnitLiteral
   fun component2 @fn20(this: LocalPieces<Unit>) -> Int
     bb0 entry
       return
@@ -1063,6 +1063,8 @@ Module
         Type ExtensionPieces<Unit>
         Local this
       return
+        Type Unit
+        UnitLiteral
   fun first @fn22(this: Pieces<Later>) -> Later
     bb0 entry
       return
@@ -1107,11 +1109,9 @@ Module
           Local this
   fun first @fn28(this: Pieces<Unit>) -> Unit
     bb0 entry
-      Type Unit
-      FieldAccess 0
-        Type Pieces<Unit>
-        Local this
       return
+        Type Unit
+        UnitLiteral
   fun second @fn29(this: Pieces<Unit>) -> Int
     bb0 entry
       return
@@ -1121,11 +1121,9 @@ Module
           Local this
   fun value @fn30(this: ExtensionPieces<Unit>) -> Unit
     bb0 entry
-      Type Unit
-      FieldAccess 0
-        Type ExtensionPieces<Unit>
-        Local this
       return
+        Type Unit
+        UnitLiteral
   fun Continuation.resume @fn31(this: Continuation<Later>, value: Later) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
@@ -1146,6 +1144,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Pieces.$c0 @fn36(this: Pieces<Later>, first: Later, second: Int) -> Unit
     bb0 entry
       field_set 0
@@ -1159,6 +1159,8 @@ Module
         Type Int
         Local second
       return
+        Type Unit
+        UnitLiteral
   fun init.LocalPieces.$c1 @fn37(this: LocalPieces<Later>, first: Later, second: Int) -> Unit
     bb0 entry
       field_set 0
@@ -1172,6 +1174,8 @@ Module
         Type Int
         Local second
       return
+        Type Unit
+        UnitLiteral
   fun init.ExtensionPieces.$c2 @fn38(this: ExtensionPieces<Later>, value: Later) -> Unit
     bb0 entry
       field_set 0
@@ -1180,6 +1184,8 @@ Module
         Type Later
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Pieces.$c0 @fn39(this: Pieces<Int>, first: Int, second: Int) -> Unit
     bb0 entry
       field_set 0
@@ -1193,6 +1199,8 @@ Module
         Type Int
         Local second
       return
+        Type Unit
+        UnitLiteral
   fun init.LocalPieces.$c1 @fn40(this: LocalPieces<Int>, first: Int, second: Int) -> Unit
     bb0 entry
       field_set 0
@@ -1206,6 +1214,8 @@ Module
         Type Int
         Local second
       return
+        Type Unit
+        UnitLiteral
   fun init.ExtensionPieces.$c2 @fn41(this: ExtensionPieces<Int>, value: Int) -> Unit
     bb0 entry
       field_set 0
@@ -1214,6 +1224,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Pieces.$c0 @fn42(this: Pieces<Unit>, first: Unit, second: Int) -> Unit
     bb0 entry
       field_set 0
@@ -1227,6 +1239,8 @@ Module
         Type Int
         Local second
       return
+        Type Unit
+        UnitLiteral
   fun init.LocalPieces.$c1 @fn43(this: LocalPieces<Unit>, first: Unit, second: Int) -> Unit
     bb0 entry
       field_set 0
@@ -1240,6 +1254,8 @@ Module
         Type Int
         Local second
       return
+        Type Unit
+        UnitLiteral
   fun init.ExtensionPieces.$c2 @fn44(this: ExtensionPieces<Unit>, value: Unit) -> Unit
     bb0 entry
       field_set 0
@@ -1248,6 +1264,8 @@ Module
         Type Unit
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<Later> @fn45(task: SuspendTask<Later>, completion: Continuation<Later>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -1270,6 +1288,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn31 interface Continuation<Later>[0]
         Type Continuation<Later>
@@ -1283,6 +1303,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn32 interface Continuation<Later>[1]
         Type Continuation<Later>
@@ -1294,6 +1316,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

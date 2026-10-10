@@ -2081,11 +2081,13 @@ Module
         Type Base<Unit, Unit>
         Local this
       return
+        Type Unit
+        UnitLiteral
   fun select @fn28(this: Base<Unit, Unit>, other: Unit) -> Unit
     bb0 entry
-      Type Unit
-      Local other
       return
+        Type Unit
+        UnitLiteral
   fun apply @fn29(this: Readable<Unit>, convert: (Unit) -> Int) -> Int
     bb0 entry
       val $dependency.local.3: (Unit) -> Int
@@ -2107,21 +2109,19 @@ Module
         Local $call.1
   fun select @fn30(this: Local<Unit, Unit>, other: Unit) -> Unit
     bb0 entry
-      Type Unit
-      Local other
       return
+        Type Unit
+        UnitLiteral
   fun select @fn31(this: Leaf<Unit, Unit>, other: Unit) -> Unit
     bb0 entry
-      Type Unit
-      Local other
       return
+        Type Unit
+        UnitLiteral
   fun second @fn32(this: Base<Unit, Unit>) -> Unit
     bb0 entry
-      Type Unit
-      FieldAccess 1
-        Type Base<Unit, Unit>
-        Local this
       return
+        Type Unit
+        UnitLiteral
   fun make @fn33(value: Unit) -> Link<Unit>
     bb0 entry
       val $dependency.local.1: Unit
@@ -2148,24 +2148,22 @@ Module
         Local $new.1
   fun value @fn34(this: Link<Unit>) -> Unit
     bb0 entry
-      Type Unit
-      FieldAccess 0
-        Type Link<Unit>
-        Local this
       return
+        Type Unit
+        UnitLiteral
   fun echoed @fn35(this: Remote<Unit>) -> Unit
     bb0 entry
-      Type Unit
-      FieldAccess 2
-        Type Remote<Unit>
-        Local this
       return
+        Type Unit
+        UnitLiteral
   fun readLink @fn36(value: Unit, link: Link<Unit>) -> Unit
     bb0 entry
       call @fn34 direct
         Type Link<Unit>
         Local link
       return
+        Type Unit
+        UnitLiteral
   fun Readable.read @fn37(this: Readable<Later>) -> Later
     bb0 entry
       trap "call to abstract method `Readable.read`"
@@ -2339,6 +2337,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Local.$c0 @fn57(this: Local<Later, Unit>, left: Later, right: Unit) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Unit
@@ -2372,6 +2372,8 @@ Module
             Type Local<Later, Unit>
             Local this
       return
+        Type Unit
+        UnitLiteral
   fun init.Leaf.$c1 @fn58(this: Leaf<Unit, Later>, first: Unit, second: Later) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Later
@@ -2396,6 +2398,8 @@ Module
         Type Unit
         Local $dependency.constructor.local.3
       return
+        Type Unit
+        UnitLiteral
   fun init.Nested.$c3 @fn59(this: Nested<Later>, wrapper: Wrapper<Later>, parent: Option<Nested<Later>>) -> Unit
     bb0 entry
       field_set 0
@@ -2409,6 +2413,8 @@ Module
         Type Option<Nested<Later>>
         Local parent
       return
+        Type Unit
+        UnitLiteral
   fun init.Remote.$c4 @fn60(this: Remote<Later>, value: Later) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Unit
@@ -2442,6 +2448,8 @@ Module
             Type Remote<Later>
             Local this
       return
+        Type Unit
+        UnitLiteral
   fun init.Local.$c0 @fn61(this: Local<Int, Unit>, left: Int, right: Unit) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Unit
@@ -2475,6 +2483,8 @@ Module
             Type Local<Int, Unit>
             Local this
       return
+        Type Unit
+        UnitLiteral
   fun init.Leaf.$c1 @fn62(this: Leaf<Unit, Int>, first: Unit, second: Int) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Int
@@ -2499,6 +2509,8 @@ Module
         Type Unit
         Local $dependency.constructor.local.3
       return
+        Type Unit
+        UnitLiteral
   fun init.Nested.$c3 @fn63(this: Nested<Int>, wrapper: Wrapper<Int>, parent: Option<Nested<Int>>) -> Unit
     bb0 entry
       field_set 0
@@ -2512,6 +2524,8 @@ Module
         Type Option<Nested<Int>>
         Local parent
       return
+        Type Unit
+        UnitLiteral
   fun init.Remote.$c4 @fn64(this: Remote<Int>, value: Int) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Unit
@@ -2545,6 +2559,8 @@ Module
             Type Remote<Int>
             Local this
       return
+        Type Unit
+        UnitLiteral
   fun init.Local.$c0 @fn65(this: Local<Unit, Unit>, left: Unit, right: Unit) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Unit
@@ -2578,6 +2594,8 @@ Module
             Type Local<Unit, Unit>
             Local this
       return
+        Type Unit
+        UnitLiteral
   fun init.Leaf.$c1 @fn66(this: Leaf<Unit, Unit>, first: Unit, second: Unit) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Unit
@@ -2602,6 +2620,8 @@ Module
         Type Unit
         Local $dependency.constructor.local.3
       return
+        Type Unit
+        UnitLiteral
   fun init.Nested.$c3 @fn67(this: Nested<Unit>, wrapper: Wrapper<Unit>, parent: Option<Nested<Unit>>) -> Unit
     bb0 entry
       field_set 0
@@ -2615,6 +2635,8 @@ Module
         Type Option<Nested<Unit>>
         Local parent
       return
+        Type Unit
+        UnitLiteral
   fun init.Remote.$c4 @fn68(this: Remote<Unit>, value: Unit) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Unit
@@ -2648,6 +2670,8 @@ Module
             Type Remote<Unit>
             Local this
       return
+        Type Unit
+        UnitLiteral
   fun init.Link.$c5 @fn69(this: Link<Later>, value: Later, next: Option<Link<Later>>) -> Unit
     bb0 entry
       field_set 0
@@ -2661,6 +2685,8 @@ Module
         Type Option<Link<Later>>
         Local next
       return
+        Type Unit
+        UnitLiteral
   fun init.Link.$c5 @fn70(this: Link<Int>, value: Int, next: Option<Link<Int>>) -> Unit
     bb0 entry
       field_set 0
@@ -2674,6 +2700,8 @@ Module
         Type Option<Link<Int>>
         Local next
       return
+        Type Unit
+        UnitLiteral
   fun init.Link.$c5 @fn71(this: Link<Unit>, value: Unit, next: Option<Link<Unit>>) -> Unit
     bb0 entry
       field_set 0
@@ -2687,6 +2715,8 @@ Module
         Type Option<Link<Unit>>
         Local next
       return
+        Type Unit
+        UnitLiteral
   fun init.Base.$c6 @fn72(this: Base<Unit, Later>, first: Unit, second: Later) -> Unit
     bb0 entry
       field_set 0
@@ -2700,6 +2730,8 @@ Module
         Type Later
         Local second
       return
+        Type Unit
+        UnitLiteral
   fun init.Base.$c6 @fn73(this: Base<Unit, Int>, first: Unit, second: Int) -> Unit
     bb0 entry
       field_set 0
@@ -2713,6 +2745,8 @@ Module
         Type Int
         Local second
       return
+        Type Unit
+        UnitLiteral
   fun init.Base.$c6 @fn74(this: Base<Unit, Unit>, first: Unit, second: Unit) -> Unit
     bb0 entry
       field_set 0
@@ -2726,6 +2760,8 @@ Module
         Type Unit
         Local second
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Wrapper.$c2 @fn75(head: Link<Later>) -> Wrapper<Later> <no-gc>
     bb0 entry
       return
@@ -2769,6 +2805,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn40 interface Continuation<Later>[0]
         Type Continuation<Later>
@@ -2782,6 +2820,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn41 interface Continuation<Later>[1]
         Type Continuation<Later>
@@ -2793,6 +2833,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

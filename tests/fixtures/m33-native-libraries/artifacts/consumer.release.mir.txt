@@ -127,6 +127,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb5 inline.cont.5
       val $call.4: Boolean
         Type Boolean
@@ -212,6 +214,8 @@ Module
         Local $inline.10.this
         Type Int
         IntegerLiteral Int value=50 bits=0x00000032
+      Type Unit
+      UnitLiteral
       goto bb10
   fun keep @fn2(value: Cell) -> Cell
     bb0 entry
@@ -373,6 +377,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun init.Cell.$c0 @fn5(this: Cell, value: Int) -> Unit
     bb0 entry
       field_set 0
@@ -381,6 +387,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   instance mi0 function=@fn2 <- keep
   instance mi1 function=@fn4 <- println
   str @str0 "illegal state"

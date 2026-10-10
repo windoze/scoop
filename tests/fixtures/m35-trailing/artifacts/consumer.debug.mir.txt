@@ -201,6 +201,8 @@ Module
         Type Int
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun iterator @fn1(this: Array<Int>) -> Iterator<Int>
     bb0 entry
       val $dependency.local.1: List<Int>
@@ -341,6 +343,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun $lambda.1 @fn6($closure: (Payload) -> Payload, it: Payload) -> Payload
     bb0 entry
       return
@@ -534,6 +538,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Payload.$c0 @fn21(value: Int) -> Payload <no-gc>
     bb0 entry
       return
@@ -563,6 +569,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn16 interface Continuation<Payload>[0]
         Type Continuation<Payload>
@@ -576,6 +584,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn17 interface Continuation<Payload>[1]
         Type Continuation<Payload>
@@ -587,6 +597,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

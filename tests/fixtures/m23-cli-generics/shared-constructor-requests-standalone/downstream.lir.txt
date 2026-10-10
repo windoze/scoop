@@ -606,12 +606,10 @@ Module
   fun @scoop$1$cb$49d483faa1728bc27e82353d418feba38b8d1ef31901c511764dd837d520ae21(ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
-    t0 = zst_value exact=1dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc align 1 : {}
     ret
   fun @scoop$1$cb$266b11cee3412b85f09da487e1bfad9f9285737beebaca00122192b80df71092(ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
-    t0 = zst_value exact=1dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc align 1 : {}
     ret
   fun @scoop$1$cb$45431d1ffc4f547a08831128f8c01d8e495e00cf7b78e182df7f03778d7319b2(ptr<managed>) -> ptr<managed>
   block entry

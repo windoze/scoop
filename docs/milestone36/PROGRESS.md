@@ -158,3 +158,15 @@ wire 沿用已有可选 subject、条件与覆盖标签；原始解码数据在�
 旧 HIR 同步完整表达式和先前表示变化；旧 MIR 除完整 Unit 返回外，移除三次无用的 Unit 借用结果读取，异常边不变。两份 release LIR 的差异仅为内联完整返回产生的七条空 Unit aggregate 及临时值重编号。wire 版本与 runtime ABI 不变。
 
 一项复验遇到上轮只读产物残留，清理用例目录后单独复验通过；合并报告为 target/m36-validation/r04-verify-report.json，原始报告和 r04-golden-review.log 同目录保存。本轮清理约 410 MiB 的已完成 fixture cases 和 104 MiB 的过期测试可执行文件，保留共享缓存；最终批量验证使用优化构建的配套 CLI。本机公共 fixture runner 44 项亦已通过。
+
+## 本机最终阶段回归（2026-10-11）
+
+12 项功能完成后，使用最终 release 的三个正式 CLI 分批更新旧阶段快照，避免每项功能都重跑这一范围。共选择 1,237 项：1,236 项通过、1 项按 target 不适用；按每项最终结果去重，包含 1,450 个配置、9,646 个进程和 11,519 次阶段／计划快照检查。第二批暴露的默认参数 when 引用问题已在 `4453ce90b` 修复，并以四项普通比较闭合；保留初始失败和后续来源，不把它计作直接通过。实际结果见 [阶段回归](validation/darwin-snapshots.json)、[初始失败](validation/darwin-snapshots-initial-failure.json) 和 [引用回归](validation/default-reference-regression.json)。
+
+迁移 2,605 份 HIR、2,157 份 MIR 和 229 份 LIR 快照。LIR 逐份审阅：200 份只有无用零大小值物化和临时编号变化；18 份进一步删除 Unit 字段提取；4 份中的六个函数在删除该提取后不再使用 aggregate 参数，入口 poll 的根集合相应为空；5 份删除无用的 MaybeUninit<Unit> 结果 local。另两份协程转储分别删除无用 Unit 保存槽，或删除多余保存／恢复及空跳转。一个私有 lambda frame 从 88 缩为 80 字节，字段与 scan 偏移同步调整；调用、异常及 finally 路径保持。逐份归类见 [LIR 审阅](validation/darwin-lir-review.json)。
+
+随后关闭快照更新，普通比较 231/231 项通过：337 个配置、2,486 个进程、2,311 次阶段／计划快照检查。范围包括全部 26 个 M36 新用例、实际 LIR 变化与必要 Darwin 专项，见 [选择](validation/darwin-selection.json)、[结果](validation/darwin-final.json) 和 [实际命令／清理](validation/darwin-final-execution.json)。共享阶段的剩余范围交由 Linux 完整正式 CLI 再次比较，不在本机重复全部 1,237 项。公共 fixture runner 的 44 项测试通过。
+
+新增 49 个 Rust 文件，最长 396 行；原有超过 500 行的文件没有增加超过 30 行，见 [长度检查](validation/file-lengths.json)。未新增依赖、TODO、todo! 或 unimplemented!。每批完成后清理用例工作目录，保留当前 CLI、共享 sysroot、缓存和报告；上述七批记录合计约 46.3 GB 的已清理逻辑文件大小，目录内可能存在硬链接，该数字不表示等量实际磁盘释放。
+
+Linux 的完整 Rust 初跑已正常退出：43 个测试目标、5,474 项通过，0 failed、0 ignored，公共 runner 44 项通过。该初跑采用 R04 完成时的源码及 Linux 测试构造器修正；默认参数引用修复的相关 29 项已定向通过，其中新增一项真实源码测试，最终覆盖为 5,475 项。最终源码的 fmt／workspace clippy、三个 release CLI 构建均通过，详见 [Linux Rust 记录](validation/rust-linux.json)。GNU 完整正式 CLI 与 musl 受影响范围继续执行，最终结果在验收完成后补入。

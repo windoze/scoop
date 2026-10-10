@@ -110,6 +110,8 @@ Module
         Type String
         Local value
       return
+        Type Unit
+        UnitLiteral
   instance mi0 function=@fn1 <- choose
   str @str0 "owner"
   output library

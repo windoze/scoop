@@ -93,6 +93,8 @@ Module
         Type Int
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun pure @fn1(value: Int) -> Native<Int> <no-gc>
     bb0 entry
       val $argument.0: Int
@@ -184,9 +186,13 @@ Module
         Type Boolean
         Local $parameter.flag
       return
+        Type Unit
+        UnitLiteral
   fun init.Wrapper.$c1 @fn6(this: Wrapper<String>, flag: Boolean) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Native.$c0 @fn7(value: String) -> Native<String> <no-gc>
     bb0 entry
       return

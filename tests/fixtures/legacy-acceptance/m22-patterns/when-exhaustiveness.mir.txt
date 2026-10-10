@@ -449,6 +449,8 @@ Module
       goto bb2
     bb2 pattern.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun explicitFallback @fn7(value: Option<Int>) -> Int
     bb0 entry
       val $when.1: Option<Int>
@@ -845,6 +847,8 @@ Module
         Type Int
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun println @fn9(value: Int) -> Unit
     bb0 entry
       val $dependency.local.1: Int
@@ -869,6 +873,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Flags.$c0 @fn10(first: Boolean, second: Boolean) -> Flags <no-gc>
     bb0 entry
       return

@@ -101,6 +101,8 @@ Module
         Type Int
         Local next
       return
+        Type Unit
+        UnitLiteral
   fun Derived.replace @fn4(this: Derived<Int>, next: Int) -> Int
     bb0 entry
       call previous: Int = @fn2 virtual[1]
@@ -134,6 +136,8 @@ Module
         Type Int
         Local next
       return
+        Type Unit
+        UnitLiteral
   fun init.Derived.$c0 @fn6(this: Derived<Int>, value: Int) -> Unit
     bb0 entry
       val $dependency.argument.0: Int
@@ -150,6 +154,8 @@ Module
         Type Int
         Local $dependency.parameter.stored
       return
+        Type Unit
+        UnitLiteral
   fun init.ProtectedBox.$c0 @fn7(this: ProtectedBox<Int>, stored: Int) -> Unit
     bb0 entry
       field_set 0
@@ -168,6 +174,8 @@ Module
         Type Int
         Local stored
       return
+        Type Unit
+        UnitLiteral
   instance mi0 function=@fn1 <- secret
   instance mi1 function=@fn2 <- state
   instance mi2 function=@fn3 <- state

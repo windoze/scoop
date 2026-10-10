@@ -85,9 +85,13 @@ Module
           Type InterfaceChooser<Int>
           Local this
       return
+        Type Unit
+        UnitLiteral
   fun init.AbstractChooser.$c1 @fn7(this: AbstractChooser<Int>) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   instance mi0 function=@fn1 <- RequiredChooser.choose
   instance mi1 function=@fn2 <- choose
   instance mi2 function=@fn3 <- choose

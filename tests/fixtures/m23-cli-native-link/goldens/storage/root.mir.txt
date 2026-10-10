@@ -187,6 +187,8 @@ Module
         Type Int
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun equals @fn3(this: Ptr<Int>, other: Ptr<Int>) -> Boolean
     bb0 entry
       val $dependency.local.2: Ptr<Int>
@@ -233,6 +235,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   instance mi0 function=@fn0 <- equalTo
   instance mi1 function=@fn3 <- equals
   instance mi2 function=@fn4 <- println

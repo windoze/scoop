@@ -338,6 +338,8 @@ Module
         Local $new.12
       call @scoop_rt_gc_collect direct
       return
+        Type Unit
+        UnitLiteral
   fun identity @fn2(value: Int) -> Int <no-gc>
     bb0 entry
       return
@@ -385,9 +387,13 @@ Module
         Type Boolean
         Local $dependency.constructor.local.4
       return
+        Type Unit
+        UnitLiteral
   fun init.Wrapper.$c6 @fn5(this: Wrapper<String>, flag: Boolean) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Native.$c0 @fn6(value: Int, flag: Boolean) -> Native<Int> <no-gc>
     bb0 entry
       val $dependency.constructor.local.0: Int

@@ -600,6 +600,8 @@ Module
       resume
     bb13 try.end.13
       return
+        Type Unit
+        UnitLiteral
     bb14 try.body.14 unwind bb7
       call $argument.0: Int = @fn8 direct
       val $parameter.first: Int
@@ -678,6 +680,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun $local.0.read @fn12(value: Int) -> Int
     bb0 entry
       return
@@ -818,6 +822,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun empty @fn17(values: Array<Int>) -> Array<Int>
     bb0 entry
       return
@@ -847,6 +853,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun next @fn19(this: ListIterator<Int>) -> Option<Int>
     bb0 entry
       branch bb1 bb2
@@ -969,9 +977,13 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Shape.$c1 @fn25(this: Shape) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.Scale.$c2 @fn26(this: Scale, base: Int) -> Unit
     bb0 entry
       field_set 0
@@ -980,6 +992,8 @@ Module
         Type Int
         Local base
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c0 @fn27(this: ListIterator<Int>, source: List<Int>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -998,6 +1012,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Settings.$c0 @fn28(value: Int) -> Settings <no-gc>
     bb0 entry
       return

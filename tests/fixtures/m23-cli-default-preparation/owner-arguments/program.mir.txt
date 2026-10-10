@@ -365,6 +365,8 @@ Module
         Type String
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun $local.0.copy @fn1($capture.seed: String) -> String
     bb0 entry
       return
@@ -442,9 +444,13 @@ Module
   fun init.OwnerLocalHost.$c0 @fn19(this: OwnerLocalHost) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.OwnerCombinationHost.$c1 @fn20(this: OwnerCombinationHost) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<OwnerLocalHost> @fn21(task: SuspendTask<OwnerLocalHost>, completion: Continuation<OwnerLocalHost>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -467,6 +473,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn11 interface Continuation<OwnerLocalHost>[0]
         Type Continuation<OwnerLocalHost>
@@ -480,6 +488,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn12 interface Continuation<OwnerLocalHost>[1]
         Type Continuation<OwnerLocalHost>
@@ -491,6 +501,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -548,6 +560,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn15 interface Continuation<OwnerCombinationHost>[0]
         Type Continuation<OwnerCombinationHost>
@@ -561,6 +575,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn16 interface Continuation<OwnerCombinationHost>[1]
         Type Continuation<OwnerCombinationHost>
@@ -572,6 +588,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

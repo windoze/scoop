@@ -19,6 +19,8 @@ Module
         Type Int
         IntegerLiteral Int value=0 bits=0x00000000
       return
+        Type Unit
+        UnitLiteral
   fun $get$sourceCalls @fn1() -> Int <no-gc>
     bb0 entry
       return
@@ -30,6 +32,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun $get$iteratorCalls @fn3() -> Int <no-gc>
     bb0 entry
       return
@@ -41,6 +45,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun $get$nextCalls @fn5() -> Int <no-gc>
     bb0 entry
       return
@@ -52,4 +58,6 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   output library

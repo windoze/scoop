@@ -173,6 +173,8 @@ Module
       resume
     bb5 try.end.5
       return
+        Type Unit
+        UnitLiteral
     bb6 try.body.6 unwind bb1
       call $dependency.argument.0: String = <closure:function_type0> closure[function_type0]
         Type (Int) -> String
@@ -232,6 +234,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn6(value: String) -> Unit
     bb0 entry
       val $dependency.local.1: String
@@ -256,6 +260,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun $reference.0 @fn7($closure: (Int) -> String, arg0: Int) -> String
     bb0 entry
       call $call.1: String = @fn3 direct
@@ -272,6 +278,8 @@ Module
         Type String
         Local text
       return
+        Type Unit
+        UnitLiteral
   fun function_bridge.$Closure$reference0.(Any) -> Any @fn9($source: (Int) -> String, arg0: Any) -> Any
     bb0 entry
       call $call.1: String = <closure:function_type0> closure[function_type0]

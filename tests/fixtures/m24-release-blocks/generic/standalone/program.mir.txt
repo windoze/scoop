@@ -45,6 +45,8 @@ Module
         Type Int
         Local arg0
       return
+        Type Unit
+        UnitLiteral
   fun count @fn1() -> Int
     bb0 entry
       call $call.1: Int = extern1 @m24_release_count direct
@@ -242,6 +244,8 @@ Module
         Type Container.Nested<Int>
         Local $new.6
       return
+        Type Unit
+        UnitLiteral
   fun main @fn3() -> Unit
     bb0 entry
       call @fn2 direct
@@ -255,6 +259,8 @@ Module
         Type Int
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun keep @fn4(value: Int) -> Int <no-gc>
     bb0 entry
       return
@@ -272,9 +278,9 @@ Module
         Local value
   fun keep @fn7(value: Unit) -> Unit <no-gc>
     bb0 entry
-      Type Unit
-      Local value
       return
+        Type Unit
+        UnitLiteral
   fun println @fn8(value: Int) -> Unit
     bb0 entry
       val $dependency.local.1: Int
@@ -299,6 +305,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun Continuation.resume @fn9(this: Continuation<Container>, value: Container) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
@@ -314,6 +322,8 @@ Module
   fun init.Container.$c2 @fn13(this: Container) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.Owner.$c0 @fn14(this: Owner<Int>, value: Int, code: Int) -> Unit
     bb0 entry
       field_set 0
@@ -327,6 +337,8 @@ Module
         Type Int
         Local code
       return
+        Type Unit
+        UnitLiteral
   fun init.Owner.$c0 @fn15(this: Owner<Pair<Int>>, value: Pair<Int>, code: Int) -> Unit
     bb0 entry
       field_set 0
@@ -340,6 +352,8 @@ Module
         Type Int
         Local code
       return
+        Type Unit
+        UnitLiteral
   fun init.Owner.$c0 @fn16(this: Owner<Option<Int>>, value: Option<Int>, code: Int) -> Unit
     bb0 entry
       field_set 0
@@ -353,6 +367,8 @@ Module
         Type Int
         Local code
       return
+        Type Unit
+        UnitLiteral
   fun init.Owner.$c0 @fn17(this: Owner<Unit>, value: Unit, code: Int) -> Unit
     bb0 entry
       field_set 0
@@ -366,6 +382,8 @@ Module
         Type Int
         Local code
       return
+        Type Unit
+        UnitLiteral
   fun init.PhantomOwner.$c1 @fn18(this: PhantomOwner<String>, phantom: Phantom<String>, retained: String) -> Unit
     bb0 entry
       field_set 0
@@ -379,6 +397,8 @@ Module
         Type String
         Local retained
       return
+        Type Unit
+        UnitLiteral
   fun init.Container.Nested.$c3 @fn19(this: Container.Nested<Int>, value: Int) -> Unit
     bb0 entry
       field_set 0
@@ -387,6 +407,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Pair.$c0 @fn20(first: Int, second: Int) -> Pair<Int> <no-gc>
     bb0 entry
       return
@@ -425,6 +447,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn9 interface Continuation<Container>[0]
         Type Continuation<Container>
@@ -438,6 +462,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn10 interface Continuation<Container>[1]
         Type Continuation<Container>
@@ -449,6 +475,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -522,6 +550,8 @@ Module
           IntegerLiteral Long value=0 bits=0x0000000000000000
     bb2 while.exit.2
       return
+        Type Unit
+        UnitLiteral
     bb3 while.body.3
       val $old.0: Int
         Type Int
@@ -613,6 +643,8 @@ Module
           IntegerLiteral Long value=0 bits=0x0000000000000000
     bb2 while.exit.2
       return
+        Type Unit
+        UnitLiteral
     bb3 while.body.3
       val $old.0: Int
         Type Int
@@ -704,6 +736,8 @@ Module
           IntegerLiteral Long value=0 bits=0x0000000000000000
     bb2 while.exit.2
       return
+        Type Unit
+        UnitLiteral
     bb3 while.body.3
       val $old.0: Int
         Type Int
@@ -798,6 +832,8 @@ Module
           IntegerLiteral Long value=0 bits=0x0000000000000000
     bb2 while.exit.2
       return
+        Type Unit
+        UnitLiteral
     bb3 while.body.3
       val $old.0: Int
         Type Int
@@ -865,6 +901,8 @@ Module
         Type Int
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   release_hook rh5 Container.Nested <no-gc>
     bb0 entry
       val $argument.0: Int
@@ -877,6 +915,8 @@ Module
         Type Int
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   coroutine_step cs0 CoroutineStep<Container> result=Container
   coroutine_slot cl0 CoroutineSlot<Container> value=Container
   coroutine_start ct0 result=Container function=fn22

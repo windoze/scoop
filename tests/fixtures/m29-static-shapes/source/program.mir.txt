@@ -734,6 +734,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun pointer @fn3(value: Ptr<Int>) -> Ptr<Int>
     bb0 entry
       return
@@ -1169,6 +1171,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun $init$body$0 @fn16() -> Unit
     bb0 entry
       assign $new.1
@@ -1181,6 +1185,8 @@ Module
         Type Parcel.Factory<String>
         Local $new.1
       return
+        Type Unit
+        UnitLiteral
   fun $init$ensure$0 @fn17() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -1205,6 +1211,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -1291,6 +1299,8 @@ Module
         Type Parcel.Factory<Int>
         Local $new.1
       return
+        Type Unit
+        UnitLiteral
   fun $init$ensure$0 @fn19() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -1315,6 +1325,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -1416,6 +1428,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun Parcel.Factory.$set$visits @fn22(this: Parcel.Factory<Int>, value: Int) -> Unit
     bb0 entry
       field_set 0
@@ -1424,6 +1438,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun Slot.getValue @fn23(this: Slot<String>, thisRef: Row<String>) -> String
     bb0 entry
       return
@@ -1509,6 +1525,8 @@ Module
         Type Int
         Local inherited
       return
+        Type Unit
+        UnitLiteral
   fun init.Node.$c4 @fn42(this: Node, next: Option<Node>) -> Unit
     bb0 entry
       field_set 0
@@ -1517,12 +1535,18 @@ Module
         Type Option<Node>
         Local next
       return
+        Type Unit
+        UnitLiteral
   fun init.Empty.$c5 @fn43(this: Empty) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.Secondary.$c6 @fn44(this: Secondary, value: Int) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.Row.$c2 @fn45(this: Row<String>, seed: Int, value: String, count: Int) -> Unit
     bb0 entry
       val $argument.0: Int
@@ -1573,6 +1597,8 @@ Module
         Type Slot<String>
         Local $new.1
       return
+        Type Unit
+        UnitLiteral
   fun init.Row.$c3 @fn46(this: Row<String>, value: String) -> Unit
     bb0 entry
       val $argument.0: Int
@@ -1600,6 +1626,8 @@ Module
         Type Int
         Local $parameter.count
       return
+        Type Unit
+        UnitLiteral
   fun init.Parcel.Factory.$c7 @fn47(this: Parcel.Factory<String>) -> Unit
     bb0 entry
       field_set 0
@@ -1608,6 +1636,8 @@ Module
         Type Int
         IntegerLiteral Int value=0 bits=0x00000000
       return
+        Type Unit
+        UnitLiteral
   fun init.Parcel.Factory.$c7 @fn48(this: Parcel.Factory<Int>) -> Unit
     bb0 entry
       field_set 0
@@ -1616,6 +1646,8 @@ Module
         Type Int
         IntegerLiteral Int value=0 bits=0x00000000
       return
+        Type Unit
+        UnitLiteral
   fun init.Slot.$c1 @fn49(this: Slot<String>, value: String) -> Unit
     bb0 entry
       field_set 0
@@ -1624,6 +1656,8 @@ Module
         Type String
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Functions.$c1 @fn50(pair: (String, Int), apply: (String) -> String) -> Functions<String> <no-gc>
     bb0 entry
       return
@@ -1673,6 +1707,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn37 interface Continuation<Secondary>[0]
         Type Continuation<Secondary>
@@ -1686,6 +1722,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn38 interface Continuation<Secondary>[1]
         Type Continuation<Secondary>
@@ -1697,6 +1735,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -1754,6 +1794,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn25 interface Continuation<Base>[0]
         Type Continuation<Base>
@@ -1767,6 +1809,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn26 interface Continuation<Base>[1]
         Type Continuation<Base>
@@ -1778,6 +1822,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -1835,6 +1881,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn29 interface Continuation<Node>[0]
         Type Continuation<Node>
@@ -1848,6 +1896,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn30 interface Continuation<Node>[1]
         Type Continuation<Node>
@@ -1859,6 +1909,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -1916,6 +1968,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn33 interface Continuation<Empty>[0]
         Type Continuation<Empty>
@@ -1929,6 +1983,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn34 interface Continuation<Empty>[1]
         Type Continuation<Empty>
@@ -1940,6 +1996,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

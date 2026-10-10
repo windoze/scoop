@@ -1,0 +1,449 @@
+{
+  "full_workspace_run": {
+    "host": "Linux-7.0.0-38-generic-x86_64-with-glibc2.43",
+    "revision": "23a854e174bf696b5c7f16b998a447874ae5dcc1",
+    "steps": [
+      {
+        "name": "fmt",
+        "argv": [
+          "cargo",
+          "fmt",
+          "--all",
+          "--",
+          "--check"
+        ],
+        "returncode": 0,
+        "seconds": 5.489105148008093
+      },
+      {
+        "name": "clippy",
+        "argv": [
+          "cargo",
+          "clippy",
+          "--workspace",
+          "--all-targets"
+        ],
+        "returncode": 0,
+        "seconds": 2.764386005990673
+      },
+      {
+        "name": "rust",
+        "argv": [
+          "cargo",
+          "test",
+          "--workspace"
+        ],
+        "returncode": 0,
+        "seconds": 4035.708488914999
+      },
+      {
+        "name": "runner",
+        "argv": [
+          "python3",
+          "-m",
+          "unittest",
+          "discover",
+          "-s",
+          "tests/fixture_runner/tests"
+        ],
+        "returncode": 0,
+        "seconds": 0.3039372419589199
+      },
+      {
+        "name": "release",
+        "argv": [
+          "cargo",
+          "build",
+          "--release",
+          "-p",
+          "scoop",
+          "-p",
+          "scoopc",
+          "-p",
+          "scoop-linker",
+          "--bins"
+        ],
+        "returncode": 0,
+        "seconds": 76.80870945996139
+      }
+    ]
+  },
+  "working_tree_test_fix_in_full_run": "c88b38a7e",
+  "targets": [
+    {
+      "target": "target/debug/deps/scoop-69cfe7850ee95ec4",
+      "kind": "executable",
+      "passed": 99,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "target": "target/debug/deps/scoop-579fecfe8b76a8b8",
+      "kind": "executable",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "target": "target/debug/deps/dependency_boundary-e1d7d13bd4eafa2b",
+      "kind": "executable",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "target": "target/debug/deps/scoop_ast-199ac917a91ae106",
+      "kind": "executable",
+      "passed": 15,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "target": "target/debug/deps/scoop_codegen-732451e5af8f55ae",
+      "kind": "executable",
+      "passed": 378,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "target": "target/debug/deps/scoop_hir-883c0b9e0f37f06d",
+      "kind": "executable",
+      "passed": 890,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "target": "target/debug/deps/scoop_hir_lower-7af460a8115572a7",
+      "kind": "executable",
+      "passed": 1397,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "target": "target/debug/deps/scoop_identity-c9d9c5c595d60516",
+      "kind": "executable",
+      "passed": 341,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "target": "target/debug/deps/scoop_linker-b836f9edff3876b3",
+      "kind": "executable",
+      "passed": 22,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "target": "target/debug/deps/scoop_link-2960dae342cd7b92",
+      "kind": "executable",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "target": "target/debug/deps/scoop_lir-7e31d24be32565b6",
+      "kind": "executable",
+      "passed": 476,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "target": "target/debug/deps/scoop_lir_lower-9cb5ff709f484559",
+      "kind": "executable",
+      "passed": 153,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "target": "target/debug/deps/scoop_manifest-9ab59c8303135ce9",
+      "kind": "executable",
+      "passed": 44,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "target": "target/debug/deps/scoop_mir-a080bff57028b52c",
+      "kind": "executable",
+      "passed": 344,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "target": "target/debug/deps/scoop_mir_lower-dd861952e48c4738",
+      "kind": "executable",
+      "passed": 118,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "target": "target/debug/deps/scoop_parser-f58a1623bba70e31",
+      "kind": "executable",
+      "passed": 474,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "target": "target/debug/deps/scoop_process-44e521181d5d5a47",
+      "kind": "executable",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "target": "target/debug/deps/scoop_protocol-047e5a700d89ecb0",
+      "kind": "executable",
+      "passed": 24,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "target": "target/debug/deps/scoop_slib-079a55829232b61e",
+      "kind": "executable",
+      "passed": 561,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "target": "target/debug/deps/scoop_toolchain-caee5089c3300393",
+      "kind": "executable",
+      "passed": 23,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "target": "target/debug/deps/scoop_wire-159f3cabff1113c8",
+      "kind": "executable",
+      "passed": 19,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "target": "target/debug/deps/scoopc-6949ccecc5a4319b",
+      "kind": "executable",
+      "passed": 82,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "target": "target/debug/deps/scoopc-dbb838121b42a74b",
+      "kind": "executable",
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "target": "target/debug/deps/machine_capability-81cc319230ec4fa0",
+      "kind": "executable",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "target": "scoop",
+      "kind": "doctest",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "target": "scoop_ast",
+      "kind": "doctest",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "target": "scoop_codegen",
+      "kind": "doctest",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "target": "scoop_hir",
+      "kind": "doctest",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "target": "scoop_hir_lower",
+      "kind": "doctest",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "target": "scoop_identity",
+      "kind": "doctest",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "target": "scoop_linker",
+      "kind": "doctest",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "target": "scoop_lir",
+      "kind": "doctest",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "target": "scoop_lir_lower",
+      "kind": "doctest",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "target": "scoop_manifest",
+      "kind": "doctest",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "target": "scoop_mir",
+      "kind": "doctest",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "target": "scoop_mir_lower",
+      "kind": "doctest",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "target": "scoop_parser",
+      "kind": "doctest",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "target": "scoop_process",
+      "kind": "doctest",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "target": "scoop_protocol",
+      "kind": "doctest",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "target": "scoop_slib",
+      "kind": "doctest",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "target": "scoop_toolchain",
+      "kind": "doctest",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "target": "scoop_wire",
+      "kind": "doctest",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "target": "scoopc",
+      "kind": "doctest",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 0
+    }
+  ],
+  "full_test_count": 5474,
+  "final_fix_validation": {
+    "revision": "4453ce90b1699a7c3cc751c50c7066d5031167dc",
+    "steps": [
+      {
+        "name": "fmt",
+        "argv": [
+          "cargo",
+          "fmt",
+          "--all",
+          "--",
+          "--check"
+        ],
+        "returncode": 0,
+        "seconds": 5.4450343630160205
+      },
+      {
+        "name": "clippy",
+        "argv": [
+          "cargo",
+          "clippy",
+          "--workspace",
+          "--all-targets"
+        ],
+        "returncode": 0,
+        "seconds": 9.679730895964894
+      },
+      {
+        "name": "rust",
+        "argv": [
+          "cargo",
+          "test",
+          "-p",
+          "scoop-hir-lower",
+          "--lib",
+          "--",
+          "default_template",
+          "default_captures",
+          "source_default",
+          "default_preparation",
+          "m35::",
+          "m23_ordinary_dependency_defaults"
+        ],
+        "returncode": 0,
+        "seconds": 24.00793430401245
+      },
+      {
+        "name": "release",
+        "argv": [
+          "cargo",
+          "build",
+          "--release",
+          "-p",
+          "scoop",
+          "-p",
+          "scoopc",
+          "-p",
+          "scoop-linker",
+          "--bins"
+        ],
+        "returncode": 0,
+        "seconds": 43.350495952006895
+      }
+    ]
+  },
+  "focused_test_count": 29,
+  "new_test_names": [
+    "tests::m23_type_semantics_production::source_default_when::exhaustive_default_when_retains_the_subject_reference_at_the_when_origin"
+  ],
+  "final_unique_test_coverage": 5475,
+  "fixture_runner_tests": 44,
+  "execution_notes": [
+    "A graceful SIGTERM was requested while the final driver test was still computing. The harness subsequently printed ok for all 82 driver tests and all doctests, and cargo returned 0. No forced termination or release rerun was performed. The complete result supersedes the earlier partial checkpoint."
+  ]
+}

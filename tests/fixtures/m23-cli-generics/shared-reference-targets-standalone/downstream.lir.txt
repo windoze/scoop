@@ -2613,7 +2613,6 @@ Module
   fun @scoop$1$cb$9e77f3b9b79dd6c9b0b0393039501be33231ac33fa33cc4afe0bc6ac8668adac(ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
-    t0 = zst_value exact=1dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc align 1 : {}
     ret
   fun @scoop$1$cb$77f08438eda63ff3356bd39bbcf0a4affde9fd915603da32c7369e0f7a3e639c(ptr<managed>, i32, i32) -> i32
     local %0 $call.1: i32

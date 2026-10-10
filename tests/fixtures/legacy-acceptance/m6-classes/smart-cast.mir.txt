@@ -162,6 +162,8 @@ Module
         Type Boolean
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun println @fn2(value: Int) -> Unit
     bb0 entry
       val $dependency.local.1: Int
@@ -186,6 +188,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn3(value: String) -> Unit
     bb0 entry
       val $dependency.local.1: String
@@ -210,6 +214,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun $derived.equals.1 @fn4(this: Option<S>, other: Option<S>) -> Boolean
     bb0 entry
       val $when.1: Option<S>
@@ -321,6 +327,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun Continuation.resume @fn6(this: Continuation<S>, value: S) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
@@ -362,6 +370,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn6 interface Continuation<S>[0]
         Type Continuation<S>
@@ -375,6 +385,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn7 interface Continuation<S>[1]
         Type Continuation<S>
@@ -386,6 +398,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

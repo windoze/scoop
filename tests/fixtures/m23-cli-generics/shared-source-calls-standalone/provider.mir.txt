@@ -11,6 +11,8 @@ Module
         Type Int
         IntegerLiteral Int value=0 bits=0x00000000
       return
+        Type Unit
+        UnitLiteral
   fun state @fn1() -> Int
     bb0 entry
       call $call.1: Int = @fn4 direct
@@ -91,4 +93,6 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   output library

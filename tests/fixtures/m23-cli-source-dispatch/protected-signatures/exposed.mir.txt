@@ -77,6 +77,8 @@ Module
   fun init.ShapeSource.$c0 @fn7(this: ShapeSource) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<ShapeSource> @fn8(task: SuspendTask<ShapeSource>, completion: Continuation<ShapeSource>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -99,6 +101,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn3 interface Continuation<ShapeSource>[0]
         Type Continuation<ShapeSource>
@@ -112,6 +116,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn4 interface Continuation<ShapeSource>[1]
         Type Continuation<ShapeSource>
@@ -123,6 +129,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

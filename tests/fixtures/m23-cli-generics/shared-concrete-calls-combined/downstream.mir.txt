@@ -751,9 +751,9 @@ Module
         Local $call.1
   fun identity @fn15(value: Unit) -> Unit
     bb0 entry
-      Type Unit
-      Local value
       return
+        Type Unit
+        UnitLiteral
   fun nested @fn16(value: Unit) -> Unit
     bb0 entry
       val $dependency.local.1: Unit
@@ -766,16 +766,18 @@ Module
         Type Unit
         Local $dependency.local.2
       return
+        Type Unit
+        UnitLiteral
   fun defaulted @fn17(value: Unit, other: Unit) -> Unit
     bb0 entry
-      Type Unit
-      Local other
       return
+        Type Unit
+        UnitLiteral
   fun localIdentity @fn18(value: Unit) -> Unit
     bb0 entry
-      Type Unit
-      Local value
       return
+        Type Unit
+        UnitLiteral
   fun $lambda @fn19($argument.0: () -> Unit) -> Unit
     bb0 entry
       val $dependency.local.0: Unit
@@ -790,6 +792,8 @@ Module
         Type Unit
         Local $dependency.local.1
       return
+        Type Unit
+        UnitLiteral
   fun action @fn20(value: Unit, read: (Unit) -> Int) -> Int
     bb0 entry
       val $dependency.local.2: () -> Int
@@ -1055,6 +1059,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<Later> @fn42(task: SuspendTask<Later>, completion: Continuation<Later>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -1077,6 +1083,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn37 interface Continuation<Later>[0]
         Type Continuation<Later>
@@ -1090,6 +1098,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn38 interface Continuation<Later>[1]
         Type Continuation<Later>
@@ -1101,6 +1111,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

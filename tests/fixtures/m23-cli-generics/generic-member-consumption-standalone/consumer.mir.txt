@@ -56,6 +56,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   instance mi0 function=@fn1 <- read
   instance mi1 function=@fn2 <- value
   output library

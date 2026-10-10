@@ -317,6 +317,8 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun main @fn25() -> Unit
     bb0 entry
       val $argument.0: Int
@@ -804,6 +806,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb13 inline.cont.13
       val cell: Cell
         Type Cell
@@ -1346,6 +1350,8 @@ Module
         Local $inline.13.this
         Type Int
         IntegerLiteral Int value=73 bits=0x00000049
+      Type Unit
+      UnitLiteral
       goto bb13
   fun println @fn26(value: String) -> Unit
     bb0 entry
@@ -1371,6 +1377,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun init.Cell.$c0 @fn27(this: Cell, value: Int) -> Unit
     bb0 entry
       field_set 0
@@ -1379,6 +1387,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   instance mi0 function=@fn26 <- println
   str @str0 "illegal state"
   str @str1 "direct-c-scalars-ok"

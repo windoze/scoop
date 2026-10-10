@@ -529,6 +529,8 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun main @fn12() -> Unit
     bb0 entry
       val $argument.0: Int
@@ -576,6 +578,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb2 inline.1.entry
       assign $inline.1.result
         Type Boolean
@@ -1310,6 +1314,8 @@ Module
         Local $inline.39.this
         Type Trace
         Local $inline.39.trace
+      Type Unit
+      UnitLiteral
       goto bb39
     bb41 inline.cont.41
       val $argument.0: Traced
@@ -1365,6 +1371,8 @@ Module
         Local $inline.41.this
         Type Trace
         Local $inline.41.trace
+      Type Unit
+      UnitLiteral
       goto bb41
     bb43 inline.cont.43
       val $call.13: Pair
@@ -1489,6 +1497,8 @@ Module
         Local $inline.45.this
         Type Trace
         Local $inline.45.trace
+      Type Unit
+      UnitLiteral
       goto bb45
     bb47 inline.cont.47
       val $argument.0: Traced
@@ -1544,6 +1554,8 @@ Module
         Local $inline.47.this
         Type Trace
         Local $inline.47.trace
+      Type Unit
+      UnitLiteral
       goto bb47
     bb49 inline.cont.49
       val left: Pair
@@ -1628,6 +1640,8 @@ Module
         Local $inline.51.this
         Type Trace
         Local $inline.51.trace
+      Type Unit
+      UnitLiteral
       goto bb51
     bb53 inline.cont.53
       val $argument.0: Traced
@@ -1683,6 +1697,8 @@ Module
         Local $inline.53.this
         Type Trace
         Local $inline.53.trace
+      Type Unit
+      UnitLiteral
       goto bb53
     bb55 inline.cont.55
       val trace: Trace
@@ -1728,6 +1744,8 @@ Module
         Local $inline.55.this
         Type Int
         IntegerLiteral Int value=0 bits=0x00000000
+      Type Unit
+      UnitLiteral
       goto bb55
     bb57 inline.cont.57
       val $call.7: Boolean
@@ -2049,6 +2067,8 @@ Module
         Local $inline.75.this
         Type Int
         IntegerLiteral Int value=10 bits=0x0000000a
+      Type Unit
+      UnitLiteral
       goto bb75
     bb78 inline.77.entry
       field_set 0
@@ -2056,6 +2076,8 @@ Module
         Local $inline.77.this
         Type Int
         IntegerLiteral Int value=1 bits=0x00000001
+      Type Unit
+      UnitLiteral
       goto bb77
     bb79 inline.cont.79
       field_set 1
@@ -2063,6 +2085,8 @@ Module
         Local $inline.71.this
         Type Int
         IntegerLiteral Int value=20 bits=0x00000014
+      Type Unit
+      UnitLiteral
       goto bb71
     bb80 inline.79.entry
       field_set 0
@@ -2070,6 +2094,8 @@ Module
         Local $inline.79.this
         Type Int
         IntegerLiteral Int value=1 bits=0x00000001
+      Type Unit
+      UnitLiteral
       goto bb79
     bb81 inline.cont.81
       val $inline.67.$call.1: Boolean
@@ -2107,6 +2133,8 @@ Module
         Local $inline.65.this
         Type Int
         IntegerLiteral Int value=10 bits=0x0000000a
+      Type Unit
+      UnitLiteral
       goto bb65
     bb84 inline.83.entry
       field_set 0
@@ -2114,6 +2142,8 @@ Module
         Local $inline.83.this
         Type Int
         IntegerLiteral Int value=1 bits=0x00000001
+      Type Unit
+      UnitLiteral
       goto bb83
     bb85 inline.cont.85
       field_set 1
@@ -2121,6 +2151,8 @@ Module
         Local $inline.61.this
         Type Int
         IntegerLiteral Int value=10 bits=0x0000000a
+      Type Unit
+      UnitLiteral
       goto bb61
     bb86 inline.85.entry
       field_set 0
@@ -2128,6 +2160,8 @@ Module
         Local $inline.85.this
         Type Int
         IntegerLiteral Int value=2 bits=0x00000002
+      Type Unit
+      UnitLiteral
       goto bb85
     bb87 inline.cont.87
       val $inline.57.$call.1: Boolean
@@ -2273,6 +2307,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun init.Base.$c1 @fn14(this: Base, key: Int) -> Unit
     bb0 entry
       field_set 0
@@ -2281,6 +2317,8 @@ Module
         Type Int
         Local key
       return
+        Type Unit
+        UnitLiteral
   fun init.Child.$c2 @fn15(this: Child, detail: Int, key: Int) -> Unit
     bb0 entry
       val $argument.0: Int
@@ -2305,12 +2343,16 @@ Module
         Type Int
         Local detail
       return
+        Type Unit
+        UnitLiteral
     bb2 inline.1.entry
       field_set 0
         Type Base
         Local $inline.1.this
         Type Int
         Local $inline.1.key
+      Type Unit
+      UnitLiteral
       goto bb1
   fun init.Trace.$c0 @fn16(this: Trace, order: Int) -> Unit
     bb0 entry
@@ -2320,6 +2362,8 @@ Module
         Type Int
         Local order
       return
+        Type Unit
+        UnitLiteral
   fun init.Traced.$c3 @fn17(this: Traced, value: Int, digit: Int, trace: Trace) -> Unit
     bb0 entry
       field_set 0
@@ -2338,6 +2382,8 @@ Module
         Type Trace
         Local trace
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Inherited.$c0 @fn18(child: Child) -> Inherited <no-gc>
     bb0 entry
       return

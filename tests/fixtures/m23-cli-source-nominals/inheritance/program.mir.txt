@@ -66,6 +66,8 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun main @fn1() -> Unit
     bb0 entry
       call $call.1: Derived = external6 direct
@@ -380,6 +382,8 @@ Module
         Type Boolean
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun $derived.equals.0 @fn2(this: GenericChoice<Int>, other: GenericChoice<Int>) -> Boolean
     bb0 entry
       val $when.1: GenericChoice<Int>

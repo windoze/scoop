@@ -62,6 +62,8 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun count @fn1(value: Batches<Int>) -> Long
     bb0 entry
       val $when.1: Batches<Int>
@@ -596,6 +598,8 @@ Module
         Type Boolean
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun iterator @fn3(this: Array<Int>) -> Iterator<Int>
     bb0 entry
       val $dependency.local.1: List<Int>
@@ -1345,9 +1349,13 @@ Module
   fun init.Variadic.$c0 @fn25(this: Variadic<Int>, values: Array<Int>) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.Variadic.$c0 @fn26(this: Variadic<String>, values: Array<String>) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c1 @fn27(this: ListIterator<Int>, source: List<Int>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -1366,6 +1374,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c1 @fn28(this: ListIterator<String>, source: List<String>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -1384,6 +1394,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   instance mi0 function=@fn3 <- iterator
   instance mi1 function=@fn4 <- get
   instance mi2 function=@fn5 <- size

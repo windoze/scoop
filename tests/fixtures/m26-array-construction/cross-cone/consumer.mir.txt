@@ -262,6 +262,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb10 if.merge.10
       val calls: MutableArray<Long>
         Type MutableArray<Long>
@@ -396,6 +398,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb27 if.merge.27
       val $default.local.0: Long
         Type Long
@@ -464,6 +468,8 @@ Module
         Type Long
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb32 while.body.32
       call $array_value.8: Long = <closure:function_type3> closure[function_type3]
         Type (Long) -> Long
@@ -1143,6 +1149,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun $lambda.2 @fn18($closure: (Long) -> Long, i: Long) -> Long
     bb0 entry
       val $dependency.receiver: MutableArray<Long>
@@ -1367,6 +1375,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun next @fn22(this: ListIterator<Item>) -> Option<Item>
     bb0 entry
       branch bb1 bb2
@@ -1690,6 +1700,8 @@ Module
         Type Long
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c0 @fn36(this: ListIterator<Item>, source: List<Item>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -1708,6 +1720,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c0 @fn37(this: ListIterator<String>, source: List<String>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -1726,6 +1740,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c0 @fn38(this: ListIterator<Long>, source: List<Long>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -1744,6 +1760,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<Item> @fn39(task: SuspendTask<Item>, completion: Continuation<Item>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -1766,6 +1784,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn31 interface Continuation<Item>[0]
         Type Continuation<Item>
@@ -1779,6 +1799,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn32 interface Continuation<Item>[1]
         Type Continuation<Item>
@@ -1790,6 +1812,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

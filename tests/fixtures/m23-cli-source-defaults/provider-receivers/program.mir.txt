@@ -124,6 +124,8 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun main @fn4() -> Unit
     bb0 entry
       assign $new.1
@@ -328,6 +330,8 @@ Module
         Type Boolean
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun ProviderGeneric.pick @fn5(this: ProviderGeneric<(Int, Int)>, seed: (Int, Int), value: (Int, Int)) -> (Int, Int)
     bb0 entry
       return
@@ -589,6 +593,8 @@ Module
   fun init.ProviderBase.$c0 @fn31(this: ProviderBase) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.ProviderChild.$c1 @fn32(this: ProviderChild) -> Unit
     bb0 entry
       call @fn31 direct
@@ -597,9 +603,13 @@ Module
           Type ProviderChild
           Local this
       return
+        Type Unit
+        UnitLiteral
   fun init.ProviderGeneric.Static.$c4 @fn33(this: ProviderGeneric.Static) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.ProviderApplied.$c3 @fn34(this: ProviderApplied<Int>) -> Unit
     bb0 entry
       call @fn38 direct
@@ -608,6 +618,8 @@ Module
           Type ProviderApplied<Int>
           Local this
       return
+        Type Unit
+        UnitLiteral
   fun init.ProviderApplied.$c3 @fn35(this: ProviderApplied<String>) -> Unit
     bb0 entry
       call @fn39 direct
@@ -616,18 +628,28 @@ Module
           Type ProviderApplied<String>
           Local this
       return
+        Type Unit
+        UnitLiteral
   fun init.ProviderGeneric.$c2 @fn36(this: ProviderGeneric<String>) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.ProviderGeneric.$c2 @fn37(this: ProviderGeneric<Int>) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.ProviderGeneric.$c2 @fn38(this: ProviderGeneric<(Int, Int)>) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.ProviderGeneric.$c2 @fn39(this: ProviderGeneric<(String, String)>) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<ProviderGeneric.Static> @fn40(task: SuspendTask<ProviderGeneric.Static>, completion: Continuation<ProviderGeneric.Static>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -650,6 +672,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn27 interface Continuation<ProviderGeneric.Static>[0]
         Type Continuation<ProviderGeneric.Static>
@@ -663,6 +687,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn28 interface Continuation<ProviderGeneric.Static>[1]
         Type Continuation<ProviderGeneric.Static>
@@ -674,6 +700,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -731,6 +759,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn23 interface Continuation<ProviderChild>[0]
         Type Continuation<ProviderChild>
@@ -744,6 +774,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn24 interface Continuation<ProviderChild>[1]
         Type Continuation<ProviderChild>
@@ -755,6 +787,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -812,6 +846,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn19 interface Continuation<ProviderBase>[0]
         Type Continuation<ProviderBase>
@@ -825,6 +861,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn20 interface Continuation<ProviderBase>[1]
         Type Continuation<ProviderBase>
@@ -836,6 +874,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

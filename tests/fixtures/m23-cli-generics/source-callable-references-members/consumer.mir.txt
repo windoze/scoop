@@ -41,6 +41,8 @@ Module
         Type Int
         IntegerLiteral Int value=0 bits=0x00000000
       return
+        Type Unit
+        UnitLiteral
   fun evaluationCount @fn1() -> Int
     bb0 entry
       call $call.1: Int = @fn4 direct
@@ -108,6 +110,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun exercise @fn6(value: Int) -> Int
     bb0 entry
       call @fn0 direct
@@ -490,6 +494,8 @@ Module
         Type Int
         Local $dependency.constructor.local.1
       return
+        Type Unit
+        UnitLiteral
   fun init.Box.$c2 @fn19(this: Box<Int>, value: Int) -> Unit
     bb0 entry
       field_set 0
@@ -498,6 +504,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Cell.$c1 @fn20(value: Int) -> Cell<Int> <no-gc>
     bb0 entry
       return

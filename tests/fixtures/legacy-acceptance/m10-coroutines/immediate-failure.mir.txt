@@ -53,6 +53,8 @@ Module
         Type Int
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun RecordingCompletion.resumeWithException @fn2(this: RecordingCompletion, exception: Throwable) -> Unit
     bb0 entry
       val $dependency.argument.0: String
@@ -65,6 +67,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun launch @fn3(task: SuspendTask<Int>, completion: Continuation<Int>) -> Unit
     bb0 entry
       val $dependency.argument.0: SuspendTask<Int>
@@ -85,6 +89,8 @@ Module
         Type Continuation<Int>
         Local $dependency.parameter.completion
       return
+        Type Unit
+        UnitLiteral
   fun main @fn4() -> Unit
     bb0 entry
       assign $new.1
@@ -130,6 +136,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun println @fn5(value: Int) -> Unit
     bb0 entry
       val $dependency.local.1: Int
@@ -154,6 +162,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn6(value: String) -> Unit
     bb0 entry
       val $dependency.local.1: String
@@ -178,6 +188,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun Continuation.resume @fn7(this: Continuation<Int>, value: Int) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
@@ -193,9 +205,13 @@ Module
   fun init.FailingTask.$c0 @fn11(this: FailingTask) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.RecordingCompletion.$c1 @fn12(this: RecordingCompletion) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   coroutine_step cs0 CoroutineStep<Int> result=Int
   coroutine_fn cf0 @fn0 source_return=Int step=cs0 immediate
   coroutine_fn cf1 @fn9 source_return=Int step=cs0 immediate

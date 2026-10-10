@@ -147,6 +147,7 @@ Module
     br @inline.10.entry
   block inline.12.entry
     heap_store local34 +16 integer<Int>(0x00000032)
+    t23 = aggregate () : {}
     br @inline.cont.12
   fun @scoop$1$cb$ef65361935d2da675442bc92f73ae436629f315d771d1336cfdc5c329d0b7418(ptr<managed>) -> ptr<managed>
     local %0 $dependency.local.1: ptr<managed>

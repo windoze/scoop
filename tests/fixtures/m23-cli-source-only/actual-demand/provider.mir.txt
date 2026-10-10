@@ -135,6 +135,8 @@ Module
   fun init.DeferredUnused.$c0 @fn12(this: DeferredUnused) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.DeferredWrapper.$c1 @fn13(this: DeferredWrapper, box: DeferredBox<Int>) -> Unit
     bb0 entry
       field_set 0
@@ -143,6 +145,8 @@ Module
         Type DeferredBox<Int>
         Local box
       return
+        Type Unit
+        UnitLiteral
   fun init.DeferredAccessorBox.$c2 @fn14(this: DeferredAccessorBox<Int>, value: Int) -> Unit
     bb0 entry
       field_set 0
@@ -151,6 +155,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun ctor.DeferredBox.$c0 @fn15(value: Int) -> DeferredBox<Int> <no-gc>
     bb0 entry
       return
@@ -180,6 +186,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn8 interface Continuation<DeferredWrapper>[0]
         Type Continuation<DeferredWrapper>
@@ -193,6 +201,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn9 interface Continuation<DeferredWrapper>[1]
         Type Continuation<DeferredWrapper>
@@ -204,6 +214,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -261,6 +273,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn4 interface Continuation<DeferredUnused>[0]
         Type Continuation<DeferredUnused>
@@ -274,6 +288,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn5 interface Continuation<DeferredUnused>[1]
         Type Continuation<DeferredUnused>
@@ -285,6 +301,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

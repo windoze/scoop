@@ -171,6 +171,8 @@ Module
   fun init.Cases.$c1 @fn18(this: Cases) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.Derived.$c2 @fn19(this: Derived) -> Unit
     bb0 entry
       call @fn22 direct
@@ -179,12 +181,18 @@ Module
           Type Derived
           Local this
       return
+        Type Unit
+        UnitLiteral
   fun init.Cases.Hidden.$c3 @fn20(this: Cases.Hidden<Int>) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.Cases.ConeScoped.$c4 @fn21(this: Cases.ConeScoped<String>) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.SourceBase.$c0 @fn22(this: SourceBase<Int>) -> Unit
     bb0 entry
       field_set 0
@@ -193,6 +201,8 @@ Module
         Type Int
         IntegerLiteral Int value=3 bits=0x00000003
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<Cases> @fn23(task: SuspendTask<Cases>, completion: Continuation<Cases>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -215,6 +225,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn10 interface Continuation<Cases>[0]
         Type Continuation<Cases>
@@ -228,6 +240,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn11 interface Continuation<Cases>[1]
         Type Continuation<Cases>
@@ -239,6 +253,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -296,6 +312,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn14 interface Continuation<Derived>[0]
         Type Continuation<Derived>
@@ -309,6 +327,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn15 interface Continuation<Derived>[1]
         Type Continuation<Derived>
@@ -320,6 +340,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

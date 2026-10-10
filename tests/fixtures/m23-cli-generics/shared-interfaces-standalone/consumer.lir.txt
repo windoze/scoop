@@ -263,7 +263,6 @@ Module
   fun @scoop$1$cb$d56075877fe4508e039cf7f219f8a59079f108399beb9fb76fbdaf6493c5746a(ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
-    t0 = zst_value exact=1dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc align 1 : {}
     ret
   fun @scoop$1$cb$7fe8f66910bf25cc5c98ace4a92472a1c8693cef976581833b3e146dfe1ed3a4(ptr<managed>, elided-zst<{} size=0 align=1>) -> void
   block entry
@@ -306,12 +305,10 @@ Module
   fun @scoop$1$cb$353cce802b0ca06ed371eb2b0f57d864d4b35f4d9fa6def13479f0d75e1aa3d8(ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
-    t0 = zst_value exact=1dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc align 1 : {}
     ret
   fun @scoop$1$cb$3394466070d6d5a9d2c192a39b115ce61b04dfa3e3740c3c283ee6468aaa5913(ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
-    t0 = zst_value exact=1dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc align 1 : {}
     ret
   fun @scoop$1$cb$e5372cec094128150108e23b77e876445a24cfd5a557f73c40d0f8e77a391fcf(ptr<managed>, elided-zst<{} size=0 align=1>) -> void
   block entry
@@ -359,7 +356,6 @@ Module
   fun @scoop$1$cb$6e42c3d92c69f86dbfb5058b780e1b0aba21e8c6f9be75e6e70af6bf92eba54b(ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
-    t0 = zst_value exact=1dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc align 1 : {}
     ret
   fun @scoop$1$cb$7ebbcc9e5ce227616c6468e682f1ef4540c127d99a606311e8fb13c3d9192476(ptr<managed>, elided-zst<{} size=0 align=1>) -> void
   block entry

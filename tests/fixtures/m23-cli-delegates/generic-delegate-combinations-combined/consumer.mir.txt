@@ -217,6 +217,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun $extension.zero @fn4(this: Receiver<Int>) -> Int
     bb0 entry
       call @fn15 direct
@@ -294,6 +296,8 @@ Module
         Type ReferenceSlot<Int>
         Local $call.1
       return
+        Type Unit
+        UnitLiteral
   fun extension:Receiver<T0>:references$ensure @fn9() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -318,6 +322,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -438,6 +444,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun extension:Receiver<T0>:ordered$initialize @fn11() -> Unit
     bb0 entry
       call $call.1: Starter<Int> = @fn21 direct
@@ -448,6 +456,8 @@ Module
         Type OrderedSlot<Int>
         Local $call.2
       return
+        Type Unit
+        UnitLiteral
   fun extension:Receiver<T0>:ordered$ensure @fn12() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -472,6 +482,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -558,6 +570,8 @@ Module
         Type ZeroSlot<Int>
         Local $call.1
       return
+        Type Unit
+        UnitLiteral
   fun extension:Receiver<T0>:zero$ensure @fn15() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -582,6 +596,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -724,6 +740,8 @@ Module
         Type FlatSlot<Int>
         Local $call.1
       return
+        Type Unit
+        UnitLiteral
   fun extension:Receiver<T0>:flat$ensure @fn18() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -748,6 +766,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -1064,9 +1084,13 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Starter.$c4 @fn24(this: Starter<Int>) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.OrderedSlot.$c5 @fn25(this: OrderedSlot<Int>, payload: Payload) -> Unit
     bb0 entry
       field_set 0
@@ -1075,6 +1099,8 @@ Module
         Type Payload
         Local payload
       return
+        Type Unit
+        UnitLiteral
   fun ctor.ZeroSlot.$c1 @fn26() -> ZeroSlot<Int> <no-gc>
     bb0 entry
       return

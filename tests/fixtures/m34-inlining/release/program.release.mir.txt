@@ -58,6 +58,8 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun empty @fn1() -> Empty
     bb0 entry
       assign $new.1
@@ -357,6 +359,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun println @fn5(value: String) -> Unit
     bb0 entry
       val $dependency.local.1: String
@@ -381,9 +385,13 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun init.Empty.$c0 @fn6(this: Empty) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.Owner.$c1 @fn7(this: Owner, code: Int) -> Unit
     bb0 entry
       field_set 0
@@ -424,6 +432,8 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun init.Generic.$c2 @fn8(this: Generic<Int>, value: Int) -> Unit
     bb0 entry
       field_set 0
@@ -432,21 +442,29 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   release_hook rh0 Empty <no-gc>
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   release_hook rh1 Owner <no-gc>
     bb0 entry
       val copied: Int
         Type Int
         ReleaseFieldLoad Owner.field0
       return
+        Type Unit
+        UnitLiteral
   release_hook rh2 Generic <no-gc>
     bb0 entry
       val copied: Int
         Type Int
         ReleaseFieldLoad Generic.field0
       return
+        Type Unit
+        UnitLiteral
   instance mi0 function=@fn5 <- println
   str @str0 "illegal state"
   str @str1 "inlined release"

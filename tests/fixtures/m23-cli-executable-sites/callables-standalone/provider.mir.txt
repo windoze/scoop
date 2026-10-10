@@ -12,6 +12,8 @@ Module
   fun combineUnits @fn1(first: Unit, second: Unit) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun choose @fn2(flag: Boolean) -> Boolean
     bb0 entry
       return

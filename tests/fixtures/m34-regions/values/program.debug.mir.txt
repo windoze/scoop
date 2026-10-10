@@ -163,6 +163,8 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun fill @fn6(roots: MutableArray<Option<Node>>) -> Unit
     bb0 entry
       var index: Long
@@ -192,6 +194,8 @@ Module
           IntegerLiteral Long value=0 bits=0x0000000000000000
     bb2 while.exit.2
       return
+        Type Unit
+        UnitLiteral
     bb3 while.body.3
       val $dependency.receiver: MutableArray<Option<Node>>
         Type MutableArray<Option<Node>>
@@ -845,6 +849,8 @@ Module
         Type Value
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun minorCollection @fn8(moving: Boolean) -> Unit
     bb0 entry
       branch bb1 bb2
@@ -853,6 +859,8 @@ Module
     bb1 if.then.1
       call @scoop_rt_gc_collect direct
       return
+        Type Unit
+        UnitLiteral
     bb2 if.merge.2
       call before: ULong = extern3 @m34_region_minor_count direct
       goto bb3
@@ -873,6 +881,8 @@ Module
           Local $dependency.parameter.other
     bb4 while.exit.4
       return
+        Type Unit
+        UnitLiteral
     bb5 while.body.5
       var index: Long
         Type Long
@@ -2225,6 +2235,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun iterator @fn10(this: MutableArray<Option<Node>>) -> Iterator<Option<Node>>
     bb0 entry
       val $dependency.local.1: List<Option<Node>>
@@ -2657,6 +2669,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun next @fn23(this: ListIterator<Option<Node>>) -> Option<Option<Node>>
     bb0 entry
       branch bb1 bb2
@@ -2899,6 +2913,8 @@ Module
         Type Option<Node>
         Local next
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c0 @fn39(this: ListIterator<Option<Node>>, source: List<Option<Node>>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -2917,6 +2933,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c0 @fn40(this: ListIterator<Option<Value>>, source: List<Option<Value>>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -2935,6 +2953,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<Node> @fn41(task: SuspendTask<Node>, completion: Continuation<Node>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -2957,6 +2977,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn33 interface Continuation<Node>[0]
         Type Continuation<Node>
@@ -2970,6 +2992,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn34 interface Continuation<Node>[1]
         Type Continuation<Node>
@@ -2981,6 +3005,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -3038,6 +3064,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn29 interface Continuation<Value>[0]
         Type Continuation<Value>
@@ -3051,6 +3079,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn30 interface Continuation<Value>[1]
         Type Continuation<Value>
@@ -3062,6 +3092,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

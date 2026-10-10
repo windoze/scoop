@@ -570,11 +570,9 @@ Module
           Local this
   fun Local.$get$second @fn9(this: Local<String, Unit>) -> Unit
     bb0 entry
-      Type Unit
-      FieldAccess 1
-        Type Local<String, Unit>
-        Local this
       return
+        Type Unit
+        UnitLiteral
   fun Local.$set$second @fn10(this: Local<String, Unit>, value: Unit) -> Unit
     bb0 entry
       field_set 1
@@ -583,6 +581,8 @@ Module
         Type Unit
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun Values.$set$second @fn11(this: Values<String, Unit>, value: Unit) -> Unit
     bb0 entry
       trap "call to abstract method `Values.$set$second`"
@@ -626,18 +626,14 @@ Module
           Local $dependency.local.5
   fun Local.$get$first @fn15(this: Local<Unit, Unit>) -> Unit
     bb0 entry
-      Type Unit
-      FieldAccess 0
-        Type Local<Unit, Unit>
-        Local this
       return
+        Type Unit
+        UnitLiteral
   fun Local.$get$second @fn16(this: Local<Unit, Unit>) -> Unit
     bb0 entry
-      Type Unit
-      FieldAccess 1
-        Type Local<Unit, Unit>
-        Local this
       return
+        Type Unit
+        UnitLiteral
   fun Local.$set$second @fn17(this: Local<Unit, Unit>, value: Unit) -> Unit
     bb0 entry
       field_set 1
@@ -646,6 +642,8 @@ Module
         Type Unit
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun Values.$set$second @fn18(this: Values<Unit, Unit>, value: Unit) -> Unit
     bb0 entry
       trap "call to abstract method `Values.$set$second`"
@@ -696,11 +694,9 @@ Module
           Local this
   fun Local.$get$second @fn23(this: Local<Int, Unit>) -> Unit
     bb0 entry
-      Type Unit
-      FieldAccess 1
-        Type Local<Int, Unit>
-        Local this
       return
+        Type Unit
+        UnitLiteral
   fun Local.$set$second @fn24(this: Local<Int, Unit>, value: Unit) -> Unit
     bb0 entry
       field_set 1
@@ -709,6 +705,8 @@ Module
         Type Unit
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun Values.$set$second @fn25(this: Values<Int, Unit>, value: Unit) -> Unit
     bb0 entry
       trap "call to abstract method `Values.$set$second`"
@@ -795,6 +793,8 @@ Module
         Type Unit
         Local b
       return
+        Type Unit
+        UnitLiteral
   fun init.Local.$c0 @fn38(this: Local<Unit, Unit>, a: Unit, b: Unit) -> Unit
     bb0 entry
       field_set 0
@@ -808,6 +808,8 @@ Module
         Type Unit
         Local b
       return
+        Type Unit
+        UnitLiteral
   fun init.Local.$c0 @fn39(this: Local<Int, Unit>, a: Int, b: Unit) -> Unit
     bb0 entry
       field_set 0
@@ -821,6 +823,8 @@ Module
         Type Unit
         Local b
       return
+        Type Unit
+        UnitLiteral
   fun function_bridge.$Closure$lambda0.(Any) -> Any @fn40($source: (String) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type0> closure[function_type0]

@@ -39,6 +39,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun direct @fn2() -> Int
     bb0 entry
       val $context_binding.1: internal<context-binding-ref>
@@ -240,6 +242,8 @@ Module
         Type Int
         Local next
       return
+        Type Unit
+        UnitLiteral
   fun current @fn7() -> Request
     bb0 entry
       val $context_binding.1: internal<context-binding-ref>
@@ -295,6 +299,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<Request> @fn13(task: SuspendTask<Request>, completion: Continuation<Request>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -317,6 +323,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn8 interface Continuation<Request>[0]
         Type Continuation<Request>
@@ -330,6 +338,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn9 interface Continuation<Request>[1]
         Type Continuation<Request>
@@ -341,6 +351,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

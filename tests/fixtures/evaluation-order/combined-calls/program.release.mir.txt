@@ -120,6 +120,8 @@ Module
       resume
     bb7 try.end.7
       return
+        Type Unit
+        UnitLiteral
     bb8 try.body.8 unwind bb1
       goto bb14
     bb9 try.catch.9
@@ -550,12 +552,16 @@ Module
         Type Box
         Local $new.1
       return
+        Type Unit
+        UnitLiteral
     bb2 inline.1.entry
       field_set 0
         Type Box
         Local $inline.1.this
         Type Int
         IntegerLiteral Int value=3 bits=0x00000003
+      Type Unit
+      UnitLiteral
       goto bb1
   fun $init$ensure$0 @fn5() -> Unit
     bb0 entry
@@ -581,6 +587,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -683,6 +691,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun iterator @fn8(this: Array<Int>) -> Iterator<Int>
     bb0 entry
       val $dependency.local.1: List<Int>
@@ -743,6 +753,8 @@ Module
         Local $inline.1.this
         Type Boolean
         BoolLiteral false
+      Type Unit
+      UnitLiteral
       goto bb1
   fun get @fn9(this: Array<Int>, index: Long) -> Int
     bb0 entry
@@ -840,6 +852,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun next @fn12(this: ListIterator<Int>) -> Option<Int>
     bb0 entry
       branch bb1 bb2
@@ -949,6 +963,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c0 @fn16(this: ListIterator<Int>, source: List<Int>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -967,6 +983,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Pair.$c0 @fn17(first: Int, second: Int) -> Pair <no-gc>
     bb0 entry
       return

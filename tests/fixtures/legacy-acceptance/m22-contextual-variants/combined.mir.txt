@@ -636,6 +636,8 @@ Module
         Type Boolean
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun println @fn8(value: String) -> Unit
     bb0 entry
       val $dependency.local.1: String
@@ -660,6 +662,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun choose @fn9(first: Token, second: Token) -> Token
     bb0 entry
       return
@@ -689,6 +693,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn11(value: Boolean) -> Unit
     bb0 entry
       val $dependency.local.1: Boolean
@@ -713,6 +719,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun $derived.equals.1 @fn12(this: Option<Int>, other: Option<Int>) -> Boolean
     bb0 entry
       val $when.1: Option<Int>

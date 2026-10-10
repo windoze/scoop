@@ -3077,13 +3077,9 @@ Module
         Type IndexOutOfBoundsException
         Local $new.2
     bb5 if.merge.5
-      Type Unit
-      ArrayGet Array<Unit>
-        Type Array<Unit>
-        Local $arr.1
-        Type Long
-        Local $idx.2
       return
+        Type Unit
+        UnitLiteral
   fun size @fn44(this: Array<Unit>) -> Long
     bb0 entry
       val $dependency.local.1: Array<Unit>
@@ -4256,6 +4252,8 @@ Module
         Type Int
         Local number
       return
+        Type Unit
+        UnitLiteral
   fun init.Sequence.$c0 @fn102(this: Sequence<Later>, values: Array<Later>) -> Unit
     bb0 entry
       field_set 0
@@ -4264,6 +4262,8 @@ Module
         Type Array<Later>
         Local values
       return
+        Type Unit
+        UnitLiteral
   fun init.Cursor.$c1 @fn103(this: Cursor<Later>, values: Array<Later>) -> Unit
     bb0 entry
       field_set 0
@@ -4277,6 +4277,8 @@ Module
         Type Long
         IntegerLiteral Long value=0 bits=0x0000000000000000
       return
+        Type Unit
+        UnitLiteral
   fun init.DiamondCursor.$c3 @fn104(this: DiamondCursor<Later>, inner: Cursor<Later>) -> Unit
     bb0 entry
       field_set 0
@@ -4285,6 +4287,8 @@ Module
         Type Cursor<Later>
         Local inner
       return
+        Type Unit
+        UnitLiteral
   fun init.Sequence.$c0 @fn105(this: Sequence<Int>, values: Array<Int>) -> Unit
     bb0 entry
       field_set 0
@@ -4293,6 +4297,8 @@ Module
         Type Array<Int>
         Local values
       return
+        Type Unit
+        UnitLiteral
   fun init.Cursor.$c1 @fn106(this: Cursor<Int>, values: Array<Int>) -> Unit
     bb0 entry
       field_set 0
@@ -4306,6 +4312,8 @@ Module
         Type Long
         IntegerLiteral Long value=0 bits=0x0000000000000000
       return
+        Type Unit
+        UnitLiteral
   fun init.DiamondCursor.$c3 @fn107(this: DiamondCursor<Int>, inner: Cursor<Int>) -> Unit
     bb0 entry
       field_set 0
@@ -4314,6 +4322,8 @@ Module
         Type Cursor<Int>
         Local inner
       return
+        Type Unit
+        UnitLiteral
   fun init.Sequence.$c0 @fn108(this: Sequence<Unit>, values: Array<Unit>) -> Unit
     bb0 entry
       field_set 0
@@ -4322,6 +4332,8 @@ Module
         Type Array<Unit>
         Local values
       return
+        Type Unit
+        UnitLiteral
   fun init.Cursor.$c1 @fn109(this: Cursor<Unit>, values: Array<Unit>) -> Unit
     bb0 entry
       field_set 0
@@ -4335,6 +4347,8 @@ Module
         Type Long
         IntegerLiteral Long value=0 bits=0x0000000000000000
       return
+        Type Unit
+        UnitLiteral
   fun init.DiamondCursor.$c3 @fn110(this: DiamondCursor<Unit>, inner: Cursor<Unit>) -> Unit
     bb0 entry
       field_set 0
@@ -4343,6 +4357,8 @@ Module
         Type Cursor<Unit>
         Local inner
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c4 @fn111(this: ListIterator<Later>, source: List<Later>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -4361,6 +4377,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c4 @fn112(this: ListIterator<Int>, source: List<Int>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -4379,6 +4397,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c4 @fn113(this: ListIterator<Unit>, source: List<Unit>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -4397,6 +4417,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun ctor.ValueCursor.$c2 @fn114(inner: Cursor<Later>) -> ValueCursor<Later> <no-gc>
     bb0 entry
       return
@@ -4524,6 +4546,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn94 interface Continuation<Later>[0]
         Type Continuation<Later>
@@ -4537,6 +4561,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn95 interface Continuation<Later>[1]
         Type Continuation<Later>
@@ -4548,6 +4574,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

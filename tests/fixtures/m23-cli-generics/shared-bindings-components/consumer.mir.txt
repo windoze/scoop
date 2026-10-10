@@ -531,6 +531,8 @@ Module
         Type Int
         Local second
       return
+        Type Unit
+        UnitLiteral
   fun init.Pieces.$c0 @fn16(this: Pieces<Pieces<Int>>, first: Pieces<Int>, second: Int) -> Unit
     bb0 entry
       field_set 0
@@ -544,6 +546,8 @@ Module
         Type Int
         Local second
       return
+        Type Unit
+        UnitLiteral
   fun init.LocalPieces.$c0 @fn17(this: LocalPieces<Int>, first: Int, second: Int) -> Unit
     bb0 entry
       field_set 0
@@ -557,6 +561,8 @@ Module
         Type Int
         Local second
       return
+        Type Unit
+        UnitLiteral
   fun init.ExtensionPieces.$c1 @fn18(this: ExtensionPieces<Int>, value: Int) -> Unit
     bb0 entry
       field_set 0
@@ -565,6 +571,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun function_bridge.$Closure$lambda0.(Any) -> Any @fn19($source: (Int) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type0> closure[function_type0]

@@ -631,11 +631,9 @@ Module
         Local $call.1
   fun get @fn10(this: RemoteCell<Unit>) -> Unit
     bb0 entry
-      Type Unit
-      FieldAccess 0
-        Type RemoteCell<Unit>
-        Local this
       return
+        Type Unit
+        UnitLiteral
   fun read @fn11(this: Reader<Unit>) -> Unit
     bb0 entry
       val $dependency.local.1: Reader<Unit>
@@ -647,6 +645,8 @@ Module
           Type Reader<Unit>
           Local $dependency.local.1
       return
+        Type Unit
+        UnitLiteral
   fun create @fn12(value: Unit) -> RemoteCell<Unit>
     bb0 entry
       val $dependency.local.3: Unit
@@ -801,6 +801,8 @@ Module
           Type box<RemoteCell<Unit>>
           Local this
       return
+        Type Unit
+        UnitLiteral
   fun thunk<RemoteCell<Unit>> Reader.read() @fn26(this: box<RemoteCell<Unit>>) -> Unit
     bb0 entry
       call @fn11 direct
@@ -809,6 +811,8 @@ Module
           Type box<RemoteCell<Unit>>
           Local this
       return
+        Type Unit
+        UnitLiteral
   fun thunk<RemoteCell<Unit>> Readable.get() @fn27(this: box<RemoteCell<Unit>>) -> Unit
     bb0 entry
       call @fn10 direct
@@ -817,6 +821,8 @@ Module
           Type box<RemoteCell<Unit>>
           Local this
       return
+        Type Unit
+        UnitLiteral
   fun thunk<RemoteCell<Int>> Reader.get() @fn28(this: box<RemoteCell<Int>>) -> Int
     bb0 entry
       call $call.1: Int = @fn13 direct

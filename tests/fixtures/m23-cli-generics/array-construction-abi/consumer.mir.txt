@@ -1172,13 +1172,9 @@ Module
         Type IndexOutOfBoundsException
         Local $new.2
     bb5 if.merge.5
-      Type Unit
-      ArrayGet MutableArray<Unit>
-        Type MutableArray<Unit>
-        Local $arr.1
-        Type Long
-        Local $idx.2
       return
+        Type Unit
+        UnitLiteral
   fun size @fn12(this: MutableArray<Unit>) -> Long
     bb0 entry
       val $dependency.local.1: MutableArray<Unit>
@@ -1283,13 +1279,9 @@ Module
         Type IndexOutOfBoundsException
         Local $new.2
     bb5 if.merge.5
-      Type Unit
-      ArrayGet Array<Unit>
-        Type Array<Unit>
-        Local $arr.1
-        Type Long
-        Local $idx.2
       return
+        Type Unit
+        UnitLiteral
   fun size @fn15(this: Array<Unit>) -> Long
     bb0 entry
       val $dependency.local.1: Array<Unit>
@@ -3758,6 +3750,8 @@ Module
         Type Int
         Local number
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c0 @fn76(this: ListIterator<Large>, source: List<Large>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -3776,6 +3770,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c0 @fn77(this: ListIterator<Unit>, source: List<Unit>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -3794,6 +3790,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c0 @fn78(this: ListIterator<Array<Large>>, source: List<Array<Large>>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -3812,6 +3810,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c0 @fn79(this: ListIterator<Payload<Large>>, source: List<Payload<Large>>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -3830,6 +3830,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Large.$c0 @fn80(first: Reference, second: Reference, third: Reference) -> Large <no-gc>
     bb0 entry
       return
@@ -3863,6 +3865,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn68 interface Continuation<Reference>[0]
         Type Continuation<Reference>
@@ -3876,6 +3880,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn69 interface Continuation<Reference>[1]
         Type Continuation<Reference>
@@ -3887,6 +3893,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -3944,6 +3952,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn64 interface Continuation<Large>[0]
         Type Continuation<Large>
@@ -3957,6 +3967,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn65 interface Continuation<Large>[1]
         Type Continuation<Large>
@@ -3968,6 +3980,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

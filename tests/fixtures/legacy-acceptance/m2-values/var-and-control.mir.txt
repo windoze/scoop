@@ -54,6 +54,8 @@ Module
         Type Int
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb3 while.body.3
       val $dependency.receiver: Int
         Type Int
@@ -235,6 +237,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   instance mi0 function=@fn1 <- println
   str @str0 "\n"
   output executable @fn0

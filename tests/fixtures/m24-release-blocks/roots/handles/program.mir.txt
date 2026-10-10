@@ -41,6 +41,8 @@ Module
         Type Int
         Local arg0
       return
+        Type Unit
+        UnitLiteral
   fun count @fn1(arg0: Int) -> Int
     bb0 entry
       call $call.1: Int = extern1 @m24_release_owner_count direct
@@ -82,6 +84,8 @@ Module
         Type Boolean
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun reclaimed @fn3(id: Int) -> Unit
     bb0 entry
       call @scoop_rt_gc_collect direct
@@ -115,6 +119,8 @@ Module
         Type Boolean
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun stackRoot @fn4() -> Unit
     bb0 entry
       val $argument.0: Int
@@ -171,6 +177,8 @@ Module
         Type Boolean
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun globalRoot @fn5() -> Unit
     bb0 entry
       val $argument.0: Int
@@ -262,6 +270,8 @@ Module
         Type Option<Owner>
         VariantConstruct Option<Owner> v1
       return
+        Type Unit
+        UnitLiteral
   fun makeHandle @fn6() -> GcHandle<Owner>
     bb0 entry
       val $argument.0: Int
@@ -370,6 +380,8 @@ Module
         Type Boolean
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun pinRoot @fn9() -> Unit
     bb0 entry
       call handle: PinnedPtr<Owner> = @fn7 direct
@@ -416,6 +428,8 @@ Module
         Type Boolean
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun main @fn10() -> Unit
     bb0 entry
       call @fn4 direct
@@ -459,6 +473,8 @@ Module
         Type Int
         Local $parameter.id
       return
+        Type Unit
+        UnitLiteral
   fun $get$saved @fn11() -> Option<Owner>
     bb0 entry
       return
@@ -470,6 +486,8 @@ Module
         Type Option<Owner>
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun println @fn13(value: Boolean) -> Unit
     bb0 entry
       val $dependency.local.1: Boolean
@@ -494,6 +512,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun getGcHandle @fn14(v: Owner) -> GcHandle<Owner>
     bb0 entry
       val $dependency.local.1: Owner
@@ -586,6 +606,8 @@ Module
         Type Int
         Local code
       return
+        Type Unit
+        UnitLiteral
   fun ctor.GcHandle.$c0 @fn23(raw: ULong) -> GcHandle<Owner> <no-gc>
     bb0 entry
       return
@@ -622,6 +644,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn18 interface Continuation<Owner>[0]
         Type Continuation<Owner>
@@ -635,6 +659,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn19 interface Continuation<Owner>[1]
         Type Continuation<Owner>
@@ -646,6 +672,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -693,6 +721,8 @@ Module
         Type Int
         Local $parameter.id
       return
+        Type Unit
+        UnitLiteral
   coroutine_step cs0 CoroutineStep<Owner> result=Owner
   coroutine_slot cl0 CoroutineSlot<Owner> value=Owner
   coroutine_start ct0 result=Owner function=fn25

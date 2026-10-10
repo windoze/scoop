@@ -358,6 +358,8 @@ Module
         Type TokenSlot<Later>
         Local $call.1
       return
+        Type Unit
+        UnitLiteral
   fun extension:Token<T0>:cycleDirect$ensure @fn6() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -382,6 +384,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -519,9 +523,13 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Token.$c0 @fn13(this: Token<Later>) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun ctor.TokenSlot.$c1 @fn14() -> TokenSlot<Later> <no-gc>
     bb0 entry
       return
@@ -549,6 +557,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn8 interface Continuation<Later>[0]
         Type Continuation<Later>
@@ -562,6 +572,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn9 interface Continuation<Later>[1]
         Type Continuation<Later>
@@ -573,6 +585,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

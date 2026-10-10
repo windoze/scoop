@@ -716,14 +716,15 @@ Module
     store local94 -> local264
     br @inline.13.entry
   block inline.15.entry
+    t93 = aggregate () : {}
     br @inline.cont.15
   block inline.cont.17
     store local268 -> local226
-    t93 = Eq local226, local53 : i1
-    store t93 -> local68
+    t94 = Eq local226, local53 : i1
+    store t94 -> local68
     store local68 -> local69
     call managed-void-target25 sp<managed-call:16> live=[local53:ptr<managed>@0, local56:ptr<managed>@0, local59:ptr<managed>@0, local62:ptr<managed>@0] sig=void25 (i1) local-fn0(local69)
-    t94 = aggregate () : {}
+    t95 = aggregate () : {}
     store local62 -> local70
     store local56 -> local71
     store local70 -> local72
@@ -731,11 +732,11 @@ Module
     store local72 -> local74
     store local73 -> local75
     store local75 -> local76
-    t95 = enum_wrap e2 v4 () : enum2
-    store t95 -> local77
+    t96 = enum_wrap e2 v4 () : enum2
+    store t96 -> local77
     atomic_store Reference SeqCst local74 +16, local76
-    t96 = aggregate () : {}
-    store t96 -> local78
+    t97 = aggregate () : {}
+    store t97 -> local78
     store local72 -> local265
     store local73 -> local266
     store local78 -> local267

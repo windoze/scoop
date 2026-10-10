@@ -298,6 +298,8 @@ Module
         Type Int
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun println @fn1(value: Int) -> Unit
     bb0 entry
       val $dependency.local.1: Int
@@ -322,6 +324,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun Continuation.resume @fn2(this: Continuation<Point>, value: Point) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
@@ -365,6 +369,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn2 interface Continuation<Point>[0]
         Type Continuation<Point>
@@ -378,6 +384,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn3 interface Continuation<Point>[1]
         Type Continuation<Point>
@@ -389,6 +397,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

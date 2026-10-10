@@ -614,11 +614,9 @@ Module
       val $dependency.local.2: Ptr<Unit>
         Type Ptr<Unit>
         Local $dependency.local.1
-      Type Unit
-      PtrLoad Unit
-        Type Ptr<Unit>
-        Local $dependency.local.2
       return
+        Type Unit
+        UnitLiteral
   fun offset @fn6($capture.0: Counter) -> Long
     bb0 entry
       val $dependency.local.0: Counter
@@ -680,6 +678,8 @@ Module
         Type Int
         Local number
       return
+        Type Unit
+        UnitLiteral
   instance mi0 function=@fn1 <- exercise
   instance mi1 function=@fn2 <- exercise
   instance mi2 function=@fn3 <- equalTo

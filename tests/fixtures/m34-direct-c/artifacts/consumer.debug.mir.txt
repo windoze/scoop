@@ -68,6 +68,8 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun dispatch @fn1(worker: Transform, value: Hfa4) -> Hfa4
     bb0 entry
       val $dependency.receiver: Transform
@@ -594,6 +596,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb24 try.body.24 unwind bb19
       val $callable.receiver: (Hfa4) -> Hfa4
         Type (Hfa4) -> Hfa4
@@ -821,6 +825,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun $reference.0 @fn6($closure: (Hfa4) -> Hfa4, arg0: Hfa4) -> Hfa4
     bb0 entry
       call $call.1: Hfa4 = external11 direct
@@ -837,6 +843,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Wrap.$c0 @fn8(value: Long) -> Wrap<Long> <no-gc>
     bb0 entry
       return

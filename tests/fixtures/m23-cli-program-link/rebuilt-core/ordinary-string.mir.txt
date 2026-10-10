@@ -50,6 +50,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<String> @fn6(task: SuspendTask<String>, completion: Continuation<String>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -72,6 +74,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn1 interface Continuation<String>[0]
         Type Continuation<String>
@@ -85,6 +89,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn2 interface Continuation<String>[1]
         Type Continuation<String>
@@ -96,6 +102,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

@@ -400,6 +400,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.HolderImpl.$c0 @fn12(this: HolderImpl<Int>, payload: Int) -> Unit
     bb0 entry
       field_set 0
@@ -408,6 +410,8 @@ Module
         Type Int
         Local payload
       return
+        Type Unit
+        UnitLiteral
   fun function_bridge.$Closure$reference0.() -> Any @fn13($source: () -> Int) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type0> closure[function_type0]

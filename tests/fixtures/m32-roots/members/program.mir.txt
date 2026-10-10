@@ -457,6 +457,8 @@ Module
         Type Boolean
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb76 pattern.pass.76
       val value: Nothing
         Type Nothing
@@ -495,6 +497,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun empty @fn6() -> Option<Nothing>
     bb0 entry
       return
@@ -524,12 +528,16 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun FailedSource.read @fn8(this: FailedSource) -> Nothing
     bb0 entry
       trap "call to abstract method `FailedSource.read`"
   fun init.Stop.$c0 @fn9(this: Stop) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.Box.$c1 @fn10(this: Box, missing: Nothing) -> Unit
     bb0 entry
       Type Nothing

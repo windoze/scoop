@@ -50,6 +50,8 @@ Module
   fun init.Overloads.$c0 @fn2(this: Overloads<String>) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   instance mi0 function=@fn1 <- select
   str @str0 "owner"
   output library

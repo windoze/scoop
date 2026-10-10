@@ -963,6 +963,8 @@ Module
         Type Int
         Local number
       return
+        Type Unit
+        UnitLiteral
   fun init.Child.$c0 @fn30(this: Child<Later>, value: Later) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Later
@@ -979,6 +981,8 @@ Module
         Type Later
         Local $dependency.constructor.local.1
       return
+        Type Unit
+        UnitLiteral
   fun init.Child.$c0 @fn31(this: Child<Int>, value: Int) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Int
@@ -995,6 +999,8 @@ Module
         Type Int
         Local $dependency.constructor.local.1
       return
+        Type Unit
+        UnitLiteral
   fun init.Box.$c2 @fn32(this: Box<Later>, value: Later) -> Unit
     bb0 entry
       field_set 0
@@ -1003,6 +1009,8 @@ Module
         Type Later
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Box.$c2 @fn33(this: Box<Int>, value: Int) -> Unit
     bb0 entry
       field_set 0
@@ -1011,6 +1019,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Cell.$c1 @fn34(value: Later) -> Cell<Later> <no-gc>
     bb0 entry
       return
@@ -1047,6 +1057,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn13 interface Continuation<Later>[0]
         Type Continuation<Later>
@@ -1060,6 +1072,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn14 interface Continuation<Later>[1]
         Type Continuation<Later>
@@ -1071,6 +1085,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

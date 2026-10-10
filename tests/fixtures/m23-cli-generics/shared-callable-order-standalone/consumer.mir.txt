@@ -90,6 +90,8 @@ Module
         Type Int
         IntegerLiteral Int value=0 bits=0x00000000
       return
+        Type Unit
+        UnitLiteral
   fun Tape.$get$log @fn2(this: Tape) -> Int
     bb0 entry
       return
@@ -105,6 +107,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun argument @fn4(tape: Tape, value: Int) -> Int
     bb0 entry
       return
@@ -925,6 +929,8 @@ Module
         Type Int
         IntegerLiteral Int value=0 bits=0x00000000
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<Tape> @fn19(task: SuspendTask<Tape>, completion: Continuation<Tape>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -947,6 +953,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn14 interface Continuation<Tape>[0]
         Type Continuation<Tape>
@@ -960,6 +968,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn15 interface Continuation<Tape>[1]
         Type Continuation<Tape>
@@ -971,6 +981,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

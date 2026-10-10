@@ -177,6 +177,8 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun main @fn5() -> Unit
     bb0 entry
       val $argument.0: Float
@@ -903,6 +905,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb37 inline.cont.37
       val $call.1: Cell<Float>
         Type Cell<Float>
@@ -1183,6 +1187,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun iterator @fn11(this: MutableArray<MaybeUninit<JsonMember>>) -> Iterator<MaybeUninit<JsonMember>>
     bb0 entry
       val $dependency.local.1: List<MaybeUninit<JsonMember>>
@@ -1243,6 +1249,8 @@ Module
         Local $inline.1.this
         Type Boolean
         BoolLiteral false
+      Type Unit
+      UnitLiteral
       goto bb1
   fun get @fn12(this: MutableArray<MaybeUninit<JsonMember>>, index: Long) -> MaybeUninit<JsonMember>
     bb0 entry
@@ -1376,6 +1384,8 @@ Module
         Local $inline.1.this
         Type Boolean
         BoolLiteral false
+      Type Unit
+      UnitLiteral
       goto bb1
   fun get @fn15(this: ArrayList<JsonMember>, index: Long) -> JsonMember
     bb0 entry
@@ -1517,6 +1527,8 @@ Module
         Type MaybeUninit<JsonMember>
         Local $value.3
       return
+        Type Unit
+        UnitLiteral
   fun add @fn18(this: ArrayList<JsonMember>, value: JsonMember) -> Unit
     bb0 entry
       val $dependency.local.2: ArrayList<JsonMember>
@@ -1627,6 +1639,8 @@ Module
           Type Long
           IntegerLiteral Long value=1 bits=0x0000000000000001
       return
+        Type Unit
+        UnitLiteral
   fun add @fn19(this: ArrayList<JsonMember>, index: Long, value: JsonMember) -> Unit
     bb0 entry
       val $dependency.local.4: Long
@@ -1942,6 +1956,8 @@ Module
           Type Long
           IntegerLiteral Long value=1 bits=0x0000000000000001
       return
+        Type Unit
+        UnitLiteral
   fun removeAt @fn20(this: ArrayList<JsonMember>, index: Long) -> JsonMember
     bb0 entry
       val $dependency.local.5: ArrayList<JsonMember>
@@ -2253,6 +2269,8 @@ Module
         Type Long
         IntegerLiteral Long value=0 bits=0x0000000000000000
       return
+        Type Unit
+        UnitLiteral
     bb3 while.body.3
       val $dependency.local.5: MutableArray<MaybeUninit<JsonMember>>
         Type MutableArray<MaybeUninit<JsonMember>>
@@ -2402,6 +2420,8 @@ Module
         Local $inline.1.this
         Type Boolean
         BoolLiteral false
+      Type Unit
+      UnitLiteral
       goto bb1
   fun get @fn23(this: MutableArray<MaybeUninit<JsonValue>>, index: Long) -> MaybeUninit<JsonValue>
     bb0 entry
@@ -2535,6 +2555,8 @@ Module
         Local $inline.1.this
         Type Boolean
         BoolLiteral false
+      Type Unit
+      UnitLiteral
       goto bb1
   fun get @fn26(this: ArrayList<JsonValue>, index: Long) -> JsonValue
     bb0 entry
@@ -2676,6 +2698,8 @@ Module
         Type MaybeUninit<JsonValue>
         Local $value.3
       return
+        Type Unit
+        UnitLiteral
   fun add @fn29(this: ArrayList<JsonValue>, value: JsonValue) -> Unit
     bb0 entry
       val $dependency.local.2: ArrayList<JsonValue>
@@ -2786,6 +2810,8 @@ Module
           Type Long
           IntegerLiteral Long value=1 bits=0x0000000000000001
       return
+        Type Unit
+        UnitLiteral
   fun add @fn30(this: ArrayList<JsonValue>, index: Long, value: JsonValue) -> Unit
     bb0 entry
       val $dependency.local.4: Long
@@ -3101,6 +3127,8 @@ Module
           Type Long
           IntegerLiteral Long value=1 bits=0x0000000000000001
       return
+        Type Unit
+        UnitLiteral
   fun removeAt @fn31(this: ArrayList<JsonValue>, index: Long) -> JsonValue
     bb0 entry
       val $dependency.local.5: ArrayList<JsonValue>
@@ -3412,6 +3440,8 @@ Module
         Type Long
         IntegerLiteral Long value=0 bits=0x0000000000000000
       return
+        Type Unit
+        UnitLiteral
     bb3 while.body.3
       val $dependency.local.5: MutableArray<MaybeUninit<JsonValue>>
         Type MutableArray<MaybeUninit<JsonValue>>
@@ -3764,6 +3794,8 @@ Module
         Local $new.1
     bb5 if.merge.5
       return
+        Type Unit
+        UnitLiteral
   fun ensureRoom @fn38(this: ArrayList<JsonMember>) -> Unit
     bb0 entry
       branch bb1 bb2
@@ -3805,6 +3837,8 @@ Module
       goto bb22
     bb3 if.then.3
       return
+        Type Unit
+        UnitLiteral
     bb4 if.merge.4
       branch bb5 bb6
         Type Boolean
@@ -3950,6 +3984,8 @@ Module
         Type MutableArray<MaybeUninit<JsonMember>>
         Local $dependency.local.6
       return
+        Type Unit
+        UnitLiteral
     bb15 while.body.15
       val $inline.16.$argument.0: (Long) -> MaybeUninit<JsonMember>
         Type (Long) -> MaybeUninit<JsonMember>
@@ -4322,6 +4358,8 @@ Module
         Local $new.1
     bb5 if.merge.5
       return
+        Type Unit
+        UnitLiteral
   fun ensureRoom @fn42(this: ArrayList<JsonValue>) -> Unit
     bb0 entry
       branch bb1 bb2
@@ -4363,6 +4401,8 @@ Module
       goto bb22
     bb3 if.then.3
       return
+        Type Unit
+        UnitLiteral
     bb4 if.merge.4
       branch bb5 bb6
         Type Boolean
@@ -4508,6 +4548,8 @@ Module
         Type MutableArray<MaybeUninit<JsonValue>>
         Local $dependency.local.6
       return
+        Type Unit
+        UnitLiteral
     bb15 while.body.15
       val $inline.16.$argument.0: (Long) -> MaybeUninit<JsonValue>
         Type (Long) -> MaybeUninit<JsonValue>
@@ -4773,6 +4815,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c1 @fn54(this: ListIterator<JsonMember>, source: List<JsonMember>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -4791,6 +4835,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c1 @fn55(this: ListIterator<MaybeUninit<JsonValue>>, source: List<MaybeUninit<JsonValue>>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -4809,6 +4855,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c1 @fn56(this: ListIterator<JsonValue>, source: List<JsonValue>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -4827,6 +4875,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Annotated.$c0 @fn57(value: Float) -> Annotated <no-gc>
     bb0 entry
       return

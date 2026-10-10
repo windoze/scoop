@@ -2071,7 +2071,6 @@ Module
   fun @scoop$1$cb$47364c4f8db456644002e34e04e488921eecf587acf4946edd9940bbca7af923(ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
-    t0 = zst_value exact=1dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc align 1 : {}
     ret
   fun @scoop$1$cb$52779709755cb5de0b76e05c89876206fa16f7cdeefd58d87fd248152f1928b2(elided-zst<{} size=0 align=1>, elided-zst<{} size=0 align=1>, ptr<managed>) -> void
   block entry
@@ -2082,7 +2081,6 @@ Module
   fun @scoop$1$cb$fa1c5a603d233f6ee12c4f66b45a4c0a867fff7e6060a3d9da45a786181e0ae4(ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
-    t0 = zst_value exact=1dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc align 1 : {}
     ret
   fun @scoop$1$cb$5763b8c52dc3ba12adc1a1a1f861aaa76d01026ceadea1f9d3f59a8243a7207a(elided-zst<{} size=0 align=1>, i32, ptr<managed>) -> void
   block entry
@@ -2762,12 +2760,10 @@ Module
   fun @scoop$1$cb$a629917035304f6157c3561158f73288e7d6b7244a026e25548395fcf1ce34c7(ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
-    t0 = zst_value exact=1dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc align 1 : {}
     ret
   fun @scoop$1$cb$7ca58966b8e06d02724059362d7e374a936b046744e175afee900a3b9dad6c20(ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
-    t0 = zst_value exact=1dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc align 1 : {}
     ret
   fun @scoop$1$cb$62d34df316dbe18c45e65a75dee79fdcbbe45bf7860a8398a9f77ffe7a017db3(ptr<managed>) -> i32
     local %0 $dependency.local.0: i32
@@ -2809,12 +2805,10 @@ Module
   fun @scoop$1$cb$0e80a1d27f525b53b2baedfc5c8b327e3fd3b08a6c191f84394eb360b1e5789d(ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
-    t0 = zst_value exact=1dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc align 1 : {}
     ret
   fun @scoop$1$cb$fc9a8c5c9e85cb6da60838c53d807af5e0e4e6cf91e74903b492b6a7041706c8(ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
-    t0 = zst_value exact=1dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc align 1 : {}
     ret
   fun @scoop$1$cb$dca4555059f161e6c8600f40235e0dd71f0355badb838b1705a71c1ea754cc4d(ptr<managed>) -> i32
     local %0 $dependency.local.0: i32
@@ -2911,12 +2905,10 @@ Module
   fun @scoop$1$cb$88204e1bdf9a52b4b51ffcd24cc373d30a3bba98f2b579c98213f5fd700648ed(ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
-    t0 = zst_value exact=1dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc align 1 : {}
     ret
   fun @scoop$1$cb$9dcccb04c2f23db0783eedf411a080260c5cedfe56b1219cf1e2522972de3a45(ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
-    t0 = zst_value exact=1dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc align 1 : {}
     ret
   fun @scoop$1$cb$c82199238386453e71e0b6713a89dc4e939df5b685c0baa18bf5e6b4c955cabc(elided-zst<{} size=0 align=1>, elided-zst<{} size=0 align=1>, ptr<managed>) -> void
   block entry
@@ -2927,7 +2919,6 @@ Module
   fun @scoop$1$cb$ac58a980c0d58534b8f35e6984996a0eac6db65540ec47229b9e0530390ed26f(ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
-    t0 = zst_value exact=1dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc align 1 : {}
     ret
   fun @scoop$1$cb$92c977c0567362b774912430a0f00477c27a6aa0b9919bd9abd6a82a2c5d8fb6(ptr<managed>) -> ptr<managed>
   block entry
@@ -3102,7 +3093,6 @@ Module
   fun @scoop$1$cb$9039c21a27ee905199e8b3c395532f15b8c36bf1eab2b1e91c8fb7f3e19e4dbc(ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
-    t0 = zst_value exact=1dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc align 1 : {}
     ret
   fun @scoop$1$cb$fcaebb64253ac1bcad69ea96c3dd5a741edb8f567d9ed0b733f2a4ade73a8132(ptr<managed>) -> i32
   block entry

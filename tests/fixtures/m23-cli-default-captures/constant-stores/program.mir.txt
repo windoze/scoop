@@ -288,6 +288,8 @@ Module
         Type Boolean
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun escapedCall @fn5(input: Boolean) -> Int
     bb0 entry
       var flag: Boolean
@@ -1006,6 +1008,8 @@ Module
         Local $new.10
     bb20 if.merge.20
       return
+        Type Unit
+        UnitLiteral
   fun equalTo @fn10(this: Ptr<Boolean>, other: Ptr<Boolean>) -> Boolean
     bb0 entry
       val $dependency.local.2: Ptr<Boolean>
@@ -1055,6 +1059,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   instance mi0 function=@fn10 <- equalTo
   instance mi1 function=@fn11 <- equals
   str @str0 "illegal state"

@@ -130,6 +130,8 @@ Module
         Type Int
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun $lambda.0 @fn6($closure: (Int) -> String, value: Int) -> String
     bb0 entry
       return
@@ -178,6 +180,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn9(value: Int) -> Unit
     bb0 entry
       val $dependency.local.1: Int
@@ -202,6 +206,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun $reference.0 @fn10($closure: (Int) -> Int, arg0: Int) -> Int
     bb0 entry
       call $call.1: Int = @fn4 direct

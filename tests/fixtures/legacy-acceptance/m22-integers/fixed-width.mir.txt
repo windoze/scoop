@@ -1653,6 +1653,8 @@ Module
         Type ULong
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb69 try.body.69 unwind bb62
       assign $result.6
         Type Long
@@ -1813,6 +1815,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn9(value: Int16) -> Unit
     bb0 entry
       val $dependency.local.1: Int16
@@ -1837,6 +1841,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn10(value: Int) -> Unit
     bb0 entry
       val $dependency.local.1: Int
@@ -1861,6 +1867,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn11(value: Long) -> Unit
     bb0 entry
       val $dependency.local.1: Long
@@ -1885,6 +1893,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn12(value: UInt8) -> Unit
     bb0 entry
       val $dependency.local.1: UInt8
@@ -1909,6 +1919,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn13(value: UInt16) -> Unit
     bb0 entry
       val $dependency.local.1: UInt16
@@ -1933,6 +1945,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn14(value: UInt) -> Unit
     bb0 entry
       val $dependency.local.1: UInt
@@ -1957,6 +1971,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn15(value: ULong) -> Unit
     bb0 entry
       val $dependency.local.1: ULong
@@ -1981,6 +1997,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn16(value: String) -> Unit
     bb0 entry
       val $dependency.local.1: String
@@ -2005,6 +2023,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn17(value: Boolean) -> Unit
     bb0 entry
       val $dependency.local.1: Boolean
@@ -2029,6 +2049,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun second @fn18(first: Long, second: Long) -> Long
     bb0 entry
       return
@@ -2153,6 +2175,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   instance mi0 function=@fn5 <- iterator
   instance mi1 function=@fn6 <- get
   instance mi2 function=@fn7 <- size

@@ -260,6 +260,8 @@ Module
         Type Boolean
         Local $value
       return
+        Type Unit
+        UnitLiteral
   fun callback bridge for equalInt16 @fn15($result: Ptr<Boolean>, $arg0: Ptr<Int16>) -> Unit <no-gc>
     bb0 entry
       call $value: Boolean = @fn1 direct
@@ -274,6 +276,8 @@ Module
         Type Boolean
         Local $value
       return
+        Type Unit
+        UnitLiteral
   fun callback bridge for equalInt @fn16($result: Ptr<Boolean>, $arg0: Ptr<Int>) -> Unit <no-gc>
     bb0 entry
       call $value: Boolean = @fn2 direct
@@ -288,6 +292,8 @@ Module
         Type Boolean
         Local $value
       return
+        Type Unit
+        UnitLiteral
   fun callback bridge for equalLong @fn17($result: Ptr<Boolean>, $arg0: Ptr<Long>) -> Unit <no-gc>
     bb0 entry
       call $value: Boolean = @fn3 direct
@@ -302,6 +308,8 @@ Module
         Type Boolean
         Local $value
       return
+        Type Unit
+        UnitLiteral
   fun callback bridge for equalUInt8 @fn18($result: Ptr<Boolean>, $arg0: Ptr<UInt8>) -> Unit <no-gc>
     bb0 entry
       call $value: Boolean = @fn4 direct
@@ -316,6 +324,8 @@ Module
         Type Boolean
         Local $value
       return
+        Type Unit
+        UnitLiteral
   fun callback bridge for equalUInt16 @fn19($result: Ptr<Boolean>, $arg0: Ptr<UInt16>) -> Unit <no-gc>
     bb0 entry
       call $value: Boolean = @fn5 direct
@@ -330,6 +340,8 @@ Module
         Type Boolean
         Local $value
       return
+        Type Unit
+        UnitLiteral
   fun callback bridge for equalUInt @fn20($result: Ptr<Boolean>, $arg0: Ptr<UInt>) -> Unit <no-gc>
     bb0 entry
       call $value: Boolean = @fn6 direct
@@ -344,6 +356,8 @@ Module
         Type Boolean
         Local $value
       return
+        Type Unit
+        UnitLiteral
   fun callback bridge for equalULong @fn21($result: Ptr<Boolean>, $arg0: Ptr<ULong>) -> Unit <no-gc>
     bb0 entry
       call $value: Boolean = @fn7 direct
@@ -358,4 +372,6 @@ Module
         Type Boolean
         Local $value
       return
+        Type Unit
+        UnitLiteral
   output library

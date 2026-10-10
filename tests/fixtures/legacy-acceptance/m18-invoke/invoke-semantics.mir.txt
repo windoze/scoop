@@ -601,6 +601,8 @@ Module
         Type Int
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun $get$globalHandler @fn8() -> GlobalHandler <no-gc>
     bb0 entry
       return
@@ -612,6 +614,8 @@ Module
         Type GlobalHandler
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun iterator @fn10(this: Array<Int>) -> Iterator<Int>
     bb0 entry
       val $dependency.local.1: List<Int>
@@ -747,6 +751,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn14(value: Int) -> Unit
     bb0 entry
       val $dependency.local.1: Int
@@ -771,6 +777,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun $lambda.0 @fn15($closure: () -> String) -> String
     bb0 entry
       val $receiver: Handler
@@ -853,6 +861,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun $lambda.2 @fn19($closure: (Int) -> Int, value: Int) -> Int
     bb0 entry
       val $dependency.receiver: Int
@@ -1004,6 +1014,8 @@ Module
         Type Handler
         Local handler
       return
+        Type Unit
+        UnitLiteral
   fun init.Host.$c1 @fn32(this: Host, handler: Handler) -> Unit
     bb0 entry
       field_set 0
@@ -1012,6 +1024,8 @@ Module
         Type Handler
         Local handler
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c0 @fn33(this: ListIterator<Int>, source: List<Int>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -1030,6 +1044,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun ctor.GlobalHandler.$c1 @fn34(base: Int) -> GlobalHandler <no-gc>
     bb0 entry
       return
@@ -1088,6 +1104,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn23 interface Continuation<ExtensionHandler>[0]
         Type Continuation<ExtensionHandler>
@@ -1101,6 +1119,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn24 interface Continuation<ExtensionHandler>[1]
         Type Continuation<ExtensionHandler>
@@ -1112,6 +1132,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -1169,6 +1191,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn27 interface Continuation<Mapper>[0]
         Type Continuation<Mapper>
@@ -1182,6 +1206,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn28 interface Continuation<Mapper>[1]
         Type Continuation<Mapper>
@@ -1193,6 +1219,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

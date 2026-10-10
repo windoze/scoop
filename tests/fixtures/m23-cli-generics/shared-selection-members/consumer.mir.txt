@@ -652,6 +652,8 @@ Module
   fun init.LocalHost.$c0 @fn15(this: LocalHost) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c1 @fn16(this: ListIterator<Int>, source: List<Int>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -670,6 +672,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   instance mi0 function=@fn9 <- iterator
   instance mi1 function=@fn10 <- get
   instance mi2 function=@fn11 <- size

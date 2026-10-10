@@ -111,6 +111,8 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun main @fn5() -> Unit
     bb0 entry
       val $argument.0: Int
@@ -467,6 +469,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun println @fn6(value: String) -> Unit
     bb0 entry
       val $dependency.local.1: String
@@ -491,6 +495,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun Continuation.resume @fn7(this: Continuation<Value>, value: Value) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
@@ -514,6 +520,8 @@ Module
         Type Int
         Local number
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<Value> @fn13(task: SuspendTask<Value>, completion: Continuation<Value>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -536,6 +544,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn7 interface Continuation<Value>[0]
         Type Continuation<Value>
@@ -549,6 +559,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn8 interface Continuation<Value>[1]
         Type Continuation<Value>
@@ -560,6 +572,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

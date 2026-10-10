@@ -150,6 +150,8 @@ Module
         Type Later
         Local next
       return
+        Type Unit
+        UnitLiteral
   fun state @fn5(this: Derived<Later>) -> Later
     bb0 entry
       return
@@ -165,6 +167,8 @@ Module
         Type Later
         Local next
       return
+        Type Unit
+        UnitLiteral
   fun replaceVirtual @fn7(this: ProtectedBox<Later>, next: Later) -> Later
     bb0 entry
       call $dependency.local.2: Later = @fn3 virtual[1]
@@ -198,6 +202,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Derived.$c0 @fn13(this: Derived<Later>, value: Later) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Later
@@ -219,6 +225,8 @@ Module
         Type Later
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.ProtectedBox.$c1 @fn14(this: ProtectedBox<Later>, stored: Later) -> Unit
     bb0 entry
       field_set 0
@@ -237,6 +245,8 @@ Module
         Type Later
         Local stored
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<Later> @fn15(task: SuspendTask<Later>, completion: Continuation<Later>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -259,6 +269,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn8 interface Continuation<Later>[0]
         Type Continuation<Later>
@@ -272,6 +284,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn9 interface Continuation<Later>[1]
         Type Continuation<Later>
@@ -283,6 +297,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

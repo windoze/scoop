@@ -239,6 +239,8 @@ Module
         Type Encoder
         Local encoder
       return
+        Type Unit
+        UnitLiteral
   fun check @fn1(value: Boolean, code: Int) -> Unit
     bb0 entry
       val $dependency.receiver: Boolean
@@ -317,6 +319,8 @@ Module
         Local $new.4
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun main @fn2() -> Unit
     bb0 entry
       val $argument.0: Long
@@ -963,6 +967,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun iterator @fn3(this: MutableArray<MaybeUninit<String>>) -> Iterator<MaybeUninit<String>>
     bb0 entry
       val $dependency.local.1: List<MaybeUninit<String>>
@@ -1253,6 +1259,8 @@ Module
         Type MaybeUninit<String>
         Local $value.3
       return
+        Type Unit
+        UnitLiteral
   fun add @fn10(this: ArrayList<String>, value: String) -> Unit
     bb0 entry
       val $dependency.local.2: ArrayList<String>
@@ -1363,6 +1371,8 @@ Module
           Type Long
           Local $dependency.local.12
       return
+        Type Unit
+        UnitLiteral
   fun add @fn11(this: ArrayList<String>, index: Long, value: String) -> Unit
     bb0 entry
       val $dependency.local.4: Long
@@ -1678,6 +1688,8 @@ Module
           Type Long
           Local $dependency.local.38
       return
+        Type Unit
+        UnitLiteral
   fun removeAt @fn12(this: ArrayList<String>, index: Long) -> String
     bb0 entry
       val $dependency.local.5: ArrayList<String>
@@ -1989,6 +2001,8 @@ Module
         Type Long
         IntegerLiteral Long value=0 bits=0x0000000000000000
       return
+        Type Unit
+        UnitLiteral
     bb3 while.body.3
       val $dependency.local.5: MutableArray<MaybeUninit<String>>
         Type MutableArray<MaybeUninit<String>>
@@ -2398,11 +2412,9 @@ Module
         Local $dependency.local.5
         Type Long
         Local $dependency.local.7
-      Type Unit
-      MaybeUninit.AssumeInit MaybeUninit
-        Type MaybeUninit<Unit>
-        Local $dependency.local.8
       return
+        Type Unit
+        UnitLiteral
   fun size @fn23(this: ArrayList<Unit>) -> Long
     bb0 entry
       return
@@ -2506,6 +2518,8 @@ Module
         Type MaybeUninit<Unit>
         Local $value.3
       return
+        Type Unit
+        UnitLiteral
   fun add @fn25(this: ArrayList<Unit>, value: Unit) -> Unit
     bb0 entry
       val $dependency.local.2: ArrayList<Unit>
@@ -2616,6 +2630,8 @@ Module
           Type Long
           Local $dependency.local.12
       return
+        Type Unit
+        UnitLiteral
   fun add @fn26(this: ArrayList<Unit>, index: Long, value: Unit) -> Unit
     bb0 entry
       val $dependency.local.4: Long
@@ -2931,6 +2947,8 @@ Module
           Type Long
           Local $dependency.local.38
       return
+        Type Unit
+        UnitLiteral
   fun removeAt @fn27(this: ArrayList<Unit>, index: Long) -> Unit
     bb0 entry
       val $dependency.local.5: ArrayList<Unit>
@@ -3203,9 +3221,9 @@ Module
         Local this
         Type Long
         Local $dependency.local.3
-      Type Unit
-      Local $dependency.local.2
       return
+        Type Unit
+        UnitLiteral
   fun clear @fn28(this: ArrayList<Unit>) -> Unit
     bb0 entry
       var $dependency.local.1: Long
@@ -3242,6 +3260,8 @@ Module
         Type Long
         IntegerLiteral Long value=0 bits=0x0000000000000000
       return
+        Type Unit
+        UnitLiteral
     bb3 while.body.3
       val $dependency.local.5: MutableArray<MaybeUninit<Unit>>
         Type MutableArray<MaybeUninit<Unit>>
@@ -4004,6 +4024,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun Companion$initialize$Initializer @fn49() -> Unit
     bb0 entry
       assign $new.1
@@ -4016,6 +4038,8 @@ Module
         Type Companion<Int>
         Local $new.1
       return
+        Type Unit
+        UnitLiteral
   fun Companion$initialize$Ensure @fn50() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -4040,6 +4064,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -4371,6 +4397,8 @@ Module
         Local $new.1
     bb5 if.merge.5
       return
+        Type Unit
+        UnitLiteral
   fun ensureRoom @fn54(this: ArrayList<String>) -> Unit
     bb0 entry
       branch bb1 bb2
@@ -4431,6 +4459,8 @@ Module
           IntegerLiteral Long value=0 bits=0x0000000000000000
     bb3 if.then.3
       return
+        Type Unit
+        UnitLiteral
     bb4 if.merge.4
       branch bb5 bb6
         Type Boolean
@@ -4576,6 +4606,8 @@ Module
         Type MutableArray<MaybeUninit<String>>
         Local $dependency.local.6
       return
+        Type Unit
+        UnitLiteral
     bb15 while.body.15
       call $array_value.5: MaybeUninit<String> = <closure:function_type6> closure[function_type6]
         Type (Long) -> MaybeUninit<String>
@@ -4952,6 +4984,8 @@ Module
         Local $new.1
     bb5 if.merge.5
       return
+        Type Unit
+        UnitLiteral
   fun ensureRoom @fn59(this: ArrayList<Unit>) -> Unit
     bb0 entry
       branch bb1 bb2
@@ -5012,6 +5046,8 @@ Module
           IntegerLiteral Long value=0 bits=0x0000000000000000
     bb3 if.then.3
       return
+        Type Unit
+        UnitLiteral
     bb4 if.merge.4
       branch bb5 bb6
         Type Boolean
@@ -5157,6 +5193,8 @@ Module
         Type MutableArray<MaybeUninit<Unit>>
         Local $dependency.local.6
       return
+        Type Unit
+        UnitLiteral
     bb15 while.body.15
       call $array_value.5: MaybeUninit<Unit> = <closure:function_type7> closure[function_type7]
         Type (Long) -> MaybeUninit<Unit>
@@ -5303,6 +5341,8 @@ Module
         Type Encoder
         Local $dependency.local.8
       return
+        Type Unit
+        UnitLiteral
   fun iterator @fn62(this: MutableArray<MaybeUninit<JsonMember>>) -> Iterator<MaybeUninit<JsonMember>>
     bb0 entry
       val $dependency.local.1: List<MaybeUninit<JsonMember>>
@@ -5593,6 +5633,8 @@ Module
         Type MaybeUninit<JsonMember>
         Local $value.3
       return
+        Type Unit
+        UnitLiteral
   fun add @fn69(this: ArrayList<JsonMember>, value: JsonMember) -> Unit
     bb0 entry
       val $dependency.local.2: ArrayList<JsonMember>
@@ -5703,6 +5745,8 @@ Module
           Type Long
           Local $dependency.local.12
       return
+        Type Unit
+        UnitLiteral
   fun add @fn70(this: ArrayList<JsonMember>, index: Long, value: JsonMember) -> Unit
     bb0 entry
       val $dependency.local.4: Long
@@ -6018,6 +6062,8 @@ Module
           Type Long
           Local $dependency.local.38
       return
+        Type Unit
+        UnitLiteral
   fun removeAt @fn71(this: ArrayList<JsonMember>, index: Long) -> JsonMember
     bb0 entry
       val $dependency.local.5: ArrayList<JsonMember>
@@ -6329,6 +6375,8 @@ Module
         Type Long
         IntegerLiteral Long value=0 bits=0x0000000000000000
       return
+        Type Unit
+        UnitLiteral
     bb3 while.body.3
       val $dependency.local.5: MutableArray<MaybeUninit<JsonMember>>
         Type MutableArray<MaybeUninit<JsonMember>>
@@ -6708,6 +6756,8 @@ Module
         Type MaybeUninit<JsonValue>
         Local $value.3
       return
+        Type Unit
+        UnitLiteral
   fun add @fn80(this: ArrayList<JsonValue>, value: JsonValue) -> Unit
     bb0 entry
       val $dependency.local.2: ArrayList<JsonValue>
@@ -6818,6 +6868,8 @@ Module
           Type Long
           Local $dependency.local.12
       return
+        Type Unit
+        UnitLiteral
   fun add @fn81(this: ArrayList<JsonValue>, index: Long, value: JsonValue) -> Unit
     bb0 entry
       val $dependency.local.4: Long
@@ -7133,6 +7185,8 @@ Module
           Type Long
           Local $dependency.local.38
       return
+        Type Unit
+        UnitLiteral
   fun removeAt @fn82(this: ArrayList<JsonValue>, index: Long) -> JsonValue
     bb0 entry
       val $dependency.local.5: ArrayList<JsonValue>
@@ -7444,6 +7498,8 @@ Module
         Type Long
         IntegerLiteral Long value=0 bits=0x0000000000000000
       return
+        Type Unit
+        UnitLiteral
     bb3 while.body.3
       val $dependency.local.5: MutableArray<MaybeUninit<JsonValue>>
         Type MutableArray<MaybeUninit<JsonValue>>
@@ -7566,6 +7622,8 @@ Module
         Type Encoder
         Local $dependency.local.8
       return
+        Type Unit
+        UnitLiteral
   fun Encodable.encode @fn86(this: Encodable<List<Unit>>, value: List<Unit>, encoder: Encoder) -> Unit
     bb0 entry
       trap "call to abstract method `Encodable.encode`"
@@ -7599,6 +7657,8 @@ Module
         Type Encoder
         Local $dependency.local.8
       return
+        Type Unit
+        UnitLiteral
   fun Encodable.encode @fn88(this: Encodable<List<List<Int>>>, value: List<List<Int>>, encoder: Encoder) -> Unit
     bb0 entry
       trap "call to abstract method `Encodable.encode`"
@@ -7642,6 +7702,8 @@ Module
         Type UnkeyedEncodingContainer
         Local $dependency.local.18
       return
+        Type Unit
+        UnitLiteral
     bb3 while.body.3
       val $dependency.local.11: String
         Type String
@@ -7899,6 +7961,8 @@ Module
         Type UnkeyedEncodingContainer
         Local $dependency.local.18
       return
+        Type Unit
+        UnitLiteral
     bb3 while.body.3
       val $dependency.local.11: Int
         Type Int
@@ -8191,6 +8255,8 @@ Module
         Local $new.1
     bb5 if.merge.5
       return
+        Type Unit
+        UnitLiteral
   fun ensureRoom @fn111(this: ArrayList<JsonMember>) -> Unit
     bb0 entry
       branch bb1 bb2
@@ -8251,6 +8317,8 @@ Module
           IntegerLiteral Long value=0 bits=0x0000000000000000
     bb3 if.then.3
       return
+        Type Unit
+        UnitLiteral
     bb4 if.merge.4
       branch bb5 bb6
         Type Boolean
@@ -8396,6 +8464,8 @@ Module
         Type MutableArray<MaybeUninit<JsonMember>>
         Local $dependency.local.6
       return
+        Type Unit
+        UnitLiteral
     bb15 while.body.15
       call $array_value.5: MaybeUninit<JsonMember> = <closure:function_type8> closure[function_type8]
         Type (Long) -> MaybeUninit<JsonMember>
@@ -8674,6 +8744,8 @@ Module
         Local $new.1
     bb5 if.merge.5
       return
+        Type Unit
+        UnitLiteral
   fun ensureRoom @fn115(this: ArrayList<JsonValue>) -> Unit
     bb0 entry
       branch bb1 bb2
@@ -8734,6 +8806,8 @@ Module
           IntegerLiteral Long value=0 bits=0x0000000000000000
     bb3 if.then.3
       return
+        Type Unit
+        UnitLiteral
     bb4 if.merge.4
       branch bb5 bb6
         Type Boolean
@@ -8879,6 +8953,8 @@ Module
         Type MutableArray<MaybeUninit<JsonValue>>
         Local $dependency.local.6
       return
+        Type Unit
+        UnitLiteral
     bb15 while.body.15
       call $array_value.5: MaybeUninit<JsonValue> = <closure:function_type9> closure[function_type9]
         Type (Long) -> MaybeUninit<JsonValue>
@@ -8940,6 +9016,8 @@ Module
         Type UnkeyedEncodingContainer
         Local $dependency.local.18
       return
+        Type Unit
+        UnitLiteral
     bb3 while.body.3
       val $dependency.local.11: Unit
         Type Unit
@@ -9015,6 +9093,8 @@ Module
         Type UnkeyedEncodingContainer
         Local $dependency.local.18
       return
+        Type Unit
+        UnitLiteral
     bb3 while.body.3
       val $dependency.local.11: List<Int>
         Type List<Int>
@@ -9349,6 +9429,8 @@ Module
         Type MaybeUninit<Int>
         Local $value.3
       return
+        Type Unit
+        UnitLiteral
   fun add @fn128(this: ArrayList<Int>, value: Int) -> Unit
     bb0 entry
       val $dependency.local.2: ArrayList<Int>
@@ -9459,6 +9541,8 @@ Module
           Type Long
           Local $dependency.local.12
       return
+        Type Unit
+        UnitLiteral
   fun add @fn129(this: ArrayList<Int>, index: Long, value: Int) -> Unit
     bb0 entry
       val $dependency.local.4: Long
@@ -9774,6 +9858,8 @@ Module
           Type Long
           Local $dependency.local.38
       return
+        Type Unit
+        UnitLiteral
   fun removeAt @fn130(this: ArrayList<Int>, index: Long) -> Int
     bb0 entry
       val $dependency.local.5: ArrayList<Int>
@@ -10085,6 +10171,8 @@ Module
         Type Long
         IntegerLiteral Long value=0 bits=0x0000000000000000
       return
+        Type Unit
+        UnitLiteral
     bb3 while.body.3
       val $dependency.local.5: MutableArray<MaybeUninit<Int>>
         Type MutableArray<MaybeUninit<Int>>
@@ -10648,6 +10736,8 @@ Module
         Local $new.1
     bb5 if.merge.5
       return
+        Type Unit
+        UnitLiteral
   fun ensureRoom @fn154(this: ArrayList<Int>) -> Unit
     bb0 entry
       branch bb1 bb2
@@ -10708,6 +10798,8 @@ Module
           IntegerLiteral Long value=0 bits=0x0000000000000000
     bb3 if.then.3
       return
+        Type Unit
+        UnitLiteral
     bb4 if.merge.4
       branch bb5 bb6
         Type Boolean
@@ -10853,6 +10945,8 @@ Module
         Type MutableArray<MaybeUninit<Int>>
         Local $dependency.local.6
       return
+        Type Unit
+        UnitLiteral
     bb15 while.body.15
       call $array_value.5: MaybeUninit<Int> = <closure:function_type10> closure[function_type10]
         Type (Long) -> MaybeUninit<Int>
@@ -10978,6 +11072,8 @@ Module
         Type Encoder
         Local arg2
       return
+        Type Unit
+        UnitLiteral
   fun init.Captured.$c0 @fn163(this: Captured, body: (List<String>, Encodable<String>, Encoder) -> Unit) -> Unit
     bb0 entry
       field_set 0
@@ -10986,6 +11082,8 @@ Module
         Type (List<String>, Encodable<String>, Encoder) -> Unit
         Local body
       return
+        Type Unit
+        UnitLiteral
   fun init.ArrayList.$c0 @fn164(this: ArrayList<Unit>, initialCapacity: Long) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Long
@@ -11053,6 +11151,8 @@ Module
         Type Long
         IntegerLiteral Long value=0 bits=0x0000000000000000
       return
+        Type Unit
+        UnitLiteral
     bb5 while.body.5
       call $array_value.5: MaybeUninit<Unit> = <closure:function_type7> closure[function_type7]
         Type (Long) -> MaybeUninit<Unit>
@@ -11092,6 +11192,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c2 @fn166(this: ListIterator<String>, source: List<String>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -11110,6 +11212,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c2 @fn167(this: ListIterator<Int>, source: List<Int>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -11128,6 +11232,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c2 @fn168(this: ListIterator<MaybeUninit<Unit>>, source: List<MaybeUninit<Unit>>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -11146,6 +11252,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c2 @fn169(this: ListIterator<Unit>, source: List<Unit>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -11164,6 +11272,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c2 @fn170(this: ListIterator<List<Int>>, source: List<List<Int>>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -11182,6 +11292,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.SequenceEncoder.$c3 @fn171(this: SequenceEncoder<Int>, element: Encodable<Int>) -> Unit
     bb0 entry
       field_set 0
@@ -11190,6 +11302,8 @@ Module
         Type Encodable<Int>
         Local element
       return
+        Type Unit
+        UnitLiteral
   fun init.SequenceEncoder.$c3 @fn172(this: SequenceEncoder<Unit>, element: Encodable<Unit>) -> Unit
     bb0 entry
       field_set 0
@@ -11198,6 +11312,8 @@ Module
         Type Encodable<Unit>
         Local element
       return
+        Type Unit
+        UnitLiteral
   fun init.SequenceEncoder.$c3 @fn173(this: SequenceEncoder<List<Int>>, element: Encodable<List<Int>>) -> Unit
     bb0 entry
       field_set 0
@@ -11206,6 +11322,8 @@ Module
         Type Encodable<List<Int>>
         Local element
       return
+        Type Unit
+        UnitLiteral
   fun init.ArrayDecoder.$c4 @fn174(this: ArrayDecoder<Int>, element: Decodable<Int>) -> Unit
     bb0 entry
       field_set 0
@@ -11214,9 +11332,13 @@ Module
         Type Decodable<Int>
         Local element
       return
+        Type Unit
+        UnitLiteral
   fun init.Companion.$c1 @fn175(this: Companion<Int>) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c2 @fn176(this: ListIterator<MaybeUninit<JsonMember>>, source: List<MaybeUninit<JsonMember>>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -11235,6 +11357,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c2 @fn177(this: ListIterator<JsonMember>, source: List<JsonMember>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -11253,6 +11377,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c2 @fn178(this: ListIterator<MaybeUninit<JsonValue>>, source: List<MaybeUninit<JsonValue>>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -11271,6 +11397,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c2 @fn179(this: ListIterator<JsonValue>, source: List<JsonValue>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -11289,6 +11417,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c2 @fn180(this: ListIterator<MaybeUninit<Int>>, source: List<MaybeUninit<Int>>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -11307,6 +11437,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.ArrayList.$c0 @fn181(this: ArrayList<Int>, initialCapacity: Long) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Long
@@ -11374,6 +11506,8 @@ Module
         Type Long
         IntegerLiteral Long value=0 bits=0x0000000000000000
       return
+        Type Unit
+        UnitLiteral
     bb5 while.body.5
       call $array_value.5: MaybeUninit<Int> = <closure:function_type10> closure[function_type10]
         Type (Long) -> MaybeUninit<Int>

@@ -129,6 +129,8 @@ Module
         Local $new.3
     bb8 if.merge.8
       return
+        Type Unit
+        UnitLiteral
   fun $derived.equals.0 @fn1(this: (Int, Boolean), other: (Int, Boolean)) -> Boolean
     bb0 entry
       branch bb1 bb2

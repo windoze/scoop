@@ -544,6 +544,8 @@ Module
           Type Local
           Local $dependency.local.8
       return
+        Type Unit
+        UnitLiteral
   fun resumeWithException @fn8(this: Completion<Local>, exception: Throwable) -> Unit
     bb0 entry
       val $dependency.local.2: Completion<Local>
@@ -584,6 +586,8 @@ Module
           Type Throwable
           Local $dependency.local.8
       return
+        Type Unit
+        UnitLiteral
   fun run @fn9(this: Task<Local>, $completion: Continuation<Local>) -> CoroutineStep<Local>
     bb0 entry
       val $frame: CoroutineFrame<run>
@@ -676,6 +680,8 @@ Module
           Type Int
           Local $dependency.local.8
       return
+        Type Unit
+        UnitLiteral
   fun resumeWithException @fn12(this: Completion<Int>, exception: Throwable) -> Unit
     bb0 entry
       val $dependency.local.2: Completion<Int>
@@ -716,6 +722,8 @@ Module
           Type Throwable
           Local $dependency.local.8
       return
+        Type Unit
+        UnitLiteral
   fun run @fn13(this: Task<Int>, $completion: Continuation<Int>) -> CoroutineStep<Int>
     bb0 entry
       val $frame: CoroutineFrame<run>
@@ -808,6 +816,8 @@ Module
           Type Unit
           Local $dependency.local.8
       return
+        Type Unit
+        UnitLiteral
   fun resumeWithException @fn16(this: Completion<Unit>, exception: Throwable) -> Unit
     bb0 entry
       val $dependency.local.2: Completion<Unit>
@@ -848,6 +858,8 @@ Module
           Type Throwable
           Local $dependency.local.8
       return
+        Type Unit
+        UnitLiteral
   fun run @fn17(this: Task<Unit>, $completion: Continuation<Unit>) -> CoroutineStep<Unit>
     bb0 entry
       val $frame: CoroutineFrame<run>
@@ -910,6 +922,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun value @fn21(this: Completion<Local>, value: Option<Local>) -> Unit
     bb0 entry
       field_set 0
@@ -918,6 +932,8 @@ Module
         Type Option<Local>
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun failure @fn22(this: Completion<Local>, value: Option<Throwable>) -> Unit
     bb0 entry
       field_set 1
@@ -926,6 +942,8 @@ Module
         Type Option<Throwable>
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun value @fn23(this: Task<Local>) -> Local
     bb0 entry
       return
@@ -955,6 +973,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun value @fn27(this: Completion<Int>, value: Option<Int>) -> Unit
     bb0 entry
       field_set 0
@@ -963,6 +983,8 @@ Module
         Type Option<Int>
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun failure @fn28(this: Completion<Int>, value: Option<Throwable>) -> Unit
     bb0 entry
       field_set 1
@@ -971,6 +993,8 @@ Module
         Type Option<Throwable>
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun value @fn29(this: Task<Int>) -> Int
     bb0 entry
       return
@@ -1000,6 +1024,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun value @fn33(this: Completion<Unit>, value: Option<Unit>) -> Unit
     bb0 entry
       field_set 0
@@ -1008,6 +1034,8 @@ Module
         Type Option<Unit>
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun failure @fn34(this: Completion<Unit>, value: Option<Throwable>) -> Unit
     bb0 entry
       field_set 1
@@ -1016,17 +1044,15 @@ Module
         Type Option<Throwable>
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun value @fn35(this: Task<Unit>) -> Unit
     bb0 entry
-      Type Unit
-      FieldAccess 0
-        Type Task<Unit>
-        Local this
       return
+        Type Unit
+        UnitLiteral
   fun identity @fn36(value: Unit, $completion: Continuation<Unit>) -> CoroutineStep<Unit>
     bb0 entry
-      Type Unit
-      Local value
       return
         Type CoroutineStep<Unit>
         VariantConstruct CoroutineStep<Unit> v0
@@ -1076,6 +1102,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Completion.$c0 @fn50(this: Completion<Local>) -> Unit
     bb0 entry
       field_set 0
@@ -1094,6 +1122,8 @@ Module
         Type Int
         IntegerLiteral Int value=0 bits=0x00000000
       return
+        Type Unit
+        UnitLiteral
   fun init.Task.$c1 @fn51(this: Task<Local>, value: Local) -> Unit
     bb0 entry
       field_set 0
@@ -1102,6 +1132,8 @@ Module
         Type Local
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Completion.$c0 @fn52(this: Completion<Int>) -> Unit
     bb0 entry
       field_set 0
@@ -1120,6 +1152,8 @@ Module
         Type Int
         IntegerLiteral Int value=0 bits=0x00000000
       return
+        Type Unit
+        UnitLiteral
   fun init.Task.$c1 @fn53(this: Task<Int>, value: Int) -> Unit
     bb0 entry
       field_set 0
@@ -1128,6 +1162,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Completion.$c0 @fn54(this: Completion<Unit>) -> Unit
     bb0 entry
       field_set 0
@@ -1146,6 +1182,8 @@ Module
         Type Int
         IntegerLiteral Int value=0 bits=0x00000000
       return
+        Type Unit
+        UnitLiteral
   fun init.Task.$c1 @fn55(this: Task<Unit>, value: Unit) -> Unit
     bb0 entry
       field_set 0
@@ -1154,6 +1192,8 @@ Module
         Type Unit
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<Local> @fn56(task: SuspendTask<Local>, completion: Continuation<Local>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -1176,6 +1216,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn45 interface Continuation<Local>[0]
         Type Continuation<Local>
@@ -1189,6 +1231,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn46 interface Continuation<Local>[1]
         Type Continuation<Local>
@@ -1200,6 +1244,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -1495,12 +1541,16 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 suspended
       Type Unit
       ContextLeave
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 failed unwind bb1
       atomic_store_release kind=coroutine-frame-state field=0
         Type CoroutineFrame<run>
@@ -1523,6 +1573,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb6 body_failure unwind bb2
       landing_pad cleanup=false
       begin_catch
@@ -1664,12 +1716,16 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 suspended
       Type Unit
       ContextLeave
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 failed unwind bb1
       atomic_store_release kind=coroutine-frame-state field=0
         Type CoroutineFrame<run>
@@ -1692,6 +1748,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb6 body_failure unwind bb2
       landing_pad cleanup=false
       begin_catch
@@ -2001,12 +2059,16 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 suspended
       Type Unit
       ContextLeave
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 failed unwind bb1
       atomic_store_release kind=coroutine-frame-state field=0
         Type CoroutineFrame<run>
@@ -2029,6 +2091,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb6 body_failure unwind bb2
       landing_pad cleanup=false
       begin_catch
@@ -2170,12 +2234,16 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 suspended
       Type Unit
       ContextLeave
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 failed unwind bb1
       atomic_store_release kind=coroutine-frame-state field=0
         Type CoroutineFrame<run>
@@ -2198,6 +2266,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb6 body_failure unwind bb2
       landing_pad cleanup=false
       begin_catch
@@ -2498,12 +2568,16 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 suspended
       Type Unit
       ContextLeave
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 failed unwind bb1
       atomic_store_release kind=coroutine-frame-state field=0
         Type CoroutineFrame<run>
@@ -2526,6 +2600,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb6 body_failure unwind bb2
       landing_pad cleanup=false
       begin_catch
@@ -2658,12 +2734,16 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 suspended
       Type Unit
       ContextLeave
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 failed unwind bb1
       atomic_store_release kind=coroutine-frame-state field=0
         Type CoroutineFrame<run>
@@ -2686,6 +2766,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb6 body_failure unwind bb2
       landing_pad cleanup=false
       begin_catch

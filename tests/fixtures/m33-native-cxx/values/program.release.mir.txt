@@ -270,6 +270,8 @@ Module
       resume
     bb19 try.end.19
       return
+        Type Unit
+        UnitLiteral
     bb20 try.body.20 unwind bb13
       val $default.local.0: String
         Type String

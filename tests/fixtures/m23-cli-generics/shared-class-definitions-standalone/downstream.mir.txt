@@ -1964,6 +1964,8 @@ Module
         Type Option<Link<Later>>
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun next @fn18(this: Link<Later>) -> Option<Link<Later>>
     bb0 entry
       return
@@ -2286,6 +2288,8 @@ Module
         Type Option<Link<Int>>
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun next @fn34(this: Link<Int>) -> Option<Link<Int>>
     bb0 entry
       return
@@ -2328,11 +2332,13 @@ Module
         Type Base<Unit, Unit>
         Local this
       return
+        Type Unit
+        UnitLiteral
   fun select @fn40(this: Base<Unit, Unit>, other: Unit) -> Unit
     bb0 entry
-      Type Unit
-      Local other
       return
+        Type Unit
+        UnitLiteral
   fun apply @fn41(this: Readable<Unit>, convert: (Unit) -> Int) -> Int
     bb0 entry
       val $dependency.local.3: (Unit) -> Int
@@ -2606,6 +2612,8 @@ Module
         Type Option<Link<Unit>>
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun next @fn50(this: Link<Unit>) -> Option<Link<Unit>>
     bb0 entry
       return
@@ -2615,31 +2623,27 @@ Module
           Local this
   fun value @fn51(this: Link<Unit>) -> Unit
     bb0 entry
-      Type Unit
-      FieldAccess 0
-        Type Link<Unit>
-        Local this
       return
+        Type Unit
+        UnitLiteral
   fun echoed @fn52(this: Remote<Unit>) -> Unit
     bb0 entry
-      Type Unit
-      FieldAccess 2
-        Type Remote<Unit>
-        Local this
       return
+        Type Unit
+        UnitLiteral
   fun second @fn53(this: Base<Unit, Unit>) -> Unit
     bb0 entry
-      Type Unit
-      FieldAccess 1
-        Type Base<Unit, Unit>
-        Local this
       return
+        Type Unit
+        UnitLiteral
   fun readLink @fn54(value: Unit, link: Link<Unit>) -> Unit
     bb0 entry
       call @fn51 direct
         Type Link<Unit>
         Local link
       return
+        Type Unit
+        UnitLiteral
   fun Readable.read @fn55(this: Readable<Later>) -> Later
     bb0 entry
       trap "call to abstract method `Readable.read`"
@@ -3044,6 +3048,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Link.$c0 @fn78(this: Link<Later>, value: Later, next: Option<Link<Later>>) -> Unit
     bb0 entry
       field_set 0
@@ -3057,6 +3063,8 @@ Module
         Type Option<Link<Later>>
         Local next
       return
+        Type Unit
+        UnitLiteral
   fun init.Remote.$c2 @fn79(this: Remote<Later>, value: Later) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Unit
@@ -3090,6 +3098,8 @@ Module
             Type Remote<Later>
             Local this
       return
+        Type Unit
+        UnitLiteral
   fun init.Link.$c0 @fn80(this: Link<Int>, value: Int, next: Option<Link<Int>>) -> Unit
     bb0 entry
       field_set 0
@@ -3103,6 +3113,8 @@ Module
         Type Option<Link<Int>>
         Local next
       return
+        Type Unit
+        UnitLiteral
   fun init.Remote.$c2 @fn81(this: Remote<Int>, value: Int) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Unit
@@ -3136,6 +3148,8 @@ Module
             Type Remote<Int>
             Local this
       return
+        Type Unit
+        UnitLiteral
   fun init.Link.$c0 @fn82(this: Link<Unit>, value: Unit, next: Option<Link<Unit>>) -> Unit
     bb0 entry
       field_set 0
@@ -3149,6 +3163,8 @@ Module
         Type Option<Link<Unit>>
         Local next
       return
+        Type Unit
+        UnitLiteral
   fun init.Remote.$c2 @fn83(this: Remote<Unit>, value: Unit) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Unit
@@ -3182,6 +3198,8 @@ Module
             Type Remote<Unit>
             Local this
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c3 @fn84(this: ListIterator<Link<Later>>, source: List<Link<Later>>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -3200,6 +3218,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c3 @fn85(this: ListIterator<Link<Int>>, source: List<Link<Int>>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -3218,6 +3238,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c3 @fn86(this: ListIterator<Link<Unit>>, source: List<Link<Unit>>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -3236,6 +3258,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.Base.$c4 @fn87(this: Base<Unit, Later>, first: Unit, second: Later) -> Unit
     bb0 entry
       field_set 0
@@ -3249,6 +3273,8 @@ Module
         Type Later
         Local second
       return
+        Type Unit
+        UnitLiteral
   fun init.Base.$c4 @fn88(this: Base<Unit, Int>, first: Unit, second: Int) -> Unit
     bb0 entry
       field_set 0
@@ -3262,6 +3288,8 @@ Module
         Type Int
         Local second
       return
+        Type Unit
+        UnitLiteral
   fun init.Base.$c4 @fn89(this: Base<Unit, Unit>, first: Unit, second: Unit) -> Unit
     bb0 entry
       field_set 0
@@ -3275,6 +3303,8 @@ Module
         Type Unit
         Local second
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Wrapper.$c1 @fn90(head: Link<Later>) -> Wrapper<Later> <no-gc>
     bb0 entry
       return
@@ -3318,6 +3348,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn67 interface Continuation<Later>[0]
         Type Continuation<Later>
@@ -3331,6 +3363,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn68 interface Continuation<Later>[1]
         Type Continuation<Later>
@@ -3342,6 +3376,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

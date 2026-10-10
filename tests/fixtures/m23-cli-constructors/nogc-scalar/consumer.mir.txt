@@ -219,6 +219,8 @@ Module
     bb9 if.merge.9
       call @scoop_rt_gc_collect direct
       return
+        Type Unit
+        UnitLiteral
   str @str0 "illegal state"
   str @str1 "illegal state"
   str @str2 "illegal state"

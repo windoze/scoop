@@ -59,6 +59,8 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun main @fn1() -> Unit
     bb0 entry
       call external2 direct
@@ -111,6 +113,8 @@ Module
         Type Boolean
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun equalTo @fn2(this: Ptr<Target>, other: Ptr<Target>) -> Boolean
     bb0 entry
       val $dependency.local.2: Ptr<Target>

@@ -17,6 +17,8 @@ Module
     bb0 entry
       call extern0 @verify_finished direct
       return
+        Type Unit
+        UnitLiteral
   fun perform @fn1() -> Unit
     bb0 entry
       val $argument.0: Int8
@@ -288,6 +290,8 @@ Module
         Local $parameter.u64
       call extern0 @verify_finished direct
       return
+        Type Unit
+        UnitLiteral
   fun nativeMixed @fn2(arg0: Wrapper, arg1: Int8, arg2: Int16, arg3: Int, arg4: Long, arg5: UInt8, arg6: UInt16, arg7: UInt, arg8: ULong) -> Unit
     bb0 entry
       call extern1 @native_mixed direct
@@ -310,6 +314,8 @@ Module
         Type ULong
         Local arg8
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Packed.$c0 @fn3(value: Int8, flag: Boolean) -> Packed <no-gc>
     bb0 entry
       return

@@ -231,6 +231,7 @@ Module
     heap_store local7 +16 local8
     heap_store local7 +32 integer<Long>(0x0000000000000000)
     heap_store local7 +40 false
+    t7 = aggregate () : {}
     br @inline.cont.1
   fun @scoop$1$cb$fddfc39b000af59b98c53e20b637b52530ec5ac73b5765541f1a38aa08659d39(ptr<managed>, i64) -> i32
     local %0 $dependency.local.2: ptr<managed>

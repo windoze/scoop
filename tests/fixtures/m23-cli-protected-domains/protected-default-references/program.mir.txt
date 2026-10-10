@@ -550,6 +550,8 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun main @fn3() -> Unit
     bb0 entry
       assign $new.1
@@ -701,6 +703,8 @@ Module
         Type Boolean
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun $lambda @fn4($argument.0: () -> Int) -> Int
     bb0 entry
       return
@@ -768,6 +772,8 @@ Module
         Type Int
         Local $dependency.parameter.seed
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<ConsumerDefault> @fn11(task: SuspendTask<ConsumerDefault>, completion: Continuation<ConsumerDefault>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -790,6 +796,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn6 interface Continuation<ConsumerDefault>[0]
         Type Continuation<ConsumerDefault>
@@ -803,6 +811,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn7 interface Continuation<ConsumerDefault>[1]
         Type Continuation<ConsumerDefault>
@@ -814,6 +824,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

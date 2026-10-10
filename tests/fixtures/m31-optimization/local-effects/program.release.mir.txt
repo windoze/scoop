@@ -46,6 +46,8 @@ Module
         Local $inline.1.this
         Type Int
         IntegerLiteral Int value=7 bits=0x00000007
+      Type Unit
+      UnitLiteral
       goto bb1
     bb3 inline.cont.3
       call @scoop_rt_gc_collect direct
@@ -69,6 +71,8 @@ Module
       global_assign effects
         Type Int
         Local $inline.3.value
+      Type Unit
+      UnitLiteral
       goto bb3
     bb5 inline.cont.5
       val $dependency.receiver: Int
@@ -111,6 +115,8 @@ Module
         Type Int
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun aliases @fn2(input: Int) -> Int
     bb0 entry
       var value: Int
@@ -250,6 +256,8 @@ Module
         Local $inline.6.$dependency.receiver
         Type Int
         Local $inline.6.$dependency.parameter.value
+      Type Unit
+      UnitLiteral
       goto bb6
   fun selected @fn3() -> Int
     bb0 entry
@@ -317,6 +325,8 @@ Module
       global_assign effects
         Type Int
         Local $inline.7.value
+      Type Unit
+      UnitLiteral
       goto bb7
     bb9 inline.cont.9
       val $dependency.receiver: Int
@@ -559,6 +569,8 @@ Module
       global_assign effects
         Type Int
         Local $inline.22.value
+      Type Unit
+      UnitLiteral
       goto bb22
     bb24 inline.cont.24
       val $dependency.receiver: Int
@@ -593,6 +605,8 @@ Module
       global_assign effects
         Type Int
         Local $inline.26.value
+      Type Unit
+      UnitLiteral
       goto bb26
     bb28 inline.cont.28 unwind bb3
       val $dependency.receiver: Int
@@ -623,6 +637,8 @@ Module
       global_assign effects
         Type Int
         Local $inline.30.value
+      Type Unit
+      UnitLiteral
       goto bb30
     bb32 inline.cont.32 unwind bb5
       val $dependency.receiver: Int
@@ -655,6 +671,8 @@ Module
       global_assign effects
         Type Int
         Local $inline.34.value
+      Type Unit
+      UnitLiteral
       goto bb34
     bb36 inline.cont.36
       val $dependency.receiver: Int
@@ -685,6 +703,8 @@ Module
       global_assign effects
         Type Int
         Local $inline.38.value
+      Type Unit
+      UnitLiteral
       goto bb38
     bb40 inline.cont.40
       val $dependency.receiver: Int
@@ -790,6 +810,8 @@ Module
         Type Int
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb2 inline.1.entry
       assign $inline.1.result
         Type Int
@@ -806,6 +828,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun equalTo @fn9(this: Ptr<Int>, other: Ptr<Int>) -> Boolean
     bb0 entry
       val $dependency.local.2: Ptr<Int>
@@ -877,6 +901,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn11(value: Long) -> Unit
     bb0 entry
       val $dependency.local.1: Long
@@ -901,6 +927,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun equals @fn12(this: Ptr<Int>, other: Ptr<Int>) -> Boolean
     bb0 entry
       val $dependency.local.2: Ptr<Int>
@@ -943,6 +971,8 @@ Module
         Type Int
         Local number
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<Item> @fn18(task: SuspendTask<Item>, completion: Continuation<Item>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -965,6 +995,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn13 interface Continuation<Item>[0]
         Type Continuation<Item>
@@ -978,6 +1010,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn14 interface Continuation<Item>[1]
         Type Continuation<Item>
@@ -989,6 +1023,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

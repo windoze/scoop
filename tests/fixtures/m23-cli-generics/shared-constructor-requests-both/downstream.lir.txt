@@ -670,7 +670,6 @@ Module
   fun @scoop$1$cb$c1edb745cf9e499047fc16d348fbd29fa14900470c9a785334f6fd3044374a60(ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
-    t0 = zst_value exact=1dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc align 1 : {}
     ret
   fun @scoop$1$cb$40e3cb9b7f7563b76fab73ed94e53068a9e9844f36b5559a52dc9f1130bb70bf(elided-zst<{} size=0 align=1>) -> ptr<managed>
     local %0 $dependency.local.1: {} <logical-zst 1dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc>
@@ -692,7 +691,6 @@ Module
   fun @scoop$1$cb$2929a7c19a66801242c5a2ae0706bf3e175dbde52793a72c77c132708cc5a3ba(ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
-    t0 = zst_value exact=1dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc align 1 : {}
     ret
   fun @scoop$1$cb$227a216fc8231a84b239b09d447b285489eee0e77b1b387137115727ff34c421(ptr<managed>) -> ptr<managed>
   block entry

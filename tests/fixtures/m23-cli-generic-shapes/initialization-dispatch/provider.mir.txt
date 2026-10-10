@@ -141,6 +141,8 @@ Module
         Type Int
         Local $parameter.item
       return
+        Type Unit
+        UnitLiteral
   fun init.Base.$c0 @fn10(this: Base<Int>, item: Int) -> Unit
     bb0 entry
       field_set 0
@@ -149,6 +151,8 @@ Module
         Type Int
         Local item
       return
+        Type Unit
+        UnitLiteral
   instance mi0 function=@fn1 <- Base.get
   instance mi1 function=@fn2 <- Base.offset
   instance mi2 function=@fn3 <- Derived.offset

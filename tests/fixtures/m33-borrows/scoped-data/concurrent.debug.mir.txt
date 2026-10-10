@@ -143,6 +143,8 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun main @fn3() -> Unit
     bb0 entry
       val $argument.0: Long
@@ -263,6 +265,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb5 while.body.5
       call $array_value.5: Int = <closure:function_type2> closure[function_type2]
         Type (Long) -> Int
@@ -682,6 +686,8 @@ Module
         Type Boolean
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun $extension.withDataPointer @fn11(this: MutableArray<Int>, block: (Ptr<Int>, Long) -> Unit) -> Unit
     bb0 entry
       val $dependency.local.2: MutableArray<Int>
@@ -721,9 +727,9 @@ Module
       end_catch
       resume
     bb5 try.end.5
-      Type Unit
-      Local $borrow_result.4
       return
+        Type Unit
+        UnitLiteral
     bb6 try.body.6 unwind bb1
       call <closure:function_type4> closure[function_type4]
         Type (Ptr<Int>, Long) -> Unit
@@ -776,6 +782,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun next @fn13(this: ListIterator<Int>) -> Option<Int>
     bb0 entry
       branch bb1 bb2
@@ -1088,6 +1096,8 @@ Module
         Type Boolean
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun $lambda.4 @fn19($closure: (Ptr<Int>, Long) -> Unit, nested: Ptr<Int>, $arg.1: Long) -> Unit
     bb0 entry
       call @scoop_rt_gc_collect direct
@@ -1127,6 +1137,8 @@ Module
         Type Boolean
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c0 @fn20(this: ListIterator<Int>, source: List<Int>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -1145,6 +1157,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun foreign callback adapter 0 @fn21($closure: (Int) -> Int, $snapshot: internal<context-node>, $result: Ptr<Int>, $arguments: Ptr<Ptr<Unit>>, $exception: Ptr<Throwable>) -> machine<foreign-callback-status>
     bb0 context.unwind
       landing_pad cleanup=true

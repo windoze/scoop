@@ -126,6 +126,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun Box.get @fn1(this: Box<Int>) -> Int
     bb0 entry
       return
@@ -157,6 +159,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun Box.get @fn3(this: Box<String>) -> String
     bb0 entry
       return
@@ -188,6 +192,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun Holder.read @fn5(this: Holder<Int>) -> String
     bb0 entry
       return
@@ -260,6 +266,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn6 interface Continuation<Readable>[0]
         Type Continuation<Readable>
@@ -273,6 +281,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn7 interface Continuation<Readable>[1]
         Type Continuation<Readable>
@@ -284,6 +294,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

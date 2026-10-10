@@ -11,6 +11,8 @@ Module
         Type Long
         Local arg0
       return
+        Type Unit
+        UnitLiteral
   fun main @fn1() -> Unit
     bb0 entry
       call $dependency.receiver: Int = external0 direct
@@ -48,4 +50,6 @@ Module
         Type Long
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   output executable @fn1

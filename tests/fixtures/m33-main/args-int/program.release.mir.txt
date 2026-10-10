@@ -55,6 +55,8 @@ Module
       unreachable
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun code @fn1() -> Int <no-gc>
     bb0 entry
       call $call.1: Int = extern0 @main_code direct
@@ -282,6 +284,8 @@ Module
         IntegerLiteral Int value=99 bits=0x00000063
       unreachable
     bb14 inline.11.if.merge.2
+      Type Unit
+      UnitLiteral
       goto bb11
     bb15 inline.cont.15
       val $dependency.receiver: Array<String>
@@ -333,6 +337,8 @@ Module
         IntegerLiteral Int value=99 bits=0x00000063
       unreachable
     bb18 inline.15.if.merge.2
+      Type Unit
+      UnitLiteral
       goto bb15
     bb19 inline.cont.19
       val $dependency.receiver: Long
@@ -392,6 +398,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun $anonymous.0 @fn5($closure: (Long) -> String, index: Long) -> String
     bb0 entry
       return
@@ -457,6 +465,8 @@ Module
         Local $inline.1.this
         Type Boolean
         BoolLiteral false
+      Type Unit
+      UnitLiteral
       goto bb1
   fun get @fn7(this: Array<String>, index: Long) -> String
     bb0 entry
@@ -649,6 +659,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun function_bridge.$Closure$anonymous0.(Any) -> Any @fn13($source: (Long) -> String, arg0: Any) -> Any
     bb0 entry
       call $call.1: String = <closure:function_type0> closure[function_type0]

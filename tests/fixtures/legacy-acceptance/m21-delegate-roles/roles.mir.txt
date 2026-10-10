@@ -24,6 +24,8 @@ Module
         Type Int
         Local next
       return
+        Type Unit
+        UnitLiteral
   fun Ordinary.getValue @fn2(this: Ordinary, thisRef: Unit) -> Int
     bb0 entry
       return
@@ -41,6 +43,8 @@ Module
         Type Int
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun println @fn4(value: Int) -> Unit
     bb0 entry
       val $dependency.local.1: Int
@@ -65,6 +69,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun init.MutableDelegate.$c1 @fn5(this: MutableDelegate, value: Int) -> Unit
     bb0 entry
       field_set 0
@@ -73,9 +79,13 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Ordinary.$c2 @fn6(this: Ordinary) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   instance mi0 function=@fn4 <- println
   str @str0 "\n"
   output executable @fn3

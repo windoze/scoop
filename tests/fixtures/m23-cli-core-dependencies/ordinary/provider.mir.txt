@@ -41,6 +41,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun $init$body$0 @fn2() -> Unit
     bb0 entry
       assign $new.1
@@ -53,6 +55,8 @@ Module
         Type CallLog
         Local $new.1
       return
+        Type Unit
+        UnitLiteral
   fun $init$ensure$0 @fn3() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -77,6 +81,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -179,6 +185,8 @@ Module
           Type Int
           Local $dependency.parameter.other
       return
+        Type Unit
+        UnitLiteral
   fun invocationCount @fn5() -> Int
     bb0 entry
       call @fn3 direct
@@ -208,6 +216,8 @@ Module
         Type Int
         IntegerLiteral Int value=0 bits=0x00000000
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<CallLog> @fn11(task: SuspendTask<CallLog>, completion: Continuation<CallLog>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -230,6 +240,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn6 interface Continuation<CallLog>[0]
         Type Continuation<CallLog>
@@ -243,6 +255,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn7 interface Continuation<CallLog>[1]
         Type Continuation<CallLog>
@@ -254,6 +268,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

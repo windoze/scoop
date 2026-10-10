@@ -106,10 +106,14 @@ Module
         Type Ptr<Unit>
         Local arg1
       return
+        Type Unit
+        UnitLiteral
   fun holdCallback @fn3() -> Unit
     bb0 entry
       call extern1 @m33_shutdown_hold direct
       return
+        Type Unit
+        UnitLiteral
   fun joinWorker @fn4() -> Int
     bb0 entry
       call $call.1: Int = extern2 @m33_shutdown_join direct
@@ -126,6 +130,8 @@ Module
     bb0 entry
       call extern4 @m33_shutdown_register_atexit direct
       return
+        Type Unit
+        UnitLiteral
   fun main @fn7(args: Array<String>) -> Int
     bb0 entry
       call $dependency.receiver: Long = @fn11 direct
@@ -639,6 +645,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Payload.$c0 @fn17(label: String, value: Int) -> Payload <no-gc>
     bb0 entry
       return

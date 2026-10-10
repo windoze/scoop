@@ -390,6 +390,8 @@ Module
         Type Int
         Local number
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Payload.$c1 @fn6(data: Key<Int>, last: Int) -> Payload<Key<Int>> <no-gc>
     bb0 entry
       return

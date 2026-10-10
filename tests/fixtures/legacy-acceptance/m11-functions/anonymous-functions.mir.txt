@@ -90,6 +90,8 @@ Module
         Type Int
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun $anonymous.0 @fn2($closure: (Int) -> Int, value: Int) -> Int
     bb0 entry
       val $dependency.receiver: Int
@@ -190,6 +192,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun function_bridge.$Closure$anonymous0.(Any) -> Any @fn5($source: (Int) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type0> closure[function_type0]

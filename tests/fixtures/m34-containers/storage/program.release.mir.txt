@@ -285,6 +285,8 @@ Module
           IntegerLiteral Long value=0 bits=0x0000000000000000
     bb2 while.exit.2
       return
+        Type Unit
+        UnitLiteral
     bb3 while.body.3
       val $dependency.receiver: MutableList<Cell>
         Type MutableList<Cell>
@@ -343,6 +345,8 @@ Module
         Local $inline.4.this
         Type Int
         Local $inline.4.number
+      Type Unit
+      UnitLiteral
       goto bb4
   fun writeYoung @fn2(values: MutableList<Cell>) -> Unit
     bb0 entry
@@ -386,12 +390,16 @@ Module
         Type Cell
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb2 inline.1.entry
       field_set 0
         Type Cell
         Local $inline.1.this
         Type Int
         IntegerLiteral Int value=33 bits=0x00000021
+      Type Unit
+      UnitLiteral
       goto bb1
     bb3 inline.cont.3
       val $dependency.argument.1: Cell
@@ -438,6 +446,8 @@ Module
         Local $inline.3.this
         Type Int
         IntegerLiteral Int value=22 bits=0x00000016
+      Type Unit
+      UnitLiteral
       goto bb3
     bb5 inline.cont.5
       val $dependency.argument.1: Cell
@@ -484,6 +494,8 @@ Module
         Local $inline.5.this
         Type Int
         IntegerLiteral Int value=11 bits=0x0000000b
+      Type Unit
+      UnitLiteral
       goto bb5
   fun discardLast @fn3(values: MutableList<Cell>) -> Unit
     bb0 entry
@@ -517,6 +529,8 @@ Module
         Type Long
         Local $dependency.parameter.index
       return
+        Type Unit
+        UnitLiteral
   fun minorCollection @fn4() -> Unit
     bb0 entry
       call $call.1: Boolean = extern2 @m34_moving_stress direct
@@ -526,6 +540,8 @@ Module
     bb1 if.then.1
       call @scoop_rt_gc_collect direct
       return
+        Type Unit
+        UnitLiteral
     bb2 if.merge.2
       call before: Long = extern1 @m34_minor_count direct
       goto bb3
@@ -546,6 +562,8 @@ Module
           Local $dependency.parameter.other
     bb4 while.exit.4
       return
+        Type Unit
+        UnitLiteral
     bb5 while.body.5
       var index: Int
         Type Int
@@ -620,6 +638,8 @@ Module
         Local $inline.9.this
         Type Int
         Local $inline.9.number
+      Type Unit
+      UnitLiteral
       goto bb9
   fun movingAndClearing @fn5() -> Unit
     bb0 entry
@@ -1029,12 +1049,16 @@ Module
         Type Long
         IntegerLiteral Long value=8 bits=0x0000000000000008
       return
+        Type Unit
+        UnitLiteral
     bb11 inline.10.entry
       field_set 0
         Type Cell
         Local $inline.10.this
         Type Int
         IntegerLiteral Int value=77 bits=0x0000004d
+      Type Unit
+      UnitLiteral
       goto bb10
     bb12 inline.cont.12
       val $dependency.receiver: Long
@@ -1159,6 +1183,8 @@ Module
           Local $inline.14.$dependency.receiver
         Type Long
         Local $inline.14.$dependency.parameter.index
+      Type Unit
+      UnitLiteral
       goto bb14
   fun inspectStorage @fn6(arg0: Any, arg1: Long) -> Unit
     bb0 entry
@@ -1168,6 +1194,8 @@ Module
         Type Long
         Local arg1
       return
+        Type Unit
+        UnitLiteral
   fun minorCount @fn7() -> Long
     bb0 entry
       call $call.1: Long = extern1 @m34_minor_count direct
@@ -1224,6 +1252,8 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun main @fn10() -> Unit
     bb0 entry
       call @fn14 direct
@@ -1239,6 +1269,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun $init$body$0 @fn11() -> Unit
     bb0 entry
       assign $new.1
@@ -1253,12 +1285,16 @@ Module
         Type Counts
         Local $new.1
       return
+        Type Unit
+        UnitLiteral
     bb2 inline.1.entry
       field_set 0
         Type Counts
         Local $inline.1.this
         Type Int
         IntegerLiteral Int value=0 bits=0x00000000
+      Type Unit
+      UnitLiteral
       goto bb1
   fun $init$ensure$0 @fn12() -> Unit
     bb0 entry
@@ -1284,6 +1320,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -2037,6 +2075,8 @@ Module
         Type Long
         Local $parameter.stride
       return
+        Type Unit
+        UnitLiteral
     bb19 inline.cont.19
       val $dependency.receiver: Long
         Type Long
@@ -2583,6 +2623,8 @@ Module
         Type Int
         IntegerLiteral Int value=8 bits=0x00000008
       return
+        Type Unit
+        UnitLiteral
     bb16 inline.cont.16
       val $dependency.argument.0: Empty
         Type Empty
@@ -2708,6 +2750,8 @@ Module
         Local $inline.20.this
         Type Int
         Local $inline.20.number
+      Type Unit
+      UnitLiteral
       goto bb20
     bb22 inline.cont.22
       val $dependency.argument.1: Read
@@ -2769,6 +2813,8 @@ Module
         Local $inline.22.this
         Type Int
         IntegerLiteral Int value=99 bits=0x00000063
+      Type Unit
+      UnitLiteral
       goto bb22
     bb24 inline.cont.24
       val $dependency.argument.1: Pair
@@ -2978,6 +3024,8 @@ Module
         Local $inline.1.this
         Type Boolean
         BoolLiteral false
+      Type Unit
+      UnitLiteral
       goto bb1
   fun get @fn21(this: MutableArray<MaybeUninit<Cell>>, index: Long) -> MaybeUninit<Cell>
     bb0 entry
@@ -3111,6 +3159,8 @@ Module
         Local $inline.1.this
         Type Boolean
         BoolLiteral false
+      Type Unit
+      UnitLiteral
       goto bb1
   fun get @fn24(this: ArrayList<Cell>, index: Long) -> Cell
     bb0 entry
@@ -3252,6 +3302,8 @@ Module
         Type MaybeUninit<Cell>
         Local $value.3
       return
+        Type Unit
+        UnitLiteral
   fun add @fn27(this: ArrayList<Cell>, value: Cell) -> Unit
     bb0 entry
       val $dependency.local.2: ArrayList<Cell>
@@ -3362,6 +3414,8 @@ Module
           Type Long
           IntegerLiteral Long value=1 bits=0x0000000000000001
       return
+        Type Unit
+        UnitLiteral
   fun add @fn28(this: ArrayList<Cell>, index: Long, value: Cell) -> Unit
     bb0 entry
       val $dependency.local.4: Long
@@ -3677,6 +3731,8 @@ Module
           Type Long
           IntegerLiteral Long value=1 bits=0x0000000000000001
       return
+        Type Unit
+        UnitLiteral
   fun removeAt @fn29(this: ArrayList<Cell>, index: Long) -> Cell
     bb0 entry
       val $dependency.local.5: ArrayList<Cell>
@@ -3988,6 +4044,8 @@ Module
         Type Long
         IntegerLiteral Long value=0 bits=0x0000000000000000
       return
+        Type Unit
+        UnitLiteral
     bb3 while.body.3
       val $dependency.local.5: MutableArray<MaybeUninit<Cell>>
         Type MutableArray<MaybeUninit<Cell>>
@@ -4101,6 +4159,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn32(value: String) -> Unit
     bb0 entry
       val $dependency.local.1: String
@@ -4125,6 +4185,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun iterator @fn33(this: MutableArray<MaybeUninit<Int>>) -> Iterator<MaybeUninit<Int>>
     bb0 entry
       val $dependency.local.1: List<MaybeUninit<Int>>
@@ -4185,6 +4247,8 @@ Module
         Local $inline.1.this
         Type Boolean
         BoolLiteral false
+      Type Unit
+      UnitLiteral
       goto bb1
   fun get @fn34(this: MutableArray<MaybeUninit<Int>>, index: Long) -> MaybeUninit<Int>
     bb0 entry
@@ -4318,6 +4382,8 @@ Module
         Local $inline.1.this
         Type Boolean
         BoolLiteral false
+      Type Unit
+      UnitLiteral
       goto bb1
   fun get @fn37(this: ArrayList<Int>, index: Long) -> Int
     bb0 entry
@@ -4459,6 +4525,8 @@ Module
         Type MaybeUninit<Int>
         Local $value.3
       return
+        Type Unit
+        UnitLiteral
   fun add @fn40(this: ArrayList<Int>, value: Int) -> Unit
     bb0 entry
       val $dependency.local.2: ArrayList<Int>
@@ -4569,6 +4637,8 @@ Module
           Type Long
           IntegerLiteral Long value=1 bits=0x0000000000000001
       return
+        Type Unit
+        UnitLiteral
   fun add @fn41(this: ArrayList<Int>, index: Long, value: Int) -> Unit
     bb0 entry
       val $dependency.local.4: Long
@@ -4884,6 +4954,8 @@ Module
           Type Long
           IntegerLiteral Long value=1 bits=0x0000000000000001
       return
+        Type Unit
+        UnitLiteral
   fun removeAt @fn42(this: ArrayList<Int>, index: Long) -> Int
     bb0 entry
       val $dependency.local.5: ArrayList<Int>
@@ -5195,6 +5267,8 @@ Module
         Type Long
         IntegerLiteral Long value=0 bits=0x0000000000000000
       return
+        Type Unit
+        UnitLiteral
     bb3 while.body.3
       val $dependency.local.5: MutableArray<MaybeUninit<Int>>
         Type MutableArray<MaybeUninit<Int>>
@@ -5344,6 +5418,8 @@ Module
         Local $inline.1.this
         Type Boolean
         BoolLiteral false
+      Type Unit
+      UnitLiteral
       goto bb1
   fun get @fn45(this: Array<Int>, index: Long) -> Int
     bb0 entry
@@ -5477,6 +5553,8 @@ Module
         Local $inline.1.this
         Type Boolean
         BoolLiteral false
+      Type Unit
+      UnitLiteral
       goto bb1
   fun get @fn48(this: MutableArray<MaybeUninit<Option<Int>>>, index: Long) -> MaybeUninit<Option<Int>>
     bb0 entry
@@ -5610,6 +5688,8 @@ Module
         Local $inline.1.this
         Type Boolean
         BoolLiteral false
+      Type Unit
+      UnitLiteral
       goto bb1
   fun get @fn51(this: ArrayList<Option<Int>>, index: Long) -> Option<Int>
     bb0 entry
@@ -5751,6 +5831,8 @@ Module
         Type MaybeUninit<Option<Int>>
         Local $value.3
       return
+        Type Unit
+        UnitLiteral
   fun add @fn54(this: ArrayList<Option<Int>>, value: Option<Int>) -> Unit
     bb0 entry
       val $dependency.local.2: ArrayList<Option<Int>>
@@ -5861,6 +5943,8 @@ Module
           Type Long
           IntegerLiteral Long value=1 bits=0x0000000000000001
       return
+        Type Unit
+        UnitLiteral
   fun add @fn55(this: ArrayList<Option<Int>>, index: Long, value: Option<Int>) -> Unit
     bb0 entry
       val $dependency.local.4: Long
@@ -6176,6 +6260,8 @@ Module
           Type Long
           IntegerLiteral Long value=1 bits=0x0000000000000001
       return
+        Type Unit
+        UnitLiteral
   fun removeAt @fn56(this: ArrayList<Option<Int>>, index: Long) -> Option<Int>
     bb0 entry
       val $dependency.local.5: ArrayList<Option<Int>>
@@ -6487,6 +6573,8 @@ Module
         Type Long
         IntegerLiteral Long value=0 bits=0x0000000000000000
       return
+        Type Unit
+        UnitLiteral
     bb3 while.body.3
       val $dependency.local.5: MutableArray<MaybeUninit<Option<Int>>>
         Type MutableArray<MaybeUninit<Option<Int>>>
@@ -6835,6 +6923,8 @@ Module
         Local $inline.1.this
         Type Boolean
         BoolLiteral false
+      Type Unit
+      UnitLiteral
       goto bb1
   fun get @fn61(this: MutableArray<MaybeUninit<Pair>>, index: Long) -> MaybeUninit<Pair>
     bb0 entry
@@ -6968,6 +7058,8 @@ Module
         Local $inline.1.this
         Type Boolean
         BoolLiteral false
+      Type Unit
+      UnitLiteral
       goto bb1
   fun get @fn64(this: ArrayList<Pair>, index: Long) -> Pair
     bb0 entry
@@ -7109,6 +7201,8 @@ Module
         Type MaybeUninit<Pair>
         Local $value.3
       return
+        Type Unit
+        UnitLiteral
   fun add @fn67(this: ArrayList<Pair>, value: Pair) -> Unit
     bb0 entry
       val $dependency.local.2: ArrayList<Pair>
@@ -7219,6 +7313,8 @@ Module
           Type Long
           IntegerLiteral Long value=1 bits=0x0000000000000001
       return
+        Type Unit
+        UnitLiteral
   fun add @fn68(this: ArrayList<Pair>, index: Long, value: Pair) -> Unit
     bb0 entry
       val $dependency.local.4: Long
@@ -7534,6 +7630,8 @@ Module
           Type Long
           IntegerLiteral Long value=1 bits=0x0000000000000001
       return
+        Type Unit
+        UnitLiteral
   fun removeAt @fn69(this: ArrayList<Pair>, index: Long) -> Pair
     bb0 entry
       val $dependency.local.5: ArrayList<Pair>
@@ -7845,6 +7943,8 @@ Module
         Type Long
         IntegerLiteral Long value=0 bits=0x0000000000000000
       return
+        Type Unit
+        UnitLiteral
     bb3 while.body.3
       val $dependency.local.5: MutableArray<MaybeUninit<Pair>>
         Type MutableArray<MaybeUninit<Pair>>
@@ -7994,6 +8094,8 @@ Module
         Local $inline.1.this
         Type Boolean
         BoolLiteral false
+      Type Unit
+      UnitLiteral
       goto bb1
   fun get @fn72(this: MutableArray<MaybeUninit<Read>>, index: Long) -> MaybeUninit<Read>
     bb0 entry
@@ -8127,6 +8229,8 @@ Module
         Local $inline.1.this
         Type Boolean
         BoolLiteral false
+      Type Unit
+      UnitLiteral
       goto bb1
   fun get @fn75(this: ArrayList<Read>, index: Long) -> Read
     bb0 entry
@@ -8268,6 +8372,8 @@ Module
         Type MaybeUninit<Read>
         Local $value.3
       return
+        Type Unit
+        UnitLiteral
   fun add @fn78(this: ArrayList<Read>, value: Read) -> Unit
     bb0 entry
       val $dependency.local.2: ArrayList<Read>
@@ -8378,6 +8484,8 @@ Module
           Type Long
           IntegerLiteral Long value=1 bits=0x0000000000000001
       return
+        Type Unit
+        UnitLiteral
   fun add @fn79(this: ArrayList<Read>, index: Long, value: Read) -> Unit
     bb0 entry
       val $dependency.local.4: Long
@@ -8693,6 +8801,8 @@ Module
           Type Long
           IntegerLiteral Long value=1 bits=0x0000000000000001
       return
+        Type Unit
+        UnitLiteral
   fun removeAt @fn80(this: ArrayList<Read>, index: Long) -> Read
     bb0 entry
       val $dependency.local.5: ArrayList<Read>
@@ -9004,6 +9114,8 @@ Module
         Type Long
         IntegerLiteral Long value=0 bits=0x0000000000000000
       return
+        Type Unit
+        UnitLiteral
     bb3 while.body.3
       val $dependency.local.5: MutableArray<MaybeUninit<Read>>
         Type MutableArray<MaybeUninit<Read>>
@@ -9153,6 +9265,8 @@ Module
         Local $inline.1.this
         Type Boolean
         BoolLiteral false
+      Type Unit
+      UnitLiteral
       goto bb1
   fun get @fn83(this: MutableArray<MaybeUninit<Empty>>, index: Long) -> MaybeUninit<Empty>
     bb0 entry
@@ -9286,6 +9400,8 @@ Module
         Local $inline.1.this
         Type Boolean
         BoolLiteral false
+      Type Unit
+      UnitLiteral
       goto bb1
   fun get @fn86(this: ArrayList<Empty>, index: Long) -> Empty
     bb0 entry
@@ -9427,6 +9543,8 @@ Module
         Type MaybeUninit<Empty>
         Local $value.3
       return
+        Type Unit
+        UnitLiteral
   fun add @fn89(this: ArrayList<Empty>, value: Empty) -> Unit
     bb0 entry
       val $dependency.local.2: ArrayList<Empty>
@@ -9537,6 +9655,8 @@ Module
           Type Long
           IntegerLiteral Long value=1 bits=0x0000000000000001
       return
+        Type Unit
+        UnitLiteral
   fun add @fn90(this: ArrayList<Empty>, index: Long, value: Empty) -> Unit
     bb0 entry
       val $dependency.local.4: Long
@@ -9852,6 +9972,8 @@ Module
           Type Long
           IntegerLiteral Long value=1 bits=0x0000000000000001
       return
+        Type Unit
+        UnitLiteral
   fun removeAt @fn91(this: ArrayList<Empty>, index: Long) -> Empty
     bb0 entry
       val $dependency.local.5: ArrayList<Empty>
@@ -10163,6 +10285,8 @@ Module
         Type Long
         IntegerLiteral Long value=0 bits=0x0000000000000000
       return
+        Type Unit
+        UnitLiteral
     bb3 while.body.3
       val $dependency.local.5: MutableArray<MaybeUninit<Empty>>
         Type MutableArray<MaybeUninit<Empty>>
@@ -10518,6 +10642,8 @@ Module
         Local $new.1
     bb5 if.merge.5
       return
+        Type Unit
+        UnitLiteral
   fun ensureRoom @fn99(this: ArrayList<Cell>) -> Unit
     bb0 entry
       branch bb1 bb2
@@ -10559,6 +10685,8 @@ Module
       goto bb22
     bb3 if.then.3
       return
+        Type Unit
+        UnitLiteral
     bb4 if.merge.4
       branch bb5 bb6
         Type Boolean
@@ -10704,6 +10832,8 @@ Module
         Type MutableArray<MaybeUninit<Cell>>
         Local $dependency.local.6
       return
+        Type Unit
+        UnitLiteral
     bb15 while.body.15
       val $inline.16.$argument.0: (Long) -> MaybeUninit<Cell>
         Type (Long) -> MaybeUninit<Cell>
@@ -11076,6 +11206,8 @@ Module
         Local $new.1
     bb5 if.merge.5
       return
+        Type Unit
+        UnitLiteral
   fun ensureRoom @fn103(this: ArrayList<Int>) -> Unit
     bb0 entry
       branch bb1 bb2
@@ -11117,6 +11249,8 @@ Module
       goto bb22
     bb3 if.then.3
       return
+        Type Unit
+        UnitLiteral
     bb4 if.merge.4
       branch bb5 bb6
         Type Boolean
@@ -11262,6 +11396,8 @@ Module
         Type MutableArray<MaybeUninit<Int>>
         Local $dependency.local.6
       return
+        Type Unit
+        UnitLiteral
     bb15 while.body.15
       val $inline.16.$argument.0: (Long) -> MaybeUninit<Int>
         Type (Long) -> MaybeUninit<Int>
@@ -11634,6 +11770,8 @@ Module
         Local $new.1
     bb5 if.merge.5
       return
+        Type Unit
+        UnitLiteral
   fun ensureRoom @fn107(this: ArrayList<Option<Int>>) -> Unit
     bb0 entry
       branch bb1 bb2
@@ -11675,6 +11813,8 @@ Module
       goto bb22
     bb3 if.then.3
       return
+        Type Unit
+        UnitLiteral
     bb4 if.merge.4
       branch bb5 bb6
         Type Boolean
@@ -11820,6 +11960,8 @@ Module
         Type MutableArray<MaybeUninit<Option<Int>>>
         Local $dependency.local.6
       return
+        Type Unit
+        UnitLiteral
     bb15 while.body.15
       val $inline.16.$argument.0: (Long) -> MaybeUninit<Option<Int>>
         Type (Long) -> MaybeUninit<Option<Int>>
@@ -12216,6 +12358,8 @@ Module
         Local $new.1
     bb5 if.merge.5
       return
+        Type Unit
+        UnitLiteral
   fun ensureRoom @fn113(this: ArrayList<Pair>) -> Unit
     bb0 entry
       branch bb1 bb2
@@ -12257,6 +12401,8 @@ Module
       goto bb22
     bb3 if.then.3
       return
+        Type Unit
+        UnitLiteral
     bb4 if.merge.4
       branch bb5 bb6
         Type Boolean
@@ -12402,6 +12548,8 @@ Module
         Type MutableArray<MaybeUninit<Pair>>
         Local $dependency.local.6
       return
+        Type Unit
+        UnitLiteral
     bb15 while.body.15
       val $inline.16.$argument.0: (Long) -> MaybeUninit<Pair>
         Type (Long) -> MaybeUninit<Pair>
@@ -12774,6 +12922,8 @@ Module
         Local $new.1
     bb5 if.merge.5
       return
+        Type Unit
+        UnitLiteral
   fun ensureRoom @fn117(this: ArrayList<Read>) -> Unit
     bb0 entry
       branch bb1 bb2
@@ -12815,6 +12965,8 @@ Module
       goto bb22
     bb3 if.then.3
       return
+        Type Unit
+        UnitLiteral
     bb4 if.merge.4
       branch bb5 bb6
         Type Boolean
@@ -12960,6 +13112,8 @@ Module
         Type MutableArray<MaybeUninit<Read>>
         Local $dependency.local.6
       return
+        Type Unit
+        UnitLiteral
     bb15 while.body.15
       val $inline.16.$argument.0: (Long) -> MaybeUninit<Read>
         Type (Long) -> MaybeUninit<Read>
@@ -13332,6 +13486,8 @@ Module
         Local $new.1
     bb5 if.merge.5
       return
+        Type Unit
+        UnitLiteral
   fun ensureRoom @fn121(this: ArrayList<Empty>) -> Unit
     bb0 entry
       branch bb1 bb2
@@ -13373,6 +13529,8 @@ Module
       goto bb22
     bb3 if.then.3
       return
+        Type Unit
+        UnitLiteral
     bb4 if.merge.4
       branch bb5 bb6
         Type Boolean
@@ -13518,6 +13676,8 @@ Module
         Type MutableArray<MaybeUninit<Empty>>
         Local $dependency.local.6
       return
+        Type Unit
+        UnitLiteral
     bb15 while.body.15
       val $inline.16.$argument.0: (Long) -> MaybeUninit<Empty>
         Type (Long) -> MaybeUninit<Empty>
@@ -14109,6 +14269,8 @@ Module
         Type Int
         IntegerLiteral Int value=0 bits=0x00000000
       return
+        Type Unit
+        UnitLiteral
   fun init.Cell.$c0 @fn173(this: Cell, number: Int) -> Unit
     bb0 entry
       field_set 0
@@ -14117,6 +14279,8 @@ Module
         Type Int
         Local number
       return
+        Type Unit
+        UnitLiteral
   fun init.ArrayList.$c0 @fn174(this: ArrayList<Cell>, initialCapacity: Long) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Long
@@ -14184,6 +14348,8 @@ Module
         Type Long
         IntegerLiteral Long value=0 bits=0x0000000000000000
       return
+        Type Unit
+        UnitLiteral
     bb5 while.body.5
       val $inline.6.$argument.0: (Long) -> MaybeUninit<Cell>
         Type (Long) -> MaybeUninit<Cell>
@@ -14283,6 +14449,8 @@ Module
         Type Long
         IntegerLiteral Long value=0 bits=0x0000000000000000
       return
+        Type Unit
+        UnitLiteral
     bb5 while.body.5
       val $inline.6.$argument.0: (Long) -> MaybeUninit<Int>
         Type (Long) -> MaybeUninit<Int>
@@ -14382,6 +14550,8 @@ Module
         Type Long
         IntegerLiteral Long value=0 bits=0x0000000000000000
       return
+        Type Unit
+        UnitLiteral
     bb5 while.body.5
       val $inline.6.$argument.0: (Long) -> MaybeUninit<Option<Int>>
         Type (Long) -> MaybeUninit<Option<Int>>
@@ -14481,6 +14651,8 @@ Module
         Type Long
         IntegerLiteral Long value=0 bits=0x0000000000000000
       return
+        Type Unit
+        UnitLiteral
     bb5 while.body.5
       val $inline.6.$argument.0: (Long) -> MaybeUninit<Pair>
         Type (Long) -> MaybeUninit<Pair>
@@ -14580,6 +14752,8 @@ Module
         Type Long
         IntegerLiteral Long value=0 bits=0x0000000000000000
       return
+        Type Unit
+        UnitLiteral
     bb5 while.body.5
       val $inline.6.$argument.0: (Long) -> MaybeUninit<Read>
         Type (Long) -> MaybeUninit<Read>
@@ -14679,6 +14853,8 @@ Module
         Type Long
         IntegerLiteral Long value=0 bits=0x0000000000000000
       return
+        Type Unit
+        UnitLiteral
     bb5 while.body.5
       val $inline.6.$argument.0: (Long) -> MaybeUninit<Empty>
         Type (Long) -> MaybeUninit<Empty>
@@ -14729,6 +14905,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c1 @fn181(this: ListIterator<Cell>, source: List<Cell>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -14747,6 +14925,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c1 @fn182(this: ListIterator<MaybeUninit<Int>>, source: List<MaybeUninit<Int>>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -14765,6 +14945,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c1 @fn183(this: ListIterator<Int>, source: List<Int>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -14783,6 +14965,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c1 @fn184(this: ListIterator<MaybeUninit<Option<Int>>>, source: List<MaybeUninit<Option<Int>>>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -14801,6 +14985,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c1 @fn185(this: ListIterator<Option<Int>>, source: List<Option<Int>>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -14819,6 +15005,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c1 @fn186(this: ListIterator<MaybeUninit<Pair>>, source: List<MaybeUninit<Pair>>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -14837,6 +15025,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c1 @fn187(this: ListIterator<Pair>, source: List<Pair>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -14855,6 +15045,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c1 @fn188(this: ListIterator<MaybeUninit<Read>>, source: List<MaybeUninit<Read>>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -14873,6 +15065,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c1 @fn189(this: ListIterator<Read>, source: List<Read>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -14891,6 +15085,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c1 @fn190(this: ListIterator<MaybeUninit<Empty>>, source: List<MaybeUninit<Empty>>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -14909,6 +15105,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c1 @fn191(this: ListIterator<Empty>, source: List<Empty>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -14927,6 +15125,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Pair.$c0 @fn192(number: Int, stamp: Long) -> Pair <no-gc>
     bb0 entry
       return
@@ -14963,6 +15163,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn163 interface Continuation<Read>[0]
         Type Continuation<Read>
@@ -14976,6 +15178,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn164 interface Continuation<Read>[1]
         Type Continuation<Read>
@@ -14987,6 +15191,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -15044,6 +15250,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn155 interface Continuation<Pair>[0]
         Type Continuation<Pair>
@@ -15057,6 +15265,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn156 interface Continuation<Pair>[1]
         Type Continuation<Pair>
@@ -15068,6 +15278,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -15125,6 +15337,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn167 interface Continuation<Cell>[0]
         Type Continuation<Cell>
@@ -15138,6 +15352,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn168 interface Continuation<Cell>[1]
         Type Continuation<Cell>
@@ -15149,6 +15365,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -15206,6 +15424,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn159 interface Continuation<Empty>[0]
         Type Continuation<Empty>
@@ -15219,6 +15439,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn160 interface Continuation<Empty>[1]
         Type Continuation<Empty>
@@ -15230,6 +15452,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

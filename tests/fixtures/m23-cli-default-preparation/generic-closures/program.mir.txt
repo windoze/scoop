@@ -411,6 +411,8 @@ Module
           Type ReferenceConstructor<String>
           Local $new.18
       return
+        Type Unit
+        UnitLiteral
   fun forwardReference @fn4(first: String, second: Int) -> () -> String
     bb0 entry
       val $argument.0: Int
@@ -799,6 +801,8 @@ Module
         Type String
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.ReferenceConstructor.$c1 @fn43(this: ReferenceConstructor<Int>, seed: Int, callback: () -> String) -> Unit
     bb0 entry
       field_set 0
@@ -807,6 +811,8 @@ Module
         Type () -> String
         Local callback
       return
+        Type Unit
+        UnitLiteral
   fun init.ReferenceConstructor.$c1 @fn44(this: ReferenceConstructor<String>, seed: String, callback: () -> String) -> Unit
     bb0 entry
       field_set 0
@@ -815,6 +821,8 @@ Module
         Type () -> String
         Local callback
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<ReferenceBox> @fn45(task: SuspendTask<ReferenceBox>, completion: Continuation<ReferenceBox>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -837,6 +845,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn30 interface Continuation<ReferenceBox>[0]
         Type Continuation<ReferenceBox>
@@ -850,6 +860,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn31 interface Continuation<ReferenceBox>[1]
         Type Continuation<ReferenceBox>
@@ -861,6 +873,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

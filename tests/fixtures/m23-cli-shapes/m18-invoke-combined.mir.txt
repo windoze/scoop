@@ -183,6 +183,8 @@ Module
         Type Int
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun InvokeRegistration.register @fn1(this: InvokeRegistration, continuation: Continuation<Int>) -> Unit
     bb0 entry
       val $place.receiver: InvokeGate
@@ -204,6 +206,8 @@ Module
           Type Continuation<Int>
           Local $dependency.parameter._1
       return
+        Type Unit
+        UnitLiteral
   fun InvokeTask.run @fn2(this: InvokeTask, $completion: Continuation<String>) -> CoroutineStep<String>
     bb0 entry
       val $frame: CoroutineFrame<InvokeTask.run>
@@ -272,6 +276,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun InvokeCompletion.resumeWithException @fn4(this: InvokeCompletion, exception: Throwable) -> Unit
     bb0 entry
       val $dependency.argument.0: String
@@ -284,6 +290,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun awaitInvoke @fn5(gate: InvokeGate, $completion: Continuation<Int>) -> CoroutineStep<Int>
     bb0 entry
       val $frame: CoroutineFrame<awaitInvoke>
@@ -627,6 +635,8 @@ Module
         Type Int
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun Continuation.resume @fn8(this: Continuation<Int>, value: Int) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
@@ -736,6 +746,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun Continuation.resumeWithException @fn12(this: Continuation<Int>, exception: Throwable) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resumeWithException`"
@@ -809,6 +821,8 @@ Module
         Type Option<String>
         Local $dependency.parameter.message
       return
+        Type Unit
+        UnitLiteral
   fun init.InvokePayload.$c1 @fn32(this: InvokePayload, text: String) -> Unit
     bb0 entry
       field_set 0
@@ -817,6 +831,8 @@ Module
         Type String
         Local text
       return
+        Type Unit
+        UnitLiteral
   fun init.InvokeGate.$c2 @fn33(this: InvokeGate, waiter: Option<Continuation<Int>>) -> Unit
     bb0 entry
       field_set 0
@@ -825,6 +841,8 @@ Module
         Type Option<Continuation<Int>>
         Local waiter
       return
+        Type Unit
+        UnitLiteral
   fun init.InvokeRegistration.$c3 @fn34(this: InvokeRegistration, gate: InvokeGate) -> Unit
     bb0 entry
       field_set 0
@@ -833,6 +851,8 @@ Module
         Type InvokeGate
         Local gate
       return
+        Type Unit
+        UnitLiteral
   fun init.InvokeTask.$c6 @fn35(this: InvokeTask, holder: InvokeHolder<InvokePayload>) -> Unit
     bb0 entry
       field_set 0
@@ -841,6 +861,8 @@ Module
         Type InvokeHolder<InvokePayload>
         Local holder
       return
+        Type Unit
+        UnitLiteral
   fun init.InvokeCompletion.$c7 @fn36(this: InvokeCompletion, label: String) -> Unit
     bb0 entry
       field_set 0
@@ -849,6 +871,8 @@ Module
         Type String
         Local label
       return
+        Type Unit
+        UnitLiteral
   fun init.AsyncInvoker.$c4 @fn37(this: AsyncInvoker<InvokePayload>, gate: InvokeGate, payload: InvokePayload, label: String) -> Unit
     bb0 entry
       field_set 0
@@ -867,6 +891,8 @@ Module
         Type String
         Local label
       return
+        Type Unit
+        UnitLiteral
   fun init.InvokeHolder.$c5 @fn38(this: InvokeHolder<InvokePayload>, action: AsyncInvoker<InvokePayload>) -> Unit
     bb0 entry
       field_set 0
@@ -875,6 +901,8 @@ Module
         Type AsyncInvoker<InvokePayload>
         Local action
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<InvokeFailure> @fn39(task: SuspendTask<InvokeFailure>, completion: Continuation<InvokeFailure>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -897,6 +925,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn19 interface Continuation<InvokeFailure>[0]
         Type Continuation<InvokeFailure>
@@ -910,6 +940,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn20 interface Continuation<InvokeFailure>[1]
         Type Continuation<InvokeFailure>
@@ -921,6 +953,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -978,6 +1012,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn27 interface Continuation<InvokeGate>[0]
         Type Continuation<InvokeGate>
@@ -991,6 +1027,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn28 interface Continuation<InvokeGate>[1]
         Type Continuation<InvokeGate>
@@ -1002,6 +1040,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -1059,6 +1099,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn23 interface Continuation<InvokePayload>[0]
         Type Continuation<InvokePayload>
@@ -1072,6 +1114,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn24 interface Continuation<InvokePayload>[1]
         Type Continuation<InvokePayload>
@@ -1083,6 +1127,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -1417,12 +1463,16 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 suspended
       Type Unit
       ContextLeave
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 failed unwind bb1
       atomic_store_release kind=coroutine-frame-state field=0
         Type CoroutineFrame<InvokeTask.run>
@@ -1445,6 +1495,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb6 body_failure unwind bb2
       landing_pad cleanup=false
       begin_catch
@@ -1586,12 +1638,16 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 suspended
       Type Unit
       ContextLeave
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 failed unwind bb1
       atomic_store_release kind=coroutine-frame-state field=0
         Type CoroutineFrame<InvokeTask.run>
@@ -1614,6 +1670,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb6 body_failure unwind bb2
       landing_pad cleanup=false
       begin_catch
@@ -2115,12 +2173,16 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 suspended
       Type Unit
       ContextLeave
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 failed unwind bb1
       atomic_store_release kind=coroutine-frame-state field=0
         Type CoroutineFrame<awaitInvoke>
@@ -2143,6 +2205,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb6 body_failure unwind bb2
       landing_pad cleanup=false
       begin_catch
@@ -2248,6 +2312,8 @@ Module
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(LatchedSuccess)
       return
+        Type Unit
+        UnitLiteral
     bb12 entry
       val $adapter_claim: machine<coroutine-adapter-state>
         Type machine<coroutine-adapter-state>
@@ -2315,12 +2381,16 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 suspended
       Type Unit
       ContextLeave
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 failed unwind bb1
       atomic_store_release kind=coroutine-frame-state field=0
         Type CoroutineFrame<awaitInvoke>
@@ -2343,6 +2413,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb6 body_failure unwind bb2
       landing_pad cleanup=false
       begin_catch
@@ -2448,6 +2520,8 @@ Module
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(LatchedFailure)
       return
+        Type Unit
+        UnitLiteral
     bb12 entry
       val $adapter_claim: machine<coroutine-adapter-state>
         Type machine<coroutine-adapter-state>
@@ -2821,12 +2895,16 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 suspended
       Type Unit
       ContextLeave
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 failed unwind bb1
       atomic_store_release kind=coroutine-frame-state field=0
         Type CoroutineFrame<AsyncInvoker.invoke>
@@ -2849,6 +2927,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb6 body_failure unwind bb2
       landing_pad cleanup=false
       begin_catch
@@ -2990,12 +3070,16 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 suspended
       Type Unit
       ContextLeave
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 failed unwind bb1
       atomic_store_release kind=coroutine-frame-state field=0
         Type CoroutineFrame<AsyncInvoker.invoke>
@@ -3018,6 +3102,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb6 body_failure unwind bb2
       landing_pad cleanup=false
       begin_catch

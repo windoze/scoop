@@ -970,9 +970,9 @@ Module
     bb2 pattern.else.2
       unreachable
     bb3 pattern.merge.3
-      Type Unit
-      Local $dependency.local.2
       return
+        Type Unit
+        UnitLiteral
   fun apply @fn18(this: Readable<Unit>, action: (Unit) -> Int) -> Int
     bb0 entry
       val $dependency.local.3: (Unit) -> Int
@@ -1148,11 +1148,9 @@ Module
       trap "call to abstract method `Readable.read`"
   fun value @fn29(this: Link<Unit>) -> Unit
     bb0 entry
-      Type Unit
-      FieldAccess 0
-        Type Link<Unit>
-        Local this
       return
+        Type Unit
+        UnitLiteral
   fun tail @fn30(this: Link<Unit>) -> Chain<Unit>
     bb0 entry
       return
@@ -1180,6 +1178,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Link.$c0 @fn36(this: Link<Later>, value: Later, tail: Chain<Later>) -> Unit
     bb0 entry
       field_set 0
@@ -1193,6 +1193,8 @@ Module
         Type Chain<Later>
         Local tail
       return
+        Type Unit
+        UnitLiteral
   fun init.Link.$c0 @fn37(this: Link<Int>, value: Int, tail: Chain<Int>) -> Unit
     bb0 entry
       field_set 0
@@ -1206,6 +1208,8 @@ Module
         Type Chain<Int>
         Local tail
       return
+        Type Unit
+        UnitLiteral
   fun init.Link.$c0 @fn38(this: Link<Unit>, value: Unit, tail: Chain<Unit>) -> Unit
     bb0 entry
       field_set 0
@@ -1219,6 +1223,8 @@ Module
         Type Chain<Unit>
         Local tail
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<Later> @fn39(task: SuspendTask<Later>, completion: Continuation<Later>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -1241,6 +1247,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn31 interface Continuation<Later>[0]
         Type Continuation<Later>
@@ -1254,6 +1262,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn32 interface Continuation<Later>[1]
         Type Continuation<Later>
@@ -1265,6 +1275,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -1352,6 +1364,8 @@ Module
           Type box<Entry<Unit>>
           Local this
       return
+        Type Unit
+        UnitLiteral
   fun thunk<Entry<Unit>> Readable.apply((Unit) -> Int) @fn45(this: box<Entry<Unit>>, action: (Unit) -> Int) -> Int
     bb0 entry
       call $call.1: Int = @fn18 direct

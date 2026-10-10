@@ -165,6 +165,8 @@ Module
       resume
     bb10 try.end.10
       return
+        Type Unit
+        UnitLiteral
     bb11 try.body.11 unwind bb4
       val $dependency.receiver: Continuation<Int>
         Type Continuation<Int>
@@ -278,6 +280,8 @@ Module
       resume
     bb10 try.end.10
       return
+        Type Unit
+        UnitLiteral
     bb11 try.body.11 unwind bb4
       val $dependency.receiver: Continuation<Int>
         Type Continuation<Int>
@@ -400,6 +404,8 @@ Module
       resume
     bb10 try.end.10
       return
+        Type Unit
+        UnitLiteral
     bb11 try.body.11 unwind bb4
       val $dependency.receiver: Continuation<Int>
         Type Continuation<Int>
@@ -463,6 +469,8 @@ Module
           Type Continuation<Int>
           Local $dependency.parameter._1
       return
+        Type Unit
+        UnitLiteral
   fun ResumeThenThrowRegistration.register @fn4(this: ResumeThenThrowRegistration, continuation: Continuation<Int>) -> Unit
     bb0 entry
       val $dependency.receiver: Continuation<Int>
@@ -542,6 +550,8 @@ Module
         Type Throwable
         Local $dependency.parameter.exception
       return
+        Type Unit
+        UnitLiteral
   fun WaitingTask.run @fn7(this: WaitingTask, $completion: Continuation<Int>) -> CoroutineStep<Int>
     bb0 entry
       val $frame: CoroutineFrame<WaitingTask.run>
@@ -734,6 +744,8 @@ Module
         Type Int
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun RecordingCompletion.resumeWithException @fn12(this: RecordingCompletion, exception: Throwable) -> Unit
     bb0 entry
       val $dependency.argument.0: String
@@ -746,6 +758,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun launch @fn13(task: SuspendTask<Int>, completion: Continuation<Int>) -> Unit
     bb0 entry
       val $dependency.argument.0: SuspendTask<Int>
@@ -766,6 +780,8 @@ Module
         Type Continuation<Int>
         Local $dependency.parameter.completion
       return
+        Type Unit
+        UnitLiteral
   fun main @fn14() -> Unit
     bb0 entry
       val $argument.0: Option<Continuation<Int>>
@@ -1051,6 +1067,8 @@ Module
         Type Int
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun Continuation.resume @fn15(this: Continuation<Int>, value: Int) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
@@ -1078,6 +1096,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun Continuation.resumeWithException @fn17(this: Continuation<Int>, exception: Throwable) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resumeWithException`"
@@ -1105,6 +1125,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun SuspendTask.run @fn19(this: SuspendTask<Int>, $completion: Continuation<Int>) -> CoroutineStep<Int>
     bb0 entry
       trap "call to abstract method `SuspendTask.run`"
@@ -1119,6 +1141,8 @@ Module
         Type Option<Continuation<Int>>
         Local waiter
       return
+        Type Unit
+        UnitLiteral
   fun init.SavingRegistration.$c1 @fn22(this: SavingRegistration, holder: Holder) -> Unit
     bb0 entry
       field_set 0
@@ -1127,9 +1151,13 @@ Module
         Type Holder
         Local holder
       return
+        Type Unit
+        UnitLiteral
   fun init.ResumeThenThrowRegistration.$c2 @fn23(this: ResumeThenThrowRegistration) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.SaveThenThrowRegistration.$c3 @fn24(this: SaveThenThrowRegistration, holder: Holder) -> Unit
     bb0 entry
       field_set 0
@@ -1138,9 +1166,13 @@ Module
         Type Holder
         Local holder
       return
+        Type Unit
+        UnitLiteral
   fun init.SynchronousFailureRegistration.$c4 @fn25(this: SynchronousFailureRegistration) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.WaitingTask.$c5 @fn26(this: WaitingTask, holder: Holder) -> Unit
     bb0 entry
       field_set 0
@@ -1149,9 +1181,13 @@ Module
         Type Holder
         Local holder
       return
+        Type Unit
+        UnitLiteral
   fun init.ResumeThenThrowTask.$c6 @fn27(this: ResumeThenThrowTask) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.SaveThenThrowTask.$c7 @fn28(this: SaveThenThrowTask, holder: Holder) -> Unit
     bb0 entry
       field_set 0
@@ -1160,12 +1196,18 @@ Module
         Type Holder
         Local holder
       return
+        Type Unit
+        UnitLiteral
   fun init.SynchronousFailureTask.$c8 @fn29(this: SynchronousFailureTask) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.RecordingCompletion.$c9 @fn30(this: RecordingCompletion) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun WaitingTask.run$drive @fn31($frame: CoroutineFrame<WaitingTask.run>, $dispatch_state: machine<coroutine-frame-state>) -> CoroutineStep<Int>
     bb0 entry
       val $argument.0: Holder
@@ -1581,12 +1623,16 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 suspended
       Type Unit
       ContextLeave
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 failed unwind bb1
       atomic_store_release kind=coroutine-frame-state field=0
         Type CoroutineFrame<WaitingTask.run>
@@ -1609,6 +1655,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb6 body_failure unwind bb2
       landing_pad cleanup=false
       begin_catch
@@ -1714,6 +1762,8 @@ Module
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(LatchedSuccess)
       return
+        Type Unit
+        UnitLiteral
     bb12 entry
       val $adapter_claim: machine<coroutine-adapter-state>
         Type machine<coroutine-adapter-state>
@@ -1781,12 +1831,16 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 suspended
       Type Unit
       ContextLeave
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 failed unwind bb1
       atomic_store_release kind=coroutine-frame-state field=0
         Type CoroutineFrame<WaitingTask.run>
@@ -1809,6 +1863,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb6 body_failure unwind bb2
       landing_pad cleanup=false
       begin_catch
@@ -1914,6 +1970,8 @@ Module
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(LatchedFailure)
       return
+        Type Unit
+        UnitLiteral
     bb12 entry
       val $adapter_claim: machine<coroutine-adapter-state>
         Type machine<coroutine-adapter-state>
@@ -2383,12 +2441,16 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 suspended
       Type Unit
       ContextLeave
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 failed unwind bb1
       atomic_store_release kind=coroutine-frame-state field=0
         Type CoroutineFrame<ResumeThenThrowTask.run>
@@ -2411,6 +2473,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb6 body_failure unwind bb2
       landing_pad cleanup=false
       begin_catch
@@ -2516,6 +2580,8 @@ Module
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(LatchedSuccess)
       return
+        Type Unit
+        UnitLiteral
     bb12 entry
       val $adapter_claim: machine<coroutine-adapter-state>
         Type machine<coroutine-adapter-state>
@@ -2583,12 +2649,16 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 suspended
       Type Unit
       ContextLeave
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 failed unwind bb1
       atomic_store_release kind=coroutine-frame-state field=0
         Type CoroutineFrame<ResumeThenThrowTask.run>
@@ -2611,6 +2681,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb6 body_failure unwind bb2
       landing_pad cleanup=false
       begin_catch
@@ -2716,6 +2788,8 @@ Module
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(LatchedFailure)
       return
+        Type Unit
+        UnitLiteral
     bb12 entry
       val $adapter_claim: machine<coroutine-adapter-state>
         Type machine<coroutine-adapter-state>
@@ -3195,12 +3269,16 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 suspended
       Type Unit
       ContextLeave
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 failed unwind bb1
       atomic_store_release kind=coroutine-frame-state field=0
         Type CoroutineFrame<SaveThenThrowTask.run>
@@ -3223,6 +3301,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb6 body_failure unwind bb2
       landing_pad cleanup=false
       begin_catch
@@ -3328,6 +3408,8 @@ Module
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(LatchedSuccess)
       return
+        Type Unit
+        UnitLiteral
     bb12 entry
       val $adapter_claim: machine<coroutine-adapter-state>
         Type machine<coroutine-adapter-state>
@@ -3395,12 +3477,16 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 suspended
       Type Unit
       ContextLeave
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 failed unwind bb1
       atomic_store_release kind=coroutine-frame-state field=0
         Type CoroutineFrame<SaveThenThrowTask.run>
@@ -3423,6 +3509,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb6 body_failure unwind bb2
       landing_pad cleanup=false
       begin_catch
@@ -3528,6 +3616,8 @@ Module
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(LatchedFailure)
       return
+        Type Unit
+        UnitLiteral
     bb12 entry
       val $adapter_claim: machine<coroutine-adapter-state>
         Type machine<coroutine-adapter-state>
@@ -3997,12 +4087,16 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 suspended
       Type Unit
       ContextLeave
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 failed unwind bb1
       atomic_store_release kind=coroutine-frame-state field=0
         Type CoroutineFrame<SynchronousFailureTask.run>
@@ -4025,6 +4119,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb6 body_failure unwind bb2
       landing_pad cleanup=false
       begin_catch
@@ -4130,6 +4226,8 @@ Module
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(LatchedSuccess)
       return
+        Type Unit
+        UnitLiteral
     bb12 entry
       val $adapter_claim: machine<coroutine-adapter-state>
         Type machine<coroutine-adapter-state>
@@ -4197,12 +4295,16 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 suspended
       Type Unit
       ContextLeave
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 failed unwind bb1
       atomic_store_release kind=coroutine-frame-state field=0
         Type CoroutineFrame<SynchronousFailureTask.run>
@@ -4225,6 +4327,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb6 body_failure unwind bb2
       landing_pad cleanup=false
       begin_catch
@@ -4330,6 +4434,8 @@ Module
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(LatchedFailure)
       return
+        Type Unit
+        UnitLiteral
     bb12 entry
       val $adapter_claim: machine<coroutine-adapter-state>
         Type machine<coroutine-adapter-state>

@@ -917,11 +917,9 @@ Module
       trap "call to abstract method `Readable.get`"
   fun get @fn12(this: RemoteCell<Unit>) -> Unit
     bb0 entry
-      Type Unit
-      FieldAccess 0
-        Type RemoteCell<Unit>
-        Local this
       return
+        Type Unit
+        UnitLiteral
   fun read @fn13(this: Reader<Unit>) -> Unit
     bb0 entry
       val $dependency.local.1: Reader<Unit>
@@ -933,13 +931,13 @@ Module
           Type Reader<Unit>
           Local $dependency.local.1
       return
+        Type Unit
+        UnitLiteral
   fun LocalCell.get @fn14(this: LocalCell<Unit>) -> Unit
     bb0 entry
-      Type Unit
-      FieldAccess 0
-        Type LocalCell<Unit>
-        Local this
       return
+        Type Unit
+        UnitLiteral
   fun create @fn15(value: Unit) -> RemoteCell<Unit>
     bb0 entry
       val $dependency.local.3: Unit
@@ -1130,6 +1128,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn22 interface Continuation<LocalNative>[0]
         Type Continuation<LocalNative>
@@ -1143,6 +1143,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn23 interface Continuation<LocalNative>[1]
         Type Continuation<LocalNative>
@@ -1154,6 +1156,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -1257,6 +1261,8 @@ Module
           Type box<LocalCell<Unit>>
           Local this
       return
+        Type Unit
+        UnitLiteral
   fun thunk<LocalCell<Unit>> Reader.read() @fn41(this: box<LocalCell<Unit>>) -> Unit
     bb0 entry
       call @fn13 direct
@@ -1265,6 +1271,8 @@ Module
           Type box<LocalCell<Unit>>
           Local this
       return
+        Type Unit
+        UnitLiteral
   fun thunk<LocalCell<Unit>> Readable.get() @fn42(this: box<LocalCell<Unit>>) -> Unit
     bb0 entry
       call @fn14 direct
@@ -1273,6 +1281,8 @@ Module
           Type box<LocalCell<Unit>>
           Local this
       return
+        Type Unit
+        UnitLiteral
   fun thunk<RemoteCell<Unit>> Reader.get() @fn43(this: box<RemoteCell<Unit>>) -> Unit
     bb0 entry
       call @fn12 direct
@@ -1281,6 +1291,8 @@ Module
           Type box<RemoteCell<Unit>>
           Local this
       return
+        Type Unit
+        UnitLiteral
   fun thunk<RemoteCell<Unit>> Reader.read() @fn44(this: box<RemoteCell<Unit>>) -> Unit
     bb0 entry
       call @fn13 direct
@@ -1289,6 +1301,8 @@ Module
           Type box<RemoteCell<Unit>>
           Local this
       return
+        Type Unit
+        UnitLiteral
   fun thunk<RemoteCell<Unit>> Readable.get() @fn45(this: box<RemoteCell<Unit>>) -> Unit
     bb0 entry
       call @fn12 direct
@@ -1297,6 +1311,8 @@ Module
           Type box<RemoteCell<Unit>>
           Local this
       return
+        Type Unit
+        UnitLiteral
   fun thunk<LocalCell<Int>> Reader.get() @fn46(this: box<LocalCell<Int>>) -> Int
     bb0 entry
       call $call.1: Int = @fn19 direct

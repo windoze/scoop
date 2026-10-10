@@ -260,6 +260,7 @@ Module
     cbr t16 then @if.then.1 else @if.merge.2
   block inline.9.entry
     heap_store local39 +16 local40
+    t17 = aggregate () : {}
     br @inline.cont.9
   fun @scoop$1$cb$a59ba8328a87a3c09df1111305261ccbca23796630e0ce6dea24e3ae106f48ca() -> void
     local %0 $dependency.argument.0: ptr<managed>

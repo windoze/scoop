@@ -2767,13 +2767,9 @@ Module
         Type IndexOutOfBoundsException
         Local $new.2
     bb5 if.merge.5
-      Type Unit
-      ArrayGet Array<Unit>
-        Type Array<Unit>
-        Local $arr.1
-        Type Long
-        Local $idx.2
       return
+        Type Unit
+        UnitLiteral
   fun size @fn29(this: Array<Unit>) -> Long
     bb0 entry
       val $dependency.local.1: Array<Unit>
@@ -2790,16 +2786,18 @@ Module
         Type Box<Unit>
         Local this
       return
+        Type Unit
+        UnitLiteral
   fun relay @fn31(this: Box<Unit>, other: Unit) -> Unit
     bb0 entry
-      Type Unit
-      Local other
       return
+        Type Unit
+        UnitLiteral
   fun $extension.retain @fn32(this: Unit) -> Unit
     bb0 entry
-      Type Unit
-      Local this
       return
+        Type Unit
+        UnitLiteral
   fun collect @fn33(fallback: Unit, values: Array<Unit>) -> Array<Unit>
     bb0 entry
       return
@@ -2814,9 +2812,9 @@ Module
           Local this
   fun identity @fn35(value: Unit) -> Unit
     bb0 entry
-      Type Unit
-      Local value
       return
+        Type Unit
+        UnitLiteral
   fun copy @fn36(value: Unit, operation: (Unit) -> Unit) -> Unit
     bb0 entry
       call <closure:function_type16> closure[function_type16]
@@ -2825,6 +2823,8 @@ Module
         Type Unit
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun next @fn37(this: ListIterator<Later>) -> Option<Later>
     bb0 entry
       branch bb1 bb2
@@ -3129,11 +3129,9 @@ Module
           Local $dependency.local.12
   fun value @fn42(this: Box<Unit>) -> Unit
     bb0 entry
-      Type Unit
-      FieldAccess 0
-        Type Box<Unit>
-        Local this
       return
+        Type Unit
+        UnitLiteral
   fun List.$get$size @fn43(this: List<Later>) -> Long
     bb0 entry
       trap "call to abstract method `List.$get$size`"
@@ -3326,6 +3324,8 @@ Module
         Type Int
         Local arg0
       return
+        Type Unit
+        UnitLiteral
   fun $reference.17 @fn70($closure: (Unit) -> Unit, arg0: Unit) -> Unit
     bb0 entry
       call @fn31 direct
@@ -3336,6 +3336,8 @@ Module
         Type Unit
         Local arg0
       return
+        Type Unit
+        UnitLiteral
   fun $reference.18 @fn71($closure: () -> Unit) -> Unit
     bb0 entry
       call @fn32 direct
@@ -3344,12 +3346,16 @@ Module
           Type () -> Unit
           Local $closure
       return
+        Type Unit
+        UnitLiteral
   fun $reference.19 @fn72($closure: (Unit) -> Unit, arg0: Unit) -> Unit
     bb0 entry
       call @fn32 direct
         Type Unit
         Local arg0
       return
+        Type Unit
+        UnitLiteral
   fun $reference.20 @fn73($closure: (Int) -> Int, arg0: Int) -> Int
     bb0 entry
       call $call.1: Int = external2 direct
@@ -3374,12 +3380,16 @@ Module
         Type Unit
         Local arg0
       return
+        Type Unit
+        UnitLiteral
   fun $reference.23 @fn76($closure: (Unit) -> Unit, arg0: Unit) -> Unit
     bb0 entry
       call @fn35 direct
         Type Unit
         Local arg0
       return
+        Type Unit
+        UnitLiteral
   fun init.Later.$c0 @fn77(this: Later, value: Int) -> Unit
     bb0 entry
       field_set 0
@@ -3388,6 +3398,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Box.$c0 @fn78(this: Box<Later>, value: Later, counter: Counter) -> Unit
     bb0 entry
       field_set 0
@@ -3401,6 +3413,8 @@ Module
         Type Counter
         Local counter
       return
+        Type Unit
+        UnitLiteral
   fun init.Box.$c0 @fn79(this: Box<String>, value: String, counter: Counter) -> Unit
     bb0 entry
       field_set 0
@@ -3414,6 +3428,8 @@ Module
         Type Counter
         Local counter
       return
+        Type Unit
+        UnitLiteral
   fun init.Box.$c0 @fn80(this: Box<Unit>, value: Unit, counter: Counter) -> Unit
     bb0 entry
       field_set 0
@@ -3427,6 +3443,8 @@ Module
         Type Counter
         Local counter
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c1 @fn81(this: ListIterator<Later>, source: List<Later>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -3445,6 +3463,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c1 @fn82(this: ListIterator<String>, source: List<String>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -3463,6 +3483,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c1 @fn83(this: ListIterator<Unit>, source: List<Unit>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -3481,6 +3503,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<Later> @fn84(task: SuspendTask<Later>, completion: Continuation<Later>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -3503,6 +3527,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn49 interface Continuation<Later>[0]
         Type Continuation<Later>
@@ -3516,6 +3542,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn50 interface Continuation<Later>[1]
         Type Continuation<Later>
@@ -3527,6 +3555,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

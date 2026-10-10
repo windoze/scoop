@@ -477,6 +477,8 @@ Module
         Type MaybeUninit<Read>
         Local $value.3
       return
+        Type Unit
+        UnitLiteral
   fun add @fn10(this: ArrayList<Read>, value: Read) -> Unit
     bb0 entry
       val $dependency.local.2: ArrayList<Read>
@@ -587,6 +589,8 @@ Module
           Type Long
           Local $dependency.local.12
       return
+        Type Unit
+        UnitLiteral
   fun add @fn11(this: ArrayList<Read>, index: Long, value: Read) -> Unit
     bb0 entry
       val $dependency.local.4: Long
@@ -902,6 +906,8 @@ Module
           Type Long
           Local $dependency.local.38
       return
+        Type Unit
+        UnitLiteral
   fun removeAt @fn12(this: ArrayList<Read>, index: Long) -> Read
     bb0 entry
       val $dependency.local.5: ArrayList<Read>
@@ -1213,6 +1219,8 @@ Module
         Type Long
         IntegerLiteral Long value=0 bits=0x0000000000000000
       return
+        Type Unit
+        UnitLiteral
     bb3 while.body.3
       val $dependency.local.5: MutableArray<MaybeUninit<Read>>
         Type MutableArray<MaybeUninit<Read>>
@@ -1639,6 +1647,8 @@ Module
         Type MaybeUninit<String>
         Local $value.3
       return
+        Type Unit
+        UnitLiteral
   fun add @fn22(this: ArrayList<String>, value: String) -> Unit
     bb0 entry
       val $dependency.local.2: ArrayList<String>
@@ -1749,6 +1759,8 @@ Module
           Type Long
           Local $dependency.local.12
       return
+        Type Unit
+        UnitLiteral
   fun add @fn23(this: ArrayList<String>, index: Long, value: String) -> Unit
     bb0 entry
       val $dependency.local.4: Long
@@ -2064,6 +2076,8 @@ Module
           Type Long
           Local $dependency.local.38
       return
+        Type Unit
+        UnitLiteral
   fun removeAt @fn24(this: ArrayList<String>, index: Long) -> String
     bb0 entry
       val $dependency.local.5: ArrayList<String>
@@ -2375,6 +2389,8 @@ Module
         Type Long
         IntegerLiteral Long value=0 bits=0x0000000000000000
       return
+        Type Unit
+        UnitLiteral
     bb3 while.body.3
       val $dependency.local.5: MutableArray<MaybeUninit<String>>
         Type MutableArray<MaybeUninit<String>>
@@ -2721,6 +2737,8 @@ Module
         Local $new.1
     bb5 if.merge.5
       return
+        Type Unit
+        UnitLiteral
   fun ensureRoom @fn29(this: ArrayList<Read>) -> Unit
     bb0 entry
       branch bb1 bb2
@@ -2781,6 +2799,8 @@ Module
           IntegerLiteral Long value=0 bits=0x0000000000000000
     bb3 if.then.3
       return
+        Type Unit
+        UnitLiteral
     bb4 if.merge.4
       branch bb5 bb6
         Type Boolean
@@ -2926,6 +2946,8 @@ Module
         Type MutableArray<MaybeUninit<Read>>
         Local $dependency.local.6
       return
+        Type Unit
+        UnitLiteral
     bb15 while.body.15
       call $array_value.5: MaybeUninit<Read> = <closure:function_type0> closure[function_type0]
         Type (Long) -> MaybeUninit<Read>
@@ -3204,6 +3226,8 @@ Module
         Local $new.1
     bb5 if.merge.5
       return
+        Type Unit
+        UnitLiteral
   fun ensureRoom @fn33(this: ArrayList<String>) -> Unit
     bb0 entry
       branch bb1 bb2
@@ -3264,6 +3288,8 @@ Module
           IntegerLiteral Long value=0 bits=0x0000000000000000
     bb3 if.then.3
       return
+        Type Unit
+        UnitLiteral
     bb4 if.merge.4
       branch bb5 bb6
         Type Boolean
@@ -3409,6 +3435,8 @@ Module
         Type MutableArray<MaybeUninit<String>>
         Local $dependency.local.6
       return
+        Type Unit
+        UnitLiteral
     bb15 while.body.15
       call $array_value.5: MaybeUninit<String> = <closure:function_type2> closure[function_type2]
         Type (Long) -> MaybeUninit<String>
@@ -3614,6 +3642,8 @@ Module
         Type Int
         Local number
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c1 @fn59(this: ListIterator<MaybeUninit<Read>>, source: List<MaybeUninit<Read>>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -3632,6 +3662,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c1 @fn60(this: ListIterator<Read>, source: List<Read>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -3650,6 +3682,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.ArrayList.$c0 @fn61(this: ArrayList<Read>, initialCapacity: Long) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Long
@@ -3717,6 +3751,8 @@ Module
         Type Long
         IntegerLiteral Long value=0 bits=0x0000000000000000
       return
+        Type Unit
+        UnitLiteral
     bb5 while.body.5
       call $array_value.5: MaybeUninit<Read> = <closure:function_type0> closure[function_type0]
         Type (Long) -> MaybeUninit<Read>
@@ -3756,6 +3792,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c1 @fn63(this: ListIterator<String>, source: List<String>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -3774,6 +3812,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Pair.$c0 @fn64(view: Read, stamp: Long) -> Pair <no-gc>
     bb0 entry
       return
@@ -3805,6 +3845,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn45 interface Continuation<Pair>[0]
         Type Continuation<Pair>
@@ -3818,6 +3860,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn46 interface Continuation<Pair>[1]
         Type Continuation<Pair>
@@ -3829,6 +3873,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -3886,6 +3932,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn49 interface Continuation<Read>[0]
         Type Continuation<Read>
@@ -3899,6 +3947,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn50 interface Continuation<Read>[1]
         Type Continuation<Read>
@@ -3910,6 +3960,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -3967,6 +4019,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn53 interface Continuation<Cell>[0]
         Type Continuation<Cell>
@@ -3980,6 +4034,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn54 interface Continuation<Cell>[1]
         Type Continuation<Cell>
@@ -3991,6 +4047,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

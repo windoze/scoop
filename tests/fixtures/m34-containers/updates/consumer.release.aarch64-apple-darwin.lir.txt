@@ -1163,6 +1163,7 @@ Module
     heap_store local7 +16 local8
     heap_store local7 +32 integer<Long>(0x0000000000000000)
     heap_store local7 +40 false
+    t7 = aggregate () : {}
     br @inline.cont.1
   fun @scoop$1$cb$86896485c946819ef80ecc82fa51e514c7bc37bae0d5f94c2b1cea61212ae96c(ptr<managed>, i64) -> parts<struct0 [i32@0+4/4]>
     local %0 $dependency.local.2: ptr<managed>
@@ -1247,6 +1248,7 @@ Module
     heap_store local7 +16 local8
     heap_store local7 +32 integer<Long>(0x0000000000000000)
     heap_store local7 +40 false
+    t7 = aggregate () : {}
     br @inline.cont.1
   fun @scoop$1$cb$e678f8a630461fa24384e1c95aa1201c5fb96088bf850cea5d070c63f1f249b6(ptr<managed>, i64) -> i32
     local %0 $dependency.local.2: ptr<managed>
@@ -1850,6 +1852,7 @@ Module
     heap_store local7 +16 local8
     heap_store local7 +32 integer<Long>(0x0000000000000000)
     heap_store local7 +40 false
+    t7 = aggregate () : {}
     br @inline.cont.1
   fun @scoop$1$cb$a6b4cca7885dbfc3cbbfcdb985c7e1a70d038594167be825815bacdfbc4bc371(ptr<managed>, i64) -> parts<struct1 [i64@0+8/8]>
     local %0 $dependency.local.2: ptr<managed>
@@ -1934,6 +1937,7 @@ Module
     heap_store local7 +16 local8
     heap_store local7 +32 integer<Long>(0x0000000000000000)
     heap_store local7 +40 false
+    t7 = aggregate () : {}
     br @inline.cont.1
   fun @scoop$1$cb$28967fb3885e25bb70c071e3a4abf02125f5f306f4c4e45e21b69d9faaa7ac93(ptr<managed>, i64) -> i64
     local %0 $dependency.local.2: ptr<managed>
@@ -2551,6 +2555,7 @@ Module
     heap_store local7 +16 local8
     heap_store local7 +32 integer<Long>(0x0000000000000000)
     heap_store local7 +40 false
+    t7 = aggregate () : {}
     br @inline.cont.1
   fun @scoop$1$cb$38d15ecd473428f7ab4320ad7c4d4e7404a4443c0a45f4e7ed29cd224d2c2bc5(ptr<managed>, i64) -> i64
     local %0 $dependency.local.2: ptr<managed>

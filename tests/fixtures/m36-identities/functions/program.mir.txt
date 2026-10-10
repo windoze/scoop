@@ -146,6 +146,8 @@ Module
         Type Int
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb4 pattern.pass.4
       assign $result.0
         Type Int
@@ -202,6 +204,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun wrap @fn5(value: String) -> () -> String
     bb0 entry
       return
@@ -234,6 +238,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun save @fn7(value: FunPtr<(Int) -> Int>) -> FunPtr<(Int) -> Int>
     bb0 entry
       return
@@ -260,6 +266,8 @@ Module
         Type Int
         Local $value
       return
+        Type Unit
+        UnitLiteral
   fun function_bridge.$Closure$lambda0.(Any) -> Any @fn10($source: (Int) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type0> closure[function_type0]

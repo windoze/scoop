@@ -1090,17 +1090,21 @@ Module
         Type Base<Unit>
         Local this
       return
+        Type Unit
+        UnitLiteral
   fun select @fn28(this: Base<Unit>, other: Unit) -> Unit
     bb0 entry
-      Type Unit
-      Local other
       return
+        Type Unit
+        UnitLiteral
   fun select @fn29(this: Remote<Unit>, other: Unit) -> Unit
     bb0 entry
       call @fn36 direct
         Type Remote<Unit>
         Local this
       return
+        Type Unit
+        UnitLiteral
   fun iterator @fn30(this: Array<Remote<Unit>>) -> Iterator<Remote<Unit>>
     bb0 entry
       val $dependency.local.1: List<Remote<Unit>>
@@ -1241,21 +1245,17 @@ Module
         Local $new.1
   fun value @fn34(this: Base<Unit>) -> Unit
     bb0 entry
-      Type Unit
-      FieldAccess 0
-        Type Base<Unit>
-        Local this
       return
+        Type Unit
+        UnitLiteral
   fun ValueSource.read @fn35(this: ValueSource<Unit>) -> Unit
     bb0 entry
       trap "call to abstract method `ValueSource.read`"
   fun alternate @fn36(this: Remote<Unit>) -> Unit
     bb0 entry
-      Type Unit
-      FieldAccess 1
-        Type Remote<Unit>
-        Local this
       return
+        Type Unit
+        UnitLiteral
   fun next @fn37(this: ListIterator<Remote<Later>>) -> Option<Remote<Later>>
     bb0 entry
       branch bb1 bb2
@@ -1579,6 +1579,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c0 @fn51(this: ListIterator<Remote<Later>>, source: List<Remote<Later>>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -1597,6 +1599,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.Remote.$c1 @fn52(this: Remote<Later>, value: Later, alternate: Later) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Later
@@ -1618,6 +1622,8 @@ Module
         Type Later
         Local alternate
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c0 @fn53(this: ListIterator<Remote<Int>>, source: List<Remote<Int>>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -1636,6 +1642,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.Remote.$c1 @fn54(this: Remote<Int>, value: Int, alternate: Int) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Int
@@ -1657,6 +1665,8 @@ Module
         Type Int
         Local alternate
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c0 @fn55(this: ListIterator<Remote<Unit>>, source: List<Remote<Unit>>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -1675,6 +1685,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.Remote.$c1 @fn56(this: Remote<Unit>, value: Unit, alternate: Unit) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Unit
@@ -1696,6 +1708,8 @@ Module
         Type Unit
         Local alternate
       return
+        Type Unit
+        UnitLiteral
   fun init.Base.$c2 @fn57(this: Base<Later>, value: Later) -> Unit
     bb0 entry
       field_set 0
@@ -1704,6 +1718,8 @@ Module
         Type Later
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Base.$c2 @fn58(this: Base<Int>, value: Int) -> Unit
     bb0 entry
       field_set 0
@@ -1712,6 +1728,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Base.$c2 @fn59(this: Base<Unit>, value: Unit) -> Unit
     bb0 entry
       field_set 0
@@ -1720,6 +1738,8 @@ Module
         Type Unit
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<Later> @fn60(task: SuspendTask<Later>, completion: Continuation<Later>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -1742,6 +1762,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn46 interface Continuation<Later>[0]
         Type Continuation<Later>
@@ -1755,6 +1777,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn47 interface Continuation<Later>[1]
         Type Continuation<Later>
@@ -1766,6 +1790,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

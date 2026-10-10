@@ -30,6 +30,8 @@ Module
   fun declarationPrivate @fn0(unused: Any) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun $extension.declarationReceiver @fn1(this: String, unused: Int) -> Unit
     bb0 entry
       val retained: Any
@@ -47,6 +49,8 @@ Module
         Type Any
         Local $parameter.unused
       return
+        Type Unit
+        UnitLiteral
   fun $extension.getValue @fn2(this: String, thisRef: Unit) -> String
     bb0 entry
       return
@@ -101,6 +105,8 @@ Module
         Type String
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun $get$declarationStorage @fn6() -> String
     bb0 entry
       return
@@ -112,12 +118,16 @@ Module
         Type String
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun $init$body$0 @fn8() -> Unit
     bb0 entry
       global_assign $delegate$top-level:declarationDelegated
         Type String
         StringConst @str2
       return
+        Type Unit
+        UnitLiteral
   fun $init$ensure$0 @fn9() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -142,6 +152,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -247,6 +259,8 @@ Module
         Type String
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.DeclarationHolder.$c1 @fn16(this: DeclarationHolder, unused: Any) -> Unit
     bb0 entry
       val $argument.0: String
@@ -261,6 +275,8 @@ Module
         Type String
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<DeclarationHolder> @fn17(task: SuspendTask<DeclarationHolder>, completion: Continuation<DeclarationHolder>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -283,6 +299,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn11 interface Continuation<DeclarationHolder>[0]
         Type Continuation<DeclarationHolder>
@@ -296,6 +314,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn12 interface Continuation<DeclarationHolder>[1]
         Type Continuation<DeclarationHolder>
@@ -307,6 +327,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

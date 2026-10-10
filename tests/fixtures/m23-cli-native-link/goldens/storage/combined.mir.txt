@@ -358,6 +358,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun equalTo @fn1(this: Ptr<Int>, other: Ptr<Int>) -> Boolean
     bb0 entry
       val $dependency.local.2: Ptr<Int>
@@ -451,6 +453,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn5(value: Boolean) -> Unit
     bb0 entry
       val $dependency.local.1: Boolean
@@ -475,6 +479,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun updateAddress @fn6(marker: Marker, pointer: Ptr<Int>) -> Int
     bb0 entry
       val $dependency.local.6: Ptr<Int>
@@ -547,6 +553,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun equals @fn9(this: Ptr<Int>, other: Ptr<Int>) -> Boolean
     bb0 entry
       val $dependency.local.2: Ptr<Int>

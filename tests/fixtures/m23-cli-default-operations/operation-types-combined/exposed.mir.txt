@@ -79,9 +79,13 @@ Module
   fun init.Mimics.$c0 @fn10(this: Mimics) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.Combinations.$c1 @fn11(this: Combinations) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<Combinations> @fn12(task: SuspendTask<Combinations>, completion: Continuation<Combinations>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -104,6 +108,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn6 interface Continuation<Combinations>[0]
         Type Continuation<Combinations>
@@ -117,6 +123,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn7 interface Continuation<Combinations>[1]
         Type Continuation<Combinations>
@@ -128,6 +136,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -185,6 +195,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn2 interface Continuation<Mimics>[0]
         Type Continuation<Mimics>
@@ -198,6 +210,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn3 interface Continuation<Mimics>[1]
         Type Continuation<Mimics>
@@ -209,6 +223,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

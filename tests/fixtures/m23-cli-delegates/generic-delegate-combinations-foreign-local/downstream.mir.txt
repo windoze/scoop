@@ -182,6 +182,8 @@ Module
         Type Later
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun read @fn3($capture.0: LocalValueSlot<Later>) -> Later
     bb0 entry
       call $call.1: Later = @fn5 direct
@@ -200,6 +202,8 @@ Module
         Type Later
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun getValue @fn5(this: LocalValueSlot<Later>, thisRef: Unit) -> Later
     bb0 entry
       call $call.1: Later = @fn6 direct
@@ -235,6 +239,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.LocalValueSlot.$c0 @fn12(this: LocalValueSlot<Later>, stored: Later) -> Unit
     bb0 entry
       field_set 0
@@ -243,6 +249,8 @@ Module
         Type Later
         Local stored
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<Later> @fn13(task: SuspendTask<Later>, completion: Continuation<Later>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -265,6 +273,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn7 interface Continuation<Later>[0]
         Type Continuation<Later>
@@ -278,6 +288,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn8 interface Continuation<Later>[1]
         Type Continuation<Later>
@@ -289,6 +301,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

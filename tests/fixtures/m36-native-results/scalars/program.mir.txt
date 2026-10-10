@@ -29,6 +29,8 @@ Module
     bb0 entry
       call extern0 @m36_result_touch direct
       return
+        Type Unit
+        UnitLiteral
   fun empty @fn2() -> Empty
     bb0 entry
       call $call.1: Empty = extern1 @m36_result_empty direct
@@ -105,6 +107,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun println @fn6(value: Boolean) -> Unit
     bb0 entry
       val $dependency.local.1: Boolean
@@ -129,6 +133,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn7(value: Long) -> Unit
     bb0 entry
       val $dependency.local.1: Long
@@ -153,6 +159,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn8(value: String) -> Unit
     bb0 entry
       val $dependency.local.1: String
@@ -177,6 +185,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Empty.$c0 @fn9() -> Empty <no-gc>
     bb0 entry
       return

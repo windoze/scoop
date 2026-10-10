@@ -92,6 +92,8 @@ Module
         Type Envelope.Cache
         Local $new.1
       return
+        Type Unit
+        UnitLiteral
   fun $init$ensure$0 @fn4() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -116,6 +118,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -241,12 +245,18 @@ Module
   fun init.Envelope.$c0 @fn21(this: Envelope) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.Envelope.GenericOuter.Static.$c4 @fn22(this: Envelope.GenericOuter.Static, value: Int) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.Envelope.Cache.$c5 @fn23(this: Envelope.Cache) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<Bound> @fn24(task: SuspendTask<Bound>, completion: Continuation<Bound>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -269,6 +279,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn5 interface Continuation<Bound>[0]
         Type Continuation<Bound>
@@ -282,6 +294,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn6 interface Continuation<Bound>[1]
         Type Continuation<Bound>
@@ -293,6 +307,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -350,6 +366,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn13 interface Continuation<Envelope.GenericOuter.Static>[0]
         Type Continuation<Envelope.GenericOuter.Static>
@@ -363,6 +381,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn14 interface Continuation<Envelope.GenericOuter.Static>[1]
         Type Continuation<Envelope.GenericOuter.Static>
@@ -374,6 +394,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -431,6 +453,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn9 interface Continuation<Envelope>[0]
         Type Continuation<Envelope>
@@ -444,6 +468,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn10 interface Continuation<Envelope>[1]
         Type Continuation<Envelope>
@@ -455,6 +481,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -512,6 +540,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn17 interface Continuation<Envelope.Cache>[0]
         Type Continuation<Envelope.Cache>
@@ -525,6 +555,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn18 interface Continuation<Envelope.Cache>[1]
         Type Continuation<Envelope.Cache>
@@ -536,6 +568,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

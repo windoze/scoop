@@ -349,6 +349,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun $extension.zero @fn4(this: Receiver<Later>) -> Int
     bb0 entry
       call @fn15 direct
@@ -426,6 +428,8 @@ Module
         Type ReferenceSlot<Later>
         Local $call.1
       return
+        Type Unit
+        UnitLiteral
   fun extension:Receiver<T0>:references$ensure @fn9() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -450,6 +454,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -570,6 +576,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun extension:Receiver<T0>:ordered$initialize @fn11() -> Unit
     bb0 entry
       call $call.1: Starter<Later> = @fn21 direct
@@ -580,6 +588,8 @@ Module
         Type OrderedSlot<Later>
         Local $call.2
       return
+        Type Unit
+        UnitLiteral
   fun extension:Receiver<T0>:ordered$ensure @fn12() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -604,6 +614,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -690,6 +702,8 @@ Module
         Type ZeroSlot<Later>
         Local $call.1
       return
+        Type Unit
+        UnitLiteral
   fun extension:Receiver<T0>:zero$ensure @fn15() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -714,6 +728,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -856,6 +872,8 @@ Module
         Type FlatSlot<Later>
         Local $call.1
       return
+        Type Unit
+        UnitLiteral
   fun extension:Receiver<T0>:flat$ensure @fn18() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -880,6 +898,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -1208,6 +1228,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Receiver.$c0 @fn28(this: Receiver<Later>, value: Later) -> Unit
     bb0 entry
       field_set 0
@@ -1216,9 +1238,13 @@ Module
         Type Later
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Starter.$c4 @fn29(this: Starter<Later>) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.OrderedSlot.$c5 @fn30(this: OrderedSlot<Later>, payload: Payload) -> Unit
     bb0 entry
       field_set 0
@@ -1227,6 +1253,8 @@ Module
         Type Payload
         Local payload
       return
+        Type Unit
+        UnitLiteral
   fun ctor.ZeroSlot.$c1 @fn31() -> ZeroSlot<Later> <no-gc>
     bb0 entry
       return
@@ -1276,6 +1304,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn23 interface Continuation<Later>[0]
         Type Continuation<Later>
@@ -1289,6 +1319,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn24 interface Continuation<Later>[1]
         Type Continuation<Later>
@@ -1300,6 +1332,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

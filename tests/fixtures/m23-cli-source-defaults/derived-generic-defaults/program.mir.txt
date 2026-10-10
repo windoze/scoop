@@ -49,9 +49,13 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun defaultUnit @fn1() -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun main @fn2() -> Unit
     bb0 entry
       call host: DerivedHost = external1 direct
@@ -228,6 +232,8 @@ Module
         Type Boolean
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun nominal @fn3(this: DerivedHost, left: Token<Int>, right: Token<Int>, value: Boolean) -> Boolean
     bb0 entry
       return

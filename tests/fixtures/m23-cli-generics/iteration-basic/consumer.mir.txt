@@ -1795,6 +1795,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.Cursor.$c1 @fn41(this: Cursor<Int>, values: Array<Int>) -> Unit
     bb0 entry
       field_set 0
@@ -1808,6 +1810,8 @@ Module
         Type Long
         IntegerLiteral Long value=0 bits=0x0000000000000000
       return
+        Type Unit
+        UnitLiteral
   fun init.Sequence.$c0 @fn42(this: Sequence<Int>, values: Array<Int>) -> Unit
     bb0 entry
       field_set 0
@@ -1816,6 +1820,8 @@ Module
         Type Array<Int>
         Local values
       return
+        Type Unit
+        UnitLiteral
   fun init.DiamondCursor.$c3 @fn43(this: DiamondCursor<Int>, inner: Cursor<Int>) -> Unit
     bb0 entry
       field_set 0
@@ -1824,6 +1830,8 @@ Module
         Type Cursor<Int>
         Local inner
       return
+        Type Unit
+        UnitLiteral
   fun ctor.ValueCursor.$c2 @fn44(inner: Cursor<Int>) -> ValueCursor<Int> <no-gc>
     bb0 entry
       return

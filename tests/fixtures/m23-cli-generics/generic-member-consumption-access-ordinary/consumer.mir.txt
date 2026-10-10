@@ -46,6 +46,8 @@ Module
         Type Int
         Local next
       return
+        Type Unit
+        UnitLiteral
   fun Derived.secret @fn3(this: Derived) -> Int
     bb0 entry
       val $dependency.receiver: ProtectedBox<Int>
@@ -133,6 +135,8 @@ Module
         Type Int
         Local $dependency.parameter.stored
       return
+        Type Unit
+        UnitLiteral
   fun init.ProtectedBox.$c0 @fn11(this: ProtectedBox<Int>, stored: Int) -> Unit
     bb0 entry
       field_set 0
@@ -151,6 +155,8 @@ Module
         Type Int
         Local stored
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<Derived> @fn12(task: SuspendTask<Derived>, completion: Continuation<Derived>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -173,6 +179,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn6 interface Continuation<Derived>[0]
         Type Continuation<Derived>
@@ -186,6 +194,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn7 interface Continuation<Derived>[1]
         Type Continuation<Derived>
@@ -197,6 +207,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

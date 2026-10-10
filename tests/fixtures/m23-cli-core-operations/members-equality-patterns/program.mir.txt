@@ -788,6 +788,8 @@ Module
         Local $new.5
     bb58 if.merge.58
       return
+        Type Unit
+        UnitLiteral
   fun patternInt8 @fn1(value: Int8) -> Int
     bb0 entry
       val $when.1: Int8
@@ -1107,6 +1109,8 @@ Module
         Type Boolean
         Local $value
       return
+        Type Unit
+        UnitLiteral
   str @str0 "illegal state"
   str @str1 "illegal state"
   str @str2 "illegal state"

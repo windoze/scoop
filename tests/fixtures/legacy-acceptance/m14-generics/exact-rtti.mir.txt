@@ -171,6 +171,8 @@ Module
         Type Boolean
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun println @fn1(value: Boolean) -> Unit
     bb0 entry
       val $dependency.local.1: Boolean
@@ -195,6 +197,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn2(value: Int) -> Unit
     bb0 entry
       val $dependency.local.1: Int
@@ -219,6 +223,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun exact @fn3(value: Any) -> Boolean
     bb0 entry
       return
@@ -241,6 +247,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Marked.$c1 @fn6(this: Marked<Int>, value: Int) -> Unit
     bb0 entry
       field_set 0
@@ -249,6 +257,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   instance mi0 function=@fn1 <- println
   instance mi1 function=@fn2 <- println
   instance mi2 function=@fn3 <- exact

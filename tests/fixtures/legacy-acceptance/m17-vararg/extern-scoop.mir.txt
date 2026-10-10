@@ -253,6 +253,8 @@ Module
         Type Int
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun next @fn6(this: ListIterator<Int>) -> Option<Int>
     bb0 entry
       branch bb1 bb2
@@ -372,6 +374,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun List.$get$size @fn8(this: List<Int>) -> Long
     bb0 entry
       trap "call to abstract method `List.$get$size`"
@@ -396,6 +400,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   instance mi0 function=@fn0 <- iterator
   instance mi1 function=@fn1 <- get
   instance mi2 function=@fn2 <- size

@@ -289,12 +289,16 @@ Module
         Local $new.6
     bb5 if.merge.5
       return
+        Type Unit
+        UnitLiteral
   fun $init$body$0 @fn4() -> Unit
     bb0 entry
       global_assign first
         Type () -> Int
         ClosureAlloc cc0 $Closure$lambda0
       return
+        Type Unit
+        UnitLiteral
   fun $init$ensure$0 @fn5() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -319,6 +323,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -405,6 +411,8 @@ Module
         Type () -> Int
         ClosureAlloc cc1 $Closure$anonymous0
       return
+        Type Unit
+        UnitLiteral
   fun $init$ensure$1 @fn8() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -429,6 +437,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -524,6 +534,8 @@ Module
           Type () -> Int
           Local $call.3
       return
+        Type Unit
+        UnitLiteral
   fun $init$ensure$2 @fn11() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -548,6 +560,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -757,6 +771,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun function_bridge.$Closure$lambda0.() -> Any @fn19($source: () -> Int) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type0> closure[function_type0]

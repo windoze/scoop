@@ -154,6 +154,8 @@ Module
         Type Long
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun println @fn2(value: String) -> Unit
     bb0 entry
       val $dependency.local.1: String
@@ -178,6 +180,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun iterator @fn3(this: Array<String>) -> Iterator<String>
     bb0 entry
       val $dependency.local.1: List<String>
@@ -313,6 +317,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun next @fn7(this: ListIterator<String>) -> Option<String>
     bb0 entry
       branch bb1 bb2
@@ -438,6 +444,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun init.GenericBox.$c1 @fn11(this: GenericBox<String>, seed: String, marker: Int, rest: Array<String>) -> Unit
     bb0 entry
       val $argument.0: String
@@ -478,6 +486,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c0 @fn12(this: ListIterator<String>, source: List<String>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -496,6 +506,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.GenericBox.$c0 @fn13(this: GenericBox<String>, seed: String, values: Array<String>) -> Unit
     bb0 entry
       field_set 0
@@ -509,6 +521,8 @@ Module
         Type String
         Local seed
       return
+        Type Unit
+        UnitLiteral
   instance mi0 function=@fn2 <- println
   instance mi1 function=@fn3 <- iterator
   instance mi2 function=@fn4 <- get

@@ -138,6 +138,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun roundTrip @fn1(marker: Marker, text: String, token: Empty) -> Aggregate
     bb0 entry
       val $dependency.local.4: Empty
@@ -222,6 +224,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn3(value: Long) -> Unit
     bb0 entry
       val $dependency.local.1: Long
@@ -246,6 +250,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn4(value: Int) -> Unit
     bb0 entry
       val $dependency.local.1: Int
@@ -270,6 +276,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Marker.$c0 @fn5(text: String) -> Marker <no-gc>
     bb0 entry
       return

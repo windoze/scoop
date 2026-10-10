@@ -133,6 +133,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb6 inline.cont.6
       val $shortCircuit.0: Boolean
         Type Boolean
@@ -169,6 +171,8 @@ Module
         Local $inline.8.this
         Type Int
         IntegerLiteral Int value=2 bits=0x00000002
+      Type Unit
+      UnitLiteral
       goto bb8
     bb10 inline.cont.10
       val $argument.0: Key
@@ -196,6 +200,8 @@ Module
         Local $inline.10.this
         Type Int
         IntegerLiteral Int value=1 bits=0x00000001
+      Type Unit
+      UnitLiteral
       goto bb10
     bb12 inline.cont.12
       val $dependency.receiver: Boolean
@@ -237,6 +243,8 @@ Module
         Local $inline.14.this
         Type Int
         IntegerLiteral Int value=1 bits=0x00000001
+      Type Unit
+      UnitLiteral
       goto bb14
     bb16 inline.cont.16
       val $argument.0: Key
@@ -264,6 +272,8 @@ Module
         Local $inline.16.this
         Type Int
         IntegerLiteral Int value=1 bits=0x00000001
+      Type Unit
+      UnitLiteral
       goto bb16
     bb18 inline.cont.18
       val $inline.12.$call.1: Boolean
@@ -387,6 +397,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun Continuation.resume @fn4(this: Continuation<Key>, value: Key) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
@@ -407,6 +419,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<Key> @fn9(task: SuspendTask<Key>, completion: Continuation<Key>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -429,6 +443,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn4 interface Continuation<Key>[0]
         Type Continuation<Key>
@@ -442,6 +458,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn5 interface Continuation<Key>[1]
         Type Continuation<Key>
@@ -453,6 +471,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

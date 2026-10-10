@@ -180,6 +180,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun safeDefault @fn4() -> Int
     bb0 entry
       val $dependency.argument.0: String
@@ -308,6 +310,8 @@ Module
           Local $pattern.subject.3
     bb3 pattern.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 pattern.pass.4
       val $dependency.argument.0: String
         Type String
@@ -1004,6 +1008,8 @@ Module
           Local $pattern.subject.9
     bb48 pattern.merge.48
       return
+        Type Unit
+        UnitLiteral
     bb49 pattern.pass.49
       val $dependency.argument.0: Int
         Type Int
@@ -1043,6 +1049,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun $lambda.0 @fn11($closure: (Int) -> Int, value: Int) -> Int
     bb0 entry
       val $dependency.receiver: Int
@@ -1085,6 +1093,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun Continuation.resume @fn13(this: Continuation<Handler>, value: Handler) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
@@ -1129,6 +1139,8 @@ Module
         Type String
         Local prefix
       return
+        Type Unit
+        UnitLiteral
   fun init.Service.$c1 @fn26(this: Service, handler: Handler) -> Unit
     bb0 entry
       field_set 0
@@ -1137,6 +1149,8 @@ Module
         Type Handler
         Local handler
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Handler.$c0 @fn27(prefix: String) -> Handler <no-gc>
     bb0 entry
       return
@@ -1166,6 +1180,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn17 interface Continuation<Probe>[0]
         Type Continuation<Probe>
@@ -1179,6 +1195,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn18 interface Continuation<Probe>[1]
         Type Continuation<Probe>
@@ -1190,6 +1208,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -1247,6 +1267,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn13 interface Continuation<Handler>[0]
         Type Continuation<Handler>
@@ -1260,6 +1282,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn14 interface Continuation<Handler>[1]
         Type Continuation<Handler>
@@ -1271,6 +1295,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -1328,6 +1354,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn21 interface Continuation<Service>[0]
         Type Continuation<Service>
@@ -1341,6 +1369,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn22 interface Continuation<Service>[1]
         Type Continuation<Service>
@@ -1352,6 +1382,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

@@ -50,6 +50,8 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun main @fn1() -> Unit
     bb0 entry
       call $dependency.receiver: Vault = external1 direct
@@ -179,6 +181,8 @@ Module
         Type Boolean
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun observe @fn2(this: Vault, value: Long, other: Argument) -> (Long, Argument, Int)
     bb0 entry
       field_set 0

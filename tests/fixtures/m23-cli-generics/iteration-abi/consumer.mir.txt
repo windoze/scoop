@@ -4691,13 +4691,9 @@ Module
         Type IndexOutOfBoundsException
         Local $new.2
     bb5 if.merge.5
-      Type Unit
-      ArrayGet Array<Unit>
-        Type Array<Unit>
-        Local $arr.1
-        Type Long
-        Local $idx.2
       return
+        Type Unit
+        UnitLiteral
   fun size @fn68(this: Array<Unit>) -> Long
     bb0 entry
       val $dependency.local.1: Array<Unit>
@@ -5942,6 +5938,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c4 @fn139(this: ListIterator<Large>, source: List<Large>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -5960,6 +5958,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.Sequence.$c0 @fn140(this: Sequence<Large>, values: Array<Large>) -> Unit
     bb0 entry
       field_set 0
@@ -5968,6 +5968,8 @@ Module
         Type Array<Large>
         Local values
       return
+        Type Unit
+        UnitLiteral
   fun init.Cursor.$c1 @fn141(this: Cursor<Large>, values: Array<Large>) -> Unit
     bb0 entry
       field_set 0
@@ -5981,6 +5983,8 @@ Module
         Type Long
         IntegerLiteral Long value=0 bits=0x0000000000000000
       return
+        Type Unit
+        UnitLiteral
   fun init.DiamondCursor.$c3 @fn142(this: DiamondCursor<Large>, inner: Cursor<Large>) -> Unit
     bb0 entry
       field_set 0
@@ -5989,6 +5993,8 @@ Module
         Type Cursor<Large>
         Local inner
       return
+        Type Unit
+        UnitLiteral
   fun init.Sequence.$c0 @fn143(this: Sequence<Payload<Large>>, values: Array<Payload<Large>>) -> Unit
     bb0 entry
       field_set 0
@@ -5997,6 +6003,8 @@ Module
         Type Array<Payload<Large>>
         Local values
       return
+        Type Unit
+        UnitLiteral
   fun init.Cursor.$c1 @fn144(this: Cursor<Payload<Large>>, values: Array<Payload<Large>>) -> Unit
     bb0 entry
       field_set 0
@@ -6010,6 +6018,8 @@ Module
         Type Long
         IntegerLiteral Long value=0 bits=0x0000000000000000
       return
+        Type Unit
+        UnitLiteral
   fun init.DiamondCursor.$c3 @fn145(this: DiamondCursor<Payload<Large>>, inner: Cursor<Payload<Large>>) -> Unit
     bb0 entry
       field_set 0
@@ -6018,6 +6028,8 @@ Module
         Type Cursor<Payload<Large>>
         Local inner
       return
+        Type Unit
+        UnitLiteral
   fun init.Sequence.$c0 @fn146(this: Sequence<(Reference, Reference)>, values: Array<(Reference, Reference)>) -> Unit
     bb0 entry
       field_set 0
@@ -6026,6 +6038,8 @@ Module
         Type Array<(Reference, Reference)>
         Local values
       return
+        Type Unit
+        UnitLiteral
   fun init.Cursor.$c1 @fn147(this: Cursor<(Reference, Reference)>, values: Array<(Reference, Reference)>) -> Unit
     bb0 entry
       field_set 0
@@ -6039,6 +6053,8 @@ Module
         Type Long
         IntegerLiteral Long value=0 bits=0x0000000000000000
       return
+        Type Unit
+        UnitLiteral
   fun init.DiamondCursor.$c3 @fn148(this: DiamondCursor<(Reference, Reference)>, inner: Cursor<(Reference, Reference)>) -> Unit
     bb0 entry
       field_set 0
@@ -6047,6 +6063,8 @@ Module
         Type Cursor<(Reference, Reference)>
         Local inner
       return
+        Type Unit
+        UnitLiteral
   fun init.Sequence.$c0 @fn149(this: Sequence<Unit>, values: Array<Unit>) -> Unit
     bb0 entry
       field_set 0
@@ -6055,6 +6073,8 @@ Module
         Type Array<Unit>
         Local values
       return
+        Type Unit
+        UnitLiteral
   fun init.Cursor.$c1 @fn150(this: Cursor<Unit>, values: Array<Unit>) -> Unit
     bb0 entry
       field_set 0
@@ -6068,6 +6088,8 @@ Module
         Type Long
         IntegerLiteral Long value=0 bits=0x0000000000000000
       return
+        Type Unit
+        UnitLiteral
   fun init.DiamondCursor.$c3 @fn151(this: DiamondCursor<Unit>, inner: Cursor<Unit>) -> Unit
     bb0 entry
       field_set 0
@@ -6076,6 +6098,8 @@ Module
         Type Cursor<Unit>
         Local inner
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c4 @fn152(this: ListIterator<Payload<Large>>, source: List<Payload<Large>>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -6094,6 +6118,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c4 @fn153(this: ListIterator<(Reference, Reference)>, source: List<(Reference, Reference)>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -6112,6 +6138,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c4 @fn154(this: ListIterator<Unit>, source: List<Unit>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -6130,6 +6158,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Large.$c0 @fn155(first: Reference, second: Reference, third: Reference) -> Large <no-gc>
     bb0 entry
       return
@@ -6303,6 +6333,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn130 interface Continuation<Reference>[0]
         Type Continuation<Reference>
@@ -6316,6 +6348,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn131 interface Continuation<Reference>[1]
         Type Continuation<Reference>
@@ -6327,6 +6361,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -6384,6 +6420,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn126 interface Continuation<Large>[0]
         Type Continuation<Large>
@@ -6397,6 +6435,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn127 interface Continuation<Large>[1]
         Type Continuation<Large>
@@ -6408,6 +6448,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

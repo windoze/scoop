@@ -439,9 +439,9 @@ Module
         Local value
   fun identity @fn12(value: Unit) -> Unit
     bb0 entry
-      Type Unit
-      Local value
       return
+        Type Unit
+        UnitLiteral
   fun nested @fn13(value: Unit) -> Unit
     bb0 entry
       val $dependency.local.1: Unit
@@ -454,11 +454,13 @@ Module
         Type Unit
         Local $dependency.local.2
       return
+        Type Unit
+        UnitLiteral
   fun localIdentity @fn14(value: Unit) -> Unit
     bb0 entry
-      Type Unit
-      Local value
       return
+        Type Unit
+        UnitLiteral
   fun identity @fn15(value: String) -> String
     bb0 entry
       return
@@ -527,6 +529,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<Later> @fn26(task: SuspendTask<Later>, completion: Continuation<Later>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -549,6 +553,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn21 interface Continuation<Later>[0]
         Type Continuation<Later>
@@ -562,6 +568,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn22 interface Continuation<Later>[1]
         Type Continuation<Later>
@@ -573,6 +581,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

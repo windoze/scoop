@@ -16,6 +16,8 @@ Module
     bb0 entry
       call extern0 @verify_finished direct
       return
+        Type Unit
+        UnitLiteral
   fun perform @fn1() -> Unit
     bb0 entry
       val $argument.0: Int8
@@ -68,6 +70,8 @@ Module
     bb2 if.merge.2
       call extern0 @verify_finished direct
       return
+        Type Unit
+        UnitLiteral
   fun nativeNarrow @fn2(arg0: Int8) -> Int8
     bb0 entry
       call $call.1: Int8 = extern1 @native_narrow direct

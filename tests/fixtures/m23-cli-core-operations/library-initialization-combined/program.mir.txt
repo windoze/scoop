@@ -23,6 +23,8 @@ Module
         Type UserCache
         Local $new.1
       return
+        Type Unit
+        UnitLiteral
   fun $init$ensure$0 @fn1() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -47,6 +49,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -171,6 +175,8 @@ Module
         Type Boolean
         Local $parameter.useCache
       return
+        Type Unit
+        UnitLiteral
   fun $init$body$1 @fn4() -> Unit
     bb0 entry
       val $dependency.argument.0: Int
@@ -186,6 +192,8 @@ Module
         Type Int
         Local $call.1
       return
+        Type Unit
+        UnitLiteral
   fun $init$ensure$1 @fn5() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -210,6 +218,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -304,4 +314,6 @@ Module
         Type Int
         Local $call.1
       return
+        Type Unit
+        UnitLiteral
   output executable @fn3

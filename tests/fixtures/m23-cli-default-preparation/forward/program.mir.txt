@@ -301,6 +301,8 @@ Module
         Type Int
         Local $parameter.seed
       return
+        Type Unit
+        UnitLiteral
   fun iterator @fn16(this: Array<Int>) -> Iterator<Int>
     bb0 entry
       val $dependency.local.1: List<Int>
@@ -521,6 +523,8 @@ Module
   fun init.PrepBase.$c0 @fn23(this: PrepBase) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.PrepChild.$c1 @fn24(this: PrepChild) -> Unit
     bb0 entry
       call @fn23 direct
@@ -529,6 +533,8 @@ Module
           Type PrepChild
           Local this
       return
+        Type Unit
+        UnitLiteral
   fun init.PrepGenericChild.$c3 @fn25(this: PrepGenericChild) -> Unit
     bb0 entry
       call @fn29 direct
@@ -537,6 +543,8 @@ Module
           Type PrepGenericChild
           Local this
       return
+        Type Unit
+        UnitLiteral
   fun init.PrepSecondary.$c4 @fn26(this: PrepSecondary, value: Int) -> Unit
     bb0 entry
       field_set 0
@@ -545,6 +553,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.PrepSecondary.$c5 @fn27(this: PrepSecondary, marker: String, value: Int) -> Unit
     bb0 entry
       val $argument.0: Int
@@ -559,6 +569,8 @@ Module
         Type Int
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c0 @fn28(this: ListIterator<Int>, source: List<Int>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -577,9 +589,13 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.PrepGeneric.$c2 @fn29(this: PrepGeneric<Int>) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun ctor.PrepValue.$c0 @fn30(value: Int) -> PrepValue <no-gc>
     bb0 entry
       return

@@ -45,6 +45,8 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun main @fn1() -> Unit
     bb0 entry
       call $call.1: (Boolean, String, String, Boolean) = external1 direct
@@ -90,6 +92,8 @@ Module
         Type Boolean
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun $derived.equals.0 @fn2(this: (Boolean, String, String, Boolean), other: (Boolean, String, String, Boolean)) -> Boolean
     bb0 entry
       call $call.1: Boolean = external2 direct

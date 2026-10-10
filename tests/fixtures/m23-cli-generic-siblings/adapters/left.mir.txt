@@ -78,6 +78,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun $adapter.(Any) -> Payload.(Payload) -> Any @fn4($closure: (Payload) -> Any, arg0: Payload) -> Any
     bb0 entry
       call $call.1: Payload = <closure:function_type2> closure[function_type2]

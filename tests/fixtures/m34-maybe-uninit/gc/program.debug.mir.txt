@@ -538,6 +538,8 @@ Module
           Type Rooted
           Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun arrayAndFields @fn2() -> Unit
     bb0 entry
       val $argument.0: Long
@@ -1394,6 +1396,8 @@ Module
         Type Int
         Local $parameter.marker
       return
+        Type Unit
+        UnitLiteral
   fun nativeCollect @fn3(arg0: MaybeUninit<Rooted>) -> MaybeUninit<Rooted>
     bb0 entry
       call $call.1: MaybeUninit<Rooted> = extern0 @m34_maybe_collect direct
@@ -1442,6 +1446,8 @@ Module
         Type Shared
         Local $new.1
       return
+        Type Unit
+        UnitLiteral
   fun $init$ensure$0 @fn9() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -1466,6 +1472,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -1584,6 +1592,8 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun minorCollection @fn11() -> Unit
     bb0 entry
       call $call.1: Boolean = extern4 @m34_maybe_moving direct
@@ -1593,6 +1603,8 @@ Module
     bb1 if.then.1
       call @scoop_rt_gc_collect direct
       return
+        Type Unit
+        UnitLiteral
     bb2 if.merge.2
       call before: Long = extern3 @m34_maybe_minor_count direct
       goto bb3
@@ -1613,6 +1625,8 @@ Module
           Local $dependency.parameter.other
     bb4 while.exit.4
       return
+        Type Unit
+        UnitLiteral
     bb5 while.body.5
       var index: Int
         Type Int
@@ -1692,6 +1706,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun collected @fn13(value: Int) -> Rooted
     bb0 entry
       val $argument.0: Long
@@ -2414,6 +2430,8 @@ Module
         Type Int
         Local $parameter.marker
       return
+        Type Unit
+        UnitLiteral
   fun iterator @fn16(this: MutableArray<MaybeUninit<Rooted>>) -> Iterator<MaybeUninit<Rooted>>
     bb0 entry
       val $dependency.local.1: List<MaybeUninit<Rooted>>
@@ -2670,6 +2688,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn25(value: String) -> Unit
     bb0 entry
       val $dependency.local.1: String
@@ -2694,6 +2714,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun $lambda.2 @fn26($closure: () -> MaybeUninit<Rooted>) -> MaybeUninit<Rooted>
     bb0 entry
       call @scoop_rt_gc_collect direct
@@ -2963,6 +2985,8 @@ Module
         Type Int
         Local number
       return
+        Type Unit
+        UnitLiteral
   fun init.Holder.$c1 @fn51(this: Holder, data: MaybeUninit<Rooted>) -> Unit
     bb0 entry
       field_set 0
@@ -2971,6 +2995,8 @@ Module
         Type MaybeUninit<Rooted>
         Local data
       return
+        Type Unit
+        UnitLiteral
   fun init.Shared.$c2 @fn52(this: Shared) -> Unit
     bb0 entry
       field_set 0
@@ -2979,6 +3005,8 @@ Module
         Type MaybeUninit<Rooted>
         MaybeUninit.Uninit MaybeUninit
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c1 @fn53(this: ListIterator<MaybeUninit<Rooted>>, source: List<MaybeUninit<Rooted>>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -2997,6 +3025,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c1 @fn54(this: ListIterator<MaybeUninit<Read>>, source: List<MaybeUninit<Read>>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -3015,6 +3045,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Rooted.$c0 @fn55(serial: Long, payload: Payload) -> Rooted <no-gc>
     bb0 entry
       return
@@ -3046,6 +3078,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn41 interface Continuation<Read>[0]
         Type Continuation<Read>
@@ -3059,6 +3093,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn42 interface Continuation<Read>[1]
         Type Continuation<Read>
@@ -3070,6 +3106,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -3127,6 +3165,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn33 interface Continuation<Rooted>[0]
         Type Continuation<Rooted>
@@ -3140,6 +3180,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn34 interface Continuation<Rooted>[1]
         Type Continuation<Rooted>
@@ -3151,6 +3193,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -3208,6 +3252,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn45 interface Continuation<Packet>[0]
         Type Continuation<Packet>
@@ -3221,6 +3267,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn46 interface Continuation<Packet>[1]
         Type Continuation<Packet>
@@ -3232,6 +3280,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -3289,6 +3339,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn37 interface Continuation<Payload>[0]
         Type Continuation<Payload>
@@ -3302,6 +3354,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn38 interface Continuation<Payload>[1]
         Type Continuation<Payload>
@@ -3313,6 +3367,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

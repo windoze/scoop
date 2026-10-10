@@ -410,6 +410,8 @@ Module
         Type Int
         Local number
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Empty.$c0 @fn8() -> Empty<Later> <no-gc>
     bb0 entry
       return
@@ -442,6 +444,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn3 interface Continuation<Later>[0]
         Type Continuation<Later>
@@ -455,6 +459,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn4 interface Continuation<Later>[1]
         Type Continuation<Later>
@@ -466,6 +472,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

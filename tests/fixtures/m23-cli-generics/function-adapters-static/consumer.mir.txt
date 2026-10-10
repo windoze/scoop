@@ -322,6 +322,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun $adapter.(Any) -> Ptr<Int>.(Ptr<Int>) -> Any @fn10($closure: (Ptr<Int>) -> Any, arg0: Ptr<Int>) -> Any
     bb0 entry
       call $call.1: Ptr<Int> = <closure:function_type3> closure[function_type3]

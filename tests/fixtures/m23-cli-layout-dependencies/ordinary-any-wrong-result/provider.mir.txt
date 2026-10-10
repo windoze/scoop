@@ -56,6 +56,8 @@ Module
   fun $extension.$set$receiverScore @fn8(this: String, value: Int) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun $extension.$get$anyValue @fn9(this: Any) -> Any
     bb0 entry
       return
@@ -64,6 +66,8 @@ Module
   fun $extension.$set$anyValue @fn10(this: Any, value: Any) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun $init$body$0 @fn11() -> Unit
     bb0 entry
       call $call.1: Int = @fn0 direct
@@ -71,6 +75,8 @@ Module
         Type Int
         Local $call.1
       return
+        Type Unit
+        UnitLiteral
   fun $init$ensure$0 @fn12() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -95,6 +101,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -182,6 +190,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun $init$body$1 @fn15() -> Unit
     bb0 entry
       call $call.1: Int = @fn0 direct
@@ -189,6 +199,8 @@ Module
         Type Int
         Local $call.1
       return
+        Type Unit
+        UnitLiteral
   fun $init$ensure$1 @fn16() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -213,6 +225,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -309,4 +323,6 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   output library

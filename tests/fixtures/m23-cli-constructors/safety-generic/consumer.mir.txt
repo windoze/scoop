@@ -177,6 +177,8 @@ Module
         Local $new.5
       call @scoop_rt_gc_collect direct
       return
+        Type Unit
+        UnitLiteral
   fun init.Box.$c0 @fn1(this: Box<Int>, value: Int) -> Unit
     bb0 entry
       field_set 0
@@ -186,6 +188,8 @@ Module
         Local value
       call $call.1: Int = external3 direct
       return
+        Type Unit
+        UnitLiteral
   fun init.Box.$c1 @fn2(this: Box<Int>, value: Int, count: Int) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Int
@@ -201,6 +205,8 @@ Module
         Local $dependency.constructor.local.1
       call $call.1: Int = external3 direct
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Pair.$c2 @fn3(value: Int) -> Pair<Int>
     bb0 entry
       val $dependency.constructor.local.0: Int

@@ -48,6 +48,8 @@ Module
   fun init.TypeEnvelopeHost.$c0 @fn6(this: TypeEnvelopeHost) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<TypeEnvelopeHost> @fn7(task: SuspendTask<TypeEnvelopeHost>, completion: Continuation<TypeEnvelopeHost>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -70,6 +72,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn2 interface Continuation<TypeEnvelopeHost>[0]
         Type Continuation<TypeEnvelopeHost>
@@ -83,6 +87,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn3 interface Continuation<TypeEnvelopeHost>[1]
         Type Continuation<TypeEnvelopeHost>
@@ -94,6 +100,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

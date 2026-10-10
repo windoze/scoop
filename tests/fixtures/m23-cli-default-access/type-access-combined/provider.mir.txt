@@ -78,6 +78,8 @@ Module
   fun init.AccessHolder.$c0 @fn9(this: AccessHolder) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun ctor.AccessHolder.Nested.$c1 @fn10(value: Int) -> AccessHolder.Nested <no-gc>
     bb0 entry
       return
@@ -107,6 +109,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn1 interface Continuation<AccessHolder.Nested>[0]
         Type Continuation<AccessHolder.Nested>
@@ -120,6 +124,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn2 interface Continuation<AccessHolder.Nested>[1]
         Type Continuation<AccessHolder.Nested>
@@ -131,6 +137,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -188,6 +196,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn5 interface Continuation<AccessHolder>[0]
         Type Continuation<AccessHolder>
@@ -201,6 +211,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn6 interface Continuation<AccessHolder>[1]
         Type Continuation<AccessHolder>
@@ -212,6 +224,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

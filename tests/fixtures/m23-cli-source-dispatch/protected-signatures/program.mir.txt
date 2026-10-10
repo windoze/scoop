@@ -46,6 +46,8 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun main @fn1() -> Unit
     bb0 entry
       call $dependency.receiver: ShapeSource = external1 direct
@@ -76,6 +78,8 @@ Module
         Type Boolean
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun $derived.equals.0 @fn2(this: (Int, Long), other: (Int, Long)) -> Boolean
     bb0 entry
       branch bb1 bb2

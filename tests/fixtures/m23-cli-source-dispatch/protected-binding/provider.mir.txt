@@ -123,9 +123,13 @@ Module
   fun init.Container.$c0 @fn18(this: Container) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.Another.$c1 @fn19(this: Another) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.Container.Vault.$c2 @fn20(this: Container.Vault) -> Unit
     bb0 entry
       field_set 0
@@ -134,6 +138,8 @@ Module
         Type Int
         IntegerLiteral Int value=1 bits=0x00000001
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<Constraint> @fn21(task: SuspendTask<Constraint>, completion: Continuation<Constraint>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -156,6 +162,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn2 interface Continuation<Constraint>[0]
         Type Continuation<Constraint>
@@ -169,6 +177,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn3 interface Continuation<Constraint>[1]
         Type Continuation<Constraint>
@@ -180,6 +190,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -237,6 +249,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn6 interface Continuation<Container>[0]
         Type Continuation<Container>
@@ -250,6 +264,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn7 interface Continuation<Container>[1]
         Type Continuation<Container>
@@ -261,6 +277,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -318,6 +336,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn10 interface Continuation<Another>[0]
         Type Continuation<Another>
@@ -331,6 +351,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn11 interface Continuation<Another>[1]
         Type Continuation<Another>
@@ -342,6 +364,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -399,6 +423,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn14 interface Continuation<Container.Vault>[0]
         Type Continuation<Container.Vault>
@@ -412,6 +438,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn15 interface Continuation<Container.Vault>[1]
         Type Continuation<Container.Vault>
@@ -423,6 +451,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

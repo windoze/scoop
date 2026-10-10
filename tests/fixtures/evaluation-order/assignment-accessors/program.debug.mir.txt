@@ -37,6 +37,8 @@ Module
         Type Int
         Local next
       return
+        Type Unit
+        UnitLiteral
   fun Child.$get$computed @fn2(this: Child) -> Int
     bb0 entry
       return
@@ -61,6 +63,8 @@ Module
         Type Int
         Local next
       return
+        Type Unit
+        UnitLiteral
   fun main @fn4() -> Unit
     bb0 entry
       val $argument.0: Int
@@ -207,6 +211,8 @@ Module
         Type Int
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb9 try.body.9 unwind bb4
       val $argument.0: Box
         Type Box
@@ -339,6 +345,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun $local.0.receiver @fn6(value: Box) -> Box
     bb0 entry
       val $dependency.argument.0: String
@@ -377,6 +385,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun init.Box.$c0 @fn8(this: Box, value: Int) -> Unit
     bb0 entry
       field_set 0
@@ -385,6 +395,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Child.$c1 @fn9(this: Child, value: Int) -> Unit
     bb0 entry
       val $argument.0: Int
@@ -401,6 +413,8 @@ Module
         Type Int
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   instance mi0 function=@fn5 <- println
   instance mi1 function=@fn7 <- println
   str @str0 "setter"

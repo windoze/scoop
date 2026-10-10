@@ -962,6 +962,8 @@ Module
       resume
     bb108 try.end.108
       return
+        Type Unit
+        UnitLiteral
     bb109 try.body.109 unwind bb104
       call @scoop_rt_gc_collect direct
       call $dependency.argument.0: Int = @fn5 direct
@@ -1230,6 +1232,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn14(value: Int) -> Unit
     bb0 entry
       val $dependency.local.1: Int
@@ -1254,6 +1258,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun $lambda.0 @fn15($closure: (Long) -> Int, $arg.0: Long) -> Int
     bb0 entry
       return
@@ -1288,6 +1294,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun $lambda.2 @fn18($closure: () -> Int) -> Int
     bb0 entry
       return
@@ -1503,6 +1511,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Derived.$c1 @fn26(this: Derived, value: Int) -> Unit
     bb0 entry
       val $argument.0: Int
@@ -1519,6 +1529,8 @@ Module
         Type Int
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c0 @fn27(this: ListIterator<Int>, source: List<Int>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -1537,6 +1549,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c0 @fn28(this: ListIterator<Long>, source: List<Long>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -1555,6 +1569,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun function_bridge.$Closure$lambda0.(Any) -> Any @fn29($source: (Long) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type2> closure[function_type2]

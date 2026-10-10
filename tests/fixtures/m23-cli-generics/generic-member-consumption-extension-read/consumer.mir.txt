@@ -61,6 +61,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   instance mi0 function=@fn1 <- $extension.extensionValue
   instance mi1 function=@fn2 <- value
   instance mi2 function=@fn3 <- extensionIdentity

@@ -661,6 +661,8 @@ Module
         Type String
         Local next
       return
+        Type Unit
+        UnitLiteral
   fun exposed @fn6(this: Box<String>) -> String
     bb0 entry
       call $call.1: String = @fn15 direct
@@ -677,6 +679,8 @@ Module
         Type String
         Local next
       return
+        Type Unit
+        UnitLiteral
   fun exposed @fn8(this: Box<Int>) -> Int
     bb0 entry
       call $call.1: Int = @fn33 direct
@@ -693,6 +697,8 @@ Module
         Type Int
         Local next
       return
+        Type Unit
+        UnitLiteral
   fun Local.$get$exposed @fn10(this: Local<Unit, Int>) -> Int
     bb0 entry
       return
@@ -708,6 +714,8 @@ Module
         Type Int
         Local next
       return
+        Type Unit
+        UnitLiteral
   fun readLocal @fn12(box: Child<String>) -> String
     bb0 entry
       return
@@ -860,11 +868,9 @@ Module
           Local box
   fun Local.$get$exposed @fn20(this: Local<Unit, Unit>) -> Unit
     bb0 entry
-      Type Unit
-      FieldAccess 1
-        Type Local<Unit, Unit>
-        Local this
       return
+        Type Unit
+        UnitLiteral
   fun Local.$set$exposed @fn21(this: Local<Unit, Unit>, next: Unit) -> Unit
     bb0 entry
       field_set 1
@@ -873,12 +879,16 @@ Module
         Type Unit
         Local next
       return
+        Type Unit
+        UnitLiteral
   fun exposed @fn22(this: Box<Unit>) -> Unit
     bb0 entry
       call @fn27 direct
         Type Box<Unit>
         Local this
       return
+        Type Unit
+        UnitLiteral
   fun exposed @fn23(this: Box<Unit>, next: Unit) -> Unit
     bb0 entry
       call @fn38 direct
@@ -887,13 +897,13 @@ Module
         Type Unit
         Local next
       return
+        Type Unit
+        UnitLiteral
   fun readLocal @fn24(box: Child<Unit>) -> Unit
     bb0 entry
-      Type Unit
-      FieldAccess 1
-        Type Child<Unit>
-        Local box
       return
+        Type Unit
+        UnitLiteral
   fun changeLocal @fn25(box: Child<Unit>, next: Unit) -> Unit
     bb0 entry
       call @fn20 virtual[0]
@@ -911,9 +921,9 @@ Module
           Local box
         Type Unit
         Local next
-      Type Unit
-      Local previous
       return
+        Type Unit
+        UnitLiteral
   fun stored @fn26(box: Foreign<Unit>) -> Unit
     bb0 entry
       call @fn27 direct
@@ -922,18 +932,18 @@ Module
           Type Foreign<Unit>
           Local box
       return
+        Type Unit
+        UnitLiteral
   fun value @fn27(this: Box<Unit>) -> Unit
     bb0 entry
-      Type Unit
-      FieldAccess 0
-        Type Box<Unit>
-        Local this
       return
+        Type Unit
+        UnitLiteral
   fun defaultRead @fn28(box: Foreign<Unit>, previous: Unit) -> Unit
     bb0 entry
-      Type Unit
-      Local previous
       return
+        Type Unit
+        UnitLiteral
   fun optional @fn29(box: Option<Foreign<Unit>>) -> Option<Unit>
     bb0 entry
       val $dependency.local.1: Option<Foreign<Unit>>
@@ -1054,6 +1064,8 @@ Module
         Type String
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun value @fn37(this: Box<Int>, value: Int) -> Unit
     bb0 entry
       field_set 0
@@ -1062,6 +1074,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun value @fn38(this: Box<Unit>, value: Unit) -> Unit
     bb0 entry
       field_set 0
@@ -1070,6 +1084,8 @@ Module
         Type Unit
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Child.$c1 @fn39(this: Child<String>, value: String) -> Unit
     bb0 entry
       val $argument.0: Unit
@@ -1094,6 +1110,8 @@ Module
         Type String
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun init.Foreign.$c2 @fn40(this: Foreign<String>, value: String) -> Unit
     bb0 entry
       val $dependency.argument.0: String
@@ -1110,6 +1128,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun init.Foreign.$c2 @fn41(this: Foreign<Int>, value: Int) -> Unit
     bb0 entry
       val $dependency.argument.0: Int
@@ -1126,6 +1146,8 @@ Module
         Type Int
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun init.Child.$c1 @fn42(this: Child<Int>, value: Int) -> Unit
     bb0 entry
       val $argument.0: Unit
@@ -1150,6 +1172,8 @@ Module
         Type Int
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun init.Child.$c1 @fn43(this: Child<Unit>, value: Unit) -> Unit
     bb0 entry
       val $argument.0: Unit
@@ -1174,6 +1198,8 @@ Module
         Type Unit
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun init.Foreign.$c2 @fn44(this: Foreign<Unit>, value: Unit) -> Unit
     bb0 entry
       val $dependency.argument.0: Unit
@@ -1190,6 +1216,8 @@ Module
         Type Unit
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun init.Local.$c0 @fn45(this: Local<Unit, String>, marker: Unit, value: String) -> Unit
     bb0 entry
       field_set 0
@@ -1203,6 +1231,8 @@ Module
         Type String
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Box.$c0 @fn46(this: Box<String>, value: String) -> Unit
     bb0 entry
       field_set 0
@@ -1211,6 +1241,8 @@ Module
         Type String
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Box.$c0 @fn47(this: Box<Int>, value: Int) -> Unit
     bb0 entry
       field_set 0
@@ -1219,6 +1251,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Local.$c0 @fn48(this: Local<Unit, Int>, marker: Unit, value: Int) -> Unit
     bb0 entry
       field_set 0
@@ -1232,6 +1266,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Local.$c0 @fn49(this: Local<Unit, Unit>, marker: Unit, value: Unit) -> Unit
     bb0 entry
       field_set 0
@@ -1245,6 +1281,8 @@ Module
         Type Unit
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Box.$c0 @fn50(this: Box<Unit>, value: Unit) -> Unit
     bb0 entry
       field_set 0
@@ -1253,6 +1291,8 @@ Module
         Type Unit
         Local value
       return
+        Type Unit
+        UnitLiteral
   instance mi0 function=@fn1 <- exercise
   instance mi1 function=@fn2 <- exercise
   instance mi2 function=@fn3 <- exercise

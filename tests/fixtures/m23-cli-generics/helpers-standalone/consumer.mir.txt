@@ -151,6 +151,8 @@ Module
         Type Int
         Local number
       return
+        Type Unit
+        UnitLiteral
   instance mi0 function=@fn2 <- definitionSite
   instance mi1 function=@fn3 <- retain
   instance mi2 function=@fn4 <- classify

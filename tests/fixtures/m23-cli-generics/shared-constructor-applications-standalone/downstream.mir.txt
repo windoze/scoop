@@ -1715,11 +1715,9 @@ Module
           Local $call.1
   fun selected @fn13(value: Unit, box: CurrentBox<Unit, Unit>) -> Unit
     bb0 entry
-      Type Unit
-      FieldAccess 0
-        Type CurrentBox<Unit, Unit>
-        Local box
       return
+        Type Unit
+        UnitLiteral
   fun $lambda @fn14($argument.0: () -> Unit) -> Unit
     bb0 entry
       val $dependency.local.0: Unit
@@ -1738,11 +1736,9 @@ Module
         Local $dependency.local.1
         Type Int
         Local $dependency.local.2
-      Type Unit
-      FieldAccess 0
-        Type CurrentPair<Unit, Unit>
-        Local $call.1
       return
+        Type Unit
+        UnitLiteral
   fun selected @fn15(value: Int, box: CurrentBox<Int, Unit>) -> Int
     bb0 entry
       return
@@ -1793,6 +1789,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.CurrentBox.$c2 @fn22(this: CurrentBox<Later, Int>, value: Later, adjustment: Int) -> Unit
     bb0 entry
       field_set 0
@@ -1811,6 +1809,8 @@ Module
         Type Later
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.CurrentChild.$c3 @fn23(this: CurrentChild<Later, Unit>, value: Later) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Later
@@ -1835,6 +1835,8 @@ Module
         Type Boolean
         Local $dependency.constructor.local.3
       return
+        Type Unit
+        UnitLiteral
   fun init.CurrentBox.$c2 @fn24(this: CurrentBox<Later, Unit>, value: Later, adjustment: Int) -> Unit
     bb0 entry
       field_set 0
@@ -1853,6 +1855,8 @@ Module
         Type Later
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.CurrentBox.$c2 @fn25(this: CurrentBox<String, Int>, value: String, adjustment: Int) -> Unit
     bb0 entry
       field_set 0
@@ -1871,6 +1875,8 @@ Module
         Type String
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.CurrentChild.$c3 @fn26(this: CurrentChild<String, Unit>, value: String) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: String
@@ -1895,6 +1901,8 @@ Module
         Type Boolean
         Local $dependency.constructor.local.3
       return
+        Type Unit
+        UnitLiteral
   fun init.CurrentBox.$c2 @fn27(this: CurrentBox<String, Unit>, value: String, adjustment: Int) -> Unit
     bb0 entry
       field_set 0
@@ -1913,6 +1921,8 @@ Module
         Type String
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.CurrentBox.$c2 @fn28(this: CurrentBox<Unit, Int>, value: Unit, adjustment: Int) -> Unit
     bb0 entry
       field_set 0
@@ -1931,6 +1941,8 @@ Module
         Type Unit
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.CurrentChild.$c3 @fn29(this: CurrentChild<Unit, Unit>, value: Unit) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Unit
@@ -1955,6 +1967,8 @@ Module
         Type Boolean
         Local $dependency.constructor.local.3
       return
+        Type Unit
+        UnitLiteral
   fun init.CurrentBox.$c2 @fn30(this: CurrentBox<Unit, Unit>, value: Unit, adjustment: Int) -> Unit
     bb0 entry
       field_set 0
@@ -1973,6 +1987,8 @@ Module
         Type Unit
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.CurrentBox.$c2 @fn31(this: CurrentBox<Int, Int>, value: Int, adjustment: Int) -> Unit
     bb0 entry
       field_set 0
@@ -1991,6 +2007,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.CurrentChild.$c3 @fn32(this: CurrentChild<Int, Unit>, value: Int) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Int
@@ -2015,6 +2033,8 @@ Module
         Type Boolean
         Local $dependency.constructor.local.3
       return
+        Type Unit
+        UnitLiteral
   fun init.CurrentBox.$c2 @fn33(this: CurrentBox<Int, Unit>, value: Int, adjustment: Int) -> Unit
     bb0 entry
       field_set 0
@@ -2033,6 +2053,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.CurrentBox.$c4 @fn34(this: CurrentBox<Later, Unit>, value: Later, flag: Boolean) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Later
@@ -2055,6 +2077,8 @@ Module
         Type Int
         Local $dependency.constructor.local.3
       return
+        Type Unit
+        UnitLiteral
   fun init.CurrentBox.$c4 @fn35(this: CurrentBox<String, Unit>, value: String, flag: Boolean) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: String
@@ -2077,6 +2101,8 @@ Module
         Type Int
         Local $dependency.constructor.local.3
       return
+        Type Unit
+        UnitLiteral
   fun init.CurrentBox.$c4 @fn36(this: CurrentBox<Unit, Unit>, value: Unit, flag: Boolean) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Unit
@@ -2099,6 +2125,8 @@ Module
         Type Int
         Local $dependency.constructor.local.3
       return
+        Type Unit
+        UnitLiteral
   fun init.CurrentBox.$c4 @fn37(this: CurrentBox<Int, Unit>, value: Int, flag: Boolean) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Int
@@ -2121,6 +2149,8 @@ Module
         Type Int
         Local $dependency.constructor.local.3
       return
+        Type Unit
+        UnitLiteral
   fun ctor.CurrentPair.$c0 @fn38(value: Later, adjustment: Int) -> CurrentPair<Later, Unit> <no-gc>
     bb0 entry
       return
@@ -2303,6 +2333,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn17 interface Continuation<Later>[0]
         Type Continuation<Later>
@@ -2316,6 +2348,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn18 interface Continuation<Later>[1]
         Type Continuation<Later>
@@ -2327,6 +2361,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

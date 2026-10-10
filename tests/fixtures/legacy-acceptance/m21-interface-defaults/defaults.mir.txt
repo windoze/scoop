@@ -104,6 +104,8 @@ Module
         Type Int
         Local next
       return
+        Type Unit
+        UnitLiteral
   fun readBase @fn5(value: BaseDefault) -> Int
     bb0 entry
       val $receiver: BaseDefault
@@ -311,6 +313,8 @@ Module
         Type Int
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun println @fn9(value: Int) -> Unit
     bb0 entry
       val $dependency.local.1: Int
@@ -335,6 +339,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun Helper.seed @fn10(this: Helper) -> Int
     bb0 entry
       return
@@ -401,6 +407,8 @@ Module
         Type Int
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun Echo.echo @fn17(this: Echo<Int>, value: Int) -> Int
     bb0 entry
       return
@@ -476,6 +484,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun receiver<HelperClass> Helper.result @fn25(this: HelperClass) -> Int
     bb0 entry
       call $call.1: Int = @fn11 direct
@@ -511,9 +521,13 @@ Module
   fun init.Chosen.$c0 @fn28(this: Chosen) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.ClassWinner.$c1 @fn29(this: ClassWinner) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.DerivedWinner.$c2 @fn30(this: DerivedWinner) -> Unit
     bb0 entry
       call @fn29 direct
@@ -522,18 +536,28 @@ Module
           Type DerivedWinner
           Local this
       return
+        Type Unit
+        UnitLiteral
   fun init.Combined.$c3 @fn31(this: Combined) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.MutableUser.$c4 @fn32(this: MutableUser) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.HelperClass.$c5 @fn33(this: HelperClass) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.IntEcho.$c6 @fn34(this: IntEcho) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun ctor.HelperValue.$c0 @fn35() -> HelperValue <no-gc>
     bb0 entry
       return

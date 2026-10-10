@@ -113,6 +113,8 @@ Module
         Type Payload
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun exchangeYoung @fn1(cell: AtomicRef<Payload>) -> Unit
     bb0 entry
       val $dependency.receiver: AtomicRef<Payload>
@@ -148,6 +150,8 @@ Module
         Type Payload
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun casYoung @fn2(cell: AtomicRef<Payload>) -> Boolean
     bb0 entry
       val $dependency.receiver: AtomicRef<Payload>
@@ -310,6 +314,8 @@ Module
         Type Snapshot
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun exchangePacket @fn5(cell: Atomic<Packet>) -> Unit
     bb0 entry
       val $dependency.receiver: Atomic<Packet>
@@ -357,6 +363,8 @@ Module
         Type Packet
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun writeBarriers @fn6() -> Unit
     bb0 entry
       val $argument.0: Int
@@ -766,6 +774,8 @@ Module
           Local $pattern.subject.3
     bb6 pattern.merge.6
       return
+        Type Unit
+        UnitLiteral
     bb7 pattern.pass.7
       val number: Int
         Type Int
@@ -888,6 +898,8 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun minorCollection @fn11() -> Unit
     bb0 entry
       call $call.1: Boolean = extern2 @m33_atomic_moving direct
@@ -897,6 +909,8 @@ Module
     bb1 if.then.1
       call @scoop_rt_gc_collect direct
       return
+        Type Unit
+        UnitLiteral
     bb2 if.merge.2
       call before: Long = extern1 @m33_atomic_minor_count direct
       goto bb3
@@ -917,6 +931,8 @@ Module
           Local $dependency.parameter.other
     bb4 while.exit.4
       return
+        Type Unit
+        UnitLiteral
     bb5 while.body.5
       var index: Int
         Type Int
@@ -997,6 +1013,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun independentMovement @fn13() -> Unit
     bb0 entry
       val $argument.0: Int
@@ -1345,6 +1363,8 @@ Module
         Type GcHandle<Any>
         Local $dependency.parameter.h
       return
+        Type Unit
+        UnitLiteral
   fun collectedExpected @fn14(cell: AtomicRef<Payload>) -> Payload
     bb0 entry
       val $dependency.receiver: AtomicRef<Payload>
@@ -1768,6 +1788,8 @@ Module
         Type Boolean
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun store @fn18(this: Atomic<Snapshot>, value: Snapshot) -> Unit
     bb0 entry
       var $dependency.local.2: Int
@@ -1848,6 +1870,8 @@ Module
         Type Boolean
         Local $dependency.local.19
       return
+        Type Unit
+        UnitLiteral
     bb3 while.body.3
       val $dependency.local.13: Int
         Type Int
@@ -2251,6 +2275,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun getGcHandle @fn23(v: Any) -> GcHandle<Any>
     bb0 entry
       val $dependency.local.1: Any
@@ -2403,6 +2429,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Atomic.$c0 @fn42(this: Atomic<Snapshot>, initial: Snapshot) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Boolean
@@ -2424,6 +2452,8 @@ Module
         Type Snapshot
         Local initial
       return
+        Type Unit
+        UnitLiteral
   fun init.Atomic.$c0 @fn43(this: Atomic<Packet>, initial: Packet) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Boolean
@@ -2445,6 +2475,8 @@ Module
         Type Packet
         Local initial
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Snapshot.$c0 @fn44(serial: Int, payload: Payload) -> Snapshot <no-gc>
     bb0 entry
       return
@@ -2497,6 +2529,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn37 interface Continuation<Packet>[0]
         Type Continuation<Packet>
@@ -2510,6 +2544,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn38 interface Continuation<Packet>[1]
         Type Continuation<Packet>
@@ -2521,6 +2557,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -2578,6 +2616,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn33 interface Continuation<Payload>[0]
         Type Continuation<Payload>
@@ -2591,6 +2631,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn34 interface Continuation<Payload>[1]
         Type Continuation<Payload>
@@ -2602,6 +2644,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -2659,6 +2703,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn29 interface Continuation<Snapshot>[0]
         Type Continuation<Snapshot>
@@ -2672,6 +2718,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn30 interface Continuation<Snapshot>[1]
         Type Continuation<Snapshot>
@@ -2683,6 +2731,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

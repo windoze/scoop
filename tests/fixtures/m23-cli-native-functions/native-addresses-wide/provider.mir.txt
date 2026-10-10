@@ -157,6 +157,8 @@ Module
         Type Long
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun managed @fn8(value: Long) -> Long
     bb0 entry
       return
@@ -173,6 +175,8 @@ Module
         Type Long
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun equalTo @fn11(this: Ptr<Long>, other: Ptr<Long>) -> Boolean
     bb0 entry
       val $dependency.local.2: Ptr<Long>
@@ -251,6 +255,8 @@ Module
         Type Long
         Local $value
       return
+        Type Unit
+        UnitLiteral
   fun callback bridge for echo @fn19($result: Ptr<Int>, $arg0: Ptr<Int>) -> Unit <no-gc>
     bb0 entry
       call $value: Int = @fn2 direct
@@ -265,6 +271,8 @@ Module
         Type Int
         Local $value
       return
+        Type Unit
+        UnitLiteral
   fun callback bridge for previouslyUsed @fn20($result: Ptr<Long>, $arg0: Ptr<Long>) -> Unit <no-gc>
     bb0 entry
       call $value: Long = @fn3 direct
@@ -279,6 +287,8 @@ Module
         Type Long
         Local $value
       return
+        Type Unit
+        UnitLiteral
   fun callback bridge for hidden @fn21($result: Ptr<Long>, $arg0: Ptr<Long>) -> Unit <no-gc>
     bb0 entry
       call $value: Long = @fn5 direct
@@ -293,6 +303,8 @@ Module
         Type Long
         Local $value
       return
+        Type Unit
+        UnitLiteral
   fun callback bridge for roundWide @fn22($result: Ptr<Wide>, $arg0: Ptr<Wide>) -> Unit <no-gc>
     bb0 entry
       call $value: Wide = @fn6 direct
@@ -307,6 +319,8 @@ Module
         Type Wide
         Local $value
       return
+        Type Unit
+        UnitLiteral
   fun callback bridge for sink @fn23($arg0: Ptr<Ptr<Long>>) -> Unit <no-gc>
     bb0 entry
       call @fn7 direct
@@ -315,6 +329,8 @@ Module
           Type Ptr<Ptr<Long>>
           Local $arg0
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<Wide> @fn24(task: SuspendTask<Wide>, completion: Continuation<Wide>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -337,6 +353,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn13 interface Continuation<Wide>[0]
         Type Continuation<Wide>
@@ -350,6 +368,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn14 interface Continuation<Wide>[1]
         Type Continuation<Wide>
@@ -361,6 +381,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

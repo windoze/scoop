@@ -94,6 +94,8 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun main @fn3() -> Unit
     bb0 entry
       assign $new.1
@@ -235,6 +237,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb7 inline.cont.7
       val $opt.1: Option<Value>
         Type Option<Value>
@@ -376,6 +380,8 @@ Module
         Local $dependency.parameter.value
       goto bb12
     bb14 inline.13.entry
+      Type Unit
+      UnitLiteral
       goto bb13
     bb15 inline.cont.15
       val $dependency.receiver: Int
@@ -433,6 +439,8 @@ Module
           Local $dependency.receiver
       goto bb16
     bb18 inline.17.entry
+      Type Unit
+      UnitLiteral
       goto bb17
     bb19 inline.cont.19
       val $call.3: Value
@@ -490,6 +498,8 @@ Module
         Local $dependency.parameter.value
       goto bb20
     bb22 inline.21.entry
+      Type Unit
+      UnitLiteral
       goto bb21
     bb23 inline.cont.23
       val $dependency.receiver: Int
@@ -600,6 +610,8 @@ Module
           Local $inline.25.this
         Type Int
         IntegerLiteral Int value=11 bits=0x0000000b
+      Type Unit
+      UnitLiteral
       goto bb25
     bb27 inline.cont.27
       val $inline.19.$call.1: Value
@@ -664,6 +676,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun Continuation.resume @fn8(this: Continuation<Local>, value: Local) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
@@ -735,12 +749,18 @@ Module
         Type Int
         IntegerLiteral Int value=11 bits=0x0000000b
       return
+        Type Unit
+        UnitLiteral
   fun init.EchoUser.$c1 @fn16(this: EchoUser) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.Local.$c2 @fn17(this: Local) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<Local> @fn18(task: SuspendTask<Local>, completion: Continuation<Local>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -763,6 +783,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn8 interface Continuation<Local>[0]
         Type Continuation<Local>
@@ -776,6 +798,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn9 interface Continuation<Local>[1]
         Type Continuation<Local>
@@ -787,6 +811,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

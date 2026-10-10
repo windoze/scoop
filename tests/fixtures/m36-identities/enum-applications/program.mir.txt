@@ -248,6 +248,8 @@ Module
         Type Boolean
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun $lambda.0 @fn1($closure: (Int) -> Int, n: Int) -> Int
     bb0 entry
       val $dependency.receiver: Int
@@ -398,6 +400,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun $lambda.2 @fn6($closure: () -> Int) -> Int
     bb0 entry
       return
@@ -480,6 +484,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun $lambda.4 @fn10($closure: () -> Int) -> Int
     bb0 entry
       return
@@ -655,6 +661,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun Packet.equals @fn16(this: Packet<String>, other: Packet<String>) -> Boolean
     bb0 entry
       val $when.1: Packet<String>

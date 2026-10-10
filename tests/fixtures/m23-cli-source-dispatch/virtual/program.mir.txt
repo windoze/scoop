@@ -49,6 +49,8 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun main @fn1() -> Unit
     bb0 entry
       call first: Base = external5 direct
@@ -349,5 +351,7 @@ Module
         Type Boolean
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   str @str0 "illegal state"
   output executable @fn1

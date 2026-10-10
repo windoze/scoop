@@ -1151,6 +1151,8 @@ Module
         Type String
         Local next
       return
+        Type Unit
+        UnitLiteral
   fun exposed @fn6(this: Remote<String>) -> String
     bb0 entry
       call $call.1: String = @fn40 direct
@@ -1167,6 +1169,8 @@ Module
         Type String
         Local next
       return
+        Type Unit
+        UnitLiteral
   fun exposed @fn8(this: Box<Int>) -> Int
     bb0 entry
       call $call.1: Int = @fn20 direct
@@ -1183,6 +1187,8 @@ Module
         Type Int
         Local next
       return
+        Type Unit
+        UnitLiteral
   fun exposed @fn10(this: Remote<Int>) -> Int
     bb0 entry
       call $call.1: Int = @fn21 direct
@@ -1199,6 +1205,8 @@ Module
         Type Int
         Local next
       return
+        Type Unit
+        UnitLiteral
   fun exposed @fn12(this: Box<() -> Int>) -> () -> Int
     bb0 entry
       call $call.1: () -> Int = @fn44 direct
@@ -1215,6 +1223,8 @@ Module
         Type () -> Int
         Local next
       return
+        Type Unit
+        UnitLiteral
   fun stored @fn14(box: Remote<String>) -> String
     bb0 entry
       call $call.1: String = @fn16 direct
@@ -1372,6 +1382,8 @@ Module
         Type Box<Unit>
         Local this
       return
+        Type Unit
+        UnitLiteral
   fun exposed @fn26(this: Box<Unit>, next: Unit) -> Unit
     bb0 entry
       call @fn46 direct
@@ -1380,12 +1392,16 @@ Module
         Type Unit
         Local next
       return
+        Type Unit
+        UnitLiteral
   fun exposed @fn27(this: Remote<Unit>) -> Unit
     bb0 entry
       call @fn47 direct
         Type Remote<Unit>
         Local this
       return
+        Type Unit
+        UnitLiteral
   fun exposed @fn28(this: Remote<Unit>, next: Unit) -> Unit
     bb0 entry
       call @fn48 direct
@@ -1394,6 +1410,8 @@ Module
         Type Unit
         Local next
       return
+        Type Unit
+        UnitLiteral
   fun stored @fn29(box: Remote<Unit>) -> Unit
     bb0 entry
       call @fn31 direct
@@ -1402,6 +1420,8 @@ Module
           Type Remote<Unit>
           Local box
       return
+        Type Unit
+        UnitLiteral
   fun exchange @fn30(box: Remote<Unit>, next: Unit) -> Unit
     bb0 entry
       call @fn25 virtual[0]
@@ -1419,21 +1439,19 @@ Module
           Local box
         Type Unit
         Local next
-      Type Unit
-      Local $dependency.local.2
       return
+        Type Unit
+        UnitLiteral
   fun value @fn31(this: Box<Unit>) -> Unit
     bb0 entry
-      Type Unit
-      FieldAccess 0
-        Type Box<Unit>
-        Local this
       return
+        Type Unit
+        UnitLiteral
   fun defaultRead @fn32(box: Remote<Unit>, previous: Unit) -> Unit
     bb0 entry
-      Type Unit
-      Local previous
       return
+        Type Unit
+        UnitLiteral
   fun optional @fn33(box: Option<Remote<Unit>>) -> Option<Unit>
     bb0 entry
       val $dependency.local.1: Option<Remote<Unit>>
@@ -1533,6 +1551,8 @@ Module
         Type String
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun alternate @fn40(this: Remote<String>) -> String
     bb0 entry
       return
@@ -1548,6 +1568,8 @@ Module
         Type String
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun value @fn42(this: Box<Int>, value: Int) -> Unit
     bb0 entry
       field_set 0
@@ -1556,6 +1578,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun alternate @fn43(this: Remote<Int>, value: Int) -> Unit
     bb0 entry
       field_set 1
@@ -1564,6 +1588,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun value @fn44(this: Box<() -> Int>) -> () -> Int
     bb0 entry
       return
@@ -1579,6 +1605,8 @@ Module
         Type () -> Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun value @fn46(this: Box<Unit>, value: Unit) -> Unit
     bb0 entry
       field_set 0
@@ -1587,13 +1615,13 @@ Module
         Type Unit
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun alternate @fn47(this: Remote<Unit>) -> Unit
     bb0 entry
-      Type Unit
-      FieldAccess 1
-        Type Remote<Unit>
-        Local this
       return
+        Type Unit
+        UnitLiteral
   fun alternate @fn48(this: Remote<Unit>, value: Unit) -> Unit
     bb0 entry
       field_set 1
@@ -1602,6 +1630,8 @@ Module
         Type Unit
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Remote.$c0 @fn49(this: Remote<String>, value: String, alternate: String) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: String
@@ -1623,6 +1653,8 @@ Module
         Type String
         Local alternate
       return
+        Type Unit
+        UnitLiteral
   fun init.Remote.$c0 @fn50(this: Remote<Int>, value: Int, alternate: Int) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Int
@@ -1644,6 +1676,8 @@ Module
         Type Int
         Local alternate
       return
+        Type Unit
+        UnitLiteral
   fun init.Box.$c1 @fn51(this: Box<Int>, value: Int) -> Unit
     bb0 entry
       field_set 0
@@ -1652,6 +1686,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Box.$c1 @fn52(this: Box<() -> Int>, value: () -> Int) -> Unit
     bb0 entry
       field_set 0
@@ -1660,6 +1696,8 @@ Module
         Type () -> Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Remote.$c0 @fn53(this: Remote<Unit>, value: Unit, alternate: Unit) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Unit
@@ -1681,6 +1719,8 @@ Module
         Type Unit
         Local alternate
       return
+        Type Unit
+        UnitLiteral
   fun init.Box.$c1 @fn54(this: Box<String>, value: String) -> Unit
     bb0 entry
       field_set 0
@@ -1689,6 +1729,8 @@ Module
         Type String
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Box.$c1 @fn55(this: Box<Unit>, value: Unit) -> Unit
     bb0 entry
       field_set 0
@@ -1697,6 +1739,8 @@ Module
         Type Unit
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun function_bridge.$Closure$anonymous0.() -> Any @fn56($source: () -> Int) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type0> closure[function_type0]

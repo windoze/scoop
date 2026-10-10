@@ -134,6 +134,8 @@ Module
         Type DeferredPlain
         Local $new.6
       return
+        Type Unit
+        UnitLiteral
   fun $local.0.local @fn1() -> Int
     bb0 entry
       return
@@ -207,16 +209,24 @@ Module
         Type Int
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun init.DeferredPlain.$c9 @fn6(this: DeferredPlain) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.DeferredPlain.$c10 @fn7(this: DeferredPlain, flag: Boolean) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.DeferredChoice.$c1 @fn8(this: DeferredChoice<String>, flag: Boolean) -> Unit
     bb0 entry
       call $call.1: Int = @fn1 direct
       return
+        Type Unit
+        UnitLiteral
   fun init.DeferredChain.$c3 @fn9(this: DeferredChain<Int>, value: Int, flag: Boolean) -> Unit
     bb0 entry
       val $argument.0: Int
@@ -240,6 +250,8 @@ Module
         Type Int
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun init.DeferredRecursive.$c4 @fn10(this: DeferredRecursive<Int>, value: Int) -> Unit
     bb0 entry
       field_set 0
@@ -263,6 +275,8 @@ Module
       goto bb2
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun init.DeferredDerived.$c7 @fn11(this: DeferredDerived<Int>, value: Int) -> Unit
     bb0 entry
       val $argument.0: Int
@@ -279,6 +293,8 @@ Module
         Type Int
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun init.DeferredBase.$c5 @fn12(this: DeferredBase<Int>, value: Int) -> Unit
     bb0 entry
       field_set 0
@@ -287,6 +303,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.DeferredChain.$c2 @fn13(this: DeferredChain<Int>, value: Int) -> Unit
     bb0 entry
       field_set 0
@@ -295,6 +313,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun ctor.DeferredBox.$c1 @fn14(value: Int, flag: Boolean) -> DeferredBox<Int>
     bb0 entry
       val $argument.0: Int

@@ -25,6 +25,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun print @fn1(value: String) -> Unit
     bb0 entry
       val $dependency.local.1: String
@@ -40,6 +42,8 @@ Module
         Type String
         Local $dependency.local.3
       return
+        Type Unit
+        UnitLiteral
   instance mi0 function=@fn1 <- print
   str @str0 "hello, world"
   output executable @fn0

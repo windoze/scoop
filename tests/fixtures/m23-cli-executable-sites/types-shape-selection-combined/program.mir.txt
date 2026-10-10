@@ -19,6 +19,8 @@ Module
   fun noResult @fn0() -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun main @fn1() -> Unit
     bb0 entry
       val $dependency.argument.0: (UInt16, UInt)
@@ -154,6 +156,8 @@ Module
         Local $new.1
     bb8 if.merge.8
       return
+        Type Unit
+        UnitLiteral
   str @str0 "ok"
   str @str1 "illegal state"
   output executable @fn1

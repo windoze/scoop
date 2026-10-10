@@ -53,6 +53,8 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun main @fn1() -> Unit
     bb0 entry
       call $dependency.receiver: ProviderChild = external3 direct
@@ -291,6 +293,8 @@ Module
         Type Boolean
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun pick @fn2(this: ProviderGeneric<(Int, Int)>, seed: (Int, Int), value: (Int, Int)) -> (Int, Int)
     bb0 entry
       return
@@ -439,6 +443,8 @@ Module
           Type ProviderApplied<Int>
           Local this
       return
+        Type Unit
+        UnitLiteral
   fun init.ProviderApplied.$c0 @fn15(this: ProviderApplied<String>) -> Unit
     bb0 entry
       call @fn18 direct
@@ -447,15 +453,23 @@ Module
           Type ProviderApplied<String>
           Local this
       return
+        Type Unit
+        UnitLiteral
   fun init.ProviderGeneric.$c1 @fn16(this: ProviderGeneric<String>) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.ProviderGeneric.$c1 @fn17(this: ProviderGeneric<(Int, Int)>) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.ProviderGeneric.$c1 @fn18(this: ProviderGeneric<(String, String)>) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   instance mi0 function=@fn2 <- pick
   instance mi1 function=@fn3 <- pick
   instance mi2 function=@fn4 <- pick

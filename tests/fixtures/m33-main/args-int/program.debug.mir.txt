@@ -55,6 +55,8 @@ Module
       unreachable
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun code @fn1() -> Int <no-gc>
     bb0 entry
       call $call.1: Int = extern0 @main_code direct
@@ -368,6 +370,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun $anonymous.0 @fn5($closure: (Long) -> String, index: Long) -> String
     bb0 entry
       return
@@ -603,6 +607,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun function_bridge.$Closure$anonymous0.(Any) -> Any @fn13($source: (Long) -> String, arg0: Any) -> Any
     bb0 entry
       call $call.1: String = <closure:function_type0> closure[function_type0]

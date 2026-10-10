@@ -16,6 +16,8 @@ Module
     bb0 entry
       call extern0 @m23_register_union_check direct
       return
+        Type Unit
+        UnitLiteral
   fun collected @fn1() -> Int
     bb0 entry
       call $call.1: Int = extern1 @m23_class_gc_collected direct
@@ -106,6 +108,8 @@ Module
         Local $new.2
     bb4 if.merge.4
       return
+        Type Unit
+        UnitLiteral
   str @str0 "illegal state"
   str @str1 "illegal state"
   output executable @fn2

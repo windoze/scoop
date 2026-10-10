@@ -106,6 +106,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun Trace.$get$direct @fn2(this: Trace) -> Int
     bb0 entry
       return
@@ -121,6 +123,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun Trace.$get$left @fn4(this: Trace) -> Int
     bb0 entry
       return
@@ -136,6 +140,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun Trace.$get$right @fn6(this: Trace) -> Int
     bb0 entry
       return
@@ -151,6 +157,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun Payload.$get$value @fn8(this: Payload) -> Int
     bb0 entry
       return
@@ -166,6 +174,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun FixedLocalSlot.getValue @fn10(this: FixedLocalSlot, thisRef: Unit) -> Int
     bb0 entry
       call $call.1: Int = @fn12 direct
@@ -182,6 +192,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun FixedLocalSlot.$get$stored @fn12(this: FixedLocalSlot) -> Int
     bb0 entry
       return
@@ -197,6 +209,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun BroadBase.getValue @fn14(this: BroadBase, thisRef: Any) -> Int
     bb0 entry
       return
@@ -217,6 +231,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun $init$body$0 @fn17() -> Unit
     bb0 entry
       assign $new.1
@@ -229,6 +245,8 @@ Module
         Type Trace
         Local $new.1
       return
+        Type Unit
+        UnitLiteral
   fun $init$ensure$0 @fn18() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -253,6 +271,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -470,6 +490,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun Continuation.resume @fn22(this: Continuation<Trace>, value: Trace) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
@@ -565,6 +587,8 @@ Module
         Type Int
         IntegerLiteral Int value=0 bits=0x00000000
       return
+        Type Unit
+        UnitLiteral
   fun init.Payload.$c1 @fn47(this: Payload, value: Int) -> Unit
     bb0 entry
       field_set 0
@@ -573,6 +597,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.FixedLocalSlot.$c6 @fn48(this: FixedLocalSlot, stored: Int) -> Unit
     bb0 entry
       field_set 0
@@ -581,12 +607,18 @@ Module
         Type Int
         Local stored
       return
+        Type Unit
+        UnitLiteral
   fun init.BroadBase.$c8 @fn49(this: BroadBase) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.ExtensionSeed.$c10 @fn50(this: ExtensionSeed) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.ExtensionSlot.$c11 @fn51(this: ExtensionSlot, stored: Int) -> Unit
     bb0 entry
       field_set 0
@@ -595,6 +627,8 @@ Module
         Type Int
         Local stored
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<FixedLocalSlot> @fn52(task: SuspendTask<FixedLocalSlot>, completion: Continuation<FixedLocalSlot>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -617,6 +651,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn30 interface Continuation<FixedLocalSlot>[0]
         Type Continuation<FixedLocalSlot>
@@ -630,6 +666,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn31 interface Continuation<FixedLocalSlot>[1]
         Type Continuation<FixedLocalSlot>
@@ -641,6 +679,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -698,6 +738,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn38 interface Continuation<ExtensionSeed>[0]
         Type Continuation<ExtensionSeed>
@@ -711,6 +753,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn39 interface Continuation<ExtensionSeed>[1]
         Type Continuation<ExtensionSeed>
@@ -722,6 +766,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -779,6 +825,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn22 interface Continuation<Trace>[0]
         Type Continuation<Trace>
@@ -792,6 +840,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn23 interface Continuation<Trace>[1]
         Type Continuation<Trace>
@@ -803,6 +853,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -860,6 +912,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn42 interface Continuation<ExtensionSlot>[0]
         Type Continuation<ExtensionSlot>
@@ -873,6 +927,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn43 interface Continuation<ExtensionSlot>[1]
         Type Continuation<ExtensionSlot>
@@ -884,6 +940,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -941,6 +999,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn26 interface Continuation<Payload>[0]
         Type Continuation<Payload>
@@ -954,6 +1014,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn27 interface Continuation<Payload>[1]
         Type Continuation<Payload>
@@ -965,6 +1027,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -1022,6 +1086,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn34 interface Continuation<BroadBase>[0]
         Type Continuation<BroadBase>
@@ -1035,6 +1101,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn35 interface Continuation<BroadBase>[1]
         Type Continuation<BroadBase>
@@ -1046,6 +1114,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

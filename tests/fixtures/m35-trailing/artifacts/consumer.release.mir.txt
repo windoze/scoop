@@ -206,6 +206,8 @@ Module
         Type Int
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb2 inline.1.entry
       assign $inline.1.result
         Type Payload
@@ -273,6 +275,8 @@ Module
         Local $inline.1.this
         Type Boolean
         BoolLiteral false
+      Type Unit
+      UnitLiteral
       goto bb1
   fun get @fn2(this: Array<Int>, index: Long) -> Int
     bb0 entry
@@ -375,6 +379,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun $lambda.1 @fn6($closure: (Payload) -> Payload, it: Payload) -> Payload
     bb0 entry
       return
@@ -581,6 +587,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Payload.$c0 @fn21(value: Int) -> Payload <no-gc>
     bb0 entry
       return
@@ -610,6 +618,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn16 interface Continuation<Payload>[0]
         Type Continuation<Payload>
@@ -623,6 +633,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn17 interface Continuation<Payload>[1]
         Type Continuation<Payload>
@@ -634,6 +646,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

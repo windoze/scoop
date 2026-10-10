@@ -648,7 +648,6 @@ Module
     throw local6
     unreachable
   block if.merge.5
-    t5 = array_get array2 local3 local4 : {}
     ret
   fun @scoop$1$cb$96b678ceade5fa4ac6e9d69b2116a1d6c78208ec6673ea13970c0a248d878b6e(ptr<managed>) -> i64
     local %0 $dependency.local.1: ptr<managed>

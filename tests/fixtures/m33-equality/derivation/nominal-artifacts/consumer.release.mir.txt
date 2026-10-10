@@ -78,6 +78,8 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun main @fn1() -> Unit
     bb0 entry
       val $dependency.argument.0: Int
@@ -837,6 +839,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun verify @fn2(left: Declared, right: Declared, expected: Boolean) -> Unit
     bb0 entry
       val $dependency.argument.0: Declared
@@ -980,6 +984,8 @@ Module
         Type Boolean
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun println @fn3(value: String) -> Unit
     bb0 entry
       val $dependency.local.1: String
@@ -1004,6 +1010,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun compare @fn4(left: Declared, right: Declared) -> Boolean
     bb0 entry
       val $dependency.local.2: Declared

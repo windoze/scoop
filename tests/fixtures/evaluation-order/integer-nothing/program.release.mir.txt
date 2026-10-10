@@ -71,6 +71,8 @@ Module
       resume
     bb7 try.end.7
       return
+        Type Unit
+        UnitLiteral
     bb8 try.body.8 unwind bb1
       val $dependency.receiver: Int
         Type Int
@@ -127,6 +129,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn3(value: String) -> Unit
     bb0 entry
       val $dependency.local.1: String
@@ -151,6 +155,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   instance mi0 function=@fn2 <- println
   instance mi1 function=@fn3 <- println
   str @str0 "illegal state"

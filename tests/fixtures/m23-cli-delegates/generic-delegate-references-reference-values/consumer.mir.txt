@@ -374,6 +374,8 @@ Module
         Type ReaderSlot<Int>
         Local $dependency.local.23
       return
+        Type Unit
+        UnitLiteral
   fun extension:Receiver<T0>:referenceValues$ensure @fn5() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -398,6 +400,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -586,6 +590,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.ReaderSlot.$c1 @fn10(this: ReaderSlot<Int>, read: () -> Int) -> Unit
     bb0 entry
       field_set 0
@@ -594,6 +600,8 @@ Module
         Type () -> Int
         Local read
       return
+        Type Unit
+        UnitLiteral
   fun function_bridge.$Closure$reference0.() -> Any @fn11($source: () -> Int) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type0> closure[function_type0]

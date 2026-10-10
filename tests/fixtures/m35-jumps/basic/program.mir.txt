@@ -127,6 +127,8 @@ Module
       goto bb3
     bb2 if.else.2
       return
+        Type Unit
+        UnitLiteral
     bb3 if.merge.3
       val number: Int
         Type Int
@@ -141,6 +143,8 @@ Module
         Type Int
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun fail @fn3() -> Nothing
     bb0 entry
       assign $new.1
@@ -848,6 +852,8 @@ Module
         Type Int
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb20 try.body.20 unwind bb13
       val $argument.0: Option<Int>
         Type Option<Int>
@@ -900,6 +906,8 @@ Module
         Type Int
         Local $call.1
       return
+        Type Unit
+        UnitLiteral
   fun $init$ensure$0 @fn13() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -924,6 +932,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -1028,6 +1038,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun $anonymous.1 @fn16($closure: () -> Int) -> Int
     bb0 entry
       val opt: Option<Int>
@@ -1123,6 +1135,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn19(value: Boolean) -> Unit
     bb0 entry
       val $dependency.local.1: Boolean
@@ -1147,6 +1161,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun fallback @fn20(value: Option<Int>, other: Int) -> Int
     bb0 entry
       val opt: Option<Int>
@@ -1262,6 +1278,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<Numbered> @fn33(task: SuspendTask<Numbered>, completion: Continuation<Numbered>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -1284,6 +1302,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn23 interface Continuation<Numbered>[0]
         Type Continuation<Numbered>
@@ -1297,6 +1317,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn24 interface Continuation<Numbered>[1]
         Type Continuation<Numbered>
@@ -1308,6 +1330,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -1365,6 +1389,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn27 interface Continuation<NumberBox>[0]
         Type Continuation<NumberBox>
@@ -1378,6 +1404,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn28 interface Continuation<NumberBox>[1]
         Type Continuation<NumberBox>
@@ -1389,6 +1417,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

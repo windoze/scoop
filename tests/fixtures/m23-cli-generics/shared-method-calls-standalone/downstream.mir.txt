@@ -1107,11 +1107,13 @@ Module
         Type Box<Unit>
         Local this
       return
+        Type Unit
+        UnitLiteral
   fun choose @fn22(this: Box<Unit>, extra: Unit, chosen: Unit) -> Unit
     bb0 entry
-      Type Unit
-      Local chosen
       return
+        Type Unit
+        UnitLiteral
   fun reference @fn23(reader: Box<Unit>) -> () -> Unit
     bb0 entry
       return
@@ -1135,14 +1137,14 @@ Module
         Local $call.1
   fun classRead @fn25(box: Box<Unit>, chosen: Unit) -> Unit
     bb0 entry
-      Type Unit
-      Local chosen
       return
+        Type Unit
+        UnitLiteral
   fun boundRead @fn26(reader: Box<Unit>, chosen: Unit) -> Unit
     bb0 entry
-      Type Unit
-      Local chosen
       return
+        Type Unit
+        UnitLiteral
   fun read @fn27(this: Box<Int>) -> Int
     bb0 entry
       call $call.1: Int = @fn36 direct
@@ -1203,11 +1205,9 @@ Module
           Local this
   fun value @fn35(this: Box<Unit>) -> Unit
     bb0 entry
-      Type Unit
-      FieldAccess 0
-        Type Box<Unit>
-        Local this
       return
+        Type Unit
+        UnitLiteral
   fun value @fn36(this: Box<Int>) -> Int
     bb0 entry
       return
@@ -1295,6 +1295,8 @@ Module
           Type () -> Unit
           Local $closure
       return
+        Type Unit
+        UnitLiteral
   fun $reference.3 @fn48($closure: () -> Int) -> Int
     bb0 entry
       call $call.1: Int = @fn27 virtual[0]
@@ -1313,6 +1315,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Box.$c0 @fn50(this: Box<Later>, value: Later) -> Unit
     bb0 entry
       field_set 0
@@ -1321,6 +1325,8 @@ Module
         Type Later
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Box.$c0 @fn51(this: Box<String>, value: String) -> Unit
     bb0 entry
       field_set 0
@@ -1329,6 +1335,8 @@ Module
         Type String
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Box.$c0 @fn52(this: Box<Unit>, value: Unit) -> Unit
     bb0 entry
       field_set 0
@@ -1337,6 +1345,8 @@ Module
         Type Unit
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Box.$c0 @fn53(this: Box<Int>, value: Int) -> Unit
     bb0 entry
       field_set 0
@@ -1345,6 +1355,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<Later> @fn54(task: SuspendTask<Later>, completion: Continuation<Later>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -1367,6 +1379,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn37 interface Continuation<Later>[0]
         Type Continuation<Later>
@@ -1380,6 +1394,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn38 interface Continuation<Later>[1]
         Type Continuation<Later>
@@ -1391,6 +1407,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

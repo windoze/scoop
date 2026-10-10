@@ -804,11 +804,9 @@ Module
           Local this
   fun get @fn9(this: Wrapper<Unit>) -> Unit
     bb0 entry
-      Type Unit
-      FieldAccess 0
-        Type Wrapper<Unit>
-        Local this
       return
+        Type Unit
+        UnitLiteral
   fun Readable.get @fn10(this: Readable<Unit>) -> Unit
     bb0 entry
       trap "call to abstract method `Readable.get`"
@@ -864,6 +862,8 @@ Module
         Type Chain
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Empty.$c0 @fn24(marker: Phantom<Empty>) -> Empty <no-gc>
     bb0 entry
       return
@@ -926,6 +926,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn15 interface Continuation<Empty>[0]
         Type Continuation<Empty>
@@ -939,6 +941,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn16 interface Continuation<Empty>[1]
         Type Continuation<Empty>
@@ -950,6 +954,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -1007,6 +1013,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn19 interface Continuation<Chain>[0]
         Type Continuation<Chain>
@@ -1020,6 +1028,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn20 interface Continuation<Chain>[1]
         Type Continuation<Chain>
@@ -1031,6 +1041,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -1074,6 +1086,8 @@ Module
           Type box<Wrapper<Unit>>
           Local this
       return
+        Type Unit
+        UnitLiteral
   fun thunk<Wrapper<String>> Readable.get() @fn33(this: box<Wrapper<String>>) -> String
     bb0 entry
       call $call.1: String = @fn11 direct

@@ -193,9 +193,9 @@ Module
           Local this
   fun keep @fn4(value: Unit) -> Unit
     bb0 entry
-      Type Unit
-      Local value
       return
+        Type Unit
+        UnitLiteral
   fun keep @fn5(value: Triple) -> Triple
     bb0 entry
       return
@@ -247,6 +247,8 @@ Module
           Type Int
           Local $dependency.constructor.local.2
       return
+        Type Unit
+        UnitLiteral
   fun init.Box.$c1 @fn11(this: Box<Unit>, value: Unit) -> Unit
     bb0 entry
       field_set 0
@@ -296,6 +298,8 @@ Module
           Type Int
           Local $dependency.constructor.local.2
       return
+        Type Unit
+        UnitLiteral
   fun init.Box.$c1 @fn12(this: Box<Triple>, value: Triple) -> Unit
     bb0 entry
       field_set 0
@@ -345,6 +349,8 @@ Module
           Type Int
           Local $dependency.constructor.local.2
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Triple.$c0 @fn13(first: Int, second: Int, third: Int) -> Triple <no-gc>
     bb0 entry
       return
@@ -378,6 +384,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn6 interface Continuation<Triple>[0]
         Type Continuation<Triple>
@@ -391,6 +399,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn7 interface Continuation<Triple>[1]
         Type Continuation<Triple>
@@ -402,6 +412,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

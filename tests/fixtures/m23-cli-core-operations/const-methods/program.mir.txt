@@ -270,6 +270,8 @@ Module
         Local $new.2
     bb22 if.merge.22
       return
+        Type Unit
+        UnitLiteral
   str @str0 "illegal state"
   str @str1 "illegal state"
   output executable @fn0

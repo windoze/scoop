@@ -211,6 +211,8 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun run @fn7() -> Unit
     bb0 entry
       val $argument.0: Double
@@ -1256,6 +1258,8 @@ Module
         Type Boolean
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun main @fn8() -> Unit
     bb0 entry
       var cleanups: Int
@@ -1307,6 +1311,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb6 try.body.6 unwind bb1
       call @fn7 direct
       goto bb7
@@ -1376,6 +1382,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Mixed.$c0 @fn10(x: Double, n: Long) -> Mixed <no-gc>
     bb0 entry
       return

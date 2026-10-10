@@ -85,6 +85,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun Box.echo @fn1(this: Box<Int>, value: Int) -> Int
     bb0 entry
       return
@@ -114,6 +116,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun Box.echo @fn3(this: Box<String>, value: String) -> String
     bb0 entry
       return
@@ -143,6 +147,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   instance mi0 function=@fn1 <- Box.echo
   instance mi1 function=@fn2 <- println
   instance mi2 function=@fn3 <- Box.echo

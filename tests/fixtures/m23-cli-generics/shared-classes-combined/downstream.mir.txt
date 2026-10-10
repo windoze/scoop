@@ -1682,17 +1682,21 @@ Module
         Type Base<Unit>
         Local this
       return
+        Type Unit
+        UnitLiteral
   fun select @fn36(this: Base<Unit>, other: Unit) -> Unit
     bb0 entry
-      Type Unit
-      Local other
       return
+        Type Unit
+        UnitLiteral
   fun select @fn37(this: Remote<Unit>, other: Unit) -> Unit
     bb0 entry
       call @fn48 direct
         Type Remote<Unit>
         Local this
       return
+        Type Unit
+        UnitLiteral
   fun select @fn38(this: Local<Unit>, other: Unit) -> Unit
     bb0 entry
       call @fn48 direct
@@ -1701,6 +1705,8 @@ Module
           Type Local<Unit>
           Local this
       return
+        Type Unit
+        UnitLiteral
   fun iterator @fn39(this: Array<Local<Unit>>) -> Iterator<Local<Unit>>
     bb0 entry
       val $dependency.local.1: List<Local<Unit>>
@@ -1952,21 +1958,17 @@ Module
         Local $new.1
   fun value @fn46(this: Base<Unit>) -> Unit
     bb0 entry
-      Type Unit
-      FieldAccess 0
-        Type Base<Unit>
-        Local this
       return
+        Type Unit
+        UnitLiteral
   fun ValueSource.read @fn47(this: ValueSource<Unit>) -> Unit
     bb0 entry
       trap "call to abstract method `ValueSource.read`"
   fun alternate @fn48(this: Remote<Unit>) -> Unit
     bb0 entry
-      Type Unit
-      FieldAccess 1
-        Type Remote<Unit>
-        Local this
       return
+        Type Unit
+        UnitLiteral
   fun next @fn49(this: ListIterator<Local<Later>>) -> Option<Local<Later>>
     bb0 entry
       branch bb1 bb2
@@ -2290,6 +2292,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Local.$c0 @fn63(this: Local<Later>, value: Later, remote: Remote<Later>) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Later
@@ -2311,6 +2315,8 @@ Module
         Type Remote<Later>
         Local remote
       return
+        Type Unit
+        UnitLiteral
   fun init.Local.$c0 @fn64(this: Local<Int>, value: Int, remote: Remote<Int>) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Int
@@ -2332,6 +2338,8 @@ Module
         Type Remote<Int>
         Local remote
       return
+        Type Unit
+        UnitLiteral
   fun init.Local.$c0 @fn65(this: Local<Unit>, value: Unit, remote: Remote<Unit>) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Unit
@@ -2353,6 +2361,8 @@ Module
         Type Remote<Unit>
         Local remote
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c1 @fn66(this: ListIterator<Local<Later>>, source: List<Local<Later>>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -2371,6 +2381,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.Remote.$c2 @fn67(this: Remote<Later>, value: Later, alternate: Later) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Later
@@ -2392,6 +2404,8 @@ Module
         Type Later
         Local alternate
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c1 @fn68(this: ListIterator<Local<Int>>, source: List<Local<Int>>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -2410,6 +2424,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.Remote.$c2 @fn69(this: Remote<Int>, value: Int, alternate: Int) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Int
@@ -2431,6 +2447,8 @@ Module
         Type Int
         Local alternate
       return
+        Type Unit
+        UnitLiteral
   fun init.ListIterator.$c1 @fn70(this: ListIterator<Local<Unit>>, source: List<Local<Unit>>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
@@ -2449,6 +2467,8 @@ Module
         Type Boolean
         Local exhausted
       return
+        Type Unit
+        UnitLiteral
   fun init.Remote.$c2 @fn71(this: Remote<Unit>, value: Unit, alternate: Unit) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Unit
@@ -2470,6 +2490,8 @@ Module
         Type Unit
         Local alternate
       return
+        Type Unit
+        UnitLiteral
   fun init.Base.$c3 @fn72(this: Base<Later>, value: Later) -> Unit
     bb0 entry
       field_set 0
@@ -2478,6 +2500,8 @@ Module
         Type Later
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Base.$c3 @fn73(this: Base<Int>, value: Int) -> Unit
     bb0 entry
       field_set 0
@@ -2486,6 +2510,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Base.$c3 @fn74(this: Base<Unit>, value: Unit) -> Unit
     bb0 entry
       field_set 0
@@ -2494,6 +2520,8 @@ Module
         Type Unit
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<Later> @fn75(task: SuspendTask<Later>, completion: Continuation<Later>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -2516,6 +2544,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn58 interface Continuation<Later>[0]
         Type Continuation<Later>
@@ -2529,6 +2559,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn59 interface Continuation<Later>[1]
         Type Continuation<Later>
@@ -2540,6 +2572,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

@@ -207,6 +207,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun Box.current @fn3(this: Box<Int>) -> Int
     bb0 entry
       return
@@ -243,6 +245,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn6(value: Int) -> Unit
     bb0 entry
       val $dependency.local.1: Int
@@ -267,6 +271,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun Tool.id @fn7(this: Tool, value: String) -> String
     bb0 entry
       return
@@ -307,9 +313,13 @@ Module
   fun init.Tool.$c0 @fn18(this: Tool) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.Overloads.$c1 @fn19(this: Overloads) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Box.$c0 @fn20(value: Int) -> Box<Int> <no-gc>
     bb0 entry
       return
@@ -339,6 +349,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn9 interface Continuation<Tool>[0]
         Type Continuation<Tool>
@@ -352,6 +364,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn10 interface Continuation<Tool>[1]
         Type Continuation<Tool>
@@ -363,6 +377,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
@@ -420,6 +436,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn13 interface Continuation<Overloads>[0]
         Type Continuation<Overloads>
@@ -433,6 +451,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn14 interface Continuation<Overloads>[1]
         Type Continuation<Overloads>
@@ -444,6 +464,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

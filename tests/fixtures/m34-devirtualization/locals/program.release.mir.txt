@@ -89,6 +89,8 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun parameter @fn6(value: Base) -> Int
     bb0 entry
       val $receiver: Base
@@ -197,6 +199,8 @@ Module
         IntegerLiteral Int value=1 bits=0x00000001
       goto bb9
     bb8 inline.cont.8
+      Type Unit
+      UnitLiteral
       goto bb6
     bb9 inline.8.entry
       field_set 0
@@ -204,8 +208,12 @@ Module
         Local $inline.8.this
         Type Int
         IntegerLiteral Int value=1 bits=0x00000001
+      Type Unit
+      UnitLiteral
       goto bb8
     bb10 inline.cont.10
+      Type Unit
+      UnitLiteral
       goto bb4
     bb11 inline.10.entry
       field_set 0
@@ -213,6 +221,8 @@ Module
         Local $inline.10.this
         Type Int
         IntegerLiteral Int value=2 bits=0x00000002
+      Type Unit
+      UnitLiteral
       goto bb10
   fun unknownReturn @fn9(first: Boolean) -> Int
     bb0 entry
@@ -328,6 +338,8 @@ Module
         IntegerLiteral Int value=1 bits=0x00000001
       goto bb11
     bb10 inline.cont.10
+      Type Unit
+      UnitLiteral
       goto bb8
     bb11 inline.10.entry
       field_set 0
@@ -335,8 +347,12 @@ Module
         Local $inline.10.this
         Type Int
         IntegerLiteral Int value=1 bits=0x00000001
+      Type Unit
+      UnitLiteral
       goto bb10
     bb12 inline.cont.12
+      Type Unit
+      UnitLiteral
       goto bb6
     bb13 inline.12.entry
       field_set 0
@@ -344,6 +360,8 @@ Module
         Local $inline.12.this
         Type Int
         IntegerLiteral Int value=1 bits=0x00000001
+      Type Unit
+      UnitLiteral
       goto bb12
   fun differentBranch @fn11(first: Boolean) -> Int
     bb0 entry
@@ -426,6 +444,8 @@ Module
         IntegerLiteral Int value=1 bits=0x00000001
       goto bb9
     bb8 inline.cont.8
+      Type Unit
+      UnitLiteral
       goto bb6
     bb9 inline.8.entry
       field_set 0
@@ -433,8 +453,12 @@ Module
         Local $inline.8.this
         Type Int
         IntegerLiteral Int value=1 bits=0x00000001
+      Type Unit
+      UnitLiteral
       goto bb8
     bb10 inline.cont.10
+      Type Unit
+      UnitLiteral
       goto bb4
     bb11 inline.10.entry
       field_set 0
@@ -442,6 +466,8 @@ Module
         Local $inline.10.this
         Type Int
         IntegerLiteral Int value=2 bits=0x00000002
+      Type Unit
+      UnitLiteral
       goto bb10
   fun changingLoop @fn12(count: Int) -> Int
     bb0 entry
@@ -579,6 +605,8 @@ Module
         IntegerLiteral Int value=1 bits=0x00000001
       goto bb9
     bb8 inline.cont.8
+      Type Unit
+      UnitLiteral
       goto bb6
     bb9 inline.8.entry
       field_set 0
@@ -586,8 +614,12 @@ Module
         Local $inline.8.this
         Type Int
         IntegerLiteral Int value=1 bits=0x00000001
+      Type Unit
+      UnitLiteral
       goto bb8
     bb10 inline.cont.10
+      Type Unit
+      UnitLiteral
       goto bb4
     bb11 inline.10.entry
       field_set 0
@@ -595,6 +627,8 @@ Module
         Local $inline.10.this
         Type Int
         IntegerLiteral Int value=2 bits=0x00000002
+      Type Unit
+      UnitLiteral
       goto bb10
   fun stableLoop @fn13(count: Int) -> Int
     bb0 entry
@@ -744,6 +778,8 @@ Module
         IntegerLiteral Int value=1 bits=0x00000001
       goto bb11
     bb10 inline.cont.10
+      Type Unit
+      UnitLiteral
       goto bb8
     bb11 inline.10.entry
       field_set 0
@@ -751,8 +787,12 @@ Module
         Local $inline.10.this
         Type Int
         IntegerLiteral Int value=1 bits=0x00000001
+      Type Unit
+      UnitLiteral
       goto bb10
     bb12 inline.cont.12
+      Type Unit
+      UnitLiteral
       goto bb4
     bb13 inline.12.entry
       field_set 0
@@ -760,6 +800,8 @@ Module
         Local $inline.12.this
         Type Int
         IntegerLiteral Int value=1 bits=0x00000001
+      Type Unit
+      UnitLiteral
       goto bb12
   fun fail @fn14(early: Boolean) -> Unit
     bb0 entry
@@ -791,6 +833,8 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
+        Type Unit
+        UnitLiteral
   fun exceptionMerge @fn15(early: Boolean) -> Int
     bb0 entry
       assign $new.1
@@ -927,6 +971,8 @@ Module
         IntegerLiteral Int value=1 bits=0x00000001
       goto bb18
     bb17 inline.cont.17
+      Type Unit
+      UnitLiteral
       goto bb15
     bb18 inline.17.entry
       field_set 0
@@ -934,8 +980,12 @@ Module
         Local $inline.17.this
         Type Int
         IntegerLiteral Int value=1 bits=0x00000001
+      Type Unit
+      UnitLiteral
       goto bb17
     bb19 inline.cont.19 unwind bb1
+      Type Unit
+      UnitLiteral
       goto bb13
     bb20 inline.19.entry unwind bb1
       field_set 0
@@ -943,6 +993,8 @@ Module
         Local $inline.19.this
         Type Int
         IntegerLiteral Int value=2 bits=0x00000002
+      Type Unit
+      UnitLiteral
       goto bb19
   fun mutableField @fn16() -> Int
     bb0 entry
@@ -1023,6 +1075,8 @@ Module
         Local $inline.3.this
         Type Value
         Local $inline.3.value
+      Type Unit
+      UnitLiteral
       goto bb3
     bb5 inline.cont.5
       val $argument.0: Value
@@ -1060,6 +1114,8 @@ Module
         IntegerLiteral Int value=1 bits=0x00000001
       goto bb8
     bb7 inline.cont.7
+      Type Unit
+      UnitLiteral
       goto bb5
     bb8 inline.7.entry
       field_set 0
@@ -1067,8 +1123,12 @@ Module
         Local $inline.7.this
         Type Int
         IntegerLiteral Int value=1 bits=0x00000001
+      Type Unit
+      UnitLiteral
       goto bb7
     bb9 inline.cont.9
+      Type Unit
+      UnitLiteral
       goto bb1
     bb10 inline.9.entry
       field_set 0
@@ -1076,6 +1136,8 @@ Module
         Local $inline.9.this
         Type Int
         IntegerLiteral Int value=2 bits=0x00000002
+      Type Unit
+      UnitLiteral
       goto bb9
   fun main @fn17() -> Unit
     bb0 entry
@@ -1481,6 +1543,8 @@ Module
         Type String
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
     bb22 inline.cont.22
       val $dependency.receiver: Int
         Type Int
@@ -1758,6 +1822,8 @@ Module
         IntegerLiteral Int value=1 bits=0x00000001
       goto bb43
     bb42 inline.cont.42
+      Type Unit
+      UnitLiteral
       goto bb40
     bb43 inline.42.entry
       field_set 0
@@ -1765,8 +1831,12 @@ Module
         Local $inline.42.this
         Type Int
         IntegerLiteral Int value=1 bits=0x00000001
+      Type Unit
+      UnitLiteral
       goto bb42
     bb44 inline.cont.44
+      Type Unit
+      UnitLiteral
       goto bb36
     bb45 inline.44.entry
       field_set 0
@@ -1774,8 +1844,12 @@ Module
         Local $inline.44.this
         Type Int
         IntegerLiteral Int value=2 bits=0x00000002
+      Type Unit
+      UnitLiteral
       goto bb44
     bb46 inline.cont.46
+      Type Unit
+      UnitLiteral
       goto bb32
     bb47 inline.46.entry
       field_set 0
@@ -1783,6 +1857,8 @@ Module
         Local $inline.46.this
         Type Int
         IntegerLiteral Int value=1 bits=0x00000001
+      Type Unit
+      UnitLiteral
       goto bb46
     bb48 inline.cont.48
       val $inline.30.$call.1: Int
@@ -1916,8 +1992,12 @@ Module
         BoolLiteral true
       goto bb64
     bb64 inline.62.if.merge.2
+      Type Unit
+      UnitLiteral
       goto bb62
     bb65 inline.cont.65
+      Type Unit
+      UnitLiteral
       goto bb60
     bb66 inline.65.entry
       field_set 0
@@ -1925,8 +2005,12 @@ Module
         Local $inline.65.this
         Type Int
         IntegerLiteral Int value=1 bits=0x00000001
+      Type Unit
+      UnitLiteral
       goto bb65
     bb67 inline.cont.67
+      Type Unit
+      UnitLiteral
       goto bb58
     bb68 inline.67.entry
       field_set 0
@@ -1934,6 +2018,8 @@ Module
         Local $inline.67.this
         Type Int
         IntegerLiteral Int value=2 bits=0x00000002
+      Type Unit
+      UnitLiteral
       goto bb67
   fun $get$constructorResult @fn18() -> Int <no-gc>
     bb0 entry
@@ -1946,6 +2032,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun println @fn20(value: String) -> Unit
     bb0 entry
       val $dependency.local.1: String
@@ -1970,6 +2058,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun Value.get @fn21(this: Value) -> Int
     bb0 entry
       trap "call to abstract method `Value.get`"
@@ -1981,6 +2071,8 @@ Module
         Type Int
         Local number
       return
+        Type Unit
+        UnitLiteral
   fun init.First.$c1 @fn23(this: First) -> Unit
     bb0 entry
       val $argument.0: Int
@@ -2000,12 +2092,16 @@ Module
       goto bb2
     bb1 inline.cont.1
       return
+        Type Unit
+        UnitLiteral
     bb2 inline.1.entry
       field_set 0
         Type Base
         Local $inline.1.this
         Type Int
         IntegerLiteral Int value=1 bits=0x00000001
+      Type Unit
+      UnitLiteral
       goto bb1
   fun init.Second.$c2 @fn24(this: Second) -> Unit
     bb0 entry
@@ -2026,12 +2122,16 @@ Module
       goto bb2
     bb1 inline.cont.1
       return
+        Type Unit
+        UnitLiteral
     bb2 inline.1.entry
       field_set 0
         Type Base
         Local $inline.1.this
         Type Int
         IntegerLiteral Int value=2 bits=0x00000002
+      Type Unit
+      UnitLiteral
       goto bb1
   fun init.Holder.$c3 @fn25(this: Holder, value: Value) -> Unit
     bb0 entry
@@ -2041,15 +2141,21 @@ Module
         Type Value
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Constructing.$c4 @fn26(this: Constructing) -> Unit
     bb0 entry
       goto bb4
     bb1 inline.cont.1
       return
+        Type Unit
+        UnitLiteral
     bb2 inline.1.entry
       global_assign constructorResult
         Type Int
         Local $inline.1.value
+      Type Unit
+      UnitLiteral
       goto bb1
     bb3 inline.cont.3
       val $old.0: Int
@@ -2087,10 +2193,14 @@ Module
       goto bb6
     bb1 inline.cont.1
       return
+        Type Unit
+        UnitLiteral
     bb2 inline.1.entry
       global_assign constructorResult
         Type Int
         Local $inline.1.value
+      Type Unit
+      UnitLiteral
       goto bb1
     bb3 inline.cont.3
       val $old.1: Int
@@ -2123,11 +2233,15 @@ Module
     bb6 inline.5.entry
       goto bb10
     bb7 inline.cont.7
+      Type Unit
+      UnitLiteral
       goto bb5
     bb8 inline.7.entry
       global_assign constructorResult
         Type Int
         Local $inline.7.value
+      Type Unit
+      UnitLiteral
       goto bb7
     bb9 inline.cont.9
       val $inline.5.$old.0: Int

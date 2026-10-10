@@ -56,6 +56,8 @@ Module
         Type Broken
         Local $new.1
       return
+        Type Unit
+        UnitLiteral
   fun $init$ensure$0 @fn2() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -80,6 +82,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -244,6 +248,8 @@ Module
       resume
     bb19 try.end.19
       return
+        Type Unit
+        UnitLiteral
     bb20 try.body.20 unwind bb13
       call @fn2 direct
       val $dependency.argument.0: Int
@@ -306,6 +312,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun println @fn6(value: Int) -> Unit
     bb0 entry
       val $dependency.local.1: Int
@@ -330,6 +338,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn7(value: Boolean) -> Unit
     bb0 entry
       val $dependency.local.1: Boolean
@@ -354,6 +364,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun init.Broken.$c0 @fn8(this: Broken) -> Unit
     bb0 entry
       call $call.1: Int = @fn0 direct
@@ -363,6 +375,8 @@ Module
         Type Int
         Local $call.1
       return
+        Type Unit
+        UnitLiteral
   instance mi0 function=@fn6 <- println
   instance mi1 function=@fn7 <- println
   str @str0 "\n"

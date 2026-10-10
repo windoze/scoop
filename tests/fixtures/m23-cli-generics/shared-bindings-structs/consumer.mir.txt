@@ -317,6 +317,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun $lambda.0 @fn4($closure: (Int) -> Int, item: Int) -> Int
     bb0 entry
       return

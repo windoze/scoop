@@ -11,5 +11,7 @@ Module
         StringConst @str0
       call answer: Long = external0 direct
       return
+        Type Unit
+        UnitLiteral
   str @str0 "program-link"
   output executable @fn0

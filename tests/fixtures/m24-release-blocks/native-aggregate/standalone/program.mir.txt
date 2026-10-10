@@ -26,6 +26,8 @@ Module
         Type Wide
         Local arg0
       return
+        Type Unit
+        UnitLiteral
   fun count @fn2() -> Long
     bb0 entry
       call $call.1: Long = extern2 @m24_release_wide_count direct
@@ -86,6 +88,8 @@ Module
         Type Owner
         Local $new.1
       return
+        Type Unit
+        UnitLiteral
   fun main @fn4() -> Unit
     bb0 entry
       call @fn3 direct
@@ -99,6 +103,8 @@ Module
         Type Long
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun println @fn5(value: Long) -> Unit
     bb0 entry
       val $dependency.local.1: Long
@@ -123,6 +129,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun init.Owner.$c0 @fn6(this: Owner, value: Wide) -> Unit
     bb0 entry
       field_set 0
@@ -131,6 +139,8 @@ Module
         Type Wide
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Wide.$c0 @fn7(first: Long, second: Long, third: Long) -> Wide <no-gc>
     bb0 entry
       return
@@ -163,6 +173,8 @@ Module
         Type Wide
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   instance mi0 function=@fn5 <- println
   str @str0 "\n"
   output executable @fn4

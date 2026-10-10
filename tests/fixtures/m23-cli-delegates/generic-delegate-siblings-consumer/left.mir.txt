@@ -169,6 +169,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun $extension.shared @fn3(this: Receiver<Int, Boolean>) -> Int
     bb0 entry
       call @fn7 direct
@@ -201,6 +203,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun extension:Receiver<T0, T1>:shared$initialize @fn6() -> Unit
     bb0 entry
       call $call.1: Starter<Int, Boolean> = @fn11 direct
@@ -211,6 +215,8 @@ Module
         Type Slot<Int, Boolean>
         Local $call.2
       return
+        Type Unit
+        UnitLiteral
   fun extension:Receiver<T0, T1>:shared$ensure @fn7() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -235,6 +241,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -326,6 +334,8 @@ Module
         Type Slot<Int, Boolean>
         Local $call.1
       return
+        Type Unit
+        UnitLiteral
   fun extension:Receiver<T0, T1>:broken$ensure @fn10() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -350,6 +360,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -590,9 +602,13 @@ Module
         Type Boolean
         Local right
       return
+        Type Unit
+        UnitLiteral
   fun init.Starter.$c1 @fn15(this: Starter<Int, Boolean>) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun init.Slot.$c2 @fn16(this: Slot<Int, Boolean>, payload: Payload) -> Unit
     bb0 entry
       field_set 0
@@ -601,6 +617,8 @@ Module
         Type Payload
         Local payload
       return
+        Type Unit
+        UnitLiteral
   instance mi0 function=@fn2 <- $extension.shared
   instance mi1 function=@fn3 <- $extension.shared
   instance mi2 function=@fn4 <- $extension.broken

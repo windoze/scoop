@@ -717,22 +717,23 @@ Module
     br @inline.30.entry
   block inline.32.entry
     heap_store local159 +16 integer<Int>(0x0000005b)
+    t84 = aggregate () : {}
     br @inline.cont.32
   block inline.cont.34
     store local161 -> local158
     store local158 -> local152
     br @inline.cont.30
   block inline.34.entry
-    t84 = aggregate (local162) : struct0
-    store t84 -> local161
+    t85 = aggregate (local162) : struct0
+    store t85 -> local161
     br @inline.cont.34
   block inline.cont.36
     store local163 -> local146
     store local146 -> local140
     br @inline.cont.26
   block inline.36.entry
-    t85 = aggregate (local164) : struct1
-    store t85 -> local163
+    t86 = aggregate (local164) : struct1
+    store t86 -> local163
     br @inline.cont.36
   fun @scoop$1$cb$5a6abb171a03e58adf7c3cb6a63cff00accc8026986c499a85167bbc80089dff(ptr<raw>, ptr<raw>) -> i1
     local %0 $dependency.local.2: ptr<raw>

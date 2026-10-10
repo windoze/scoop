@@ -23,4 +23,6 @@ Module
         Type Any
         Local $dependency.parameter.unused
       return
+        Type Unit
+        UnitLiteral
   output executable @fn0

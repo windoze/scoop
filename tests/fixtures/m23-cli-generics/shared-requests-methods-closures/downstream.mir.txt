@@ -1359,6 +1359,8 @@ Module
         Type Box<Unit>
         Local this
       return
+        Type Unit
+        UnitLiteral
   fun $lambda @fn36($argument.0: (Unit, Int) -> Int, $argument.1: Unit, $argument.2: Int) -> Int
     bb0 entry
       call $dependency.local.2: Int = <closure:function_type3> closure[function_type3]
@@ -1443,6 +1445,8 @@ Module
         Type Unit
         Local $dependency.local.2
       return
+        Type Unit
+        UnitLiteral
   fun defaulted @fn42(value: Unit, select: (Unit) -> Unit) -> Unit
     bb0 entry
       call <closure:function_type16> closure[function_type16]
@@ -1451,6 +1455,8 @@ Module
         Type Unit
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun value @fn43(this: Box<Later>) -> Later
     bb0 entry
       return
@@ -1535,18 +1541,14 @@ Module
         Local value
   fun value @fn51(this: Box<Unit>) -> Unit
     bb0 entry
-      Type Unit
-      FieldAccess 0
-        Type Box<Unit>
-        Local this
       return
+        Type Unit
+        UnitLiteral
   fun value @fn52(this: Local<Unit>) -> Unit
     bb0 entry
-      Type Unit
-      FieldAccess 0
-        Type Local<Unit>
-        Local this
       return
+        Type Unit
+        UnitLiteral
   fun $lambda @fn53($argument.0: () -> Unit) -> Unit
     bb0 entry
       val $dependency.local.0: Unit
@@ -1570,11 +1572,13 @@ Module
         Type Unit
         Local $dependency.local.3
       return
+        Type Unit
+        UnitLiteral
   fun identity @fn54(value: Unit) -> Unit
     bb0 entry
-      Type Unit
-      Local value
       return
+        Type Unit
+        UnitLiteral
   fun keep @fn55($argument.0: Later) -> Later
     bb0 entry
       return
@@ -1587,9 +1591,9 @@ Module
         Local $argument.0
   fun keep @fn57($argument.0: Unit) -> Unit
     bb0 entry
-      Type Unit
-      Local $argument.0
       return
+        Type Unit
+        UnitLiteral
   fun Continuation.resume @fn58(this: Continuation<Later>, value: Later) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
@@ -1610,6 +1614,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Box.$c0 @fn63(this: Box<Later>, value: Later) -> Unit
     bb0 entry
       field_set 0
@@ -1618,6 +1624,8 @@ Module
         Type Later
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Local.$c1 @fn64(this: Local<Later>, value: Later) -> Unit
     bb0 entry
       field_set 0
@@ -1626,6 +1634,8 @@ Module
         Type Later
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Box.$c0 @fn65(this: Box<Int>, value: Int) -> Unit
     bb0 entry
       field_set 0
@@ -1634,6 +1644,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Local.$c1 @fn66(this: Local<Int>, value: Int) -> Unit
     bb0 entry
       field_set 0
@@ -1642,6 +1654,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Box.$c0 @fn67(this: Box<Unit>, value: Unit) -> Unit
     bb0 entry
       field_set 0
@@ -1650,6 +1664,8 @@ Module
         Type Unit
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Local.$c1 @fn68(this: Local<Unit>, value: Unit) -> Unit
     bb0 entry
       field_set 0
@@ -1658,6 +1674,8 @@ Module
         Type Unit
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<Later> @fn69(task: SuspendTask<Later>, completion: Continuation<Later>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -1680,6 +1698,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn58 interface Continuation<Later>[0]
         Type Continuation<Later>
@@ -1693,6 +1713,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn59 interface Continuation<Later>[1]
         Type Continuation<Later>
@@ -1704,6 +1726,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

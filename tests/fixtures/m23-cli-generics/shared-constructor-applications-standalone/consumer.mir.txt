@@ -463,6 +463,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.CurrentChild.$c2 @fn7(this: CurrentChild<Int, Unit>, value: Int) -> Unit
     bb0 entry
       val $argument.0: Int
@@ -487,6 +489,8 @@ Module
         Type Boolean
         Local $parameter.flag
       return
+        Type Unit
+        UnitLiteral
   fun init.CurrentBox.$c0 @fn8(this: CurrentBox<Int, Unit>, value: Int, adjustment: Int) -> Unit
     bb0 entry
       field_set 0
@@ -505,6 +509,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.CurrentBox.$c1 @fn9(this: CurrentBox<Int, Unit>, value: Int, flag: Boolean) -> Unit
     bb0 entry
       val $argument.0: Int
@@ -527,6 +533,8 @@ Module
         Type Int
         Local $parameter.adjustment
       return
+        Type Unit
+        UnitLiteral
   fun ctor.CurrentPair.$c0 @fn10(value: Int, adjustment: Int) -> CurrentPair<Int, Unit> <no-gc>
     bb0 entry
       return
@@ -581,6 +589,8 @@ Module
         Type Int
         Local $value
       return
+        Type Unit
+        UnitLiteral
   fun function_bridge.$Closure$lambda0.(Any) -> Any @fn14($source: (Int) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type0> closure[function_type0]

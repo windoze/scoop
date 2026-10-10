@@ -50,6 +50,8 @@ Module
           Type Int
           Local $dependency.parameter.other
       return
+        Type Unit
+        UnitLiteral
   fun allocate @fn2() -> Unit
     bb0 entry
       val $argument.0: Int
@@ -73,6 +75,8 @@ Module
         Type Owner
         Local $new.1
       return
+        Type Unit
+        UnitLiteral
   fun main @fn3() -> Unit
     bb0 entry
       call @fn2 direct
@@ -88,6 +92,8 @@ Module
         Type Int
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun equals @fn4(this: Ptr<Int>, other: Ptr<Int>) -> Boolean
     bb0 entry
       val $dependency.local.2: Ptr<Int>
@@ -134,6 +140,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun init.Owner.$c0 @fn6(this: Owner, handle: Int) -> Unit
     bb0 entry
       field_set 0
@@ -142,6 +150,8 @@ Module
         Type Int
         Local handle
       return
+        Type Unit
+        UnitLiteral
   fun callback bridge for addCount @fn7($arg0: Ptr<Int>) -> Unit <no-gc>
     bb0 entry
       call @fn1 direct
@@ -150,6 +160,8 @@ Module
           Type Ptr<Int>
           Local $arg0
       return
+        Type Unit
+        UnitLiteral
   release_hook rh0 Owner <no-gc>
     bb0 entry
       val address: Ptr<Int>
@@ -195,6 +207,8 @@ Module
         Type Int
         Local $parameter.amount
       return
+        Type Unit
+        UnitLiteral
   instance mi0 function=@fn0 <- equalTo
   instance mi1 function=@fn4 <- equals
   instance mi2 function=@fn5 <- println

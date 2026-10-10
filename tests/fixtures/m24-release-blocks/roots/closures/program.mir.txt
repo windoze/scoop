@@ -63,6 +63,8 @@ Module
         Type Int
         Local arg0
       return
+        Type Unit
+        UnitLiteral
   fun count @fn2(arg0: Int) -> Int
     bb0 entry
       call $call.1: Int = extern1 @m24_release_owner_count direct
@@ -104,6 +106,8 @@ Module
         Type Boolean
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun reclaimed @fn4(id: Int) -> Unit
     bb0 entry
       call @scoop_rt_gc_collect direct
@@ -137,6 +141,8 @@ Module
         Type Boolean
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun invokeNative @fn5(arg0: FunPtr<(Int, Ptr<Unit>) -> Int>, arg1: Ptr<Unit>, arg2: Int) -> Int
     bb0 entry
       call $call.1: Int = extern2 @m24_release_invoke direct
@@ -212,6 +218,8 @@ Module
         Type Boolean
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun registered @fn8() -> ForeignCallback<(Int, Ptr<Unit>) -> Int>
     bb0 entry
       val $argument.0: Int
@@ -384,6 +392,8 @@ Module
         Type ForeignCallback<(Int, Ptr<Unit>) -> Int>
         Local $dependency.parameter.callback
       return
+        Type Unit
+        UnitLiteral
   fun main @fn10() -> Unit
     bb0 entry
       call @fn7 direct
@@ -416,6 +426,8 @@ Module
         Type Int
         Local $parameter.id
       return
+        Type Unit
+        UnitLiteral
   fun equals @fn11(this: Ptr<Unit>, other: Ptr<Unit>) -> Boolean
     bb0 entry
       val $dependency.local.2: Ptr<Unit>
@@ -462,6 +474,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun $lambda.0 @fn13($closure: () -> Int) -> Int
     bb0 entry
       return
@@ -502,6 +516,8 @@ Module
         Type Int
         Local code
       return
+        Type Unit
+        UnitLiteral
   fun foreign callback adapter 0 @fn16($closure: (Int) -> Int, $snapshot: internal<context-node>, $result: Ptr<Int>, $arguments: Ptr<Ptr<Unit>>, $exception: Ptr<Throwable>) -> machine<foreign-callback-status>
     bb0 context.unwind
       landing_pad cleanup=true
@@ -613,6 +629,8 @@ Module
         Type Int
         Local $parameter.id
       return
+        Type Unit
+        UnitLiteral
   instance mi0 function=@fn0 <- equalTo
   instance mi1 function=@fn11 <- equals
   instance mi2 function=@fn12 <- println

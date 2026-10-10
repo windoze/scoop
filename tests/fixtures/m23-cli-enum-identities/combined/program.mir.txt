@@ -18,6 +18,8 @@ Module
   fun inspect @fn0(value: Bundle, first: Envelope<Int>, second: Envelope<String>) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun main @fn1() -> Unit
     bb0 entry
       val $argument.0: Bundle
@@ -72,6 +74,8 @@ Module
         Type Envelope<String>
         Local $parameter.second
       return
+        Type Unit
+        UnitLiteral
   fun ctor.Stamp.$c0 @fn2() -> Stamp <no-gc>
     bb0 entry
       return

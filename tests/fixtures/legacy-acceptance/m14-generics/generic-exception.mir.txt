@@ -122,6 +122,8 @@ Module
       resume
     bb19 try.end.19
       return
+        Type Unit
+        UnitLiteral
     bb20 try.body.20 unwind bb13
       call @fn1 direct
       goto bb19
@@ -205,6 +207,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun init.GenericError.$c0 @fn4(this: GenericError<Int>) -> Unit
     bb0 entry
       val $dependency.argument.0: Option<String>
@@ -221,6 +225,8 @@ Module
         Type Option<String>
         Local $dependency.parameter.message
       return
+        Type Unit
+        UnitLiteral
   fun init.GenericError.$c0 @fn5(this: GenericError<String>) -> Unit
     bb0 entry
       val $dependency.argument.0: Option<String>
@@ -237,6 +243,8 @@ Module
         Type Option<String>
         Local $dependency.parameter.message
       return
+        Type Unit
+        UnitLiteral
   instance mi0 function=@fn3 <- println
   str @str0 "int"
   str @str1 "wrong"

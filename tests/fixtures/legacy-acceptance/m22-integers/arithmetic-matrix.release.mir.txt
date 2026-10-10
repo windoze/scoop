@@ -1370,6 +1370,8 @@ Module
       resume
     bb91 try.end.91
       return
+        Type Unit
+        UnitLiteral
     bb92 try.body.92 unwind bb85
       val $dependency.receiver: Int8
         Type Int8
@@ -2779,6 +2781,8 @@ Module
       resume
     bb91 try.end.91
       return
+        Type Unit
+        UnitLiteral
     bb92 try.body.92 unwind bb85
       val $dependency.receiver: Int16
         Type Int16
@@ -4176,6 +4180,8 @@ Module
       resume
     bb91 try.end.91
       return
+        Type Unit
+        UnitLiteral
     bb92 try.body.92 unwind bb85
       val $dependency.receiver: Int
         Type Int
@@ -5573,6 +5579,8 @@ Module
       resume
     bb91 try.end.91
       return
+        Type Unit
+        UnitLiteral
     bb92 try.body.92 unwind bb85
       val $dependency.receiver: Long
         Type Long
@@ -6601,6 +6609,8 @@ Module
       resume
     bb29 try.end.29
       return
+        Type Unit
+        UnitLiteral
     bb30 try.body.30 unwind bb23
       val $dependency.receiver: UInt8
         Type UInt8
@@ -7617,6 +7627,8 @@ Module
       resume
     bb29 try.end.29
       return
+        Type Unit
+        UnitLiteral
     bb30 try.body.30 unwind bb23
       val $dependency.receiver: UInt16
         Type UInt16
@@ -8621,6 +8633,8 @@ Module
       resume
     bb29 try.end.29
       return
+        Type Unit
+        UnitLiteral
     bb30 try.body.30 unwind bb23
       val $dependency.receiver: UInt
         Type UInt
@@ -9625,6 +9639,8 @@ Module
       resume
     bb29 try.end.29
       return
+        Type Unit
+        UnitLiteral
     bb30 try.body.30 unwind bb23
       val $dependency.receiver: ULong
         Type ULong
@@ -9691,6 +9707,8 @@ Module
       call @fn6 direct
       call @fn7 direct
       return
+        Type Unit
+        UnitLiteral
   fun println @fn9(value: String) -> Unit
     bb0 entry
       val $dependency.local.1: String
@@ -9715,6 +9733,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn10(value: Boolean) -> Unit
     bb0 entry
       val $dependency.local.1: Boolean
@@ -9739,6 +9759,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn11(value: Int8) -> Unit
     bb0 entry
       val $dependency.local.1: Int8
@@ -9763,6 +9785,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn12(value: Int16) -> Unit
     bb0 entry
       val $dependency.local.1: Int16
@@ -9787,6 +9811,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn13(value: Int) -> Unit
     bb0 entry
       val $dependency.local.1: Int
@@ -9811,6 +9837,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn14(value: Long) -> Unit
     bb0 entry
       val $dependency.local.1: Long
@@ -9835,6 +9863,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn15(value: UInt8) -> Unit
     bb0 entry
       val $dependency.local.1: UInt8
@@ -9859,6 +9889,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn16(value: UInt16) -> Unit
     bb0 entry
       val $dependency.local.1: UInt16
@@ -9883,6 +9915,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn17(value: UInt) -> Unit
     bb0 entry
       val $dependency.local.1: UInt
@@ -9907,6 +9941,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun println @fn18(value: ULong) -> Unit
     bb0 entry
       val $dependency.local.1: ULong
@@ -9931,6 +9967,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   instance mi0 function=@fn9 <- println
   instance mi1 function=@fn10 <- println
   instance mi2 function=@fn11 <- println

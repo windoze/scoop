@@ -190,6 +190,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun BaseReader.$get$value @fn6(this: BaseReader<Int>) -> Int
     bb0 entry
       trap "call to abstract method `BaseReader.$get$value`"
@@ -229,6 +231,8 @@ Module
         Type Int
         Local next
       return
+        Type Unit
+        UnitLiteral
   fun consume @fn12(box: MutableReader<Int>, value: Int, read: (Int) -> Int) -> Int
     bb0 entry
       val replace: (Int) -> Unit
@@ -324,6 +328,8 @@ Module
         Type Int
         Local next
       return
+        Type Unit
+        UnitLiteral
   fun read @fn16(this: MutableReader<Int>) -> Int
     bb0 entry
       call $call.1: Int = @fn18 interface MutableReader<Int>[3]
@@ -378,6 +384,8 @@ Module
         Type Int
         Local arg0
       return
+        Type Unit
+        UnitLiteral
   fun $reference.1 @fn23($closure: () -> Int) -> Int
     bb0 entry
       call $call.1: Int = @fn16 interface MutableReader<Int>[1]
@@ -401,6 +409,8 @@ Module
         Type Int
         Local item
       return
+        Type Unit
+        UnitLiteral
   fun init.LocalReader.$c0 @fn25(this: LocalReader<Int>, item: Int) -> Unit
     bb0 entry
       call @fn26 direct
@@ -414,9 +424,13 @@ Module
         Type Int
         Local item
       return
+        Type Unit
+        UnitLiteral
   fun init.BaseReader.$c0 @fn26(this: BaseReader<Int>) -> Unit
     bb0 entry
       return
+        Type Unit
+        UnitLiteral
   fun function_bridge.$Closure$lambda0.(Any) -> Any @fn27($source: (Int) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type0> closure[function_type0]

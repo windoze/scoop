@@ -161,6 +161,8 @@ Module
         Local $new.4
     bb16 if.merge.16
       return
+        Type Unit
+        UnitLiteral
   str @str0 "illegal state"
   str @str1 "wrong"
   str @str2 "illegal state"

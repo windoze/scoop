@@ -450,6 +450,8 @@ Module
         Type Slot<Int>
         Local $dependency.local.13
       return
+        Type Unit
+        UnitLiteral
   fun extension:Receiver<T0>:staticAdapt$ensure @fn6() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -474,6 +476,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -594,6 +598,8 @@ Module
         Type Int
         Local value
       return
+        Type Unit
+        UnitLiteral
   fun init.Slot.$c1 @fn11(this: Slot<Int>, action: (Int) -> Any) -> Unit
     bb0 entry
       field_set 0
@@ -602,6 +608,8 @@ Module
         Type (Int) -> Any
         Local action
       return
+        Type Unit
+        UnitLiteral
   fun $adapter.(Any) -> Int.(Int) -> Any @fn12($closure: (Int) -> Any, arg0: Int) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type3> closure[function_type3]

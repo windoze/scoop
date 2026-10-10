@@ -87,6 +87,8 @@ Module
         Type Int
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun println @fn3(value: Int) -> Unit
     bb0 entry
       val $dependency.local.1: Int
@@ -111,6 +113,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   instance mi0 function=@fn3 <- println
   str @str0 "\n"
   output executable @fn2
