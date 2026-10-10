@@ -32,6 +32,7 @@ mod shared_property_declarations;
 mod source_constructors;
 mod source_default_captures;
 mod source_default_derived_order;
+mod source_default_when;
 mod source_dispatch;
 mod source_fields;
 mod source_inventory;

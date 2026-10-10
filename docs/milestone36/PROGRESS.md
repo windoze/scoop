@@ -25,7 +25,7 @@
 
 - 每批先 `cargo fmt --all`、`cargo clippy --workspace --all-targets`，再执行受影响 Rust 测试和正式 CLI fixture；已有用例覆盖不变语义，新用例锁定重构涉及的真实组合。
 - 构建与测试的 `TMPDIR` 指向仓库 `target/m36-tmp`，不使用 `/tmp`。定期检查 `target` 大小，清理已验证的 fixture 工作区与过期增量文件，保留可复用依赖和验收报告。
-- 本机针对性检查完成后，在 `ssh nuc12` 的 `~/repos/scoop` 执行 Linux 完整 Rust／公共 runner／正式 CLI 验证；保留实际命令、计数与平台适用情况，不把快照更新或编译成功当作运行验收。
+- 本机针对性检查完成后，在 `ssh nuc12` 上从 `~/repos/scoop` 创建的独立工作树 `~/repos/scoop-m36-validation` 执行 Linux 完整 Rust／公共 runner／正式 CLI 验证；保留实际命令、计数与平台适用情况，不把快照更新或编译成功当作运行验收。
 - 开始时 `target` 不存在；预先存在的 M37 设计稿保持原样，不纳入 M36 代码提交。
 
 ## R11：parser 修饰符
@@ -142,6 +142,8 @@ wire 沿用已有可选 subject、条件与覆盖标签；原始解码数据在�
 新增独立与挂起／泛型／闭包／Context／finally 组合 fixture 先用 R03 CLI 生成基线。R02 的四份 MIR、四份 LIR 与基线逐字节一致；HIR 只改变完整分支表示。正式普通比较 11/11 通过，共 14 个配置、44 个进程、40 个 golden，包含 M35 when 的 effects、subject、smart cast、挂起、跨库发布与删除源码后消费，以及四项精确诊断负例。debug/release、正常／移动／minor GC 均通过；旧 MIR 差异仅同步 R07 的 Unit 返回值，旧 LIR 不变。
 
 报告为 target/m36-validation/r02-verify-report.json，快照审阅记录为 r02-golden-review.log。wire 版本与 runtime ABI 不变。清理已完成的 fixture cases，保留当前 CLI、共享 sysroot、缓存及验收报告；明细见 r02-cleanup.log。
+
+旧快照统一验收发现，穷尽 enum when 的默认参数遗漏了 when 定义位置的类型引用，导致三层跨库消费失败。引用收集现从完整 subject 取得类型，在原有 when 位置记录该引用；覆盖信息仍不重复保存类型。新增真实源码测试覆盖 enum、Boolean 和通配模式的默认参数，相关 Rust 29 项通过。现有 imported-enum-patterns、M35 when 产物与两个 M36 when 用例普通复验 4/4 通过，共 7 个配置、36 个进程、36 个 golden；修复前后的 consumer MIR／LIR 逐字节一致。报告和快照审阅为 target/m36-validation/final-r02-reference-verify-report.json 与 final-r02-reference-golden-review.log。
 
 ## R04：完整固定元数操作与数据借用
 

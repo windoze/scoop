@@ -121,7 +121,7 @@ impl ReferenceCollector<'_> {
         }
     }
 
-    fn when(&mut self, value: &hir::When, _origin: hir::DefinitionOrigin) {
+    fn when(&mut self, value: &hir::When, origin: hir::DefinitionOrigin) {
         if let Some(subject) = value.subject() {
             self.expression(subject);
         }
@@ -144,6 +144,13 @@ impl ReferenceCollector<'_> {
         }
         if let hir::WhenFallbackRef::Else(body) = value.fallback() {
             self.statements(body);
+        } else if let hir::When::Subject {
+            subject,
+            fallback: hir::WhenFallback::Impossible(_),
+            ..
+        } = value
+        {
+            self.type_reference(subject.ty, origin);
         }
     }
 
