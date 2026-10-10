@@ -1,13 +1,10 @@
 Module
-  extern ef0 nativeValue @abs(i32) -> i32 <c exact=(Int)->Int bridge=@scoop$1$br$cb81b371a7483a97ac0a78c2b779d05bf765ff5aef694ee0c1a578340642377d gc-leaf nounwind>
+  extern ef0 nativeValue @abs(i32) -> i32 <c exact=(Int)->Int direct-c=(i32)->i32 gc-leaf nounwind>
   fun @scoop$1$cb$14a54c7189564406fb5ce21c4a83c35da06ee76197a72eb6a978374ca7cecb43(i32) -> i32
     local %0 $call.1: i32
-    local %1 $sc.1: i32
-    local %2 $sc.2: i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
-    store param0 -> local1
-    call native-safe-indirect-target0 sp<native-safe:0> roots=[] local2 = sig=indirect0 (c-storage-pointer i32 size=4 align=4 scan=none, ptr<raw>) extern0(c-arg-address(local1))
-    store local2 -> local0
+    call native-safe-direct-target0 sp<native-safe:0> roots=[] t0 = sig=direct0 (i32) -> i32 extern0(param0)
+    store t0 -> local0
     ret local0
   output library
