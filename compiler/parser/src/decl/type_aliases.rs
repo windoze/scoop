@@ -23,7 +23,12 @@ impl Parser {
             .chain(prefix.modifiers.suspend_span)
             .chain(prefix.modifiers.operator.map(|modifier| modifier.span))
             .chain(prefix.modifiers.infix.map(|modifier| modifier.span))
-            .chain(prefix.modifiers.method_modifier_span)
+            .chain(
+                prefix
+                    .modifiers
+                    .method_modifier
+                    .map(|modifier| modifier.span),
+            )
             .chain(prefix.modifiers.override_span)
             .min_by_key(|span| span.start);
         if let Some(span) = modifier_span {

@@ -14,33 +14,35 @@ impl Parser {
         prefix: MemberPrefix,
         context: PropertyContext,
     ) -> Result<PropertyDecl, Diagnostic> {
-        if prefix.modifiers.is_suspend
-            || prefix.modifiers.operator.is_some()
-            || prefix.modifiers.infix.is_some()
+        if let Some(span) = prefix
+            .modifiers
+            .suspend_span
+            .or(prefix.modifiers.operator.map(|modifier| modifier.span))
+            .or(prefix.modifiers.infix.map(|modifier| modifier.span))
         {
             return Err(Diagnostic::at(
-                prefix
-                    .modifiers
-                    .suspend_span
-                    .or(prefix.modifiers.operator.map(|modifier| modifier.span))
-                    .or(prefix.modifiers.infix.map(|modifier| modifier.span))
-                    .expect("a rejected modifier has a span"),
+                span,
                 "properties cannot be `suspend`, `operator`, or `infix`",
             ));
         }
-        let modifier = prefix.modifiers.method_modifier.unwrap_or_else(|| {
-            if context == PropertyContext::Interface
-                || (prefix.modifiers.is_override && context != PropertyContext::ValueType)
-            {
-                MethodModifier::Open
-            } else {
-                MethodModifier::Final
-            }
-        });
+        let modifier = prefix
+            .modifiers
+            .method_modifier
+            .map(|modifier| modifier.kind)
+            .unwrap_or_else(|| {
+                if context == PropertyContext::Interface
+                    || (prefix.modifiers.override_span.is_some()
+                        && context != PropertyContext::ValueType)
+                {
+                    MethodModifier::Open
+                } else {
+                    MethodModifier::Final
+                }
+            });
         let annotations = prefix.annotations;
         let visibility = prefix.visibility;
-        let is_override = prefix.modifiers.is_override;
-        let is_const = prefix.is_const;
+        let is_override = prefix.modifiers.override_span.is_some();
+        let is_const = prefix.const_span.is_some();
         let prefix_start = prefix.modifiers.start;
         let keyword = self.expect("`val` or `var`", |kind| {
             matches!(kind, TokenKind::Val | TokenKind::Var)

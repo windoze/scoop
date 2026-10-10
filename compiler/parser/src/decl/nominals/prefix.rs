@@ -13,7 +13,6 @@ impl Parser {
         let mut annotations = Vec::new();
         let mut visibility = VisibilitySyntax::Omitted;
         let mut modifiers = Modifiers::default();
-        let mut is_const = false;
         let mut const_span = None;
         if matches!(&self.peek().kind, TokenKind::Ident(name) if name == "context") {
             let (parameters, span) = self.parse_context_parameters()?;
@@ -49,7 +48,7 @@ impl Parser {
                 continue;
             }
             if matches!(token.kind, TokenKind::Suspend) {
-                if modifiers.is_suspend {
+                if modifiers.suspend_span.is_some() {
                     return Err(Diagnostic::at(
                         token.span,
                         if top_level {
@@ -59,7 +58,6 @@ impl Parser {
                         },
                     ));
                 }
-                modifiers.is_suspend = true;
                 let keyword = self.bump();
                 modifiers.suspend_span = Some(keyword.span);
                 modifiers.start = modifiers.start.or(Some(keyword.span.start));
@@ -81,14 +79,13 @@ impl Parser {
                 break;
             };
             if text == "const" {
-                if is_const {
+                if const_span.is_some() {
                     return Err(Diagnostic::at(
                         token.span,
                         "duplicate `const` modifier on property",
                     ));
                 }
                 self.bump();
-                is_const = true;
                 const_span = Some(token.span);
                 modifiers.start = modifiers.start.or(Some(token.span.start));
                 continue;
@@ -125,17 +122,16 @@ impl Parser {
                 _ => break,
             };
             if text == "override" {
-                if modifiers.is_override {
+                if modifiers.override_span.is_some() {
                     return Err(Diagnostic::at(
                         token.span,
                         "duplicate `override` modifier on member function",
                     ));
                 }
-                modifiers.is_override = true;
                 modifiers.override_span = Some(token.span);
             } else if let Some(modality) = modality {
                 if let Some(existing) = modifiers.method_modifier {
-                    let existing = match existing {
+                    let existing = match existing.kind {
                         MethodModifier::Final => "final",
                         MethodModifier::Open => "open",
                         MethodModifier::Abstract => "abstract",
@@ -153,13 +149,15 @@ impl Parser {
                         ),
                     ));
                 }
-                modifiers.method_modifier = Some(modality);
-                modifiers.method_modifier_span = Some(token.span);
+                modifiers.method_modifier = Some(SpannedMethodModifier {
+                    kind: modality,
+                    span: token.span,
+                });
             }
             let keyword = self.bump();
             modifiers.start = modifiers.start.or(Some(keyword.span.start));
         }
-        if !modifiers.context_parameters.is_empty() && is_const {
+        if !modifiers.context_parameters.is_empty() && const_span.is_some() {
             return Err(Diagnostic::at(
                 modifiers.context_parameters[0].span,
                 "contextual properties cannot be const",
@@ -180,7 +178,6 @@ impl Parser {
             annotations,
             visibility,
             modifiers,
-            is_const,
             const_span,
         })
     }
