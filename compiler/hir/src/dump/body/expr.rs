@@ -70,6 +70,7 @@ pub(super) fn dump_expr(
             dump_expr(module, locals, operand, indent + 1, out);
         }
         ExprKind::BoolLiteral(value) => out.push_str(&format!("{pad}BoolLiteral {value} : {ty}\n")),
+        ExprKind::Unreachable => out.push_str(&format!("{pad}Unreachable : {ty}\n")),
         ExprKind::UnitLiteral => out.push_str(&format!("{pad}UnitLiteral : {ty}\n")),
         ExprKind::TupleLiteral(elements) => {
             out.push_str(&format!("{pad}TupleLiteral : {ty}\n"));

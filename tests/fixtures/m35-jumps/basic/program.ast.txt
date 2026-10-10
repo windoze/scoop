@@ -1,0 +1,174 @@
+SourceFile
+  RootPackage
+  val initialized: Int = <expr>
+  interface Numbered
+    fun number
+  class NumberBox(val value: Int), Numbered
+    public fun number
+  fun describe(value: Int?): String
+    val number
+      Elvis
+        Var value
+        Return
+          StringLiteral "missing"
+    return
+      MethodCall toString
+        Var number
+  fun consume(value: Int?)
+    val number
+      Elvis
+        Var value
+        Return
+    Call println
+      Var number
+  fun fail(): Nothing
+    throw
+      Call UnwrapException
+  fun throwing(value: Int?): Int
+    =
+      Elvis
+        Var value
+        Throw
+          Call UnwrapException
+  fun never(value: Int?): Int
+    =
+      Elvis
+        Var value
+        Call fail
+  fun widen(value: NumberBox?, other: Numbered): Numbered
+    =
+      Elvis
+        Var value
+        Var other
+  fun inferred(value: Int?): Any
+    val result
+      Elvis
+        Var value
+        StringLiteral "missing"
+    return
+      Var result
+  fun fallback<T>(value: T?, other: T): T
+    =
+      Elvis
+        Var value
+        Var other
+  fun chain(first: Int?, second: Int?): String
+    val number
+      Elvis
+        Var first
+        Elvis
+          Var second
+          Return
+            StringLiteral "empty"
+    return
+      MethodCall toString
+        Var number
+  fun anonymous(value: Int?): Int
+    val callable
+      AnonymousFunction 1 suspend=false return=Int
+        val number
+          Elvis
+            Var value
+            Return
+              IntLiteral 19
+        return
+          Binary Add
+            Var number
+            IntLiteral 1
+    return
+      Call callable
+  fun local(value: Int?): Int
+    fun choose(): Int
+      val number
+        Elvis
+          Var value
+          Return
+            IntLiteral 21
+      return
+        Var number
+    return
+      Call choose
+  fun main()
+    Call println
+      Call describe
+        Call Some
+          IntLiteral 7
+    Call println
+      Call describe
+        Var None
+    Call consume
+      Var None
+    Call consume
+      Call Some
+        IntLiteral 8
+    Call println
+      Call throwing
+        Call Some
+          IntLiteral 9
+    try
+      Call println
+        Call throwing
+          Var None
+    catch failure: UnwrapException
+      Call println
+        StringLiteral "thrown"
+    try
+      Call println
+        Call never
+          Var None
+    catch failure: UnwrapException
+      Call println
+        StringLiteral "never"
+    Call println
+      MethodCall number
+        Call widen
+          Var None
+          Call NumberBox
+            IntLiteral 10
+    Call println
+      MethodCall number
+        Call widen
+          Call Some
+            Call NumberBox
+              IntLiteral 11
+          Call NumberBox
+            IntLiteral 12
+    Call println
+      Is String false
+        Call inferred
+          Var None
+    Call println
+      Is Int false
+        Call inferred
+          Call Some
+            IntLiteral 13
+    Call println
+      Call fallback<Int>
+        Var None
+        IntLiteral 14
+    Call println
+      Call fallback<String>
+        Call Some
+          StringLiteral "present"
+        StringLiteral "other"
+    Call println
+      Call chain
+        Var None
+        Call Some
+          IntLiteral 15
+    Call println
+      Call chain
+        Var None
+        Var None
+    Call println
+      Call anonymous
+        Var None
+    Call println
+      Call anonymous
+        Call Some
+          IntLiteral 19
+    Call println
+      Call local
+        Var None
+    Call println
+      Var initialized

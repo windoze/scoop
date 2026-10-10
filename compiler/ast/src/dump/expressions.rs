@@ -30,6 +30,16 @@ pub(super) fn dump_expr(expr: &Expr, indent: usize, out: &mut String) {
         }
         Expr::IntLiteral(literal) => out.push_str(&format!("{pad}IntLiteral {literal}\n")),
         Expr::BoolLiteral { value, .. } => out.push_str(&format!("{pad}BoolLiteral {value}\n")),
+        Expr::Return { value, .. } => {
+            out.push_str(&format!("{pad}Return\n"));
+            if let Some(value) = value {
+                dump_expr(value, indent + 1, out);
+            }
+        }
+        Expr::Throw { value, .. } => {
+            out.push_str(&format!("{pad}Throw\n"));
+            dump_expr(value, indent + 1, out);
+        }
         Expr::UnitLiteral { .. } => out.push_str(&format!("{pad}UnitLiteral\n")),
         Expr::TupleLiteral { elements, .. } => {
             out.push_str(&format!("{pad}TupleLiteral\n"));

@@ -157,6 +157,7 @@ impl Lowerer {
             | ExprKind::CharLiteral(_)
             | ExprKind::FloatLiteral(_)
             | ExprKind::BoolLiteral(_)
+            | ExprKind::Unreachable
             | ExprKind::UnitLiteral
             | ExprKind::Local(_)
             | ExprKind::ConstructorReceiver

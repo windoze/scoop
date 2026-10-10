@@ -13,7 +13,9 @@ fn statement_contains_return(statement: &ast::Statement) -> bool {
         }
         ast::StatementKind::ValDecl(decl) => expr_contains_return(&decl.init),
         ast::StatementKind::LocalDelegatedProperty(decl) => expr_contains_return(&decl.expression),
-        ast::StatementKind::Assign(assign) => expr_contains_return(&assign.value),
+        ast::StatementKind::Assign(assign) => {
+            place_contains_return(&assign.target) || expr_contains_return(&assign.value)
+        }
         ast::StatementKind::If(if_) => {
             expr_contains_return(&if_.cond)
                 || block_contains_return(&if_.then_block)
@@ -62,7 +64,7 @@ fn statement_contains_return(statement: &ast::Statement) -> bool {
     }
 }
 
-fn expr_contains_return(expr: &ast::Expr) -> bool {
+pub(crate) fn expr_contains_return(expr: &ast::Expr) -> bool {
     match expr {
         ast::Expr::TypeQualifier(_) => false,
         ast::Expr::ContextScope { value, body, .. } => {
@@ -73,9 +75,12 @@ fn expr_contains_return(expr: &ast::Expr) -> bool {
             ast::StringPart::Expression { value, .. } => expr_contains_return(value),
         }),
         // A nested callable owns its own return target.
-        ast::Expr::Lambda { .. }
-        | ast::Expr::AnonymousFunction { .. }
-        | ast::Expr::CallableReference { .. } => false,
+        ast::Expr::Lambda { .. } | ast::Expr::AnonymousFunction { .. } => false,
+        ast::Expr::CallableReference { receiver, .. } => {
+            receiver.as_deref().is_some_and(expr_contains_return)
+        }
+        ast::Expr::Return { .. } => true,
+        ast::Expr::Throw { value, .. } => expr_contains_return(value),
         ast::Expr::TupleLiteral { elements, .. } | ast::Expr::ArrayLiteral { elements, .. } => {
             elements.iter().any(expr_contains_return)
         }

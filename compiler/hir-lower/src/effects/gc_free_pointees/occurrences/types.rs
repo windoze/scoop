@@ -446,6 +446,7 @@ pub(in super::super) fn collect_expr_types(
         | ExprKind::CharLiteral(_)
         | ExprKind::FloatLiteral(_)
         | ExprKind::BoolLiteral(_)
+        | ExprKind::Unreachable
         | ExprKind::UnitLiteral
         | ExprKind::ConstructorReceiver
         | ExprKind::ConstructorParam(_)

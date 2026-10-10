@@ -105,7 +105,7 @@ C-FFI-safe、Scoop ABI、GC-free 与 release-safe 是不同合同。C 参数不�
 
 when 的前端决议遵守语言规范第 5 章：普通条件保存已解析 Boolean 求值及其局部 setup，case 保存 typed pattern；多条件组合为现有有序短路 Boolean 求值，其局部 setup 保留在同一条件内。无 subject 不伪造 Unit subject。subject 声明复用不可失败 binding planner，初始化、快照及解构各按规则执行一次，并继续匹配完整快照。fallback 明确区分源码 else、语句正常落空及已检查的不可达。路径类型事实在当前作用域合并，普通表达式不进入模式名字解析。
 
-return/throw 与 Elvis 复用正常值和终止路径的封闭表示；只有正常到达合流点的分支提供结果，不为跳转生成 Unit、零值、null 或未初始化 local。尾随 lambda 在每个候选内先映射最后形参，再复用普通调用检查；成功 HIR 只保存完整已选调用。捕获、具体化、完成性质、默认模板、导出正文与 dump 均覆盖这些表示。
+return/throw 与 Elvis 复用正常值和终止路径的封闭表示；只有正常到达合流点的分支提供结果，不为跳转生成 Unit、零值、null 或未初始化 local。表达式跳转的实际 transfer 保存在当前位置的有序 setup 中；其结果及全终止控制表达式使用 Nothing 类型的 Unreachable 节点，明确表示没有正常值，不读取存储也不执行 runtime 调用。MIR 将该节点结束为不可达正常边。尾随 lambda 在每个候选内先映射最后形参，再复用普通调用检查；成功 HIR 只保存完整已选调用。捕获、具体化、完成性质、默认模板、导出正文与 dump 均覆盖这些表示。
 
 ### 2.3 MIR
 
@@ -310,7 +310,7 @@ bridge unit 是与 producer 无关的 recipe identity；实际 atom 使用 produ
 | 位置 / namespace | section 与 major |
 | --- | --- |
 | Manifest / `org.scoop-lang.manifest` | `single-cone-production/6` |
-| HIR / `org.scoop-lang.hir` | `identity-foundation/8`、`core-bootstrap-interface/14`、`cross-cone-interface/70`、`cross-cone-type-semantics/28` |
+| HIR / `org.scoop-lang.hir` | `identity-foundation/8`、`core-bootstrap-interface/14`、`cross-cone-interface/71`、`cross-cone-type-semantics/29` |
 | MIR / `org.scoop-lang.mir` | `identity-foundation/6`、`core-bootstrap-bridge/1`、`cross-cone-param-free-bridge/2`、`cross-cone-type-bridge/19` |
 | LIR / `org.scoop-lang.lir` | `identity-foundation/8`、`cross-cone-param-free-bridge/3`、`cross-cone-link-closure/1`、`cross-cone-layout-abi/15`、`cross-cone-layout-link-closure/8`、`cone-production/11`、`link-identity-closure/15`、`link-support/1` |
 
@@ -324,7 +324,7 @@ executable entry 的四种形态、main 的完整源码签名、root gateway 的
 
 operator equals 的成员签名、operator 标记、已绑定调用及必要的派生正文使用既有 callable、模板与 exact-type metadata。`Equality<T>.equalTo` 的显式 conformance、接口 slot、实现和分派适配使用普通 interface metadata；两者没有隐式关联，也不保存 Equality 专用的 core protocol 或条件接口规则。
 
-自 `core-bootstrap-interface/14` 起删除旧 Equality protocol 字段；自 `cross-cone-interface/68` 与 `cross-cone-type-semantics/26` 起移除统一方案添加的派生比较接口槽位声明，恢复普通源码接口实现。旧版本产物必须重建，不能把旧 Equality slot 当作新接口成员或独立 operator 使用。既有结构 operator 的生成身份和单态化格式保持不变。M34 后续编码扩展版本为 `cross-cone-interface/69`、`cross-cone-type-semantics/27`。M35 普通 when 增加可缺省 subject、Case/Predicate/Always 条件和显式 Fallthrough 后，当前版本升级为 `cross-cone-interface/70`、`cross-cone-type-semantics/28`；旧 body 编码必须重建。
+自 `core-bootstrap-interface/14` 起删除旧 Equality protocol 字段；自 `cross-cone-interface/68` 与 `cross-cone-type-semantics/26` 起移除统一方案添加的派生比较接口槽位声明，恢复普通源码接口实现。旧版本产物必须重建，不能把旧 Equality slot 当作新接口成员或独立 operator 使用。既有结构 operator 的生成身份和单态化格式保持不变。M34 后续编码扩展版本为 `cross-cone-interface/69`、`cross-cone-type-semantics/27`。M35 普通 when 增加可缺省 subject、Case/Predicate/Always 条件和显式 Fallthrough 后，版本升级为 `cross-cone-interface/70`、`cross-cone-type-semantics/28`；随后显式 Nothing/Unreachable 表达式增加为 `cross-cone-interface/71`、`cross-cone-type-semantics/29`。旧 body 编码必须重建。
 
 派生 operator 使用既有 typed 生成身份和普通单态化／ODR 规则，所需的宿主、完整签名及字段调用在各自边界确定；没有源码声明的生成 callable 不伪装成 SourceFunctionId。导入的 operator 候选来自已保存的成员或派生签名，不借用 Equality slot。artifact-only 链接只消费已闭合的实现，不重新扫描字段或选择重载；普通接口 adapter 引用实际声明或继承的实现，不因值支持结构比较而新增 itable 项。
 

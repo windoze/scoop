@@ -35,18 +35,20 @@ impl Lowerer {
                 // Constructions lower to `StructInit` /
                 // `VariantConstruct`, not `Call`, so they are rejected
                 // here.
-                if matches!(
-                    lowered.kind,
-                    hir::ExprKind::Call { .. }
-                        | hir::ExprKind::MethodCall { .. }
-                        | hir::ExprKind::DirectSuperMethodCall { .. }
-                        | hir::ExprKind::CallableCall { .. }
-                        | hir::ExprKind::Atomic(_)
-                        | hir::ExprKind::MaybeUninit(_)
-                        | hir::ExprKind::PtrStore { .. }
-                        | hir::ExprKind::ForeignCallbackRegister { .. }
-                        | hir::ExprKind::ForeignCallbackOperation { .. }
-                ) {
+                if self.is_nothing_ty(lowered.ty)
+                    || matches!(
+                        lowered.kind,
+                        hir::ExprKind::Call { .. }
+                            | hir::ExprKind::MethodCall { .. }
+                            | hir::ExprKind::DirectSuperMethodCall { .. }
+                            | hir::ExprKind::CallableCall { .. }
+                            | hir::ExprKind::Atomic(_)
+                            | hir::ExprKind::MaybeUninit(_)
+                            | hir::ExprKind::PtrStore { .. }
+                            | hir::ExprKind::ForeignCallbackRegister { .. }
+                            | hir::ExprKind::ForeignCallbackOperation { .. }
+                    )
+                {
                     out.extend(sink);
                     hir::StatementKind::Expr(lowered)
                 } else {
@@ -64,87 +66,8 @@ impl Lowerer {
                 hir::StatementKind::LocalFunction(local)
             }
             ast::StatementKind::Return { value } => {
-                if self
-                    .initialization_context
-                    .as_ref()
-                    .is_some_and(|context| context.capture_depth == self.capture_contexts.len())
-                {
-                    self.error(
-                        statement.span,
-                        "`return` is not allowed in an initializer or constructor body".into(),
-                    );
-                    return;
-                }
-                if self.return_inference.is_some() {
-                    let kind = match value {
-                        None => {
-                            self.return_inference
-                                .as_mut()
-                                .expect("checked above")
-                                .saw_bare = true;
-                            hir::StatementKind::Return { value: None }
-                        }
-                        Some(expr) => {
-                            let mut sink = Vec::new();
-                            let Some(value) = self.lower_expr(expr, &mut sink, None) else {
-                                return;
-                            };
-                            self.return_inference
-                                .as_mut()
-                                .expect("checked above")
-                                .value_types
-                                .push(value.ty);
-                            out.extend(sink);
-                            hir::StatementKind::Return { value: Some(value) }
-                        }
-                    };
-                    out.push(hir::Statement {
-                        kind,
-                        span: statement.span,
-                    });
-                    return;
-                }
-                let return_ty = self.current_return_ty;
-                match value {
-                    None => {
-                        if !self.types_equal(return_ty, self.unit) {
-                            let name = self.current_fn_name.clone();
-                            let expected = self.type_name(return_ty);
-                            self.error(
-                                statement.span,
-                                format!(
-                                    "`return` without a value in function `{name}` returning {expected}"
-                                ),
-                            );
-                            return;
-                        }
-                        hir::StatementKind::Return { value: None }
-                    }
-                    Some(expr) => {
-                        let mut sink = Vec::new();
-                        let Some(value) = self.lower_expr(expr, &mut sink, Some(return_ty)) else {
-                            return; // diagnostic already recorded
-                        };
-                        if !self.is_subtype(value.ty, return_ty) {
-                            let name = self.current_fn_name.clone();
-                            let expected = self.type_name(return_ty);
-                            let found = self.type_name(value.ty);
-                            let message = self.with_nominal_invariance_detail(
-                                format!(
-                                    "`return` value of `{name}` must be of type {expected}, found {found}"
-                                ),
-                                value.ty,
-                                return_ty,
-                            );
-                            self.error(expr.span(), message);
-                            return;
-                        }
-                        let value = self.adapt_to(value, return_ty);
-                        out.extend(sink);
-                        self.push_return(Some(value), statement.span, out);
-                        return; // push_return already appended
-                    }
-                }
+                self.lower_return(value.as_ref(), statement.span, out);
+                return;
             }
             ast::StatementKind::ValDecl(decl) => {
                 self.lower_val_decl(decl, out);

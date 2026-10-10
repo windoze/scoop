@@ -111,3 +111,38 @@ fn ordinary_arm_newlines_do_not_extend_the_previous_expression() {
     };
     assert_eq!(when.arms.len(), 6);
 }
+
+#[test]
+fn elvis_jump_expressions_retain_their_operands() {
+    let file = ok("fun f() { val a = value ?: return fallback ?: throw failure }");
+    let StatementKind::ValDecl(decl) = &block_body(only_function(&file)).statements[0].kind else {
+        panic!("declaration")
+    };
+    let scoop_ast::Expr::Elvis { rhs, .. } = &decl.init else {
+        panic!("elvis")
+    };
+    let scoop_ast::Expr::Return {
+        value: Some(value), ..
+    } = rhs.as_ref()
+    else {
+        panic!("return")
+    };
+    let scoop_ast::Expr::Elvis { rhs, .. } = value.as_ref() else {
+        panic!("returned elvis")
+    };
+    assert!(matches!(rhs.as_ref(), scoop_ast::Expr::Throw { .. }));
+}
+
+#[test]
+fn bare_return_respects_nested_delimiters_and_newlines() {
+    ok(
+        "fun f() { call(value ?: return, next); val a = [return]; val b = (return); return\n call() }",
+    );
+}
+
+#[test]
+fn throw_and_return_are_expressions_in_copy_update_values() {
+    ok(
+        "fun f() { val a = record.{ value: optional ?: return }; val b = record.{ value: throw failure } }",
+    );
+}

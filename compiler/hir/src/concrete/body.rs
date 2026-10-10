@@ -189,6 +189,8 @@ pub struct Expr {
 
 #[derive(Debug, Clone)]
 pub enum ExprKind {
+    /// No normal value exists at this control-flow position.
+    Unreachable,
     MaybeUninit(MaybeUninitOperation<Box<Expr>>),
     ContextLookup {
         declaration: String,

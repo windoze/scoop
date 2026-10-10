@@ -5,6 +5,11 @@ impl<'a> CfgLowerer<'a> {
     /// calls in source evaluation order as explicit effect statements.
     pub(super) fn lower_expr(&mut self, expr: &smir::Expr, span: Span) -> Option<mir::Expr> {
         let kind = match &expr.kind {
+            smir::ExprKind::Unreachable => {
+                self.seal(mir::Terminator::Unreachable);
+                return None;
+            }
+
             smir::ExprKind::Diverging { prefix, terminal } => {
                 for value in prefix {
                     let value = self.lower_expr(value, span)?;

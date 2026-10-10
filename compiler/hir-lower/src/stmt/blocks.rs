@@ -131,11 +131,10 @@ impl Lowerer {
             .iter()
             .filter_map(|block| block.value.as_ref().map(|value| value.ty))
             .collect();
-        let result_ty = if value_types.is_empty() {
-            self.nothing_type()
-        } else {
-            expected.unwrap_or_else(|| self.least_upper_bound(&value_types))
-        };
+        if value_types.is_empty() {
+            return Some(self.unreachable_expression(span));
+        }
+        let result_ty = expected.unwrap_or_else(|| self.least_upper_bound(&value_types));
         for block in blocks.iter() {
             if let Some(value) = &block.value
                 && !self.is_subtype(value.ty, result_ty)

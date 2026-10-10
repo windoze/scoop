@@ -234,7 +234,9 @@ impl Lowerer {
                 ast::FunctionBody::Expr(expr) => {
                     let mut statements = Vec::new();
                     let mut sink = Vec::new();
-                    if let Some(value) = self.lower_expr(expr, &mut sink, Some(return_ty)) {
+                    if !self.reject_expression_body_return(expr)
+                        && let Some(value) = self.lower_expr(expr, &mut sink, Some(return_ty))
+                    {
                         if !self.is_subtype(value.ty, return_ty) {
                             let expected = self.type_name(return_ty);
                             let found = self.type_name(value.ty);

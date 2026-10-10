@@ -1,0 +1,2 @@
+fun f(value: Int?): Int = value ?: "other"
+fun main() {}

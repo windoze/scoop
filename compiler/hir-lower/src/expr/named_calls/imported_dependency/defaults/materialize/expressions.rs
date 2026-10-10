@@ -287,6 +287,7 @@ impl Lowerer {
             },
             Kind::CharLiteral(value) => hir::ExprKind::CharLiteral((*value).into()),
             Kind::BooleanLiteral(value) => hir::ExprKind::BoolLiteral((*value).into()),
+            Kind::Unreachable => hir::ExprKind::Unreachable,
             Kind::UnitLiteral => hir::ExprKind::UnitLiteral,
             Kind::TupleLiteral(elements) => hir::ExprKind::TupleLiteral(
                 self.materialize_imported_default_expressions(elements, context)?,

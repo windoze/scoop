@@ -102,6 +102,7 @@ impl Lowerer {
                 Box::new(self.instantiate_default_expr(value, context)),
             ),
             hir::ExprKind::BoolLiteral(value) => hir::ExprKind::BoolLiteral(*value),
+            hir::ExprKind::Unreachable => hir::ExprKind::Unreachable,
             hir::ExprKind::UnitLiteral => hir::ExprKind::UnitLiteral,
             hir::ExprKind::TupleLiteral(elements) => hir::ExprKind::TupleLiteral(
                 elements

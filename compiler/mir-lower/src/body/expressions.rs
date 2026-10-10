@@ -86,6 +86,7 @@ impl BodyLowerer<'_> {
                 smir::ExprKind::CharFromCodeUnchecked(Box::new(self.lower_expr(value)))
             }
             hir::ExprKind::BoolLiteral(value) => smir::ExprKind::BoolLiteral(*value),
+            hir::ExprKind::Unreachable => smir::ExprKind::Unreachable,
             hir::ExprKind::UnitLiteral => smir::ExprKind::UnitLiteral,
             hir::ExprKind::TupleLiteral(elements) => {
                 smir::ExprKind::TupleLiteral(elements.iter().map(|e| self.lower_expr(e)).collect())

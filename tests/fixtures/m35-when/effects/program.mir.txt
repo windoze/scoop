@@ -204,15 +204,15 @@ Module
       val $parameter.label: String
         Type String
         Local $argument.0
-      call $when.subject.1: Node = @fn1 direct
+      call $when.subject.0: Node = @fn1 direct
         Type String
         Local $parameter.label
       val node: Node
         Type Node
-        Local $when.subject.1
+        Local $when.subject.0
       val $when.1: Node
         Type Node
-        Local $when.subject.1
+        Local $when.subject.0
       val $receiver: Store
         Type Store
         Local store
@@ -336,18 +336,18 @@ Module
       val $parameter.label: String
         Type String
         Local $argument.0
-      call $when.subject.2: Node = @fn1 direct
+      call $when.subject.1: Node = @fn1 direct
         Type String
         Local $parameter.label
       val $when.2: Node
         Type Node
-        Local $when.subject.2
+        Local $when.subject.1
       val $receiver: Store
         Type Store
         Local store
       val $argument.0: Node
         Type Node
-        Local $when.subject.2
+        Local $when.subject.1
       val $parameter.value: Node
         Type Node
         Local $argument.0
@@ -573,15 +573,15 @@ Module
       val $parameter.label: String
         Type String
         Local $argument.0
-      call $when.subject.3: Node = @fn1 direct
+      call $when.subject.2: Node = @fn1 direct
         Type String
         Local $parameter.label
       val node: Node
         Type Node
-        Local $when.subject.3
+        Local $when.subject.2
       val $when.3: Node
         Type Node
-        Local $when.subject.3
+        Local $when.subject.2
       branch bb47 bb48
         Type Boolean
         IsInstance Node

@@ -4,6 +4,8 @@ impl Parser {
     pub(super) fn parse_atom(&mut self) -> Result<Expr, Diagnostic> {
         let token = self.peek().clone();
         match token.kind {
+            TokenKind::Return => self.parse_return_expression(),
+            TokenKind::Ident(ref text) if text == "throw" => self.parse_throw_expression(),
             TokenKind::Suspend => {
                 self.pos += 1;
                 match self.peek().kind {

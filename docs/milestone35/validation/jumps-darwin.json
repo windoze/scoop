@@ -1,0 +1,51 @@
+{
+  "target": "aarch64-apple-darwin",
+  "date": "2026-10-10",
+  "rust": {
+    "parser": 466,
+    "parser_doctests": 1,
+    "hir_m3": 37,
+    "hir_m11": 24,
+    "hir_m22": 103,
+    "default_expression_wire": 11,
+    "slib_profile": 21
+  },
+  "fixtures_passed": [
+    "evaluation-order-float-nothing",
+    "evaluation-order-integer-nothing",
+    "legacy-m3-generics-errors-elvis-type-mismatch",
+    "m35-jumps-artifacts",
+    "m35-jumps-basic",
+    "m35-jumps-cleanup",
+    "m35-jumps-error-bare-return",
+    "m35-jumps-error-constructor-return",
+    "m35-jumps-error-default-elvis-return",
+    "m35-jumps-error-default-return",
+    "m35-jumps-error-elvis-expected-type",
+    "m35-jumps-error-elvis-left-type",
+    "m35-jumps-error-expression-body-return",
+    "m35-jumps-error-initializer-bare-return",
+    "m35-jumps-error-initializer-return",
+    "m35-jumps-error-lambda-return",
+    "m35-jumps-error-local-expression-body-return",
+    "m35-jumps-error-return-label",
+    "m35-jumps-error-throw-type",
+    "m35-jumps-error-wrong-return-value",
+    "m35-jumps-operands",
+    "m35-jumps-suspend",
+    "m35-when-effects"
+  ],
+  "variants": 26,
+  "processes": 54,
+  "stage_goldens": 40,
+  "verification": "Strict diagnostics and golden comparison; executable normal/moving/minor GC checks, suspend success and failure, Context/finally cleanup, source-free cross-Cone consumers and independent linking. The complete repository regression remains for final M35 acceptance.",
+  "interface_versions": {
+    "cross_cone_hir": 71,
+    "type_semantics": 29
+  },
+  "target_cleanup_kib": {
+    "before": 27808924,
+    "incremental_removed": 8230788,
+    "after": 22548856
+  }
+}

@@ -1,0 +1,2 @@
+class Item { init { val value: Int? = None; val result = value ?: return } }
+fun main() {}

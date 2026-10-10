@@ -8,7 +8,7 @@
 | --- | --- | --- |
 | M35-1 规范与 case 迁移 | 已完成 | 显式 case；core/JSON/fixture/Rust 源码迁移；29 个定向 CLI fixture 与模式 Rust 测试通过 |
 | M35-2 普通 when | 已完成 | subject/解构、普通条件与 case、多条件短路、guard、smart cast、落空与覆盖；42 个 M35 CLI fixture 严格通过 |
-| M35-3 跳转与 Elvis | 待实施 | 跳转表达式、结果合并、求值与清理 |
+| M35-3 跳转与 Elvis | 已完成 | return/throw 表达式与合法返回目标；Elvis 正常结果合并；23 个定向 CLI 用例严格通过 |
 | M35-4 完整尾随调用 | 待实施 | 后缀、参数映射、全部调用入口 |
 | M35-5 注解数组 | 待实施 | 静态值、完整类型、共享格式 |
 | M35-6 组合与回归 | 待实施 | 适用平台与正式 CLI 验收 |
@@ -39,3 +39,12 @@ M35-1 开发验证：解析器 459 项及 1 项 doctest、HIR 模式 34 项与 M
 - 39 个新增普通 when fixture（含 33 个独立反例）及 3 个 case fixture 严格通过，覆盖求值顺序、精确错误位置、AST/HIR/MIR/LIR、挂起恢复、异常/finally、moving GC，以及去源码跨库 debug/release 消费和独立链接。记录见 [when-darwin.json](validation/when-darwin.json)。
 - 第二次清理 debug incremental 约 9.2 GB，target 降至约 18 GB；保留依赖与已构建 CLI，定向测试复用 release 工具及 fixture 缓存。
 - 额外复验 M26 Char 的默认值/泛型跨库用例：更新 case 前缀导致的精确源码位置后，6 个 golden 严格比较与 7 个进程步骤通过，包括移除源码消费、重链接和 moving GC。
+
+## M35-3 交付
+
+- parser 的语句/表达式入口共享 return/throw 解析，裸 return 正确停在换行与嵌套 delimiter。返回值使用当前 callable 的返回类型，lambda、default、初始化器、表达式体函数与非法 label 均有独立反例；初始化器内的匿名函数仍返回自身。
+- Elvis 复用正常分支结果合并，允许子类型、最小上界与 Nothing 右侧。新增明确的 Unreachable/Nothing 表达式，跳转复用原 transfer，全部终止的控制表达式不再制造隐藏结果 local。废除只服务旧 Elvis 的 desugar_option/ElseBranch，跳转与 Elvis 分别拆为小模块。
+- HIR 具体化、共享默认值/泛型 body、格式读写、访问遍历与 MIR CFG 保留终止语义；cross-cone interface/type semantics 递增至 71/29。更新固定编码和指纹测试。
+- fmt 与 workspace clippy 通过；parser 466 项及 1 项 doctest、HIR m3 37 项、m11 24 项、m22 103 项、共享表达式 wire 11 项、slib profile 21 项通过。
+- 19 个新 fixture（5 组运行组合、14 个独立反例）与 4 个定向历史/when 回归共 23 项严格通过，26 个 variant、54 个进程、40 个 golden。覆盖提前返回跳过后续实参/default、数组/tuple、短路、Some/None 一次求值、Context/finally、挂起恢复、moving GC、跨库 debug/release 与去源码独立链接。详见 [jumps-darwin.json](validation/jumps-darwin.json)。
+- 第三次清理 debug incremental 7.8 GB，target 从 26.5 GB 降至 21.5 GB，保留依赖及 debug/release CLI。

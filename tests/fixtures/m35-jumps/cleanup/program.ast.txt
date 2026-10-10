@@ -1,0 +1,179 @@
+SourceFile
+  RootPackage
+  fun returning(value: Int?): Int
+    try
+      val number
+        Elvis
+          Var value
+          Return
+            IntLiteral 1
+      return
+        Var number
+    finally
+      Call println
+        StringLiteral "return-finally"
+  fun throwing(value: Int?): Int
+    try
+      val number
+        Elvis
+          Var value
+          Throw
+            Call UnwrapException
+      return
+        Var number
+    catch failure: UnwrapException
+      Call println
+        StringLiteral "caught"
+      return
+        IntLiteral 2
+    finally
+      Call println
+        StringLiteral "throw-finally"
+  fun overrideReturn(value: Int?): Int
+    try
+      val number
+        Elvis
+          Var value
+          Return
+            IntLiteral 3
+      return
+        Var number
+    finally
+      return
+        IntLiteral 4
+  fun conditional(flag: Boolean): Int
+    val ignored
+      IfExpression
+        Var flag
+        return
+          IntLiteral 5
+        else
+        throw
+          Call UnwrapException
+  fun branching(flag: Boolean): Int
+    val ignored
+      WhenExpression
+        Var flag
+        conditions
+          BoolLiteral true
+          return
+            IntLiteral 6
+        conditions
+          BoolLiteral false
+          throw
+            Call UnwrapException
+  fun guard(value: Int): Int
+    when
+      Var value
+      conditions if <guard>
+        IntLiteral 1
+        return
+          IntLiteral 0
+      else
+        return
+          IntLiteral 8
+  fun condition(): Int
+    when
+      no subject
+      conditions
+        Return
+          IntLiteral 9
+        return
+          IntLiteral 0
+      else
+        return
+          IntLiteral 0
+  fun blockValue(value: Int?): String
+    =
+      WhenExpression
+        Var value
+        arm Some(number)
+          MethodCall toString
+            Var number
+        arm None
+          throw
+            Call UnwrapException
+  class Configuration(val value: Int)
+    context(
+      configuration: Configuration
+    )
+  fun configured(): Int
+    =
+      FieldAccess value
+        Var configuration
+  fun fromContext(value: Int?): Int
+    ContextScope
+      Call Configuration
+        IntLiteral 100
+      val number
+        Elvis
+          Var value
+          Return
+            Call configured
+      return
+        Var number
+  fun main()
+    ContextScope
+      Call Configuration
+        IntLiteral 12
+      Call println
+        Call fromContext
+          Var None
+      Call println
+        Call configured
+    Call println
+      Call returning
+        Var None
+    Call println
+      Call returning
+        Call Some
+          IntLiteral 10
+    Call println
+      Call throwing
+        Var None
+    Call println
+      Call throwing
+        Call Some
+          IntLiteral 11
+    Call println
+      Call overrideReturn
+        Var None
+    Call println
+      Call conditional
+        BoolLiteral true
+    Call println
+      Call branching
+        BoolLiteral true
+    try
+      Call println
+        Call conditional
+          BoolLiteral false
+    catch failure: UnwrapException
+      Call println
+        StringLiteral "if-caught"
+    try
+      Call println
+        Call branching
+          BoolLiteral false
+    catch failure: UnwrapException
+      Call println
+        StringLiteral "when-caught"
+    Call println
+      Call guard
+        IntLiteral 1
+    Call println
+      Call guard
+        IntLiteral 2
+    Call println
+      Call condition
+    Call println
+      Call blockValue
+        Call Some
+          IntLiteral 12
+    try
+      Call println
+        Call blockValue
+          Var None
+    catch failure: UnwrapException
+      Call println
+        StringLiteral "arm-caught"

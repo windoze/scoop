@@ -109,13 +109,13 @@ Module
       Local a : Option<Int>
     if
       IsSome : Boolean
-        Local $opt.0 : Option<Int>
-      val local4
+        Local opt : Option<Int>
+      assign $result.0
         Unwrap trap=false : Int
-          Local $opt.0 : Option<Int>
+          Local opt : Option<Int>
     else
-      val local4
+      assign $result.0
         IntegerLiteral 0 : Int
     val local5
-      Local $res.1 : Int
+      Local $result.0 : Int
   output executable main

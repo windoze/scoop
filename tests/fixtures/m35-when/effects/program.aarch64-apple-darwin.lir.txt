@@ -137,18 +137,17 @@ Module
     throw local5
     unreachable
   fun @scoop$1$cb$7afb7622bff4d7e34172cec786190123ebe4141a161cfca420cc335ed0a09c62() -> i32
-    local %0 $result.0: ptr<managed>
-    local %1 $call.1: ptr<managed>
+    local %0 $call.1: ptr<managed>
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 () -> ptr<managed> local-fn3()
-    store t0 -> local1
+    store t0 -> local0
     unreachable
   fun @scoop$1$cb$a59ba8328a87a3c09df1111305261ccbca23796630e0ce6dea24e3ae106f48ca() -> void
     local %0 store: ptr<managed>
     local %1 $argument.0: ptr<managed>
     local %2 $parameter.label: ptr<managed>
-    local %3 $when.subject.1: ptr<managed>
+    local %3 $when.subject.0: ptr<managed>
     local %4 node: ptr<managed>
     local %5 $receiver: ptr<managed>
     local %6 $argument.0: ptr<managed>
@@ -159,7 +158,7 @@ Module
     local %11 $dependency.parameter.value: ptr<managed>
     local %12 $argument.0: ptr<managed>
     local %13 $parameter.label: ptr<managed>
-    local %14 $when.subject.2: ptr<managed>
+    local %14 $when.subject.1: ptr<managed>
     local %15 $receiver: ptr<managed>
     local %16 $argument.0: ptr<managed>
     local %17 $parameter.value: ptr<managed>
@@ -181,7 +180,7 @@ Module
     local %33 $dependency.parameter.value: ptr<managed>
     local %34 $argument.0: ptr<managed>
     local %35 $parameter.label: ptr<managed>
-    local %36 $when.subject.3: ptr<managed>
+    local %36 $when.subject.2: ptr<managed>
     local %37 node: ptr<managed>
     local %38 $dependency.argument.0: ptr<managed>
     local %39 $dependency.parameter.value: ptr<managed>

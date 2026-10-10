@@ -1,10 +1,10 @@
 use super::*;
 
 #[test]
-fn source_interface_v70_preserves_ordinary_when_conditions() {
+fn source_interface_v71_preserves_unreachable_expressions() {
     assert_retired_version(
         hir_cross_cone_interface_capability(),
-        70,
+        71,
         MemberPurposeSet::COMPILE,
         &[
             ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG,
@@ -14,10 +14,10 @@ fn source_interface_v70_preserves_ordinary_when_conditions() {
 }
 
 #[test]
-fn type_semantics_v28_preserves_ordinary_when_templates() {
+fn type_semantics_v29_preserves_unreachable_templates() {
     assert_retired_version(
         hir_cross_cone_type_semantics_capability(),
-        28,
+        29,
         MemberPurposeSet::COMPILE,
         &[ArtifactCapabilityProfile::CROSS_CONE_GENERIC],
     );

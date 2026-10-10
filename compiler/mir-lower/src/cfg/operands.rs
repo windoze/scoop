@@ -77,6 +77,7 @@ fn emits_cfg(expr: &smir::Expr) -> bool {
         ExprKind::Call(_)
         | ExprKind::ClassNew { .. }
         | ExprKind::ShortCircuit { .. }
+        | ExprKind::Unreachable
         | ExprKind::Diverging { .. } => true,
         ExprKind::MaybeUninit { operation, .. } => {
             operation.operand().is_some_and(|value| emits_cfg(value))

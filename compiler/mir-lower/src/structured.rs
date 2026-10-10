@@ -272,6 +272,7 @@ pub(crate) enum ExprKind {
     CharCode(Box<Expr>),
     CharFromCodeUnchecked(Box<Expr>),
     BoolLiteral(bool),
+    Unreachable,
     UnitLiteral,
     TupleLiteral(Vec<Expr>),
     StructInit {

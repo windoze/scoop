@@ -411,14 +411,10 @@ impl Parser {
                 self.peek().kind,
                 TokenKind::Val
                     | TokenKind::Var
-                    | TokenKind::Return
                     | TokenKind::While
                     | TokenKind::For
                     | TokenKind::Break
                     | TokenKind::Continue
-            ) || matches!(
-                &self.peek().kind,
-                TokenKind::Ident(text) if text == "throw"
             );
             if statement_only {
                 return Err(Diagnostic::at(
