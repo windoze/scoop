@@ -15,7 +15,7 @@
 | R02 when | 待实施 | 有／无 subject 的完整分支 |
 | R03 MIR 临时态 | 待实施 | Cast、协程目标与 pending 留在 lowerer |
 | R07 return | 待实施 | 完整语义结果，Unit 保留真实值 |
-| R05 窄身份 | 待实施 | FunctionTypeId、enum application |
+| R05 窄身份 | 已完成 | FunctionTypeId 与 enum application 贯通生产／消费；Rust 710、正式 CLI 8 项通过 |
 | R06 nominal 表示 | 待实施 | declared payload 与 C/Scoop 窄引用 |
 | R10 core protocol | 待实施 | 具名 typed 字段，核对 wire 不变 |
 | R08 native 结果发布 | 待实施 | 按返回约定构造调用与 root |
@@ -45,3 +45,11 @@ AST 使用 `LiteralPattern`，数值分别保存原始 literal 与负号，Char�
 本机 fmt／workspace clippy 成功。AST 15、parser 474 + doc 1、相关 HIR 135 项通过；HIR 使用 `pattern m4:: m22_integer m35 m30` 选择。两个新 AST golden 已审阅，正式普通比较选择新 literal fixtures、全部 legacy M22 patterns、导入 enum 模式与 core 成员模式组合，共 15/15 通过，35 个进程、46 个 golden。HIR/MIR/LIR 既有快照保持一致，跨 Cone 构建／消费／链接／运行通过，wire 与 runtime ABI 不变。
 
 实际报告分别保存在本地 `target/m36-validation/r12-new-report.json` 和 `r12-verify-report.json`；通过后清理共享 fixture 的 cases 工作目录，保留 sysroot、编译缓存与报告供后续批次复用。
+
+## R05：函数签名与 enum 的窄身份
+
+函数签名驻留与替换直接返回 `FunctionTypeId`，普通类型边界从签名取 `canonical_type`。`EnumVariantApplication.owner` 使用 `EnumApplicationId`，查询、泛型替换、具体化、默认模板、派生编解码与相等、导入常量及模式消费均保留这一类别，variant／field 的 persistent identity 不变。导入格式、引用归属与替换完整性仍在原有边界检查。
+
+本机 fmt／workspace clippy 成功；选择 enum、function、callback、default、M11、M12、M14、类型别名、M29、Option、variant 的相关测试，HIR 250、HIR lower 443、MIR lower 17，共 710 项通过。正式三个 CLI 已重建。新增函数值／函数指针 fixture 与泛型 enum／默认值／闭包组合 fixture，HIR/MIR golden 生成并审阅后以普通比较复验。
+
+正式普通比较共 8 项、11 个配置、44 个进程、56 个 golden 通过，包含旧 FFI 指针、类型别名、派生相等、导入 enum 模式，以及 M35 trailing／组合产物的 debug/release 交叉构建、删除源码后的产物消费与重新链接、正常／移动／minor GC 运行。既有 golden 无变化，wire 和 runtime ABI 不变。报告保存在 `target/m36-validation/r05-regression-report.json` 与 `r05-verify-report.json`。验证完成后清理约 212 MiB 的 fixture cases，保留共用 sysroot 与缓存。

@@ -55,14 +55,11 @@ impl Lowerer {
             None => self.unit,
         };
         let context_parameters = self.resolve_context_parameters(decl);
-        let function_ty = self.intern_function_type(
+        let function_type = self.intern_function_type(
             decl.is_suspend,
             sig_params.iter().map(|param| param.ty).collect(),
             return_ty,
         );
-        let Type::Function(function_type) = self.types[function_ty] else {
-            unreachable!("interning a function type returns a function type")
-        };
         let attributes = self
             .check_function_annotations(decl, crate::FunctionTarget::Local)
             .attributes;

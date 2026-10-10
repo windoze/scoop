@@ -571,7 +571,7 @@ fn generic_enum_unit_constants_preserve_exact_refs_through_concrete_hir_and_mir(
             span: SPAN,
         });
         let variant = hir::EnumVariantApplication {
-            owner: ty,
+            owner: variant.application(),
             variant: export.enum_member_identities[variant.declaration()].id(),
         };
         let actual_global = export.globals.alloc(hir::Global {

@@ -139,7 +139,10 @@ pub(super) fn dump_expr(
             let (_, name, _, _) = enum_variant_names(module, *variant);
             out.push_str(&format!(
                 "{pad}VariantTest {}.{name} : {ty}\n",
-                type_name(module, variant.owner)
+                type_name(
+                    module,
+                    module.enum_applications[variant.owner].canonical_type
+                )
             ));
             dump_expr(module, locals, operand, indent + 1, out);
         }
@@ -147,7 +150,10 @@ pub(super) fn dump_expr(
             let (_, name, _, _) = enum_variant_names(module, field.variant);
             out.push_str(&format!(
                 "{pad}VariantPayloadProject {}.{name}.{} : {ty}\n",
-                type_name(module, field.variant.owner),
+                type_name(
+                    module,
+                    module.enum_applications[field.variant.owner].canonical_type
+                ),
                 enum_field_name(module, *field)
             ));
             dump_expr(module, locals, operand, indent + 1, out);

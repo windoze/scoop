@@ -175,7 +175,7 @@ impl ReferenceCollector<'_> {
             }
             hir::ExprKind::VariantTest { operand, variant } => {
                 self.expression(operand);
-                let owner = variant.owner;
+                let owner = self.lowerer.enum_applications[variant.owner].canonical_type;
                 self.type_reference(owner, origin);
             }
             hir::ExprKind::VariantPayloadProject { operand, field } => {

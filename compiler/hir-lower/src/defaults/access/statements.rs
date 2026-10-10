@@ -103,7 +103,7 @@ impl ReferenceCollector<'_> {
                 fields,
                 ..
             } => {
-                let owner = application.owner;
+                let owner = self.lowerer.enum_applications[application.owner].canonical_type;
                 self.type_reference(owner, origin);
                 for (_, field) in fields {
                     self.pattern(field, origin);

@@ -135,7 +135,8 @@ impl Lowerer {
                 .map(|&ty| self.instantiate_method_ty(ty, &bindings))
                 .collect();
             let result = self.instantiate_method_ty(return_type, &bindings);
-            self.intern_function_type(effects.is_suspend, parameters, result)
+            let function = self.intern_function_type(effects.is_suspend, parameters, result);
+            self.function_types[function].canonical_type
         });
         let (mut session, environment) =
             self.declaration_applicability_session(DeclarationApplicabilityInput {

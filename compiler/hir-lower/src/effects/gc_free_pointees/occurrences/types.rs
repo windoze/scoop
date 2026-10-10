@@ -146,7 +146,7 @@ fn collect_pattern_types(lowerer: &Lowerer, pattern: &hir::Pattern, out: &mut Ve
             fields,
             ..
         } => {
-            out.push(application.owner);
+            out.push(lowerer.enum_applications[application.owner].canonical_type);
             for (_, field) in fields {
                 collect_pattern_types(lowerer, field, out);
             }
@@ -216,17 +216,17 @@ pub(in super::super) fn collect_expr_types(
             }
         }
         ExprKind::VariantConstruct { variant, args } => {
-            out.push(variant.owner);
+            out.push(lowerer.enum_applications[variant.owner].canonical_type);
             for argument in args {
                 collect_expr_types(lowerer, argument, out);
             }
         }
         ExprKind::VariantTest { operand, variant } => {
-            out.push(variant.owner);
+            out.push(lowerer.enum_applications[variant.owner].canonical_type);
             collect_expr_types(lowerer, operand, out);
         }
         ExprKind::VariantPayloadProject { operand, field } => {
-            out.push(field.variant.owner);
+            out.push(lowerer.enum_applications[field.variant.owner].canonical_type);
             collect_expr_types(lowerer, operand, out);
         }
         ExprKind::ArrayAssembly(assembly) => {

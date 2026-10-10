@@ -194,7 +194,7 @@ fn collect_pattern_type_occurrences(
             ..
         } => {
             out.push(TypeOccurrence {
-                ty: application.owner,
+                ty: lowerer.enum_applications[application.owner].canonical_type,
                 file,
                 span,
             });
@@ -302,17 +302,29 @@ pub(in super::super) fn collect_expr_type_occurrences(
             }
         }
         ExprKind::VariantConstruct { variant, args } => {
-            push_type_at_expression(variant.owner, expression, out);
+            push_type_at_expression(
+                lowerer.enum_applications[variant.owner].canonical_type,
+                expression,
+                out,
+            );
             for argument in args {
                 collect_expr_type_occurrences(lowerer, argument, out);
             }
         }
         ExprKind::VariantTest { operand, variant } => {
-            push_type_at_expression(variant.owner, expression, out);
+            push_type_at_expression(
+                lowerer.enum_applications[variant.owner].canonical_type,
+                expression,
+                out,
+            );
             collect_expr_type_occurrences(lowerer, operand, out);
         }
         ExprKind::VariantPayloadProject { operand, field } => {
-            push_type_at_expression(field.variant.owner, expression, out);
+            push_type_at_expression(
+                lowerer.enum_applications[field.variant.owner].canonical_type,
+                expression,
+                out,
+            );
             collect_expr_type_occurrences(lowerer, operand, out);
         }
         ExprKind::Lambda(id) => {

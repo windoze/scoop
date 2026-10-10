@@ -93,7 +93,9 @@ impl Lowerer {
                 let inputs = self.read_decoding_record(context, &record, decoder, span, sink)?;
                 self.finish_decoding_record(context.target, &record, inputs, span, sink)
             }
-            Type::Enum(_) => self.decode_variants(context, decoder, span, sink),
+            Type::Enum(application) => {
+                self.decode_variants(application, context, decoder, span, sink)
+            }
             Type::Tuple(fields) => {
                 let codecs = fields
                     .into_iter()

@@ -182,10 +182,8 @@ impl Lowerer {
                     });
                 }
             }
-            let function_ty = self.intern_function_type(is_suspend, parameter_types, return_ty);
-            let Type::Function(function_type) = self.types[function_ty] else {
-                unreachable!()
-            };
+            let function_type = self.intern_function_type(is_suspend, parameter_types, return_ty);
+            let function_ty = self.function_types[function_type].canonical_type;
             let closure_local = self.alloc_synthetic_local(
                 "$closure".to_string(),
                 function_ty,

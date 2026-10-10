@@ -648,7 +648,7 @@ pub enum UnOp {
 /// An original variant in one complete, possibly symbolic enum application.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct EnumVariantApplication {
-    pub owner: TypeId,
+    pub owner: crate::EnumApplicationId,
     pub variant: scoop_identity::PersistentEnumVariantId,
 }
 

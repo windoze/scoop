@@ -29,10 +29,9 @@ impl Lowerer {
             .enumerate()
             .filter_map(|(index, ty)| (index != context_index).then_some(*ty))
             .collect();
-        let managed_ty = self.intern_function_type(false, parameters, native.return_type);
-        let hir::Type::Function(managed_function_type) = self.types[managed_ty] else {
-            unreachable!("the managed callback signature is a function type")
-        };
+        let managed_function_type =
+            self.intern_function_type(false, parameters, native.return_type);
+        let managed_ty = self.function_types[managed_function_type].canonical_type;
         if !self.types_equal(closure.ty, managed_ty) {
             self.error(
                 closure.span,

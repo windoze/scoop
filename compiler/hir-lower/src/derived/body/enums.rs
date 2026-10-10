@@ -3,7 +3,7 @@ use super::*;
 impl Lowerer {
     pub(super) fn build_derived_enum_equality(
         &mut self,
-        ty: hir::TypeId,
+        application: hir::EnumApplicationId,
         this_expr: hir::Expr,
         other_expr: hir::Expr,
         locals: &mut Arena<hir::Local>,
@@ -11,7 +11,7 @@ impl Lowerer {
         stack: &mut Vec<hir::TypeId>,
     ) -> Result<Vec<hir::Statement>, String> {
         let variants = self
-            .enum_variants(ty)
+            .enum_variants(application)
             .into_iter()
             .map(|variant| {
                 (
@@ -21,7 +21,9 @@ impl Lowerer {
                 )
             })
             .collect::<Vec<_>>();
-        let proof = hir::ExhaustivenessProof::EnumPatternMatrix { subject_ty: ty };
+        let proof = hir::ExhaustivenessProof::EnumPatternMatrix {
+            subject_ty: self.enum_applications[application].canonical_type,
+        };
         let mut synthetic_ordinal = 0;
         let mut arms = Vec::with_capacity(variants.len());
         for (variant_index, (target, path, fields)) in variants.into_iter().enumerate() {

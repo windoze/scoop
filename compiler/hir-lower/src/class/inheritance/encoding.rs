@@ -56,7 +56,9 @@ impl Lowerer {
         match self.types[context.target].clone() {
             Type::Struct(_) => self.encode_struct(context, value, encoder, span, sink),
             Type::Class(_) => self.encode_class(context, value, encoder, span, sink),
-            Type::Enum(_) => self.encode_enum(context, value, encoder, span, sink),
+            Type::Enum(application) => {
+                self.encode_enum(application, context, value, encoder, span, sink)
+            }
             Type::Tuple(fields) => {
                 let codecs = fields
                     .into_iter()

@@ -18,7 +18,7 @@ impl Lowerer {
             .map_err(ImportedDefaultMaterializationError::Plan)?
             .expect("the local declaration was registered before its implementation request");
         let signature = self.imported_generic_templates[template].signature.clone();
-        let declaration_type = self.intern_function_type(
+        let declaration_function_type = self.intern_function_type(
             signature.is_suspend,
             signature
                 .params
@@ -28,9 +28,6 @@ impl Lowerer {
                 .collect(),
             signature.return_ty,
         );
-        let hir::Type::Function(declaration_function_type) = self.types[declaration_type] else {
-            unreachable!("a lexical declaration has a function signature");
-        };
         let parameters = signature.type_parameters.ids();
         let own_parameters = &parameters[descriptor.owner_type_parameter_count() as usize..];
         let mut signature_bindings = context.bindings.clone();

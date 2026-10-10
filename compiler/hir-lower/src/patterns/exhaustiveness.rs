@@ -217,8 +217,8 @@ impl Lowerer {
                     field_types: structure.fields.iter().map(|field| field.ty).collect(),
                 }])
             }
-            Type::Enum(_) => ConstructorSpace::Closed(
-                self.enum_variants(ty)
+            Type::Enum(application) => ConstructorSpace::Closed(
+                self.enum_variants(application)
                     .into_iter()
                     .enumerate()
                     .map(|(index, variant)| Constructor::EnumVariant {

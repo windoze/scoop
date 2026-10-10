@@ -50,10 +50,7 @@ impl Lowerer {
             if !safe {
                 continue;
             }
-            let ty = self.intern_function_type(false, parameters, result);
-            let hir::Type::Function(signature) = self.types[ty] else {
-                unreachable!("a callback signature is a function type");
-            };
+            let signature = self.intern_function_type(false, parameters, result);
             self.intern_type(hir::Type::FunPtr(signature));
             signatures.push(hir::NativeCallbackSignature {
                 function,

@@ -110,7 +110,9 @@ impl Lowerer {
         variant: hir::EnumVariantApplication,
     ) -> Option<hir::AtomicMemoryOrder> {
         MEMORY_ORDERS.into_iter().find_map(|(name, order)| {
-            (self.named_enum_variant(variant.owner, name) == Some(variant)).then_some(order)
+            (self.named_enum_variant(self.enum_applications[variant.owner].canonical_type, name)
+                == Some(variant))
+            .then_some(order)
         })
     }
 

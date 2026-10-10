@@ -75,12 +75,12 @@ impl Lowerer {
                     span,
                 )]
             }
-            Type::Enum(_) if self.type_contains_param(ty) => vec![return_statement(
-                self.build_open_enum_equality(ty, this_expr, other_expr, span, stack)?,
+            Type::Enum(application) if self.type_contains_param(ty) => vec![return_statement(
+                self.build_open_enum_equality(application, this_expr, other_expr, span, stack)?,
                 span,
             )],
-            Type::Enum(_) => self.build_derived_enum_equality(
-                ty,
+            Type::Enum(application) => self.build_derived_enum_equality(
+                application,
                 this_expr,
                 other_expr,
                 &mut locals,

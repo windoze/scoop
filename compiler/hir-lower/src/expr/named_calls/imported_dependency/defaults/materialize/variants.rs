@@ -1,6 +1,23 @@
 use super::*;
 
 impl Lowerer {
+    pub(super) fn materialize_imported_variant(
+        &mut self,
+        variant: &hir::DefaultEnumVariantRefV1,
+        context: &ImportedDefaultContext<'_>,
+    ) -> Result<hir::EnumVariantApplication, ImportedDefaultMaterializationError> {
+        let ty = self.materialize_imported_default_type(variant.owner_type(), context)?;
+        let hir::Type::Enum(owner) = self.types[ty] else {
+            return Err(ImportedDefaultMaterializationError::Plan(
+                "variant owner must be an enum".into(),
+            ));
+        };
+        Ok(hir::EnumVariantApplication {
+            owner,
+            variant: variant.declaration(),
+        })
+    }
+
     pub(super) fn materialize_imported_variant_field(
         &mut self,
         field: &hir::DefaultEnumVariantFieldRefV1,
@@ -29,7 +46,10 @@ impl Lowerer {
             )
         })?;
         Ok(hir::EnumVariantFieldApplication {
-            variant: hir::EnumVariantApplication { owner, variant },
+            variant: hir::EnumVariantApplication {
+                owner: application,
+                variant,
+            },
             field: field.declaration(),
         })
     }

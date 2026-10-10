@@ -15,15 +15,15 @@ impl Lowerer {
         self.types.alloc(candidate)
     }
 
-    /// Intern one complete function signature and return its ordinary HIR
-    /// type. The signature arena and the surrounding `Type` arena are both
+    /// Intern one complete function signature and retain its dedicated id.
+    /// The signature arena and the surrounding `Type` arena are both
     /// canonical, so equal source spellings share both ids.
     pub(crate) fn intern_function_type(
         &mut self,
         is_suspend: bool,
         parameter_types: Vec<TypeId>,
         return_type: TypeId,
-    ) -> TypeId {
+    ) -> hir::FunctionTypeId {
         let existing = self.function_types.iter().find_map(|(id, candidate)| {
             (candidate.is_suspend == is_suspend
                 && candidate.parameter_types == parameter_types
@@ -31,7 +31,7 @@ impl Lowerer {
                 .then_some(id)
         });
         if let Some(function) = existing {
-            return self.function_types[function].canonical_type;
+            return function;
         }
 
         let expected_function = hir::FunctionTypeId::from_raw(
@@ -47,14 +47,14 @@ impl Lowerer {
             return_type,
         });
         assert_eq!(function, expected_function);
-        canonical_type
+        function
     }
 
     pub(super) fn instantiate_function_type(
         &mut self,
         id: hir::FunctionTypeId,
         mut substitute: impl FnMut(&mut Self, TypeId) -> Option<TypeId>,
-    ) -> Option<TypeId> {
+    ) -> Option<hir::FunctionTypeId> {
         let function = self.function_types[id].clone();
         let mut parameter_types = Vec::with_capacity(function.parameter_types.len());
         for parameter in function.parameter_types {

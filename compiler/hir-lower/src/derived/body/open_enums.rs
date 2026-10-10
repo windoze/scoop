@@ -3,14 +3,14 @@ use super::*;
 impl Lowerer {
     pub(super) fn build_open_enum_equality(
         &mut self,
-        ty: hir::TypeId,
+        application: hir::EnumApplicationId,
         lhs: hir::Expr,
         rhs: hir::Expr,
         span: ast::Span,
         stack: &mut Vec<hir::TypeId>,
     ) -> Result<hir::Expr, String> {
         let mut cases = Vec::new();
-        for variant in self.enum_variants(ty) {
+        for variant in self.enum_variants(application) {
             let target = variant.application;
             let mut comparisons = [lhs.clone(), rhs.clone()]
                 .into_iter()

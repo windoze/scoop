@@ -61,9 +61,6 @@ impl Lowerer {
             parameter_types.to_vec(),
             result_type,
         );
-        let hir::Type::Function(signature) = self.types[signature] else {
-            unreachable!("an interned bound signature is a function type")
-        };
         let hir::Type::Interface(bound) = self.types[interface] else {
             return Err("a bound member retains its declared interface application".into());
         };

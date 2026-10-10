@@ -430,9 +430,7 @@ fn alias_qualified_patterns_preserve_the_exact_generic_application() {
         let hir::Pattern::Variant { application, .. } = case_pattern(arm) else {
             panic!("each IntChoice arm must be a variant pattern")
         };
-        let hir::Type::Enum(owner) = module.types[application.owner] else {
-            panic!("the variant retains its complete enum owner")
-        };
+        let owner = application.owner;
         assert_eq!(
             module.enum_applications[owner].arguments,
             vec![int_type(&module)]

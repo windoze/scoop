@@ -32,10 +32,7 @@ impl Lowerer {
                 self.materialize_imported_default_type(result, context)?
             }
         };
-        let native = self.intern_function_type(false, parameters, result);
-        let hir::Type::Function(native_function_type) = self.types[native] else {
-            unreachable!("function interning produces a function type")
-        };
+        let native_function_type = self.intern_function_type(false, parameters, result);
         let closure = self.materialize_imported_default_expression(closure, context)?;
         let hir::Type::Function(managed_function_type) = self.types[closure.ty] else {
             return Err(ImportedDefaultMaterializationError::Plan(

@@ -24,9 +24,7 @@ fn assert_variant(module: &hir::Module, expression: &hir::Expr, owner: &str, nam
         .enum_member_identities
         .variant_declaration(variant.variant)
         .expect("the construction retains its original variant");
-    let hir::Type::Enum(application) = module.types[variant.owner] else {
-        panic!("the construction retains its complete enum owner")
-    };
+    let application = variant.owner;
     assert_eq!(
         module.enum_applications[application].template,
         module.nominal_identities[declaration.enumeration()].declaration_id()

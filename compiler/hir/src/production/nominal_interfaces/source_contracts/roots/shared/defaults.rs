@@ -72,12 +72,16 @@ impl SourceRoots {
                         .enum_member_identities
                         .variant_declaration(variant.variant)
                     else {
-                        roots.require_field_type(export, index, variant.owner)?;
+                        roots.require_field_type(
+                            export,
+                            index,
+                            export.enum_applications[variant.owner].canonical_type,
+                        )?;
                         continue;
                     };
                     (
                         ExportParameterOwner::VariantConstructor(declaration),
-                        variant.owner,
+                        export.enum_applications[variant.owner].canonical_type,
                     )
                 }
             };
