@@ -13,6 +13,8 @@ use crate::{
 
 mod decoded;
 mod indexed;
+mod loop_target;
+pub use loop_target::DefaultLoopTargetV1;
 
 pub use decoded::{DecodedDefaultStatementV1, DefaultStatementResolutionError};
 
@@ -74,8 +76,8 @@ pub enum DefaultStatementKindV1 {
         condition: Box<DefaultExpressionV1>,
         body: Vec<DefaultStatementV1>,
     },
-    Break,
-    Continue,
+    Break(DefaultLoopTargetV1),
+    Continue(DefaultLoopTargetV1),
     When(Box<DefaultWhenV1>),
     Try(Box<DefaultTryV1>),
     Throw(Box<DefaultExpressionV1>),
@@ -139,8 +141,8 @@ fn validate_kind(kind: &DefaultStatementKindV1) -> Result<(), DefaultStatementBu
         | DefaultStatementKindV1::Return(_)
         | DefaultStatementKindV1::ValDecl { .. }
         | DefaultStatementKindV1::Assign { .. }
-        | DefaultStatementKindV1::Break
-        | DefaultStatementKindV1::Continue
+        | DefaultStatementKindV1::Break(_)
+        | DefaultStatementKindV1::Continue(_)
         | DefaultStatementKindV1::When(_)
         | DefaultStatementKindV1::Try(_)
         | DefaultStatementKindV1::Throw(_) => {}

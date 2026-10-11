@@ -1,0 +1,1 @@
+fun main() { outer@ while (true) { val f: () -> Unit = { continue@outer }; break } }

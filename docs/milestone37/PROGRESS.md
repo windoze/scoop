@@ -39,3 +39,13 @@ if/else/while/for 使用同一个控制体入口，单语句形成保留源码�
 本机 workspace fmt/clippy（release）通过；parser 486 项、identity 341 项、HIR 890 项、HIR lower 1,398 项及 2 个 doc-test 通过；提交前另补验限定 enum variant 与同名顶层 Array 构造器保持独立推导的回归。新增名称用例含 4 个正向 fixture（其中跨 Cone 产物链 1 个）和 9 个 negative fixture；普通 CLI 比较连同 2 个 M29 属性与静态产物回归共 15/15 通过，18 个配置、38 个进程、26 个 HIR/MIR/LIR golden。覆盖 debug/release、UTF-8 位置、码点不规范化、关键字/空格/点号/反斜杠名称、泛型与别名、接口/继承/引用、注解路径、重导出、仅产物消费与 moving GC。
 
 报告见 [03-names-darwin.json](validation/03-names-darwin.json)。已清理之前完成的 fixture cases（52.1 MiB），并在确认没有 Rust 构建运行后清理闲置的 debug incremental（14.7 GiB）；保留 release 依赖与增量 fixture 缓存。Linux LLVM 22.1.2 的实际前缀已确认为 `/usr/lib/llvm-22`，最终验证将显式配置，避免系统默认 LLVM 21.1。
+
+### 4. 循环标签与 break/continue 表达式（完成）
+
+while/for 支持 Unicode 与反引号标签、最近同名标签遮蔽及当前 callable 内的目标解析。标签与值名称独立；while 条件位于自身循环控制区内，for iterable 在进入自身控制区前求值。break/continue 在 Elvis、调用参数、数组元素等表达式位置产生 Nothing，并保留已执行的副作用；未知、越界、跨 callable 及不可达代码中的非法目标均诊断。
+
+HIR 使用既有 LoopId；默认参数和泛型产物保存类型化的包围循环距离，实例化时重新分配目标。无标签 tag 10/11 的原编码不变，非零距离增加字段，reader 检查实际嵌套。默认 body 的控制流合并按目标保存 abrupt outcome，内层循环不会吞掉外层跳转；concretization、MIR 及 finally/Context/协程清理均按实际目标执行。标签解析模块 57 行、目标编码模块 58 行，旧固定四槽控制结果改为实际目标映射后减少了重复代码。
+
+本机 workspace fmt/clippy（release）通过；parser 489、HIR 893、HIR lower 1,399、MIR lower 118、slib 560 项 Rust 测试和 1 项 doc-test 通过。更新了旧编码负例及直接构造 HIR 的 MIR 测试声明名称，原有分派断言保持不变。16 个新增 fixture（5 个正向、11 个 negative）连同 4 个回归共 20/20 普通比较通过，25 个配置、53 个进程、43 个 HIR/MIR/LIR golden。覆盖外层 break/continue、同名遮蔽、条件 setup、求值顺序、finally 覆盖与嵌套 finally 循环、Context 还原、挂起/恢复、moving GC，以及含默认参数的泛型 provider → bridge → consumer 仅产物链。
+
+报告见 [04-loop-jumps-darwin.json](validation/04-loop-jumps-darwin.json)。审阅了 HIR 的外层目标及 bridge 默认参数中的重新映射；既有 M22 循环组合与 M35 return/throw 操作数和清理快照保持不变。完成后清理本批已通过的 fixture 工作目录，保留共用缓存、sysroot 和报告。

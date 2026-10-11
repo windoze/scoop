@@ -3,7 +3,7 @@ use std::fmt;
 use scoop_identity::PersistentInitializationUnitId;
 use scoop_wire::{Encoder, WireEncode};
 
-use super::{DefaultStatementKindV1, DefaultStatementV1};
+use super::{DefaultLoopTargetV1, DefaultStatementKindV1, DefaultStatementV1};
 use crate::{
     DefaultAssignTargetIndexError, DefaultExpressionIndexError, DefaultLocalFunctionIndexError,
     DefaultPatternIndexError, ExportDefinitionSourceV1, IndexedDefaultAssignTargetV1,
@@ -51,8 +51,8 @@ enum IndexedDefaultStatementKindV1<'a> {
         condition: IndexedDefaultExpressionV1<'a>,
         body: Vec<IndexedDefaultStatementV1<'a>>,
     },
-    Break,
-    Continue,
+    Break(DefaultLoopTargetV1),
+    Continue(DefaultLoopTargetV1),
     When(IndexedDefaultWhenV1<'a>),
     Try(IndexedDefaultTryV1<'a>),
     Throw(IndexedDefaultExpressionV1<'a>),
@@ -131,8 +131,10 @@ impl DefaultStatementV1 {
                 condition: index_expression(condition, resolver, 8, 2)?,
                 body: index_statements(body, resolver, 8, 3)?,
             },
-            DefaultStatementKindV1::Break => IndexedDefaultStatementKindV1::Break,
-            DefaultStatementKindV1::Continue => IndexedDefaultStatementKindV1::Continue,
+            DefaultStatementKindV1::Break(target) => IndexedDefaultStatementKindV1::Break(*target),
+            DefaultStatementKindV1::Continue(target) => {
+                IndexedDefaultStatementKindV1::Continue(*target)
+            }
             DefaultStatementKindV1::When(value) => {
                 IndexedDefaultStatementKindV1::When(value.index_locals(resolver).map_err(
                     |error| DefaultStatementIndexError::ControlFlow {
@@ -206,8 +208,8 @@ impl WireEncode for IndexedDefaultStatementKindV1<'_> {
                 condition,
                 body,
             } => encode_while(encoder, condition_setup, condition, body),
-            Self::Break => encode_empty(encoder, 10),
-            Self::Continue => encode_empty(encoder, 11),
+            Self::Break(target) => target.encode_jump(encoder, 10),
+            Self::Continue(target) => target.encode_jump(encoder, 11),
             Self::When(value) => encode_one(encoder, 12, value),
             Self::Try(value) => encode_one(encoder, 13, value),
             Self::Throw(value) => encode_one(encoder, 14, value),
@@ -321,11 +323,6 @@ where
         })?);
     }
     Ok(indexed)
-}
-
-fn encode_empty(encoder: &mut Encoder, tag: u64) -> Result<(), scoop_wire::cbor::EncodeError> {
-    encoder.map(1)?;
-    encode_tag(encoder, tag)
 }
 
 fn encode_one(

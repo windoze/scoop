@@ -1,0 +1,27 @@
+fun nested(): Int {
+    var sum = 0
+    outer@ for (a in [1, 2, 3]) {
+        var b = 0
+        while (b < 3) {
+            b += 1
+            if (a == 1 && b == 2) continue@outer
+            if (a == 3 && b == 2) break@outer
+            sum += a * 10 + b
+        }
+    }
+    return sum
+}
+fun main() {
+    println(nested())
+    val same = 7
+    same@ while (true) {
+        same@ while (true) break@same
+        println(same)
+        break@same
+    }
+    `外.层`@ while (true) {
+        while (if (true) { break@`外.层` } else { true }) {}
+    }
+    self@ while (if (true) { break@self } else { true }) {}
+    println(9)
+}

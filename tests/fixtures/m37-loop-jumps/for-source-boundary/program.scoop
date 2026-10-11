@@ -1,0 +1,2 @@
+fun items(): Array<Int>? = None
+fun main() { self@ for (item in items() ?: break@self) println(item) }

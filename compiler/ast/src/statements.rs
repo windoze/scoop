@@ -40,10 +40,12 @@ pub enum StatementKind {
     While(While),
     /// `for (pattern in iterable) { ... }` (spec 8.7 / 11.8).
     For(For),
-    /// Unlabelled loop-control jumps. Their source spans live on the
-    /// containing [`Statement`], like the payload-free form of `return`.
-    Break,
-    Continue,
+    Break {
+        label: Option<Ident>,
+    },
+    Continue {
+        label: Option<Ident>,
+    },
     Block(Block),
     /// A lexical safety override. Unlike annotations on declarations, this is
     /// a dedicated syntax node and cannot be mistaken for a function call.
@@ -207,6 +209,7 @@ pub struct If {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct While {
+    pub label: Option<Ident>,
     pub cond: Expr,
     pub body: Block,
     pub span: Span,
@@ -214,8 +217,24 @@ pub struct While {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct For {
+    pub label: Option<Ident>,
     pub pattern: Pattern,
     pub iterable: Expr,
     pub body: Block,
     pub span: Span,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LoopJumpKind {
+    Break,
+    Continue,
+}
+
+impl LoopJumpKind {
+    pub const fn keyword(self) -> &'static str {
+        match self {
+            Self::Break => "break",
+            Self::Continue => "continue",
+        }
+    }
 }

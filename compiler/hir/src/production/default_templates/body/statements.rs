@@ -89,12 +89,10 @@ impl BodyProjection<'_, '_> {
                 projected?
             }
             StatementKind::Break { target } => {
-                self.require_innermost_loop("break", *target)?;
-                DefaultStatementKindV1::Break
+                DefaultStatementKindV1::Break(self.loop_target_depth("break", *target)?)
             }
             StatementKind::Continue { target } => {
-                self.require_innermost_loop("continue", *target)?;
-                DefaultStatementKindV1::Continue
+                DefaultStatementKindV1::Continue(self.loop_target_depth("continue", *target)?)
             }
             StatementKind::When(when) => DefaultStatementKindV1::When(Box::new(self.when(when)?)),
             StatementKind::Try(try_) => DefaultStatementKindV1::Try(Box::new(self.try_(try_)?)),
@@ -185,21 +183,24 @@ impl BodyProjection<'_, '_> {
         }
     }
 
-    fn require_innermost_loop(
+    fn loop_target_depth(
         &self,
         control: &'static str,
         target: crate::LoopId,
-    ) -> Result<(), super::super::DefaultBodyProjectionError> {
-        let Some(expected) = self.loops.last() else {
-            return Err(super::super::DefaultBodyProjectionError::LoopControlOutsideLoop(control));
-        };
-        if *expected != target {
-            return Err(super::super::DefaultBodyProjectionError::NonInnermostLoop {
-                control,
-                expected: expected.into_raw(),
-                actual: target.into_raw(),
-            });
-        }
-        Ok(())
+    ) -> Result<crate::DefaultLoopTargetV1, super::super::DefaultBodyProjectionError> {
+        let depth = self
+            .loops
+            .iter()
+            .rev()
+            .position(|active| *active == target)
+            .ok_or(
+                super::super::DefaultBodyProjectionError::UnknownLoopTarget {
+                    control,
+                    target: target.into_raw(),
+                },
+            )?;
+        Ok(crate::DefaultLoopTargetV1::new(
+            u32::try_from(depth).expect("loop nesting cannot exceed the LoopId space"),
+        ))
     }
 }

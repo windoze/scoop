@@ -98,7 +98,11 @@ pub(super) fn fixture(case: Case) -> CallableSourceSurface {
         ],
         Case::BreakOutsideLoop => vec![
             declaration,
-            DefaultStatementV1::try_new(DefaultStatementKindV1::Break, origin.clone()).unwrap(),
+            DefaultStatementV1::try_new(
+                DefaultStatementKindV1::Break(scoop_hir::DefaultLoopTargetV1::INNERMOST),
+                origin.clone(),
+            )
+            .unwrap(),
         ],
     };
     let key = ExportDefaultTemplateKeyV1::new(fixture.owner, 0);

@@ -342,14 +342,12 @@ impl BodyLowerer<'_> {
     }
 
     fn active_loop(&self, target: hir::LoopId) -> smir::LoopId {
-        let (source, lowered) = self
+        let (_, lowered) = self
             .active_loops
-            .last()
+            .iter()
+            .rev()
+            .find(|(source, _)| *source == target)
             .expect("concrete HIR binds every break/continue inside an active loop");
-        assert_eq!(
-            *source, target,
-            "unlabelled break/continue targets the lexical innermost loop"
-        );
         *lowered
     }
 }

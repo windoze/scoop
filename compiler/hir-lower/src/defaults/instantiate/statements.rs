@@ -82,25 +82,21 @@ impl Lowerer {
                 }
             }
             hir::StatementKind::Break { target } => {
-                let &(source, mapped) = context
+                let &(_, mapped) = context
                     .loop_targets
-                    .last()
+                    .iter()
+                    .rev()
+                    .find(|(source, _)| source == target)
                     .expect("a default-template break has an active loop target");
-                assert_eq!(
-                    source, *target,
-                    "an unlabelled break targets the innermost loop"
-                );
                 hir::StatementKind::Break { target: mapped }
             }
             hir::StatementKind::Continue { target } => {
-                let &(source, mapped) = context
+                let &(_, mapped) = context
                     .loop_targets
-                    .last()
+                    .iter()
+                    .rev()
+                    .find(|(source, _)| source == target)
                     .expect("a default-template continue has an active loop target");
-                assert_eq!(
-                    source, *target,
-                    "an unlabelled continue targets the innermost loop"
-                );
                 hir::StatementKind::Continue { target: mapped }
             }
             hir::StatementKind::When(when) => {

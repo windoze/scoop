@@ -159,6 +159,7 @@ pub(crate) fn if_stmt(
 pub(crate) fn while_stmt(cond: Expr, body: Vec<Statement>) -> Statement {
     Statement {
         kind: StatementKind::While(ast::While {
+            label: None,
             cond,
             body: block(body),
             span: sp(),

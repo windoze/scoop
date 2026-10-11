@@ -36,6 +36,13 @@ pub(super) fn dump_expr(expr: &Expr, indent: usize, out: &mut String) {
                 dump_expr(value, indent + 1, out);
             }
         }
+        Expr::LoopJump { kind, label, .. } => {
+            out.push_str(&format!(
+                "{pad}{}{}\n",
+                kind.keyword(),
+                super::statements::dump_label(label.as_ref())
+            ));
+        }
         Expr::Throw { value, .. } => {
             out.push_str(&format!("{pad}Throw\n"));
             dump_expr(value, indent + 1, out);

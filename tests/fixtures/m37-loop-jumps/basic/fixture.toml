@@ -1,0 +1,33 @@
+schema = 1
+name = "m37-loop-jumps-basic"
+root = "program.scoop"
+inputs = ["program.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["m37", "loop-jumps", "positive"]
+variants = [{name = "debug", vars = {profile = "debug"}}, {name = "release", vars = {profile = "release"}}]
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${root}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "--profile", "${profile}", "--emit", "all", "--dump-dir", "${work}/dump"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{file = "${work}/dump/${build.result.root.identity}/hir.txt", snapshot = "program.${profile}.hir.txt"}, {file = "${work}/dump/${build.result.root.identity}/mir.txt", snapshot = "program.${profile}.mir.txt"}, {file = "${work}/dump/${build.result.root.identity}/lir.txt", snapshot = "program.${profile}.lir.txt"}]
+
+[[steps]]
+name = "run"
+argv = ["${build.result.output}"]
+exit = 0
+stdout = "108\n7\n9\n"
+stderr = ""
+
+[[steps]]
+name = "moving"
+argv = ["${build.result.output}"]
+env = {SCOOP_GC_STRESS_MOVE = "1"}
+exit = 0
+stdout = "108\n7\n9\n"
+stderr = ""

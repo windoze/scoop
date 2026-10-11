@@ -5,7 +5,9 @@ use scoop_identity::{
 };
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind};
 
-use super::{DefaultStatementBuildError, DefaultStatementKindV1, DefaultStatementV1};
+use super::{
+    DefaultLoopTargetV1, DefaultStatementBuildError, DefaultStatementKindV1, DefaultStatementV1,
+};
 use crate::{
     DecodedDefaultAssignTargetV1, DecodedDefaultExpressionV1, DecodedDefaultLocalFunctionV1,
     DecodedDefaultPatternV1, DecodedExportDefinitionSourceV1, DecodedOptionalDefaultExpressionV1,
@@ -54,8 +56,8 @@ enum DecodedDefaultStatementKindV1 {
         condition: Box<DecodedDefaultExpressionV1>,
         body: Vec<DecodedDefaultStatementV1>,
     },
-    Break,
-    Continue,
+    Break(DefaultLoopTargetV1),
+    Continue(DefaultLoopTargetV1),
     When(Box<DecodedDefaultWhenV1>),
     Try(Box<DecodedDefaultTryV1>),
     Throw(Box<DecodedDefaultExpressionV1>),
@@ -163,8 +165,10 @@ impl DecodedDefaultStatementV1 {
                     body: resolve_statements(body, resolver, locals, 8, 3)?,
                 }
             }
-            DecodedDefaultStatementKindV1::Break => DefaultStatementKindV1::Break,
-            DecodedDefaultStatementKindV1::Continue => DefaultStatementKindV1::Continue,
+            DecodedDefaultStatementKindV1::Break(target) => DefaultStatementKindV1::Break(target),
+            DecodedDefaultStatementKindV1::Continue(target) => {
+                DefaultStatementKindV1::Continue(target)
+            }
             DecodedDefaultStatementKindV1::When(value) => {
                 DefaultStatementKindV1::When(Box::new(value.resolve(resolver, locals).map_err(
                     |error| DefaultStatementResolutionError::ControlFlow {
@@ -240,8 +244,8 @@ impl WireEncode for DecodedDefaultStatementKindV1 {
                 condition,
                 body,
             } => encode_while(encoder, condition_setup, condition.as_ref(), body),
-            Self::Break => encode_empty(encoder, 10),
-            Self::Continue => encode_empty(encoder, 11),
+            Self::Break(target) => target.encode_jump(encoder, 10),
+            Self::Continue(target) => target.encode_jump(encoder, 11),
             Self::When(value) => encode_one(encoder, 12, value.as_ref()),
             Self::Try(value) => encode_one(encoder, 13, value.as_ref()),
             Self::Throw(value) => encode_one(encoder, 14, value.as_ref()),
@@ -321,14 +325,8 @@ impl WireDecode for DecodedDefaultStatementKindV1 {
                     body: decoder.field(3, decode_statements)?,
                 })
             }
-            10 => {
-                expect_sum_length(decoder, fields, 1)?;
-                Ok(Self::Break)
-            }
-            11 => {
-                expect_sum_length(decoder, fields, 1)?;
-                Ok(Self::Continue)
-            }
+            10 => DefaultLoopTargetV1::decode_jump(decoder, fields).map(Self::Break),
+            11 => DefaultLoopTargetV1::decode_jump(decoder, fields).map(Self::Continue),
             12 => {
                 expect_sum_length(decoder, fields, 2)?;
                 decoder
@@ -523,11 +521,6 @@ fn decode_statements(
     decoder: &mut Decoder<'_>,
 ) -> Result<Vec<DecodedDefaultStatementV1>, WireError> {
     decoder.decode_array(|decoder, _| DecodedDefaultStatementV1::decode(decoder))
-}
-
-fn encode_empty(encoder: &mut Encoder, tag: u64) -> Result<(), scoop_wire::cbor::EncodeError> {
-    encoder.map(1)?;
-    encode_tag(encoder, tag)
 }
 
 fn encode_one(

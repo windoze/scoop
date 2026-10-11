@@ -132,14 +132,14 @@ impl Lowerer {
             }
             ast::StatementKind::While(while_) => {
                 let target = self.fresh_loop();
-                self.loop_targets.push(target);
+                self.push_loop(target, while_.label.as_ref());
                 let mut sink = Vec::new();
                 let Some(cond) = self.lower_condition(&while_.cond, "while", &mut sink) else {
-                    assert_eq!(self.loop_targets.pop(), Some(target));
+                    self.pop_loop(target);
                     return;
                 };
                 let body = self.lower_block(&while_.body);
-                assert_eq!(self.loop_targets.pop(), Some(target));
+                self.pop_loop(target);
                 hir::StatementKind::While {
                     target,
                     condition_setup: sink,
@@ -153,25 +153,23 @@ impl Lowerer {
                 }
                 return;
             }
-            ast::StatementKind::Break => {
-                let Some(&target) = self.loop_targets.last() else {
-                    self.error(
-                        statement.span,
-                        "`break` is only allowed inside a loop".into(),
-                    );
+            ast::StatementKind::Break { label } => {
+                let Some(jump) =
+                    self.lower_loop_jump(ast::LoopJumpKind::Break, label.as_ref(), statement.span)
+                else {
                     return;
                 };
-                hir::StatementKind::Break { target }
+                jump
             }
-            ast::StatementKind::Continue => {
-                let Some(&target) = self.loop_targets.last() else {
-                    self.error(
-                        statement.span,
-                        "`continue` is only allowed inside a loop".into(),
-                    );
+            ast::StatementKind::Continue { label } => {
+                let Some(jump) = self.lower_loop_jump(
+                    ast::LoopJumpKind::Continue,
+                    label.as_ref(),
+                    statement.span,
+                ) else {
                     return;
                 };
-                hir::StatementKind::Continue { target }
+                jump
             }
             ast::StatementKind::Block(block) => {
                 self.push_scope();

@@ -207,14 +207,12 @@ impl Concretizer<'_> {
         source: export::LoopId,
         operation: &str,
     ) -> concrete::LoopId {
-        let &(expected, mapped) = loops
+        let &(_, mapped) = loops
             .active
-            .last()
+            .iter()
+            .rev()
+            .find(|(target, _)| *target == source)
             .unwrap_or_else(|| panic!("a concrete {operation} requires an active loop target"));
-        assert_eq!(
-            expected, source,
-            "an unlabelled {operation} targets the innermost loop"
-        );
         mapped
     }
 

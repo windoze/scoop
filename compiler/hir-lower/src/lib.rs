@@ -861,7 +861,7 @@ pub(crate) struct Lowerer {
     /// Lexically active loop targets in the current callable or detached
     /// declaration-bound expression. Callable boundaries replace this with an
     /// empty stack and restore the enclosing stack on exit.
-    pub(crate) loop_targets: Vec<hir::LoopId>,
+    pub(crate) loop_targets: Vec<stmt::ActiveLoop>,
     /// Active nested callable capture analyses. The outer callable remains
     /// on the stack while an inner one is lowered so transitive captures can
     /// be propagated without reading an exited native stack frame.

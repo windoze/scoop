@@ -20,7 +20,7 @@ pub use control_flow::{
     OptionalDefaultStatementListV1, OptionalDefaultStatementListViewV1, OptionalDefaultWhenGuardV1,
 };
 pub use tree::{
-    DecodedDefaultStatementV1, DefaultStatementBuildError, DefaultStatementIndexError,
-    DefaultStatementKindV1, DefaultStatementReferenceResolver, DefaultStatementResolutionError,
-    DefaultStatementV1, IndexedDefaultStatementV1,
+    DecodedDefaultStatementV1, DefaultLoopTargetV1, DefaultStatementBuildError,
+    DefaultStatementIndexError, DefaultStatementKindV1, DefaultStatementReferenceResolver,
+    DefaultStatementResolutionError, DefaultStatementV1, IndexedDefaultStatementV1,
 };

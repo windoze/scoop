@@ -116,8 +116,11 @@ fn block_loop_jumps_keep_keyword_spans() {
     };
     let break_statement = &while_.body.statements[0];
     let continue_statement = &while_.body.statements[1];
-    assert!(matches!(&break_statement.kind, StatementKind::Break));
-    assert!(matches!(&continue_statement.kind, StatementKind::Continue));
+    assert!(matches!(&break_statement.kind, StatementKind::Break { .. }));
+    assert!(matches!(
+        &continue_statement.kind,
+        StatementKind::Continue { .. }
+    ));
     let break_start = source.find("break").unwrap() as u32;
     let continue_start = source.find("continue").unwrap() as u32;
     assert_eq!(
@@ -143,11 +146,11 @@ fn unbraced_if_branches_keep_loop_jumps() {
     };
     assert!(matches!(
         if_.then_block.statements.as_slice(),
-        [statement] if matches!(&statement.kind, StatementKind::Break)
+        [statement] if matches!(&statement.kind, StatementKind::Break { .. })
     ));
     assert!(matches!(
         if_.else_block.as_ref().unwrap().statements.as_slice(),
-        [statement] if matches!(&statement.kind, StatementKind::Continue)
+        [statement] if matches!(&statement.kind, StatementKind::Continue { .. })
     ));
 
     ok("fun main() { if (ready) work() else rest() }");
@@ -164,7 +167,7 @@ fn value_if_may_use_a_direct_jump_as_its_terminating_branch() {
     };
     assert!(matches!(
         if_.then_block.statements.as_slice(),
-        [statement] if matches!(&statement.kind, StatementKind::Break)
+        [statement] if matches!(&statement.kind, StatementKind::Break { .. })
     ));
 }
 
@@ -181,11 +184,11 @@ fn when_single_statement_bodies_accept_loop_jumps() {
     };
     assert!(matches!(
         when.arms[0].body.statements.as_slice(),
-        [statement] if matches!(&statement.kind, StatementKind::Break)
+        [statement] if matches!(&statement.kind, StatementKind::Break { .. })
     ));
     assert!(matches!(
         when.else_body.as_ref().unwrap().statements.as_slice(),
-        [statement] if matches!(&statement.kind, StatementKind::Continue)
+        [statement] if matches!(&statement.kind, StatementKind::Continue { .. })
     ));
 }
 
@@ -247,71 +250,9 @@ fn malformed_for_recovery_reaches_later_statements_and_declarations() {
 }
 
 #[test]
-fn labeled_jumps_and_loops_remain_unsupported() {
-    for (source, expected_span, expected) in [
-        (
-            "fun main() { break@outer }",
-            "break@outer",
-            "`break` labels are not supported in M22",
-        ),
-        (
-            "fun main() { continue@outer }",
-            "continue@outer",
-            "`continue` labels are not supported in M22",
-        ),
-        (
-            "fun main() { return@outer }",
-            "return@outer",
-            "`return` labels are not supported in M22",
-        ),
-        (
-            "fun main() { outer@ while (ready) {} }",
-            "outer@",
-            "loop labels are not supported in M22",
-        ),
-        (
-            "fun main() { outer@ for (item in items) {} }",
-            "outer@",
-            "loop labels are not supported in M22",
-        ),
-    ] {
-        let (span, message) = err(source);
-        let start = source.find(expected_span).unwrap() as u32;
-        assert_eq!(
-            span,
-            Span::new(start, start + expected_span.len() as u32),
-            "{source}"
-        );
-        assert_eq!(message, expected, "{source}");
-    }
-}
-
-#[test]
-fn general_jump_expressions_remain_unsupported() {
-    for source in [
-        "fun main() { val value = other ?: break }",
-        "fun main() { call(continue) }",
-        "fun main() { val value = (break) }",
-        "fun main() { val value = left break right }",
-        "fun main() { break + 1 }",
-        "fun main() { continue.member }",
-        "fun main() { break() }",
-        "fun main() { if (ready) break + 1 }",
-        "fun main() { when (state) { else -> continue.member } }",
-    ] {
-        let (span, message) = err(source);
-        let (jump, expected) = if source.contains("continue") {
-            (
-                "continue",
-                "`continue` jump expressions are not supported in M22",
-            )
-        } else {
-            ("break", "`break` jump expressions are not supported in M22")
-        };
-        let start = source.find(jump).unwrap() as u32;
-        assert_eq!(span, Span::new(start, start + jump.len() as u32));
-        assert_eq!(message, expected);
-    }
+fn return_labels_are_rejected_before_callable_label_lowering() {
+    let (_, message) = err("fun main() { return@outer }");
+    assert_eq!(message, "`return` labels are not supported in M22");
 }
 
 #[test]

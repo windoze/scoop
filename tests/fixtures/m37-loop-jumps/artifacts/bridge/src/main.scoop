@@ -1,0 +1,3 @@
+package bridge
+public import jumps.*
+public fun <T> forwarded(value: T): T = choose(value)

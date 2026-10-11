@@ -88,17 +88,6 @@ impl Parser {
             if self.at_arm_body_newline() {
                 break;
             }
-            if !self.peek().newline_before
-                && matches!(self.peek().kind, TokenKind::Break | TokenKind::Continue)
-            {
-                let token = self.peek();
-                let name = if matches!(&token.kind, TokenKind::Break) {
-                    "break"
-                } else {
-                    "continue"
-                };
-                return Err(loop_jump_expression_diagnostic(name, token.span));
-            }
             // Elvis is right-associative; every other binary/infix source
             // form in this table is left-associative.
             if matches!(self.peek().kind, TokenKind::QuestionColon) {
@@ -260,11 +249,4 @@ impl Parser {
             && matches!(next.kind, TokenKind::Is)
             && next.span.start == self.peek().span.end
     }
-}
-
-pub(crate) fn loop_jump_expression_diagnostic(name: &str, span: Span) -> Diagnostic {
-    Diagnostic::at(
-        span,
-        format!("`{name}` jump expressions are not supported in M22"),
-    )
 }

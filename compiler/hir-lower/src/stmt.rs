@@ -50,6 +50,8 @@ mod body;
 mod compound_assignments;
 mod exceptions;
 mod flow;
+mod loops;
+pub(crate) use loops::ActiveLoop;
 mod iteration;
 mod jumps;
 mod local_functions;

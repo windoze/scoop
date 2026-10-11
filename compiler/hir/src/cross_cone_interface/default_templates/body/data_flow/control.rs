@@ -5,7 +5,7 @@ use crate::{
 };
 
 use super::{
-    AbruptOutcomes, DefaultLocalDataFlowSiteV1, DefaultLoopControlV1,
+    AbruptOutcomes, ControlOutcome, DefaultLocalDataFlowSiteV1, DefaultLoopControlV1,
     ExportDefaultLocalDataFlowValidationError, Flow, Region, Validator,
 };
 
@@ -64,7 +64,7 @@ impl Validator<'_> {
             }
             DefaultStatementKindV1::Return(value) => {
                 self.validate_expression(value, &available, reachable)?;
-                self.abrupt_flow(available, DefaultLoopControlV1::Return)
+                self.abrupt_flow(available, ControlOutcome::Return)
             }
             DefaultStatementKindV1::ValDecl { pattern, init } => {
                 self.validate_expression(init, &available, reachable)?;
@@ -123,20 +123,26 @@ impl Validator<'_> {
                 reachable,
                 region,
             ),
-            DefaultStatementKindV1::Break | DefaultStatementKindV1::Continue => {
-                let control = if matches!(statement.kind(), DefaultStatementKindV1::Break) {
+            DefaultStatementKindV1::Break(target) | DefaultStatementKindV1::Continue(target) => {
+                let control = if matches!(statement.kind(), DefaultStatementKindV1::Break(_)) {
                     DefaultLoopControlV1::Break
                 } else {
                     DefaultLoopControlV1::Continue
                 };
-                if region.loop_depth == 0 {
+                if u64::from(target.depth()) >= region.loop_depth {
                     return Err(
                         ExportDefaultLocalDataFlowValidationError::LoopControlOutsideLoop {
                             control,
                         },
                     );
                 }
-                self.abrupt_flow(available, control)
+                let level = region.loop_depth - 1 - u64::from(target.depth());
+                let outcome = if control == DefaultLoopControlV1::Break {
+                    ControlOutcome::Break(level)
+                } else {
+                    ControlOutcome::Continue(level)
+                };
+                self.abrupt_flow(available, outcome)
             }
             DefaultStatementKindV1::When(value) => {
                 self.validate_when(value, available, reachable, region)
@@ -146,7 +152,7 @@ impl Validator<'_> {
             }
             DefaultStatementKindV1::Throw(value) => {
                 self.validate_expression(value, &available, reachable)?;
-                self.abrupt_flow(available, DefaultLoopControlV1::Throw)
+                self.abrupt_flow(available, ControlOutcome::Throw)
             }
         }
     }
@@ -281,12 +287,14 @@ impl Validator<'_> {
         )?;
 
         let mut abrupt = condition_flow.abrupt;
-        let setup_breaks = abrupt.take(DefaultLoopControlV1::Break).is_some();
-        abrupt.take(DefaultLoopControlV1::Continue);
+        let setup_breaks = abrupt
+            .remove(&ControlOutcome::Break(region.loop_depth))
+            .is_some();
+        abrupt.remove(&ControlOutcome::Continue(region.loop_depth));
         if condition_flow.falls_through {
             let mut body_abrupt = body_flow.abrupt;
-            body_abrupt.take(DefaultLoopControlV1::Break);
-            body_abrupt.take(DefaultLoopControlV1::Continue);
+            body_abrupt.remove(&ControlOutcome::Break(region.loop_depth));
+            body_abrupt.remove(&ControlOutcome::Continue(region.loop_depth));
             self.merge_abrupt_outcomes(&mut abrupt, body_abrupt)?;
         }
         Ok(Flow {
@@ -514,7 +522,7 @@ impl Validator<'_> {
         } else {
             None
         };
-        for state in flow.abrupt.states() {
+        for state in flow.abrupt.values() {
             match &mut intersection {
                 None => intersection = Some(self.copy_bits(state)?),
                 Some(current) => self.intersect_bits(current, state)?,
@@ -538,15 +546,8 @@ impl Validator<'_> {
         if flow.falls_through {
             self.apply_additions(&mut flow.available, &additions)?;
         }
-        for outcome in [
-            DefaultLoopControlV1::Return,
-            DefaultLoopControlV1::Throw,
-            DefaultLoopControlV1::Break,
-            DefaultLoopControlV1::Continue,
-        ] {
-            if let Some(state) = flow.abrupt.slot_mut(outcome) {
-                self.apply_additions(state, &additions)?;
-            }
+        for state in flow.abrupt.values_mut() {
+            self.apply_additions(state, &additions)?;
         }
         Ok(())
     }

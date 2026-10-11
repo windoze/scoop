@@ -62,6 +62,21 @@ impl Harness {
         .unwrap();
         let name = if function == entry {
             "main".to_string()
+        } else if let Some(method) = declaration.method
+            && let hir::MethodDispatch::Interface(member) = method.dispatch
+            && self.interface_methods[member].function == function
+        {
+            let hir::Type::Interface(application) = self.types[method.owner] else {
+                unreachable!("an interface slot belongs to an interface")
+            };
+            let owner_name = &self.interfaces
+                [self.interface_id(self.interface_applications[application].template)]
+            .name;
+            declaration
+                .name
+                .strip_prefix(&format!("{owner_name}."))
+                .expect("the harness prefixes method display names with their owner")
+                .to_owned()
         } else {
             format!("fixture_function_{}", function.into_raw().into_u32())
         };

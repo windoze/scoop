@@ -3,7 +3,6 @@ use scoop_ast::{
     SafetyMode, Span, Statement, StatementKind, ValDecl, VisibilitySyntax,
 };
 
-use crate::expr::loop_jump_expression_diagnostic;
 use crate::lexer::{Token, TokenKind};
 use crate::parser::Parser;
 
@@ -79,8 +78,8 @@ impl Parser {
                 kind: StatementKind::LocalFunction(function),
             });
         }
-        if self.starts_unsupported_loop_label() {
-            return self.reject_loop_label();
+        if self.starts_loop_label() {
+            return self.parse_labeled_loop();
         }
         if self.starts_modified_local_function() {
             let function = self.parse_non_member_function(
@@ -297,37 +296,6 @@ impl Parser {
         })
     }
 
-    /// Parse the M22 payload-free, unlabelled `break` / `continue` statement.
-    /// Expression positions are rejected in `parse_atom`; direct `if` and
-    /// `when` branch bodies call this same routine and wrap its result in a
-    /// synthetic block.
-    pub(crate) fn parse_loop_jump(&mut self) -> Result<Statement, Diagnostic> {
-        let keyword = self.bump();
-        let name = match &keyword.kind {
-            TokenKind::Break => "break",
-            TokenKind::Continue => "continue",
-            _ => unreachable!("parse_loop_jump starts on break or continue"),
-        };
-        self.reject_jump_label(&keyword, name)?;
-        if !self.peek().newline_before
-            && !matches!(
-                self.peek().kind,
-                TokenKind::Semicolon | TokenKind::RBrace | TokenKind::Eof | TokenKind::Else
-            )
-        {
-            return Err(loop_jump_expression_diagnostic(name, keyword.span));
-        }
-        let kind = match name {
-            "break" => StatementKind::Break,
-            "continue" => StatementKind::Continue,
-            _ => unreachable!("checked loop jump spelling"),
-        };
-        Ok(Statement {
-            kind,
-            span: keyword.span,
-        })
-    }
-
     fn reject_jump_label(&mut self, keyword: &Token, name: &str) -> Result<(), Diagnostic> {
         if !matches!(self.peek().kind, TokenKind::At) {
             return Ok(());
@@ -348,7 +316,7 @@ impl Parser {
         ))
     }
 
-    fn starts_unsupported_loop_label(&self) -> bool {
+    fn starts_loop_label(&self) -> bool {
         if !matches!(
             self.peek().kind,
             TokenKind::Ident(_) | TokenKind::EscapedIdent(_)
@@ -367,13 +335,27 @@ impl Parser {
         })
     }
 
-    fn reject_loop_label(&mut self) -> Result<Statement, Diagnostic> {
-        let label = self.bump();
-        let at = self.bump();
-        Err(Diagnostic::at(
-            Span::new(label.span.start, at.span.end),
-            "loop labels are not supported in M22",
-        ))
+    fn parse_labeled_loop(&mut self) -> Result<Statement, Diagnostic> {
+        let label = self.expect_ident("loop label")?;
+        self.expect("`@`", |kind| matches!(kind, TokenKind::At))?;
+        let mut statement = match self.peek().kind {
+            TokenKind::While => self.parse_while()?,
+            TokenKind::For => self.parse_for()?,
+            _ => return self.unexpected("loop after label"),
+        };
+        statement.span.start = label.span.start;
+        match &mut statement.kind {
+            StatementKind::While(loop_) => {
+                loop_.span = statement.span;
+                loop_.label = Some(label);
+            }
+            StatementKind::For(loop_) => {
+                loop_.span = statement.span;
+                loop_.label = Some(label);
+            }
+            _ => unreachable!("a labeled loop is a while or for statement"),
+        }
+        Ok(statement)
     }
 }
 

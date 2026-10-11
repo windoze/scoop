@@ -152,17 +152,28 @@ fn dump_statement(statement: &Statement, indent: usize, out: &mut String) {
             dump_expr(expr, indent + 1, out);
         }
         StatementKind::While(while_) => {
-            out.push_str(&format!("{pad}while\n"));
+            out.push_str(&format!(
+                "{pad}while{}\n",
+                dump_label(while_.label.as_ref())
+            ));
             dump_expr(&while_.cond, indent + 1, out);
             dump_block(&while_.body, indent + 1, out);
         }
         StatementKind::For(for_) => {
-            out.push_str(&format!("{pad}for {}\n", dump_pattern(&for_.pattern)));
+            out.push_str(&format!(
+                "{pad}for{} {}\n",
+                dump_label(for_.label.as_ref()),
+                dump_pattern(&for_.pattern)
+            ));
             dump_expr(&for_.iterable, indent + 1, out);
             dump_block(&for_.body, indent + 1, out);
         }
-        StatementKind::Break => out.push_str(&format!("{pad}break\n")),
-        StatementKind::Continue => out.push_str(&format!("{pad}continue\n")),
+        StatementKind::Break { label } => {
+            out.push_str(&format!("{pad}break{}\n", dump_label(label.as_ref())));
+        }
+        StatementKind::Continue { label } => {
+            out.push_str(&format!("{pad}continue{}\n", dump_label(label.as_ref())));
+        }
         StatementKind::Block(block) => {
             out.push_str(&format!("{pad}block\n"));
             dump_block(block, indent + 1, out);
@@ -176,6 +187,10 @@ fn dump_statement(statement: &Statement, indent: usize, out: &mut String) {
             dump_block(block, indent + 1, out);
         }
     }
+}
+
+pub(super) fn dump_label(label: Option<&Ident>) -> String {
+    label.map_or_else(String::new, |label| format!("@{}", label.text))
 }
 
 pub(super) fn dump_type_param(param: &TypeParamDecl) -> String {

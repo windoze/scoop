@@ -171,6 +171,7 @@ fn literal(kind: hir::IntegerKind, magnitude: u64) -> Expr {
 fn for_stmt(pattern: ast::Pattern, iterable: Expr, body: Vec<Statement>) -> Statement {
     Statement {
         kind: StatementKind::For(ast::For {
+            label: None,
             pattern,
             iterable,
             body: block(body),

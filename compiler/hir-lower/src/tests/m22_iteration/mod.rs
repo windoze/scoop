@@ -146,6 +146,7 @@ fn where_clause(parameter: &str, interface: TypeRef) -> ast::WhereClause {
 fn for_stmt(pattern: ast::Pattern, iterable: Expr, body: Vec<Statement>) -> Statement {
     Statement {
         kind: StatementKind::For(ast::For {
+            label: None,
             pattern,
             iterable,
             body: block(body),
@@ -173,14 +174,14 @@ fn generic_iteration_consumer() -> Decl {
 
 fn break_stmt() -> Statement {
     Statement {
-        kind: StatementKind::Break,
+        kind: StatementKind::Break { label: None },
         span: sp(),
     }
 }
 
 fn continue_stmt() -> Statement {
     Statement {
-        kind: StatementKind::Continue,
+        kind: StatementKind::Continue { label: None },
         span: sp(),
     }
 }

@@ -76,7 +76,12 @@ impl Parser {
         let span = Span::new(keyword.span.start, body.span.end);
         Ok(Statement {
             span,
-            kind: StatementKind::While(While { cond, body, span }),
+            kind: StatementKind::While(While {
+                label: None,
+                cond,
+                body,
+                span,
+            }),
         })
     }
 
@@ -93,6 +98,7 @@ impl Parser {
         let span = Span::new(keyword.span.start, body.span.end);
         Ok(Statement {
             kind: StatementKind::For(For {
+                label: None,
                 pattern,
                 iterable,
                 body,

@@ -1021,7 +1021,8 @@ context list 不参与 overload applicability、MSC、泛型推断、普通或 s
 
 值位置的 if 必须具有 else，所有正常到达合流点的路径提供可合并的值，Nothing 路径不参与合并。语句位置可以丢弃 body 的值。单语句 body 与显式块采用同一规则，不把控制 body 的花括号当作 lambda；例如 `if (x < 0) return -1 else if (x > 0) return 1` 和 `val sign = if (x < 0) -1 else 1` 都合法。
 
-- `break`退出当前callable内词法最内层循环，`continue`进入其下一轮；函数、匿名函数、lambda和局部函数各自建立控制边界，不能跳到外层callable的循环。循环外使用是编译错误；
+- `break`退出当前 callable 内词法最内层循环，`continue`进入其下一轮。`label@ while ...`、`label@ for ...` 为循环声明标签；`break@label`、`continue@label` 选择当前 callable 内具有该标签的最近包围循环。同名标签由内层遮蔽，标签属于独立名称空间，不是值绑定。函数、匿名函数、lambda 和局部函数各自建立控制边界，不能跳到外层 callable 的循环。循环外跳转、未知标签及非循环目标均为编译错误；
+- while 的条件和 body 属于该循环的控制区；for 的 iterable 在进入自身迭代控制区前求值，其中的跳转仍查找外层循环。标签不提供 goto，也不能用于跳出任意块；
 - `break`/`continue`不产生正常结果并终止当前路径；该路径不参与第5章的结果类型合并。循环正常结束的语句结果为`Unit`；没有更强证明时仍按可能落空处理；
 - while的`continue`重新进入完整condition求值入口，包括该condition产生的temporary、safe-call/default setup和挂起调用；for的`continue`进入下一次`next()`；
 - 控制转移离开scope时，按从内到外执行所有应执行的catch结束动作和`finally`。finally正常完成后恢复原动作；只有实际离开当前finally的return/throw/break/continue才覆盖原动作，内部被处理的转移不覆盖。新动作继续执行尚未经过的外层cleanup，不能再次进入当前finally。挂起不是退出，不执行finally。
@@ -1044,7 +1045,7 @@ fun consume(value: Int?) {
 }
 ```
 
-return 在表达式位置具有 Nothing 类型。返回值按当前 callable 的返回类型检查，与 return 所处表达式的期望类型无关：上例 Elvis 的正常结果是 Int，而 `return "missing"` 返回 String。
+return、break、continue 及其合法标签形式在表达式位置具有 Nothing 类型。break/continue 不携带值，目标按 8.7 解析；可用于 Elvis、分支、receiver 和实参位置，不为任何场景增加专用 token 规则。返回值按当前 callable 的返回类型检查，与 return 所处表达式的期望类型无关：上例 Elvis 的正常结果是 Int，而 `return "missing"` 返回 String。
 
 parser 在表达式入口接受 `return [expression]`，同时统一 `throw expression` 在单行 arm 和 Elvis 等表达式位置的处理。语句入口复用相同语义，不为 `?: return` 增加只识别这一段 token 的特殊规则。保留 Elvis 的右结合优先级。
 
@@ -1054,9 +1055,9 @@ parser 在表达式入口接受 `return [expression]`，同时统一 `throw expr
 
 复用现有 `ValueBlock`、完成性质及 return/throw 控制转移。HIR lowering 必须能区分“获得正常值”和“当前路径已经终止”；只在真正到达合并点的前驱上提供结果。不得为终止分支生成未初始化 local、Unit、零值、null、装箱或虚假的结果赋值。
 
-表达式嵌在 receiver、普通实参、数组/tuple 元素或其他短路运算中时，先前已发生的求值保留；发生跳转后，后续实参、default 和外层调用不再执行。类型检查仍检查源码中的合法性，不用运行期不会到达掩盖非法 return 目标。
+表达式嵌在 receiver、普通实参、数组/tuple 元素或其他短路运算中时，先前已发生的求值保留；发生跳转后，后续实参、default 和外层调用不再执行。类型检查仍检查源码中的合法性，不用运行期不会到达掩盖非法 return、break 或 continue 目标。
 
-返回与异常继续走现有 finally、Context scope、native roots 和 coroutine 清理路径。suspend 函数执行 Elvis 右侧时可以挂起；挂起本身不等于完成返回。M35 不改变已有 break/continue 目标和清理规则，也不以新增其他跳转语法为验收前提。
+返回、异常与循环跳转继续走现有 finally、Context scope、native roots 和 coroutine 清理路径；带标签跳转只退出实际目标要求退出的 scope。suspend 函数执行 Elvis 右侧时可以挂起；挂起本身不等于完成跳转。
 
 ---
 

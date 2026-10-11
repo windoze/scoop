@@ -81,19 +81,27 @@ impl Lowerer {
                 debug_assert_eq!(popped, Some(target));
                 materialized?
             }
-            Kind::Break => hir::StatementKind::Break {
-                target: context.loop_targets.last().copied().ok_or(
-                    ImportedDefaultMaterializationError::InvalidControlFlow(
+            Kind::Break(target) => hir::StatementKind::Break {
+                target: context
+                    .loop_targets
+                    .iter()
+                    .rev()
+                    .nth(target.depth() as usize)
+                    .copied()
+                    .ok_or(ImportedDefaultMaterializationError::InvalidControlFlow(
                         "break without an enclosing loop",
-                    ),
-                )?,
+                    ))?,
             },
-            Kind::Continue => hir::StatementKind::Continue {
-                target: context.loop_targets.last().copied().ok_or(
-                    ImportedDefaultMaterializationError::InvalidControlFlow(
+            Kind::Continue(target) => hir::StatementKind::Continue {
+                target: context
+                    .loop_targets
+                    .iter()
+                    .rev()
+                    .nth(target.depth() as usize)
+                    .copied()
+                    .ok_or(ImportedDefaultMaterializationError::InvalidControlFlow(
                         "continue without an enclosing loop",
-                    ),
-                )?,
+                    ))?,
             },
             Kind::When(value) => {
                 hir::StatementKind::When(self.materialize_imported_default_when(value, context)?)

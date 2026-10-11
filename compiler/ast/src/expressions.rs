@@ -5,6 +5,11 @@ use crate::{
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expr {
+    LoopJump {
+        kind: crate::LoopJumpKind,
+        label: Option<Ident>,
+        span: Span,
+    },
     Return {
         value: Option<Box<Expr>>,
         span: Span,
@@ -244,6 +249,7 @@ impl Expr {
             Expr::FloatLiteral(literal) => literal.span,
             Expr::CharLiteral { span, .. }
             | Expr::Return { span, .. }
+            | Expr::LoopJump { span, .. }
             | Expr::Throw { span, .. }
             | Expr::ContextScope { span, .. }
             | Expr::StringLiteral { span, .. }

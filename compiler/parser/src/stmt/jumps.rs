@@ -2,6 +2,43 @@ use super::*;
 use scoop_ast::Expr;
 
 impl Parser {
+    pub(super) fn parse_loop_jump(&mut self) -> Result<Statement, Diagnostic> {
+        let Expr::LoopJump { kind, label, span } = self.parse_loop_jump_expression()? else {
+            unreachable!("loop jump parser constructs a loop jump expression")
+        };
+        let kind = match kind {
+            scoop_ast::LoopJumpKind::Break => StatementKind::Break { label },
+            scoop_ast::LoopJumpKind::Continue => StatementKind::Continue { label },
+        };
+        Ok(Statement { kind, span })
+    }
+
+    pub(crate) fn parse_loop_jump_expression(&mut self) -> Result<Expr, Diagnostic> {
+        let keyword = self.bump();
+        let kind = match keyword.kind {
+            TokenKind::Break => scoop_ast::LoopJumpKind::Break,
+            TokenKind::Continue => scoop_ast::LoopJumpKind::Continue,
+            _ => unreachable!("a loop jump starts with break or continue"),
+        };
+        let label = if !self.peek().newline_before && matches!(self.peek().kind, TokenKind::At) {
+            self.bump();
+            if self.peek().newline_before {
+                return self.unexpected("loop label on the same line");
+            }
+            Some(self.expect_ident("loop label")?)
+        } else {
+            None
+        };
+        let end = label
+            .as_ref()
+            .map_or(keyword.span.end, |label| label.span.end);
+        Ok(Expr::LoopJump {
+            kind,
+            label,
+            span: Span::new(keyword.span.start, end),
+        })
+    }
+
     pub(super) fn parse_return(&mut self) -> Result<Statement, Diagnostic> {
         let Expr::Return { value, span } = self.parse_return_expression()? else {
             unreachable!("return parser constructs a return expression")

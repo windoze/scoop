@@ -12,6 +12,36 @@ use crate::{
 };
 
 #[test]
+fn loop_distances_round_trip_without_changing_unlabelled_encoding() {
+    let fixture = Fixture::new();
+    for (tag, jump) in [
+        (10, DefaultStatementKindV1::Break as fn(_) -> _),
+        (11, DefaultStatementKindV1::Continue),
+    ] {
+        for depth in [0, 1, 8, u32::MAX] {
+            let expected = statement(jump(DefaultLoopTargetV1::new(depth)), &fixture);
+            let bytes = encode(&expected.index_locals(&mut fixture.locals()).unwrap()).unwrap();
+            assert_eq!(
+                &bytes[..5],
+                &[0xa2, 1, if depth == 0 { 0xa1 } else { 0xa2 }, 0, tag]
+            );
+            let decoded: DecodedDefaultStatementV1 = decode_canonical(&bytes).unwrap();
+            assert_eq!(encode(&decoded).unwrap(), bytes);
+            assert_eq!(
+                decoded
+                    .resolve(&mut fixture.resolver(), &mut fixture.locals())
+                    .unwrap(),
+                expected
+            );
+        }
+        let mut explicit_zero = vec![0xa2, 1, 0xa2, 0, tag, 1, 0, 2];
+        explicit_zero.extend(encode(&fixture.origin()).unwrap());
+        let error = decode_canonical::<DecodedDefaultStatementV1>(&explicit_zero).unwrap_err();
+        assert_eq!(error.kind(), &WireErrorKind::NonCanonicalCbor);
+    }
+}
+
+#[test]
 fn legacy_bare_return_resolves_to_a_unit_value_at_the_statement_origin() {
     let fixture = Fixture::new();
     let mut bytes = vec![0xa2, 1, 0xa2, 0, 4, 1, 0xa1, 0, 1, 2];
@@ -256,14 +286,14 @@ fn statement_decoder_rejects_unknown_tags_and_non_exact_sums() {
     }
 
     let mut non_exact = bytes;
-    non_exact[2] = 0xa2;
-    non_exact.splice(5..5, [0x01, 0x00]);
+    non_exact[2] = 0xa3;
+    non_exact.splice(5..5, [0x01, 0x01, 0x02, 0x00]);
     let error = decode_canonical::<DecodedDefaultStatementV1>(&non_exact).unwrap_err();
     assert_eq!(
         error.kind(),
         &WireErrorKind::InvalidLength {
-            expected: 1,
-            actual: 2,
+            expected: 2,
+            actual: 3,
         }
     );
 
@@ -318,11 +348,17 @@ fn expression_statement(fixture: &Fixture) -> DefaultStatementV1 {
 }
 
 fn break_statement(fixture: &Fixture) -> DefaultStatementV1 {
-    statement(DefaultStatementKindV1::Break, fixture)
+    statement(
+        DefaultStatementKindV1::Break(crate::DefaultLoopTargetV1::INNERMOST),
+        fixture,
+    )
 }
 
 fn continue_statement(fixture: &Fixture) -> DefaultStatementV1 {
-    statement(DefaultStatementKindV1::Continue, fixture)
+    statement(
+        DefaultStatementKindV1::Continue(crate::DefaultLoopTargetV1::INNERMOST),
+        fixture,
+    )
 }
 
 fn unit(fixture: &Fixture) -> DefaultExpressionV1 {

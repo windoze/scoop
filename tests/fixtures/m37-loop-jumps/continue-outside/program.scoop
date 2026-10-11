@@ -1,0 +1,2 @@
+fun consume(value: Int) {}
+fun main() { consume(continue) }

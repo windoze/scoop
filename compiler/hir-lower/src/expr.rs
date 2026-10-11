@@ -248,6 +248,11 @@ impl Lowerer {
             return None;
         }
         let lowered = match expr {
+            ast::Expr::LoopJump { kind, label, span } => {
+                let kind = self.lower_loop_jump(*kind, label.as_ref(), *span)?;
+                sink.push(hir::Statement { kind, span: *span });
+                Some(self.unreachable_expression(*span))
+            }
             ast::Expr::Return { value, span } => {
                 self.lower_return(value.as_deref(), *span, sink)?;
                 Some(self.unreachable_expression(*span))

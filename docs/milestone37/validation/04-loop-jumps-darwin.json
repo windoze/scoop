@@ -1,0 +1,195 @@
+{
+  "schema": 1,
+  "complete": false,
+  "discovered": 3140,
+  "selected": 20,
+  "unselected": 3120,
+  "counts": {
+    "passed": 20
+  },
+  "variants": 25,
+  "processes": 53,
+  "stage_and_plan_goldens": 43,
+  "results": [
+    {
+      "name": "legacy-m22-iteration-combined",
+      "status": "passed",
+      "seconds": 18.12625112500973,
+      "variants": 2,
+      "processes": 4,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "legacy-m22-iteration-errors-unsupported-control-syntax",
+      "status": "passed",
+      "seconds": 2.4166431250050664,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m35-jumps-cleanup",
+      "status": "passed",
+      "seconds": 6.3954063329147175,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 4,
+      "message": ""
+    },
+    {
+      "name": "m35-jumps-operands",
+      "status": "passed",
+      "seconds": 6.26574249996338,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 4,
+      "message": ""
+    },
+    {
+      "name": "m37-loop-jumps-anonymous-boundary",
+      "status": "passed",
+      "seconds": 2.0871579999802634,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-loop-jumps-artifacts",
+      "status": "passed",
+      "seconds": 13.531771707930602,
+      "variants": 1,
+      "processes": 7,
+      "snapshots": 3,
+      "message": ""
+    },
+    {
+      "name": "m37-loop-jumps-basic",
+      "status": "passed",
+      "seconds": 10.331875791074708,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m37-loop-jumps-break-outside",
+      "status": "passed",
+      "seconds": 2.173870084108785,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-loop-jumps-break-value",
+      "status": "passed",
+      "seconds": 2.0857501659775153,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-loop-jumps-cleanup",
+      "status": "passed",
+      "seconds": 9.972079540952109,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m37-loop-jumps-continue-outside",
+      "status": "passed",
+      "seconds": 2.3056068329606205,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-loop-jumps-dead-label",
+      "status": "passed",
+      "seconds": 2.184073584037833,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-loop-jumps-expressions",
+      "status": "passed",
+      "seconds": 10.542841874994338,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m37-loop-jumps-for-source-boundary",
+      "status": "passed",
+      "seconds": 2.057909582974389,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-loop-jumps-label-newline",
+      "status": "passed",
+      "seconds": 2.0870006670011207,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-loop-jumps-label-not-loop",
+      "status": "passed",
+      "seconds": 2.080651707947254,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-loop-jumps-lambda-boundary",
+      "status": "passed",
+      "seconds": 2.0583911660360172,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-loop-jumps-outer-callable",
+      "status": "passed",
+      "seconds": 2.231823540991172,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    },
+    {
+      "name": "m37-loop-jumps-suspend",
+      "status": "passed",
+      "seconds": 9.90865712496452,
+      "variants": 2,
+      "processes": 6,
+      "snapshots": 6,
+      "message": ""
+    },
+    {
+      "name": "m37-loop-jumps-unknown-label",
+      "status": "passed",
+      "seconds": 2.080222958000377,
+      "variants": 1,
+      "processes": 1,
+      "snapshots": 0,
+      "message": ""
+    }
+  ]
+}

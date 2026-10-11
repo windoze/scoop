@@ -114,11 +114,11 @@ impl Lowerer {
                 false,
             )?;
             body.extend(binding);
-            self.loop_targets.push(target);
+            self.push_loop(target, source.label.as_ref());
             for statement in &source.body.statements {
                 self.lower_statement(statement, &mut body);
             }
-            assert_eq!(self.loop_targets.pop(), Some(target));
+            self.pop_loop(target);
             Some(())
         })();
         self.pop_scope();

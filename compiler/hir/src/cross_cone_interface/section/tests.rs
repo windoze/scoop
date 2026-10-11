@@ -239,8 +239,11 @@ fn closure_section(
     .unwrap();
     let body = ExportDefaultBodyV1::try_new(
         vec![
-            DefaultStatementV1::try_new(DefaultStatementKindV1::Break, statement_origin.clone())
-                .unwrap(),
+            DefaultStatementV1::try_new(
+                DefaultStatementKindV1::Break(crate::DefaultLoopTargetV1::INNERMOST),
+                statement_origin.clone(),
+            )
+            .unwrap(),
         ],
         DefaultExpressionV1::try_new(
             DefaultExpressionKindV1::UnitLiteral,

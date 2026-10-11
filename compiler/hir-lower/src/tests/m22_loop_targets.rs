@@ -233,8 +233,7 @@ fn concretization_rebinds_setup_and_body_jumps_to_its_fresh_target() {
 }
 
 #[test]
-#[should_panic(expected = "an unlabelled break targets the innermost loop")]
-fn concretization_rejects_a_non_innermost_loop_target() {
+fn concretization_preserves_an_outer_loop_target() {
     let output = lower_user_output(file(vec![fun(
         "main",
         vec![while_stmt(
@@ -270,7 +269,17 @@ fn concretization_rejects_a_non_innermost_loop_target() {
         span: sp(),
     });
 
-    let _ = concretize_export(&export).expect("concrete type applications are valid");
+    let concrete = concretize_export(&export).expect("concrete type applications are valid");
+    let body = concrete_body(&concrete, "main");
+    let hir::concrete::StatementKind::While { target, body, .. } = &body.statements[0].kind else {
+        panic!("outer loop")
+    };
+    let hir::concrete::StatementKind::While { body, .. } = &body[0].kind else {
+        panic!("inner loop")
+    };
+    assert!(
+        matches!(body[0].kind, hir::concrete::StatementKind::Break { target: actual } if actual == *target)
+    );
 }
 
 #[test]

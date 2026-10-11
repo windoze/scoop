@@ -60,8 +60,7 @@ impl Parser {
                 self.pos += 1;
                 Ok(Expr::This { span: token.span })
             }
-            TokenKind::Break => Err(loop_jump_expression_diagnostic("break", token.span)),
-            TokenKind::Continue => Err(loop_jump_expression_diagnostic("continue", token.span)),
+            TokenKind::Break | TokenKind::Continue => self.parse_loop_jump_expression(),
             TokenKind::Ident(ref text) if text == "try" => self.parse_try_expression(),
             TokenKind::Ident(ref text) if text == "context" && self.starts_context_scope() => {
                 self.parse_context_scope()
