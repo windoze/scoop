@@ -496,16 +496,17 @@ Module
   block inline.36.entry
     heap_store local111 +16 local112
     heap_store local111 +24 local113
+    t66 = aggregate () : {}
     br @inline.cont.36
   block inline.cont.38
     store local114 -> local87
     array_set array0 local85 local86 local87
-    t66 = integer_Add<Long> local86, integer<Long>(0x0000000000000001) : i64
-    store t66 -> local86
+    t67 = integer_Add<Long> local86, integer<Long>(0x0000000000000001) : i64
+    store t67 -> local86
     br @while.cond.3
   block inline.38.entry
-    t67 = enum_wrap e0 v1 () : enum0
-    store t67 -> local114
+    t68 = enum_wrap e0 v1 () : enum0
+    store t68 -> local114
     br @inline.cont.38
   fun @scoop$1$cb$a59ba8328a87a3c09df1111305261ccbca23796630e0ce6dea24e3ae106f48ca() -> void
     local %0 $result.2: i64
@@ -762,6 +763,7 @@ Module
     heap_store local7 +16 local8
     heap_store local7 +32 integer<Long>(0x0000000000000000)
     heap_store local7 +40 false
+    t7 = aggregate () : {}
     br @inline.cont.1
   fun @scoop$1$cb$877c9b518d5a2e661449b8f6622f6f61f1607cec5c876c0e6d53384eff89adba(ptr<managed>, i64) -> enum0
     local %0 $dependency.local.2: ptr<managed>

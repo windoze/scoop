@@ -1940,12 +1940,10 @@ Module
   fun @scoop$1$cb$07a331efacddc499dd6c181790a6f9e734009cf0ab0015315a9d01b821a381c8(ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
-    t0 = zst_value exact=1dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc align 1 : {}
     ret
   fun @scoop$1$cb$b2bbc3a418be77c5dd513c0a684eaba8d4aa8e5522df72b9ffe7a717c75a8e19(ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
-    t0 = zst_value exact=1dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc align 1 : {}
     ret
   fun @scoop$1$cb$e17d1ea7aeda63fe6c97f3c29fd1df06de9c86833afb4e6481a6e1dcc4a37bc0(parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>) -> parts<enum8 [i64@0+8/8,i64@8+8/8]>
   block entry
@@ -1957,12 +1955,10 @@ Module
   fun @scoop$1$cb$e203002bef0035469899f28354beaba9141454a8a22a0bbe3bc0801a55c167af(ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
-    t0 = zst_value exact=1dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc align 1 : {}
     ret
   fun @scoop$1$cb$88e3bf77e557256f27d8e782a74ba182273f297064ec8397ba71cc147729e457(ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
-    t0 = zst_value exact=1dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc align 1 : {}
     ret
   fun @scoop$1$cb$2ec0056f52791be59e19299fbce32c5d7089db64c95c9a633b7c9ebd393b6877(parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>) -> enum9
   block entry
@@ -2546,7 +2542,6 @@ Module
   fun @scoop$1$cb$9b853ef1a644e8caa77ad103daed09cf311614ac60d149b7312d753c65e4d312(ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
-    t0 = zst_value exact=1dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc align 1 : {}
     ret
   fun @scoop$1$cb$4e98b0881142191c0526be22544c0a5e7051d9c16aa58151224ec28a511e2476(ptr<managed>) -> i32
   block entry

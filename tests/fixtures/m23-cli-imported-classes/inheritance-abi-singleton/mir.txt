@@ -131,6 +131,8 @@ Module
         Type Singleton
         Local $new.1
       return
+        Type Unit
+        UnitLiteral
   fun $init$ensure$0 @fn3() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -155,6 +157,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -427,6 +431,8 @@ Module
         Type MutableCell
         Local $new.3
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<Singleton> @fn10(task: SuspendTask<Singleton>, completion: Continuation<Singleton>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -449,6 +455,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn5 interface Continuation<Singleton>[0]
         Type Continuation<Singleton>
@@ -462,6 +470,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn6 interface Continuation<Singleton>[1]
         Type Continuation<Singleton>
@@ -473,6 +483,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

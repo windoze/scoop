@@ -169,7 +169,7 @@ wire 沿用已有可选 subject、条件与覆盖标签；原始解码数据在�
 
 新增 49 个 Rust 文件，最长 396 行；原有超过 500 行的文件没有增加超过 30 行，见 [长度检查](validation/file-lengths.json)。未新增依赖、TODO、todo! 或 unimplemented!。每批完成后清理用例工作目录，保留当前 CLI、共享 sysroot、缓存和报告；上述七批记录合计约 46.3 GB 的已清理逻辑文件大小，目录内可能存在硬链接，该数字不表示等量实际磁盘释放。
 
-Linux 的完整 Rust 初跑已正常退出：43 个测试目标、5,474 项通过，0 failed、0 ignored，公共 runner 44 项通过。该初跑采用 R04 完成时的源码及 Linux 测试构造器修正；默认参数引用修复的相关 29 项已定向通过，其中新增一项真实源码测试，最终覆盖为 5,475 项。最终源码的 fmt／workspace clippy、三个 release CLI 构建均通过，详见 [Linux Rust 记录](validation/rust-linux.json)。GNU 完整正式 CLI 与 musl 受影响范围继续执行，最终结果在验收完成后补入。
+Linux 的完整 Rust 初跑已正常退出：43 个测试目标、5,474 项通过，0 failed、0 ignored，公共 runner 44 项通过。该初跑采用 R04 完成时的源码及 Linux 测试构造器修正；默认参数引用修复的相关 29 项已定向通过，其中新增一项真实源码测试，最终覆盖为 5,475 项。最终源码的 fmt／workspace clippy、三个 release CLI 构建均通过，详见 [Linux Rust 记录](validation/rust-linux.json)。GNU 完整正式 CLI 已按下节记录以普通全量和失败补验完成；musl 受影响范围继续验证。
 
 ## GNU fixture 可移植性修正
 
@@ -178,3 +178,17 @@ GNU 目标快照初跑 176 项，175 项通过；新 C 布局 fixture 刻意将 
 目标审阅同时确认 call-targets/suspend、intrinsics/operands、intrinsics/borrows、when/flow 的八份 debug/release LIR 含平台 ABI 差异，改用 program.${profile}.${target}.lir.txt。既有 Darwin 输出逐字节保留；新增八份对应 GNU 输出及 C 布局的 GNU LIR。16 字节 enum 的物理 carrier、C byval 和含非自然对齐字段的 aggregate 传参／返回按实际 target 记录，HIR／MIR 保持共享。
 
 两平台分别以普通比较复验这五项：均为 5 项通过、9 个配置、38 个进程、27 次阶段快照检查；debug／release、正常／moving／minor GC 断言均保留。修正不涉及 Rust 源码或 ABI 规则，沿用已有 Rust 验证和配套 release CLI。实际初跑与补验见 [GNU 初跑](validation/gnu-snapshots-initial.json) 和 [可移植性记录](validation/target-fixture-portability.json)。其余 GNU 输出继续进入正式 --all 普通验收。
+
+## GNU 正式全量与失败补验
+
+一次正式普通 `--all` 选择全部 3,091 项，初次为 2,855 项通过、206 项失败、30 项不适用。失败分别为 192 项阶段快照迁移、12 项 core 构建超过 300 秒、1 项 native 构建超过 300 秒，以及 1 项修饰符诊断位置预期。保留 [初次摘要](validation/gnu-all-initial.json) 和 [完整原始报告](validation/gnu-all-initial-report.json.gz)，没有将初次失败改写为通过。
+
+审阅现有编译转储后更新预期，以 6 并发对这 206 项执行普通比较，205 项通过；嵌套 enum 默认参数继续执行到第三层消费时又遇到一份旧 LIR 预期，核对后仅复验该项，通过全部 12 个进程和 14 次阶段／计划快照检查。13 项原超时均在原有时限内通过，没有修改超时或断言。实际来源见 [首轮补验](validation/gnu-recheck-initial.json)、[嵌套 enum 补验](validation/gnu-nested-enum-recheck.json) 和 [执行记录](validation/gnu-rechecks-execution.json)。
+
+按每项最后的普通结果合并，GNU 为 3,061 项通过、30 项不适用，覆盖 3,305 个配置、14,478 个进程和 12,256 次阶段／计划快照检查；全部 26 个 M36 新用例通过。此结果来自正式全量加定向补验，不是一次全绿运行，见 [最终覆盖及逐项来源](validation/gnu-final.json)。
+
+本轮迁移 449 份阶段快照：173 份 HIR、102 份 MIR、174 份 LIR，补齐此前命名选集未包含的旧 CLI 转储和 GNU 专用输出。HIR 对应完整整数操作、declared、when 与 Return；bare return 新增真实 Unit 和来源记录，生成包装函数直接返回已有 Unit 调用。MIR 只增加完整 Unit 返回值。169 份先前生成的 GNU LIR 已逐份分类，见 [LIR 审阅](validation/gnu-lir-review.json)；补充的五份 LIR 中三份仅有未使用的零大小值，两份是嵌套 enum 的局部变量顺序变化。对后两份逐一映射定义、使用、GC root 与生成的调试名称后，整份文件与新输出完全一致，见 [阶段审阅与局部编号映射](validation/gnu-stage-review.json)。
+
+另将 `override release` 的错误区间从 `18..18` 更新为完整关键字 `18..26`，符合 R11 已实现的准确修饰符位置；错误代码、消息和严重程度保持原样。本机额外普通复验三项旧 CLI 输入／缓存用例、一项修饰符负例和一项嵌套 enum 产物用例，均通过，见 [Darwin 补充结果](validation/darwin-supplement.json)。以上修改仅涉及 fixture 预期和记录，沿用已通过 fmt／clippy 的 Rust 源码与 release CLI。
+
+失败目录在相应普通补验通过后清理，未完成项的现场一直保留到通过。期间清理 122 个已完成补验的旧目录，远端 target 实际占用由约 26.3 GB 降至 21.1 GB；逻辑文件大小与实际占用分别记录。Linux 原工作目录的 21 个既有修改文件仍与初始记录一致。

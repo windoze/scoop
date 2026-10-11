@@ -768,12 +768,13 @@ Module
     store integer<Long>(0x000000000000000a) -> local12
     br @inline.15.entry
   block inline.cont.15
-    t14 = heap_load td14 +96 : ptr<metadata>
-    t15 = heap_load t14 +8 : ptr<metadata>
-    t16 = aggregate (local5, t15) : interface{object,itab}
-    ret t16
+    t15 = heap_load td14 +96 : ptr<metadata>
+    t16 = heap_load t15 +8 : ptr<metadata>
+    t17 = aggregate (local5, t16) : interface{object,itab}
+    ret t17
   block inline.15.entry
     heap_store local11 +16 integer<Long>(0x000000000000000a)
+    t18 = aggregate () : {}
     br @inline.cont.15
   fun @scoop$1$cb$40a39877898d5b84213f995d049db95c13b16eba91237ada9f5b95793e1bb1c5(parts<struct0 [i64@0+8/8,i64@8+8/8]>) -> parts<struct0 [i64@0+8/8,i64@8+8/8]>
     local %0 $dependency.argument.0: ptr<managed>
@@ -1647,6 +1648,7 @@ Module
     store true -> local272
     br @inline.79.if.merge.2
   block inline.79.if.merge.2
+    t101 = aggregate () : {}
     br @inline.cont.79
   block inline.cont.82
     store local273 -> local164
@@ -1654,17 +1656,17 @@ Module
     store local165 -> local300
     call managed-indirect-target0 sp<managed-call:24> live=[] local301 = sig=indirect0 (sret struct8 size=9 align=1 scan=none, indirect<struct8 size=9 align=1 scan=none>) local-fn10(indirect local300)
     store local301 -> local166
-    t101 = extract local166, 0 : i8
-    store t101 -> local168
+    t102 = extract local166, 0 : i8
+    store t102 -> local168
     store integer<Int>(0x00000007) -> local167
     store local168 -> local169
     store integer<Int8>(0x07) -> local170
     store integer<Int8>(0x07) -> local171
-    t102 = integer_compare_Equal<Int8> local169, integer<Int8>(0x07) : i1
-    cbr t102 then @if.then.49 else @if.else.50
+    t103 = integer_compare_Equal<Int8> local169, integer<Int8>(0x07) : i1
+    cbr t103 then @if.then.49 else @if.else.50
   block inline.82.entry
-    t103 = aggregate (integer<Int8>(0x07), local275) : struct8
-    store t103 -> local273
+    t104 = aggregate (integer<Int8>(0x07), local275) : struct8
+    store t104 -> local273
     br @inline.cont.82
   block inline.cont.84
     store local276 -> local137
@@ -1672,25 +1674,25 @@ Module
     store local138 -> local302
     call managed-indirect-target1 sp<managed-call:21> live=[local302:struct7@0] local303 = sig=indirect1 (sret struct7 size=16 align=8 scan=refs[0], indirect<struct7 size=16 align=8 scan=refs[0]>) local-fn9(indirect local302)
     store local303 -> local139
-    t104 = extract local132, 0 : i64
-    store t104 -> local140
-    t105 = extract local132, 1 : i64
-    store t105 -> local141
+    t105 = extract local132, 0 : i64
+    store t105 -> local140
+    t106 = extract local132, 1 : i64
+    store t106 -> local141
     store local141 -> local142
-    t106 = integer_Add<Long> local140, local142 : i64
-    store t106 -> local143
-    t107 = extract local132, 2 : i64
-    store t107 -> local144
+    t107 = integer_Add<Long> local140, local142 : i64
+    store t107 -> local143
+    t108 = extract local132, 2 : i64
+    store t108 -> local144
     store local144 -> local145
-    t108 = integer_Add<Long> local143, local145 : i64
-    store t108 -> local146
+    t109 = integer_Add<Long> local143, local145 : i64
+    store t109 -> local146
     store integer<Long>(0x0000000000000006) -> local147
     store integer<Long>(0x0000000000000006) -> local148
-    t109 = integer_compare_Equal<Long> local146, integer<Long>(0x0000000000000006) : i1
-    cbr t109 then @if.then.43 else @if.else.44
+    t110 = integer_compare_Equal<Long> local146, integer<Long>(0x0000000000000006) : i1
+    cbr t110 then @if.then.43 else @if.else.44
   block inline.84.entry
-    t110 = aggregate (local277, integer<Long>(0x0000000000000005)) : struct7
-    store t110 -> local276
+    t111 = aggregate (local277, integer<Long>(0x0000000000000005)) : struct7
+    store t111 -> local276
     br @inline.cont.84
   block inline.cont.86
     store local279 -> local130
@@ -1706,70 +1708,70 @@ Module
     store integer<Long>(0x0000000000000005) -> local278
     br @inline.84.entry
   block inline.86.entry
-    t111 = aggregate (integer<Long>(0x0000000000000001), integer<Long>(0x0000000000000002), integer<Long>(0x0000000000000003)) : struct6
-    store t111 -> local279
+    t112 = aggregate (integer<Long>(0x0000000000000001), integer<Long>(0x0000000000000002), integer<Long>(0x0000000000000003)) : struct6
+    store t112 -> local279
     br @inline.cont.86
   block inline.cont.88
     store local283 -> local63
     store local63 -> local64
-    call managed-direct-target19 sp<managed-call:6> live=[] t112 = sig=direct20 (parts<struct5 [<2xf32>@0+8/4,i64@8+8/4]>) -> struct5 local-fn4(local64)
-    store t112 -> local65
-    t113 = extract local65, 0 : struct3
-    t114 = extract t113, 0 : f32
-    store t114 -> local66
+    call managed-direct-target19 sp<managed-call:6> live=[] t113 = sig=direct20 (parts<struct5 [<2xf32>@0+8/4,i64@8+8/4]>) -> struct5 local-fn4(local64)
+    store t113 -> local65
+    t114 = extract local65, 0 : struct3
+    t115 = extract t114, 0 : f32
+    store t115 -> local66
     store f32(0x3fc00000) -> local67
     store local67 -> local68
-    t115 = float_Equal<F32> local66, local68 : i1
-    cbr t115 then @if.then.16 else @if.else.17
+    t116 = float_Equal<F32> local66, local68 : i1
+    cbr t116 then @if.then.16 else @if.else.17
   block inline.88.entry
-    t116 = aggregate (local284, integer<Int>(0x00000013)) : struct5
-    store t116 -> local283
+    t117 = aggregate (local284, integer<Int>(0x00000013)) : struct5
+    store t117 -> local283
     br @inline.cont.88
   block inline.cont.90
     store local286 -> local43
     store local43 -> local44
-    call managed-direct-target20 sp<managed-call:4> live=[] t117 = sig=direct21 (parts<struct3 [<2xf32>@0+8/4,f32@8+4/4]>) -> struct3 local-fn3(local44)
-    store t117 -> local45
-    t118 = extract local45, 0 : f32
-    store t118 -> local46
+    call managed-direct-target20 sp<managed-call:4> live=[] t118 = sig=direct21 (parts<struct3 [<2xf32>@0+8/4,f32@8+4/4]>) -> struct3 local-fn3(local44)
+    store t118 -> local45
+    t119 = extract local45, 0 : f32
+    store t119 -> local46
     store f32(0x3fc00000) -> local47
     store local47 -> local48
-    t119 = float_Equal<F32> local46, local48 : i1
-    cbr t119 then @if.then.10 else @if.else.11
+    t120 = float_Equal<F32> local46, local48 : i1
+    cbr t120 then @if.then.10 else @if.else.11
   block inline.90.entry
-    t120 = aggregate (local287, local288, local289) : struct3
-    store t120 -> local286
+    t121 = aggregate (local287, local288, local289) : struct3
+    store t121 -> local286
     br @inline.cont.90
   block inline.cont.92
     store local290 -> local25
     store local25 -> local26
-    call managed-direct-target21 sp<managed-call:2> live=[] t121 = sig=direct22 (parts<struct1 [f64@0+8/8,i64@8+8/8]>) -> struct1 local-fn2(local26)
-    store t121 -> local27
-    t122 = extract local27, 0 : f64
-    store t122 -> local28
+    call managed-direct-target21 sp<managed-call:2> live=[] t122 = sig=direct22 (parts<struct1 [f64@0+8/8,i64@8+8/8]>) -> struct1 local-fn2(local26)
+    store t122 -> local27
+    t123 = extract local27, 0 : f64
+    store t123 -> local28
     store f64(0x3ff4000000000000) -> local29
     store local29 -> local30
-    t123 = float_Equal<F64> local28, local30 : i1
-    cbr t123 then @if.then.7 else @if.else.8
+    t124 = float_Equal<F64> local28, local30 : i1
+    cbr t124 then @if.then.7 else @if.else.8
   block inline.92.entry
-    t124 = aggregate (local291, integer<Long>(0x000000000000002a)) : struct1
-    store t124 -> local290
+    t125 = aggregate (local291, integer<Long>(0x000000000000002a)) : struct1
+    store t125 -> local290
     br @inline.cont.92
   block inline.cont.94
     store local293 -> local4
     store local4 -> local5
     store local5 -> local6
-    call managed-direct-target22 sp<managed-call:0> live=[] t125 = sig=direct23 (parts<struct0 [i64@0+8/8,i64@8+8/8]>) -> struct0 local-fn11(local6)
-    store t125 -> local7
-    t126 = extract local7, 0 : i64
-    store t126 -> local8
+    call managed-direct-target22 sp<managed-call:0> live=[] t126 = sig=direct23 (parts<struct0 [i64@0+8/8,i64@8+8/8]>) -> struct0 local-fn11(local6)
+    store t126 -> local7
+    t127 = extract local7, 0 : i64
+    store t127 -> local8
     store integer<Long>(0x0000000000000007) -> local9
     store integer<Long>(0x0000000000000007) -> local10
-    t127 = integer_compare_Equal<Long> local8, integer<Long>(0x0000000000000007) : i1
-    cbr t127 then @if.then.1 else @if.else.2
+    t128 = integer_compare_Equal<Long> local8, integer<Long>(0x0000000000000007) : i1
+    cbr t128 then @if.then.1 else @if.else.2
   block inline.94.entry
-    t128 = aggregate (integer<Long>(0x0000000000000003), integer<Long>(0x0000000000000004)) : struct0
-    store t128 -> local293
+    t129 = aggregate (integer<Long>(0x0000000000000003), integer<Long>(0x0000000000000004)) : struct0
+    store t129 -> local293
     br @inline.cont.94
   block rethrow.normal.1
     unreachable

@@ -40,17 +40,18 @@ Module
     ret t2
   block inline.1.entry
     global_store global6, local6
+    t3 = aggregate () : {}
     br @inline.cont.1
   block inline.cont.3
     store local7 -> local0
     store integer<Int>(0x00000001) -> local1
     store integer<Int>(0x00000001) -> local2
-    t3 = integer_Add<Int> local0, integer<Int>(0x00000001) : i32
-    store t3 -> local6
+    t4 = integer_Add<Int> local0, integer<Int>(0x00000001) : i32
+    store t4 -> local6
     br @inline.1.entry
   block inline.3.entry
-    t4 = global_load global6 : i32
-    store t4 -> local7
+    t5 = global_load global6 : i32
+    store t5 -> local7
     br @inline.cont.3
   fun @scoop$1$cb$2de46f21666e8c830d0dd603518ccff2fe687ed8a971e1c2c63a2c88f1d5bc65(ptr<managed>, ptr<managed>) -> i1
     local %0 $receiver: ptr<managed>
@@ -92,21 +93,22 @@ Module
     br @inline.1.entry
   block inline.3.entry
     global_store global4, local8
+    t2 = aggregate () : {}
     br @inline.cont.3
   block inline.cont.5
     store local9 -> local0
     store integer<Int>(0x0000000a) -> local1
     store integer<Int>(0x0000000a) -> local2
-    t2 = integer_Multiply<Int> local0, integer<Int>(0x0000000a) : i32
-    store t2 -> local3
+    t3 = integer_Multiply<Int> local0, integer<Int>(0x0000000a) : i32
+    store t3 -> local3
     store integer<Int>(0x00000001) -> local4
     store integer<Int>(0x00000001) -> local5
-    t3 = integer_Add<Int> local3, integer<Int>(0x00000001) : i32
-    store t3 -> local8
+    t4 = integer_Add<Int> local3, integer<Int>(0x00000001) : i32
+    store t4 -> local8
     br @inline.3.entry
   block inline.5.entry
-    t4 = global_load global4 : i32
-    store t4 -> local9
+    t5 = global_load global4 : i32
+    store t5 -> local9
     br @inline.cont.5
   fun @scoop$1$cb$480ca893f4658de796746010b43858a09b4b2e5b3dfa99cd18b8affad46dfdd1() -> i32
     local %0 $dependency.receiver: i32
@@ -124,21 +126,22 @@ Module
     ret integer<Int>(0x00000004)
   block inline.1.entry
     global_store global4, local6
+    t0 = aggregate () : {}
     br @inline.cont.1
   block inline.cont.3
     store local7 -> local0
     store integer<Int>(0x0000000a) -> local1
     store integer<Int>(0x0000000a) -> local2
-    t0 = integer_Multiply<Int> local0, integer<Int>(0x0000000a) : i32
-    store t0 -> local3
+    t1 = integer_Multiply<Int> local0, integer<Int>(0x0000000a) : i32
+    store t1 -> local3
     store integer<Int>(0x00000002) -> local4
     store integer<Int>(0x00000002) -> local5
-    t1 = integer_Add<Int> local3, integer<Int>(0x00000002) : i32
-    store t1 -> local6
+    t2 = integer_Add<Int> local3, integer<Int>(0x00000002) : i32
+    store t2 -> local6
     br @inline.1.entry
   block inline.3.entry
-    t2 = global_load global4 : i32
-    store t2 -> local7
+    t3 = global_load global4 : i32
+    store t3 -> local7
     br @inline.cont.3
   fun @scoop$1$cb$ca447e8328293a1448ad394d2a81becf1d32c65913e66e4bfb1f566e50efe3b1() -> i32
     local %0 $dependency.receiver: i32
@@ -156,21 +159,22 @@ Module
     ret integer<Int>(0x00000006)
   block inline.1.entry
     global_store global4, local6
+    t0 = aggregate () : {}
     br @inline.cont.1
   block inline.cont.3
     store local7 -> local0
     store integer<Int>(0x0000000a) -> local1
     store integer<Int>(0x0000000a) -> local2
-    t0 = integer_Multiply<Int> local0, integer<Int>(0x0000000a) : i32
-    store t0 -> local3
+    t1 = integer_Multiply<Int> local0, integer<Int>(0x0000000a) : i32
+    store t1 -> local3
     store integer<Int>(0x00000003) -> local4
     store integer<Int>(0x00000003) -> local5
-    t1 = integer_Add<Int> local3, integer<Int>(0x00000003) : i32
-    store t1 -> local6
+    t2 = integer_Add<Int> local3, integer<Int>(0x00000003) : i32
+    store t2 -> local6
     br @inline.1.entry
   block inline.3.entry
-    t2 = global_load global4 : i32
-    store t2 -> local7
+    t3 = global_load global4 : i32
+    store t3 -> local7
     br @inline.cont.3
   fun @scoop$1$cb$def1ed64b927bcf2dbf6fcd39af65b527db44d0e16e6b9110ed6a3af2b036184() -> i32
     local %0 $default.local.0: ptr<managed>
@@ -382,42 +386,44 @@ Module
     br @inline.cont.23
   block inline.25.entry
     global_store global4, local54
+    t34 = aggregate () : {}
     br @inline.cont.25
   block inline.cont.27
     store local55 -> local48
     store integer<Int>(0x0000000a) -> local49
     store integer<Int>(0x0000000a) -> local50
-    t34 = integer_Multiply<Int> local48, integer<Int>(0x0000000a) : i32
-    store t34 -> local51
+    t35 = integer_Multiply<Int> local48, integer<Int>(0x0000000a) : i32
+    store t35 -> local51
     store integer<Int>(0x00000002) -> local52
     store integer<Int>(0x00000002) -> local53
-    t35 = integer_Add<Int> local51, integer<Int>(0x00000002) : i32
-    store t35 -> local54
+    t36 = integer_Add<Int> local51, integer<Int>(0x00000002) : i32
+    store t36 -> local54
     br @inline.25.entry
   block inline.27.entry
-    t36 = global_load global4 : i32
-    store t36 -> local55
+    t37 = global_load global4 : i32
+    store t37 -> local55
     br @inline.cont.27
   block inline.cont.29
     store integer<Int>(0x00000006) -> local40
     br @inline.cont.21
   block inline.29.entry
     global_store global4, local56
+    t38 = aggregate () : {}
     br @inline.cont.29
   block inline.cont.31
     store local57 -> local41
     store integer<Int>(0x0000000a) -> local42
     store integer<Int>(0x0000000a) -> local43
-    t37 = integer_Multiply<Int> local41, integer<Int>(0x0000000a) : i32
-    store t37 -> local44
+    t39 = integer_Multiply<Int> local41, integer<Int>(0x0000000a) : i32
+    store t39 -> local44
     store integer<Int>(0x00000003) -> local45
     store integer<Int>(0x00000003) -> local46
-    t38 = integer_Add<Int> local44, integer<Int>(0x00000003) : i32
-    store t38 -> local56
+    t40 = integer_Add<Int> local44, integer<Int>(0x00000003) : i32
+    store t40 -> local56
     br @inline.29.entry
   block inline.31.entry
-    t39 = global_load global4 : i32
-    store t39 -> local57
+    t41 = global_load global4 : i32
+    store t41 -> local57
     br @inline.cont.31
   block rethrow.normal.1
     unreachable
@@ -854,30 +860,33 @@ Module
     br @inline.1.entry
   block inline.3.entry
     heap_store local127 +16 integer<Int>(0x00000002)
+    t77 = aggregate () : {}
     br @inline.cont.3
   block inline.cont.5
     store local121 -> local5
     store integer<Int>(0x00000002) -> local6
     store integer<Int>(0x00000002) -> local7
-    call managed-direct-target12 sp<managed-call:2> live=[local2:ptr<managed>@0, local5:ptr<managed>@0] t77 = sig=direct13 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td8, machine<byte-size>(ByteSize(24)))
-    store t77 -> local122
+    call managed-direct-target12 sp<managed-call:2> live=[local2:ptr<managed>@0, local5:ptr<managed>@0] t78 = sig=direct13 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td8, machine<byte-size>(ByteSize(24)))
+    store t78 -> local122
     store local122 -> local127
     store integer<Int>(0x00000002) -> local128
     br @inline.3.entry
   block inline.5.entry
     heap_store local129 +16 integer<Int>(0x00000001)
+    t79 = aggregate () : {}
     br @inline.cont.5
   block inline.cont.7
     store local120 -> local2
     store integer<Int>(0x00000001) -> local3
     store integer<Int>(0x00000001) -> local4
-    call managed-direct-target13 sp<managed-call:1> live=[local2:ptr<managed>@0] t78 = sig=direct14 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td8, machine<byte-size>(ByteSize(24)))
-    store t78 -> local121
+    call managed-direct-target13 sp<managed-call:1> live=[local2:ptr<managed>@0] t80 = sig=direct14 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td8, machine<byte-size>(ByteSize(24)))
+    store t80 -> local121
     store local121 -> local129
     store integer<Int>(0x00000001) -> local130
     br @inline.5.entry
   block inline.7.entry
     heap_store local131 +16 integer<Int>(0x00000001)
+    t81 = aggregate () : {}
     br @inline.cont.7
   fun @scoop$1$cb$19904c34c941f1a80ca1b2f620115a36d2573081f6253f23bc1fe30258939786() -> void
     local %0 $argument.0: i32
@@ -2107,6 +2116,7 @@ Module
     call managed-direct-target4 sp<managed-call:4> live=[] t15 = sig=direct4 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td9, machine<byte-size>(ByteSize(24)))
     atomic_store Int Relaxed t15 +16, integer<Int>(0x00000004)
     global_store global5, t15
+    t16 = aggregate () : {}
     br @inline.cont.20
   fun @scoop$1$cb$b672e140e9444670b8c58084955d164b9e51d9cdc77c470cced525e74f8d5283() -> ptr<managed>
   block entry

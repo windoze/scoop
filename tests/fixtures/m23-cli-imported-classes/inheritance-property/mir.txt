@@ -66,6 +66,8 @@ Module
           Type Long
           Local $dependency.parameter.other
       return
+        Type Unit
+        UnitLiteral
   fun primary @fn2() -> Counter
     bb0 entry
       assign $new.1
@@ -134,6 +136,8 @@ Module
         Type Long
         IntegerLiteral Long value=0 bits=0x0000000000000000
       return
+        Type Unit
+        UnitLiteral
   fun startCoroutine<Derived> @fn8(task: SuspendTask<Derived>, completion: Continuation<Derived>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
@@ -156,6 +160,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb3 completed unwind bb0
       call @fn3 interface Continuation<Derived>[0]
         Type Continuation<Derived>
@@ -169,6 +175,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb4 failed unwind bb0
       call @fn4 interface Continuation<Derived>[1]
         Type Continuation<Derived>
@@ -180,6 +188,8 @@ Module
         Type internal<context-switch-guard>
         Local $context_guard
       return
+        Type Unit
+        UnitLiteral
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch

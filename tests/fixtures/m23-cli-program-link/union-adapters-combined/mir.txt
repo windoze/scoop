@@ -410,6 +410,8 @@ Module
         Type Int
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun println @fn2(value: Int) -> Unit
     bb0 entry
       val $dependency.local.1: Int
@@ -434,6 +436,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   fun $dynamic_adapter.(Payload) -> Any @fn3($closure: (Payload) -> Any, arg0: Payload) -> Any
     bb0 entry
       call $call.1: Any = <function_bridge:function_type1> function_bridge[function_type1]

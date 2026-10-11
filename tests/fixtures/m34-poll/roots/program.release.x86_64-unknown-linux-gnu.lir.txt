@@ -408,6 +408,7 @@ Module
     br @if.merge.2
   block inline.8.entry
     heap_store local39 +16 integer<Int>(0x00000007)
+    t18 = aggregate () : {}
     br @inline.cont.8
   fun @scoop$1$cb$bd72130cb1e0861ad529ab3f38aad5a2ae2cee031dfcb9974f003daee48dab7b(ptr<managed>) -> parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>
     local %0 $dependency.local.1: interface{object,itab}
@@ -448,6 +449,7 @@ Module
     heap_store local7 +16 local8
     heap_store local7 +32 integer<Long>(0x0000000000000000)
     heap_store local7 +40 false
+    t7 = aggregate () : {}
     br @inline.cont.1
   fun @scoop$1$cb$87ac7cbf13ccff76a800a866309e2ab65989540bba8dbecdc2e7197d0a7a8ffe(ptr<managed>, i64) -> ptr<managed>
     local %0 $dependency.local.2: ptr<managed>

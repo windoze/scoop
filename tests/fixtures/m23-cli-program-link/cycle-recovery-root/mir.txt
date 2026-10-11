@@ -25,6 +25,8 @@ Module
         Type Long
         Local $dependency.parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun main @fn1() -> Unit
     bb0 entry
       call $dependency.receiver: Long = external0 direct
@@ -104,6 +106,8 @@ Module
         Type Long
         Local $parameter.value
       return
+        Type Unit
+        UnitLiteral
   fun println @fn2(value: Long) -> Unit
     bb0 entry
       val $dependency.local.1: Long
@@ -128,6 +132,8 @@ Module
         Type String
         Local $dependency.local.5
       return
+        Type Unit
+        UnitLiteral
   instance mi0 function=@fn2 <- println
   str @str0 "illegal state"
   str @str1 "\n"

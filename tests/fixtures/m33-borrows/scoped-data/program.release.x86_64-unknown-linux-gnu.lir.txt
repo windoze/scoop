@@ -419,21 +419,22 @@ Module
     store t32 -> local62
     br @while.cond.19
   block inline.22.entry
+    t33 = aggregate () : {}
     br @inline.cont.22
   block inline.cont.24
     store local70 -> local53
     array_set array0 local51 local52 local53
-    t33 = integer_Add<Long> local52, integer<Long>(0x0000000000000001) : i64
-    store t33 -> local52
+    t34 = integer_Add<Long> local52, integer<Long>(0x0000000000000001) : i64
+    store t34 -> local52
     br @while.cond.3
   block inline.24.entry
     store local71 -> local72
-    t34 = integer_convert<Long->Int> local72 : i32
-    store t34 -> local73
+    t35 = integer_convert<Long->Int> local72 : i32
+    store t35 -> local73
     store integer<Int>(0x00000001) -> local74
     store integer<Int>(0x00000001) -> local75
-    t35 = integer_Add<Int> local73, integer<Int>(0x00000001) : i32
-    store t35 -> local70
+    t36 = integer_Add<Int> local73, integer<Int>(0x00000001) : i32
+    store t36 -> local70
     br @inline.cont.24
   fun @scoop$1$cb$847b8d276ec56e6825d3b525a65348943556879b1f0511be230b876e8d632971(ptr<managed>) -> void
     local %0 $dependency.receiver: ptr<managed>
@@ -710,6 +711,7 @@ Module
     heap_store local7 +16 local8
     heap_store local7 +32 integer<Long>(0x0000000000000000)
     heap_store local7 +40 false
+    t7 = aggregate () : {}
     br @inline.cont.1
   fun @scoop$1$cb$fddfc39b000af59b98c53e20b637b52530ec5ac73b5765541f1a38aa08659d39(ptr<managed>, i64) -> i32
     local %0 $dependency.local.2: ptr<managed>
@@ -794,6 +796,7 @@ Module
     heap_store local7 +16 local8
     heap_store local7 +32 integer<Long>(0x0000000000000000)
     heap_store local7 +40 false
+    t7 = aggregate () : {}
     br @inline.cont.1
   fun @scoop$1$cb$9cd888d2e5f1d2f10d9ff03b89262af44b37e0f0f811126d8b50b67296fffa25(ptr<managed>, i64) -> i32
     local %0 $dependency.local.2: ptr<managed>
@@ -878,6 +881,7 @@ Module
     heap_store local7 +16 local8
     heap_store local7 +32 integer<Long>(0x0000000000000000)
     heap_store local7 +40 false
+    t7 = aggregate () : {}
     br @inline.cont.1
   fun @scoop$1$cb$67de29abbedc3f6e3b14aa947b0a879485471a042edd4ec69fca32ba83f288ba(ptr<managed>, i64) -> void
     local %0 $dependency.local.2: ptr<managed>
@@ -914,7 +918,6 @@ Module
     throw local6
     unreachable
   block if.merge.5
-    t5 = array_get array2 local3 local4 : {}
     ret
   fun @scoop$1$cb$61b57c8c2a483f81af70409564530aea702d50f2fba83d71d1e0cd120508d828(ptr<managed>) -> i64
     local %0 $dependency.local.1: ptr<managed>

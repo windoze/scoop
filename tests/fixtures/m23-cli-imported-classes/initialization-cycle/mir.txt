@@ -47,6 +47,8 @@ Module
         Type Attempts
         Local $new.1
       return
+        Type Unit
+        UnitLiteral
   fun $init$ensure$0 @fn3() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -71,6 +73,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -188,6 +192,8 @@ Module
         Type Left
         Local $new.1
       return
+        Type Unit
+        UnitLiteral
   fun $init$ensure$1 @fn6() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -212,6 +218,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -298,6 +306,8 @@ Module
         Type Right
         Local $new.1
       return
+        Type Unit
+        UnitLiteral
   fun $init$ensure$2 @fn8() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
@@ -322,6 +332,8 @@ Module
           MachineScalarLiteral InitializationOutcome(Ready)
     bb3 if.merge.3
       return
+        Type Unit
+        UnitLiteral
     bb4 try.unwind.4
       landing_pad cleanup=false
       goto bb5
@@ -636,6 +648,8 @@ Module
         Type Long
         IntegerLiteral Long value=0 bits=0x0000000000000000
       return
+        Type Unit
+        UnitLiteral
   fun init.Left.$c1 @fn12(this: Left) -> Unit
     bb0 entry
       call $call.1: Long = @fn4 direct
@@ -645,6 +659,8 @@ Module
         Type Long
         Local $call.1
       return
+        Type Unit
+        UnitLiteral
   fun init.Right.$c2 @fn13(this: Right) -> Unit
     bb0 entry
       call $call.1: Long = @fn0 direct
@@ -654,4 +670,6 @@ Module
         Type Long
         Local $call.1
       return
+        Type Unit
+        UnitLiteral
   output library

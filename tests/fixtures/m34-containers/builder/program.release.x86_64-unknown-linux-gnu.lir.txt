@@ -116,6 +116,7 @@ Module
     heap_store local7 +16 local8
     heap_store local7 +32 integer<Long>(0x0000000000000000)
     heap_store local7 +40 false
+    t7 = aggregate () : {}
     br @inline.cont.1
   fun @scoop$1$cb$bece56218115f5a125f1997e74c9a6b6cd5eca9d03cf8a07cbe8bdefbe545b64(ptr<managed>, i64) -> sret<struct0 size=8 align=8 scan=refs[0]>
     local %0 $dependency.local.2: ptr<managed>
@@ -200,6 +201,7 @@ Module
     heap_store local7 +16 local8
     heap_store local7 +32 integer<Long>(0x0000000000000000)
     heap_store local7 +40 false
+    t7 = aggregate () : {}
     br @inline.cont.1
   fun @scoop$1$cb$d6cc0ff0f74ccd5398e2313e18f60c2d304f82da68640949025509c283b0185b(ptr<managed>, i64) -> ptr<managed>
     local %0 $dependency.local.2: ptr<managed>
@@ -1318,6 +1320,7 @@ Module
   block inline.18.entry
     heap_store local165 +16 local166
     heap_store local165 +24 integer<Int>(0x00000000)
+    t84 = aggregate () : {}
     br @inline.cont.18
   fun @scoop$1$cb$b45043b02295786ac4fd49236e4cc145b1266f87eab09acc473b83b88eb4cc1a(ptr<managed>) -> sret<enum5 size=16 align=8 scan=refs[8]>
     local %0 $dependency.local.1: struct0
@@ -1710,6 +1713,7 @@ Module
     heap_store local7 +16 local8
     heap_store local7 +32 integer<Long>(0x0000000000000000)
     heap_store local7 +40 false
+    t7 = aggregate () : {}
     br @inline.cont.1
   fun @scoop$1$cb$a5713e23d1b602be6bbb5eca7a3beb78a7d4ab973cc3d446748aded6223b6e59(ptr<managed>, i64) -> parts<struct1 [i64@0+8/8,i64@8+8/8]>
     local %0 $dependency.local.2: ptr<managed>
@@ -1794,6 +1798,7 @@ Module
     heap_store local7 +16 local8
     heap_store local7 +32 integer<Long>(0x0000000000000000)
     heap_store local7 +40 false
+    t7 = aggregate () : {}
     br @inline.cont.1
   fun @scoop$1$cb$bc265db5b57c7552f65492524bf49331e4c8970eed2c9d6be74969435879c963(ptr<managed>, i64) -> parts<enum0 [i64@0+8/8,i64@8+8/8]>
     local %0 $dependency.local.2: ptr<managed>
@@ -2416,6 +2421,7 @@ Module
     ret t3
   block inline.1.entry
     heap_store local3 +16 local4
+    t4 = aggregate () : {}
     br @inline.cont.1
   fun @scoop$1$cb$873373510c4707fc24082ad23b7e58224e7ba2a4df0af5799106ff6992322327(ptr<managed>, parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>) -> parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>
     local %0 $dependency.local.2: interface{object,itab}
@@ -2439,6 +2445,7 @@ Module
     ret t3
   block inline.1.entry
     heap_store local3 +16 local4
+    t4 = aggregate () : {}
     br @inline.cont.1
   fun @scoop$1$cb$f05194c5092e47b3804228e4af8538a60dbb861817535637bcf855d50960dc5b(ptr<managed>, parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>) -> parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>
     local %0 $dependency.local.2: interface{object,itab}
@@ -2462,6 +2469,7 @@ Module
     ret t3
   block inline.1.entry
     heap_store local3 +16 local4
+    t4 = aggregate () : {}
     br @inline.cont.1
   fun @scoop$1$cb$47e4499a2e708fbab06dd733d10f88f16427da8ae5c957e064849222badb6568(ptr<managed>, parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>) -> parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>
     local %0 $dependency.local.2: interface{object,itab}
@@ -2485,6 +2493,7 @@ Module
     ret t3
   block inline.1.entry
     heap_store local3 +16 local4
+    t4 = aggregate () : {}
     br @inline.cont.1
   fun @scoop$1$cb$c2a1fc249d3833c19f0b04f40bd3d082fa0e5d7d3c326a9a8a021f3b7450d9f6(ptr<managed>, ptr<managed>, parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>) -> ptr<managed>
     local %0 $dependency.local.3: ptr<managed>
@@ -2660,6 +2669,7 @@ Module
     global_store global22, local0
     ret
   block inline.1.entry
+    t1 = aggregate () : {}
     br @inline.cont.1
   fun @scoop$1$cb$fbdf5a888b72fb915b66bd1e5725e2428ec6168a66db43ce996ff93771d9fd2e() -> void
     local %0 $init.state: machine<initialization-outcome>
@@ -2753,6 +2763,7 @@ Module
     global_store global23, local0
     ret
   block inline.1.entry
+    t1 = aggregate () : {}
     br @inline.cont.1
   fun @scoop$1$cb$696e9737fbb2130640faad854735f2a98200301cbeef0dd43269e4335f1b2962() -> void
     local %0 $init.state: machine<initialization-outcome>
@@ -3576,6 +3587,7 @@ Module
     heap_store local7 +16 local8
     heap_store local7 +32 integer<Long>(0x0000000000000000)
     heap_store local7 +40 false
+    t7 = aggregate () : {}
     br @inline.cont.1
   fun @scoop$1$cb$9ebf3c953e537343189d53cb0105e881854a1c1663f27624a3c38651873b61d6(ptr<managed>, i64) -> sret<struct5 size=56 align=8 scan=refs[0, 24, 32, 40, 48]>
     local %0 $dependency.local.2: ptr<managed>
@@ -3660,6 +3672,7 @@ Module
     heap_store local7 +16 local8
     heap_store local7 +32 integer<Long>(0x0000000000000000)
     heap_store local7 +40 false
+    t7 = aggregate () : {}
     br @inline.cont.1
   fun @scoop$1$cb$35420c3d645862b06c0dead10e17b7b655a9c248f684749fe49cb233e29f7fed(ptr<managed>, i64) -> sret<struct4 size=56 align=8 scan=refs[0, 24, 32, 40, 48]>
     local %0 $dependency.local.2: ptr<managed>
@@ -4267,6 +4280,7 @@ Module
     heap_store local7 +16 local8
     heap_store local7 +32 integer<Long>(0x0000000000000000)
     heap_store local7 +40 false
+    t7 = aggregate () : {}
     br @inline.cont.1
   fun @scoop$1$cb$02ba50e012ec159f441387dc46c4f73c2d6578ddedffeb8a910803a0e57c6afd(ptr<managed>, i64) -> sret<struct6 size=48 align=8 scan=refs[16, 24, 32, 40]>
     local %0 $dependency.local.2: ptr<managed>
@@ -4351,6 +4365,7 @@ Module
     heap_store local7 +16 local8
     heap_store local7 +32 integer<Long>(0x0000000000000000)
     heap_store local7 +40 false
+    t7 = aggregate () : {}
     br @inline.cont.1
   fun @scoop$1$cb$a1959b4cd8618b1ac08b45a8a8f0f185ffb8ee865e2bc1b4d943a4bd1480412e(ptr<managed>, i64) -> sret<enum1 size=48 align=8 scan=refs[16, 24, 32, 40]>
     local %0 $dependency.local.2: ptr<managed>

@@ -373,7 +373,6 @@ Module
     t0 = local_address local0 : ptr
     store t0 -> local1
     store local1 -> local2
-    t1 = zst_value exact=1dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc align 1 : {}
     ret
   fun @scoop$1$cb$57a9f5ede680ab04d313c5a0edec955550385adb10d3b9d4b98ae6fe48368e55(parts<struct0 [i32@0+4/4]>) -> parts<struct0 [i32@0+4/4]>
     local %0 value: struct0

@@ -393,7 +393,6 @@ Module
   fun @scoop$1$cb$773dfb59001eed64ab0c40453a088cd88da511da3b5a4a2c71a3f5ab0f47010a(elided-zst<struct2 size=0 align=1>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
-    t0 = extract param0, 0 : {}
     ret
   fun @scoop$1$cb$a7f029cc0517aa6de7d6a6b0ee3617feaac5c7ed360f4853cdf89d14d39710cf(parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>) -> void
     local %0 $dependency.local.1: interface{object,itab}

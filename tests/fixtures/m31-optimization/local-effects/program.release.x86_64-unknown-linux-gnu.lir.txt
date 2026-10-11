@@ -30,30 +30,32 @@ Module
     ret local5
   block inline.1.entry
     heap_store local6 +16 integer<Int>(0x00000007)
+    t0 = aggregate () : {}
     br @inline.cont.1
   block inline.cont.3
     call managed-void-target0 sp<managed-call:0> live=[] sig=void0 () runtime @scoop_rt_gc_collect()
-    t0 = aggregate () : {}
+    t1 = aggregate () : {}
     store integer<Int>(0x00000007) -> local3
     store integer<Int>(0x00000007) -> local4
-    call managed-direct-target0 sp<managed-call:1> live=[] t1 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td6, machine<byte-size>(ByteSize(24)))
-    store t1 -> local5
+    call managed-direct-target0 sp<managed-call:1> live=[] t2 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td6, machine<byte-size>(ByteSize(24)))
+    store t2 -> local5
     store local5 -> local6
     store integer<Int>(0x00000007) -> local7
     br @inline.1.entry
   block inline.3.entry
     global_store global3, local8
+    t3 = aggregate () : {}
     br @inline.cont.3
   block inline.cont.5
     store local9 -> local0
     store integer<Int>(0x00000001) -> local1
     store integer<Int>(0x00000001) -> local2
-    t2 = integer_Add<Int> local0, integer<Int>(0x00000001) : i32
-    store t2 -> local8
+    t4 = integer_Add<Int> local0, integer<Int>(0x00000001) : i32
+    store t4 -> local8
     br @inline.3.entry
   block inline.5.entry
-    t3 = global_load global3 : i32
-    store t3 -> local9
+    t5 = global_load global3 : i32
+    store t5 -> local9
     br @inline.cont.5
   fun @scoop$1$cb$2f4167d51645ceca028826d08361f72af7bf380ba28bea7dac26cdb0f0e7f26e(ptr<raw>, i32) -> void
     local %0 $dependency.receiver: ptr<raw>
@@ -142,6 +144,7 @@ Module
     store local25 -> local26
     raw_store local24 local26 align 4
     t9 = aggregate () : {}
+    t10 = aggregate () : {}
     br @inline.cont.6
   fun @scoop$1$cb$a614158a1c71a603858fd468def769b2b84643d399dc4d21cb9a50deeea9129c() -> i32
     local %0 $dependency.argument.0: ptr<managed>
@@ -336,17 +339,18 @@ Module
     ret integer<Long>(0x0000000000000063)
   block inline.22.entry
     global_store global3, local19
+    t14 = aggregate () : {}
     br @inline.cont.22
   block inline.cont.24
     store local20 -> local8
     store integer<Int>(0x00000001) -> local9
     store integer<Int>(0x00000001) -> local10
-    t14 = integer_Add<Int> local8, integer<Int>(0x00000001) : i32
-    store t14 -> local19
+    t15 = integer_Add<Int> local8, integer<Int>(0x00000001) : i32
+    store t15 -> local19
     br @inline.22.entry
   block inline.24.entry
-    t15 = global_load global3 : i32
-    store t15 -> local20
+    t16 = global_load global3 : i32
+    store t16 -> local20
     br @inline.cont.24
   block inline.cont.26
     store integer<Long>(0x0000000000000063) -> local18
@@ -354,50 +358,53 @@ Module
     br @scope.21
   block inline.26.entry
     global_store global3, local21
+    t17 = aggregate () : {}
     br @inline.cont.26
   block inline.cont.28
     store local22 -> local5
     store integer<Int>(0x0000000a) -> local6
     store integer<Int>(0x0000000a) -> local7
-    t16 = integer_Add<Int> local5, integer<Int>(0x0000000a) : i32
-    store t16 -> local21
+    t18 = integer_Add<Int> local5, integer<Int>(0x0000000a) : i32
+    store t18 -> local21
     br @inline.26.entry
   block inline.28.entry
-    t17 = global_load global3 : i32
-    store t17 -> local22
+    t19 = global_load global3 : i32
+    store t19 -> local22
     br @inline.cont.28
   block inline.cont.30
     invoke no-gc-void-target1 sig=void2 () runtime @scoop_rt_rethrow() normal @rethrow.normal.3 unwind @try.exit_pad.5
     br @rethrow.normal.3
   block inline.30.entry
     global_store global3, local23
+    t20 = aggregate () : {}
     br @inline.cont.30
   block inline.cont.32
     store local24 -> local8
     store integer<Int>(0x00000001) -> local9
     store integer<Int>(0x00000001) -> local10
-    t18 = integer_Add<Int> local8, integer<Int>(0x00000001) : i32
-    store t18 -> local23
+    t21 = integer_Add<Int> local8, integer<Int>(0x00000001) : i32
+    store t21 -> local23
     br @inline.30.entry
   block inline.32.entry
-    t19 = global_load global3 : i32
-    store t19 -> local24
+    t22 = global_load global3 : i32
+    store t22 -> local24
     br @inline.cont.32
   block inline.cont.34
     ret local16
   block inline.34.entry
     global_store global3, local25
+    t23 = aggregate () : {}
     br @inline.cont.34
   block inline.cont.36
     store local26 -> local8
     store integer<Int>(0x00000001) -> local9
     store integer<Int>(0x00000001) -> local10
-    t20 = integer_Add<Int> local8, integer<Int>(0x00000001) : i32
-    store t20 -> local25
+    t24 = integer_Add<Int> local8, integer<Int>(0x00000001) : i32
+    store t24 -> local25
     br @inline.34.entry
   block inline.36.entry
-    t21 = global_load global3 : i32
-    store t21 -> local26
+    t25 = global_load global3 : i32
+    store t25 -> local26
     br @inline.cont.36
   block invoke.normal.1
     t10 = aggregate () : {}
