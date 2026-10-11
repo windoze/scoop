@@ -46,6 +46,13 @@ impl Lowerer {
         })
     }
 
+    pub(crate) fn loop_label_is_active(&self, name: &str) -> bool {
+        self.loop_targets
+            .iter()
+            .rev()
+            .any(|target| target.label.as_deref() == Some(name))
+    }
+
     pub(crate) fn push_loop(&mut self, target: hir::LoopId, label: Option<&ast::Ident>) {
         self.loop_targets.push(ActiveLoop {
             target,

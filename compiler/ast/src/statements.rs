@@ -21,6 +21,7 @@ pub enum StatementKind {
     /// `return` with an optional value (bare `return` in `Unit`
     /// functions).
     Return {
+        label: Option<Ident>,
         value: Option<Expr>,
     },
     /// `when` used in statement position (spec 5). Value position

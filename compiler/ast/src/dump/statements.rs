@@ -52,8 +52,11 @@ fn dump_statement(statement: &Statement, indent: usize, out: &mut String) {
                 FunctionBody::None => {}
             }
         }
-        StatementKind::Return { value } => {
+        StatementKind::Return { label, value } => {
             out.push_str(&format!("{pad}return\n"));
+            if let Some(label) = label {
+                out.push_str(&format!("{pad}  label {}\n", label.text));
+            }
             if let Some(value) = value {
                 dump_expr(value, indent + 1, out);
             }

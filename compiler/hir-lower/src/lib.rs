@@ -811,6 +811,7 @@ pub(crate) struct Lowerer {
     pub(crate) return_inference: Option<ReturnInference>,
     /// Name of the function whose body is being lowered (diagnostics).
     pub(crate) current_fn_name: String,
+    pub(crate) current_callable_label: Option<String>,
     /// Typed lexical context attached to every expression origin.
     pub(crate) current_source_context: Option<hir::SourceContextId>,
     /// The actual request location for a synthesized equality body, including

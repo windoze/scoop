@@ -2,6 +2,9 @@ use super::*;
 
 impl Parser {
     pub(super) fn parse_atom(&mut self) -> Result<Expr, Diagnostic> {
+        if self.starts_callable_label() {
+            return self.parse_labeled_callable();
+        }
         let token = self.peek().clone();
         match token.kind {
             TokenKind::Return => self.parse_return_expression(),

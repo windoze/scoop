@@ -161,6 +161,7 @@ impl Lowerer {
         let outer_scopes = std::mem::replace(&mut self.scopes, Scopes::new());
         let outer_return_ty = self.current_return_ty;
         let outer_return_inference = self.return_inference.take();
+        let outer_callable_label = self.current_callable_label.replace(decl.name.text.clone());
         let outer_fn_name = std::mem::take(&mut self.current_fn_name);
         let outer_loop_targets = std::mem::take(&mut self.loop_targets);
         let outer_source_context = self.current_source_context;
@@ -293,6 +294,7 @@ impl Lowerer {
         self.scopes = outer_scopes;
         self.current_return_ty = outer_return_ty;
         self.return_inference = outer_return_inference;
+        self.current_callable_label = outer_callable_label;
         self.current_fn_name = outer_fn_name;
         self.current_source_context = outer_source_context;
         self.definition_paths = outer_definition_paths;

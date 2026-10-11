@@ -10,6 +10,7 @@ impl Lowerer {
     ) -> hir::Body {
         let outer_loop_targets = std::mem::take(&mut self.loop_targets);
         let outer_source_context = self.current_source_context;
+        let outer_callable_label = self.current_callable_label.replace(name.to_owned());
         let outer_definition_paths = std::mem::take(&mut self.definition_paths);
         let outer_definition_root = self
             .definition_root
@@ -88,6 +89,7 @@ impl Lowerer {
         self.current_this = None;
         self.current_owner = None;
         self.current_source_context = outer_source_context;
+        self.current_callable_label = outer_callable_label;
         self.definition_paths = outer_definition_paths;
         self.definition_root = outer_definition_root;
         self.pop_safety_context();

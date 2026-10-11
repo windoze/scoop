@@ -73,6 +73,7 @@ fn callback_registration() -> ast::Expr {
         ty_named("Int"),
     );
     let callback = ast::Expr::Lambda {
+        label: None,
         id: ast::LambdaId(0),
         is_suspend: false,
         parameters: Some(vec![ast::LambdaParam {

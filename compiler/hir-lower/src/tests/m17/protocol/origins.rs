@@ -116,6 +116,7 @@ fn a_lambda_body_establishes_its_own_default_evaluation_boundary() {
         ),
         0,
         Expr::Lambda {
+            label: None,
             id: ast::LambdaId(0),
             is_suspend: false,
             parameters: Some(Vec::new()),

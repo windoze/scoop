@@ -12,6 +12,7 @@ use crate::tests::{
 
 fn lambda(id: u32, statements: Vec<ast::Statement>) -> ast::Expr {
     ast::Expr::Lambda {
+        label: None,
         id: ast::LambdaId(id),
         is_suspend: false,
         parameters: Some(Vec::new()),

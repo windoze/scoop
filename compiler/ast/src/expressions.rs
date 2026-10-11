@@ -11,6 +11,7 @@ pub enum Expr {
         span: Span,
     },
     Return {
+        label: Option<Ident>,
         value: Option<Box<Expr>>,
         span: Span,
     },
@@ -63,6 +64,7 @@ pub enum Expr {
     /// parameter list was omitted; this is distinct from the explicit
     /// zero-parameter form `{ -> body }` for expected-type `it` inference.
     Lambda {
+        label: Option<Ident>,
         id: LambdaId,
         is_suspend: bool,
         parameters: Option<Vec<LambdaParam>>,
@@ -71,6 +73,7 @@ pub enum Expr {
     },
     /// `fun(p: T): R { ... }` / `suspend fun(...) { ... }`.
     AnonymousFunction {
+        label: Option<Ident>,
         id: AnonymousFunctionId,
         is_suspend: bool,
         params: Vec<Param>,

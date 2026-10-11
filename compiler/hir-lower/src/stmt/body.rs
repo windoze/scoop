@@ -29,6 +29,12 @@ impl Lowerer {
                         value: self.adapt_to(value, target),
                     };
                 }
+                hir::StatementKind::ContextScope { value, body } => {
+                    statement.kind = hir::StatementKind::ContextScope {
+                        value,
+                        body: self.adapt_inferred_returns(body, target),
+                    };
+                }
                 hir::StatementKind::If {
                     cond,
                     then_body,
@@ -57,6 +63,16 @@ impl Lowerer {
                 }
                 hir::StatementKind::When(mut when) => {
                     for arm in when.arms_mut() {
+                        if let hir::WhenConditionMut::Predicate(condition) = arm.condition {
+                            condition.setup = self.adapt_inferred_returns(
+                                std::mem::take(&mut condition.setup),
+                                target,
+                            );
+                        }
+                        if let Some(guard) = arm.guard {
+                            guard.setup = self
+                                .adapt_inferred_returns(std::mem::take(&mut guard.setup), target);
+                        }
                         *arm.body = self.adapt_inferred_returns(std::mem::take(arm.body), target);
                     }
                     if let Some(body) = when.else_body_mut() {

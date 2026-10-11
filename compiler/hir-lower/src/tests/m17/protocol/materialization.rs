@@ -144,6 +144,7 @@ fn callback_registration_with_value(mode: &str, value_type: ast::TypeRef) -> ast
         value_type.clone(),
     );
     let callback = ast::Expr::Lambda {
+        label: None,
         id: ast::LambdaId(0),
         is_suspend: false,
         parameters: Some(vec![ast::LambdaParam {

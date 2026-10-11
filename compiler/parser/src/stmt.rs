@@ -293,26 +293,6 @@ impl Parser {
         })
     }
 
-    fn reject_jump_label(&mut self, keyword: &Token, name: &str) -> Result<(), Diagnostic> {
-        if !matches!(self.peek().kind, TokenKind::At) {
-            return Ok(());
-        }
-        let at = self.bump();
-        let end = if !self.peek().newline_before
-            && matches!(
-                self.peek().kind,
-                TokenKind::Ident(_) | TokenKind::EscapedIdent(_)
-            ) {
-            self.bump().span.end
-        } else {
-            at.span.end
-        };
-        Err(Diagnostic::at(
-            Span::new(keyword.span.start, end),
-            format!("`{name}` labels are not supported in M22"),
-        ))
-    }
-
     fn starts_loop_label(&self) -> bool {
         if !matches!(
             self.peek().kind,

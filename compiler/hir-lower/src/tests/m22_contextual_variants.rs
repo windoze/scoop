@@ -326,6 +326,7 @@ fn inapplicable_function_struct_and_class_layers_fall_through_to_contextual_vari
 #[test]
 fn applicable_ordinary_layers_and_callable_locals_keep_their_priority() {
     let callable = Expr::Lambda {
+        label: None,
         id: ast::LambdaId(0),
         is_suspend: false,
         parameters: Some(vec![ast::LambdaParam {

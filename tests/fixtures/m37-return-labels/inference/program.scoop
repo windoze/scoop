@@ -1,0 +1,20 @@
+class Box(val value: Int)
+fun unitAction(block: () -> Unit) { block() }
+fun main() {
+    val boxes = out@ { if (true) return@out Box(7); Box(8) }
+    println(boxes().value)
+    val mixed = out@ { if (true) return@out; 42 }
+    val value: Any = mixed()
+    println(value is Unit)
+    val outer = out@ {
+        val inner = fun() { return "inner" }
+        println(inner())
+        fun local(): Int { return@local 11 }
+        return@out local()
+    }
+    println(outer())
+    unitAction { println("unit"); return@unitAction }
+    unitAction { 99 }
+    val never = out@ { throw UnwrapException() }
+    try { never() } catch (failure: UnwrapException) { println("caught") }
+}

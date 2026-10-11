@@ -2,6 +2,7 @@ use super::*;
 
 fn lambda(parameters: Option<Vec<ast::LambdaParam>>, tail: ast::Expr) -> ast::Expr {
     ast::Expr::Lambda {
+        label: None,
         id: ast::LambdaId(0),
         is_suspend: false,
         parameters,
@@ -22,6 +23,7 @@ fn suspend_lambda(parameters: Option<Vec<ast::LambdaParam>>, tail: ast::Expr) ->
         unreachable!("lambda helper returns a lambda")
     };
     ast::Expr::Lambda {
+        label: None,
         id,
         is_suspend: true,
         parameters,
@@ -36,6 +38,7 @@ fn anonymous(
     statements: Vec<ast::Statement>,
 ) -> ast::Expr {
     ast::Expr::AnonymousFunction {
+        label: None,
         id: ast::AnonymousFunctionId(0),
         is_suspend: false,
         params: params
@@ -57,4 +60,5 @@ mod captures;
 mod literals;
 mod local_functions;
 mod references;
+mod returns;
 mod types;

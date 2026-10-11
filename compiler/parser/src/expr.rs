@@ -17,6 +17,7 @@ use crate::parser::Parser;
 mod callables;
 mod context;
 mod interpolation;
+mod labels;
 mod places;
 mod postfix;
 mod primary;
@@ -148,7 +149,8 @@ impl Parser {
                         break;
                     }
                     let name = self.expect_ident("infix function name")?;
-                    let rhs = self.parse_binary(INFIX_PRECEDENCE + 1)?;
+                    let mut rhs = self.parse_binary(INFIX_PRECEDENCE + 1)?;
+                    labels::name_lambda(&mut rhs, &name);
                     lhs = Expr::InfixCall {
                         span: Span::new(lhs.span().start, rhs.span().end),
                         lhs: Box::new(lhs),

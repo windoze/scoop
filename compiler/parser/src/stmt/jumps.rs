@@ -40,11 +40,12 @@ impl Parser {
     }
 
     pub(super) fn parse_return(&mut self) -> Result<Statement, Diagnostic> {
-        let Expr::Return { value, span } = self.parse_return_expression()? else {
+        let Expr::Return { label, value, span } = self.parse_return_expression()? else {
             unreachable!("return parser constructs a return expression")
         };
         Ok(Statement {
             kind: StatementKind::Return {
+                label,
                 value: value.map(|value| *value),
             },
             span,
@@ -53,7 +54,15 @@ impl Parser {
 
     pub(crate) fn parse_return_expression(&mut self) -> Result<Expr, Diagnostic> {
         let keyword = self.bump();
-        self.reject_jump_label(&keyword, "return")?;
+        let label = if !self.peek().newline_before && matches!(self.peek().kind, TokenKind::At) {
+            self.bump();
+            if self.peek().newline_before {
+                return self.unexpected("return label on the same line");
+            }
+            Some(self.expect_ident("return label")?)
+        } else {
+            None
+        };
         let token = self.peek();
         let has_value = !token.newline_before
             && !matches!(
@@ -71,10 +80,16 @@ impl Parser {
         } else {
             None
         };
-        let end = value
-            .as_ref()
-            .map_or(keyword.span.end, |value| value.span().end);
+        let end = value.as_ref().map_or_else(
+            || {
+                label
+                    .as_ref()
+                    .map_or(keyword.span.end, |label| label.span.end)
+            },
+            |value| value.span().end,
+        );
         Ok(Expr::Return {
+            label,
             value,
             span: Span::new(keyword.span.start, end),
         })

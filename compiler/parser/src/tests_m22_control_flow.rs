@@ -250,9 +250,15 @@ fn malformed_for_recovery_reaches_later_statements_and_declarations() {
 }
 
 #[test]
-fn return_labels_are_rejected_before_callable_label_lowering() {
-    let (_, message) = err("fun main() { return@outer }");
-    assert_eq!(message, "`return` labels are not supported in M22");
+fn return_labels_preserve_the_target_and_optional_value() {
+    let file = ok("fun main() { return@main }");
+    let StatementKind::Return { label, value } =
+        &block_body(only_function(&file)).statements[0].kind
+    else {
+        panic!("return");
+    };
+    assert_eq!(label.as_ref().unwrap().text, "main");
+    assert!(value.is_none());
 }
 
 #[test]

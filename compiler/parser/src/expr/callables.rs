@@ -60,6 +60,7 @@ impl Parser {
         };
         let body = self.parse_block()?;
         Ok(Expr::AnonymousFunction {
+            label: None,
             id: self.alloc_anonymous_function_id(),
             is_suspend,
             params,
@@ -101,6 +102,7 @@ impl Parser {
         let body = self.parse_block_after_open(open.clone())?;
         let span = Span::new(expression_start.unwrap_or(open.span.start), body.span.end);
         Ok(Expr::Lambda {
+            label: None,
             id: self.alloc_lambda_id(),
             is_suspend,
             parameters,

@@ -761,7 +761,8 @@ lambda 写作 `{ parameters -> body }`，挂起 lambda 写作 `suspend { paramet
 - lambda 或匿名函数已有显式参数类型时保留该类型，并按 8.1.1 的逆变检查其能否接收期望参数；匿名函数已有显式返回类型时保留该类型，并按协变检查结果。上下文只补全未标注的部分，随后按普通函数值规则适配，不能因直接写在实参位置而禁止既有函数类型型变。
 - lambda 参数支持 4.6 的解构模式。传入的单个参数值作为该pattern的subject且只处理一次；解构失败不产生运行期分支，参数静态类型必须能按该模式解构，否则是编译错误。投影、component调用、hidden temporary、异常与挂起语义均遵守4.6，不改变函数的源码/函数类型元数或该参数对应的单个typed ABI classification entry。
 - lambda 的值是 body 最后一个表达式的值；有期望结果类型时，按普通函数返回规则检查 subtype 并完成隐式适配，包括值装箱、引用上行转换与函数值型变，不要求结果类型逐字相同。期望返回 `Unit` 时最后一个表达式的值被丢弃。匿名函数使用普通函数的返回规则。
-- lambda 中的裸 `return` 是编译错误。Scoop 不提供 Kotlin inline lambda 的 non-local return；需要提前返回时应使用匿名函数，其 `return` 只返回该匿名函数。
+- lambda 中的裸 `return` 是编译错误；局部提前返回使用 `return@label`。`label@ { ... }`、`label@ suspend { ... }`、`label@ fun(...) { ... }` 为当前 callable 声明显式标签。直接作为具名调用实参的 lambda 以调用末段名称作为隐式标签，显式标签覆盖同一 lambda 的隐式标签；复杂 callee 不产生隐式名称。具名函数以自身名称作为返回标签。标签只能命中当前 callable，不能跨过嵌套 callable；同名包围循环标签遮蔽 callable 标签时，return 不能将循环当作返回目标。未知、非 callable 和跨 callable 目标均为编译错误。
+- `return@label value` 按当前 callable 的返回类型检查，无值 return 提供 Unit。无期望返回类型的 lambda 将所有自身局部 return 的值与正常末尾结果共同推导；内层 callable 的 return 独立处理。已有 Unit 期望只丢弃 lambda 的正常末尾值，不丢弃显式 return 的类型检查。表达式体具名函数仍禁止显式 return。non-local return/break/continue 不提供 inline 豁免。
 - `suspend` 必须显式写在 lambda 或匿名函数上；期望类型不会把普通 lambda 静默改为挂起 lambda。创建或保存挂起函数值本身不会挂起，只有调用其 body 时才检查挂起上下文。
 
 lambda 参与重载决议时，每个候选先提供自己的期望函数类型，再据此检查参数与 body。lambda 的返回表达式可以验证候选是否适用，但不作为“仅按 lambda 返回类型选择重载”的额外优先规则；若完成既有重载优先级比较后仍有多个候选，则调用有歧义。
@@ -1055,7 +1056,7 @@ parser 在表达式入口接受 `return [expression]`，同时统一 `throw expr
 
 裸 return 仍受换行、分号、块结束或文件结束约束；表达式嵌套中还要正确处理 `)`、`]`、`,` 和控制体的 `else` 等结束位置，不能越过调用实参、数组元素或分支边界吞入后续表达式。return/throw 的值表达式自身也可以先产生异常、挂起或无正常结果。
 
-允许返回的目标沿用现有 callable 规则：普通块体函数和匿名函数返回自身；lambda 内裸 return、没有返回目标的顶层/初始化/default 表达式、以及不允许显式 return 的表达式体函数均报错。尾随 lambda 不改变其 callable 边界。`return` 无值仅对允许返回 Unit 的目标成立；不新增 label 或跨 lambda 的 non-local return。
+允许返回的目标沿用现有 callable 规则：普通块体函数和匿名函数返回自身；lambda 内裸 return、没有返回目标的顶层/初始化/default 表达式、以及不允许显式 return 的表达式体函数均报错。尾随 lambda 不改变其 callable 边界。`return` 无值仅对允许返回 Unit 的目标成立；`return@label` 依照 8.1.2 解析当前 callable 的局部目标，不允许跨 callable 的 non-local return。
 
 复用现有 `ValueBlock`、完成性质及 return/throw 控制转移。HIR lowering 必须能区分“获得正常值”和“当前路径已经终止”；只在真正到达合并点的前驱上提供结果。不得为终止分支生成未初始化 local、Unit、零值、null、装箱或虚假的结果赋值。
 

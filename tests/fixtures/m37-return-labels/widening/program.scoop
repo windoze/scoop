@@ -1,0 +1,30 @@
+class Configuration
+fun sink() {}
+fun main() {
+    val scoped = out@ {
+        context(Configuration()) {
+            if (true) return@out 7
+            Unit
+        }
+        "fallback"
+    }
+    println(scoped() is Int)
+    val guarded = out@ {
+        val input: Boolean? = None
+        when {
+            input ?: return@out 8 -> sink()
+            else -> sink()
+        }
+        "fallback"
+    }
+    println(guarded() is Int)
+    val matched = out@ {
+        val input: Boolean? = None
+        when (1) {
+            is Int if input ?: return@out 9 -> sink()
+            else -> sink()
+        }
+        "fallback"
+    }
+    println(matched() is Int)
+}

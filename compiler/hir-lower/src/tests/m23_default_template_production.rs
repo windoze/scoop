@@ -54,6 +54,7 @@ fn callable_id(module: &hir::Module, function: hir::FunctionId) -> CallableTempl
 
 fn lambda_at(tail: Expr, span: ast::Span) -> Expr {
     Expr::Lambda {
+        label: None,
         id: ast::LambdaId(0),
         is_suspend: false,
         parameters: None,

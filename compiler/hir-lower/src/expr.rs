@@ -99,7 +99,6 @@ pub(crate) use support::{
 mod type_checks;
 
 pub(crate) use analysis::expr_contains_return;
-use analysis::*;
 
 pub(crate) struct NominalArguments {
     pub(crate) args: Vec<hir::Expr>,
@@ -253,8 +252,8 @@ impl Lowerer {
                 sink.push(hir::Statement { kind, span: *span });
                 Some(self.unreachable_expression(*span))
             }
-            ast::Expr::Return { value, span } => {
-                self.lower_return(value.as_deref(), *span, sink)?;
+            ast::Expr::Return { label, value, span } => {
+                self.lower_return(label.as_ref(), value.as_deref(), *span, sink)?;
                 Some(self.unreachable_expression(*span))
             }
             ast::Expr::Throw { value, span } => {
@@ -382,13 +381,22 @@ impl Lowerer {
             },
             ast::Expr::Var(name) => self.lower_var(name, sink, expected),
             ast::Expr::Lambda {
+                label,
                 is_suspend,
                 parameters,
                 body,
                 span,
                 ..
-            } => self.lower_lambda(*is_suspend, parameters.as_deref(), body, *span, expected),
+            } => self.lower_lambda(
+                label.as_ref(),
+                *is_suspend,
+                parameters.as_deref(),
+                body,
+                *span,
+                expected,
+            ),
             ast::Expr::AnonymousFunction {
+                label,
                 is_suspend,
                 params,
                 return_ty,
@@ -396,6 +404,7 @@ impl Lowerer {
                 span,
                 ..
             } => self.lower_anonymous_function(
+                label.as_ref(),
                 *is_suspend,
                 params,
                 return_ty.as_ref(),

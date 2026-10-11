@@ -206,6 +206,7 @@ fn val_binding_plan_emits_source_order_projections_and_immutable_temporaries() {
 #[test]
 fn bare_enum_variant_names_bind_in_composite_lambda_parameters() {
     let operation = ast::Expr::Lambda {
+        label: None,
         id: ast::LambdaId(0),
         is_suspend: false,
         parameters: Some(vec![ast::LambdaParam {

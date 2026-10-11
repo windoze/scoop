@@ -173,6 +173,7 @@ fn consumer() -> ast::SourceFile {
 
 fn lambda(tail: Expr) -> Expr {
     Expr::Lambda {
+        label: None,
         id: ast::LambdaId(0),
         is_suspend: false,
         parameters: None,

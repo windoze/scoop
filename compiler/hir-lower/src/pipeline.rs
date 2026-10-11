@@ -381,6 +381,7 @@ impl Lowerer {
             current_return_ty: unit,
             return_inference: None,
             current_fn_name: String::new(),
+            current_callable_label: None,
             current_source_context: None,
             derived_expression_origin: None,
             suspension_contexts: vec![SuspensionContext::Forbidden(

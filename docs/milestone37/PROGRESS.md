@@ -59,3 +59,13 @@ AST、HIR、concrete HIR 和结构化 MIR 保留显式 LoopKind；默认/泛型 
 本机 fmt、workspace clippy（release）通过；parser 490、HIR 895、HIR lower 1,400、MIR lower 118、slib 560 项 Rust 测试及 1 项 doc-test 通过。16 个新增正式 fixture（6 个正向、10 个 negative）和 3 个既有循环回归全部完成普通比较，合计 19 个用例、26 个配置、66 个进程、48 个阶段 golden。覆盖单语句、至少执行一次、条件内 continue/break、每轮捕获、finally/Context、挂起恢复、moving GC，以及默认参数与泛型 body 的 provider → bridge → consumer 纯产物链。旧 HIR/concrete/default dump 仅补充普通 while 的 LoopKind 字段；保留原有执行与 wire 身份。
 
 报告见 [05-do-while-darwin.json](validation/05-do-while-darwin.json)。报告合并普通验证批次：已通过且未变化的用例没有重复执行，只重跑新增清理正例与受结构快照字段迁移影响的回归。完成后清理本批 fixture cases，保留增量 cache、sysroot 和报告。
+
+### 6. 局部 return 标签（完成）
+
+支持具名函数自身标签、显式 lambda/匿名函数标签，以及直接具名调用 lambda 参数的隐式标签；显式标签覆盖同一 lambda 的隐式标签，同名内层循环遮蔽外层 callable 标签。标签只解析到当前 callable，未知目标、循环目标、跨 callable 与裸 lambda return 均在实际使用处诊断。下一行注解不会被解析为前一表达式的标签，局部函数标签使用源码名称。
+
+无期望结果类型的 lambda 独立合并自身的带标签 return 与正常末尾结果，内层 callable 不影响外层推导；全无正常结果时为 Nothing。显式返回按目标类型检查，Unit 期望只允许丢弃末尾值。复用既有 HIR Return/异常清理与 coroutine 路径，标签不进入 wire；补齐 ContextScope、when predicate setup 和 guard setup 内返回值的统一适配。标签 parser 子模块 63 行，lambda 返回推导子模块 43 行，lambda 主模块 260 行。
+
+本机 fmt、workspace clippy（release）通过；parser 493 项、HIR lower 1,402 项及 doc-test 1 项完成验证。HIR lower 初轮唯一剩余的局部函数标签回归修复后以两个相关单元测试补验，没有重复执行不受影响的全量。22 个新增正式 fixture（6 个正向、16 个 negative）与 5 个旧裸 lambda return 回归全部普通比较通过，共 27 个用例、32 个配置、60 个进程、33 个阶段 golden。覆盖 debug/release、返回值合并与装箱、默认参数、泛型、成员/infix/Unicode 名称、finally/Context、挂起恢复、moving GC 和 provider → bridge → consumer 纯产物链；旧负例更新为精确的裸 return 位置及完整诊断。
+
+报告见 [06-return-labels-darwin.json](validation/06-return-labels-darwin.json)。完成后清理本批 fixture cases，保留共用缓存、sysroot、日志和报告。

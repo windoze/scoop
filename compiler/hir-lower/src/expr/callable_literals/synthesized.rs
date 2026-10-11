@@ -26,6 +26,7 @@ impl Lowerer {
             .collect::<Vec<_>>();
         self.with_pattern_transaction(|state| {
             state.lower_lambda_inner(
+                None,
                 false,
                 Some(&parameters),
                 span,

@@ -587,6 +587,7 @@ fn initializing_receiver_callable_property_remains_a_real_member() {
         ty: ty_function(false, Vec::new(), ty_named("Int")),
         body: ast::PropertyBodySyntax::Initializer {
             expression: Box::new(Expr::Lambda {
+                label: None,
                 id: ast::LambdaId(0),
                 is_suspend: false,
                 parameters: None,

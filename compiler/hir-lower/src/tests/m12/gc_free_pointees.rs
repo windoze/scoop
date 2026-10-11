@@ -42,6 +42,7 @@ fn pointer_requirement_functions() -> Vec<Decl> {
 
 fn generic_pointer_lambda() -> Expr {
     Expr::Lambda {
+        label: None,
         id: ast::LambdaId(0),
         is_suspend: false,
         parameters: Some(Vec::new()),
@@ -59,6 +60,7 @@ fn generic_pointer_lambda() -> Expr {
 
 fn generic_pointer_anonymous() -> Expr {
     Expr::AnonymousFunction {
+        label: None,
         id: ast::AnonymousFunctionId(0),
         is_suspend: false,
         params: Vec::new(),

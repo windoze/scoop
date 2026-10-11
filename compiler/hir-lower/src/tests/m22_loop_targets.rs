@@ -131,6 +131,7 @@ fn concrete_loop_targets(
 #[test]
 fn loop_targets_remain_globally_unique_across_nested_callable_bodies() {
     let operation = Expr::Lambda {
+        label: None,
         id: ast::LambdaId(0),
         is_suspend: false,
         parameters: Some(Vec::new()),

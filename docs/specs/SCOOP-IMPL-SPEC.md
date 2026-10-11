@@ -48,6 +48,8 @@ lexer 使用 Unicode XID 属性库识别普通标识符，并保留反引号 tok
 
 do/while 与 while 共用有明确 LoopKind 的结构化循环记录；condition setup、条件、body 均完整保存。AST/HIR lowering 在同一 body 词法作用域内依次检查 do body 和 condition，并按有效 continue 出口检查 condition 的读取。持久化普通 while 继续使用 tag 8，do/while 使用 tag 9，字段与 while 相同；读取时按 LoopKind 的实际执行顺序检查局部定义。MIR 为 do body、条件和出口建立独立 CFG block，初次进入 body，continue 指向条件入口，条件为真回到 body；条件入口保留已有 loop-header GC poll 与挂起恢复契约。
 
+局部 return 标签保留于 AST；parser 为直接具名调用的 lambda 实参补充隐式标签，显式标签优先。HIR lowering 在当前 callable 的词法边界解析标签，并复用已选返回类型与既有 Return / Nothing setup。lambda 无期望结果类型时合并自身显式返回与正常末尾结果，进入嵌套 callable 时保存并恢复独立推导状态；成功 HIR 与持久化 body 不保留标签文本，也不增加跨 callable 转移。
+
 控制结构的块体和单语句体使用同一 AST block 载体；单语句保留原始 span，并同样在 HIR 建立独立作用域。else-if 保存为 else block 中的嵌套 if，后续阶段沿用已有值合流、终止路径和循环 lowering，不增加平行表示。
 
 parser 中仅有存在性与位置的修饰符使用可选 span；带取值的修饰符同时保存取值和 span，不独立维护 bool 与可缺失位置。AST literal pattern 使用封闭的字面量数据，保留原数字拼写、允许的数值符号和准确 span，不接受任意表达式作为字面量模式。

@@ -30,8 +30,11 @@ pub(super) fn dump_expr(expr: &Expr, indent: usize, out: &mut String) {
         }
         Expr::IntLiteral(literal) => out.push_str(&format!("{pad}IntLiteral {literal}\n")),
         Expr::BoolLiteral { value, .. } => out.push_str(&format!("{pad}BoolLiteral {value}\n")),
-        Expr::Return { value, .. } => {
+        Expr::Return { label, value, .. } => {
             out.push_str(&format!("{pad}Return\n"));
+            if let Some(label) = label {
+                out.push_str(&format!("{pad}  label {}\n", label.text));
+            }
             if let Some(value) = value {
                 dump_expr(value, indent + 1, out);
             }
@@ -65,6 +68,7 @@ pub(super) fn dump_expr(expr: &Expr, indent: usize, out: &mut String) {
             out.push_str(&format!("{pad}TypeQualifier {}\n", dump_type_ref(ty)))
         }
         Expr::Lambda {
+            label,
             id,
             is_suspend,
             parameters,
@@ -72,6 +76,9 @@ pub(super) fn dump_expr(expr: &Expr, indent: usize, out: &mut String) {
             ..
         } => {
             out.push_str(&format!("{pad}Lambda {} suspend={is_suspend}\n", id.0));
+            if let Some(label) = label {
+                out.push_str(&format!("{pad}  label {}\n", label.text));
+            }
             match parameters {
                 None => out.push_str(&format!("{pad}  parameters omitted\n")),
                 Some(parameters) => {
@@ -90,6 +97,7 @@ pub(super) fn dump_expr(expr: &Expr, indent: usize, out: &mut String) {
             dump_block(body, indent + 1, out);
         }
         Expr::AnonymousFunction {
+            label,
             id,
             is_suspend,
             params,
@@ -104,6 +112,9 @@ pub(super) fn dump_expr(expr: &Expr, indent: usize, out: &mut String) {
                 "{pad}AnonymousFunction {} suspend={is_suspend} return={return_ty}\n",
                 id.0
             ));
+            if let Some(label) = label {
+                out.push_str(&format!("{pad}  label {}\n", label.text));
+            }
             for param in params {
                 out.push_str(&format!(
                     "{pad}  param {}: {}\n",

@@ -30,6 +30,7 @@ fn runtime_property(name: &str, expression: ast::Expr) -> ast::Decl {
 
 fn source(unrelated_prefix: bool) -> ast::SourceFile {
     let callback = ast::Expr::Lambda {
+        label: None,
         id: ast::LambdaId(0),
         is_suspend: false,
         parameters: Some(Vec::new()),

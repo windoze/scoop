@@ -5,12 +5,15 @@ impl Parser {
         if self.at_arm_body_newline() {
             return false;
         }
-        matches!(self.peek().kind, TokenKind::LBrace)
-            || (matches!(self.peek().kind, TokenKind::Suspend)
-                && self
-                    .tokens
-                    .get(self.pos + 1)
-                    .is_some_and(|next| matches!(next.kind, TokenKind::LBrace)))
+        let offset = if self.starts_callable_label() { 2 } else { 0 };
+        self.tokens.get(self.pos + offset).is_some_and(|token| {
+            matches!(token.kind, TokenKind::LBrace)
+                || (matches!(token.kind, TokenKind::Suspend)
+                    && self
+                        .tokens
+                        .get(self.pos + offset + 1)
+                        .is_some_and(|next| matches!(next.kind, TokenKind::LBrace)))
+        })
     }
 
     pub(super) fn parse_call_inputs(&mut self) -> Result<(Vec<CallArgument>, u32), Diagnostic> {
@@ -63,9 +66,7 @@ impl Parser {
                 "a call accepts only one trailing lambda; group the call to invoke its result",
             ));
         }
-        let suspend =
-            matches!(self.peek().kind, TokenKind::Suspend).then(|| self.bump().span.start);
-        let expression = self.parse_lambda(suspend.is_some(), suspend)?;
+        let expression = self.parse_atom()?;
         let argument_span = expression.span();
         span.end = argument_span.end;
         args.push(CallArgument {

@@ -1,0 +1,2 @@
+fun factory(): (() -> Int) -> Int = fun(action: () -> Int): Int { return action() }
+fun main() { (factory()) { return@factory 1 } }

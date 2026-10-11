@@ -1,26 +1,22 @@
 use super::*;
 mod anonymous;
 mod parameters;
+mod returns;
 mod synthesized;
 
 impl Lowerer {
     pub(super) fn lower_lambda(
         &mut self,
+        label: Option<&ast::Ident>,
         is_suspend: bool,
         parameters: Option<&[ast::LambdaParam]>,
         body: &ast::Block,
         span: Span,
         expected: Option<TypeId>,
     ) -> Option<hir::Expr> {
-        if block_contains_return(body) {
-            self.error(
-                span,
-                "a lambda cannot use `return`; use an anonymous function for local returns".into(),
-            );
-            return None;
-        }
         self.with_pattern_transaction(|state| {
             state.lower_lambda_inner(
+                label,
                 is_suspend,
                 parameters,
                 body.span,
@@ -35,8 +31,10 @@ impl Lowerer {
     /// plans, body, captures and generated entities commit together. Callers
     /// enter through `lower_lambda`, which supplies the single owner-level
     /// transaction around this implementation.
+    #[allow(clippy::too_many_arguments)]
     fn lower_lambda_inner(
         &mut self,
+        label: Option<&ast::Ident>,
         is_suspend: bool,
         parameters: Option<&[ast::LambdaParam]>,
         body_span: Span,
@@ -101,6 +99,11 @@ impl Lowerer {
         let outer_locals = std::mem::take(&mut self.locals);
         let outer_scopes = std::mem::replace(&mut self.scopes, Scopes::new());
         let outer_return_ty = self.current_return_ty;
+        let outer_return_inference = self.return_inference.take();
+        let outer_callable_label = std::mem::replace(
+            &mut self.current_callable_label,
+            label.map(|name| name.text.clone()),
+        );
         let outer_fn_name = std::mem::take(&mut self.current_fn_name);
         let outer_loop_targets = std::mem::take(&mut self.loop_targets);
         let outer_source_context = self.current_source_context;
@@ -142,24 +145,11 @@ impl Lowerer {
             let expected_return = expected_signature
                 .as_ref()
                 .map(|(_, signature)| signature.return_type);
+            self.current_return_ty = expected_return.unwrap_or(self.unit);
+            self.return_inference = expected_return.is_none().then(ReturnInference::default);
             let mut value_block = lower_body(self, expected_return)?;
-            let return_ty = value_block
-                .value
-                .as_ref()
-                .map_or(expected_return.unwrap_or(self.unit), |value| value.ty);
-            if let Some(expected_return) = expected_return
-                && !self.types_equal(expected_return, self.unit)
-                && !self.is_subtype(return_ty, expected_return)
-            {
-                let expected = self.type_name(expected_return);
-                let found = self.type_name(return_ty);
-                self.error(
-                    body_span,
-                    format!("lambda result must be of type {expected}, found {found}"),
-                );
-                return None;
-            }
-            let return_ty = expected_return.unwrap_or(return_ty);
+            let return_ty =
+                self.finish_lambda_returns(&mut value_block, expected_return, body_span)?;
             self.current_return_ty = return_ty;
             prefix.append(&mut value_block.statements);
             if let Some(value) = value_block.value.take() {
@@ -255,6 +245,8 @@ impl Lowerer {
         self.locals = outer_locals;
         self.scopes = outer_scopes;
         self.current_return_ty = outer_return_ty;
+        self.return_inference = outer_return_inference;
+        self.current_callable_label = outer_callable_label;
         self.current_fn_name = outer_fn_name;
         self.current_source_context = outer_source_context;
         self.definition_paths = outer_definition_paths;

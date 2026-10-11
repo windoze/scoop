@@ -77,6 +77,7 @@ fn safe_method_call(receiver: Expr, name: &str, args: Vec<Expr>) -> Expr {
 
 fn int_identity_lambda() -> Expr {
     Expr::Lambda {
+        label: None,
         id: ast::LambdaId(0),
         is_suspend: false,
         parameters: Some(vec![ast::LambdaParam {
@@ -1311,6 +1312,7 @@ fn class_destructuring_is_depth_first_calls_wildcards_and_rejects_rest() {
 #[test]
 fn class_binding_plan_keeps_one_complete_lambda_parameter() {
     let operation = ast::Expr::Lambda {
+        label: None,
         id: ast::LambdaId(0),
         is_suspend: false,
         parameters: Some(vec![ast::LambdaParam {
@@ -1434,6 +1436,7 @@ fn failed_composite_lambda_owner_rolls_back_earlier_parameters_and_function_coun
     let suspend_span = Span::new(430, 438);
     let escaped_span = Span::new(440, 445);
     let failed_header = ast::Expr::Lambda {
+        label: None,
         id: ast::LambdaId(0),
         is_suspend: false,
         parameters: Some(vec![
@@ -1452,6 +1455,7 @@ fn failed_composite_lambda_owner_rolls_back_earlier_parameters_and_function_coun
         span: sp(),
     };
     let failed_effect = ast::Expr::Lambda {
+        label: None,
         id: ast::LambdaId(1),
         is_suspend: false,
         parameters: Some(vec![ast::LambdaParam {
@@ -1562,6 +1566,7 @@ fn class_binding_plan_checks_suspend_components_in_the_lambda_context() {
         )
     };
     let operation = |is_suspend| ast::Expr::Lambda {
+        label: None,
         id: ast::LambdaId(0),
         is_suspend,
         parameters: Some(vec![ast::LambdaParam {

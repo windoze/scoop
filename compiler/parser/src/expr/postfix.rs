@@ -7,6 +7,7 @@ impl Parser {
         let mut grouped = matches!(self.peek().kind, TokenKind::LParen);
         let mut receiver = self.parse_atom()?;
         loop {
+            super::labels::name_call_lambdas(&mut receiver);
             match self.peek().kind {
                 TokenKind::Dot => {
                     self.bump();
@@ -47,7 +48,10 @@ impl Parser {
                         span: Span::new(start, end),
                     };
                 }
-                TokenKind::LBrace | TokenKind::Suspend
+                TokenKind::LBrace
+                | TokenKind::Suspend
+                | TokenKind::Ident(_)
+                | TokenKind::EscapedIdent(_)
                     if self.starts_trailing_lambda()
                         && !matches!(receiver, Expr::Return { .. } | Expr::Throw { .. }) =>
                 {

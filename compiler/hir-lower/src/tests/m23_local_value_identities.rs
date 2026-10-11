@@ -60,6 +60,7 @@ fn reference(receiver: Option<Expr>, name: &str) -> Expr {
 
 fn lambda(tail: Expr) -> Expr {
     Expr::Lambda {
+        label: None,
         id: ast::LambdaId(0),
         is_suspend: false,
         parameters: None,
@@ -70,6 +71,7 @@ fn lambda(tail: Expr) -> Expr {
 
 fn anonymous(tail: Expr) -> Expr {
     Expr::AnonymousFunction {
+        label: None,
         id: ast::AnonymousFunctionId(0),
         is_suspend: false,
         params: Vec::new(),

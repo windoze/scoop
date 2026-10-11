@@ -1,0 +1,9 @@
+schema = 1
+[cone]
+group = "dev.m37"
+name = "localreturns-consumer"
+version = "0.1.0"
+kind = "executable"
+[dependencies]
+"scoop:scoop.core" = "0.1.0"
+"dev.m37:localreturns-bridge" = "0.1.0"

@@ -11,7 +11,7 @@ pub(crate) fn stmt(expr: Expr) -> Statement {
 
 pub(crate) fn ret(value: Option<Expr>) -> Statement {
     Statement {
-        kind: StatementKind::Return { value },
+        kind: StatementKind::Return { label: None, value },
         span: sp(),
     }
 }

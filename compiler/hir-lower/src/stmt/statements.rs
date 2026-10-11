@@ -65,8 +65,8 @@ impl Lowerer {
                 };
                 hir::StatementKind::LocalFunction(local)
             }
-            ast::StatementKind::Return { value } => {
-                self.lower_return(value.as_ref(), statement.span, out);
+            ast::StatementKind::Return { label, value } => {
+                self.lower_return(label.as_ref(), value.as_ref(), statement.span, out);
                 return;
             }
             ast::StatementKind::ValDecl(decl) => {

@@ -1,0 +1,26 @@
+class Configuration(val text: String)
+context(configuration: Configuration)
+fun active(): String = configuration.text
+fun execute(block: () -> Int): Int = block()
+context(configuration: Configuration)
+fun scoped(): Int {
+    val result = execute out@ {
+        context(Configuration("inner")) {
+            try { return@out 7 } finally { gcCollect(); println(active()) }
+        }
+        0
+    }
+    println(active())
+    return result
+}
+fun main() {
+    context(Configuration("outer")) { println(scoped()) }
+    println(execute out@ { try { return@out 1 } finally { return@out 2 } })
+    var count = 0
+    do {
+        val current = count
+        count += 1
+        val ready = execute step@ { if (current < 2) return@step 0; 1 }
+    } while (ready == 0)
+    println(count)
+}
