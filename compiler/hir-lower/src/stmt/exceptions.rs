@@ -41,7 +41,9 @@ impl Lowerer {
     /// only. The parser guarantees at least one `catch` or a `finally`
     /// and a type annotation on every catch parameter.
     pub(super) fn lower_try(&mut self, try_: &ast::Try) -> hir::StatementKind {
+        let incoming = self.smart_casts.clone();
         let body = self.lower_block(&try_.body);
+        let catch_facts = self.catch_smart_cast_facts(incoming.clone(), &body, None);
         let mut catches = Vec::with_capacity(try_.catches.len());
         for catch in &try_.catches {
             let Some(ty) = self.resolve_type_ref(&catch.ty) else {
@@ -77,7 +79,8 @@ impl Lowerer {
             let local =
                 self.alloc_declared_local(catch.name.text.clone(), ty, false, catch.name.span);
             self.scopes.declare(catch.name.text.clone(), local);
-            let body = self.lower_block(&catch.body);
+            let body =
+                self.with_smart_casts(catch_facts.clone(), |this| this.lower_block(&catch.body));
             self.pop_scope();
             catches.push(hir::CatchClause {
                 local,
@@ -86,7 +89,16 @@ impl Lowerer {
                 span: catch.span,
             });
         }
-        let finally_body = try_.finally_body.as_ref().map(|b| self.lower_block(b));
+        let finally_facts = self.finally_smart_cast_facts(
+            incoming.clone(),
+            &body,
+            catches.iter().map(|catch| catch.body.as_slice()),
+        );
+        let finally_body = try_
+            .finally_body
+            .as_ref()
+            .map(|b| self.with_smart_casts(finally_facts, |this| this.lower_block(b)));
+        self.smart_casts = incoming;
         hir::StatementKind::Try(hir::Try {
             body,
             catches,
@@ -103,6 +115,7 @@ impl Lowerer {
         sink: &mut Vec<hir::Statement>,
         expected: Option<TypeId>,
     ) -> Option<hir::Expr> {
+        let incoming = self.smart_casts.clone();
         let mut resolved = Vec::new();
         let mut covered = Vec::new();
         for catch in &try_.catches {
@@ -144,12 +157,25 @@ impl Lowerer {
         let mut body = if defer_body {
             None
         } else {
-            Some(self.lower_value_block(&try_.body, expected)?)
+            Some(self.with_smart_casts(incoming.clone(), |this| {
+                this.lower_value_block(&try_.body, expected)
+            })?)
+        };
+        let catch_facts = if let Some(body) = &body {
+            self.catch_smart_cast_facts(incoming.clone(), &body.statements, body.value.as_ref())
+        } else {
+            let mut facts = incoming.clone();
+            for (_, local) in self.locals.iter().filter(|(_, local)| local.mutable) {
+                facts.forget(local.binding);
+            }
+            facts
         };
         let mut catches: Vec<Option<ValueCatch>> = (0..resolved.len()).map(|_| None).collect();
         for (index, &(catch, ty, local)) in resolved.iter().enumerate() {
             if !catch_deferred[index] {
-                catches[index] = Some(self.lower_value_catch(catch, ty, local, expected)?);
+                catches[index] = Some(self.with_smart_casts(catch_facts.clone(), |this| {
+                    this.lower_value_catch(catch, ty, local, expected)
+                })?);
             }
         }
         let has_hint = body
@@ -177,9 +203,13 @@ impl Lowerer {
             if body_rank.is_some()
                 && body_rank >= catch_seed.as_ref().map(|(rank, _, _, _, _)| *rank)
             {
-                body = Some(self.lower_value_block(&try_.body, None)?);
+                body = Some(self.with_smart_casts(incoming.clone(), |this| {
+                    this.lower_value_block(&try_.body, None)
+                })?);
             } else if let Some((_, index, catch, ty, local)) = catch_seed {
-                catches[index] = Some(self.lower_value_catch(catch, ty, local, None)?);
+                catches[index] = Some(self.with_smart_casts(catch_facts.clone(), |this| {
+                    this.lower_value_catch(catch, ty, local, None)
+                })?);
             }
         }
         let mut hint_types = Vec::new();
@@ -196,11 +226,15 @@ impl Lowerer {
         }));
         let hint = (!hint_types.is_empty()).then(|| self.least_upper_bound(&hint_types));
         if body.is_none() {
-            body = Some(self.lower_value_block(&try_.body, hint)?);
+            body = Some(self.with_smart_casts(incoming.clone(), |this| {
+                this.lower_value_block(&try_.body, hint)
+            })?);
         }
         for (index, &(catch, ty, local)) in resolved.iter().enumerate() {
             if catches[index].is_none() {
-                catches[index] = Some(self.lower_value_catch(catch, ty, local, hint)?);
+                catches[index] = Some(self.with_smart_casts(catch_facts.clone(), |this| {
+                    this.lower_value_catch(catch, ty, local, hint)
+                })?);
             }
         }
         let mut body = body.expect("the try body was lowered");
@@ -214,9 +248,16 @@ impl Lowerer {
             self.finish_control_value("try", try_.span, expected, block_refs.as_mut_slice())?;
         drop(block_refs);
 
+        let finally_facts = self.finally_smart_cast_facts(
+            incoming.clone(),
+            &body.statements,
+            catches.iter().map(|catch| catch.body.statements.as_slice()),
+        );
         let finally_body = match &try_.finally_body {
             Some(finally) => {
-                let mut block = self.lower_value_block(finally, None)?;
+                let mut block = self.with_smart_casts(finally_facts, |this| {
+                    this.lower_value_block(finally, None)
+                })?;
                 if let Some(value) = block.value.take()
                     && !matches!(value.kind, hir::ExprKind::UnitLiteral)
                 {
@@ -229,6 +270,7 @@ impl Lowerer {
             }
             None => None,
         };
+        self.smart_casts = incoming;
         sink.push(hir::Statement {
             span: try_.span,
             kind: hir::StatementKind::Try(hir::Try {

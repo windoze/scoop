@@ -16,7 +16,7 @@ impl Lowerer {
         let lhs = self.lower_expr(lhs_ast, sink, None)?;
         let rhs_outcome = source_op == ast::BinOp::And;
         let narrowings = if self.diagnostics.len() == before {
-            self.resolve_smart_casts(lhs_ast, rhs_outcome)
+            self.checked_condition_facts(&lhs, rhs_outcome)
         } else {
             Default::default()
         };

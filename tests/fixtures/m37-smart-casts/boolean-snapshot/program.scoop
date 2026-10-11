@@ -1,0 +1,6 @@
+fun length(value: Any): Long {
+    val matches = value is String
+    if (!matches) return 0L
+    return value.length
+}
+fun main() { println(length("saved")); println(length(42)) }

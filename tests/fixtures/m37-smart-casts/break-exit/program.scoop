@@ -1,0 +1,10 @@
+fun length(value: Any): Long {
+    outer@ while (true) {
+        while (true) {
+            if (value !is String) return 0L
+            break@outer
+        }
+    }
+    return value.length
+}
+fun main() { println(length("break")); println(length(1)) }

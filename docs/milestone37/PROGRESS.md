@@ -171,3 +171,15 @@ HIR 生成普通隐藏字段、方法及访问器；物理字段不再强制关�
 本机 fmt、workspace clippy（release）无警告通过；新增 parser 2 项、identity 343 项及 doc-test、HIR lower 闭包 26 项定向 Rust 测试通过。47 个新增 fixture（27 个正向、20 个 negative）与 83 个构造器引用/inner 回归完成普通比较，共 130/130 通过、185 个配置、423 个进程、351 个阶段 golden。覆盖 debug/release、每轮与每实例捕获、名称遮蔽、默认值、多条初始化路径、函数引用、方差、moving GC，以及 provider → bridge → consumer → 独立链接的无源码产物链。
 
 报告见 [15-local-types-darwin.json](validation/15-local-types-darwin.json)。旧 HIR golden 机械迁移构造上下文字段名，并将已有 outer 包装为明确类别；普通引用回归仅额外更新一条方差诊断及一个未使用类型实例。报告合并未变化的普通通过项与两条定向复验，不计快照生成次数。已多次清理完成的 fixture cases，并清除约 2.66 GiB 的旧 debug 可执行文件；保留共用 cache、sysroot、release 依赖和日志，Linux LIR 快照随最终平台验证生成。
+
+### 16. 正常出口与流敏感 smart cast（完成）
+
+类型事实沿实际正常出口传播，覆盖 if/when、短路条件、循环回边、break/continue、try/catch/finally 和挂起恢复。普通局部 var 可以在当前 callable 内收窄，赋值、复合赋值和更新撤销旧值事实；可写地址暴露及外层 var 捕获仍遵守原限制。不可变快照与 Boolean 条件值保存自己的事实，原变量写入不会改变已经保存的值。
+
+分析使用已有 BindingId、TypeId 和 LoopId，在有限的现有事实中求循环稳定结果，并核对实际读取所用的类型视图。do/while 条件分别合并正常 body 出口及指向自身的 continue，条件中的 continue 保持条件回边；finally 按真实控制结果替换原跳转。只合并实际可达的 catch 出口。显式 is/as 和可变 when subject 读取声明存储类型，不能把首轮视图错误用于后续迭代；when 普通匹配继续读取进入时的快照。
+
+复合赋值与更新读取当前视图，写回按声明存储类型适配；独立的 ++/-- 语句允许丢弃结果。成功 HIR 只保留完整 typed 读取、必要拆箱及既有控制结构，不增加 MIR、wire 或 runtime 流分析状态。新增分析模块最长 153 行，替换了原先只针对 AST 局部分支的事实推导。
+
+本机 fmt、workspace clippy（release）无警告通过；47 项相关 Rust 测试通过。48 个新增 fixture（28 个正向、20 个 negative）与 75 个旧 when/do/循环跳转/局部捕获回归完成普通比较，共 123/123 通过、163 个配置、363 个进程、290 个阶段 golden。覆盖正常出口、循环写失效、finally 覆盖、异常尾值、别名快照、局部捕获、真实挂起恢复、moving GC，以及删除源码后的泛型 provider → bridge → consumer → 独立链接产物链。
+
+报告见 [16-smart-casts-darwin.json](validation/16-smart-casts-darwin.json)。旧 mutable when 负例改为写入后失效的精确诊断；五个旧用例只迁移 HIR 中不再使用或改变登记顺序的实例，MIR/LIR 保持不变。报告合并普通通过批次与受影响项复验，不计快照生成次数。已清理 122 个完成的 fixture 工作目录，保留共用 cache、sysroot 和报告；Linux LIR 快照随最终平台验证生成。

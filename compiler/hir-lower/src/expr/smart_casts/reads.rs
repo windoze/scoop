@@ -4,8 +4,9 @@ impl Lowerer {
     pub(crate) fn stable_smart_cast_binding(&self, name: &str) -> Option<(hir::BindingId, TypeId)> {
         if let Some(local) = self.scopes.lookup(name) {
             let local = &self.locals[local];
-            return (!local.mutable && !self.local_delegate_plans.contains_key(&local.binding))
-                .then_some((local.binding, local.ty));
+            return (!self.smart_casts.escaped.contains(&local.binding)
+                && !self.local_delegate_plans.contains_key(&local.binding))
+            .then_some((local.binding, local.ty));
         }
         if let Some(capture) = self.available_capture(name) {
             return (!capture.mutable && !self.local_delegate_plans.contains_key(&capture.binding))

@@ -1,0 +1,12 @@
+fun main() {
+    var value: Any = 42
+    var count = 0
+    while (count < 3) {
+        count++
+        if (value !is String) {
+            value = "next"
+            continue
+        }
+        println(value.length)
+    }
+}

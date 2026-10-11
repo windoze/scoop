@@ -214,7 +214,6 @@ enum Option<Int> GenericTemplate(PersistentGenericTypeId([123, 85, 103, 59, 117,
   variant None Unit dbb5e74c2eb2076e994fea90f134c93ad7ada2ba9a9ef77cb0318c254c935a38
     constructor VariantConstructor(PersistentEnumVariantId([219, 181, 231, 76, 46, 178, 7, 110, 153, 79, 234, 144, 241, 52, 201, 58, 215, 173, 162, 186, 154, 158, 247, 124, 176, 49, 140, 37, 76, 147, 90, 56]))
 intrinsic core_nothing Nothing Concrete(PersistentTypeId([90, 134, 194, 185, 149, 109, 195, 18, 17, 67, 126, 60, 157, 53, 230, 49, 109, 151, 26, 130, 223, 150, 63, 136, 39, 192, 145, 253, 204, 210, 208, 16]))
-interface Equality<Unit> GenericTemplate(PersistentGenericTypeId([113, 196, 249, 31, 28, 165, 157, 159, 213, 22, 9, 139, 207, 208, 79, 138, 79, 116, 134, 203, 97, 132, 36, 30, 194, 64, 208, 85, 125, 57, 149, 16]))
 intrinsic core_char Char Concrete(PersistentTypeId([158, 93, 238, 155, 68, 59, 82, 53, 211, 3, 87, 194, 93, 247, 116, 41, 99, 61, 182, 12, 206, 26, 143, 90, 26, 32, 180, 115, 157, 244, 47, 48]))
   interface ToString
   interface Hash

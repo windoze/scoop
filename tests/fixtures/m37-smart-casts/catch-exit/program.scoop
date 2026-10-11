@@ -1,0 +1,12 @@
+fun length(value: Any): Long {
+    try { if (value !is String) throw UnwrapException() }
+    catch (error: UnwrapException) { return 0L }
+    return value.length
+}
+fun main() {
+    println(length("caught")); println(length(42))
+    var value: Any = "stable"
+    if (value !is String) return
+    try { throw UnwrapException() }
+    catch (error: UnwrapException) { println(value.length) }
+}

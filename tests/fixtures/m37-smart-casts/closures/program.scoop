@@ -1,0 +1,8 @@
+fun factory(value: Any): () -> Long {
+    if (value !is String) return { 0L }
+    class Local { fun length(): Long = value.length }
+    fun length(): Long = value.length
+    val anonymous = object { fun length(): Long = value.length }
+    return { Local().length() + length() + anonymous.length() }
+}
+fun main() { println(factory("hello")()); println(factory(42)()) }

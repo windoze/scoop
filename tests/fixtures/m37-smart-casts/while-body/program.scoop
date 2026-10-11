@@ -1,0 +1,8 @@
+fun main() {
+    var value: Any = "hello"
+    while (value is String) {
+        println(value.length)
+        value = 42
+    }
+    if (value is Int) println(value)
+}

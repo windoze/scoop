@@ -1,2 +1,8 @@
 struct Box(val value: Int)
-fun main() { var item: Any = Box(1); when (item) { is Box -> println(item.value); else -> {} } }
+fun main() {
+    var item: Any = Box(1)
+    when (item) {
+        is Box -> { item = "changed"; println(item.value) }
+        else -> {}
+    }
+}

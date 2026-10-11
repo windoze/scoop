@@ -1,0 +1,4 @@
+fun inspect(value: Any, flag: Boolean) {
+    if (value is String || flag) println(value.length)
+}
+fun main() {}

@@ -14,6 +14,13 @@ impl Lowerer {
         statement: &ast::Statement,
         out: &mut Vec<hir::Statement>,
     ) {
+        let incoming = self.smart_casts.clone();
+        let start = out.len();
+        self.lower_statement_inner(statement, out);
+        self.advance_smart_casts(incoming, &out[start..], None);
+    }
+
+    fn lower_statement_inner(&mut self, statement: &ast::Statement, out: &mut Vec<hir::Statement>) {
         if self.reject_release_statement(statement) {
             return;
         }
@@ -29,13 +36,13 @@ impl Lowerer {
                     out.extend(sink);
                     return;
                 }
-                // M1 rule, unchanged: expression statements are calls
-                // (declarations, assignments and control flow are their
-                // own statement kinds since M2; M6 adds method calls).
+                // Calls and updates may discard their result; declarations,
+                // assignments and control flow have their own statement kinds.
                 // Constructions lower to `StructInit` /
                 // `VariantConstruct`, not `Call`, so they are rejected
                 // here.
                 if self.is_nothing_ty(lowered.ty)
+                    || matches!(expr, ast::Expr::Update { .. })
                     || matches!(
                         lowered.kind,
                         hir::ExprKind::Call { .. }
@@ -113,15 +120,10 @@ impl Lowerer {
                 // The condition is evaluated exactly once, right before
                 // the `if`, so desugaring statements belong before it.
                 out.extend(sink);
-                // Smart casts (milestone6 DESIGN.md 5.4): `x is T`
-                // narrows `x` in the then branch, `x !is T` in the
-                // else branch. Skipped when the condition produced
-                // diagnostics (its narrowings would be unreliable; the
-                // module is rejected anyway).
                 let (then_narrowings, else_narrowings) = if self.diagnostics.len() == before {
                     (
-                        self.resolve_smart_casts(&if_.cond, true),
-                        self.resolve_smart_casts(&if_.cond, false),
+                        self.checked_condition_facts(&cond, true),
+                        self.checked_condition_facts(&cond, false),
                     )
                 } else {
                     (Default::default(), Default::default())

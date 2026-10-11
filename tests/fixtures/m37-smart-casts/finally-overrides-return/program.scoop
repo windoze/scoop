@@ -1,0 +1,10 @@
+fun length(value: Any, flag: Boolean): Long {
+    while (true) {
+        try {
+            if (value !is String) return 0L
+            break
+        } finally { if (flag) break }
+    }
+    return value.length
+}
+fun main() {}

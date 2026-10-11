@@ -8,6 +8,7 @@ pub(crate) struct ActiveLoop {
 
 impl Lowerer {
     pub(super) fn lower_loop(&mut self, source: &ast::While) -> Option<hir::StatementKind> {
+        let incoming = self.smart_casts.clone();
         let target = self.fresh_loop();
         self.push_loop(target, source.label.as_ref());
         let mut condition_setup = Vec::new();
@@ -18,7 +19,8 @@ impl Lowerer {
                     self.pop_loop(target);
                     return None;
                 }
-                let body = self.lower_block(&source.body);
+                let facts = self.checked_condition_facts(cond.as_ref().unwrap(), true);
+                let body = self.with_smart_casts(facts, |this| this.lower_block(&source.body));
                 (body, cond)
             }
             hir::LoopKind::DoWhile => {
@@ -27,6 +29,13 @@ impl Lowerer {
                 for statement in &source.body.statements {
                     self.lower_statement(statement, &mut body);
                 }
+                let mut exits = self.smart_cast_exits(incoming.clone(), &body);
+                let normal = exits.remove(&flow::ControlOutcome::Fallthrough);
+                let continues = exits.remove(&flow::ControlOutcome::Continue(target));
+                self.smart_casts = match (normal, continues) {
+                    (Some(left), Some(right)) => self.common_smart_casts(left, right),
+                    (left, right) => left.or(right).unwrap_or_else(|| incoming.clone()),
+                };
                 let previous = self.uninitialized_condition_bindings.clone();
                 let skipped = self.bindings_skipped_by_continue(&body, target);
                 self.uninitialized_condition_bindings.extend(skipped);
@@ -37,6 +46,7 @@ impl Lowerer {
             }
         };
         self.pop_loop(target);
+        self.smart_casts = incoming;
         Some(hir::StatementKind::While {
             loop_kind: source.loop_kind,
             target,

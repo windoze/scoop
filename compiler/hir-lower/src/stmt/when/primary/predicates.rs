@@ -9,6 +9,17 @@ impl Lowerer {
         source: &ast::Expr,
         subject: &Subject,
     ) -> Option<hir::WhenGuard> {
+        let incoming = self.smart_casts.clone();
+        let predicate = self.lower_subject_predicate_inner(source, subject)?;
+        self.advance_smart_casts(incoming, &predicate.setup, Some(&predicate.condition));
+        Some(predicate)
+    }
+
+    fn lower_subject_predicate_inner(
+        &mut self,
+        source: &ast::Expr,
+        subject: &Subject,
+    ) -> Option<hir::WhenGuard> {
         match source {
             ast::Expr::Is {
                 ty, negated, span, ..
@@ -23,7 +34,7 @@ impl Lowerer {
                 span,
             } => {
                 let mut left = self.lower_subject_predicate(lhs, subject)?;
-                let facts = self.resolve_smart_casts(lhs, false);
+                let facts = self.checked_condition_facts(&left.condition, false);
                 let right = self
                     .with_smart_casts(facts, |this| this.lower_subject_predicate(rhs, subject))?;
                 left.condition = self.finish_short_circuit(

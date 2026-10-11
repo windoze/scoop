@@ -248,6 +248,8 @@ impl Lowerer {
         if self.reject_release_expression(expr) {
             return None;
         }
+        let incoming = self.smart_casts.clone();
+        let start = sink.len();
         let lowered = match expr {
             ast::Expr::AnonymousObject(declaration) => {
                 self.lower_anonymous_object(declaration, sink)
@@ -568,6 +570,7 @@ impl Lowerer {
         }
         if let Some(value) = &lowered {
             self.materialize_callable_captures(value, sink);
+            self.advance_smart_casts(incoming, &sink[start..], Some(value));
         }
         lowered
     }

@@ -12,8 +12,31 @@ impl Lowerer {
         span: Span,
         sink: &mut Vec<hir::Statement>,
     ) -> Option<hir::Expr> {
-        let operand = self.lower_expr(operand, sink, None)?;
+        let operand = self.lower_type_check_operand(operand, sink)?;
         self.lower_is_value(operand, ty_ref, negated, span)
+    }
+
+    pub(crate) fn lower_type_check_operand(
+        &mut self,
+        operand: &ast::Expr,
+        sink: &mut Vec<hir::Statement>,
+    ) -> Option<hir::Expr> {
+        // A mutable local may hold another value on a loop backedge. Type
+        // tests inspect its declared storage, independently of the current view.
+        let mutable = match operand {
+            ast::Expr::Var(name) => self
+                .scopes
+                .lookup(&name.text)
+                .filter(|&local| self.locals[local].mutable)
+                .map(|local| self.locals[local].binding),
+            _ => None,
+        };
+        let saved = mutable.and_then(|binding| self.smart_casts.types.remove(&binding));
+        let operand = self.lower_expr(operand, sink, None);
+        if let (Some(binding), Some(types)) = (mutable, saved) {
+            self.smart_casts.types.insert(binding, types);
+        }
+        operand
     }
 
     pub(crate) fn lower_is_value(
@@ -80,7 +103,7 @@ impl Lowerer {
         span: Span,
         sink: &mut Vec<hir::Statement>,
     ) -> Option<hir::Expr> {
-        let operand = self.lower_expr(operand, sink, None)?;
+        let operand = self.lower_type_check_operand(operand, sink)?;
         let target = self.resolve_type_ref(ty_ref)?;
         if !self.could_hold(operand.ty, target) {
             let found = self.type_name(operand.ty);

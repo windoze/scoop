@@ -51,6 +51,7 @@ mod compound_assignments;
 mod exceptions;
 mod flow;
 mod loops;
+mod smart_flow;
 pub(crate) use loops::ActiveLoop;
 mod iteration;
 mod jumps;

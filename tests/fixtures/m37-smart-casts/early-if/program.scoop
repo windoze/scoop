@@ -1,0 +1,5 @@
+fun length(value: Any): Long {
+    if (value !is String) return 0L
+    return value.length
+}
+fun main() { println(length("hello")); println(length(42)) }

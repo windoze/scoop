@@ -48,7 +48,7 @@ impl Lowerer {
                 WriteCapability::ReadOnly
             };
             return Some(ResolvedPlacePlan {
-                ty: read.ty,
+                ty: self.locals[local].ty,
                 read,
                 write,
             });
