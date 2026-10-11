@@ -78,6 +78,16 @@ impl Parser {
             let TokenKind::Ident(text) = &token.kind else {
                 break;
             };
+            if matches!(text.as_str(), "inline" | "tailrec") {
+                if text == "inline" {
+                    modifiers.inline_span = modifiers.inline_span.or(Some(token.span));
+                } else {
+                    modifiers.tailrec_span = modifiers.tailrec_span.or(Some(token.span));
+                }
+                self.bump();
+                modifiers.start = modifiers.start.or(Some(token.span.start));
+                continue;
+            }
             if text == "const" {
                 if const_span.is_some() {
                     return Err(Diagnostic::at(

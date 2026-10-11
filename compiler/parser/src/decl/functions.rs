@@ -13,6 +13,10 @@ impl Parser {
         loop {
             let token = self.peek().clone();
             match &token.kind {
+                TokenKind::Ident(text) if matches!(text.as_str(), "inline" | "tailrec") => {
+                    self.bump();
+                    modifiers.start = modifiers.start.or(Some(token.span.start));
+                }
                 TokenKind::Suspend => {
                     if modifiers.suspend_span.is_some() {
                         let location = if context == FunctionContext::TopLevel {
@@ -136,25 +140,7 @@ impl Parser {
         let mut vararg_span = None;
         if !matches!(self.peek().kind, TokenKind::RParen) {
             loop {
-                let modifier_span = if matches!(self.peek().kind, TokenKind::Vararg) {
-                    let modifier = self.bump();
-                    if matches!(self.peek().kind, TokenKind::Vararg) {
-                        return Err(Diagnostic::at(
-                            self.peek().span,
-                            "duplicate `vararg` modifier on parameter",
-                        ));
-                    }
-                    if vararg_span.is_some() {
-                        return Err(Diagnostic::at(
-                            modifier.span,
-                            "a parameter list may declare at most one `vararg` parameter",
-                        ));
-                    }
-                    vararg_span = Some(modifier.span);
-                    Some(modifier.span)
-                } else {
-                    None
-                };
+                let modifier_span = self.parse_vararg_modifier(&mut vararg_span)?;
                 let param_name = self.expect_ident("parameter name")?;
                 self.expect("`:`", |k| matches!(k, TokenKind::Colon))?;
                 let ty = self.parse_type_ref()?;

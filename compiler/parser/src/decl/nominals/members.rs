@@ -171,6 +171,8 @@ impl Parser {
             .or(prefix.modifiers.operator.map(|modifier| modifier.span))
             .or(prefix.modifiers.infix.map(|modifier| modifier.span))
             .or(prefix.modifiers.override_span)
+            .or(prefix.modifiers.inline_span)
+            .or(prefix.modifiers.tailrec_span)
         {
             return Err(Diagnostic::at(
                 span,

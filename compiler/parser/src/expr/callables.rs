@@ -34,6 +34,7 @@ impl Parser {
         let mut params = Vec::new();
         if !matches!(self.peek().kind, TokenKind::RParen) {
             loop {
+                self.skip_parameter_compatibility_modifiers();
                 let name = self.expect_ident("parameter name")?;
                 self.expect("`:`", |kind| matches!(kind, TokenKind::Colon))?;
                 let ty = self.parse_type_ref()?;
@@ -112,6 +113,7 @@ impl Parser {
         let start = self.pos;
         let mut parameters = Vec::new();
         loop {
+            self.skip_parameter_compatibility_modifiers();
             let target = self.parse_pattern().ok()?;
             let target_span = crate::pattern::pattern_span(&target);
             let ty = if matches!(self.peek().kind, TokenKind::Colon) {

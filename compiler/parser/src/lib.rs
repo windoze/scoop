@@ -63,6 +63,8 @@ mod tests_m35;
 #[cfg(test)]
 mod tests_m36_modifiers;
 #[cfg(test)]
+mod tests_m37_modifiers;
+#[cfg(test)]
 mod tests_m4;
 #[cfg(test)]
 mod tests_m5;

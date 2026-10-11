@@ -285,30 +285,6 @@ impl Parser {
         })
     }
 
-    pub(super) fn parse_vararg_modifier(
-        &mut self,
-        existing: &mut Option<Span>,
-    ) -> Result<Option<Span>, Diagnostic> {
-        if !matches!(self.peek().kind, TokenKind::Vararg) {
-            return Ok(None);
-        }
-        let modifier = self.bump();
-        if matches!(self.peek().kind, TokenKind::Vararg) {
-            return Err(Diagnostic::at(
-                self.peek().span,
-                "duplicate `vararg` modifier on parameter",
-            ));
-        }
-        if existing.is_some() {
-            return Err(Diagnostic::at(
-                modifier.span,
-                "a parameter list may declare at most one `vararg` parameter",
-            ));
-        }
-        *existing = Some(modifier.span);
-        Ok(Some(modifier.span))
-    }
-
     /// `: Base(args), I1, I2` — a no-op when the next token is not `:`.
     /// Every entry retains whether its argument list was present. HIR, which
     /// knows nominal kinds, decides which entry is the direct base.

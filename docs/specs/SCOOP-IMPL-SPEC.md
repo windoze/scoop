@@ -44,6 +44,8 @@ AST 不包含依赖 locator 解析、构建顺序、已推断类型或实体身�
 
 parser 中仅有存在性与位置的修饰符使用可选 span；带取值的修饰符同时保存取值和 span，不独立维护 bool 与可缺失位置。AST literal pattern 使用封闭的字面量数据，保留原数字拼写、允许的数值符号和准确 span，不接受任意表达式作为字面量模式。
 
+语言规范 8.4 的五个兼容修饰符在合法语法位置消费后丢弃。parser 可以保留诊断所需位置；HIR、MIR、LIR、共享签名与 ABI 不保存对应语义标志，codegen 不生成内联或尾调用属性。源码位置与哈希仍反映真实文本，不要求去掉标记前后的产物逐字节相同。
+
 when 的 AST 明确区分无 subject、表达式 subject 与 val subject 声明；声明保存完整 binding pattern、可选完整类型及初始化表达式。arm 区分普通条件序列、case 模式与后备条件，保留 guard 和各条件位置。return/throw 可处于表达式位置；调用保留尾随实参来源及分组边界；annotation 数组保留每个元素的位置。
 
 ### 2.2 HIR

@@ -1,0 +1,41 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "generic member function `convert` cannot be an override",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 109,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 102
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "`convert` is marked `override` but does not override any method",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 109,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 102
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "class `Invalid` does not implement interface method `I.convert`",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 132,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 45
+    },
+    "severity": "error"
+  }
+]

@@ -131,7 +131,28 @@ impl Parser {
     }
 
     fn enum_member_starts_here(&self) -> bool {
-        if self.release_block_starts_here() || self.starts_context_declaration() {
+        if self.release_block_starts_here()
+            || self.starts_context_declaration()
+            || self.starts_modified_local_function()
+            || (matches!(&self.peek().kind, TokenKind::Ident(text) if text == "inline")
+                && match &self.tokens[self.pos + 1].kind {
+                    TokenKind::Val | TokenKind::Var | TokenKind::At => true,
+                    TokenKind::Ident(text) => matches!(
+                        text.as_str(),
+                        "inline"
+                            | "public"
+                            | "internal"
+                            | "private"
+                            | "protected"
+                            | "open"
+                            | "final"
+                            | "abstract"
+                            | "override"
+                            | "const"
+                    ),
+                    _ => false,
+                })
+        {
             return true;
         }
         match &self.peek().kind {
@@ -194,6 +215,7 @@ impl Parser {
             TokenKind::LParen => {
                 self.bump();
                 let mut annotations = self.parse_annotations()?;
+                self.skip_parameter_compatibility_modifiers();
                 if matches!(
                     self.peek().kind,
                     TokenKind::Val | TokenKind::Var | TokenKind::Vararg

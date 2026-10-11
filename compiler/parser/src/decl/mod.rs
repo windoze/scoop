@@ -44,6 +44,8 @@ pub(crate) struct Modifiers {
     pub operator: Option<OperatorModifier>,
     pub infix: Option<InfixModifier>,
     pub method_modifier: Option<SpannedMethodModifier>,
+    pub inline_span: Option<Span>,
+    pub tailrec_span: Option<Span>,
     pub start: Option<u32>,
 }
 
@@ -79,6 +81,7 @@ fn interfaces_only(supertypes: Vec<SupertypeSpec>) -> Result<Vec<scoop_ast::Type
 }
 
 mod annotations;
+mod compatibility;
 mod context;
 mod enums;
 mod functions;

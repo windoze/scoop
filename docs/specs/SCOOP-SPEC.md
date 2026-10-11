@@ -43,7 +43,7 @@ Scoop 不提供类似 Swift / Rust 的并发安全保障，不通过类型系统
 
 - 声明：`class` / `interface` / `object` / `companion object` / `typealias` / 属性（`val` / `var`，含委托属性）/ 函数 / 扩展函数与扩展属性；
 - 类特性：主构造函数与次构造函数、`init` 块、继承（单继承 + 接口实现）、抽象类、可见性修饰符（`public` / `internal` / `private` / `protected`）；
-- 数据与函数：局部函数、lambda、匿名函数、函数类型、callable reference、默认参数、命名参数、可变参数（`vararg`）、中缀函数（`infix`）、运算符重载、尾递归（`tailrec`）；
+- 数据与函数：局部函数、lambda、匿名函数、函数类型、callable reference、默认参数、命名参数、可变参数（`vararg`）、中缀函数（`infix`）、运算符重载；`tailrec` 等兼容修饰符仅解析后忽略（8.4）；
 - 泛型：类型参数、完整类型实参、上界约束、`where` 子句与调用点类型推断；Scoop不采用Kotlin的声明点型变、使用点投影或star projection（见3.2）；
 - 控制流：`if` / `when` / `for` / `while` / `do-while`、区间与迭代、`break` / `continue` / `return`（含标签）、异常（`try` / `catch` / `finally` / `throw`）；
 - 空安全运算符：`?.` / `?:` / `!!`（语义见第 7 章）；
@@ -114,7 +114,7 @@ Scoop 的类型分为两大类：
 - 上界的完整 interface application 可以引用被约束参数自身，例如 `T : Equality<T>`；它表示实际类型必须实现 `Equality<该实际类型>`，不是裸参数上界 `T : T` 或隐式 `Self`。所有形参先建立身份，再解析 bound 中的参数引用；普通继承环与非法 bound 规则仍适用。
 - receiver为有界type parameter时，成员候选只来自唯一class上界、interface上界及其继承闭包；不加入`Any`成员或实际类型未在bound中声明的能力。generic template中的bound member在实例化时解析为concrete direct/virtual/interface call；单态化不需要runtime dictionary，但不取消actual concrete type本来具有的动态分派语义。 class 上界中的属性同样参与查询：存储、计算属性和函数值属性使用完整上界实参及其继承替换；读取、赋值、复合赋值和安全访问保留原 receiver 的访问域检查，getter／setter 在定义处选定。该规则与声明位于当前 Cone 或依赖无关。
 - 每个合法且参数完整的exact class/interface application都是普通reference type，可以直接作为变量、参数、返回值、字段、cast目标和upper bound。Scoop不引入`dyn`/trait object语法、object-safety分类或可空witness；所有合法interface成员仍可经concrete、exact interface或bounded receiver调用。`Encodable<T>`、`Decodable<T>`及其方法也使用普通interface语义。
-- interface 方法不能声明自己的类型参数；`interface I { fun <T> f(value: T) }` 是编译错误。interface 宿主可以是泛型，例如 `interface I<T> { fun f(value: T) }`，完整 application `I<String>` 中的方法遵循普通接口调用规则。
+- interface 方法不能声明自己的类型参数，包括带 default body 或 private helper 的方法；`interface I { fun <T> f(value: T) }` 是编译错误。interface 宿主可以是泛型，例如 `interface I<T> { fun f(value: T) }`，完整 application `I<String>` 中的方法遵循普通接口调用规则。方法自身泛型与任何泛型虚方法是单态化及固定签名 vtable/itable 下的明确语言排除项，不作为未来动态分派能力预留；`final override` 也不能形成泛型虚槽。
 - non-interface generic method必须non-virtual。class generic method必须语义为final；generic method不能声明为open/abstract/override，不能实现或覆盖vtable/itable slot。struct/enum方法本来即为final。调用根据exact receiver application与完整method argument使用direct dispatch，运行期派生class不能override目标。
 - class/struct/enum泛型宿主上的泛型成员函数，以及带宿主类型参数环境的companion上的泛型成员函数，都拥有两组类型参数：宿主类型实参由接收者的exact静态application确定，方法类型实参由整组调用实参推导；两组实参共同组成该方法的单态化身份，顺序固定为“宿主类型实参在前、方法类型实参在后”。两组参数使用不同semantic identity，方法参数不得与宿主参数重名。companion的宿主实参来自9.1.3规定的完整宿主application，不从方法实参反推。调用点显式列表只写method自身参数，可整组省略，或覆盖全部位置并在待推断位置写`_`；两组参数的bound一起验证。interface本身的方法不能声明第二组类型参数，其companion的方法属于普通object成员。
 - top-level、local与extension generic function，以及上述non-interface generic method，都可以使用inline upper bound与`where`。generic method的callable reference必须由期望函数类型唯一确定method全部实参，得到的是某个concrete函数值；Scoop没有first-class polymorphic function value。
@@ -913,13 +913,20 @@ context list 不参与 overload applicability、MSC、泛型推断、普通或 s
 - 所有 eager initializer 与 main 共享根任务，但 binding 仍只能由实际执行的词法 scope 提供。无 binding 的 initializer 调用 contextual function 同样抛 `MissingContextException`。
 - Context 不提供取消、调度、线程同步或资源释放。永不恢复的 continuation 不隐式执行 scope cleanup；相关对象不可达后按普通 GC 回收。
 
-### 8.4 `inline` / `crossinline` / `noinline` / `reified`
+### 8.4 `inline` / `crossinline` / `noinline` / `reified` / `tailrec`
 
-这些关键字**仅出于 Kotlin 兼容性保留，无实际作用**：
+这五个上下文修饰符仅出于 Kotlin 语法兼容而接受，解析后完全忽略，不产生内联或尾调用提示、尾递归变换、调用/捕获限制、运行期类型保留或跨 callable 跳转语义。
 
-- Scoop 泛型是单态化的，类型信息在每个实例化处天然可用，不需要 `reified` 来保留类型实参；
-- 编译器自行决定内联策略，`inline` / `noinline` / `crossinline` 被接受但可忽略（允许作为提示，但不保证语义）；
-- 不依赖语义内联的 Kotlin 代码可以保留这些关键字而无需修改；依赖 inline lambda non-local return 的代码不兼容，必须按 8.1.2 改为匿名函数或重写控制流。
+| 修饰符 | 接受位置 |
+| --- | --- |
+| `inline` | 函数、property 及 accessor 修饰符 |
+| `tailrec` | 函数修饰符 |
+| `crossinline` / `noinline` | 值参数修饰符 |
+| `reified` | 类型参数修饰符 |
+
+其他位置仍可作为普通标识符，反引号拼写始终是标识符。合法位置的重复标记和组合不增加语义诊断；`reified` 不要求 `inline`，`tailrec` 不要求递归且不保证常量栈空间。普通声明的目标、参数、可见性、body、挂起性与分派规则继续检查。
+
+泛型采用单态化；语义上是否内联由编译器自行决定。lambda 裸 `return`、跨 callable 跳转、interface 方法自身泛型、泛型虚方法和外层词法局部 `var` 捕获均不因这些标记而合法。读取或写入外层局部 `var` 都拒绝，即使没有后续赋值、立即调用或已有 smart cast；嵌套环境也不能把它改成隐藏 `val` 后捕获。需要共享对象状态时可显式捕获普通 class 的不可变引用并访问其可变 property（8.1.3），不要求编译器识别某个 Cell 类型。
 
 ### 8.5 调用实参、默认参数与 `vararg`
 
@@ -2909,3 +2916,5 @@ core 提供普通安全函数 `write(message: String)`、`writeError(message: St
 | 对值类型使用 `===` | `==`（结构相等） |
 | generic declaration/use-site `in`、`out`、`*` | nominal generic application始终invariant；使用带bound的generic callable或显式非generic接口（见3.2） |
 | `Option<T>` 的智能转换 | `when` 解构（7.3） |
+| interface 方法自身泛型、任何泛型虚方法 | 泛型宿主的非泛型方法，或 final direct 泛型方法（3.2） |
+| 捕获外层词法局部 `var` | 显式 `val` 快照，或捕获普通引用对象并访问其 property（8.1.3） |

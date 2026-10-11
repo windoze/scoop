@@ -82,6 +82,17 @@ impl Parser {
         if self.starts_unsupported_loop_label() {
             return self.reject_loop_label();
         }
+        if self.starts_modified_local_function() {
+            let function = self.parse_non_member_function(
+                Vec::new(),
+                VisibilitySyntax::Omitted,
+                crate::decl::FunctionContext::Local,
+            )?;
+            return Ok(Statement {
+                span: function.span,
+                kind: StatementKind::LocalFunction(function),
+            });
+        }
         match &self.peek().kind {
             TokenKind::Fun if !matches!(self.tokens[self.pos + 1].kind, TokenKind::LParen) => {
                 let function = self.parse_non_member_function(

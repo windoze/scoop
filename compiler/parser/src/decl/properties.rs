@@ -14,6 +14,12 @@ impl Parser {
         prefix: MemberPrefix,
         context: PropertyContext,
     ) -> Result<PropertyDecl, Diagnostic> {
+        if let Some(span) = prefix.modifiers.tailrec_span {
+            return Err(Diagnostic::at(
+                span,
+                "`tailrec` is only allowed on functions",
+            ));
+        }
         if let Some(span) = prefix
             .modifiers
             .suspend_span
@@ -221,12 +227,7 @@ impl Parser {
         let mut accessors = AccessorSyntax::default();
         loop {
             let checkpoint = self.pos;
-            let annotations = if matches!(self.peek().kind, TokenKind::At) {
-                self.parse_annotations()?
-            } else {
-                Vec::new()
-            };
-            let visibility = self.parse_visibility()?;
+            let (annotations, visibility) = self.parse_accessor_prefix()?;
             let token = self.peek().clone();
             let TokenKind::Ident(name) = &token.kind else {
                 self.pos = checkpoint;
@@ -294,6 +295,7 @@ impl Parser {
                 span: Span::new(open.span.end, open.span.end),
             }
         } else {
+            self.skip_parameter_compatibility_modifiers();
             SetterParameterSyntax::Named(self.expect_ident("setter parameter name")?)
         };
         let close = self.expect("`)` after setter parameter", |kind| {

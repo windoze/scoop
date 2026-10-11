@@ -1,0 +1,2 @@
+inline fun call(noinline action: () -> Unit) { action() }
+fun main() { call { return } }

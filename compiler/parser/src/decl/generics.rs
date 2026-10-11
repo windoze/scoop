@@ -11,6 +11,14 @@ impl Parser {
         }
         self.bump();
         loop {
+            while matches!(&self.peek().kind, TokenKind::Ident(text) if text == "reified")
+                && matches!(
+                    self.tokens[self.pos + 1].kind,
+                    TokenKind::Ident(_) | TokenKind::In
+                )
+            {
+                self.bump();
+            }
             if matches!(self.peek().kind, TokenKind::In)
                 || matches!(&self.peek().kind, TokenKind::Ident(text) if text == "out")
             {

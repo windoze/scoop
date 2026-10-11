@@ -1,0 +1,16 @@
+inline inline tailrec fun <reified reified T> choose(noinline crossinline value: T): T = value
+inline val answer: Int inline get() = 42
+inline var stored: Int = 1
+    inline get() = field
+    inline set(value) { field = value }
+class Holder<reified T>(noinline val value: T) {
+    inline fun <reified U> identity(crossinline other: U): U = other
+}
+inline tailrec fun ordinary(noinline value: Int): Int = value + 1
+fun main(): Int {
+    inline tailrec fun local(noinline value: Int): Int = value
+    val holder = Holder<Int>(choose(answer))
+    stored = ordinary(40)
+    println(local(holder.identity(stored + 1)))
+    return 0
+}

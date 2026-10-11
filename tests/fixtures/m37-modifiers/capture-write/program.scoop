@@ -1,0 +1,5 @@
+inline fun call(crossinline action: () -> Unit) { action() }
+fun main() {
+    var value = 1
+    call { value = 2 }
+}

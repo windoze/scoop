@@ -1,0 +1,19 @@
+interface Reader<T> { inline fun read(): T }
+class ReaderImpl<reified T>(val value: T): Reader<T> {
+    inline override fun read(): T = value
+    inline fun <reified U> map(noinline action: (T) -> U): U = action(value)
+}
+class Counter(var value: Int)
+inline fun apply(crossinline action: () -> Int): Int = action()
+inline fun fail(): Int { throw IllegalStateException(Some("expected")) }
+fun main(): Int {
+    val reader: Reader<Int> = ReaderImpl<Int>(40)
+    val counter = Counter(reader.read())
+    val action: () -> Int = { counter.value += 1; counter.value }
+    println(apply(action))
+    try { fail() } catch (error: IllegalStateException) { println("caught") }
+    finally { println("finally") }
+    val impl = ReaderImpl<Int>(counter.value)
+    println(impl.map<Int> { it + 1 })
+    return 0
+}
