@@ -89,3 +89,13 @@ AST、HIR、concrete HIR 和结构化 MIR 保留显式 LoopKind；默认/泛型 
 本机 fmt、workspace clippy（release）通过；HIR lower 1,410 项、parser 493 项及 doc-test 1 项通过，可见性去重后补验 22 项相关测试全部通过。36 个新增正式 fixture（11 个正向、25 个 negative）与 8 个回归普通比较共 44/44 通过，58 个配置、154 个进程、120 个阶段 golden。覆盖 debug/release、构造参数与闭包、初始化顺序/只执行一次、provideDelegate、泛型 receiver、继承与动态分派、const/raw storage、Nothing/Unit、Context、挂起恢复、异常/finally、moving GC，以及移除源码后的 provider → bridge → consumer 链和跨 Cone NoGC 读取。
 
 报告见 [08-property-inference-darwin.json](validation/08-property-inference-darwin.json)。仅迁移一个既有构造器产物用例的两份 AST 快照，补充功能 6 的 lambda 隐式标签；其余阶段和执行结果保持不变。普通报告合并已通过且未变化的用例与该用例复验，生成快照不计入通过数。已清理本批旧 fixture cases（575 MiB），保留共用 cache、sysroot 与日志。
+
+### 9. 构造器与未绑定成员引用（完成）
+
+`::TypeName` 从普通可见的 primary/secondary constructor 中选择目标，支持泛型与透明 alias；`Type::member` 将 receiver 作为第一个函数参数，按正常名称和类型语法区分值 receiver、类型 qualifier、嵌套类型与同名变量。源码函数与构造器进入相同候选层，期望函数类型参与既有适用性和 MSC；无期望类型须有唯一完整签名。普通绑定引用继续在创建时只读取一次 receiver。virtual/interface 成员每次调用均按实际 receiver 分派。
+
+已选定的构造器或未绑定成员生成完整 typed lambda 适配 body，复用现有闭包、调用、捕获和 GC 路径。普通依赖构造器调用已有产物入口，泛型依赖请求已有构造模板，不复制初始化 body；默认参数与再次发布保存定义处绑定。创建点 receiver 类型作为刚性输入进入引用约束，保留外层泛型参数身份。数组构造结果与异常类型准备集中到普通调用和引用共用的完成入口。默认值、参数名与 vararg 协议不进入函数值，vararg 保留 Array 参数；unsafe/NoGC/FunPtr 边界保持原规则。没有新增 HIR/wire 形态或 runtime ABI。原 565 行引用文件拆分后主入口 215 行，构造器、构造候选准备、未绑定入口分别 296、195、112 行。
+
+本机 fmt、workspace clippy（release）通过；69 项相关 Rust 测试通过，最终普通依赖构造分支和数组异常准备以正式 CLI 定向补验。39 个新增 fixture（12 个正向、27 个 negative）与 10 个回归普通比较共 49/49 通过，61 个配置、156 个进程、117 个阶段 golden。覆盖 debug/release、secondary/struct/Array 构造器、源码与依赖重载、泛型宿主及方法、类型参数上界、alias、嵌套类型、原始类型成员和扩展、receiver 快照、Context、挂起恢复、moving GC，以及移除源码后的 provider → bridge → consumer 产物链。数组同时验证普通构造、函数值构造、复制与负长度异常。
+
+报告见 [09-references-darwin.json](validation/09-references-darwin.json)。6 个旧“不支持引用”负例按新语义迁移为正向回归，其余旧阶段快照不变。报告合并已通过且未变化的用例和最后 8 个定向复验；生成快照不计入普通通过数。本批多次清理 fixture cases，保留共用 cache、sysroot 与日志；release 构建目录约 1.6 GiB。

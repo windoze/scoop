@@ -375,7 +375,14 @@ impl Lowerer {
                         NamedCallTarget::Function(id) => !self.function_owner.contains_key(&id),
                         NamedCallTarget::ImportedDependency(
                             hir::ImportedTarget::Function(_)
-                            | hir::ImportedTarget::GenericFunction(_),
+                            | hir::ImportedTarget::GenericFunction(_)
+                            | hir::ImportedTarget::Type(_)
+                            | hir::ImportedTarget::GenericType(_)
+                            | hir::ImportedTarget::TypeAlias(_),
+                        ) => true,
+                        NamedCallTarget::Type(_)
+                        | NamedCallTarget::Value(
+                            crate::imports::lookup::values::ValueTarget::Object(_),
                         ) => true,
                         _ => false,
                     })

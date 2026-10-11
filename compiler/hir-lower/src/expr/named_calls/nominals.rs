@@ -5,13 +5,13 @@ mod imported;
 mod plans;
 mod pointers;
 
-struct NominalPlan {
-    view: NominalConstructorView,
-    expected: Option<TypeId>,
-    fixed_alias: bool,
+pub(in crate::expr) struct NominalPlan {
+    pub(in crate::expr) view: NominalConstructorView,
+    pub(in crate::expr) expected: Option<TypeId>,
+    pub(in crate::expr) fixed_alias: bool,
 }
 
-enum PreparedNominalPlans {
+pub(in crate::expr) enum PreparedNominalPlans {
     Nominal(
         Vec<NominalPlan>,
         Option<(hir::StructId, Option<TypeId>, bool)>,
@@ -337,16 +337,7 @@ impl Lowerer {
                 let resolved = self
                     .commit_named_nominal(*probe, call.span, sink)
                     .ok_or(())?;
-                if matches!(
-                    resolved.source,
-                    NominalConstructorSource::ArrayGenerate(_)
-                        | NominalConstructorSource::ImportedArrayGenerate(_)
-                ) && let Err(error) = self.prepare_array_size_exception_type()
-                {
-                    self.error(call.span, error.diagnostic("array size exception type"));
-                    return Err(());
-                }
-                Some(self.finish_named_nominal(resolved, call.span))
+                self.finish_named_nominal(resolved, call.span)
             }
             (NamedFunctionLikeProbe::IntrinsicStruct(_), NamedFunctionCommit::Intrinsic(layer)) => {
                 if layer.state.diagnostics[diagnostics_before..]

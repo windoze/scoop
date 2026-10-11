@@ -1,12 +1,14 @@
 use super::*;
-use crate::call_resolution::applicability::CallableReferenceApplicabilityInput;
+use crate::call_resolution::applicability::{
+    CallableReferenceApplicabilityInput, ReferenceReceiver,
+};
 use crate::call_resolution::candidates::{CallableView, ReceiverShape};
 use crate::call_resolution::diagnostics::{
     callable_layer_name, callable_source_signature, render_callable_constraint_failure,
 };
 use crate::call_resolution::specificity::DeclarationForwardingView;
 
-pub(super) struct LocalReferenceDeclaration {
+pub(in crate::expr::callable_references) struct LocalReferenceDeclaration {
     pub candidate: crate::CallableCandidate,
     pub view: CallableView,
     forwarding_parameter_types: Vec<TypeId>,
@@ -56,12 +58,23 @@ impl Lowerer {
         let owner_type_args = state.callable_candidate_owner_arguments(candidate);
         let extension_receiver = state.extension_receivers.get(&function).copied();
         let bound_receiver = match context.extension_mode {
-            ReferenceExtensionMode::Exclude if extension_receiver.is_some() => return Ok(None),
-            ReferenceExtensionMode::Bound(_) if extension_receiver.is_none() => return Ok(None),
-            ReferenceExtensionMode::Bound(receiver) => {
+            ReferenceExtensionMode::Exclude | ReferenceExtensionMode::UnboundMember(_)
+                if extension_receiver.is_some() =>
+            {
+                return Ok(None);
+            }
+            ReferenceExtensionMode::Bound(_) | ReferenceExtensionMode::UnboundExtension(_)
+                if extension_receiver.is_none() =>
+            {
+                return Ok(None);
+            }
+            ReferenceExtensionMode::Bound(receiver)
+            | ReferenceExtensionMode::UnboundExtension(receiver) => {
                 extension_receiver.map(|declared| (declared, receiver))
             }
-            ReferenceExtensionMode::Exclude | ReferenceExtensionMode::IncludeUnbound => None,
+            ReferenceExtensionMode::Exclude
+            | ReferenceExtensionMode::IncludeUnbound
+            | ReferenceExtensionMode::UnboundMember(_) => None,
         };
         let mut view = state.callable_view(candidate, extension_receiver.is_some());
         let before = state.diagnostics.len();
@@ -105,12 +118,16 @@ impl Lowerer {
                 signature: &view.signature,
                 owner_arguments: &owner_type_args,
                 bound_receiver,
-                unbound_receiver: matches!(
-                    context.extension_mode,
-                    ReferenceExtensionMode::IncludeUnbound
-                )
-                .then_some(extension_receiver)
-                .flatten(),
+                unbound_receiver: match context.extension_mode {
+                    ReferenceExtensionMode::IncludeUnbound => {
+                        extension_receiver.map(ReferenceReceiver::Declaration)
+                    }
+                    ReferenceExtensionMode::UnboundMember(receiver)
+                    | ReferenceExtensionMode::UnboundExtension(receiver) => {
+                        Some(ReferenceReceiver::Resolved(receiver))
+                    }
+                    _ => None,
+                },
                 effects: view.effects,
                 expected_type: context.expected.map(|(ty, _)| *ty),
             })

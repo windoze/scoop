@@ -169,6 +169,8 @@ enum ReferenceExtensionMode {
     Exclude,
     IncludeUnbound,
     Bound(TypeId),
+    UnboundMember(TypeId),
+    UnboundExtension(TypeId),
 }
 
 #[derive(Clone, Copy)]
@@ -181,7 +183,7 @@ struct ReferenceResolutionContext<'a> {
 }
 
 struct ResolvedReference {
-    target: hir::CallableReferenceTarget,
+    target: callable_references::ReferenceTarget,
     type_args: Vec<TypeId>,
     ty: TypeId,
 }

@@ -1,0 +1,2 @@
+class Box { suspend fun read() = 42 }
+fun main() { val read: (Box) -> Int = Box::read }

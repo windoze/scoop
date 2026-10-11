@@ -3,12 +3,13 @@ use super::*;
 impl Lowerer {
     pub(crate) fn lower_synthesized_lambda(
         &mut self,
+        is_suspend: bool,
         parameter_types: &[TypeId],
         result_type: TypeId,
         span: Span,
         generate: impl FnOnce(&mut Self, Vec<hir::Expr>) -> Option<crate::stmt::ValueBlock>,
     ) -> Option<hir::Expr> {
-        let function = self.intern_function_type(false, parameter_types.to_vec(), result_type);
+        let function = self.intern_function_type(is_suspend, parameter_types.to_vec(), result_type);
         let expected = self.function_types[function].canonical_type;
         let names = (0..parameter_types.len())
             .map(|index| format!("__codec_argument_{index}"))
@@ -27,7 +28,7 @@ impl Lowerer {
         self.with_pattern_transaction(|state| {
             state.lower_lambda_inner(
                 None,
-                false,
+                is_suspend,
                 Some(&parameters),
                 span,
                 span,

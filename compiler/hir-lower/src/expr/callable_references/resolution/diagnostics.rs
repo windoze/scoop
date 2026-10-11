@@ -4,6 +4,7 @@ use crate::call_resolution::diagnostics::{callable_layer_name, callable_source_s
 impl ReferenceDeclaration {
     fn signature(&self, state: &Lowerer, name: &str) -> String {
         match self {
+            Self::Constructor(declaration) => declaration.signature(state, name),
             Self::Local(declaration) => callable_source_signature(state, name, &declaration.view),
             Self::Imported(declaration) => declaration.signature(state, name),
         }
@@ -11,6 +12,7 @@ impl ReferenceDeclaration {
 
     fn layer(&self, state: &Lowerer) -> &'static str {
         match self {
+            Self::Constructor(_) => "constructor candidate",
             Self::Local(declaration) => {
                 callable_layer_name(state, std::slice::from_ref(&declaration.view))
             }

@@ -16,7 +16,7 @@ use crate::namespace::TopLevelTypeTarget;
 use crate::overload::{CallArgumentProtocol, NamedCallReceiver, OverloadCall};
 
 pub(crate) mod imported_dependency;
-mod nominals;
+pub(in crate::expr) mod nominals;
 mod values;
 
 struct NamedValueLayer {

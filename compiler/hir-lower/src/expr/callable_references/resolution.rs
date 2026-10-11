@@ -16,8 +16,10 @@ use local::LocalReferenceDeclaration;
 #[derive(Clone)]
 pub(super) enum ReferenceCandidate {
     Local(crate::CallableCandidate, Option<hir::Expr>),
+    Constructor(super::constructors::ConstructorReferenceCandidate),
     Dependency(hir::DirectImportedTargetBinding),
     Member(Box<hir::ImportedCallableDeclaration>, hir::Expr),
+    UnboundMember(Box<hir::ImportedCallableDeclaration>, TypeId),
 }
 
 impl ReferenceCandidate {
@@ -45,29 +47,31 @@ impl ReferenceCandidate {
     }
 }
 
-enum ReferenceDeclaration {
+pub(super) enum ReferenceDeclaration {
+    Constructor(super::constructors::ConstructorReferenceDeclaration),
     Local(LocalReferenceDeclaration),
     Imported(ImportedReferenceDeclaration),
 }
 
-struct ApplicableReference {
-    state: Box<Lowerer>,
-    declaration: ReferenceDeclaration,
-    type_args: Vec<TypeId>,
-    ty: TypeId,
-    own_type_param_count: usize,
-    receiver: Option<hir::Expr>,
+pub(super) struct ApplicableReference {
+    pub(super) state: Box<Lowerer>,
+    pub(super) declaration: ReferenceDeclaration,
+    pub(super) type_args: Vec<TypeId>,
+    pub(super) ty: TypeId,
+    pub(super) own_type_param_count: usize,
+    pub(super) receiver: Option<hir::Expr>,
 }
 
-struct ReferenceFailure {
-    signature: String,
-    layer: &'static str,
-    reason: String,
+pub(super) struct ReferenceFailure {
+    pub(super) signature: String,
+    pub(super) layer: &'static str,
+    pub(super) reason: String,
 }
 
 impl ReferenceDeclaration {
     fn forwarding(&self, state: &mut Lowerer) -> OwnedDeclarationForwarding {
         match self {
+            Self::Constructor(declaration) => declaration.forwarding(state),
             Self::Local(declaration) => declaration.forwarding(),
             Self::Imported(declaration) => declaration.forwarding(state),
         }
@@ -79,10 +83,25 @@ impl ReferenceDeclaration {
         type_args: &[TypeId],
         receiver: Option<&hir::Expr>,
         ty: TypeId,
-    ) -> Result<hir::CallableReferenceTarget, String> {
+        unbound: Option<Span>,
+    ) -> Result<ReferenceTarget, String> {
+        if let Some(span) = unbound {
+            return state
+                .lower_unbound_reference_adapter(ty, span, |state, receiver, bound_ty| {
+                    self.commit(state, type_args, Some(receiver), bound_ty, None)
+                })
+                .map(ReferenceTarget::Value);
+        }
         match self {
-            Self::Local(declaration) => Ok(declaration.commit(state, type_args, receiver)),
-            Self::Imported(declaration) => declaration.commit(state, type_args, receiver, ty),
+            Self::Constructor(declaration) => declaration
+                .commit(state, type_args, ty)
+                .map(ReferenceTarget::Value),
+            Self::Local(declaration) => Ok(ReferenceTarget::Callable(
+                declaration.commit(state, type_args, receiver),
+            )),
+            Self::Imported(declaration) => declaration
+                .commit(state, type_args, receiver, ty)
+                .map(ReferenceTarget::Callable),
         }
     }
 }
@@ -173,15 +192,22 @@ impl Lowerer {
                     ..context
                 };
                 let result = match candidate {
+                    ReferenceCandidate::Constructor(candidate) => {
+                        self.probe_constructor_reference(candidate, probe_context)
+                    }
                     ReferenceCandidate::Local(candidate, _) => {
                         self.probe_local_reference(candidate, probe_context)
                     }
-                    ReferenceCandidate::Dependency(_) | ReferenceCandidate::Member(..) => self
-                        .probe_imported_reference(
-                            candidate,
-                            view.as_ref().map(|value| value.ty),
-                            probe_context,
-                        ),
+                    ReferenceCandidate::Dependency(_)
+                    | ReferenceCandidate::Member(..)
+                    | ReferenceCandidate::UnboundMember(..) => self.probe_imported_reference(
+                        candidate,
+                        view.as_ref().map(|value| value.ty).or(match candidate {
+                            ReferenceCandidate::UnboundMember(_, ty) => Some(*ty),
+                            _ => None,
+                        }),
+                        probe_context,
+                    ),
                 };
                 match result {
                     Ok(Some(mut candidate)) => {
@@ -249,6 +275,12 @@ impl Lowerer {
             &selected.type_args,
             selected.receiver.as_ref(),
             selected.ty,
+            matches!(
+                context.extension_mode,
+                ReferenceExtensionMode::UnboundMember(_)
+                    | ReferenceExtensionMode::UnboundExtension(_)
+            )
+            .then_some(context.span),
         ) {
             Ok(target) => ReferenceResolutionOutcome::Resolved(ResolvedReference {
                 target,

@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "no applicable candidate for unbound callable reference `Values::read` in member candidate layer:\n  - fun Values.read(value: Int): Int — callable shape expects 1 parameter(s), but the actual type has 2",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 104,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 92
+    },
+    "severity": "error"
+  }
+]

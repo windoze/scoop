@@ -11,7 +11,7 @@ use crate::Lowerer;
 use crate::expr::ResolvedCallTypeArgument;
 
 mod references;
-pub(crate) use references::CallableReferenceApplicabilityInput;
+pub(crate) use references::{CallableReferenceApplicabilityInput, ReferenceReceiver};
 
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct DeclarationApplicabilityInput<'a> {

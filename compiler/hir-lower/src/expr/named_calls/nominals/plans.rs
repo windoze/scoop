@@ -2,7 +2,7 @@ use super::*;
 use crate::constructor_resolution::ResolvedNominalConstructor;
 
 impl Lowerer {
-    pub(super) fn named_nominal_plans(
+    pub(in crate::expr) fn named_nominal_plans(
         &mut self,
         binding: &NamedCallBinding,
         call: &ast::CallExpr,
@@ -114,6 +114,16 @@ impl Lowerer {
             }
             _ => return Ok(PreparedNominalPlans::Nominal(Vec::new(), None)),
         };
+        self.nominal_constructor_plans(nominal, call, expected, fixed_alias)
+    }
+
+    pub(in crate::expr) fn nominal_constructor_plans(
+        &mut self,
+        nominal: crate::NominalTarget,
+        call: &ast::CallExpr,
+        expected: Option<TypeId>,
+        fixed_alias: bool,
+    ) -> Result<PreparedNominalPlans, ()> {
         let sources = match nominal {
             crate::NominalTarget::Struct(id) => {
                 if Some(id) == self.ffi_foreign_callback {
@@ -359,11 +369,20 @@ impl Lowerer {
         }
     }
 
-    pub(super) fn finish_named_nominal(
+    pub(in crate::expr) fn finish_named_nominal(
         &mut self,
         resolved: ResolvedNominalConstructor,
         span: Span,
-    ) -> hir::Expr {
+    ) -> Option<hir::Expr> {
+        if matches!(
+            resolved.source,
+            NominalConstructorSource::ArrayGenerate(_)
+                | NominalConstructorSource::ImportedArrayGenerate(_)
+        ) && let Err(error) = self.prepare_array_size_exception_type()
+        {
+            self.error(span, error.diagnostic("array size exception type"));
+            return None;
+        }
         let (kind, ty) = match resolved.source {
             NominalConstructorSource::Struct(source) => {
                 let owner = self.struct_constructors[source].owner;
@@ -457,11 +476,11 @@ impl Lowerer {
                 (ExprKind::ArrayClone(Box::new(argument)), ty)
             }
         };
-        hir::Expr {
+        Some(hir::Expr {
             kind,
             ty,
             span,
             origin: self.expression_origin(span),
-        }
+        })
     }
 }

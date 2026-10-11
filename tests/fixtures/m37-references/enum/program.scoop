@@ -1,0 +1,2 @@
+enum Choice { One, Two }
+fun main() { val make = ::Choice }

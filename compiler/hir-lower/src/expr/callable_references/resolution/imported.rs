@@ -1,7 +1,9 @@
 //! Imported declarations remain dependency uses or template applications.
 
 use super::*;
-use crate::call_resolution::applicability::CallableReferenceApplicabilityInput;
+use crate::call_resolution::applicability::{
+    CallableReferenceApplicabilityInput, ReferenceReceiver,
+};
 use crate::call_resolution::candidates::CallableEffects;
 use crate::call_resolution::diagnostics::render_type_parameters;
 use crate::call_resolution::specificity::DeclarationForwardingView;
@@ -15,7 +17,7 @@ enum ImportedReferenceImplementation {
     Template(hir::ImportedGenericCallableTemplateId),
 }
 
-pub(super) struct ImportedReferenceDeclaration {
+pub(in crate::expr::callable_references) struct ImportedReferenceDeclaration {
     candidate: ImportedCallableCandidate,
     implementation: ImportedReferenceImplementation,
     signature: DependencySignature,
@@ -298,10 +300,11 @@ impl Lowerer {
                         })?,
                 ))
             }
-            ReferenceCandidate::Member(declaration, _) => {
+            ReferenceCandidate::Member(declaration, _)
+            | ReferenceCandidate::UnboundMember(declaration, _) => {
                 ImportedCallableCandidate::Declaration(declaration.clone())
             }
-            ReferenceCandidate::Local(..) => {
+            ReferenceCandidate::Local(..) | ReferenceCandidate::Constructor(_) => {
                 unreachable!("local references use their local declaration view")
             }
         };
@@ -314,13 +317,24 @@ impl Lowerer {
         };
         let extension = declaration.extension();
         let bound_receiver = match context.extension_mode {
-            ReferenceExtensionMode::Exclude if extension => return Ok(None),
-            ReferenceExtensionMode::Bound(_) if !extension => return Ok(None),
-            ReferenceExtensionMode::Bound(actual) => Some((
+            ReferenceExtensionMode::Exclude | ReferenceExtensionMode::UnboundMember(_)
+                if extension =>
+            {
+                return Ok(None);
+            }
+            ReferenceExtensionMode::Bound(_) | ReferenceExtensionMode::UnboundExtension(_)
+                if !extension =>
+            {
+                return Ok(None);
+            }
+            ReferenceExtensionMode::Bound(actual)
+            | ReferenceExtensionMode::UnboundExtension(actual) => Some((
                 declaration.receiver.expect("an extension has a receiver"),
                 actual,
             )),
-            ReferenceExtensionMode::Exclude | ReferenceExtensionMode::IncludeUnbound => None,
+            ReferenceExtensionMode::Exclude
+            | ReferenceExtensionMode::IncludeUnbound
+            | ReferenceExtensionMode::UnboundMember(_) => None,
         };
         let owner_arguments = if declaration.signature.owner_parameters.is_empty() {
             Vec::new()
@@ -342,14 +356,15 @@ impl Lowerer {
                 signature: &declaration.signature,
                 owner_arguments: &owner_arguments,
                 bound_receiver,
-                unbound_receiver: if extension
-                    && matches!(
-                        context.extension_mode,
-                        ReferenceExtensionMode::IncludeUnbound
-                    ) {
-                    declaration.receiver
-                } else {
-                    None
+                unbound_receiver: match context.extension_mode {
+                    ReferenceExtensionMode::IncludeUnbound if extension => {
+                        declaration.receiver.map(ReferenceReceiver::Declaration)
+                    }
+                    ReferenceExtensionMode::UnboundMember(receiver)
+                    | ReferenceExtensionMode::UnboundExtension(receiver) => {
+                        Some(ReferenceReceiver::Resolved(receiver))
+                    }
+                    _ => None,
                 },
                 effects: CallableEffects {
                     is_suspend: declaration.is_suspend(),
