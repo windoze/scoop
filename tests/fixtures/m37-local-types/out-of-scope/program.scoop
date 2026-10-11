@@ -1,0 +1,1 @@
+fun main() { if (true) { class Inner }; val value: Inner = Inner() }

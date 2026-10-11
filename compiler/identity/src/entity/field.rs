@@ -28,6 +28,9 @@ pub struct SourceFieldKey(SourceFieldKeyKind);
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 enum SourceFieldKeyKind {
+    CapturedEnvironment {
+        owner: NominalDeclarationOwner,
+    },
     EnclosingInstance {
         owner: NominalDeclarationOwner,
     },
@@ -53,6 +56,9 @@ impl WireEncode for SourceFieldKey {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         match &self.0 {
             SourceFieldKeyKind::EnclosingInstance { owner } => encode_value_sum(encoder, 5, owner),
+            SourceFieldKeyKind::CapturedEnvironment { owner } => {
+                encode_value_sum(encoder, 6, owner)
+            }
             SourceFieldKeyKind::InterfaceDelegate { owner, ordinal } => {
                 encoder.map(3)?;
                 encode_tag(encoder, 4)?;
@@ -177,6 +183,7 @@ impl FieldIdentityKey {
             FieldIdentityKeyKind::Source(SourceFieldKey(
                 SourceFieldKeyKind::Declared { owner, .. }
                 | SourceFieldKeyKind::EnclosingInstance { owner }
+                | SourceFieldKeyKind::CapturedEnvironment { owner }
                 | SourceFieldKeyKind::InterfaceDelegate { owner, .. }
                 | SourceFieldKeyKind::PropertyBacking { owner, .. }
                 | SourceFieldKeyKind::PropertyDelegate { owner, .. },
@@ -211,6 +218,17 @@ impl FieldIdentityKey {
         require_source_kind(owner, SourceDeclarationKind::Class)?;
         Ok(Self(FieldIdentityKeyKind::Source(SourceFieldKey(
             SourceFieldKeyKind::EnclosingInstance {
+                owner: source_nominal_owner(owner)?,
+            },
+        ))))
+    }
+
+    pub fn source_captured_environment(
+        owner: &SourceDeclarationKey,
+    ) -> Result<Self, FieldIdentityError> {
+        require_source_kind(owner, SourceDeclarationKind::Class)?;
+        Ok(Self(FieldIdentityKeyKind::Source(SourceFieldKey(
+            SourceFieldKeyKind::CapturedEnvironment {
                 owner: source_nominal_owner(owner)?,
             },
         ))))

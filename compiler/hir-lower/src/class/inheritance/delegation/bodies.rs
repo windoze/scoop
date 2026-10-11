@@ -3,10 +3,15 @@ use hir::ImportedCallableSource;
 
 impl Lowerer {
     pub(crate) fn lower_interface_forwarder_bodies(&mut self) {
+        self.lower_interface_forwarder_bodies_from(0);
+    }
+
+    pub(crate) fn lower_interface_forwarder_bodies_from(&mut self, start: usize) {
         let mut functions = self
             .interface_forwarders
             .keys()
             .copied()
+            .filter(|id| id.into_raw().into_u32() as usize >= start)
             .collect::<Vec<_>>();
         functions.sort_by_key(|function| function.into_raw().into_u32());
         for function in functions {

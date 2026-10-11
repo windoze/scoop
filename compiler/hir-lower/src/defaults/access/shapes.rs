@@ -115,7 +115,7 @@ impl ReferenceCollector<'_> {
             }
         };
         self.type_reference(owner, origin);
-        self.record_constructor(target, origin);
+        self.record_constructor(target, origin, self.lowerer.default_has_local_type(owner));
     }
 
     pub(super) fn field_use(&mut self, field: hir::FieldRef, origin: hir::DefinitionOrigin) {

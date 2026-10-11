@@ -12,6 +12,9 @@ fn dump_statement(statement: &Statement, indent: usize, out: &mut String) {
     match &statement.kind {
         StatementKind::Expr(expr) => dump_expr(expr, indent, out),
         StatementKind::TypeAlias(alias) => super::declarations::dump_type_alias(alias, indent, out),
+        StatementKind::LocalType(declaration) => {
+            out.push_str(&format!("{pad}LocalType {declaration:?}\n"));
+        }
         StatementKind::LocalFunction(function) => {
             super::dump_context(&function.context_parameters, indent, out);
             let suspend = if function.is_suspend { "suspend " } else { "" };

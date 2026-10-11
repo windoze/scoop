@@ -159,3 +159,15 @@ HIR 生成普通隐藏字段、方法及访问器；物理字段不再强制关�
 本机 fmt、workspace clippy（release）无警告通过；parser、字段与参数身份、HIR 来源与 inner shape、MIR 构造签名的定向 Rust 测试通过。44 个新增正式 fixture（19 个正向、25 个 negative）与 26 个旧回归完成普通比较，共 70/70 通过、100 个配置、250 个进程、207 个阶段 golden。覆盖 debug/release、求值顺序、多条 terminal secondary、默认参数、vararg、泛型、alias、继承、接口委托、闭包的传递捕获、真实挂起恢复、moving GC，以及删除源码后的 provider → bridge → consumer → 独立链接产物链。
 
 报告见 [14-inner-darwin.json](validation/14-inner-darwin.json)。2,138 份旧 HIR golden 机械补充无 outer 参数字段及普通参数 selector，迁移时逐份确认去掉新增字段后与原文一致；inner 新快照保存最终源码参数位置及 ABI。报告合并普通通过批次，生成快照不计入验收；未变化的通过项不重复运行。已清理完成的 fixture cases，保留共用 cache、sysroot 和验证日志；跨库 Linux LIR 快照随最终平台验证生成并普通复验。
+
+### 15. 局部类型与匿名 object（完成）
+
+支持局部 class/struct/enum/interface、匿名 object、声明后可见性、嵌套类型和外层泛型参数。局部类型沿实际词法声明路径生成 typed identity，不导出局部名称；默认参数和泛型正文保存必要定义，删除提供方源码后仍可消费。推导结果不得使局部或匿名类型逃出有效作用域，显式父类型和 Any 返回沿普通适配处理。
+
+局部和匿名 class 只按实际自由引用捕获不可变 binding，在构造时复制到一个普通隐藏 tuple 字段，空环境使用 Unit；构造器引用保存创建时的环境快照。自身及外层 receiver、局部函数、默认值、smart cast 视图、接口委托和多层闭包使用同一捕获路径。外层 var、值类型/interface 捕获、静态嵌套越界捕获与条件未初始化读取均在源码位置诊断。隐藏构造上下文以封闭类型区分 outer 实例和捕获环境，源码参数位置保持不变。
+
+捕获集合在声明正文检查完成后一次确定，并完成相应字段、构造输入和闭包来源类型；没有增加 runtime 对象种类或 GC 入口。构造器引用使用普通函数参数逆变和结果协变，保留真实构造签名后生成既有适配。新增模块最长 214 行；原局部函数补丁遍历与捕获完成共用已有 HIR 的结构遍历，避免复制整套表达式分支。
+
+本机 fmt、workspace clippy（release）无警告通过；新增 parser 2 项、identity 343 项及 doc-test、HIR lower 闭包 26 项定向 Rust 测试通过。47 个新增 fixture（27 个正向、20 个 negative）与 83 个构造器引用/inner 回归完成普通比较，共 130/130 通过、185 个配置、423 个进程、351 个阶段 golden。覆盖 debug/release、每轮与每实例捕获、名称遮蔽、默认值、多条初始化路径、函数引用、方差、moving GC，以及 provider → bridge → consumer → 独立链接的无源码产物链。
+
+报告见 [15-local-types-darwin.json](validation/15-local-types-darwin.json)。旧 HIR golden 机械迁移构造上下文字段名，并将已有 outer 包装为明确类别；普通引用回归仅额外更新一条方差诊断及一个未使用类型实例。报告合并未变化的普通通过项与两条定向复验，不计快照生成次数。已多次清理完成的 fixture cases，并清除约 2.66 GiB 的旧 debug 可执行文件；保留共用 cache、sysroot、release 依赖和日志，Linux LIR 快照随最终平台验证生成。

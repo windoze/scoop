@@ -1,0 +1,21 @@
+fun main() {
+    val first = 20
+    val second = 22
+    class Local {
+        fun closure(): () -> Int = { first + second }
+        fun nested(): Int {
+            class Nested { fun read(): Int = first + second }
+            return Nested().read()
+        }
+        fun local(): Int {
+            fun read(): Int = first + second
+            return read()
+        }
+        fun again(depth: Int): Int = if (depth == 0) first + second else Local().again(depth - 1)
+    }
+    val value = Local()
+    println(value.closure()())
+    println(value.nested())
+    println(value.local())
+    println(value.again(2))
+}

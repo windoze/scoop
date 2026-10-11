@@ -4,6 +4,9 @@ use super::{dump_block, dump_pattern, dump_type_ref};
 pub(super) fn dump_expr(expr: &Expr, indent: usize, out: &mut String) {
     let pad = "  ".repeat(indent);
     match expr {
+        Expr::AnonymousObject(declaration) => {
+            out.push_str(&format!("{pad}AnonymousObject {declaration:?}\n"));
+        }
         Expr::ContextScope { value, body, .. } => {
             out.push_str(&format!("{pad}ContextScope\n"));
             dump_expr(value, indent + 1, out);

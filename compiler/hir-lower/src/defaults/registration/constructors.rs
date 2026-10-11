@@ -77,7 +77,7 @@ impl Lowerer {
                 receiver: match owner {
                     hir::ExportParameterOwner::ClassConstructor(constructor) => self
                         .class_constructors[constructor]
-                        .enclosing_parameter
+                        .context_parameter
                         .as_ref()
                         .map(|parameter| (parameter.ty, None)),
                     _ => None,

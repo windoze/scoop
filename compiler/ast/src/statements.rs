@@ -20,6 +20,7 @@ pub enum StatementKind {
     LocalFunction(FunctionDecl),
     /// A compile-time type binding visible after its declaration.
     TypeAlias(crate::TypeAliasDecl),
+    LocalType(crate::LocalTypeDecl),
     /// `return` with an optional value (bare `return` in `Unit`
     /// functions).
     Return {

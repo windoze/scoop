@@ -48,7 +48,7 @@ impl Lowerer {
             self.error(decl.name.span, what);
             return None;
         }
-        let mut type_params = Vec::new();
+        let mut type_params = self.local_type_parameters();
         for param in &decl.type_params {
             if type_params
                 .iter()
@@ -151,20 +151,13 @@ impl Lowerer {
         ) {
             assert_eq!(self.types[ty], Type::Struct(self_application));
         }
-        match owner {
-            Some(owner) => {
-                self.nested_nominals_by_owner
-                    .insert((owner, decl.name.text.clone()), NominalTarget::Struct(id));
-            }
-            None => {
-                self.top_level_namespaces.register_type(
-                    file_index,
-                    decl.name.text.clone(),
-                    crate::namespace::TopLevelTypeTarget::Nominal(NominalTarget::Struct(id)),
-                    self.structs[id].access.declared == hir::DeclaredVisibility::Private,
-                );
-            }
-        }
+        self.register_nominal_name(
+            owner,
+            &decl.name.text,
+            NominalTarget::Struct(id),
+            file_index,
+            decl.visibility,
+        );
         self.struct_files.insert(id, file_index);
         if let hir::StructRepresentation::Intrinsic(intrinsic) = self.structs[id].representation {
             self.register_intrinsic_type(intrinsic, IntrinsicTypeOwner::Struct(id), decl.span);

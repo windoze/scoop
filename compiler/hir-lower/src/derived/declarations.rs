@@ -2,8 +2,20 @@ use super::*;
 
 impl Lowerer {
     pub(crate) fn declare_derived_equality_methods(&mut self) {
-        let structs = self.structs.iter().map(|(id, _)| id).collect::<Vec<_>>();
-        for id in structs {
+        let owners = self
+            .structs
+            .iter()
+            .map(|(id, _)| Owner::Struct(id))
+            .chain(self.enums.iter().map(|(id, _)| Owner::Enum(id)))
+            .collect::<Vec<_>>();
+        self.declare_owner_equality_methods(&owners);
+    }
+
+    pub(crate) fn declare_owner_equality_methods(&mut self, owners: &[Owner]) {
+        for &owner in owners {
+            let Owner::Struct(id) = owner else {
+                continue;
+            };
             if matches!(
                 self.structs[id].representation,
                 hir::StructRepresentation::Intrinsic(_)
@@ -18,8 +30,10 @@ impl Lowerer {
             self.structs[id].derived_equality = Some(function);
         }
 
-        let enums = self.enums.iter().map(|(id, _)| id).collect::<Vec<_>>();
-        for id in enums {
+        for &owner in owners {
+            let Owner::Enum(id) = owner else {
+                continue;
+            };
             let owner = Owner::Enum(id);
             if self.has_same_type_equals(owner) {
                 continue;

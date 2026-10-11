@@ -96,6 +96,12 @@ impl Lowerer {
                 )
             }
         };
+        let outer_scopes = self
+            .local_nominal_scopes(owner)
+            .map(|scopes| std::mem::replace(&mut self.scopes, scopes));
+        let outer_function_scope = self
+            .local_nominal_functions(owner)
+            .map(|functions| std::mem::replace(&mut self.local_function_scopes, functions));
         let outer_type_parameters =
             std::mem::replace(&mut self.type_params_in_scope, type_parameters);
         let outer_constructor_parameters = std::mem::replace(
@@ -124,6 +130,8 @@ impl Lowerer {
         let outer_owner = self.current_owner.replace(owner);
         let outer_this = self.current_this.take();
         let outer_receivers = std::mem::take(&mut self.receiver_scopes);
+        let outer_smart_casts = self.smart_casts.clone();
+        self.receiver_scopes = self.local_type_receivers(owner);
         let outer_source_context = self.current_source_context;
         self.set_source_context(hir::SourceContextSubject::Constructor(match source {
             ConstructorSource::Class(constructor) => {
@@ -144,9 +152,10 @@ impl Lowerer {
 
         self.push_safety_context(safety);
         let mut statements = Vec::new();
+        let mut capture_environment = None;
         if let ConstructorSource::Class(constructor) = source
             && let Some(outer) = self.class_constructors[constructor]
-                .enclosing_parameter
+                .context_parameter
                 .clone()
         {
             let value = hir::Expr {
@@ -155,17 +164,33 @@ impl Lowerer {
                 span: outer.definition.span,
                 origin: self.expression_origin(outer.definition.span),
             };
-            self.bind_enclosing_receivers(value, &mut statements);
+            match outer {
+                hir::ConstructorContext::EnclosingInstance(_) => {
+                    self.bind_enclosing_receivers(value, &mut statements)
+                }
+                hir::ConstructorContext::CapturedEnvironment(_) => {
+                    capture_environment = Some(value)
+                }
+            }
         }
+        let outer_capture_scope = self.enter_local_type_captures(owner, capture_environment);
         let value = lower(self, &mut statements);
         let locals = std::mem::take(&mut self.locals).into_arena();
 
         self.pop_safety_context();
         self.pop_suspension_context();
         self.pop_scope();
+        if let Some(scopes) = outer_scopes {
+            self.scopes = scopes;
+        }
+        if let Some(functions) = outer_function_scope {
+            self.local_function_scopes = functions;
+        }
         self.current_source_context = outer_source_context;
         self.current_this = outer_this;
         self.receiver_scopes = outer_receivers;
+        self.local_type_capture_scope = outer_capture_scope;
+        self.smart_casts = outer_smart_casts;
         self.current_owner = outer_owner;
         self.current_fn_name = outer_fn_name;
         self.current_return_ty = outer_return_ty;

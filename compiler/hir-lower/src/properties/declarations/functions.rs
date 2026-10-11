@@ -161,7 +161,12 @@ impl Lowerer {
     }
 
     pub(crate) fn resolve_property_accessor_signatures(&mut self) {
-        for source in self.property_accessor_sources.clone() {
+        self.resolve_property_accessor_signatures_from(0);
+    }
+
+    pub(crate) fn resolve_property_accessor_signatures_from(&mut self, start: usize) {
+        let sources = self.property_accessor_sources[start..].to_vec();
+        for source in sources {
             self.current_file = self.function_files[&source.function];
             if source.body_kind == PropertyAccessorBodyKind::Storage
                 && let Some(hir::PropertyBacking::TopLevelGlobal {
@@ -188,7 +193,12 @@ impl Lowerer {
     }
 
     pub(crate) fn lower_property_accessor_bodies(&mut self) {
-        for source in self.property_accessor_sources.clone() {
+        self.lower_property_accessor_bodies_from(0);
+    }
+
+    pub(crate) fn lower_property_accessor_bodies_from(&mut self, start: usize) {
+        let sources = self.property_accessor_sources[start..].to_vec();
+        for source in sources {
             if self.property_accessor_was_lowered(source.function) {
                 continue;
             }

@@ -67,6 +67,8 @@ mod tests_m37_control_bodies;
 #[cfg(test)]
 mod tests_m37_interface_delegation;
 #[cfg(test)]
+mod tests_m37_local_types;
+#[cfg(test)]
 mod tests_m37_loop_jumps;
 #[cfg(test)]
 mod tests_m37_modifiers;

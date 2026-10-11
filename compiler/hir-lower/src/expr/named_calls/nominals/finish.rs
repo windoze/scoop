@@ -12,7 +12,7 @@ impl Lowerer {
         }
     }
 
-    pub(in crate::expr) fn finish_named_nominal(
+    pub(crate) fn finish_named_nominal(
         &mut self,
         resolved: ResolvedNominalConstructor,
         span: Span,

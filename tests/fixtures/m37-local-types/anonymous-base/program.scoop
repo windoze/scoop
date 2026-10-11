@@ -1,0 +1,4 @@
+open class Base(val number: Int)
+interface View { fun get(): Int }
+fun make(): View = object : Base(42), View { override fun get(): Int = number }
+fun main() { println(make().get()) }

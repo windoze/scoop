@@ -28,7 +28,7 @@ impl Lowerer {
             self.error(decl.name.span, what);
             return None;
         }
-        let mut type_params = Vec::new();
+        let mut type_params = self.local_type_parameters();
         for param in &decl.type_params {
             if type_params
                 .iter()
@@ -85,20 +85,13 @@ impl Lowerer {
             },
         });
         self.register_nominal_identity(Owner::Enum(id), identity);
-        match owner {
-            Some(owner) => {
-                self.nested_nominals_by_owner
-                    .insert((owner, decl.name.text.clone()), NominalTarget::Enum(id));
-            }
-            None => {
-                self.top_level_namespaces.register_type(
-                    file_index,
-                    decl.name.text.clone(),
-                    crate::namespace::TopLevelTypeTarget::Nominal(NominalTarget::Enum(id)),
-                    self.enums[id].access.declared == hir::DeclaredVisibility::Private,
-                );
-            }
-        }
+        self.register_nominal_name(
+            owner,
+            &decl.name.text,
+            NominalTarget::Enum(id),
+            file_index,
+            decl.visibility,
+        );
         let parameter_ids = self.enums[id]
             .type_params
             .iter()

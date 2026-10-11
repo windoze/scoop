@@ -7,7 +7,7 @@ impl Concretizer<'_> {
         &mut self,
         body: &mut concrete::Body,
         enclosing: Option<(
-            &export::ConstructorParameter,
+            &export::ConstructorContext,
             export::InitializingClassFieldRef,
         )>,
         substitution: &[concrete::TypeId],
@@ -106,6 +106,7 @@ impl Concretizer<'_> {
                 LocalValueSelector::SuspensionResult { site } => site,
                 LocalValueSelector::This
                 | LocalValueSelector::EnclosingInstance
+                | LocalValueSelector::CapturedEnvironment
                 | LocalValueSelector::Parameter { .. } => continue,
             };
             // A common fragment is executed in each terminal constructor;

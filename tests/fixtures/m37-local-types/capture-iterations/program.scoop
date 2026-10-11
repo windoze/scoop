@@ -1,0 +1,16 @@
+class Reader(var value: () -> Int)
+fun main() {
+    val first = Reader({ -1 })
+    val second = Reader({ -1 })
+    var index = 0
+    while (index < 2) {
+        val copy = index
+        class Local { fun read(): Int = copy }
+        val factory: () -> Local = ::Local
+        if (index == 0) first.value = { factory().read() }
+        else second.value = { factory().read() }
+        index = index + 1
+    }
+    println(first.value())
+    println(second.value())
+}

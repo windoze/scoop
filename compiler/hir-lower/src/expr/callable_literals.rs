@@ -172,6 +172,9 @@ impl Lowerer {
             let mut value_block = lower_body(self, expected_return)?;
             let return_ty =
                 self.finish_lambda_returns(&mut value_block, expected_return, body_span)?;
+            if !self.check_local_type_result(return_ty, body_span, &self.scopes.clone(), true) {
+                return None;
+            }
             self.current_return_ty = return_ty;
             prefix.append(&mut value_block.statements);
             if let Some(value) = value_block.value.take() {

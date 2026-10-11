@@ -30,18 +30,19 @@ impl Lowerer {
             .current_owner
             .expect("supertypes belong to declarations");
         let child = self.nominal_identity(owner);
-        let local = child.source().is_some_and(|source| {
-            matches!(
-                source.declaration().name(),
-                scoop_identity::DeclarationName::Named(_)
-            ) && source.declaration().owners().owners().iter().all(|owner| {
+        let local = self.local_type_root(owner).is_none()
+            && child.source().is_some_and(|source| {
                 matches!(
-                    owner,
-                    scoop_identity::DefinitionOwnerAtom::Type(_)
-                        | scoop_identity::DefinitionOwnerAtom::GenericType(_)
-                )
-            })
-        });
+                    source.declaration().name(),
+                    scoop_identity::DeclarationName::Named(_)
+                ) && source.declaration().owners().owners().iter().all(|owner| {
+                    matches!(
+                        owner,
+                        scoop_identity::DefinitionOwnerAtom::Type(_)
+                            | scoop_identity::DefinitionOwnerAtom::GenericType(_)
+                    )
+                })
+            });
         let parent_key = match self.nominal_owners.get(&parent) {
             Some(parent) => self
                 .nominal_identity(*parent)

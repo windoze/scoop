@@ -1,0 +1,2 @@
+private fun leaked() = object { val value: Int = 42 }
+fun main() {}

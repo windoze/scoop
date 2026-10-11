@@ -46,6 +46,12 @@ impl Lowerer {
         file: usize,
         file_private: bool,
     ) -> Option<&'static str> {
+        if self.local_type_declaration.is_some() {
+            return self
+                .scopes
+                .type_declared_here(name)
+                .then_some("a local type");
+        }
         if let Some(target) = owner.and_then(|owner| {
             self.nested_nominals_by_owner
                 .get(&(owner, name.to_string()))

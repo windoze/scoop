@@ -86,6 +86,7 @@ pub struct Field {
 pub enum NominalFieldStorage {
     Declared,
     EnclosingInstance,
+    CapturedEnvironment,
     PropertyBacking(scoop_identity::PersistentPropertyId),
     PropertyDelegate(scoop_identity::PersistentPropertyId),
     Generated,
@@ -97,6 +98,7 @@ impl NominalFieldStorage {
             Self::PropertyBacking(property) => Some(property),
             Self::Declared
             | Self::EnclosingInstance
+            | Self::CapturedEnvironment
             | Self::PropertyDelegate(_)
             | Self::Generated => None,
         }
@@ -110,6 +112,7 @@ impl NominalFieldStorage {
             FieldIdentityView::SourceDeclared { .. } => Self::Declared,
             FieldIdentityView::SourceInterfaceDelegate { .. } => Self::Generated,
             FieldIdentityView::SourceEnclosingInstance { .. } => Self::EnclosingInstance,
+            FieldIdentityView::SourceCapturedEnvironment { .. } => Self::CapturedEnvironment,
             FieldIdentityView::SourcePropertyBacking { property, .. } => {
                 Self::PropertyBacking(property)
             }

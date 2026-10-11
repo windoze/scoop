@@ -12,6 +12,42 @@ pub struct ConstructorParameter {
     pub ty: TypeId,
 }
 
+/// A constructor receives either its outer instance or its captured values.
+#[derive(Debug, Clone)]
+pub enum ConstructorContext {
+    EnclosingInstance(ConstructorParameter),
+    CapturedEnvironment(ConstructorParameter),
+}
+
+impl ConstructorContext {
+    pub fn parameter(&self) -> &ConstructorParameter {
+        match self {
+            Self::EnclosingInstance(parameter) | Self::CapturedEnvironment(parameter) => parameter,
+        }
+    }
+
+    pub fn field_source(&self) -> ClassFieldSource {
+        match self {
+            Self::EnclosingInstance(_) => ClassFieldSource::EnclosingInstance,
+            Self::CapturedEnvironment(_) => ClassFieldSource::CapturedEnvironment,
+        }
+    }
+
+    pub fn selector(&self) -> scoop_identity::LocalValueSelector {
+        match self {
+            Self::EnclosingInstance(_) => scoop_identity::LocalValueSelector::EnclosingInstance,
+            Self::CapturedEnvironment(_) => scoop_identity::LocalValueSelector::CapturedEnvironment,
+        }
+    }
+}
+
+impl std::ops::Deref for ConstructorContext {
+    type Target = ConstructorParameter;
+    fn deref(&self) -> &Self::Target {
+        self.parameter()
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct ClassConstructor {
     pub owner: ClassId,
@@ -22,8 +58,8 @@ pub struct ClassConstructor {
     pub safety: Safety,
     /// Owner parameters required to be GC-free by this callable and its callees.
     pub no_gc_type_params: Vec<TypeParamId>,
-    /// Bound outer instance, separate from source parameter indices.
-    pub enclosing_parameter: Option<ConstructorParameter>,
+    /// Hidden lexical context, separate from source parameter indices.
+    pub context_parameter: Option<ConstructorContext>,
     pub parameters: Vec<ConstructorParameter>,
     pub kind: ClassConstructorKind,
     pub span: Span,

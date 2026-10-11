@@ -113,7 +113,7 @@ impl Lowerer {
                 alias.parameters.len() - alias.outer_parameter_count
             });
         let application = state
-            .solve_callable_reference_applicability(CallableReferenceApplicabilityInput {
+            .solve_constructor_reference_applicability(CallableReferenceApplicabilityInput {
                 signature: &declaration.signature,
                 owner_arguments: &declaration.owner_arguments,
                 bound_receiver: declaration

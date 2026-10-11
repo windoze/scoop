@@ -435,6 +435,7 @@ impl Lowerer {
             &pending_classes,
             &pending_structs,
             &pending_enums,
+            &pending_interfaces,
             &pending_objects,
             &pending_methods,
         );
@@ -447,6 +448,12 @@ impl Lowerer {
             &pending_structs,
             &pending_classes,
             &pending_enums,
+        );
+        self.register_object_parameter_interfaces(
+            &pending_objects
+                .iter()
+                .map(|&(id, _, _)| id)
+                .collect::<Vec<_>>(),
         );
 
         self.register_derived_parameter_interfaces();

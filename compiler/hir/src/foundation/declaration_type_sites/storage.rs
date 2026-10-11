@@ -19,6 +19,7 @@ impl Input<'_> {
             | FieldIdentityView::SourcePropertyBacking { owner, .. }
             | FieldIdentityView::SourcePropertyDelegate { owner, .. }
             | FieldIdentityView::SourceEnclosingInstance { owner }
+            | FieldIdentityView::SourceCapturedEnvironment { owner }
             | FieldIdentityView::SourceInterfaceDelegate { owner, .. } => {
                 self.storage_owner(exact_owner, owner, at)?;
             }

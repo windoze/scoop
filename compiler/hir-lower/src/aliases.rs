@@ -300,6 +300,30 @@ impl Lowerer {
         }
     }
 
+    pub(crate) fn resolve_local_owner_aliases(&mut self, owners: &[crate::Owner]) {
+        let aliases = self
+            .source_type_aliases
+            .iter()
+            .filter(|(_, alias)| alias.owner.is_some_and(|owner| owners.contains(&owner)))
+            .map(|(id, alias)| (id, alias.clone()))
+            .collect::<Vec<_>>();
+        for (id, alias) in aliases {
+            if let Some(target) = self.resolve_type_alias(id, alias.target.span) {
+                let params = std::mem::replace(
+                    &mut self.type_params_in_scope,
+                    self.source_type_aliases[id].parameters.clone(),
+                );
+                self.validate_type_alias_target_tree(
+                    target,
+                    alias.target.span,
+                    &format!("target of typealias `{}`", alias.name),
+                    &mut std::collections::HashSet::new(),
+                );
+                self.type_params_in_scope = params;
+            }
+        }
+    }
+
     pub(crate) fn resolved_type_alias_target(&self, id: SourceTypeAliasId) -> Option<hir::TypeId> {
         match self.source_type_aliases[id].resolution {
             TypeAliasResolution::Resolved(ResolvedTypeAliasTarget {

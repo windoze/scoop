@@ -103,6 +103,7 @@ impl<'a> OriginRequirements<'a> {
             selector,
             LocalValueSelector::This
                 | LocalValueSelector::EnclosingInstance
+                | LocalValueSelector::CapturedEnvironment
                 | LocalValueSelector::Parameter { .. }
                 | LocalValueSelector::LocalDeclaration { .. }
                 | LocalValueSelector::BoundReceiver { .. }

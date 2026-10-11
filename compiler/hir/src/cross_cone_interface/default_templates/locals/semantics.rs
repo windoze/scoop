@@ -123,6 +123,7 @@ fn selector_path(selector: &LocalValueSelector) -> Option<&StructuralDefinitionP
     match selector {
         LocalValueSelector::This
         | LocalValueSelector::EnclosingInstance
+        | LocalValueSelector::CapturedEnvironment
         | LocalValueSelector::Parameter { .. } => None,
         LocalValueSelector::LocalDeclaration { path }
         | LocalValueSelector::BoundReceiver { path }

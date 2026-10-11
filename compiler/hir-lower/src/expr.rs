@@ -249,6 +249,9 @@ impl Lowerer {
             return None;
         }
         let lowered = match expr {
+            ast::Expr::AnonymousObject(declaration) => {
+                self.lower_anonymous_object(declaration, sink)
+            }
             ast::Expr::LoopJump { kind, label, span } => {
                 let kind = self.lower_loop_jump(*kind, label.as_ref(), *span)?;
                 sink.push(hir::Statement { kind, span: *span });
@@ -562,6 +565,9 @@ impl Lowerer {
             && !self.require_unsafe_type_use(value.ty, value.span)
         {
             return None;
+        }
+        if let Some(value) = &lowered {
+            self.materialize_callable_captures(value, sink);
         }
         lowered
     }

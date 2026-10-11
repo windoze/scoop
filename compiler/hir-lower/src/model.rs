@@ -271,7 +271,7 @@ impl Owner {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub(crate) enum CaptureSource {
     /// A local in the immediately enclosing callable body.
     Local(hir::LocalId),
@@ -279,6 +279,12 @@ pub(crate) enum CaptureSource {
     Capture(hir::BindingId),
     /// A value parameter of the enclosing typed constructor initializer.
     ConstructorParam(hir::ConstructorParamId),
+    /// A value read from the enclosing local class's captured tuple.
+    ClassValue {
+        owner: Owner,
+        key: CaptureKey,
+        environment: Option<Box<hir::Expr>>,
+    },
 }
 
 #[derive(Clone)]
@@ -300,10 +306,11 @@ pub(crate) struct PendingCapture {
     pub(crate) declaration_depth: usize,
 }
 
-#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub(crate) enum CaptureKey {
     Name(String),
     Receiver(hir::BindingId),
+    Binding(hir::BindingId),
 }
 
 #[derive(Clone, Copy)]

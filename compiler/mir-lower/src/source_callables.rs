@@ -210,7 +210,13 @@ pub(super) fn exact_class_constructor_signature(
 ) -> hir::ExactCallableSignature {
     let constructor = &module.class_constructors[source];
     let (receiver, parameters) = match constructor.parameters.split_first() {
-        Some((first, rest)) if first.selector == hir::LocalValueSelector::EnclosingInstance => {
+        Some((first, rest))
+            if matches!(
+                first.selector,
+                hir::LocalValueSelector::EnclosingInstance
+                    | hir::LocalValueSelector::CapturedEnvironment
+            ) =>
+        {
             (Some(module.exact_type_identities[first.ty].id()), rest)
         }
         _ => (None, constructor.parameters.as_slice()),

@@ -1,0 +1,1 @@
+fun main() { class Same; struct Same() }

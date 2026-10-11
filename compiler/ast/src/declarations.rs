@@ -4,6 +4,8 @@ use crate::{
 
 mod classes;
 pub use classes::*;
+mod local_types;
+pub use local_types::*;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct SourceFile {

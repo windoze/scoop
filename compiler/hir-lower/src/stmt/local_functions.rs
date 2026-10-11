@@ -9,6 +9,7 @@ impl Lowerer {
     pub(super) fn lower_local_function_decl(
         &mut self,
         decl: &ast::FunctionDecl,
+        sink: &mut Vec<hir::Statement>,
     ) -> Option<hir::LocalFunctionId> {
         if let Some(operator) = decl.operator {
             self.error(
@@ -259,7 +260,8 @@ impl Lowerer {
         self.loop_targets = outer_loop_targets;
         self.type_params_in_scope = outer_type_params;
 
-        let (statements, captures, params, body_locals) = lowered?;
+        let (statements, mut captures, params, body_locals) = lowered?;
+        self.materialize_capture_sources(&mut captures, sink);
         self.functions[function].params = params;
         self.functions[function].kind = hir::FunctionKind::User(hir::Body {
             locals: body_locals,
@@ -268,6 +270,7 @@ impl Lowerer {
         self.local_functions[local].captures = captures;
         if crate::declaration_inference::infers_result(decl) {
             let result = self.signatures[&function].return_ty;
+            self.check_local_type_result(result, decl.name.span, &self.scopes.clone(), true);
             let function_type = self.intern_function_type(
                 decl.is_suspend,
                 sig_params.iter().map(|parameter| parameter.ty).collect(),

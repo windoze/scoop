@@ -29,10 +29,12 @@ impl Lowerer {
                 ("object", Vec::new())
             }
         };
-        let prefix = match target {
-            NominalTarget::Class(id) => self.enclosing_parameter_count(id),
-            _ => 0,
-        };
+        let prefix = self
+            .local_type_parameter_count(target.owner())
+            .max(match target {
+                NominalTarget::Class(id) => self.enclosing_parameter_count(id),
+                _ => 0,
+            });
         if !params[..prefix].iter().all(|parameter| {
             self.type_params_in_scope
                 .iter()

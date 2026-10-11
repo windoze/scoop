@@ -1,0 +1,8 @@
+fun length(value: Any): Long {
+    if (value is String) {
+        class Local { fun read(): Long = value.length }
+        return Local().read()
+    }
+    return 0L
+}
+fun main() { println(length("hello")) }

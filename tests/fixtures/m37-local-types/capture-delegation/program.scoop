@@ -1,0 +1,4 @@
+interface Value { fun get(): Int }
+class Fixed(val value: Int): Value { override fun get(): Int = value }
+fun wrapped(delegate: Value): Value = object: Value by delegate {}
+fun main() { println(wrapped(Fixed(42)).get()) }

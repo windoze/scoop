@@ -9,6 +9,9 @@ use crate::{CanonicalIdentifier, NominalDeclarationOwner, PersistentPropertyId, 
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum FieldIdentityView<'a> {
+    SourceCapturedEnvironment {
+        owner: NominalDeclarationOwner,
+    },
     SourceEnclosingInstance {
         owner: NominalDeclarationOwner,
     },
@@ -40,6 +43,9 @@ impl FieldIdentityKey {
             FieldIdentityKeyKind::Source(SourceFieldKey(
                 SourceFieldKeyKind::EnclosingInstance { owner },
             )) => FieldIdentityView::SourceEnclosingInstance { owner: *owner },
+            FieldIdentityKeyKind::Source(SourceFieldKey(
+                SourceFieldKeyKind::CapturedEnvironment { owner },
+            )) => FieldIdentityView::SourceCapturedEnvironment { owner: *owner },
             FieldIdentityKeyKind::Source(SourceFieldKey(
                 SourceFieldKeyKind::InterfaceDelegate { owner, ordinal },
             )) => FieldIdentityView::SourceInterfaceDelegate {

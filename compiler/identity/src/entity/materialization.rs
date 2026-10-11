@@ -130,6 +130,7 @@ impl WireEncode for SyntheticLocalRole {
 pub enum LocalValueSelector {
     This,
     EnclosingInstance,
+    CapturedEnvironment,
     Parameter {
         declaration_index: u32,
     },
@@ -153,6 +154,7 @@ impl WireEncode for LocalValueSelector {
         match self {
             Self::This => encode_empty_sum(encoder, 1),
             Self::EnclosingInstance => encode_empty_sum(encoder, 7),
+            Self::CapturedEnvironment => encode_empty_sum(encoder, 8),
             Self::Parameter { declaration_index } => {
                 encoder.map(2)?;
                 encode_tag(encoder, 2)?;

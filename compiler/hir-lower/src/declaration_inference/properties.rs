@@ -1,5 +1,6 @@
 //! Logical-property queries own initializer and accessor types.
 use super::*;
+use crate::Owner;
 use crate::properties::{PropertyAccessorBodyKind, PropertyAccessorKind};
 
 mod accessors;
@@ -131,6 +132,19 @@ impl Lowerer {
                 }
                 _ => unreachable!("only independent property type sources are registered"),
             });
+        if let Some(ty) = result {
+            let owner = match self.properties[property].owner {
+                hir::PropertyOwner::Class(id) => Some(Owner::Class(id)),
+                hir::PropertyOwner::Struct(id) => Some(Owner::Struct(id)),
+                hir::PropertyOwner::Enum(id) => Some(Owner::Enum(id)),
+                hir::PropertyOwner::Interface(id) => Some(Owner::Interface(id)),
+                hir::PropertyOwner::Object(id) => Some(Owner::Object(id)),
+                hir::PropertyOwner::TopLevel | hir::PropertyOwner::Extension(_) => None,
+            };
+            let file = std::mem::replace(&mut self.current_file, query.file);
+            self.check_local_declaration_result(owner, ty, query.source.name.span);
+            self.current_file = file;
+        }
         let valid = result.is_some() && self.diagnostics.len() == errors;
         if let Some(ty) = result {
             self.set_inferred_property_type(property, ty);

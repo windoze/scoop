@@ -186,49 +186,37 @@ impl Lowerer {
             .values()
             .map(|object| object.backing_class)
             .collect();
-        let declarations: Vec<_> = self
+        let owners = self
             .structs
             .iter()
-            .map(|(id, declaration)| {
-                (
-                    self.struct_files[&id],
-                    "struct",
-                    declaration.name.clone(),
-                    declaration.type_params.clone(),
-                )
-            })
-            .chain(self.enums.iter().map(|(id, declaration)| {
-                (
-                    self.enum_files[&id],
-                    "enum",
-                    declaration.name.clone(),
-                    declaration.type_params.clone(),
-                )
-            }))
+            .map(|(id, _)| crate::Owner::Struct(id))
+            .chain(self.enums.iter().map(|(id, _)| crate::Owner::Enum(id)))
             .chain(
                 self.classes
                     .iter()
                     .filter(|(id, _)| !object_backings.contains(id))
-                    .map(|(id, declaration)| {
-                        (
-                            self.class_files[&id],
-                            "class",
-                            declaration.name.clone(),
-                            declaration.type_params.clone(),
-                        )
-                    }),
+                    .map(|(id, _)| crate::Owner::Class(id)),
             )
-            .chain(self.interfaces.iter().map(|(id, declaration)| {
-                (
-                    self.interface_files[&id],
-                    "interface",
-                    declaration.name.clone(),
-                    declaration.type_params.clone(),
-                )
-            }))
-            .collect();
-        for (file, kind, name, params) in declarations {
-            self.current_file = file;
+            .chain(
+                self.interfaces
+                    .iter()
+                    .map(|(id, _)| crate::Owner::Interface(id)),
+            )
+            .collect::<Vec<_>>();
+        self.validate_owner_type_parameter_constraints(&owners);
+    }
+
+    pub(crate) fn validate_owner_type_parameter_constraints(&mut self, owners: &[crate::Owner]) {
+        for &owner in owners {
+            self.current_file = match owner {
+                crate::Owner::Class(id) => self.class_files[&id],
+                crate::Owner::Struct(id) => self.struct_files[&id],
+                crate::Owner::Enum(id) => self.enum_files[&id],
+                crate::Owner::Interface(id) => self.interface_files[&id],
+                crate::Owner::Object(id) => self.object_files[&id],
+            };
+            let name = owner.describe(self);
+            let params = self.owner_type_params(owner);
             self.type_params_in_scope = params.clone();
             for parameter in &params {
                 for bound in parameter.nominal_bounds_in_source_order() {
@@ -260,7 +248,7 @@ impl Lowerer {
                         &target_params,
                         &arguments,
                         bound.span(),
-                        &format!("upper bound of {kind} `{name}`"),
+                        &format!("upper bound of {name}"),
                     );
                 }
             }

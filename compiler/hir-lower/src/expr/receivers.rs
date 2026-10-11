@@ -116,7 +116,10 @@ impl Lowerer {
                 origin: self.expression_origin(span),
             });
         }
-        self.lower_capture_binding(receiver.binding, "this", span)
+        if !self.capture_contexts.is_empty() {
+            return self.lower_capture_binding(receiver.binding, "this", span);
+        }
+        self.lower_local_type_capture(&crate::CaptureKey::Receiver(receiver.binding), span)
     }
 
     pub(super) fn lower_labelled_this(

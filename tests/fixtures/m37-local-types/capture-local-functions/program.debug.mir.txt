@@ -1,0 +1,479 @@
+Module
+  enum Option<Char>
+    Some(_0: Char)
+    None()
+  class Local<Int> vtable=0 itables=0
+  class Local<String> vtable=0 itables=0
+  class box<Int> vtable=0 itables=0
+  interface ToString
+  interface Hash
+  interface Equality<Int>
+  interface Equality<Char>
+  interface Iterable<Char>
+  interface Iterator<Char>
+  interface Equality<String>
+  closure cc0 $Closure$reference0 type=function_type0 invoke=@fn19 captures=1
+    bridge function_type1 -> @fn23 id=5247636c6101881d3a562be8853777ebead59b5e9f4712a41caddfdbc1a8e55c
+  closure cc1 $Closure$reference1 type=function_type2 invoke=@fn20 captures=1
+    bridge function_type1 -> @fn24 id=c470f38d37f77c5e9cdacf6fc229dc3ea3a2909e9ac4a473a8dd3ae4bf050e99
+  generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
+  generated_exact_type get1 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
+  generated_exact_type get2 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
+  generated_exact_type get3 location=closure1 nominal_id=e7698626724b6699a2a7e531bb2775802982819e1ab6a9b00ab06943aabf7637 exact_id=769e7f378a644c8572463c8e1d186840fb16f947960d212d5a1562b2bf4ea9bb
+  generated_exact_type get4 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
+  generated_exact_type get5 location=closure0 nominal_id=56c7d47a1b7a17829022d1af3277b8c9de80ae56156a318624d3dce6da8806f9 exact_id=a09b9a65cf2504e87316b1ea7bc724f4d6ded669f558dbb32f1b846e4dde35c4
+  generated_exact_type get6 location=class2 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_exact_type get7 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
+  generated_callable gc0 function=@fn23 id=5247636c6101881d3a562be8853777ebead59b5e9f4712a41caddfdbc1a8e55c
+  generated_callable gc1 function=@fn24 id=c470f38d37f77c5e9cdacf6fc229dc3ea3a2909e9ac4a473a8dd3ae4bf050e99
+  fun main @fn0() -> Unit
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.1: () -> Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      call $dependency.argument.0: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local $call.1
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn2 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $argument.0: String
+        Type String
+        StringConst @str0
+      val $parameter.value: String
+        Type String
+        Local $argument.0
+      call $call.2: () -> String = @fn3 direct
+        Type String
+        Local $parameter.value
+      call $dependency.argument.0: String = <closure:function_type2> closure[function_type2]
+        Type () -> String
+        Local $call.2
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn4 direct
+        Type String
+        Local $dependency.parameter.value
+      return
+        Type Unit
+        UnitLiteral
+  fun reader @fn1(value: Int) -> () -> Int
+    bb0 entry
+      val $receiver: (Int)
+        Type (Int)
+        TupleLiteral
+          Type Int
+          Local value
+      assign $new.1
+        Type Local<Int>
+        ClassAlloc Local<Int>
+      call @fn21 direct
+        Type Local<Int>
+        Local $new.1
+        Type (Int)
+        Local $receiver
+      val local: Local<Int>
+        Type Local<Int>
+        Local $new.1
+      val $receiver: Local<Int>
+        Type Local<Int>
+        Local local
+      call $call.2: Int = @fn5 direct
+        Type Local<Int>
+        Local $receiver
+      val $receiver: Local<Int>
+        Type Local<Int>
+        Local local
+      call $call.3: Int = @fn6 direct
+        Type Local<Int>
+        Local $receiver
+      val $receiver: Local<Int>
+        Type Local<Int>
+        Local local
+      call $call.4: Int = @fn7 direct
+        Type Local<Int>
+        Local $receiver
+      val $receiver: Local<Int>
+        Type Local<Int>
+        Local local
+      call $call.5: () -> Int = @fn8 direct
+        Type Local<Int>
+        Local $receiver
+      return
+        Type () -> Int
+        Local $call.5
+  fun println @fn2(value: Int) -> Unit
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      call $dependency.local.2: String = external0 direct
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external2 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str1
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external2 direct
+        Type String
+        Local $dependency.local.5
+      return
+        Type Unit
+        UnitLiteral
+  fun reader @fn3(value: String) -> () -> String
+    bb0 entry
+      val $receiver: (String)
+        Type (String)
+        TupleLiteral
+          Type String
+          Local value
+      assign $new.1
+        Type Local<String>
+        ClassAlloc Local<String>
+      call @fn22 direct
+        Type Local<String>
+        Local $new.1
+        Type (String)
+        Local $receiver
+      val local: Local<String>
+        Type Local<String>
+        Local $new.1
+      val $receiver: Local<String>
+        Type Local<String>
+        Local local
+      call $call.2: String = @fn9 direct
+        Type Local<String>
+        Local $receiver
+      val $receiver: Local<String>
+        Type Local<String>
+        Local local
+      call $call.3: String = @fn10 direct
+        Type Local<String>
+        Local $receiver
+      val $receiver: Local<String>
+        Type Local<String>
+        Local local
+      call $call.4: String = @fn11 direct
+        Type Local<String>
+        Local $receiver
+      val $receiver: Local<String>
+        Type Local<String>
+        Local local
+      call $call.5: () -> String = @fn12 direct
+        Type Local<String>
+        Local $receiver
+      return
+        Type () -> String
+        Local $call.5
+  fun println @fn4(value: String) -> Unit
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local value
+      call $dependency.local.2: String = external1 direct
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external2 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str2
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external2 direct
+        Type String
+        Local $dependency.local.5
+      return
+        Type Unit
+        UnitLiteral
+  fun Local.invoke @fn5(this: Local<Int>) -> Int
+    bb0 entry
+      val $captures: (Int)
+        Type (Int)
+        FieldAccess 0
+          Type Local<Int>
+          Local this
+      call $call.1: Int = @fn13 direct
+        Type Int
+        FieldAccess 0
+          Type (Int)
+          Local $captures
+      return
+        Type Int
+        Local $call.1
+  fun Local.self @fn6(this: Local<Int>) -> Int
+    bb0 entry
+      val $captures: (Int)
+        Type (Int)
+        FieldAccess 0
+          Type Local<Int>
+          Local this
+      call $receiver: Local<Int> = @fn14 direct
+        Type (Int)
+        Local $captures
+      call $call.1: Int = @fn5 direct
+        Type Local<Int>
+        Local $receiver
+      return
+        Type Int
+        Local $call.1
+  fun Local.defaulted @fn7(this: Local<Int>) -> Int
+    bb0 entry
+      val $captures: (Int)
+        Type (Int)
+        FieldAccess 0
+          Type Local<Int>
+          Local this
+      val $parameter.result: Int
+        Type Int
+        FieldAccess 0
+          Type (Int)
+          Local $captures
+      call $call.1: Int = @fn15 direct
+        Type Int
+        Local $parameter.result
+      return
+        Type Int
+        Local $call.1
+  fun Local.reference @fn8(this: Local<Int>) -> () -> Int
+    bb0 entry
+      val $captures: (Int)
+        Type (Int)
+        FieldAccess 0
+          Type Local<Int>
+          Local this
+      val $capture.value: Int
+        Type Int
+        FieldAccess 0
+          Type (Int)
+          Local $captures
+      return
+        Type () -> Int
+        ClosureAlloc cc0 $Closure$reference0
+          CaptureInit field=0
+            Type Int
+            Local $capture.value
+  fun Local.invoke @fn9(this: Local<String>) -> String
+    bb0 entry
+      val $captures: (String)
+        Type (String)
+        FieldAccess 0
+          Type Local<String>
+          Local this
+      call $call.1: String = @fn16 direct
+        Type String
+        FieldAccess 0
+          Type (String)
+          Local $captures
+      return
+        Type String
+        Local $call.1
+  fun Local.self @fn10(this: Local<String>) -> String
+    bb0 entry
+      val $captures: (String)
+        Type (String)
+        FieldAccess 0
+          Type Local<String>
+          Local this
+      call $receiver: Local<String> = @fn17 direct
+        Type (String)
+        Local $captures
+      call $call.1: String = @fn9 direct
+        Type Local<String>
+        Local $receiver
+      return
+        Type String
+        Local $call.1
+  fun Local.defaulted @fn11(this: Local<String>) -> String
+    bb0 entry
+      val $captures: (String)
+        Type (String)
+        FieldAccess 0
+          Type Local<String>
+          Local this
+      val $parameter.result: String
+        Type String
+        FieldAccess 0
+          Type (String)
+          Local $captures
+      call $call.1: String = @fn18 direct
+        Type String
+        Local $parameter.result
+      return
+        Type String
+        Local $call.1
+  fun Local.reference @fn12(this: Local<String>) -> () -> String
+    bb0 entry
+      val $captures: (String)
+        Type (String)
+        FieldAccess 0
+          Type Local<String>
+          Local this
+      val $capture.value: String
+        Type String
+        FieldAccess 0
+          Type (String)
+          Local $captures
+      return
+        Type () -> String
+        ClosureAlloc cc1 $Closure$reference1
+          CaptureInit field=0
+            Type String
+            Local $capture.value
+  fun $local.0.read @fn13($capture.value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local $capture.value
+  fun $local.1.construct @fn14($capture.this: (Int)) -> Local<Int>
+    bb0 entry
+      val $receiver: (Int)
+        Type (Int)
+        Local $capture.this
+      assign $new.1
+        Type Local<Int>
+        ClassAlloc Local<Int>
+      call @fn21 direct
+        Type Local<Int>
+        Local $new.1
+        Type (Int)
+        Local $receiver
+      return
+        Type Local<Int>
+        Local $new.1
+  fun $local.2.choose @fn15(result: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local result
+  fun $local.0.read @fn16($capture.value: String) -> String
+    bb0 entry
+      return
+        Type String
+        Local $capture.value
+  fun $local.1.construct @fn17($capture.this: (String)) -> Local<String>
+    bb0 entry
+      val $receiver: (String)
+        Type (String)
+        Local $capture.this
+      assign $new.1
+        Type Local<String>
+        ClassAlloc Local<String>
+      call @fn22 direct
+        Type Local<String>
+        Local $new.1
+        Type (String)
+        Local $receiver
+      return
+        Type Local<String>
+        Local $new.1
+  fun $local.2.choose @fn18(result: String) -> String
+    bb0 entry
+      return
+        Type String
+        Local result
+  fun $reference.0 @fn19($closure: () -> Int) -> Int
+    bb0 entry
+      call $call.1: Int = @fn13 direct
+        Type Int
+        ClosureCapture cc0 0
+          Type () -> Int
+          Local $closure
+      return
+        Type Int
+        Local $call.1
+  fun $reference.1 @fn20($closure: () -> String) -> String
+    bb0 entry
+      call $call.1: String = @fn16 direct
+        Type String
+        ClosureCapture cc1 0
+          Type () -> String
+          Local $closure
+      return
+        Type String
+        Local $call.1
+  fun init.Local.$c0 @fn21(this: Local<Int>, $captures: (Int)) -> Unit
+    bb0 entry
+      field_set 0
+        Type Local<Int>
+        Local this
+        Type (Int)
+        Local $captures
+      return
+        Type Unit
+        UnitLiteral
+  fun init.Local.$c0 @fn22(this: Local<String>, $captures: (String)) -> Unit
+    bb0 entry
+      field_set 0
+        Type Local<String>
+        Local this
+        Type (String)
+        Local $captures
+      return
+        Type Unit
+        UnitLiteral
+  fun function_bridge.$Closure$reference0.() -> Any @fn23($source: () -> Int) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local $source
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$reference1.() -> Any @fn24($source: () -> String) -> Any
+    bb0 entry
+      call $call.1: String = <closure:function_type2> closure[function_type2]
+        Type () -> String
+        Local $source
+      return
+        Type Any
+        Retype Any
+          Type String
+          Local $call.1
+  instance mi0 function=@fn1 <- reader
+  instance mi1 function=@fn2 <- println
+  instance mi2 function=@fn3 <- reader
+  instance mi3 function=@fn4 <- println
+  instance mi4 function=@fn5 <- Local.invoke
+  instance mi5 function=@fn6 <- Local.self
+  instance mi6 function=@fn7 <- Local.defaulted
+  instance mi7 function=@fn8 <- Local.reference
+  instance mi8 function=@fn9 <- Local.invoke
+  instance mi9 function=@fn10 <- Local.self
+  instance mi10 function=@fn11 <- Local.defaulted
+  instance mi11 function=@fn12 <- Local.reference
+  instance mi12 function=@fn13 <- $local.0.read
+  instance mi13 function=@fn14 <- $local.1.construct
+  instance mi14 function=@fn15 <- $local.2.choose
+  instance mi15 function=@fn16 <- $local.0.read
+  instance mi16 function=@fn17 <- $local.1.construct
+  instance mi17 function=@fn18 <- $local.2.choose
+  str @str0 "generic"
+  str @str1 "\n"
+  str @str2 "\n"
+  output executable @fn0

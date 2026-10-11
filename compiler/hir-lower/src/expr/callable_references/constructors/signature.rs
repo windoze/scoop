@@ -19,7 +19,7 @@ impl ConstructorReferenceDeclaration {
                     safety,
                     match source {
                         NominalConstructorSource::Class(id) => state.class_constructors[*id]
-                            .enclosing_parameter
+                            .context_parameter
                             .as_ref()
                             .map(|parameter| parameter.ty),
                         _ => None,
@@ -83,7 +83,24 @@ impl ConstructorReferenceDeclaration {
                 )
             }
         };
-        let mut enclosing = if let Some(formal) = outer_type {
+        let captured_class = match candidate.source {
+            ConstructorReferenceSource::Local(NominalConstructorSource::Class(id)) => {
+                let class = state.class_constructors[id].owner;
+                state.captured_environment_field(class).map(|_| class)
+            }
+            _ => None,
+        };
+        let mut enclosing = if let Some(class) = captured_class {
+            let actual = state
+                .local_constructor_environment(class, span)
+                .ok_or_else(|| {
+                    "local constructor reference requires its captured values".to_owned()
+                })?;
+            Some((
+                actual,
+                outer_type.expect("a local constructor has a context parameter"),
+            ))
+        } else if let Some(formal) = outer_type {
             let required = state
                 .nominal_application(formal)
                 .expect("an inner constructor has a nominal outer type")
@@ -161,12 +178,20 @@ impl ConstructorReferenceDeclaration {
             )
         } else {
             let owners = if fixed_arguments.is_none() {
-                enclosing.as_ref().map_or_else(Vec::new, |(actual, _)| {
-                    state
-                        .nominal_application(actual.ty)
-                        .expect("an outer application")
-                        .arguments
-                })
+                if let Some(class) = captured_class {
+                    let count = state.local_type_parameter_count(crate::Owner::Class(class));
+                    signature.owner_parameters[..count]
+                        .iter()
+                        .map(|parameter| state.intern_type(Type::Param(parameter.id)))
+                        .collect()
+                } else {
+                    enclosing.as_ref().map_or_else(Vec::new, |(actual, _)| {
+                        state
+                            .nominal_application(actual.ty)
+                            .expect("an outer application")
+                            .arguments
+                    })
+                }
             } else {
                 Vec::new()
             };

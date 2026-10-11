@@ -138,6 +138,7 @@ impl LocalValueRegistry {
             hir::LocalValueSelector::SuspensionResult { site } => site,
             hir::LocalValueSelector::This
             | hir::LocalValueSelector::EnclosingInstance
+            | hir::LocalValueSelector::CapturedEnvironment
             | hir::LocalValueSelector::Parameter { .. } => return,
         };
         let Some(segment) = path.segments().last() else {

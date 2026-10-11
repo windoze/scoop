@@ -167,6 +167,7 @@ fn dump_with(module: &Module, write_entry: impl FnOnce(&Module, &mut String)) ->
                 field.into_raw(),
                 match physical.source {
                     ClassFieldSource::EnclosingInstance => "enclosing-instance".into(),
+                    ClassFieldSource::CapturedEnvironment => "captured-environment".into(),
                     ClassFieldSource::InterfaceDelegate { ordinal } =>
                         format!("interface-delegate{ordinal}"),
                     source => format!(
@@ -260,6 +261,7 @@ fn dump_with(module: &Module, write_entry: impl FnOnce(&Module, &mut String)) ->
                 field.into_raw(),
                 match physical.source {
                     ClassFieldSource::EnclosingInstance => "enclosing-instance".into(),
+                    ClassFieldSource::CapturedEnvironment => "captured-environment".into(),
                     ClassFieldSource::InterfaceDelegate { ordinal } =>
                         format!("interface-delegate{ordinal}"),
                     source => format!(

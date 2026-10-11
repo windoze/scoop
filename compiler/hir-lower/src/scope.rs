@@ -13,6 +13,7 @@ use scoop_hir::{LocalFunctionId, LocalId};
 pub(crate) struct Scopes {
     stack: Vec<imbl::HashMap<String, LocalId>>,
     aliases: Vec<imbl::HashMap<String, crate::aliases::SourceTypeAliasId>>,
+    nominals: Vec<imbl::HashMap<String, crate::NominalTarget>>,
 }
 
 /// Lexical candidate layers for block-local named functions. Each block is a
@@ -70,17 +71,20 @@ impl Scopes {
         Scopes {
             stack: Vec::new(),
             aliases: Vec::new(),
+            nominals: Vec::new(),
         }
     }
 
     pub(crate) fn push(&mut self) {
         self.stack.push(imbl::HashMap::new());
         self.aliases.push(imbl::HashMap::new());
+        self.nominals.push(imbl::HashMap::new());
     }
 
     pub(crate) fn pop(&mut self) {
         self.stack.pop();
         self.aliases.pop();
+        self.nominals.pop();
     }
 
     /// Whether `name` is already declared in the innermost scope
@@ -125,14 +129,57 @@ impl Scopes {
         Self {
             stack: vec![imbl::HashMap::new(); self.stack.len()],
             aliases: self.aliases.clone(),
+            nominals: self.nominals.clone(),
         }
     }
 
     pub(crate) fn type_alias(&self, name: &str) -> Option<crate::aliases::SourceTypeAliasId> {
+        match self.type_target(name)? {
+            crate::namespace::TopLevelTypeTarget::Alias(id) => Some(id),
+            _ => None,
+        }
+    }
+
+    pub(crate) fn type_target(&self, name: &str) -> Option<crate::namespace::TopLevelTypeTarget> {
         self.aliases
             .iter()
+            .zip(&self.nominals)
             .rev()
-            .find_map(|scope| scope.get(name).copied())
+            .find_map(|(aliases, nominals)| {
+                aliases
+                    .get(name)
+                    .copied()
+                    .map(crate::namespace::TopLevelTypeTarget::Alias)
+                    .or_else(|| {
+                        nominals
+                            .get(name)
+                            .copied()
+                            .map(crate::namespace::TopLevelTypeTarget::Nominal)
+                    })
+            })
+    }
+
+    pub(crate) fn type_declared_here(&self, name: &str) -> bool {
+        self.aliases
+            .last()
+            .is_some_and(|scope| scope.contains_key(name))
+            || self
+                .nominals
+                .last()
+                .is_some_and(|scope| scope.contains_key(name))
+    }
+
+    pub(crate) fn contains_nominal(&self, owner: crate::Owner) -> bool {
+        self.nominals
+            .iter()
+            .any(|scope| scope.values().any(|target| target.owner() == owner))
+    }
+
+    pub(crate) fn declare_nominal(&mut self, name: String, target: crate::NominalTarget) {
+        self.nominals
+            .last_mut()
+            .expect("local types have a lexical scope")
+            .insert(name, target);
     }
 
     pub(crate) fn declare_type_alias(

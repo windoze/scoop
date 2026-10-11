@@ -11,7 +11,7 @@ pub(super) struct ConstructorProjection<'a, 'hir> {
     pub binders: Vec<HirSignatureBinder>,
     pub owner: SignatureTypeKey,
     pub parameters: &'a [ConstructorParameter],
-    pub enclosing: Option<&'a ConstructorParameter>,
+    pub enclosing: Option<&'a crate::ConstructorContext>,
     pub origin: DefinitionOrigin,
     pub inputs: CanonicalTemplateLocalTableV1,
 }
@@ -20,7 +20,7 @@ impl<'a, 'hir> ConstructorProjection<'a, 'hir> {
     pub fn new(
         entities: &'a DefaultEntityProjector<'hir>,
         parameters: &'a [ConstructorParameter],
-        enclosing: Option<&'a ConstructorParameter>,
+        enclosing: Option<&'a crate::ConstructorContext>,
         type_parameters: &[crate::TypeParamDecl],
         owner: crate::TypeId,
         origin: DefinitionOrigin,
@@ -46,7 +46,7 @@ impl<'a, 'hir> ConstructorProjection<'a, 'hir> {
         );
         for (index, (selector, parameter)) in enclosing
             .into_iter()
-            .map(|parameter| (LocalValueSelector::EnclosingInstance, parameter))
+            .map(|context| (context.selector(), context.parameter()))
             .chain(parameters.iter().enumerate().map(|(index, parameter)| {
                 (
                     LocalValueSelector::Parameter {

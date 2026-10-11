@@ -408,6 +408,7 @@ pub(crate) fn validate_definition_shape(
         (
             LocalValueSelector::This
             | LocalValueSelector::EnclosingInstance
+            | LocalValueSelector::CapturedEnvironment
             | LocalValueSelector::Parameter { .. }
             | LocalValueSelector::LocalDeclaration { .. }
             | LocalValueSelector::BoundReceiver { .. },
@@ -418,6 +419,7 @@ pub(crate) fn validate_definition_shape(
         (
             LocalValueSelector::This
             | LocalValueSelector::EnclosingInstance
+            | LocalValueSelector::CapturedEnvironment
             | LocalValueSelector::Parameter { .. }
             | LocalValueSelector::LocalDeclaration { .. }
             | LocalValueSelector::BoundReceiver { .. },

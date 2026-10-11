@@ -1,0 +1,11 @@
+fun <T> render(value: T): T {
+    class Cell<U>(val item: U) { fun get(): U = item }
+    struct Box(val item: T)
+    interface View { fun get(): T }
+    class Impl(val item: T) : View { override fun get(): T = item }
+    val cell: Cell<T> = Cell(value)
+    val box: Box = Box(cell.get())
+    val view: View = Impl(box.item)
+    return view.get()
+}
+fun main() { println(render(42)); println(render("hello")) }

@@ -1,0 +1,14 @@
+interface Value<T> { fun get(): T }
+class Result<T>(val item: T): Value<T> { override fun get(): T = item }
+struct Box(val value: Int)
+class Wrap(val value: Any)
+fun main() {
+    val factory: (Int) -> Value<Int> = ::Result
+    println(factory(42).get())
+    val boxed: (Int) -> Any = ::Box
+    val value = boxed(7)
+    if (value is Box) println(value.value)
+    val wider: (String) -> Any = ::Wrap
+    val wrapped = wider("variance") as Wrap
+    println(wrapped.value as String)
+}

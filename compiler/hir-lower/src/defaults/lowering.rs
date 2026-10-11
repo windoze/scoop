@@ -86,12 +86,22 @@ impl Lowerer {
         let outer_definition_root = self.definition_root.replace(context.definition_root);
         let capture_environment = environment.map(|environment| environment.available.clone());
         let outer_locals = std::mem::take(&mut self.locals);
-        let scopes = environment.map_or_else(Scopes::new, |environment| environment.types.clone());
+        let scopes = environment.map_or_else(
+            || {
+                self.local_definition_scopes(context.definition_root)
+                    .unwrap_or_else(Scopes::new)
+            },
+            |environment| environment.types.clone(),
+        );
         let outer_scopes = std::mem::replace(&mut self.scopes, scopes);
-        let template_local_functions = environment
-            .map_or_else(LocalFunctionScopes::new, |environment| {
-                environment.functions.clone()
-            });
+        let template_local_functions = environment.map_or_else(
+            || {
+                self.local_definition_owner(context.definition_root)
+                    .and_then(|owner| self.local_nominal_functions(owner))
+                    .unwrap_or_else(LocalFunctionScopes::new)
+            },
+            |environment| environment.functions.clone(),
+        );
         let outer_local_functions =
             std::mem::replace(&mut self.local_function_scopes, template_local_functions);
         let outer_type_parameters = std::mem::replace(
@@ -127,7 +137,7 @@ impl Lowerer {
         self.current_return_ty = parameter.ty;
         let inner_constructor = match context.definition_root {
             hir::LexicalDefinitionRoot::ClassConstructor(id)
-                if self.class_constructors[id].enclosing_parameter.is_some() =>
+                if self.class_constructors[id].context_parameter.is_some() =>
             {
                 Some(id)
             }
@@ -135,7 +145,13 @@ impl Lowerer {
         };
         self.current_owner = inner_constructor
             .map(|id| Owner::Class(self.class_constructors[id].owner))
-            .or_else(|| context.receiver.and_then(|(_, owner)| owner));
+            .or_else(|| context.receiver.and_then(|(_, owner)| owner))
+            .or_else(|| self.local_definition_owner(context.definition_root));
+        if environment.is_none() {
+            self.receiver_scopes = self
+                .current_owner
+                .map_or_else(Vec::new, |owner| self.local_type_receivers(owner));
+        }
         self.set_source_context(context.source_context.clone());
         let origin = self.definition_origin(expression.span());
         self.push_suspension_context(if context.is_suspend {
@@ -183,6 +199,7 @@ impl Lowerer {
         }
 
         let mut statements = Vec::new();
+        let mut capture_environment = None;
         if inner_constructor.is_some()
             && let Some(receiver) = &receiver
         {
@@ -192,8 +209,36 @@ impl Lowerer {
                 span: expression.span(),
                 origin: self.expression_origin(expression.span()),
             };
-            self.bind_enclosing_receivers(value, &mut statements);
+            match self.class_constructors[inner_constructor.unwrap()]
+                .context_parameter
+                .as_ref()
+                .unwrap()
+            {
+                hir::ConstructorContext::EnclosingInstance(_) => {
+                    self.bind_enclosing_receivers(value, &mut statements)
+                }
+                hir::ConstructorContext::CapturedEnvironment(_) => {
+                    capture_environment = Some(value)
+                }
+            }
         }
+        if inner_constructor.is_none()
+            && let Some(receiver) = &receiver
+        {
+            let value = hir::Expr {
+                kind: hir::ExprKind::Local(receiver.local),
+                ty: receiver.ty,
+                span: expression.span(),
+                origin: self.expression_origin(expression.span()),
+            };
+            capture_environment = self.local_type_instance_environment(value, &mut statements);
+        }
+        let outer_capture_scope = if environment.is_none() {
+            self.current_owner
+                .and_then(|owner| self.enter_local_type_captures(owner, capture_environment))
+        } else {
+            self.local_type_capture_scope.clone()
+        };
         let outer_default_template = std::mem::replace(&mut self.lowering_default_template, true);
         let value = self.lower_expr(expression, &mut statements, Some(parameter.ty));
         self.lowering_default_template = outer_default_template;
@@ -240,6 +285,7 @@ impl Lowerer {
         self.definition_root = outer_definition_root;
         self.current_this = outer_this;
         self.receiver_scopes = outer_receivers;
+        self.local_type_capture_scope = outer_capture_scope;
         self.current_owner = outer_owner;
         self.constructor_params_in_scope = outer_constructor_parameters;
         self.smart_casts = outer_smart_casts;

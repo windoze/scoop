@@ -8,6 +8,14 @@ impl Parser {
         let token = self.peek().clone();
         match token.kind {
             TokenKind::Return => self.parse_return_expression(),
+            TokenKind::Ident(ref text)
+                if text == "object"
+                    && self.tokens.get(self.pos + 1).is_some_and(|token| {
+                        matches!(token.kind, TokenKind::LBrace | TokenKind::Colon)
+                    }) =>
+            {
+                self.parse_anonymous_object()
+            }
             TokenKind::Ident(ref text) if text == "throw" => self.parse_throw_expression(),
             TokenKind::Suspend => {
                 self.pos += 1;

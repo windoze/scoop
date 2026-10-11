@@ -116,6 +116,21 @@ impl Lowerer {
         &mut self,
         input: CallableReferenceApplicabilityInput<'_, D>,
     ) -> Result<ApplicableReferenceSignature, ReferenceApplicabilityFailure> {
+        self.solve_reference_applicability(input, true)
+    }
+
+    pub(crate) fn solve_constructor_reference_applicability<D>(
+        &mut self,
+        input: CallableReferenceApplicabilityInput<'_, D>,
+    ) -> Result<ApplicableReferenceSignature, ReferenceApplicabilityFailure> {
+        self.solve_reference_applicability(input, false)
+    }
+
+    fn solve_reference_applicability<D>(
+        &mut self,
+        input: CallableReferenceApplicabilityInput<'_, D>,
+        exact_signature: bool,
+    ) -> Result<ApplicableReferenceSignature, ReferenceApplicabilityFailure> {
         let CallableReferenceApplicabilityInput {
             signature,
             owner_arguments,
@@ -202,7 +217,7 @@ impl Lowerer {
         // A declaration reference denotes its exact instantiated signature.
         // Function variance is represented by later value coercions, not by
         // choosing a different declaration instantiation here.
-        if let Type::Function(expected) = self.types[expected_type] {
+        if exact_signature && let Type::Function(expected) = self.types[expected_type] {
             let expected = self.function_types[expected].clone();
             if parameter_types.len() == expected.arity() {
                 for (index, (&parameter, &expected)) in parameter_types
@@ -236,13 +251,28 @@ impl Lowerer {
             .solve_constraints(&session)
             .map_err(ReferenceApplicabilityFailure::Constraint)?;
         let arguments = solution.arguments_for(&session, environment);
-        Ok(ApplicableReferenceSignature {
-            type_args: arguments
-                .owner
-                .into_iter()
-                .chain(arguments.callable)
-                .collect(),
-            ty: expected_type,
-        })
+        let type_args: Vec<_> = arguments
+            .owner
+            .into_iter()
+            .chain(arguments.callable)
+            .collect();
+        let ty = if exact_signature {
+            expected_type
+        } else {
+            let bindings = owner_parameters
+                .iter()
+                .chain(callable_parameters)
+                .map(|parameter| parameter.id)
+                .zip(type_args.iter().copied())
+                .collect::<Vec<_>>();
+            let parameters = parameter_types
+                .iter()
+                .map(|&ty| self.instantiate_method_ty(ty, &bindings))
+                .collect();
+            let result = self.instantiate_method_ty(return_type, &bindings);
+            let function = self.intern_function_type(effects.is_suspend, parameters, result);
+            self.function_types[function].canonical_type
+        };
+        Ok(ApplicableReferenceSignature { type_args, ty })
     }
 }

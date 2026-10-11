@@ -56,7 +56,7 @@ impl Lowerer {
         };
         let mut type_params = enclosing
             .map(|outer| self.classes[outer].type_params.clone())
-            .unwrap_or_default();
+            .unwrap_or_else(|| self.local_type_parameters());
         for param in &decl.type_params {
             if type_params
                 .iter()
@@ -193,6 +193,19 @@ impl Lowerer {
             span: decl.span,
         });
         self.register_nominal_identity(Owner::Class(id), identity);
+        if self.local_type_declaration.is_some() {
+            let ty = self.unit;
+            let field = self.allocate_class_field(
+                id,
+                hir::Field {
+                    name: "$captures".into(),
+                    ty,
+                },
+                hir::ClassFieldSource::CapturedEnvironment,
+                decl.span,
+            );
+            self.classes[id].fields.push(field);
+        }
         if let Some(outer) = enclosing {
             let ty = self.owner_ty(Owner::Class(outer));
             let field = self.allocate_class_field(
@@ -222,20 +235,13 @@ impl Lowerer {
         ) {
             assert_eq!(self.types[ty], Type::Class(self_application));
         }
-        match owner {
-            Some(owner) => {
-                self.nested_nominals_by_owner
-                    .insert((owner, decl.name.text.clone()), NominalTarget::Class(id));
-            }
-            None => {
-                self.top_level_namespaces.register_type(
-                    file_index,
-                    decl.name.text.clone(),
-                    crate::namespace::TopLevelTypeTarget::Nominal(NominalTarget::Class(id)),
-                    self.classes[id].access.declared == hir::DeclaredVisibility::Private,
-                );
-            }
-        }
+        self.register_nominal_name(
+            owner,
+            &decl.name.text,
+            NominalTarget::Class(id),
+            file_index,
+            decl.visibility,
+        );
         self.class_files.insert(id, file_index);
         self.classes[id].access.inheritance =
             hir::InheritanceDomain(if modifier == hir::ClassModifier::Final {

@@ -9,6 +9,20 @@ impl Lowerer {
             .values()
             .cloned()
             .collect::<Vec<_>>();
+        self.resolve_annotation_inputs(declarations);
+    }
+
+    pub(crate) fn resolve_local_owner_annotations(&mut self, owners: &[Owner]) {
+        let declarations = self
+            .source_annotations
+            .values()
+            .filter(|input| input.owner.is_some_and(|owner| owners.contains(&owner)))
+            .cloned()
+            .collect::<Vec<_>>();
+        self.resolve_annotation_inputs(declarations);
+    }
+
+    fn resolve_annotation_inputs(&mut self, declarations: Vec<SourceAnnotationInput>) {
         for input in declarations {
             self.current_file = input.file;
             self.current_owner = input.owner;

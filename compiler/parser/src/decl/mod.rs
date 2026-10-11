@@ -94,6 +94,7 @@ mod context;
 mod enums;
 mod functions;
 mod generics;
+mod local_types;
 mod nominals;
 mod properties;
 mod type_aliases;

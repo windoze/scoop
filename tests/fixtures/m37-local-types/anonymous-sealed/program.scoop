@@ -1,0 +1,2 @@
+sealed interface Root {}
+fun main() { val value = object : Root {} }

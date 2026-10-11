@@ -63,8 +63,12 @@ impl Lowerer {
                 self.declare_local_type_alias(declaration);
                 return;
             }
+            ast::StatementKind::LocalType(declaration) => {
+                self.lower_local_type(declaration, false);
+                return;
+            }
             ast::StatementKind::LocalFunction(function) => {
-                let Some(local) = self.lower_local_function_decl(function) else {
+                let Some(local) = self.lower_local_function_decl(function, out) else {
                     return;
                 };
                 hir::StatementKind::LocalFunction(local)

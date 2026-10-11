@@ -1,0 +1,7 @@
+fun main() {
+    do {
+        continue
+        val value = 1
+        class Local { fun read(): Int = value }
+    } while (Local().read() > 0)
+}

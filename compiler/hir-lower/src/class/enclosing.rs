@@ -45,11 +45,19 @@ impl Lowerer {
         &mut self,
         class: ClassId,
         span: ast::Span,
-    ) -> Option<hir::ConstructorParameter> {
+    ) -> Option<hir::ConstructorContext> {
+        if let Some(field) = self.captured_environment_field(class) {
+            let ty = self.class_field_definition(field).ty;
+            return Some(hir::ConstructorContext::CapturedEnvironment(
+                self.constructor_parameter("$captures".into(), ty, span),
+            ));
+        }
         let ty = self
             .class_field_definition(self.enclosing_class_field(class)?)
             .ty;
-        Some(self.constructor_parameter("$outer".into(), ty, span))
+        Some(hir::ConstructorContext::EnclosingInstance(
+            self.constructor_parameter("$outer".into(), ty, span),
+        ))
     }
 
     pub(crate) fn enclosing_parameter_count(&self, class: ClassId) -> usize {

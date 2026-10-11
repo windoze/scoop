@@ -210,6 +210,11 @@ impl Lowerer {
         let body = self.lower_inferred_function_body(id, &inference.declaration);
         let file = std::mem::replace(&mut self.current_file, self.function_files[&id]);
         self.validate_inferred_operator_result(id, &inference.declaration);
+        self.check_local_declaration_result(
+            self.function_owner.get(&id).copied(),
+            self.signatures[&id].return_ty,
+            inference.declaration.name.span,
+        );
         self.current_file = file;
         let valid = self.diagnostics.len() == diagnostics_before;
         self.functions[id].kind = hir::FunctionKind::User(body);

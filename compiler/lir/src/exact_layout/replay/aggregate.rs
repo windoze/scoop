@@ -37,6 +37,7 @@ pub(super) fn nominal_fields_for_owner<'a>(
             | FieldIdentityView::SourcePropertyBacking { owner, .. }
             | FieldIdentityView::SourcePropertyDelegate { owner, .. }
             | FieldIdentityView::SourceEnclosingInstance { owner }
+            | FieldIdentityView::SourceCapturedEnvironment { owner }
             | FieldIdentityView::SourceInterfaceDelegate { owner, .. } => owner,
             FieldIdentityView::Generated { owner, .. } => NominalDeclarationOwner::Concrete(owner),
         };

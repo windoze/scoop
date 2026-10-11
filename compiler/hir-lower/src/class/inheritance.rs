@@ -23,6 +23,7 @@ impl Lowerer {
         pending_classes: &[(ClassId, &ast::ClassDecl, usize)],
         pending_structs: &[(hir::StructId, &ast::StructDecl, usize)],
         pending_enums: &[(hir::EnumId, &ast::EnumDecl, usize)],
+        pending_interfaces: &[(hir::InterfaceId, &ast::InterfaceDecl, usize)],
         pending_objects: &[(hir::ObjectId, crate::declarations::ObjectSource<'_>, usize)],
         pending_methods: &[(FunctionId, &ast::FunctionDecl, usize, Owner)],
     ) {
@@ -40,10 +41,9 @@ impl Lowerer {
                 source.description(),
             );
         }
-        let owners = self
-            .interfaces
+        let owners = pending_interfaces
             .iter()
-            .map(|(id, _)| (Owner::Interface(id), self.interface_files[&id]))
+            .map(|&(id, _, file)| (Owner::Interface(id), file))
             .chain(
                 pending_classes
                     .iter()

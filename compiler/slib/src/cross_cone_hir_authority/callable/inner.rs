@@ -25,6 +25,7 @@ impl CanonicalCrossConeHirSurfaceAuthority<'_> {
             if matches!(
                 key.view(),
                 FieldIdentityView::SourceEnclosingInstance { .. }
+                    | FieldIdentityView::SourceCapturedEnvironment { .. }
             ) {
                 return Ok(Some(field.value_type().clone()));
             }

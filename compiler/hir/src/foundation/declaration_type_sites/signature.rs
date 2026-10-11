@@ -14,7 +14,10 @@ pub(super) fn source(
         return Ok(());
     };
     let valid = match (key.duplicate_signature(), position) {
-        (DuplicateSignatureKey::Function { .. }, Part::Receiver) => has_receiver(key),
+        (
+            DuplicateSignatureKey::Function { .. } | DuplicateSignatureKey::Constructor { .. },
+            Part::Receiver,
+        ) => has_receiver(key),
         (
             DuplicateSignatureKey::Function { parameters, .. }
             | DuplicateSignatureKey::Constructor { parameters },
@@ -55,8 +58,10 @@ pub(super) fn generated(
         return Ok(());
     };
     let valid = match key {
-        GeneratedCallableKey::Initialization { .. }
-        | GeneratedCallableKey::ZeroArgumentConstructorAdapter { .. } => position == Part::Result,
+        GeneratedCallableKey::Initialization { .. } => position == Part::Result,
+        GeneratedCallableKey::ZeroArgumentConstructorAdapter { .. } => {
+            matches!(position, Part::Receiver | Part::Result)
+        }
         GeneratedCallableKey::DerivedEquality { .. } => {
             matches!(position, Part::Receiver | Part::Parameter(0) | Part::Result)
         }

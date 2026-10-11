@@ -1,0 +1,247 @@
+Module
+  class Container vtable=0 itables=0
+  class Container.object vtable=0 itables=1
+  class Container.object vtable=0 itables=1
+  interface Read
+  interface ToString
+  interface Hash
+  interface Equality<Int>
+  generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
+  generated_exact_type get1 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
+  generated_exact_type get2 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
+  generated_exact_type get3 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
+  generated_exact_type get4 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
+  fun Container.object.read @fn0(this: Container.object) -> Int
+    bb0 entry
+      val $captures: (Int)
+        Type (Int)
+        FieldAccess 0
+          Type Container.object
+          Local this
+      return
+        Type Int
+        FieldAccess 0
+          Type (Int)
+          Local $captures
+  fun Container.object.read @fn1(this: Container.object) -> Int
+    bb0 entry
+      val $captures: Unit
+        Type Unit
+        FieldAccess 0
+          Type Container.object
+          Local this
+      return
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+  fun main @fn2() -> Unit
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.value: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      assign $new.1
+        Type Container
+        ClassAlloc Container
+      call @fn5 direct
+        Type Container
+        Local $new.1
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $receiver: Read
+        Type Read
+        FieldAccess 0
+          Type Container
+          Local $new.1
+      call $dependency.argument.0: Int = @fn4 interface Read[0]
+        Type Read
+        Local $receiver
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn3 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $argument.0: String
+        Type String
+        StringConst @str0
+      val $parameter.value: String
+        Type String
+        Local $argument.0
+      assign $new.2
+        Type Container
+        ClassAlloc Container
+      call @fn6 direct
+        Type Container
+        Local $new.2
+        Type String
+        Local $parameter.value
+      val $receiver: Read
+        Type Read
+        FieldAccess 0
+          Type Container
+          Local $new.2
+      call $dependency.argument.0: Int = @fn4 interface Read[0]
+        Type Read
+        Local $receiver
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn3 direct
+        Type Int
+        Local $dependency.parameter.value
+      return
+        Type Unit
+        UnitLiteral
+  fun println @fn3(value: Int) -> Unit
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      call $dependency.local.2: String = external0 direct
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external1 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str1
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external1 direct
+        Type String
+        Local $dependency.local.5
+      return
+        Type Unit
+        UnitLiteral
+  fun Read.read @fn4(this: Read) -> Int
+    bb0 entry
+      trap "call to abstract method `Read.read`"
+  fun init.Container.$c0 @fn5(this: Container, value: Int) -> Unit
+    bb0 entry
+      goto bb1
+    bb1 if.then.1
+      val value: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $receiver: (Int)
+        Type (Int)
+        TupleLiteral
+          Type Int
+          IntegerLiteral Int value=42 bits=0x0000002a
+      assign $new.1
+        Type Container.object
+        ClassAlloc Container.object
+      val $inline.4.this: Container.object
+        Type Container.object
+        Local $new.1
+      val $inline.4.$captures: (Int)
+        Type (Int)
+        Local $receiver
+      goto bb5
+    bb2 if.else.2
+      unreachable
+    bb3 if.merge.3
+      field_set 0
+        Type Container
+        Local this
+        Type Read
+        Local $result.0
+      return
+        Type Unit
+        UnitLiteral
+    bb4 inline.cont.4
+      assign $result.0
+        Type Read
+        Retype Read
+          Type Container.object
+          Local $new.1
+      goto bb3
+    bb5 inline.4.entry
+      field_set 0
+        Type Container.object
+        Local $inline.4.this
+        Type (Int)
+        Local $inline.4.$captures
+      Type Unit
+      UnitLiteral
+      goto bb4
+  fun init.Container.$c1 @fn6(this: Container, value: String) -> Unit
+    bb0 entry
+      goto bb1
+    bb1 if.then.1
+      val value: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $receiver: (Int)
+        Type (Int)
+        TupleLiteral
+          Type Int
+          IntegerLiteral Int value=42 bits=0x0000002a
+      assign $new.1
+        Type Container.object
+        ClassAlloc Container.object
+      val $inline.4.this: Container.object
+        Type Container.object
+        Local $new.1
+      val $inline.4.$captures: (Int)
+        Type (Int)
+        Local $receiver
+      goto bb5
+    bb2 if.else.2
+      unreachable
+    bb3 if.merge.3
+      field_set 0
+        Type Container
+        Local this
+        Type Read
+        Local $result.0
+      return
+        Type Unit
+        UnitLiteral
+    bb4 inline.cont.4
+      assign $result.0
+        Type Read
+        Retype Read
+          Type Container.object
+          Local $new.1
+      goto bb3
+    bb5 inline.4.entry
+      field_set 0
+        Type Container.object
+        Local $inline.4.this
+        Type (Int)
+        Local $inline.4.$captures
+      Type Unit
+      UnitLiteral
+      goto bb4
+  fun init.Container.object.$c2 @fn7(this: Container.object, $captures: (Int)) -> Unit
+    bb0 entry
+      field_set 0
+        Type Container.object
+        Local this
+        Type (Int)
+        Local $captures
+      return
+        Type Unit
+        UnitLiteral
+  fun init.Container.object.$c3 @fn8(this: Container.object, $captures: Unit) -> Unit
+    bb0 entry
+      field_set 0
+        Type Container.object
+        Local this
+        Type Unit
+        Local $captures
+      return
+        Type Unit
+        UnitLiteral
+  instance mi0 function=@fn3 <- println
+  str @str0 "second"
+  str @str1 "\n"
+  output executable @fn2

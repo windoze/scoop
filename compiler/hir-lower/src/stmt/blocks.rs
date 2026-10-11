@@ -103,6 +103,14 @@ impl Lowerer {
             Some(ValueBlock { statements, value })
         })();
         self.pop_scope();
+        if let Some(value) = lowered.as_ref().and_then(|block| block.value.as_ref()) {
+            let ty = expected
+                .filter(|&ty| self.is_subtype(value.ty, ty))
+                .unwrap_or(value.ty);
+            if !self.check_local_type_result(ty, value.span, &self.scopes.clone(), true) {
+                return None;
+            }
+        }
         lowered
     }
 

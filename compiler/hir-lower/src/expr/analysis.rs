@@ -7,7 +7,9 @@ pub(super) fn block_contains_return(block: &ast::Block) -> bool {
 fn statement_contains_return(statement: &ast::Statement) -> bool {
     match &statement.kind {
         ast::StatementKind::Return { .. } => true,
-        ast::StatementKind::TypeAlias(_) | ast::StatementKind::LocalFunction(_) => false,
+        ast::StatementKind::TypeAlias(_)
+        | ast::StatementKind::LocalFunction(_)
+        | ast::StatementKind::LocalType(_) => false,
         ast::StatementKind::Expr(expr) | ast::StatementKind::Throw(expr) => {
             expr_contains_return(expr)
         }
@@ -66,6 +68,7 @@ fn statement_contains_return(statement: &ast::Statement) -> bool {
 
 pub(crate) fn expr_contains_return(expr: &ast::Expr) -> bool {
     match expr {
+        ast::Expr::AnonymousObject(_) => false,
         ast::Expr::TypeQualifier(_) | ast::Expr::LoopJump { .. } => false,
         ast::Expr::ContextScope { value, body, .. } => {
             expr_contains_return(value) || block_contains_return(body)

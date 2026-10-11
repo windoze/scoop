@@ -93,6 +93,7 @@
 mod aliases;
 mod annotations;
 mod argument_materialization;
+mod body_transform;
 mod call_resolution;
 mod callable_modifiers;
 mod class;
@@ -119,6 +120,7 @@ mod imported_core;
 mod imported_generics;
 mod imported_type_aliases;
 mod imports;
+mod local_types;
 mod lowering_context;
 mod model;
 mod namespace;
@@ -534,6 +536,12 @@ pub(crate) struct Lowerer {
     pub(crate) nominal_identities: Option<hir::HirNominalIdentities>,
     pub(crate) enum_member_identities: Option<hir::HirEnumMemberIdentities>,
     pub(crate) nominal_owners: HashMap<hir::SourceNominalId, Owner>,
+    pub(crate) value_layout_relevance:
+        HashMap<hir::SourceNominalId, std::collections::HashSet<hir::TypeParamId>>,
+    pub(crate) local_type_declaration: Option<local_types::DeclarationContext>,
+    pub(crate) local_types: HashMap<Owner, local_types::LocalType>,
+    pub(crate) local_types_by_source: HashMap<(usize, u32), Owner>,
+    pub(crate) local_type_capture_scope: Option<local_types::CaptureScope>,
     pub(crate) property_identity_records: HashMap<hir::PropertyId, hir::HirPropertyIdentity>,
     pub(crate) field_identity_builder: hir::HirFieldIdentityBuilder,
     pub(crate) types: Shared<Arena<Type>>,

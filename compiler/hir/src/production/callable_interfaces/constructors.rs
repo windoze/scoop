@@ -136,7 +136,7 @@ pub(super) fn project_class(
         identity.key(),
         crate::ExportParameterOwner::ClassConstructor(constructor_id),
         constructor
-            .enclosing_parameter
+            .context_parameter
             .as_ref()
             .map(|parameter| parameter.ty),
         source_owner(

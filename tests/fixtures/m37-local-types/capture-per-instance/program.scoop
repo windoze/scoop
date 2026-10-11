@@ -1,0 +1,8 @@
+interface Read { fun read(): Int }
+fun make(value: Int): Read = object: Read { override fun read(): Int = value }
+fun main() {
+    val first = make(20)
+    val second = make(22)
+    println(first.read() + second.read())
+    println(first === second)
+}

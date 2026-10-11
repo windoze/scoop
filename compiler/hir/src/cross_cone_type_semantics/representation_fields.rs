@@ -72,6 +72,7 @@ impl ClassRepresentationFieldV1 {
             FieldIdentityView::SourcePropertyBacking { owner, .. }
             | FieldIdentityView::SourcePropertyDelegate { owner, .. }
             | FieldIdentityView::SourceEnclosingInstance { owner }
+            | FieldIdentityView::SourceCapturedEnvironment { owner }
             | FieldIdentityView::SourceInterfaceDelegate { owner, .. } => {
                 ClassRepresentationFieldOwnerV1::SourceClass(owner)
             }

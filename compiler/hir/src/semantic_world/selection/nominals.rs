@@ -165,6 +165,7 @@ pub(super) fn declarations(
                         },
                         crate::NominalFieldStorage::Generated => format!("{:?}", field.field()),
                         crate::NominalFieldStorage::EnclosingInstance => "$outer".into(),
+                        crate::NominalFieldStorage::CapturedEnvironment => "$captures".into(),
                     };
                     Ok(ImportedNominalFieldSource { name, storage })
                 })

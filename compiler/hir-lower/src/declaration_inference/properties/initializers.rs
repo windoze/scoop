@@ -74,6 +74,7 @@ impl Lowerer {
                 hir::ClassFieldSource::PrimaryParameter { .. }
                     | hir::ClassFieldSource::InterfaceDelegate { .. }
                     | hir::ClassFieldSource::EnclosingInstance
+                    | hir::ClassFieldSource::CapturedEnvironment
             ) || self.class_fields[field]
                 .source
                 .property()

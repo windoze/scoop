@@ -12,18 +12,21 @@ impl Lowerer {
         })
     }
 
-    pub(super) fn with_declaration_inference_scope<T>(
+    pub(crate) fn with_declaration_inference_scope<T>(
         &mut self,
         source_file: usize,
         operation: impl FnOnce(&mut Self) -> T,
     ) -> T {
         // A declaration query can start inside an argument, lambda, default,
         // or initializer. None of that caller's lexical state enters its body.
+        let definition_root = self.definition_root.take();
+        let definition_paths = std::mem::take(&mut self.definition_paths);
         let locals = std::mem::take(&mut self.locals);
         let scopes = std::mem::replace(&mut self.scopes, Scopes::new());
         let functions =
             std::mem::replace(&mut self.local_function_scopes, LocalFunctionScopes::new());
         let captures = std::mem::take(&mut self.capture_contexts);
+        let local_capture_scope = self.local_type_capture_scope.take();
         let parameters = std::mem::take(&mut self.type_params_in_scope);
         let constructor_parameters = std::mem::take(&mut self.constructor_params_in_scope);
         let initialization = self.initialization_context.take();
@@ -43,10 +46,13 @@ impl Lowerer {
         let this = self.current_this;
         let receivers = std::mem::take(&mut self.receiver_scopes);
         let result = operation(self);
+        self.definition_root = definition_root;
+        self.definition_paths = definition_paths;
         self.locals = locals;
         self.scopes = scopes;
         self.local_function_scopes = functions;
         self.capture_contexts = captures;
+        self.local_type_capture_scope = local_capture_scope;
         self.type_params_in_scope = parameters;
         self.constructor_params_in_scope = constructor_parameters;
         self.initialization_context = initialization;

@@ -160,13 +160,19 @@ impl Lowerer {
         }
         let mut parameter_types =
             argument_map.forwarding_parameter_types(&view.signature.value_parameters);
-        let prefix = enclosing.as_ref().map_or(0, |receiver| {
-            state
-                .nominal_application(receiver.ty)
-                .expect("an outer application")
-                .arguments
-                .len()
-        });
+        let prefix = enclosing
+            .as_ref()
+            .filter(|receiver| matches!(state.types[receiver.ty], hir::Type::Class(_)))
+            .map_or(
+                state.local_constructor_parameter_count(view.target),
+                |receiver| {
+                    state
+                        .nominal_application(receiver.ty)
+                        .expect("an outer application")
+                        .arguments
+                        .len()
+                },
+            );
         let bindings = view
             .signature
             .owner_parameters

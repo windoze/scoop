@@ -1,5 +1,6 @@
 use super::*;
 use crate::CaptureKey;
+mod materialize;
 
 impl Lowerer {
     /// Snapshot the bindings visible at a nested callable creation point.
@@ -23,7 +24,7 @@ impl Lowerer {
                     })
                     .collect()
             })
-            .unwrap_or_default();
+            .unwrap_or_else(|| self.local_type_capture_environment());
         let declaration_depth = self.capture_contexts.len();
         for (name, &(parameter, ty, binding)) in &self.constructor_params_in_scope {
             available.insert(
@@ -70,6 +71,22 @@ impl Lowerer {
                 },
             );
         }
+        for (local, definition) in self.locals.iter() {
+            available
+                .entry(CaptureKey::Binding(definition.binding))
+                .or_insert_with(|| AvailableCapture {
+                    binding: definition.binding,
+                    ty: definition.ty,
+                    mutable: definition.mutable,
+                    source: CaptureSource::Local(local),
+                    declaration_depth,
+                });
+        }
+        for capture in available.values().cloned().collect::<Vec<_>>() {
+            available
+                .entry(CaptureKey::Binding(capture.binding))
+                .or_insert(capture);
+        }
         available
     }
 
@@ -79,7 +96,15 @@ impl Lowerer {
         name: &str,
         available: AvailableCapture,
         first_use_span: Span,
-    ) {
+    ) -> Option<()> {
+        if let CaptureSource::ClassValue {
+            owner,
+            key,
+            environment,
+        } = &available.source
+        {
+            self.register_class_capture(*owner, key, environment.is_some(), first_use_span)?;
+        }
         if matches!(available.source, CaptureSource::Capture(_)) {
             assert!(
                 context_index > 0,
@@ -92,11 +117,11 @@ impl Lowerer {
                 .find(|candidate| candidate.binding == available.binding)
                 .cloned()
                 .expect("the enclosing closure can provide a transitive capture");
-            self.register_capture_at(parent_index, name, parent_available, first_use_span);
+            self.register_capture_at(parent_index, name, parent_available, first_use_span)?;
         }
         let context = &mut self.capture_contexts[context_index];
         if context.by_binding.contains_key(&available.binding) {
-            return;
+            return Some(());
         }
         let index = context.captures.len();
         context.by_binding.insert(available.binding, index);
@@ -108,10 +133,13 @@ impl Lowerer {
             source: available.source,
             declaration_depth: available.declaration_depth,
         });
+        Some(())
     }
 
     pub(crate) fn lower_capture(&mut self, name: &ast::Ident) -> Option<hir::Expr> {
-        let context_index = self.capture_contexts.len().checked_sub(1)?;
+        let Some(context_index) = self.capture_contexts.len().checked_sub(1) else {
+            return self.lower_local_type_capture(&CaptureKey::Name(name.text.clone()), name.span);
+        };
         let available = self.capture_contexts[context_index]
             .available
             .get(&CaptureKey::Name(name.text.clone()))?
@@ -127,7 +155,7 @@ impl Lowerer {
             );
             return None;
         }
-        self.register_capture_at(context_index, &name.text, available.clone(), name.span);
+        self.register_capture_at(context_index, &name.text, available.clone(), name.span)?;
         Some(hir::Expr {
             kind: ExprKind::Capture(available.binding),
             ty: available.ty,
@@ -142,17 +170,20 @@ impl Lowerer {
         fallback_name: &str,
         span: Span,
     ) -> Option<hir::Expr> {
-        let context_index = self.capture_contexts.len().checked_sub(1)?;
+        let Some(context_index) = self.capture_contexts.len().checked_sub(1) else {
+            return self.local_type_capture_binding(binding, span);
+        };
         let available = self.capture_contexts[context_index]
             .available
             .iter()
-            .find_map(|(name, candidate)| {
-                (candidate.binding == binding).then(|| (name.clone(), candidate.clone()))
-            })?;
+            .filter(|(_, candidate)| candidate.binding == binding)
+            .min_by_key(|(key, _)| *key)
+            .map(|(key, candidate)| (key.clone(), candidate.clone()))?;
         let (key, available) = available;
         let name = match key {
             CaptureKey::Name(name) => name,
             CaptureKey::Receiver(_) => "this".to_owned(),
+            CaptureKey::Binding(_) => fallback_name.to_owned(),
         };
         self.require_initialized_condition_binding(binding, fallback_name, span)?;
         if available.mutable {
@@ -164,7 +195,7 @@ impl Lowerer {
             );
             return None;
         }
-        self.register_capture_at(context_index, &name, available.clone(), span);
+        self.register_capture_at(context_index, &name, available.clone(), span)?;
         Some(hir::Expr {
             kind: ExprKind::Capture(available.binding),
             ty: available.ty,
@@ -174,10 +205,13 @@ impl Lowerer {
     }
 
     pub(crate) fn available_capture(&self, name: &str) -> Option<AvailableCapture> {
-        self.capture_contexts
-            .last()
-            .and_then(|context| context.available.get(&CaptureKey::Name(name.to_owned())))
-            .cloned()
+        match self.capture_contexts.last() {
+            Some(context) => context
+                .available
+                .get(&CaptureKey::Name(name.to_owned()))
+                .cloned(),
+            None => self.local_type_named_capture(name),
+        }
     }
 
     pub(crate) fn finish_current_captures(
@@ -198,15 +232,29 @@ impl Lowerer {
                 capture.binding,
             )
         });
-        context
-            .captures
-            .drain(..)
+        let captures = std::mem::take(&mut context.captures);
+        captures
+            .into_iter()
             .map(|capture| {
                 let kind = match capture.source {
                     CaptureSource::Local(local) => ExprKind::Local(local),
                     CaptureSource::Capture(binding) => ExprKind::Capture(binding),
                     CaptureSource::ConstructorParam(parameter) => {
                         ExprKind::ConstructorParam(parameter)
+                    }
+                    CaptureSource::ClassValue {
+                        owner,
+                        key,
+                        environment,
+                    } => {
+                        self.class_capture_read(
+                            owner,
+                            &key,
+                            environment.map(|value| *value),
+                            capture.first_use_span,
+                        )
+                        .expect("a registered class capture has an environment")
+                        .kind
                     }
                 };
                 let source = hir::Expr {

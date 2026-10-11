@@ -1,0 +1,2 @@
+fun main() { val value = 42; enum Local { Yes
+fun read(): Int = value } }

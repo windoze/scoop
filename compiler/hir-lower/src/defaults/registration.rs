@@ -7,10 +7,15 @@ mod locals;
 
 impl Lowerer {
     pub(crate) fn register_derived_parameter_interfaces(&mut self) {
+        self.register_derived_parameter_interfaces_from(0);
+    }
+
+    pub(crate) fn register_derived_parameter_interfaces_from(&mut self, start: usize) {
         let mut forwarders = self
             .interface_forwarders
             .keys()
             .copied()
+            .filter(|id| id.into_raw().into_u32() as usize >= start)
             .collect::<Vec<_>>();
         forwarders.sort_by_key(|function| function.into_raw().into_u32());
         for function in forwarders {
@@ -18,10 +23,16 @@ impl Lowerer {
             self.register_function_parameter_interface(function);
         }
         for (function, _) in self.derived_encoding_methods.clone() {
+            if (function.into_raw().into_u32() as usize) < start {
+                continue;
+            }
             self.current_file = self.function_files[&function];
             self.register_function_parameter_interface(function);
         }
         for (function, _) in self.derived_decoding_methods.clone() {
+            if (function.into_raw().into_u32() as usize) < start {
+                continue;
+            }
             self.current_file = self.function_files[&function];
             self.register_function_parameter_interface(function);
         }
@@ -161,7 +172,7 @@ impl Lowerer {
                             ),
                             type_parameters: self.classes[class].type_params.clone(),
                             receiver: self.class_constructors[primary]
-                                .enclosing_parameter
+                                .context_parameter
                                 .as_ref()
                                 .map(|parameter| (parameter.ty, None)),
                             is_suspend: false,
@@ -264,7 +275,11 @@ impl Lowerer {
                 );
             }
         }
-        for (_, object) in self.objects.clone().iter() {
+    }
+
+    pub(crate) fn register_object_parameter_interfaces(&mut self, objects: &[hir::ObjectId]) {
+        for &object in objects {
+            let object = self.objects[object].clone();
             let class = &self.classes[object.backing_class];
             for constructor in class.constructors.clone() {
                 let context = DefaultContext {

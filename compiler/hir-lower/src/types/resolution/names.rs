@@ -148,8 +148,11 @@ impl Lowerer {
     }
 
     pub(crate) fn lexical_nested_nominal_target(&self, name: &str) -> Option<NominalTarget> {
-        if self.scopes.type_alias(name).is_some() {
-            return None;
+        if let Some(target) = self.scopes.type_target(name) {
+            return match target {
+                crate::namespace::TopLevelTypeTarget::Nominal(target) => Some(target),
+                _ => None,
+            };
         }
         let mut owner = self.current_owner?;
         loop {

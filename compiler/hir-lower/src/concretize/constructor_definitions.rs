@@ -4,7 +4,7 @@ use super::*;
 
 pub(super) struct ConstructorBodyView<'a, K> {
     pub(super) enclosing: Option<(
-        &'a export::ConstructorParameter,
+        &'a export::ConstructorContext,
         export::InitializingClassFieldRef,
     )>,
     pub(super) parameters: &'a [export::ConstructorParameter],
@@ -68,15 +68,14 @@ impl<'a> Concretizer<'a> {
         match definition {
             export::ClassConstructorDefinition::Local(id) => {
                 let source = &self.source.class_constructors[id];
-                let enclosing = source.enclosing_parameter.as_ref().map(|parameter| {
+                let enclosing = source.context_parameter.as_ref().map(|parameter| {
                     let owner = &self.source.classes[source.owner];
                     let field = owner
                         .fields
                         .iter()
                         .copied()
                         .find(|field| {
-                            self.source.class_fields[*field].source
-                                == export::ClassFieldSource::EnclosingInstance
+                            self.source.class_fields[*field].source == parameter.field_source()
                         })
                         .expect("an inner constructor has its enclosing field");
                     (
@@ -104,7 +103,7 @@ impl<'a> Concretizer<'a> {
                 let export::ConstructorKind::Class(kind) = &source.kind else {
                     unreachable!("a class constructor retains its class definition")
                 };
-                let enclosing = source.enclosing_parameter.as_ref().map(|parameter| {
+                let enclosing = source.context_parameter.as_ref().map(|parameter| {
                     let export::Type::Class(application) = self.source.types[source.owner] else {
                         unreachable!("an imported class constructor has a class owner")
                     };
@@ -115,7 +114,15 @@ impl<'a> Concretizer<'a> {
                         .field_sources
                         .iter()
                         .position(|field| {
-                            field.storage == export::NominalFieldStorage::EnclosingInstance
+                            field.storage
+                                == match parameter {
+                                    export::ConstructorContext::EnclosingInstance(_) => {
+                                        export::NominalFieldStorage::EnclosingInstance
+                                    }
+                                    export::ConstructorContext::CapturedEnvironment(_) => {
+                                        export::NominalFieldStorage::CapturedEnvironment
+                                    }
+                                }
                         })
                         .expect("an imported inner constructor has its enclosing field");
                     (
@@ -180,17 +187,12 @@ impl<'a> Concretizer<'a> {
     pub(super) fn lower_constructor_parameters(
         &mut self,
         parameters: &[export::ConstructorParameter],
-        enclosing: Option<&export::ConstructorParameter>,
+        enclosing: Option<&export::ConstructorContext>,
         substitution: &[concrete::TypeId],
     ) -> Vec<concrete::ConstructorParameter> {
         enclosing
             .into_iter()
-            .map(|parameter| {
-                (
-                    scoop_identity::LocalValueSelector::EnclosingInstance,
-                    parameter,
-                )
-            })
+            .map(|context| (context.selector(), context.parameter()))
             .chain(parameters.iter().enumerate().map(|(index, parameter)| {
                 (
                     scoop_identity::LocalValueSelector::Parameter {

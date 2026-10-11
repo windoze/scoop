@@ -15,12 +15,13 @@ pub(super) fn collect<E>(output: &mut Collector<'_>) -> Result<(), Error<E>> {
         output.local(values.class_receiver(id).id(), result)?;
         for (index, parameter) in constructor.parameters.iter().enumerate() {
             let part = match parameter.selector {
-                scoop_identity::LocalValueSelector::EnclosingInstance => Part::Receiver,
+                scoop_identity::LocalValueSelector::EnclosingInstance
+                | scoop_identity::LocalValueSelector::CapturedEnvironment => Part::Receiver,
                 scoop_identity::LocalValueSelector::Parameter { declaration_index } => {
                     Part::Parameter(declaration_index)
                 }
                 _ => {
-                    unreachable!("a constructor input is its outer receiver or a source parameter")
+                    unreachable!("a constructor input is its lexical context or a source parameter")
                 }
             };
             output.signature(root, part, parameter.ty)?;

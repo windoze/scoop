@@ -28,6 +28,12 @@ impl ConstructorReferenceDeclaration {
             self.fixed_arguments.unwrap_or_else(|| arguments.to_vec())
         };
         let span = self.span;
+        let captured_binding = match self.target {
+            ConstructorReferenceTarget::Local(NominalConstructorSource::Class(id)) => {
+                state.local_constructor_capture_binding(state.class_constructors[id].owner)
+            }
+            _ => None,
+        };
         let generate = |state: &mut Lowerer, binding: Option<hir::BindingId>| {
             state.lower_synthesized_lambda(
                 false,
@@ -58,7 +64,9 @@ impl ConstructorReferenceDeclaration {
                 },
             )
         };
-        let value = if let Some((outer, _)) = self.enclosing {
+        let value = if let Some(binding) = captured_binding {
+            generate(state, Some(binding))
+        } else if let Some((outer, _)) = self.enclosing {
             // A normal lambda parameter snapshots the receiver before the
             // returned adapter captures it, including reads of mutable locals.
             let factory =

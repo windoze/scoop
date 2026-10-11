@@ -43,7 +43,8 @@ pub(super) fn validate_owner<E>(
         | (PublicNominalKindV1::Class, FieldIdentityView::SourcePropertyBacking { .. })
         | (PublicNominalKindV1::Class, FieldIdentityView::SourcePropertyDelegate { .. })
         | (PublicNominalKindV1::Class, FieldIdentityView::SourceInterfaceDelegate { .. })
-        | (PublicNominalKindV1::Class, FieldIdentityView::SourceEnclosingInstance { .. }) => true,
+        | (PublicNominalKindV1::Class, FieldIdentityView::SourceEnclosingInstance { .. })
+        | (PublicNominalKindV1::Class, FieldIdentityView::SourceCapturedEnvironment { .. }) => true,
         (PublicNominalKindV1::Object, FieldIdentityView::Generated { owner, key }) => {
             let backing = match declaration {
                 SourceNominalId::Concrete(object) => {

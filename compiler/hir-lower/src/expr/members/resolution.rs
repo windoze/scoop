@@ -144,7 +144,7 @@ impl Lowerer {
             .any(|binding| self.receiver_has_property(binding.ty, name))
     }
 
-    fn receiver_has_property(&self, receiver_ty: TypeId, name: &str) -> bool {
+    pub(crate) fn receiver_has_property(&self, receiver_ty: TypeId, name: &str) -> bool {
         let mut state = self.clone();
         if state
             .find_accessible_nominal_property(receiver_ty, name)

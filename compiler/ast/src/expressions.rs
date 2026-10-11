@@ -5,6 +5,7 @@ use crate::{
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expr {
+    AnonymousObject(Box<crate::AnonymousObjectDecl>),
     LoopJump {
         kind: crate::LoopJumpKind,
         label: Option<Ident>,
@@ -250,6 +251,7 @@ impl Expr {
 
     pub fn span(&self) -> Span {
         match self {
+            Expr::AnonymousObject(declaration) => declaration.span,
             Expr::IntLiteral(literal) => literal.span,
             Expr::FloatLiteral(literal) => literal.span,
             Expr::CharLiteral { span, .. }

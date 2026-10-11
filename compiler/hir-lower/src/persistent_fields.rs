@@ -144,6 +144,18 @@ impl Lowerer {
                     )
                     .expect("an enclosing field retains its declaring owner");
             }
+            hir::ClassFieldSource::CapturedEnvironment => {
+                return self
+                    .field_identity_builder
+                    .class_captured_environment(
+                        field,
+                        self.class_fields[field].owner,
+                        self.nominal_identities
+                            .as_ref()
+                            .expect("nominal identities precede fields"),
+                    )
+                    .expect("a captured environment retains its declaring owner");
+            }
             hir::ClassFieldSource::PrimaryParameter { property, .. }
             | hir::ClassFieldSource::BodyProperty(property) => {
                 self.ordinary_property_identity(property)

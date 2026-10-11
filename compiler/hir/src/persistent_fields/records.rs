@@ -23,6 +23,26 @@ pub(super) fn enclosing_instance_record(
         })
 }
 
+pub(super) fn captured_environment_record(
+    owner: ClassId,
+    field: ClassFieldId,
+    nominal_identities: &HirNominalIdentities,
+) -> Result<FieldRecord, HirFieldIdentityError> {
+    let source = nominal_identities[owner].source().ok_or(
+        HirFieldIdentityError::UnsupportedGeneratedClassOwner {
+            class: raw_index(owner),
+            field: raw_index(field),
+        },
+    )?;
+    FieldIdentityKey::source_captured_environment(source.declaration())
+        .and_then(CborIdentityRecord::from_key)
+        .map_err(|error| HirFieldIdentityError::InvalidClassFieldIdentity {
+            class: raw_index(owner),
+            field: raw_index(field),
+            error,
+        })
+}
+
 pub(super) fn struct_field_record(
     structs: &Arena<StructDecl>,
     nominal_identities: &HirNominalIdentities,

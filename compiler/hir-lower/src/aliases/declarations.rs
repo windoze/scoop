@@ -64,7 +64,10 @@ impl Lowerer {
             Some(Owner::Object(id)) => self.owner_type_params(Owner::Object(id)),
             _ => Vec::new(),
         };
-        let id = self.allocate_type_alias(declaration, file, owner, access, outer, None);
+        let scope = owner
+            .and_then(|owner| self.local_type_root(owner))
+            .map(|_| self.scopes.nested_callable());
+        let id = self.allocate_type_alias(declaration, file, owner, access, outer, scope);
         if let Some(owner) = owner {
             self.nested_aliases_by_owner.insert((owner, name), id);
         } else {
@@ -78,6 +81,13 @@ impl Lowerer {
     }
 
     pub(crate) fn declare_local_type_alias(&mut self, declaration: &ast::TypeAliasDecl) {
+        if self.scopes.type_declared_here(&declaration.name.text) {
+            self.error(
+                declaration.name.span,
+                format!("duplicate local typealias `{}`", declaration.name.text),
+            );
+            return;
+        }
         let id = self.allocate_type_alias(
             declaration,
             self.current_file,

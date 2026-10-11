@@ -149,12 +149,12 @@ impl Lowerer {
                 }
             };
             let kind = match local.selector() {
-                LocalValueSelector::EnclosingInstance => {
+                LocalValueSelector::EnclosingInstance | LocalValueSelector::CapturedEnvironment => {
                     let parameter = template
                         .signature
-                        .enclosing_parameter
+                        .context_parameter
                         .as_ref()
-                        .expect("an enclosing input has its constructor parameter");
+                        .expect("a context input has its constructor parameter");
                     context
                         .local_bindings
                         .insert(local.selector().clone(), parameter.binding);

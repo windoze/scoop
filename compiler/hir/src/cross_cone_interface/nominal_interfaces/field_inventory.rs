@@ -40,6 +40,7 @@ impl CanonicalNominalInterfacesV1 {
                 | FieldIdentityView::SourcePropertyBacking { owner, .. }
                 | FieldIdentityView::SourcePropertyDelegate { owner, .. }
                 | FieldIdentityView::SourceEnclosingInstance { owner }
+                | FieldIdentityView::SourceCapturedEnvironment { owner }
                 | FieldIdentityView::SourceInterfaceDelegate { owner, .. } => Some(owner),
                 FieldIdentityView::Generated { owner, .. } => backing
                     .binary_search_by_key(&owner, |(id, _)| *id)

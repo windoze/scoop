@@ -32,7 +32,7 @@ impl Lowerer {
                 unreachable!()
             };
             let parameter = state.class_constructors[constructor]
-                .enclosing_parameter
+                .context_parameter
                 .as_ref()
                 .expect("an inner constructor has an outer parameter")
                 .ty;

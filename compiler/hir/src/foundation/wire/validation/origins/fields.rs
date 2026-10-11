@@ -11,6 +11,7 @@ pub(super) fn expectation(
         | FieldIdentityView::SourcePropertyBacking { owner, .. }
         | FieldIdentityView::SourcePropertyDelegate { owner, .. }
         | FieldIdentityView::SourceEnclosingInstance { owner }
+        | FieldIdentityView::SourceCapturedEnvironment { owner }
         | FieldIdentityView::SourceInterfaceDelegate { owner, .. } => {
             Some(OriginExpectation::SameSource(nominal_subject(owner)))
         }

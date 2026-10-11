@@ -820,6 +820,8 @@ lambda 参与重载决议时，每个候选先提供自己的期望函数类型�
 
 abstract class、interface、object、annotation class 及其他没有普通构造入口的类型不能通过构造器引用实例化。构造器引用沿用原有访问规则、身份及初始化实现。函数值不保留目标的参数名、默认值或 vararg 调用协议，调用时必须提供完整参数列表；vararg 对应普通 Array 参数。函数声明名出现在普通值位置时不会隐式变成函数值，必须显式写 `::`；直接写 `name(args...)` 仍走命名调用与重载决议。
 
+构造器引用的候选按普通函数类型的参数逆变、结果协变检查期望类型并完成泛型实参推导。选中后先形成该构造器的完整实际函数类型，再按 8.1.1 适配到期望函数类型；例如局部 class 实现 `Reader<T>` 时，其 `() -> Local<T>` 构造引用可返回为 `() -> Reader<T>`，仍保留真实构造结果类型和正确的 invoke ABI。
+
 #### 8.1.5 与 `FunPtr` 的边界
 
 managed 函数类型与 `FunPtr<F>`（13.10）是不同类别的值：前者是可捕获、可经 GC 移动的引用对象，后者是 GC-free 的原生代码指针值。二者没有一般性的子类型关系、转换或相同调用 ABI。
@@ -1163,7 +1165,7 @@ base class的全部constructor body与初始化项先于derived自有字段。�
 - 命名companion的`Box<Int>.Factory`与`Box<Int>.Companion`是同一application。透明类型别名如`typealias IntBox = Box<Int>`不产生新对象；`IntBox.Companion`与`Box<Int>.Companion`相同。裸generic名称仍可用作声明命名空间限定符，import只定位声明，不能代替形成companion类型/值所需的宿主实参；没有新增`Companion<Int>`或带类型实参的import语法。companion member不进入宿主instance lookup，不被派生class继承；
 - 跨 Cone 的 companion、嵌套声明和转发按实际 host 的静态命名空间解析，保留完整宿主application。`Host.member`只查实际导出的转发binding，再使用成员所属companion application的真实receiver，不生成static副本。限定路径本身不构造或初始化host，const读取也不触发singleton初始化。companion属性赋值、复合赋值与自增均先求值并保存一次实际receiver，再求值右值并调用对应getter/setter；可见性、值遮蔽与本地声明相同；
 
-- body可以声明static nested class/struct/enum/interface/object，包括companion body中的普通嵌套声明。它们没有implicit outer receiver或outer type parameter；需要关联时显式声明自己的参数。generic outer名称可作为owner qualifier而不构成裸generic application；`Box.Nested`仍是独立声明，不因`Box<Int>`/`Box<String>`复制。companion 和下述 inner class 按宿主 application 参数化，普通 static nested 声明仍隔断外层类型参数及实例作用域；anonymous/local object/type 暂不支持；
+- body可以声明static nested class/struct/enum/interface/object，包括companion body中的普通嵌套声明。它们没有implicit outer receiver或outer type parameter；需要关联时显式声明自己的参数。generic outer名称可作为owner qualifier而不构成裸generic application；`Box.Nested`仍是独立声明，不因`Box<Int>`/`Box<String>`复制。companion 和下述 inner class 按宿主 application 参数化，普通 static nested 声明仍隔断外层类型参数及实例作用域。局部类型和匿名 object 见 9.1.3.2；
 - ordinary top-level stored/delegated property可以是`val`或`var`、可以包含managed ref，使用compiler-managed hidden storage/accessor并进入global root表；它不可`addressOf`。`@Global`/`@ThreadLocal`仍只表示13.6的显式可寻址GC-free raw storage，`@Extern`仍只表示C data symbol；这些storage形态不能带普通accessor/delegate或与ordinary property混用；
 - 泛型正文对普通顶层属性的读写始终操作声明方的同一份状态，包括 private/internal 属性、静态初值与运行时初值。不同类型实参、不同消费 Cone、再次发布以及嵌套 callable 不复制该属性的 storage、初始化单元或 GC root。模板保留定义处已解析的属性访问，不使该属性进入消费方的源码可见域；
 - 需要运行期求值的顶层属性在全部 Cone 的运行时数据、GC 与主线程就绪后、`main` 前同步初始化一次。只有无需执行 Scoop 代码或读取普通属性、可以直接表示为静态初值的字面量、内建纯常量表达式、String 常量及 Option `None` 可省略运行期初始化；事后常量折叠不能改变可观察求值。
@@ -1184,6 +1186,18 @@ inner 可以使用直接外层 class 的类型参数与实例成员；它自己�
 每个 inner 实例保存一个不可重新绑定的普通 typed outer 引用字段，其可达性、扫描与移动更新沿用普通 class 字段协议。outer 以隐藏值参数进入构造器；base/this 委派实参、构造默认值及初始化表达式通过该参数读取外层实例。字段在 base constructor 成功后、primary property 与 delegate 初始化前写入；多次 this 委派只由最终构造器写入。构造过程中可以使用已完整构造的 outer，但仍不能取得或捕获尚未就绪的 inner `this`。继承需要 outer 的基类时，也必须从当前构造上下文取得匹配的外层实例。
 
 `outer::Inner` 创建绑定 outer 的构造器引用，outer 在创建引用时求值并保存一次；`::Inner` 仅在创建点存在匹配隐式 outer receiver 时合法。引用的显式参数只对应源码构造参数，不暴露隐藏 outer 参数。outer 是局部 `var` 时，显式 receiver 的读取为创建时快照，后续重新绑定不改变已创建引用；自由变量捕获仍遵守 8.1.3。跨 Cone 调用、泛型实例化和再次发布保留同一完整类型、outer 参数及字段关系。
+
+##### 9.1.3.2 局部类型与匿名 object
+
+局部块可以声明 class、struct、enum 和 interface。类型名称在自身 body 及声明之后的词法作用域中可见，离开该作用域后不可引用；局部类型之间不进行前向查找，nominal body 内的成员仍按普通成员收集规则处理。局部类型不能带可见性修饰符，也不能声明为 `inner`；它们可以使用声明处可见的外层类型参数，自身参数不能与这些参数重名。普通 static nested 声明仍是外层类型参数与运行期捕获的边界。
+
+局部 class 可以捕获声明处可见的不可变运行期 binding，包括允许捕获的 receiver；每次构造复制当前所需值到实例的普通隐藏字段。构造器引用在创建引用时保存这些值。捕获值先于显式构造实参保存，构造委派通过隐藏参数读取，字段在 base constructor 成功后、primary property 与 interface delegate 之前写入。局部 struct、enum 和 interface 不捕获运行期 binding；它们可以使用外层类型参数，但不会因此获得隐式 payload 或实例环境。捕获外层局部 `var` 均按 8.1.3 报错。
+
+`object { ... }` 与 `object : Base(args), I { ... }` 是表达式，每次求值创建一个新的匿名 final class 实例；允许普通成员、override、接口实现委托和初始化项，不能另行声明构造器。其 base 实参、捕获值、property 和 init 遵守普通 class 构造顺序；创建本身不引入 singleton 生命周期。匿名 object 同样不能捕获外层局部 `var`，也不能成为 sealed 的直接子类型。
+
+局部变量可以保留推导出的匿名类型并访问其自身成员。非局部函数或 property 的签名不能推导并暴露匿名结果，需要显式标注可见父类型；具名局部类型也不能通过推导越过其有效词法作用域。通过显式 interface、基类或 Any 返回值沿普通子类型适配处理。
+
+局部/匿名类型身份由原声明的词法位置及完整类型实参确定，不依赖函数调用次数。同一匿名表达式在同一泛型 application 下多次执行产生不同对象，但类型相同。泛型 body、默认值及跨 Cone 再次发布保存原声明及已绑定引用，不导出局部名称，不在消费方重新进行名称解析。
 
 #### 9.1.4 Interface default implementation
 
@@ -1282,6 +1296,8 @@ when 的覆盖域来自完整直接子类型关系，继续 sealed 的节点递�
 泛型关系按实际继承替换，例如 `Success<T> : Result<T>` 对 `Result<Int>` 对应 `Success<Int>`。子类型的额外参数若不能由 subject application 确定，就保留该未知参数所代表的整个家族；列举有限个具体 application 不算完整，只有覆盖整个家族的类型条件才能免除 else。不能用类型擦除、wildcard 或 existential 代替完整 application。
 
 跨 Cone 元数据保留完整直接子类型身份以及它们的类型参数与继承 application，未公开子类型可以作为穷尽性检查的数据存在，但不获得源码名称可见性。消费方不扫描恰好已使用的实现来推测封闭集合；无法命名所需叶类型时可以正常使用 else。增加子类型改变接口依赖，沿既有失效规则重新编译。
+
+默认值表达式内部声明的局部类型、匿名类型及其成员属于该默认值自身携带的定义；默认值的可见性检查不要求这些局部名字对调用者可见，但其所引用的外部声明仍须满足原有默认值访问规则。
 
 ### 9.2 委托
 

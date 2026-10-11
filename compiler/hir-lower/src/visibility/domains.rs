@@ -53,7 +53,7 @@ impl Lowerer {
         })
     }
 
-    pub(super) fn collect_type_dependencies(
+    pub(crate) fn collect_type_dependencies(
         &self,
         ty: hir::TypeId,
         dependencies: &mut Vec<(hir::TypeId, hir::AccessDomain)>,

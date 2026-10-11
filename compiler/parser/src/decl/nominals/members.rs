@@ -1,7 +1,9 @@
 use super::*;
 
 impl Parser {
-    pub(super) fn parse_class_body(&mut self) -> Result<(Vec<ClassMember>, u32), Diagnostic> {
+    pub(in crate::decl) fn parse_class_body(
+        &mut self,
+    ) -> Result<(Vec<ClassMember>, u32), Diagnostic> {
         self.bump(); // `{`
         let body_depth = self.brace_depth();
         let mut members = Vec::new();
