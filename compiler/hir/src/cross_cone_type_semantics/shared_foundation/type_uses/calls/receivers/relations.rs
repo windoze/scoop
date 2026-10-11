@@ -51,20 +51,27 @@ impl Graph<'_> {
                 })?,
                 (
                     ExactTypeKey::Function {
+                        receiver: source_receiver,
                         effect: source_effect,
                         parameters: source_parameters,
                         result: source_result,
                     },
                     ExactTypeKey::Function {
+                        receiver: target_receiver,
                         effect: target_effect,
                         parameters: target_parameters,
                         result: target_result,
                     },
                 ) if source_effect == target_effect
-                    && source_parameters.len() == target_parameters.len() =>
+                    && source_parameters.len() + usize::from(source_receiver.is_some())
+                        == target_parameters.len() + usize::from(target_receiver.is_some()) =>
                 {
                     let mut compatible = true;
-                    for (target, source) in target_parameters.iter().zip(source_parameters) {
+                    for (target, source) in target_receiver
+                        .iter()
+                        .chain(target_parameters)
+                        .zip(source_receiver.iter().chain(source_parameters))
+                    {
                         if !self.receiver_relation(*target, *source, known, path)? {
                             compatible = false;
                             break;

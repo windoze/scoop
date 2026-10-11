@@ -109,10 +109,7 @@ impl Concretizer<'_> {
             export::Type::Ptr(pointee) => self.automatic_type(*pointee),
             export::Type::Function(function) | export::Type::FunPtr(function) => {
                 let function = &self.source.function_types[*function];
-                function
-                    .parameter_types
-                    .iter()
-                    .all(|ty| self.automatic_type(*ty))
+                function.parameters().all(|ty| self.automatic_type(*ty))
                     && self.automatic_type(function.return_type)
             }
         }

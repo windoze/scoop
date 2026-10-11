@@ -1,15 +1,15 @@
 use scoop_wire::{WireErrorKind, decode_canonical, encode};
 
-use super::{DecodedGeneratedNominalKey, GeneratedNominalResolutionError};
+use super::DecodedGeneratedNominalKey;
 use crate::{
     CallableAdapterEnvironmentKey, CallableMaterialization, CallableMaterializationContext,
     CallableTemplateOwner, CborIdentityRecord, ClosureEnvironmentRole, DecodedCborIdentityRecord,
-    Effect, ExactCallableSignature, GeneratedNominalIdentityError, GeneratedNominalKey,
-    PersistentCallableApplicationId, PersistentConstructorId, PersistentEnumVariantId,
-    PersistentExactTypeId, PersistentFunctionId, PersistentGeneratedCallableId,
-    PersistentGenericFunctionId, PersistentIdMismatch, PersistentIdResolver,
-    PersistentInitializationUnitId, PersistentPropertyAccessorId, PersistentTypeId,
-    StructuralDefinitionPath, StructuralDefinitionSiteRole, StructuralPathSegment,
+    Effect, ExactCallableSignature, GeneratedNominalKey, PersistentCallableApplicationId,
+    PersistentConstructorId, PersistentEnumVariantId, PersistentExactTypeId, PersistentFunctionId,
+    PersistentGeneratedCallableId, PersistentGenericFunctionId, PersistentIdMismatch,
+    PersistentIdResolver, PersistentInitializationUnitId, PersistentPropertyAccessorId,
+    PersistentTypeId, StructuralDefinitionPath, StructuralDefinitionSiteRole,
+    StructuralPathSegment,
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -127,22 +127,17 @@ fn generated_nominal_record_resolves_before_recomputing_identity() {
 }
 
 #[test]
-fn generated_nominal_resolution_rejects_invalid_adapter_target() {
+fn generated_nominal_resolution_preserves_receiver_adapter_target() {
     let exact = PersistentExactTypeId::expected();
-    let invalid = GeneratedNominalKey::CallableAdapterEnvironment {
+    let original = GeneratedNominalKey::CallableAdapterEnvironment {
         key: CallableAdapterEnvironmentKey::Dynamic {
             target: ExactCallableSignature::new(Effect::Ordinary, Some(exact), vec![], exact),
         },
     };
     let decoded =
-        decode_canonical::<DecodedGeneratedNominalKey>(&encode(&invalid).unwrap()).unwrap();
+        decode_canonical::<DecodedGeneratedNominalKey>(&encode(&original).unwrap()).unwrap();
 
-    assert_eq!(
-        decoded.resolve(&mut Resolver),
-        Err(GeneratedNominalResolutionError::Key(
-            GeneratedNominalIdentityError::TargetReceiverMustBeAbsent
-        ))
-    );
+    assert_eq!(decoded.resolve(&mut Resolver), Ok(original));
 }
 
 #[test]

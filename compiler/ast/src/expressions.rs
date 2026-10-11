@@ -74,6 +74,7 @@ pub enum Expr {
     /// `fun(p: T): R { ... }` / `suspend fun(...) { ... }`.
     AnonymousFunction {
         label: Option<Ident>,
+        receiver: Option<Box<TypeRef>>,
         id: AnonymousFunctionId,
         is_suspend: bool,
         params: Vec<Param>,
@@ -148,6 +149,7 @@ pub enum Expr {
     },
     /// `this` (inside member functions).
     This {
+        label: Option<Ident>,
         span: Span,
     },
     /// `receiver.name(args)` — method call (M6).
@@ -272,7 +274,7 @@ impl Expr {
             | Expr::Update { span, .. }
             | Expr::NullAssert { span, .. }
             | Expr::Elvis { span, .. }
-            | Expr::This { span }
+            | Expr::This { span, .. }
             | Expr::MethodCall { span, .. }
             | Expr::SuperMethodCall { span, .. }
             | Expr::QualifiedInterfaceSuperAccess { span, .. }

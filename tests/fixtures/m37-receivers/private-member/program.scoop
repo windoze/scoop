@@ -1,0 +1,2 @@
+class Box(private val value: Int)
+fun main() { val action: Box.() -> Int = { value } }

@@ -96,6 +96,7 @@ pub(super) fn test_exact_type_at(
         mir::Type::Function(id) => {
             let signature = function_types[*id].clone();
             ExactTypeKey::Function {
+                receiver: None,
                 effect: if signature.is_suspend {
                     Effect::Suspend
                 } else {

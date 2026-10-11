@@ -465,7 +465,7 @@ pub(in super::super) fn collect_function_type_types(
     out: &mut Vec<hir::TypeId>,
 ) {
     let function = &lowerer.function_types[function];
-    out.extend(function.parameter_types.iter().copied());
+    out.extend(function.parameters().copied());
     out.push(function.return_type);
 }
 

@@ -60,6 +60,7 @@ fn generic_pointer_lambda() -> Expr {
 
 fn generic_pointer_anonymous() -> Expr {
     Expr::AnonymousFunction {
+        receiver: None,
         label: None,
         id: ast::AnonymousFunctionId(0),
         is_suspend: false,

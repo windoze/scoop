@@ -45,11 +45,10 @@ enum ImplicitValueSelection {
 impl Lowerer {
     pub(crate) fn resolve_implicit_value_read(
         &mut self,
-        receiver: hir::Expr,
         name: &ast::Ident,
         sink: &mut Vec<hir::Statement>,
     ) -> ImplicitValueResolution<ResolvedExtensionPropertyRead> {
-        match self.resolve_implicit_value_for(receiver, name, sink, ImplicitValueAccess::Read) {
+        match self.resolve_implicit_value_for(name, sink, ImplicitValueAccess::Read) {
             ImplicitValueSelection::NoCandidate => ImplicitValueResolution::NoCandidate,
             ImplicitValueSelection::NoApplicable(failure) => {
                 ImplicitValueResolution::NoApplicable(failure)
@@ -71,11 +70,10 @@ impl Lowerer {
 
     pub(crate) fn resolve_implicit_value_write(
         &mut self,
-        receiver: hir::Expr,
         name: &ast::Ident,
         sink: &mut Vec<hir::Statement>,
     ) -> ImplicitValueResolution<ResolvedExtensionPropertyWrite> {
-        match self.resolve_implicit_value_for(receiver, name, sink, ImplicitValueAccess::Write) {
+        match self.resolve_implicit_value_for(name, sink, ImplicitValueAccess::Write) {
             ImplicitValueSelection::NoCandidate => ImplicitValueResolution::NoCandidate,
             ImplicitValueSelection::NoApplicable(failure) => {
                 ImplicitValueResolution::NoApplicable(failure)
@@ -100,7 +98,6 @@ impl Lowerer {
     /// implicit receiver are non-overloadable peers within the same layer.
     fn resolve_implicit_value_for(
         &mut self,
-        receiver: hir::Expr,
         name: &ast::Ident,
         sink: &mut Vec<hir::Statement>,
         access: ImplicitValueAccess,
@@ -149,61 +146,69 @@ impl Lowerer {
                     .iter()
                     .map(|(property, _)| property.clone())
                     .collect::<Vec<_>>();
-                let mut state = self.clone();
-                let mut layer_sink = Vec::new();
-                let outcome = match access {
-                    ImplicitValueAccess::Read => state
-                        .resolve_extension_property_candidates_outcome(
-                            receiver.clone(),
-                            name,
-                            &targets,
-                            &mut layer_sink,
-                        )
-                        .map_read(),
-                    ImplicitValueAccess::Write => state
-                        .resolve_extension_property_write_candidates_outcome(
-                            receiver.clone(),
-                            name,
-                            &targets,
-                            &mut layer_sink,
-                        )
-                        .map_write(),
-                };
-                match outcome {
-                    ExtensionPropertySelection::Resolved(property) => {
-                        if !values.is_empty() {
-                            let mut origins = values
-                                .iter()
-                                .map(|(_, origin)| origin.clone())
-                                .collect::<Vec<_>>();
-                            origins.push(
-                                properties
-                                    .iter()
-                                    .find_map(|(candidate, origin)| {
-                                        (candidate.identity() == property.identity())
-                                            .then_some(origin.clone())
-                                    })
-                                    .expect("a resolved extension property came from this layer"),
-                            );
-                            self.diagnose_value_layer(name, layer.kind, &origins);
-                            return ImplicitValueSelection::Failed;
-                        }
-                        *self = state;
-                        sink.extend(layer_sink);
-                        return ImplicitValueSelection::ExtensionProperty(property);
-                    }
-                    ExtensionPropertySelection::NoApplicable => {
-                        first_failure.get_or_insert(Box::new(state));
-                        ExtensionPropertySelection::NoApplicable
-                    }
-                    ExtensionPropertySelection::Failed => {
+                let mut result = ExtensionPropertySelection::NoCandidate;
+                for binding in self.implicit_receivers() {
+                    let mut state = self.clone();
+                    let Some(receiver) = state.lower_receiver_binding(binding, name.span) else {
                         self.commit_layer_diagnostics(state);
                         return ImplicitValueSelection::Failed;
-                    }
-                    ExtensionPropertySelection::NoCandidate => {
-                        ExtensionPropertySelection::NoCandidate
+                    };
+                    let mut layer_sink = Vec::new();
+                    let outcome = match access {
+                        ImplicitValueAccess::Read => state
+                            .resolve_extension_property_candidates_outcome(
+                                receiver,
+                                name,
+                                &targets,
+                                &mut layer_sink,
+                            )
+                            .map_read(),
+                        ImplicitValueAccess::Write => state
+                            .resolve_extension_property_write_candidates_outcome(
+                                receiver,
+                                name,
+                                &targets,
+                                &mut layer_sink,
+                            )
+                            .map_write(),
+                    };
+                    match outcome {
+                        ExtensionPropertySelection::Resolved(property) => {
+                            if !values.is_empty() {
+                                let mut origins = values
+                                    .iter()
+                                    .map(|(_, origin)| origin.clone())
+                                    .collect::<Vec<_>>();
+                                origins.push(
+                                    properties
+                                        .iter()
+                                        .find_map(|(candidate, origin)| {
+                                            (candidate.identity() == property.identity())
+                                                .then_some(origin.clone())
+                                        })
+                                        .expect(
+                                            "a resolved extension property came from this layer",
+                                        ),
+                                );
+                                self.diagnose_value_layer(name, layer.kind, &origins);
+                                return ImplicitValueSelection::Failed;
+                            }
+                            *self = state;
+                            sink.extend(layer_sink);
+                            return ImplicitValueSelection::ExtensionProperty(property);
+                        }
+                        ExtensionPropertySelection::NoApplicable => {
+                            first_failure.get_or_insert(Box::new(state));
+                            result = ExtensionPropertySelection::NoApplicable;
+                        }
+                        ExtensionPropertySelection::Failed => {
+                            self.commit_layer_diagnostics(state);
+                            return ImplicitValueSelection::Failed;
+                        }
+                        ExtensionPropertySelection::NoCandidate => {}
                     }
                 }
+                result
             };
 
             match values.as_slice() {

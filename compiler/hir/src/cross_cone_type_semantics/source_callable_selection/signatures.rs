@@ -67,6 +67,12 @@ impl<'a> MaterializableSignatures<'a> {
     }
 
     fn ty(&self, ty: &SignatureTypeKey) -> bool {
+        if ty
+            .receiver_type()
+            .is_some_and(|receiver| !self.ty(receiver))
+        {
+            return false;
+        }
         match ty {
             SignatureTypeKey::Nominal(source) => {
                 self.owner(Some(SourceNominalId::Concrete(*source)))

@@ -18,6 +18,7 @@ pub enum DecodedSignatureTypeKey {
         effect: Effect,
         parameters: Vec<DecodedSignatureTypeKey>,
         result: Box<DecodedSignatureTypeKey>,
+        receiver: Option<Box<DecodedSignatureTypeKey>>,
     },
     RawPointer(Box<DecodedSignatureTypeKey>),
     NativeFunctionPointer {
@@ -48,10 +49,14 @@ impl DecodedSignatureTypeKey {
                 resolve_non_empty(elements, resolver).map(SignatureTypeKey::Tuple)
             }
             Self::Function {
+                receiver,
                 effect,
                 parameters,
                 result,
             } => Ok(SignatureTypeKey::Function {
+                receiver: receiver
+                    .map(|ty| ty.resolve(resolver).map(Box::new))
+                    .transpose()?,
                 effect,
                 parameters: resolve_sequence(parameters, resolver)?,
                 result: Box::new(result.resolve(resolver)?),
@@ -92,18 +97,24 @@ impl WireEncode for DecodedSignatureTypeKey {
                 encode_sequence(encoder, elements.as_slice())
             }
             Self::Function {
+                receiver,
                 effect,
                 parameters,
                 result,
             } => {
-                encoder.map(4)?;
+                encoder.map(4 + u64::from(receiver.is_some()))?;
                 encode_tag(encoder, 4)?;
                 encoder.field(1)?;
                 effect.encode(encoder)?;
                 encoder.field(2)?;
                 encode_sequence(encoder, parameters)?;
                 encoder.field(3)?;
-                result.encode(encoder)
+                result.encode(encoder)?;
+                if let Some(receiver) = receiver {
+                    encoder.field(4)?;
+                    receiver.encode(encoder)?;
+                }
+                Ok(())
             }
             Self::RawPointer(pointee) => encode_single_payload(encoder, 5, pointee.as_ref()),
             Self::NativeFunctionPointer {
@@ -157,13 +168,20 @@ impl WireDecode for DecodedSignatureTypeKey {
                     .map(Self::Tuple)
             }
             4 => {
-                expect_sum_length(decoder, fields, 4)?;
+                if fields != 5 {
+                    expect_sum_length(decoder, fields, 4)?;
+                }
                 Ok(Self::Function {
                     effect: decoder.field(1, decode_effect)?,
                     parameters: decoder.field(2, decode_signatures)?,
                     result: decoder.field(3, |decoder| {
                         DecodedSignatureTypeKey::decode(decoder).map(Box::new)
                     })?,
+                    receiver: if fields == 5 {
+                        Some(decoder.field(4, |decoder| Self::decode(decoder).map(Box::new))?)
+                    } else {
+                        None
+                    },
                 })
             }
             5 => {
@@ -538,6 +556,7 @@ mod tests {
                     [],
                 )),
                 SignatureTypeKey::Function {
+                    receiver: None,
                     effect: Effect::Suspend,
                     parameters: vec![binder.clone()],
                     result: Box::new(binder),
@@ -586,5 +605,30 @@ mod tests {
             })
             .unwrap_err();
         assert_eq!(error, TestResolveError::Type);
+    }
+
+    #[test]
+    fn receiver_signature_preserves_binders_and_wire_shape() {
+        let nominal = PersistentTypeId(ConeIdentity::CORE.0);
+        let key = SignatureTypeKey::Function {
+            effect: Effect::Suspend,
+            parameters: vec![],
+            result: Box::new(SignatureTypeKey::Nominal(nominal)),
+            receiver: Some(Box::new(SignatureTypeKey::Binder { depth: 0, index: 0 })),
+        };
+        assert!(key.contains_binder());
+        let bytes = encode(&key).unwrap();
+        assert_eq!(bytes[0], 0xa5);
+        let decoded = decode_canonical::<DecodedSignatureTypeKey>(&bytes).unwrap();
+        assert_eq!(encode(&decoded).unwrap(), bytes);
+        assert_eq!(
+            decoded
+                .resolve(&mut TestResolver {
+                    nominal,
+                    generic: PersistentGenericTypeId(ConeIdentity::SINGLE_FILE.0),
+                })
+                .unwrap(),
+            key
+        );
     }
 }

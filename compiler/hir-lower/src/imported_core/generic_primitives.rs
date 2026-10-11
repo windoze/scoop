@@ -48,7 +48,7 @@ impl Lowerer {
                 hir::Type::Tuple(elements) => pending.extend(elements.iter().copied()),
                 hir::Type::Function(function) | hir::Type::FunPtr(function) => {
                     let function = &self.function_types[*function];
-                    pending.extend(function.parameter_types.iter().copied());
+                    pending.extend(function.parameters().copied());
                     pending.push(function.return_type);
                 }
                 hir::Type::Ptr(pointee) => {

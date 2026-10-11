@@ -20,6 +20,17 @@ impl Lowerer {
     pub(crate) fn least_upper_bound(&mut self, types: &[TypeId]) -> TypeId {
         debug_assert!(!types.is_empty());
 
+        let completing = types
+            .iter()
+            .copied()
+            .filter(|&ty| !self.is_nothing_ty(ty))
+            .collect::<Vec<_>>();
+        if let Some(&first) = completing.first()
+            && completing.iter().all(|&ty| self.types_equal(first, ty))
+        {
+            return first;
+        }
+
         let mut common_supertypes = Vec::new();
         let candidates: Vec<TypeId> = self.types.iter().map(|(id, _)| id).collect();
         for candidate in candidates {
@@ -40,7 +51,7 @@ impl Lowerer {
             .copied()
             .filter(|&candidate| {
                 !common_supertypes.iter().copied().any(|other| {
-                    !self.types_equal(other, candidate) && self.is_subtype(other, candidate)
+                    self.is_subtype(other, candidate) && !self.is_subtype(candidate, other)
                 })
             })
             .collect();
@@ -124,9 +135,9 @@ impl Lowerer {
             let source = self.function_types[source].clone();
             let target = self.function_types[target].clone();
             for (source, target) in source
-                .parameter_types
-                .into_iter()
-                .zip(target.parameter_types)
+                .parameters()
+                .copied()
+                .zip(target.parameters().copied())
             {
                 self.retain_boxing_sources(target, source, span);
             }

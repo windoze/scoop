@@ -139,9 +139,12 @@ impl Lowerer {
     /// `lower_method_call`: a bare receiver name that would resolve
     /// to `this.name` is a property access, not an enum path).
     pub(crate) fn host_has_property(&self, name: &str) -> bool {
-        let Some(receiver_ty) = self.current_this_ty() else {
-            return false;
-        };
+        self.implicit_receivers()
+            .iter()
+            .any(|binding| self.receiver_has_property(binding.ty, name))
+    }
+
+    fn receiver_has_property(&self, receiver_ty: TypeId, name: &str) -> bool {
         let mut state = self.clone();
         if state
             .find_accessible_nominal_property(receiver_ty, name)

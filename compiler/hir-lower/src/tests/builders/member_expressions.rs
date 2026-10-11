@@ -2,7 +2,10 @@ use super::*;
 
 /// `this`.
 pub(crate) fn this_expr() -> Expr {
-    Expr::This { span: sp() }
+    Expr::This {
+        label: None,
+        span: sp(),
+    }
 }
 
 /// `receiver.name(args)`.

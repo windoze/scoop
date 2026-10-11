@@ -1,0 +1,1 @@
+fun main() { val action: suspend Int.() -> Int = suspend { this }; val plain: Int.() -> Int = action }

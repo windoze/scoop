@@ -40,6 +40,7 @@ pub(super) fn validate<'a>(
             }
             (
                 ExactTypeKey::Function {
+                    receiver,
                     effect,
                     parameters,
                     result,
@@ -51,12 +52,13 @@ pub(super) fn validate<'a>(
                 },
             ) => {
                 if (*effect == Effect::Suspend) != *is_suspend
-                    || parameters.len() != actual_parameters.len()
+                    || parameters.len() + usize::from(receiver.is_some()) != actual_parameters.len()
                 {
                     return Err(invalid(exact, "signature"));
                 }
-                for (expected, actual) in parameters
+                for (expected, actual) in receiver
                     .iter()
+                    .chain(parameters)
                     .zip(actual_parameters)
                     .chain(std::iter::once((result, actual_result)))
                 {

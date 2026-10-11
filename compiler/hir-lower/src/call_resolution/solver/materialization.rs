@@ -110,8 +110,21 @@ impl Lowerer {
                 else {
                     return Ok(None);
                 };
-                let function =
-                    self.intern_function_type(signature.is_suspend, parameters, return_type);
+                let receiver = match signature.receiver {
+                    Some(ty) => {
+                        let Some(ty) = self.materialize_type(session, bindings, ty, origin)? else {
+                            return Ok(None);
+                        };
+                        Some(ty)
+                    }
+                    None => None,
+                };
+                let function = self.intern_receiver_function_type(
+                    signature.is_suspend,
+                    receiver,
+                    parameters,
+                    return_type,
+                );
                 Ok(Some(self.function_types[function].canonical_type))
             }
             Type::Ptr(pointee) => {

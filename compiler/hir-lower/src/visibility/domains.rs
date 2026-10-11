@@ -124,7 +124,7 @@ impl Lowerer {
             }
             hir::Type::Function(function) | hir::Type::FunPtr(function) => {
                 let function = self.function_types[function].clone();
-                for parameter in function.parameter_types {
+                for parameter in function.parameters().copied() {
                     self.collect_type_dependencies(parameter, dependencies);
                 }
                 self.collect_type_dependencies(function.return_type, dependencies);

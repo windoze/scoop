@@ -827,6 +827,7 @@ pub(crate) struct Lowerer {
     /// `this` of the member function whose body is being lowered:
     /// its local and the host type. `None` in top-level functions.
     pub(crate) current_this: Option<(hir::LocalId, TypeId)>,
+    pub(crate) receiver_scopes: Vec<ReceiverScope>,
     /// Owner of the member function whose body is being lowered, for
     /// bare property / method resolution (`x` meaning `this.x`).
     pub(crate) current_owner: Option<Owner>,

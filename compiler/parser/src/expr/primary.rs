@@ -61,7 +61,20 @@ impl Parser {
             TokenKind::When => self.parse_when_expression(),
             TokenKind::This => {
                 self.pos += 1;
-                Ok(Expr::This { span: token.span })
+                let label =
+                    if matches!(self.peek().kind, TokenKind::At) && !self.peek().newline_before {
+                        self.bump();
+                        Some(self.expect_ident("receiver label after `this@`")?)
+                    } else {
+                        None
+                    };
+                let end = label
+                    .as_ref()
+                    .map_or(token.span.end, |label| label.span.end);
+                Ok(Expr::This {
+                    label,
+                    span: Span::new(token.span.start, end),
+                })
             }
             TokenKind::Break | TokenKind::Continue => self.parse_loop_jump_expression(),
             TokenKind::Ident(ref text) if text == "try" => self.parse_try_expression(),

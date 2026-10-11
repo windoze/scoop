@@ -171,6 +171,8 @@ impl Lowerer {
         let outer_loop_targets = std::mem::take(&mut self.loop_targets);
         let outer_source_context = self.current_source_context;
         let outer_this = self.current_this.take();
+        let outer_receivers = self.receiver_scopes.len();
+        self.push_receiver_scope(Some(decl.name.text.clone()), None);
         let outer_smart_casts = self.smart_casts.clone();
         self.capture_contexts.push(CaptureContext {
             available: capture_environment,
@@ -250,6 +252,7 @@ impl Lowerer {
         self.current_source_context = outer_source_context;
         self.definition_paths = outer_definition_paths;
         self.current_this = outer_this;
+        self.receiver_scopes.truncate(outer_receivers);
         self.smart_casts = outer_smart_casts;
         debug_assert!(self.loop_targets.is_empty());
         self.loop_targets = outer_loop_targets;

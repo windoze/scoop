@@ -9,6 +9,7 @@ impl Lowerer {
         lower: impl FnOnce(&mut Self) -> Vec<hir::Statement>,
     ) -> hir::Body {
         let outer_loop_targets = std::mem::take(&mut self.loop_targets);
+        let outer_receivers = std::mem::take(&mut self.receiver_scopes);
         let outer_source_context = self.current_source_context;
         let outer_callable_label = self.current_callable_label.replace(name.to_owned());
         let outer_definition_paths = std::mem::take(&mut self.definition_paths);
@@ -53,11 +54,26 @@ impl Lowerer {
             let local = self.alloc_this_local(host_ty, self.functions[id].span);
             self.scopes.declare("this".to_string(), local);
             self.current_this = Some((local, host_ty));
+            let label = if extension_receiver.is_some() {
+                Some(name.to_owned())
+            } else {
+                owner.map(|owner| self.receiver_owner_label(owner))
+            };
+            self.push_receiver_scope(
+                label,
+                Some(crate::ReceiverBinding {
+                    binding: self.locals[local].binding,
+                    ty: host_ty,
+                }),
+            );
             params.push(hir::Param {
                 name: "this".to_string(),
                 ty: host_ty,
                 local,
             });
+        }
+        if extension_receiver.is_none() {
+            self.push_receiver_scope(Some(name.to_owned()), None);
         }
         for (index, param) in sig.params.iter().enumerate() {
             if self.scopes.is_declared_here(&param.name.text) {
@@ -87,6 +103,7 @@ impl Lowerer {
         self.pop_scope();
         self.type_params_in_scope.clear();
         self.current_this = None;
+        self.receiver_scopes = outer_receivers;
         self.current_owner = None;
         self.current_source_context = outer_source_context;
         self.current_callable_label = outer_callable_label;

@@ -1,0 +1,12 @@
+fun main() {
+    val twice: ((Int) -> Int).(Int) -> Int = twice@ { this(it) + this@twice(it) }
+    val identity: (Int) -> Int = { it }
+    println(identity.twice(21))
+    val anonymous = fun ((Int) -> Int).(value: Int): Int { return this(value) }
+    println(anonymous(identity, 42))
+    val add: Int.() -> Int = { this + 1 }
+    val value: Int? = Some(41)
+    println(value?.add()!!)
+    val absent: Int? = None
+    println(absent?.add() is Option<Int>)
+}

@@ -71,6 +71,9 @@ impl Graph<'_> {
         signature: &SignatureTypeKey,
         kind: Kind,
     ) -> Result<(), Error> {
+        if let Some(receiver) = signature.receiver_type() {
+            self.signature(receiver, kind)?;
+        }
         match signature {
             SignatureTypeKey::Nominal(owner) => self.select(*owner, kind)?,
             SignatureTypeKey::NominalApplication { arguments, .. } => {

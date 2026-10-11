@@ -1,6 +1,7 @@
 use super::*;
 use crate::constructor_resolution::NominalConstructorCall;
 
+mod functions;
 mod imported;
 mod plans;
 mod pointers;
@@ -99,83 +100,7 @@ impl Lowerer {
             };
         }
         let mut applicable = Vec::new();
-        for binding in targets {
-            let NamedCallTarget::Function(function) = binding.target else {
-                continue;
-            };
-            let mut state = self.clone();
-            let (candidate, receiver, commit) = if self.extension_receivers.contains_key(&function)
-            {
-                if self.current_this_ty().is_none() {
-                    continue;
-                }
-                let Some(receiver) = state.lower_current_this(call.callee.span) else {
-                    continue;
-                };
-                (
-                    crate::CallableCandidate::function(function, Vec::new()),
-                    NamedCallReceiver::Extension(receiver),
-                    NamedFunctionCommit::TopLevel,
-                )
-            } else if let Some(crate::Owner::Object(object)) =
-                self.function_owner.get(&function).copied()
-            {
-                let Some(receiver) = state.lower_singleton_value(object, call.callee.span) else {
-                    continue;
-                };
-                let candidate = crate::CallableCandidate {
-                    function,
-                    owner: crate::CallableCandidateOwner::Method(
-                        state.method_owner_application(crate::Owner::Object(object), Vec::new()),
-                    ),
-                    source: crate::CallableCandidateSource::Direct,
-                };
-                (
-                    candidate,
-                    NamedCallReceiver::Member(receiver),
-                    NamedFunctionCommit::Member,
-                )
-            } else {
-                (
-                    crate::CallableCandidate::function(function, Vec::new()),
-                    NamedCallReceiver::None,
-                    NamedFunctionCommit::TopLevel,
-                )
-            };
-            match state.probe_named_callable(&call.callee.text, candidate, receiver, overload) {
-                Ok(probe) => applicable.push(NamedApplicable {
-                    probe: NamedFunctionLikeProbe::Callable(Box::new(probe)),
-                    commit,
-                }),
-                Err(failure) => {
-                    failures.push(failure);
-                }
-            }
-        }
-        for binding in targets {
-            if !matches!(
-                binding.target,
-                NamedCallTarget::ImportedDependency(
-                    hir::ImportedTarget::Function(_)
-                        | hir::ImportedTarget::GenericFunction(_)
-                        | hir::ImportedTarget::EnumVariant(_)
-                )
-            ) {
-                continue;
-            }
-            let crate::imports::lookup::calls::NamedCallOrigin::Dependency(binding) =
-                &binding.origin
-            else {
-                unreachable!("an ordinary dependency target retains its dependency binding")
-            };
-            match self.probe_imported_dependency_callable(binding, call, expected) {
-                Ok(probe) => applicable.push(NamedApplicable {
-                    probe: NamedFunctionLikeProbe::ImportedDependency(Box::new(probe)),
-                    commit: NamedFunctionCommit::ImportedDependency,
-                }),
-                Err(failure) => failures.push(failure),
-            }
-        }
+        self.collect_named_function_probes(targets, call, overload, &mut applicable, &mut failures);
         for (state, owner, expected, fixed_alias) in imported {
             state.collect_imported_constructor_probes(
                 owner,

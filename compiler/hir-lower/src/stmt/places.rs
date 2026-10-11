@@ -146,9 +146,10 @@ impl Lowerer {
                 name,
                 span,
             } => {
-                if matches!(&**receiver, ast::Expr::This { .. })
+                if let ast::Expr::This { label, .. } = &**receiver
                     && self.initialization_context.is_some()
                 {
+                    self.check_initializing_receiver_label(label.as_ref())?;
                     let field = self.initializing_field(name, *span)?;
                     let write = field
                         .write

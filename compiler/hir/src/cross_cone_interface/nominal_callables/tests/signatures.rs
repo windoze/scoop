@@ -19,11 +19,13 @@ fn structural_signatures_retain_order_effects_and_pointer_kinds() {
         ),
         (
             SignatureTypeKey::Function {
+                receiver: None,
                 effect: Effect::Ordinary,
                 parameters: vec![unit.clone()],
                 result: Box::new(any.clone()),
             },
             ExactTypeKey::Function {
+                receiver: None,
                 effect: Effect::Ordinary,
                 parameters: vec![unit_exact],
                 result: any_exact,
@@ -31,11 +33,13 @@ fn structural_signatures_retain_order_effects_and_pointer_kinds() {
         ),
         (
             SignatureTypeKey::Function {
+                receiver: None,
                 effect: Effect::Suspend,
                 parameters: vec![unit.clone()],
                 result: Box::new(any.clone()),
             },
             ExactTypeKey::Function {
+                receiver: None,
                 effect: Effect::Suspend,
                 parameters: vec![unit_exact],
                 result: any_exact,
@@ -73,6 +77,7 @@ fn structural_signatures_retain_order_effects_and_pointer_kinds() {
 fn structural_signatures_require_every_nominal_leaf() {
     let (classifier, unit, _) = classifier();
     let signature = SignatureTypeKey::Function {
+        receiver: None,
         effect: Effect::Ordinary,
         parameters: vec![SignatureTypeKey::Tuple(NonEmptyVec::from_first(
             SignatureTypeKey::Nominal(unit),

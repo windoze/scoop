@@ -62,6 +62,7 @@ pub(in super::super) fn fixture(
     let declaration = identities::add(&mut fixture, arity);
     let template = &fixture.interface.default_templates().records()[0];
     let function_type = SignatureTypeKey::Function {
+        receiver: None,
         effect: Effect::Ordinary,
         parameters: vec![parameter.clone()],
         result: Box::new(parameter),

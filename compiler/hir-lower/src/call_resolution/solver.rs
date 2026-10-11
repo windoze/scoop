@@ -293,6 +293,18 @@ impl Lowerer {
             return Ok(None);
         }
 
+        let preferred_bounds = if lower.is_empty() { &upper } else { &lower };
+        if let Some(&candidate) = preferred_bounds.first()
+            && matches!(self.types[candidate], hir::Type::Function(_))
+            && preferred_bounds
+                .iter()
+                .all(|&bound| self.types_equal(bound, candidate))
+            && lower.iter().all(|&bound| self.is_subtype(bound, candidate))
+            && upper.iter().all(|&bound| self.is_subtype(candidate, bound))
+        {
+            return Ok(Some(candidate));
+        }
+
         // Infer the unique representable relation frontier before checking
         // declaration bounds. A value argument must not silently widen to
         // boxed `Any` merely to satisfy `T : ref`; kind and interface bounds
@@ -373,7 +385,9 @@ impl Lowerer {
                 } else {
                     self.is_subtype(candidate, other)
                 };
-                if !self.types_equal(other, candidate) && is_better {
+                let is_equivalent =
+                    self.is_subtype(candidate, other) && self.is_subtype(other, candidate);
+                if is_better && !is_equivalent {
                     dominated = true;
                     break;
                 }

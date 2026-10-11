@@ -36,9 +36,7 @@ pub(super) fn validate_function_adapter_metadata(
             &Type::Function(adapter.source()),
             target,
         )?;
-        if source.is_suspend != target.is_suspend
-            || source.parameter_types.len() != target.parameter_types.len()
-        {
+        if source.is_suspend != target.is_suspend || source.arity() != target.arity() {
             return invalid(
                 location,
                 "static function variance must preserve effect and arity",
@@ -135,13 +133,12 @@ fn validate_class(
         }
         1
     };
-    if function.params.len().checked_sub(hidden_parameter_count)
-        != Some(target.parameter_types.len())
+    if function.params.len().checked_sub(hidden_parameter_count) != Some(target.arity())
         || function.params[0].ty != Type::Function(target_id)
-        || function.params[1..=target.parameter_types.len()]
+        || function.params[1..=target.arity()]
             .iter()
             .map(|parameter| &parameter.ty)
-            .ne(target.parameter_types.iter())
+            .ne(target.parameters())
     {
         return invalid(
             location,

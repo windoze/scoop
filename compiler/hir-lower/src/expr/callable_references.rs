@@ -41,6 +41,21 @@ impl Lowerer {
         expected: Option<TypeId>,
         sink: &mut Vec<hir::Statement>,
     ) -> Option<hir::Expr> {
+        if let Some(target) = expected
+            && let Type::Function(function) = self.types[target]
+            && self.function_types[function].receiver.is_some()
+        {
+            let signature = self.function_types[function].clone();
+            let flattened = self.intern_function_type(
+                signature.is_suspend,
+                signature.parameters().copied().collect(),
+                signature.return_type,
+            );
+            let ordinary = self.function_types[flattened].canonical_type;
+            let reference =
+                self.lower_callable_reference(receiver, name, span, Some(ordinary), sink)?;
+            return Some(self.adapt_to(reference, target));
+        }
         if let Some(expected) = expected
             && let Type::FunPtr(_) = self.types[expected]
         {

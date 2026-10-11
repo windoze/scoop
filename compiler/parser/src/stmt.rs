@@ -81,7 +81,11 @@ impl Parser {
         if self.starts_loop_label() {
             return self.parse_labeled_loop();
         }
-        if self.starts_modified_local_function() {
+        let anonymous = matches!(self.peek().kind, TokenKind::Fun)
+            || matches!(self.peek().kind, TokenKind::Suspend)
+                && matches!(self.tokens[self.pos + 1].kind, TokenKind::Fun);
+        let anonymous = anonymous && self.starts_anonymous_function();
+        if !anonymous && self.starts_modified_local_function() {
             let function = self.parse_non_member_function(
                 Vec::new(),
                 VisibilitySyntax::Omitted,
@@ -92,8 +96,9 @@ impl Parser {
                 kind: StatementKind::LocalFunction(function),
             });
         }
-        match &self.peek().kind {
-            TokenKind::Fun if !matches!(self.tokens[self.pos + 1].kind, TokenKind::LParen) => {
+        let statement_kind = self.peek().kind.clone();
+        match &statement_kind {
+            TokenKind::Fun if !anonymous => {
                 let function = self.parse_non_member_function(
                     Vec::new(),
                     VisibilitySyntax::Omitted,
@@ -105,8 +110,7 @@ impl Parser {
                 })
             }
             TokenKind::Suspend
-                if matches!(self.tokens[self.pos + 1].kind, TokenKind::Fun)
-                    && !matches!(self.tokens[self.pos + 2].kind, TokenKind::LParen) =>
+                if matches!(self.tokens[self.pos + 1].kind, TokenKind::Fun) && !anonymous =>
             {
                 let function = self.parse_non_member_function(
                     Vec::new(),

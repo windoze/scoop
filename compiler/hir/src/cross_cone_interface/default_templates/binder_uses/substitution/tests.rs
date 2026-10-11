@@ -38,6 +38,7 @@ fn substitution_preserves_composite_shapes_and_mapping_scope() {
                 arguments: NonEmptyVec::from_first(binder(1, 0), []),
             },
             SignatureTypeKey::Function {
+                receiver: None,
                 effect: Effect::Suspend,
                 parameters: vec![binder(1, 0)],
                 result: Box::new(binder(0, 0)),
@@ -64,6 +65,7 @@ fn substitution_preserves_composite_shapes_and_mapping_scope() {
                     arguments: NonEmptyVec::from_first(binder(0, 7), [])
                 },
                 SignatureTypeKey::Function {
+                    receiver: None,
                     effect: Effect::Suspend,
                     parameters: vec![binder(0, 7)],
                     result: Box::new(binder(1, 9))

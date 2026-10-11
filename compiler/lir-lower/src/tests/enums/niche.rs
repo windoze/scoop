@@ -100,6 +100,7 @@ fn option_of_raw_pointer_uses_a_niche_without_gc_scanning() {
 fn option_of_code_pointer_records_code_niche_provenance() {
     let mut builder = Builder::new();
     let signature = builder.function_types.alloc(mir::FunctionType {
+        receiver: None,
         is_suspend: false,
         parameter_types: Vec::new(),
         return_type: mir::Type::Unit,

@@ -124,8 +124,7 @@ fn exact_static_callback_signature(
         return None;
     }
     let parameters = signature
-        .parameter_types
-        .iter()
+        .parameters()
         .map(|ty| {
             module
                 .meta
@@ -149,16 +148,14 @@ fn exact_static_callback_signature(
 }
 
 fn static_callback_storage_parameters(signature: &FunctionType) -> Vec<Type> {
-    let mut parameters = Vec::with_capacity(
-        signature.parameter_types.len() + usize::from(signature.return_type != Type::Unit),
-    );
+    let mut parameters =
+        Vec::with_capacity(signature.arity() + usize::from(signature.return_type != Type::Unit));
     if signature.return_type != Type::Unit {
         parameters.push(Type::Ptr(Box::new(signature.return_type.clone())));
     }
     parameters.extend(
         signature
-            .parameter_types
-            .iter()
+            .parameters()
             .cloned()
             .map(|parameter| Type::Ptr(Box::new(parameter))),
     );

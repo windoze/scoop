@@ -189,7 +189,14 @@ fn type_name(lowerer: &Lowerer, type_params: &[hir::TypeParamDecl], ty: TypeId) 
                 .collect();
             let return_type = type_name(lowerer, type_params, function.return_type);
             let suspend = if function.is_suspend { "suspend " } else { "" };
-            format!("{suspend}({}) -> {return_type}", parameters.join(", "))
+            let receiver = function
+                .receiver
+                .map(|ty| format!("{}.", type_name(lowerer, type_params, ty)))
+                .unwrap_or_default();
+            format!(
+                "{suspend}{receiver}({}) -> {return_type}",
+                parameters.join(", ")
+            )
         }
         Type::Param(index) => type_params
             .iter()

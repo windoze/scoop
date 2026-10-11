@@ -341,11 +341,11 @@ impl<'a> TypeIdentityBuilder<'a> {
         if local_index(function.canonical_type) >= self.inputs.types.len()
             || !matches!(self.inputs.types[function.canonical_type], Type::Function(actual) if actual == id)
             || (!native && function.canonical_type != ty)
-            || (native && function.is_suspend)
+            || (native && (function.is_suspend || function.receiver.is_some()))
         {
             return Err(HirTypeIdentityError::InvalidFunctionType { ty: raw_index(ty) });
         }
-        let mut children = function.parameter_types.clone();
+        let mut children = function.parameters().copied().collect::<Vec<_>>();
         children.push(function.return_type);
         match self.resolve_children(ty, &children)? {
             ResolvedChildren::Exact(mut identities) => {
@@ -360,6 +360,7 @@ impl<'a> TypeIdentityBuilder<'a> {
                     }
                 } else {
                     ExactTypeKey::Function {
+                        receiver: function.receiver.map(|_| identities.remove(0)),
                         effect: if function.is_suspend {
                             Effect::Suspend
                         } else {

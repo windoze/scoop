@@ -397,13 +397,7 @@ impl Lowerer {
                             );
                             return None;
                         };
-                        let function = &self.function_types[function_type];
-                        if function.is_suspend || self.function_type_contains_param(function_type) {
-                            self.error(
-                                name.span,
-                                "`FunPtr` type argument must be an ordinary concrete function type"
-                                    .to_string(),
-                            );
+                        if !self.validate_fun_ptr_signature(function_type, name.span) {
                             return None;
                         }
                         let ty = self.intern_type(Type::FunPtr(function_type));
@@ -623,8 +617,16 @@ impl Lowerer {
                     parameter_types.push(self.resolve_type_ref(parameter)?);
                 }
                 let return_type = self.resolve_type_ref(&function.return_type)?;
-                let function =
-                    self.intern_function_type(function.is_suspend, parameter_types, return_type);
+                let receiver = match &function.receiver {
+                    Some(ty) => Some(self.resolve_type_ref(ty)?),
+                    None => None,
+                };
+                let function = self.intern_receiver_function_type(
+                    function.is_suspend,
+                    receiver,
+                    parameter_types,
+                    return_type,
+                );
                 Some(self.function_types[function].canonical_type)
             }
             // `T?` desugars to `Option<T>` (spec 7.1) — the core

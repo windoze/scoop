@@ -76,6 +76,7 @@ fn exact_type_variants_have_distinct_fixed_wire_and_hash() {
     let tuple = PersistentExactTypeId::from_key(&tuple_key).unwrap();
     graph.exact.insert(tuple, tuple_key.clone());
     let function_key = ExactTypeKey::Function {
+        receiver: None,
         effect: Effect::Suspend,
         parameters: vec![nominal],
         result: tuple,
@@ -119,6 +120,7 @@ fn all_six_exact_type_variants_have_fixed_wire_shapes() {
         ),
         (
             ExactTypeKey::Function {
+                receiver: None,
                 effect: Effect::Ordinary,
                 parameters: vec![child],
                 result: child,
@@ -150,6 +152,7 @@ fn canonical_diagnostic_name_uses_only_identity_graph_spelling() {
     let tuple = PersistentExactTypeId::from_key(&tuple_key).unwrap();
     graph.exact.insert(tuple, tuple_key);
     let function_key = ExactTypeKey::Function {
+        receiver: None,
         effect: Effect::Suspend,
         parameters: vec![nominal],
         result: tuple,

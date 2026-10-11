@@ -198,9 +198,21 @@ pub enum Type {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct FunctionType {
+    pub receiver: Option<Type>,
     pub is_suspend: bool,
     pub parameter_types: Vec<Type>,
     pub return_type: Type,
+}
+
+impl FunctionType {
+    /// Source arguments in invocation order; the closure environment is separate.
+    pub fn parameters(&self) -> impl Iterator<Item = &Type> {
+        self.receiver.iter().chain(&self.parameter_types)
+    }
+
+    pub fn arity(&self) -> usize {
+        usize::from(self.receiver.is_some()) + self.parameter_types.len()
+    }
 }
 
 #[derive(Debug)]

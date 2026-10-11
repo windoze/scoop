@@ -144,6 +144,7 @@ fn nested_anonymous_functions_reserve_distinct_body_names_before_lowering() {
         vec![ret(Some(int_lit(42)))],
     );
     let outer = ast::Expr::AnonymousFunction {
+        receiver: None,
         label: None,
         id: ast::AnonymousFunctionId(1),
         is_suspend: false,

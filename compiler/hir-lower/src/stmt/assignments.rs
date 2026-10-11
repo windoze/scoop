@@ -30,9 +30,10 @@ impl Lowerer {
                 receiver, indices, ..
             } => self.lower_index_assign(assign, receiver, indices.as_slice(), out),
             ast::AssignTarget::Field { receiver, name, .. } => {
-                if matches!(&**receiver, ast::Expr::This { .. })
+                if let ast::Expr::This { label, .. } = &**receiver
                     && self.initialization_context.is_some()
                 {
+                    self.check_initializing_receiver_label(label.as_ref())?;
                     return self.lower_initializing_field_assign(assign, name, out);
                 }
                 if self

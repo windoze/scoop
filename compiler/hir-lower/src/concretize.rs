@@ -95,8 +95,15 @@ struct Concretizer<'a> {
     types: Arena<concrete::Type>,
     type_by_kind: HashMap<concrete::TypeKind, concrete::TypeId>,
     function_types: Arena<concrete::FunctionType>,
-    function_type_by_signature:
-        HashMap<(bool, Vec<concrete::TypeId>, concrete::TypeId), concrete::FunctionTypeId>,
+    function_type_by_signature: HashMap<
+        (
+            bool,
+            Option<concrete::TypeId>,
+            Vec<concrete::TypeId>,
+            concrete::TypeId,
+        ),
+        concrete::FunctionTypeId,
+    >,
     structs: Arena<concrete::StructDef>,
     struct_by_key: HashMap<(export::SourceNominalId, Vec<concrete::TypeId>), concrete::StructId>,
     struct_type: HashMap<concrete::StructId, concrete::TypeId>,

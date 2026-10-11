@@ -291,6 +291,7 @@ pub(super) const fn binder(index: u32) -> SignatureTypeKey {
 
 pub(super) fn function_type() -> SignatureTypeKey {
     SignatureTypeKey::Function {
+        receiver: None,
         effect: Effect::Ordinary,
         parameters: vec![binder(0)],
         result: Box::new(binder(1)),

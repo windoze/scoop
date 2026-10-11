@@ -123,6 +123,7 @@ impl Lowerer {
         let outer_loop_targets = std::mem::take(&mut self.loop_targets);
         let outer_owner = self.current_owner.replace(owner);
         let outer_this = self.current_this.take();
+        let outer_receivers = std::mem::take(&mut self.receiver_scopes);
         let outer_source_context = self.current_source_context;
         self.set_source_context(hir::SourceContextSubject::Constructor(match source {
             ConstructorSource::Class(constructor) => {
@@ -151,6 +152,7 @@ impl Lowerer {
         self.pop_scope();
         self.current_source_context = outer_source_context;
         self.current_this = outer_this;
+        self.receiver_scopes = outer_receivers;
         self.current_owner = outer_owner;
         self.current_fn_name = outer_fn_name;
         self.current_return_ty = outer_return_ty;

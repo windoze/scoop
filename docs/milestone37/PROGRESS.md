@@ -99,3 +99,15 @@ AST、HIR、concrete HIR 和结构化 MIR 保留显式 LoopKind；默认/泛型 
 本机 fmt、workspace clippy（release）通过；69 项相关 Rust 测试通过，最终普通依赖构造分支和数组异常准备以正式 CLI 定向补验。39 个新增 fixture（12 个正向、27 个 negative）与 10 个回归普通比较共 49/49 通过，61 个配置、156 个进程、117 个阶段 golden。覆盖 debug/release、secondary/struct/Array 构造器、源码与依赖重载、泛型宿主及方法、类型参数上界、alias、嵌套类型、原始类型成员和扩展、receiver 快照、Context、挂起恢复、moving GC，以及移除源码后的 provider → bridge → consumer 产物链。数组同时验证普通构造、函数值构造、复制与负长度异常。
 
 报告见 [09-references-darwin.json](validation/09-references-darwin.json)。6 个旧“不支持引用”负例按新语义迁移为正向回归，其余旧阶段快照不变。报告合并已通过且未变化的用例和最后 8 个定向复验；生成快照不计入普通通过数。本批多次清理 fixture cases，保留共用 cache、sysroot 与日志；release 构建目录约 1.6 GiB。
+
+### 10. receiver 函数类型与隐式 receiver（完成）
+
+支持 `A.(P) -> R`、挂起形式、带 receiver 的匿名函数，以及直接、invoke 和扩展式函数值调用。lambda 的 this 由期望 receiver 类型提供，it 只取决于普通参数数量；显式局部名称优先，隐式 receiver 从内向外参与原有成员和扩展候选决议。this@label 按 class、扩展函数和 callable 的实际词法标签定位，透过普通闭包的传递捕获仍禁止自由引用外层 var。构造初始化中的 this 标签和具有自身 receiver 的闭包分别按实际实例检查。
+
+receiver 槽在 AST、HIR、MIR、共享签名和 exact identity 中独立保留；ABI 沿用展平后的首参数与既有 closure environment。普通无 receiver 签名保留原 wire 编码和持久化身份。receiver 与首参数形式按展平后的方差双向适配，包括动态 is/as、装箱桥和 managed C callback；native FunPtr 本身不接受 receiver 签名。推导保留单一来源的完整函数形状，混合形状无唯一解时报错；Array/Option 的 nominal 不变性和重载规则分别保持准确。
+
+新增 receiver 查找、匿名函数签名、扩展候选和重载签名比较子模块，主匿名函数实现 257 行，声明 callable 主模块 297 行。没有新增 runtime 执行机制或调用 ABI。
+
+本机 fmt、workspace clippy（release）无警告通过；parser 496 项及 doc-test、identity 343 项及 doc-test、约束求解 19 项、HIR lower M11 26 项、MIR adapter 3 项和 LIR function 4 项通过。最终推导修复另以两个定向单元测试补验。49 个新增 fixture（15 个正向、34 个 negative）和 56 个回归普通比较共 105/105 通过，126 个配置、248 个进程、188 个阶段 golden。覆盖 debug/release、真实挂起恢复、moving GC、值类型复制、ZST、求值顺序、FFI 回调、泛型与默认参数，以及删除源码后的 provider → bridge → consumer → 独立链接完整产物链。
+
+报告见 [10-receivers-darwin.json](validation/10-receivers-darwin.json)。旧 HIR 快照补充 receiver 字段，定向回归另迁移此前的隐式标签及类型收集顺序差异；普通函数身份和编码保持不变。报告只合并普通通过批次，不计入生成快照的运行。已清理本批完成的 fixture cases 817 MiB，保留共用 cache、sysroot 与日志；C callback 的 Linux 目标 LIR 快照将在最终平台验证时生成并普通复验。

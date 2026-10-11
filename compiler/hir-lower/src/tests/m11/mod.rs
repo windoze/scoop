@@ -38,6 +38,7 @@ fn anonymous(
     statements: Vec<ast::Statement>,
 ) -> ast::Expr {
     ast::Expr::AnonymousFunction {
+        receiver: None,
         label: None,
         id: ast::AnonymousFunctionId(0),
         is_suspend: false,

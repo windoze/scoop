@@ -1,0 +1,1 @@
+fun main() { val action: Int.() -> Int = { this }; val value = Some(action); val ordinary: Option<(Int) -> Int> = value }

@@ -24,8 +24,19 @@ impl Lowerer {
         parameter_types: Vec<TypeId>,
         return_type: TypeId,
     ) -> hir::FunctionTypeId {
+        self.intern_receiver_function_type(is_suspend, None, parameter_types, return_type)
+    }
+
+    pub(crate) fn intern_receiver_function_type(
+        &mut self,
+        is_suspend: bool,
+        receiver: Option<TypeId>,
+        parameter_types: Vec<TypeId>,
+        return_type: TypeId,
+    ) -> hir::FunctionTypeId {
         let existing = self.function_types.iter().find_map(|(id, candidate)| {
             (candidate.is_suspend == is_suspend
+                && candidate.receiver == receiver
                 && candidate.parameter_types == parameter_types
                 && candidate.return_type == return_type)
                 .then_some(id)
@@ -41,6 +52,7 @@ impl Lowerer {
         );
         let canonical_type = self.types.alloc(Type::Function(expected_function));
         let function = self.function_types.alloc(hir::FunctionType {
+            receiver,
             canonical_type,
             is_suspend,
             parameter_types,
@@ -56,12 +68,21 @@ impl Lowerer {
         mut substitute: impl FnMut(&mut Self, TypeId) -> Option<TypeId>,
     ) -> Option<hir::FunctionTypeId> {
         let function = self.function_types[id].clone();
+        let receiver = match function.receiver {
+            Some(ty) => Some(substitute(self, ty)?),
+            None => None,
+        };
         let mut parameter_types = Vec::with_capacity(function.parameter_types.len());
         for parameter in function.parameter_types {
             parameter_types.push(substitute(self, parameter)?);
         }
         let return_type = substitute(self, function.return_type)?;
-        Some(self.intern_function_type(function.is_suspend, parameter_types, return_type))
+        Some(self.intern_receiver_function_type(
+            function.is_suspend,
+            receiver,
+            parameter_types,
+            return_type,
+        ))
     }
 
     pub(crate) fn struct_application_id(

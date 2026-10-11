@@ -89,6 +89,7 @@ fn static_callback_module() -> (Module, CallbackBridgeId) {
     let (mut module, _) = module_with_variants(Vec::new());
     register_test_exact_type(&mut module, &Type::Unit);
     let signature = module.function_types.alloc(FunctionType {
+        receiver: None,
         is_suspend: false,
         parameter_types: Vec::new(),
         return_type: Type::Unit,
@@ -199,6 +200,7 @@ fn callback_module() -> (Module, ForeignCallbackFamilyId, ForeignCallbackBridgeI
     let (mut module, _) = module_with_variants(vec![unit_variant("Unused")]);
     register_test_exact_type(&mut module, &Type::Unit);
     let signature = module.function_types.alloc(FunctionType {
+        receiver: None,
         is_suspend: false,
         parameter_types: Vec::new(),
         return_type: Type::Unit,
@@ -326,6 +328,7 @@ fn callback_module() -> (Module, ForeignCallbackFamilyId, ForeignCallbackBridgeI
         .unwrap(),
     );
     let native_signature = module.function_types.alloc(FunctionType {
+        receiver: None,
         is_suspend: false,
         parameter_types: vec![Type::Ptr(Box::new(Type::Unit))],
         return_type: Type::Unit,

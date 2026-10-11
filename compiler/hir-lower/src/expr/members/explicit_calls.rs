@@ -116,6 +116,26 @@ impl Lowerer {
             }
         }
 
+        if direct_required.operator.is_none()
+            && direct_required.property_delegate_operator.is_none()
+            && !direct_required.infix
+        {
+            match self.probe_receiver_function_call(receiver.clone(), name, call) {
+                PropertyExtensionInvokeOutcome::Resolved(layer) => {
+                    return Some(self.commit_expr_layer(layer, sink));
+                }
+                PropertyExtensionInvokeOutcome::NoApplicable(failure) => {
+                    if let Some(failure) = failure {
+                        first_failure.get_or_insert(failure);
+                    }
+                }
+                PropertyExtensionInvokeOutcome::Blocked => return None,
+                PropertyExtensionInvokeOutcome::Failed(failure) => {
+                    self.commit_layer_diagnostics(*failure);
+                    return None;
+                }
+            }
+        }
         let mut extension_layers = match direct_required.operator {
             Some(operator) => self.named_executable_extension_operator_layers(operator),
             None => self.named_executable_extension_call_layers(&name.text),

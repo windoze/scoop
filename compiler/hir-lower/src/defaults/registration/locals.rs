@@ -29,6 +29,7 @@ impl Lowerer {
         };
         let environment = super::preparation::LocalDefaultEnvironment {
             available: self.capture_environment(),
+            receivers: self.receiver_scopes.clone(),
             functions: self.local_function_scopes.clone(),
         };
         self.register_local_default_parameters(function, sources, context, environment);

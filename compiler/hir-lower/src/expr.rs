@@ -84,6 +84,7 @@ mod copy_updates;
 mod elvis;
 mod fields;
 mod floating;
+mod receivers;
 mod smart_casts;
 pub(crate) use floating::{float_literal_candidate_kinds, float_literal_default_kind};
 pub(crate) use smart_casts::SmartCastFacts;
@@ -399,6 +400,7 @@ impl Lowerer {
             ),
             ast::Expr::AnonymousFunction {
                 label,
+                receiver,
                 is_suspend,
                 params,
                 return_ty,
@@ -407,6 +409,7 @@ impl Lowerer {
                 ..
             } => self.lower_anonymous_function(
                 label.as_ref(),
+                receiver.as_deref(),
                 *is_suspend,
                 params,
                 return_ty.as_ref(),
@@ -469,7 +472,7 @@ impl Lowerer {
             ast::Expr::Elvis { lhs, rhs, span } => {
                 self.lower_elvis(lhs, rhs, *span, sink, expected)
             }
-            ast::Expr::This { span } => self.lower_this(*span),
+            ast::Expr::This { label, span } => self.lower_this(label.as_ref(), *span),
             ast::Expr::MethodCall {
                 receiver,
                 name,

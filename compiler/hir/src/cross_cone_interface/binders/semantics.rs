@@ -58,6 +58,11 @@ impl SignatureBinderScopeV1 {
         try_reserve(&mut pending, 1, path).map_err(SignatureTypeSemanticError::Allocation)?;
         pending.push(signature);
         while let Some(signature) = pending.pop() {
+            if let Some(receiver) = signature.receiver_type() {
+                try_reserve(&mut pending, 1, path)
+                    .map_err(SignatureTypeSemanticError::Allocation)?;
+                pending.push(receiver);
+            }
             let children = match signature {
                 SignatureTypeKey::Nominal(declaration) => {
                     validate_concrete_nominal(*declaration, authority)?;

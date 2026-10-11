@@ -13,7 +13,7 @@ impl Lowerer {
         }
         let expected_receiver = self
             .expected_function_signature(expected)
-            .and_then(|(_, signature)| signature.parameter_types.first().copied());
+            .and_then(|(_, signature)| signature.parameters().next().copied());
         let reference = match expression {
             ast::Expr::Var(name) => {
                 if self.lexical_or_member_value_blocks_type_qualifier(&name.text) {

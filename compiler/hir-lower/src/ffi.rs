@@ -35,12 +35,36 @@ impl CAbiError {
 }
 
 impl Lowerer {
+    pub(crate) fn validate_fun_ptr_signature(
+        &mut self,
+        signature: hir::FunctionTypeId,
+        span: scoop_ast::Span,
+    ) -> bool {
+        let function = &self.function_types[signature];
+        let message = if function.receiver.is_some() {
+            "`FunPtr` requires a function type without a receiver"
+        } else if function.is_suspend || self.function_type_contains_param(signature) {
+            "`FunPtr` type argument must be an ordinary concrete function type"
+        } else {
+            return true;
+        };
+        self.error(span, message.to_owned());
+        false
+    }
+
     pub(crate) fn validate_foreign_callback_signature(
         &mut self,
         signature: hir::FunctionTypeId,
         span: scoop_ast::Span,
     ) -> bool {
         let function = self.function_types[signature].clone();
+        if function.receiver.is_some() {
+            self.error(
+                span,
+                "foreign callback signature must not declare a receiver".to_owned(),
+            );
+            return false;
+        }
         if function.is_suspend || self.function_type_contains_param(signature) {
             self.error(
                 span,

@@ -41,6 +41,7 @@ impl Lowerer {
         let return_ty = self.current_return_ty;
         let owner = self.current_owner;
         let this = self.current_this;
+        let receivers = std::mem::take(&mut self.receiver_scopes);
         let result = operation(self);
         self.locals = locals;
         self.scopes = scopes;
@@ -63,6 +64,7 @@ impl Lowerer {
         self.current_return_ty = return_ty;
         self.current_owner = owner;
         self.current_this = this;
+        self.receiver_scopes = receivers;
         result
     }
 }

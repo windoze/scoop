@@ -73,9 +73,13 @@ impl Lowerer {
                     })
                 }
             }
-            ast::Expr::This { .. } => self
-                .current_this
-                .map(|(local, ty)| (hir::Place::Local(local), ty)),
+            ast::Expr::This { label, span } => {
+                let receiver = self.lower_this(label.as_ref(), *span)?;
+                match receiver.kind {
+                    hir::ExprKind::Local(local) => Some((hir::Place::Local(local), receiver.ty)),
+                    _ => None,
+                }
+            }
             _ => None,
         };
         let Some((place, ty)) = place else {

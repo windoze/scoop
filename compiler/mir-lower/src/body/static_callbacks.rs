@@ -24,7 +24,7 @@ impl BodyLowerer<'_> {
     fn lower_callback_storage_types(&mut self, signature: hir::FunctionTypeId) {
         self.lower_type(self.module.unit);
         let signature = &self.module.function_types[signature];
-        let mut pointees = signature.parameter_types.clone();
+        let mut pointees = signature.parameters().cloned().collect::<Vec<_>>();
         if signature.return_type != self.module.unit {
             pointees.push(signature.return_type);
         }
@@ -128,8 +128,8 @@ impl BodyLowerer<'_> {
             Some(local)
         };
 
-        let mut args = Vec::with_capacity(signature_def.parameter_types.len());
-        for (index, parameter_type) in signature_def.parameter_types.iter().enumerate() {
+        let mut args = Vec::with_capacity(signature_def.arity());
+        for (index, parameter_type) in signature_def.parameters().enumerate() {
             let name = format!("$arg{index}");
             let pointer_type = mir::Type::Ptr(Box::new(parameter_type.clone()));
             let local = locals.alloc(mir::Local {

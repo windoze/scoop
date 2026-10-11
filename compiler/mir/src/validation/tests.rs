@@ -223,6 +223,7 @@ fn register_test_function_type(module: &mut Module, id: FunctionTypeId) {
     };
     let record =
         scoop_identity::CborIdentityRecord::from_key(scoop_identity::ExactTypeKey::Function {
+            receiver: None,
             effect: if signature.is_suspend {
                 scoop_identity::Effect::Suspend
             } else {

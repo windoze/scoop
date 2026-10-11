@@ -17,12 +17,18 @@ impl Substitution<'_, '_> {
                 SignatureTypeKey::Tuple(self.non_empty(elements.as_slice().len())?)
             }
             SignatureTypeKey::Function {
-                effect, parameters, ..
+                receiver,
+                effect,
+                parameters,
+                ..
             } => {
                 let result = self.boxed()?;
+                let parameters = self.take(parameters.len())?;
+                let receiver = receiver.as_ref().map(|_| self.boxed()).transpose()?;
                 SignatureTypeKey::Function {
+                    receiver,
                     effect: *effect,
-                    parameters: self.take(parameters.len())?,
+                    parameters,
                     result,
                 }
             }

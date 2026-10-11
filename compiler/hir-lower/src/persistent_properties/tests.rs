@@ -315,6 +315,7 @@ fn receiver_trees_use_typed_nominals_binders_structures_and_source_objects() {
         (
             0,
             scoop_identity::SignatureTypeKey::Function {
+                receiver: None,
                 effect: scoop_identity::Effect::Ordinary,
                 parameters: vec![unit.clone()],
                 result: Box::new(any),

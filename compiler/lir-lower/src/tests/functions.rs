@@ -4,6 +4,7 @@ use super::*;
 fn reachable_structural_function_descriptor_keeps_its_signature() {
     let mut b = Builder::new();
     let function_type = b.function_types.alloc(mir::FunctionType {
+        receiver: None,
         is_suspend: false,
         parameter_types: vec![mir::Type::Any],
         return_type: mir::Type::Any,

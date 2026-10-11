@@ -30,14 +30,6 @@ impl Parser {
                 TokenKind::DoubleColon => {
                     receiver = self.parse_callable_reference(Some(receiver))?;
                 }
-                TokenKind::LParen
-                    if !self.peek().newline_before && matches!(receiver, Expr::This { .. }) =>
-                {
-                    return Err(Diagnostic::at(
-                        receiver.span(),
-                        "`this(...)` is only valid in a constructor delegation clause",
-                    ));
-                }
                 TokenKind::LParen if !self.peek().newline_before => {
                     let start = receiver.span().start;
                     let (args, end) = self.parse_call_inputs()?;

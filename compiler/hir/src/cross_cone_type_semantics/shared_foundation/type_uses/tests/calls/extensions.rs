@@ -77,6 +77,7 @@ fn provider() -> (Loaded, Loaded, SignatureTypeKey, SignatureTypeKey) {
 
 fn function(parameters: Vec<SignatureTypeKey>, result: SignatureTypeKey) -> SignatureTypeKey {
     SignatureTypeKey::Function {
+        receiver: None,
         effect: Effect::Ordinary,
         parameters,
         result: Box::new(result),

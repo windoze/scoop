@@ -90,39 +90,40 @@ impl Lowerer {
                 }
                 return None;
             }
-            match self.current_this_ty().map(|ty| self.types[ty].clone()) {
-                Some(Type::Class(_)) | Some(Type::Interface(_)) => {
-                    let receiver_ty = self.current_this_ty().expect("member receiver type");
-                    if self
-                        .find_accessible_nominal_property(receiver_ty, &name.text)
-                        .is_some()
-                    {
-                        let receiver = self
-                            .lower_current_this(name.span)
-                            .expect("a receiver callable body always has a lexical `this`");
-                        let mut sink = Vec::new();
-                        let kind = self.assign_class_field(assign, receiver, name, &mut sink)?;
-                        out.extend(sink);
-                        return Some(kind);
+            for binding in self.implicit_receivers() {
+                let receiver_ty = binding.ty;
+                match self.types[receiver_ty].clone() {
+                    Type::Class(_) | Type::Interface(_) => {
+                        if self
+                            .find_accessible_nominal_property(receiver_ty, &name.text)
+                            .is_some()
+                        {
+                            let receiver = self
+                                .lower_receiver_binding(binding, name.span)
+                                .expect("a receiver callable body always has a lexical `this`");
+                            let mut sink = Vec::new();
+                            let kind =
+                                self.assign_class_field(assign, receiver, name, &mut sink)?;
+                            out.extend(sink);
+                            return Some(kind);
+                        }
+                        if let Some(property) = self
+                            .resolve_imported_member_property(receiver_ty, name)
+                            .ok()?
+                        {
+                            let receiver = self.lower_receiver_binding(binding, name.span)?;
+                            let mut sink = Vec::new();
+                            let kind = self.assign_imported_member_property(
+                                assign, property, receiver, name, &mut sink,
+                            )?;
+                            out.extend(sink);
+                            return Some(kind);
+                        }
                     }
-                    if let Some(property) = self
-                        .resolve_imported_member_property(receiver_ty, name)
-                        .ok()?
-                    {
-                        let receiver = self.lower_current_this(name.span)?;
-                        let mut sink = Vec::new();
-                        let kind = self.assign_imported_member_property(
-                            assign, property, receiver, name, &mut sink,
-                        )?;
-                        out.extend(sink);
-                        return Some(kind);
-                    }
-                }
-                Some(Type::Struct(_)) | Some(Type::Enum(_)) => {
-                    let receiver_ty = self.current_this_ty().expect("member receiver type");
-                    if self
-                        .find_accessible_nominal_property(receiver_ty, &name.text)
-                        .is_some()
+                    Type::Struct(_) | Type::Enum(_)
+                        if self
+                            .find_accessible_nominal_property(receiver_ty, &name.text)
+                            .is_some() =>
                     {
                         self.error(
                             name.span,
@@ -130,15 +131,13 @@ impl Lowerer {
                         );
                         return None;
                     }
+                    _ => {}
                 }
-                _ => {}
             }
             let mut selected_value = None;
-            if self.initialization_context.is_none()
-                && let Some(receiver) = self.lower_current_this(name.span)
-            {
+            if self.initialization_context.is_none() && !self.implicit_receivers().is_empty() {
                 let mut sink = Vec::new();
-                match self.resolve_implicit_value_write(receiver, name, &mut sink) {
+                match self.resolve_implicit_value_write(name, &mut sink) {
                     crate::properties::ImplicitValueResolution::ExtensionProperty(property) => {
                         let expected = property.value_type();
                         let value = self.lower_expr(&assign.value, &mut sink, Some(expected))?;

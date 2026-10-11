@@ -145,7 +145,9 @@ pub(super) fn exact_function_type_signature(
         } else {
             hir::Effect::Ordinary
         },
-        None,
+        function_type
+            .receiver
+            .map(|ty| module.exact_type_identities[ty].id()),
         function_type
             .parameter_types
             .iter()

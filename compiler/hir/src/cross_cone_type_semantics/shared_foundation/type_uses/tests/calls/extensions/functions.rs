@@ -16,6 +16,7 @@ fn shared_extension_function_receivers_check_variance_effect_and_arity() {
             ),
             3 => (
                 SignatureTypeKey::Function {
+                    receiver: None,
                     effect: Effect::Suspend,
                     parameters: vec![base],
                     result: Box::new(derived),

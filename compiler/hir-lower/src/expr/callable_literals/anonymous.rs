@@ -1,10 +1,14 @@
 use super::*;
 
+mod signature;
+use signature::AnonymousSignature;
+
 impl Lowerer {
     #[allow(clippy::too_many_arguments)]
     pub(in crate::expr) fn lower_anonymous_function(
         &mut self,
         label: Option<&ast::Ident>,
+        source_receiver: Option<&ast::TypeRef>,
         is_suspend: bool,
         source_params: &[ast::Param],
         source_return_ty: Option<&ast::TypeRef>,
@@ -12,71 +16,18 @@ impl Lowerer {
         span: Span,
         expected: Option<TypeId>,
     ) -> Option<hir::Expr> {
-        let expected_signature = expected.and_then(|ty| match self.types[ty] {
-            Type::Function(id) => Some((ty, self.function_types[id].clone())),
-            _ => None,
-        });
-        if let Some((_, signature)) = &expected_signature {
-            if signature.is_suspend != is_suspend {
-                self.error(
-                    span,
-                    "ordinary and suspend function types are incompatible".to_string(),
-                );
-                return None;
-            }
-            if source_params.len() != signature.parameter_types.len() {
-                self.error(
-                    span,
-                    format!(
-                        "anonymous function has {} parameter(s), but the expected function type has {}",
-                        source_params.len(),
-                        signature.parameter_types.len()
-                    ),
-                );
-                return None;
-            }
-        }
-
-        let mut parameter_types = Vec::with_capacity(source_params.len());
-        for (index, parameter) in source_params.iter().enumerate() {
-            let ty = self.resolve_type_ref(&parameter.ty)?;
-            if let Some((_, signature)) = &expected_signature {
-                let expected = signature.parameter_types[index];
-                if !self.is_subtype(expected, ty) {
-                    let found = self.type_name(ty);
-                    let expected = self.type_name(expected);
-                    self.error(
-                        parameter.ty.span,
-                        format!(
-                            "anonymous-function parameter type is {found}, but the expected type is {expected}"
-                        ),
-                    );
-                    return None;
-                }
-            }
-            parameter_types.push(ty);
-        }
-        let explicit_return = match source_return_ty {
-            Some(return_ty) => Some(self.resolve_type_ref(return_ty)?),
-            None => None,
-        };
-        let expected_return = expected_signature
-            .as_ref()
-            .map(|(_, signature)| signature.return_type);
-        if let (Some(explicit), Some(expected)) = (explicit_return, expected_return)
-            && !self.is_subtype(explicit, expected)
-        {
-            let found = self.type_name(explicit);
-            let expected = self.type_name(expected);
-            self.error(
-                source_return_ty.expect("explicit return type").span,
-                format!(
-                    "anonymous-function return type is {found}, but the expected type is {expected}"
-                ),
-            );
-            return None;
-        }
-        let known_return = explicit_return.or(expected_return);
+        let AnonymousSignature {
+            receiver: receiver_ty,
+            parameters: parameter_types,
+            result: known_return,
+        } = self.anonymous_signature(
+            source_receiver,
+            is_suspend,
+            source_params,
+            source_return_ty,
+            span,
+            expected,
+        )?;
 
         let capture_environment = self.capture_environment();
         let literal_origin = self.expression_origin(span);
@@ -100,6 +51,12 @@ impl Lowerer {
         let outer_source_context = self.current_source_context;
         let outer_owner = self.current_owner;
         let outer_this = self.current_this.take();
+        let outer_initialization = if receiver_ty.is_some() {
+            self.initialization_context.take()
+        } else {
+            None
+        };
+        let outer_receivers = self.receiver_scopes.len();
         let outer_smart_casts = self.smart_casts.clone();
         self.capture_contexts.push(CaptureContext {
             available: capture_environment,
@@ -126,7 +83,17 @@ impl Lowerer {
         let outer_default_template = std::mem::replace(&mut self.lowering_default_template, false);
 
         let lowered = (|| {
-            let mut params = Vec::with_capacity(source_params.len());
+            let mut params =
+                Vec::with_capacity(source_params.len() + usize::from(receiver_ty.is_some()));
+            if let Some(ty) = receiver_ty {
+                params.push(self.bind_callable_receiver(
+                    ty,
+                    label.map(|label| label.text.clone()),
+                    span,
+                ));
+            } else {
+                self.push_receiver_scope(label.map(|label| label.text.clone()), None);
+            }
             for (index, (parameter, ty)) in source_params.iter().zip(&parameter_types).enumerate() {
                 if self.scopes.is_declared_here(&parameter.name.text) {
                     self.error(
@@ -203,8 +170,12 @@ impl Lowerer {
                 });
             }
 
-            let function_type =
-                self.intern_function_type(is_suspend, parameter_types.clone(), return_ty);
+            let function_type = self.intern_receiver_function_type(
+                is_suspend,
+                receiver_ty,
+                parameter_types.clone(),
+                return_ty,
+            );
             let function_ty = self.function_types[function_type].canonical_type;
             let closure_local = self.alloc_synthetic_local(
                 "$closure".to_string(),
@@ -282,6 +253,10 @@ impl Lowerer {
         self.definition_paths = outer_definition_paths;
         self.current_owner = outer_owner;
         self.current_this = outer_this;
+        if let Some(initialization) = outer_initialization {
+            self.initialization_context = Some(initialization);
+        }
+        self.receiver_scopes.truncate(outer_receivers);
         self.smart_casts = outer_smart_casts;
         debug_assert!(self.loop_targets.is_empty());
         self.loop_targets = outer_loop_targets;

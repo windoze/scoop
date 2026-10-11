@@ -6,6 +6,24 @@ use crate::lexer::TokenKind;
 use crate::parser::Parser;
 
 impl Parser {
+    pub(crate) fn starts_anonymous_function(&mut self) -> bool {
+        let saved = self.pos;
+        if matches!(self.peek().kind, TokenKind::Suspend) {
+            self.bump();
+        }
+        self.bump(); // `fun`
+        let ordinary = matches!(self.peek().kind, TokenKind::LParen);
+        let receiver = self.parse_type_atom_with_suffix().is_ok()
+            && matches!(self.peek().kind, TokenKind::Dot | TokenKind::QuestionDot);
+        let anonymous = if receiver {
+            matches!(self.tokens[self.pos + 1].kind, TokenKind::LParen)
+        } else {
+            ordinary
+        };
+        self.pos = saved;
+        anonymous
+    }
+
     pub(super) fn parse_callable_reference(
         &mut self,
         receiver: Option<Expr>,
@@ -30,6 +48,16 @@ impl Parser {
         expression_start: Option<u32>,
     ) -> Result<Expr, Diagnostic> {
         let keyword = self.expect("`fun`", |kind| matches!(kind, TokenKind::Fun))?;
+        let receiver_start = self.pos;
+        let receiver = match self.parse_type_atom_with_suffix() {
+            Ok(receiver) if matches!(self.peek().kind, TokenKind::Dot | TokenKind::QuestionDot) => {
+                Some(self.parse_receiver_separator(receiver))
+            }
+            _ => {
+                self.pos = receiver_start;
+                None
+            }
+        };
         self.expect("`(`", |kind| matches!(kind, TokenKind::LParen))?;
         let mut params = Vec::new();
         if !matches!(self.peek().kind, TokenKind::RParen) {
@@ -61,6 +89,7 @@ impl Parser {
         let body = self.parse_block()?;
         Ok(Expr::AnonymousFunction {
             label: None,
+            receiver: receiver.map(Box::new),
             id: self.alloc_anonymous_function_id(),
             is_suspend,
             params,

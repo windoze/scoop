@@ -208,7 +208,18 @@ impl Lowerer {
                 &mut self.interfaces,
                 &mut self.shell,
             );
+            let receiver = source.receiver.map(|ty| {
+                types.lower(
+                    ty,
+                    &mut self.source_exact_types,
+                    &mut self.enums,
+                    &mut self.structs,
+                    &mut self.interfaces,
+                    &mut self.shell,
+                )
+            });
             let target_id = self.shell.function_types.alloc(mir::FunctionType {
+                receiver,
                 is_suspend: source.is_suspend,
                 parameter_types,
                 return_type,

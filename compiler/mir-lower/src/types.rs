@@ -27,7 +27,9 @@ pub(super) fn exact_function_identity(
     };
     let signature = hir::ExactCallableSignature::new(
         effect,
-        None,
+        source
+            .receiver
+            .map(|ty| module.exact_type_identities[ty].id()),
         source
             .parameter_types
             .iter()
@@ -49,7 +51,8 @@ pub(crate) fn dynamic_function_type(
         .iter()
         .find(|(_, candidate)| {
             candidate.is_suspend == source.is_suspend
-                && candidate.parameter_types.len() == source.parameter_types.len()
+                && candidate.receiver.is_none()
+                && candidate.arity() == source.arity()
                 && candidate
                     .parameter_types
                     .iter()

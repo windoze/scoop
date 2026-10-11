@@ -275,19 +275,6 @@ impl GeneratedCallableKey {
         )
     }
 
-    fn validate(&self) -> Result<(), GeneratedCallableIdentityError> {
-        match self {
-            Self::FunctionAdapter { target, .. }
-            | Self::DynamicFunctionAdapter { target }
-            | Self::FunctionBridge { target, .. }
-                if target.receiver().is_present() =>
-            {
-                Err(GeneratedCallableIdentityError::TargetReceiverMustBeAbsent)
-            }
-            _ => Ok(()),
-        }
-    }
-
     pub fn generated_callable_dependencies(&self) -> Vec<PersistentGeneratedCallableId> {
         let dependency = match self {
             Self::Lexical { parent, .. } | Self::CallableReferenceInvoke { parent, .. } => {
@@ -424,16 +411,12 @@ impl WireEncode for GeneratedCallableKey {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum GeneratedCallableIdentityError {
-    TargetReceiverMustBeAbsent,
     Hash(HashError),
 }
 
 impl fmt::Display for GeneratedCallableIdentityError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::TargetReceiverMustBeAbsent => {
-                formatter.write_str("generated function-shape target must not have a receiver")
-            }
             Self::Hash(error) => error.fmt(formatter),
         }
     }
@@ -468,7 +451,6 @@ impl std::error::Error for LexicalParentError {}
 
 impl PersistentGeneratedCallableId {
     pub fn from_key(key: &GeneratedCallableKey) -> Result<Self, GeneratedCallableIdentityError> {
-        key.validate()?;
         derive_persistent_id(GENERATED_CALLABLE_HASH_DOMAIN, key).map_err(Into::into)
     }
 }
@@ -497,8 +479,8 @@ mod tests {
     use scoop_wire::encode;
 
     use super::{
-        CoroutineAdapterRole, GeneratedCallableIdentityError, GeneratedCallableKey,
-        InitializationCallableRole, LexicalCallableParent, LexicalCallableRole, LexicalParentError,
+        CoroutineAdapterRole, GeneratedCallableKey, InitializationCallableRole,
+        LexicalCallableParent, LexicalCallableRole, LexicalParentError,
         StaticNoGcCallbackStorageBridgeId, StaticNoGcCallbackStorageBridgeIdentityError,
     };
     use crate::{
@@ -553,14 +535,14 @@ mod tests {
     }
 
     #[test]
-    fn function_shape_target_rejects_receiver() {
+    fn function_shape_target_accepts_receiver() {
         let exact = PersistentExactTypeId(ConeIdentity::CORE.0);
         let target = ExactCallableSignature::new(Effect::Ordinary, Some(exact), Vec::new(), exact);
-        assert_eq!(
+        assert!(
             PersistentGeneratedCallableId::from_key(
                 &GeneratedCallableKey::DynamicFunctionAdapter { target }
-            ),
-            Err(GeneratedCallableIdentityError::TargetReceiverMustBeAbsent)
+            )
+            .is_ok()
         );
     }
 

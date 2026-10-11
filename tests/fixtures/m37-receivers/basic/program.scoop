@@ -1,0 +1,16 @@
+class Builder(var total: Int) { fun append(value: Int) { total += value } }
+fun build(action: Builder.() -> Unit): Builder {
+    val builder = Builder(0)
+    builder.action()
+    return builder
+}
+fun main() {
+    val add: Int.(Int) -> Int = { this + it }
+    println(add(40, 2))
+    println(add.invoke(6, 1))
+    println(8.add(1))
+    val builder = build { append(20); append(22) }
+    println(builder.total)
+    val read: Builder.(Int) -> Int = { step -> total + step }
+    println(builder.read(8))
+}

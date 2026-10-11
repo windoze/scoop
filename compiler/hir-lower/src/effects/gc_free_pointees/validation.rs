@@ -193,8 +193,7 @@ impl Lowerer {
             hir::Type::Function(function) | hir::Type::FunPtr(function) => {
                 let function = &self.function_types[*function];
                 function
-                    .parameter_types
-                    .iter()
+                    .parameters()
                     .all(|parameter| self.pointee_type_is_valid(*parameter, visiting))
                     && self.pointee_type_is_valid(function.return_type, visiting)
             }

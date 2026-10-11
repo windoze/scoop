@@ -1,0 +1,20 @@
+class Box(val value: Int)
+fun main() {
+    val flat: (Any, Int) -> String = { value, step -> "value" }
+    val receiver: Box.(Int) -> Any = flat
+    println(receiver(Box(1), 2) as String)
+    val value: Any = receiver
+    println(value is (Box, Int) -> Any)
+    println(value is Box.(Int) -> Any)
+    val cast = value as (Box, Int) -> Any
+    println(cast(Box(2), 3) as String)
+    val add: Int.(Int) -> Int = { this + it }
+    val ordinary: (Int, Int) -> Int = add
+    println(ordinary(40, 2))
+    val array: Any = [add]
+    println(array is Array<Int.(Int) -> Int>)
+    println(array is Array<(Int, Int) -> Int>)
+    val option: Any = Some(add)
+    println(option is Option<Int.(Int) -> Int>)
+    println(option is Option<(Int, Int) -> Int>)
+}

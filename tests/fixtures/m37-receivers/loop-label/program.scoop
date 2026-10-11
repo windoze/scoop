@@ -1,0 +1,1 @@
+fun main() { val action: Int.() -> Int = same@ { same@ while (true) { println(this@same); break }; this } }

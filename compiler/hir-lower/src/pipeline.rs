@@ -391,6 +391,7 @@ impl Lowerer {
             )],
             safety_contexts: vec![hir::Safety::Safe],
             current_this: None,
+            receiver_scopes: Vec::new(),
             current_owner: None,
             current_release: None,
             constructor_params_in_scope: HashMap::new(),

@@ -203,7 +203,7 @@ impl ForeignCallbackAdapter {
         if managed_shape.is_suspend
             || exact_managed_signature.effect() != scoop_identity::Effect::Ordinary
             || exact_managed_signature.receiver().is_present()
-            || exact_managed_signature.parameters().len() != managed_shape.parameter_types.len()
+            || exact_managed_signature.parameters().len() != managed_shape.arity()
         {
             return Err(ForeignCallbackAdapterError::InvalidManagedSignature);
         }

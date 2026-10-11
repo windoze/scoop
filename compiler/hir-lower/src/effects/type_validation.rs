@@ -103,7 +103,7 @@ impl Lowerer {
             hir::Type::Ptr(pointee) => self.record_nominal_type_sites(*pointee, file, span, sites),
             hir::Type::Function(function) | hir::Type::FunPtr(function) => {
                 let function = &self.function_types[*function];
-                for &parameter in &function.parameter_types {
+                for &parameter in function.parameters() {
                     self.record_nominal_type_sites(parameter, file, span, sites);
                 }
                 self.record_nominal_type_sites(function.return_type, file, span, sites);

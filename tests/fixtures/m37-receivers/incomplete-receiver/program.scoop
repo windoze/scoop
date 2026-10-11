@@ -1,0 +1,2 @@
+class Box<T>(val value: T)
+fun main() { val action = fun Box.(): Int { return 1 } }

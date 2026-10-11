@@ -76,13 +76,7 @@ impl Lowerer {
                 );
                 return None;
             };
-            if self.function_types[function].is_suspend
-                || self.function_type_contains_param(function)
-            {
-                self.error(
-                    name.span,
-                    "`FunPtr` type argument must be an ordinary concrete function type".into(),
-                );
+            if !self.validate_fun_ptr_signature(function, name.span) {
                 return None;
             }
             let ty = self.intern_type(hir::Type::FunPtr(function));

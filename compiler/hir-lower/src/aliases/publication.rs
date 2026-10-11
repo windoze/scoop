@@ -187,7 +187,7 @@ impl Lowerer {
             Type::Function(function) | Type::FunPtr(function) => {
                 let function = self.function_types[function].clone();
                 self.validate_type_alias_arguments(
-                    function.parameter_types,
+                    function.parameters().copied().collect(),
                     span,
                     description,
                     visited,

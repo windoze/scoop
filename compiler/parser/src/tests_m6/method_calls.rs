@@ -9,7 +9,7 @@ use crate::tests_m2::{init_expr, stmt_dump};
 fn this_expression() {
     // `fun main() {\n    val x = this\n}\n` — `this` is at offset 25.
     let expr = init_expr("this");
-    let Expr::This { span } = &expr else {
+    let Expr::This { span, label: None } = &expr else {
         panic!("expected a this expression");
     };
     assert_eq!(*span, Span::new(25, 29));

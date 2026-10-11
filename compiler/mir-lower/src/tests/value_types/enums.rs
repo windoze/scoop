@@ -289,6 +289,7 @@ fn option_primitives_cover_tagged_and_managed_raw_and_code_niche_payloads() {
     let managed_function = h.types.alloc(hir::Type::Function(function_type));
     assert_eq!(
         h.function_types.alloc(hir::FunctionType {
+            receiver: None,
             canonical_type: managed_function,
             is_suspend: false,
             parameter_types: vec![int],

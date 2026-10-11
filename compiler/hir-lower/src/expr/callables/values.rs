@@ -10,6 +10,17 @@ impl Lowerer {
         span: Span,
         sink: &mut Vec<hir::Statement>,
     ) -> Option<hir::Expr> {
+        self.lower_callable_with_receiver(callee, None, args, span, sink)
+    }
+
+    pub(in crate::expr) fn lower_callable_with_receiver(
+        &mut self,
+        callee: hir::Expr,
+        receiver: Option<hir::Expr>,
+        args: &[ast::CallArgument],
+        span: Span,
+        sink: &mut Vec<hir::Statement>,
+    ) -> Option<hir::Expr> {
         let Type::Function(function_type) = self.types[callee.ty] else {
             let found = self.type_name(callee.ty);
             self.error(
@@ -39,13 +50,14 @@ impl Lowerer {
             );
             return None;
         }
-        if signature.parameter_types.len() != args.len() {
+        let argument_count = args.len() + usize::from(receiver.is_some());
+        if signature.arity() != argument_count {
             self.error(
                 span,
                 format!(
                     "function value takes exactly {} argument(s), but {} were supplied",
-                    signature.parameter_types.len(),
-                    args.len()
+                    signature.arity(),
+                    argument_count
                 ),
             );
             return None;
@@ -79,8 +91,24 @@ impl Lowerer {
                 return None;
             }
         }
-        let mut prepared = Vec::with_capacity(args.len());
-        for (arg, &parameter_ty) in args.iter().zip(&signature.parameter_types) {
+        let mut prepared = Vec::with_capacity(argument_count);
+        let mut parameters = signature.parameters();
+        if let Some(receiver) = receiver {
+            let parameter_ty = *parameters.next().expect("receiver arity was checked");
+            if !self.is_subtype(receiver.ty, parameter_ty) {
+                self.error(
+                    receiver.span,
+                    format!(
+                        "function receiver must be of type {}, found {}",
+                        self.type_name(parameter_ty),
+                        self.type_name(receiver.ty)
+                    ),
+                );
+                return None;
+            }
+            prepared.push((self.adapt_to(receiver, parameter_ty), Vec::new()));
+        }
+        for (arg, &parameter_ty) in args.iter().zip(parameters) {
             let mut setup = Vec::new();
             let value = self.lower_expr(&arg.expression, &mut setup, Some(parameter_ty))?;
             if !self.is_subtype(value.ty, parameter_ty) {

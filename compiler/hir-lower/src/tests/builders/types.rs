@@ -23,6 +23,7 @@ pub(crate) fn ty_function(
 ) -> TypeRef {
     TypeRef {
         kind: TypeRefKind::Function(ast::FunctionTypeRef {
+            receiver: None,
             is_suspend,
             parameters,
             return_type: Box::new(return_type),

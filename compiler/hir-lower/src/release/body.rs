@@ -12,6 +12,7 @@ impl Lowerer {
         let outer_locals = std::mem::take(&mut self.locals);
         let outer_owner = self.current_owner.replace(Owner::Class(class));
         let outer_this = self.current_this.take();
+        let outer_receivers = std::mem::take(&mut self.receiver_scopes);
         let outer_return = self.current_return_ty;
         let outer_name = std::mem::take(&mut self.current_fn_name);
         let outer_parameters = std::mem::replace(
@@ -35,6 +36,7 @@ impl Lowerer {
         self.current_release = None;
         self.current_owner = outer_owner;
         self.current_this = outer_this;
+        self.receiver_scopes = outer_receivers;
         self.current_source_context = outer_source_context;
         self.current_return_ty = outer_return;
         self.current_fn_name = outer_name;

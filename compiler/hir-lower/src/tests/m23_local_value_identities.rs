@@ -71,6 +71,7 @@ fn lambda(tail: Expr) -> Expr {
 
 fn anonymous(tail: Expr) -> Expr {
     Expr::AnonymousFunction {
+        receiver: None,
         label: None,
         id: ast::AnonymousFunctionId(0),
         is_suspend: false,

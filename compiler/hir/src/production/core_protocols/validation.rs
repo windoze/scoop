@@ -245,6 +245,9 @@ fn validate_protocol_signature_binders(
     signature: &SignatureTypeKey,
     binder_parameter_counts: &[u32],
 ) -> Result<(), CoreProtocolBinderError> {
+    if let Some(receiver) = signature.receiver_type() {
+        validate_protocol_signature_binders(receiver, binder_parameter_counts)?;
+    }
     match signature {
         SignatureTypeKey::Nominal(_) => Ok(()),
         SignatureTypeKey::NominalApplication { arguments, .. }

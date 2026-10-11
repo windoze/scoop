@@ -300,9 +300,27 @@ pub(crate) struct PendingCapture {
     pub(crate) declaration_depth: usize,
 }
 
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+pub(crate) enum CaptureKey {
+    Name(String),
+    Receiver(hir::BindingId),
+}
+
+#[derive(Clone, Copy)]
+pub(crate) struct ReceiverBinding {
+    pub(crate) binding: hir::BindingId,
+    pub(crate) ty: TypeId,
+}
+
+#[derive(Clone)]
+pub(crate) struct ReceiverScope {
+    pub(crate) label: Option<String>,
+    pub(crate) receiver: Option<ReceiverBinding>,
+}
+
 #[derive(Clone)]
 pub(crate) struct CaptureContext {
-    pub(crate) available: HashMap<String, AvailableCapture>,
+    pub(crate) available: HashMap<CaptureKey, AvailableCapture>,
     pub(crate) captures: Vec<PendingCapture>,
     pub(crate) by_binding: HashMap<hir::BindingId, usize>,
 }

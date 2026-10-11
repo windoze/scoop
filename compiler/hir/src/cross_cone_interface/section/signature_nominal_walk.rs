@@ -20,6 +20,10 @@ impl<'signature> SignatureNominalWalker<'signature> {
 
     pub fn next(&mut self, path: &WirePath) -> Result<Option<NominalDeclarationOwner>, WireError> {
         while let Some(signature) = self.pending.pop() {
+            if let Some(receiver) = signature.receiver_type() {
+                scoop_wire::allocation::try_reserve(&mut self.pending, 1, path)?;
+                self.pending.push(receiver);
+            }
             match signature {
                 SignatureTypeKey::Nominal(declaration) => {
                     return Ok(Some(NominalDeclarationOwner::Concrete(*declaration)));

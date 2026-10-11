@@ -65,18 +65,24 @@ pub(super) fn write_exact_type(
                         pending.push(Part::Type(*pointee));
                     }
                     ExactTypeKey::Function {
+                        receiver,
                         effect,
                         parameters,
                         result,
                     } => {
                         output.push_str(match effect {
-                            Effect::Ordinary => "f(o;[",
-                            Effect::Suspend => "f(s;[",
+                            Effect::Ordinary => "f(o;",
+                            Effect::Suspend => "f(s;",
                         })?;
+                        output.push_str(if receiver.is_some() { "r=" } else { "[" })?;
                         pending.push(Part::Text(")"));
                         pending.push(Part::Type(*result));
                         pending.push(Part::Text("]->"));
                         pending.push(Part::Sequence(parameters));
+                        if let Some(receiver) = receiver {
+                            pending.push(Part::Text(";["));
+                            pending.push(Part::Type(*receiver));
+                        }
                     }
                     ExactTypeKey::NativeFunctionPointer {
                         calling_convention: CallingConvention::C,

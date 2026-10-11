@@ -89,9 +89,9 @@ impl Lowerer {
             _ => None,
         };
         if let Some(expected) = expected_signature
-            && expected.parameter_types.len() == parameter_types.len()
+            && expected.arity() == parameter_types.len()
         {
-            for (&parameter, &expected) in parameter_types.iter().zip(&expected.parameter_types) {
+            for (&parameter, &expected) in parameter_types.iter().zip(expected.parameters()) {
                 session.push(
                     Constraint::Equal(TypeTerm::Rigid(parameter), TypeTerm::Rigid(expected)),
                     ConstraintOrigin::ExpectedResult,
@@ -204,10 +204,10 @@ impl Lowerer {
         // choosing a different declaration instantiation here.
         if let Type::Function(expected) = self.types[expected_type] {
             let expected = self.function_types[expected].clone();
-            if parameter_types.len() == expected.parameter_types.len() {
+            if parameter_types.len() == expected.arity() {
                 for (index, (&parameter, &expected)) in parameter_types
                     .iter()
-                    .zip(&expected.parameter_types)
+                    .zip(expected.parameters())
                     .enumerate()
                 {
                     session.push(

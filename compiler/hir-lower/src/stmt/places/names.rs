@@ -99,42 +99,41 @@ impl Lowerer {
                 write,
             });
         }
-        if let Some(receiver_ty) = self.current_this_ty()
-            && let Some((property, owner, ty)) =
+        for binding in self.implicit_receivers() {
+            let receiver_ty = binding.ty;
+            if let Some((property, owner, ty)) =
                 self.find_accessible_nominal_property(receiver_ty, &name.text)
-        {
-            let receiver = self.lower_current_this(name.span)?;
-            let read = self.lower_property_read(
-                property,
-                Some(owner),
-                Some(receiver.clone()),
-                ty,
-                name.span,
-            )?;
-            let write = if self.properties[property].capability.setter().is_some() {
-                WriteCapability::Property {
+            {
+                let receiver = self.lower_receiver_binding(binding, name.span)?;
+                let read = self.lower_property_read(
                     property,
-                    owner: Some(owner),
-                    receiver: Some(receiver),
-                }
-            } else {
-                WriteCapability::ReadOnly
-            };
-            return Some(ResolvedPlacePlan { read, write, ty });
-        }
-        if let Some(receiver_ty) = self.current_this_ty()
-            && let Some(property) = self
+                    Some(owner),
+                    Some(receiver.clone()),
+                    ty,
+                    name.span,
+                )?;
+                let write = if self.properties[property].capability.setter().is_some() {
+                    WriteCapability::Property {
+                        property,
+                        owner: Some(owner),
+                        receiver: Some(receiver),
+                    }
+                } else {
+                    WriteCapability::ReadOnly
+                };
+                return Some(ResolvedPlacePlan { read, write, ty });
+            }
+            if let Some(property) = self
                 .resolve_imported_member_property(receiver_ty, name)
                 .ok()?
-        {
-            let receiver = self.lower_current_this(name.span)?;
-            return self.imported_member_place(property, receiver, name, name.span);
+            {
+                let receiver = self.lower_receiver_binding(binding, name.span)?;
+                return self.imported_member_place(property, receiver, name, name.span);
+            }
         }
         let mut selected_value = None;
-        if self.initialization_context.is_none()
-            && let Some(receiver) = self.lower_current_this(name.span)
-        {
-            match self.resolve_implicit_value_read(receiver, name, sink) {
+        if self.initialization_context.is_none() && !self.implicit_receivers().is_empty() {
+            match self.resolve_implicit_value_read(name, sink) {
                 crate::properties::ImplicitValueResolution::ExtensionProperty(property) => {
                     let ty = property.read.ty;
                     let write = if property.write.has_setter() {

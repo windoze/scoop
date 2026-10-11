@@ -202,6 +202,7 @@ pub(super) fn expected_operation_signature(
                 index: kind.type_parameter_count() - 1,
             };
             let callback = SignatureTypeKey::Function {
+                receiver: None,
                 effect: Effect::Ordinary,
                 parameters: vec![SignatureTypeKey::RawPointer(Box::new(element)), long],
                 result: Box::new(result.clone()),

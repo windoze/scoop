@@ -40,6 +40,7 @@ fn callable_target_tags_round_trip() {
             callable: fixture.callable(),
         },
         SignatureTypeKey::Function {
+            receiver: None,
             effect: Effect::Ordinary,
             parameters: Vec::new(),
             result: Box::new(value_type.clone()),

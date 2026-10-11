@@ -1,0 +1,2 @@
+fun take(action: FunPtr<Int.() -> Int>) {}
+fun main() {}

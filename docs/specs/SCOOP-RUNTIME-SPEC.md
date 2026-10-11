@@ -139,7 +139,7 @@ closure 是普通 managed 对象，捕获值在创建点按语言规定取得并
 
 每个 closure 的 vtable 第 0 槽为动态 invoke，保持参数个数和挂起性，显式参数与结果以 Any 传递。该 managed 边界按 closure 的源码签名解包、调用 typed invoke 并装箱结果；suspend 使用 `Continuation<Any>` / `CoroutineStep<Any>`。静态调用使用原 typed 签名。
 
-函数类型转换按语言规范 8.1 的结构化关系判断。closure 的 TD、动态 invoke 和签名由自身 identity 决定，不随消费方的目标签名变化；适配结果与来源不保证引用身份相同。
+函数类型的 exact identity 保留源码 receiver 形状；函数关系中的参数按 receiver 在首位展平，函数类型转换按语言规范 8.1 的结构化关系判断，允许 receiver 与普通首参数双向适配。容器的 exact identity 不因这种函数值适配而合并。closure 的 TD、动态 invoke 和签名由自身 identity 决定，不随消费方的目标签名变化；适配结果与来源不保证引用身份相同。
 
 closure 不能直接作为 FunPtr 交给 native。静态 FunPtr 与 4.3 的 managed callback 分别遵守各自边界。
 

@@ -82,16 +82,9 @@ impl Lowerer {
             let signature = self.shell.function_types[function].clone();
             let (identity, _) = exact_function_identity(module, function);
             for (ty, exact) in signature
-                .parameter_types
-                .iter()
+                .parameters()
                 .chain([&signature.return_type])
-                .zip(
-                    identity
-                        .parameters()
-                        .iter()
-                        .copied()
-                        .chain([identity.result()]),
-                )
+                .zip(identity.argument_types().chain([identity.result()]))
             {
                 if let mir::Type::Function(nested) = ty {
                     pending.push(*nested);
@@ -200,8 +193,8 @@ impl Lowerer {
                     index: 0,
                 },
             );
-            let mut args = Vec::with_capacity(signature.parameter_types.len());
-            for (index, ty) in signature.parameter_types.iter().enumerate() {
+            let mut args = Vec::with_capacity(signature.arity());
+            for (index, ty) in signature.parameters().enumerate() {
                 let name = format!("arg{index}");
                 let local = locals.alloc(mir::Local {
                     name: name.clone(),

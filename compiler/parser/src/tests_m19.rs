@@ -158,8 +158,4 @@ fn illegal_constructor_and_super_shapes_have_specific_diagnostics() {
         err("fun f() { super::render }").1,
         "callable references cannot target `super`"
     );
-    assert_eq!(
-        err("fun f() { this() }").1,
-        "`this(...)` is only valid in a constructor delegation clause"
-    );
 }

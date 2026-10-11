@@ -745,14 +745,20 @@ tagged enum的表示由tag、一个可选的**pure-value共享payload区**以及
 普通函数类型写作 `(P1, P2, ...) -> R`，挂起函数类型写作 `suspend (P1, P2, ...) -> R`。零参数函数必须写作 `() -> R`；参数名、缺省值与 `vararg` 不是函数类型身份的一部分。
 
 - 函数类型是**引用类型**。函数值可以携带捕获环境，具有 identity，由 GC 管理；它不是一个裸代码地址。
-- 函数类型的身份由挂起性、参数个数、每个参数类型和返回类型共同决定。普通与挂起函数类型之间不存在子类型关系或隐式转换。
+- 函数类型的身份由挂起性、receiver 是否存在及其类型、普通参数个数、每个参数类型和返回类型共同决定。普通与挂起函数类型之间不存在子类型关系或隐式转换。
 - 同为普通函数类型或同为挂起函数类型时，参数类型逆变、返回类型协变：若 `A2 <: A1` 且 `R1 <: R2`，则 `(A1) -> R1 <: (A2) -> R2`。多参数逐项应用同一规则。
 - 赋值、传参或 `as` 把函数值适配到不同但兼容的函数类型时，结果与来源不保证 `===`。函数类型的 `is` / `as` 按上述结构化子类型关系判断，不要求参数和返回类型逐项完全相等。
 - 函数类型不保留形参名、缺省值或 `vararg` 调用约定。经函数值调用时只能按位置提供与类型元数相同的实参；声明中的 `vararg T` 在函数类型中表现为其实际参数类型 `Array<T>`。
 - 函数值以 `f(args...)` 调用；`f.invoke(args...)` 是同一操作的显式写法。若 `f` 是挂起函数类型，调用点必须处于 8.2 允许的挂起上下文。
 - 函数值不定义结构相等。可以用 `===` / `!==` 观察同一已保存函数值的引用 identity，但规范不保证对同一函数重复创建 callable reference 或无捕获 lambda 时得到相同 identity。
 
-Scoop 当前不提供 Kotlin 的 receiver function type（`A.(B) -> R`）；扩展函数的 callable reference 按 8.1.4 显式表示为普通函数类型。
+receiver 函数类型写作 `A.(P1, P2, ...) -> R` 或 `suspend A.(P1, P2, ...) -> R`。receiver 是独立的源码槽位，不计入普通参数数目；`A.() -> R` 没有普通参数。receiver 形状保留在类型身份和共享签名中。扩展函数的 callable reference 按 8.1.4 产生把 receiver 放在首位的普通函数类型，再按需要适配。
+
+receiver 函数值与把 receiver 展平为首参数的普通函数值允许双向适配，按展平后的参数逆变、结果协变和相同挂起性判断；运行期 `is` / `as` 使用同一关系。仅把首参数改写为 receiver 不能区分重载。此适配不改变 nominal 泛型不变性，例如 `Array<A.() -> R>` 不因此变成 `Array<(A) -> R>`。
+
+泛型推导的下界均为同一完整函数类型时保留该源码形状；没有下界时，同一完整上界使用相同规则。数组元素和分支结果均为同一完整函数类型时也保留该形状。互相可适配的不同函数形状不能互相排除而产生空候选集；约束仍不能唯一决定形状时，需要显式类型。
+
+receiver 函数值支持 `f(receiver, args...)`、`f.invoke(receiver, args...)` 和 `receiver.f(args...)`。最后一种形式遵循普通成员优先及局部函数值、扩展候选规则，不能覆盖适用的实际成员；receiver 和各普通实参按源码顺序只求值一次。值类型 receiver 沿 3.3 按值传递，不产生调用方 place 的隐式引用。
 
 #### 8.1.2 lambda 与匿名函数
 
@@ -765,6 +771,8 @@ lambda 写作 `{ parameters -> body }`，挂起 lambda 写作 `suspend { paramet
 - lambda 的值是 body 最后一个表达式的值；有期望结果类型时，按普通函数返回规则检查 subtype 并完成隐式适配，包括值装箱、引用上行转换与函数值型变，不要求结果类型逐字相同。期望返回 `Unit` 时最后一个表达式的值被丢弃。匿名函数使用普通函数的返回规则。
 - lambda 中的裸 `return` 是编译错误；局部提前返回使用 `return@label`。`label@ { ... }`、`label@ suspend { ... }`、`label@ fun(...) { ... }` 为当前 callable 声明显式标签。直接作为具名调用实参的 lambda 以调用末段名称作为隐式标签，显式标签覆盖同一 lambda 的隐式标签；复杂 callee 不产生隐式名称。具名函数以自身名称作为返回标签。标签只能命中当前 callable，不能跨过嵌套 callable；同名包围循环标签遮蔽 callable 标签时，return 不能将循环当作返回目标。未知、非 callable 和跨 callable 目标均为编译错误。
 - `return@label value` 按当前 callable 的返回类型检查，无值 return 提供 Unit。无期望返回类型的 lambda 将所有自身局部 return 的值与正常末尾结果共同推导；内层 callable 的 return 独立处理。已有 Unit 期望只丢弃 lambda 的正常末尾值，不丢弃显式 return 的类型检查。表达式体具名函数仍禁止显式 return。non-local return/break/continue 不提供 inline 豁免。
+- 期望 receiver 函数类型为 lambda 提供不可重新绑定的隐式 `this`；显式参数模式只对应普通参数，省略参数列表时的 `it` 也只按普通参数数目决定。没有期望类型时，可用 `fun A.(parameters)[: R] { body }` 或显式 `suspend fun A.(parameters)[: R] { body }` 建立 receiver 匿名函数；receiver 类型必须完整。
+- 局部 binding 和显式参数遵守普通遮蔽规则，隐式 receiver 从内向外参与成员查找；`this` 指最近的 receiver，`this@label` 指命中的 class、扩展函数或 receiver lambda 的 receiver。标签遵守最近同名遮蔽；没有 receiver 的标签不能用作 `this@label`。外层 receiver 按 8.1.3 捕获，不使外层局部 `var` 可被捕获；Context 不加入隐式 receiver 列表。
 - `suspend` 必须显式写在 lambda 或匿名函数上；期望类型不会把普通 lambda 静默改为挂起 lambda。创建或保存挂起函数值本身不会挂起，只有调用其 body 时才检查挂起上下文。
 
 lambda 参与重载决议时，每个候选先提供自己的期望函数类型，再据此检查参数与 body。lambda 的返回表达式可以验证候选是否适用，但不作为“仅按 lambda 返回类型选择重载”的额外优先规则；若完成既有重载优先级比较后仍有多个候选，则调用有歧义。
@@ -2747,7 +2755,7 @@ public fun <T : value> alignOf(): ULong
 
 #### `FunPtr<F>`
 
-`FunPtr<F>` 声明一个 FFI 可用的 callback 指针，`F` 是 8.1 定义的**普通、非挂起且完全具体化**的函数类型：
+`FunPtr<F>` 声明一个 FFI 可用的 callback 指针，`F` 是 8.1 定义的**无 receiver、非挂起且完全具体化**的普通函数类型：
 
 ```
 @Intrinsic("core_fun_ptr")
@@ -2895,8 +2903,8 @@ fun <F> foreignCallbackState(callback: ForeignCallback<F>): ForeignCallbackState
 fun <F> foreignCallbackFailure(callback: ForeignCallback<F>): Throwable?
 ```
 
-- `F` 必须在registration调用处显式给出，是ordinary、非挂起、完全具体化且逐项C-FFI-safe的native callback函数类型。`contextIndex`和`mode`必须为编译期常量；被选参数必须精确为`Ptr<Unit>`；
-- `callback` 的实际类型必须是从 `F` 删除 `contextIndex` 对应参数后得到的 ordinary concrete 函数类型，返回类型保持不变。声明中的 `Any` 不放宽此要求，也不引入装箱；context cookie 不作为实参传给 closure；
+- `F` 必须在registration调用处显式给出，是无 receiver、非挂起、完全具体化且逐项C-FFI-safe的普通 native callback函数类型。`contextIndex`和`mode`必须为编译期常量；被选参数必须精确为`Ptr<Unit>`；
+- `callback` 的目标类型是从 `F` 删除 `contextIndex` 对应参数后得到的 ordinary concrete 函数类型，返回类型保持不变；来源 managed 函数值按 8.1.1 适配，允许兼容的 receiver 函数值。声明中的 `Any` 不放宽此要求，也不引入装箱；context cookie 不作为实参传给 closure；
 - 泛型正文中的注册在每个实际 application 替换类型参数后检查完整签名；不同 application 不能以首次实例的类型代替。
 - `ForeignCallback<F>`是GC-free值，但不是单个C ABI聚合。调用native API时分别传`function`与`context`；有效值只能由`foreignCallback`产生，用户不能直接构造；
 - `ForeignCallback`是compiler-validated core类型，其`F`可在core声明内作为deferred callback signature用于`FunPtr<F>`；每个实际应用仍必须具体化为合法函数类型。这不引入一般性的`function` kind bound，用户generic类型不能据此用未约束参数绕过`FunPtr`检查；

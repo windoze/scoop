@@ -744,6 +744,7 @@ fn nominal_descriptor_symbols_use_exact_type_identity() {
     let main = builder.main(Arena::new(), Vec::new());
     let mut source = builder.finish(main);
     let function_type = source.function_types.alloc(mir::FunctionType {
+        receiver: None,
         is_suspend: false,
         parameter_types: Vec::new(),
         return_type: mir::Type::Any,
@@ -1054,6 +1055,7 @@ fn c_abi_preserves_all_eight_exact_integer_kinds() {
     let main = builder.main(Arena::new(), Vec::new());
     let mut mir_module = builder.finish(main);
     let native_signature = mir_module.function_types.alloc(mir::FunctionType {
+        receiver: None,
         is_suspend: false,
         parameter_types: mir::IntegerKind::ALL
             .map(mir::Type::Integer)
@@ -1216,6 +1218,7 @@ fn canonical_c_abi_metadata_handles_struct_function_pointer_recursion() {
             .into(),
     );
     let handler_signature = builder.function_types.alloc(mir::FunctionType {
+        receiver: None,
         is_suspend: false,
         parameter_types: vec![mir::Type::Struct(node_id)],
         return_type: mir::Type::Unit,
@@ -1380,6 +1383,7 @@ fn c_abi_nullable_refs_bind_the_exact_lowered_pointee_and_signature() {
     let raw_payload = mir::Type::Ptr(Box::new(INT));
     let raw_option = builder.option_enum("Option<Ptr<Int>>", raw_payload.clone());
     let native_signature = builder.function_types.alloc(mir::FunctionType {
+        receiver: None,
         is_suspend: false,
         parameter_types: vec![mir::Type::Integer(mir::IntegerKind::UNSIGNED_16)],
         return_type: mir::Type::Integer(mir::IntegerKind::SIGNED_8),
@@ -1559,11 +1563,13 @@ fn foreign_callback_bridge_preserves_its_nominal_family() {
     let main = builder.main(Arena::new(), Vec::new());
     let mut module = builder.finish(main);
     let native_signature = module.function_types.alloc(mir::FunctionType {
+        receiver: None,
         is_suspend: false,
         parameter_types: vec![mir::Type::Ptr(Box::new(mir::Type::Unit))],
         return_type: mir::Type::Unit,
     });
     let managed_signature = module.function_types.alloc(mir::FunctionType {
+        receiver: None,
         is_suspend: false,
         parameter_types: Vec::new(),
         return_type: mir::Type::Unit,

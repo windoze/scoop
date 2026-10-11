@@ -122,8 +122,7 @@ fn c_function_type(
     let signature = &module.function_types[signature];
     lir::CFunctionType {
         params: signature
-            .parameter_types
-            .iter()
+            .parameters()
             .map(|ty| c_ffi_type(module, structs, enums, ty))
             .collect(),
         return_type: c_return_type(module, structs, enums, &signature.return_type),

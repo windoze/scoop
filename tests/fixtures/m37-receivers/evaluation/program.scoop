@@ -1,0 +1,20 @@
+var trace: Int = 0
+class Box(val number: Int) { fun action(value: Int): Int = number + value }
+fun source(): Box { trace = trace * 10 + 1; return Box(40) }
+val action: Box.(Int) -> Int
+    get() { trace = trace * 10 + 2; return { number + it } }
+fun argument(): Int { trace = trace * 10 + 3; return 2 }
+class Plain(val number: Int)
+fun other(): Plain { trace = trace * 10 + 1; return Plain(40) }
+val calculate: Plain.(Int) -> Int
+    get() { trace = trace * 10 + 2; return { number + it } }
+fun main() {
+    println(source().action(argument()))
+    println(trace)
+    trace = 0
+    println(other().calculate(argument()))
+    println(trace)
+    val snapshot = other()
+    val invoke: Plain.(Int) -> Int = { number + it }
+    println(snapshot.invoke(2))
+}

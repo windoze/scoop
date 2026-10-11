@@ -1,0 +1,2 @@
+class Box(val value: Int) { val copy = this@missing.value }
+fun main() {}

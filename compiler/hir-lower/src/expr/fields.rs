@@ -88,9 +88,10 @@ impl Lowerer {
                 .map_or(expected, |(alias, _)| Some(alias.target));
             return self.lower_qualified_variant(enum_id, access, expected);
         }
-        if matches!(&*access.receiver, ast::Expr::This { .. })
+        if let ast::Expr::This { label, .. } = &*access.receiver
             && self.initialization_context.is_some()
         {
+            self.check_initializing_receiver_label(label.as_ref())?;
             let ast::FieldSelector::Name(name) = &access.selector else {
                 self.error(
                     access.span,

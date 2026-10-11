@@ -62,16 +62,21 @@ pub(super) fn match_parameters<A: NominalInheritanceSemanticAuthority<E>, E>(
             }
             (
                 SignatureTypeKey::Function {
+                    receiver: source_receiver,
                     effect: left,
                     parameters: source,
                     result: source_result,
                 },
                 ExactTypeKey::Function {
+                    receiver: exact_receiver,
                     effect: right,
                     parameters: exact,
                     result: exact_result,
                 },
-            ) if left == right => {
+            ) if left == right && source_receiver.is_some() == exact_receiver.is_some() => {
+                if let (Some(source), Some(exact)) = (source_receiver, exact_receiver) {
+                    push_one(&mut pending, source, *exact)?;
+                }
                 push(&mut pending, source, exact)?;
                 push_one(&mut pending, source_result, *exact_result)?;
             }

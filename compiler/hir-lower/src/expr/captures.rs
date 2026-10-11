@@ -1,4 +1,5 @@
 use super::*;
+use crate::CaptureKey;
 
 impl Lowerer {
     /// Snapshot the bindings visible at a nested callable creation point.
@@ -7,8 +8,8 @@ impl Lowerer {
     /// them according to ordinary lexical shadowing.
     pub(crate) fn capture_environment(
         &self,
-    ) -> std::collections::HashMap<String, AvailableCapture> {
-        let mut available: std::collections::HashMap<String, AvailableCapture> = self
+    ) -> std::collections::HashMap<CaptureKey, AvailableCapture> {
+        let mut available: std::collections::HashMap<CaptureKey, AvailableCapture> = self
             .capture_contexts
             .last()
             .map(|context| {
@@ -26,7 +27,7 @@ impl Lowerer {
         let declaration_depth = self.capture_contexts.len();
         for (name, &(parameter, ty, binding)) in &self.constructor_params_in_scope {
             available.insert(
-                name.clone(),
+                CaptureKey::Name(name.clone()),
                 AvailableCapture {
                     binding,
                     ty,
@@ -39,11 +40,24 @@ impl Lowerer {
         for (name, local) in self.scopes.visible() {
             let local_def = &self.locals[local];
             available.insert(
-                name,
+                CaptureKey::Name(name),
                 AvailableCapture {
                     binding: local_def.binding,
                     ty: local_def.ty,
                     mutable: local_def.mutable,
+                    source: CaptureSource::Local(local),
+                    declaration_depth,
+                },
+            );
+        }
+        if let Some((local, ty)) = self.current_this {
+            let binding = self.locals[local].binding;
+            available.insert(
+                CaptureKey::Receiver(binding),
+                AvailableCapture {
+                    binding,
+                    ty,
+                    mutable: false,
                     source: CaptureSource::Local(local),
                     declaration_depth,
                 },
@@ -93,7 +107,7 @@ impl Lowerer {
         let context_index = self.capture_contexts.len().checked_sub(1)?;
         let available = self.capture_contexts[context_index]
             .available
-            .get(&name.text)?
+            .get(&CaptureKey::Name(name.text.clone()))?
             .clone();
         self.require_initialized_condition_binding(available.binding, &name.text, name.span)?;
         if available.mutable {
@@ -128,7 +142,11 @@ impl Lowerer {
             .find_map(|(name, candidate)| {
                 (candidate.binding == binding).then(|| (name.clone(), candidate.clone()))
             })?;
-        let (name, available) = available;
+        let (key, available) = available;
+        let name = match key {
+            CaptureKey::Name(name) => name,
+            CaptureKey::Receiver(_) => "this".to_owned(),
+        };
         self.require_initialized_condition_binding(binding, fallback_name, span)?;
         if available.mutable {
             self.error(
@@ -151,7 +169,7 @@ impl Lowerer {
     pub(crate) fn available_capture(&self, name: &str) -> Option<AvailableCapture> {
         self.capture_contexts
             .last()
-            .and_then(|context| context.available.get(name))
+            .and_then(|context| context.available.get(&CaptureKey::Name(name.to_owned())))
             .cloned()
     }
 
@@ -205,29 +223,5 @@ impl Lowerer {
                 }
             })
             .collect()
-    }
-
-    pub(crate) fn lower_current_this(&mut self, span: Span) -> Option<hir::Expr> {
-        if let Some((local, ty)) = self.current_this {
-            return Some(hir::Expr {
-                kind: ExprKind::Local(local),
-                ty,
-                span,
-                origin: self.expression_origin(span),
-            });
-        }
-        if self.available_capture("this").is_some() {
-            return self.lower_capture(&ast::Ident {
-                text: "this".to_string(),
-                span,
-            });
-        }
-        None
-    }
-
-    pub(crate) fn current_this_ty(&self) -> Option<TypeId> {
-        self.current_this
-            .map(|(_, ty)| ty)
-            .or_else(|| self.available_capture("this").map(|capture| capture.ty))
     }
 }

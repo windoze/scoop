@@ -1,0 +1,1 @@
+fun main() { val action: Int.(Int) -> Int = fun Int.(): Int { return this } }

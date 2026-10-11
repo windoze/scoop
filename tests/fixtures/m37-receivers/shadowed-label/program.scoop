@@ -1,0 +1,1 @@
+fun main() { val action: Int.() -> Int = same@ { val inner: () -> Int = same@ { this@same }; 1 } }

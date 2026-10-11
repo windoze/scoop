@@ -72,8 +72,13 @@ pub(super) fn dump_type_ref(ty: &TypeRef) -> String {
         TypeRefKind::Function(function) => {
             let parameters: Vec<String> = function.parameters.iter().map(dump_type_ref).collect();
             let suspend = if function.is_suspend { "suspend " } else { "" };
+            let receiver = function
+                .receiver
+                .as_ref()
+                .map(|ty| format!("{}.", dump_type_ref(ty)))
+                .unwrap_or_default();
             format!(
-                "{suspend}({}) -> {}",
+                "{suspend}{receiver}({}) -> {}",
                 parameters.join(", "),
                 dump_type_ref(&function.return_type)
             )

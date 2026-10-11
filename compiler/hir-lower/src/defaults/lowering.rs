@@ -106,6 +106,12 @@ impl Lowerer {
         let outer_loop_targets = std::mem::take(&mut self.loop_targets);
         let outer_source_context = self.current_source_context;
         let outer_this = self.current_this.take();
+        let outer_receivers = std::mem::replace(
+            &mut self.receiver_scopes,
+            environment
+                .map(|environment| environment.receivers.clone())
+                .unwrap_or_default(),
+        );
         let outer_owner = self.current_owner;
         let outer_constructor_parameters = std::mem::take(&mut self.constructor_params_in_scope);
         let outer_smart_casts = self.smart_casts.clone();
@@ -133,6 +139,17 @@ impl Lowerer {
             let local = self.alloc_this_local(ty, expression.span());
             self.scopes.declare("this".to_string(), local);
             self.current_this = Some((local, ty));
+            let label = self
+                .current_owner
+                .map(|owner| self.receiver_owner_label(owner))
+                .unwrap_or_else(|| context.callable_name.clone());
+            self.push_receiver_scope(
+                Some(label),
+                Some(crate::ReceiverBinding {
+                    binding: self.locals[local].binding,
+                    ty,
+                }),
+            );
             hir::ExportDefaultReceiver { local, ty }
         });
         let mut value_parameters = Vec::with_capacity(parameter_index);
@@ -196,6 +213,7 @@ impl Lowerer {
         self.definition_paths = outer_definition_paths;
         self.definition_root = outer_definition_root;
         self.current_this = outer_this;
+        self.receiver_scopes = outer_receivers;
         self.current_owner = outer_owner;
         self.constructor_params_in_scope = outer_constructor_parameters;
         self.smart_casts = outer_smart_casts;

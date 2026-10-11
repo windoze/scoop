@@ -100,6 +100,7 @@ pub(super) fn dump_expr(expr: &Expr, indent: usize, out: &mut String) {
             label,
             id,
             is_suspend,
+            receiver,
             params,
             return_ty,
             body,
@@ -112,6 +113,9 @@ pub(super) fn dump_expr(expr: &Expr, indent: usize, out: &mut String) {
                 "{pad}AnonymousFunction {} suspend={is_suspend} return={return_ty}\n",
                 id.0
             ));
+            if let Some(receiver) = receiver {
+                out.push_str(&format!("{pad}  receiver {}\n", dump_type_ref(receiver)));
+            }
             if let Some(label) = label {
                 out.push_str(&format!("{pad}  label {}\n", label.text));
             }
@@ -212,7 +216,13 @@ pub(super) fn dump_expr(expr: &Expr, indent: usize, out: &mut String) {
             dump_expr(lhs, indent + 1, out);
             dump_expr(rhs, indent + 1, out);
         }
-        Expr::This { .. } => out.push_str(&format!("{pad}This\n")),
+        Expr::This { label, .. } => {
+            let label = label
+                .as_ref()
+                .map(|name| format!("@{}", name.text))
+                .unwrap_or_default();
+            out.push_str(&format!("{pad}This{label}\n"));
+        }
         Expr::MethodCall {
             receiver,
             name,

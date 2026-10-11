@@ -7,6 +7,7 @@ fn module_with_function_bridge() -> Module {
     let (mut module, class) = module_with_source_closure_result(0, Type::Unit);
     register_test_exact_type(&mut module, &Type::Unit);
     let target = module.function_types.alloc(FunctionType {
+        receiver: None,
         is_suspend: false,
         parameter_types: Vec::new(),
         return_type: Type::Any,

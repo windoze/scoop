@@ -26,6 +26,7 @@ fn static_no_gc_callback_bridge_keeps_its_source_and_generated_identity() {
     let managed_function = source.types.alloc(hir::Type::Function(function_type));
     assert_eq!(
         source.function_types.alloc(hir::FunctionType {
+            receiver: None,
             canonical_type: managed_function,
             is_suspend: false,
             parameter_types: Vec::new(),
@@ -179,6 +180,7 @@ fn foreign_callback_adapter_uses_typed_status_and_argument_offsets() {
             .into(),
     );
     let function_type = h.function_types.alloc(hir::FunctionType {
+        receiver: None,
         canonical_type: managed_canonical_type,
         is_suspend: false,
         parameter_types: vec![int, int],
@@ -194,6 +196,7 @@ fn foreign_callback_adapter_uses_typed_status_and_argument_offsets() {
             .into(),
     );
     let native_function_type = h.function_types.alloc(hir::FunctionType {
+        receiver: None,
         canonical_type: native_canonical_type,
         is_suspend: false,
         parameter_types: vec![int, int, int],

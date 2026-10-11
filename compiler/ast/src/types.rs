@@ -126,6 +126,7 @@ impl TypeRef {
 /// identity (spec 8.1.1).
 #[derive(Debug, Clone, PartialEq)]
 pub struct FunctionTypeRef {
+    pub receiver: Option<Box<TypeRef>>,
     pub is_suspend: bool,
     pub parameters: Vec<TypeRef>,
     pub return_type: Box<TypeRef>,

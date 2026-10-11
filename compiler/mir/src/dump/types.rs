@@ -58,8 +58,13 @@ pub fn type_name(module: &Module, ty: &Type) -> String {
                 .map(|ty| type_name(module, ty))
                 .collect();
             let suspend = if function.is_suspend { "suspend " } else { "" };
+            let receiver = function
+                .receiver
+                .as_ref()
+                .map(|ty| format!("{}.", type_name(module, ty)))
+                .unwrap_or_default();
             format!(
-                "{suspend}({}) -> {}",
+                "{suspend}{receiver}({}) -> {}",
                 parameters.join(", "),
                 type_name(module, &function.return_type)
             )
@@ -68,8 +73,7 @@ pub fn type_name(module: &Module, ty: &Type) -> String {
         Type::FunPtr(id) => {
             let function = &module.function_types[*id];
             let parameters: Vec<_> = function
-                .parameter_types
-                .iter()
+                .parameters()
                 .map(|ty| type_name(module, ty))
                 .collect();
             format!(

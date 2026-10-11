@@ -22,6 +22,7 @@ SourceFile
             Call suspendCoroutine
               Argument trailing
                 Lambda 0 suspend=false
+                  label suspendCoroutine
                   param continuation: Continuation<Int>
                   assign .waiter
                     Var gate
@@ -52,6 +53,7 @@ SourceFile
     suspend fun local(): Int
       Call suspendCoroutine
         Lambda 4 suspend=false
+          label suspendCoroutine
           param continuation: Continuation<Int>
           assign .waiter
             Var gate
@@ -96,6 +98,7 @@ SourceFile
         try
           Call suspendCoroutine
             Lambda 8 suspend=false
+              label suspendCoroutine
               param continuation: Continuation<Int>
               assign .waiter
                 Var gate
@@ -111,6 +114,7 @@ SourceFile
       Call suspendCoroutine
         Argument trailing
           Lambda 10 suspend=false
+            label suspendCoroutine
             param continuation: Continuation<Int>
             MethodCall resume
               Var continuation
@@ -120,6 +124,7 @@ SourceFile
       Call suspendCoroutine
         Argument trailing
           Lambda 11 suspend=false
+            label suspendCoroutine
             param continuation: Continuation<Int>
             MethodCall resumeWithException
               Var continuation
@@ -129,6 +134,7 @@ SourceFile
       Call suspendCoroutine
         Argument trailing
           Lambda 12 suspend=false
+            label suspendCoroutine
             param continuation: Continuation<Int>
             throw
               Call ArithmeticException
@@ -137,6 +143,7 @@ SourceFile
       Call suspendCoroutine
         Argument trailing
           Lambda 13 suspend=false
+            label suspendCoroutine
             param continuation: Continuation<Int>
             MethodCall resume
               Var continuation
@@ -148,6 +155,7 @@ SourceFile
       Call suspendCoroutine
         Argument trailing
           Lambda 14 suspend=false
+            label suspendCoroutine
             param continuation: Continuation<Int>
             MethodCall resume
               Var continuation
@@ -165,6 +173,7 @@ SourceFile
             Call suspendCoroutine
               Argument trailing
                 Lambda 15 suspend=false
+                  label suspendCoroutine
                   param continuation: Continuation<Int>
                   assign .waiter
                     Var gate
@@ -286,26 +295,31 @@ SourceFile
       Call Done
     Call startCoroutine
       Lambda 20 suspend=true
+        label startCoroutine
         parameters omitted
         Call synchronousValue
       Call Done
     Call startCoroutine
       Lambda 21 suspend=true
+        label startCoroutine
         parameters omitted
         Call synchronousFailure
       Call Done
     Call startCoroutine
       Lambda 22 suspend=true
+        label startCoroutine
         parameters omitted
         Call registrationFailure
       Call Done
     Call startCoroutine
       Lambda 23 suspend=true
+        label startCoroutine
         parameters omitted
         Call resumedThenThrows
       Call Done
     Call startCoroutine
       Lambda 24 suspend=true
+        label startCoroutine
         parameters omitted
         Call resumedTwice
       Call Done

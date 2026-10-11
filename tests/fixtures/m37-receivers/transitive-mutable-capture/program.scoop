@@ -1,0 +1,1 @@
+fun main() { var value = 1; val action: Int.() -> () -> Int = { { value } } }

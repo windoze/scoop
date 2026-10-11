@@ -105,9 +105,19 @@ impl Lowerer {
 
     /// `this` (M6): only inside member functions, where it is
     /// parameter 0 (`lower_body` registers it as a local).
-    pub(super) fn lower_this(&mut self, span: Span) -> Option<hir::Expr> {
+    pub(super) fn lower_this(
+        &mut self,
+        label: Option<&ast::Ident>,
+        span: Span,
+    ) -> Option<hir::Expr> {
+        if self.initialization_context.is_some() {
+            self.check_initializing_receiver_label(label)?;
+        }
         if self.reject_initializing_this(span) {
             return None;
+        }
+        if let Some(label) = label {
+            return self.lower_labelled_this(label, span);
         }
         let Some(this) = self.lower_current_this(span) else {
             self.error(
@@ -147,7 +157,10 @@ impl Lowerer {
         sink: &mut Vec<hir::Statement>,
         expected: Option<TypeId>,
     ) -> Option<hir::Expr> {
-        if matches!(receiver, ast::Expr::This { .. }) && self.initialization_context.is_some() {
+        if let ast::Expr::This { label, .. } = receiver
+            && self.initialization_context.is_some()
+        {
+            self.check_initializing_receiver_label(label.as_ref())?;
             if !self.initializing_receiver_has_field(&name.text) {
                 self.error(
                     call.span,

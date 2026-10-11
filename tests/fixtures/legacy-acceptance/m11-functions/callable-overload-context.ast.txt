@@ -23,6 +23,7 @@ SourceFile
     val selected
       Call select
         Lambda 0 suspend=false
+          label select
           param value: _
           StringLiteral "lambda"
     val anonymous

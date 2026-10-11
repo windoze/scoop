@@ -60,6 +60,7 @@ pub(super) fn module_with_source_closure_result(
     let callable = lambda_materialization();
     register_test_exact_type(&mut module, &Type::Any);
     let function_type = module.function_types.alloc(FunctionType {
+        receiver: None,
         is_suspend: false,
         parameter_types: Vec::new(),
         return_type: result.clone(),

@@ -1,0 +1,24 @@
+class Outer {
+    fun choose(): Int = 1
+    fun run(): Int {
+        val action: Inner.() -> Int = { choose() }
+        return action(Inner { 42 })
+    }
+}
+class Inner(val choose: () -> Int)
+class Far(var count: Int)
+class Near
+var Far.amount: Int
+    get() = count
+    set(value) { count = value }
+fun Far.bump(step: Int): Int { amount += step; return amount }
+fun Far.pick(): Int = count
+fun Near.pick(value: String): Int = 0
+val Far.operation: (Int) -> Int
+    get() = { count + it }
+fun <T> within(value: T, action: T.() -> Int): Int = value.action()
+fun main() {
+    println(Outer().run())
+    val action: Far.() -> Int = { within(Near()) { amount += 2; bump(0); operation(0) + pick() } }
+    println(action(Far(40)))
+}

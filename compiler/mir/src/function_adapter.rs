@@ -44,7 +44,7 @@ impl FunctionAdapterIdentity {
         if source.effect() != target.effect() {
             return Err(FunctionAdapterIdentityError::StaticEffectMismatch);
         }
-        if source.parameters().len() != target.parameters().len() {
+        if source.arity() != target.arity() {
             return Err(FunctionAdapterIdentityError::StaticArityMismatch);
         }
         let environment = GeneratedNominalKey::CallableAdapterEnvironment {
@@ -81,10 +81,8 @@ impl FunctionAdapterIdentity {
         target: ExactCallableSignature,
         target_function_type: PersistentExactTypeId,
     ) -> Result<Self, FunctionAdapterIdentityError> {
-        if target.receiver().is_present() {
-            return Err(FunctionAdapterIdentityError::TargetReceiverPresent);
-        }
         let expected_target = PersistentExactTypeId::from_key(&ExactTypeKey::Function {
+            receiver: target.receiver().into_option(),
             effect: target.effect(),
             parameters: target.parameters().to_vec(),
             result: target.result(),
@@ -267,7 +265,6 @@ fn odr_member(
 pub enum FunctionAdapterIdentityError {
     StaticEffectMismatch,
     StaticArityMismatch,
-    TargetReceiverPresent,
     TargetShape(HashError),
     TargetShapeMismatch {
         expected: PersistentExactTypeId,
@@ -289,9 +286,6 @@ impl fmt::Display for FunctionAdapterIdentityError {
             }
             Self::StaticArityMismatch => {
                 formatter.write_str("static function adapter must preserve its arity")
-            }
-            Self::TargetReceiverPresent => {
-                formatter.write_str("function adapter target must not have a receiver")
             }
             Self::TargetShape(error) => write!(formatter, "failed to derive target shape: {error}"),
             Self::TargetShapeMismatch { expected, actual } => write!(
@@ -338,6 +332,7 @@ mod tests {
 
     fn function_type(signature: &ExactCallableSignature) -> PersistentExactTypeId {
         PersistentExactTypeId::from_key(&ExactTypeKey::Function {
+            receiver: None,
             effect: signature.effect(),
             parameters: signature.parameters().to_vec(),
             result: signature.result(),

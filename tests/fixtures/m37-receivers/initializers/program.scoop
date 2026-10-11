@@ -1,0 +1,13 @@
+class Host(val base: Int) {
+    val action: Int.(Int) -> Int = { this + it + base }
+    val anonymous: Int.() -> Int = fun Int.(): Int { return this + base }
+    val copied = this@Host.base
+}
+class Default(val action: Int.() -> Int = { this + 1 })
+fun main() {
+    val host = Host(1)
+    println(host.action(39, 2))
+    println(host.anonymous(41))
+    println(host.copied)
+    println(Default().action(41))
+}

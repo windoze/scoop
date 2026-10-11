@@ -89,6 +89,8 @@ MIR 中 intrinsic struct 与 intrinsic class 分别保存其允许的表示类�
 
 构造器和未绑定成员引用在 HIR lowering 完成候选选择与全部类型实参推导，再生成具有完整函数类型的普通闭包适配 body。适配 body 只调用已选定的构造器或方法，不复制构造初始化；virtual / interface 调用保留原动态分派目标。适配 body、泛型和默认参数产物复用既有 lambda、调用及构造形态，不另建引用 ABI。
 
+receiver 函数类型在源码 HIR、共享签名及 exact type identity 中保留独立的 receiver 类型槽。类型替换、lambda 参数推导和产物消费使用该形状，不从名字或普通首参数猜测 receiver。lowering 将 receiver 展平为第一个实际源码参数，复用 closure / invoke、函数值适配和既有 ABI 分类；closure environment 等隐藏参数独立处理。`this@label` 在 HIR lowering 绑定到实际不可变 receiver binding，外层 receiver 沿普通捕获路径保存，不把标签带入运行期名称查询。
+
 默认值、泛型正文及词法 callable 保存定义处绑定、完整 binder、局部值和 capture 身份。再次消费只替换实际类型与求值上下文，不重新选择名称、重载、字段或接口默认实现。局部函数和 closure 的捕获引用原绑定，不能改为消费方的同名局部变量。
 
 默认模板分别保存提供方参数的预期类型和正文表达式的实际类型。前端按子类型规则检查默认值；`Nothing` 正文可以满足任意参数类型，产物投影、读取及实例化必须保留这两个类型，不能要求它们逐字相同或把底类型调用改写为参数类型的成功返回。模板契约仍校验预期类型与原提供方参数一致；通用格式构造器不重复进行依赖源码类型表示的子类型判断。

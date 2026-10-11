@@ -95,9 +95,9 @@ impl Concretizer<'_> {
             let source = self.function_types[*source].clone();
             let target = self.function_types[*target].clone();
             for (source, target) in source
-                .parameter_types
-                .into_iter()
-                .zip(target.parameter_types)
+                .parameters()
+                .copied()
+                .zip(target.parameters().copied())
             {
                 self.ensure_coercion_box_sources(target, source);
             }

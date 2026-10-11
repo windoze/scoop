@@ -204,6 +204,9 @@ fn validate_signature_binders(
     ty: &SignatureTypeKey,
     binder_parameter_counts: &[u32],
 ) -> Result<(), NativeBoundaryDefinitionError> {
+    if let Some(receiver) = ty.receiver_type() {
+        validate_signature_binders(receiver, binder_parameter_counts)?;
+    }
     match ty {
         SignatureTypeKey::Nominal(_) => Ok(()),
         SignatureTypeKey::NominalApplication { arguments, .. }

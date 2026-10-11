@@ -43,6 +43,9 @@ impl Graph {
     }
 
     fn require(&mut self, owner: usize, ty: &SignatureTypeKey) -> Result<(), WireError> {
+        if let Some(receiver) = ty.receiver_type() {
+            self.require(owner, receiver)?;
+        }
         match ty {
             SignatureTypeKey::Nominal(source) => {
                 if let Some(dependency) = self.position(SourceNominalId::Concrete(*source)) {

@@ -54,6 +54,7 @@ SourceFile
       Call apply
         IntLiteral 40
         Lambda 5 suspend=false
+          label apply
           param value: Int
           Binary Add
             Var value
