@@ -19,9 +19,10 @@ impl Lowerer {
                 self.bind_source_annotations(Target::Field(field_ref), &field.annotations);
             }
         }
+        self.annotate_struct_constructors(id, source);
         for member in &source.members {
             if let ast::StructMember::Property(property) = member {
-                self.reject_value_property_annotations(property);
+                self.annotate_property_declaration(property, file);
             }
         }
     }
@@ -61,7 +62,7 @@ impl Lowerer {
             }
         }
         for property in &source.properties {
-            self.reject_value_property_annotations(property);
+            self.annotate_property_declaration(property, file);
         }
     }
 
@@ -80,13 +81,6 @@ impl Lowerer {
         if let ast::ClassConstructorDecl::Declared(constructor) = &source.constructor {
             for parameter in &constructor.parameters {
                 if !parameter.property.is_property() {
-                    for annotation in &parameter.annotations {
-                        self.error(
-                            annotation.span,
-                            "annotations on primary constructor parameters require val or var"
-                                .into(),
-                        );
-                    }
                     continue;
                 }
                 self.reject_logical_property_annotations(
@@ -96,6 +90,7 @@ impl Lowerer {
                 self.annotate_property(owner, &parameter.name.text, &parameter.annotations);
             }
         }
+        self.annotate_class_constructors(id, source);
         self.annotate_class_members(owner, &source.members);
     }
 
@@ -112,7 +107,7 @@ impl Lowerer {
             &source.annotations,
         );
         for property in &source.properties {
-            self.annotate_property(owner, &property.name.text, &property.annotations);
+            self.annotate_property_declaration(property, file);
         }
     }
 
@@ -131,10 +126,10 @@ impl Lowerer {
         self.annotate_class_members(owner, source.members());
     }
 
-    fn annotate_class_members(&mut self, owner: Owner, members: &[ast::ClassMember]) {
+    fn annotate_class_members(&mut self, _owner: Owner, members: &[ast::ClassMember]) {
         for member in members {
             if let ast::ClassMember::StoredProperty(property) = member {
-                self.annotate_property(owner, &property.name.text, &property.annotations);
+                self.annotate_property_declaration(property, self.current_file);
             }
         }
     }
@@ -159,18 +154,6 @@ impl Lowerer {
     fn annotation_scope(&mut self, owner: Owner, file: usize) {
         self.current_file = file;
         self.current_owner = Some(owner);
-        self.type_params_in_scope.clear();
-    }
-
-    fn reject_value_property_annotations(&mut self, property: &ast::PropertyDecl) {
-        for annotation in &property.annotations {
-            if !annotation
-                .name
-                .single_text()
-                .is_some_and(crate::annotations::is_core_annotation)
-            {
-                self.error(annotation.span, "user annotations on value types belong to constructor fields, not computed properties".into());
-            }
-        }
+        self.type_params_in_scope = self.owner_type_params(owner);
     }
 }

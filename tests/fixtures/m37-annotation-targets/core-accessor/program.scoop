@@ -1,0 +1,4 @@
+annotation class Note
+@get:NoGC @get:Note @set:NoGC
+var value: Int = 40
+fun main() { value = 42; println(value) }

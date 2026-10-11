@@ -82,26 +82,6 @@ impl Lowerer {
         for (declaration_index, &(decl, file_index)) in pending.iter().enumerate() {
             let import_source = self.imports.global_property_source(declaration_index);
             self.current_file = file_index;
-            let mut invalid_annotation = false;
-            for annotation in &decl.annotations {
-                if !annotation
-                    .name
-                    .single_text()
-                    .is_some_and(crate::annotations::is_core_annotation)
-                {
-                    self.error(
-                        annotation.span,
-                        format!(
-                            "user annotation `@{}` is not allowed on a top-level property",
-                            annotation.name
-                        ),
-                    );
-                    invalid_annotation = true;
-                }
-            }
-            if invalid_annotation {
-                continue;
-            }
             let access =
                 self.top_level_access(decl.visibility, decl.name.span, "property", file_index);
             if decl.receiver_ty.is_some() {

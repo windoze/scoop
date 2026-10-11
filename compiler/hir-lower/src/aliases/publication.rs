@@ -93,10 +93,18 @@ impl Lowerer {
         };
         let expected = publication_ids[&id];
         let declaration = self.type_aliases.alloc(hir::TypeAliasDecl {
+            lexical: alias.lexical,
             name: alias.name,
-            owner: alias.owner.map(crate::Owner::as_nominal_owner),
+            owner: (!alias.lexical)
+                .then_some(alias.owner)
+                .flatten()
+                .map(crate::Owner::as_nominal_owner),
             type_params: alias.parameters,
-            owner_parameter_count: alias.outer_parameter_count,
+            owner_parameter_count: if alias.lexical {
+                0
+            } else {
+                alias.outer_parameter_count
+            },
             access,
             target: target.expanded,
             source_target,
@@ -110,6 +118,60 @@ impl Lowerer {
             target: target.expanded,
             declaration,
         };
+    }
+
+    pub(crate) fn publish_lexical_type_alias(&mut self, id: SourceTypeAliasId) {
+        let TypeAliasResolution::Resolved(target) = self.source_type_aliases[id].resolution else {
+            return;
+        };
+        if let ResolvedTypeAliasSource::Alias(parent) = target.source {
+            self.publish_lexical_type_alias(parent);
+        }
+        let mut ids = self
+            .source_type_aliases
+            .iter()
+            .filter_map(|(id, alias)| match alias.resolution {
+                TypeAliasResolution::Published { declaration, .. } => Some((id, declaration)),
+                _ => None,
+            })
+            .collect::<HashMap<_, _>>();
+        let declaration = hir::ExportTypeAliasId::from_raw((self.type_aliases.len() as u32).into());
+        ids.insert(id, declaration);
+        let alias = self.source_type_aliases[id].clone();
+        let file = self.current_file;
+        let parameters = self.type_params_in_scope.clone();
+        self.publish_type_alias(id, alias.clone(), target, &ids);
+        self.bind_source_annotations(
+            hir::SourceAnnotationTarget::TypeAlias(declaration),
+            &alias.annotations,
+        );
+        self.current_file = file;
+        self.type_params_in_scope = parameters;
+    }
+
+    pub(crate) fn annotate_type_aliases(&mut self) {
+        let aliases = self
+            .source_type_aliases
+            .iter()
+            .filter_map(|(_, alias)| {
+                if alias.scope.is_some() {
+                    return None;
+                }
+                let TypeAliasResolution::Published { declaration, .. } = alias.resolution else {
+                    return None;
+                };
+                Some((declaration, alias.clone()))
+            })
+            .collect::<Vec<_>>();
+        for (declaration, alias) in aliases {
+            self.current_file = alias.file;
+            self.current_owner = alias.owner;
+            self.type_params_in_scope = alias.parameters;
+            self.bind_source_annotations(
+                hir::SourceAnnotationTarget::TypeAlias(declaration),
+                &alias.annotations,
+            );
+        }
     }
 
     pub(super) fn validate_type_alias_target_tree(

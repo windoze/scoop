@@ -7,6 +7,7 @@ fn expected_lambda_builds_a_typed_invoke_function_and_callable_call() {
     let signature = ty_function(false, vec![ty_named("Int")], ty_named("Int"));
     let operation = lambda(
         Some(vec![ast::LambdaParam {
+            annotations: Vec::new(),
             target: pat_bind("value"),
             ty: None,
             span: sp(),
@@ -50,6 +51,7 @@ fn unit_returning_lambda_discards_its_tail_value_explicitly() {
     let signature = ty_function(false, vec![ty_named("Int")], ty_named("Unit"));
     let operation = lambda(
         Some(vec![ast::LambdaParam {
+            annotations: Vec::new(),
             target: pat_bind("value"),
             ty: None,
             span: sp(),

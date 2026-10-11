@@ -330,6 +330,7 @@ fn applicable_ordinary_layers_and_callable_locals_keep_their_priority() {
         id: ast::LambdaId(0),
         is_suspend: false,
         parameters: Some(vec![ast::LambdaParam {
+            annotations: Vec::new(),
             target: pat_bind("value"),
             ty: Some(ty_named("Int")),
             span: sp(),

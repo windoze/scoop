@@ -1,0 +1,2 @@
+annotation class Mark
+fun value(@Missing item: Int): Int = item

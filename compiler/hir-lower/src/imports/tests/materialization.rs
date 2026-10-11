@@ -4,6 +4,7 @@ fn invalid_raw_string_property(name: &str) -> ast::Decl {
     ast::Decl::Global(ast::PropertyDecl {
         context_parameters: Vec::new(),
         annotations: vec![ast::Annotation {
+            use_site: None,
             name: ident("Global").into(),
             args: Vec::new(),
             span: sp(),

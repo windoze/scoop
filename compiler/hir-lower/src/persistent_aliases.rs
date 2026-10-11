@@ -64,12 +64,22 @@ fn declaration(
             PackagePath::from_segments(segments)
         }
     };
-    let scope =
-        if alias.owner.is_none() && alias.access.declared == hir::DeclaredVisibility::Private {
-            DeclarationScope::SourceScoped(source.clone())
-        } else {
-            DeclarationScope::ConeWide
-        };
+    let scope = if alias.lexical {
+        DeclarationScope::LexicalScoped {
+            source: source.clone(),
+            path: scoop_identity::StructuralDefinitionPath::from_first(
+                scoop_identity::StructuralPathSegment::new(
+                    scoop_identity::StructuralDefinitionSiteRole::LocalDeclaration,
+                    alias.origin.span.start,
+                ),
+                [],
+            ),
+        }
+    } else if alias.owner.is_none() && alias.access.declared == hir::DeclaredVisibility::Private {
+        DeclarationScope::SourceScoped(source.clone())
+    } else {
+        DeclarationScope::ConeWide
+    };
     let owners = alias
         .owner
         .map(|owner| {

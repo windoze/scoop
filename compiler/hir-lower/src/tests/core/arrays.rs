@@ -10,6 +10,7 @@ pub(super) fn add_length_getter(class: &mut ast::ClassDecl, intrinsic: &str) {
         FunctionBody::None,
     );
     length.annotations.push(ast::Annotation {
+        use_site: None,
         name: ident("Intrinsic").into(),
         args: vec![ast::AnnotationArg {
             name: None,

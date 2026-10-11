@@ -71,6 +71,7 @@ fn object(name: &str) -> ast::Decl {
 
 fn alias(name: &str) -> ast::Decl {
     ast::Decl::TypeAlias(ast::TypeAliasDecl {
+        annotations: Vec::new(),
         type_params: Vec::new(),
         where_clause: None,
         visibility: ast::VisibilitySyntax::Omitted,

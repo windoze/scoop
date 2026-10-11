@@ -5,11 +5,14 @@ use crate::{
 };
 mod arrays;
 mod binding;
+mod callables;
 mod nested;
+mod properties;
 mod schemas;
 mod serialization;
 mod targets;
 mod types;
+mod use_sites;
 mod values;
 
 use scoop_ast as ast;

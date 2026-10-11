@@ -307,6 +307,7 @@ pub enum StringPart {
 /// pass; the type is optional only when an expected function type supplies it.
 #[derive(Debug, Clone, PartialEq)]
 pub struct LambdaParam {
+    pub annotations: Vec<crate::Annotation>,
     pub target: Pattern,
     pub ty: Option<TypeRef>,
     pub span: Span,

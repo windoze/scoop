@@ -21,7 +21,10 @@ pub(super) fn dump_annotations(annotations: &[Annotation], indent: usize, out: &
                 .collect();
             format!("({})", args.join(", "))
         };
-        out.push_str(&format!("{pad}@{}{}\n", annotation.name, args));
+        let site = annotation
+            .use_site
+            .map_or_else(String::new, |site| format!("{}:", site.target.as_str()));
+        out.push_str(&format!("{pad}@{site}{}{}\n", annotation.name, args));
     }
 }
 

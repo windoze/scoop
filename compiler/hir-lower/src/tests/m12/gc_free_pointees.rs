@@ -133,6 +133,7 @@ fn pointer_to_wrapped(name: &str) -> TypeRef {
 
 fn type_alias(name: &str, target: TypeRef) -> Decl {
     Decl::TypeAlias(ast::TypeAliasDecl {
+        annotations: Vec::new(),
         type_params: Vec::new(),
         where_clause: None,
         visibility: ast::VisibilitySyntax::Omitted,
@@ -248,6 +249,7 @@ fn secondary_struct_constructor(
         annotations: Vec::new(),
         visibility: ast::VisibilitySyntax::Omitted,
         params: vec![ast::Param {
+            annotations: Vec::new(),
             name: ident(parameter_name),
             ty: parameter_type,
             syntax,

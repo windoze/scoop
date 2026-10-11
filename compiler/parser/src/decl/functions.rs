@@ -140,12 +140,14 @@ impl Parser {
         let mut vararg_span = None;
         if !matches!(self.peek().kind, TokenKind::RParen) {
             loop {
+                let annotations = self.parse_annotations()?;
                 let modifier_span = self.parse_vararg_modifier(&mut vararg_span)?;
                 let param_name = self.expect_ident("parameter name")?;
                 self.expect("`:`", |k| matches!(k, TokenKind::Colon))?;
                 let ty = self.parse_type_ref()?;
                 let (syntax, end) = self.parse_parameter_syntax(modifier_span, ty.span.end)?;
                 params.push(Param {
+                    annotations,
                     span: Span::new(
                         modifier_span.map_or(param_name.span.start, |span| span.start),
                         end,

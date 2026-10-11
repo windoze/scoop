@@ -307,7 +307,13 @@ pub fn dump(file: &SourceFile) -> String {
                 let params: Vec<String> = f
                     .params
                     .iter()
-                    .map(|p| dump_parameter(&p.name.text, &p.ty, &p.syntax))
+                    .map(|p| {
+                        format!(
+                            "{}{}",
+                            super::types::dump_annotation_prefix(&p.annotations),
+                            dump_parameter(&p.name.text, &p.ty, &p.syntax)
+                        )
+                    })
                     .collect();
                 let ret = f
                     .return_ty
@@ -434,7 +440,13 @@ fn dump_secondary_constructor(
     let params = constructor
         .params
         .iter()
-        .map(|parameter| dump_parameter(&parameter.name.text, &parameter.ty, &parameter.syntax))
+        .map(|parameter| {
+            format!(
+                "{}{}",
+                super::types::dump_annotation_prefix(&parameter.annotations),
+                dump_parameter(&parameter.name.text, &parameter.ty, &parameter.syntax)
+            )
+        })
         .collect::<Vec<_>>()
         .join(", ");
     let delegation = match &constructor.delegation {
@@ -690,6 +702,7 @@ fn dump_parameter(name: &str, ty: &TypeRef, syntax: &ParameterSyntax) -> String 
 }
 
 pub(super) fn dump_type_alias(alias: &TypeAliasDecl, indent: usize, out: &mut String) {
+    dump_annotations(&alias.annotations, indent, out);
     out.push_str(&format!(
         "{}{}typealias {}{}{} = {}\n",
         "  ".repeat(indent),

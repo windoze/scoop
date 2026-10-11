@@ -72,21 +72,6 @@ impl Lowerer {
         self.resolve_property_accessor_signatures_from(accessor_start);
         self.validate_and_freeze_duplicate_signatures(&[], &pending.methods);
         self.resolve_local_owner_annotations(&pending.owners());
-        for &(id, declaration, file) in &pending.structs {
-            self.annotate_struct(id, declaration, file);
-        }
-        for &(id, declaration, file) in &pending.enums {
-            self.annotate_enum(id, declaration, file);
-        }
-        for &(id, declaration, file) in &pending.classes {
-            self.annotate_class(id, declaration, file);
-        }
-        for &(id, declaration, file) in &pending.interfaces {
-            self.annotate_interface(id, declaration, file);
-        }
-        for &(id, declaration, file) in &pending.objects {
-            self.annotate_object(id, declaration, file);
-        }
         self.check_inheritance(
             &pending.classes,
             &pending.structs,
@@ -132,6 +117,28 @@ impl Lowerer {
         self.finish_export_parameter_interfaces();
         self.resolve_constructor_graphs(&pending.classes, &pending.structs, &pending.objects);
         self.lower_constructor_initialization(&pending.classes, &pending.structs, &pending.objects);
+        for &(id, declaration, file) in &pending.structs {
+            self.annotate_struct(id, declaration, file);
+        }
+        for &(id, declaration, file) in &pending.enums {
+            self.annotate_enum(id, declaration, file);
+        }
+        for &(id, declaration, file) in &pending.classes {
+            self.annotate_class(id, declaration, file);
+        }
+        for &(id, declaration, file) in &pending.interfaces {
+            self.annotate_interface(id, declaration, file);
+        }
+        for &(id, declaration, file) in &pending.objects {
+            self.annotate_object(id, declaration, file);
+        }
+        for &(id, declaration, file, owner) in &pending.methods {
+            self.current_file = file;
+            self.current_owner = Some(owner);
+            self.type_params_in_scope = self.signatures[&id].type_params.clone();
+            self.annotate_function(id, declaration);
+        }
+
         for &(id, declaration, file, _) in &pending.methods {
             if self.has_inferred_function(id) || matches!(declaration.body, ast::FunctionBody::None)
             {

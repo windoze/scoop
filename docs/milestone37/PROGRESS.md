@@ -205,3 +205,15 @@ annotation class 不进入 runtime 类型系统，参数 schema 以独立的 typ
 本机 fmt、workspace clippy（release）无警告通过；57 项相关 Rust 测试通过。33 个新增 fixture（6 个正向、27 个 negative）与 78 个旧注解回归完成普通比较，共 111/111 通过、117 个配置、168 个进程、69 个阶段 golden。覆盖整数位宽、泛型与 alias、前向和局部声明、默认值位置、逐元素错误、moving GC，以及删除源码后的 provider → bridge → consumer → 独立链接产物链。
 
 报告见 [18a-annotation-values-darwin.json](validation/18a-annotation-values-darwin.json)。旧负例只迁移诊断类别或措辞，位置不变；旧正例 HIR 更新数组静态表示、元素来源，以及上一项 core 边界常量产生的索引与位置变化，MIR/LIR 不变。报告合并普通通过批次和受影响项复验，不计快照生成次数。清理本批 fixture cases，保留共用缓存、sysroot、release 依赖和日志。注解目标/use-site、type-use 与 Target/Repeatable 继续分别实现验证，尚未标记完成。
+
+### 18b. 注解声明目标与 use-site（完成）
+
+注解支持 annotation class、具名函数/方法、constructor、完整源码参数、accessor、receiver 和 typealias。property、field、get/set、param、setparam、receiver、delegate 只选择已存在实体；主构造 val/var 默认目标保持原字段/property。局部函数、局部 alias、lambda/匿名函数参数及解构完整参数保留实际位置，不增加局部变量或任意表达式目标。核心 accessor 效果注解沿原函数属性与正文检查处理。
+
+HIR 和共享接口分别使用原声明身份、callable 与源码参数序号、property 与存储类别；局部 callable 复用 lexical generated identity，局部 alias 保留原源码身份，不进入公开名称查找。静态查询入口覆盖全部 typed target；reader 检查实际声明引用，不复制局部签名表或重放 body。cross-cone-interface 升为 74。新增模块最长 181 行，alias 发布模块约 305 行。
+
+组合回归修复了固定外层参数的 alias 构造器候选比较：目标签名中的既有词法参数以固定等式进入原推导会话，声明自身 binder 继续推导。普通构造调用与构造器引用共用这一规则；不同外层实参不能因此互相替代。
+
+本机 fmt、workspace clippy（release）无警告通过；149 项不同的相关 Rust 测试通过。26 个新增正式 fixture（5 个正向、21 个 negative）及旧注解、alias、局部类型回归完成普通比较，共 203/203 个适用用例通过，227 个配置、393 个进程、221 个阶段 golden；另一个 musl 专用用例在 Darwin 不适用。覆盖 debug/release、默认和显式目标、核心 NoGC、局部声明、泛型与 delegate、moving GC，以及删除源码后的 provider → bridge → consumer → 独立链接产物链。
+
+报告见 [18b-annotation-targets-darwin.json](validation/18b-annotation-targets-darwin.json)。五个旧目标负例迁移为正例；其余快照保留新增局部 alias 和此前 enum/注解值格式变化。除增加普通构造调用的 alias 引用组合外，旧回归 MIR/LIR 不变。报告合并普通通过记录，21 个迁移用例已单独普通复验，不计生成快照的运行。完成后清理 fixture cases 与旧工具的编译缓存，保留当前缓存、sysroot、release 依赖和报告。Target/Repeatable 与类型位置注解继续实施。

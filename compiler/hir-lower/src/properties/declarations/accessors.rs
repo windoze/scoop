@@ -88,7 +88,11 @@ impl Lowerer {
                 && (top_level_storage
                     || exported_storage
                     || dispatch_storage
-                    || getter_source.is_some()) =>
+                    || getter_source.is_some()
+                    || has_core_accessor_annotation(
+                        declaration,
+                        ast::AnnotationUseSiteTarget::Get,
+                    )) =>
             {
                 let function_declaration = self.implicit_getter_function_declaration(
                     declaration,
@@ -202,7 +206,11 @@ impl Lowerer {
                 && (top_level_storage
                     || exported_storage
                     || dispatch_storage
-                    || setter_source.is_some()) =>
+                    || setter_source.is_some()
+                    || has_core_accessor_annotation(
+                        declaration,
+                        ast::AnnotationUseSiteTarget::Set,
+                    )) =>
             {
                 let parameter = setter_source.map_or_else(
                     || ast::Ident {
@@ -360,7 +368,7 @@ impl Lowerer {
         let getter = self.property_getters.alloc(hir::PropertyGetter {
             access: access.clone(),
             implementation: hir::PropertyAccessorImplementation::Body(getter),
-            attributes: hir::FunctionAttributes::default(),
+            attributes: self.functions[getter].attributes,
             span: declaration.span,
         });
         if !declaration.mutable {
@@ -393,10 +401,22 @@ impl Lowerer {
         let setter = self.property_setters.alloc(hir::PropertySetter {
             access: setter_access,
             implementation: hir::PropertyAccessorImplementation::Body(setter_function),
-            attributes: hir::FunctionAttributes::default(),
+            attributes: self.functions[setter_function].attributes,
             parameter_name: "value".to_string(),
             span: declaration.span,
         });
         hir::PropertyCapability::ReadWrite { getter, setter }
     }
+}
+
+fn has_core_accessor_annotation(
+    declaration: &ast::PropertyDecl,
+    site: ast::AnnotationUseSiteTarget,
+) -> bool {
+    declaration.annotations.iter().any(|a| {
+        a.use_site.is_some_and(|s| s.target == site)
+            && a.name
+                .single_text()
+                .is_some_and(crate::annotations::is_core_annotation)
+    })
 }

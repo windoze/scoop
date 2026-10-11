@@ -136,7 +136,18 @@ Module
     ret
   fun @scoop$1$cb$17f7f978e03318c424f15adc6e7f9478d0dd7d5e7a6318de3a95f8c32dcb8298(ptr<managed>) -> i32
     local %0 make: ptr<managed>
-    local %1 $call.1: ptr<managed>
+    local %1 $argument.0: ptr<managed>
+    local %2 $argument.1: i32
+    local %3 $parameter.first: ptr<managed>
+    local %4 $parameter.n: i32
+    local %5 $dependency.receiver: i32
+    local %6 $dependency.argument.0: i32
+    local %7 $dependency.parameter.other: i32
+    local %8 $call.1: ptr<managed>
+    local %9 $new.2: ptr<managed>
+    local %10 $inline.1.this: ptr<managed>
+    local %11 $inline.1.first: ptr<managed>
+    local %12 $inline.1.n: i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
     call managed-direct-target0 sp<managed-call:0> live=[param0:ptr<managed>@0] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td12, machine<byte-size>(ByteSize(24)))
@@ -144,9 +155,30 @@ Module
     heap_store t0 +16 t1
     store t0 -> local0
     call managed-direct-target1 sp<managed-call:1> live=[param0:ptr<managed>@0, local0:ptr<managed>@0] t2 = sig=direct1 (ptr<managed>, ptr<managed>, i32) -> ptr<managed> local-fn8(local0, param0, integer<Int>(0x0000002a))
-    store t2 -> local1
-    t3 = heap_load local1 +24 : i32
-    ret t3
+    store t2 -> local8
+    t3 = heap_load local8 +24 : i32
+    store t3 -> local5
+    store param0 -> local1
+    store integer<Int>(0x00000000) -> local2
+    store local1 -> local3
+    store integer<Int>(0x00000000) -> local4
+    call managed-direct-target2 sp<managed-call:2> live=[local3:ptr<managed>@0] t4 = sig=direct2 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td6, machine<byte-size>(ByteSize(32)))
+    store t4 -> local9
+    store local9 -> local10
+    store local3 -> local11
+    store integer<Int>(0x00000000) -> local12
+    br @inline.1.entry
+  block inline.cont.1
+    t5 = heap_load local9 +24 : i32
+    store t5 -> local6
+    store local6 -> local7
+    t6 = integer_Add<Int> local5, local7 : i32
+    ret t6
+  block inline.1.entry
+    heap_store local10 +16 local11
+    heap_store local10 +24 integer<Int>(0x00000000)
+    t7 = aggregate () : {}
+    br @inline.cont.1
   fun @scoop$1$cb$d5d55d31b36723e34c7b3a75f8194ff75838d2405e62ab1ad72cb67e6ae83373(ptr<managed>, ptr<managed>, i32) -> ptr<managed>
     local %0 $new.1: ptr<managed>
     local %1 $inline.1.this: ptr<managed>

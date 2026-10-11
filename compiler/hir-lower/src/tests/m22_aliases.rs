@@ -17,6 +17,7 @@ fn type_alias_with_visibility(
     visibility: ast::VisibilitySyntax,
 ) -> Decl {
     Decl::TypeAlias(ast::TypeAliasDecl {
+        annotations: Vec::new(),
         type_params: Vec::new(),
         where_clause: None,
         visibility,
@@ -35,6 +36,7 @@ fn named_type_at(name: &str, span: Span) -> TypeRef {
 
 fn type_alias_at(name: &str, target: TypeRef, span: Span) -> Decl {
     Decl::TypeAlias(ast::TypeAliasDecl {
+        annotations: Vec::new(),
         type_params: Vec::new(),
         where_clause: None,
         visibility: ast::VisibilitySyntax::Omitted,

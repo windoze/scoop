@@ -17,6 +17,7 @@ impl Lowerer {
         let parameters = names
             .iter()
             .map(|name| ast::LambdaParam {
+                annotations: Vec::new(),
                 target: ast::Pattern::Binding(ast::Ident {
                     text: name.clone(),
                     span,

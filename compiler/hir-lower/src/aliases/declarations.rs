@@ -110,6 +110,7 @@ impl Lowerer {
             return;
         }
         self.source_type_aliases[id].scope = Some(self.scopes.clone());
+        self.source_type_aliases[id].lexical = true;
         if let Some(target) = self.resolve_type_alias(id, declaration.target.span) {
             let outer = std::mem::replace(
                 &mut self.type_params_in_scope,
@@ -122,6 +123,7 @@ impl Lowerer {
                 &mut std::collections::HashSet::new(),
             );
             self.type_params_in_scope = outer;
+            self.publish_lexical_type_alias(id);
         }
     }
 
@@ -151,6 +153,8 @@ impl Lowerer {
             parameters.push(crate::lower_type_param_decl(parameter, id));
         }
         self.source_type_aliases.alloc(SourceTypeAlias {
+            annotations: declaration.annotations.clone(),
+            lexical: false,
             name: declaration.name.text.clone(),
             target: declaration.target.clone(),
             syntax_parameters: declaration.type_params.clone(),

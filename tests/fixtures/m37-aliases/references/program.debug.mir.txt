@@ -207,11 +207,48 @@ Module
         Local value
         Type Int
         IntegerLiteral Int value=42 bits=0x0000002a
-      return
+      val $dependency.receiver: Int
         Type Int
         FieldAccess 1
           Type Choice<String>
           Local $call.1
+      val $argument.0: String
+        Type String
+        Local value
+      val $argument.1: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $parameter.first: String
+        Type String
+        Local $argument.0
+      val $parameter.n: Int
+        Type Int
+        Local $argument.1
+      assign $new.2
+        Type Choice<String>
+        ClassAlloc Choice<String>
+      call @fn10 direct
+        Type Choice<String>
+        Local $new.2
+        Type String
+        Local $parameter.first
+        Type Int
+        Local $parameter.n
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 1
+          Type Choice<String>
+          Local $new.2
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
   fun $lambda.3 @fn6($closure: (String, Int) -> Choice<String>, __codec_argument_0: String, __codec_argument_1: Int) -> Choice<String>
     bb0 entry
       assign $new.1

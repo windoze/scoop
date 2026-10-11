@@ -408,22 +408,6 @@ impl Lowerer {
         self.validate_extern_global_symbols();
 
         self.resolve_annotation_declarations();
-        for &(id, declaration, file) in &pending_structs {
-            self.annotate_struct(id, declaration, file);
-        }
-        for &(id, declaration, file) in &pending_enums {
-            self.annotate_enum(id, declaration, file);
-        }
-        for &(id, declaration, file) in &pending_classes {
-            self.annotate_class(id, declaration, file);
-        }
-        for &(id, declaration, file) in &pending_interfaces {
-            self.annotate_interface(id, declaration, file);
-        }
-        for &(id, declaration, file) in &pending_objects {
-            self.annotate_object(id, declaration, file);
-        }
-        self.current_owner = None;
 
         // Pass 2.75: inheritance checks (milestone6 DESIGN.md 2.2) —
         // cycles, property shadowing, override rules and interface
@@ -468,6 +452,45 @@ impl Lowerer {
         self.finish_export_parameter_interfaces();
         self.resolve_constructor_graphs(&pending_classes, &pending_structs, &pending_objects);
         self.lower_constructor_initialization(&pending_classes, &pending_structs, &pending_objects);
+        for &(id, declaration, file) in &pending_structs {
+            self.annotate_struct(id, declaration, file);
+        }
+        for &(id, declaration, file) in &pending_enums {
+            self.annotate_enum(id, declaration, file);
+        }
+        for &(id, declaration, file) in &pending_classes {
+            self.annotate_class(id, declaration, file);
+        }
+        for &(id, declaration, file) in &pending_interfaces {
+            self.annotate_interface(id, declaration, file);
+        }
+        for &(id, declaration, file) in &pending_objects {
+            self.annotate_object(id, declaration, file);
+        }
+        self.current_owner = None;
+
+        for &(id, declaration, file) in &pending_functions {
+            self.current_file = file;
+            self.current_owner = None;
+            self.type_params_in_scope = self.signatures[&id].type_params.clone();
+            self.annotate_function(id, declaration);
+        }
+        for &(id, declaration, file, owner) in &pending_methods {
+            self.current_file = file;
+            self.current_owner = Some(owner);
+            self.type_params_in_scope = self.signatures[&id].type_params.clone();
+            self.annotate_function(id, declaration);
+        }
+        for &(declaration, file) in &pending_globals {
+            self.current_file = file;
+            self.current_owner = None;
+            self.type_params_in_scope.clear();
+            self.annotate_property_declaration(declaration, file);
+        }
+        self.annotate_type_aliases();
+        self.current_owner = None;
+        self.type_params_in_scope.clear();
+
         // Compiler-generated exception edges receive complete typed class /
         // zero-argument-constructor identities after inheritance has been
         // validated and before body lowering. MIR never recovers these

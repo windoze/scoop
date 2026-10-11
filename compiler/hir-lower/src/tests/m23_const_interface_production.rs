@@ -33,6 +33,7 @@ fn runtime_property(name: &str) -> Decl {
         unreachable!()
     };
     declaration.annotations.push(ast::Annotation {
+        use_site: None,
         name: ident("Global").into(),
         args: Vec::new(),
         span: sp(),

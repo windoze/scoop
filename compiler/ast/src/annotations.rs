@@ -27,9 +27,43 @@ pub struct PositionalVariantFieldDecl {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Annotation {
+    pub use_site: Option<AnnotationUseSite>,
     pub name: crate::QualifiedNameSyntax,
     pub args: Vec<AnnotationArg>,
     pub span: Span,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct AnnotationUseSite {
+    pub target: AnnotationUseSiteTarget,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AnnotationUseSiteTarget {
+    Property,
+    Field,
+    Get,
+    Set,
+    Param,
+    SetParam,
+    Receiver,
+    Delegate,
+}
+
+impl AnnotationUseSiteTarget {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Property => "property",
+            Self::Field => "field",
+            Self::Get => "get",
+            Self::Set => "set",
+            Self::Param => "param",
+            Self::SetParam => "setparam",
+            Self::Receiver => "receiver",
+            Self::Delegate => "delegate",
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]

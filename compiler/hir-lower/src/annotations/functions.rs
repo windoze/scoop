@@ -25,7 +25,9 @@ impl Lowerer {
         let mut saw_calling_convention = false;
         let mut seen = HashSet::new();
 
-        for annotation in &decl.annotations {
+        for annotation in decl.annotations.iter().filter(|a| {
+            a.use_site.is_none() && a.name.single_text().is_some_and(super::is_core_annotation)
+        }) {
             let Some(name) = annotation.name.single_text() else {
                 continue;
             };
@@ -112,10 +114,7 @@ impl Lowerer {
                     annotation.span,
                     format!("`@{name}` is not allowed on a function"),
                 ),
-                _ => self.error(
-                    annotation.span,
-                    format!("user annotation `@{name}` is not allowed on a function"),
-                ),
+                _ => unreachable!("compiler annotation names are filtered"),
             }
         }
 

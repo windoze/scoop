@@ -738,6 +738,8 @@ annotation 声明使用独立 PersistentAnnotationId。普通值参数保存完�
 
 HIR foundation field 35 保存 annotation declaration keys，共有源码接口 field 14 保存 annotation declarations 与有序 applications；实际 annotation 依赖使用 AnnotationDependency tag 11。NominalDeclarationDetails field 11 保存可选 primary constructor 及声明序参数到 property 的映射，普通参数为空，val/var 参数引用原 logical property。
 
+注解 target 保留原声明的类型化身份：named callable、constructor、accessor、annotation 和 typealias 使用各自声明身份；普通值参数以 callable 身份和源码参数序号选择，receiver 单独选择。局部 callable 复用既有 lexical generated callable identity。字段使用现有 field/variant-field identity；顶层或泛型 property 的存储以原 property 身份与 backing/delegate 类别表达。use-site 只在 HIR 名称绑定时选择真实已存在的实体，不新增运行期布局或隐藏参数。共享接口保存这些已绑定位置；reader 检查实际声明引用和共享参数表中的索引；局部 callable 复用已绑定的源码参数位置，不另存一份只用于重放检查的签名表，也不重放 accessor body 或默认目标选择。目标编码变更将 cross-cone-interface 升至 74。
+
 property accessor 的 Storage、Constant、Body、AbstractSlot、StorageBody tags 分别为 1..5。StorageBody 表示普通存储语义产生的实际 accessor body，不能通过识别机器正文推断。NominalDeclarationDetails field 12 保存 sealed 直接子类型（2.2），generated callable tag 17 保留不用。
 
 companion 继承直接宿主的 binder 与 bound，不捕获宿主实例或 primary 参数值；ordinary static nested declaration 隔断该 binder。companion declaration、完整 application 和 concrete singleton 分别有身份，泛型状态共享规则见 2.13。

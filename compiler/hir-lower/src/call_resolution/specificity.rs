@@ -6,6 +6,7 @@ use super::candidates::{CallableView, NominalConstructorView};
 use super::constraints::{Constraint, ConstraintOrigin, InferenceSession, TypeTerm};
 use crate::Lowerer;
 
+mod captures;
 mod literals;
 mod selection;
 pub(crate) use literals::{NumericLiteralKind, prefer_literal_defaults};
@@ -132,6 +133,7 @@ impl Lowerer {
 
         let mut session = InferenceSession::new();
         session.add_environment(target.owner_parameters, target.callable_parameters);
+        probe.bind_forwarding_captures(&mut session, target);
         probe.add_declaration_bounds(
             &mut session,
             target

@@ -230,6 +230,7 @@ fn operator_equals_legality_is_checked_at_its_declaration() {
     wrong_name.name = ident("compare");
     let mut wrong_arity = operator_equals(false, false, ty_named("Bad"));
     wrong_arity.params.push(ast::Param {
+        annotations: Vec::new(),
         name: ident("extra"),
         ty: ty_named("Bad"),
         syntax: ast::ParameterSyntax::Required,

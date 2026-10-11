@@ -25,6 +25,7 @@ impl Parser {
                 let span = scoop_ast::Span::new(name.span.start, end);
                 return Ok((
                     AnnotationLiteral::Application(Box::new(scoop_ast::Annotation {
+                        use_site: None,
                         name,
                         args,
                         span,

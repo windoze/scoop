@@ -40,6 +40,8 @@ impl AliasTemplate {
 
 #[derive(Debug, Clone)]
 pub(crate) struct SourceTypeAlias {
+    annotations: Vec<ast::Annotation>,
+    lexical: bool,
     name: String,
     target: ast::TypeRef,
     syntax_parameters: Vec<ast::TypeParamDecl>,
@@ -320,6 +322,7 @@ impl Lowerer {
                     &mut std::collections::HashSet::new(),
                 );
                 self.type_params_in_scope = params;
+                self.publish_lexical_type_alias(id);
             }
         }
     }

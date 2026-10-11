@@ -13,6 +13,7 @@ enum Case {
     ArgumentType,
     DefaultType,
     GlobalTarget,
+    MissingReceiver,
     MissingDeclaration,
 }
 
@@ -56,12 +57,16 @@ fn annotated(case: Case) -> ConstSurface {
         visibility: DeclaredVisibilityV1::Internal,
         definition_origin: source.clone(),
     };
-    let target = if matches!(case, Case::GlobalTarget) {
+    let target = if matches!(case, Case::GlobalTarget | Case::MissingReceiver) {
         let PropertyOwner::Property(id) = section.property_interfaces().records()[0].declaration()
         else {
             panic!("ordinary property")
         };
-        AnnotationTargetV1::Property(id)
+        if matches!(case, Case::MissingReceiver) {
+            AnnotationTargetV1::PropertyReceiver(PropertyOwner::Property(id))
+        } else {
+            AnnotationTargetV1::Property(id)
+        }
     } else {
         AnnotationTargetV1::Nominal(SourceNominalId::Concrete(value_type))
     };
@@ -95,6 +100,10 @@ fn annotated(case: Case) -> ConstSurface {
 
 #[test]
 fn annotation_wire_round_trip_preserves_the_actual_declaration_and_typed_values() {
+    let bytes = annotated(Case::GlobalTarget).artifact();
+    validate_until_source_interfaces(&bytes)
+        .validate_const_values(vec![])
+        .unwrap();
     let fixture = annotated(Case::Valid);
     let bytes = fixture.artifact();
     let front = validate_until_source_interfaces(&bytes)
@@ -128,7 +137,7 @@ fn annotation_reader_rejects_mismatched_arguments_defaults_and_targets() {
         ),
         (Case::DefaultType, "annotation default has a different type"),
         (
-            Case::GlobalTarget,
+            Case::MissingReceiver,
             "annotation target is not a retained source declaration",
         ),
         (

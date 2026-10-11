@@ -91,7 +91,8 @@ pub(super) fn dump_expr(expr: &Expr, indent: usize, out: &mut String) {
                             .as_ref()
                             .map_or_else(|| "_".to_string(), dump_type_ref);
                         out.push_str(&format!(
-                            "{pad}  param {}: {ty}\n",
+                            "{pad}  param {}{}: {ty}\n",
+                            super::types::dump_annotation_prefix(&parameter.annotations),
                             dump_pattern(&parameter.target)
                         ));
                     }
@@ -124,7 +125,8 @@ pub(super) fn dump_expr(expr: &Expr, indent: usize, out: &mut String) {
             }
             for param in params {
                 out.push_str(&format!(
-                    "{pad}  param {}: {}\n",
+                    "{pad}  param {}{}: {}\n",
+                    super::types::dump_annotation_prefix(&param.annotations),
                     param.name.text,
                     dump_type_ref(&param.ty)
                 ));

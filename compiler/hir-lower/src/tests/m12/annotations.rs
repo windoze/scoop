@@ -22,6 +22,7 @@ fn lowers_function_and_struct_annotations_to_typed_hir() {
         unreachable!()
     };
     layout_decl.annotations = vec![ast::Annotation {
+        use_site: None,
         name: ident("CLayout").into(),
         args: vec![
             ast::AnnotationArg {

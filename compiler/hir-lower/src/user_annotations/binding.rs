@@ -8,28 +8,16 @@ impl Lowerer {
         target: hir::SourceAnnotationTarget,
         annotations: &[ast::Annotation],
     ) {
-        let mut applications = Vec::new();
-        let mut seen = HashSet::new();
         for annotation in annotations {
+            let Some(target) = self.annotation_use_site(target, annotation) else {
+                continue;
+            };
             if annotation
                 .name
                 .single_text()
                 .is_some_and(crate::annotations::is_core_annotation)
             {
-                if matches!(
-                    target,
-                    hir::SourceAnnotationTarget::Field(_)
-                        | hir::SourceAnnotationTarget::Variant(_)
-                        | hir::SourceAnnotationTarget::VariantField(_)
-                ) {
-                    self.error(
-                        annotation.span,
-                        format!(
-                            "`@{}` is not allowed on a field or enum variant",
-                            annotation.name
-                        ),
-                    );
-                }
+                self.check_core_annotation_target(target, annotation);
                 continue;
             }
             let path = annotation.name.segments().cloned().collect::<Vec<_>>();
@@ -51,7 +39,13 @@ impl Lowerer {
                 }
                 Err(()) => continue,
             };
-            if !seen.insert(id) {
+            if self
+                .annotation_metadata
+                .targets
+                .iter()
+                .find(|entry| entry.target == target)
+                .is_some_and(|entry| entry.annotations.iter().any(|a| a.annotation == id))
+            {
                 self.error(
                     annotation.span,
                     format!(
@@ -65,21 +59,28 @@ impl Lowerer {
                 continue;
             };
             if let Some(arguments) = self.bind_annotation_arguments(annotation, &parameters) {
-                applications.push(hir::SourceAnnotationApplication {
+                let application = hir::SourceAnnotationApplication {
                     annotation: id,
                     arguments,
                     definition_origin: self.definition_origin(annotation.span),
-                });
+                };
+                self.validate_serialization_annotations(target, std::slice::from_ref(&application));
+                if let Some(entry) = self
+                    .annotation_metadata
+                    .targets
+                    .iter_mut()
+                    .find(|entry| entry.target == target)
+                {
+                    entry.annotations.push(application);
+                } else {
+                    self.annotation_metadata
+                        .targets
+                        .push(hir::SourceAnnotatedTarget {
+                            target,
+                            annotations: vec![application],
+                        });
+                }
             }
-        }
-        self.validate_serialization_annotations(target, &applications);
-        if !applications.is_empty() {
-            self.annotation_metadata
-                .targets
-                .push(hir::SourceAnnotatedTarget {
-                    target,
-                    annotations: applications,
-                });
         }
     }
 

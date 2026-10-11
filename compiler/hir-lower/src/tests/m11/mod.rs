@@ -45,6 +45,7 @@ fn anonymous(
         params: params
             .into_iter()
             .map(|(name, ty)| ast::Param {
+                annotations: Vec::new(),
                 name: ident(name),
                 ty,
                 syntax: ast::ParameterSyntax::Required,

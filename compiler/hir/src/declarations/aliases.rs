@@ -9,6 +9,8 @@ use scoop_identity::PersistentTypeAliasId;
 /// to serialize the M23 alias graph without introducing a second type tree.
 #[derive(Debug, Clone)]
 pub struct TypeAliasDecl {
+    /// A lexical declaration is retained for static data, without public lookup.
+    pub lexical: bool,
     pub name: String,
     pub owner: Option<NominalOwner>,
     pub type_params: Vec<TypeParamDecl>,

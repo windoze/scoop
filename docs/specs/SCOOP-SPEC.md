@@ -1455,7 +1455,7 @@ public struct Account(@Description("Stable identifier") val id: Long)
 
 - annotation class是编译期声明，具有普通名称、typed declaration identity、可见性和import规则；不是可实例化的runtime class，不具有继承、interface、泛型参数、body或成员函数。参数为`val`，原子类型包括 Boolean、String、Char、现有定宽整数、Float/Double、4.2.1 的整型枚举及另一个 annotation class；这些原子类型的一维 Array<T> 也合法。无参数声明可省略括号。annotation 参数类型及默认值的依赖必须无环，递归在定义处诊断。
 - 使用处采用`@Name(...)`或限定名称，沿普通符号解析选定实际声明。参数遵守位置/命名参数映射，可以有缺省常量；标量值限于上述类型的字面量、带符号数值字面量和已绑定的同类型 `const val`。数组值写作 `[...]`，可以为空，支持尾随逗号、默认值、命名或位置参数；元素逐个遵守相应的原子值规则并保存独立源码位置，保留顺序和重复值。元素的期望类型来自参数，包括空数组。const val 的限定引用沿普通名称和完整宿主 application 规则，包括 `Box<Int>.Companion.NAME`；只读取已绑定的常量，不执行 singleton 初始化。不得执行任意函数、构造用户对象或把类型作为annotation值。整数范围、浮点字面量的目标精度与溢出、重复/缺失/未知参数及可见性错误在定义或使用处诊断；浮点常量以类型和原始位型保留，不用数值相等合并正负零或NaN。
-- 自定义注解可标在名义类型、enum variant、struct/variant字段和class/interface的logical property上。主构造参数带`val`/`var`时注解属于该字段/property；普通值参数不因此成为可注解字段。不增加use-site target、可重复注解、注解继承、元注解执行或编译器插件API。同一target重复同一annotation声明是错误；不同注解按源码顺序保留。
+- 自定义注解可标在名义类型、annotation class、enum variant、字段、logical property、具名函数/方法、constructor、普通值参数、accessor、receiver 和 typealias 上，局部具名声明遵守相同规则。主构造参数带 `val`/`var` 时，未指定 use-site 的注解仍属于原字段/property；普通参数属于完整源码参数，解构不把注解复制给叶 binding。同一实际 target 重复同一 annotation 声明是错误；不同注解按源码顺序保留。
 - 注解的参数按声明序正规化为typed常量，包含已补齐的缺省参数。泛型application保留原声明的注解；不因具体化产生新的annotation声明，也不把宿主注解复制到字段、派生类、accessor或backing storage。logical property与实际存储的关系遵守9.1.1、9.1.5。
 - 注解本身没有可执行副作用。普通用户注解仅进入9.6的静态描述；只有已规定语义的核心注解参与编译。导出的注解声明及应用保留实际类型/常量引用和必要依赖，读入`.slib`后不重新按短名称解释；这些数据不扩大普通源码可见性。
 
@@ -1466,6 +1466,10 @@ public struct Account(@Description("Stable identifier") val id: Long)
 数组参数按 alias 展开后的实际 core Array 身份与完整元素 application 判断，不按短名判断；不接受 MutableArray、多维数组、Array<Any>、Option、代数 enum、普通用户对象、spread、工厂调用或运行期表达式。数组默认值在声明处绑定，元素错误定位到实际元素。内建 annotation 的既有参数形状保持。
 
 注解数组是编译期静态数据，不调用 Array 构造器，不分配 managed 数组，也没有可观察的 identity。普通 const val 仍限标量，不因注解值域扩大而改变。静态描述、默认值及跨 Cone 再次发布保存完整数组类型、有序元素及每个元素的定义文件和位置；嵌套应用按参数声明序补全默认值，不要求消费者重新求值。
+
+显式 use-site 写作 `@target:Name(...)`。`property` 指向 logical property；`field` 指向已有 backing storage 或值类型字段；`get`/`set` 指向已有 getter/setter；`param` 指向完整普通/构造参数；`setparam` 指向 setter 的值参数；`receiver` 指向声明中的实际 receiver；`delegate` 指向已有 delegate storage。主构造字段/property 可以用 `param` 选择构造参数部分。不同 use-site 分别检查重复，直接标在 accessor 上的注解与对应 `get`/`set` 选择同一目标。声明不存在相应实体时在 use-site 处报错，不能合成存储、setter 或 receiver；默认目标也不按注解内容重新猜测。第 13 章核心注解仍受各自目标和参数契约约束。
+
+不增加文件目标、局部变量目标、任意表达式目标、注解继承、运行期 Retention、元注解执行或处理器/plugin API。局部声明的静态注解随其原声明保留，不能因此扩大源码名称的可见范围。
 
 ### 9.5 companion 与普通 codec 的编码、解码接口
 

@@ -115,6 +115,7 @@ fn source_file(unrelated_prefix: bool) -> ast::SourceFile {
         public(property("answer", None)),
         public(property("extensionAnswer", Some(ty_named("Int")))),
         public(ast::Decl::TypeAlias(ast::TypeAliasDecl {
+            annotations: Vec::new(),
             type_params: Vec::new(),
             where_clause: None,
             visibility: ast::VisibilitySyntax::Omitted,

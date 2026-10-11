@@ -46,6 +46,7 @@ fn marker(output: &hir::Output) -> &str {
 
 fn alias(name: &str, target: ast::TypeRef) -> ast::Decl {
     ast::Decl::TypeAlias(ast::TypeAliasDecl {
+        annotations: Vec::new(),
         type_params: Vec::new(),
         where_clause: None,
         visibility: ast::VisibilitySyntax::Omitted,

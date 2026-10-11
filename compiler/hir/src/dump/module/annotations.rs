@@ -72,9 +72,26 @@ fn target_name(module: &Module, target: SourceAnnotationTarget) -> String {
                 PropertyOwner::Class(id) => NominalOwner::Class(id),
                 PropertyOwner::Interface(id) => NominalOwner::Interface(id),
                 PropertyOwner::Object(id) => NominalOwner::Object(id),
-                _ => unreachable!("only reference-type logical properties are annotation targets"),
+                PropertyOwner::Struct(id) => NominalOwner::Struct(id),
+                PropertyOwner::Enum(id) => NominalOwner::Enum(id),
+                PropertyOwner::TopLevel | PropertyOwner::Extension(_) => {
+                    return property.name.clone();
+                }
             };
             format!("{}.{}", nominal_name(module, owner), property.name)
+        }
+        SourceAnnotationTarget::Annotation(id) => format!("annotation {id}"),
+        SourceAnnotationTarget::Callable(id) => format!("callable {id:?}"),
+        SourceAnnotationTarget::Parameter { callable, index } => {
+            format!("parameter {callable:?}[{index}]")
+        }
+        SourceAnnotationTarget::Receiver(receiver) => format!("receiver {receiver:?}"),
+        SourceAnnotationTarget::TypeAlias(id) => {
+            format!("typealias {}", module.type_aliases[id].name)
+        }
+        SourceAnnotationTarget::ClassField(id) => format!("field {id:?}"),
+        SourceAnnotationTarget::PropertyStorage { property, role } => {
+            format!("storage {} {role:?}", module.properties[property].name)
         }
     }
 }

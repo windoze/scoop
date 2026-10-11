@@ -1,0 +1,9 @@
+schema = 1
+[cone]
+group = "dev.m37"
+name = "annotation-targets-bridge"
+version = "0.1.0"
+kind = "library"
+[dependencies]
+"scoop:scoop.core" = "0.1.0"
+"dev.m37:annotation-targets-provider" = "0.1.0"

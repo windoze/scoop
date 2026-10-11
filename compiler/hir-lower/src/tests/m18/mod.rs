@@ -81,6 +81,7 @@ fn int_identity_lambda() -> Expr {
         id: ast::LambdaId(0),
         is_suspend: false,
         parameters: Some(vec![ast::LambdaParam {
+            annotations: Vec::new(),
             target: pat_bind("value"),
             ty: None,
             span: sp(),
@@ -1316,6 +1317,7 @@ fn class_binding_plan_keeps_one_complete_lambda_parameter() {
         id: ast::LambdaId(0),
         is_suspend: false,
         parameters: Some(vec![ast::LambdaParam {
+            annotations: Vec::new(),
             target: pat_tuple(vec![pat_bind("left"), pat_wild()], None),
             ty: None,
             span: sp(),
@@ -1441,11 +1443,13 @@ fn failed_composite_lambda_owner_rolls_back_earlier_parameters_and_function_coun
         is_suspend: false,
         parameters: Some(vec![
             ast::LambdaParam {
+                annotations: Vec::new(),
                 target: pat_tuple(vec![pat_bind_at("first", first_span)], None),
                 ty: None,
                 span: first_span,
             },
             ast::LambdaParam {
+                annotations: Vec::new(),
                 target: pat_tuple(vec![pat_bind_at("missing", missing_span)], None),
                 ty: None,
                 span: missing_span,
@@ -1459,6 +1463,7 @@ fn failed_composite_lambda_owner_rolls_back_earlier_parameters_and_function_coun
         id: ast::LambdaId(1),
         is_suspend: false,
         parameters: Some(vec![ast::LambdaParam {
+            annotations: Vec::new(),
             target: pat_tuple(vec![pat_bind_at("value", suspend_span)], None),
             ty: None,
             span: suspend_span,
@@ -1570,6 +1575,7 @@ fn class_binding_plan_checks_suspend_components_in_the_lambda_context() {
         id: ast::LambdaId(0),
         is_suspend,
         parameters: Some(vec![ast::LambdaParam {
+            annotations: Vec::new(),
             target: pat_tuple(vec![pat_bind("value")], None),
             ty: None,
             span: sp(),

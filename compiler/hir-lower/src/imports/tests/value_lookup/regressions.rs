@@ -24,6 +24,7 @@ fn non_value_bindings_occupy_exact_current_and_star_before_lower_values() {
             Vec::new(),
         ),
         ast::Decl::TypeAlias(ast::TypeAliasDecl {
+            annotations: Vec::new(),
             type_params: Vec::new(),
             where_clause: None,
             visibility: ast::VisibilitySyntax::Omitted,

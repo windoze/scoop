@@ -2,11 +2,13 @@ use super::super::*;
 
 pub(super) fn ffi_core_declarations() -> Vec<Decl> {
     let marker = |name: &str| ast::Annotation {
+        use_site: None,
         name: ident(name).into(),
         args: Vec::new(),
         span: sp(),
     };
     let intrinsic = |name: &str| ast::Annotation {
+        use_site: None,
         name: ident("Intrinsic").into(),
         args: vec![ast::AnnotationArg {
             name: None,

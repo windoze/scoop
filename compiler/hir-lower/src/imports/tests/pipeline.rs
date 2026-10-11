@@ -59,6 +59,7 @@ fn pipeline_materializes_importable_nominals_aliases_properties_variants_and_sta
             interface_decl("Contract", Vec::new()),
             enum_decl("State", Vec::new(), vec![variant_unit("Ready")]),
             ast::Decl::TypeAlias(ast::TypeAliasDecl {
+                annotations: Vec::new(),
                 type_params: Vec::new(),
                 where_clause: None,
                 visibility: ast::VisibilitySyntax::Omitted,

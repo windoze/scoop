@@ -145,6 +145,7 @@ pub(crate) fn method_full(
         params: params
             .into_iter()
             .map(|(name, ty)| Param {
+                annotations: Vec::new(),
                 name: ident(name),
                 ty,
                 syntax: ast::ParameterSyntax::Required,

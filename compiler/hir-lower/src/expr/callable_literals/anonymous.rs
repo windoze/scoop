@@ -193,6 +193,10 @@ impl Lowerer {
             abi_params.extend(params);
             let type_params = self.type_params_in_scope.clone();
             let access = self.local_declaration_access();
+            let annotation_locals = source_params
+                .iter()
+                .any(|p| !p.annotations.is_empty())
+                .then(|| self.locals.clone());
             let function = self.functions.alloc(hir::Function {
                 signature: hir::CallableSignature {
                     context_parameters: Vec::new(),
@@ -218,6 +222,14 @@ impl Lowerer {
                 self.register_generic(function, type_params.clone());
             }
             self.function_files.insert(function, self.current_file);
+            if let Some(locals) = annotation_locals {
+                let empty = std::mem::replace(&mut self.locals, locals);
+                self.annotate_parameters(
+                    hir::SourceAnnotationCallable::Function(function),
+                    source_params,
+                );
+                self.locals = empty;
+            }
             let captures = self.finish_current_captures(literal_origin);
             let id = self.anonymous_functions.alloc(hir::AnonymousFunction {
                 definition: hir::LexicalFunctionDefinition::Source {

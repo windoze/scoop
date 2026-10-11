@@ -55,6 +55,7 @@ fn star(package: &str) -> ast::ImportSyntax {
 
 fn type_alias(name: &str, target: TypeRef) -> Decl {
     Decl::TypeAlias(ast::TypeAliasDecl {
+        annotations: Vec::new(),
         type_params: Vec::new(),
         where_clause: None,
         visibility: ast::VisibilitySyntax::Omitted,

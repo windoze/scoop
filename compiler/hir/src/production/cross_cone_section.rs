@@ -117,6 +117,8 @@ impl CrossConeHirInterfaceSectionV1 {
             export,
             &nominal_interfaces,
             &property_interfaces,
+            &callable_interfaces,
+            &type_aliases,
         )
         .map_err(CrossConeHirInterfaceProductionError::Annotations)?;
         let definition_sources = CanonicalExportDefinitionSourcesV1::from_interface_parts(

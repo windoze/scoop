@@ -6,6 +6,9 @@ use crate::{
 };
 use scoop_identity::{CborIdentityRecord, PersistentAnnotationId, SourceDeclarationKey};
 
+mod targets;
+pub use targets::{AnnotationStorageRole, SourceAnnotationCallable, SourceAnnotationReceiver};
+
 #[derive(Clone, Debug)]
 pub struct SourceAnnotationParameter {
     pub name: String,
@@ -28,6 +31,19 @@ pub enum SourceAnnotationTarget {
     Field(StructFieldRef),
     VariantField(EnumVariantFieldRef),
     Property(PropertyId),
+    Annotation(PersistentAnnotationId),
+    Callable(SourceAnnotationCallable),
+    Parameter {
+        callable: SourceAnnotationCallable,
+        index: u32,
+    },
+    Receiver(SourceAnnotationReceiver),
+    TypeAlias(crate::ExportTypeAliasId),
+    ClassField(crate::ClassFieldId),
+    PropertyStorage {
+        property: PropertyId,
+        role: AnnotationStorageRole,
+    },
 }
 
 #[derive(Clone, Debug)]

@@ -44,6 +44,7 @@ fn synthetic_declaration(declaration: Decl) -> Decl {
         }
         Decl::Function(value) => Decl::Function(synthetic_function(value, None)),
         Decl::TypeAlias(value) => Decl::TypeAlias(ast::TypeAliasDecl {
+            annotations: Vec::new(),
             type_params: Vec::new(),
             where_clause: None,
             visibility: ast::VisibilitySyntax::Omitted,
@@ -101,6 +102,7 @@ fn synthetic_annotations(values: Vec<ast::Annotation>) -> Vec<ast::Annotation> {
     values
         .into_iter()
         .map(|value| ast::Annotation {
+            use_site: None,
             name: value.name.clone(),
             args: value
                 .args

@@ -35,6 +35,7 @@ fn callback_registration(lambda_id: u32, mode: &str) -> ast::Expr {
         id: ast::LambdaId(lambda_id),
         is_suspend: false,
         parameters: Some(vec![ast::LambdaParam {
+            annotations: Vec::new(),
             target: pat_bind("value"),
             ty: Some(ty_named("Int")),
             span: sp(),

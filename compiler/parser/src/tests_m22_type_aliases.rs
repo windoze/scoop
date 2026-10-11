@@ -82,12 +82,9 @@ fn typealias_dump_is_source_shaped() {
 }
 
 #[test]
-fn annotations_and_non_visibility_modifiers_are_rejected_on_typealiases() {
-    let (_, annotation) = err("@Marker typealias Alias = Int");
-    assert_eq!(
-        annotation,
-        "annotations are not allowed on typealias declarations"
-    );
+fn annotations_are_preserved_and_non_visibility_modifiers_rejected_on_typealiases() {
+    let file = ok("@Marker typealias Alias = Int");
+    assert_eq!(alias(&file, 0).annotations.len(), 1);
 
     for modifier in [
         "suspend", "infix", "operator", "const", "open", "final", "abstract", "override",
@@ -155,13 +152,9 @@ fn typealias_errors_recover_at_declaration_and_member_boundaries() {
          typealias Retained = String\n",
     )
     .expect_err("unsupported alias forms must be diagnosed");
-    assert_eq!(diagnostics.len(), 2, "{diagnostics:?}");
+    assert_eq!(diagnostics.len(), 1, "{diagnostics:?}");
     assert_eq!(
         diagnostics[0].message,
-        "annotations are not allowed on typealias declarations"
-    );
-    assert_eq!(
-        diagnostics[1].message,
         "only visibility modifiers are allowed on typealias declarations"
     );
 }

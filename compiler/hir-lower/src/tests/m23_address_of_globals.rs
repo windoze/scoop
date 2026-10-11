@@ -90,6 +90,7 @@ fn raw_global(name: &str, value: i64) -> Decl {
     Decl::Global(ast::PropertyDecl {
         context_parameters: Vec::new(),
         annotations: vec![ast::Annotation {
+            use_site: None,
             name: ident("Global").into(),
             args: Vec::new(),
             span: sp(),

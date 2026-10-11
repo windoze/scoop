@@ -57,7 +57,9 @@ impl Lowerer {
         let mut extern_ = None;
         let mut storage = None;
         let mut seen = HashSet::new();
-        for annotation in &decl.annotations {
+        for annotation in decl.annotations.iter().filter(|a| {
+            a.use_site.is_none() && a.name.single_text().is_some_and(is_core_annotation)
+        }) {
             let Some(name) = annotation.name.single_text() else {
                 continue;
             };
@@ -149,10 +151,11 @@ impl Lowerer {
         let mut intrinsic = None;
         let mut seen = HashSet::new();
         for annotation in decl.annotations.iter().filter(|annotation| {
-            annotation
-                .name
-                .single_text()
-                .is_some_and(is_core_annotation)
+            annotation.use_site.is_none()
+                && annotation
+                    .name
+                    .single_text()
+                    .is_some_and(is_core_annotation)
         }) {
             let Some(name) = annotation.name.single_text() else {
                 continue;
@@ -217,10 +220,11 @@ impl Lowerer {
         let mut intrinsic = None;
         let mut seen = HashSet::new();
         for annotation in decl.annotations.iter().filter(|annotation| {
-            annotation
-                .name
-                .single_text()
-                .is_some_and(is_core_annotation)
+            annotation.use_site.is_none()
+                && annotation
+                    .name
+                    .single_text()
+                    .is_some_and(is_core_annotation)
         }) {
             let Some(name) = annotation.name.single_text() else {
                 continue;
@@ -293,10 +297,11 @@ impl Lowerer {
         let mut no_gc = false;
         let mut seen = HashSet::new();
         for annotation in decl.annotations.iter().filter(|annotation| {
-            annotation
-                .name
-                .single_text()
-                .is_some_and(is_core_annotation)
+            annotation.use_site.is_none()
+                && annotation
+                    .name
+                    .single_text()
+                    .is_some_and(is_core_annotation)
         }) {
             let Some(name) = annotation.name.single_text() else {
                 continue;
@@ -326,10 +331,11 @@ impl Lowerer {
     pub(crate) fn reject_type_annotations(&mut self, kind: &str, annotations: &[ast::Annotation]) {
         let mut seen = HashSet::new();
         for annotation in annotations.iter().filter(|annotation| {
-            annotation
-                .name
-                .single_text()
-                .is_some_and(is_core_annotation)
+            annotation.use_site.is_none()
+                && annotation
+                    .name
+                    .single_text()
+                    .is_some_and(is_core_annotation)
         }) {
             let Some(name) = annotation.name.single_text() else {
                 continue;
@@ -360,10 +366,11 @@ impl Lowerer {
     ) {
         let mut seen = HashSet::new();
         for annotation in annotations.iter().filter(|annotation| {
-            annotation
-                .name
-                .single_text()
-                .is_some_and(is_core_annotation)
+            annotation.use_site.is_none()
+                && annotation
+                    .name
+                    .single_text()
+                    .is_some_and(is_core_annotation)
         }) {
             let Some(name) = annotation.name.single_text() else {
                 continue;

@@ -17,6 +17,7 @@ fn dump_statement(statement: &Statement, indent: usize, out: &mut String) {
         }
         StatementKind::LocalFunction(function) => {
             super::dump_context(&function.context_parameters, indent, out);
+            let annotations = super::types::dump_annotation_prefix(&function.annotations);
             let suspend = if function.is_suspend { "suspend " } else { "" };
             let operator = if function.operator.is_some() {
                 "operator "
@@ -37,7 +38,14 @@ fn dump_statement(statement: &Statement, indent: usize, out: &mut String) {
             let params: Vec<_> = function
                 .params
                 .iter()
-                .map(|param| format!("{}: {}", param.name.text, dump_type_ref(&param.ty)))
+                .map(|param| {
+                    format!(
+                        "{}{}: {}",
+                        super::types::dump_annotation_prefix(&param.annotations),
+                        param.name.text,
+                        dump_type_ref(&param.ty)
+                    )
+                })
                 .collect();
             let return_ty = function
                 .return_ty
@@ -45,7 +53,7 @@ fn dump_statement(statement: &Statement, indent: usize, out: &mut String) {
                 .map(|ty| format!(": {}", dump_type_ref(ty)))
                 .unwrap_or_default();
             out.push_str(&format!(
-                "{pad}{operator}{infix}{suspend}fun {}{}({}){return_ty}\n",
+                "{pad}{annotations}{operator}{infix}{suspend}fun {}{}({}){return_ty}\n",
                 function.name.text,
                 type_params,
                 params.join(", ")

@@ -210,6 +210,7 @@ fn bare_enum_variant_names_bind_in_composite_lambda_parameters() {
         id: ast::LambdaId(0),
         is_suspend: false,
         parameters: Some(vec![ast::LambdaParam {
+            annotations: Vec::new(),
             target: pat_tuple(vec![pat_bind("None"), pat_bind("Ready")], None),
             ty: None,
             span: sp(),

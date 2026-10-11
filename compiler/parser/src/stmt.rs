@@ -7,6 +7,7 @@ use crate::lexer::{Token, TokenKind};
 use crate::parser::Parser;
 
 mod control_flow;
+mod declarations;
 mod jumps;
 mod when;
 
@@ -77,6 +78,11 @@ impl Parser {
                 span: declaration.span(),
                 kind: StatementKind::LocalType(declaration),
             });
+        }
+        if matches!(self.peek().kind, TokenKind::At)
+            && let Some(statement) = self.parse_annotated_local_declaration()?
+        {
+            return Ok(statement);
         }
         if self.starts_context_declaration() {
             let function = self.parse_context_local_function()?;

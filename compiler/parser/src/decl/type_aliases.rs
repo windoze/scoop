@@ -6,13 +6,6 @@ impl Parser {
         &mut self,
         prefix: MemberPrefix,
     ) -> Result<TypeAliasDecl, Diagnostic> {
-        if let Some(annotation) = prefix.annotations.first() {
-            return Err(Diagnostic::at(
-                annotation.span,
-                "annotations are not allowed on typealias declarations",
-            ));
-        }
-
         let modifier_span = prefix
             .const_span
             .into_iter()
@@ -51,6 +44,7 @@ impl Parser {
         };
         let span = Span::new(start, target.span.end);
         Ok(TypeAliasDecl {
+            annotations: prefix.annotations,
             visibility: prefix.visibility,
             name,
             type_params,

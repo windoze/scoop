@@ -1,7 +1,8 @@
+annotation class Mark
 class Pair<A, B>(val first: A, val second: B)
 typealias Row<T> = Pair<String, T>
 fun <T> build(value: T): T {
-    typealias Local<U> = Pair<T, U>
+    @Mark typealias Local<U> = Pair<T, U>
     val make: (T, Int) -> Local<Int> = ::Local
     return make(value, 42).first
 }
@@ -10,9 +11,9 @@ class Choice<T>(val first: T, val n: Int) {
 }
 typealias Pick<T> = Choice<T>
 fun <T> choose(value: T): Int {
-    typealias Local = Choice<T>
+    @Mark typealias Local = Choice<T>
     val make: (T, Int) -> Local = ::Local
-    return make(value, 42).n
+    return make(value, 42).n + Local(value, 0).n
 }
 fun main() {
     val make: (String, Int) -> Row<Int> = ::Row

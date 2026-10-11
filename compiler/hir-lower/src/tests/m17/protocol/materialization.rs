@@ -148,6 +148,7 @@ fn callback_registration_with_value(mode: &str, value_type: ast::TypeRef) -> ast
         id: ast::LambdaId(0),
         is_suspend: false,
         parameters: Some(vec![ast::LambdaParam {
+            annotations: Vec::new(),
             target: pat_bind("value"),
             ty: Some(value_type),
             span: sp(),
@@ -288,6 +289,7 @@ fn callback_signature_adds_its_source_nominals_to_the_native_boundary_witness() 
         unreachable!("struct_decl creates a struct")
     };
     declaration.annotations.push(ast::Annotation {
+        use_site: None,
         name: ident("CLayout").into(),
         args: Vec::new(),
         span: sp(),

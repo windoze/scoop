@@ -1,0 +1,16 @@
+annotation class Mark(val text: String = "default")
+fun <T> run(seed: T): T {
+    @Mark("local alias") typealias Entry = T
+    @Mark("local function") fun echo(@Mark("local parameter") item: Entry): Entry = item
+    val f: (T) -> T = { @Mark("lambda parameter") item -> echo(item) }
+    val pair: ((Int, Int)) -> Int = { @Mark("whole tuple") (left, right) -> left + right }
+    val increment: (Int) -> Int = fun(@Mark("anonymous parameter") item: Int): Int { return item + 1 }
+    @Mark("local class") class Holder(val item: T) {
+        @Mark("member alias") typealias Number = Int
+        @Mark("local member") fun value(@Mark("member parameter") number: Number): Int = number
+    }
+    println(pair((19, 20)) + increment(2))
+    println(Holder(seed).value(42))
+    return f(seed)
+}
+fun main() { println(run("local")) }

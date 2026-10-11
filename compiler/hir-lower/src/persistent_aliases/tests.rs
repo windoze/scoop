@@ -7,6 +7,7 @@ use crate::tests::{
 
 fn alias(name: &str, target: &str, private: bool) -> ast::Decl {
     ast::Decl::TypeAlias(ast::TypeAliasDecl {
+        annotations: Vec::new(),
         type_params: Vec::new(),
         where_clause: None,
         visibility: if private {

@@ -36,6 +36,7 @@ fn global(name: &str, value: i64, visibility_value: ast::DeclaredVisibility) -> 
     Decl::Global(ast::PropertyDecl {
         context_parameters: Vec::new(),
         annotations: vec![ast::Annotation {
+            use_site: None,
             name: ident("Global").into(),
             args: Vec::new(),
             span: sp(),

@@ -129,6 +129,7 @@ fn overload_probes_lambda_candidates_transactionally() {
     let string_operation = ty_function(false, vec![ty_named("Int")], ty_named("String"));
     let operation = lambda(
         Some(vec![ast::LambdaParam {
+            annotations: Vec::new(),
             target: pat_bind("value"),
             ty: None,
             span: sp(),

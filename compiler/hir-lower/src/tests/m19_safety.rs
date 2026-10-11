@@ -16,6 +16,7 @@ fn compiler_exception_constructors_cannot_be_unsafe() {
             panic!("explicit core constructor");
         };
         constructor.annotations.push(ast::Annotation {
+            use_site: None,
             name: ident("Unsafe").into(),
             args: vec![],
             span: declaration.span,

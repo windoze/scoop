@@ -31,6 +31,7 @@ pub enum Decl {
 /// A transparent alias, expanded in its declaration-site type scope.
 #[derive(Debug, Clone, PartialEq)]
 pub struct TypeAliasDecl {
+    pub annotations: Vec<Annotation>,
     pub visibility: VisibilitySyntax,
     pub name: Ident,
     pub type_params: Vec<TypeParamDecl>,
@@ -501,6 +502,7 @@ pub struct InfixModifier {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Param {
+    pub annotations: Vec<Annotation>,
     pub name: Ident,
     pub ty: TypeRef,
     pub syntax: ParameterSyntax,

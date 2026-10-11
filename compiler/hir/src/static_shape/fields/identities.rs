@@ -40,11 +40,8 @@ impl StaticNominalShape<'_> {
                 };
                 let field = declaration.interface.source_shape().declared_fields()[index].field();
                 let storage = declaration.field_sources[index].storage;
-                let annotation = if storage == NominalFieldStorage::Declared {
-                    StaticAnnotationTarget::Dependency(AnnotationTargetV1::Field(field))
-                } else {
-                    StaticAnnotationTarget::Unannotated
-                };
+                let annotation =
+                    StaticAnnotationTarget::Dependency(AnnotationTargetV1::Field(field));
                 (field, storage, annotation)
             }
         }
@@ -64,7 +61,7 @@ impl StaticNominalShape<'_> {
         (
             record.id(),
             NominalFieldStorage::from_key(record.key()),
-            StaticAnnotationTarget::Unannotated,
+            StaticAnnotationTarget::Current(SourceAnnotationTarget::ClassField(field)),
         )
     }
 }

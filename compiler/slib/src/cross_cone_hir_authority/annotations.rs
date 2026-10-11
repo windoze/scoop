@@ -44,9 +44,16 @@ impl CanonicalCrossConeHirSurfaceAuthority<'_> {
         let targets = AnnotationTargetV1::source_targets(
             self.current_interface.nominal_interfaces(),
             self.current_interface.property_interfaces(),
+            self.current_interface.callable_interfaces(),
+            self.current_interface.type_aliases(),
+            annotations.declarations(),
         );
         for target in annotations.targets() {
-            if !targets.contains(&target.target) {
+            if !targets.contains(&target.target)
+                && !self
+                    .current_foundation
+                    .retains_local_annotation_target(target.target)
+            {
                 return Err(Error::Invalid(
                     "annotation target is not a retained source declaration",
                 ));

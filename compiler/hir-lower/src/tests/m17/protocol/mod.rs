@@ -107,6 +107,7 @@ fn identity_lambda() -> Expr {
         id: ast::LambdaId(0),
         is_suspend: false,
         parameters: Some(vec![ast::LambdaParam {
+            annotations: Vec::new(),
             target: pat_bind("value"),
             ty: Some(ty_named("T")),
             span: sp(),

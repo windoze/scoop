@@ -416,6 +416,7 @@ fn fixed_typealias_application_is_not_a_generic_constructor_candidate() {
         file(vec![
             generic_struct_decl("Box", vec!["T"], vec![("value", ty_named("T"))]),
             Decl::TypeAlias(ast::TypeAliasDecl {
+                annotations: Vec::new(),
                 type_params: Vec::new(),
                 where_clause: None,
                 visibility: ast::VisibilitySyntax::Omitted,

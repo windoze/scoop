@@ -13,7 +13,10 @@ impl Parser {
                     ) {
                         return false;
                     }
-                    while matches!(tokens.peek().map(|token| &token.kind), Some(TokenKind::Dot)) {
+                    while matches!(
+                        tokens.peek().map(|token| &token.kind),
+                        Some(TokenKind::Dot | TokenKind::Colon)
+                    ) {
                         tokens.next();
                         if !matches!(
                             tokens.next().map(|token| &token.kind),

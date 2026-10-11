@@ -1,0 +1,2 @@
+annotation class Mark
+@delegate:Mark var value: Int = 1

@@ -95,6 +95,7 @@ fn equal_to(owner: TypeRef, no_gc: bool) -> ast::FunctionDecl {
     );
     if no_gc {
         method.annotations.push(ast::Annotation {
+            use_site: None,
             name: ident("NoGC").into(),
             args: Vec::new(),
             span: sp(),

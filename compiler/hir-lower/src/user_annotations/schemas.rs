@@ -5,8 +5,17 @@ use std::collections::HashSet;
 impl Lowerer {
     pub(crate) fn resolve_annotation_declarations(&mut self) {
         let ids = self.source_annotations.keys().copied().collect::<Vec<_>>();
-        for id in ids {
+        for &id in &ids {
             self.annotation_parameters(id, self.source_annotations[&id].declaration.span);
+        }
+        for id in ids {
+            let input = self.source_annotations[&id].clone();
+            self.current_file = input.file;
+            self.current_owner = input.owner;
+            self.bind_source_annotations(
+                hir::SourceAnnotationTarget::Annotation(id),
+                &input.declaration.annotations,
+            );
         }
     }
 
@@ -21,8 +30,17 @@ impl Lowerer {
                     .then_some(id)
             })
             .collect::<Vec<_>>();
-        for id in ids {
+        for &id in &ids {
             self.annotation_parameters(id, self.source_annotations[&id].declaration.span);
+        }
+        for id in ids {
+            let input = self.source_annotations[&id].clone();
+            self.current_file = input.file;
+            self.current_owner = input.owner;
+            self.bind_source_annotations(
+                hir::SourceAnnotationTarget::Annotation(id),
+                &input.declaration.annotations,
+            );
         }
     }
 
@@ -58,12 +76,6 @@ impl Lowerer {
         let file = std::mem::replace(&mut self.current_file, input.file);
         let owner = std::mem::replace(&mut self.current_owner, input.owner);
         let type_parameters = std::mem::take(&mut self.type_params_in_scope);
-        for annotation in &input.declaration.annotations {
-            self.error(
-                annotation.span,
-                "annotation classes are not annotation targets".into(),
-            );
-        }
         let mut parameters = Vec::new();
         let mut names = HashSet::new();
         for parameter in &input.declaration.parameters {
