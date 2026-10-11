@@ -605,8 +605,10 @@ Module
     store local125 -> local126
     br @inline.52.entry
   block inline.cont.52
+    t105 = aggregate () : {}
     br @inline.cont.50
   block inline.52.entry
+    t106 = aggregate () : {}
     br @inline.cont.52
   block inline.cont.54
     store local127 -> local124
@@ -614,25 +616,25 @@ Module
     br @inline.cont.48
   block inline.54.entry
     store local128 -> local129
-    t105 = extract local129, 0 : ptr<managed>
-    t106 = heap_load t105 +0 : ptr<metadata>
-    call no-gc-direct-target5 t107 = sig=direct18 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t106, td2)
-    t108 = aggregate (t105, t107) : interface{object,itab}
-    t109 = extract t108, 0 : ptr<managed>
-    call managed-direct-target13 sp<managed-call:2> live=[local1:interface{object,itab}@0, local2:interface{object,itab}@0, local3:interface{object,itab}@0, t109:ptr<managed>@0] t110 = sig=direct19 (ptr<managed>) -> i32 local-fn2(t109)
-    store t110 -> local130
+    t107 = extract local129, 0 : ptr<managed>
+    t108 = heap_load t107 +0 : ptr<metadata>
+    call no-gc-direct-target5 t109 = sig=direct18 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t108, td2)
+    t110 = aggregate (t107, t109) : interface{object,itab}
+    t111 = extract t110, 0 : ptr<managed>
+    call managed-direct-target13 sp<managed-call:2> live=[local1:interface{object,itab}@0, local2:interface{object,itab}@0, local3:interface{object,itab}@0, t111:ptr<managed>@0] t112 = sig=direct19 (ptr<managed>) -> i32 local-fn2(t111)
+    store t112 -> local130
     store integer<Int>(0x00000003) -> local131
     store integer<Int>(0x00000003) -> local132
-    t111 = integer_Multiply<Int> local130, integer<Int>(0x00000003) : i32
-    store t111 -> local127
+    t113 = integer_Multiply<Int> local130, integer<Int>(0x00000003) : i32
+    store t113 -> local127
     br @inline.cont.54
   block inline.cont.56
     store local133 -> local109
     store local109 -> local107
     br @inline.cont.38
   block inline.56.entry
-    t112 = extract local134, 0 : i32
-    store t112 -> local133
+    t114 = extract local134, 0 : i32
+    store t114 -> local133
     br @inline.cont.56
   block inline.cont.58
     store local135 -> local106
@@ -640,17 +642,17 @@ Module
     br @inline.cont.36
   block inline.58.entry
     store local136 -> local137
-    t113 = extract local137, 0 : ptr<managed>
-    t114 = heap_load t113 +0 : ptr<metadata>
-    call no-gc-direct-target6 t115 = sig=direct20 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t114, td2)
-    t116 = aggregate (t113, t115) : interface{object,itab}
-    t117 = extract t116, 0 : ptr<managed>
-    call managed-direct-target14 sp<managed-call:6> live=[local1:interface{object,itab}@0, local2:interface{object,itab}@0, local30:interface{object,itab}@0, t117:ptr<managed>@0] t118 = sig=direct21 (ptr<managed>) -> i32 local-fn33(t117)
-    store t118 -> local138
+    t115 = extract local137, 0 : ptr<managed>
+    t116 = heap_load t115 +0 : ptr<metadata>
+    call no-gc-direct-target6 t117 = sig=direct20 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t116, td2)
+    t118 = aggregate (t115, t117) : interface{object,itab}
+    t119 = extract t118, 0 : ptr<managed>
+    call managed-direct-target14 sp<managed-call:6> live=[local1:interface{object,itab}@0, local2:interface{object,itab}@0, local30:interface{object,itab}@0, t119:ptr<managed>@0] t120 = sig=direct21 (ptr<managed>) -> i32 local-fn33(t119)
+    store t120 -> local138
     store integer<Int>(0x00000003) -> local139
     store integer<Int>(0x00000003) -> local140
-    t119 = integer_Multiply<Int> local138, integer<Int>(0x00000003) : i32
-    store t119 -> local135
+    t121 = integer_Multiply<Int> local138, integer<Int>(0x00000003) : i32
+    store t121 -> local135
     br @inline.cont.58
   block inline.cont.60
     store integer<Int>(0x00000009) -> local28
@@ -661,6 +663,7 @@ Module
     store true -> local142
     br @inline.60.if.merge.2
   block inline.60.if.merge.2
+    t122 = aggregate () : {}
     br @inline.cont.60
   block invoke.normal.1
     store t27 -> local73
@@ -956,6 +959,7 @@ Module
   block inline.cont.1
     ret
   block inline.1.entry
+    t0 = aggregate () : {}
     br @inline.cont.1
   fun @scoop$1$cb$3b3e762cefe1e273a268a45062aebb916178263f3108bb407d06e86f9e8460d3(i32) -> parts<struct0 [i32@0+4/4]> <no-gc>
   block entry

@@ -610,7 +610,6 @@ Module
   fun @scoop$1$cb$f6f1d19afef51042d5683b433d25645acd16a2e698716e505b3eca4f495defff(elided-zst<struct8 size=0 align=1>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
-    t0 = extract param0, 0 : {}
     ret
   fun @scoop$1$cb$f07facd2c2f95baca0d053d2d0430f2b90d5a1baab38c525c6a933101d13a029(parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>) -> void
   block entry

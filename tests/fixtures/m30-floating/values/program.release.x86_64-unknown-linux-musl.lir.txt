@@ -1049,24 +1049,25 @@ Module
   block inline.102.entry
     heap_store local275 +16 local276
     heap_store local275 +24 local277
+    t135 = aggregate () : {}
     br @inline.cont.102
   block inline.cont.104
     store local252 -> local54
     store local2 -> local309
-    t135 = box_value external-td3, local309 scan=none sp<managed-call:10> live=[local10:ptr<managed>@0, local15:ptr<managed>@0, local17:ptr<managed>@0, local39:struct3@16, local54:ptr<managed>@0]
-    t136 = heap_load external-td3 +96 : ptr<metadata>
-    t137 = heap_load t136 +24 : ptr<metadata>
-    t138 = aggregate (t135, t137) : interface{object,itab}
-    store t138 -> local55
+    t136 = box_value external-td3, local309 scan=none sp<managed-call:10> live=[local10:ptr<managed>@0, local15:ptr<managed>@0, local17:ptr<managed>@0, local39:struct3@16, local54:ptr<managed>@0]
+    t137 = heap_load external-td3 +96 : ptr<metadata>
+    t138 = heap_load t137 +24 : ptr<metadata>
+    t139 = aggregate (t136, t138) : interface{object,itab}
+    store t139 -> local55
     store local2 -> local310
-    t139 = box_value external-td3, local310 scan=none sp<managed-call:11> live=[local10:ptr<managed>@0, local15:ptr<managed>@0, local17:ptr<managed>@0, local39:struct3@16, local54:ptr<managed>@0, local55:interface{object,itab}@0]
-    store t139 -> local56
+    t140 = box_value external-td3, local310 scan=none sp<managed-call:11> live=[local10:ptr<managed>@0, local15:ptr<managed>@0, local17:ptr<managed>@0, local39:struct3@16, local54:ptr<managed>@0, local55:interface{object,itab}@0]
+    store t140 -> local56
     store local2 -> local57
     store local5 -> local58
     store local57 -> local59
     store local58 -> local60
-    call managed-direct-target18 sp<managed-call:12> live=[local10:ptr<managed>@0, local15:ptr<managed>@0, local17:ptr<managed>@0, local39:struct3@16, local54:ptr<managed>@0, local55:interface{object,itab}@0, local56:ptr<managed>@0] t140 = sig=direct41 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td16, machine<byte-size>(ByteSize(32)))
-    store t140 -> local253
+    call managed-direct-target18 sp<managed-call:12> live=[local10:ptr<managed>@0, local15:ptr<managed>@0, local17:ptr<managed>@0, local39:struct3@16, local54:ptr<managed>@0, local55:interface{object,itab}@0, local56:ptr<managed>@0] t141 = sig=direct41 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td16, machine<byte-size>(ByteSize(32)))
+    store t141 -> local253
     store local253 -> local275
     store local59 -> local276
     store local60 -> local277
@@ -1074,19 +1075,20 @@ Module
   block inline.104.entry
     heap_store local278 +16 local279
     heap_store local278 +24 local280
+    t142 = aggregate () : {}
     br @inline.cont.104
   block inline.cont.106
     store local281 -> local46
     store local2 -> local47
     store local47 -> local48
-    t141 = enum_wrap e0 v0 (local48) : enum0
-    store t141 -> local49
+    t143 = enum_wrap e0 v0 (local48) : enum0
+    store t143 -> local49
     store local2 -> local50
     store local5 -> local51
     store local50 -> local52
     store local51 -> local53
-    call managed-direct-target19 sp<managed-call:9> live=[local10:ptr<managed>@0, local15:ptr<managed>@0, local17:ptr<managed>@0, local39:struct3@16] t142 = sig=direct42 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td16, machine<byte-size>(ByteSize(32)))
-    store t142 -> local252
+    call managed-direct-target19 sp<managed-call:9> live=[local10:ptr<managed>@0, local15:ptr<managed>@0, local17:ptr<managed>@0, local39:struct3@16] t144 = sig=direct42 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td16, machine<byte-size>(ByteSize(32)))
+    store t144 -> local252
     store local252 -> local278
     store local52 -> local279
     store local53 -> local280
@@ -1098,11 +1100,11 @@ Module
     store local283 -> local39
     store local2 -> local40
     store local40 -> local41
-    t143 = enum_wrap e2 v0 (local41) : enum2
-    store t143 -> local42
+    t145 = enum_wrap e2 v0 (local41) : enum2
+    store t145 -> local42
     store local5 -> local43
-    t144 = aggregate (local42, local43) : {enum2, f64}
-    store t144 -> local44
+    t146 = aggregate (local42, local43) : {enum2, f64}
+    store t146 -> local44
     store local44 -> local45
     store local45 -> local282
     br @inline.106.entry
@@ -1115,24 +1117,24 @@ Module
     store local38 -> local284
     br @inline.108.entry
   block inline.110.entry
-    t145 = aggregate (local286, local287, local288) : struct3
-    store t145 -> local285
+    t147 = aggregate (local286, local287, local288) : struct3
+    store t147 -> local285
     br @inline.cont.110
   block inline.cont.112
     store local289 -> local241
     array_set array1 local239 local240 local241
-    t146 = integer_Add<Long> local240, integer<Long>(0x0000000000000001) : i64
-    store t146 -> local240
+    t148 = integer_Add<Long> local240, integer<Long>(0x0000000000000001) : i64
+    store t148 -> local240
     br @while.cond.8
   block inline.112.entry
-    t147 = heap_load local291 +24 : f64
-    store t147 -> local289
+    t149 = heap_load local291 +24 : f64
+    store t149 -> local289
     br @inline.cont.112
   block inline.cont.114
     store local292 -> local236
     array_set array0 local234 local235 local236
-    t148 = integer_Add<Long> local235, integer<Long>(0x0000000000000001) : i64
-    store t148 -> local235
+    t150 = integer_Add<Long> local235, integer<Long>(0x0000000000000001) : i64
+    store t150 -> local235
     br @while.cond.3
   block inline.114.entry
     store local293 -> local294
@@ -1142,8 +1144,8 @@ Module
     store integer<Long>(0x0000000000000002) -> local303
     br @inline.114.if.merge.2
   block inline.114.if.merge.2
-    t149 = integer_compare_Equal<Long> local302, integer<Long>(0x8000000000000000) : i1
-    cbr t149 then @inline.114.logic.rhs.3 else @inline.114.logic.short.4
+    t151 = integer_compare_Equal<Long> local302, integer<Long>(0x8000000000000000) : i1
+    cbr t151 then @inline.114.logic.rhs.3 else @inline.114.logic.short.4
   block inline.114.logic.rhs.3
     store false -> local305
     br @inline.114.logic.merge.5
@@ -1153,18 +1155,18 @@ Module
   block inline.114.logic.merge.5
     br @inline.114.if.else.7
   block inline.114.if.else.7
-    t150 = safe_integer_Remainder<Long> local302, integer<Long>(0x0000000000000002) : i64
-    store t150 -> local304
+    t152 = safe_integer_Remainder<Long> local302, integer<Long>(0x0000000000000002) : i64
+    store t152 -> local304
     br @inline.114.if.merge.8
   block inline.114.if.merge.8
     store local304 -> local297
     store integer<Long>(0x0000000000000000) -> local298
     store integer<Long>(0x0000000000000000) -> local299
-    t151 = integer_compare_Equal<Long> local297, integer<Long>(0x0000000000000000) : i1
-    cbr t151 then @inline.114.if.then.9 else @inline.114.if.else.10
+    t153 = integer_compare_Equal<Long> local297, integer<Long>(0x0000000000000000) : i1
+    cbr t153 then @inline.114.if.then.9 else @inline.114.if.else.10
   block inline.114.if.then.9
-    t152 = heap_load local301 +24 : f32
-    store t152 -> local300
+    t154 = heap_load local301 +24 : f32
+    store t154 -> local300
     br @inline.114.if.merge.11
   block inline.114.if.else.10
     store f32(0x80000000) -> local300
@@ -1227,6 +1229,7 @@ Module
     heap_store local7 +16 local8
     heap_store local7 +32 integer<Long>(0x0000000000000000)
     heap_store local7 +40 false
+    t7 = aggregate () : {}
     br @inline.cont.1
   fun @scoop$1$cb$b7c1fbb3c9d8b7fe818d912c0a3ef54609c10792a5079ffa8813ee57cb9cdbe8(ptr<managed>, i64) -> f32
     local %0 $dependency.local.2: ptr<managed>
@@ -1311,6 +1314,7 @@ Module
     heap_store local7 +16 local8
     heap_store local7 +32 integer<Long>(0x0000000000000000)
     heap_store local7 +40 false
+    t7 = aggregate () : {}
     br @inline.cont.1
   fun @scoop$1$cb$fba03e690a2963b528f240c52faa031d27eed5b29e1443b1446b35824f7aec1c(ptr<managed>, i64) -> f64
     local %0 $dependency.local.2: ptr<managed>
@@ -1395,6 +1399,7 @@ Module
     heap_store local7 +16 local8
     heap_store local7 +32 integer<Long>(0x0000000000000000)
     heap_store local7 +40 false
+    t7 = aggregate () : {}
     br @inline.cont.1
   fun @scoop$1$cb$bc0e5c4e14da0f48c331ee3e19f98a43d31d2bd751aa29e6207a576fdf2a6635(ptr<managed>, i64) -> parts<struct2 [f32@0+4/4]>
     local %0 $dependency.local.2: ptr<managed>
@@ -1479,6 +1484,7 @@ Module
     heap_store local7 +16 local8
     heap_store local7 +32 integer<Long>(0x0000000000000000)
     heap_store local7 +40 false
+    t7 = aggregate () : {}
     br @inline.cont.1
   fun @scoop$1$cb$bb9dd886ac56117fb791a3bea46095b0206aafed3a00ad7b6ce78f5342b9fb55(ptr<managed>, i64) -> f32
     local %0 $dependency.local.2: ptr<managed>

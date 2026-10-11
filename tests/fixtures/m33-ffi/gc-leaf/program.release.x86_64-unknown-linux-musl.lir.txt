@@ -84,6 +84,7 @@ Module
     ret t2
   block inline.1.entry
     heap_store local4 +16 local5
+    t3 = aggregate () : {}
     br @inline.cont.1
   fun @scoop$1$cb$4d0fc2789ab2f847831cd06b87fd0fb90ff2dbbc389deace774c33a5152e0bc6() -> i32
     local %0 $default.local.0: ptr<managed>
@@ -479,16 +480,18 @@ Module
     br @inline.26.entry
   block inline.28.entry
     heap_store local115 +16 integer<Int>(0x0000002a)
+    t51 = aggregate () : {}
     br @inline.cont.28
   block inline.cont.30
     store local104 -> local103
     call managed-void-target11 sp<managed-call:14> live=[local2:ptr<managed>@0, local103:ptr<managed>@0] sig=void12 () runtime @scoop_rt_gc_collect()
-    t51 = aggregate () : {}
-    t52 = heap_load local103 +16 : i32
-    store t52 -> local99
+    t52 = aggregate () : {}
+    t53 = heap_load local103 +16 : i32
+    store t53 -> local99
     br @inline.cont.22
   block inline.30.entry
     heap_store local117 +16 local118
+    t54 = aggregate () : {}
     br @inline.cont.30
   block invoke.normal.1
     store t13 -> local48

@@ -60,9 +60,11 @@ Module
     store integer<Int>(0x00000063) -> local5
     br @inline.3.entry
   block inline.cont.3
+    t1 = aggregate () : {}
     br @inline.cont.1
   block inline.3.entry
     heap_store local4 +16 integer<Int>(0x00000063)
+    t2 = aggregate () : {}
     br @inline.cont.3
   fun @scoop$1$cb$7d7e94d357a0d4ed94875414b8100b2c0eed4370be9a910855302dcbe904f593(parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>, parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>) -> void
   block entry
@@ -204,6 +206,7 @@ Module
     ret
   block inline.1.entry
     heap_store local2 +16 local3
+    t0 = aggregate () : {}
     br @inline.cont.1
   fun @scoop$1$cb$41987f4151797b32d61e1da037144466680a3bca4424c26da19f5807eb7ba3d7(ptr<managed>, i32) -> void
     local %0 $argument.0: i32
@@ -221,6 +224,7 @@ Module
     ret
   block inline.1.entry
     heap_store local2 +16 local3
+    t0 = aggregate () : {}
     br @inline.cont.1
   fun @scoop$1$cb$a41a4cc65b2f477bf6839b6225ab525ed764fd1d5945e4412b34208219dd951b(ptr<managed>) -> void
     local %0 $argument.0: i32
@@ -238,6 +242,7 @@ Module
     ret
   block inline.1.entry
     heap_store local2 +16 integer<Int>(0x00000063)
+    t0 = aggregate () : {}
     br @inline.cont.1
   fun @scoop$1$cb$5459ec4c8188b986ecda0c21a8b0d5491492e6d892b3ed74215e14fe34dfe01c(parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>, parts<interface{object,itab} [ptr<managed>@0+8/8,ptr<metadata>@8+8/8]>) -> void
     local %0 $step: enum1

@@ -169,7 +169,7 @@ wire 沿用已有可选 subject、条件与覆盖标签；原始解码数据在�
 
 新增 49 个 Rust 文件，最长 396 行；原有超过 500 行的文件没有增加超过 30 行，见 [长度检查](validation/file-lengths.json)。未新增依赖、TODO、todo! 或 unimplemented!。每批完成后清理用例工作目录，保留当前 CLI、共享 sysroot、缓存和报告；上述七批记录合计约 46.3 GB 的已清理逻辑文件大小，目录内可能存在硬链接，该数字不表示等量实际磁盘释放。
 
-Linux 的完整 Rust 初跑已正常退出：43 个测试目标、5,474 项通过，0 failed、0 ignored，公共 runner 44 项通过。该初跑采用 R04 完成时的源码及 Linux 测试构造器修正；默认参数引用修复的相关 29 项已定向通过，其中新增一项真实源码测试，最终覆盖为 5,475 项。最终源码的 fmt／workspace clippy、三个 release CLI 构建均通过，详见 [Linux Rust 记录](validation/rust-linux.json)。GNU 完整正式 CLI 已按下节记录以普通全量和失败补验完成；musl 受影响范围继续验证。
+Linux 的完整 Rust 初跑已正常退出：43 个测试目标、5,474 项通过，0 failed、0 ignored，公共 runner 44 项通过。该初跑采用 R04 完成时的源码及 Linux 测试构造器修正；默认参数引用修复的相关 29 项已定向通过，其中新增一项真实源码测试，最终覆盖为 5,475 项。最终源码的 fmt／workspace clippy、三个 release CLI 构建均通过，详见 [Linux Rust 记录](validation/rust-linux.json)。GNU 完整正式 CLI 已按下节记录以普通全量和失败补验完成；musl 受影响范围的普通比较亦已完成。
 
 ## GNU fixture 可移植性修正
 
@@ -192,3 +192,11 @@ GNU 目标快照初跑 176 项，175 项通过；新 C 布局 fixture 刻意将 
 另将 `override release` 的错误区间从 `18..18` 更新为完整关键字 `18..26`，符合 R11 已实现的准确修饰符位置；错误代码、消息和严重程度保持原样。本机额外普通复验三项旧 CLI 输入／缓存用例、一项修饰符负例和一项嵌套 enum 产物用例，均通过，见 [Darwin 补充结果](validation/darwin-supplement.json)。以上修改仅涉及 fixture 预期和记录，沿用已通过 fmt／clippy 的 Rust 源码与 release CLI。
 
 失败目录在相应普通补验通过后清理，未完成项的现场一直保留到通过。期间清理 122 个已完成补验的旧目录，远端 target 实际占用由约 26.3 GB 降至 21.1 GB；逻辑文件大小与实际占用分别记录。Linux 原工作目录的 21 个既有修改文件仍与初始记录一致。
+
+## musl 受影响范围验收
+
+在 GNU 普通全量闭合后，对 188 项受影响及 musl 专项用例生成并审阅目标快照，再关闭快照更新，对同一选集执行普通比较。两轮均为 188/188 通过；最终普通比较覆盖 291 个配置、1,913 个进程和 1,525 次阶段／计划快照检查，包含全部 26 个 M36 新用例。范围包括 musl PIE、native C／静态链接限制、异常深栈、native-safe transition，以及泛型、默认参数、协程、Context、MaybeUninit 和 moving／minor GC 组合。选择、生成、普通结果及实际命令分别见 [选集](validation/musl-selection.json)、[生成记录](validation/musl-snapshot-update.json)、[普通结果](validation/musl-final.json) 和 [执行记录](validation/musl-execution.json)。
+
+本轮修改 173 份既有 LIR、7 份 HIR、6 份 MIR，新增 9 份 M36 目标 LIR；未修改共享快照或源码。173 份 LIR 中，149 份仅涉及未使用的零大小值及临时编号；15 份删除 Unit 字段提取，5 份删除无用 MaybeUninit<Unit> 结果，2 份处理协程 Unit 保存／恢复，2 份为嵌套 enum 的一致局部编号置换。后四类共 24 份文件的修改前后内容均与已审阅的 GNU 对应文件逐字节相同；新增的九份 LIR 也与 GNU 对应输出逐字节相同。其余平台专用 HIR／MIR 单独审阅，仅为完整 Return、整数操作和 declared payload 的表示变化；errno 等原有 libc 差异保留。逐份依据见 [musl 阶段审阅](validation/musl-stage-review.json)。
+
+三个目标的全部 26 个 M36 新用例均已通过普通比较，最终验收仅剩记录汇总和构建目录清理，不再扩大测试范围。

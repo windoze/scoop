@@ -208,6 +208,7 @@ Module
     ret t2
   block inline.1.entry
     heap_store local4 +16 integer<Int>(0x0000002a)
+    t3 = aggregate () : {}
     br @inline.cont.1
   fun @scoop$1$cb$bbe4c4c4ddd056413945fa884f8502d17557c79d71c9e3439decf342fce50378() -> void
     local %0 owner: ptr<managed>
@@ -1066,6 +1067,7 @@ Module
     cbr t106 then @if.then.1 else @if.else.2
   block inline.57.entry
     heap_store local234 +16 integer<Int>(0x0000005b)
+    t107 = aggregate () : {}
     br @inline.cont.57
   block inline.cont.59
     store local236 -> local233
@@ -1081,9 +1083,9 @@ Module
     store integer<Int>(0x00000003) -> local273
     store integer<Int>(0x0000002f) -> local274
     store integer<Int>(0x00000001) -> local275
-    call native-gc-leaf-direct-target13 t107 = sig=direct21 (ptr<raw>, ptr<raw>, ptr<raw>, ptr<raw>) -> i32 extern1(c-arg-address(local276), c-arg-address(local273), c-arg-address(local274), c-arg-address(local275))
-    t108 = aggregate (local276, t107) : {i32, i32}
-    store t108 -> local246
+    call native-gc-leaf-direct-target13 t108 = sig=direct21 (ptr<raw>, ptr<raw>, ptr<raw>, ptr<raw>) -> i32 extern1(c-arg-address(local276), c-arg-address(local273), c-arg-address(local274), c-arg-address(local275))
+    t109 = aggregate (local276, t108) : {i32, i32}
+    store t109 -> local246
     store local246 -> local236
     br @inline.cont.59
   fun @scoop$1$cb$97ff628a1de1b0ed52d3af368018776e05804b54c92187fdcca686d3e738ba33(ptr<raw>, ptr<raw>) -> i1
