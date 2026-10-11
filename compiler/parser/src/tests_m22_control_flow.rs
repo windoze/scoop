@@ -131,7 +131,7 @@ fn block_loop_jumps_keep_keyword_spans() {
 }
 
 #[test]
-fn unbraced_if_branches_accept_only_loop_jumps() {
+fn unbraced_if_branches_keep_loop_jumps() {
     let file = ok(
         "fun main() {\n    while (ready) {\n        if (done) break\n        else continue\n    }\n}\n",
     );
@@ -150,8 +150,7 @@ fn unbraced_if_branches_accept_only_loop_jumps() {
         [statement] if matches!(&statement.kind, StatementKind::Continue)
     ));
 
-    let (_, message) = err("fun main() { if (ready) work() else rest() }");
-    assert_eq!(message, "expected `{`, found `work`");
+    ok("fun main() { if (ready) work() else rest() }");
 }
 
 #[test]
@@ -207,11 +206,6 @@ fn malformed_for_headers_report_the_exact_missing_delimiter() {
             "fun main() { for (item in items\n{} }",
             "}",
             "expected `)`, found `}`",
-        ),
-        (
-            "fun main() { for (item in items) consume(item) }",
-            "consume",
-            "expected `{`, found `consume`",
         ),
     ];
 

@@ -1,0 +1,20 @@
+fun consume(action: () -> Int): Int = action()
+fun check(action: () -> Boolean): Boolean = action()
+fun result(present: Boolean): Int {
+    try {
+        if (present) return consume { 42 }
+        else throw IllegalStateException(Some("missing"))
+    } catch (error: IllegalStateException) {
+        return -1
+    } finally { println("finally") }
+}
+fun main(): Int {
+    if (check { true }) println(consume { 42 }) else println(0)
+    for (value in 0..<2) println(consume { if (value == 0) 10 else 20 })
+    println(result(true))
+    println(result(false))
+    val missing: Int? = None
+    val value = if (true) missing ?: return 0 else 99
+    println(value)
+    return 1
+}

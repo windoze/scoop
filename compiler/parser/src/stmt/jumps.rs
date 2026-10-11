@@ -26,6 +26,7 @@ impl Parser {
                     | TokenKind::RBracket
                     | TokenKind::Comma
                     | TokenKind::Semicolon
+                    | TokenKind::Else
                     | TokenKind::Eof
             );
         let value = if has_value {

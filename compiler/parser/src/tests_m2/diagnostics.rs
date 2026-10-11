@@ -95,10 +95,9 @@ fn while_condition_must_be_parenthesized() {
 }
 
 #[test]
-fn else_if_gets_no_special_treatment() {
-    // M2 design section 6: `else` must be followed by a block.
-    let (_, message) = err("fun main() { if (a) {} else if (b) {} }");
-    assert_eq!(message, "expected `{`, found `if`");
+fn else_if_requires_its_own_parenthesized_condition() {
+    let (_, message) = err("fun main() { if (a) {} else if b {} }");
+    assert_eq!(message, "expected `(`, found `b`");
 }
 
 #[test]

@@ -1009,6 +1009,10 @@ context list 不参与 overload applicability、MSC、泛型推断、普通或 s
 
 循环与跳转使用第 2 章的 Kotlin 核心语法；本节规定 `while`、`for`、`break` 和 `continue` 的求值与清理规则。
 
+`if` 的 then/else 分支及 `while`/`for` 的 body 接受块或一个完整语句/表达式，条件与 for 头仍使用括号。每个 body 建立独立词法作用域，单条局部声明不泄漏到外层；`else if` 是 else 中的嵌套 if，else 总与最近的未匹配 if 结合。then body 和 else 之间可以有换行或语句分号。控制头后的块属于 body，不属于头部调用的尾随 lambda；body 自己的调用仍使用 8.5 的尾随 lambda 规则。
+
+值位置的 if 必须具有 else，所有正常到达合流点的路径提供可合并的值，Nothing 路径不参与合并。语句位置可以丢弃 body 的值。单语句 body 与显式块采用同一规则，不把控制 body 的花括号当作 lambda；例如 `if (x < 0) return -1 else if (x > 0) return 1` 和 `val sign = if (x < 0) -1 else 1` 都合法。
+
 - `break`退出当前callable内词法最内层循环，`continue`进入其下一轮；函数、匿名函数、lambda和局部函数各自建立控制边界，不能跳到外层callable的循环。循环外使用是编译错误；
 - `break`/`continue`不产生正常结果并终止当前路径；该路径不参与第5章的结果类型合并。循环正常结束的语句结果为`Unit`；没有更强证明时仍按可能落空处理；
 - while的`continue`重新进入完整condition求值入口，包括该condition产生的temporary、safe-call/default setup和挂起调用；for的`continue`进入下一次`next()`；
@@ -1036,7 +1040,7 @@ return 在表达式位置具有 Nothing 类型。返回值按当前 callable 的
 
 parser 在表达式入口接受 `return [expression]`，同时统一 `throw expression` 在单行 arm 和 Elvis 等表达式位置的处理。语句入口复用相同语义，不为 `?: return` 增加只识别这一段 token 的特殊规则。保留 Elvis 的右结合优先级。
 
-裸 return 仍受换行、分号、块结束或文件结束约束；表达式嵌套中还要正确处理 `)`、`]`、`,` 等结束位置，不能越过调用实参或数组元素边界吞入后续表达式。return/throw 的值表达式自身也可以先产生异常、挂起或无正常结果。
+裸 return 仍受换行、分号、块结束或文件结束约束；表达式嵌套中还要正确处理 `)`、`]`、`,` 和控制体的 `else` 等结束位置，不能越过调用实参、数组元素或分支边界吞入后续表达式。return/throw 的值表达式自身也可以先产生异常、挂起或无正常结果。
 
 允许返回的目标沿用现有 callable 规则：普通块体函数和匿名函数返回自身；lambda 内裸 return、没有返回目标的顶层/初始化/default 表达式、以及不允许显式 return 的表达式体函数均报错。尾随 lambda 不改变其 callable 边界。`return` 无值仅对允许返回 Unit 的目标成立；不新增 label 或跨 lambda 的 non-local return。
 
