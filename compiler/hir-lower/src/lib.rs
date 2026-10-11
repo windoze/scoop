@@ -862,6 +862,7 @@ pub(crate) struct Lowerer {
     /// declaration-bound expression. Callable boundaries replace this with an
     /// empty stack and restore the enclosing stack on exit.
     pub(crate) loop_targets: Vec<stmt::ActiveLoop>,
+    pub(crate) uninitialized_condition_bindings: std::collections::HashSet<hir::BindingId>,
     /// Active nested callable capture analyses. The outer callable remains
     /// on the stack while an inner one is lowered so transitive captures can
     /// be propagated without reading an exited native stack frame.

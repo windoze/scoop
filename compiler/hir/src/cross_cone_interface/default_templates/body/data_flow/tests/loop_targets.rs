@@ -11,6 +11,7 @@ fn an_inner_loop_does_not_consume_a_jump_to_an_outer_loop() {
         let inner = statement(
             &fixture,
             DefaultStatementKindV1::While {
+                loop_kind: crate::LoopKind::While,
                 condition_setup: vec![statement(
                     &fixture,
                     jump(crate::DefaultLoopTargetV1::new(1)),
@@ -22,6 +23,7 @@ fn an_inner_loop_does_not_consume_a_jump_to_an_outer_loop() {
         let outer = statement(
             &fixture,
             DefaultStatementKindV1::While {
+                loop_kind: crate::LoopKind::While,
                 condition_setup: vec![],
                 condition: Box::new(unit(&fixture)),
                 body: vec![
@@ -62,6 +64,7 @@ fn a_loop_distance_must_name_an_enclosing_loop_even_when_unreachable() {
         vec![statement(
             &fixture,
             DefaultStatementKindV1::While {
+                loop_kind: crate::LoopKind::While,
                 condition_setup: vec![],
                 condition: Box::new(unit(&fixture)),
                 body: vec![

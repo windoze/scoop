@@ -71,6 +71,7 @@ pub enum StatementKind {
         else_body: Option<Vec<Statement>>,
     },
     While {
+        loop_kind: LoopKind,
         target: LoopId,
         condition_setup: Vec<Statement>,
         cond: Expr,

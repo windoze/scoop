@@ -1,0 +1,7 @@
+fun bad(skip: Boolean) {
+    do {
+        if (skip) continue
+        val ready = false
+    } while (if (true) { val read: () -> Boolean = { ready }; read() } else { false })
+}
+fun main() {}

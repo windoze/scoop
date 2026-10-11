@@ -1,5 +1,7 @@
 use super::*;
 
+mod loops;
+
 mod exceptions;
 
 impl<'a> CfgLowerer<'a> {
@@ -195,11 +197,19 @@ impl<'a> CfgLowerer<'a> {
                 self.lower_pattern_decision(decision, span)
             }
             smir::StatementKind::While {
+                loop_kind,
                 target,
                 condition_setup,
                 cond,
                 body,
-            } => self.lower_while(*target, condition_setup, cond, body, span),
+            } => match loop_kind {
+                scoop_hir::LoopKind::While => {
+                    self.lower_while(*target, condition_setup, cond, body, span)
+                }
+                scoop_hir::LoopKind::DoWhile => {
+                    self.lower_do_while(*target, condition_setup, cond, body, span)
+                }
+            },
             smir::StatementKind::Try(try_) => self.lower_try(try_),
             smir::StatementKind::Throw(exception) => {
                 let Some(exception) = self.lower_expr(exception, span) else {
@@ -253,57 +263,6 @@ impl<'a> CfgLowerer<'a> {
         }
         self.enter(merge_block);
         if !merge_reachable {
-            self.seal(mir::Terminator::Unreachable);
-        }
-    }
-
-    pub(super) fn lower_while(
-        &mut self,
-        target: smir::LoopId,
-        condition_setup: &'a [smir::Statement],
-        cond: &smir::Expr,
-        body: &'a [smir::Statement],
-        span: Span,
-    ) {
-        let header = self.new_block("while.cond");
-        let exit_block = self.new_block("while.exit");
-        self.seal(mir::Terminator::Goto(header));
-        self.push_loop_target(target, header, exit_block);
-        self.enter(header);
-        self.lower_statements(condition_setup);
-        if self.current_sealed {
-            let target = self.pop_loop_target(target);
-            if target.break_reachable {
-                self.enter(exit_block);
-            }
-            return;
-        }
-        let Some(cond) = self.lower_expr(cond, span) else {
-            let target = self.pop_loop_target(target);
-            if target.break_reachable {
-                self.enter(exit_block);
-            }
-            return;
-        };
-        let body_block = self.new_block("while.body");
-        let always = matches!(cond.kind, mir::ExprKind::BoolLiteral(true));
-        if always {
-            self.seal(mir::Terminator::Goto(body_block));
-        } else {
-            self.seal(mir::Terminator::Branch {
-                cond,
-                then_block: body_block,
-                else_block: exit_block,
-            });
-        }
-        self.enter(body_block);
-        self.lower_statements(body);
-        if !self.current_sealed {
-            self.lower_continue(target);
-        }
-        let target = self.pop_loop_target(target);
-        self.enter(exit_block);
-        if always && !target.break_reachable {
             self.seal(mir::Terminator::Unreachable);
         }
     }

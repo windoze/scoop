@@ -98,6 +98,8 @@ impl<Target: Ord> FromIterator<ControlOutcome<Target>> for ControlOutcomes<Targe
 pub(crate) type HirControlOutcomes = ControlOutcomes<hir::LoopId>;
 
 mod expressions;
+mod initialization;
+mod loops;
 
 impl Lowerer {
     pub(crate) fn statements_control_outcomes(
@@ -190,29 +192,12 @@ impl Flow<'_> {
                 }
             }
             hir::StatementKind::While {
+                loop_kind,
                 target,
                 condition_setup,
                 cond,
                 body,
-            } => {
-                let mut setup = self.statements(condition_setup).then(self.expression(cond));
-                let reaches_condition = setup.values.remove(&ControlOutcome::Fallthrough);
-                let setup_breaks = setup.consume_loop_jumps(*target);
-                let mut result = setup;
-                if setup_breaks {
-                    result.values.insert(ControlOutcome::Fallthrough);
-                }
-                if reaches_condition {
-                    let mut body_outcomes = self.statements(body);
-                    body_outcomes.values.remove(&ControlOutcome::Fallthrough);
-                    let body_breaks = body_outcomes.consume_loop_jumps(*target);
-                    if body_breaks || !matches!(cond.kind, hir::ExprKind::BoolLiteral(true)) {
-                        result.values.insert(ControlOutcome::Fallthrough);
-                    }
-                    result = result.union(body_outcomes);
-                }
-                result
-            }
+            } => self.loop_outcomes(*loop_kind, *target, condition_setup, cond, body),
             hir::StatementKind::Expr(value) | hir::StatementKind::ValDecl { init: value, .. } => {
                 self.expression(value)
             }
@@ -274,6 +259,7 @@ impl Flow<'_> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    mod do_while;
 
     #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
     struct TestLoop(u8);
@@ -361,6 +347,7 @@ mod tests {
     fn while_setup_must_complete_before_body_or_false_exit() {
         let target = hir::LoopId::from_raw(0);
         let abrupt_setup = statement(hir::StatementKind::While {
+            loop_kind: hir::LoopKind::While,
             target,
             condition_setup: vec![return_statement()],
             cond: expression(),
@@ -369,6 +356,7 @@ mod tests {
         assert_hir_outcomes(&[abrupt_setup], [ControlOutcome::Return]);
 
         let reachable_condition = statement(hir::StatementKind::While {
+            loop_kind: hir::LoopKind::While,
             target,
             condition_setup: Vec::new(),
             cond: expression(),
@@ -380,6 +368,7 @@ mod tests {
         );
 
         let mixed_setup = statement(hir::StatementKind::While {
+            loop_kind: hir::LoopKind::While,
             target,
             condition_setup: vec![statement(hir::StatementKind::If {
                 cond: expression(),
@@ -403,6 +392,7 @@ mod tests {
     fn loop_targets_are_consumed_from_while_setup_and_body() {
         let target = hir::LoopId::from_raw(0);
         let setup_break = statement(hir::StatementKind::While {
+            loop_kind: hir::LoopKind::While,
             target,
             condition_setup: vec![statement(hir::StatementKind::Break { target })],
             cond: expression(),
@@ -411,6 +401,7 @@ mod tests {
         assert_hir_outcomes(&[setup_break], [ControlOutcome::Fallthrough]);
 
         let setup_continue = statement(hir::StatementKind::While {
+            loop_kind: hir::LoopKind::While,
             target,
             condition_setup: vec![statement(hir::StatementKind::Continue { target })],
             cond: expression(),
@@ -419,6 +410,7 @@ mod tests {
         assert_hir_outcomes(&[setup_continue], []);
 
         let body_jumps = statement(hir::StatementKind::While {
+            loop_kind: hir::LoopKind::While,
             target,
             condition_setup: Vec::new(),
             cond: expression(),
@@ -439,6 +431,7 @@ mod tests {
             body: vec![statement(hir::StatementKind::Break { target: outer })],
             catches: Vec::new(),
             finally_body: Some(vec![statement(hir::StatementKind::While {
+                loop_kind: hir::LoopKind::While,
                 target: inner,
                 condition_setup: Vec::new(),
                 cond: expression(),

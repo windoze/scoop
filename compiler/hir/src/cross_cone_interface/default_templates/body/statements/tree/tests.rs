@@ -128,9 +128,19 @@ fn every_statement_variant_keeps_its_frozen_wire_tag_and_round_trips() {
         ),
         statement(
             DefaultStatementKindV1::While {
+                loop_kind: crate::LoopKind::While,
                 condition_setup: vec![expression_statement(&fixture)],
                 condition: Box::new(unit(&fixture)),
                 body: vec![break_statement(&fixture)],
+            },
+            &fixture,
+        ),
+        statement(
+            DefaultStatementKindV1::While {
+                loop_kind: crate::LoopKind::DoWhile,
+                condition_setup: vec![expression_statement(&fixture)],
+                condition: Box::new(unit(&fixture)),
+                body: vec![continue_statement(&fixture)],
             },
             &fixture,
         ),
@@ -150,8 +160,8 @@ fn every_statement_variant_keeps_its_frozen_wire_tag_and_round_trips() {
         ),
     ];
 
-    assert_eq!(cases.len(), 13);
-    for (expected_tag, expected) in (1_u64..=14).filter(|tag| *tag != 9).zip(cases) {
+    assert_eq!(cases.len(), 14);
+    for (expected_tag, expected) in (1_u64..=14).zip(cases) {
         let bytes = encode(&expected.index_locals(&mut fixture.locals()).unwrap()).unwrap();
         assert_eq!(statement_tag(&bytes), expected_tag);
         let decoded: DecodedDefaultStatementV1 = decode_canonical(&bytes).unwrap();
@@ -273,7 +283,7 @@ fn statement_decoder_rejects_unknown_tags_and_non_exact_sums() {
     )
     .unwrap();
 
-    for tag in [9, 17] {
+    for tag in [17, 18] {
         let mut unknown = bytes.clone();
         unknown[4] = tag;
         let error = decode_canonical::<DecodedDefaultStatementV1>(&unknown).unwrap_err();

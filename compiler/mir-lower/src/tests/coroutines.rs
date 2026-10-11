@@ -523,6 +523,7 @@ fn coroutine_transform_preserves_a_suspending_loop_header_poll_target() {
         hir::Body {
             locals,
             statements: vec![stmt(hir::StatementKind::While {
+                loop_kind: hir::LoopKind::While,
                 target: hir::LoopId::from_raw(0),
                 condition_setup: vec![val_decl(
                     condition_value,

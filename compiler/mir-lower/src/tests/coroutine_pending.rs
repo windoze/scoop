@@ -490,6 +490,7 @@ fn synthetic_break_and_continue_keep_distinct_typed_targets_through_suspending_f
         hir::Body {
             locals,
             statements: vec![stmt(hir::StatementKind::While {
+                loop_kind: hir::LoopKind::While,
                 target,
                 condition_setup: Vec::new(),
                 cond: bool_lit(&h, true),

@@ -1,0 +1,254 @@
+Module
+  interface ToString
+  interface Hash
+  interface Equality<Int>
+  generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
+  generated_exact_type get1 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
+  generated_exact_type get2 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
+  generated_exact_type get3 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
+  generated_exact_type get4 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
+  fun once @fn0() -> Int
+    bb0 entry
+      goto bb1
+    bb1 do.body.1
+      return
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+    bb2 do.cond.2 <loop-header-poll>
+      unreachable
+    bb3 do.exit.3
+      unreachable
+  fun main @fn1() -> Unit
+    bb0 entry
+      var n: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      var checks: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      goto bb1
+    bb1 do.body.1
+      val $old.0: Int
+        Type Int
+        Local n
+      val $dependency.receiver: Int
+        Type Int
+        Local $old.0
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      assign n
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      goto bb2
+    bb2 do.cond.2 <loop-header-poll>
+      branch bb4 bb5
+        Type Boolean
+        BoolLiteral true
+    bb3 do.exit.3
+      val $dependency.argument.0: Int
+        Type Int
+        Local n
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn2 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        Local checks
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn2 direct
+        Type Int
+        Local $dependency.parameter.value
+      goto bb7
+    bb4 if.then.4
+      val $old.1: Int
+        Type Int
+        Local checks
+      val $dependency.receiver: Int
+        Type Int
+        Local $old.1
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      assign checks
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      assign $result.2
+        Type Boolean
+        BoolLiteral false
+      goto bb6
+    bb5 if.else.5
+      assign $result.2
+        Type Boolean
+        BoolLiteral false
+      goto bb6
+    bb6 if.merge.6
+      branch bb1 bb3
+        Type Boolean
+        Local $result.2
+    bb7 do.body.7
+      val $old.3: Int
+        Type Int
+        Local n
+      val $dependency.receiver: Int
+        Type Int
+        Local $old.3
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      assign n
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $dependency.receiver: Int
+        Type Int
+        Local n
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val more: Boolean
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Int result=Long
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+      goto bb8
+    bb8 do.cond.8 <loop-header-poll>
+      branch bb7 bb9
+        Type Boolean
+        Local more
+    bb9 do.exit.9
+      val $dependency.argument.0: Int
+        Type Int
+        Local n
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn2 direct
+        Type Int
+        Local $dependency.parameter.value
+      goto bb10
+    bb10 do.body.10
+      val $old.4: Int
+        Type Int
+        Local n
+      val $dependency.receiver: Int
+        Type Int
+        Local $old.4
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      assign n
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      goto bb11
+    bb11 do.cond.11 <loop-header-poll>
+      val $dependency.receiver: Int
+        Type Int
+        Local n
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=5 bits=0x00000005
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb10 bb12
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Int result=Long
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb12 do.exit.12
+      val $dependency.argument.0: Int
+        Type Int
+        Local n
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn2 direct
+        Type Int
+        Local $dependency.parameter.value
+      call $dependency.argument.0: Int = @fn0 direct
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn2 direct
+        Type Int
+        Local $dependency.parameter.value
+      return
+        Type Unit
+        UnitLiteral
+  fun println @fn2(value: Int) -> Unit
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      call $dependency.local.2: String = external0 direct
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external1 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str0
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external1 direct
+        Type String
+        Local $dependency.local.5
+      return
+        Type Unit
+        UnitLiteral
+  instance mi0 function=@fn2 <- println
+  str @str0 "\n"
+  output executable @fn1

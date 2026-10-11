@@ -126,6 +126,7 @@ impl Lowerer {
 
         statements.push(hir::Statement {
             kind: hir::StatementKind::While {
+                loop_kind: hir::LoopKind::While,
                 target,
                 condition_setup,
                 cond,

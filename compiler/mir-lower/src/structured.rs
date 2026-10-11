@@ -125,6 +125,7 @@ pub(crate) enum StatementKind {
     },
     PatternDecision(PatternDecision),
     While {
+        loop_kind: scoop_hir::LoopKind,
         target: LoopId,
         /// Statements evaluated at the start of every condition check. This
         /// is a first-class header region rather than a preheader/body copy.

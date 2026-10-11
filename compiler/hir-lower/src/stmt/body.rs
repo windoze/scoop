@@ -41,12 +41,14 @@ impl Lowerer {
                     };
                 }
                 hir::StatementKind::While {
+                    loop_kind,
                     target: loop_target,
                     condition_setup,
                     cond,
                     body,
                 } => {
                     statement.kind = hir::StatementKind::While {
+                        loop_kind,
                         target: loop_target,
                         condition_setup: self.adapt_inferred_returns(condition_setup, target),
                         cond,

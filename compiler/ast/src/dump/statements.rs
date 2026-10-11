@@ -153,11 +153,17 @@ fn dump_statement(statement: &Statement, indent: usize, out: &mut String) {
         }
         StatementKind::While(while_) => {
             out.push_str(&format!(
-                "{pad}while{}\n",
+                "{pad}{}{}\n",
+                while_.loop_kind.keyword(),
                 dump_label(while_.label.as_ref())
             ));
-            dump_expr(&while_.cond, indent + 1, out);
-            dump_block(&while_.body, indent + 1, out);
+            if while_.loop_kind == LoopKind::DoWhile {
+                dump_block(&while_.body, indent + 1, out);
+                dump_expr(&while_.cond, indent + 1, out);
+            } else {
+                dump_expr(&while_.cond, indent + 1, out);
+                dump_block(&while_.body, indent + 1, out);
+            }
         }
         StatementKind::For(for_) => {
             out.push_str(&format!(

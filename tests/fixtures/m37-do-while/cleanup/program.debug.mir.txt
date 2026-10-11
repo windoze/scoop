@@ -1,0 +1,539 @@
+Module
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum Option<Char>
+    Some(_0: Char)
+    None()
+  class Configuration vtable=0 itables=0
+  class MissingContextException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  interface ToString
+  interface Hash
+  interface Equality<Char>
+  interface Iterable<Char>
+  interface Iterator<Char>
+  interface Equality<String>
+  interface Equality<Int>
+  generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
+  generated_exact_type get1 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
+  generated_exact_type get2 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
+  generated_exact_type get3 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
+  generated_exact_type get4 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
+  fun active @fn0() -> String
+    bb0 entry
+      val $context_binding.1: internal<context-binding-ref>
+        Type internal<context-binding-ref>
+        ContextTryGet a532c2fb139e2033dc4737e40f2ce0f1a309f1e5668f9b0b3fb1500d673a5120
+      branch bb1 bb2
+        Type Boolean
+        ContextIsPresent
+          Type internal<context-binding-ref>
+          Local $context_binding.1
+    bb1 if.then.1
+      goto bb3
+    bb2 if.else.2
+      assign $new.1
+        Type MissingContextException
+        ClassAlloc MissingContextException
+      call external3 direct
+        Type MissingContextException
+        Local $new.1
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          StringConst @str0
+      throw
+        Type MissingContextException
+        Local $new.1
+    bb3 if.merge.3
+      val configuration: Configuration
+        Type Configuration
+        ContextUnwrapBinding
+          Type internal<context-binding-ref>
+          Local $context_binding.1
+      return
+        Type String
+        FieldAccess 0
+          Type Configuration
+          Local configuration
+  fun rounds @fn1(stop: Boolean) -> Int
+    bb0 entry
+      var count: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      goto bb1
+    bb1 do.body.1
+      val $old.0: Int
+        Type Int
+        Local count
+      val $dependency.receiver: Int
+        Type Int
+        Local $old.0
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      assign count
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      goto bb9
+    bb2 do.cond.2 <loop-header-poll>
+      val $dependency.receiver: Int
+        Type Int
+        Local count
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb1 bb3
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Int result=Long
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb3 do.exit.3
+      return
+        Type Int
+        Local count
+    bb4 try.unwind.4
+      landing_pad cleanup=false
+      goto bb5
+    bb5 try.dispatch.5
+      begin_catch
+      goto bb15
+    bb6 try.exit_pad.6
+      landing_pad cleanup=true
+      goto bb7
+    bb7 try.exit_cleanup.7
+      end_catch
+      resume
+    bb8 try.end.8
+      unreachable
+    bb9 try.body.9
+      goto bb10
+    bb10 while.cond.10 <loop-header-poll>
+      goto bb12
+    bb11 while.exit.11
+      branch bb13 bb14
+        Type Boolean
+        Local stop
+    bb12 while.body.12
+      goto bb11
+    bb13 if.then.13
+      goto bb3
+    bb14 if.merge.14
+      goto bb2
+    bb15 scope.15 unwind bb6
+      goto bb16
+    bb16 while.cond.16 <loop-header-poll> unwind bb6
+      goto bb18
+    bb17 while.exit.17 unwind bb6
+      branch bb19 bb20
+        Type Boolean
+        Local stop
+    bb18 while.body.18 unwind bb6
+      goto bb17
+    bb19 if.then.19 unwind bb6
+      end_catch
+      goto bb21
+    bb20 if.merge.20 unwind bb6
+      rethrow unwind bb6
+    bb21 scope.21
+      goto bb3
+  fun returning @fn2() -> Int
+    bb0 entry
+      goto bb1
+    bb1 do.body.1
+      goto bb9
+    bb2 do.cond.2 <loop-header-poll>
+      unreachable
+    bb3 do.exit.3
+      unreachable
+    bb4 try.unwind.4
+      landing_pad cleanup=false
+      goto bb5
+    bb5 try.dispatch.5
+      begin_catch
+      goto bb10
+    bb6 try.exit_pad.6
+      landing_pad cleanup=true
+      goto bb7
+    bb7 try.exit_cleanup.7
+      end_catch
+      resume
+    bb8 try.end.8
+      unreachable
+    bb9 try.body.9
+      return
+        Type Int
+        IntegerLiteral Int value=9 bits=0x00000009
+    bb10 scope.10 unwind bb6
+      val $return.1: Int
+        Type Int
+        IntegerLiteral Int value=9 bits=0x00000009
+      end_catch
+      goto bb11
+    bb11 scope.11
+      return
+        Type Int
+        Local $return.1
+  fun breaking @fn3() -> Int
+    bb0 entry
+      goto bb1
+    bb1 do.body.1
+      goto bb9
+    bb2 do.cond.2 <loop-header-poll>
+      unreachable
+    bb3 do.exit.3
+      return
+        Type Int
+        IntegerLiteral Int value=11 bits=0x0000000b
+    bb4 try.unwind.4
+      landing_pad cleanup=false
+      goto bb5
+    bb5 try.dispatch.5
+      begin_catch
+      goto bb10
+    bb6 try.exit_pad.6
+      landing_pad cleanup=true
+      goto bb7
+    bb7 try.exit_cleanup.7
+      end_catch
+      resume
+    bb8 try.end.8
+      unreachable
+    bb9 try.body.9
+      goto bb3
+    bb10 scope.10 unwind bb6
+      end_catch
+      goto bb11
+    bb11 scope.11
+      goto bb3
+  fun scoped @fn4() -> Unit
+    bb0 entry
+      val $context_binding.1: internal<context-binding-ref>
+        Type internal<context-binding-ref>
+        ContextTryGet a532c2fb139e2033dc4737e40f2ce0f1a309f1e5668f9b0b3fb1500d673a5120
+      branch bb1 bb2
+        Type Boolean
+        ContextIsPresent
+          Type internal<context-binding-ref>
+          Local $context_binding.1
+    bb1 if.then.1
+      goto bb3
+    bb2 if.else.2
+      assign $new.1
+        Type MissingContextException
+        ClassAlloc MissingContextException
+      call external3 direct
+        Type MissingContextException
+        Local $new.1
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          StringConst @str1
+      throw
+        Type MissingContextException
+        Local $new.1
+    bb3 if.merge.3
+      val configuration: Configuration
+        Type Configuration
+        ContextUnwrapBinding
+          Type internal<context-binding-ref>
+          Local $context_binding.1
+      goto bb4
+    bb4 do.body.4
+      val $argument.0: String
+        Type String
+        StringConst @str2
+      val $parameter.text: String
+        Type String
+        Local $argument.0
+      assign $new.2
+        Type Configuration
+        ClassAlloc Configuration
+      call @fn8 direct
+        Type Configuration
+        Local $new.2
+        Type String
+        Local $parameter.text
+      val $context_mark.2: internal<context-mark>
+        Type internal<context-mark>
+        ContextPush a532c2fb139e2033dc4737e40f2ce0f1a309f1e5668f9b0b3fb1500d673a5120
+          Type Configuration
+          Local $new.2
+      goto bb12
+    bb5 do.cond.5 <loop-header-poll>
+      branch bb22 bb23
+        Type Boolean
+        BoolLiteral true
+    bb6 do.exit.6
+      return
+        Type Unit
+        UnitLiteral
+    bb7 try.unwind.7
+      landing_pad cleanup=false
+      goto bb8
+    bb8 try.dispatch.8
+      begin_catch
+      goto bb21
+    bb9 try.exit_pad.9
+      landing_pad cleanup=true
+      goto bb10
+    bb10 try.exit_cleanup.10
+      end_catch
+      resume
+    bb11 try.end.11
+      unreachable
+    bb12 try.body.12 unwind bb7
+      goto bb18
+    bb13 try.unwind.13 unwind bb7
+      landing_pad cleanup=false
+      goto bb14
+    bb14 try.dispatch.14 unwind bb7
+      begin_catch
+      goto bb20
+    bb15 try.exit_pad.15 unwind bb7
+      landing_pad cleanup=false
+      goto bb16
+    bb16 try.exit_cleanup.16 unwind bb7
+      end_catch
+      goto bb8
+    bb17 try.end.17 unwind bb7
+      unreachable
+    bb18 try.body.18 unwind bb7
+      call @scoop_rt_gc_collect direct
+      call $dependency.argument.0: String = @fn0 direct
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type String
+        Local $dependency.parameter.value
+      goto bb19
+    bb19 scope.19
+      Type Unit
+      ContextRestore
+        Type internal<context-mark>
+        Local $context_mark.2
+      goto bb5
+    bb20 scope.20 unwind bb15
+      call @scoop_rt_gc_collect direct
+      call $dependency.argument.0: String = @fn0 direct
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type String
+        Local $dependency.parameter.value
+      rethrow unwind bb15
+    bb21 scope.21 unwind bb9
+      Type Unit
+      ContextRestore
+        Type internal<context-mark>
+        Local $context_mark.2
+      rethrow unwind bb9
+    bb22 if.then.22
+      call $dependency.argument.0: String = @fn0 direct
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type String
+        Local $dependency.parameter.value
+      assign $result.1
+        Type Boolean
+        BoolLiteral false
+      goto bb24
+    bb23 if.else.23
+      assign $result.1
+        Type Boolean
+        BoolLiteral false
+      goto bb24
+    bb24 if.merge.24
+      branch bb4 bb6
+        Type Boolean
+        Local $result.1
+  fun main @fn5() -> Unit
+    bb0 entry
+      val $argument.0: Boolean
+        Type Boolean
+        BoolLiteral true
+      val $parameter.stop: Boolean
+        Type Boolean
+        Local $argument.0
+      call $dependency.argument.0: Int = @fn1 direct
+        Type Boolean
+        Local $parameter.stop
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn7 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $argument.0: Boolean
+        Type Boolean
+        BoolLiteral false
+      val $parameter.stop: Boolean
+        Type Boolean
+        Local $argument.0
+      call $dependency.argument.0: Int = @fn1 direct
+        Type Boolean
+        Local $parameter.stop
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn7 direct
+        Type Int
+        Local $dependency.parameter.value
+      call $dependency.argument.0: Int = @fn2 direct
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn7 direct
+        Type Int
+        Local $dependency.parameter.value
+      call $dependency.argument.0: Int = @fn3 direct
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn7 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $argument.0: String
+        Type String
+        StringConst @str3
+      val $parameter.text: String
+        Type String
+        Local $argument.0
+      assign $new.1
+        Type Configuration
+        ClassAlloc Configuration
+      call @fn8 direct
+        Type Configuration
+        Local $new.1
+        Type String
+        Local $parameter.text
+      val $context_mark.1: internal<context-mark>
+        Type internal<context-mark>
+        ContextPush a532c2fb139e2033dc4737e40f2ce0f1a309f1e5668f9b0b3fb1500d673a5120
+          Type Configuration
+          Local $new.1
+      goto bb6
+    bb1 try.unwind.1
+      landing_pad cleanup=false
+      goto bb2
+    bb2 try.dispatch.2
+      begin_catch
+      goto bb8
+    bb3 try.exit_pad.3
+      landing_pad cleanup=true
+      goto bb4
+    bb4 try.exit_cleanup.4
+      end_catch
+      resume
+    bb5 try.end.5
+      return
+        Type Unit
+        UnitLiteral
+    bb6 try.body.6 unwind bb1
+      call @fn4 direct
+      goto bb7
+    bb7 scope.7
+      Type Unit
+      ContextRestore
+        Type internal<context-mark>
+        Local $context_mark.1
+      goto bb5
+    bb8 scope.8 unwind bb3
+      Type Unit
+      ContextRestore
+        Type internal<context-mark>
+        Local $context_mark.1
+      rethrow unwind bb3
+  fun println @fn6(value: String) -> Unit
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local value
+      call $dependency.local.2: String = external1 direct
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external2 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str4
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external2 direct
+        Type String
+        Local $dependency.local.5
+      return
+        Type Unit
+        UnitLiteral
+  fun println @fn7(value: Int) -> Unit
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      call $dependency.local.2: String = external0 direct
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external2 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str5
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external2 direct
+        Type String
+        Local $dependency.local.5
+      return
+        Type Unit
+        UnitLiteral
+  fun init.Configuration.$c0 @fn8(this: Configuration, text: String) -> Unit
+    bb0 entry
+      field_set 0
+        Type Configuration
+        Local this
+        Type String
+        Local text
+      return
+        Type Unit
+        UnitLiteral
+  instance mi0 function=@fn6 <- println
+  instance mi1 function=@fn7 <- println
+  str @str0 "missing context active.configuration: Configuration"
+  str @str1 "missing context scoped.configuration: Configuration"
+  str @str2 "inner"
+  str @str3 "outer"
+  str @str4 "\n"
+  str @str5 "\n"
+  output executable @fn5

@@ -111,6 +111,7 @@ pub(in super::super) fn collect_statement_type_occurrences(
                 }
             }
             hir::StatementKind::While {
+                loop_kind: _,
                 target: _,
                 condition_setup,
                 cond,

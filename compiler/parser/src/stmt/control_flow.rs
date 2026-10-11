@@ -77,11 +77,37 @@ impl Parser {
         Ok(Statement {
             span,
             kind: StatementKind::While(While {
+                loop_kind: scoop_ast::LoopKind::While,
                 label: None,
                 cond,
                 body,
                 span,
             }),
+        })
+    }
+
+    pub(super) fn parse_do_while(&mut self) -> Result<Statement, Diagnostic> {
+        let keyword = self.bump();
+        let body = self.parse_control_body()?;
+        self.expect("`while` after do body", |kind| {
+            matches!(kind, TokenKind::While)
+        })?;
+        self.expect("`(`", |kind| matches!(kind, TokenKind::LParen))?;
+        let cond = self.parse_expr()?;
+        let end = self
+            .expect("`)`", |kind| matches!(kind, TokenKind::RParen))?
+            .span
+            .end;
+        let span = Span::new(keyword.span.start, end);
+        Ok(Statement {
+            kind: StatementKind::While(While {
+                loop_kind: scoop_ast::LoopKind::DoWhile,
+                label: None,
+                cond,
+                body,
+                span,
+            }),
+            span,
         })
     }
 

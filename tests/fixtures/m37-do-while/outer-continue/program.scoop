@@ -1,0 +1,7 @@
+fun bad(skip: Boolean) {
+    outer@ do {
+        while (skip) continue@outer
+        val ready = false
+    } while (ready)
+}
+fun main() {}

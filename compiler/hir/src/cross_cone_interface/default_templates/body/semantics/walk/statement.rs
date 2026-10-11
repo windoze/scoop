@@ -90,6 +90,7 @@ where
                 self.push_child(pending, BodyNode::Expression(condition))
             }
             DefaultStatementKindV1::While {
+                loop_kind: _,
                 condition_setup,
                 condition,
                 body,

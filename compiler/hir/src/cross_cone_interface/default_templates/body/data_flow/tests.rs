@@ -5,6 +5,7 @@ use scoop_identity::{
 use scoop_wire::WirePath;
 
 use super::*;
+mod do_while;
 mod loop_targets;
 use crate::cross_cone_interface::default_templates::body::expression_test_support::Fixture;
 use crate::{
@@ -339,6 +340,7 @@ fn enforces_loop_control_nesting() {
         vec![statement(
             &fixture,
             DefaultStatementKindV1::While {
+                loop_kind: crate::LoopKind::While,
                 condition_setup: Vec::new(),
                 condition: Box::new(unit(&fixture)),
                 body: vec![statement(

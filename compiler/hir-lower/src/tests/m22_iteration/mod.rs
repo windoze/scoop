@@ -279,6 +279,7 @@ fn export_loop(
         .iter()
         .find_map(|statement| match &statement.kind {
             hir::StatementKind::While {
+                loop_kind: _,
                 target,
                 condition_setup,
                 cond,

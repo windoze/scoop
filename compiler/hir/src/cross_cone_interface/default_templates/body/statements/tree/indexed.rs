@@ -47,6 +47,7 @@ enum IndexedDefaultStatementKindV1<'a> {
         else_body: IndexedOptionalDefaultStatementListV1<'a>,
     },
     While {
+        loop_kind: crate::LoopKind,
         condition_setup: Vec<IndexedDefaultStatementV1<'a>>,
         condition: IndexedDefaultExpressionV1<'a>,
         body: Vec<IndexedDefaultStatementV1<'a>>,
@@ -123,13 +124,20 @@ impl DefaultStatementV1 {
                 })?,
             },
             DefaultStatementKindV1::While {
+                loop_kind,
                 condition_setup,
                 condition,
                 body,
             } => IndexedDefaultStatementKindV1::While {
-                condition_setup: index_statements(condition_setup, resolver, 8, 1)?,
-                condition: index_expression(condition, resolver, 8, 2)?,
-                body: index_statements(body, resolver, 8, 3)?,
+                loop_kind: *loop_kind,
+                condition_setup: index_statements(
+                    condition_setup,
+                    resolver,
+                    super::loop_tag(*loop_kind),
+                    1,
+                )?,
+                condition: index_expression(condition, resolver, super::loop_tag(*loop_kind), 2)?,
+                body: index_statements(body, resolver, super::loop_tag(*loop_kind), 3)?,
             },
             DefaultStatementKindV1::Break(target) => IndexedDefaultStatementKindV1::Break(*target),
             DefaultStatementKindV1::Continue(target) => {
@@ -204,10 +212,11 @@ impl WireEncode for IndexedDefaultStatementKindV1<'_> {
                 else_body,
             } => encode_if(encoder, condition, then_body, else_body),
             Self::While {
+                loop_kind,
                 condition_setup,
                 condition,
                 body,
-            } => encode_while(encoder, condition_setup, condition, body),
+            } => encode_while(encoder, *loop_kind, condition_setup, condition, body),
             Self::Break(target) => target.encode_jump(encoder, 10),
             Self::Continue(target) => target.encode_jump(encoder, 11),
             Self::When(value) => encode_one(encoder, 12, value),
@@ -368,12 +377,13 @@ fn encode_if(
 
 fn encode_while(
     encoder: &mut Encoder,
+    loop_kind: crate::LoopKind,
     condition_setup: &[impl WireEncode],
     condition: &impl WireEncode,
     body: &[impl WireEncode],
 ) -> Result<(), scoop_wire::cbor::EncodeError> {
     encoder.map(4)?;
-    encode_tag(encoder, 8)?;
+    encode_tag(encoder, super::loop_tag(loop_kind))?;
     encoder.field(1)?;
     encode_sequence(encoder, condition_setup)?;
     encoder.field(2)?;

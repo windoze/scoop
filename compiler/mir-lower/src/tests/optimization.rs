@@ -151,6 +151,7 @@ fn inline_loops_preserve_the_callee_gc_effect() {
             hir::Body {
                 locals,
                 statements: vec![stmt(hir::StatementKind::While {
+                    loop_kind: hir::LoopKind::While,
                     target: hir::LoopId::from_raw(0),
                     condition_setup: Vec::new(),
                     cond: local_ref(flag, h.boolean),

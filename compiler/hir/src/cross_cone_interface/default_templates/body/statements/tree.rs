@@ -72,6 +72,7 @@ pub enum DefaultStatementKindV1 {
         else_body: OptionalDefaultStatementListV1,
     },
     While {
+        loop_kind: crate::LoopKind,
         condition_setup: Vec<DefaultStatementV1>,
         condition: Box<DefaultExpressionV1>,
         body: Vec<DefaultStatementV1>,
@@ -127,12 +128,14 @@ fn validate_kind(kind: &DefaultStatementKindV1) -> Result<(), DefaultStatementBu
             }
         }
         DefaultStatementKindV1::While {
+            loop_kind,
             condition_setup,
             body,
             ..
         } => {
-            require_statements(condition_setup, 8, 1)?;
-            require_statements(body, 8, 3)?;
+            let tag = loop_tag(*loop_kind);
+            require_statements(condition_setup, tag, 1)?;
+            require_statements(body, tag, 3)?;
         }
         DefaultStatementKindV1::Expr(_)
         | DefaultStatementKindV1::InitializationEnsure(_)
@@ -162,3 +165,10 @@ fn require_statements(
 
 #[cfg(test)]
 mod tests;
+
+fn loop_tag(kind: crate::LoopKind) -> u64 {
+    match kind {
+        crate::LoopKind::While => 8,
+        crate::LoopKind::DoWhile => 9,
+    }
+}

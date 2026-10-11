@@ -273,6 +273,7 @@ impl Lowerer {
             .collect();
         let mut args = Vec::with_capacity(captures.len());
         for (binding, name, ty) in captures {
+            self.require_initialized_condition_binding(binding, &name, span)?;
             if let Some((local, _)) = self
                 .locals
                 .iter()

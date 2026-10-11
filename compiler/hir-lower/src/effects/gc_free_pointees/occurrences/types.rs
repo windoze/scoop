@@ -75,6 +75,7 @@ pub(in super::super) fn collect_statement_types(
                 }
             }
             hir::StatementKind::While {
+                loop_kind: _,
                 target: _,
                 condition_setup,
                 cond,

@@ -158,10 +158,7 @@ impl Parser {
             TokenKind::At => self.parse_safety_block(),
             TokenKind::For => self.parse_for(),
             TokenKind::Break | TokenKind::Continue => self.parse_loop_jump(),
-            TokenKind::Ident(text) if text == "do" => Err(Diagnostic::at(
-                self.peek().span,
-                "`do-while` loops are not supported in M22",
-            )),
+            TokenKind::Do => self.parse_do_while(),
             TokenKind::Ident(text) if text == "typealias" => Err(Diagnostic::at(
                 self.peek().span,
                 "local typealias declarations are not supported in M22; only top-level non-generic typealias declarations are supported",
@@ -327,11 +324,10 @@ impl Parser {
             return false;
         }
         self.tokens.get(self.pos + 2).is_some_and(|token| {
-            matches!(&token.kind, TokenKind::While | TokenKind::For)
-                || matches!(
-                    &token.kind,
-                    TokenKind::Ident(name) if name == "do"
-                )
+            matches!(
+                &token.kind,
+                TokenKind::While | TokenKind::For | TokenKind::Do
+            )
         })
     }
 
@@ -340,6 +336,7 @@ impl Parser {
         self.expect("`@`", |kind| matches!(kind, TokenKind::At))?;
         let mut statement = match self.peek().kind {
             TokenKind::While => self.parse_while()?,
+            TokenKind::Do => self.parse_do_while()?,
             TokenKind::For => self.parse_for()?,
             _ => return self.unexpected("loop after label"),
         };

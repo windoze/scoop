@@ -7,6 +7,7 @@ use crate::{CanonicalBooleanV1, ExportDefaultTemplateV1};
 
 mod control;
 mod expression;
+mod loops;
 
 #[cfg(test)]
 mod tests;

@@ -112,6 +112,7 @@ impl Concretizer<'_> {
                     .map(|body| self.lower_statements(body, substitution, locals, loops)),
             },
             export::StatementKind::While {
+                loop_kind,
                 target,
                 condition_setup,
                 cond,
@@ -125,6 +126,7 @@ impl Concretizer<'_> {
                 let body = self.lower_statements(body, substitution, locals, loops);
                 assert_eq!(loops.active.pop(), Some((*target, mapped_target)));
                 concrete::StatementKind::While {
+                    loop_kind: *loop_kind,
                     target: mapped_target,
                     condition_setup,
                     cond,

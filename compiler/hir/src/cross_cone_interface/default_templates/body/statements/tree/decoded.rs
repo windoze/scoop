@@ -52,6 +52,7 @@ enum DecodedDefaultStatementKindV1 {
         else_body: DecodedOptionalDefaultStatementListV1,
     },
     While {
+        loop_kind: crate::LoopKind,
         condition_setup: Vec<DecodedDefaultStatementV1>,
         condition: Box<DecodedDefaultExpressionV1>,
         body: Vec<DecodedDefaultStatementV1>,
@@ -153,16 +154,19 @@ impl DecodedDefaultStatementV1 {
                 }
             }
             DecodedDefaultStatementKindV1::While {
+                loop_kind,
                 condition_setup,
                 condition,
                 body,
             } => {
-                require_statement_count(condition_setup.len(), 8, 1)?;
-                require_statement_count(body.len(), 8, 3)?;
+                let tag = super::loop_tag(loop_kind);
+                require_statement_count(condition_setup.len(), tag, 1)?;
+                require_statement_count(body.len(), tag, 3)?;
                 DefaultStatementKindV1::While {
-                    condition_setup: resolve_statements(condition_setup, resolver, locals, 8, 1)?,
-                    condition: Box::new(resolve_expression(*condition, resolver, locals, 8, 2)?),
-                    body: resolve_statements(body, resolver, locals, 8, 3)?,
+                    loop_kind,
+                    condition_setup: resolve_statements(condition_setup, resolver, locals, tag, 1)?,
+                    condition: Box::new(resolve_expression(*condition, resolver, locals, tag, 2)?),
+                    body: resolve_statements(body, resolver, locals, tag, 3)?,
                 }
             }
             DecodedDefaultStatementKindV1::Break(target) => DefaultStatementKindV1::Break(target),
@@ -240,10 +244,17 @@ impl WireEncode for DecodedDefaultStatementKindV1 {
                 else_body,
             } => encode_if(encoder, condition.as_ref(), then_body, else_body),
             Self::While {
+                loop_kind,
                 condition_setup,
                 condition,
                 body,
-            } => encode_while(encoder, condition_setup, condition.as_ref(), body),
+            } => encode_while(
+                encoder,
+                *loop_kind,
+                condition_setup,
+                condition.as_ref(),
+                body,
+            ),
             Self::Break(target) => target.encode_jump(encoder, 10),
             Self::Continue(target) => target.encode_jump(encoder, 11),
             Self::When(value) => encode_one(encoder, 12, value.as_ref()),
@@ -317,9 +328,14 @@ impl WireDecode for DecodedDefaultStatementKindV1 {
                     else_body: decoder.field(3, DecodedOptionalDefaultStatementListV1::decode)?,
                 })
             }
-            8 => {
+            8 | 9 => {
                 expect_sum_length(decoder, fields, 4)?;
                 Ok(Self::While {
+                    loop_kind: if tag == 8 {
+                        crate::LoopKind::While
+                    } else {
+                        crate::LoopKind::DoWhile
+                    },
                     condition_setup: decoder.field(1, decode_statements)?,
                     condition: decode_boxed_expression(decoder, 2)?,
                     body: decoder.field(3, decode_statements)?,
@@ -566,12 +582,13 @@ fn encode_if(
 
 fn encode_while(
     encoder: &mut Encoder,
+    loop_kind: crate::LoopKind,
     condition_setup: &[impl WireEncode],
     condition: &impl WireEncode,
     body: &[impl WireEncode],
 ) -> Result<(), scoop_wire::cbor::EncodeError> {
     encoder.map(4)?;
-    encode_tag(encoder, 8)?;
+    encode_tag(encoder, super::loop_tag(loop_kind))?;
     encoder.field(1)?;
     encode_sequence(encoder, condition_setup)?;
     encoder.field(2)?;

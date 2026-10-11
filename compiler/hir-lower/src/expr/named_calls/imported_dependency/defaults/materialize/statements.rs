@@ -61,6 +61,7 @@ impl Lowerer {
                 },
             },
             Kind::While {
+                loop_kind,
                 condition_setup,
                 condition,
                 body,
@@ -69,6 +70,7 @@ impl Lowerer {
                 context.loop_targets.push(target);
                 let materialized: Result<_, ImportedDefaultMaterializationError> = (|| {
                     Ok(hir::StatementKind::While {
+                        loop_kind: *loop_kind,
                         target,
                         condition_setup: self
                             .materialize_imported_default_statements(condition_setup, context)?,

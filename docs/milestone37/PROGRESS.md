@@ -49,3 +49,13 @@ HIR 使用既有 LoopId；默认参数和泛型产物保存类型化的包围循
 本机 workspace fmt/clippy（release）通过；parser 489、HIR 893、HIR lower 1,399、MIR lower 118、slib 560 项 Rust 测试和 1 项 doc-test 通过。更新了旧编码负例及直接构造 HIR 的 MIR 测试声明名称，原有分派断言保持不变。16 个新增 fixture（5 个正向、11 个 negative）连同 4 个回归共 20/20 普通比较通过，25 个配置、53 个进程、43 个 HIR/MIR/LIR golden。覆盖外层 break/continue、同名遮蔽、条件 setup、求值顺序、finally 覆盖与嵌套 finally 循环、Context 还原、挂起/恢复、moving GC，以及含默认参数的泛型 provider → bridge → consumer 仅产物链。
 
 报告见 [04-loop-jumps-darwin.json](validation/04-loop-jumps-darwin.json)。审阅了 HIR 的外层目标及 bridge 默认参数中的重新映射；既有 M22 循环组合与 M35 return/throw 操作数和清理快照保持不变。完成后清理本批已通过的 fixture 工作目录，保留共用缓存、sysroot 和报告。
+
+### 5. do/while 与条件初始化检查（完成）
+
+do body 与 condition 共享最外层局部作用域，每轮闭包捕获本轮 val；嵌套块及循环后的可见性保持普通规则。复用既有控制结果分析，按目标 LoopId 合并真正到达条件的 continue；被 finally 改为 break/return 的路径不计。变量读取、函数值调用及 lambda/局部函数捕获均在源码使用处报告可能未初始化，包含 initializer 中的 Elvis continue 和外层标签跳转。
+
+AST、HIR、concrete HIR 和结构化 MIR 保留显式 LoopKind；默认/泛型 body 使用 tag 9 保存 do/while，普通 while 的 tag 8 编码不变。reader 按真实执行顺序检查局部定义。CFG 分别建立 do body、condition 和 exit，首轮直接进入 body，continue 进入完整条件；条件入口保留 GC poll 和协程恢复，永远无法到达的条件完整封闭为 unreachable。新增实现模块分别为 63、89、104 行，现有控制流大文件移出对应循环实现。
+
+本机 fmt、workspace clippy（release）通过；parser 490、HIR 895、HIR lower 1,400、MIR lower 118、slib 560 项 Rust 测试及 1 项 doc-test 通过。16 个新增正式 fixture（6 个正向、10 个 negative）和 3 个既有循环回归全部完成普通比较，合计 19 个用例、26 个配置、66 个进程、48 个阶段 golden。覆盖单语句、至少执行一次、条件内 continue/break、每轮捕获、finally/Context、挂起恢复、moving GC，以及默认参数与泛型 body 的 provider → bridge → consumer 纯产物链。旧 HIR/concrete/default dump 仅补充普通 while 的 LoopKind 字段；保留原有执行与 wire 身份。
+
+报告见 [05-do-while-darwin.json](validation/05-do-while-darwin.json)。报告合并普通验证批次：已通过且未变化的用例没有重复执行，只重跑新增清理正例与受结构快照字段迁移影响的回归。完成后清理本批 fixture cases，保留增量 cache、sysroot 和报告。

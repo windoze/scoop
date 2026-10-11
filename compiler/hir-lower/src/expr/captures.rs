@@ -95,6 +95,7 @@ impl Lowerer {
             .available
             .get(&name.text)?
             .clone();
+        self.require_initialized_condition_binding(available.binding, &name.text, name.span)?;
         if available.mutable {
             self.error(
                 name.span,
@@ -128,6 +129,7 @@ impl Lowerer {
                 (candidate.binding == binding).then(|| (name.clone(), candidate.clone()))
             })?;
         let (name, available) = available;
+        self.require_initialized_condition_binding(binding, fallback_name, span)?;
         if available.mutable {
             self.error(
                 span,

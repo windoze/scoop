@@ -256,10 +256,28 @@ fn return_labels_are_rejected_before_callable_label_lowering() {
 }
 
 #[test]
-fn do_while_remains_unsupported() {
+fn do_while_preserves_body_condition_and_span() {
     let source = "fun main() { do { work() } while (ready) }";
-    let (span, message) = err(source);
-    let start = source.find("do").unwrap() as u32;
-    assert_eq!(span, Span::new(start, start + 2));
-    assert_eq!(message, "`do-while` loops are not supported in M22");
+    let file = ok(source);
+    let statement = &block_body(only_function(&file)).statements[0];
+    let StatementKind::While(loop_) = &statement.kind else {
+        panic!("expected a do-while statement");
+    };
+    assert_eq!(loop_.loop_kind, scoop_ast::LoopKind::DoWhile);
+    assert_eq!(loop_.body.statements.len(), 1);
+    assert!(matches!(&loop_.cond, Expr::Var(name) if name.text == "ready"));
+    assert_eq!(statement.span.start, source.find("do").unwrap() as u32);
+    assert_eq!(statement.span.end, source.rfind(')').unwrap() as u32 + 1);
+}
+
+#[test]
+fn do_while_accepts_a_label_and_a_single_statement() {
+    let file = ok("fun main() { repeat@ do work() while (ready) }");
+    let statement = &block_body(only_function(&file)).statements[0];
+    let StatementKind::While(loop_) = &statement.kind else {
+        panic!("expected loop");
+    };
+    assert_eq!(loop_.loop_kind, scoop_ast::LoopKind::DoWhile);
+    assert_eq!(loop_.label.as_ref().unwrap().text, "repeat");
+    assert_eq!(loop_.body.statements.len(), 1);
 }

@@ -214,6 +214,7 @@ impl Lowerer {
         };
         let declared = self.locals[local].ty;
         let binding = self.locals[local].binding;
+        self.require_initialized_condition_binding(binding, &name.text, name.span)?;
         if self.local_delegate_plans.contains_key(&binding) {
             let storage = hir::Expr {
                 kind: ExprKind::Local(local),

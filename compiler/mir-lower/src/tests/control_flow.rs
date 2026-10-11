@@ -203,6 +203,7 @@ fn control_flow_becomes_cfg_and_marks_the_loop_header_poll() {
                     else_body: Some(vec![expr_stmt(call(&h, println, vec![str_lit(&h, "b")]))]),
                 }),
                 stmt(hir::StatementKind::While {
+                    loop_kind: hir::LoopKind::While,
                     target: hir::LoopId::from_raw(0),
                     condition_setup: Vec::new(),
                     cond: bool_lit(&h, false),
@@ -262,6 +263,7 @@ fn loop_header_poll_owns_while_condition_setup_and_the_backedge() {
         hir::Body {
             locals,
             statements: vec![stmt(hir::StatementKind::While {
+                loop_kind: hir::LoopKind::While,
                 target: hir::LoopId::from_raw(0),
                 condition_setup: vec![val_decl(
                     condition_value,
@@ -353,6 +355,7 @@ fn terminating_while_still_marks_its_loop_header_poll() {
             locals: Arena::new(),
             statements: vec![
                 stmt(hir::StatementKind::While {
+                    loop_kind: hir::LoopKind::While,
                     target: hir::LoopId::from_raw(0),
                     condition_setup: vec![stmt(hir::StatementKind::Return {
                         value: expr(hir::ExprKind::UnitLiteral, h.unit),
@@ -423,6 +426,7 @@ fn direct_setup_break_preserves_the_loop_header_poll_and_exit_target() {
             locals: Arena::new(),
             statements: vec![
                 stmt(hir::StatementKind::While {
+                    loop_kind: hir::LoopKind::While,
                     target,
                     condition_setup: vec![stmt(hir::StatementKind::Break { target })],
                     cond: bool_lit(&h, true),
@@ -473,6 +477,7 @@ fn loop_body_transfers_keep_one_loop_header_poll_target_without_merge_fallthroug
             locals: Arena::new(),
             statements: vec![
                 stmt(hir::StatementKind::While {
+                    loop_kind: hir::LoopKind::While,
                     target,
                     condition_setup: Vec::new(),
                     cond: bool_lit(&h, true),
@@ -532,6 +537,7 @@ fn outer_break_runs_finally_before_reaching_the_loop_exit() {
             locals: Arena::new(),
             statements: vec![
                 stmt(hir::StatementKind::While {
+                    loop_kind: hir::LoopKind::While,
                     target,
                     condition_setup: Vec::new(),
                     cond: bool_lit(&h, true),
@@ -754,6 +760,7 @@ fn catch_break_ends_the_catch_once_then_runs_finally_before_loop_exit() {
             locals,
             statements: vec![
                 stmt(hir::StatementKind::While {
+                    loop_kind: hir::LoopKind::While,
                     target,
                     condition_setup: Vec::new(),
                     cond: bool_lit(&h, true),
@@ -764,6 +771,7 @@ fn catch_break_ends_the_catch_once_then_runs_finally_before_loop_exit() {
                             ty: error_ty,
                             body: vec![
                                 stmt(hir::StatementKind::While {
+                                    loop_kind: hir::LoopKind::While,
                                     target: inner,
                                     condition_setup: Vec::new(),
                                     cond: bool_lit(&h, true),
@@ -864,6 +872,7 @@ fn transfer_from_cleanup_free_try_nested_in_catch_reaches_outer_cleanup() {
             locals,
             statements: vec![
                 stmt(hir::StatementKind::While {
+                    loop_kind: hir::LoopKind::While,
                     target,
                     condition_setup: Vec::new(),
                     cond: bool_lit(&h, true),
@@ -927,6 +936,7 @@ fn finally_return_overrides_a_pending_setup_break_without_opening_the_exit() {
             locals: Arena::new(),
             statements: vec![
                 stmt(hir::StatementKind::While {
+                    loop_kind: hir::LoopKind::While,
                     target,
                     condition_setup: vec![stmt(hir::StatementKind::Try(hir::Try {
                         body: vec![stmt(hir::StatementKind::Break { target })],
@@ -986,11 +996,13 @@ fn nested_finally_loops_mark_every_loop_header_poll_target() {
             locals: Arena::new(),
             statements: vec![
                 stmt(hir::StatementKind::While {
+                    loop_kind: hir::LoopKind::While,
                     target: outer,
                     condition_setup: vec![stmt(hir::StatementKind::Try(hir::Try {
                         body: vec![stmt(hir::StatementKind::Break { target: outer })],
                         catches: Vec::new(),
                         finally_body: Some(vec![stmt(hir::StatementKind::While {
+                            loop_kind: hir::LoopKind::While,
                             target: inner,
                             condition_setup: Vec::new(),
                             cond: bool_lit(&h, true),
@@ -1063,6 +1075,7 @@ fn pattern_decision_with_two_abrupt_arms_keeps_its_merge_unreachable() {
                     ),
                 ),
                 stmt(hir::StatementKind::While {
+                    loop_kind: hir::LoopKind::While,
                     target,
                     condition_setup: Vec::new(),
                     cond: bool_lit(&h, true),
@@ -1141,6 +1154,7 @@ fn while_condition_prelude_is_owned_by_the_header_and_reentered_by_the_backedge(
                     ),
                 ),
                 stmt(hir::StatementKind::While {
+                    loop_kind: hir::LoopKind::While,
                     target: hir::LoopId::from_raw(0),
                     condition_setup: Vec::new(),
                     cond: expr(

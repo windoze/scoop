@@ -7,6 +7,45 @@ pub(crate) struct ActiveLoop {
 }
 
 impl Lowerer {
+    pub(super) fn lower_loop(&mut self, source: &ast::While) -> Option<hir::StatementKind> {
+        let target = self.fresh_loop();
+        self.push_loop(target, source.label.as_ref());
+        let mut condition_setup = Vec::new();
+        let (body, cond) = match source.loop_kind {
+            hir::LoopKind::While => {
+                let cond = self.lower_condition(&source.cond, "while", &mut condition_setup);
+                if cond.is_none() {
+                    self.pop_loop(target);
+                    return None;
+                }
+                let body = self.lower_block(&source.body);
+                (body, cond)
+            }
+            hir::LoopKind::DoWhile => {
+                self.push_scope();
+                let mut body = Vec::new();
+                for statement in &source.body.statements {
+                    self.lower_statement(statement, &mut body);
+                }
+                let previous = self.uninitialized_condition_bindings.clone();
+                let skipped = self.bindings_skipped_by_continue(&body, target);
+                self.uninitialized_condition_bindings.extend(skipped);
+                let cond = self.lower_condition(&source.cond, "do-while", &mut condition_setup);
+                self.uninitialized_condition_bindings = previous;
+                self.pop_scope();
+                (body, cond)
+            }
+        };
+        self.pop_loop(target);
+        Some(hir::StatementKind::While {
+            loop_kind: source.loop_kind,
+            target,
+            condition_setup,
+            cond: cond?,
+            body,
+        })
+    }
+
     pub(crate) fn push_loop(&mut self, target: hir::LoopId, label: Option<&ast::Ident>) {
         self.loop_targets.push(ActiveLoop {
             target,

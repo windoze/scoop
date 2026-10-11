@@ -57,6 +57,7 @@ impl Lowerer {
                 }),
             },
             hir::StatementKind::While {
+                loop_kind,
                 target,
                 condition_setup,
                 cond,
@@ -75,6 +76,7 @@ impl Lowerer {
                     .collect();
                 assert_eq!(context.loop_targets.pop(), Some((*target, mapped_target)));
                 hir::StatementKind::While {
+                    loop_kind: *loop_kind,
                     target: mapped_target,
                     condition_setup,
                     cond,

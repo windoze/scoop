@@ -1015,17 +1015,21 @@ context list 不参与 overload applicability、MSC、泛型推断、普通或 s
 
 ### 8.7 循环控制
 
-循环与跳转使用第 2 章的 Kotlin 核心语法；本节规定 `while`、`for`、`break` 和 `continue` 的求值与清理规则。
+循环与跳转使用第 2 章的 Kotlin 核心语法；本节规定 `while`、`do/while`、`for`、`break` 和 `continue` 的求值与清理规则。
 
 `if` 的 then/else 分支及 `while`/`for` 的 body 接受块或一个完整语句/表达式，条件与 for 头仍使用括号。每个 body 建立独立词法作用域，单条局部声明不泄漏到外层；`else if` 是 else 中的嵌套 if，else 总与最近的未匹配 if 结合。then body 和 else 之间可以有换行或语句分号。控制头后的块属于 body，不属于头部调用的尾随 lambda；body 自己的调用仍使用 8.5 的尾随 lambda 规则。
 
 值位置的 if 必须具有 else，所有正常到达合流点的路径提供可合并的值，Nothing 路径不参与合并。语句位置可以丢弃 body 的值。单语句 body 与显式块采用同一规则，不把控制 body 的花括号当作 lambda；例如 `if (x < 0) return -1 else if (x > 0) return 1` 和 `val sign = if (x < 0) -1 else 1` 都合法。
 
-- `break`退出当前 callable 内词法最内层循环，`continue`进入其下一轮。`label@ while ...`、`label@ for ...` 为循环声明标签；`break@label`、`continue@label` 选择当前 callable 内具有该标签的最近包围循环。同名标签由内层遮蔽，标签属于独立名称空间，不是值绑定。函数、匿名函数、lambda 和局部函数各自建立控制边界，不能跳到外层 callable 的循环。循环外跳转、未知标签及非循环目标均为编译错误；
-- while 的条件和 body 属于该循环的控制区；for 的 iterable 在进入自身迭代控制区前求值，其中的跳转仍查找外层循环。标签不提供 goto，也不能用于跳出任意块；
+- `break`退出当前 callable 内词法最内层循环，`continue`进入其下一轮。`label@ while ...`、`label@ for ...`、`label@ do ...` 为循环声明标签；`break@label`、`continue@label` 选择当前 callable 内具有该标签的最近包围循环。同名标签由内层遮蔽，标签属于独立名称空间，不是值绑定。函数、匿名函数、lambda 和局部函数各自建立控制边界，不能跳到外层 callable 的循环。循环外跳转、未知标签及非循环目标均为编译错误；
+- while 和 do/while 的条件与 body 属于该循环的控制区；for 的 iterable 在进入自身迭代控制区前求值，其中的跳转仍查找外层循环。标签不提供 goto，也不能用于跳出任意块；
 - `break`/`continue`不产生正常结果并终止当前路径；该路径不参与第5章的结果类型合并。循环正常结束的语句结果为`Unit`；没有更强证明时仍按可能落空处理；
 - while的`continue`重新进入完整condition求值入口，包括该condition产生的temporary、safe-call/default setup和挂起调用；for的`continue`进入下一次`next()`；
 - 控制转移离开scope时，按从内到外执行所有应执行的catch结束动作和`finally`。finally正常完成后恢复原动作；只有实际离开当前finally的return/throw/break/continue才覆盖原动作，内部被处理的转移不覆盖。新动作继续执行尚未经过的外层cleanup，不能再次进入当前finally。挂起不是退出，不执行finally。
+
+`do body while (condition)` 先执行 body，再完整求值 condition；条件为 true 才开始下一轮 body。body 接受块或单语句，每轮建立新 binding；body 最外层直接声明的名字在 condition 中可见，在循环之后不可见，嵌套块仍采用普通作用域。condition 引用的每个 binding 必须在所有到达条件入口的路径上已初始化；声明前的 continue 若仍能到达 condition，应在该 binding 的源码读取处诊断。return、break 或被 finally 覆盖为不再到达条件的路径不参加此检查。捕获 val 保存本轮的值。
+
+`do/while` 的 continue 进入完整条件入口，包括临时变量、默认参数、safe-call 和挂起操作；condition 中的 continue 也重新进入该入口。break 直接到循环之后。condition 的求值与清理规则不因其位于 body 之后而改变，不能通过复制 body 或提前条件求值改变其顺序。
 
 `for (pattern in source)`严格遵守11.8的typed迭代协议；`source`、`iterator()`各求值一次，每轮只调用一次`next()`。每个`Some`建立新的只读binding scope，因此closure捕获对应轮次的值，而不是一个跨轮次覆写的隐藏mutable slot。pattern必须满足4.6的irrefutable binding规则。
 

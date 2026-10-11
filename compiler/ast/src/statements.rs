@@ -209,10 +209,26 @@ pub struct If {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct While {
+    pub loop_kind: LoopKind,
     pub label: Option<Ident>,
     pub cond: Expr,
     pub body: Block,
     pub span: Span,
+}
+
+#[derive(Debug, Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub enum LoopKind {
+    While,
+    DoWhile,
+}
+
+impl LoopKind {
+    pub const fn keyword(self) -> &'static str {
+        match self {
+            Self::While => "while",
+            Self::DoWhile => "do-while",
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]

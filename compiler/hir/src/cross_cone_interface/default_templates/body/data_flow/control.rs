@@ -112,10 +112,12 @@ impl Validator<'_> {
                 self.merge_normal_definitions(available, vec![then_flow, else_flow])
             }
             DefaultStatementKindV1::While {
+                loop_kind,
                 condition_setup,
                 condition,
                 body,
-            } => self.validate_while(
+            } => self.validate_loop(
+                *loop_kind,
                 condition_setup,
                 condition,
                 body,
@@ -247,61 +249,6 @@ impl Validator<'_> {
             pending.push(field.pattern());
         }
         Ok(())
-    }
-
-    fn validate_while(
-        &mut self,
-        condition_setup: &[DefaultStatementV1],
-        condition: &crate::DefaultExpressionV1,
-        body: &[DefaultStatementV1],
-        available: Vec<bool>,
-        reachable: bool,
-        region: Region,
-    ) -> Result<Flow, ExportDefaultLocalDataFlowValidationError> {
-        let incoming = self.copy_bits(&available)?;
-        let loop_depth = region.loop_depth.checked_add(1).ok_or_else(|| {
-            ExportDefaultLocalDataFlowValidationError::Resource(scoop_wire::WireError::new(
-                scoop_wire::WireErrorKind::IntegerOutOfRange,
-                self.path.clone(),
-                None,
-            ))
-        })?;
-        let child = Region { loop_depth };
-        let condition_flow = self.validate_statements(
-            condition_setup,
-            Flow::falling_through(available),
-            reachable,
-            child,
-        )?;
-        self.validate_expression(
-            condition,
-            &condition_flow.available,
-            reachable && condition_flow.falls_through,
-        )?;
-        let body_available = self.copy_bits(&condition_flow.available)?;
-        let body_flow = self.validate_statements(
-            body,
-            Flow::falling_through(body_available),
-            reachable && condition_flow.falls_through,
-            child,
-        )?;
-
-        let mut abrupt = condition_flow.abrupt;
-        let setup_breaks = abrupt
-            .remove(&ControlOutcome::Break(region.loop_depth))
-            .is_some();
-        abrupt.remove(&ControlOutcome::Continue(region.loop_depth));
-        if condition_flow.falls_through {
-            let mut body_abrupt = body_flow.abrupt;
-            body_abrupt.remove(&ControlOutcome::Break(region.loop_depth));
-            body_abrupt.remove(&ControlOutcome::Continue(region.loop_depth));
-            self.merge_abrupt_outcomes(&mut abrupt, body_abrupt)?;
-        }
-        Ok(Flow {
-            available: incoming,
-            falls_through: reachable && (condition_flow.falls_through || setup_breaks),
-            abrupt,
-        })
     }
 
     fn validate_when(

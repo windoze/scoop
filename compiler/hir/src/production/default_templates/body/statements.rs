@@ -71,6 +71,7 @@ impl BodyProjection<'_, '_> {
                 else_body: self.optional_statements(else_body.as_deref())?,
             },
             StatementKind::While {
+                loop_kind,
                 target,
                 condition_setup,
                 cond,
@@ -79,6 +80,7 @@ impl BodyProjection<'_, '_> {
                 self.loops.push(*target);
                 let projected: Result<_, super::super::DefaultBodyProjectionError> = (|| {
                     Ok(DefaultStatementKindV1::While {
+                        loop_kind: *loop_kind,
                         condition_setup: self.statements(condition_setup)?,
                         condition: Box::new(self.expression(cond)?),
                         body: self.statements(body)?,

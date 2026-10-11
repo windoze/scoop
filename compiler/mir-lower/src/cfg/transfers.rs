@@ -196,6 +196,7 @@ impl<'a> CfgLowerer<'a> {
                 context: self.active_pending.clone(),
             },
             break_reachable: false,
+            continue_reachable: false,
         });
     }
 
@@ -224,14 +225,15 @@ impl<'a> CfgLowerer<'a> {
     }
 
     pub(super) fn lower_continue(&mut self, source: smir::LoopId) {
-        let target = self
+        let index = self
             .loop_targets
             .iter()
-            .rev()
-            .find(|target| target.source == source)
+            .rposition(|target| target.source == source)
             .expect("structured MIR binds continue to an active loop");
-        let target = target.header.clone();
-        self.route_transfer(PendingTransfer::Continue(target));
+        let target = self.loop_targets[index].header.clone();
+        if self.route_transfer(PendingTransfer::Continue(target)) {
+            self.loop_targets[index].continue_reachable = true;
+        }
     }
 
     pub(super) fn call_pending_context(&self) -> CleanupContext {

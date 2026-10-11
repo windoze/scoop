@@ -405,6 +405,7 @@ impl Lowerer {
             scopes: Scopes::new(),
             local_function_scopes: LocalFunctionScopes::new(),
             loop_targets: Vec::new(),
+            uninitialized_condition_bindings: Default::default(),
             capture_contexts: Vec::new(),
             next_binding_id: 0,
             instantiations: Arena::new(),
