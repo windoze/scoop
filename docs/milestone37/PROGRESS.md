@@ -217,3 +217,15 @@ HIR 和共享接口分别使用原声明身份、callable 与源码参数序号�
 本机 fmt、workspace clippy（release）无警告通过；149 项不同的相关 Rust 测试通过。26 个新增正式 fixture（5 个正向、21 个 negative）及旧注解、alias、局部类型回归完成普通比较，共 203/203 个适用用例通过，227 个配置、393 个进程、221 个阶段 golden；另一个 musl 专用用例在 Darwin 不适用。覆盖 debug/release、默认和显式目标、核心 NoGC、局部声明、泛型与 delegate、moving GC，以及删除源码后的 provider → bridge → consumer → 独立链接产物链。
 
 报告见 [18b-annotation-targets-darwin.json](validation/18b-annotation-targets-darwin.json)。五个旧目标负例迁移为正例；其余快照保留新增局部 alias 和此前 enum/注解值格式变化。除增加普通构造调用的 alias 引用组合外，旧回归 MIR/LIR 不变。报告合并普通通过记录，21 个迁移用例已单独普通复验，不计生成快照的运行。完成后清理 fixture cases 与旧工具的编译缓存，保留当前缓存、sysroot、release 依赖和报告。Target/Repeatable 与类型位置注解继续实施。
+
+### 18d. 注解目标限制与可重复性（完成）
+
+core 增加 AnnotationTarget 整型枚举、Target 和 Repeatable；按真实 core 声明身份绑定固定语义，同名用户注解不获得特殊作用。允许目标按实际实体分类，包含 receiver/setparam、getter/setter 和 backing/delegate storage。默认 use-site 不受允许目标影响，空集合拒绝所有应用位置。显式可重复注解保留源码顺序与重复值，导入别名和 re-export 保持原身份。
+
+annotation 参数/default 和元注解先完成绑定，再按最终规则检查前向应用。局部名义类型的 member alias 在该作用域元注解规则完成后绑定，块内 alias 沿既有声明顺序绑定。core 自身编译从本 Cone 的真实声明取得规则；使用 core 的编译从既有 prelude binding 取得相同身份。
+
+允许目标集合与 repeatable 属性成为普通 HIR/共享声明数据。reader 在既有边界检查实际 target 类别、重复和已绑定属性，不重放元注解名称解析或求值。cross-cone-interface 升至 75，MIR/LIR 与 runtime ABI 不变；没有 container annotation 或运行期注解对象。新增模块最长 134 行，alias 注解绑定移到 40 行子模块，发布模块缩为 282 行。
+
+本机 fmt、workspace clippy（release）无警告通过；59 项相关 Rust 测试通过。34 个新增正式 fixture（6 个正向、28 个 negative）及旧注解回归完成普通比较，共 182/182 个适用用例通过、197 个配置、324 个进程、170 个阶段 golden；1 个 musl 专用用例在 Darwin 不适用。覆盖全部已开放声明类别、前向/局部声明、同名用户注解、alias/re-export、重复顺序和重复值、moving GC，以及删除源码后的 provider → bridge → consumer → 独立链接和仅产物错误检查。
+
+报告见 [18d-annotation-rules-darwin.json](validation/18d-annotation-rules-darwin.json)。40 份旧 HIR 快照逐份核对，差异仅为默认规则字段与 core 新声明引起的 ImportedIdentityId 索引；旧 MIR/LIR 全部不变。一条旧 Rust 测试按已开放函数注解目标改为未知名称诊断。报告不计快照生成次数。已更新测试工作区的 core 副本，并清理本批 fixture cases 与旧工具的编译缓存；保留共用 cache、sysroot、release 依赖和报告。18c 类型位置注解尚未完成。

@@ -8,6 +8,8 @@ use scoop_identity::{CborIdentityRecord, PersistentAnnotationId, SourceDeclarati
 
 mod targets;
 pub use targets::{AnnotationStorageRole, SourceAnnotationCallable, SourceAnnotationReceiver};
+mod rules;
+pub use rules::{AnnotationRules, AnnotationTargetKind};
 
 #[derive(Clone, Debug)]
 pub struct SourceAnnotationParameter {
@@ -20,6 +22,7 @@ pub struct SourceAnnotationParameter {
 pub struct SourceAnnotationDeclaration {
     pub identity: CborIdentityRecord<PersistentAnnotationId, SourceDeclarationKey>,
     pub parameters: Vec<SourceAnnotationParameter>,
+    pub rules: AnnotationRules,
     pub visibility: DeclaredVisibility,
     pub definition_origin: DefinitionOrigin,
 }

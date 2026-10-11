@@ -1,0 +1,2 @@
+@Target([]) fun read() {}
+fun main() {}

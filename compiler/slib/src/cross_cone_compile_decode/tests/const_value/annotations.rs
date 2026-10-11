@@ -15,6 +15,9 @@ enum Case {
     GlobalTarget,
     MissingReceiver,
     MissingDeclaration,
+    TargetExcluded,
+    Repeatable,
+    NonRepeatable,
 }
 
 fn annotated(case: Case) -> ConstSurface {
@@ -45,6 +48,13 @@ fn annotated(case: Case) -> ConstSurface {
     let boolean = Scalar(CanonicalConstValueV1::Boolean(CanonicalBooleanV1::True));
     let declaration = AnnotationDeclarationV1 {
         annotation: identity.id(),
+        rules: if matches!(case, Case::TargetExcluded) {
+            scoop_hir::AnnotationRules::only(scoop_hir::AnnotationTargetKind::Property)
+        } else {
+            let mut rules = scoop_hir::AnnotationRules::default();
+            rules.repeatable = matches!(case, Case::Repeatable);
+            rules
+        },
         parameters: vec![AnnotationParameterV1 {
             name: CanonicalIdentifier::new("value").unwrap(),
             value_type: SignatureTypeKey::Nominal(value_type).into(),
@@ -75,6 +85,16 @@ fn annotated(case: Case) -> ConstSurface {
         Case::ArgumentType => vec![Scalar(CanonicalConstValueV1::String("wrong".into()))],
         _ => vec![boolean],
     };
+    let application = AnnotationApplicationV1 {
+        annotation: identity.id(),
+        arguments,
+        definition_origin: source,
+    };
+    let applications = if matches!(case, Case::Repeatable | Case::NonRepeatable) {
+        vec![application.clone(), application]
+    } else {
+        vec![application]
+    };
     section.set_annotations(
         CanonicalAnnotationsV1::try_new(
             if matches!(case, Case::MissingDeclaration) {
@@ -84,11 +104,7 @@ fn annotated(case: Case) -> ConstSurface {
             },
             vec![AnnotatedTargetV1 {
                 target,
-                annotations: vec![AnnotationApplicationV1 {
-                    annotation: identity.id(),
-                    arguments,
-                    definition_origin: source,
-                }],
+                annotations: applications,
             }],
         )
         .unwrap(),
@@ -100,6 +116,17 @@ fn annotated(case: Case) -> ConstSurface {
 
 #[test]
 fn annotation_wire_round_trip_preserves_the_actual_declaration_and_typed_values() {
+    let bytes = annotated(Case::Repeatable).artifact();
+    let front = validate_until_source_interfaces(&bytes)
+        .validate_const_values(vec![])
+        .unwrap();
+    let annotations = front.hir_interface().annotations();
+    assert!(annotations.declarations()[0].rules.repeatable);
+    assert_eq!(annotations.targets()[0].annotations.len(), 2);
+    assert_eq!(
+        annotations.targets()[0].annotations[0],
+        annotations.targets()[0].annotations[1]
+    );
     let bytes = annotated(Case::GlobalTarget).artifact();
     validate_until_source_interfaces(&bytes)
         .validate_const_values(vec![])
@@ -127,6 +154,14 @@ fn annotation_wire_round_trip_preserves_the_actual_declaration_and_typed_values(
 #[test]
 fn annotation_reader_rejects_mismatched_arguments_defaults_and_targets() {
     for (case, message) in [
+        (
+            Case::TargetExcluded,
+            "annotation target is excluded by its declaration",
+        ),
+        (
+            Case::NonRepeatable,
+            "repeated non-repeatable annotation on one target",
+        ),
         (
             Case::Arity,
             "annotation argument count differs from its declaration",

@@ -28,7 +28,21 @@ pub(super) fn dump_annotations(module: &Module, out: &mut String) {
                 write!(out, " = {default:?}").expect("writing to String");
             }
         }
-        out.push_str(")\n");
+        out.push(')');
+        if declaration.rules != crate::AnnotationRules::default() {
+            let allowed = crate::AnnotationTargetKind::ALL
+                .into_iter()
+                .filter(|kind| declaration.rules.permits(*kind))
+                .map(|kind| kind.name())
+                .collect::<Vec<_>>();
+            write!(
+                out,
+                " targets={allowed:?} repeatable={}",
+                declaration.rules.repeatable
+            )
+            .expect("writing to String");
+        }
+        out.push('\n');
     }
     for target in &module.annotations.targets {
         writeln!(out, "  annotations {}", target_name(module, target.target))

@@ -63,6 +63,7 @@ impl DecodedCanonicalAnnotationsV1 {
                         .resolve(declaration.annotation)
                         .map_err(AnnotationDataResolutionError::Reference)?,
                     parameters,
+                    rules: declaration.rules,
                     visibility: declaration.visibility,
                     definition_origin: declaration
                         .definition_origin

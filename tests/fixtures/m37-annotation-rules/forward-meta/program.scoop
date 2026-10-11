@@ -1,0 +1,3 @@
+@OnlyFunction annotation class Mark
+@Target([AnnotationTarget.FUNCTION]) annotation class OnlyFunction
+fun main() {}

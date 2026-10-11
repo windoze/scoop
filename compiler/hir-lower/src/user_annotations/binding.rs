@@ -8,6 +8,15 @@ impl Lowerer {
         target: hir::SourceAnnotationTarget,
         annotations: &[ast::Annotation],
     ) {
+        self.bind_annotations(target, annotations, true);
+    }
+
+    pub(super) fn bind_annotations(
+        &mut self,
+        target: hir::SourceAnnotationTarget,
+        annotations: &[ast::Annotation],
+        check_rules: bool,
+    ) {
         for annotation in annotations {
             let Some(target) = self.annotation_use_site(target, annotation) else {
                 continue;
@@ -39,20 +48,21 @@ impl Lowerer {
                 }
                 Err(()) => continue,
             };
-            if self
+            let repeated = self
                 .annotation_metadata
                 .targets
                 .iter()
                 .find(|entry| entry.target == target)
-                .is_some_and(|entry| entry.annotations.iter().any(|a| a.annotation == id))
-            {
-                self.error(
+                .is_some_and(|entry| entry.annotations.iter().any(|a| a.annotation == id));
+            if check_rules
+                && !self.check_annotation_rules(
+                    id,
+                    target.kind(),
+                    repeated,
+                    &annotation.name.to_string(),
                     annotation.span,
-                    format!(
-                        "annotation `@{}` must not be repeated on the same target",
-                        annotation.name
-                    ),
-                );
+                )
+            {
                 continue;
             }
             let Some(parameters) = self.annotation_parameters(id, annotation.span) else {

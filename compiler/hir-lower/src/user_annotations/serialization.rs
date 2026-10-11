@@ -74,6 +74,15 @@ impl Lowerer {
 
     /// Resolve the core declaration through its ordinary prelude binding.
     pub(crate) fn core_source_annotation(&self, name: &str) -> Option<PersistentAnnotationId> {
+        if matches!(self.core, crate::CoreLoweringAuthority::Defined) {
+            return self.source_annotations.iter().find_map(|(&id, input)| {
+                (self.source_is_core(input.file)
+                    && input.owner.is_none()
+                    && input.identity.key().package().is_root()
+                    && input.declaration.name.text == name)
+                    .then_some(id)
+            });
+        }
         self.type_lookup_layers(name)
             .into_iter()
             .filter(|layer| layer.kind == ImportLookupLayer::CorePrelude)

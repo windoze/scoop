@@ -52,6 +52,7 @@ impl CanonicalAnnotationsV1 {
             declarations.push(AnnotationDeclarationV1 {
                 annotation: declaration.identity.id(),
                 parameters,
+                rules: declaration.rules,
                 visibility: declaration.visibility.into(),
                 definition_origin: project_definition_source(export, declaration.definition_origin)
                     .map_err(AnnotationProductionError::Origin)?,

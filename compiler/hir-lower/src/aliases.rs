@@ -6,6 +6,7 @@ use scoop_hir as hir;
 
 use crate::{Lowerer, NominalTarget, Type};
 
+mod annotations;
 mod applications;
 mod constructors;
 mod declarations;

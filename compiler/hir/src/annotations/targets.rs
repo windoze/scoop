@@ -4,6 +4,33 @@ use crate::{
 };
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind};
 
+impl super::SourceAnnotationTarget {
+    pub const fn kind(self) -> super::AnnotationTargetKind {
+        use super::AnnotationTargetKind as Kind;
+        use SourceAnnotationCallable as Callable;
+        match self {
+            Self::Nominal(_) => Kind::Class,
+            Self::Variant(_) => Kind::EnumVariant,
+            Self::Field(_)
+            | Self::VariantField(_)
+            | Self::ClassField(_)
+            | Self::PropertyStorage { .. } => Kind::Field,
+            Self::Property(_) => Kind::Property,
+            Self::Annotation(_) => Kind::AnnotationClass,
+            Self::Callable(Callable::Function(_)) => Kind::Function,
+            Self::Callable(
+                Callable::StructConstructor(_)
+                | Callable::ClassConstructor(_)
+                | Callable::VariantConstructor(_),
+            ) => Kind::Constructor,
+            Self::Callable(Callable::Getter(_)) => Kind::PropertyGetter,
+            Self::Callable(Callable::Setter(_)) => Kind::PropertySetter,
+            Self::Parameter { .. } | Self::Receiver(_) => Kind::ValueParameter,
+            Self::TypeAlias(_) => Kind::TypeAlias,
+        }
+    }
+}
+
 /// Source parameters remain separate from hidden ABI and capture inputs.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum SourceAnnotationCallable {

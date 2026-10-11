@@ -72,6 +72,7 @@ impl Lowerer {
         self.resolve_property_accessor_signatures_from(accessor_start);
         self.validate_and_freeze_duplicate_signatures(&[], &pending.methods);
         self.resolve_local_owner_annotations(&pending.owners());
+        self.annotate_local_owner_aliases(&pending.owners());
         self.check_inheritance(
             &pending.classes,
             &pending.structs,

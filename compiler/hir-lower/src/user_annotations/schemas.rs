@@ -5,18 +5,7 @@ use std::collections::HashSet;
 impl Lowerer {
     pub(crate) fn resolve_annotation_declarations(&mut self) {
         let ids = self.source_annotations.keys().copied().collect::<Vec<_>>();
-        for &id in &ids {
-            self.annotation_parameters(id, self.source_annotations[&id].declaration.span);
-        }
-        for id in ids {
-            let input = self.source_annotations[&id].clone();
-            self.current_file = input.file;
-            self.current_owner = input.owner;
-            self.bind_source_annotations(
-                hir::SourceAnnotationTarget::Annotation(id),
-                &input.declaration.annotations,
-            );
-        }
+        self.resolve_annotation_group(&ids);
     }
 
     pub(crate) fn resolve_local_owner_annotations(&mut self, owners: &[Owner]) {
@@ -30,18 +19,24 @@ impl Lowerer {
                     .then_some(id)
             })
             .collect::<Vec<_>>();
-        for &id in &ids {
+        self.resolve_annotation_group(&ids);
+    }
+
+    fn resolve_annotation_group(&mut self, ids: &[PersistentAnnotationId]) {
+        for &id in ids {
             self.annotation_parameters(id, self.source_annotations[&id].declaration.span);
         }
-        for id in ids {
+        for &id in ids {
             let input = self.source_annotations[&id].clone();
             self.current_file = input.file;
             self.current_owner = input.owner;
-            self.bind_source_annotations(
+            self.bind_annotations(
                 hir::SourceAnnotationTarget::Annotation(id),
                 &input.declaration.annotations,
+                false,
             );
         }
+        self.bind_annotation_declaration_rules(ids);
     }
 
     pub(super) fn annotation_parameters(
@@ -117,11 +112,13 @@ impl Lowerer {
         }
         let complete = parameters.len() == input.declaration.parameters.len();
         if complete {
+            let rules = self.initial_annotation_rules(id);
             self.annotation_metadata
                 .declarations
                 .push(hir::SourceAnnotationDeclaration {
                     identity: input.identity,
                     parameters: parameters.clone(),
+                    rules,
                     visibility: input.access.declared,
                     definition_origin: self.definition_origin(input.declaration.span),
                 });

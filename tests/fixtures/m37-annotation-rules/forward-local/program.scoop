@@ -1,0 +1,12 @@
+@Meta(1) @Meta(2) annotation class Item
+@Repeatable @Target([AnnotationTarget.ANNOTATION_CLASS]) annotation class Meta(val value: Int)
+fun <T> pass(value: T): T {
+    class Scope {
+        @Meta(3) @Target([AnnotationTarget.TYPEALIAS]) public annotation class Alias
+        @Alias typealias Element<U> = U
+        @Target([AnnotationTarget.FUNCTION]) public annotation class Method
+        @Method fun read(value: Element<T>): Element<T> = value
+    }
+    return Scope().read(value)
+}
+fun main() { println(pass("local")) }

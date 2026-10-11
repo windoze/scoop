@@ -14,6 +14,7 @@ pub(super) struct DecodedAnnotationParameterV1 {
 pub(super) struct DecodedAnnotationDeclarationV1 {
     pub annotation: DecodedPersistentId<PersistentAnnotationId>,
     pub parameters: Vec<DecodedAnnotationParameterV1>,
+    pub rules: crate::AnnotationRules,
     pub visibility: DeclaredVisibilityV1,
     pub definition_origin: DecodedExportDefinitionSourceV1,
 }
@@ -55,7 +56,7 @@ macro_rules! encode_declaration {
     ($type:ty) => {
         impl WireEncode for $type {
             fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-                encoder.map(4)?;
+                encoder.map(5)?;
                 encoder.field(1)?;
                 self.annotation.encode(encoder)?;
                 encoder.field(2)?;
@@ -63,7 +64,9 @@ macro_rules! encode_declaration {
                 encoder.field(3)?;
                 self.visibility.encode(encoder)?;
                 encoder.field(4)?;
-                self.definition_origin.encode(encoder)
+                self.definition_origin.encode(encoder)?;
+                encoder.field(5)?;
+                self.rules.encode(encoder)
             }
         }
     };
@@ -128,7 +131,7 @@ impl WireDecode for DecodedAnnotationParameterV1 {
 }
 impl WireDecode for DecodedAnnotationDeclarationV1 {
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
-        decoder.expect_map(4)?;
+        decoder.expect_map(5)?;
         Ok(Self {
             annotation: decoder.field(1, DecodedPersistentId::decode)?,
             parameters: decoder.field(2, |d| {
@@ -136,6 +139,7 @@ impl WireDecode for DecodedAnnotationDeclarationV1 {
             })?,
             visibility: decoder.field(3, DeclaredVisibilityV1::decode)?,
             definition_origin: decoder.field(4, DecodedExportDefinitionSourceV1::decode)?,
+            rules: decoder.field(5, crate::AnnotationRules::decode)?,
         })
     }
 }

@@ -8,6 +8,7 @@ mod binding;
 mod callables;
 mod nested;
 mod properties;
+mod rules;
 mod schemas;
 mod serialization;
 mod targets;

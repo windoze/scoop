@@ -8,6 +8,7 @@ use scoop_identity::{
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind};
 
 mod callable;
+mod kind;
 mod wire;
 pub use callable::AnnotationCallableV1;
 use callable::DecodedAnnotationCallableV1;

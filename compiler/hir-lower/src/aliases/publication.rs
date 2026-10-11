@@ -141,37 +141,14 @@ impl Lowerer {
         let file = self.current_file;
         let parameters = self.type_params_in_scope.clone();
         self.publish_type_alias(id, alias.clone(), target, &ids);
-        self.bind_source_annotations(
-            hir::SourceAnnotationTarget::TypeAlias(declaration),
-            &alias.annotations,
-        );
-        self.current_file = file;
-        self.type_params_in_scope = parameters;
-    }
-
-    pub(crate) fn annotate_type_aliases(&mut self) {
-        let aliases = self
-            .source_type_aliases
-            .iter()
-            .filter_map(|(_, alias)| {
-                if alias.scope.is_some() {
-                    return None;
-                }
-                let TypeAliasResolution::Published { declaration, .. } = alias.resolution else {
-                    return None;
-                };
-                Some((declaration, alias.clone()))
-            })
-            .collect::<Vec<_>>();
-        for (declaration, alias) in aliases {
-            self.current_file = alias.file;
-            self.current_owner = alias.owner;
-            self.type_params_in_scope = alias.parameters;
+        if alias.lexical {
             self.bind_source_annotations(
                 hir::SourceAnnotationTarget::TypeAlias(declaration),
                 &alias.annotations,
             );
         }
+        self.current_file = file;
+        self.type_params_in_scope = parameters;
     }
 
     pub(super) fn validate_type_alias_target_tree(

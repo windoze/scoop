@@ -3,7 +3,7 @@
 use super::{CanonicalCrossConeHirSurfaceAuthority, CrossConeHirNominalAuthorityError};
 use scoop_hir::{AnnotationDeclarationV1, AnnotationTargetV1};
 use scoop_identity::{IdentityReferenceError, PersistentAnnotationId, SourceDeclarationKey};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 
 mod types;
@@ -58,7 +58,23 @@ impl CanonicalCrossConeHirSurfaceAuthority<'_> {
                     "annotation target is not a retained source declaration",
                 ));
             }
+            let kind = target
+                .target
+                .kind(self.current_interface.property_interfaces())
+                .ok_or(Error::Invalid("annotation accessor target has no property"))?;
+            let mut seen = BTreeSet::new();
             for application in &target.annotations {
+                let rules = self.annotation_declaration(application.annotation)?.rules;
+                if !rules.permits(kind) {
+                    return Err(Error::Invalid(
+                        "annotation target is excluded by its declaration",
+                    ));
+                }
+                if !seen.insert(application.annotation) && !rules.repeatable {
+                    return Err(Error::Invalid(
+                        "repeated non-repeatable annotation on one target",
+                    ));
+                }
                 self.annotation_schema(
                     application.annotation,
                     &mut parameter_kinds,

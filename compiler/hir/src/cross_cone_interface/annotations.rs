@@ -32,6 +32,7 @@ pub struct AnnotationParameterV1 {
 pub struct AnnotationDeclarationV1 {
     pub annotation: PersistentAnnotationId,
     pub parameters: Vec<AnnotationParameterV1>,
+    pub rules: crate::AnnotationRules,
     pub visibility: DeclaredVisibilityV1,
     pub definition_origin: ExportDefinitionSourceV1,
 }
@@ -94,18 +95,8 @@ impl CanonicalAnnotationsV1 {
             }
         }
         for target in &targets {
-            let mut annotations = BTreeSet::new();
             if target.annotations.is_empty() {
                 return Err(AnnotationDataBuildError("empty annotation target"));
-            }
-            if target
-                .annotations
-                .iter()
-                .any(|application| !annotations.insert(application.annotation))
-            {
-                return Err(AnnotationDataBuildError(
-                    "repeated annotation on one target",
-                ));
             }
         }
         Ok(Self {
