@@ -6,7 +6,7 @@ use scoop_ast::{
     ClassConstructorDecl, ClassDecl, ClassMember, ClassModifier, CompanionNameSyntax,
     CompanionObjectDecl, ConstructorDelegation, Decl, DeclaredVisibility, Diagnostic, EnumDecl,
     FieldDecl, FunctionBody, FunctionDecl, GetterDecl, InfixModifier, InitBlockDecl, InterfaceDecl,
-    MethodModifier, NestedNominalDecl, ObjectDecl, OperatorModifier, Param, ParameterSyntax,
+    MethodModifier, NestedTypeDecl, ObjectDecl, OperatorModifier, Param, ParameterSyntax,
     PrimaryClassParameter, PrimaryConstructorDecl, PrimaryParameterProperty, PropertyBodySyntax,
     PropertyDecl, ReleaseBlock, SecondaryConstructorDecl, SetterDecl, SetterParameterSyntax,
     SetterVisibilitySyntax, Span, StructDecl, StructMember, StructRepresentationDecl,

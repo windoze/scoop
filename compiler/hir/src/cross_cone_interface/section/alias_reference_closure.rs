@@ -36,6 +36,24 @@ impl CrossConeHirInterfaceSectionV1 {
             (0_u64..).zip(self.type_aliases().records().iter().enumerate())
         {
             let target_path = path.clone().field(5).index(wire_index).field(2).field(1);
+            for bound in record.bound_types() {
+                let bound_path = path.clone().field(5).index(wire_index).field(5);
+                let mut walker = SignatureNominalWalker::new(bound, &bound_path)
+                    .map_err(ExternalHirAliasClosureValidationError::Resource)?;
+                while let Some(declaration) = walker
+                    .next(&bound_path)
+                    .map_err(ExternalHirAliasClosureValidationError::Resource)?
+                {
+                    observe_alias_target(
+                        references,
+                        &mut seen,
+                        authority,
+                        current,
+                        ExternalHirTargetV1::from(declaration),
+                        ExternalHirAliasUseSiteV1::ExpandedSignature { record_index },
+                    )?;
+                }
+            }
             match record.target() {
                 TypeAliasTargetV1::Alias(alias) => observe_alias_target(
                     references,

@@ -23,7 +23,7 @@ impl Lowerer {
             return None;
         };
         let Some(nested) = self
-            .resolve_nested_type_name(owner, name, !arguments.is_empty())
+            .resolve_nested_type_name(owner, name, arguments, Some(host), None)
             .ok()?
         else {
             self.error(

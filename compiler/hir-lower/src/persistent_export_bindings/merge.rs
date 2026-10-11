@@ -40,6 +40,7 @@ pub(super) fn merge(
     object_values: &hir::HirObjectValueIdentities,
     functions: &hir::HirFunctionIdentities,
     properties: &hir::HirPropertyIdentities,
+    aliases: &hir::HirTypeAliasIdentities,
     direct: hir::HirExportBindingIdentities,
 ) -> Result<PersistentExportBindings, PersistentExportBindingIdentityError> {
     let overloads = direct_overload_signatures(surface, functions, properties);
@@ -51,6 +52,7 @@ pub(super) fn merge(
         object_values,
         functions,
         properties,
+        aliases,
     );
     let mut candidates = Vec::with_capacity(direct.len() + lowerer.imports.reexports.len());
     for identity in direct.iter() {
@@ -246,6 +248,7 @@ fn validate_destinations(
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 fn nested_binding_owners(
     lowerer: &Lowerer,
     surface: &hir::PublicSemanticSurface,
@@ -254,8 +257,15 @@ fn nested_binding_owners(
     object_values: &hir::HirObjectValueIdentities,
     functions: &hir::HirFunctionIdentities,
     properties: &hir::HirPropertyIdentities,
+    aliases: &hir::HirTypeAliasIdentities,
 ) -> BTreeMap<BindableEntity, DefinitionOwnerAtom> {
     let mut owners = BTreeMap::new();
+    for &id in &surface.type_aliases {
+        let alias = &aliases[id];
+        if let Some(owner) = alias.key().owners().owners().last() {
+            owners.insert(BindableEntity::TypeAlias(alias.id()), owner.clone());
+        }
+    }
     for id in &surface.annotations {
         if let Some(owner) = lowerer.source_annotations[id]
             .identity

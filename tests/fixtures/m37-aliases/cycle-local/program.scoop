@@ -1,0 +1,1 @@
+fun main() { typealias Loop<T> = Array<Loop<T>> }

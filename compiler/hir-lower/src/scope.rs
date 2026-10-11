@@ -9,9 +9,10 @@ use scoop_hir::{LocalFunctionId, LocalId};
 /// and if/while bodies each push a scope; a local is visible from its
 /// declaration to the end of its scope, and shadows outer locals with
 /// the same name.
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub(crate) struct Scopes {
     stack: Vec<imbl::HashMap<String, LocalId>>,
+    aliases: Vec<imbl::HashMap<String, crate::aliases::SourceTypeAliasId>>,
 }
 
 /// Lexical candidate layers for block-local named functions. Each block is a
@@ -66,15 +67,20 @@ impl LocalFunctionScopes {
 
 impl Scopes {
     pub(crate) fn new() -> Self {
-        Scopes { stack: Vec::new() }
+        Scopes {
+            stack: Vec::new(),
+            aliases: Vec::new(),
+        }
     }
 
     pub(crate) fn push(&mut self) {
         self.stack.push(imbl::HashMap::new());
+        self.aliases.push(imbl::HashMap::new());
     }
 
     pub(crate) fn pop(&mut self) {
         self.stack.pop();
+        self.aliases.pop();
     }
 
     /// Whether `name` is already declared in the innermost scope
@@ -111,5 +117,32 @@ impl Scopes {
             visible.extend(scope.iter().map(|(name, local)| (name.clone(), *local)));
         }
         visible
+    }
+}
+
+impl Scopes {
+    pub(crate) fn nested_callable(&self) -> Self {
+        Self {
+            stack: vec![imbl::HashMap::new(); self.stack.len()],
+            aliases: self.aliases.clone(),
+        }
+    }
+
+    pub(crate) fn type_alias(&self, name: &str) -> Option<crate::aliases::SourceTypeAliasId> {
+        self.aliases
+            .iter()
+            .rev()
+            .find_map(|scope| scope.get(name).copied())
+    }
+
+    pub(crate) fn declare_type_alias(
+        &mut self,
+        name: String,
+        alias: crate::aliases::SourceTypeAliasId,
+    ) -> Option<crate::aliases::SourceTypeAliasId> {
+        self.aliases
+            .last_mut()
+            .expect("a local alias has a lexical scope")
+            .insert(name, alias)
     }
 }

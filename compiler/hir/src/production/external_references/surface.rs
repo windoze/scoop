@@ -50,6 +50,13 @@ where
     A: ExternalHirReferenceSemanticAuthority<E>,
 {
     for (wire_index, record) in (0_u64..).zip(input.type_aliases.records()) {
+        for bound in record.bound_types() {
+            accumulator.observe_signature(
+                bound,
+                ExternalHirReferenceRoleV1::AliasTarget,
+                &WirePath::root().field(5).index(wire_index).field(5),
+            )?;
+        }
         let path = WirePath::root()
             .field(5)
             .index(wire_index)

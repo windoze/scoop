@@ -21,9 +21,7 @@ fn class_source(
 }
 
 fn nested_class(declaration: ast::ClassDecl) -> ast::ClassMember {
-    ast::ClassMember::Nested(Box::new(ast::NestedNominalDecl::Class(Box::new(
-        declaration,
-    ))))
+    ast::ClassMember::Nested(Box::new(ast::NestedTypeDecl::Class(Box::new(declaration))))
 }
 
 fn qualified_type(path: &[&str]) -> TypeRef {

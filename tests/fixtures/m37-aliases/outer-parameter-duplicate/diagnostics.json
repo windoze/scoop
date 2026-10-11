@@ -1,14 +1,14 @@
 [
   {
-    "code": "SCOOPC_PARSE_ERROR",
-    "message": "local typealias declarations are not supported in M22; only top-level non-generic typealias declarations are supported",
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "duplicate type parameter `T`",
     "notes": [],
     "origin": {
       "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
-      "end": 32,
+      "end": 39,
       "kind": "source",
       "path": "main.scoop",
-      "start": 23
+      "start": 38
     },
     "severity": "error"
   }

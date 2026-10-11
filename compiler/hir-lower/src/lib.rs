@@ -664,6 +664,8 @@ pub(crate) struct Lowerer {
     /// Resolver-only alias declarations. Their ids and resolution state never
     /// cross the Export HIR boundary.
     pub(crate) source_type_aliases: Arena<aliases::SourceTypeAlias>,
+    pub(crate) imported_alias_templates:
+        HashMap<scoop_identity::PersistentTypeAliasId, aliases::AliasTemplate>,
     pub(crate) source_annotations: std::collections::BTreeMap<
         scoop_identity::PersistentAnnotationId,
         user_annotations::SourceAnnotationInput,
@@ -733,6 +735,7 @@ pub(crate) struct Lowerer {
     /// retain distinct typed ids; qualified lookup never flattens this key
     /// into an FQN string.
     pub(crate) nested_nominals_by_owner: HashMap<(Owner, String), NominalTarget>,
+    pub(crate) nested_aliases_by_owner: HashMap<(Owner, String), aliases::SourceTypeAliasId>,
     /// Source-file ownership for validating compiler-known core contracts.
     pub(crate) struct_files: HashMap<StructId, usize>,
     pub(crate) enum_files: HashMap<EnumId, usize>,

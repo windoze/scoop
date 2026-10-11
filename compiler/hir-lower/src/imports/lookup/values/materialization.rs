@@ -9,7 +9,7 @@ impl Lowerer {
     pub(crate) fn materialized_value_target(&self, origin: &ValueOrigin) -> Option<ValueTarget> {
         Some(match origin {
             ValueOrigin::NonValue { .. }
-            | ValueOrigin::CoreNonValue(_)
+            | ValueOrigin::SourceNonValue(_)
             | ValueOrigin::Dependency(_)
             | ValueOrigin::RejectedFunction(_) => return None,
             ValueOrigin::Core(target) => *target,

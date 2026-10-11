@@ -3,23 +3,45 @@
 use super::*;
 
 pub(crate) struct NamedNominalProbe {
+    pub(super) alias: Option<crate::aliases::AliasTemplate>,
     pub(super) candidate: ApplicableConstructor,
-    comparison_owners: Vec<hir::TypeParamDecl>,
-    comparison_parameters: Vec<TypeId>,
+    pub(super) comparison_owners: Vec<hir::TypeParamDecl>,
+    pub(super) comparison_parameters: Vec<TypeId>,
 }
 
 impl NamedNominalProbe {
     pub(crate) fn forwarding(
         &self,
-    ) -> crate::call_resolution::specificity::DeclarationForwardingView<'_> {
-        crate::call_resolution::specificity::DeclarationForwardingView::nominal_parameters(
+        state: &mut Lowerer,
+    ) -> crate::call_resolution::specificity::OwnedDeclarationForwarding {
+        use crate::call_resolution::specificity::DeclarationForwardingView;
+        if let Some(alias) = &self.alias {
+            let original = state.nominal_constructor_view(self.candidate.source, alias.name.span);
+            let signature = state.alias_forwarding_signature(alias, &original.signature);
+            let parameters = self
+                .candidate
+                .argument_map
+                .forwarding_parameter_types(&signature.value_parameters);
+            return DeclarationForwardingView::parameter_groups(
+                &[],
+                &signature.callable_parameters,
+                &parameters,
+            )
+            .to_owned();
+        }
+        DeclarationForwardingView::nominal_parameters(
             &self.comparison_owners,
             &self.comparison_parameters,
         )
+        .to_owned()
     }
 
     pub(crate) fn parameterized(&self) -> bool {
-        !self.comparison_owners.is_empty()
+        self.alias
+            .as_ref()
+            .map_or(!self.comparison_owners.is_empty(), |alias| {
+                alias.parameterized()
+            })
     }
     pub(crate) fn defaults(&self) -> usize {
         self.candidate.argument_map.explicit_default_count()
@@ -132,6 +154,7 @@ impl Lowerer {
         let parameter_types =
             argument_map.forwarding_parameter_types(&view.signature.value_parameters);
         Ok(NamedNominalProbe {
+            alias: None,
             comparison_owners: view.signature.owner_parameters.clone(),
             comparison_parameters: parameter_types.clone(),
             candidate: ApplicableConstructor {

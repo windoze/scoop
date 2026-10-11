@@ -18,9 +18,11 @@ impl Lowerer {
             "type aliases are published exactly once"
         );
         let previous_file = self.current_file;
+        let previous_parameters = self.type_params_in_scope.clone();
         let aliases = self
             .source_type_aliases
             .iter()
+            .filter(|(_, alias)| alias.scope.is_none())
             .filter_map(|(id, alias)| {
                 let TypeAliasResolution::Resolved(target) = alias.resolution else {
                     return None;
@@ -41,6 +43,7 @@ impl Lowerer {
             self.publish_type_alias(id, alias, target, &publication_ids);
         }
         self.current_file = previous_file;
+        self.type_params_in_scope = previous_parameters;
     }
 
     fn publish_type_alias(
@@ -51,6 +54,7 @@ impl Lowerer {
         publication_ids: &HashMap<SourceTypeAliasId, hir::ExportTypeAliasId>,
     ) {
         self.current_file = alias.file;
+        self.type_params_in_scope = alias.parameters.clone();
         let mut visited = HashSet::new();
         self.validate_type_alias_target_tree(
             target.expanded,
@@ -59,9 +63,20 @@ impl Lowerer {
             &mut visited,
         );
         let access = alias.access;
+        let exposed = std::iter::once(target.expanded)
+            .chain(alias.parameters.iter().flat_map(|parameter| {
+                parameter
+                    .nominal_bounds_in_source_order()
+                    .into_iter()
+                    .map(|bound| match bound {
+                        hir::NominalBoundRef::Class(bound) => bound.ty,
+                        hir::NominalBoundRef::Interface(bound) => bound.ty,
+                    })
+            }))
+            .collect::<Vec<_>>();
         self.check_signature_exposure(
             &access,
-            &[target.expanded],
+            &exposed,
             alias.origin.span,
             &format!("typealias `{}`", alias.name),
         );
@@ -79,6 +94,9 @@ impl Lowerer {
         let expected = publication_ids[&id];
         let declaration = self.type_aliases.alloc(hir::TypeAliasDecl {
             name: alias.name,
+            owner: alias.owner.map(crate::Owner::as_nominal_owner),
+            type_params: alias.parameters,
+            owner_parameter_count: alias.outer_parameter_count,
             access,
             target: target.expanded,
             source_target,
@@ -94,7 +112,7 @@ impl Lowerer {
         };
     }
 
-    fn validate_type_alias_target_tree(
+    pub(super) fn validate_type_alias_target_tree(
         &mut self,
         ty: hir::TypeId,
         span: ast::Span,

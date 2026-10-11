@@ -1,0 +1,2 @@
+class Host { class Item; typealias Item = Int }
+fun main() {}

@@ -1,0 +1,19 @@
+class Box<T>(val value: T)
+class Catalog<T> { typealias Item<U> = Box<U>; typealias Count = Int }
+struct Shelf() { typealias Row<T> = (String, T) }
+interface Types { typealias Value = Int }
+object Names { typealias Label = String }
+enum Choice {
+    One
+    typealias Code = Int
+}
+fun main() {
+    val item: Catalog.Item<Int> = Catalog.Item(42)
+    val row: Shelf.Row<Int> = ("nested", item.value)
+    val (label, value) = row
+    val n: Types.Value = value
+    val text: Names.Label = label
+    val code: Choice.Code = n
+    println(text)
+    println(code)
+}

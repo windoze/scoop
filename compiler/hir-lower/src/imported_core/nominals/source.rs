@@ -9,6 +9,9 @@ impl Lowerer {
         name: &scoop_ast::Ident,
         arguments: &[scoop_ast::TypeRef],
     ) -> Option<hir::TypeId> {
+        if matches!(binding.target(), hir::ImportedTarget::TypeAlias(_)) {
+            return self.apply_imported_type_alias(binding, name, arguments, None);
+        }
         let hir::ImportedTarget::GenericType(identity) = binding.target() else {
             return self.resolve_imported_dependency_type_target(
                 binding,

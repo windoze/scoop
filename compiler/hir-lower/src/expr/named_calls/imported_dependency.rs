@@ -57,6 +57,7 @@ enum ImportedIntrinsicCall {
 }
 
 pub(crate) struct ImportedDependencyCallProbe {
+    alias: Option<crate::aliases::AliasTemplate>,
     implementation: ImportedCallImplementation,
     state: Box<Lowerer>,
     candidate: ImportedCallableCandidate,
@@ -103,6 +104,9 @@ impl ImportedDependencyCallProbe {
                 (loaded.signature, receiver)
             }
         };
+        let signature = self.alias.as_ref().map_or(signature.clone(), |alias| {
+            state.alias_forwarding_signature(alias, &signature)
+        });
         let mut parameter_types = self
             .argument_map
             .mapping()
@@ -119,6 +123,9 @@ impl ImportedDependencyCallProbe {
     }
 
     pub(crate) fn parameterized(&self) -> bool {
+        if let Some(alias) = &self.alias {
+            return alias.parameterized();
+        }
         matches!(
             self.implementation,
             ImportedCallImplementation::Generic {

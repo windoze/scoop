@@ -193,6 +193,12 @@ impl Lowerer {
                 }
             };
         }
+        if let Some((alias, index)) = self.resolve_alias_variant(receiver, name).ok()? {
+            return self.lower_alias_variant_construct(&alias, index, name, call, sink, expected);
+        }
+        if let Some(alias) = self.nested_constructor_alias(receiver, name).ok()? {
+            return self.lower_alias_construct(alias, name, call, sink, expected);
+        }
         if let Some(owner) = self.resolve_imported_nominal_qualifier(receiver).ok()? {
             return self.lower_imported_qualified_call(owner, name, call, sink, expected);
         }
@@ -216,7 +222,7 @@ impl Lowerer {
                     let expected = self.alias_fixed_expected(
                         direct_alias.as_ref().map(|(alias, _)| alias),
                         call.type_args,
-                        expected,
+                        applied.map(|(ty, _)| ty).or(expected),
                     )?;
                     return self.lower_variant_construct(target, call, sink, expected);
                 }

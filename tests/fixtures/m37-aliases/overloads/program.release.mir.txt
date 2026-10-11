@@ -1,0 +1,349 @@
+Module
+  class Pair<String, Boolean> vtable=0 itables=0
+  class Pair<String, Int> vtable=0 itables=0
+  class box<Boolean> vtable=0 itables=0
+  interface ToString
+  interface Hash
+  interface Equality<Int>
+  interface Equality<Boolean>
+  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn4 captures=0
+    bridge function_type1 -> @fn7 id=0bbcd9e90e5a76d4cd476b320cadddc6b0bc6dbe50b1f2f7a6d31dbf8ca03a67
+  generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
+  generated_exact_type get1 location=closure0 nominal_id=2fcc5dceba1f09c36d231287088079138d2c04817531ae31cc6d2cc1c02b5c0b exact_id=2302a5386d95a61953db931e029826819dc2e78ed627925872f2aaa8f36b4d72
+  generated_exact_type get2 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
+  generated_exact_type get3 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
+  generated_exact_type get4 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
+  generated_exact_type get5 location=class2 nominal_id=3536333a8ba0aaed76b3bec081995b49af64f164523f6560324f8e64e7ef08e0 exact_id=c4a33308c9b1a4e41424f4d1ffe01aa6e97556fe61c06a7387e42b4ddf522d17
+  generated_exact_type get6 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
+  generated_callable gc0 function=@fn7 id=0bbcd9e90e5a76d4cd476b320cadddc6b0bc6dbe50b1f2f7a6d31dbf8ca03a67
+  fun Build @fn0(first: String, second: Int) -> Int
+    bb0 entry
+      val $dependency.receiver: Int
+        Type Int
+        Local second
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          IntegerLiteral Int value=1 bits=0x00000001
+  fun main @fn1() -> Unit
+    bb0 entry
+      val $argument.0: String
+        Type String
+        StringConst @str0
+      val $argument.1: Int
+        Type Int
+        IntegerLiteral Int value=41 bits=0x00000029
+      val $parameter.first: String
+        Type String
+        Local $argument.0
+      val $parameter.second: Int
+        Type Int
+        IntegerLiteral Int value=41 bits=0x00000029
+      val $inline.5.first: String
+        Type String
+        Local $parameter.first
+      val $inline.5.second: Int
+        Type Int
+        IntegerLiteral Int value=41 bits=0x00000029
+      goto bb6
+    bb1 inline.cont.1
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 1
+          Type Pair<String, Int>
+          Local $new.2
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn2 direct
+        Type Int
+        Local $dependency.parameter.value
+      val make: (String, Boolean) -> Pair<String, Boolean>
+        Type (String, Boolean) -> Pair<String, Boolean>
+        ClosureAlloc cc0 $Closure$lambda0
+      call $call.3: Pair<String, Boolean> = @fn4 direct
+        Type (String, Boolean) -> Pair<String, Boolean>
+        Local make
+        Type String
+        StringConst @str3
+        Type Boolean
+        BoolLiteral true
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        FieldAccess 1
+          Type Pair<String, Boolean>
+          Local $call.3
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn3 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      return
+        Type Unit
+        UnitLiteral
+    bb2 inline.1.entry
+      field_set 0
+        Type Pair<String, Int>
+        Local $inline.1.this
+        Type String
+        Local $inline.1.first
+      field_set 1
+        Type Pair<String, Int>
+        Local $inline.1.this
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      Type Unit
+      UnitLiteral
+      goto bb1
+    bb3 inline.cont.3
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        FieldAccess 1
+          Type Pair<String, Boolean>
+          Local $new.1
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn3 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $argument.0: String
+        Type String
+        StringConst @str2
+      val $argument.1: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $parameter.first: String
+        Type String
+        Local $argument.0
+      val $parameter.second: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      assign $new.2
+        Type Pair<String, Int>
+        ClassAlloc Pair<String, Int>
+      val $inline.1.this: Pair<String, Int>
+        Type Pair<String, Int>
+        Local $new.2
+      val $inline.1.first: String
+        Type String
+        Local $parameter.first
+      val $inline.1.second: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      goto bb2
+    bb4 inline.3.entry
+      field_set 0
+        Type Pair<String, Boolean>
+        Local $inline.3.this
+        Type String
+        Local $inline.3.first
+      field_set 1
+        Type Pair<String, Boolean>
+        Local $inline.3.this
+        Type Boolean
+        BoolLiteral true
+      Type Unit
+      UnitLiteral
+      goto bb3
+    bb5 inline.cont.5
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.value: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      call @fn2 direct
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $argument.0: String
+        Type String
+        StringConst @str1
+      val $argument.1: Boolean
+        Type Boolean
+        BoolLiteral true
+      val $parameter.first: String
+        Type String
+        Local $argument.0
+      val $parameter.second: Boolean
+        Type Boolean
+        BoolLiteral true
+      assign $new.1
+        Type Pair<String, Boolean>
+        ClassAlloc Pair<String, Boolean>
+      val $inline.3.this: Pair<String, Boolean>
+        Type Pair<String, Boolean>
+        Local $new.1
+      val $inline.3.first: String
+        Type String
+        Local $parameter.first
+      val $inline.3.second: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb4
+    bb6 inline.5.entry
+      val $inline.5.$dependency.receiver: Int
+        Type Int
+        IntegerLiteral Int value=41 bits=0x00000029
+      val $inline.5.$dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $inline.5.$dependency.parameter.other: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      assign $inline.5.result
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      goto bb5
+  fun println @fn2(value: Int) -> Unit
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      call $dependency.local.2: String = external0 direct
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external2 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str4
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external2 direct
+        Type String
+        Local $dependency.local.5
+      return
+        Type Unit
+        UnitLiteral
+  fun println @fn3(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.local.1: Boolean
+        Type Boolean
+        Local value
+      call $dependency.local.2: String = external1 direct
+        Type Boolean
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external2 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str5
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external2 direct
+        Type String
+        Local $dependency.local.5
+      return
+        Type Unit
+        UnitLiteral
+  fun $lambda.0 @fn4($closure: (String, Boolean) -> Pair<String, Boolean>, __codec_argument_0: String, __codec_argument_1: Boolean) -> Pair<String, Boolean>
+    bb0 entry
+      assign $new.1
+        Type Pair<String, Boolean>
+        ClassAlloc Pair<String, Boolean>
+      val $inline.1.this: Pair<String, Boolean>
+        Type Pair<String, Boolean>
+        Local $new.1
+      val $inline.1.first: String
+        Type String
+        Local __codec_argument_0
+      val $inline.1.second: Boolean
+        Type Boolean
+        Local __codec_argument_1
+      goto bb2
+    bb1 inline.cont.1
+      return
+        Type Pair<String, Boolean>
+        Local $new.1
+    bb2 inline.1.entry
+      field_set 0
+        Type Pair<String, Boolean>
+        Local $inline.1.this
+        Type String
+        Local $inline.1.first
+      field_set 1
+        Type Pair<String, Boolean>
+        Local $inline.1.this
+        Type Boolean
+        Local $inline.1.second
+      Type Unit
+      UnitLiteral
+      goto bb1
+  fun init.Pair.$c0 @fn5(this: Pair<String, Boolean>, first: String, second: Boolean) -> Unit
+    bb0 entry
+      field_set 0
+        Type Pair<String, Boolean>
+        Local this
+        Type String
+        Local first
+      field_set 1
+        Type Pair<String, Boolean>
+        Local this
+        Type Boolean
+        Local second
+      return
+        Type Unit
+        UnitLiteral
+  fun init.Pair.$c0 @fn6(this: Pair<String, Int>, first: String, second: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Pair<String, Int>
+        Local this
+        Type String
+        Local first
+      field_set 1
+        Type Pair<String, Int>
+        Local this
+        Type Int
+        Local second
+      return
+        Type Unit
+        UnitLiteral
+  fun function_bridge.$Closure$lambda0.(Any, Any) -> Any @fn7($source: (String, Boolean) -> Pair<String, Boolean>, arg0: Any, arg1: Any) -> Any
+    bb0 entry
+      call $call.1: Pair<String, Boolean> = <closure:function_type0> closure[function_type0]
+        Type (String, Boolean) -> Pair<String, Boolean>
+        Local $source
+        Type String
+        Retype String
+          Type Any
+          Local arg0
+        Type Boolean
+        Unbox
+          Type Any
+          Local arg1
+      return
+        Type Any
+        Retype Any
+          Type Pair<String, Boolean>
+          Local $call.1
+  instance mi0 function=@fn2 <- println
+  instance mi1 function=@fn3 <- println
+  str @str0 "function"
+  str @str1 "alias"
+  str @str2 "fixed"
+  str @str3 "ref"
+  str @str4 "\n"
+  str @str5 "\n"
+  output executable @fn1

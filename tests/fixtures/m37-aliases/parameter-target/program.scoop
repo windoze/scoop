@@ -1,0 +1,10 @@
+class Box<T>(val value: T)
+typealias Identity<T> = T
+fun main() {
+    val explicit = Identity<Box<Int>>(42)
+    val contextual: Box<String> = Identity("context")
+    println(explicit.value)
+    println(contextual.value)
+    val make: (Int) -> Box<Int> = ::Identity
+    println(make(42).value)
+}

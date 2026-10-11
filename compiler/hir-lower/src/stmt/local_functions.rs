@@ -163,7 +163,8 @@ impl Lowerer {
         let capture_environment = self.capture_environment();
         let declaration_origin = self.expression_origin(decl.span);
         let outer_locals = std::mem::take(&mut self.locals);
-        let outer_scopes = std::mem::replace(&mut self.scopes, Scopes::new());
+        let nested_scope = self.scopes.nested_callable();
+        let outer_scopes = std::mem::replace(&mut self.scopes, nested_scope);
         let outer_return_ty = self.current_return_ty;
         let outer_return_inference = self.return_inference.take();
         let outer_callable_label = self.current_callable_label.replace(decl.name.text.clone());

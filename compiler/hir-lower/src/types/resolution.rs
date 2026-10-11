@@ -146,8 +146,17 @@ impl Lowerer {
     }
 
     pub(crate) fn lexical_nested_nominal_target(&self, name: &str) -> Option<NominalTarget> {
+        if self.scopes.type_alias(name).is_some() {
+            return None;
+        }
         let mut owner = self.current_owner?;
         loop {
+            if self
+                .nested_aliases_by_owner
+                .contains_key(&(owner, name.to_owned()))
+            {
+                return None;
+            }
             if let Some(target) = self
                 .nested_nominals_by_owner
                 .get(&(owner, name.to_string()))
@@ -336,7 +345,7 @@ impl Lowerer {
                     }
                     Some(crate::imports::lookup::TypeLookupTarget::Current(
                         crate::namespace::TopLevelTypeTarget::Alias(alias),
-                    )) => return self.resolve_type_alias_id_reference(alias, name, true),
+                    )) => return self.apply_source_type_alias(alias, name, args),
                     Some(crate::imports::lookup::TypeLookupTarget::Dependency(binding)) => {
                         return self.resolve_imported_generic_type_target(&binding, name, args);
                     }

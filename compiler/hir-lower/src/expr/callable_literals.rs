@@ -97,7 +97,8 @@ impl Lowerer {
             crate::definition_paths::DefinitionPathContext::nested(&definition_path),
         );
         let outer_locals = std::mem::take(&mut self.locals);
-        let outer_scopes = std::mem::replace(&mut self.scopes, Scopes::new());
+        let nested_scope = self.scopes.nested_callable();
+        let outer_scopes = std::mem::replace(&mut self.scopes, nested_scope);
         let outer_return_ty = self.current_return_ty;
         let outer_return_inference = self.return_inference.take();
         let outer_callable_label = std::mem::replace(

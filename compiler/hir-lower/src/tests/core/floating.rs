@@ -44,6 +44,8 @@ fn synthetic_declaration(declaration: Decl) -> Decl {
         }
         Decl::Function(value) => Decl::Function(synthetic_function(value, None)),
         Decl::TypeAlias(value) => Decl::TypeAlias(ast::TypeAliasDecl {
+            type_params: Vec::new(),
+            where_clause: None,
             visibility: ast::VisibilitySyntax::Omitted,
             name: ident(&value.name.text),
             target: synthetic_type(&value.target),

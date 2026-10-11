@@ -99,6 +99,8 @@ receiver 函数类型在源码 HIR、共享签名及 exact type identity 中保�
 
 nominal application 保存原声明与完整实参；struct、enum、class、interface 各有独立 typed identity。alias 透明展开；字段、variant、构造与 property accessor 保存各自原身份。按值循环、继承环、泛型约束、GC-free 和 ZST 属性在所属语义边界确定。
 
+透明 alias 的声明查询先在定义处绑定独立的 typed 类型参数、bound 与完整目标，再在使用处替换实参；活动 alias 声明栈检查全部展开依赖中的循环。嵌套 alias 使用实际 owner chain 和正常类型名称空间，局部 alias 只存在于词法作用域并在 HIR 类型中展开。alias 不产生 nominal、构造器、layout、TD 或另一种单态化实体。公开泛型 alias 的接口保存规范化 binder/bound 与 typed signature target，跨 Cone 消费和再次发布复用该目标；不在使用处重绑定源码名称。无参数记录保留已有四字段编码，有参数记录增加第 5 字段的规范化 binder 列表；需要宿主实例化参数时，第 6 字段保存该列表的宿主前缀长度；带 binder 的目标使用完整展开 signature，不把参数应用伪装成无参 alias 边。
+
 property 具有完整类型、读写能力、getter/setter、访问域与互斥的 stored/accessor/delegated/const/extern 表示。required accessor 有 Body 或 AbstractSlot 的明确类别；普通缺失初始化不能靠空正文、late-init flag 或可空类型补齐。
 
 HIR 将属性赋值右值展开为前置语句时，先固定已经求值的 receiver，再接入这些语句；最终的 storage write 或 setter call 使用保存的目标。不可重新绑定的类引用局部值已经固定了目标，可直接复用。本地与导入的属性遵守相同的求值顺序。

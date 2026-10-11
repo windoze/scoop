@@ -1,0 +1,24 @@
+enum Result<A, B> {
+    Empty
+    Value(val first: A, val second: B, val count: Int = 2)
+    Many(val first: A, vararg val values: B)
+}
+typealias Pick<T> = Result<String, T>
+typealias Fixed = Pick<Int>
+fun show(value: Pick<Int>) {
+    when (value) {
+        case Pick.Empty -> println("empty")
+        case Pick.Value(text, n, count) -> { println(text); println(n + count) }
+        case Pick.Many(text, values) -> { println(text); println(values.size) }
+    }
+}
+fun main() {
+    show(Pick.Value("value", 40))
+    show(Pick.Many("many", 1, *[2, 3]))
+    show(Pick.Empty)
+    show(Pick<Int>.Empty)
+    val unit: Any = Fixed.Empty
+    println(unit is Fixed)
+    val fixed: Any = Fixed.Value("fixed", 42)
+    println(fixed is Pick<Int>)
+}

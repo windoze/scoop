@@ -71,7 +71,7 @@ fn package_and_nested_enum_prefixes_share_qualified_type_lookup() {
         panic!("struct fixture")
     };
     outer.members.push(ast::StructMember::Nested(Box::new(
-        ast::NestedNominalDecl::Enum(Box::new(nested)),
+        ast::NestedTypeDecl::Enum(Box::new(nested)),
     )));
     let api = package(file(vec![Decl::Struct(outer)]), "api");
     let user = file(vec![consume(

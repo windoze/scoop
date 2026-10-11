@@ -1,26 +1,36 @@
 use super::*;
 use crate::constructor_resolution::NominalConstructorCall;
 
+mod finish;
 mod functions;
 mod imported;
 mod plans;
 mod pointers;
+mod probes;
+mod selection;
 
 pub(in crate::expr) struct NominalPlan {
     pub(in crate::expr) view: NominalConstructorView,
     pub(in crate::expr) expected: Option<TypeId>,
     pub(in crate::expr) fixed_alias: bool,
+    pub(in crate::expr) alias: Option<crate::aliases::AliasTemplate>,
 }
 
 pub(in crate::expr) enum PreparedNominalPlans {
     Nominal(
         Vec<NominalPlan>,
-        Option<(hir::StructId, Option<TypeId>, bool)>,
+        Option<(
+            hir::StructId,
+            Option<TypeId>,
+            bool,
+            Option<crate::aliases::AliasTemplate>,
+        )>,
     ),
     Imported {
         owner: hir::SourceNominalId,
         expected: Option<TypeId>,
         fixed_alias: bool,
+        alias: Option<crate::aliases::AliasTemplate>,
     },
 }
 
@@ -52,8 +62,10 @@ impl Lowerer {
                     owner,
                     expected,
                     fixed_alias,
+                    alias,
                 }) => {
-                    imported.push((preparation, owner, expected, fixed_alias));
+                    *self = preparation.clone();
+                    imported.push((preparation, owner, expected, fixed_alias, alias));
                 }
                 Err(()) => {
                     failures.push(Box::new(preparation));
@@ -101,53 +113,32 @@ impl Lowerer {
         }
         let mut applicable = Vec::new();
         self.collect_named_function_probes(targets, call, overload, &mut applicable, &mut failures);
-        for (state, owner, expected, fixed_alias) in imported {
-            state.collect_imported_constructor_probes(
-                owner,
+        for (mut state, owner, expected, fixed_alias, alias) in imported {
+            state.collect_prepared_nominal_probes(
+                PreparedNominalPlans::Imported {
+                    owner,
+                    expected,
+                    fixed_alias,
+                    alias,
+                },
                 call,
-                expected,
-                fixed_alias,
+                &explicit,
                 &mut applicable,
                 &mut failures,
             );
         }
-        for plan in plans {
-            let arguments = self
-                .named_nominal_expected_arguments(plan.view.signature.return_type, plan.expected);
-            match self.probe_named_nominal(
-                plan.view,
-                NominalConstructorCall {
-                    explicit_type_args: &explicit,
-                    expected_type_args: arguments.as_deref(),
-                    arguments: &call.args,
-                    span: call.span,
-                },
-            ) {
-                Ok(mut probe) => {
-                    if plan.fixed_alias {
-                        probe.fix_forwarding_parameters(
-                            self,
-                            arguments
-                                .as_deref()
-                                .expect("a fixed nominal alias supplies its complete application"),
-                        );
-                    }
-                    applicable.push(NamedApplicable {
-                        probe: NamedFunctionLikeProbe::Nominal(Box::new(probe)),
-                        commit: NamedFunctionCommit::Nominal,
-                    });
-                }
-                Err(failure) => {
-                    failures.push(failure);
-                }
-            }
-        }
-        for (structure, fixed, fixed_alias) in intrinsics {
-            self.clone().collect_pointer_construction_probe(
-                crate::call_resolution::named::NamedIntrinsicStructOrigin::Current(structure),
+        self.collect_prepared_nominal_probes(
+            PreparedNominalPlans::Nominal(plans, None),
+            call,
+            &explicit,
+            &mut applicable,
+            &mut failures,
+        );
+        for intrinsic in intrinsics {
+            self.collect_prepared_nominal_probes(
+                PreparedNominalPlans::Nominal(Vec::new(), Some(intrinsic)),
                 call,
-                fixed,
-                fixed_alias,
+                &explicit,
                 &mut applicable,
                 &mut failures,
             );
@@ -217,66 +208,6 @@ impl Lowerer {
             }
             return Ok(None);
         }
-        let (probes, mut commits): (Vec<_>, Vec<_>) = applicable
-            .into_iter()
-            .map(|applicable| (applicable.probe, applicable.commit))
-            .unzip();
-        let diagnostics_before = self.diagnostics.len();
-        let Some(winner) = self.select_named_function_like(
-            &call.callee.text,
-            kind.call_name(),
-            &probes,
-            &call.args,
-            call.span,
-        ) else {
-            let variants = targets
-                .iter()
-                .filter_map(|binding| match binding.target {
-                    NamedCallTarget::Value(ValueTarget::Variant(target)) => Some(target),
-                    _ => None,
-                })
-                .collect::<Vec<_>>();
-            if kind == ImportLookupLayer::CorePrelude && variants.len() == targets.len() {
-                self.diagnostics.truncate(diagnostics_before);
-                self.ambiguous_prelude_variant(&call.callee, &variants);
-            }
-            return Err(());
-        };
-        let mut probes = probes;
-        let probe = probes.swap_remove(winner);
-        let commit = commits.swap_remove(winner);
-        let expression = match (probe, commit) {
-            (NamedFunctionLikeProbe::Callable(probe), NamedFunctionCommit::TopLevel) => {
-                let resolved = self.commit_named_callable(*probe, sink).ok_or(())?;
-                self.finish_resolved_top_level_function_call(call, resolved, sink)
-            }
-            (NamedFunctionLikeProbe::Callable(probe), NamedFunctionCommit::Member) => {
-                let resolved = self.commit_named_callable(*probe, sink).ok_or(())?;
-                self.finish_resolved_method_call(resolved, call.span, sink)
-            }
-            (
-                NamedFunctionLikeProbe::ImportedDependency(probe),
-                NamedFunctionCommit::ImportedDependency,
-            ) => return Ok(self.commit_imported_dependency_callable(*probe, sink)),
-            (NamedFunctionLikeProbe::Nominal(probe), NamedFunctionCommit::Nominal) => {
-                let resolved = self
-                    .commit_named_nominal(*probe, call.span, sink)
-                    .ok_or(())?;
-                self.finish_named_nominal(resolved, call.span)
-            }
-            (NamedFunctionLikeProbe::IntrinsicStruct(_), NamedFunctionCommit::Intrinsic(layer)) => {
-                if layer.state.diagnostics[diagnostics_before..]
-                    .iter()
-                    .any(|diagnostic| diagnostic.severity == ast::DiagnosticSeverity::Error)
-                {
-                    self.commit_layer_diagnostics(*layer.state);
-                    None
-                } else {
-                    Some(self.commit_expr_layer(layer, sink))
-                }
-            }
-            _ => unreachable!("each typed probe retains its matching commit protocol"),
-        };
-        expression.map(Some).ok_or(())
+        self.commit_named_function_partition(applicable, targets, kind, call, sink)
     }
 }

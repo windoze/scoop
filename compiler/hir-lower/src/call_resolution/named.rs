@@ -81,7 +81,7 @@ impl NamedFunctionLikeProbe {
                 .to_owned()
             }
             Self::ImportedDependencyProperty(probe) => probe.forwarding(state),
-            Self::Nominal(probe) => probe.forwarding().to_owned(),
+            Self::Nominal(probe) => probe.forwarding(state),
             Self::IntrinsicStruct(probe) => {
                 let owners = if probe.fixed_alias {
                     Vec::new()

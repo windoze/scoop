@@ -59,6 +59,10 @@ impl Lowerer {
                     return;
                 }
             }
+            ast::StatementKind::TypeAlias(declaration) => {
+                self.declare_local_type_alias(declaration);
+                return;
+            }
             ast::StatementKind::LocalFunction(function) => {
                 let Some(local) = self.lower_local_function_decl(function) else {
                     return;

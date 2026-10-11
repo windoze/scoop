@@ -10,22 +10,22 @@ use scoop_hir as hir;
 impl Lowerer {
     fn value_origin_note(&self, origin: &ValueOrigin) -> Result<ast::DiagnosticNote, String> {
         let (file, span) = match origin {
-            ValueOrigin::CoreNonValue(NonValueTarget::Function(id)) => {
+            ValueOrigin::SourceNonValue(NonValueTarget::Function(id)) => {
                 (self.function_files[id], self.functions[*id].span)
             }
-            ValueOrigin::CoreNonValue(NonValueTarget::ImportedDependency(_)) => {
+            ValueOrigin::SourceNonValue(NonValueTarget::ImportedDependency(_)) => {
                 unreachable!("core blockers cannot carry ordinary dependency targets")
             }
-            ValueOrigin::CoreNonValue(NonValueTarget::Type(target)) => {
+            ValueOrigin::SourceNonValue(NonValueTarget::Type(target)) => {
                 return self.type_candidate_note(&super::super::TypeLookupCandidate {
                     target: super::super::TypeLookupTarget::Current(*target),
                     origin: super::super::TypeLookupOrigin::ExistingM22Core,
                 });
             }
-            ValueOrigin::CoreNonValue(NonValueTarget::ExtensionProperty(id)) => {
+            ValueOrigin::SourceNonValue(NonValueTarget::ExtensionProperty(id)) => {
                 (self.property_files[id], self.properties[*id].span)
             }
-            ValueOrigin::CoreNonValue(NonValueTarget::SourceExtensionProperty(_)) => {
+            ValueOrigin::SourceNonValue(NonValueTarget::SourceExtensionProperty(_)) => {
                 unreachable!("core has no provisional import properties")
             }
             ValueOrigin::CurrentUnit(id) | ValueOrigin::NonValue { binding: id, .. } => {

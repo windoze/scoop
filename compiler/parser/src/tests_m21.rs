@@ -1,6 +1,6 @@
 use scoop_ast::{
     AccessorBodySyntax, ClassConstructorDecl, ClassMember, CompanionNameSyntax, Decl,
-    DeclaredVisibility, Expr, FunctionBody, NestedNominalDecl, PropertyBodySyntax,
+    DeclaredVisibility, Expr, FunctionBody, NestedTypeDecl, PropertyBodySyntax,
     SetterParameterSyntax, SetterVisibilitySyntax, StatementKind, StructMember, VisibilitySyntax,
 };
 
@@ -199,7 +199,7 @@ fn object_companion_nested_and_constructor_metadata_are_explicit() {
     assert!(matches!(
         &class.members[1],
         ClassMember::Nested(declaration)
-            if matches!(&**declaration, NestedNominalDecl::Class(_))
+            if matches!(&**declaration, NestedTypeDecl::Class(_))
     ));
     let ClassMember::Companion(companion) = &class.members[2] else {
         panic!("expected companion")

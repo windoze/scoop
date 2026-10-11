@@ -22,8 +22,10 @@ pub enum TypeAliasInterfaceSemanticValidationError<E> {
         expected: ConeIdentity,
         actual: ConeIdentity,
     },
-    NestedDeclaration {
-        owner_depth: usize,
+    Parameters(crate::TypeParameterBinderSemanticValidationError<E>),
+    OwnerParameterCount {
+        expected: u32,
+        actual: u32,
     },
     DeclarationScope {
         actual: DeclarationScope,
@@ -64,9 +66,10 @@ impl<E: fmt::Display> fmt::Display for TypeAliasInterfaceSemanticValidationError
                 formatter,
                 "type alias belongs to Cone {actual}, expected current Cone {expected}"
             ),
-            Self::NestedDeclaration { owner_depth } => write!(
+            Self::Parameters(error) => error.fmt(formatter),
+            Self::OwnerParameterCount { expected, actual } => write!(
                 formatter,
-                "type alias is nested under {owner_depth} declaration owner(s)"
+                "type-alias host has {expected} parameters, but the alias captures {actual}"
             ),
             Self::DeclarationScope { actual } => write!(
                 formatter,

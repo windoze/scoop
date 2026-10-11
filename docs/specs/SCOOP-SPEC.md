@@ -130,15 +130,21 @@ Scoop 的类型分为两大类：
 - `is` / `as` / `as?`不擦除generic argument，generic nominal目标必须是参数完整的exact application。例如`Box<Int>`与`Box<String>`、`I<Int>`与`I<String>`是不同检查目标，前者不会仅因`Int <: Any`匹配`Box<Any>`。generic body中的type parameter在普通单态化后引用concrete TypeDescriptor；不存在裸generic、star或projected runtime descriptor。
 - 单态化必须结构上保证实例化闭包终止。同一generic callable递归SCC中的每个调用环，把宿主参数与callable参数组成的完整向量代回起点后必须逐项保持identity；普通直接/互递归因此复用同一concrete实例。参数替换非identity的环属于禁止的polymorphic recursion，在template定义检查时报错。非递归调用边仍可任意变换实参。编译器不得用递归深度、实例数量或超时阈值决定源码是否合法。
 
-#### 3.2.1 非泛型透明 `typealias`
+#### 3.2.1 透明 `typealias`
 
 跨 Cone 的 `Alias(...)` 与本地别名遵循相同规则：先按真实 typed target 展开，再对目标声明的构造器执行普通候选决议。外来 alias、本地指向外来类型的 alias 及其链式组合保留目标的构造器身份、默认参数、访问域与 GC effect，不生成转发构造器。
 
 别名限定的构造调用保留目标 application 的全部固定实参，包括 `Alias.Variant(...)`；实参表达式不能重新推断并替换这些类型实参。即使调用结果被赋给 `Any` 或没有显式结果类型，payload 与构造参数仍按别名展开后的目标类型检查。
 
-支持top-level、非generic透明alias，例如`public typealias UserId = UInt64`、`typealias Names = Array<String>`。右侧必须是声明点可访问、参数完整的普通类型，可以是nominal application、tuple或函数类型；alias不能声明type parameter、捕获外层type parameter或出现在nested/local位置。alias可以引用其他alias，但展开依赖图必须无环；直接或间接递归均为定义处错误。
+支持 top-level、nominal body 和局部块中的透明 alias，例如 `public typealias UserId = UInt64`、`typealias Names<T> = Array<T>`、`typealias Transform<T> = T.(Int) -> T`。alias 可以声明自己的类型参数与正常 inline/where bound，右侧在定义处绑定为完整类型表达式；使用时替换参数并透明展开。类型位置必须提供全部自身参数，不能使用裸泛型、star 或 projection。构造位置可以通过原有构造器约束推导 alias 参数；固定在目标中的实参不能被覆盖，不能唯一求解时要求完整参数。
 
-alias只建立名称、declared visibility、source origin与导出实体，不建立新的type identity、nominal application、layout、TypeDescriptor、RTTI、boxing、单态化实例、overload差异或ABI分类。alias的类型语义等同于完全展开的目标type；分别以alias和目标声明的同形overload是重复签名。alias可用于目标本来允许出现的type及type-qualifier位置；`Alias(...)`、`Alias.Variant(...)`或static/companion member lookup先展开目标再执行普通决议，不产生额外候选。visibility默认仍为`internal`；完全展开目标type tree中每个被引用声明的effective access domain必须覆盖alias自身的effective domain。因此internal alias也不能暴露file-private目标，public alias只是同一signature-exposure规则的更宽特例。非泛型顶层 typealias 可经普通 import、public import 及链式 re-export 跨 Cone 使用，别名保持原声明身份，使用处展开到同一目标类型。不支持泛型、嵌套或局部 typealias。
+enum variant 的 alias 限定名遵循同一规则：构造时由 payload 和期望 enum application 推导，模式中由 subject 的完整类型推导；目标中已固定的参数仍须匹配。若 alias 直接指向自身类型参数，构造前须由显式 alias 实参或期望类型确定实际目标声明，不能从尚未确定声明的构造实参反推出一个类型声明。
+
+普通 static nested owner 的 alias 不自动捕获泛型宿主的参数；需要时显式声明自身参数。inner/companion 的实例化作用域与局部作用域可以引用其原本可见的外层类型参数，限定名必须提供所需的完整宿主 application。局部 alias 不能带可见性修饰符，在声明之后的词法范围内可见，可以引用此前可见的局部类型，不产生运行期状态；其中的名字不在使用处重新绑定。局部名称不导出，需要公开的类型使用完整展开结果。
+
+alias 的全部展开依赖必须无环，包含藏在泛型实参、函数类型和数组中的依赖；直接或间接递归均在定义处诊断，不以展开深度、数量或超时限制替代循环检查。
+
+alias只建立名称、declared visibility、source origin与导出实体，不建立新的type identity、nominal application、layout、TypeDescriptor、RTTI、boxing、单态化实例、overload差异或ABI分类。alias的类型语义等同于完全展开的目标type；分别以alias和目标声明的同形overload是重复签名。alias可用于目标本来允许出现的type及type-qualifier位置；`Alias(...)`、`Alias.Variant(...)`或static/companion member lookup先展开目标再执行普通决议，不产生额外候选。非局部 alias 的 visibility 默认仍为 `internal`；展开目标和参数 bound 的 effective access domain 必须覆盖 alias 自身的 effective domain。内部 alias 也不能暴露 file-private 目标，public alias 遵循同一签名可见性规则。可导出的 alias 可经普通 import、public import 及链式 re-export 使用，保留原声明身份、实际 binder、bound 和定义处已绑定的目标类型，消费方不重新查找目标名称。
 
 ### 3.3 参数传递、receiver 与 `this`
 

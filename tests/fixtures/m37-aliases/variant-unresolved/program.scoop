@@ -1,0 +1,3 @@
+enum Result<T> { Empty }
+typealias Pick<T> = Result<T>
+fun main() { val value = Pick.Empty }

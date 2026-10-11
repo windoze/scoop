@@ -12,6 +12,7 @@ use hir::ImportedCallableSource;
 use resolution::{ApplicableReference, ReferenceDeclaration, ReferenceFailure};
 
 mod lookup;
+mod signature;
 
 #[derive(Clone)]
 pub(super) enum ConstructorReferenceSource {
@@ -23,6 +24,7 @@ pub(super) enum ConstructorReferenceSource {
 pub(super) struct ConstructorReferenceCandidate {
     source: ConstructorReferenceSource,
     fixed: Option<TypeId>,
+    alias: Option<crate::aliases::AliasTemplate>,
 }
 
 enum ConstructorReferenceTarget {
@@ -37,118 +39,12 @@ pub(super) struct ConstructorReferenceDeclaration {
     signature: DeclarationSignature,
     effects: CallableEffects,
     fixed_arguments: Option<Vec<TypeId>>,
+    alias_arguments: Option<Vec<TypeId>>,
+    owner_arguments: Vec<TypeId>,
     span: Span,
 }
 
 impl ConstructorReferenceDeclaration {
-    fn resolve(
-        state: &mut Lowerer,
-        candidate: ConstructorReferenceCandidate,
-        span: Span,
-    ) -> Result<Self, String> {
-        let (target, mut signature, safety) = match &candidate.source {
-            ConstructorReferenceSource::Local(source) => {
-                let safety = match source {
-                    NominalConstructorSource::Class(id) => state.class_constructors[*id].safety,
-                    NominalConstructorSource::Struct(id) => state.struct_constructors[*id].safety,
-                    _ => hir::Safety::Safe,
-                };
-                (
-                    ConstructorReferenceTarget::Local(*source),
-                    state.nominal_constructor_view(*source, span).signature,
-                    safety,
-                )
-            }
-            ConstructorReferenceSource::Imported(declaration) => {
-                let safety = declaration
-                    .interface()
-                    .effects()
-                    .function_attributes()
-                    .safety;
-                let (target, source) = if matches!(
-                    declaration.interface().owner(),
-                    hir::PublicDeclarationOwnerV1::Nominal(hir::SourceNominalId::GenericTemplate(
-                        _
-                    ))
-                ) {
-                    let template =
-                        state.request_imported_constructor_template(*declaration.clone())?;
-                    let (loaded, _) = ImportedGenericTarget::Constructor(template).signature(state);
-                    (
-                        ConstructorReferenceTarget::Imported(template),
-                        loaded.signature,
-                    )
-                } else {
-                    let candidate = ImportedCallableCandidate::Declaration(declaration.clone());
-                    let signature = state
-                        .imported_native_signature(&candidate)
-                        .map_err(|error| error.diagnostic("constructor reference signature"))?;
-                    (
-                        ConstructorReferenceTarget::Dependency(declaration.clone()),
-                        signature,
-                    )
-                };
-                (
-                    target,
-                    DeclarationSignature {
-                        owner_parameters: source.owner_parameters,
-                        callable_parameters: source.callable_parameters,
-                        value_parameters: source
-                            .value_parameters
-                            .into_iter()
-                            .map(|parameter| ValueParameter {
-                                name: parameter.name,
-                                ty: parameter.ty,
-                                calling: ValueParameterCalling::Required,
-                            })
-                            .collect(),
-                        return_type: source.return_type,
-                    },
-                    safety,
-                )
-            }
-        };
-        let fixed_arguments = candidate.fixed.map(|ty| {
-            state
-                .nominal_application(ty)
-                .expect("a fixed constructor alias has a nominal application")
-                .arguments
-        });
-        if let Some(arguments) = &fixed_arguments {
-            let bindings = signature
-                .owner_parameters
-                .iter()
-                .map(|parameter| parameter.id)
-                .zip(arguments.iter().copied())
-                .collect::<Vec<_>>();
-            for parameter in &mut signature.value_parameters {
-                parameter.ty = state.instantiate_method_ty(parameter.ty, &bindings);
-            }
-            signature.return_type = state.instantiate_method_ty(signature.return_type, &bindings);
-            signature.owner_parameters.clear();
-        }
-        // Constructor host parameters are inferred at the reference creation site.
-        // Their existing typed identities remain the declaration's binders.
-        signature
-            .callable_parameters
-            .append(&mut signature.owner_parameters);
-        let attributes = hir::FunctionAttributes {
-            safety,
-            ..Default::default()
-        };
-        Ok(Self {
-            candidate,
-            target,
-            signature,
-            effects: CallableEffects {
-                is_suspend: false,
-                attributes,
-            },
-            fixed_arguments,
-            span,
-        })
-    }
-
     pub(super) fn signature(&self, state: &Lowerer, name: &str) -> String {
         let binders = &self.signature.callable_parameters;
         let parameters = self
@@ -165,8 +61,17 @@ impl ConstructorReferenceDeclaration {
     }
 
     pub(super) fn forwarding(&self, state: &mut Lowerer) -> OwnedDeclarationForwarding {
-        let declaration = Self::resolve(state, self.candidate.clone(), self.span)
+        let mut declaration = Self::resolve(state, self.candidate.clone(), self.span)
             .expect("an applicable constructor reference retains its declaration");
+        let bindings = declaration
+            .signature
+            .owner_parameters
+            .iter()
+            .map(|parameter| parameter.id)
+            .zip(declaration.owner_arguments)
+            .collect::<Vec<_>>();
+        declaration.signature.owner_parameters.clear();
+        declaration.signature.substitute_types(state, &bindings);
         let parameters = declaration
             .signature
             .value_parameters
@@ -191,7 +96,22 @@ impl ConstructorReferenceDeclaration {
             unreachable!("a constructor reference has a complete function type");
         };
         let signature = state.function_types[function].clone();
-        let arguments = self.fixed_arguments.unwrap_or_else(|| arguments.to_vec());
+        let arguments = if let Some(targets) = &self.alias_arguments {
+            let bindings = self
+                .signature
+                .owner_parameters
+                .iter()
+                .chain(&self.signature.callable_parameters)
+                .map(|parameter| parameter.id)
+                .zip(arguments.iter().copied())
+                .collect::<Vec<_>>();
+            targets
+                .iter()
+                .map(|ty| state.instantiate_method_ty(*ty, &bindings))
+                .collect()
+        } else {
+            self.fixed_arguments.unwrap_or_else(|| arguments.to_vec())
+        };
         let span = self.span;
         state
             .lower_synthesized_lambda(
@@ -265,11 +185,16 @@ impl Lowerer {
         let declaration =
             ConstructorReferenceDeclaration::resolve(&mut state, candidate.clone(), context.span)
                 .map_err(fail)?;
-        let own_type_param_count = declaration.signature.callable_parameters.len();
+        let own_type_param_count = candidate
+            .alias
+            .as_ref()
+            .map_or(declaration.signature.callable_parameters.len(), |alias| {
+                alias.parameters.len() - alias.outer_parameter_count
+            });
         let application = state
             .solve_callable_reference_applicability(CallableReferenceApplicabilityInput {
                 signature: &declaration.signature,
-                owner_arguments: &[],
+                owner_arguments: &declaration.owner_arguments,
                 bound_receiver: None,
                 unbound_receiver: None,
                 effects: declaration.effects,
@@ -278,7 +203,7 @@ impl Lowerer {
             .map_err(|failure| {
                 fail(failure.describe(|constraint| {
                     state.render_imported_constraint_failure(
-                        &[],
+                        &declaration.signature.owner_parameters,
                         &declaration.signature.callable_parameters,
                         constraint,
                     )

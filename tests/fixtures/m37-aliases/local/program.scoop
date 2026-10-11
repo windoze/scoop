@@ -1,0 +1,12 @@
+class Box<T>(val value: T)
+fun <T> read(value: T): T {
+    typealias Local = Box<T>
+    typealias Other<U> = Box<U>
+    val box = Local(value)
+    fun copy(item: Local = box): T = item.value
+    val closure: () -> T = { val result: Local = Local(copy()); result.value }
+    val other = Other(7)
+    println(other.value)
+    return closure()
+}
+fun main() { println(read("local")) }

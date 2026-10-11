@@ -6,6 +6,8 @@ use super::*;
 
 fn type_alias(name: &str, target: TypeRef) -> Decl {
     Decl::TypeAlias(ast::TypeAliasDecl {
+        type_params: Vec::new(),
+        where_clause: None,
         visibility: ast::VisibilitySyntax::Omitted,
         name: ident(name),
         target,

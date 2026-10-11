@@ -78,6 +78,16 @@ impl Parser {
                 kind: StatementKind::LocalFunction(function),
             });
         }
+        let alias = matches!(&self.peek().kind, TokenKind::Ident(text) if text == "typealias")
+            || matches!(&self.peek().kind, TokenKind::Ident(text) if matches!(text.as_str(), "public" | "internal" | "private" | "protected"))
+                && matches!(&self.tokens[self.pos + 1].kind, TokenKind::Ident(text) if text == "typealias");
+        if alias {
+            let declaration = self.parse_local_type_alias()?;
+            return Ok(Statement {
+                span: declaration.span,
+                kind: StatementKind::TypeAlias(declaration),
+            });
+        }
         if self.starts_loop_label() {
             return self.parse_labeled_loop();
         }
@@ -163,10 +173,6 @@ impl Parser {
             TokenKind::For => self.parse_for(),
             TokenKind::Break | TokenKind::Continue => self.parse_loop_jump(),
             TokenKind::Do => self.parse_do_while(),
-            TokenKind::Ident(text) if text == "typealias" => Err(Diagnostic::at(
-                self.peek().span,
-                "local typealias declarations are not supported in M22; only top-level non-generic typealias declarations are supported",
-            )),
             // `try` / `catch` / `finally` / `throw` are contextual: they
             // stay identifiers everywhere except statement position.
             TokenKind::Ident(text) if text == "try" => self.parse_try(),

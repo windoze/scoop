@@ -154,6 +154,8 @@ fn extension_property(receiver: &str, name: &str, ty: &str) -> Decl {
 
 fn type_alias(name: &str, target: &str) -> Decl {
     Decl::TypeAlias(ast::TypeAliasDecl {
+        type_params: Vec::new(),
+        where_clause: None,
         visibility: ast::VisibilitySyntax::Omitted,
         name: ident(name),
         target: ty_named(target),

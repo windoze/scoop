@@ -10,6 +10,9 @@ use scoop_identity::PersistentTypeAliasId;
 #[derive(Debug, Clone)]
 pub struct TypeAliasDecl {
     pub name: String,
+    pub owner: Option<NominalOwner>,
+    pub type_params: Vec<TypeParamDecl>,
+    pub owner_parameter_count: usize,
     pub access: DeclarationAccess,
     /// The recursively expanded, alias-free semantic type.
     pub target: TypeId,

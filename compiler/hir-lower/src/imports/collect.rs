@@ -265,6 +265,21 @@ impl Lowerer {
                 }
             }
         }
+        for (&(owner, ref name), &alias) in &self.nested_aliases_by_owner {
+            let declaration = &self.source_type_aliases[alias];
+            let file = declaration.origin.file as usize;
+            surface.insert(
+                ResolvedNamespace::Static(self.static_import_namespace(owner)),
+                CurrentUnitBinding {
+                    target: CurrentUnitTarget::TypeAlias(alias),
+                    source: self.import_source(file),
+                    file,
+                    span: declaration.origin.span,
+                    access: declaration.access.lookup.clone(),
+                    name: name.clone(),
+                },
+            );
+        }
         for (&(owner, ref name), &annotation) in &self.nested_annotations_by_owner {
             let declaration = &self.source_annotations[&annotation];
             let file = declaration.file;

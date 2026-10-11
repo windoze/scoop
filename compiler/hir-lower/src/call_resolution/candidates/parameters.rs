@@ -11,6 +11,58 @@ pub(crate) struct DeclarationSignature<D = DefaultArgumentSource> {
     pub(crate) return_type: hir::TypeId,
 }
 
+impl<D> DeclarationSignature<D> {
+    pub(crate) fn substitute_types(
+        &mut self,
+        state: &mut crate::Lowerer,
+        bindings: &[(hir::TypeParamId, hir::TypeId)],
+    ) {
+        // Parameters that remain declared retain their identity; only the
+        // explicit relation replaces captured owners or selected arguments.
+        let mut complete = bindings.to_vec();
+        for parameter in self
+            .owner_parameters
+            .iter()
+            .chain(&self.callable_parameters)
+        {
+            if !complete.iter().any(|(id, _)| *id == parameter.id) {
+                complete.push((
+                    parameter.id,
+                    state.intern_type(hir::Type::Param(parameter.id)),
+                ));
+            }
+        }
+        let bindings = &complete;
+        for parameter in &mut self.value_parameters {
+            parameter.ty = state.instantiate_method_ty(parameter.ty, bindings);
+            if let ValueParameterCalling::Vararg {
+                element_type,
+                array_type,
+                ..
+            } = &mut parameter.calling
+            {
+                *element_type = state.instantiate_method_ty(*element_type, bindings);
+                *array_type = state.instantiate_method_ty(*array_type, bindings);
+            }
+        }
+        for parameter in self
+            .owner_parameters
+            .iter_mut()
+            .chain(&mut self.callable_parameters)
+        {
+            if let hir::TypeParamBounds::Nominal(bounds) = &mut parameter.bounds {
+                if let Some(bound) = &mut bounds.class {
+                    bound.ty = state.instantiate_method_ty(bound.ty, bindings);
+                }
+                for bound in &mut bounds.interfaces {
+                    bound.ty = state.instantiate_method_ty(bound.ty, bindings);
+                }
+            }
+        }
+        self.return_type = state.instantiate_method_ty(self.return_type, bindings);
+    }
+}
+
 #[derive(Debug, Clone)]
 pub(crate) struct ValueParameter<D = DefaultArgumentSource> {
     pub(crate) name: String,

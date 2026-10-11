@@ -134,7 +134,7 @@ impl Lowerer {
                 continue;
             }
             let path = annotation.name.segments().cloned().collect::<Vec<_>>();
-            let id = match self.resolve_type_name_path(&path, false) {
+            let id = match self.resolve_type_name_path(&path, &[]) {
                 Ok(Some(ResolvedTypeName::Annotation(id))) => id,
                 Ok(Some(_)) => {
                     self.error(

@@ -111,3 +111,15 @@ receiver 槽在 AST、HIR、MIR、共享签名和 exact identity 中独立保留
 本机 fmt、workspace clippy（release）无警告通过；parser 496 项及 doc-test、identity 343 项及 doc-test、约束求解 19 项、HIR lower M11 26 项、MIR adapter 3 项和 LIR function 4 项通过。最终推导修复另以两个定向单元测试补验。49 个新增 fixture（15 个正向、34 个 negative）和 56 个回归普通比较共 105/105 通过，126 个配置、248 个进程、188 个阶段 golden。覆盖 debug/release、真实挂起恢复、moving GC、值类型复制、ZST、求值顺序、FFI 回调、泛型与默认参数，以及删除源码后的 provider → bridge → consumer → 独立链接完整产物链。
 
 报告见 [10-receivers-darwin.json](validation/10-receivers-darwin.json)。旧 HIR 快照补充 receiver 字段，定向回归另迁移此前的隐式标签及类型收集顺序差异；普通函数身份和编码保持不变。报告只合并普通通过批次，不计入生成快照的运行。已清理本批完成的 fixture cases 817 MiB，保留共用 cache、sysroot 与日志；C callback 的 Linux 目标 LIR 快照将在最终平台验证时生成并普通复验。
+
+### 11. 泛型、嵌套与局部 typealias（完成）
+
+alias 的类型参数、inline/where bound 与目标在定义处绑定，使用处替换完整实参；构造调用和引用沿原有推导与 MSC 选择真实目标，固定目标实参不能被覆盖。支持 nominal nested、companion 宿主参数和局部声明后可见性；普通 static nested 不捕获宿主参数。完整展开依赖检查数组、函数与泛型实参内部的循环，局部 alias 不产生运行期状态或导出名称。
+
+enum variant 的构造、普通值和模式共享实际 alias application，保留 payload、默认参数、vararg 与期望类型推导。alias 目标本身为类型参数时，先从显式参数或期望结果确定真实构造类型。泛型构造与非泛型同名函数进入原有重载规则；参数置换、重复目标参数、未使用参数及构造器引用均映射回真实声明，不生成 alias nominal 或转发构造器。
+
+共享接口保存规范化 binder/bound、目标与必要的宿主参数前缀，旧无参四字段编码保持不变。发布路径使用真实 owner chain 区分顶层和嵌套名称；公开目标及 bound 的外部引用进入原有闭包。新增声明、应用、推导、构造与发布子模块分别为 171、148、85、108、243 行，原构造候选大文件按准备、探测与完成职责拆分。
+
+本机 fmt、workspace clippy（release）无警告通过；parser alias 6 项、HIR alias 接口 25 项、HIR lower alias 51 项、引用 69 项及导出绑定 6 项定向测试通过。52 个新增 fixture（13 个正向、39 个 negative）和 52 个回归普通比较共 104/104 通过，121 个配置、293 个进程、198 个阶段 golden。覆盖 debug/release、构造协议、receiver 类型、边界与循环诊断、moving GC，以及删除源码后的 provider → bridge → consumer → 独立链接产物链。
+
+报告见 [11-aliases-darwin.json](validation/11-aliases-darwin.json)。138 份旧 golden 中的 745 个无参 alias 记录仅机械补充空 binder/宿主前缀字段，移除新增文字后已逐份确认与原记录一致；定向回归另更新构造诊断位置、少量类型 arena 编号及此前隐式标签的 AST 输出。普通报告合并未变化的通过项与受影响用例复验，不计入生成快照的运行。清理已完成的 fixture cases 1.4 GiB 后，5 个因旧只读产物覆盖失败的用例普通重跑全部通过；保留共用 cache、sysroot 和日志。

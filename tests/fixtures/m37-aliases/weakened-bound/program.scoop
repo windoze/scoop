@@ -1,0 +1,4 @@
+interface Marker {}
+class Box<T: Marker>(val value: T)
+typealias Marked<T> = Box<T>
+fun main() {}

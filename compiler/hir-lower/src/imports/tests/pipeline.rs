@@ -16,7 +16,7 @@ fn pipeline_materializes_importable_nominals_aliases_properties_variants_and_sta
         members: vec![
             ast::ClassMember::Function(method("answer")),
             ast::ClassMember::StoredProperty(constant("version")),
-            ast::ClassMember::Nested(Box::new(ast::NestedNominalDecl::Struct(Box::new(nested)))),
+            ast::ClassMember::Nested(Box::new(ast::NestedTypeDecl::Struct(Box::new(nested)))),
         ],
         span: sp(),
     });
@@ -59,6 +59,8 @@ fn pipeline_materializes_importable_nominals_aliases_properties_variants_and_sta
             interface_decl("Contract", Vec::new()),
             enum_decl("State", Vec::new(), vec![variant_unit("Ready")]),
             ast::Decl::TypeAlias(ast::TypeAliasDecl {
+                type_params: Vec::new(),
+                where_clause: None,
                 visibility: ast::VisibilitySyntax::Omitted,
                 name: ident("Alias"),
                 target: ty_named("Item"),

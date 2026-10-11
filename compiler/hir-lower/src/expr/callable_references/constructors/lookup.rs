@@ -8,6 +8,7 @@ impl Lowerer {
         bindings: Vec<NamedCallBinding>,
         name: &ast::Ident,
         span: Span,
+        expected_result: Option<TypeId>,
     ) -> Result<Vec<ReferenceCandidate>, ()> {
         let call = ast::CallExpr {
             callee: name.clone(),
@@ -30,7 +31,7 @@ impl Lowerer {
             }
             let mut state = self.clone();
             let result = state
-                .named_nominal_plans(&binding, &call, None)
+                .named_nominal_plans(&binding, &call, expected_result)
                 .and_then(|plans| state.reference_constructor_plans(plans, name, span));
             match result {
                 Ok(prepared) => {
@@ -71,6 +72,7 @@ impl Lowerer {
                     ReferenceCandidate::Constructor(ConstructorReferenceCandidate {
                         source: ConstructorReferenceSource::Local(plan.view.target),
                         fixed: plan.fixed_alias.then_some(plan.expected).flatten(),
+                        alias: plan.alias,
                     })
                 }));
             }
@@ -78,12 +80,14 @@ impl Lowerer {
                 owner,
                 expected,
                 fixed_alias,
+                alias,
             } => {
                 let declarations = self.imported_reference_constructors(owner, name, span)?;
                 candidates.extend(declarations.into_iter().map(|declaration| {
                     ReferenceCandidate::Constructor(ConstructorReferenceCandidate {
                         source: ConstructorReferenceSource::Imported(Box::new(declaration)),
                         fixed: fixed_alias.then_some(expected).flatten(),
+                        alias: alias.clone(),
                     })
                 }));
             }
@@ -93,7 +97,7 @@ impl Lowerer {
 
     pub(in crate::expr::callable_references) fn lower_lexical_constructor_reference(
         &mut self,
-        nominal: crate::NominalTarget,
+        target: crate::namespace::TopLevelTypeTarget,
         name: &ast::Ident,
         span: Span,
         expected: Option<TypeId>,
@@ -104,7 +108,25 @@ impl Lowerer {
             args: Vec::new(),
             span,
         };
-        let plans = self.nominal_constructor_plans(nominal, &call, None, false)?;
+        let plans = match target {
+            crate::namespace::TopLevelTypeTarget::Nominal(nominal) => {
+                self.nominal_constructor_plans(nominal, &call, None, false)?
+            }
+            crate::namespace::TopLevelTypeTarget::Alias(id) => {
+                let alias = self.source_alias_template(id, name).ok_or(())?;
+                let result = self
+                    .expected_function_signature(expected)
+                    .map(|(_, signature)| signature.return_type);
+                self.named_alias_plans(alias, &call, result)?
+            }
+            crate::namespace::TopLevelTypeTarget::Annotation(_) => {
+                self.error(
+                    span,
+                    format!("type `{}` has no ordinary constructor reference", name.text),
+                );
+                return Err(());
+            }
+        };
         let candidates = self.reference_constructor_plans(plans, name, span)?;
         let expected = self.expected_function_signature(expected);
         let display = format!("constructor reference `::{}`", name.text);

@@ -37,9 +37,14 @@ fn dump_with(module: &Module, write_entry: impl FnOnce(&Module, &mut String)) ->
         .collect::<std::collections::HashSet<_>>();
     for (_, alias) in module.type_aliases.iter() {
         out.push_str(&format!(
-            "  typealias {} = {}\n",
+            "  typealias {}{} = {}\n",
             alias.name,
-            type_name(module, alias.target)
+            if alias.type_params.is_empty() {
+                String::new()
+            } else {
+                dump_type_params(module, &alias.type_params)
+            },
+            type_name_with_params(module, alias.target, &alias.type_params)
         ));
     }
     for (id, decl) in module.structs.iter() {

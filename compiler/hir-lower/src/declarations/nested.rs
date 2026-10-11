@@ -172,23 +172,26 @@ impl Lowerer {
     fn declare_nested_nominal<'a>(
         &mut self,
         owner: Owner,
-        declaration: &'a ast::NestedNominalDecl,
+        declaration: &'a ast::NestedTypeDecl,
         queues: &mut NestedDeclarationQueues<'_, 'a>,
         file: usize,
     ) {
         let is_core = self.source_is_core(file);
         match declaration {
-            ast::NestedNominalDecl::AnnotationClass(source) => {
+            ast::NestedTypeDecl::TypeAlias(source) => {
+                self.declare_nested_type_alias(source, file, owner);
+            }
+            ast::NestedTypeDecl::AnnotationClass(source) => {
                 queues.annotations.push((source, file, Some(owner)))
             }
-            ast::NestedNominalDecl::Struct(source) => {
+            ast::NestedTypeDecl::Struct(source) => {
                 if let Some(id) =
                     self.declare_struct(source, queues.structs, queues.methods, file, Some(owner))
                 {
                     self.declare_struct_nested(Owner::Struct(id), source, queues, file);
                 }
             }
-            ast::NestedNominalDecl::Enum(source) => {
+            ast::NestedTypeDecl::Enum(source) => {
                 if let Some(id) = self.declare_enum(
                     source,
                     is_core,
@@ -200,7 +203,7 @@ impl Lowerer {
                     self.declare_enum_nested(Owner::Enum(id), source, queues, file);
                 }
             }
-            ast::NestedNominalDecl::Class(source) => {
+            ast::NestedTypeDecl::Class(source) => {
                 if let Some(id) = self.declare_class(
                     source,
                     is_core,
@@ -212,7 +215,7 @@ impl Lowerer {
                     self.declare_class_nested(Owner::Class(id), source, queues, file);
                 }
             }
-            ast::NestedNominalDecl::Interface(source) => {
+            ast::NestedTypeDecl::Interface(source) => {
                 if let Some(id) = self.declare_interface(
                     source,
                     queues.interfaces,
@@ -223,7 +226,7 @@ impl Lowerer {
                     self.declare_interface_nested(Owner::Interface(id), source, queues, file);
                 }
             }
-            ast::NestedNominalDecl::Object(source) => {
+            ast::NestedTypeDecl::Object(source) => {
                 if let Some(id) =
                     self.declare_object(source, queues.objects, queues.methods, file, Some(owner))
                 {

@@ -1,0 +1,2 @@
+typealias Loop<T> = Loop<T>
+fun main() {}

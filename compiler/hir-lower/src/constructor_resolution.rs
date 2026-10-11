@@ -9,6 +9,7 @@ use crate::expr::ResolvedCallTypeArgument;
 use crate::expr::{NominalArgumentInput, NominalArguments};
 use crate::{Lowerer, TypeId};
 
+mod aliases;
 mod named;
 mod safety;
 

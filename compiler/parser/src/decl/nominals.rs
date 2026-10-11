@@ -8,7 +8,7 @@ mod release;
 type ParsedInterfaceBody = (
     Vec<FunctionDecl>,
     Vec<PropertyDecl>,
-    Vec<NestedNominalDecl>,
+    Vec<NestedTypeDecl>,
     Option<CompanionObjectDecl>,
     u32,
 );
@@ -383,12 +383,12 @@ impl Parser {
                     self.parse_nested_nominal(prefix)
                         .map(|declaration| nested.push(declaration))
                 }
-                TokenKind::Ident(text) if text == "annotation" => self.parse_annotation_class(prefix).map(Box::new).map(NestedNominalDecl::AnnotationClass).map(|declaration| nested.push(declaration)),
+                TokenKind::Ident(text) if text == "annotation" => self.parse_annotation_class(prefix).map(Box::new).map(NestedTypeDecl::AnnotationClass).map(|declaration| nested.push(declaration)),
                 TokenKind::Ident(text) if text == "object" => {
                     self.require_unmodified_nominal_prefix(&prefix, "object")?;
                     self.parse_object(prefix.annotations, prefix.visibility)
                         .map(Box::new)
-                        .map(NestedNominalDecl::Object)
+                        .map(NestedTypeDecl::Object)
                         .map(|declaration| nested.push(declaration))
                 }
                 TokenKind::Ident(text) if text == "companion" => {
@@ -414,7 +414,7 @@ impl Parser {
                     "constructors are not allowed in interfaces",
                 )),
                 TokenKind::Ident(text) if text == "typealias" => {
-                    self.unsupported_nested_type_alias()
+                    self.parse_type_alias(prefix).map(Box::new).map(NestedTypeDecl::TypeAlias).map(|declaration| nested.push(declaration))
                 }
                 _ => Err(Diagnostic::at(
                     self.peek().span,

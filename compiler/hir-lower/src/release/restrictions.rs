@@ -33,6 +33,7 @@ impl Lowerer {
             ast::StatementKind::Return { .. } => "`return`",
             ast::StatementKind::Throw(_) => "`throw`",
             ast::StatementKind::Try(_) => "`try`",
+            ast::StatementKind::TypeAlias(_) => return false,
             ast::StatementKind::LocalFunction(_) => "a local function",
             _ => return false,
         };

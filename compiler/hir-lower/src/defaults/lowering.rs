@@ -86,7 +86,8 @@ impl Lowerer {
         let outer_definition_root = self.definition_root.replace(context.definition_root);
         let capture_environment = environment.map(|environment| environment.available.clone());
         let outer_locals = std::mem::take(&mut self.locals);
-        let outer_scopes = std::mem::replace(&mut self.scopes, Scopes::new());
+        let scopes = environment.map_or_else(Scopes::new, |environment| environment.types.clone());
+        let outer_scopes = std::mem::replace(&mut self.scopes, scopes);
         let template_local_functions = environment
             .map_or_else(LocalFunctionScopes::new, |environment| {
                 environment.functions.clone()

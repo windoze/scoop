@@ -69,10 +69,15 @@ impl Parser {
             TokenKind::Ident(text) if text == "annotation" => self
                 .parse_annotation_class(prefix)
                 .map(Box::new)
-                .map(NestedNominalDecl::AnnotationClass)
+                .map(NestedTypeDecl::AnnotationClass)
                 .map(Box::new)
                 .map(ClassMember::Nested),
-            TokenKind::Ident(text) if text == "typealias" => self.unsupported_nested_type_alias(),
+            TokenKind::Ident(text) if text == "typealias" => self
+                .parse_type_alias(prefix)
+                .map(Box::new)
+                .map(NestedTypeDecl::TypeAlias)
+                .map(Box::new)
+                .map(ClassMember::Nested),
             TokenKind::Struct | TokenKind::Enum | TokenKind::Class | TokenKind::Interface => self
                 .parse_nested_nominal(prefix)
                 .map(Box::new)
@@ -86,7 +91,7 @@ impl Parser {
             TokenKind::Ident(text) if text == "object" => {
                 self.require_unmodified_nominal_prefix(&prefix, "object")?;
                 self.parse_object(prefix.annotations, prefix.visibility)
-                    .map(|object| NestedNominalDecl::Object(Box::new(object)))
+                    .map(|object| NestedTypeDecl::Object(Box::new(object)))
                     .map(Box::new)
                     .map(ClassMember::Nested)
             }
@@ -200,20 +205,20 @@ impl Parser {
     pub(in crate::decl) fn parse_nested_nominal(
         &mut self,
         prefix: MemberPrefix,
-    ) -> Result<NestedNominalDecl, Diagnostic> {
+    ) -> Result<NestedTypeDecl, Diagnostic> {
         self.require_nominal_prefix(&prefix, "nested type")?;
         match self.peek().kind {
             TokenKind::Struct => {
                 self.require_unmodified_nominal_prefix(&prefix, "struct")?;
                 self.parse_struct(prefix.annotations, prefix.visibility)
                     .map(Box::new)
-                    .map(NestedNominalDecl::Struct)
+                    .map(NestedTypeDecl::Struct)
             }
             TokenKind::Enum => {
                 self.require_unmodified_nominal_prefix(&prefix, "enum")?;
                 self.parse_enum(prefix.annotations, prefix.visibility)
                     .map(Box::new)
-                    .map(NestedNominalDecl::Enum)
+                    .map(NestedTypeDecl::Enum)
             }
             TokenKind::Class => {
                 let modifier = match prefix
@@ -236,13 +241,13 @@ impl Parser {
                     modifier_span,
                 )
                 .map(Box::new)
-                .map(NestedNominalDecl::Class)
+                .map(NestedTypeDecl::Class)
             }
             TokenKind::Interface => {
                 self.require_unmodified_nominal_prefix(&prefix, "interface")?;
                 self.parse_interface(prefix.annotations, prefix.visibility)
                     .map(Box::new)
-                    .map(NestedNominalDecl::Interface)
+                    .map(NestedTypeDecl::Interface)
             }
             _ => self.unexpected("nested nominal declaration"),
         }
@@ -268,7 +273,7 @@ impl Parser {
                     })
                     .map(StructMember::SecondaryConstructor),
                 TokenKind::Ident(text) if text == "typealias" => {
-                    self.unsupported_nested_type_alias()
+                    self.parse_type_alias(prefix).map(Box::new).map(NestedTypeDecl::TypeAlias).map(Box::new).map(StructMember::Nested)
                 }
                 TokenKind::Val | TokenKind::Var => self
                     .parse_property(prefix, PropertyContext::ValueType)
@@ -285,7 +290,7 @@ impl Parser {
                         .map(Box::new)
                         .map(StructMember::Nested)
                 }
-                TokenKind::Ident(text) if text == "annotation" => self.parse_annotation_class(prefix).map(Box::new).map(NestedNominalDecl::AnnotationClass).map(Box::new).map(StructMember::Nested),
+                TokenKind::Ident(text) if text == "annotation" => self.parse_annotation_class(prefix).map(Box::new).map(NestedTypeDecl::AnnotationClass).map(Box::new).map(StructMember::Nested),
                 TokenKind::Ident(text) if text == "companion" => {
                     self.require_unmodified_nominal_prefix(&prefix, "companion object")?;
                     self.parse_companion_object(prefix.annotations, prefix.visibility)
@@ -295,7 +300,7 @@ impl Parser {
                 TokenKind::Ident(text) if text == "object" => {
                     self.require_unmodified_nominal_prefix(&prefix, "object")?;
                     self.parse_object(prefix.annotations, prefix.visibility)
-                        .map(|object| NestedNominalDecl::Object(Box::new(object)))
+                        .map(|object| NestedTypeDecl::Object(Box::new(object)))
                         .map(Box::new)
                         .map(StructMember::Nested)
                 }

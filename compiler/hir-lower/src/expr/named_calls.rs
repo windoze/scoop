@@ -72,6 +72,22 @@ impl Lowerer {
                 }
             }
         }
+        if let Some(alias) = self.lexical_type_alias(name) {
+            let binding = NamedCallBinding {
+                target: NamedCallTarget::Type(TopLevelTypeTarget::Alias(alias)),
+                origin: NamedCallOrigin::Lexical(alias),
+            };
+            return self
+                .lower_named_function_partition(
+                    &[binding],
+                    ImportLookupLayer::Exact,
+                    call,
+                    sink,
+                    expected,
+                )
+                .ok()
+                .flatten();
+        }
         if self.lexical_nested_nominal_target(name).is_some() {
             match self.probe_expr_layer(|state, sink| {
                 let constructor = state.classify_constructor(&call.callee)?;

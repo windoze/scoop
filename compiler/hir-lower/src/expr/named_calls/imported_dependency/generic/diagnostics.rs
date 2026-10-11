@@ -27,7 +27,7 @@ impl Lowerer {
         );
     }
 
-    pub(in crate::expr) fn render_imported_constraint_failure(
+    pub(crate) fn render_imported_constraint_failure(
         &self,
         owner_parameters: &[hir::TypeParamDecl],
         callable_parameters: &[hir::TypeParamDecl],

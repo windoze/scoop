@@ -1,0 +1,2 @@
+typealias Pointer<T: value> = Ptr<T>
+fun main() { @Unsafe { val ptr = Pointer<String>(1UL) } }

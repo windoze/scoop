@@ -134,16 +134,22 @@ impl Lowerer {
         candidate: hir::ImportedCallableDeclaration,
         call: &ast::CallExpr,
         expected: Option<hir::TypeId>,
+        alias: Option<&crate::aliases::AliasTemplate>,
     ) -> Result<ImportedDependencyCallProbe, Box<Lowerer>> {
-        self.probe_imported_value_constructor(
-            candidate,
+        let mut input: ImportedProbeCall<'_> = CallSite {
+            type_args: &call.type_args,
+            args: &call.args,
+            span: call.span,
+        }
+        .into();
+        input.alias = alias;
+        self.probe_imported_callable_candidate(
+            ImportedCallableCandidate::Declaration(Box::new(candidate)),
             &call.callee,
-            CallSite {
-                type_args: &call.type_args,
-                args: &call.args,
-                span: call.span,
-            },
+            input,
             expected,
+            ImportedDependencyCallReceiver::Implicit,
+            false,
         )
     }
 
@@ -227,6 +233,9 @@ impl Lowerer {
                     .len()
             },
         );
+        let expected_type_arguments = call.alias.map_or(expected_type_arguments, |alias| {
+            alias.parameters.len() - alias.outer_parameter_count
+        });
         if !call.type_args.is_empty() && call.type_args.len() != expected_type_arguments {
             state.error(
                 name.span,

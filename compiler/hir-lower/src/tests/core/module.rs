@@ -153,16 +153,19 @@ fn make_property_public(property: &mut ast::PropertyDecl) {
     property.visibility = public_visibility();
 }
 
-fn make_nested_public(declaration: &mut ast::NestedNominalDecl) {
+fn make_nested_public(declaration: &mut ast::NestedTypeDecl) {
     match declaration {
-        ast::NestedNominalDecl::AnnotationClass(declaration) => {
+        ast::NestedTypeDecl::TypeAlias(declaration) => {
+            declaration.visibility = public_visibility();
+        }
+        ast::NestedTypeDecl::AnnotationClass(declaration) => {
             declaration.visibility = public_visibility()
         }
-        ast::NestedNominalDecl::Struct(declaration) => make_struct_public(declaration),
-        ast::NestedNominalDecl::Enum(declaration) => make_enum_public(declaration),
-        ast::NestedNominalDecl::Class(declaration) => make_class_public(declaration),
-        ast::NestedNominalDecl::Interface(declaration) => make_interface_public(declaration),
-        ast::NestedNominalDecl::Object(declaration) => make_object_public(declaration),
+        ast::NestedTypeDecl::Struct(declaration) => make_struct_public(declaration),
+        ast::NestedTypeDecl::Enum(declaration) => make_enum_public(declaration),
+        ast::NestedTypeDecl::Class(declaration) => make_class_public(declaration),
+        ast::NestedTypeDecl::Interface(declaration) => make_interface_public(declaration),
+        ast::NestedTypeDecl::Object(declaration) => make_object_public(declaration),
     }
 }
 

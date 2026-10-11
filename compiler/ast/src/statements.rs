@@ -18,6 +18,8 @@ pub enum StatementKind {
     /// A named function declared in a block. Its name is visible in its own
     /// body and from this statement to the end of the lexical scope.
     LocalFunction(FunctionDecl),
+    /// A compile-time type binding visible after its declaration.
+    TypeAlias(crate::TypeAliasDecl),
     /// `return` with an optional value (bare `return` in `Unit`
     /// functions).
     Return {

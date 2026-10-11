@@ -1,0 +1,3 @@
+typealias Items<T> = Array<T>
+fun use(value: Items) {}
+fun main() {}

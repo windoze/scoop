@@ -1,0 +1,3 @@
+enum Result<A, B> { Value(val first: A, val second: B) }
+typealias Pick<T> = Result<String, T>
+fun main() { val value = Pick.Value(1, 42) }

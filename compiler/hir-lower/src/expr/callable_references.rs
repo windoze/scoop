@@ -111,7 +111,14 @@ impl Lowerer {
                 }
             }
         }
-        if let Some(nominal) = self.lexical_nested_nominal_target(&name.text) {
+        if let Some(nominal) = self
+            .lexical_type_alias(&name.text)
+            .map(crate::namespace::TopLevelTypeTarget::Alias)
+            .or_else(|| {
+                self.lexical_nested_nominal_target(&name.text)
+                    .map(crate::namespace::TopLevelTypeTarget::Nominal)
+            })
+        {
             let mut state = self.clone();
             match state.lower_lexical_constructor_reference(nominal, name, span, expected) {
                 Ok(Some(expression)) => {
@@ -146,7 +153,14 @@ impl Lowerer {
                 return None;
             }
             let mut state = self.clone();
-            let candidates = match state.named_reference_candidates(layer.candidates, name, span) {
+            let candidates = match state.named_reference_candidates(
+                layer.candidates,
+                name,
+                span,
+                expected_signature
+                    .as_ref()
+                    .map(|(_, signature)| signature.return_type),
+            ) {
                 Ok(candidates) => candidates,
                 Err(()) => {
                     first_failure.get_or_insert(Box::new(state));

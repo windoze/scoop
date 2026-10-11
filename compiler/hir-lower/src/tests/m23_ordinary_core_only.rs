@@ -16,6 +16,8 @@ use support::{parsed_ordinary, trusted_core, trusted_core_with_answer};
 
 fn public_type_alias(name: &str, target: scoop_ast::TypeRef) -> scoop_ast::Decl {
     scoop_ast::Decl::TypeAlias(scoop_ast::TypeAliasDecl {
+        type_params: Vec::new(),
+        where_clause: None,
         visibility: scoop_ast::VisibilitySyntax::Explicit {
             visibility: scoop_ast::DeclaredVisibility::Public,
             span: sp(),

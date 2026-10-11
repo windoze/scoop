@@ -24,15 +24,13 @@ pub enum Decl {
     Object(ObjectDecl),
 }
 
-/// A top-level, non-generic transparent type alias (spec 3.2.1).
-///
-/// The declaration has source identity and visibility, while its target is
-/// the only type represented by the alias. Generic and nested/local aliases
-/// are rejected by the parser in the M22 language subset.
+/// A transparent alias, expanded in its declaration-site type scope.
 #[derive(Debug, Clone, PartialEq)]
 pub struct TypeAliasDecl {
     pub visibility: VisibilitySyntax,
     pub name: Ident,
+    pub type_params: Vec<TypeParamDecl>,
+    pub where_clause: Option<WhereClause>,
     pub target: TypeRef,
     pub span: Span,
 }
@@ -357,7 +355,7 @@ pub enum ClassMember {
     ReleaseBlock(ReleaseBlock),
     SecondaryConstructor(SecondaryConstructorDecl),
     Function(FunctionDecl),
-    Nested(Box<NestedNominalDecl>),
+    Nested(Box<NestedTypeDecl>),
     Companion(Box<CompanionObjectDecl>),
 }
 
@@ -380,7 +378,7 @@ pub enum StructMember {
     SecondaryConstructor(SecondaryConstructorDecl),
     Function(Box<FunctionDecl>),
     Property(Box<PropertyDecl>),
-    Nested(Box<NestedNominalDecl>),
+    Nested(Box<NestedTypeDecl>),
     Companion(Box<CompanionObjectDecl>),
 }
 
@@ -459,7 +457,7 @@ pub struct InterfaceDecl {
     pub where_clause: Option<WhereClause>,
     pub methods: Vec<FunctionDecl>,
     pub properties: Vec<PropertyDecl>,
-    pub nested: Vec<NestedNominalDecl>,
+    pub nested: Vec<NestedTypeDecl>,
     pub companion: Option<CompanionObjectDecl>,
     pub span: Span,
 }
@@ -493,7 +491,8 @@ pub enum CompanionNameSyntax {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum NestedNominalDecl {
+pub enum NestedTypeDecl {
+    TypeAlias(Box<TypeAliasDecl>),
     Struct(Box<StructDecl>),
     Enum(Box<EnumDecl>),
     Class(Box<ClassDecl>),
@@ -502,9 +501,10 @@ pub enum NestedNominalDecl {
     AnnotationClass(Box<AnnotationClassDecl>),
 }
 
-impl NestedNominalDecl {
+impl NestedTypeDecl {
     pub fn span(&self) -> Span {
         match self {
+            Self::TypeAlias(declaration) => declaration.span,
             Self::Struct(declaration) => declaration.span,
             Self::Enum(declaration) => declaration.span,
             Self::Class(declaration) => declaration.span,
@@ -561,7 +561,7 @@ pub struct EnumDecl {
     /// Member functions (spec 4.2).
     pub methods: Vec<FunctionDecl>,
     pub properties: Vec<PropertyDecl>,
-    pub nested: Vec<NestedNominalDecl>,
+    pub nested: Vec<NestedTypeDecl>,
     pub companion: Option<CompanionObjectDecl>,
     pub span: Span,
 }

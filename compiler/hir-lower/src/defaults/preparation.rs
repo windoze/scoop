@@ -31,6 +31,7 @@ pub(crate) enum DefaultArgumentSource {
 
 #[derive(Clone)]
 pub(super) struct LocalDefaultEnvironment {
+    pub types: crate::scope::Scopes,
     pub available: HashMap<crate::CaptureKey, crate::AvailableCapture>,
     pub receivers: Vec<crate::ReceiverScope>,
     pub functions: crate::scope::LocalFunctionScopes,

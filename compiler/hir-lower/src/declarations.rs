@@ -59,6 +59,12 @@ impl Lowerer {
             });
         }
         if let Some(owner) = owner {
+            if self
+                .nested_aliases_by_owner
+                .contains_key(&(owner, name.to_owned()))
+            {
+                return Some("a typealias");
+            }
             return self
                 .nested_annotations_by_owner
                 .contains_key(&(owner, name.to_owned()))

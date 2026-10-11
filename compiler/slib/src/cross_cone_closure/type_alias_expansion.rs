@@ -13,7 +13,7 @@ use scoop_lir::ValidatedLirTargetSelection;
 use scoop_wire::{WireError, WirePath};
 use std::fmt;
 
-/// An externally closed HIR graph whose public non-generic aliases have been
+/// An externally closed HIR graph whose public aliases have been
 /// expanded to final signature types without exposing transitive providers as
 /// ordinary lookup candidates.
 pub struct TypeAliasExpandedCrossConeHirClosure<'input> {

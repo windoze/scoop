@@ -120,10 +120,10 @@ fn projected_declarations() -> Vec<Decl> {
         unreachable!()
     };
     outer_decl.members.extend([
-        ast::ClassMember::Nested(Box::new(ast::NestedNominalDecl::Struct(Box::new(
+        ast::ClassMember::Nested(Box::new(ast::NestedTypeDecl::Struct(Box::new(
             nested_struct,
         )))),
-        ast::ClassMember::Nested(Box::new(ast::NestedNominalDecl::Object(Box::new(
+        ast::ClassMember::Nested(Box::new(ast::NestedTypeDecl::Object(Box::new(
             nested_object,
         )))),
     ]);

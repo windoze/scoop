@@ -14,14 +14,7 @@ pub fn dump(file: &SourceFile) -> String {
                 dump_global_property(g, &mut out);
             }
             Decl::AnnotationClass(declaration) => dump_annotation_class(declaration, 1, &mut out),
-            Decl::TypeAlias(alias) => {
-                out.push_str(&format!(
-                    "  {}typealias {} = {}\n",
-                    dump_visibility(alias.visibility),
-                    alias.name.text,
-                    dump_type_ref(&alias.target)
-                ));
-            }
+            Decl::TypeAlias(alias) => dump_type_alias(alias, 1, &mut out),
             Decl::Enum(e) => {
                 dump_annotations(&e.annotations, 2, &mut out);
                 let type_params = if e.type_params.is_empty() {
@@ -465,33 +458,34 @@ fn dump_member_function(function: &FunctionDecl, indent: usize, out: &mut String
     ));
 }
 
-fn dump_nested_nominal(declaration: &NestedNominalDecl, indent: usize, out: &mut String) {
+fn dump_nested_nominal(declaration: &NestedTypeDecl, indent: usize, out: &mut String) {
     let pad = "  ".repeat(indent);
     match declaration {
-        NestedNominalDecl::AnnotationClass(declaration) => {
+        NestedTypeDecl::TypeAlias(declaration) => dump_type_alias(declaration, indent, out),
+        NestedTypeDecl::AnnotationClass(declaration) => {
             dump_annotation_class(declaration, indent, out)
         }
-        NestedNominalDecl::Struct(declaration) => out.push_str(&format!(
+        NestedTypeDecl::Struct(declaration) => out.push_str(&format!(
             "{pad}{}nested struct {}\n",
             dump_visibility(declaration.visibility),
             declaration.name.text
         )),
-        NestedNominalDecl::Enum(declaration) => out.push_str(&format!(
+        NestedTypeDecl::Enum(declaration) => out.push_str(&format!(
             "{pad}{}nested enum {}\n",
             dump_visibility(declaration.visibility),
             declaration.name.text
         )),
-        NestedNominalDecl::Class(declaration) => out.push_str(&format!(
+        NestedTypeDecl::Class(declaration) => out.push_str(&format!(
             "{pad}{}nested class {}\n",
             dump_visibility(declaration.visibility),
             declaration.name.text
         )),
-        NestedNominalDecl::Interface(declaration) => out.push_str(&format!(
+        NestedTypeDecl::Interface(declaration) => out.push_str(&format!(
             "{pad}{}nested interface {}\n",
             dump_visibility(declaration.visibility),
             declaration.name.text
         )),
-        NestedNominalDecl::Object(declaration) => out.push_str(&format!(
+        NestedTypeDecl::Object(declaration) => out.push_str(&format!(
             "{pad}{}nested object {}\n",
             dump_visibility(declaration.visibility),
             declaration.name.text
@@ -680,4 +674,16 @@ fn dump_parameter(name: &str, ty: &TypeRef, syntax: &ParameterSyntax) -> String 
             ..
         } => format!("vararg {name}: {ty} = <expr>"),
     }
+}
+
+pub(super) fn dump_type_alias(alias: &TypeAliasDecl, indent: usize, out: &mut String) {
+    out.push_str(&format!(
+        "{}{}typealias {}{}{} = {}\n",
+        "  ".repeat(indent),
+        dump_visibility(alias.visibility),
+        alias.name.text,
+        dump_type_params(&alias.type_params),
+        dump_where_clause(alias.where_clause.as_ref()),
+        dump_type_ref(&alias.target)
+    ));
 }

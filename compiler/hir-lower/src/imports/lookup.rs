@@ -39,6 +39,7 @@ pub(crate) enum LookupResult<T> {
 pub(crate) enum TypeLookupOrigin {
     CurrentUnit(CurrentUnitBindingId),
     ExistingM22Core,
+    Lexical,
     Dependency,
 }
 
@@ -283,6 +284,12 @@ impl Lowerer {
     }
 
     pub(crate) fn lookup_type(&self, name: &str) -> LookupResult<TypeLookupCandidate> {
+        if let Some(alias) = self.lexical_type_alias(name) {
+            return LookupResult::Unique(TypeLookupCandidate {
+                target: TypeLookupTarget::Current(TopLevelTypeTarget::Alias(alias)),
+                origin: TypeLookupOrigin::Lexical,
+            });
+        }
         self.select_type_layer(self.type_lookup_layers(name))
     }
 

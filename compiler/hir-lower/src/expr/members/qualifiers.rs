@@ -2,16 +2,14 @@ use super::*;
 use crate::NominalTarget;
 use crate::imports::lookup::calls::{ExpressionQualifierLookup, ExpressionQualifierTarget};
 
+mod aliases;
 mod applied;
 
 impl Lowerer {
     /// A direct receiver spelling is still an expression name first. Keep
     /// this guard shared by every qualifier consumer so none of them can
     /// bypass a higher lexical/member value while probing a lower type.
-    pub(in crate::expr) fn lexical_or_member_value_blocks_type_qualifier(
-        &self,
-        name: &str,
-    ) -> bool {
+    pub(crate) fn lexical_or_member_value_blocks_type_qualifier(&self, name: &str) -> bool {
         let initializing_field = self.initialization_context.is_some() && {
             let mut state = self.clone();
             state.initializing_receiver_has_field(name)

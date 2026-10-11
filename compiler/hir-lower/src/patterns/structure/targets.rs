@@ -43,7 +43,7 @@ impl Lowerer {
         path: &[ast::Ident],
         subject: TypeId,
     ) -> Option<bool> {
-        let matched = match self.resolve_type_name_path(path, false).ok()? {
+        let matched = match self.resolve_pattern_type_name_path(path, subject).ok()? {
             Some(ResolvedTypeName::Nominal(owner)) => self
                 .nominal_application(subject)
                 .is_some_and(|subject| subject.template == owner),

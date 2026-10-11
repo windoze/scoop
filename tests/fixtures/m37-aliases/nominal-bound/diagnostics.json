@@ -1,14 +1,14 @@
 [
   {
-    "code": "SCOOPC_PARSE_ERROR",
-    "message": "nested typealias declarations are not supported in M22; only top-level non-generic typealias declarations are supported",
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "typealias constructor: type argument `Int` for `T` must satisfy upper bound `Marker`",
     "notes": [],
     "origin": {
       "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
-      "end": 26,
+      "end": 127,
       "kind": "source",
       "path": "main.scoop",
-      "start": 17
+      "start": 117
     },
     "severity": "error"
   }

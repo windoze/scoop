@@ -14,6 +14,7 @@ pub(in crate::expr) enum ImportedCallArguments<'a> {
 
 #[derive(Clone, Copy)]
 pub(in crate::expr) struct ImportedProbeCall<'a> {
+    pub(in crate::expr) alias: Option<&'a crate::aliases::AliasTemplate>,
     pub(super) type_args: &'a [ast::CallTypeArgument],
     pub(in crate::expr) arguments: ImportedCallArguments<'a>,
     pub(in crate::expr) span: ast::Span,
@@ -22,6 +23,7 @@ pub(in crate::expr) struct ImportedProbeCall<'a> {
 impl<'a> From<CallSite<'a>> for ImportedProbeCall<'a> {
     fn from(call: CallSite<'a>) -> Self {
         Self {
+            alias: None,
             type_args: call.type_args,
             arguments: ImportedCallArguments::Source(call.args),
             span: call.span,
@@ -32,6 +34,7 @@ impl<'a> From<CallSite<'a>> for ImportedProbeCall<'a> {
 impl<'a> ImportedProbeCall<'a> {
     pub(in crate::expr) fn lowered(arguments: &'a [hir::Expr], span: ast::Span) -> Self {
         Self {
+            alias: None,
             type_args: &[],
             arguments: ImportedCallArguments::Lowered(arguments),
             span,

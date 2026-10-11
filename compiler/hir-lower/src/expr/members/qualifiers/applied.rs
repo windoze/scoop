@@ -14,9 +14,12 @@ impl Lowerer {
             && access.navigation == ast::Navigation::Direct
             && let ast::FieldSelector::Name(name) = &access.selector
             && let Some((host, target)) = self.resolve_applied_qualifier(&access.receiver)?
-            && self
+            && (self
                 .nested_nominal_target(target.owner(), &name.text)
                 .is_some()
+                || self
+                    .nested_aliases_by_owner
+                    .contains_key(&(target.owner(), name.text.clone())))
         {
             let ty = self
                 .resolve_applied_member_type(host, name, &[], access.span)

@@ -39,6 +39,17 @@ pub(super) fn project(
         }
     }
 
+    for &id in &projection.export.public_surface.type_aliases {
+        if projection.export.type_aliases[id].owner == Some(expected_owner) {
+            collect_target(
+                projection,
+                owner,
+                BindableEntity::TypeAlias(projection.export.type_alias_identities[id].id()),
+                &mut bindings,
+            )?;
+        }
+    }
+
     if let LocalNominalId::Object(id) = local {
         let backing = &projection.export.classes[projection.export.objects[id].backing_class];
         for function in &backing.methods {

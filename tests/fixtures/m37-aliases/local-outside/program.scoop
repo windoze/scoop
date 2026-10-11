@@ -1,0 +1,1 @@
+fun main() { if (true) { typealias Local = Int; val value: Local = 42 }; val value: Local = 7 }

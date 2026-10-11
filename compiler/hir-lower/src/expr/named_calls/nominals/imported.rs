@@ -3,12 +3,14 @@
 use super::*;
 
 impl Lowerer {
+    #[allow(clippy::too_many_arguments)]
     pub(super) fn collect_imported_constructor_probes(
         mut self,
         owner: hir::SourceNominalId,
         call: &ast::CallExpr,
         expected: Option<TypeId>,
         fixed_alias: bool,
+        alias: Option<&crate::aliases::AliasTemplate>,
         applicable: &mut Vec<NamedApplicable>,
         failures: &mut Vec<Box<Lowerer>>,
     ) {
@@ -28,6 +30,7 @@ impl Lowerer {
                     call,
                     expected,
                     fixed_alias,
+                    alias,
                     applicable,
                     failures,
                 );
@@ -78,7 +81,7 @@ impl Lowerer {
             return;
         }
         for candidate in candidates {
-            match self.probe_imported_constructor(candidate, call, expected) {
+            match self.probe_imported_constructor(candidate, call, expected, alias) {
                 Ok(probe) => applicable.push(NamedApplicable {
                     probe: NamedFunctionLikeProbe::ImportedDependency(Box::new(probe)),
                     commit: NamedFunctionCommit::ImportedDependency,
@@ -109,6 +112,7 @@ impl Lowerer {
             &call,
             expected,
             false,
+            None,
             &mut applicable,
             &mut failures,
         );

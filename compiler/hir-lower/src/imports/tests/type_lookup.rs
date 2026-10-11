@@ -46,6 +46,8 @@ fn marker(output: &hir::Output) -> &str {
 
 fn alias(name: &str, target: ast::TypeRef) -> ast::Decl {
     ast::Decl::TypeAlias(ast::TypeAliasDecl {
+        type_params: Vec::new(),
+        where_clause: None,
         visibility: ast::VisibilitySyntax::Omitted,
         name: ident(name),
         target,
@@ -344,7 +346,7 @@ fn imported_type_qualifier_walks_nested_owners_without_package_fallback() {
         unreachable!()
     };
     host.members.push(ast::StructMember::Nested(Box::new(
-        ast::NestedNominalDecl::Struct(Box::new(nested)),
+        ast::NestedTypeDecl::Struct(Box::new(nested)),
     )));
     let library = package(file(vec![ast::Decl::Struct(host)]), &["api"]);
     let mut user = file(vec![

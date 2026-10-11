@@ -43,7 +43,6 @@ use scoop_hir as hir;
 use ast::Span;
 use hir::{ExprKind, Type, TypeId};
 
-use crate::scope::Scopes;
 use crate::types::ArrayKind;
 use crate::{
     AvailableCapture, CaptureContext, CaptureSource, ForbiddenSuspendContext, Lowerer,

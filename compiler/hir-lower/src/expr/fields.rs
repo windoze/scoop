@@ -7,6 +7,11 @@ impl Lowerer {
         sink: &mut Vec<hir::Statement>,
         expected: Option<TypeId>,
     ) -> Option<hir::Expr> {
+        if let ast::FieldSelector::Name(name) = &access.selector
+            && let Some((alias, index)) = self.resolve_alias_variant(&access.receiver, name).ok()?
+        {
+            return self.lower_alias_unit_variant(&alias, index, name, expected);
+        }
         if let Some(owner) = self
             .resolve_imported_nominal_qualifier(&access.receiver)
             .ok()?
@@ -58,7 +63,9 @@ impl Lowerer {
         {
             let expected = direct_alias
                 .as_ref()
-                .map_or(expected, |(alias, _)| Some(alias.target));
+                .map_or(applied.map(|(ty, _)| ty).or(expected), |(alias, _)| {
+                    Some(alias.target)
+                });
             return self.lower_qualified_variant(enum_id, access, expected);
         }
         if let (Some(qualifier), ast::FieldSelector::Name(name)) = (qualifier, &access.selector)

@@ -170,6 +170,18 @@ impl CanonicalCrossConeHirSurfaceAuthority<'_> {
                     SourceNominalId::from_source_declaration(&key)
                         .map_err(|_| invalid(owner, "nested object value has no source nominal"))?
                 }
+                BindableEntity::TypeAlias(id) => {
+                    let key = self.identities.canonical_key::<scoop_identity::PersistentTypeAliasId, SourceDeclarationKey>(id).map_err(Error::Identity)?;
+                    if self.source_key_owner("typealias", &key)? != expected
+                        || self.current_interface.type_aliases().get(id).is_none()
+                    {
+                        return Err(invalid(
+                            owner,
+                            "nested typealias binding has a different owner or no public declaration",
+                        ));
+                    }
+                    continue;
+                }
                 BindableEntity::Annotation(id) => {
                     let key = self.identities.canonical_key::<scoop_identity::PersistentAnnotationId, SourceDeclarationKey>(id).map_err(Error::Identity)?;
                     let annotation = self

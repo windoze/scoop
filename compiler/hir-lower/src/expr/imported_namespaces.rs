@@ -20,7 +20,7 @@ pub(in crate::expr) enum ImportedNominalQualifier {
 }
 
 impl ImportedNominalQualifier {
-    fn applied(self) -> Option<TypeId> {
+    pub(in crate::expr) fn applied(self) -> Option<TypeId> {
         match self {
             Self::Applied(ty) => Some(ty),
             Self::Generic(_) => None,
@@ -29,7 +29,7 @@ impl ImportedNominalQualifier {
 }
 
 impl Lowerer {
-    fn imported_qualifier_owner(
+    pub(in crate::expr) fn imported_qualifier_owner(
         &self,
         qualifier: ImportedNominalQualifier,
     ) -> hir::SourceNominalId {
@@ -43,7 +43,7 @@ impl Lowerer {
         }
     }
 
-    fn imported_static_bindings(
+    pub(in crate::expr) fn imported_static_bindings(
         &self,
         owner: hir::SourceNominalId,
         namespace: BindingNamespace,

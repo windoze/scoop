@@ -115,6 +115,8 @@ fn source_file(unrelated_prefix: bool) -> ast::SourceFile {
         public(property("answer", None)),
         public(property("extensionAnswer", Some(ty_named("Int")))),
         public(ast::Decl::TypeAlias(ast::TypeAliasDecl {
+            type_params: Vec::new(),
+            where_clause: None,
             visibility: ast::VisibilitySyntax::Omitted,
             name: ident("Number"),
             target: ty_named("Int"),
@@ -187,7 +189,7 @@ fn public_class_with_nested(name: &str, nested_name: &str) -> ast::Decl {
     };
     outer.visibility = explicit_public();
     outer.members.push(ast::ClassMember::Nested(Box::new(
-        ast::NestedNominalDecl::Class(Box::new(nested)),
+        ast::NestedTypeDecl::Class(Box::new(nested)),
     )));
     ast::Decl::Class(outer)
 }
